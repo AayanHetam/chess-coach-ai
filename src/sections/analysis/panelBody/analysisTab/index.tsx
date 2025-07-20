@@ -25,6 +25,46 @@ export default function AnalysisTab(props: GridProps) {
       board.isDraw() ||
       boardHistory.join() === gameHistory.join());
 
+  const getGameResult = () => {
+    if (!isGameOver) return null;
+    
+    if (board.isCheckmate()) {
+      // If it's white's turn and checkmate, black won
+      // If it's black's turn and checkmate, white won
+      const result = board.turn() === "w" ? "0-1" : "1-0";
+      const winner = board.turn() === "w" ? "Black" : "White";
+      return `${result} - ${winner} wins by checkmate`;
+    }
+    
+    if (board.isStalemate()) {
+      return "1/2-1/2 - Draw by stalemate";
+    }
+    
+    if (board.isInsufficientMaterial()) {
+      return "1/2-1/2 - Draw by insufficient material";
+    }
+    
+    if (board.isThreefoldRepetition()) {
+      return "1/2-1/2 - Draw by threefold repetition";
+    }
+    
+    if (board.isDraw()) {
+      return "1/2-1/2 - Draw";
+    }
+    
+    // If game history matches board history (game finished)
+    if (boardHistory.join() === gameHistory.join()) {
+      // Check game headers for result
+      const gameHeaders = game.getHeaders();
+      if (gameHeaders.Result && gameHeaders.Result !== "*") {
+        return `${gameHeaders.Result} - Game finished`;
+      }
+      return "Game finished";
+    }
+    
+    return "Game over";
+  };
+
   return (
     <Grid
       container
@@ -65,7 +105,7 @@ export default function AnalysisTab(props: GridProps) {
 
         {isGameOver && (
           <Typography align="center" fontSize="0.9rem" noWrap>
-            Game is over
+            {getGameResult()}
           </Typography>
         )}
       </Stack>

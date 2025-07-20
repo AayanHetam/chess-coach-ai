@@ -1,7 +1,8 @@
 import { EngineName, MoveClassification } from "./types/enums";
 
-export const MAIN_THEME_COLOR = "#3B9AC6";
-export const LINEAR_PROGRESS_BAR_COLOR = "#3B9AC6";
+// Chess Masti AI orange theme color - vibrant and fun!
+export const MAIN_THEME_COLOR = "#FF6B35";
+export const LINEAR_PROGRESS_BAR_COLOR = "#FF8C42"; // Light orange for progress bars
 
 export const CLASSIFICATION_COLORS: Record<MoveClassification, string> = {
   [MoveClassification.Opening]: "#dbac86",

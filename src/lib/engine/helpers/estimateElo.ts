@@ -12,14 +12,14 @@ export const computeEstimatedElo = (
 
   const { whiteCpl, blackCpl } = getPlayersAverageCpl(positions);
 
-  const whiteEstimatedElo = getEloFromRatingAndCpl(
+  const whiteEstimatedElo = Math.max(100, getEloFromRatingAndCpl(
     whiteCpl,
     whiteElo ?? blackElo
-  );
-  const blackEstimatedElo = getEloFromRatingAndCpl(
+  ));
+  const blackEstimatedElo = Math.max(100, getEloFromRatingAndCpl(
     blackCpl,
     blackElo ?? whiteElo
-  );
+  ));
 
   return { white: whiteEstimatedElo, black: blackEstimatedElo };
 };
@@ -67,7 +67,7 @@ const getPlayersAverageCpl = (
 
 // Source: https://lichess.org/forum/general-chess-discussion/how-to-estimate-your-elo-for-a-game-using-acpl-and-what-it-realistically-means
 const getEloFromAverageCpl = (averageCpl: number) =>
-  3100 * Math.exp(-0.01 * averageCpl);
+  Math.max(100, 3100 * Math.exp(-0.01 * averageCpl));
 
 const getAverageCplFromElo = (elo: number) =>
   -100 * Math.log(Math.min(elo, 3100) / 3100);
@@ -84,8 +84,8 @@ const getEloFromRatingAndCpl = (
   if (cplDiff === 0) return eloFromCpl;
 
   if (cplDiff > 0) {
-    return rating * Math.exp(-0.005 * cplDiff);
+    return Math.max(100, rating * Math.exp(-0.005 * cplDiff));
   } else {
-    return rating / Math.exp(-0.005 * -cplDiff);
+    return Math.max(100, rating / Math.exp(-0.005 * -cplDiff));
   }
 };

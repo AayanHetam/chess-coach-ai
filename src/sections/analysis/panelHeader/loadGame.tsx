@@ -43,7 +43,7 @@ export default function LoadGame() {
       resetAndSetGamePgn(gameFromUrl.pgn);
       setEval(gameFromUrl.eval);
       setBoardOrientation(
-        gameFromUrl.black.name === "You" && gameFromUrl.site === "Chesskit.org"
+        gameFromUrl.black.name === "You" && gameFromUrl.site === "Chess-Masti-AI.com"
           ? false
           : true
       );

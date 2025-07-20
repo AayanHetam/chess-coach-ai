@@ -295,6 +295,7 @@ export default function Board({
           height={boardRef?.current?.offsetHeight || boardSize || 400}
           boardOrientation={boardOrientation}
           currentPositionAtom={currentPositionAtom}
+          boardAtom={gameAtom}
         />
       )}
 

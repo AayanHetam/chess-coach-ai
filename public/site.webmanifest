@@ -1,6 +1,7 @@
 {
-  "name": "Chesskit",
-  "short_name": "Chesskit",
+  "name": "Chess Masti AI",
+  "short_name": "Chess Masti AI",
+  "description": "Make chess fun with AI-powered coaching - enjoy the masti!",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
@@ -13,7 +14,9 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#5d9948",
-  "background_color": "#ffffff",
-  "display": "standalone"
+  "theme_color": "#FF6B35",
+  "background_color": "#FFFFFF",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/"
 }

@@ -42,41 +42,52 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
         position="static"
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          backgroundColor: darkMode ? "#19191c" : "white",
-          color: darkMode ? "white" : "black",
+          backgroundColor: darkMode ? "#19191c" : "#FFFFFF",
+          color: darkMode ? "white" : "#333333",
+          borderBottom: darkMode ? "none" : "2px solid #FFE4D6",
+          boxShadow: darkMode ? "none" : "0 2px 12px rgba(255, 107, 53, 0.1)",
         }}
         enableColorOnDark
       >
-        <Toolbar variant="dense">
+        <Toolbar variant="dense" sx={{ py: 1 }}>
           <IconButton
             size="large"
             edge="start"
-            color="inherit"
-            aria-label="menu"
-            sx={{ mr: "min(0.5vw, 0.6rem)", padding: 1, my: 1 }}
+            sx={{ 
+              mr: "min(0.5vw, 0.6rem)", 
+              padding: 1, 
+              my: 1,
+              color: darkMode ? "white" : "#FF6B35" // Orange icon in light mode
+            }}
             onClick={() => setDrawerOpen((val) => !val)}
           >
             <Icon icon="mdi:menu" />
           </IconButton>
 
-          <Image
-            src="/favicon-32x32.png"
-            alt="Chesskit logo"
-            width={32}
-            height={32}
-          />
-
           <NavLink href="/">
+            <img
+              src="/android-chrome-192x192.png"
+              width={32}
+              height={32}
+              alt="Chess Masti AI - Orange Rook Logo"
+              style={{ marginRight: '8px' }}
+            />
             <Typography
               variant="h6"
               component="div"
               sx={{
                 flexGrow: 1,
-                ml: 1,
-                fontSize: { xs: "1rem", sm: "1.25rem" },
+                fontWeight: 'bold',
+                background: darkMode 
+                  ? 'linear-gradient(45deg, #FF6B6B 30%, #4ECDC4 90%)' 
+                  : 'linear-gradient(45deg, #FF6B35 30%, #FF8C42 90%)', // Orange gradient for light mode
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                fontSize: { xs: "1.1rem", sm: "1.25rem" },
               }}
             >
-              Chesskit
+              Chess Masti AI
             </Typography>
           </NavLink>
 
@@ -85,26 +96,35 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <IconButton color="inherit" component="span">
+            <IconButton 
+              sx={{ color: darkMode ? "white" : "#FF6B35" }}
+              component="span"
+            >
               <Icon icon="ri:discord-fill" />
             </IconButton>
           </StyledIconButtonLink>
 
           <StyledIconButtonLink
-            href="https://github.com/GuillaumeSD/Chesskit"
+            href="https://github.com/your-username/chess-masti-ai"
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="GitHub repository"
             sx={{ ml: "min(0.6rem, 0.8vw)" }}
           >
-            <IconButton color="inherit" component="span">
+            <IconButton 
+              sx={{ color: darkMode ? "white" : "#FF6B35" }}
+              component="span"
+            >
               <Icon icon="mdi:github" />
             </IconButton>
           </StyledIconButtonLink>
 
           <IconButton
-            sx={{ ml: "min(0.6rem, 0.8vw)" }}
+            sx={{ 
+              ml: "min(0.6rem, 0.8vw)",
+              color: darkMode ? "white" : "#FF6B35"
+            }}
             onClick={switchDarkMode}
-            color="inherit"
             edge="end"
           >
             {darkMode ? (

@@ -1,85 +1,141 @@
-<div align="center">
-  <a href="https://github.com/GuillaumeSD/Chesskit">
-    <img width="120" height="120" src="https://github.com/GuillaumeSD/Chesskit/blob/main/public/android-chrome-192x192.png" alt="Logo">
-  </a>
+<a href="https://github.com/your-username/chess-masti-ai">
+<img width="120" height="120" src="https://github.com/your-username/chess-masti-ai/blob/main/public/android-chrome-192x192.png" alt="Chess Masti AI Logo">
+</a>
 
-<h3 align="center">Chesskit</h3>
-  <p align="center">
-    The Ultimate Chess Web App
-    <br />
-    <a href="https://chesskit.org/" target="_blank" rel="noopener noreferrer"><strong>chesskit.org</strong></a>
-    <br />
-    <a href="https://discord.com/invite/Yr99abAcUr" target="_blank" rel="noopener noreferrer">Discord Server</a>
-    ·
-    <a href="https://chesskit.notion.site/4cf7823836724432b71aa8932ba7d5bb" target="_blank" rel="noopener noreferrer">Features Backlog</a>
-  </p>
-</div>
+<h3 align="center">Chess Masti AI</h3>
+
+<p align="center">
+<a href="https://chess-masti-ai.com/" target="_blank" rel="noopener noreferrer"><strong>chess-masti-ai.com</strong></a>
 <br />
+<em>Make Chess Fun with AI-Powered Coaching! 🎉</em>
+<br />
+<br />
+<a href="https://github.com/your-username/chess-masti-ai/issues">Report Bug</a>
+·
+<a href="https://github.com/your-username/chess-masti-ai/issues">Request Feature</a>
+</p>
 
-Chesskit is an open-source chess website to play, view, analyze and review your chess games for free on any device with Stockfish !
+## About
 
-## Mission
+**Chess Masti AI** brings the joy back to chess learning! 🎯 We believe chess should be **fun, engaging, and accessible** to everyone. Unlike boring traditional chess sites that just show cold engine evaluations, Chess Masti AI makes learning **enjoyable** by explaining the **WHY** behind moves using fundamental chess principles.
 
-Chesskit aims to offer all the chess related features it can, while being free and open-source. It is designed to be easy to use, fast, and reliable.
+**"Masti"** means *fun* and *enjoyment* - and that's exactly what we bring to chess improvement!
 
-## Features
+### 🎉 What Makes Chess Masti AI Special
 
-- Load and review games from [chess.com](https://chess.com) and [lichess.org](https://lichess.org)
-- Analysis board with live engine evaluation, custom arrows, evaluation graph, ...
-- Moves classification (Brilliant, Great, Good, Mistake, Blunder, ...)
-- Chess960 and Puzzles support
-- Play against Stockfish at any elo
-- Store your games in your browser database
+Transform your chess journey with:
+- **🎮 Fun-First Learning**: Chess principles explained in an engaging, enjoyable way
+- **🎯 Smart Adaptation**: AI coaching that matches your skill level and keeps you motivated
+- **🎨 Intelligent Feedback**: Learn WHY moves work through colorful, easy-to-understand explanations
+- **🎊 Celebration of Progress**: Every improvement is recognized and celebrated
+- **🎈 Playful Mastery**: Serious improvement through enjoyable, masti-filled sessions
 
-<img src="https://github.com/GuillaumeSD/Chesskit/blob/main/assets/showcase.png" />
+### ✨ Core Features
 
-## Stack
+- 🤖 **AI Masti Coach** - Your fun, encouraging chess companion
+- 📚 **25+ Chess Principles** - Learn the fundamentals that make chess beautiful
+- 🎯 **Smart Analysis** - Pinpoint exactly where to improve (without the overwhelm!)
+- 🎨 **Colorful Feedback** - Visual, engaging explanations that stick
+- ⚡ **Instant Coaching** - Real-time feedback as you explore positions  
+- 🎮 **Fun Practice Mode** - Enjoy games against Stockfish at your level
+- 💾 **Progress Tracking** - Save and celebrate your chess journey
+- 📱 **Play Anywhere** - Desktop, tablet, mobile - the masti never stops!
 
-Built with [Next.js](https://nextjs.org/docs), [React](https://react.dev/learn/describing-the-ui), [Material UI](https://mui.com/material-ui/getting-started/overview/), and [TypeScript](https://www.typescriptlang.org/docs/handbook/typescript-from-scratch.html).
+<img src="https://github.com/your-username/chess-masti-ai/blob/main/assets/showcase.png" />
 
-Deployed on AWS with [AWS CDK](https://docs.aws.amazon.com/cdk/v2/guide/home.html), see it live [here](https://chesskit.org).
+## 🌟 How the Masti Works
 
-## Running the app in dev mode
+1. **🎯 Upload Your Game** - Import PGN files or enter moves manually
+2. **🎨 AI Magic** - Our Masti AI analyzes each move through fun principles
+3. **🎉 Learn & Enjoy** - Get engaging explanations that make sense AND stick
+4. **🎮 Practice & Play** - Apply your new knowledge in enjoyable practice sessions
 
-At least [Node.js](https://nodejs.org) 22.11 is required.
+## 🚀 Experience the Masti
 
-Install the dependencies :
+Ready to make chess fun? Try Chess Masti AI at [chess-masti-ai.com](https://chess-masti-ai.com)
+
+## 🛠️ Tech Stack (The Fun Stuff)
+
+- **Frontend**: React 18, Next.js 15, TypeScript
+- **UI**: Material-UI (MUI) with colorful, engaging designs
+- **Chess Engine**: Stockfish.js for powerful analysis
+- **AI Brain**: Anthropic Claude for intelligent, fun coaching
+- **State Management**: Jotai for smooth interactions
+- **Deployment**: AWS with CDK for reliable masti delivery
+
+## 🏃‍♂️ Start Your Masti Journey Locally
+
+### What You Need
+
+- Node.js 18+ and npm
+- Git
+- A love for chess and fun! 🎉
+
+### Get Started
 
 ```bash
-npm i
-```
+# Clone the masti
+git clone https://github.com/your-username/chess-masti-ai.git
+cd chess-masti-ai
 
-Run the development server :
+# Install the magic
+npm install
 
-```bash
+# Set up your environment
+cp .env.example .env.local
+# Add your Anthropic API key to .env.local
+
+# Start the masti!
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in the browser to see the app running.
+Open [http://localhost:3000](http://localhost:3000) and let the chess masti begin! 🎊
 
-The app will automatically refresh on any source file change.
-
-## Lint
-
-Run it with :
+### Available Commands
 
 ```bash
-npm run lint
+npm run dev     # Start the masti development server
+npm run build   # Build for production masti
+npm run start   # Start production masti server
+npm run lint    # Keep the code clean and fun
+npm run deploy  # Share the masti with the world (AWS)
 ```
 
-## Contribute
+## 🤝 Join the Masti Community
 
-See [contributing](CONTRIBUTING.md) for details on how to contribute to the project.
+We'd love your contributions to make chess even more fun! Here's how:
 
-## Deploy
+1. **🍴 Fork the repository** - Make it yours!
+2. **🌟 Create a feature branch**: `git checkout -b feature/more-masti`
+3. **🎨 Add your masti** and test it thoroughly
+4. **📝 Commit with joy**: `git commit -m 'Add more chess masti!'`
+5. **🚀 Share the fun**: `git push origin feature/more-masti`
+6. **🎉 Open a Pull Request** - Let's celebrate together!
 
-To deploy the app, install [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and [authenticate](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-quickstart.html), then run :
+### Masti Guidelines
 
-```bash
-npm run deploy
-```
+- Keep it fun and engaging! 🎉
+- Write code that brings joy to chess learning
+- Test across devices - masti should work everywhere
+- Follow TypeScript best practices with a smile
+- Ensure all checks pass (but make it fun!)
 
-## License
+## 📄 License
 
-Chesskit is licensed under the GNU Affero General Public License 3. See [copying](COPYING.md) for
-details.
+Chess Masti AI spreads joy under the GNU Affero General Public License 3. See [COPYING.md](COPYING.md) for the fun legal details.
+
+## 🙏 Masti Acknowledgments
+
+Big thanks to the amazing projects that make our masti possible:
+
+- 🎯 [Stockfish](https://stockfishchess.org/) - The chess engine that powers our analysis
+- 🤖 [Anthropic](https://anthropic.com/) - AI that makes coaching fun and intelligent  
+- ♟️ [Chess.js](https://github.com/jhlywa/chess.js) - Reliable chess game logic
+- 🎨 [React Chessboard](https://github.com/Clariity/react-chessboard) - Beautiful chess boards for our masti
+
+---
+
+<p align="center">
+Made with ♟️ and lots of masti by chess lovers, for chess lovers!<br/>
+<em>Let's make chess fun together! 🎉</em>
+</p>

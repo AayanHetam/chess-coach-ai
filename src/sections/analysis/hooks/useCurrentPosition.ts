@@ -39,23 +39,26 @@ export const useCurrentPosition = (engine: UciEngine | null) => {
     ) {
       position.currentMoveIdx = boardHistory.length;
 
-      if (gameEval) {
+      if (gameEval && gameEval.positions) {
         const evalIndex = boardHistory.length;
+        const currentEval = gameEval.positions[evalIndex];
+        const prevEval = evalIndex > 0 ? gameEval.positions[evalIndex - 1] : null;
 
-        position.eval = {
-          ...gameEval.positions[evalIndex],
-          lines: gameEval.positions[evalIndex].lines.slice(0, multiPv),
-        };
-        position.lastEval =
-          evalIndex > 0
-            ? {
-                ...gameEval.positions[evalIndex - 1],
-                lines: gameEval.positions[evalIndex - 1].lines.slice(
-                  0,
-                  multiPv
-                ),
-              }
-            : undefined;
+        // Safely assign current evaluation if it exists
+        if (currentEval && currentEval.lines) {
+          position.eval = {
+            ...currentEval,
+            lines: currentEval.lines.slice(0, multiPv),
+          };
+        }
+
+        // Safely assign previous evaluation if it exists
+        if (prevEval && prevEval.lines) {
+          position.lastEval = {
+            ...prevEval,
+            lines: prevEval.lines.slice(0, multiPv),
+          };
+        }
       }
     }
 
@@ -83,15 +86,29 @@ export const useCurrentPosition = (engine: UciEngine | null) => {
         fen: string,
         setPartialEval?: (positionEval: PositionEval) => void
       ) => {
-        if (!engine.getIsReady()) {
-          throw new Error("Engine not ready");
+        // Double-check engine readiness with graceful handling
+        if (!engine || !engine.getIsReady()) {
+          console.warn('Engine not ready for evaluation, skipping...');
+          // Return a basic evaluation structure
+          return {
+            lines: [
+              {
+                pv: [],
+                depth: 0,
+                multiPv: 1,
+                cp: 0,
+              },
+            ],
+          };
         }
         const savedEval = savedEvals[fen];
         if (
           savedEval &&
           savedEval.engine === engine.name &&
           (savedEval.lines?.length ?? 0) >= multiPv &&
-          (savedEval.lines[0].depth ?? 0) >= depth
+          savedEval.lines &&
+          savedEval.lines.length > 0 &&
+          (savedEval.lines[0]?.depth ?? 0) >= depth
         ) {
           const positionEval: PositionEval = {
             ...savedEval,
@@ -101,29 +118,45 @@ export const useCurrentPosition = (engine: UciEngine | null) => {
           return positionEval;
         }
 
-        const rawPositionEval = await engine.evaluatePositionWithUpdate({
-          fen,
-          depth,
-          multiPv,
-          setPartialEval,
-        });
+        try {
+          const rawPositionEval = await engine.evaluatePositionWithUpdate({
+            fen,
+            depth,
+            multiPv,
+            setPartialEval,
+          });
 
-        setSavedEvals((prev) => ({
-          ...prev,
-          [fen]: { ...rawPositionEval, engine: engine.name },
-        }));
+          setSavedEvals((prev) => ({
+            ...prev,
+            [fen]: { ...rawPositionEval, engine: engine.name },
+          }));
 
-        return rawPositionEval;
+          return rawPositionEval;
+        } catch (error) {
+          console.warn('Engine evaluation failed:', error);
+          // Return a basic evaluation structure on error
+          return {
+            lines: [
+              {
+                pv: [],
+                depth: 0,
+                multiPv: 1,
+                cp: 0,
+              },
+            ],
+          };
+        }
       };
 
       const getPositionEval = async () => {
-        const setPartialEval = (positionEval: PositionEval) => {
-          setCurrentPosition({ ...position, eval: positionEval });
-        };
-        const rawPositionEval = await getFenEngineEval(
-          board.fen(),
-          setPartialEval
-        );
+        try {
+          const setPartialEval = (positionEval: PositionEval) => {
+            setCurrentPosition({ ...position, eval: positionEval });
+          };
+          const rawPositionEval = await getFenEngineEval(
+            board.fen(),
+            setPartialEval
+          );
 
         if (boardHistory.length === 0) return;
 
@@ -131,7 +164,19 @@ export const useCurrentPosition = (engine: UciEngine | null) => {
         const fens = params.fens.slice(board.turn() === "w" ? -3 : -4);
         const uciMoves = params.uciMoves.slice(board.turn() === "w" ? -2 : -3);
 
-        const lastRawEval = await getFenEngineEval(fens.slice(-2)[0]);
+        const fenSlice = fens.slice(-2);
+        const lastRawEval = fenSlice.length > 0 
+          ? await getFenEngineEval(fenSlice[0])
+          : {
+              lines: [
+                {
+                  pv: [],
+                  depth: 0,
+                  multiPv: 1,
+                  cp: 0,
+                },
+              ],
+            };
         const rawPositions: PositionEval[] = fens.map((_, idx) => {
           if (idx === fens.length - 2) return lastRawEval;
           if (idx === fens.length - 1) return rawPositionEval;
@@ -158,6 +203,11 @@ export const useCurrentPosition = (engine: UciEngine | null) => {
           eval: positionsWithMoveClassification.slice(-1)[0],
           lastEval: positionsWithMoveClassification.slice(-2)[0],
         });
+        } catch (error) {
+          console.warn('Position evaluation failed:', error);
+          // Set position without evaluation on error
+          setCurrentPosition(position);
+        }
       };
 
       getPositionEval();

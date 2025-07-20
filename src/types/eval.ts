@@ -63,6 +63,7 @@ export interface EvaluateGameParams {
   setEvaluationProgress?: (value: number) => void;
   playersRatings?: { white?: number; black?: number };
   workersNb?: number;
+  useLichessEval?: boolean;
 }
 
 export interface SavedEval {

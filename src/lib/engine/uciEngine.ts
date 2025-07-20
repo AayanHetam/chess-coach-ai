@@ -249,6 +249,7 @@ export class UciEngine {
     setEvaluationProgress,
     playersRatings,
     workersNb = 1,
+    useLichessEval = true,
   }: EvaluateGameParams): Promise<GameEval> {
     this.throwErrorIfNotReady();
     this.isReady = false;
@@ -300,7 +301,7 @@ export class UciEngine {
           return;
         }
 
-        const result = await this.evaluatePosition(fen, depth, workersNb);
+        const result = await this.evaluatePosition(fen, depth, workersNb, useLichessEval);
         updateEval(i, result);
       })
     );
@@ -336,9 +337,10 @@ export class UciEngine {
   private async evaluatePosition(
     fen: string,
     depth = 16,
-    workersNb: number
+    workersNb: number,
+    useLichessEval = true
   ): Promise<PositionEval> {
-    if (workersNb < 2) {
+    if (workersNb < 2 && useLichessEval) {
       const lichessEval = await getLichessEval(fen, this.multiPv);
       if (
         lichessEval.lines.length >= this.multiPv &&

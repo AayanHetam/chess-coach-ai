@@ -25,12 +25,15 @@ import { CLASSIFICATION_COLORS } from "@/constants";
 import CustomDot from "./dot";
 import { MoveClassification } from "@/types/enums";
 import { useChessActions } from "@/hooks/useChessActions";
+import { useTheme } from "@mui/material/styles";
 
 export default function GraphTab(props: GridProps) {
   const gameEval = useAtomValue(gameEvalAtom);
   const currentPosition = useAtomValue(currentPositionAtom);
   const { goToMove } = useChessActions(boardAtom);
   const game = useAtomValue(gameAtom);
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
 
   const chartData: ChartItemData[] = useMemo(
     () => gameEval?.positions.map(formatEvalToChartData) ?? [],
@@ -99,9 +102,10 @@ export default function GraphTab(props: GridProps) {
         height="100%"
         width={{ xs: "100%", lg: "90%" }}
         sx={{
-          backgroundColor: "#2e2e2e",
+          backgroundColor: isDarkMode ? "#2e2e2e" : "#FFF8F5", // Light orange-tinted white for light mode
           borderRadius: "15px",
           overflow: "hidden",
+          border: isDarkMode ? "none" : "2px solid #FFE4D6", // Orange border for light mode
         }}
       >
         <ResponsiveContainer width="100%" height="100%">
@@ -126,26 +130,26 @@ export default function GraphTab(props: GridProps) {
               content={<CustomTooltip />}
               isAnimationActive={false}
               cursor={{
-                stroke: "grey",
+                stroke: isDarkMode ? "grey" : "#FF6B35", // Orange cursor for light mode
                 strokeWidth: 2,
-                strokeOpacity: 0.3,
+                strokeOpacity: 0.5,
               }}
             />
             <Area
               type="monotone"
               dataKey="value"
               stroke="none"
-              fill="#ffffff"
-              fillOpacity={1}
+              fill={isDarkMode ? "#ffffff" : "#FF6B35"} // Orange fill for light mode
+              fillOpacity={isDarkMode ? 1 : 0.8}
               dot={renderDot}
               activeDot={<CustomDot />}
               isAnimationActive={false}
             />
             <ReferenceLine
               y={10}
-              stroke="grey"
+              stroke={isDarkMode ? "grey" : "#FF8C42"} // Light orange reference line
               strokeWidth={2}
-              strokeOpacity={0.4}
+              strokeOpacity={0.6}
             />
             <ReferenceLine
               x={currentPosition.currentMoveIdx}

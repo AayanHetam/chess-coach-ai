@@ -55,7 +55,8 @@ export default function MovesPanel() {
       gap={0.5}
       paddingY={1}
       sx={{ scrollbarWidth: "thin", overflowY: "auto" }}
-      maxHeight="100%"
+      height="100%"
+      maxHeight="22rem"
       size={6}
       id="moves-panel"
     >

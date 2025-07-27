@@ -384,8 +384,22 @@ export async function POST(req: Request) {
                 chessContext += '\n';
               });
               
+              // Add debugging info
+              console.log('=== VIOLATION DATA DEBUG ===');
+              console.log('Top violations:', aggressiveGameAnalysis.topViolations.map((v: any, i: number) => ({
+                index: i + 1,
+                description: v.description,
+                correctMove: v.correctMove
+              })));
+              
               chessContext += `=== OVERALL ASSESSMENT ===\n`;
               chessContext += `${aggressiveGameAnalysis.overallAssessment}\n\n`;
+              
+              // Add explicit instruction about using hypothetical moves
+              chessContext += `**🚨 CRITICAL: USE HYPOTHETICAL MOVES ONLY 🚨**\n`;
+              chessContext += `When suggesting fixes, you MUST use the HYPOTHETICAL MOVE X references above.\n`;
+              chessContext += `DO NOT use actual game moves, opponent moves, or moves from different positions.\n`;
+              chessContext += `ONLY use the specific HYPOTHETICAL MOVE X values provided.\n\n`;
               
             } else {
               // Player has high accuracy or no significant violations
@@ -464,6 +478,12 @@ export async function POST(req: Request) {
 
     // Enhanced system prompt for principle-based coaching
     chessContext += `
+**🚨 CRITICAL INSTRUCTION - READ THIS FIRST 🚨**
+When suggesting fixes for principle violations, you MUST use "HYPOTHETICAL MOVE X" format.
+NEVER use actual game moves for "Instead" suggestions.
+NEVER use opponent moves or moves from different positions.
+ONLY use the HYPOTHETICAL MOVE X values provided in the analysis data.
+
 === YOUR ROLE AS CHESS PRINCIPLES COACH ===
 You are an expert chess coach who teaches through chess principles. Your responses should:
 
@@ -541,7 +561,7 @@ When users ask about:
 
 Focus on piece development and king safety in future games.
 
-**Note**: The "Instead" moves are hypothetical suggestions that show what should have been played to follow the principle correctly."
+**CRITICAL**: The "Instead" moves are hypothetical suggestions that show what should have been played to follow the principle correctly. Use ONLY the HYPOTHETICAL MOVE X references provided in the analysis data."
 
 **For games WITHOUT violations (perfect play):**
 "Looking at your move-by-move analysis, I found no significant principle violations in your play. You successfully applied key principles throughout the game with strong tactical awareness and positional understanding.

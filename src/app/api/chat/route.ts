@@ -409,7 +409,8 @@ export async function POST(req: Request) {
               chessContext += `ONLY use the specific HYPOTHETICAL MOVE X values provided.\n`;
               chessContext += `**FORMAT: "Instead, HYPOTHETICAL MOVE X would have..."**\n`;
               chessContext += `**NEVER say "Instead, a move like..." or "Instead, developing..."**\n`;
-              chessContext += `**ALWAYS use the exact HYPOTHETICAL MOVE X reference**\n\n`;
+              chessContext += `**NEVER say "HYPOTHETICAL MOVE X prioritized..." or "HYPOTHETICAL MOVE X focused..."**\n`;
+              chessContext += `**ALWAYS use the exact HYPOTHETICAL MOVE X reference in "Instead, ... would have..." format**\n\n`;
               
             } else {
               // Player has high accuracy or no significant violations
@@ -544,6 +545,9 @@ When users ask about:
 - **These are hypothetical moves** that show what should have been played, not what was played
 - **Do not reference opponent moves or moves from different positions**
 - **Only use the specific hypothetical moves provided** in the violation analysis
+- **STRICT FORMAT**: You MUST use "Instead, HYPOTHETICAL MOVE X would have..." format
+- **NEVER say**: "HYPOTHETICAL MOVE X prioritized..." or "HYPOTHETICAL MOVE X focused..."
+- **ALWAYS say**: "Instead, HYPOTHETICAL MOVE X would have..."
 
 **CRITICAL: MOVE CITATION REQUIREMENTS**
 - **NEVER mention principle violations without citing the EXACT move with move number**
@@ -573,9 +577,16 @@ When users ask about:
 
 **complete development first was violated on move 6. h3** Instead, HYPOTHETICAL MOVE 3 would have completed piece development.
 
+**IMPORTANT**: Notice the format is ALWAYS "Instead, HYPOTHETICAL MOVE X would have..." - never just "HYPOTHETICAL MOVE X..."
+
 Focus on piece development and king safety in future games.
 
-**CRITICAL**: The "Instead" moves are hypothetical suggestions that show what should have been played to follow the principle correctly. Use ONLY the HYPOTHETICAL MOVE X references provided in the analysis data."
+**CRITICAL**: The "Instead" moves are hypothetical suggestions that show what should have been played to follow the principle correctly. Use ONLY the HYPOTHETICAL MOVE X references provided in the analysis data.
+
+**TEMPLATE FOR EACH VIOLATION:**
+1. Cite the move: "**move X. Y** violated principle name..."
+2. Provide fix: "Instead, HYPOTHETICAL MOVE Z would have..."
+3. NEVER use any other format for the fix."
 
 **For games WITHOUT violations (perfect play):**
 "Looking at your move-by-move analysis, I found no significant principle violations in your play. You successfully applied key principles throughout the game with strong tactical awareness and positional understanding.

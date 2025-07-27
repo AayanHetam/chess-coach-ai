@@ -65,7 +65,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const { messages, position, game, responseLength = 'summary', boardOrientation = true } = await req.json();
+    const { messages, position, game, responseLength = 'summary', boardOrientation = true, forceRefresh } = await req.json();
+    
+    // Add unique request ID to prevent caching issues
+    const requestId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+    const isForceRefresh = forceRefresh === true;
+    console.log(`🔄 Processing request ${requestId} with fresh system prompt${isForceRefresh ? ' (FORCE REFRESH)' : ''}`);
     
     // Log received data for debugging
     console.log('=== API REQUEST DATA ===');
@@ -487,6 +492,7 @@ export async function POST(req: Request) {
     // Enhanced system prompt for principle-based coaching
     chessContext += `
 **🚨 CRITICAL INSTRUCTION - READ THIS FIRST 🚨**
+**VERSION: ${requestId} - FRESH SYSTEM PROMPT**
 When suggesting fixes for principle violations, you MUST use "HYPOTHETICAL MOVE X" format.
 NEVER use actual game moves for "Instead" suggestions.
 NEVER use opponent moves or moves from different positions.
@@ -628,8 +634,12 @@ The user has selected "${responseLength}" response length. Follow these guidelin
 Focus on keeping your king safe in future games."
 `;
 
+    // Add request ID to chess context for debugging
+    chessContext += `\n\n=== DEBUG INFO ===\nRequest ID: ${requestId}\nGenerated at: ${new Date().toISOString()}\n=== END DEBUG ===\n`;
+    
     // Log the complete prompt to console
     console.log('=== CHESS COACH PROMPT ===');
+    console.log('Request ID:', requestId);
     console.log('System Message:');
     console.log(chessContext);
     console.log('\nUser Messages:');

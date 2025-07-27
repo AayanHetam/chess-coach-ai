@@ -834,6 +834,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
           model: selectedModel,
           responseLength: responseLength,
           boardOrientation: boardOrientation,
+          forceRefresh: true, // Force fresh system prompt
         }),
         signal: abortControllerRef.current.signal,
       });

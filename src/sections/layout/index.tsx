@@ -55,8 +55,12 @@ export default function Layout({ children }: PropsWithChildren) {
         switchDarkMode={() => setDarkMode((val) => !val)}
       />
       <main style={{ 
-        margin: "2vh 1vw",
-        backgroundColor: isDarkMode ? undefined : "#FAFAFA" // Very light background
+        margin: "2vh 0.5vw",
+        backgroundColor: isDarkMode ? undefined : "#FAFAFA", // Very light background
+        overflowX: "hidden", // Prevent horizontal scrolling
+        maxWidth: "100vw", // Ensure content doesn't exceed viewport width
+        boxSizing: "border-box", // Include padding/borders in width calculation
+        width: "100%"
       }}>{children}</main>
     </ThemeProvider>
   );

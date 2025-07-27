@@ -1,7 +1,7 @@
 import {
   Button,
   CircularProgress,
-  Grid2 as Grid,
+  Grid,
   Typography,
 } from "@mui/material";
 import { useAtom, useAtomValue } from "jotai";

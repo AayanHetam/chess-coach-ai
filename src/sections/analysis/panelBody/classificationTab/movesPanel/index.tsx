@@ -1,6 +1,7 @@
-import { Grid2 as Grid } from "@mui/material";
+import { Grid, Stack } from "@mui/material";
 import MovesLine from "./movesLine";
-import { useMemo } from "react";
+import MoveTypeFilter from "./moveTypeFilter";
+import { useMemo, useState } from "react";
 import { useAtomValue } from "jotai";
 import { boardAtom, gameAtom, gameEvalAtom } from "../../../states";
 import { MoveClassification } from "@/types/enums";
@@ -9,6 +10,20 @@ export default function MovesPanel() {
   const game = useAtomValue(gameAtom);
   const board = useAtomValue(boardAtom);
   const gameEval = useAtomValue(gameEvalAtom);
+  const [selectedMoveTypes, setSelectedMoveTypes] = useState<MoveClassification[]>([
+    MoveClassification.Brilliant,
+    MoveClassification.Great,
+    MoveClassification.Best,
+    MoveClassification.Excellent,
+    MoveClassification.Good,
+    MoveClassification.Okay,
+    MoveClassification.Opening,
+    MoveClassification.Inaccuracy,
+    MoveClassification.Mistake,
+    MoveClassification.Blunder,
+    MoveClassification.Miss,
+    MoveClassification.Forced,
+  ]);
 
   const gameMoves = useMemo(() => {
     const gameHistory = game.history();
@@ -45,6 +60,17 @@ export default function MovesPanel() {
     return moves;
   }, [game, board, gameEval]);
 
+  // Filter moves based on selected move types
+  const filteredMoves = useMemo(() => {
+    if (!gameMoves) return undefined;
+    
+    return gameMoves.filter(moveLine => 
+      moveLine.some(move => 
+        !move.moveClassification || selectedMoveTypes.includes(move.moveClassification)
+      )
+    );
+  }, [gameMoves, selectedMoveTypes]);
+
   if (!gameMoves?.length) return null;
 
   return (
@@ -60,7 +86,13 @@ export default function MovesPanel() {
       size={6}
       id="moves-panel"
     >
-      {gameMoves?.map((moves, idx) => (
+      {/* Compact filter at the top */}
+      <Grid container size={12} sx={{ mb: 1 }}>
+        <MoveTypeFilter onFilterChange={setSelectedMoveTypes} />
+      </Grid>
+      
+      {/* Original moves display */}
+      {filteredMoves?.map((moves, idx) => (
         <MovesLine
           key={`${moves.map(({ san }) => san).join()}-${idx}`}
           moves={moves}

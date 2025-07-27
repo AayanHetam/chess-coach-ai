@@ -56,7 +56,16 @@ function createBoardText(fen: string): string {
 
 export async function POST(req: Request) {
   try {
-    const { messages, position, game } = await req.json();
+    // Check if API key is available
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('ANTHROPIC_API_KEY is not set');
+      return NextResponse.json(
+        { error: 'API key not configured' },
+        { status: 500 }
+      );
+    }
+
+    const { messages, position, game, responseLength = 'summary', boardOrientation = true } = await req.json();
     
     // Log received data for debugging
     console.log('=== API REQUEST DATA ===');
@@ -64,6 +73,7 @@ export async function POST(req: Request) {
     console.log('Game PGN:', game?.pgn);
     console.log('Game History:', game?.history);
     console.log('Game Moves:', game?.moves);
+    console.log('Board Orientation:', boardOrientation, boardOrientation ? '(White at bottom)' : '(Black at bottom)');
     
     // Parse position to see what it contains
     if (position) {
@@ -174,41 +184,82 @@ export async function POST(req: Request) {
           chessContext += `✅ Using PGN as authoritative source - no position/history mismatches\n`;
         }
         
-        // **NEW: Determine user's color based on move history and messages**
-        let userColor: 'white' | 'black' | 'unknown' = 'unknown';
+        // **NEW: Smart Color Detection for Imported Games**
+        let userColor: 'white' | 'black' = 'white';
+        let colorDetectionExplanation = '';
+        
+        try {
+          const { 
+            getAnalysisUserColor, 
+            getColorDetectionExplanation,
+            shouldTrustDetectedColor 
+          } = await import('@/lib/smartColorDetection');
+          
+          // Get game origin and search username from request or localStorage
+          let gameOrigin = game?.gameOrigin || undefined;
+          let searchUsername = game?.searchUsername || undefined;
+          
+          // If not provided in request, try to detect from game headers
+          if (!gameOrigin) {
+            try {
+              const headers = chess.getHeaders();
+              const site = headers.Site || '';
+              
+              if (site.toLowerCase().includes('chess.com')) {
+                gameOrigin = 'chesscom';
+              } else if (site.toLowerCase().includes('lichess.org')) {
+                gameOrigin = 'lichess';
+              }
+            } catch (error) {
+              console.error('Error extracting game origin:', error);
+            }
+          }
+          
+          // Detect user color using smart detection
+          userColor = getAnalysisUserColor(chess, gameOrigin, searchUsername, boardOrientation);
+          colorDetectionExplanation = getColorDetectionExplanation(chess, gameOrigin, searchUsername, boardOrientation);
+          
+          // Check if we should trust the detected color
+          const shouldTrust = shouldTrustDetectedColor(chess, gameOrigin, searchUsername);
+          
+          if (shouldTrust) {
+            chessContext += `\n=== SMART COLOR DETECTION ===\n`;
+            chessContext += `${colorDetectionExplanation}\n`;
+            chessContext += `Board orientation: ${userColor === 'white' ? 'White' : 'Black'} pieces at bottom\n`;
+            chessContext += `If this is incorrect, please say "I played White" or "I played Black" to override.\n\n`;
+          } else {
+            // Fallback to manual detection for non-imported games
+            userColor = boardOrientation ? 'white' : 'black';
+            chessContext += `\n=== COLOR DETECTION ===\n`;
+            chessContext += `Color Detection: Based on board orientation, you are playing ${userColor.toUpperCase()}.\n`;
+            chessContext += `Board orientation: ${userColor === 'white' ? 'White' : 'Black'} pieces at bottom\n`;
+            chessContext += `If this is incorrect, please say "I played White" or "I played Black" to override.\n\n`;
+          }
+          
+        } catch (error) {
+          console.error('Error in smart color detection:', error);
+          // Fallback to manual detection
+          userColor = boardOrientation ? 'white' : 'black';
+          chessContext += `\n=== COLOR DETECTION ===\n`;
+          chessContext += `Color Detection: Based on board orientation, you are playing ${userColor.toUpperCase()}.\n`;
+          chessContext += `Board orientation: ${userColor === 'white' ? 'White' : 'Black'} pieces at bottom\n`;
+          chessContext += `If this is incorrect, please say "I played White" or "I played Black" to override.\n\n`;
+        }
+        
+        // Separate moves by color using the chess game history
         let userMoves: string[] = [];
         let opponentMoves: string[] = [];
         
-        // Check if user explicitly mentioned their color in recent messages
-        const recentMessages = messages.slice(-3); // Check last 3 messages
-        for (const msg of recentMessages) {
-          const content = msg.content.toLowerCase();
-          if (content.includes('i am black') || content.includes("i'm black") || content.includes('playing black')) {
-            userColor = 'black';
-            break;
-          } else if (content.includes('i am white') || content.includes("i'm white") || content.includes('playing white')) {
-            userColor = 'white';
-            break;
-          }
-        }
-        
         if (gameHistory.length > 0) {
-          // If color not explicitly mentioned, assume user is the player to move
-          if (userColor === 'unknown') {
-            const currentPlayerToMove = chess.turn();
-            userColor = currentPlayerToMove === 'w' ? 'white' : 'black';
-          }
-          
-          // Separate moves by color using the chess game history
-          for (let i = 0; i < gameHistory.length; i++) {
-            const move = gameHistory[i];
-            const isWhiteMove = i % 2 === 0;
-            
-            if ((userColor === 'white' && isWhiteMove) || (userColor === 'black' && !isWhiteMove)) {
-              userMoves.push(move);
-            } else {
-              opponentMoves.push(move);
-            }
+          // If color not explicitly mentioned, use board orientation as primary detection method
+          if (userColor === 'white') {
+            // Use board orientation to determine user's color
+            // boardOrientation: true = White at bottom (user is White), false = Black at bottom (user is Black)
+            userMoves = gameHistory.filter((_, index) => index % 2 === 0);
+            opponentMoves = gameHistory.filter((_, index) => index % 2 === 1);
+          } else { // userColor === 'black'
+            userMoves = gameHistory.filter((_, index) => index % 2 === 1);
+            opponentMoves = gameHistory.filter((_, index) => index % 2 === 0);
           }
           
           chessContext += `\n=== PLAYER ANALYSIS ===\n`;
@@ -259,14 +310,16 @@ export async function POST(req: Request) {
             chessContext += `💡 Suggested Move: ${principleAnalysis.suggestedMove}\n\n`;
           }
 
-          // **NEW: Move-by-Move Game Analysis with Skill-Level Calibration**
+          // **NEW: Enhanced Move-by-Move Game Analysis with Comprehensive Principle Detection**
           if (gameHistory.length > 1) {
-            chessContext += `\n=== MOVE-BY-MOVE ANALYSIS ENABLED ===\n`;
+            chessContext += `\n=== COMPREHENSIVE MOVE-BY-MOVE ANALYSIS ===\n`;
             chessContext += `Found ${gameHistory.length} moves to analyze\n\n`;
             
             // Determine player skill level from accuracy
+            console.log('Game accuracy data received:', game?.accuracy);
             const userAccuracy = userColor === 'white' ? game?.accuracy?.white || 50 : game?.accuracy?.black || 50;
-            const { getSkillLevelFromAccuracy, isViolationSignificant, getSkillLevelFeedback } = require('@/lib/chessprinciples/skillLevel');
+            console.log('User color:', userColor, 'User accuracy:', userAccuracy);
+            const { getSkillLevelFromAccuracy, isViolationSignificant, getSkillLevelFeedback } = await import('@/lib/chessprinciples/skillLevel');
             const skillLevel = getSkillLevelFromAccuracy(userAccuracy);
             
             chessContext += `=== SKILL-CALIBRATED ANALYSIS ===\n`;
@@ -277,143 +330,80 @@ export async function POST(req: Request) {
             chessContext += `=== YOUR MOVE-BY-MOVE PRINCIPLES ANALYSIS ===\n`;
             chessContext += `(Analyzing YOUR moves as ${userColor.toUpperCase()})\n\n`;
             
-            const gameAnalysis = new Chess();
-            const userMoveViolations: Array<{
-              moveNumber: number;
-              move: string;
-              violations: any[];
-              severity: 'minor' | 'moderate' | 'major';
-              isUserMove: boolean;
-              bestMove?: string;
-              assessment?: string;
-            }> = [];
+            // **NEW: Use aggressive move-by-move analyzer that generates violations for every move**
+            const { analyzeGameAggressively } = await import('@/lib/chessprinciples/aggressiveMoveAnalyzer');
             
-            // Analyze each move in the game using consistent history
-            for (let i = 0; i < gameHistory.length; i++) {
-              const move = gameHistory[i];
-              const moveNumber = Math.floor(i / 2) + 1;
-              const isWhiteMove = i % 2 === 0;
-              const isUserMove = (userColor === 'white' && isWhiteMove) || (userColor === 'black' && !isWhiteMove);
+            let aggressiveGameAnalysis;
+            try {
+              aggressiveGameAnalysis = await analyzeGameAggressively(gameHistory, userColor, {
+                lines: [{ pv: legalMoves.slice(0, 3), depth: 1, multiPv: 1, cp: 0 }]
+              });
+            } catch (error) {
+              console.error('Aggressive move-by-move analysis failed, using fallback:', error);
+              // Create a basic analysis with move assessments
+              aggressiveGameAnalysis = {
+                moves: gameHistory.map((move, index) => ({
+                  moveNumber: Math.floor(index / 2) + 1,
+                  move,
+                  isUserMove: (userColor === 'white' && index % 2 === 0) || (userColor === 'black' && index % 2 === 1),
+                  allViolations: [],
+                  evaluationChange: 0,
+                  isBestMove: false,
+                  filteredViolations: []
+                })),
+                topViolations: [],
+                overallAssessment: 'Game analysis completed with basic assessment'
+              };
+            }
+            
+            // Show top violations by evaluation impact (always show if there are any)
+            if (aggressiveGameAnalysis.topViolations.length > 0) {
+              chessContext += `⚠️ TOP PRINCIPLE VIOLATIONS BY IMPACT:\n\n`;
               
-              // Get position before the move
-              const beforePosition = new Chess(gameAnalysis.fen());
-              
-              // Make the move
-              try {
-                gameAnalysis.move(move);
-                
-                // Only analyze user's moves for violations
-                if (isUserMove) {
-                  // Get available moves in the position before the user's move
-                  const availableMoves = beforePosition.moves();
-                  
-                  // **NEW: Enhanced Principle Analysis**
-                  // Instead of blind principle checking, analyze if violations were actually harmful
-                  
-                  // Analyze the position after the move with enhanced context
-                  const afterAnalysis = analyzePosition(gameAnalysis, {
-                    lines: [{ pv: [], depth: 1, multiPv: 1, cp: 0 }]
-                  }, gameHistory.slice(0, i + 1));
-                  
-                                     // Apply intelligent filtering to avoid false positives like the king safety issue
-                   const contextualViolations = afterAnalysis.violatedPrinciples.filter(v => {
-                     
-                                           // Special case: King safety violations - only flag if truly problematic
-                      if (v.principle.id === 'castle-early' || v.principle.id === 'maintain-king-safety') {
-                        // Only flag king safety if the king is actually in immediate danger
-                        const kingInImmediateDanger = gameAnalysis.isCheck();
-                        
-                        // Don't flag king safety violations if the king isn't actually in check
-                        if (!kingInImmediateDanger) {
-                          return false;
-                        }
-                      }
-                     
-                     // Only flag violations in positions with meaningful alternatives
-                     const isInTacticalPosition = availableMoves.some(m => {
-                       try {
-                         const testPos = new Chess(beforePosition.fen());
-                         testPos.move(m);
-                         return testPos.isCheck() || testPos.isCheckmate();
-                       } catch {
-                         return false;
-                       }
-                     });
-                     
-                                        // Be very conservative - filter based on skill level and position context
-                   const isSignificantForSkillLevel = isViolationSignificant(v.severity, skillLevel);
-                   
-                   // Import move validation functions
-                   const { shouldFlagViolation } = require('@/lib/chessprinciples/moveValidation');
-                   
-                   // Create before and after positions for validation
-                   const positionBefore = new Chess(gameAnalysis.fen());
-                   const positionAfter = new Chess(gameAnalysis.fen());
-                   try {
-                     positionAfter.move(move);
-                   } catch {
-                     return false; // Invalid move, skip
-                   }
-                   
-                   // Validate that the violation makes sense for this move
-                   const isValidViolation = shouldFlagViolation(
-                     move,
-                     moveNumber,
-                     positionBefore,
-                     positionAfter,
-                     v.principle.id,
-                     v.description,
-                     v.severity,
-                     skillLevel
-                   );
-                   
-                   return isSignificantForSkillLevel && 
-                          isValidViolation &&
-                          !isInTacticalPosition && 
-                          availableMoves.length >= 10; // Require many alternatives
-                   });
-                   
-                   if (contextualViolations.length > 0) {
-                     userMoveViolations.push({
-                       moveNumber,
-                       move: `${isWhiteMove ? moveNumber + '.' : moveNumber + '...'} ${move}`,
-                       violations: contextualViolations,
-                       severity: 'major',
-                       isUserMove: true
-                     });
-                   }
+              // Group violations by move for better presentation
+              const violationsByMove = new Map();
+              aggressiveGameAnalysis.moves.forEach((move: any) => {
+                if (move.filteredViolations.length > 0) {
+                  const moveKey = `${move.moveNumber}. ${move.move}`;
+                  violationsByMove.set(moveKey, {
+                    violations: move.filteredViolations,
+                    evaluationChange: move.evaluationChange,
+                    isBestMove: move.isBestMove
+                  });
                 }
-              } catch (error) {
-                // Skip invalid moves
-                continue;
+              });
+              
+              // Show top violations by evaluation impact
+              aggressiveGameAnalysis.topViolations.forEach((violation: any) => {
+                chessContext += `**${violation.description}**\n`;
+                chessContext += `Short-term: ${violation.shortTermImpact}\n`;
+                chessContext += `Long-term: ${violation.longTermImpact}\n`;
+                if (violation.correctMove) {
+                  chessContext += `Correct move: ${violation.correctMove}\n`;
+                }
+                chessContext += '\n';
+              });
+              
+              chessContext += `=== OVERALL ASSESSMENT ===\n`;
+              chessContext += `${aggressiveGameAnalysis.overallAssessment}\n\n`;
+              
+            } else {
+              // Player has high accuracy or no significant violations
+              if (userAccuracy >= 95) {
+                chessContext += `✅ EXCELLENT PLAY! (${userAccuracy.toFixed(1)}% accuracy)\n`;
+                chessContext += `No significant principle violations detected. Your play demonstrates strong understanding of chess fundamentals.\n\n`;
+              } else {
+                chessContext += `✅ GOOD PLAY! (${userAccuracy.toFixed(1)}% accuracy)\n`;
+                chessContext += `No major principle violations detected. Focus on the key improvement areas below for continued growth.\n\n`;
               }
             }
             
-            // Report the most problematic moves
-            if (userMoveViolations.length > 0) {
-              chessContext += `🔍 YOUR Moves with Significant Principle Violations:\n\n`;
-              
-              // Sort by severity and take top 5
-              userMoveViolations
-                .sort((a: any, b: any) => {
-                  const severityOrder: { [key: string]: number } = { major: 3, moderate: 2, minor: 1 };
-                  return severityOrder[b.severity] - severityOrder[a.severity];
-                })
-                .slice(0, 5)
-                .forEach((violation: any) => {
-                  chessContext += `${violation.severity === 'major' ? '🚨' : '⚠️'} ${violation.move} (${violation.severity.toUpperCase()}):\n`;
-                  violation.violations.forEach((v: any) => {
-                    chessContext += `  • ${v.principle.name}: ${v.description}\n`;
-                  });
-                  chessContext += '\n';
-                });
-            } else {
-              chessContext += `✅ No major principle violations detected in YOUR moves.\n\n`;
+            // Always show key improvement areas if available
+            if (aggressiveGameAnalysis.topViolations.length > 0) {
+              chessContext += `=== KEY IMPROVEMENT AREAS ===\n`;
+              chessContext += `Focus on the top ${aggressiveGameAnalysis.topViolations.length} principle violations listed above.\n\n`;
             }
-            
-            // Add skill-level specific feedback
-            chessContext += `=== SKILL-LEVEL COACHING FEEDBACK ===\n`;
-            chessContext += getSkillLevelFeedback(skillLevel, userMoveViolations.length > 0) + '\n\n';
+
           } else {
             // No move history available
             const startPosition = new Chess();
@@ -438,7 +428,25 @@ export async function POST(req: Request) {
           chessContext += `3. Give both short-term and long-term consequences\n`;
           chessContext += `4. Focus on the ${gamePhase} principles that are most relevant\n`;
           chessContext += `5. If the user asks about a specific move, compare it to the suggested move using principles\n`;
-          chessContext += `6. Help the user understand which principle they might have missed\n\n`;
+          chessContext += `6. Help the user understand which principle they might have missed\n`;
+          chessContext += `7. **CRITICAL**: Every inaccuracy should have at least one specific principle violation identified\n`;
+          chessContext += `8. Provide actionable advice based on the principle violations found\n`;
+          chessContext += `9. **SMART FILTERING**: Feedback frequency adjusts based on player accuracy (95%+ = minimal feedback)\n`;
+          chessContext += `10. **SOUND PRINCIPLES**: Only flag violations that are actually sound and educational\n`;
+          chessContext += `11. **SMART COLOR DETECTION**: Automatically detects user color from imported games using username matching\n`;
+          chessContext += `12. **ACCURACY RULE**: For accuracy below 85%, focus ONLY on problems. NO positive feedback.\n`;
+          chessContext += `13. **REMOVE EMOJIS**: No emojis, unnecessary words, or generic praise.\n`;
+          chessContext += `14. **MOVE CITATION**: ALWAYS cite moves with their full notation including move numbers (e.g., "15. Nf3", "11... cxd4")\n`;
+          chessContext += `15. **EXACT MOVE REFERENCES**: When referring to moves from the analysis, use the EXACT notation provided\n`;
+          chessContext += `16. **MOVE CONTEXT**: When discussing moves, always provide the move number and full notation for clarity\n`;
+          chessContext += `17. **MOVE RANGES**: When discussing multiple moves, use ranges like "moves 11. cxd4 to 15. Qxd5"\n`;
+          chessContext += `18. **VIOLATION CITATION**: NEVER mention a principle violation without first citing the exact move that caused it\n`;
+          chessContext += `19. **CONCISE STRUCTURE**: Use ONLY 3 sections: Introduction, Principle Violations, Outro\n`;
+          chessContext += `20. **NO REDUNDANCY**: Do not create "Areas for Improvement" or "Structural Issues" sections\n`;
+          chessContext += `21. **FIX FORMAT**: Use "Instead, [move] would have..." for each violation fix\n`;
+          chessContext += `22. **CONCISE VIOLATION FORMAT**: Use "principle name was violated on move X. Y" format for faster understanding\n`;
+          chessContext += `23. **CORRECT MOVE CITATION**: When suggesting fixes, use the "Correct move" provided in the analysis data\n`;
+          chessContext += `24. **HYPOTHETICAL MOVES**: The "Instead" moves are hypothetical - they show what should have been played, not what was played\n\n`;
           
         } catch (error) {
           console.error('Error in principles analysis:', error);
@@ -459,20 +467,21 @@ You are an expert chess coach who teaches through chess principles. Your respons
 
 1. **Always reference chess principles** - Use the analysis above to ground your explanations in concrete principles
 2. **Compare moves using principles** - When discussing moves, explain which principles each move follows or violates
-3. **Provide both short and long-term analysis** - Explain immediate consequences and strategic implications
+3. **Provide specific fixes** - Use "Instead, [move] would have..." format for each violation
 4. **Identify missed principles** - Help users understand which principle they might have overlooked
-5. **Be educational** - Don't just say "this move is better," explain WHY using principles
+5. **Be concise and focused** - Use only 3 sections: Introduction, Principle Violations, Outro
+6. **Avoid redundancy** - Do not create multiple sections about the same issues
 
 === WHAT YOU HAVE ACCESS TO ===
 You have access to:
-✅ Complete chess position analysis and FEN notation
-✅ Full move history and game progression
-✅ Chess principles analysis for the current position
-✅ **MOVE-BY-MOVE principles analysis for the entire game**
-✅ Game phase identification (opening/middlegame/endgame)
-✅ Position evaluation through principles assessment
-✅ Legal moves available in the current position
-✅ **Identification of specific moves that violated principles (equivalent to evaluation drops)**
+Complete chess position analysis and FEN notation
+Full move history and game progression
+Chess principles analysis for the current position
+**MOVE-BY-MOVE principles analysis for the entire game**
+Game phase identification (opening/middlegame/endgame)
+Position evaluation through principles assessment
+Legal moves available in the current position
+**Identification of specific moves that violated principles (equivalent to evaluation drops)**
 
 When users ask about:
 - "Evaluation bar" or "evaluation changes" → Use the MOVE-BY-MOVE analysis to identify specific moves that violated principles **ONLY if violations are listed**
@@ -481,34 +490,105 @@ When users ask about:
 - "Best moves" → Suggest moves that follow the most important principles for the current game phase
 - "Analyze my game" → Use both current position analysis AND the move-by-move violations to give comprehensive feedback
 
-**CRITICAL: PERFECT PLAY GUIDELINES**
-- If NO violations are listed in the move-by-move analysis, the user played excellent chess following principles correctly
+**CRITICAL: AGGRESSIVE ANALYSIS GUIDELINES**
+- The aggressive analyzer generates violations for EVERY move against ALL applicable principles
+- **VIOLATION-FIRST APPROACH**: Every move gets analyzed for potential principle violations
+- **BEST MOVE FILTERING**: Violations from the best move are automatically removed (since best moves are optimal)
+- **EVALUATION-BASED RANKING**: Top 3 violations are selected by absolute evaluation change (biggest mistakes first)
+- **ALWAYS ACTIONABLE**: If violations are listed, they represent the most impactful mistakes that need to be addressed
+- If NO violations are listed, the user played excellent chess following principles correctly
 - DO NOT invent or suggest principle violations that aren't explicitly listed in the analysis
-- If the violations section shows "✅ No major principle violations detected in YOUR moves", celebrate their excellent play
 - Only cite specific moves and violations that are explicitly provided in the analysis data
-- When no violations are found, focus on explaining the principles they applied well rather than looking for problems
+- When violations are found, provide specific, actionable advice based on the principle violated
+- Every violation should have clear reasoning and a specific fix using "Instead, [move] would have..."
+
+**CRITICAL: MOVE CITATION REQUIREMENTS**
+- **NEVER mention principle violations without citing the EXACT move with move number**
+- When citing moves with principle violations, ALWAYS use the EXACT move notation from the violations list
+- Include the full move number and notation exactly as shown (e.g., "11... cxd4", "15. h3", "37... gxf5")
+- This format allows users to easily locate the specific move in their game
+- **ALWAYS** include move numbers when referencing any move in the game
+- Use the format "moveNumber. move" for white moves and "moveNumber... move" for black moves
+- Never reference moves without their move numbers for clarity and precision
+- **If a violation is listed, you MUST cite the specific move number and notation**
+- **Do not discuss any principle violation without first citing the exact move that violated it**
+- **When discussing multiple moves, use move ranges like "moves 11. cxd4 to 15. Qxd5"**
+- **Always provide the exact move numbers so users can locate them in their game**
+- **For each violation, provide ONE specific fix using "Instead, [move] would have..." format**
+- **Do not create redundant sections like "Areas for Improvement" or "Structural Issues"**
 
 **Example Response Styles:**
 
 **For games WITH violations:**
-"Looking at your game through chess principles analysis, I found a few moves where principles could have been applied better:
+"Looking at your game through chess principles analysis, your 74.7% accuracy shows intermediate-level play with several areas for improvement.
 
-Move 15: h3 violated the opening principle of 'develop knights and bishops early' because it was a non-developing pawn move when you had undeveloped pieces. In the short term, this lost tempo and gave your opponent a developmental advantage. In the long term, you struggled to coordinate your pieces.
+**Principle Violations:**
 
-Instead, a move like Bc4 would have followed the principle of piece development while supporting central control."
+**develop knights and bishops early was violated on move 1. e4** Instead, 1. Nf3 would have developed a knight while controlling central squares.
+
+**develop knights and bishops early was violated on move 4. d3** Instead, 4. O-O would have castled early for king safety.
+
+**complete development first was violated on move 6. h3** Instead, 6. Nc3 would have completed piece development.
+
+Focus on piece development and king safety in future games.
+
+**Note**: The "Instead" moves are hypothetical suggestions that show what should have been played to follow the principle correctly."
 
 **For games WITHOUT violations (perfect play):**
-"Excellent chess! Looking at your move-by-move analysis, I found no significant principle violations in your play. You successfully applied key principles throughout the game:
+"Looking at your move-by-move analysis, I found no significant principle violations in your play. You successfully applied key principles throughout the game with strong tactical awareness and positional understanding.
 
-✅ You controlled the center effectively with your pawn moves
-✅ Your piece development followed sound opening principles  
-✅ You maintained material balance while creating good positions
-✅ Your moves were tactically accurate and principled
+**Principle Violations:**
 
-This demonstrates strong understanding of chess fundamentals. Keep up the excellent play!"
+None detected - excellent play!
+
+Continue applying these fundamental principles in future games."
 
 NEVER say you don't have access to evaluation data - you have comprehensive chess principles analysis that serves the same purpose!
-Always be encouraging while being educational about chess principles!
+
+**CRITICAL: ACCURACY-BASED FEEDBACK RULE**
+- For players with accuracy below 85%: Focus ONLY on problems and improvements. NO positive feedback.
+- For players with 85%+ accuracy: Can include positive feedback alongside areas for improvement.
+- Remove all emojis, unnecessary introductory phrases, and generic praise.
+- Be direct and educational - no "excellent chess", "well played", "tactical game", "congratulations", etc.
+- Focus on specific principle violations and actionable advice.
+
+=== RESPONSE STRUCTURE GUIDELINES ===
+The user has selected "${responseLength}" response length. Follow these guidelines:
+
+**CONCISE RESPONSE STRUCTURE (3 sections only):**
+
+1. **INTRODUCTION** (1-2 sentences):
+   - Brief accuracy assessment and overall game quality
+   - No repetitive information
+
+2. **PRINCIPLE VIOLATIONS** (core section):
+   - List ONLY the most critical violations with exact move citations
+   - For each violation: cite the move, explain the principle violated, and provide ONE specific fix using "Instead, [move] would have..."
+   - No repetitive explanations or multiple sections about the same issue
+   - No "Areas for Improvement" section - violations ARE the areas for improvement
+
+3. **OUTRO** (1 sentence):
+   - One actionable takeaway for future games
+
+**CRITICAL RULES:**
+- NO "Areas for Improvement" section - this is redundant with violations
+- NO "Structural Issues" section - include these in violations if relevant
+- NO "Short-term/Long-term" sections - keep it concise
+- NO repetitive explanations of the same principle
+- Each violation should be mentioned ONCE with clear move citation and fix
+- Focus on the 3 most important violations only (maximum)
+- Use "Instead, [move] would have..." format for fixes
+
+**Example Structure:**
+"Looking at your game through chess principles analysis, your 74.7% accuracy shows intermediate-level play with several areas for improvement.
+
+**Principle Violations:**
+
+**20... Kg6** violated king safety by moving into White's attack zone. Instead, 20... Kf7 would have kept your king safe while maintaining defensive coordination.
+
+**22... Kh6** continued the king safety violation, placing your king on the vulnerable edge. Instead, 22... Kf8 would have centralized your king for better defense.
+
+Focus on keeping your king safe in future games."
 `;
 
     // Log the complete prompt to console
@@ -522,13 +602,22 @@ Always be encouraging while being educational about chess principles!
     console.log('=== END PROMPT ===\n');
 
     // Create a streaming response
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      messages: anthropicMessages,
-      system: chessContext,
-      stream: true,
-    });
+    let response;
+    try {
+      response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        messages: anthropicMessages,
+        system: chessContext,
+        stream: true,
+      });
+    } catch (apiError) {
+      console.error('Anthropic API error:', apiError);
+      return NextResponse.json(
+        { error: 'Failed to connect to AI service' },
+        { status: 500 }
+      );
+    }
 
     // Return the streaming response
     const encoder = new TextEncoder();
@@ -550,7 +639,13 @@ Always be encouraging while being educational about chess principles!
           controller.close();
         } catch (error) {
           console.error('Streaming error:', error);
-          controller.error(error);
+          // Send error as JSON in the stream
+          const errorData = JSON.stringify({
+            error: 'Streaming failed',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          });
+          controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
+          controller.close();
         }
       }
     });

@@ -19,12 +19,14 @@ export enum MoveClassification {
   Mistake = "mistake",
   Inaccuracy = "inaccuracy",
   Okay = "okay",
+  Good = "good",
   Excellent = "excellent",
   Best = "best",
   Forced = "forced",
   Opening = "opening",
-  Perfect = "perfect",
-  Splendid = "splendid",
+  Great = "great",
+  Brilliant = "brilliant",
+  Miss = "miss",
 }
 
 export enum Color {

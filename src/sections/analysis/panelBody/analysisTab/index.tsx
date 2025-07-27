@@ -1,8 +1,9 @@
 import {
-  Grid2 as Grid,
-  Grid2Props as GridProps,
+  Grid,
+  GridProps,
   Stack,
   Typography,
+  Box,
 } from "@mui/material";
 import { useAtomValue } from "jotai";
 import { boardAtom, gameAtom, gameEvalAtom } from "../../states";
@@ -10,6 +11,7 @@ import PlayersMetric from "./playersMetric";
 import MoveInfo from "./moveInfo";
 import Opening from "./opening";
 import EngineLines from "./engineLines";
+import GraphTab from "../graphTab";
 
 export default function AnalysisTab(props: GridProps) {
   const gameEval = useAtomValue(gameEvalAtom);
@@ -66,14 +68,10 @@ export default function AnalysisTab(props: GridProps) {
   };
 
   return (
-    <Grid
-      container
-      size={{ xs: 12, lg: gameEval ? 11 : 12 }}
-      justifyContent={{ xs: "center", lg: gameEval ? "start" : "center" }}
+    <Stack
+      width="100%"
+      spacing={2}
       alignItems="center"
-      flexWrap={{ lg: gameEval ? "nowrap" : undefined }}
-      gap={2}
-      marginY={{ lg: gameEval ? 1 : undefined }}
       {...props}
       sx={props.hidden ? { display: "none" } : props.sx}
     >
@@ -111,6 +109,12 @@ export default function AnalysisTab(props: GridProps) {
       </Stack>
 
       <EngineLines size={{ lg: gameEval ? undefined : 12 }} />
-    </Grid>
+      
+      {gameEval && (
+        <Box width="100%" sx={{ marginY: 2 }}>
+          <GraphTab />
+        </Box>
+      )}
+    </Stack>
   );
 }

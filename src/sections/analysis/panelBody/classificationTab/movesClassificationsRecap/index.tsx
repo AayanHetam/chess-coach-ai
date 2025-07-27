@@ -1,5 +1,5 @@
 import { usePlayersData } from "@/hooks/usePlayersData";
-import { Grid2 as Grid, Typography } from "@mui/material";
+import { Grid, Typography } from "@mui/material";
 import { gameAtom, gameEvalAtom } from "../../../states";
 import { MoveClassification } from "@/types/enums";
 import ClassificationRow from "./classificationRow";
@@ -51,13 +51,15 @@ export default function MovesClassificationsRecap() {
 }
 
 export const sortedMoveClassfications = [
-  MoveClassification.Splendid,
-  MoveClassification.Perfect,
+  MoveClassification.Brilliant,
+  MoveClassification.Great,
   MoveClassification.Best,
   MoveClassification.Excellent,
+  MoveClassification.Good,
   MoveClassification.Okay,
   MoveClassification.Opening,
   MoveClassification.Inaccuracy,
   MoveClassification.Mistake,
   MoveClassification.Blunder,
+  MoveClassification.Miss,
 ];

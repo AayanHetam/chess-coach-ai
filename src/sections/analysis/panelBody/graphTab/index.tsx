@@ -1,4 +1,4 @@
-import { Box, Grid2 as Grid, Grid2Props as GridProps } from "@mui/material";
+import { Box, Grid, GridProps, Typography } from "@mui/material";
 import { useAtomValue } from "jotai";
 import {
   Area,
@@ -40,6 +40,19 @@ export default function GraphTab(props: GridProps) {
     [gameEval]
   );
 
+  console.log('GraphTab Debug:', {
+    gameEval: !!gameEval,
+    positions: gameEval?.positions?.length,
+    chartData: chartData.length,
+    gameEvalData: gameEval,
+    positionsData: gameEval?.positions?.map((pos, idx) => ({
+      index: idx,
+      hasLines: pos.lines?.length > 0,
+      linesLength: pos.lines?.length,
+      firstLine: pos.lines?.[0]
+    }))
+  });
+
   const bestDotIndices = useMemo(() => {
     const bestItems = chartData.filter(
       (item) => item.moveClassification === MoveClassification.Best
@@ -68,8 +81,8 @@ export default function GraphTab(props: GridProps) {
 
       if (
         [
-          MoveClassification.Splendid,
-          MoveClassification.Perfect,
+          MoveClassification.Brilliant,
+          MoveClassification.Excellent,
           MoveClassification.Blunder,
           MoveClassification.Mistake,
         ].includes(moveClass) ||
@@ -84,30 +97,46 @@ export default function GraphTab(props: GridProps) {
     [bestDotIndices]
   );
 
-  if (!gameEval) return null;
-
-  return (
-    <Grid
-      container
-      justifyContent="center"
-      alignItems="center"
-      minHeight="min(10rem, 8vh)"
-      height={{ xs: "8rem", lg: "none" }}
-      maxHeight="10rem"
-      {...props}
-      sx={props.hidden ? { display: "none" } : props.sx}
-      size={12}
-    >
+  if (!gameEval || chartData.length === 0) {
+    console.log('GraphTab: No gameEval data or no chart data available', {
+      gameEval: !!gameEval,
+      chartDataLength: chartData.length
+    });
+    return (
       <Box
-        height="100%"
-        width={{ xs: "100%", lg: "90%" }}
+        width="100%"
+        height="120px"
+        minHeight="100px"
+        maxHeight="150px"
         sx={{
-          backgroundColor: isDarkMode ? "#2e2e2e" : "#FFF8F5", // Light orange-tinted white for light mode
+          backgroundColor: isDarkMode ? "#2e2e2e" : "#FFF8F5",
           borderRadius: "15px",
-          overflow: "hidden",
-          border: isDarkMode ? "none" : "2px solid #FFE4D6", // Orange border for light mode
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          border: isDarkMode ? "none" : "2px solid #FFE4D6",
         }}
       >
+        <Typography variant="body2" color="text.secondary">
+          No evaluation data available for graph
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      width="100%"
+      height="120px"
+      minHeight="100px"
+      maxHeight="150px"
+      sx={{
+        backgroundColor: isDarkMode ? "#2e2e2e" : "#FFF8F5", // Light orange-tinted white for light mode
+        borderRadius: "15px",
+        overflow: "hidden",
+        border: isDarkMode ? "none" : "2px solid #FFE4D6", // Orange border for light mode
+      }}
+    >
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             width={500}
@@ -160,7 +189,6 @@ export default function GraphTab(props: GridProps) {
           </AreaChart>
         </ResponsiveContainer>
       </Box>
-    </Grid>
   );
 }
 
@@ -168,7 +196,21 @@ const formatEvalToChartData = (
   position: PositionEval,
   index: number
 ): ChartItemData => {
+  console.log(`Formatting position ${index}:`, position);
+  
+  if (!position.lines || position.lines.length === 0) {
+    console.warn(`Position ${index} has no lines`);
+    return {
+      moveNb: index,
+      value: 10,
+      cp: undefined,
+      mate: undefined,
+      moveClassification: position.moveClassification,
+    };
+  }
+
   const line = position.lines[0];
+  console.log(`Position ${index} first line:`, line);
 
   const chartItem: ChartItemData = {
     moveNb: index,

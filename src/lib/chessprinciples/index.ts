@@ -12,6 +12,7 @@ export interface ChessPrincipleViolation {
   description: string;
   shortTermImpact: string;
   longTermImpact: string;
+  correctMove?: string; // The move that should have been played instead
 }
 
 export interface ChessPrinciple {

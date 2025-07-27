@@ -1,4 +1,4 @@
-import { Grid2 as Grid, Grid2Props as GridProps, List } from "@mui/material";
+import { Grid, GridProps, List } from "@mui/material";
 import LineEvaluation from "./lineEvaluation";
 import {
   boardAtom,

@@ -4,7 +4,7 @@ import { capitalize } from "@/lib/helpers";
 import {
   CircularProgress,
   FormControl,
-  Grid2 as Grid,
+  Grid,
   ListItemButton,
   ListItemText,
   TextField,
@@ -13,7 +13,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery } from "@tanstack/react-query";
 
 interface Props {
-  onSelect: (pgn: string, boardOrientation?: boolean) => void;
+  onSelect: (pgn: string, boardOrientation?: boolean, gameOrigin?: string, searchUsername?: string) => void;
 }
 
 export default function LichessInput({ onSelect }: Props) {
@@ -72,7 +72,7 @@ export default function LichessInput({ onSelect }: Props) {
                   const boardOrientation =
                     lichessUsername.toLowerCase() !==
                     game.players?.black?.user?.name?.toLowerCase();
-                  onSelect(game.pgn, boardOrientation);
+                  onSelect(game.pgn, boardOrientation, 'lichess', lichessUsername);
                 }}
                 style={{ width: 350, maxWidth: 350 }}
                 key={game.id}

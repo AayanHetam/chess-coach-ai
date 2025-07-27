@@ -14,9 +14,10 @@ import {
 import {
   Box,
   Divider,
-  Grid2 as Grid,
+  Grid,
   Tab,
   Tabs,
+  Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -25,7 +26,7 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 import EngineSettingsButton from "@/sections/engineSettings/engineSettingsButton";
-import GraphTab from "@/sections/analysis/panelBody/graphTab";
+
 import { PageTitle } from "@/components/pageTitle";
 
 export default function GameAnalysis() {
@@ -52,17 +53,18 @@ export default function GameAnalysis() {
     }
   }, [gameId, setGameEval, setBoardOrientation, resetBoard, resetGame]);
 
-  useEffect(() => {
-    if (tab === 3 && !gameEval) setTab(0);
-  }, [gameEval, tab]);
+
 
   return (
-    <Grid container gap={4} justifyContent="space-evenly" alignItems="start">
+    <Grid container gap={1} justifyContent="flex-start" alignItems="start" direction={{ xs: "column", lg: "row" }} sx={{ width: "100%", maxWidth: "100vw" }}>
       <PageTitle title="Chess Masti AI - Game Analysis" />
 
-      <Board />
+      <Grid size={{ xs: 12, lg: "auto" }} sx={{ flexShrink: 0, minWidth: { lg: "400px" } }}>
+        <Board />
+      </Grid>
 
       <Grid
+        size={{ xs: 12, lg: "grow" }}
         container
         justifyContent="start"
         alignItems="center"
@@ -74,20 +76,17 @@ export default function GameAnalysis() {
           borderColor: "primary.main",
           borderWidth: 2,
           boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
+          minWidth: { lg: "420px" },
+          width: "100%",
+          flex: 1,
+          ...(gameEval && { overflow: "visible" })
         }}
         padding={2}
-        style={{
-          maxWidth: "1200px",
-        }}
         rowGap={2}
-        height={{ xs: tab === 1 || tab === 2 ? "40rem" : "auto", lg: "calc(95vh - 60px)" }}
+        height={{ xs: tab === 1 || tab === 2 ? "40rem" : "auto", lg: "calc(88vh - 60px)" }}
         display="flex"
         flexDirection="column"
         flexWrap="nowrap"
-        size={{
-          xs: 12,
-          lg: "grow",
-        }}
       >
         {isLgOrGreater ? (
           <Box width="100%">
@@ -148,19 +147,7 @@ export default function GameAnalysis() {
                   disableFocusRipple
                 />
 
-                <Tab
-                  label="Graph"
-                  id="tab3"
-                  icon={<Icon icon="mdi:chart-line" height={15} />}
-                  iconPosition="start"
-                  sx={{
-                    textTransform: "none",
-                    minHeight: 15,
-                    display: gameEval ? undefined : "none",
-                    padding: "5px 0em 12px",
-                  }}
-                  disableFocusRipple
-                />
+
               </Tabs>
             </Box>
           </Box>
@@ -228,28 +215,12 @@ export default function GameAnalysis() {
                 disableFocusRipple
               />
 
-              <Tab
-                label="Graph"
-                id="tab3"
-                icon={<Icon icon="mdi:chart-line" height={15} />}
-                iconPosition="start"
-                sx={{
-                  textTransform: "none",
-                  minHeight: 15,
-                  display: gameEval ? undefined : "none",
-                  padding: "5px 0em 12px",
-                }}
-                disableFocusRipple
-              />
+
             </Tabs>
           </Box>
         )}
 
-        <GraphTab
-          role="tabpanel"
-          hidden={tab !== 3}
-          id="tabContent3"
-        />
+
 
         <AnalysisTab
           role="tabpanel"
@@ -269,19 +240,10 @@ export default function GameAnalysis() {
           id="tabContent2"
         />
 
-        {isLgOrGreater && (
-          <Box width="100%">
-            <Divider sx={{ marginX: "5%", marginBottom: 1.5 }} />
-            <PanelToolBar key="review-panel-toolbar" />
-          </Box>
-        )}
-
-        {!isLgOrGreater && gameEval && (
-          <Box width="100%">
-            <Divider sx={{ marginX: "5%", marginBottom: 2.5 }} />
-            <PanelHeader key="analysis-panel-header" />
-          </Box>
-        )}
+        <Box width="100%">
+          <Divider sx={{ marginX: "5%", marginY: 1.5 }} />
+          <PanelToolBar key="main-panel-toolbar" />
+        </Box>
       </Grid>
 
       <EngineSettingsButton />

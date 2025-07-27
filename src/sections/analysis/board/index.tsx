@@ -23,12 +23,19 @@ export default function BoardContainer() {
     const width = screenSize.width;
     const height = screenSize.height;
 
-    // 1200 is the lg layout breakpoint
-    if (window?.innerWidth < 1200) {
-      return Math.min(width - 15, height - 150);
+    // Safety check for valid dimensions
+    if (!width || !height || width <= 0 || height <= 0) {
+      return 400; // Default fallback size
     }
 
-    return Math.min(width - 700, height * 0.92);
+    // 1200 is the lg layout breakpoint
+    if (typeof window !== 'undefined' && window.innerWidth < 1200) {
+      return Math.max(Math.min(width - 15, height - 150), 300);
+    }
+
+    // For large screens, balance board size with analysis panel
+    // Make board slightly larger to align heights with analysis panel
+    return Math.max(Math.min(width - 500, height * 0.90, 800), 500);
   }, [screenSize]);
 
   return (

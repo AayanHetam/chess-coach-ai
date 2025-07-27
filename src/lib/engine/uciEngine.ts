@@ -249,7 +249,7 @@ export class UciEngine {
     setEvaluationProgress,
     playersRatings,
     workersNb = 1,
-    useLichessEval = true,
+    useLichessEval = false, // Changed to false for deterministic analysis
   }: EvaluateGameParams): Promise<GameEval> {
     this.throwErrorIfNotReady();
     this.isReady = false;
@@ -269,42 +269,43 @@ export class UciEngine {
       setEvaluationProgress?.(99 - Math.exp(-4 * progress) * 99);
     };
 
-    await Promise.all(
-      fens.map(async (fen, i) => {
-        const whoIsCheckmated = getWhoIsCheckmated(fen);
-        if (whoIsCheckmated) {
-          updateEval(i, {
-            lines: [
-              {
-                pv: [],
-                depth: 0,
-                multiPv: 1,
-                mate: whoIsCheckmated === "w" ? -1 : 1,
-              },
-            ],
-          });
-          return;
-        }
+    // Process positions sequentially to ensure deterministic results
+    for (let i = 0; i < fens.length; i++) {
+      const fen = fens[i];
+      
+      const whoIsCheckmated = getWhoIsCheckmated(fen);
+      if (whoIsCheckmated) {
+        updateEval(i, {
+          lines: [
+            {
+              pv: [],
+              depth: 0,
+              multiPv: 1,
+              mate: whoIsCheckmated === "w" ? -1 : 1,
+            },
+          ],
+        });
+        continue;
+      }
 
-        const isStalemate = getIsStalemate(fen);
-        if (isStalemate) {
-          updateEval(i, {
-            lines: [
-              {
-                pv: [],
-                depth: 0,
-                multiPv: 1,
-                cp: 0,
-              },
-            ],
-          });
-          return;
-        }
+      const isStalemate = getIsStalemate(fen);
+      if (isStalemate) {
+        updateEval(i, {
+          lines: [
+            {
+              pv: [],
+              depth: 0,
+              multiPv: 1,
+              cp: 0,
+            },
+          ],
+        });
+        continue;
+      }
 
-        const result = await this.evaluatePosition(fen, depth, workersNb, useLichessEval);
-        updateEval(i, result);
-      })
-    );
+      const result = await this.evaluatePosition(fen, depth, workersNb, useLichessEval);
+      updateEval(i, result);
+    }
 
     await this.setWorkersNb(1);
     this.isReady = true;

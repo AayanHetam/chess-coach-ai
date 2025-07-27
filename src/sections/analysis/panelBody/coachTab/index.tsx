@@ -1,10 +1,10 @@
 import React from "react";
 import {
-  Grid2 as Grid,
-  Grid2Props as GridProps,
+  Grid,
+  GridProps,
 } from "@mui/material";
 import { useAtomValue } from "jotai";
-import { boardAtom, gameAtom } from "../../states";
+import { boardAtom, gameAtom, boardOrientationAtom } from "../../states";
 import { useMemo } from "react";
 import { useBoardGameSync } from "../../hooks/useBoardGameSync";
 import dynamic from "next/dynamic";
@@ -22,6 +22,7 @@ const AICoachChat = dynamic(() => import("@/components/AICoachChat"), {
 export default function CoachTab(props: GridProps) {
   const board = useAtomValue(boardAtom);
   const game = useAtomValue(gameAtom);
+  const boardOrientation = useAtomValue(boardOrientationAtom);
   
   // Use the board-game sync hook to keep them synchronized
   const { isSynced } = useBoardGameSync();
@@ -83,6 +84,7 @@ export default function CoachTab(props: GridProps) {
         <AICoachChat 
           position={unifiedGameData.position} 
           game={unifiedGameData.game}
+          boardOrientation={boardOrientation}
         />
       </Grid>
     </Grid>

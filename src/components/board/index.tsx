@@ -1,6 +1,7 @@
-import { Box, Grid2 as Grid } from "@mui/material";
+import { Box, Grid, IconButton } from "@mui/material";
 import { Chessboard } from "react-chessboard";
 import { PrimitiveAtom, atom, useAtomValue, useSetAtom } from "jotai";
+import { Icon } from "@iconify/react";
 import {
   Arrow,
   CustomPieces,
@@ -19,7 +20,8 @@ import EvaluationBar from "./evaluationBar";
 import { CLASSIFICATION_COLORS } from "@/constants";
 import { Player } from "@/types/game";
 import PlayerHeader from "./playerHeader";
-import { boardHueAtom, pieceSetAtom } from "./states";
+import { boardHueAtom, pieceSetAtom, isExplorationModeAtom, showNextMoveSuggestionAtom } from "./states";
+import { boardAtom, gameAtom } from "@/sections/analysis/states";
 import tinycolor from "tinycolor2";
 
 export interface Props {
@@ -62,6 +64,12 @@ export default function Board({
   const [moveClickTo, setMoveClickTo] = useState<Square | null>(null);
   const pieceSet = useAtomValue(pieceSetAtom);
   const boardHue = useAtomValue(boardHueAtom);
+  const isExplorationMode = useAtomValue(isExplorationModeAtom);
+  const showNextMoveSuggestion = useAtomValue(showNextMoveSuggestionAtom);
+  const setBoard = useSetAtom(boardAtom);
+  const setGame = useSetAtom(gameAtom);
+  const setIsExplorationMode = useSetAtom(isExplorationModeAtom);
+  const setShowNextMoveSuggestion = useSetAtom(showNextMoveSuggestionAtom);
 
   const gameFen = game.fen();
 
@@ -209,15 +217,18 @@ export default function Board({
 
   const customArrows: Arrow[] = useMemo(() => {
     const bestMove = position?.lastEval?.bestMove;
+    const currentBestMove = position?.eval?.bestMove;
     const moveClassification = position?.eval?.moveClassification;
+    const arrows: Arrow[] = [];
 
+    // Show best move arrow in normal mode (green)
     if (
       bestMove &&
       showBestMoveArrow &&
+      !isExplorationMode &&
       moveClassification !== MoveClassification.Best &&
       moveClassification !== MoveClassification.Opening &&
-      moveClassification !== MoveClassification.Forced &&
-      moveClassification !== MoveClassification.Perfect
+      moveClassification !== MoveClassification.Forced
     ) {
       const bestMoveArrow = [
         bestMove.slice(0, 2),
@@ -227,11 +238,47 @@ export default function Board({
           .toHexString(),
       ] as Arrow;
 
-      return [bestMoveArrow];
+      arrows.push(bestMoveArrow);
     }
 
-    return [];
-  }, [position, showBestMoveArrow, boardHue]);
+    // Show best move arrow in exploration mode (green)
+    if (
+      bestMove &&
+      isExplorationMode &&
+      moveClassification !== MoveClassification.Best &&
+      moveClassification !== MoveClassification.Opening &&
+      moveClassification !== MoveClassification.Forced
+    ) {
+      const explorationArrow = [
+        bestMove.slice(0, 2),
+        bestMove.slice(2, 4),
+        tinycolor(CLASSIFICATION_COLORS[MoveClassification.Best])
+          .spin(-boardHue)
+          .toHexString(),
+      ] as Arrow;
+
+      arrows.push(explorationArrow);
+    }
+
+    // Show next move suggestion (blue arrow)
+    if (
+      currentBestMove &&
+      showNextMoveSuggestion &&
+      !game.isGameOver() &&
+      !game.isCheckmate() &&
+      !game.isDraw()
+    ) {
+      const nextMoveArrow = [
+        currentBestMove.slice(0, 2),
+        currentBestMove.slice(2, 4),
+        "rgba(0, 123, 255, 0.8)", // Blue semi-transparent
+      ] as Arrow;
+
+      arrows.push(nextMoveArrow);
+    }
+
+    return arrows;
+  }, [position, showBestMoveArrow, boardHue, isExplorationMode, showNextMoveSuggestion, game]);
 
   const SquareRenderer: CustomSquareRenderer = useMemo(() => {
     return getSquareRenderer({
@@ -267,20 +314,29 @@ export default function Board({
   );
 
   const customBoardStyle = useMemo(() => {
-    const commonBoardStyle = {
+    const commonBoardStyle: Record<string, string | number> = {
       borderRadius: "5px",
       boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
     };
 
-    if (boardHue) {
-      return {
-        ...commonBoardStyle,
+    let style: Record<string, string | number> = commonBoardStyle;
+
+    // Add exploration mode styling - lighter appearance
+    if (isExplorationMode) {
+      style = {
+        ...style,
+        opacity: 0.8,
+        filter: `${boardHue ? `hue-rotate(${boardHue}deg)` : ''} brightness(1.1)`,
+      };
+    } else if (boardHue) {
+      style = {
+        ...style,
         filter: `hue-rotate(${boardHue}deg)`,
       };
     }
 
-    return commonBoardStyle;
-  }, [boardHue]);
+    return style;
+  }, [boardHue, isExplorationMode]);
 
   return (
     <Grid
@@ -310,6 +366,8 @@ export default function Board({
         <PlayerHeader
           color={boardOrientation === Color.White ? Color.Black : Color.White}
           gameAtom={gameAtom}
+          boardAtom={boardAtom}
+          showControls={true}
           player={boardOrientation === Color.White ? blackPlayer : whitePlayer}
         />
 
@@ -319,6 +377,7 @@ export default function Board({
           alignItems="center"
           ref={boardRef}
           size={12}
+          sx={{ position: 'relative' }}
         >
           <Chessboard
             id={`${boardId}-${canPlay}`}
@@ -341,11 +400,15 @@ export default function Board({
             animationDuration={200}
             customPieces={customPieces}
           />
+          
+
         </Grid>
 
         <PlayerHeader
           color={boardOrientation}
           gameAtom={gameAtom}
+          boardAtom={boardAtom}
+          showControls={false}
           player={boardOrientation === Color.White ? whitePlayer : blackPlayer}
         />
       </Grid>

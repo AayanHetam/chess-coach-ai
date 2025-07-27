@@ -1,5 +1,5 @@
 import { MoveClassification } from "@/types/enums";
-import { Box, Grid2 as Grid, Typography } from "@mui/material";
+import { Box, Grid, Typography } from "@mui/material";
 import MoveItem from "./moveItem";
 
 interface Props {

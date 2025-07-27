@@ -12,7 +12,7 @@ import {
   InputLabel,
   OutlinedInput,
   DialogActions,
-  Grid2 as Grid,
+  Grid,
   Snackbar,
   Alert,
 } from "@mui/material";
@@ -43,12 +43,23 @@ export default function NewGameDialog({ open, onClose, setGame }: Props) {
   const setBoardOrientation = useSetAtom(boardOrientationAtom);
   const { addGame } = useGameDatabase();
 
-  const handleAddGame = async (pgn: string, boardOrientation?: boolean) => {
+  const handleAddGame = async (
+    pgn: string, 
+    boardOrientation?: boolean, 
+    gameOrigin?: string, 
+    searchUsername?: string
+  ) => {
     if (!pgn) return;
 
     try {
       const gameToAdd = getGameFromPgn(pgn);
       setSentryContext("loadedGame", { pgn });
+
+      // Store game origin and username for smart color detection
+      if (gameOrigin && searchUsername) {
+        localStorage.setItem('last-game-origin', gameOrigin);
+        localStorage.setItem('last-search-username', searchUsername);
+      }
 
       if (setGame) {
         await setGame(gameToAdd);

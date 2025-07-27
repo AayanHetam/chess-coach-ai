@@ -22,6 +22,7 @@ export default function Document() {
           sizes="16x16"
           href="/favicon-16x16.png"
         />
+        
         {/* SEO and Social Media Tags */}
         <meta name="description" content="Chess Masti AI - Make chess fun with AI-powered coaching! Learn through engaging principles-based feedback, enjoy the masti (fun) of improving your game, and discover the joy of chess mastery." />
         <meta name="keywords" content="chess masti, chess fun, chess ai, enjoyable chess, chess learning, chess training, fun chess coaching, chess improvement, chess enjoyment" />
@@ -52,7 +53,7 @@ export default function Document() {
           name="twitter:image"
           content="https://chess-masti-ai.com/social-networks-1200x630.png"
         />
-        <title>Chess Masti AI - Make Chess Fun with AI-Powered Coaching!</title>
+
       </Head>
       <body>
         <Main />

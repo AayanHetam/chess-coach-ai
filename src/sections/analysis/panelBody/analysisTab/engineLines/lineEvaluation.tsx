@@ -66,7 +66,7 @@ export default function LineEvaluation({ line }: Props) {
         {showSkeleton ? (
           <Skeleton variant="rounded" animation="wave" width="20em" />
         ) : (
-          line.pv.map((uci, i) => {
+          line.pv.slice(0, 6).map((uci, i) => {
             const san = uciToSan(uci);
             const moveColor = getColorFromMoveIdx(i);
 
@@ -75,7 +75,7 @@ export default function LineEvaluation({ line }: Props) {
                 key={i}
                 san={san}
                 color={moveColor}
-                additionalText={i < line.pv.length - 1 ? "," : ""}
+                additionalText={i < Math.min(line.pv.length, 6) - 1 ? "," : ""}
                 boxProps={{
                   onClick: () => {
                     addMoves(line.pv.slice(0, i + 1));
@@ -92,6 +92,16 @@ export default function LineEvaluation({ line }: Props) {
               />
             );
           })
+        )}
+        {line.pv.length > 6 && (
+          <Typography
+            component="span"
+            fontSize="0.9rem"
+            color="text.secondary"
+            sx={{ ml: 0.5 }}
+          >
+            ...
+          </Typography>
         )}
       </Typography>
     </ListItem>

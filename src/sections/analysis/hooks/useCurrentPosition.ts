@@ -101,7 +101,11 @@ export const useCurrentPosition = (engine: UciEngine | null) => {
             ],
           };
         }
-        const savedEval = savedEvals[fen];
+        
+        // Create deterministic cache key
+        const cacheKey = `${fen}|${engine.name}|d${depth}|pv${multiPv}`;
+        const savedEval = savedEvals[cacheKey] || savedEvals[fen]; // Fallback to old key format
+        
         if (
           savedEval &&
           savedEval.engine === engine.name &&
@@ -126,9 +130,10 @@ export const useCurrentPosition = (engine: UciEngine | null) => {
             setPartialEval,
           });
 
+          // Cache with deterministic key
           setSavedEvals((prev) => ({
             ...prev,
-            [fen]: { ...rawPositionEval, engine: engine.name },
+            [cacheKey]: { ...rawPositionEval, engine: engine.name },
           }));
 
           return rawPositionEval;

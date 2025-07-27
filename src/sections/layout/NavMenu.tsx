@@ -19,6 +19,11 @@ const MenuOptions = [
     icon: "streamline:database",
     href: "/database",
   },
+  {
+    text: "Player Feedback",
+    icon: "streamline:chart-line-up",
+    href: "/feedback",
+  },
 ];
 
 interface Props {

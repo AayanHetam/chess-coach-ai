@@ -1,6 +1,6 @@
 import { LINEAR_PROGRESS_BAR_COLOR } from "@/constants";
 import {
-  Grid2 as Grid,
+  Grid,
   LinearProgress,
   LinearProgressProps,
   Typography,

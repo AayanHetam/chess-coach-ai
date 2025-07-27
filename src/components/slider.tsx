@@ -1,7 +1,7 @@
 import { Icon } from "@iconify/react";
 import {
   ClickAwayListener,
-  Grid2 as Grid,
+  Grid,
   IconButton,
   Slider as MuiSlider,
   Popover,

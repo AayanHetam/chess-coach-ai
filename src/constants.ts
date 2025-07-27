@@ -7,14 +7,16 @@ export const LINEAR_PROGRESS_BAR_COLOR = "#FF8C42"; // Light orange for progress
 export const CLASSIFICATION_COLORS: Record<MoveClassification, string> = {
   [MoveClassification.Opening]: "#dbac86",
   [MoveClassification.Forced]: "#dbac86",
-  [MoveClassification.Splendid]: "#19d4af",
-  [MoveClassification.Perfect]: "#3894eb",
+  [MoveClassification.Brilliant]: "#19d4af",
+  [MoveClassification.Great]: "#3894eb",
   [MoveClassification.Best]: "#22ac38",
   [MoveClassification.Excellent]: "#22ac38",
+  [MoveClassification.Good]: "#52b788",
   [MoveClassification.Okay]: "#74b038",
   [MoveClassification.Inaccuracy]: "#f2be1f",
   [MoveClassification.Mistake]: "#e69f00",
   [MoveClassification.Blunder]: "#df5353",
+  [MoveClassification.Miss]: "#ff6b6b",
 };
 
 export const DEFAULT_ENGINE: EngineName = EngineName.Stockfish17Lite;

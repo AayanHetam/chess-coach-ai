@@ -77,6 +77,77 @@ export const openingPrinciples: ChessPrinciple[] = [
     description: 'Avoid early commitments that limit your options, like overextending pawns',
     category: 'opening',
     priority: 5
+  },
+  // NEW PRINCIPLES ADDED
+  {
+    id: 'develop-toward-center',
+    name: 'Develop toward the center',
+    description: 'Position pieces to influence central squares, increasing their scope',
+    category: 'opening',
+    priority: 7
+  },
+  {
+    id: 'avoid-premature-attacks',
+    name: 'Avoid premature attacks',
+    description: 'Ensure sufficient development before launching aggressive moves',
+    category: 'opening',
+    priority: 7
+  },
+  {
+    id: 'control-d-e-files',
+    name: 'Control the d-file and e-file',
+    description: 'Place pieces to contest or occupy these key files early',
+    category: 'opening',
+    priority: 6
+  },
+  {
+    id: 'avoid-king-pawn-weakness',
+    name: 'Avoid weakening the king\'s pawn shield',
+    description: 'Refrain from moving pawns in front of your king unless necessary',
+    category: 'opening',
+    priority: 8
+  },
+  {
+    id: 'prepare-pawn-breaks',
+    name: 'Prepare pawn breaks early',
+    description: 'Set up potential pawn advances (e.g., c4 or f4) to open lines later',
+    category: 'opening',
+    priority: 5
+  },
+  {
+    id: 'anticipate-opponent-setup',
+    name: 'Anticipate opponent\'s setup',
+    description: 'Choose moves that counter the opponent\'s opening system',
+    category: 'opening',
+    priority: 6
+  },
+  {
+    id: 'secure-knight-outpost',
+    name: 'Secure the knight\'s outpost',
+    description: 'Develop knights to squares like e5 or d5, supported by pawns',
+    category: 'opening',
+    priority: 6
+  },
+  {
+    id: 'avoid-pinned-pieces',
+    name: 'Avoid pinned pieces early',
+    description: 'Be cautious of moves that allow pins, like placing a knight on f3 before castling',
+    category: 'opening',
+    priority: 7
+  },
+  {
+    id: 'use-tempo-gaining-moves',
+    name: 'Use tempo-gaining moves',
+    description: 'Make moves that force the opponent to respond, gaining time',
+    category: 'opening',
+    priority: 6
+  },
+  {
+    id: 'balance-development-defense',
+    name: 'Balance development and defense',
+    description: 'Protect key squares while advancing your pieces',
+    category: 'opening',
+    priority: 7
   }
 ];
 
@@ -178,6 +249,126 @@ export const middlegamePrinciples: ChessPrinciple[] = [
     description: 'Dominate central or strategic squares (like d5 or e4) to limit opponent options',
     category: 'middlegame',
     priority: 8
+  },
+  // NEW PRINCIPLES ADDED
+  {
+    id: 'be-aware-tactical-threats',
+    name: 'Be aware of tactical threats',
+    description: 'Calculate for forks, pins, skewers, and discovered attacks to avoid blunders',
+    category: 'middlegame',
+    priority: 9
+  },
+  {
+    id: 'create-threats',
+    name: 'Create threats',
+    description: 'Generate constant pressure to force opponent mistakes',
+    category: 'middlegame',
+    priority: 7
+  },
+  {
+    id: 'restrict-opponent-mobility',
+    name: 'Restrict opponent piece mobility',
+    description: 'Limit the opponent\'s pieces by controlling key squares or creating pawn barriers',
+    category: 'middlegame',
+    priority: 7
+  },
+  {
+    id: 'evaluate-bishop-pair',
+    name: 'Evaluate the bishop pair',
+    description: 'The two bishops together are often stronger than two knights or a knight and bishop',
+    category: 'middlegame',
+    priority: 6
+  },
+  {
+    id: 'consider-knight-vs-bishop',
+    name: 'Consider knight vs. bishop',
+    description: 'Knights excel in closed positions, bishops in open ones',
+    category: 'middlegame',
+    priority: 6
+  },
+  {
+    id: 'overprotect-key-points',
+    name: 'Overprotect key points',
+    description: 'Protect critical squares or pieces more than necessary to gain flexibility',
+    category: 'middlegame',
+    priority: 6
+  },
+  {
+    id: 'exploit-space-advantages',
+    name: 'Exploit space advantages',
+    description: 'Use extra space to maneuver pieces and cramp the opponent\'s position',
+    category: 'middlegame',
+    priority: 7
+  },
+  {
+    id: 'target-opponent-king',
+    name: 'Target the opponent\'s king',
+    description: 'Create threats against the king, especially if it\'s exposed or uncastled',
+    category: 'middlegame',
+    priority: 8
+  },
+  {
+    id: 'double-rooks-open-files',
+    name: 'Double rooks on open files',
+    description: 'Stack rooks to increase pressure and penetrate the opponent\'s position',
+    category: 'middlegame',
+    priority: 7
+  },
+  {
+    id: 'use-queen-actively-safely',
+    name: 'Use the queen actively but safely',
+    description: 'Position the queen to support attacks without exposing it to traps',
+    category: 'middlegame',
+    priority: 7
+  },
+  {
+    id: 'exploit-pinned-pieces',
+    name: 'Exploit pinned pieces',
+    description: 'Use pins to immobilize opponent pieces and create tactical opportunities',
+    category: 'middlegame',
+    priority: 7
+  },
+  {
+    id: 'create-pawn-weaknesses',
+    name: 'Create pawn weaknesses',
+    description: 'Force the opponent to overextend or create isolated/doubled pawns',
+    category: 'middlegame',
+    priority: 6
+  },
+  {
+    id: 'improve-piece-placement',
+    name: 'Improve piece placement',
+    description: 'Reposition pieces to better squares, even if it takes an extra move',
+    category: 'middlegame',
+    priority: 7
+  },
+  {
+    id: 'attack-weak-color-complexes',
+    name: 'Attack weak color complexes',
+    description: 'Target squares of one color if the opponent lacks a bishop to defend them',
+    category: 'middlegame',
+    priority: 6
+  },
+  {
+    id: 'force-pawn-moves',
+    name: 'Force pawn moves',
+    description: 'Provoke pawn advances that weaken the opponent\'s structure',
+    category: 'middlegame',
+    priority: 6
+  },
+  {
+    id: 'support-minor-pieces',
+    name: 'Support minor pieces with major pieces',
+    description: 'Use rooks or queens to back up knights and bishops in attacks',
+    category: 'middlegame',
+    priority: 6
+  },
+  {
+    id: 'evaluate-trade-opportunities',
+    name: 'Evaluate trade opportunities',
+    description: 'Trade pieces to simplify when ahead or to disrupt opponent coordination',
+    category: 'middlegame',
+    priority: 6
   }
 ];
 
@@ -244,6 +435,84 @@ export const endgamePrinciples: ChessPrinciple[] = [
     description: 'Advance pawn majorities (e.g., 3 vs. 2 on one side) to create passed pawns',
     category: 'endgame',
     priority: 7
+  },
+  // NEW PRINCIPLES ADDED
+  {
+    id: 'know-key-endgame-positions',
+    name: 'Know key endgame positions',
+    description: 'Understand techniques like the Lucena or Philidor positions in rook endgames',
+    category: 'endgame',
+    priority: 7
+  },
+  {
+    id: 'exploit-two-weaknesses',
+    name: 'Exploit the principle of two weaknesses',
+    description: 'Create multiple weaknesses to stretch the opponent\'s defense',
+    category: 'endgame',
+    priority: 7
+  },
+  {
+    id: 'set-up-fortresses',
+    name: 'Set up fortresses',
+    description: 'In defensive positions, create structures that are hard to break',
+    category: 'endgame',
+    priority: 6
+  },
+  {
+    id: 'cut-off-opponent-king',
+    name: 'Cut off the opponent\'s king',
+    description: 'Use pieces to restrict the opponent\'s king from entering the game',
+    category: 'endgame',
+    priority: 7
+  },
+  {
+    id: 'use-rooks-behind-pawns',
+    name: 'Use rooks behind passed pawns',
+    description: 'Place rooks behind your passed pawns to support their advance',
+    category: 'endgame',
+    priority: 7
+  },
+  {
+    id: 'avoid-passive-rook-positions',
+    name: 'Avoid passive rook positions',
+    description: 'Keep rooks active, avoiding placement in front of your own pawns',
+    category: 'endgame',
+    priority: 6
+  },
+  {
+    id: 'master-rook-endgames',
+    name: 'Master rook endgames',
+    description: 'Understand techniques like checking from the side or cutting off the king',
+    category: 'endgame',
+    priority: 7
+  },
+  {
+    id: 'centralize-minor-pieces',
+    name: 'Centralize minor pieces in endgames',
+    description: 'Knights and bishops are more effective in the center',
+    category: 'endgame',
+    priority: 6
+  },
+  {
+    id: 'avoid-pawn-trades-behind',
+    name: 'Avoid pawn trades when behind',
+    description: 'Keep pawns on the board to create counterplay in losing positions',
+    category: 'endgame',
+    priority: 6
+  },
+  {
+    id: 'know-when-trade-minor-pieces',
+    name: 'Know when to trade minor pieces',
+    description: 'Trade to simplify when ahead, but retain pieces for attack when behind',
+    category: 'endgame',
+    priority: 6
+  },
+  {
+    id: 'use-zugzwang-minor-pieces',
+    name: 'Use zugzwang in minor piece endgames',
+    description: 'Force the opponent to move into a losing position',
+    category: 'endgame',
+    priority: 5
   }
 ];
 
@@ -303,5 +572,174 @@ export const generalPrinciples: ChessPrinciple[] = [
     description: 'Ensure moves are tactically sound by checking for checks, captures, and threats',
     category: 'general',
     priority: 9
+  },
+  // NEW PRINCIPLES ADDED
+  {
+    id: 'evaluate-material-imbalances',
+    name: 'Evaluate material imbalances',
+    description: 'Consider specific trade-offs, like two minor pieces vs. a rook',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'make-positional-sacrifices',
+    name: 'Make positional sacrifices',
+    description: 'Sacrifice material for long-term advantages, like opening lines or gaining the initiative',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'assess-king-exposure',
+    name: 'Assess king exposure',
+    description: 'Evaluate how open or vulnerable each king is, even in the middlegame',
+    category: 'general',
+    priority: 8
+  },
+  {
+    id: 'avoid-overextension',
+    name: 'Avoid overextension',
+    description: 'Don\'t push pawns or pieces too far without sufficient support',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'prioritize-piece-safety',
+    name: 'Prioritize piece safety',
+    description: 'Avoid leaving pieces undefended or exposed to capture',
+    category: 'general',
+    priority: 8
+  },
+  {
+    id: 'evaluate-tempo',
+    name: 'Evaluate tempo',
+    description: 'Make moves that gain time or force the opponent to lose tempo',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'adapt-to-position-type',
+    name: 'Adapt to position type',
+    description: 'Play dynamically in open positions and patiently in closed ones',
+    category: 'general',
+    priority: 6
+  },
+  {
+    id: 'exploit-opponent-mistakes',
+    name: 'Exploit opponent mistakes',
+    description: 'Capitalize on errors like weak pawn moves or exposed pieces',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'plan-for-transitions',
+    name: 'Plan for transitions',
+    description: 'Anticipate how the game might shift from opening to middlegame or middlegame to endgame',
+    category: 'general',
+    priority: 6
+  },
+  {
+    id: 'use-least-active-piece',
+    name: 'Use the principle of least active piece',
+    description: 'Improve the position of your least active piece first',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'control-seventh-rank',
+    name: 'Control the seventh rank',
+    description: 'Place rooks on the opponent\'s second rank to attack pawns or trap the king',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'avoid-unnecessary-pawn-weaknesses',
+    name: 'Avoid unnecessary pawn weaknesses',
+    description: 'Don\'t create holes or weak squares without compensation',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'assess-piece-mobility',
+    name: 'Assess piece mobility',
+    description: 'Favor moves that increase your pieces\' scope and restrict the opponent\'s',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'use-discovered-attacks',
+    name: 'Use discovered attacks',
+    description: 'Position pieces to uncover threats, especially with bishops or queens',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'evaluate-king-activity-middlegame',
+    name: 'Evaluate king activity in middlegames',
+    description: 'In safe positions, consider subtle king moves to improve position',
+    category: 'general',
+    priority: 5
+  },
+  {
+    id: 'exploit-pinned-pieces-tactically',
+    name: 'Exploit pinned pieces tactically',
+    description: 'Use pins to win material or gain positional advantages',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'create-mating-threats',
+    name: 'Create mating threats',
+    description: 'Even in middlegames, set up potential checkmate patterns',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'use-rooks-support-pawns',
+    name: 'Use rooks to support pawn advances',
+    description: 'Place rooks behind advancing pawns to increase their power',
+    category: 'general',
+    priority: 6
+  },
+  {
+    id: 'avoid-trading-worse-endgames',
+    name: 'Avoid trading into worse endgames',
+    description: 'Don\'t trade pieces if it leads to a losing endgame structure',
+    category: 'general',
+    priority: 6
+  },
+  {
+    id: 'understand-pawn-structure-dynamics',
+    name: 'Understand pawn structure dynamics',
+    description: 'Recognize when to keep pawns fluid or locked',
+    category: 'general',
+    priority: 6
+  },
+  {
+    id: 'attack-with-purpose',
+    name: 'Attack with a purpose',
+    description: 'Ensure attacks target specific weaknesses or create lasting advantages',
+    category: 'general',
+    priority: 7
+  },
+  {
+    id: 'use-knights-closed-positions',
+    name: 'Use knights in closed positions',
+    description: 'Knights thrive in positions with locked pawn structures',
+    category: 'general',
+    priority: 6
+  },
+  {
+    id: 'evaluate-open-vs-closed',
+    name: 'Evaluate open vs. closed positions',
+    description: 'Choose moves that suit the position\'s nature (e.g., bishops in open games)',
+    category: 'general',
+    priority: 6
+  },
+  {
+    id: 'stay-alert-sacrifices',
+    name: 'Stay alert for sacrifices',
+    description: 'Look for tactical sacrifices that open lines or expose the opponent\'s king',
+    category: 'general',
+    priority: 7
   }
 ]; 

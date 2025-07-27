@@ -309,6 +309,9 @@ const renderTextWithClickableMoves = (text: string) => {
   // Pattern to catch hypothetical moves in "Instead, X. Y would have..." format
   const hypotheticalMovePattern = /Instead,?\s*(\d+)\.\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\s+would\s+have/gi;
   
+  // Pattern to catch hypothetical moves in "Instead, HYPOTHETICAL MOVE X would have..." format
+  const hypotheticalMoveReferencePattern = /Instead,?\s*HYPOTHETICAL\s+MOVE\s+(\d+)\s+would\s+have/gi;
+  
   // Tactical patterns to look for "see how" opportunities
   const tacticalPatterns = [
     // "Rc2+ gives check"
@@ -396,6 +399,37 @@ const renderTextWithClickableMoves = (text: string) => {
   let hypotheticalLastIndex = 0;
   let hypotheticalMatch;
   
+  // First, process "HYPOTHETICAL MOVE X" references
+  while ((hypotheticalMatch = hypotheticalMoveReferencePattern.exec(processedText)) !== null) {
+    const fullMatch = hypotheticalMatch[0];
+    const moveIndex = parseInt(hypotheticalMatch[1]) - 1; // Convert to 0-based index
+    
+    // Add text before the match
+    if (hypotheticalMatch.index > hypotheticalLastIndex) {
+      const beforeText = processedText.slice(hypotheticalLastIndex, hypotheticalMatch.index);
+      hypotheticalParts.push(...processSeeLinks(beforeText));
+    }
+    
+    // Add the hypothetical move reference (this will be styled differently)
+    hypotheticalParts.push(
+      <span
+        key={`hypothetical-ref-${moveIndex}-${hypotheticalMatch.index}`}
+        style={{
+          color: '#4CAF50',
+          fontWeight: 'bold',
+          backgroundColor: 'rgba(76, 175, 80, 0.1)',
+          padding: '2px 4px',
+          borderRadius: '4px',
+        }}
+      >
+        HYPOTHETICAL MOVE {moveIndex + 1}
+      </span>
+    );
+    
+    hypotheticalLastIndex = hypotheticalMatch.index + fullMatch.length;
+  }
+  
+  // Then process regular hypothetical move patterns
   while ((hypotheticalMatch = hypotheticalMovePattern.exec(processedText)) !== null) {
     const fullMatch = hypotheticalMatch[0];
     const moveNumber = parseInt(hypotheticalMatch[1]);

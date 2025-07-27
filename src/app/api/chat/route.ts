@@ -374,12 +374,12 @@ export async function POST(req: Request) {
               });
               
               // Show top violations by evaluation impact
-              aggressiveGameAnalysis.topViolations.forEach((violation: any) => {
+              aggressiveGameAnalysis.topViolations.forEach((violation: any, index: number) => {
                 chessContext += `**${violation.description}**\n`;
                 chessContext += `Short-term: ${violation.shortTermImpact}\n`;
                 chessContext += `Long-term: ${violation.longTermImpact}\n`;
                 if (violation.correctMove) {
-                  chessContext += `Correct move: ${violation.correctMove}\n`;
+                  chessContext += `HYPOTHETICAL MOVE ${index + 1}: ${violation.correctMove}\n`;
                 }
                 chessContext += '\n';
               });
@@ -445,8 +445,10 @@ export async function POST(req: Request) {
           chessContext += `20. **NO REDUNDANCY**: Do not create "Areas for Improvement" or "Structural Issues" sections\n`;
           chessContext += `21. **FIX FORMAT**: Use "Instead, [move] would have..." for each violation fix\n`;
           chessContext += `22. **CONCISE VIOLATION FORMAT**: Use "principle name was violated on move X. Y" format for faster understanding\n`;
-          chessContext += `23. **CORRECT MOVE CITATION**: When suggesting fixes, use the "Correct move" provided in the analysis data\n`;
-          chessContext += `24. **HYPOTHETICAL MOVES**: The "Instead" moves are hypothetical - they show what should have been played, not what was played\n\n`;
+          chessContext += `23. **HYPOTHETICAL MOVE CITATION**: When suggesting fixes, use the "HYPOTHETICAL MOVE X" provided in the analysis data\n`;
+          chessContext += `24. **HYPOTHETICAL MOVES**: The "Instead" moves are hypothetical - they show what should have been played, not what was played\n`;
+          chessContext += `25. **NEVER REFERENCE GAME MOVES**: Do not use moves that were actually played in the game for "Instead" suggestions\n`;
+          chessContext += `26. **USE PROVIDED HYPOTHETICAL MOVES**: Only use the HYPOTHETICAL MOVE X values from the analysis data\n\n`;
           
         } catch (error) {
           console.error('Error in principles analysis:', error);
@@ -502,6 +504,13 @@ When users ask about:
 - When violations are found, provide specific, actionable advice based on the principle violated
 - Every violation should have clear reasoning and a specific fix using "Instead, [move] would have..."
 
+**CRITICAL: HYPOTHETICAL MOVE REQUIREMENTS**
+- **NEVER use moves that were actually played in the game** for "Instead" suggestions
+- **ALWAYS use the HYPOTHETICAL MOVE X values** provided in the analysis data
+- **These are hypothetical moves** that show what should have been played, not what was played
+- **Do not reference opponent moves or moves from different positions**
+- **Only use the specific hypothetical moves provided** in the violation analysis
+
 **CRITICAL: MOVE CITATION REQUIREMENTS**
 - **NEVER mention principle violations without citing the EXACT move with move number**
 - When citing moves with principle violations, ALWAYS use the EXACT move notation from the violations list
@@ -524,11 +533,11 @@ When users ask about:
 
 **Principle Violations:**
 
-**develop knights and bishops early was violated on move 1. e4** Instead, 1. Nf3 would have developed a knight while controlling central squares.
+**develop knights and bishops early was violated on move 1. e4** Instead, HYPOTHETICAL MOVE 1 would have developed a knight while controlling central squares.
 
-**develop knights and bishops early was violated on move 4. d3** Instead, 4. O-O would have castled early for king safety.
+**develop knights and bishops early was violated on move 4. d3** Instead, HYPOTHETICAL MOVE 2 would have castled early for king safety.
 
-**complete development first was violated on move 6. h3** Instead, 6. Nc3 would have completed piece development.
+**complete development first was violated on move 6. h3** Instead, HYPOTHETICAL MOVE 3 would have completed piece development.
 
 Focus on piece development and king safety in future games.
 

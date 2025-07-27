@@ -159,7 +159,8 @@ function checkPrincipleViolation(
           severity: 'moderate',
           description: `${principle.name} was violated on move ${moveNumber}. ${move}`,
           shortTermImpact: 'King becomes more exposed',
-          longTermImpact: 'Increased vulnerability to attacks'
+          longTermImpact: 'Increased vulnerability to attacks',
+          correctMove: 'O-O' // Suggest castling for king safety
         };
       }
       break;
@@ -172,7 +173,8 @@ function checkPrincipleViolation(
           severity: 'major',
           description: `${principle.name} was violated on move ${moveNumber}. ${move}`,
           shortTermImpact: 'Immediate material loss',
-          longTermImpact: 'Material disadvantage'
+          longTermImpact: 'Material disadvantage',
+          correctMove: suggestDevelopmentMove(positionBefore, moveNumber)
         };
       }
       break;
@@ -184,7 +186,8 @@ function checkPrincipleViolation(
           severity: 'moderate',
           description: `${principle.name} was violated on move ${moveNumber}. ${move}`,
           shortTermImpact: 'Missed tactical advantage',
-          longTermImpact: 'Lost opportunity for material gain'
+          longTermImpact: 'Lost opportunity for material gain',
+          correctMove: suggestDevelopmentMove(positionBefore, moveNumber)
         };
       }
       break;
@@ -196,7 +199,8 @@ function checkPrincipleViolation(
           severity: 'minor',
           description: `${principle.name} was violated on move ${moveNumber}. ${move}`,
           shortTermImpact: 'Incomplete piece development',
-          longTermImpact: 'Slower coordination and initiative'
+          longTermImpact: 'Slower coordination and initiative',
+          correctMove: suggestDevelopmentMove(positionBefore, moveNumber)
         };
       }
       break;
@@ -208,7 +212,8 @@ function checkPrincipleViolation(
           severity: 'minor',
           description: `${principle.name} was violated on move ${moveNumber}. ${move}`,
           shortTermImpact: 'Wasted tempo',
-          longTermImpact: 'Developmental disadvantage'
+          longTermImpact: 'Developmental disadvantage',
+          correctMove: suggestDevelopmentMove(positionBefore, moveNumber)
         };
       }
       break;
@@ -220,7 +225,8 @@ function checkPrincipleViolation(
           severity: 'minor',
           description: `${principle.name} was violated on move ${moveNumber}. ${move}`,
           shortTermImpact: 'King remains in center',
-          longTermImpact: 'Delayed king safety'
+          longTermImpact: 'Delayed king safety',
+          correctMove: 'O-O'
         };
       }
       break;
@@ -232,7 +238,8 @@ function checkPrincipleViolation(
           severity: 'minor',
           description: `${principle.name} was violated on move ${moveNumber}. ${move}`,
           shortTermImpact: 'Passive piece placement',
-          longTermImpact: 'Reduced piece influence'
+          longTermImpact: 'Reduced piece influence',
+          correctMove: suggestDevelopmentMove(positionBefore, moveNumber)
         };
       }
       break;
@@ -244,7 +251,8 @@ function checkPrincipleViolation(
           severity: 'moderate',
           description: `${principle.name} was violated on move ${moveNumber}. ${move}`,
           shortTermImpact: 'Pawn structure compromised',
-          longTermImpact: 'Long-term positional disadvantage'
+          longTermImpact: 'Long-term positional disadvantage',
+          correctMove: suggestDevelopmentMove(positionBefore, moveNumber)
         };
       }
       break;

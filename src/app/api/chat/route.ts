@@ -380,6 +380,8 @@ export async function POST(req: Request) {
                 chessContext += `Long-term: ${violation.longTermImpact}\n`;
                 if (violation.correctMove) {
                   chessContext += `HYPOTHETICAL MOVE ${index + 1}: ${violation.correctMove}\n`;
+                } else {
+                  chessContext += `HYPOTHETICAL MOVE ${index + 1}: N/A (no suggestion available)\n`;
                 }
                 chessContext += '\n';
               });
@@ -399,7 +401,10 @@ export async function POST(req: Request) {
               chessContext += `**🚨 CRITICAL: USE HYPOTHETICAL MOVES ONLY 🚨**\n`;
               chessContext += `When suggesting fixes, you MUST use the HYPOTHETICAL MOVE X references above.\n`;
               chessContext += `DO NOT use actual game moves, opponent moves, or moves from different positions.\n`;
-              chessContext += `ONLY use the specific HYPOTHETICAL MOVE X values provided.\n\n`;
+              chessContext += `ONLY use the specific HYPOTHETICAL MOVE X values provided.\n`;
+              chessContext += `**FORMAT: "Instead, HYPOTHETICAL MOVE X would have..."**\n`;
+              chessContext += `**NEVER say "Instead, a move like..." or "Instead, developing..."**\n`;
+              chessContext += `**ALWAYS use the exact HYPOTHETICAL MOVE X reference**\n\n`;
               
             } else {
               // Player has high accuracy or no significant violations
@@ -462,7 +467,10 @@ export async function POST(req: Request) {
           chessContext += `23. **HYPOTHETICAL MOVE CITATION**: When suggesting fixes, use the "HYPOTHETICAL MOVE X" provided in the analysis data\n`;
           chessContext += `24. **HYPOTHETICAL MOVES**: The "Instead" moves are hypothetical - they show what should have been played, not what was played\n`;
           chessContext += `25. **NEVER REFERENCE GAME MOVES**: Do not use moves that were actually played in the game for "Instead" suggestions\n`;
-          chessContext += `26. **USE PROVIDED HYPOTHETICAL MOVES**: Only use the HYPOTHETICAL MOVE X values from the analysis data\n\n`;
+          chessContext += `26. **USE PROVIDED HYPOTHETICAL MOVES**: Only use the HYPOTHETICAL MOVE X values from the analysis data\n`;
+          chessContext += `27. **EXACT FORMAT REQUIRED**: Use "Instead, HYPOTHETICAL MOVE X would have..." format\n`;
+          chessContext += `28. **NO GENERIC SUGGESTIONS**: Never say "Instead, a move like..." or "Instead, developing..."\n`;
+          chessContext += `29. **MANDATORY REFERENCE**: Every "Instead" suggestion MUST reference a HYPOTHETICAL MOVE X\n\n`;
           
         } catch (error) {
           console.error('Error in principles analysis:', error);

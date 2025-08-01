@@ -6,12 +6,8 @@ import {
   Paper,
   TextField,
   IconButton,
-  Select,
-  MenuItem,
   Typography,
   CircularProgress,
-  FormControl,
-  InputLabel,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -24,7 +20,7 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
 import { Chess } from "chess.js";
 import { useChessActions } from "@/hooks/useChessActions";
-import { boardAtom, gameAtom, gameEvalAtom } from "@/sections/analysis/states";
+import { boardAtom, gameAtom } from "@/sections/analysis/states";
 import { useAtomValue } from "jotai";
 
 interface Message {
@@ -280,287 +276,133 @@ const HypotheticalMove: React.FC<{ move: string; moveNumber?: number; isBlackMov
 
 // Custom text renderer that converts move notation to clickable links
 const renderTextWithClickableMoves = (text: string) => {
-  console.log('Processing text for moves and tactics:', text);
-  
-  // Debug: Check for specific move patterns in the text
-  const debugMoves = text.match(/\*\*(\d+)\.\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\*\*/g);
-  if (debugMoves) {
-    console.log('Found bold moves:', debugMoves);
-  }
-  
-  const debugContextualMoves = text.match(/(?:move|played|instead,?\s*a?\s*move\s+like)\s+(\d+)\.\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi);
-  if (debugContextualMoves) {
-    console.log('Found contextual moves:', debugContextualMoves);
-  }
-  
-  // Enhanced regex to match chess moves with proper move number notation
-  // This pattern matches both white moves (15. Nf3) and black moves (15... cxd4)
-  const movePattern = /(\d+)\.\.\.?\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)|(\d+)\.\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g;
-  
-  // Additional pattern to catch moves that might be cited without proper formatting
-  const looseMovePattern = /\b(\d+)\.\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\b/g;
-  
-  // Pattern to catch moves in bold formatting like **15. h3**
-  const boldMovePattern = /\*\*(\d+)\.\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\*\*/g;
-  
-  // Pattern to catch moves in context like "move 15. h3" or "played 15. Bc4"
-  const contextualMovePattern = /(?:move|played|instead,?\s*a?\s*move\s+like)\s+(\d+)\.\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi;
-  
-  // Pattern to catch hypothetical moves in "Instead, X. Y would have..." format
-  const hypotheticalMovePattern = /Instead,?\s*(\d+)\.\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\s+would\s+have/gi;
-  
-  // Pattern to catch hypothetical moves in "Instead, HYPOTHETICAL MOVE X would have..." format
-  const hypotheticalMoveReferencePattern = /Instead,?\s*HYPOTHETICAL\s+MOVE\s+(\d+)\s+would\s+have/gi;
-  
-  // Tactical patterns to look for "see how" opportunities
-  const tacticalPatterns = [
-    // "Rc2+ gives check"
-    /([NBRQK]?[a-h][1-8][+#]?)\s+gives check/gi,
-    // "Can capture hanging pieces: Pe5, Rc1"
-    /Can capture hanging pieces:\s*([PNBRQK]?[a-h]?[1-8]?(?:,\s*[PNBRQK]?[a-h]?[1-8]?)*)/gi,
-    // "Tactical opportunities available: Rc2+ gives check"
-    /Tactical opportunities available:\s*([NBRQK]?[a-h][1-8][+#]?)\s+gives check/gi,
-    // Handle the format "Tactical opportunities available: Rc2+ gives check; Can capture hanging pieces: Pe5, Rc1"
-    /Tactical opportunities available:.*?Can capture hanging pieces:\s*([PNBRQK]?[a-h]?[1-8]?(?:,\s*[PNBRQK]?[a-h]?[1-8]?)*)/gi
+  if (!text) return null;
+
+  // Unified pattern to catch all move formats in priority order
+  const movePatterns = [
+    // Priority 1: AI response format "Move X: [move] - [principle] - [explanation] - [suggestion]"
+    {
+      pattern: /Move\s+(\d+):\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
+      type: 'ai',
+      priority: 1
+    },
+    // Priority 2: Standard notation "15. Nf3" or "15... cxd4"
+    {
+      pattern: /(\d+)\.\.\.?\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g,
+      type: 'standard',
+      priority: 2
+    },
+    // Priority 3: "move X" format
+    {
+      pattern: /move\s+(\d+)([wb])?:\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
+      type: 'move',
+      priority: 3
+    }
   ];
-  
-  let processedText = text;
-  
-  // First, add "see how" links for tactical patterns
-  for (const pattern of tacticalPatterns) {
-    processedText = processedText.replace(pattern, (match, capturedMove) => {
-      console.log('Found tactical pattern:', match, 'Move:', capturedMove);
-      const moves = capturedMove.includes(',') 
-        ? capturedMove.split(',').map((m: string) => m.trim()) 
-        : [capturedMove];
-      
-      return `${match} <SEELINK>${JSON.stringify({
-        sequence: moves,
-        description: match.includes('check') ? 'give check' : 'capture hanging pieces'
-      })}</SEELINK>`;
-    });
-  }
-  
+
   let parts = [];
   let lastIndex = 0;
-  let match;
+  let processedRanges: Array<{start: number, end: number}> = [];
 
-  // Process regular move notation
-  while ((match = movePattern.exec(processedText)) !== null) {
+  // Find all matches from all patterns and sort by priority and position
+  const allMatches: Array<{
+    match: RegExpExecArray;
+    pattern: any;
+    index: number;
+    priority: number;
+  }> = [];
+
+  movePatterns.forEach((patternInfo) => {
+    patternInfo.pattern.lastIndex = 0;
+    let match;
+    while ((match = patternInfo.pattern.exec(text)) !== null) {
+      allMatches.push({
+        match,
+        pattern: patternInfo,
+        index: match.index,
+        priority: patternInfo.priority
+      });
+    }
+  });
+
+  // Sort matches by priority (lower number = higher priority) and then by position
+  allMatches.sort((a, b) => {
+    if (a.priority !== b.priority) {
+      return a.priority - b.priority;
+    }
+    return a.index - b.index;
+  });
+
+  // Process matches in order, avoiding overlaps
+  allMatches.forEach((matchInfo) => {
+    const { match, pattern } = matchInfo;
     const fullMatch = match[0];
-    console.log('Found move match:', fullMatch);
-    
-    // Determine if this is a black move (has "...") or white move (just ".")
+    const startIndex = match.index;
+    const endIndex = startIndex + fullMatch.length;
+
+    // Check if this range overlaps with any already processed range
+    const overlaps = processedRanges.some(range => 
+      (startIndex >= range.start && startIndex < range.end) ||
+      (endIndex > range.start && endIndex <= range.end) ||
+      (startIndex <= range.start && endIndex >= range.end)
+    );
+
+    if (overlaps) {
+      return; // Skip this match as it overlaps with a higher priority match
+    }
+
+    // Add text before the match
+    if (startIndex > lastIndex) {
+      parts.push(text.slice(lastIndex, startIndex));
+    }
+
+    // Process the match based on pattern type
     let moveNumber: number;
     let move: string;
     let isBlackMove: boolean;
-    
-    if (match[1] && match[2]) {
-      // Black move pattern: "15... cxd4"
+
+    if (pattern.type === 'ai') {
       moveNumber = parseInt(match[1]);
       move = match[2];
-      isBlackMove = true;
-    } else if (match[3] && match[4]) {
-      // White move pattern: "15. Nf3"
-      moveNumber = parseInt(match[3]);
-      move = match[4];
-      isBlackMove = false;
+      isBlackMove = moveNumber % 2 === 0;
+    } else if (pattern.type === 'standard') {
+      moveNumber = parseInt(match[1]);
+      move = match[2];
+      isBlackMove = fullMatch.includes('...');
+    } else if (pattern.type === 'move') {
+      moveNumber = parseInt(match[1]);
+      isBlackMove = match[2] === 'b';
+      move = match[3];
     } else {
-      continue;
+      return; // Unknown pattern type
     }
-    
-    // Add text before the match
-    if (match.index > lastIndex) {
-      const beforeText = processedText.slice(lastIndex, match.index);
-      parts.push(...processSeeLinks(beforeText));
-    }
-    
+
     // Add the clickable move
     parts.push(
       <ClickableMove 
-        key={`${move}-${moveNumber}-${isBlackMove ? 'black' : 'white'}-${match.index}`} 
+        key={`${pattern.type}-${moveNumber}-${isBlackMove ? 'black' : 'white'}-${startIndex}`} 
         move={move} 
         moveNumber={moveNumber}
         isBlackMove={isBlackMove}
       />
     );
-    
-    lastIndex = match.index + fullMatch.length;
-  }
-  
+
+    // Update tracking
+    lastIndex = endIndex;
+    processedRanges.push({ start: startIndex, end: endIndex });
+  });
+
   // Add remaining text
-  if (lastIndex < processedText.length) {
-    const remainingText = processedText.slice(lastIndex);
-    parts.push(...processSeeLinks(remainingText));
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
   }
-  
-  // Process hypothetical moves in "Instead, X. Y would have..." format
-  let hypotheticalParts = [];
-  let hypotheticalLastIndex = 0;
-  let hypotheticalMatch;
-  
-  // First, process "HYPOTHETICAL MOVE X" references
-  while ((hypotheticalMatch = hypotheticalMoveReferencePattern.exec(processedText)) !== null) {
-    const fullMatch = hypotheticalMatch[0];
-    const moveIndex = parseInt(hypotheticalMatch[1]) - 1; // Convert to 0-based index
-    
-    // Add text before the match
-    if (hypotheticalMatch.index > hypotheticalLastIndex) {
-      const beforeText = processedText.slice(hypotheticalLastIndex, hypotheticalMatch.index);
-      hypotheticalParts.push(...processSeeLinks(beforeText));
-    }
-    
-    // Add the hypothetical move reference (this will be styled differently)
-    hypotheticalParts.push(
-      <span
-        key={`hypothetical-ref-${moveIndex}-${hypotheticalMatch.index}`}
-        style={{
-          color: '#4CAF50',
-          fontWeight: 'bold',
-          backgroundColor: 'rgba(76, 175, 80, 0.1)',
-          padding: '2px 4px',
-          borderRadius: '4px',
-        }}
-      >
-        HYPOTHETICAL MOVE {moveIndex + 1}
-      </span>
-    );
-    
-    hypotheticalLastIndex = hypotheticalMatch.index + fullMatch.length;
+
+  // If no moves were found, just return the text
+  if (parts.length === 0) {
+    return <>{text}</>;
   }
-  
-  // Then process regular hypothetical move patterns
-  while ((hypotheticalMatch = hypotheticalMovePattern.exec(processedText)) !== null) {
-    const fullMatch = hypotheticalMatch[0];
-    const moveNumber = parseInt(hypotheticalMatch[1]);
-    const move = hypotheticalMatch[2];
-    
-    // Add text before the match
-    if (hypotheticalMatch.index > hypotheticalLastIndex) {
-      const beforeText = processedText.slice(hypotheticalLastIndex, hypotheticalMatch.index);
-      hypotheticalParts.push(...processSeeLinks(beforeText));
-    }
-    
-    // Find the original move that was violated (this is a bit tricky)
-    // For now, we'll use a placeholder - in a real implementation, we'd need to track this
-    const originalMove = "original"; // This should be extracted from the violation context
-    
-    // Add the hypothetical move
-    hypotheticalParts.push(
-      <HypotheticalMove 
-        key={`hypothetical-${move}-${moveNumber}-${hypotheticalMatch.index}`} 
-        move={move} 
-        moveNumber={moveNumber}
-        isBlackMove={false} // Assume white move for now
-        originalMove={originalMove}
-      />
-    );
-    
-    hypotheticalLastIndex = hypotheticalMatch.index + fullMatch.length;
-  }
-  
-  // Add remaining text after hypothetical moves
-  if (hypotheticalLastIndex < processedText.length) {
-    const remainingText = processedText.slice(hypotheticalLastIndex);
-    hypotheticalParts.push(...processSeeLinks(remainingText));
-  }
-  
-  // If we found hypothetical moves, use those parts instead
-  if (hypotheticalParts.length > 1) {
-    return <>{hypotheticalParts}</>;
-  }
-  
-  // Process any loose move patterns that might have been missed
-  if (parts.length === 1 && typeof parts[0] === 'string') {
-    const text = parts[0];
-    const looseParts = [];
-    let looseLastIndex = 0;
-    let looseMatch;
-    
-    // First, process bold move patterns
-    while ((looseMatch = boldMovePattern.exec(text)) !== null) {
-      const fullMatch = looseMatch[0];
-      const moveNumber = parseInt(looseMatch[1]);
-      const move = looseMatch[2];
-      
-      // Add text before the match
-      if (looseMatch.index > looseLastIndex) {
-        looseParts.push(text.slice(looseLastIndex, looseMatch.index));
-      }
-      
-      // Add the clickable move (without bold formatting)
-      looseParts.push(
-        <ClickableMove 
-          key={`bold-${move}-${moveNumber}-${looseMatch.index}`} 
-          move={move} 
-          moveNumber={moveNumber}
-          isBlackMove={false} // Assume white move for bold pattern
-        />
-      );
-      
-      looseLastIndex = looseMatch.index + fullMatch.length;
-    }
-    
-    // Then process contextual move patterns
-    while ((looseMatch = contextualMovePattern.exec(text)) !== null) {
-      const fullMatch = looseMatch[0];
-      const moveNumber = parseInt(looseMatch[1]);
-      const move = looseMatch[2];
-      
-      // Add text before the match
-      if (looseMatch.index > looseLastIndex) {
-        looseParts.push(text.slice(looseLastIndex, looseMatch.index));
-      }
-      
-      // Add the clickable move
-      looseParts.push(
-        <ClickableMove 
-          key={`contextual-${move}-${moveNumber}-${looseMatch.index}`} 
-          move={move} 
-          moveNumber={moveNumber}
-          isBlackMove={false} // Assume white move for contextual pattern
-        />
-      );
-      
-      looseLastIndex = looseMatch.index + fullMatch.length;
-    }
-    
-    // Then process regular loose move patterns
-    while ((looseMatch = looseMovePattern.exec(text)) !== null) {
-      const fullMatch = looseMatch[0];
-      const moveNumber = parseInt(looseMatch[1]);
-      const move = looseMatch[2];
-      
-      // Add text before the match
-      if (looseMatch.index > looseLastIndex) {
-        looseParts.push(text.slice(looseLastIndex, looseMatch.index));
-      }
-      
-      // Add the clickable move
-      looseParts.push(
-        <ClickableMove 
-          key={`loose-${move}-${moveNumber}-${looseMatch.index}`} 
-          move={move} 
-          moveNumber={moveNumber}
-          isBlackMove={false} // Assume white move for loose pattern
-        />
-      );
-      
-      looseLastIndex = looseMatch.index + fullMatch.length;
-    }
-    
-    // Add remaining text
-    if (looseLastIndex < text.length) {
-      looseParts.push(text.slice(looseLastIndex));
-    }
-    
-    if (looseParts.length > 1) {
-      return <>{looseParts}</>;
-    }
-  }
-  
-  console.log('Final parts count:', parts.length);
-  return parts.length > 1 ? <>{parts}</> : processedText;
+
+  return <>{parts}</>;
 };
 
 // Helper function to process "see how" links
@@ -623,7 +465,7 @@ const MessagesContainer = styled(Box, {
   marginBottom: theme.spacing(2),
   padding: theme.spacing(1),
   transition: "all 0.3s ease",
-  maxHeight: isExpanded ? "none" : "200px",
+  maxHeight: isExpanded ? "none" : "400px", // Increased from 200px to 400px for better readability
 }));
 
 const ExpandButton = styled(IconButton)(({ theme }) => ({
@@ -739,7 +581,6 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   game,
   boardOrientation = true,
 }) => {
-  const gameEval = useAtomValue(gameEvalAtom);
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "system",
@@ -748,28 +589,12 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
     },
   ]);
   const [input, setInput] = useState("");
-  const [selectedModel, setSelectedModel] = useState(
-    "claude-sonnet-4-20250514"
-  );
-  const [responseLength, setResponseLength] = useState("basic");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
-
-
-  const models = [
-    { id: "claude-sonnet-4-20250514", name: "Claude 4 Sonnet" },
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-  ];
-
-  const responseLengths = [
-    { id: "basic", name: "Basic", description: "Quick, concise analysis" },
-    { id: "normal", name: "Normal", description: "Balanced detail and brevity" },
-    { id: "comprehensive", name: "Comprehensive", description: "Detailed analysis with error sensitivity" },
-  ];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -800,129 +625,59 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
     abortControllerRef.current = new AbortController();
 
     try {
-      // Prepare game data with enhanced move information
-      const gameData = game ? {
-        pgn: game.pgn(),
-        history: game.history(),
-        moves: game.moves(),
-        searchUsername: localStorage.getItem('last-search-username') || undefined,
-        gameOrigin: localStorage.getItem('last-game-origin') || undefined,
-        // Add additional move context for better citation
-        moveNumbers: game.history().map((_, index) => Math.floor(index / 2) + 1),
-        isBlackMove: game.history().map((_, index) => index % 2 === 1),
-        currentMoveNumber: game.moveNumber(),
-        currentTurn: game.turn() === 'w' ? 'white' : 'black',
-        // Add accuracy data from gameEval
-        accuracy: gameEval?.accuracy,
-        estimatedElo: gameEval?.estimatedElo,
+      // Send full game data for comprehensive analysis
+      const requestData: any = {
+        analysisType: "game_review", // Changed to game_review for comprehensive analysis
+        model: "gpt-4o-mini", // Fixed to use GPT-4o-mini
+        includeAIAnalysis: true,
+        playerColor: game?.turn() === 'w' ? 'w' : 'b',
+        focusAreas: ['opening', 'middlegame', 'endgame', 'tactics', 'strategy'],
+        userMessage: userMessage.content,
+        responseLength: "comprehensive", // Fixed to comprehensive for detailed analysis
         boardOrientation: boardOrientation,
-      } : null;
+      };
 
-      console.log('Sending gameData to API:', {
-        accuracy: gameData?.accuracy,
-        boardOrientation: gameData?.boardOrientation,
-        gameEval: gameEval
-      });
-
-      const response = await fetch("/api/chat", {
+      // Add game data based on what's available
+      if (game) {
+        // Send move history for complete game analysis
+        requestData.moveHistory = game.history();
+        requestData.fen = game.fen(); // Fallback
+      } else if (position) {
+        // Only position available
+        requestData.fen = position;
+      }
+      
+      const response = await fetch("/api/enhanced-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...messages, userMessage],
-          position,
-          game: gameData,
-          model: selectedModel,
-          responseLength: responseLength,
-          boardOrientation: boardOrientation,
-          forceRefresh: true, // Force fresh system prompt
-        }),
+        body: JSON.stringify(requestData),
         signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
-        // Check if the response is JSON (error response) or streaming
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.error || `HTTP error! status: ${response.status}`
-          );
-        } else {
-          // Handle non-JSON error responses
-          const errorText = await response.text();
-          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-        }
+        const errorData = await response.json();
+        const errorMessage = errorData.error || errorData.details || `HTTP error! status: ${response.status}`;
+        console.error('API Error:', errorData);
+        throw new Error(errorMessage);
       }
 
-      if (!response.body) {
-        throw new Error("No response body");
+      const data = await response.json();
+      
+      // Add assistant message with the analysis
+      let assistantContent = "";
+      
+      // Use simplified game analysis (principle violations only)
+      if (data.gameAnalysis) {
+        assistantContent += data.gameAnalysis.analysis;
+      } else if (data.currentPositionAnalysis) {
+        assistantContent += data.currentPositionAnalysis.analysis;
       }
-
-      // Add an empty assistant message that we'll update with the stream
-      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
-      setIsStreaming(true);
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulatedContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n").filter((line) => line.trim() !== "");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") continue;
-
-            try {
-              const parsed = JSON.parse(data);
-              
-              // Check if this is an error response
-              if (parsed.error) {
-                throw new Error(parsed.error + (parsed.details ? `: ${parsed.details}` : ''));
-              }
-              
-              const content = parsed.choices?.[0]?.delta?.content || "";
-
-              if (content) {
-                accumulatedContent += content;
-                setMessages((prev) => {
-                  const newMessages = [...prev];
-                  const lastMessage = newMessages[newMessages.length - 1];
-                  if (lastMessage.role === "assistant") {
-                    lastMessage.content = accumulatedContent;
-                  }
-                  return newMessages;
-                });
-              }
-            } catch (e) {
-              console.error("Error parsing streaming response:", e);
-              console.error("Raw data that failed to parse:", data);
-              // If we can't parse the response, it might be an error message
-              if (data.includes("Internal server error") || data.includes("error")) {
-                throw new Error(`API Error: ${data}`);
-              }
-            }
-          }
-        }
+      
+      if (data.aiAnalysisError) {
+        assistantContent += `\n\n**Note:** ${data.aiAnalysisError}`;
       }
-
-      // Post-process the response to ensure proper move citation
-      if (accumulatedContent) {
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          const lastMessage = newMessages[newMessages.length - 1];
-          if (lastMessage.role === "assistant") {
-            // Enhance move citation in the response
-            lastMessage.content = enhanceMoveCitation(lastMessage.content, game || null);
-          }
-          return newMessages;
-        });
-      }
+      
+      setMessages((prev) => [...prev, { role: "assistant", content: assistantContent }]);
     } catch (error: unknown) {
       if (error instanceof Error && error.name === "AbortError") {
         console.log("Request aborted");
@@ -1014,37 +769,6 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         <ExpandButton onClick={() => setIsExpanded(!isExpanded)} size="small">
           {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
         </ExpandButton>
-        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel>AI Model</InputLabel>
-            <Select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              label="AI Model"
-            >
-              {models.map((model) => (
-                <MenuItem key={model.id} value={model.id}>
-                  {model.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          
-          <FormControl fullWidth size="small">
-            <InputLabel>Response Length</InputLabel>
-            <Select
-              value={responseLength}
-              onChange={(e) => setResponseLength(e.target.value)}
-              label="Response Length"
-            >
-              {responseLengths.map((length) => (
-                <MenuItem key={length.id} value={length.id} title={length.description}>
-                  {length.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
 
       </Box>
 

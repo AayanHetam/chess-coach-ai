@@ -308,17 +308,18 @@ ${evaluationContext}
 
 ## CRITICAL REQUIREMENTS:
 - Focus ONLY on moves that caused evaluation drops of MORE THAN 1 POINT (100 centipawns)
-- Any move that worsens the position by more than 1 point is eligible for analysis
-- For White: if evaluation drops by more than 1 point, it's a mistake
-- For Black: if evaluation improves for White by more than 1 point, it's a mistake for Black
-- Show the TOP 3 BIGGEST violations (or fewer if there are fewer than 3)
-- In high-level play, there may be only 1 significant mistake
+- Analyze ONLY the USER'S moves (the player whose perspective the board is shown from)
+- If board is oriented for White, analyze only White's mistakes
+- If board is oriented for Black, analyze only Black's mistakes
+- Any move by the user that worsens their position by more than 1 point is eligible for analysis
+- Show the TOP 3 BIGGEST violations by the user (or fewer if there are fewer than 3)
+- In high-level play, the user may have only 1 significant mistake
 - For each: Move number, move played, principle violated, 10-15 word explanation, what should have been done
 - ABSOLUTELY NO game review, key moments, strengths, weaknesses, or any other sections
 - NO verbose analysis, NO game phases, NO jargon
 - Make moves clickable by referencing as "move X" or "X."
 - Keep it concise and actionable
-- ONLY show principle violations, nothing else
+- ONLY show principle violations by the user, nothing else
 - IGNORE the move selection interface (brilliant, mistake, etc.) - rely SOLELY on evaluation changes
 - Accuracy and valid feedback are more important than speed
 

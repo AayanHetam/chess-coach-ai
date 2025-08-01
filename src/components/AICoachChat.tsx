@@ -625,12 +625,16 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
     abortControllerRef.current = new AbortController();
 
     try {
+      // Determine user color based on board orientation
+      // boardOrientation = true means user is White, false means user is Black
+      const userColor = boardOrientation ? 'w' : 'b';
+      
       // Send full game data for comprehensive analysis
       const requestData: any = {
         analysisType: "game_review", // Changed to game_review for comprehensive analysis
         model: "gpt-4o-mini", // Fixed to use GPT-4o-mini
         includeAIAnalysis: true,
-        playerColor: game?.turn() === 'w' ? 'w' : 'b',
+        playerColor: userColor, // User's color based on board orientation
         focusAreas: ['opening', 'middlegame', 'endgame', 'tactics', 'strategy'],
         userMessage: userMessage.content,
         responseLength: "comprehensive", // Fixed to comprehensive for detailed analysis

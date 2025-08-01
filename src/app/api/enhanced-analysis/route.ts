@@ -99,8 +99,12 @@ export async function POST(req: Request) {
       tracker.setEvaluationAtPosition(i, evaluation);
     }
     
-    // Get evaluation-based mistake analysis
-    const topMistakes = tracker.getTopMistakes(3);
+    // Determine user color from board orientation
+    // boardOrientation = true means user is White, false means user is Black
+    const userColor = playerColor || 'w'; // Default to white if not specified
+    
+    // Get evaluation-based mistake analysis filtered by user color
+    const topMistakes = tracker.getTopMistakes(3, userColor);
     const evaluationAnalysis = tracker.analyzeEvaluationChanges();
 
     // Prepare response data

@@ -371,8 +371,9 @@ export class EnhancedFenTracker {
   /**
    * Get the top N biggest mistakes based on evaluation changes
    * Only includes moves that worsen the position by more than 1 point (100 centipawns)
+   * Optionally filters by user color to show only user's mistakes
    */
-  public getTopMistakes(count: number = 3): Array<{
+  public getTopMistakes(count: number = 3, userColor?: 'w' | 'b'): Array<{
     moveNumber: number;
     halfMoveNumber: number;
     move: string;
@@ -384,13 +385,36 @@ export class EnhancedFenTracker {
     mistakeSeverity: 'small' | 'medium' | 'large' | 'blunder';
   }> {
     const allMoves = this.analyzeEvaluationChanges();
-    const mistakes = allMoves.filter(move => move.isMistake); // Only include actual mistakes
+    let mistakes = allMoves.filter(move => move.isMistake); // Only include actual mistakes
+    
+    // Filter by user color if specified
+    if (userColor) {
+      mistakes = mistakes.filter(move => move.playerColor === userColor);
+    }
     
     // Sort by evaluation change (biggest mistakes first - most negative changes)
     const sortedMistakes = mistakes.sort((a, b) => a.evaluationChange - b.evaluationChange);
     
     // Return top N mistakes (or all if fewer than N)
     return sortedMistakes.slice(0, count);
+  }
+
+  /**
+   * Get mistakes made by a specific player color
+   * Convenience method for user-specific analysis
+   */
+  public getUserMistakes(userColor: 'w' | 'b', count: number = 3): Array<{
+    moveNumber: number;
+    halfMoveNumber: number;
+    move: string;
+    playerColor: 'w' | 'b';
+    evaluationBefore: number;
+    evaluationAfter: number;
+    evaluationChange: number;
+    isMistake: boolean;
+    mistakeSeverity: 'small' | 'medium' | 'large' | 'blunder';
+  }> {
+    return this.getTopMistakes(count, userColor);
   }
 
   /**

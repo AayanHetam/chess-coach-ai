@@ -392,8 +392,8 @@ export class EnhancedFenTracker {
       mistakes = mistakes.filter(move => move.playerColor === userColor);
     }
     
-    // Sort by evaluation change (biggest mistakes first - most negative changes)
-    const sortedMistakes = mistakes.sort((a, b) => a.evaluationChange - b.evaluationChange);
+    // Sort by absolute evaluation change (biggest mistakes first - largest drops)
+    const sortedMistakes = mistakes.sort((a, b) => Math.abs(b.evaluationChange) - Math.abs(a.evaluationChange));
     
     // Return top N mistakes (or all if fewer than N)
     return sortedMistakes.slice(0, count);

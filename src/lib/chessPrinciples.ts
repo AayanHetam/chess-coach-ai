@@ -227,6 +227,9 @@ CRITICAL INSTRUCTIONS:
 - ONLY show principle violations by the user, nothing else
 - IGNORE the move selection interface (brilliant, mistake, etc.) - rely SOLELY on evaluation changes
 - Accuracy and valid feedback are more important than speed
+- DO NOT repeat the same move multiple times - each move should appear only once
+- Use ONLY the moves provided in the evaluation analysis - do not invent or guess moves
+- The moves in the evaluation analysis are already sorted by biggest mistakes first
 
 `;
 

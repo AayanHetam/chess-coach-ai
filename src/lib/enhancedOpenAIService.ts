@@ -163,10 +163,12 @@ ${position.movePlayed ? `Last Move: ${position.movePlayed.san} (${position.moveP
       .join('\n');
 
     return `
-## EVALUATION ANALYSIS (BIGGEST MISTAKES):
+## EVALUATION ANALYSIS (BIGGEST MISTAKES - USE THESE EXACT MOVES):
 ${topMistakes}
 
-Focus on these moves as they caused the largest evaluation drops (biggest mistakes).
+IMPORTANT: These moves are already sorted by biggest evaluation drops (biggest mistakes first).
+Use ONLY these moves in your analysis - do not repeat moves or invent new ones.
+Each move should appear only once in your response.
     `.trim();
   }
 
@@ -322,6 +324,9 @@ ${evaluationContext}
 - ONLY show principle violations by the user, nothing else
 - IGNORE the move selection interface (brilliant, mistake, etc.) - rely SOLELY on evaluation changes
 - Accuracy and valid feedback are more important than speed
+- DO NOT repeat the same move multiple times - each move should appear only once
+- Use ONLY the moves provided in the evaluation analysis - do not invent or guess moves
+- The moves in the evaluation analysis are already sorted by biggest mistakes first
 
 
 

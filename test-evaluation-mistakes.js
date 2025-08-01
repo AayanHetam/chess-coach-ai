@@ -86,7 +86,8 @@ class TestEvaluationMistakeDetection {
       }
 
       // Determine if this was a mistake
-      const isMistake = evaluationChange < 0; // Negative change means the player made their position worse
+      // For both players: negative evaluation change = mistake (position got worse for the player)
+      const isMistake = evaluationChange < 0;
       
       // Determine mistake severity based on evaluation change
       let mistakeSeverity;
@@ -115,8 +116,8 @@ class TestEvaluationMistakeDetection {
       }
     }
 
-    // Sort by evaluation change (biggest mistakes first - most negative changes)
-    return mistakes.sort((a, b) => a.evaluationChange - b.evaluationChange);
+    // Sort by mistake severity (biggest mistakes first)
+    return mistakes.sort((a, b) => Math.abs(b.evaluationChange) - Math.abs(a.evaluationChange));
   }
 
   // Test the system

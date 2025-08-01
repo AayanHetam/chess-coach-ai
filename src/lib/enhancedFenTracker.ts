@@ -304,19 +304,20 @@ export class EnhancedFenTracker {
       const playerColor = currentPos.movePlayed.color;
       
       // Calculate evaluation change from the perspective of the player who made the move
-      // Evaluation is always from White's perspective
+      // Evaluation is always from White's perspective (positive = good for white, negative = good for black)
       let evaluationChange: number;
       if (playerColor === 'w') {
         // White made the move - positive change means better for white, negative means worse for white
         evaluationChange = evaluationAfter - evaluationBefore;
       } else {
-        // Black made the move - negative change means better for black, positive means worse for black
+        // Black made the move - positive change means worse for black, negative means better for black
         // Since evaluation is from White's perspective, we need to invert the change for Black
         evaluationChange = evaluationBefore - evaluationAfter;
       }
 
       // Determine if this was a mistake
-      const isMistake = evaluationChange < 0; // Negative change means the player made their position worse
+      // For both players: negative evaluation change = mistake (position got worse for the player)
+      const isMistake = evaluationChange < 0;
       
       // Determine mistake severity based on evaluation change
       let mistakeSeverity: 'small' | 'medium' | 'large' | 'blunder';
@@ -344,8 +345,24 @@ export class EnhancedFenTracker {
       });
     }
 
-    // Sort by evaluation change (biggest mistakes first - most negative changes)
-    return movesWithEvaluations.sort((a, b) => a.evaluationChange - b.evaluationChange);
+    // Sort by mistake severity (biggest mistakes first)
+    // For mistakes: sort by absolute evaluation change (biggest drops first)
+    // For non-mistakes: sort by smallest improvements (least good moves first)
+    return movesWithEvaluations.sort((a, b) => {
+      if (a.isMistake && b.isMistake) {
+        // Both are mistakes - sort by biggest evaluation drops
+        return Math.abs(b.evaluationChange) - Math.abs(a.evaluationChange);
+      } else if (a.isMistake && !b.isMistake) {
+        // a is mistake, b is not - a comes first
+        return -1;
+      } else if (!a.isMistake && b.isMistake) {
+        // a is not mistake, b is - b comes first
+        return 1;
+      } else {
+        // Neither are mistakes - sort by smallest improvements
+        return Math.abs(a.evaluationChange) - Math.abs(b.evaluationChange);
+      }
+    });
   }
 
   /**

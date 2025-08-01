@@ -315,18 +315,21 @@ export class EnhancedFenTracker {
         evaluationChange = evaluationBefore - evaluationAfter;
       }
 
-      // Determine if this was a mistake
-      // For both players: negative evaluation change = mistake (position got worse for the player)
-      const isMistake = evaluationChange < 0;
-      
-      // Determine mistake severity based on evaluation change
-      let mistakeSeverity: 'small' | 'medium' | 'large' | 'blunder';
+      // Determine if this was a mistake using relative threshold
+      // Any evaluation change that worsens the position by more than 1 point (100 centipawns) is eligible
+      // For White: negative change (evaluation goes down) = mistake
+      // For Black: positive change (evaluation goes up for White, down for Black) = mistake
       const absChange = Math.abs(evaluationChange);
-      if (absChange < 50) {
+      const isMistake = evaluationChange < -100; // More than 1 point worse for the player
+      
+      // Calculate relative severity based on the magnitude of the change
+      // This is now relative rather than fixed thresholds
+      let mistakeSeverity: 'small' | 'medium' | 'large' | 'blunder';
+      if (absChange <= 100) {
         mistakeSeverity = 'small';
-      } else if (absChange < 150) {
+      } else if (absChange <= 300) {
         mistakeSeverity = 'medium';
-      } else if (absChange < 300) {
+      } else if (absChange <= 600) {
         mistakeSeverity = 'large';
       } else {
         mistakeSeverity = 'blunder';
@@ -367,6 +370,7 @@ export class EnhancedFenTracker {
 
   /**
    * Get the top N biggest mistakes based on evaluation changes
+   * Only includes moves that worsen the position by more than 1 point (100 centipawns)
    */
   public getTopMistakes(count: number = 3): Array<{
     moveNumber: number;
@@ -379,10 +383,14 @@ export class EnhancedFenTracker {
     isMistake: boolean;
     mistakeSeverity: 'small' | 'medium' | 'large' | 'blunder';
   }> {
-    const allMistakes = this.analyzeEvaluationChanges();
-    return allMistakes
-      .filter(move => move.isMistake) // Only include actual mistakes
-      .slice(0, count); // Return top N mistakes
+    const allMoves = this.analyzeEvaluationChanges();
+    const mistakes = allMoves.filter(move => move.isMistake); // Only include actual mistakes
+    
+    // Sort by evaluation change (biggest mistakes first - most negative changes)
+    const sortedMistakes = mistakes.sort((a, b) => a.evaluationChange - b.evaluationChange);
+    
+    // Return top N mistakes (or all if fewer than N)
+    return sortedMistakes.slice(0, count);
   }
 
   /**

@@ -307,11 +307,12 @@ ${historyContext}
 ${evaluationContext}
 
 ## CRITICAL REQUIREMENTS:
-- Focus ONLY on moves that caused the LARGEST EVALUATION DROPS (biggest mistakes)
-- Evaluation changes show how much a move worsened the player's position
-- Positive evaluation change = better for white, negative = better for black
-- When white's evaluation drops from +5 to +2, that's a mistake by white
-- When black's evaluation drops from -5 to -2, that's a mistake by black
+- Focus ONLY on moves that caused evaluation drops of MORE THAN 1 POINT (100 centipawns)
+- Any move that worsens the position by more than 1 point is eligible for analysis
+- For White: if evaluation drops by more than 1 point, it's a mistake
+- For Black: if evaluation improves for White by more than 1 point, it's a mistake for Black
+- Show the TOP 3 BIGGEST violations (or fewer if there are fewer than 3)
+- In high-level play, there may be only 1 significant mistake
 - For each: Move number, move played, principle violated, 10-15 word explanation, what should have been done
 - ABSOLUTELY NO game review, key moments, strengths, weaknesses, or any other sections
 - NO verbose analysis, NO game phases, NO jargon
@@ -319,6 +320,7 @@ ${evaluationContext}
 - Keep it concise and actionable
 - ONLY show principle violations, nothing else
 - IGNORE the move selection interface (brilliant, mistake, etc.) - rely SOLELY on evaluation changes
+- Accuracy and valid feedback are more important than speed
 
 PHASE-BALANCED ANALYSIS:
 - You MUST analyze the ENTIRE game across ALL phases (opening, middlegame, endgame)

@@ -157,7 +157,7 @@ export const CHESS_GUIDELINES = {
 
   // ANALYSIS REQUIREMENTS
   requirements: [
-    "Always identify the game phase (opening, middlegame, endgame)",
+
     "Analyze each move for principle adherence",
     "Identify key moments and turning points",
     "Provide specific improvement suggestions",
@@ -228,13 +228,7 @@ CRITICAL INSTRUCTIONS:
 - IGNORE the move selection interface (brilliant, mistake, etc.) - rely SOLELY on evaluation changes
 - Accuracy and valid feedback are more important than speed
 
-PHASE-BALANCED ANALYSIS REQUIREMENTS:
-- You MUST analyze the ENTIRE game across ALL phases (opening, middlegame, endgame)
-- Do NOT focus only on one game phase
-- Look for mistakes in opening (moves 1-10), middlegame (moves 11-30), and endgame (moves 31+)
-- If mistakes exist in multiple phases, include them in your analysis
-- Do NOT bias toward any specific phase - evaluate all moves equally based on evaluation changes
-- The biggest evaluation drops can occur in ANY phase of the game`;
+`;
 
   switch (analysisType) {
     case 'game_review':

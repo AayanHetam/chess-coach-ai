@@ -14,7 +14,7 @@ export async function POST(req: Request) {
       includePositionHistory = true,
       includeAIAnalysis = true,
       playerColor = 'w',
-      focusAreas = ['opening', 'middlegame', 'endgame', 'tactics', 'strategy']
+
     } = await req.json();
 
     // Check if OpenAI API key is available

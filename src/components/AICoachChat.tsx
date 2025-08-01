@@ -635,7 +635,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         model: "gpt-4o-mini", // Fixed to use GPT-4o-mini
         includeAIAnalysis: true,
         playerColor: userColor, // User's color based on board orientation
-        focusAreas: ['opening', 'middlegame', 'endgame', 'tactics', 'strategy'],
+
         userMessage: userMessage.content,
         responseLength: "comprehensive", // Fixed to comprehensive for detailed analysis
         boardOrientation: boardOrientation,

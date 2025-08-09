@@ -67,5 +67,3 @@ tsconfig.tsbuildinfo
 cdk.out
 cdk.context.json
 
-# Remove legacy thinkfish project
-thinkfish/

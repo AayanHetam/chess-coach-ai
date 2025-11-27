@@ -10,6 +10,7 @@ import { useRouter } from "next/router";
 import NavLink from "@/components/NavLink";
 import Image from "next/image";
 import { styled } from "@mui/material/styles";
+import { MaiaStatusIndicator } from "@/components/MaiaStatusIndicator";
 
 interface Props {
   darkMode: boolean;
@@ -53,11 +54,11 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
           <IconButton
             size="large"
             edge="start"
-            sx={{ 
-              mr: "min(0.5vw, 0.6rem)", 
-              padding: 1, 
+            sx={{
+              mr: "min(0.5vw, 0.6rem)",
+              padding: 1,
               my: 1,
-              color: darkMode ? "white" : "#FF6B35" // Orange icon in light mode
+              color: darkMode ? "white" : "#FF6B35", // Orange icon in light mode
             }}
             onClick={() => setDrawerOpen((val) => !val)}
           >
@@ -70,24 +71,24 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
               width={32}
               height={32}
               alt="Chess Masti AI - Orange Rook Logo"
-              style={{ marginRight: '8px' }}
+              style={{ marginRight: "8px" }}
             />
             <Typography
               variant="h6"
               component="div"
               sx={{
                 flexGrow: 1,
-                fontWeight: 'bold',
-                background: darkMode 
-                  ? 'linear-gradient(45deg, #FF6B6B 30%, #4ECDC4 90%)' 
-                  : 'linear-gradient(45deg, #FF6B35 30%, #FF8C42 90%)', // Orange gradient for light mode
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
+                fontWeight: "bold",
+                background: darkMode
+                  ? "linear-gradient(45deg, #FF6B6B 30%, #4ECDC4 90%)"
+                  : "linear-gradient(45deg, #FF6B35 30%, #FF8C42 90%)", // Orange gradient for light mode
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
                 fontSize: { xs: "1.1rem", sm: "1.25rem" },
               }}
             >
-              Chess Masti AI
+              Chess Coach AI
             </Typography>
           </NavLink>
 
@@ -96,7 +97,7 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <IconButton 
+            <IconButton
               sx={{ color: darkMode ? "white" : "#FF6B35" }}
               component="span"
             >
@@ -111,7 +112,7 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
             aria-label="GitHub repository"
             sx={{ ml: "min(0.6rem, 0.8vw)" }}
           >
-            <IconButton 
+            <IconButton
               sx={{ color: darkMode ? "white" : "#FF6B35" }}
               component="span"
             >
@@ -119,10 +120,20 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
             </IconButton>
           </StyledIconButtonLink>
 
-          <IconButton
-            sx={{ 
+          <Box
+            sx={{
               ml: "min(0.6rem, 0.8vw)",
-              color: darkMode ? "white" : "#FF6B35"
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <MaiaStatusIndicator size="small" />
+          </Box>
+
+          <IconButton
+            sx={{
+              ml: "min(0.6rem, 0.8vw)",
+              color: darkMode ? "white" : "#FF6B35",
             }}
             onClick={switchDarkMode}
             edge="end"

@@ -1,9 +1,10 @@
-import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
+import { CssBaseline, ThemeProvider, createTheme, Box } from "@mui/material";
 import { PropsWithChildren, useMemo } from "react";
 import NavBar from "./NavBar";
 import { red } from "@mui/material/colors";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { MAIN_THEME_COLOR } from "@/constants";
+import { Lc0DownloadBanner } from "@/components/Lc0DownloadBanner";
 
 export default function Layout({ children }: PropsWithChildren) {
   // Default to light mode for Chess Masti AI - bright and fun!
@@ -35,7 +36,9 @@ export default function Layout({ children }: PropsWithChildren) {
               root: {
                 backgroundColor: isDarkMode ? "#19191c" : "#FFFFFF",
                 color: isDarkMode ? "#FFFFFF" : "#333333",
-                boxShadow: isDarkMode ? "none" : "0 2px 8px rgba(255, 107, 53, 0.15)",
+                boxShadow: isDarkMode
+                  ? "none"
+                  : "0 2px 8px rgba(255, 107, 53, 0.15)",
                 borderBottom: isDarkMode ? "none" : "1px solid #FFE4D6",
               },
             },
@@ -54,14 +57,28 @@ export default function Layout({ children }: PropsWithChildren) {
         darkMode={isDarkMode}
         switchDarkMode={() => setDarkMode((val) => !val)}
       />
-      <main style={{ 
-        margin: "2vh 0.5vw",
-        backgroundColor: isDarkMode ? undefined : "#FAFAFA", // Very light background
-        overflowX: "hidden", // Prevent horizontal scrolling
-        maxWidth: "100vw", // Ensure content doesn't exceed viewport width
-        boxSizing: "border-box", // Include padding/borders in width calculation
-        width: "100%"
-      }}>{children}</main>
+      <main
+        style={{
+          margin: "2vh 0.5vw",
+          backgroundColor: isDarkMode ? undefined : "#FAFAFA", // Very light background
+          overflowX: "hidden", // Prevent horizontal scrolling
+          maxWidth: "100vw", // Ensure content doesn't exceed viewport width
+          boxSizing: "border-box", // Include padding/borders in width calculation
+          width: "100%",
+        }}
+      >
+        <Box
+          sx={{
+            maxWidth: "1400px",
+            margin: "0 auto",
+            px: { xs: 1, sm: 2 },
+            mb: 2,
+          }}
+        >
+          <Lc0DownloadBanner />
+        </Box>
+        {children}
+      </main>
     </ThemeProvider>
   );
 }

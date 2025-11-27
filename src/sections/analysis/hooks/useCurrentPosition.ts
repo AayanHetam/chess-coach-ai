@@ -42,7 +42,8 @@ export const useCurrentPosition = (engine: UciEngine | null) => {
       if (gameEval && gameEval.positions) {
         const evalIndex = boardHistory.length;
         const currentEval = gameEval.positions[evalIndex];
-        const prevEval = evalIndex > 0 ? gameEval.positions[evalIndex - 1] : null;
+        const prevEval =
+          evalIndex > 0 ? gameEval.positions[evalIndex - 1] : null;
 
         // Safely assign current evaluation if it exists
         if (currentEval && currentEval.lines) {
@@ -88,7 +89,7 @@ export const useCurrentPosition = (engine: UciEngine | null) => {
       ) => {
         // Double-check engine readiness with graceful handling
         if (!engine || !engine.getIsReady()) {
-          console.warn('Engine not ready for evaluation, skipping...');
+          console.warn("Engine not ready for evaluation, skipping...");
           // Return a basic evaluation structure
           return {
             lines: [
@@ -101,11 +102,11 @@ export const useCurrentPosition = (engine: UciEngine | null) => {
             ],
           };
         }
-        
+
         // Create deterministic cache key
         const cacheKey = `${fen}|${engine.name}|d${depth}|pv${multiPv}`;
         const savedEval = savedEvals[cacheKey] || savedEvals[fen]; // Fallback to old key format
-        
+
         if (
           savedEval &&
           savedEval.engine === engine.name &&
@@ -138,7 +139,7 @@ export const useCurrentPosition = (engine: UciEngine | null) => {
 
           return rawPositionEval;
         } catch (error) {
-          console.warn('Engine evaluation failed:', error);
+          console.warn("Engine evaluation failed:", error);
           // Return a basic evaluation structure on error
           return {
             lines: [
@@ -163,53 +164,56 @@ export const useCurrentPosition = (engine: UciEngine | null) => {
             setPartialEval
           );
 
-        if (boardHistory.length === 0) return;
+          if (boardHistory.length === 0) return;
 
-        const params = getEvaluateGameParams(board);
-        const fens = params.fens.slice(board.turn() === "w" ? -3 : -4);
-        const uciMoves = params.uciMoves.slice(board.turn() === "w" ? -2 : -3);
+          const params = getEvaluateGameParams(board);
+          const fens = params.fens.slice(board.turn() === "w" ? -3 : -4);
+          const uciMoves = params.uciMoves.slice(
+            board.turn() === "w" ? -2 : -3
+          );
 
-        const fenSlice = fens.slice(-2);
-        const lastRawEval = fenSlice.length > 0 
-          ? await getFenEngineEval(fenSlice[0])
-          : {
+          const fenSlice = fens.slice(-2);
+          const lastRawEval =
+            fenSlice.length > 0
+              ? await getFenEngineEval(fenSlice[0])
+              : {
+                  lines: [
+                    {
+                      pv: [],
+                      depth: 0,
+                      multiPv: 1,
+                      cp: 0,
+                    },
+                  ],
+                };
+          const rawPositions: PositionEval[] = fens.map((_, idx) => {
+            if (idx === fens.length - 2) return lastRawEval;
+            if (idx === fens.length - 1) return rawPositionEval;
+            return {
               lines: [
                 {
                   pv: [],
                   depth: 0,
                   multiPv: 1,
-                  cp: 0,
+                  cp: 1,
                 },
               ],
             };
-        const rawPositions: PositionEval[] = fens.map((_, idx) => {
-          if (idx === fens.length - 2) return lastRawEval;
-          if (idx === fens.length - 1) return rawPositionEval;
-          return {
-            lines: [
-              {
-                pv: [],
-                depth: 0,
-                multiPv: 1,
-                cp: 1,
-              },
-            ],
-          };
-        });
+          });
 
-        const positionsWithMoveClassification = getMovesClassification(
-          rawPositions,
-          uciMoves,
-          fens
-        );
+          const positionsWithMoveClassification = getMovesClassification(
+            rawPositions,
+            uciMoves,
+            fens
+          );
 
-        setCurrentPosition({
-          ...position,
-          eval: positionsWithMoveClassification.slice(-1)[0],
-          lastEval: positionsWithMoveClassification.slice(-2)[0],
-        });
+          setCurrentPosition({
+            ...position,
+            eval: positionsWithMoveClassification.slice(-1)[0],
+            lastEval: positionsWithMoveClassification.slice(-2)[0],
+          });
         } catch (error) {
-          console.warn('Position evaluation failed:', error);
+          console.warn("Position evaluation failed:", error);
           // Set position without evaluation on error
           setCurrentPosition(position);
         }

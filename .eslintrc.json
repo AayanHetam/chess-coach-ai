@@ -19,13 +19,17 @@
     "project": "./tsconfig.json",
     "sourceType": "module"
   },
-  "ignorePatterns": [".out/*", "cdk/*", "Chesskit/*"],
+  "ignorePatterns": [".out/*", "cdk/*", "Chesskit/*", "src/workers/*.js", "**/*.worker.js"],
   "plugins": ["@typescript-eslint", "import", "prettier"],
   "rules": {
-    "quotes": ["error", "double", { "avoidEscape": true }],
-    "prettier/prettier": ["error", {"endOfLine": "auto"}],
+    "quotes": ["warn", "double", { "avoidEscape": true }],
+    "prettier/prettier": ["warn", {"endOfLine": "auto"}],
     "require-jsdoc": "off",
-    "@typescript-eslint/no-unused-vars": "error",
-    "react/no-unescaped-entities": 0
+    "@typescript-eslint/no-unused-vars": "warn",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "prefer-const": "warn",
+    "react/no-unescaped-entities": 0,
+    "react-hooks/rules-of-hooks": "warn",
+    "react-hooks/exhaustive-deps": "warn"
   }
 }

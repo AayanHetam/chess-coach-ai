@@ -25,3 +25,19 @@ export const engineWorkersNbAtom = atomWithStorage(
 export const evaluationProgressAtom = atom(0);
 
 export const savedEvalsAtom = atom<SavedEvals>({});
+
+// Atom for triggering move-specific analysis in AI coach
+export const moveAnalysisRequestAtom = atom<{
+  moveIdx: number;
+  move: string;
+  moveNumber: number;
+} | null>(null);
+
+// Atom for storing the user's username and player color
+export const userPlayerInfoAtom = atom<{
+  username: string | null;
+  playerColor: "white" | "black" | null;
+}>({
+  username: null,
+  playerColor: null,
+});

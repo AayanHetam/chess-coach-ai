@@ -29,13 +29,13 @@ export default function BoardContainer() {
     }
 
     // 1200 is the lg layout breakpoint
-    if (typeof window !== 'undefined' && window.innerWidth < 1200) {
+    if (typeof window !== "undefined" && window.innerWidth < 1200) {
       return Math.max(Math.min(width - 15, height - 150), 300);
     }
 
     // For large screens, balance board size with analysis panel
     // Make board slightly larger to align heights with analysis panel
-    return Math.max(Math.min(width - 500, height * 0.90, 800), 500);
+    return Math.max(Math.min(width - 500, height * 0.9, 800), 500);
   }, [screenSize]);
 
   return (

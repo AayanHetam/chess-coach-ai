@@ -8,8 +8,8 @@ export const useScreenSize = () => {
 
   useEffect(() => {
     // Only run on client side
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === "undefined") return;
+
     // Initialize screen size
     setScreenSize({
       width: window.innerWidth,
@@ -31,8 +31,8 @@ export const useScreenSize = () => {
 
   useEffect(() => {
     // Only run on client side
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === "undefined") return;
+
     const handleResize = () => {
       setScreenSize((prev) => ({
         ...prev,

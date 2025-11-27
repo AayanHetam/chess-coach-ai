@@ -24,7 +24,8 @@ import ChessComInput from "./chessComInput";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import LichessInput from "./lichessInput";
 import { useSetAtom } from "jotai";
-import { boardOrientationAtom } from "../analysis/states";
+import { boardOrientationAtom, userPlayerInfoAtom } from "../analysis/states";
+import { extractImportedGameInfo, detectUserColor } from "@/lib/smartColorDetection";
 
 interface Props {
   open: boolean;
@@ -41,12 +42,13 @@ export default function NewGameDialog({ open, onClose, setGame }: Props) {
   const [parsingError, setParsingError] = useState("");
   const parsingErrorTimeout = useRef<NodeJS.Timeout | null>(null);
   const setBoardOrientation = useSetAtom(boardOrientationAtom);
+  const setUserPlayerInfo = useSetAtom(userPlayerInfoAtom);
   const { addGame } = useGameDatabase();
 
   const handleAddGame = async (
-    pgn: string, 
-    boardOrientation?: boolean, 
-    gameOrigin?: string, 
+    pgn: string,
+    boardOrientation?: boolean,
+    gameOrigin?: string,
     searchUsername?: string
   ) => {
     if (!pgn) return;
@@ -57,8 +59,33 @@ export default function NewGameDialog({ open, onClose, setGame }: Props) {
 
       // Store game origin and username for smart color detection
       if (gameOrigin && searchUsername) {
-        localStorage.setItem('last-game-origin', gameOrigin);
-        localStorage.setItem('last-search-username', searchUsername);
+        localStorage.setItem("last-game-origin", gameOrigin);
+        localStorage.setItem("last-search-username", searchUsername);
+      }
+
+      // Extract player information and determine user's color
+      const importedGameInfo = extractImportedGameInfo(
+        gameToAdd,
+        gameOrigin,
+        searchUsername
+      );
+      
+      let playerColor: "white" | "black" | null = null;
+      if (importedGameInfo && searchUsername) {
+        const colorDetection = detectUserColor(
+          gameToAdd,
+          importedGameInfo,
+          boardOrientation
+        );
+        playerColor = colorDetection.userColor;
+      }
+
+      // Store username and player color in atom for AI coach
+      if (searchUsername) {
+        setUserPlayerInfo({
+          username: searchUsername,
+          playerColor: playerColor,
+        });
       }
 
       if (setGame) {

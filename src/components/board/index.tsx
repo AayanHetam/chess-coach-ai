@@ -20,7 +20,12 @@ import EvaluationBar from "./evaluationBar";
 import { CLASSIFICATION_COLORS } from "@/constants";
 import { Player } from "@/types/game";
 import PlayerHeader from "./playerHeader";
-import { boardHueAtom, pieceSetAtom, isExplorationModeAtom, showNextMoveSuggestionAtom } from "./states";
+import {
+  boardHueAtom,
+  pieceSetAtom,
+  isExplorationModeAtom,
+  showNextMoveSuggestionAtom,
+} from "./states";
 import { boardAtom, gameAtom } from "@/sections/analysis/states";
 import tinycolor from "tinycolor2";
 
@@ -278,9 +283,16 @@ export default function Board({
     }
 
     return arrows;
-  }, [position, showBestMoveArrow, boardHue, isExplorationMode, showNextMoveSuggestion, game]);
+  }, [
+    position,
+    showBestMoveArrow,
+    boardHue,
+    isExplorationMode,
+    showNextMoveSuggestion,
+    game,
+  ]);
 
-  const SquareRenderer: CustomSquareRenderer = useMemo(() => {
+  const SquareRenderer = useMemo(() => {
     return getSquareRenderer({
       currentPositionAtom: currentPositionAtom,
       clickedSquaresAtom,
@@ -326,7 +338,7 @@ export default function Board({
       style = {
         ...style,
         opacity: 0.8,
-        filter: `${boardHue ? `hue-rotate(${boardHue}deg)` : ''} brightness(1.1)`,
+        filter: `${boardHue ? `hue-rotate(${boardHue}deg)` : ""} brightness(1.1)`,
       };
     } else if (boardHue) {
       style = {
@@ -377,7 +389,7 @@ export default function Board({
           alignItems="center"
           ref={boardRef}
           size={12}
-          sx={{ position: 'relative' }}
+          sx={{ position: "relative" }}
         >
           <Chessboard
             id={`${boardId}-${canPlay}`}
@@ -389,7 +401,7 @@ export default function Board({
             customBoardStyle={customBoardStyle}
             customArrows={customArrows}
             isDraggablePiece={isPiecePlayable}
-            customSquare={SquareRenderer}
+            customSquare={SquareRenderer as CustomSquareRenderer}
             onSquareClick={handleSquareLeftClick}
             onSquareRightClick={handleSquareRightClick}
             onPieceDragBegin={handlePieceDragBegin}
@@ -400,8 +412,6 @@ export default function Board({
             animationDuration={200}
             customPieces={customPieces}
           />
-          
-
         </Grid>
 
         <PlayerHeader

@@ -10,7 +10,9 @@ export default function MovesPanel() {
   const game = useAtomValue(gameAtom);
   const board = useAtomValue(boardAtom);
   const gameEval = useAtomValue(gameEvalAtom);
-  const [selectedMoveTypes, setSelectedMoveTypes] = useState<MoveClassification[]>([
+  const [selectedMoveTypes, setSelectedMoveTypes] = useState<
+    MoveClassification[]
+  >([
     MoveClassification.Brilliant,
     MoveClassification.Great,
     MoveClassification.Best,
@@ -63,10 +65,12 @@ export default function MovesPanel() {
   // Filter moves based on selected move types
   const filteredMoves = useMemo(() => {
     if (!gameMoves) return undefined;
-    
-    return gameMoves.filter(moveLine => 
-      moveLine.some(move => 
-        !move.moveClassification || selectedMoveTypes.includes(move.moveClassification)
+
+    return gameMoves.filter((moveLine) =>
+      moveLine.some(
+        (move) =>
+          !move.moveClassification ||
+          selectedMoveTypes.includes(move.moveClassification)
       )
     );
   }, [gameMoves, selectedMoveTypes]);
@@ -90,7 +94,7 @@ export default function MovesPanel() {
       <Grid container size={12} sx={{ mb: 1 }}>
         <MoveTypeFilter onFilterChange={setSelectedMoveTypes} />
       </Grid>
-      
+
       {/* Original moves display */}
       {filteredMoves?.map((moves, idx) => (
         <MovesLine

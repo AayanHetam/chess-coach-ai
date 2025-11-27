@@ -17,7 +17,15 @@ import {
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { ExpandMore, TrendingUp, TrendingDown, Psychology, School, Chat, Launch } from "@mui/icons-material";
+import {
+  ExpandMore,
+  TrendingUp,
+  TrendingDown,
+  Psychology,
+  School,
+  Chat,
+  Launch,
+} from "@mui/icons-material";
 import { PlayerFeedbackData, GameViolation } from "@/types/feedback";
 
 interface Props {
@@ -26,23 +34,27 @@ interface Props {
   onAnalyzeWithAI?: (message: string, pgn?: string) => void;
 }
 
-export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }: Props) {
+export default function PlayerFeedbackResults({
+  data,
+  onReset,
+  onAnalyzeWithAI,
+}: Props) {
   const formatDate = (date: Date | string) => {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const dateObj = typeof date === "string" ? new Date(date) : date;
     return dateObj.toLocaleDateString() + " " + dateObj.toLocaleTimeString();
   };
 
   const handleReset = () => {
     try {
-      if (typeof onReset === 'function') {
+      if (typeof onReset === "function") {
         onReset();
       } else {
-        console.error('onReset is not a function:', onReset);
+        console.error("onReset is not a function:", onReset);
         // Fallback: reload the page
         window.location.reload();
       }
     } catch (error) {
-      console.error('Error in handleReset:', error);
+      console.error("Error in handleReset:", error);
       // Fallback: reload the page
       window.location.reload();
     }
@@ -59,19 +71,27 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case "major": return "error";
-      case "moderate": return "warning";
-      case "minor": return "info";
-      default: return "default";
+      case "major":
+        return "error";
+      case "moderate":
+        return "warning";
+      case "minor":
+        return "info";
+      default:
+        return "default";
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "high": return "error";
-      case "medium": return "warning";
-      case "low": return "info";
-      default: return "default";
+      case "high":
+        return "error";
+      case "medium":
+        return "warning";
+      case "low":
+        return "info";
+      default:
+        return "default";
     }
   };
 
@@ -80,34 +100,50 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
       {/* Header */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            mb={2}
+          >
             <Typography variant="h5">
               Feedback for {data.username} ({data.platform})
             </Typography>
-            <Button 
-              variant="outlined" 
-              onClick={handleReset}
-            >
+            <Button variant="outlined" onClick={handleReset}>
               Analyze Another Player
             </Button>
           </Box>
-          
+
           <Stack direction="row" spacing={2} flexWrap="wrap">
             <Box>
-              <Typography variant="body2" color="text.secondary">Games Analyzed</Typography>
-              <Typography variant="h6">{data.analyzedGames}/{data.totalGames}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Games Analyzed
+              </Typography>
+              <Typography variant="h6">
+                {data.analyzedGames}/{data.totalGames}
+              </Typography>
             </Box>
             <Box>
-              <Typography variant="body2" color="text.secondary">Average Opponent Rating</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Average Opponent Rating
+              </Typography>
               <Typography variant="h6">{data.averageRating}</Typography>
             </Box>
             <Box>
-              <Typography variant="body2" color="text.secondary">Principle Violations</Typography>
-              <Typography variant="h6">{data.principleViolations.length}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Principle Violations
+              </Typography>
+              <Typography variant="h6">
+                {data.principleViolations.length}
+              </Typography>
             </Box>
             <Box>
-              <Typography variant="body2" color="text.secondary">Generated</Typography>
-              <Typography variant="body2">{formatDate(data.generatedAt)}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Generated
+              </Typography>
+              <Typography variant="body2">
+                {formatDate(data.generatedAt)}
+              </Typography>
             </Box>
           </Stack>
         </CardContent>
@@ -120,7 +156,7 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
             <School sx={{ mr: 1, verticalAlign: "middle" }} />
             Opening Analysis
           </Typography>
-          
+
           {data.openings.length === 0 ? (
             <Alert severity="info">No opening data available</Alert>
           ) : (
@@ -128,7 +164,12 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
               {data.openings.slice(0, 5).map((opening, index) => (
                 <Accordion key={index}>
                   <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Box display="flex" alignItems="center" gap={2} width="100%">
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      gap={2}
+                      width="100%"
+                    >
                       <Typography variant="subtitle1" fontWeight="bold">
                         {opening.name}
                       </Typography>
@@ -147,16 +188,25 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
                   <AccordionDetails>
                     <Box mb={2}>
                       <Typography variant="body2" color="text.secondary">
-                        {opening.suggestions.length > 0 ? opening.suggestions[0] : "Study this opening to improve your play."}
+                        {opening.suggestions.length > 0
+                          ? opening.suggestions[0]
+                          : "Study this opening to improve your play."}
                       </Typography>
                     </Box>
-                    
+
                     <Typography variant="subtitle2" mb={1}>
                       Games played:
                     </Typography>
                     <List dense>
                       {opening.games.slice(0, 5).map((game, gameIndex) => (
-                        <ListItem key={gameIndex} sx={{ border: '1px solid #e0e0e0', borderRadius: 1, mb: 1 }}>
+                        <ListItem
+                          key={gameIndex}
+                          sx={{
+                            border: "1px solid #e0e0e0",
+                            borderRadius: 1,
+                            mb: 1,
+                          }}
+                        >
                           <ListItemText
                             primary={
                               <Box display="flex" alignItems="center" gap={1}>
@@ -165,16 +215,30 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
                                 </Typography>
                                 <Chip
                                   label={game.result.toUpperCase()}
-                                  color={game.result === "win" ? "success" : game.result === "loss" ? "error" : "default"}
+                                  color={
+                                    game.result === "win"
+                                      ? "success"
+                                      : game.result === "loss"
+                                        ? "error"
+                                        : "default"
+                                  }
                                   size="small"
                                 />
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
                                   {new Date(game.date).toLocaleDateString()}
                                 </Typography>
                               </Box>
                             }
                             secondary={
-                              <Box display="flex" alignItems="center" gap={1} mt={1}>
+                              <Box
+                                display="flex"
+                                alignItems="center"
+                                gap={1}
+                                mt={1}
+                              >
                                 <Tooltip title="Analyze with AI Coach">
                                   <IconButton
                                     size="small"
@@ -208,15 +272,22 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
             <TrendingDown sx={{ mr: 1, verticalAlign: "middle" }} />
             Common Principle Violations
           </Typography>
-          
+
           {data.principleViolations.length === 0 ? (
-            <Alert severity="success">Excellent! No significant principle violations found.</Alert>
+            <Alert severity="success">
+              Excellent! No significant principle violations found.
+            </Alert>
           ) : (
             <Stack spacing={2}>
               {data.principleViolations.slice(0, 5).map((violation, index) => (
                 <Accordion key={index}>
                   <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Box display="flex" alignItems="center" gap={2} width="100%">
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      gap={2}
+                      width="100%"
+                    >
                       <Typography variant="subtitle1" fontWeight="bold">
                         {violation.principle.name}
                       </Typography>
@@ -241,16 +312,24 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
                         <strong>Impact:</strong> {violation.impact}
                       </Typography>
                       <Typography variant="body2" mb={2}>
-                        <strong>Improvement Tip:</strong> {violation.improvementTip}
+                        <strong>Improvement Tip:</strong>{" "}
+                        {violation.improvementTip}
                       </Typography>
                     </Box>
-                    
+
                     <Typography variant="subtitle2" mb={1}>
                       Specific violations:
                     </Typography>
                     <List dense>
                       {violation.games.slice(0, 5).map((game, gameIndex) => (
-                        <ListItem key={gameIndex} sx={{ border: '1px solid #e0e0e0', borderRadius: 1, mb: 1 }}>
+                        <ListItem
+                          key={gameIndex}
+                          sx={{
+                            border: "1px solid #e0e0e0",
+                            borderRadius: 1,
+                            mb: 1,
+                          }}
+                        >
                           <ListItemText
                             primary={
                               <Box display="flex" alignItems="center" gap={1}>
@@ -259,7 +338,13 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
                                 </Typography>
                                 <Chip
                                   label={game.result.toUpperCase()}
-                                  color={game.result === "win" ? "success" : game.result === "loss" ? "error" : "default"}
+                                  color={
+                                    game.result === "win"
+                                      ? "success"
+                                      : game.result === "loss"
+                                        ? "error"
+                                        : "default"
+                                  }
                                   size="small"
                                 />
                                 {game.moveNumber > 0 && (
@@ -269,13 +354,21 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
                                     size="small"
                                   />
                                 )}
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
                                   {new Date(game.date).toLocaleDateString()}
                                 </Typography>
                               </Box>
                             }
                             secondary={
-                              <Box display="flex" alignItems="center" gap={1} mt={1}>
+                              <Box
+                                display="flex"
+                                alignItems="center"
+                                gap={1}
+                                mt={1}
+                              >
                                 <Tooltip title="Analyze with AI Coach">
                                   <IconButton
                                     size="small"
@@ -309,18 +402,23 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
             <TrendingUp sx={{ mr: 1, verticalAlign: "middle" }} />
             Improvement Areas
           </Typography>
-          
+
           {data.improvementAreas.length === 0 ? (
-            <Alert severity="info">No specific improvement areas identified</Alert>
+            <Alert severity="info">
+              No specific improvement areas identified
+            </Alert>
           ) : (
             <Stack spacing={2}>
               {data.improvementAreas.map((area, index) => (
                 <Accordion key={index}>
                   <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Box display="flex" alignItems="center" gap={2} width="100%">
-                      <Typography variant="subtitle1">
-                        {area.title}
-                      </Typography>
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      gap={2}
+                      width="100%"
+                    >
+                      <Typography variant="subtitle1">{area.title}</Typography>
                       <Chip
                         label={area.priority}
                         color={getPriorityColor(area.priority)}
@@ -337,7 +435,7 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
                     <Typography variant="body2" color="text.secondary" mb={2}>
                       {area.description}
                     </Typography>
-                    
+
                     <Typography variant="subtitle2" mb={1}>
                       Recommended Exercises:
                     </Typography>
@@ -366,21 +464,33 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
             <Psychology sx={{ mr: 1, verticalAlign: "middle" }} />
             Recent Games Analysis
           </Typography>
-          
+
           <Stack direction="row" spacing={2} flexWrap="wrap">
             {data.gameAnalysis.slice(0, 6).map((game, index) => (
-              <Card variant="outlined" key={index} sx={{ minWidth: 200, flex: 1 }}>
+              <Card
+                variant="outlined"
+                key={index}
+                sx={{ minWidth: 200, flex: 1 }}
+              >
                 <CardContent>
                   <Typography variant="subtitle2" fontWeight="bold">
                     vs {game.opponent} ({game.opponentRating})
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {typeof game.date === 'string' ? new Date(game.date).toLocaleDateString() : game.date.toLocaleDateString()}
+                    {typeof game.date === "string"
+                      ? new Date(game.date).toLocaleDateString()
+                      : game.date.toLocaleDateString()}
                   </Typography>
                   <Box display="flex" alignItems="center" gap={1} mt={1}>
                     <Chip
                       label={game.result.toUpperCase()}
-                      color={game.result === "win" ? "success" : game.result === "loss" ? "error" : "default"}
+                      color={
+                        game.result === "win"
+                          ? "success"
+                          : game.result === "loss"
+                            ? "error"
+                            : "default"
+                      }
                       size="small"
                     />
                     <Chip
@@ -393,7 +503,8 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
                     <strong>Opening:</strong> {game.opening}
                   </Typography>
                   <Typography variant="body2">
-                    <strong>Violations:</strong> {game.principleViolations.length}
+                    <strong>Violations:</strong>{" "}
+                    {game.principleViolations.length}
                   </Typography>
                 </CardContent>
               </Card>
@@ -403,4 +514,4 @@ export default function PlayerFeedbackResults({ data, onReset, onAnalyzeWithAI }
       </Card>
     </Box>
   );
-} 
+}

@@ -1,12 +1,12 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import ThemeRegistry from '@/components/ThemeRegistry';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import ThemeRegistry from "@/components/ThemeRegistry";
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Chess Coach AI',
-  description: 'An AI-powered chess coach that helps you improve your game',
+  title: "Chess Coach AI",
+  description: "An AI-powered chess coach that helps you improve your game",
 };
 
 export default function RootLayout({
@@ -17,10 +17,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ThemeRegistry>
-          {children}
-        </ThemeRegistry>
+        <ThemeRegistry>{children}</ThemeRegistry>
       </body>
     </html>
   );
-} 
+}

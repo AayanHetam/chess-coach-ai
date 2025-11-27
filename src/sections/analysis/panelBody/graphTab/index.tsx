@@ -40,7 +40,7 @@ export default function GraphTab(props: GridProps) {
     [gameEval]
   );
 
-  console.log('GraphTab Debug:', {
+  console.log("GraphTab Debug:", {
     gameEval: !!gameEval,
     positions: gameEval?.positions?.length,
     chartData: chartData.length,
@@ -49,8 +49,8 @@ export default function GraphTab(props: GridProps) {
       index: idx,
       hasLines: pos.lines?.length > 0,
       linesLength: pos.lines?.length,
-      firstLine: pos.lines?.[0]
-    }))
+      firstLine: pos.lines?.[0],
+    })),
   });
 
   const bestDotIndices = useMemo(() => {
@@ -98,9 +98,9 @@ export default function GraphTab(props: GridProps) {
   );
 
   if (!gameEval || chartData.length === 0) {
-    console.log('GraphTab: No gameEval data or no chart data available', {
+    console.log("GraphTab: No gameEval data or no chart data available", {
       gameEval: !!gameEval,
-      chartDataLength: chartData.length
+      chartDataLength: chartData.length,
     });
     return (
       <Box
@@ -137,58 +137,58 @@ export default function GraphTab(props: GridProps) {
         border: isDarkMode ? "none" : "2px solid #FFE4D6", // Orange border for light mode
       }}
     >
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart
-            width={500}
-            height={400}
-            data={chartData}
-            margin={{ top: 0, left: 0, right: 0, bottom: 0 }}
-            onClick={(e) => {
-              const payload = e?.activePayload?.[0]?.payload as
-                | ChartItemData
-                | undefined;
-              if (!payload) return;
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart
+          width={500}
+          height={400}
+          data={chartData}
+          margin={{ top: 0, left: 0, right: 0, bottom: 0 }}
+          onClick={(e) => {
+            const payload = e?.activePayload?.[0]?.payload as
+              | ChartItemData
+              | undefined;
+            if (!payload) return;
 
-              goToMove(payload.moveNb, game);
+            goToMove(payload.moveNb, game);
+          }}
+          style={{ cursor: "pointer" }}
+        >
+          <XAxis dataKey="moveNb" hide stroke="red" />
+          <YAxis domain={[0, 20]} hide />
+          <Tooltip
+            content={<CustomTooltip />}
+            isAnimationActive={false}
+            cursor={{
+              stroke: isDarkMode ? "grey" : "#FF6B35", // Orange cursor for light mode
+              strokeWidth: 2,
+              strokeOpacity: 0.5,
             }}
-            style={{ cursor: "pointer" }}
-          >
-            <XAxis dataKey="moveNb" hide stroke="red" />
-            <YAxis domain={[0, 20]} hide />
-            <Tooltip
-              content={<CustomTooltip />}
-              isAnimationActive={false}
-              cursor={{
-                stroke: isDarkMode ? "grey" : "#FF6B35", // Orange cursor for light mode
-                strokeWidth: 2,
-                strokeOpacity: 0.5,
-              }}
-            />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke="none"
-              fill={isDarkMode ? "#ffffff" : "#FF6B35"} // Orange fill for light mode
-              fillOpacity={isDarkMode ? 1 : 0.8}
-              dot={renderDot}
-              activeDot={<CustomDot />}
-              isAnimationActive={false}
-            />
-            <ReferenceLine
-              y={10}
-              stroke={isDarkMode ? "grey" : "#FF8C42"} // Light orange reference line
-              strokeWidth={2}
-              strokeOpacity={0.6}
-            />
-            <ReferenceLine
-              x={currentPosition.currentMoveIdx}
-              stroke={boardMoveColor}
-              strokeWidth={4}
-              strokeOpacity={0.6}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </Box>
+          />
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke="none"
+            fill={isDarkMode ? "#ffffff" : "#FF6B35"} // Orange fill for light mode
+            fillOpacity={isDarkMode ? 1 : 0.8}
+            dot={renderDot}
+            activeDot={<CustomDot />}
+            isAnimationActive={false}
+          />
+          <ReferenceLine
+            y={10}
+            stroke={isDarkMode ? "grey" : "#FF8C42"} // Light orange reference line
+            strokeWidth={2}
+            strokeOpacity={0.6}
+          />
+          <ReferenceLine
+            x={currentPosition.currentMoveIdx}
+            stroke={boardMoveColor}
+            strokeWidth={4}
+            strokeOpacity={0.6}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </Box>
   );
 }
 
@@ -197,7 +197,7 @@ const formatEvalToChartData = (
   index: number
 ): ChartItemData => {
   console.log(`Formatting position ${index}:`, position);
-  
+
   if (!position.lines || position.lines.length === 0) {
     console.warn(`Position ${index} has no lines`);
     return {

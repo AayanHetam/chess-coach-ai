@@ -1,8 +1,5 @@
 import React from "react";
-import {
-  Grid,
-  GridProps,
-} from "@mui/material";
+import { Grid, GridProps } from "@mui/material";
 import MovesPanel from "../classificationTab/movesPanel";
 import MovesClassificationsRecap from "../classificationTab/movesClassificationsRecap";
 

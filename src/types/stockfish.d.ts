@@ -1,4 +1,4 @@
-declare module 'stockfish.js/stockfish.js' {
+declare module "stockfish.js/stockfish.js" {
   class Stockfish {
     constructor();
     onmessage: ((event: MessageEvent) => void) | null;
@@ -6,4 +6,4 @@ declare module 'stockfish.js/stockfish.js' {
     terminate(): void;
   }
   export default Stockfish;
-} 
+}

@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAtom } from 'jotai';
-import { Chess } from 'chess.js';
-import { EnhancedFenTracker, PositionData } from '@/lib/enhancedFenTracker';
-import { EnhancedOpenAIService, ChessAnalysisRequest, GameReviewRequest } from '@/lib/enhancedOpenAIService';
-import { PrimitiveAtom } from 'jotai';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAtom } from "jotai";
+import { Chess } from "chess.js";
+import { EnhancedFenTracker, PositionData } from "@/lib/enhancedFenTracker";
+import {
+  EnhancedOpenAIService,
+  ChessAnalysisRequest,
+  GameReviewRequest,
+} from "@/lib/enhancedOpenAIService";
+import { PrimitiveAtom } from "jotai";
 
 export interface UseEnhancedFenTrackerOptions {
   enableRealTimeTracking?: boolean;
@@ -37,11 +41,17 @@ export const useEnhancedFenTracker = (
 ) => {
   const [game, setGame] = useAtom(chessAtom);
   const [tracker, setTracker] = useState<EnhancedFenTracker | null>(null);
-  const [openAIService, setOpenAIService] = useState<EnhancedOpenAIService | null>(null);
+  const [openAIService, setOpenAIService] =
+    useState<EnhancedOpenAIService | null>(null);
   const [gameState, setGameState] = useState<EnhancedGameState>({
     currentPosition: null,
     allPositions: [],
-    gameSummary: { totalMoves: 0, totalPositions: 0, gameResult: 'ongoing', finalPosition: '' },
+    gameSummary: {
+      totalMoves: 0,
+      totalPositions: 0,
+      gameResult: "ongoing",
+      finalPosition: "",
+    },
     analysisResults: [],
     isAnalyzing: false,
     lastAnalysisTime: null,
@@ -61,7 +71,7 @@ export const useEnhancedFenTracker = (
     if (!game) return;
 
     const newTracker = new EnhancedFenTracker(game.fen());
-    
+
     // Reconstruct positions from game history
     const history = game.history({ verbose: true });
     for (const move of history) {
@@ -80,34 +90,40 @@ export const useEnhancedFenTracker = (
     }
   }, [enableAIAnalysis, openAIApiKey]);
 
-  const updateGameState = useCallback((currentTracker: EnhancedFenTracker) => {
-    const positions = currentTracker.getPositions();
-    const currentPosition = currentTracker.getCurrentPosition();
-    const gameSummary = currentTracker.getGameSummary();
+  const updateGameState = useCallback(
+    (currentTracker: EnhancedFenTracker) => {
+      const positions = currentTracker.getPositions();
+      const currentPosition = currentTracker.getCurrentPosition();
+      const gameSummary = currentTracker.getGameSummary();
 
-    setGameState(prev => ({
-      ...prev,
-      currentPosition,
-      allPositions: positions.slice(-maxPositionsToTrack), // Keep only recent positions
-      gameSummary,
-    }));
-  }, [maxPositionsToTrack]);
+      setGameState((prev) => ({
+        ...prev,
+        currentPosition,
+        allPositions: positions.slice(-maxPositionsToTrack), // Keep only recent positions
+        gameSummary,
+      }));
+    },
+    [maxPositionsToTrack]
+  );
 
-  const makeMove = useCallback(async (move: string | any) => {
-    if (!tracker) return null;
+  const makeMove = useCallback(
+    async (move: string | any) => {
+      if (!tracker) return null;
 
-    const result = tracker.makeMove(move);
-    if (result) {
-      updateGameState(tracker);
-      
-      // Trigger AI analysis if enabled
-      if (enableAIAnalysis && openAIService && result.movePlayed) {
-        scheduleAnalysis(result);
+      const result = tracker.makeMove(move);
+      if (result) {
+        updateGameState(tracker);
+
+        // Trigger AI analysis if enabled
+        if (enableAIAnalysis && openAIService && result.movePlayed) {
+          scheduleAnalysis(result);
+        }
       }
-    }
 
-    return result;
-  }, [tracker, updateGameState, enableAIAnalysis, openAIService]);
+      return result;
+    },
+    [tracker, updateGameState, enableAIAnalysis, openAIService]
+  );
 
   const undoMove = useCallback(() => {
     if (!tracker) return null;
@@ -120,127 +136,141 @@ export const useEnhancedFenTracker = (
     return result;
   }, [tracker, updateGameState]);
 
-  const scheduleAnalysis = useCallback((position: PositionData) => {
-    if (!openAIService) return;
-
-    // Clear existing timeout
-    if (analysisTimeoutRef.current) {
-      clearTimeout(analysisTimeoutRef.current);
-    }
-
-    // Schedule new analysis
-    analysisTimeoutRef.current = setTimeout(async () => {
+  const scheduleAnalysis = useCallback(
+    (position: PositionData) => {
       if (!openAIService) return;
 
-      setGameState(prev => ({ ...prev, isAnalyzing: true }));
+      // Clear existing timeout
+      if (analysisTimeoutRef.current) {
+        clearTimeout(analysisTimeoutRef.current);
+      }
+
+      // Schedule new analysis
+      analysisTimeoutRef.current = setTimeout(async () => {
+        if (!openAIService) return;
+
+        setGameState((prev) => ({ ...prev, isAnalyzing: true }));
+
+        try {
+          const request: ChessAnalysisRequest = {
+            position,
+            gameHistory: gameState.allPositions.slice(-10), // Last 10 positions for context
+            analysisType: "move_explanation",
+            model: "gpt-4o-high",
+            responseFormat: "text",
+          };
+
+          const analysis = await openAIService.analyzePosition(request);
+
+          setGameState((prev) => ({
+            ...prev,
+            analysisResults: [
+              ...prev.analysisResults,
+              {
+                position,
+                analysis,
+                timestamp: Date.now(),
+              },
+            ].slice(-50), // Keep only last 50 analyses
+            isAnalyzing: false,
+            lastAnalysisTime: Date.now(),
+          }));
+        } catch (error) {
+          console.error("AI analysis failed:", error);
+          setGameState((prev) => ({ ...prev, isAnalyzing: false }));
+        }
+      }, analysisInterval);
+    },
+    [openAIService, gameState.allPositions, analysisInterval]
+  );
+
+  const analyzeCurrentPosition = useCallback(
+    async (
+      analysisType: ChessAnalysisRequest["analysisType"] = "move_explanation"
+    ) => {
+      if (!openAIService || !gameState.currentPosition) return null;
+
+      setGameState((prev) => ({ ...prev, isAnalyzing: true }));
 
       try {
         const request: ChessAnalysisRequest = {
-          position,
-          gameHistory: gameState.allPositions.slice(-10), // Last 10 positions for context
-          analysisType: 'move_explanation',
-          model: 'gpt-4o-mini',
-          responseFormat: 'text',
+          position: gameState.currentPosition,
+          gameHistory: gameState.allPositions.slice(-10),
+          analysisType,
+          model: "gpt-4o-high",
+          responseFormat: "text",
         };
 
         const analysis = await openAIService.analyzePosition(request);
-        
-        setGameState(prev => ({
+
+        setGameState((prev) => ({
           ...prev,
           analysisResults: [
             ...prev.analysisResults,
             {
-              position,
+              position: gameState.currentPosition!,
               analysis,
               timestamp: Date.now(),
             },
-          ].slice(-50), // Keep only last 50 analyses
+          ].slice(-50),
           isAnalyzing: false,
           lastAnalysisTime: Date.now(),
         }));
+
+        return analysis;
       } catch (error) {
-        console.error('AI analysis failed:', error);
-        setGameState(prev => ({ ...prev, isAnalyzing: false }));
+        console.error("AI analysis failed:", error);
+        setGameState((prev) => ({ ...prev, isAnalyzing: false }));
+        return null;
       }
-    }, analysisInterval);
-  }, [openAIService, gameState.allPositions, analysisInterval]);
+    },
+    [openAIService, gameState.currentPosition, gameState.allPositions]
+  );
 
-  const analyzeCurrentPosition = useCallback(async (analysisType: ChessAnalysisRequest['analysisType'] = 'move_explanation') => {
-    if (!openAIService || !gameState.currentPosition) return null;
+  const reviewEntireGame = useCallback(
+    async (playerColor: "w" | "b" = "w") => {
+      if (!openAIService || gameState.allPositions.length === 0) return null;
 
-    setGameState(prev => ({ ...prev, isAnalyzing: true }));
+      setGameState((prev) => ({ ...prev, isAnalyzing: true }));
 
-    try {
-      const request: ChessAnalysisRequest = {
-        position: gameState.currentPosition,
-        gameHistory: gameState.allPositions.slice(-10),
-        analysisType,
-        model: 'gpt-4o-mini',
-        responseFormat: 'text',
-      };
+      try {
+        const request: GameReviewRequest = {
+          positions: gameState.allPositions,
+          playerColor,
+          analysisDepth: "detailed",
+          model: "gpt-4o-high",
+        };
 
-      const analysis = await openAIService.analyzePosition(request);
-      
-      setGameState(prev => ({
-        ...prev,
-        analysisResults: [
-          ...prev.analysisResults,
-          {
-            position: gameState.currentPosition!,
-            analysis,
-            timestamp: Date.now(),
-          },
-        ].slice(-50),
-        isAnalyzing: false,
-        lastAnalysisTime: Date.now(),
-      }));
+        const review = await openAIService.reviewGame(request);
 
-      return analysis;
-    } catch (error) {
-      console.error('AI analysis failed:', error);
-      setGameState(prev => ({ ...prev, isAnalyzing: false }));
-      return null;
-    }
-  }, [openAIService, gameState.currentPosition, gameState.allPositions]);
+        setGameState((prev) => ({
+          ...prev,
+          isAnalyzing: false,
+          lastAnalysisTime: Date.now(),
+        }));
 
-  const reviewEntireGame = useCallback(async (playerColor: 'w' | 'b' = 'w') => {
-    if (!openAIService || gameState.allPositions.length === 0) return null;
-
-    setGameState(prev => ({ ...prev, isAnalyzing: true }));
-
-    try {
-      const request: GameReviewRequest = {
-        positions: gameState.allPositions,
-        playerColor,
-        analysisDepth: 'detailed',
-        model: 'gpt-4o-mini',
-      };
-
-      const review = await openAIService.reviewGame(request);
-      
-      setGameState(prev => ({
-        ...prev,
-        isAnalyzing: false,
-        lastAnalysisTime: Date.now(),
-      }));
-
-      return review;
-    } catch (error) {
-      console.error('Game review failed:', error);
-      setGameState(prev => ({ ...prev, isAnalyzing: false }));
-      return null;
-    }
-  }, [openAIService, gameState.allPositions]);
+        return review;
+      } catch (error) {
+        console.error("Game review failed:", error);
+        setGameState((prev) => ({ ...prev, isAnalyzing: false }));
+        return null;
+      }
+    },
+    [openAIService, gameState.allPositions]
+  );
 
   const exportTrainingData = useCallback(() => {
     if (!tracker) return null;
     return tracker.exportForTraining();
   }, [tracker]);
 
-  const getPositionAtMove = useCallback((moveNumber: number, halfMove: boolean = false) => {
-    if (!tracker) return null;
-    return tracker.getPositionAtMove(moveNumber, halfMove);
-  }, [tracker]);
+  const getPositionAtMove = useCallback(
+    (moveNumber: number, halfMove: boolean = false) => {
+      if (!tracker) return null;
+      return tracker.getPositionAtMove(moveNumber, halfMove);
+    },
+    [tracker]
+  );
 
   const getMoveSequence = useCallback(() => {
     if (!tracker) return [];
@@ -268,7 +298,7 @@ export const useEnhancedFenTracker = (
     const interval = setInterval(() => {
       const currentFen = game.fen();
       const trackerFen = tracker.getCurrentPosition()?.fen;
-      
+
       if (currentFen !== trackerFen) {
         // Game state has changed, update tracker
         const newTracker = new EnhancedFenTracker(currentFen);
@@ -287,21 +317,21 @@ export const useEnhancedFenTracker = (
   return {
     // State
     gameState,
-    
+
     // Actions
     makeMove,
     undoMove,
     analyzeCurrentPosition,
     reviewEntireGame,
-    
+
     // Data export
     exportTrainingData,
     getPositionAtMove,
     getMoveSequence,
     getPositionSequence,
-    
+
     // Utility
     tracker,
     openAIService,
   };
-}; 
+};

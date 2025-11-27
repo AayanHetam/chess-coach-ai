@@ -1,10 +1,4 @@
-import {
-  Grid,
-  GridProps,
-  Stack,
-  Typography,
-  Box,
-} from "@mui/material";
+import { Grid, GridProps, Stack, Typography, Box } from "@mui/material";
 import { useAtomValue } from "jotai";
 import { boardAtom, gameAtom, gameEvalAtom } from "../../states";
 import PlayersMetric from "./playersMetric";
@@ -29,7 +23,7 @@ export default function AnalysisTab(props: GridProps) {
 
   const getGameResult = () => {
     if (!isGameOver) return null;
-    
+
     if (board.isCheckmate()) {
       // If it's white's turn and checkmate, black won
       // If it's black's turn and checkmate, white won
@@ -37,23 +31,23 @@ export default function AnalysisTab(props: GridProps) {
       const winner = board.turn() === "w" ? "Black" : "White";
       return `${result} - ${winner} wins by checkmate`;
     }
-    
+
     if (board.isStalemate()) {
       return "1/2-1/2 - Draw by stalemate";
     }
-    
+
     if (board.isInsufficientMaterial()) {
       return "1/2-1/2 - Draw by insufficient material";
     }
-    
+
     if (board.isThreefoldRepetition()) {
       return "1/2-1/2 - Draw by threefold repetition";
     }
-    
+
     if (board.isDraw()) {
       return "1/2-1/2 - Draw";
     }
-    
+
     // If game history matches board history (game finished)
     if (boardHistory.join() === gameHistory.join()) {
       // Check game headers for result
@@ -63,7 +57,7 @@ export default function AnalysisTab(props: GridProps) {
       }
       return "Game finished";
     }
-    
+
     return "Game over";
   };
 
@@ -109,7 +103,7 @@ export default function AnalysisTab(props: GridProps) {
       </Stack>
 
       <EngineLines size={{ lg: gameEval ? undefined : 12 }} />
-      
+
       {gameEval && (
         <Box width="100%" sx={{ marginY: 2 }}>
           <GraphTab />

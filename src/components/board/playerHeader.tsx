@@ -1,6 +1,13 @@
 import { Color } from "@/types/enums";
 import { Player } from "@/types/game";
-import { Avatar, Grid, Stack, Typography, Box, IconButton } from "@mui/material";
+import {
+  Avatar,
+  Grid,
+  Stack,
+  Typography,
+  Box,
+  IconButton,
+} from "@mui/material";
 import CapturedPieces from "./capturedPieces";
 import { PrimitiveAtom, useAtomValue, useSetAtom } from "jotai";
 import { Chess } from "chess.js";
@@ -17,7 +24,13 @@ export interface Props {
   showControls?: boolean;
 }
 
-export default function PlayerHeader({ color, player, gameAtom, boardAtom, showControls = false }: Props) {
+export default function PlayerHeader({
+  color,
+  player,
+  gameAtom,
+  boardAtom,
+  showControls = false,
+}: Props) {
   const game = useAtomValue(gameAtom);
   const isExplorationMode = useAtomValue(isExplorationModeAtom);
   const showNextMoveSuggestion = useAtomValue(showNextMoveSuggestionAtom);
@@ -91,14 +104,14 @@ export default function PlayerHeader({ color, player, gameAtom, boardAtom, showC
             {isExplorationMode && (
               <Box
                 sx={{
-                  backgroundColor: 'rgba(255, 165, 0, 0.8)',
-                  color: 'white',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  display: 'flex',
-                  alignItems: 'center',
+                  backgroundColor: "rgba(255, 165, 0, 0.8)",
+                  color: "white",
+                  padding: "4px 8px",
+                  borderRadius: "4px",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                  display: "flex",
+                  alignItems: "center",
                   gap: 1,
                 }}
               >
@@ -117,9 +130,9 @@ export default function PlayerHeader({ color, player, gameAtom, boardAtom, showC
                     }
                   }}
                   sx={{
-                    color: 'white',
-                    padding: '2px',
-                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' }
+                    color: "white",
+                    padding: "2px",
+                    "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.2)" },
                   }}
                 >
                   <Icon icon="ri:home-line" fontSize={14} />
@@ -130,31 +143,39 @@ export default function PlayerHeader({ color, player, gameAtom, boardAtom, showC
             {/* Next move suggestion toggle */}
             <Box
               sx={{
-                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                color: 'white',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
+                backgroundColor: "rgba(0, 0, 0, 0.7)",
+                color: "white",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
                 gap: 1,
-                cursor: 'pointer',
-                transition: 'opacity 0.2s ease-in-out',
-                '&:hover': {
+                cursor: "pointer",
+                transition: "opacity 0.2s ease-in-out",
+                "&:hover": {
                   opacity: 0.8,
                 },
               }}
               onClick={() => {
                 setShowNextMoveSuggestion(!showNextMoveSuggestion);
               }}
-              title={showNextMoveSuggestion ? "Hide next move suggestions" : "Show next move suggestions"}
+              title={
+                showNextMoveSuggestion
+                  ? "Hide next move suggestions"
+                  : "Show next move suggestions"
+              }
             >
-              <Icon 
-                icon={showNextMoveSuggestion ? "ri:eye-line" : "ri:eye-off-line"} 
-                fontSize={14} 
+              <Icon
+                icon={
+                  showNextMoveSuggestion ? "ri:eye-line" : "ri:eye-off-line"
+                }
+                fontSize={14}
               />
-              <span>{showNextMoveSuggestion ? "HIDE" : "SHOW"} SUGGESTIONS</span>
+              <span>
+                {showNextMoveSuggestion ? "HIDE" : "SHOW"} SUGGESTIONS
+              </span>
             </Box>
           </>
         )}

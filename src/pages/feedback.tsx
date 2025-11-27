@@ -8,7 +8,9 @@ import { PlayerFeedbackData } from "@/types/feedback";
 
 export default function PlayerFeedback() {
   const router = useRouter();
-  const [feedbackData, setFeedbackData] = useState<PlayerFeedbackData | null>(null);
+  const [feedbackData, setFeedbackData] = useState<PlayerFeedbackData | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,9 +32,9 @@ export default function PlayerFeedback() {
     // Navigate to the analysis page with the game and message
     const params = new URLSearchParams();
     if (pgn) {
-      params.set('pgn', pgn);
+      params.set("pgn", pgn);
     }
-    params.set('message', message);
+    params.set("message", message);
     router.push(`/?${params.toString()}`);
   };
 
@@ -50,9 +52,15 @@ export default function PlayerFeedback() {
         <Typography variant="h6" textAlign="center" gutterBottom>
           Analyze Your Last 25 Games
         </Typography>
-        <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ maxWidth: 600 }}>
-          Get personalized feedback on your openings, common principle violations, and improvement areas
-          based on your recent games from Lichess or Chess.com.
+        <Typography
+          variant="body1"
+          textAlign="center"
+          color="text.secondary"
+          sx={{ maxWidth: 600 }}
+        >
+          Get personalized feedback on your openings, common principle
+          violations, and improvement areas based on your recent games from
+          Lichess or Chess.com.
         </Typography>
       </Grid>
 
@@ -66,7 +74,12 @@ export default function PlayerFeedback() {
 
       {isLoading && (
         <Grid container justifyContent="center" alignItems="center" size={12}>
-          <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+          <Box
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            gap={2}
+          >
             <CircularProgress />
             <Typography variant="body2" color="text.secondary">
               Analyzing your games...
@@ -94,7 +107,7 @@ export default function PlayerFeedback() {
                 setFeedbackData(null);
                 setError(null);
               } catch (error) {
-                console.error('Error in onReset:', error);
+                console.error("Error in onReset:", error);
                 // Fallback: reload the page
                 window.location.reload();
               }
@@ -105,4 +118,4 @@ export default function PlayerFeedback() {
       )}
     </Grid>
   );
-} 
+}

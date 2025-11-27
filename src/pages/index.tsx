@@ -53,13 +53,21 @@ export default function GameAnalysis() {
     }
   }, [gameId, setGameEval, setBoardOrientation, resetBoard, resetGame]);
 
-
-
   return (
-    <Grid container gap={1} justifyContent="flex-start" alignItems="start" direction={{ xs: "column", lg: "row" }} sx={{ width: "100%", maxWidth: "100vw" }}>
+    <Grid
+      container
+      gap={1}
+      justifyContent="flex-start"
+      alignItems="start"
+      direction={{ xs: "column", lg: "row" }}
+      sx={{ width: "100%", maxWidth: "100vw" }}
+    >
       <PageTitle title="Chess Masti AI - Game Analysis" />
 
-      <Grid size={{ xs: 12, lg: "auto" }} sx={{ flexShrink: 0, minWidth: { lg: "400px" } }}>
+      <Grid
+        size={{ xs: 12, lg: "auto" }}
+        sx={{ flexShrink: 0, minWidth: { lg: "400px" } }}
+      >
         <Board />
       </Grid>
 
@@ -79,11 +87,14 @@ export default function GameAnalysis() {
           minWidth: { lg: "420px" },
           width: "100%",
           flex: 1,
-          ...(gameEval && { overflow: "visible" })
+          ...(gameEval && { overflow: "visible" }),
         }}
         padding={2}
         rowGap={2}
-        height={{ xs: tab === 1 || tab === 2 ? "40rem" : "auto", lg: "calc(88vh - 60px)" }}
+        height={{
+          xs: tab === 1 || tab === 2 ? "40rem" : "auto",
+          lg: "calc(88vh - 60px)",
+        }}
         display="flex"
         flexDirection="column"
         flexWrap="nowrap"
@@ -146,8 +157,6 @@ export default function GameAnalysis() {
                   }}
                   disableFocusRipple
                 />
-
-
               </Tabs>
             </Box>
           </Box>
@@ -214,31 +223,15 @@ export default function GameAnalysis() {
                 }}
                 disableFocusRipple
               />
-
-
             </Tabs>
           </Box>
         )}
 
+        <AnalysisTab role="tabpanel" hidden={tab !== 0} id="tabContent0" />
 
+        <MovesCoachTab role="tabpanel" hidden={tab !== 1} id="tabContent1" />
 
-        <AnalysisTab
-          role="tabpanel"
-          hidden={tab !== 0}
-          id="tabContent0"
-        />
-
-        <MovesCoachTab
-          role="tabpanel"
-          hidden={tab !== 1}
-          id="tabContent1"
-        />
-
-        <CoachTab
-          role="tabpanel"
-          hidden={tab !== 2}
-          id="tabContent2"
-        />
+        <CoachTab role="tabpanel" hidden={tab !== 2} id="tabContent2" />
 
         <Box width="100%">
           <Divider sx={{ marginX: "5%", marginY: 1.5 }} />

@@ -1,8 +1,11 @@
-import { ChessPrinciple, ChessPrincipleViolation } from "@/lib/chessprinciples";
+import {
+  ChessPrinciple,
+  ChessPrincipleViolation,
+} from "@/lib/chessprinciples/index";
 
 export interface PlayerFeedbackData {
   username: string;
-  platform: 'lichess' | 'chesscom';
+  platform: "lichess" | "chesscom";
   totalGames: number;
   analyzedGames: number;
   averageRating: number;
@@ -26,7 +29,7 @@ export interface OpeningAnalysis {
 export interface PrincipleViolationSummary {
   principle: ChessPrinciple;
   frequency: number;
-  severity: 'minor' | 'moderate' | 'major';
+  severity: "minor" | "moderate" | "major";
   games: GameViolation[];
   impact: string;
   improvementTip: string;
@@ -38,30 +41,30 @@ export interface GameViolation {
   move: string;
   position: string; // FEN
   description: string;
-  severity: 'minor' | 'moderate' | 'major';
+  severity: "minor" | "moderate" | "major";
   gameUrl?: string;
   opponent: string;
-  result: 'win' | 'loss' | 'draw';
+  result: "win" | "loss" | "draw";
   date: string;
   pgn: string;
   analysisMessage: string; // Message to send to AI coach
 }
 
 export interface ImprovementArea {
-  category: 'opening' | 'middlegame' | 'endgame' | 'tactics' | 'strategy';
+  category: "opening" | "middlegame" | "endgame" | "tactics" | "strategy";
   title: string;
   description: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
   specificGames: string[];
   exercises: string[];
 }
 
 export interface GameAnalysis {
   gameId: string;
-  platform: 'lichess' | 'chesscom';
+  platform: "lichess" | "chesscom";
   opponent: string;
   opponentRating: number;
-  result: 'win' | 'loss' | 'draw';
+  result: "win" | "loss" | "draw";
   date: Date | string;
   opening: string;
   principleViolations: ChessPrincipleViolation[];
@@ -71,6 +74,6 @@ export interface GameAnalysis {
 
 export interface FeedbackRequest {
   username: string;
-  platform: 'lichess' | 'chesscom';
+  platform: "lichess" | "chesscom";
   maxGames?: number;
-} 
+}

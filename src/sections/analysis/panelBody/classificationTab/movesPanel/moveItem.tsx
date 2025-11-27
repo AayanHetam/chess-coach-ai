@@ -1,8 +1,13 @@
 import { MoveClassification } from "@/types/enums";
 import { Grid } from "@mui/material";
 import Image from "next/image";
-import { useAtomValue } from "jotai";
-import { boardAtom, currentPositionAtom, gameAtom } from "../../../states";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  boardAtom,
+  currentPositionAtom,
+  gameAtom,
+  moveAnalysisRequestAtom,
+} from "../../../states";
 import { useChessActions } from "@/hooks/useChessActions";
 import { useEffect } from "react";
 import { isInViewport } from "@/lib/helpers";
@@ -26,6 +31,7 @@ export default function MoveItem({
   const board = useAtomValue(boardAtom);
   const { goToMove } = useChessActions(boardAtom);
   const position = useAtomValue(currentPositionAtom);
+  const setMoveAnalysisRequest = useSetAtom(moveAnalysisRequestAtom);
   const color = getMoveColor(moveClassification);
 
   const isCurrentMove = position?.currentMoveIdx === moveIdx;
@@ -47,6 +53,27 @@ export default function MoveItem({
     goToMove(moveIdx, gameToUse);
   };
 
+  const handleRightClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Calculate move number from moveIdx
+    const moveNumber = Math.floor(moveIdx / 2) + 1;
+    const isBlackMove = moveIdx % 2 === 1;
+
+    // Trigger move analysis request
+    setMoveAnalysisRequest({
+      moveIdx,
+      move: san,
+      moveNumber: isBlackMove ? moveNumber : moveNumber,
+    });
+
+    // Optionally scroll to coach tab or show notification
+    console.log(
+      `📊 Requesting analysis for move ${moveNumber}${isBlackMove ? "..." : "."} ${san}`
+    );
+  };
+
   return (
     <Grid
       container
@@ -56,6 +83,7 @@ export default function MoveItem({
       width="5rem"
       wrap="nowrap"
       onClick={handleClick}
+      onContextMenu={handleRightClick}
       paddingY={0.5}
       sx={(theme) => ({
         cursor: isCurrentMove ? undefined : "pointer",
@@ -68,8 +96,16 @@ export default function MoveItem({
             ? "1px solid #424242"
             : undefined,
         borderRadius: 1,
+        "&:hover": {
+          backgroundColor: isCurrentMove
+            ? undefined
+            : theme.palette.mode === "dark"
+              ? "rgba(255, 255, 255, 0.05)"
+              : "rgba(0, 0, 0, 0.05)",
+        },
       })}
       id={`move-${moveIdx}`}
+      title={`Left-click to navigate | Right-click to analyze move ${Math.floor(moveIdx / 2) + 1}${moveIdx % 2 === 1 ? "..." : "."} ${san}`}
     >
       {color && (
         <Image

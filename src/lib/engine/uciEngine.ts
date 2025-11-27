@@ -272,7 +272,7 @@ export class UciEngine {
     // Process positions sequentially to ensure deterministic results
     for (let i = 0; i < fens.length; i++) {
       const fen = fens[i];
-      
+
       const whoIsCheckmated = getWhoIsCheckmated(fen);
       if (whoIsCheckmated) {
         updateEval(i, {
@@ -303,7 +303,12 @@ export class UciEngine {
         continue;
       }
 
-      const result = await this.evaluatePosition(fen, depth, workersNb, useLichessEval);
+      const result = await this.evaluatePosition(
+        fen,
+        depth,
+        workersNb,
+        useLichessEval
+      );
       updateEval(i, result);
     }
 

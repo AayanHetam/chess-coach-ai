@@ -1,4 +1,4 @@
-import { Chess } from 'chess.js';
+import { Chess, Square } from "chess.js";
 
 /**
  * Mock evaluation service that simulates Stockfish evaluations
@@ -24,7 +24,7 @@ export class MockEvaluationService {
   }> {
     // Simulate evaluation based on material and position
     const evaluation = this.calculateMockEvaluation();
-    
+
     // Add some randomness to simulate realistic evaluation variations
     const randomVariation = (Math.random() - 0.5) * 100; // ±50 centipawns
     const finalEvaluation = Math.round(evaluation + randomVariation);
@@ -41,30 +41,30 @@ export class MockEvaluationService {
    */
   private calculateMockEvaluation(): number {
     const fen = this.game.fen();
-    const piecePlacement = fen.split(' ')[0];
-    
+    const piecePlacement = fen.split(" ")[0];
+
     // Material evaluation
     let evaluation = 0;
-    
+
     // Count pieces and assign values
     const pieceValues: { [key: string]: number } = {
-      'P': 100,  // Pawn
-      'N': 320,  // Knight
-      'B': 330,  // Bishop
-      'R': 500,  // Rook
-      'Q': 900,  // Queen
-      'K': 20000, // King
+      P: 100, // Pawn
+      N: 320, // Knight
+      B: 330, // Bishop
+      R: 500, // Rook
+      Q: 900, // Queen
+      K: 20000, // King
     };
 
     for (let i = 0; i < piecePlacement.length; i++) {
       const char = piecePlacement[i];
-      if (char === '/') continue;
-      
-      if (char >= '1' && char <= '8') {
+      if (char === "/") continue;
+
+      if (char >= "1" && char <= "8") {
         // Skip empty squares
         continue;
       }
-      
+
       const value = pieceValues[char.toUpperCase()] || 0;
       if (char === char.toUpperCase()) {
         // White piece
@@ -87,15 +87,15 @@ export class MockEvaluationService {
   private calculatePositionalBonus(): number {
     let bonus = 0;
     const fen = this.game.fen();
-    const piecePlacement = fen.split(' ')[0];
-    const rows = piecePlacement.split('/');
+    const piecePlacement = fen.split(" ")[0];
+    const rows = piecePlacement.split("/");
 
     // Center control bonus
-    const centerSquares = ['d4', 'e4', 'd5', 'e5'];
+    const centerSquares: Square[] = ["d4", "e4", "d5", "e5"];
     for (const square of centerSquares) {
       const piece = this.game.get(square);
       if (piece) {
-        if (piece.color === 'w') {
+        if (piece.color === "w") {
           bonus += 10;
         } else {
           bonus -= 10;
@@ -117,34 +117,38 @@ export class MockEvaluationService {
    */
   private calculateDevelopmentBonus(): number {
     let bonus = 0;
-    
+
     // Check if pieces are still on starting squares
     const startingSquares = {
-      'w': {
-        'P': ['a2', 'b2', 'c2', 'd2', 'e2', 'f2', 'g2', 'h2'],
-        'N': ['b1', 'g1'],
-        'B': ['c1', 'f1'],
-        'R': ['a1', 'h1'],
-        'Q': ['d1'],
-        'K': ['e1']
+      w: {
+        P: ["a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2"],
+        N: ["b1", "g1"],
+        B: ["c1", "f1"],
+        R: ["a1", "h1"],
+        Q: ["d1"],
+        K: ["e1"],
       },
-      'b': {
-        'P': ['a7', 'b7', 'c7', 'd7', 'e7', 'f7', 'g7', 'h7'],
-        'N': ['b8', 'g8'],
-        'B': ['c8', 'f8'],
-        'R': ['a8', 'h8'],
-        'Q': ['d8'],
-        'K': ['e8']
-      }
+      b: {
+        P: ["a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7"],
+        N: ["b8", "g8"],
+        B: ["c8", "f8"],
+        R: ["a8", "h8"],
+        Q: ["d8"],
+        K: ["e8"],
+      },
     };
 
-    for (const color of ['w', 'b'] as const) {
+    for (const color of ["w", "b"] as const) {
       for (const [piece, squares] of Object.entries(startingSquares[color])) {
         for (const square of squares) {
-          const pieceOnSquare = this.game.get(square);
-          if (pieceOnSquare && pieceOnSquare.type.toUpperCase() === piece && pieceOnSquare.color === color) {
+          const pieceOnSquare = this.game.get(square as Square);
+          if (
+            pieceOnSquare &&
+            pieceOnSquare.type.toUpperCase() === piece &&
+            pieceOnSquare.color === color
+          ) {
             // Piece still on starting square (negative bonus)
-            if (color === 'w') {
+            if (color === "w") {
               bonus -= 5;
             } else {
               bonus += 5;
@@ -162,17 +166,17 @@ export class MockEvaluationService {
    */
   private calculateKingSafetyBonus(): number {
     let bonus = 0;
-    
+
     // Check if kings have castled
-    const whiteKing = this.game.get('e1');
-    const blackKing = this.game.get('e8');
-    
-    if (whiteKing && whiteKing.type === 'k' && whiteKing.color === 'w') {
+    const whiteKing = this.game.get("e1");
+    const blackKing = this.game.get("e8");
+
+    if (whiteKing && whiteKing.type === "k" && whiteKing.color === "w") {
       // White king still on e1 (not castled)
       bonus -= 20;
     }
-    
-    if (blackKing && blackKing.type === 'k' && blackKing.color === 'b') {
+
+    if (blackKing && blackKing.type === "k" && blackKing.color === "b") {
       // Black king still on e8 (not castled)
       bonus += 20;
     }
@@ -185,8 +189,8 @@ export class MockEvaluationService {
    */
   private getMockBestMove(): string {
     const legalMoves = this.game.moves();
-    if (legalMoves.length === 0) return '';
-    
+    if (legalMoves.length === 0) return "";
+
     // Return a random legal move
     return legalMoves[Math.floor(Math.random() * legalMoves.length)];
   }
@@ -218,4 +222,4 @@ export class MockEvaluationService {
   public getGame(): Chess {
     return this.game;
   }
-} 
+}

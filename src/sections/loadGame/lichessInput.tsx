@@ -13,7 +13,12 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery } from "@tanstack/react-query";
 
 interface Props {
-  onSelect: (pgn: string, boardOrientation?: boolean, gameOrigin?: string, searchUsername?: string) => void;
+  onSelect: (
+    pgn: string,
+    boardOrientation?: boolean,
+    gameOrigin?: string,
+    searchUsername?: string
+  ) => void;
 }
 
 export default function LichessInput({ onSelect }: Props) {
@@ -72,7 +77,12 @@ export default function LichessInput({ onSelect }: Props) {
                   const boardOrientation =
                     lichessUsername.toLowerCase() !==
                     game.players?.black?.user?.name?.toLowerCase();
-                  onSelect(game.pgn, boardOrientation, 'lichess', lichessUsername);
+                  onSelect(
+                    game.pgn,
+                    boardOrientation,
+                    "lichess",
+                    lichessUsername
+                  );
                 }}
                 style={{ width: 350, maxWidth: 350 }}
                 key={game.id}

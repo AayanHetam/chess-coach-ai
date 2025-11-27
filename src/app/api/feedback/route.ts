@@ -34,13 +34,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(feedbackData);
   } catch (error) {
     console.error("Error generating feedback:", error);
-    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
-    
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
+    console.error(
+      "Error stack:",
+      error instanceof Error ? error.stack : "No stack trace"
     );
+
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
+
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
-} 
+}

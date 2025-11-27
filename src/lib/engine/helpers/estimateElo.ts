@@ -12,14 +12,14 @@ export const computeEstimatedElo = (
 
   const { whiteCpl, blackCpl } = getPlayersAverageCpl(positions);
 
-  const whiteEstimatedElo = Math.max(100, getEloFromRatingAndCpl(
-    whiteCpl,
-    whiteElo ?? blackElo
-  ));
-  const blackEstimatedElo = Math.max(100, getEloFromRatingAndCpl(
-    blackCpl,
-    blackElo ?? whiteElo
-  ));
+  const whiteEstimatedElo = Math.max(
+    100,
+    getEloFromRatingAndCpl(whiteCpl, whiteElo ?? blackElo)
+  );
+  const blackEstimatedElo = Math.max(
+    100,
+    getEloFromRatingAndCpl(blackCpl, blackElo ?? whiteElo)
+  );
 
   return { white: whiteEstimatedElo, black: blackEstimatedElo };
 };

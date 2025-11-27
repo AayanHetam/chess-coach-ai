@@ -14,21 +14,24 @@ import {
 import { useState } from "react";
 import { PlayerFeedbackData, FeedbackRequest } from "@/types/feedback";
 
-
 interface Props {
   onFeedbackGenerated: (data: PlayerFeedbackData) => void;
   onError: (error: string) => void;
   onLoading: (loading: boolean) => void;
 }
 
-export default function PlayerFeedbackForm({ onFeedbackGenerated, onError, onLoading }: Props) {
+export default function PlayerFeedbackForm({
+  onFeedbackGenerated,
+  onError,
+  onLoading,
+}: Props) {
   const [username, setUsername] = useState("");
   const [platform, setPlatform] = useState<"lichess" | "chesscom">("lichess");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!username.trim()) {
       onError("Please enter a username");
       return;
@@ -62,8 +65,8 @@ export default function PlayerFeedbackForm({ onFeedbackGenerated, onError, onLoa
     } catch (error) {
       console.error("Error generating feedback:", error);
       onError(
-        error instanceof Error 
-          ? error.message 
+        error instanceof Error
+          ? error.message
           : "Failed to generate feedback. Please try again."
       );
     } finally {
@@ -78,7 +81,7 @@ export default function PlayerFeedbackForm({ onFeedbackGenerated, onError, onLoa
         <Typography variant="h6" gutterBottom>
           Enter Your Details
         </Typography>
-        
+
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
           <TextField
             fullWidth
@@ -87,7 +90,9 @@ export default function PlayerFeedbackForm({ onFeedbackGenerated, onError, onLoa
             onChange={(e) => setUsername(e.target.value)}
             margin="normal"
             required
-            placeholder={platform === "lichess" ? "e.g., DrNykterstein" : "e.g., Hikaru"}
+            placeholder={
+              platform === "lichess" ? "e.g., DrNykterstein" : "e.g., Hikaru"
+            }
             disabled={isSubmitting}
           />
 
@@ -96,7 +101,9 @@ export default function PlayerFeedbackForm({ onFeedbackGenerated, onError, onLoa
             <Select
               value={platform}
               label="Platform"
-              onChange={(e) => setPlatform(e.target.value as "lichess" | "chesscom")}
+              onChange={(e) =>
+                setPlatform(e.target.value as "lichess" | "chesscom")
+              }
               disabled={isSubmitting}
             >
               <MenuItem value="lichess">Lichess</MenuItem>
@@ -106,8 +113,9 @@ export default function PlayerFeedbackForm({ onFeedbackGenerated, onError, onLoa
 
           <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
             <Typography variant="body2">
-              This will analyze your last 25 games from {platform === "lichess" ? "Lichess" : "Chess.com"}.
-              The analysis may take a few minutes.
+              This will analyze your last 25 games from{" "}
+              {platform === "lichess" ? "Lichess" : "Chess.com"}. The analysis
+              may take a few minutes.
             </Typography>
           </Alert>
 
@@ -125,4 +133,4 @@ export default function PlayerFeedbackForm({ onFeedbackGenerated, onError, onLoa
       </CardContent>
     </Card>
   );
-} 
+}

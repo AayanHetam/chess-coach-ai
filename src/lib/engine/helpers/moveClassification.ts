@@ -9,12 +9,12 @@ import { getIsPieceSacrifice, isSimplePieceRecapture } from "@/lib/chess";
 
 // Chess.com's Expected Points Model thresholds
 const CHESS_COM_THRESHOLDS = {
-  BEST: 0.00,
+  BEST: 0.0,
   EXCELLENT_MAX: 0.02,
-  GOOD_MAX: 0.05, 
-  INACCURACY_MAX: 0.10,
-  MISTAKE_MAX: 0.20,
-  BLUNDER_MAX: 1.00,
+  GOOD_MAX: 0.05,
+  INACCURACY_MAX: 0.1,
+  MISTAKE_MAX: 0.2,
+  BLUNDER_MAX: 1.0,
 };
 
 // Convert win percentage difference to expected points loss
@@ -110,15 +110,7 @@ export const getMovesClassification = (
     }
 
     // Check for Miss (missed opportunity to capitalize on opponent's mistake)
-    if (
-      isMissedOpportunity(
-        index,
-        rawPositions,
-        uciMoves,
-        fens,
-        isWhiteMove
-      )
-    ) {
+    if (isMissedOpportunity(index, rawPositions, uciMoves, fens, isWhiteMove)) {
       return {
         ...rawPosition,
         opening: currentOpening,
@@ -162,7 +154,9 @@ const getChessComClassification = (
     (positionWinPercentage - lastPositionWinPercentage) *
     (isWhiteMove ? 1 : -1);
 
-  const expectedPointsLoss = winPercentageToExpectedPoints(Math.min(0, winPercentageDiff));
+  const expectedPointsLoss = winPercentageToExpectedPoints(
+    Math.min(0, winPercentageDiff)
+  );
 
   if (expectedPointsLoss === CHESS_COM_THRESHOLDS.BEST) {
     return MoveClassification.Best;
@@ -179,7 +173,7 @@ const getChessComClassification = (
   if (expectedPointsLoss <= CHESS_COM_THRESHOLDS.MISTAKE_MAX) {
     return MoveClassification.Mistake;
   }
-  
+
   return MoveClassification.Blunder;
 };
 
@@ -204,9 +198,11 @@ const isMissedOpportunity = (
 
   // Check if opponent made a mistake in the previous move
   const opponentIsWhite = !isWhiteMove;
-  const beforeOpponentMoveWinPercentage = positionsWinPercentage[opponentMoveIndex - 1];
-  const afterOpponentMoveWinPercentage = positionsWinPercentage[opponentMoveIndex];
-  
+  const beforeOpponentMoveWinPercentage =
+    positionsWinPercentage[opponentMoveIndex - 1];
+  const afterOpponentMoveWinPercentage =
+    positionsWinPercentage[opponentMoveIndex];
+
   const opponentWinPercentageDiff =
     (afterOpponentMoveWinPercentage - beforeOpponentMoveWinPercentage) *
     (opponentIsWhite ? 1 : -1);
@@ -217,16 +213,17 @@ const isMissedOpportunity = (
   if (!opponentMadeMistake) return false;
 
   // Check if player had a winning opportunity but missed it
-  const beforePlayerMoveWinPercentage = positionsWinPercentage[currentIndex - 1];
+  const beforePlayerMoveWinPercentage =
+    positionsWinPercentage[currentIndex - 1];
   const afterPlayerMoveWinPercentage = positionsWinPercentage[currentIndex];
-  
+
   const playerWinPercentageDiff =
     (afterPlayerMoveWinPercentage - beforePlayerMoveWinPercentage) *
     (isWhiteMove ? 1 : -1);
 
   // Player had a winning position but failed to maintain advantage
-  const playerWinning = isWhiteMove 
-    ? beforePlayerMoveWinPercentage > 75 
+  const playerWinning = isWhiteMove
+    ? beforePlayerMoveWinPercentage > 75
     : beforePlayerMoveWinPercentage < 25;
 
   const playerLostAdvantage = playerWinPercentageDiff < -5;

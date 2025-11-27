@@ -32,7 +32,7 @@ export default function EvaluationBar({
 
     if (board && board.isCheckmate()) {
       const result = board.turn() === "w" ? "0-1" : "1-0";
-      
+
       const whiteBarPercentage = board.turn() === "w" ? 0 : 100;
       setEvalBar({
         whiteBarPercentage,
@@ -42,7 +42,7 @@ export default function EvaluationBar({
     }
 
     const evalBar = getEvaluationBarValue(position.eval);
-    
+
     if (bestLine.mate) {
       const whiteBarPercentage = bestLine.mate > 0 ? 100 : 0;
       setEvalBar({
@@ -51,7 +51,7 @@ export default function EvaluationBar({
       });
       return;
     }
-    
+
     setEvalBar(evalBar);
   }, [position, board]);
 
@@ -86,10 +86,10 @@ export default function EvaluationBar({
           textAlign="center"
           width="100%"
           fontSize="0.7rem"
-          sx={{ 
+          sx={{
             wordBreak: "break-word",
             lineHeight: 1,
-            padding: "2px"
+            padding: "2px",
           }}
         >
           {(evalBar.whiteBarPercentage < 50 &&
@@ -123,10 +123,10 @@ export default function EvaluationBar({
           textAlign="center"
           width="100%"
           fontSize="0.7rem"
-          sx={{ 
+          sx={{
             wordBreak: "break-word",
             lineHeight: 1,
-            padding: "2px"
+            padding: "2px",
           }}
         >
           {(evalBar.whiteBarPercentage >= 50 &&

@@ -8,4 +8,7 @@ export const pieceSetAtom = atomWithStorage<(typeof PIECE_SETS)[number]>(
 );
 export const boardHueAtom = atomWithStorage("boardHue", 0);
 export const isExplorationModeAtom = atom(false);
-export const showNextMoveSuggestionAtom = atomWithStorage("showNextMoveSuggestion", true);
+export const showNextMoveSuggestionAtom = atomWithStorage(
+  "showNextMoveSuggestion",
+  true
+);

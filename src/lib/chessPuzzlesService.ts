@@ -285,20 +285,112 @@ export function identifyTacticalThemes(
         }
       }
 
-      // Check for forks
-      if (moveObj.piece === "n" || moveObj.piece === "p") {
-        // Knights and pawns are common fork pieces
-        const afterMoves = pvGame.moves({ verbose: true });
-        const attackedPieces = afterMoves.filter((m) => m.captured).length;
-        if (attackedPieces >= 2) {
-          themes.push("fork");
+      // Enhanced fork detection: Check if the moved piece attacks two or more enemy pieces
+      const moveSquare = moveObj.to;
+      const attackedSquares = pvGame.moves({ square: moveSquare, verbose: true });
+      const attackedPieces = attackedSquares.filter((m) => {
+        const piece = pvGame.get(m.to);
+        return piece && piece.color !== moveObj.color;
+      });
+      if (attackedPieces.length >= 2) {
+        themes.push("fork");
+        // Check if it's a knight fork (most common)
+        if (moveObj.piece === "n") {
+          themes.push("knightFork");
+        }
+        // Check if it's a pawn fork
+        if (moveObj.piece === "p") {
+          themes.push("pawnFork");
         }
       }
 
-      // Check for pins
+      // Enhanced pin detection: Check if a piece is actually pinned
+      const beforeGame = new Chess(fen);
+      const board = beforeGame.board();
+      const moveFrom = moveObj.from;
+      const moveTo = moveObj.to;
+      
+      // Check if the move creates a pin by checking if any enemy piece is now pinned
+      beforeGame.move(move);
+      const allPieces = board.flat().filter((p) => p !== null && p.color !== moveObj.color);
+      
+      for (const piece of allPieces) {
+        if (!piece) continue;
+        const pieceSquare = board.flat().findIndex((p) => p === piece);
+        if (pieceSquare === -1) continue;
+        
+        const square = beforeGame.SQUARES[pieceSquare];
+        const pieceMoves = beforeGame.moves({ square, verbose: true });
+        
+        // Check if moving this piece would expose the king (absolute pin)
+        const tempGame = new Chess(beforeGame.fen());
+        const pieceObj = tempGame.get(square);
+        if (pieceObj && pieceMoves.length > 0) {
+          // Try moving the piece and see if it exposes the king
+          const testMove = pieceMoves[0];
+          try {
+            tempGame.move(testMove);
+            if (tempGame.isCheck()) {
+              themes.push("pin");
+              break;
+            }
+          } catch {
+            // Invalid move, continue
+          }
+        }
+      }
+
+      // Enhanced skewer detection: Similar to pin but more valuable piece is in front
+      // Check if a line piece (bishop, rook, queen) attacks through a less valuable piece to a more valuable one
       if (moveObj.piece === "b" || moveObj.piece === "r" || moveObj.piece === "q") {
-        // Bishops, rooks, and queens can create pins
-        themes.push("pin");
+        const afterBoard = pvGame.board();
+        const moveSquareAfter = moveTo;
+        
+        // Check all squares in the line of attack
+        const directions = moveObj.piece === "b" 
+          ? [[1, 1], [1, -1], [-1, 1], [-1, -1]] // Diagonal
+          : moveObj.piece === "r"
+          ? [[1, 0], [-1, 0], [0, 1], [0, -1]] // Horizontal/vertical
+          : [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [-1, 0], [0, 1], [0, -1]]; // All
+        
+        for (const [dx, dy] of directions) {
+          let foundLessValuable = false;
+          let foundMoreValuable = false;
+          
+          for (let dist = 1; dist < 8; dist++) {
+            const file = moveSquareAfter.charCodeAt(0) - 97 + dx * dist;
+            const rank = parseInt(moveSquareAfter[1]) + dy * dist;
+            
+            if (file < 0 || file > 7 || rank < 1 || rank > 8) break;
+            
+            const square = String.fromCharCode(97 + file) + rank;
+            const piece = afterBoard[8 - rank][file];
+            
+            if (piece) {
+              if (piece.color !== moveObj.color) {
+                const value = piece.type === "q" ? 9 : piece.type === "r" ? 5 : piece.type === "b" || piece.type === "n" ? 3 : 1;
+                if (!foundLessValuable) {
+                  foundLessValuable = true;
+                } else if (value > 3) {
+                  foundMoreValuable = true;
+                  break;
+                }
+              } else {
+                break;
+              }
+            }
+          }
+          
+          if (foundLessValuable && foundMoreValuable) {
+            themes.push("skewer");
+            break;
+          }
+        }
+      }
+
+      // Double attack detection: Move attacks two targets simultaneously
+      if (attackedPieces.length >= 2) {
+        themes.push("doubleAttack");
       }
 
       // Check for promotion
@@ -378,5 +470,80 @@ export function formatTacticalThemesForPrompt(
     "and why that's tactically advantageous.";
 
   return description;
+}
+
+/**
+ * Query puzzles by tactical theme(s)
+ * Uses the chess-puzzles-dataset API endpoint
+ */
+export async function getPuzzlesByTheme(
+  themes: string[],
+  limit: number = 20
+): Promise<ChessPuzzle[]> {
+  try {
+    const response = await fetch("/api/chess-puzzles-dataset", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        command: "by_theme",
+        themes: themes,
+        limit: limit,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Failed to fetch puzzles by theme:", response.statusText);
+      return [];
+    }
+
+    const data = await response.json();
+    
+    if (data.success && data.puzzles) {
+      return data.puzzles.map((puzzle: any) => ({
+        id: puzzle.id || puzzle.puzzle_id || String(Math.random()),
+        fen: puzzle.fen,
+        moves: puzzle.moves || [],
+        rating: puzzle.rating || 1500,
+        themes: puzzle.themes || [],
+        solution: puzzle.solution || puzzle.moves || [],
+      }));
+    }
+
+    return [];
+  } catch (error) {
+    console.error("Error fetching puzzles by theme:", error);
+    return [];
+  }
+}
+
+/**
+ * Normalize theme name to match dataset theme format
+ * Converts human-readable theme names to dataset format
+ */
+export function normalizeThemeName(theme: string): string {
+  const themeMap: Record<string, string> = {
+    "fork": "fork",
+    "fork patterns": "fork",
+    "pins": "pin",
+    "pin": "pin",
+    "back rank": "backRankMate",
+    "back rank weaknesses": "backRankMate",
+    "back rank mate": "backRankMate",
+    "discovered attack": "discoveredAttack",
+    "discovered attacks": "discoveredAttack",
+    "skewer": "skewer",
+    "skewers": "skewer",
+    "sacrifice": "sacrifice",
+    "sacrifices": "sacrifice",
+    "mate": "mate",
+    "checkmate": "mate",
+    "hanging piece": "hangingPiece",
+    "hanging pieces": "hangingPiece",
+  };
+
+  const normalized = theme.toLowerCase().trim();
+  return themeMap[normalized] || normalized;
 }
 

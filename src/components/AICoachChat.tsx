@@ -29,6 +29,15 @@ import {
 } from "@/sections/analysis/states";
 import { useAtomValue, useSetAtom } from "jotai";
 import { MaiaStatusIndicator } from "./MaiaStatusIndicator";
+import { useRouter } from "next/router";
+import {
+  practicePuzzlesAtom,
+  currentPuzzleIndexAtom,
+  practiceThemeAtom,
+  puzzleSolvedStatusAtom,
+  PracticePuzzle,
+} from "@/sections/practice/states";
+import { getPuzzlesByTheme, normalizeThemeName } from "@/lib/chessPuzzlesService";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -192,18 +201,39 @@ const ClickableMove: React.FC<{
   move: string;
   moveNumber?: number;
   isBlackMove?: boolean;
-}> = ({ move, moveNumber, isBlackMove }) => {
+  isRecommended?: boolean; // New prop to distinguish recommended moves
+}> = ({ move, moveNumber, isBlackMove, isRecommended = false }) => {
   const game = useAtomValue(gameAtom);
   const { goToMove } = useChessActions(boardAtom);
 
   console.log(
-    `ClickableMove created: ${moveNumber}.${isBlackMove ? ".." : ""} ${move}`
+    `ClickableMove created: ${moveNumber}.${isBlackMove ? ".." : ""} ${move} ${isRecommended ? "(recommended)" : ""}`
   );
 
   const handleMoveClick = () => {
     console.log(
       `ClickableMove clicked: ${moveNumber}.${isBlackMove ? ".." : ""} ${move}`
     );
+    
+    if (isRecommended) {
+      // Exploration mode for recommended moves
+      const gameHistory = game.history();
+      const newGame = new Chess();
+      
+      // Play all moves up to the point before this move
+      for (let i = 0; i < gameHistory.length - 1; i++) {
+        newGame.move(gameHistory[i]);
+      }
+      
+      // Play the recommended move instead
+      newGame.move(move);
+      
+      // Navigate to the new position
+      goToMove(newGame.history().length, newGame);
+      console.log(`✅ Explored recommended move: ${move}`);
+      return;
+    }
+    
     try {
       const gameHistory = game.history();
       console.log("Game history length:", gameHistory.length);
@@ -265,24 +295,36 @@ const ClickableMove: React.FC<{
     <span
       onClick={handleMoveClick}
       style={{
-        color: "#4FC3F7",
+        color: isRecommended ? "#2E7D32" : "#2196F3", // Green for recommended, blue for regular
         cursor: "pointer",
         textDecoration: "underline",
         fontWeight: "bold",
-        padding: "2px 4px",
-        borderRadius: "4px",
-        backgroundColor: "rgba(79, 195, 247, 0.1)",
+        padding: "1px 3px",
+        borderRadius: "3px",
+        backgroundColor: isRecommended ? "rgba(46, 125, 50, 0.1)" : "rgba(33, 150, 243, 0.08)",
         transition: "all 0.2s ease",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "rgba(79, 195, 247, 0.2)";
+        if (isRecommended) {
+          e.currentTarget.style.backgroundColor = "rgba(46, 125, 50, 0.2)";
+          e.currentTarget.style.color = "#1B5E20";
+        } else {
+          e.currentTarget.style.backgroundColor = "rgba(33, 150, 243, 0.15)";
+          e.currentTarget.style.color = "#1976D2";
+        }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "rgba(79, 195, 247, 0.1)";
+        if (isRecommended) {
+          e.currentTarget.style.backgroundColor = "rgba(46, 125, 50, 0.1)";
+          e.currentTarget.style.color = "#2E7D32";
+        } else {
+          e.currentTarget.style.backgroundColor = "rgba(33, 150, 243, 0.08)";
+          e.currentTarget.style.color = "#2196F3";
+        }
       }}
-      title={`Click to jump to move ${moveNumber}${isBlackMove ? "..." : "."} ${move}`}
+      title={isRecommended ? `Click to explore position after ${move}` : `Click to jump to move ${moveNumber}${isBlackMove ? "..." : "."} ${move}`}
     >
-      {moveNumber}.{isBlackMove ? ".." : ""} {move}
+      {isRecommended && "🔍 "}{moveNumber}.{isBlackMove ? ".." : ""} {move}
     </span>
   );
 };
@@ -364,13 +406,13 @@ const HypotheticalMove: React.FC<{
 
 // Helper function to process position links
 const processPositionLinks = (text: string) => {
-  if (!text.includes("position") && !text.includes("Position")) {
+  if (!text.includes("position") && !text.includes("Position") && !text.includes("[position")) {
     return [text];
   }
 
   const parts = [];
-  // Pattern to match position references: "position X", "Position X", "[position X]", "at position X", "after position X"
-  const positionPattern = /(?:\[)?(?:position|Position)\s+(\d+)(?:\])?/gi;
+  // Pattern to match position references: "[position X]" (new format) or "position X", "Position X", etc. (old formats)
+  const positionPattern = /\[position\s+(\d+)\]|(?:\[)?(?:position|Position)\s+(\d+)(?:\])?/gi;
   let lastIndex = 0;
   let match;
 
@@ -380,7 +422,8 @@ const processPositionLinks = (text: string) => {
       parts.push(text.slice(lastIndex, match.index));
     }
 
-    const positionNumber = parseInt(match[1]);
+    // Use first capture group if available (new format), otherwise second (old format)
+    const positionNumber = parseInt(match[1] || match[2]);
     parts.push(
       <PositionLink
         key={`position-${match.index}`}
@@ -399,30 +442,104 @@ const processPositionLinks = (text: string) => {
   return parts.length > 0 ? parts : [text];
 };
 
+// Helper function to process correct move links [Correct: Move]
+const processCorrectMoveLinks = (text: string, game: Chess, moveNumber?: number, isBlackMove?: boolean) => {
+  if (!text.includes("[Correct:") && !text.includes("[correct:")) {
+    return [text];
+  }
+
+  const parts = [];
+  // Pattern to match [Correct: Move] format
+  const correctMovePattern = /\[Correct:\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\]/gi;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = correctMovePattern.exec(text)) !== null) {
+    // Add text before the link
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    const correctMove = match[1];
+    // Try to find the original move from context (we'll need to extract this from the text)
+    // For now, use a placeholder - we'll improve this later
+    const originalMove = "original"; // Placeholder
+    
+    parts.push(
+      <HypotheticalMove
+        key={`correct-${match.index}`}
+        move={correctMove}
+        moveNumber={moveNumber}
+        isBlackMove={isBlackMove}
+        originalMove={originalMove}
+      />
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [text];
+};
+
 // Custom text renderer that converts move notation to clickable links
-const renderTextWithClickableMoves = (text: string) => {
+const renderTextWithClickableMoves = (text: string, game?: Chess) => {
   if (!text) return null;
 
   // First, process position links
   const textWithPositions = processPositionLinks(text);
 
-  // If we have position links, we need to process each part separately
-  if (
-    textWithPositions.length > 1 ||
-    (textWithPositions.length === 1 && typeof textWithPositions[0] !== "string")
-  ) {
-    // We have position links, process each string part for moves
-    return textWithPositions.map((part, idx) => {
+  // Then process correct move links for each string part
+  const processParts = (parts: any[]): any[] => {
+    return parts.map((part, idx) => {
       if (typeof part === "string") {
+        // Process correct move links in this string part
+        const textWithCorrectMoves = processCorrectMoveLinks(part, game || new Chess());
+        
+        // If we have correct move links, process each part for regular moves
+        if (textWithCorrectMoves.length > 1 || 
+            (textWithCorrectMoves.length === 1 && typeof textWithCorrectMoves[0] !== "string")) {
+          return textWithCorrectMoves.map((subPart, subIdx) => {
+            if (typeof subPart === "string") {
+              return (
+                <React.Fragment key={`${idx}-${subIdx}`}>
+                  {renderMovesInText(subPart)}
+                </React.Fragment>
+              );
+            }
+            return <React.Fragment key={`${idx}-${subIdx}`}>{subPart}</React.Fragment>;
+          });
+        }
+        
+        // No correct move links, just process regular moves
         return (
           <React.Fragment key={idx}>{renderMovesInText(part)}</React.Fragment>
         );
       }
       return <React.Fragment key={idx}>{part}</React.Fragment>;
     });
+  };
+
+  // If we have position links, process each part
+  if (
+    textWithPositions.length > 1 ||
+    (textWithPositions.length === 1 && typeof textWithPositions[0] !== "string")
+  ) {
+    return processParts(textWithPositions);
   }
 
-  // No position links, just process moves
+  // No position links, process correct move links and regular moves
+  const textWithCorrectMoves = processCorrectMoveLinks(text, game || new Chess());
+  if (textWithCorrectMoves.length > 1 || 
+      (textWithCorrectMoves.length === 1 && typeof textWithCorrectMoves[0] !== "string")) {
+    return processParts(textWithCorrectMoves);
+  }
+
+  // No special links, just process regular moves
   return renderMovesInText(text);
 };
 
@@ -432,26 +549,33 @@ const renderMovesInText = (text: string) => {
 
   // Unified pattern to catch all move formats in priority order
   const movePatterns = [
-    // Priority 1: AI response format "Move X: [move] - [principle] - [explanation] - [suggestion]"
+    // Priority 1: AI response format "Move X (move)" - your specific format
+    {
+      pattern:
+        /Move\s+(\d+)\s*\([^)]*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\)/gi,
+      type: "ai_parentheses",
+      priority: 1,
+    },
+    // Priority 2: AI response format "Move X: [move]" 
     {
       pattern:
         /Move\s+(\d+):\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
       type: "ai",
-      priority: 1,
+      priority: 2,
     },
-    // Priority 2: Standard notation "15. Nf3" or "15... cxd4"
+    // Priority 3: Standard notation "15. Nf3" or "15... cxd4"
     {
       pattern:
         /(\d+)\.\.\.?\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g,
       type: "standard",
-      priority: 2,
+      priority: 3,
     },
-    // Priority 3: "move X" format
+    // Priority 4: "move X" format
     {
       pattern:
         /move\s+(\d+)([wb])?:\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
       type: "move",
-      priority: 3,
+      priority: 4,
     },
   ];
 
@@ -517,7 +641,12 @@ const renderMovesInText = (text: string) => {
     let move: string;
     let isBlackMove: boolean;
 
-    if (pattern.type === "ai") {
+    if (pattern.type === "ai_parentheses") {
+      // Handle "Move X (move)" format - your specific case
+      moveNumber = parseInt(match[1]);
+      move = match[2];
+      isBlackMove = moveNumber % 2 === 0;
+    } else if (pattern.type === "ai") {
       moveNumber = parseInt(match[1]);
       move = match[2];
       isBlackMove = moveNumber % 2 === 0;
@@ -533,15 +662,34 @@ const renderMovesInText = (text: string) => {
       return; // Unknown pattern type
     }
 
-    // Add the clickable move
-    parts.push(
-      <ClickableMove
-        key={`${pattern.type}-${moveNumber}-${isBlackMove ? "black" : "white"}-${startIndex}`}
-        move={move}
-        moveNumber={moveNumber}
-        isBlackMove={isBlackMove}
-      />
-    );
+    // Check if this is a recommended move (green) by looking for "Best Move Instead:" or similar patterns
+    const isRecommendedMove = text.includes("Best Move Instead:") || 
+                             text.includes("Recommended:") || 
+                             text.includes("Instead:");
+    
+    if (isRecommendedMove) {
+      // Use green clickable move with exploration mode
+      parts.push(
+        <ClickableMove
+          key={`recommended-${moveNumber}-${isBlackMove ? "black" : "white"}-${startIndex}`}
+          move={move}
+          moveNumber={moveNumber}
+          isBlackMove={isBlackMove}
+          isRecommended={true}
+        />
+      );
+    } else {
+      // Use regular blue clickable move
+      parts.push(
+        <ClickableMove
+          key={`${pattern.type}-${moveNumber}-${isBlackMove ? "black" : "white"}-${startIndex}`}
+          move={move}
+          moveNumber={moveNumber}
+          isBlackMove={isBlackMove}
+          isRecommended={false}
+        />
+      );
+    }
 
     // Update tracking
     lastIndex = endIndex;
@@ -737,10 +885,18 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   game,
   boardOrientation = true,
 }) => {
+  const router = useRouter();
   // Get real Stockfish evaluation data
   const gameEval = useAtomValue(gameEvalAtom);
   // Get user player info (username and color)
   const userPlayerInfo = useAtomValue(userPlayerInfoAtom);
+  
+  // Practice state setters
+  const setPracticePuzzles = useSetAtom(practicePuzzlesAtom);
+  const setCurrentPuzzleIndex = useSetAtom(currentPuzzleIndexAtom);
+  const setPracticeTheme = useSetAtom(practiceThemeAtom);
+  const puzzleSolvedStatus = useAtomValue(puzzleSolvedStatusAtom);
+  const setPuzzleSolvedStatus = useSetAtom(puzzleSolvedStatusAtom);
 
   // Track previous game to detect when a new game is loaded
   const prevGameRef = useRef<string | null>(null);
@@ -787,18 +943,47 @@ CONVERSATION FLOW:
 - If a game is newly loaded, give a brief reaction, then ask what they'd like to analyze
 - Use your judgment: if they've asked something specific, answer it. If they haven't, ask what they want.
 
+CRITICAL: BOOK MOVES POLICY - NEVER CRITIQUE BOOK MOVES
+- Book moves are theoretical opening moves that appear in master-level games (typically 50+ games or 5%+ frequency)
+- NEVER critique book moves as mistakes, blunders, or inaccuracies - they are established theory
+- When a move is marked as "BOOK_SOLID" or "BOOK_DUBIOUS":
+  * BOOK_SOLID: Acknowledge it as a well-known book move. If engine prefers alternative, mention it gently: "The engine slightly prefers [alternative], but your move is completely standard and leads to a playable position."
+  * BOOK_DUBIOUS: Acknowledge it's book but mention modern engines prefer alternatives: "This move is part of older opening theory and has been played in master games, but modern engines prefer [alternative]. You might consider the more modern line..."
+- Focus on explaining WHY the book move is played in theory, not on criticizing it
+- Book moves are stylistic/theoretical choices, not mistakes. Respect established opening theory.
+
 CRITICAL: OPENING MOVES POLICY
-- DO NOT critique opening moves (moves 1-10). These are established openings played by strong players.
+- DO NOT critique opening moves (moves 1-15). These are established openings played by strong players.
 - If an opening is detected (e.g., Vienna Game, Ruy Lopez, Sicilian Defense), acknowledge it: "Let's analyze your Vienna game" or "I see you played the Ruy Lopez"
-- Only analyze moves from move 11 onwards, unless the user specifically asks about opening moves
+- Only analyze moves from move 16 onwards, unless the user specifically asks about opening moves
 - Example: If user plays 1.e4 e5 2.Nc3 (Vienna), say "Let's analyze your Vienna game" NOT "2.Nc3 is a mistake, you should play 2.Nf3"
 - Opening moves are stylistic choices, not mistakes. Respect the user's opening choice.
 
 DEEP STOCKFISH ANALYSIS - THINK LIKE A CHESS COACH:
 You must deeply analyze Stockfish's principal variation (PV) to understand WHY moves are good. Don't just say "this is the best move" - explain the reasoning:
 
+GAMEKNOT COMMENTARY DATASET - PRIMARY SOURCE FOR EXPLANATIONS:
+You have access to the GameKnot commentary dataset containing 298,000+ human-written move explanations. This is your PRIMARY source for explaining WHY and HOW moves work:
+
+1. PRIORITY: When GameKnot commentary is provided, USE IT AS THE PRIMARY SOURCE for explanations
+   - GameKnot commentary contains human-written strategic reasoning
+   - It explains WHY moves are played (strategic goals)
+   - It explains HOW moves achieve their goals (mechanisms)
+   - These are real explanations from experienced players
+
+2. HOW TO USE GAMEKNOT COMMENTARY:
+   - When commentary is provided, prioritize it over other sources
+   - Use the commentary to explain the strategic reasoning behind moves
+   - Combine commentary with Stockfish analysis for comprehensive explanations
+   - Reference specific commentary when it directly applies: "As noted in similar positions, this move..."
+   - Synthesize multiple commentaries if provided
+
+3. EXAMPLE USAGE:
+   - If commentary says "This move develops the knight and controls the center"
+   - Explain: "Stockfish recommends this move because, as noted in similar positions, it develops your knight while controlling important central squares. This follows the principle of piece development and central control."
+
 TACTICAL PATTERN RECOGNITION (Based on FULL Lichess Chess Puzzles Dataset):
-You have access to the COMPLETE Lichess chess puzzles dataset with millions of real puzzle positions. Use this extensively:
+You have access to the COMPLETE Lichess chess puzzles dataset with millions of real puzzle positions. Use this extensively (in addition to GameKnot commentary):
 
 1. SIMILAR PUZZLES FROM DATASET:
    - When similar puzzles are provided, reference them directly: "This position is similar to puzzle #12345 from the Lichess dataset, which demonstrates the same fork pattern"
@@ -906,6 +1091,14 @@ TONE AND STYLE:
 - When explaining mistakes, always suggest what should have been played and WHY (using PV analysis)
 - Think like a chess coach: explain the reasoning, not just the result
 
+PRACTICE OFFER PROTOCOL:
+After explaining a mistake and what the user missed, you MUST offer practice puzzles:
+- After identifying and explaining a principle violation or tactical mistake, ask: "Could I gather for you a bunch of puzzles that help you fix this gap in understanding so you can find it next time?"
+- Include the specific skill gap identified in your question (e.g., "fork patterns", "back rank weaknesses", "pin tactics", "discovered attacks")
+- Example: "You missed a fork pattern here. Could I gather for you a bunch of puzzles that help you fix this gap in understanding so you can find it next time?"
+- Wait for user acceptance before proceeding with puzzle generation
+- Only offer practice after explaining actual mistakes or principle violations, not after general analysis
+
 IMPORTANT GUIDELINES:
 - NEVER show FEN strings unless specifically requested
 - NEVER critique opening moves (1-10) - acknowledge the opening instead
@@ -955,6 +1148,49 @@ IMPORTANT GUIDELINES:
       "tactic", "strategy", "improve", "feedback", "coach", "teach"
     ];
     return requestKeywords.some(keyword => normalizedText.includes(keyword));
+  };
+
+  // Helper function to detect if user is accepting practice offer
+  const isPracticeAcceptance = (text: string): boolean => {
+    const normalizedText = text.toLowerCase().trim();
+    const acceptanceKeywords = [
+      "yes", "sure", "ok", "okay", "yeah", "yep", "yup", "alright", "all right",
+      "let's practice", "let's do it", "sounds good", "that sounds good",
+      "practice", "i'd like to practice", "i want to practice", "please"
+    ];
+    return acceptanceKeywords.some(keyword => normalizedText.includes(keyword));
+  };
+
+  // Helper function to extract theme from recent conversation
+  const extractThemeFromConversation = (): string | null => {
+    // Look at the last few assistant messages for practice offer context
+    const recentMessages = messages.slice(-5).reverse();
+    
+    for (const msg of recentMessages) {
+      if (msg.role === "assistant") {
+        const content = msg.content.toLowerCase();
+        
+        // Look for common theme keywords in the message
+        const themePatterns = [
+          { keywords: ["fork", "forks"], theme: "fork" },
+          { keywords: ["pin", "pins"], theme: "pin" },
+          { keywords: ["back rank", "back-rank"], theme: "backRankMate" },
+          { keywords: ["discovered attack", "discovered attacks"], theme: "discoveredAttack" },
+          { keywords: ["skewer", "skewers"], theme: "skewer" },
+          { keywords: ["sacrifice", "sacrifices"], theme: "sacrifice" },
+          { keywords: ["mate", "checkmate"], theme: "mate" },
+          { keywords: ["hanging piece", "hanging pieces"], theme: "hangingPiece" },
+        ];
+
+        for (const pattern of themePatterns) {
+          if (pattern.keywords.some(keyword => content.includes(keyword))) {
+            return pattern.theme;
+          }
+        }
+      }
+    }
+    
+    return null;
   };
 
   // Helper function to get game result reaction
@@ -1026,6 +1262,63 @@ IMPORTANT GUIDELINES:
         hasUserMessagedRef.current = true;
       }
       
+      // Check for practice acceptance BEFORE handling greetings
+      if (isPracticeAcceptance(textToSend)) {
+        const theme = extractThemeFromConversation();
+        
+        if (theme) {
+          // User accepted practice offer - fetch puzzles and redirect
+          setMessages((prev) => [
+            ...prev,
+            userMessage,
+            { role: "assistant", content: "Great! Let me gather some puzzles for you to practice..." },
+          ]);
+          
+          try {
+            const normalizedTheme = normalizeThemeName(theme);
+            const puzzles = await getPuzzlesByTheme([normalizedTheme], 20);
+            
+            // BUG FIX #2: Explicit handling of empty puzzle array
+            // If no puzzles are found, DO NOT redirect to practice page.
+            // Instead, show an error message and stay in the chat interface.
+            // This prevents users from landing on an empty practice page.
+            if (puzzles.length > 0) {
+              // Store puzzles directly (without solved field - solved status is in puzzleSolvedStatusAtom)
+              setPracticePuzzles(puzzles);
+              setCurrentPuzzleIndex(0);
+              setPracticeTheme(normalizedTheme);
+              
+              // Only redirect if puzzles were successfully fetched
+              router.push("/practice");
+            } else {
+              // Empty array: show error and stay in chat (no redirect)
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "assistant",
+                  content: "I couldn't find puzzles for that theme right now. Let's continue analyzing your game!",
+                },
+              ]);
+            }
+          } catch (error) {
+            console.error("Error fetching practice puzzles:", error);
+            // Error case: show error and stay in chat (no redirect)
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content: "Sorry, I encountered an error fetching puzzles. Let's continue analyzing your game!",
+              },
+            ]);
+          }
+          
+          if (!messageText) {
+            setInput("");
+          }
+          return; // Don't make API call for practice acceptance
+        }
+      }
+
       // Handle greetings and new game reactions
       if (isGreeting(textToSend) || isNewGameLoaded) {
         let greetingResponse = "";
@@ -1094,7 +1387,7 @@ IMPORTANT GUIDELINES:
         // Send full game data for comprehensive analysis
         const requestData: any = {
           analysisType: "game_review",
-          model: "gpt-4o-high",
+          model: "gpt-4o",
           includeAIAnalysis: true,
           playerColor: userColor,
           systemPrompt: systemPrompt,
@@ -1171,7 +1464,7 @@ IMPORTANT GUIDELINES:
         abortControllerRef.current = null;
       }
     },
-    [messages, game, position, boardOrientation, gameEval, input]
+    [messages, game, position, boardOrientation, gameEval, input, router, puzzleSolvedStatus, setPracticePuzzles, setCurrentPuzzleIndex, setPracticeTheme]
   );
 
   // Handle move analysis requests from moves panel
@@ -1200,7 +1493,7 @@ IMPORTANT GUIDELINES:
   // Helper function to process React children recursively
   const processChildren = (children: React.ReactNode): React.ReactNode => {
     if (typeof children === "string") {
-      return renderTextWithClickableMoves(children);
+      return renderTextWithClickableMoves(children, game);
     }
     if (Array.isArray(children)) {
       return children.map((child, index) => (
@@ -1264,8 +1557,8 @@ IMPORTANT GUIDELINES:
       <Box sx={{ mb: 2, position: "relative" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-            AI Chess Coach
-          </Typography>
+          AI Chess Coach
+        </Typography>
           <MaiaStatusIndicator size="small" />
         </Box>
         <ExpandButton onClick={() => setIsExpanded(!isExpanded)} size="small">
@@ -1284,7 +1577,7 @@ IMPORTANT GUIDELINES:
                   // Custom text renderer for clickable moves
                   text({ children }) {
                     const text = String(children);
-                    return renderTextWithClickableMoves(text);
+                    return renderTextWithClickableMoves(text, game);
                   },
                   // Preserve existing code component
                   code({ className, children, ...props }: any) {

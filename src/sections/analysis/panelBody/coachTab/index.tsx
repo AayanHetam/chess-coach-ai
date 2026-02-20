@@ -1,5 +1,5 @@
 import React from "react";
-import { Grid, GridProps } from "@mui/material";
+import { Grid, GridProps, Tabs, Tab, Box } from "@mui/material";
 import { useAtomValue } from "jotai";
 import { boardAtom, gameAtom, boardOrientationAtom } from "../../states";
 import { useMemo } from "react";

@@ -5,7 +5,16 @@
   "private": true,
   "license": "GPL-3.0-only",
   "homepage": "https://chess-masti-ai.com",
-  "keywords": ["chess", "ai", "fun", "masti", "chess-learning", "chess-training", "enjoyable-chess", "chess-improvement"],
+  "keywords": [
+    "chess",
+    "ai",
+    "fun",
+    "masti",
+    "chess-learning",
+    "chess-training",
+    "enjoyable-chess",
+    "chess-improvement"
+  ],
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build",
@@ -14,7 +23,6 @@
     "deploy": "npm run lint && npm run build && cdk deploy"
   },
   "dependencies": {
-
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@fontsource/roboto": "^5.1.0",
@@ -30,7 +38,7 @@
     "firebase": "^11.1.0",
     "idb": "^8.0.1",
     "jotai": "^2.11.0",
-    "next": "15.2.4",
+    "next": "15.2.8",
     "react": "18.3.1",
     "react-chessboard": "^4.7.3",
     "react-dom": "18.3.1",

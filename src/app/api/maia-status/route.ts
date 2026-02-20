@@ -70,10 +70,12 @@ export async function GET() {
         : "Lc0 is not installed. Install Lc0 for the best MAIA experience.",
       downloadLinks: {
         windows: "https://github.com/LeelaChessZero/lc0/releases/latest",
-        macos: "https://github.com/LeelaChessZero/lc0/releases/latest",
+        macos: "https://github.com/LeelaChessZero/lc0/releases/latest", 
         linux: "https://github.com/LeelaChessZero/lc0/releases/latest",
         homebrew: "brew install lc0",
         documentation: "https://github.com/LeelaChessZero/lc0",
+        maiaModels: "https://github.com/CSSLab/maia-chess",
+        maiaWeights: "https://github.com/CSSLab/maia-chess/releases",
       },
     });
   } catch (error) {
@@ -89,6 +91,8 @@ export async function GET() {
           linux: "https://github.com/LeelaChessZero/lc0/releases/latest",
           homebrew: "brew install lc0",
           documentation: "https://github.com/LeelaChessZero/lc0",
+          maiaModels: "https://github.com/CSSLab/maia-chess",
+          maiaWeights: "https://github.com/CSSLab/maia-chess/releases",
         },
       },
       { status: 500 }

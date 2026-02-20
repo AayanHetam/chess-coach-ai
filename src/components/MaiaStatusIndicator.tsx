@@ -5,6 +5,15 @@ import { CheckCircle, Cancel } from "@mui/icons-material";
 interface MaiaStatus {
   lc0Available: boolean;
   maiaOptimal: boolean;
+  downloadLinks?: {
+    windows: string;
+    macos: string;
+    linux: string;
+    homebrew: string;
+    documentation: string;
+    maiaModels: string;
+    maiaWeights: string;
+  };
 }
 
 export const MaiaStatusIndicator: React.FC<{ size?: "small" | "medium" }> = ({

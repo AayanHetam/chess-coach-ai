@@ -28,6 +28,8 @@ interface MaiaStatus {
     linux: string;
     homebrew: string;
     documentation: string;
+    maiaModels: string;
+    maiaWeights: string;
   };
 }
 
@@ -40,6 +42,8 @@ export const Lc0DownloadBanner: React.FC = () => {
     false
   );
   const [open, setOpen] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const [installMessage, setInstallMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -65,8 +69,53 @@ export const Lc0DownloadBanner: React.FC = () => {
     setOpen(false);
   };
 
+  const handleInstall = async (method: "homebrew" | "download") => {
+    setInstalling(true);
+    setInstallMessage("Installing Lc0... This may take a few minutes.");
+
+    try {
+      const response = await fetch("/api/install-lc0", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setInstallMessage(
+          `✅ ${data.message}${data.output ? "\n\n" + data.output : ""}`
+        );
+        // Refresh status after a delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 3000);
+      } else {
+        let errorMsg = `❌ ${data.message}`;
+        if (data.isServerless) {
+          errorMsg +=
+            "\n\nFor Vercel/serverless deployments:\n" +
+            "1. Add Lc0 to your Dockerfile if using Docker\n" +
+            "2. Or include Lc0 binary in your build process\n" +
+            "3. Set LC0_PATH environment variable in Vercel settings\n" +
+            "See MAIA_SETUP.md for detailed instructions.";
+        }
+        if (data.output) {
+          errorMsg += "\n\n" + data.output;
+        }
+        setInstallMessage(errorMsg);
+      }
+    } catch (error) {
+      setInstallMessage(
+        `❌ Installation error: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    } finally {
+      setInstalling(false);
+    }
+  };
+
   const getDownloadLink = () => {
-    if (!status) return status?.downloadLinks.documentation || "#";
+    if (!status?.downloadLinks) return "#";
     
     const userAgent = navigator.userAgent.toLowerCase();
     if (userAgent.includes("win")) {
@@ -76,6 +125,14 @@ export const Lc0DownloadBanner: React.FC = () => {
     } else {
       return status.downloadLinks.linux;
     }
+  };
+
+  const getMaiaModelsLink = () => {
+    return status?.downloadLinks?.maiaModels || "https://github.com/CSSLab/maia-chess";
+  };
+
+  const getMaiaWeightsLink = () => {
+    return status?.downloadLinks?.maiaWeights || "https://github.com/CSSLab/maia-chess/releases";
   };
 
   const getPlatformName = () => {
@@ -120,23 +177,48 @@ export const Lc0DownloadBanner: React.FC = () => {
             <strong>Lc0</strong> is not installed on the server. Install Lc0 to
             unlock the full power of MAIA chess engine. MAIA provides
             human-like move predictions trained on millions of games, but it
-            needs Lc0 to run optimally.{" "}
-            <strong>
-              (Note: Lc0 must be installed on the server, not your device)
-            </strong>
+            needs Lc0 to run optimally.
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2, color: "warning.main" }}>
+            <strong>⚠️ Important:</strong> Lc0 must be installed on the server
+            (where your app is hosted), not on your device. For Vercel
+            deployments, Lc0 needs to be included in your Docker image or build
+            process.
           </Typography>
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 2 }}>
+            {navigator.userAgent.toLowerCase().includes("mac") && (
+              <Button
+                variant="contained"
+                color="primary"
+                size="small"
+                startIcon={<DownloadIcon />}
+                onClick={() => handleInstall("homebrew")}
+                disabled={installing}
+                sx={{ textTransform: "none" }}
+              >
+                {installing ? "Installing..." : "Auto-Install via Homebrew"}
+              </Button>
+            )}
             <Button
               variant="contained"
-              color="primary"
+              color="secondary"
               size="small"
               startIcon={<DownloadIcon />}
+              onClick={() => handleInstall("download")}
+              disabled={installing}
+              sx={{ textTransform: "none" }}
+            >
+              {installing ? "Downloading..." : "Auto-Download Lc0"}
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
               href={getDownloadLink()}
               target="_blank"
               rel="noopener noreferrer"
               sx={{ textTransform: "none" }}
             >
-              Download for {getPlatformName()}
+              Manual Download
             </Button>
             <Button
               variant="outlined"
@@ -146,21 +228,45 @@ export const Lc0DownloadBanner: React.FC = () => {
               rel="noopener noreferrer"
               sx={{ textTransform: "none" }}
             >
-              Installation Guide
+              Documentation
             </Button>
-            {navigator.userAgent.toLowerCase().includes("mac") && (
-              <Button
-                variant="outlined"
-                size="small"
-                href="https://brew.sh"
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{ textTransform: "none" }}
-              >
-                Install via Homebrew
-              </Button>
-            )}
+            <Button
+              variant="outlined"
+              size="small"
+              href={getMaiaModelsLink()}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ textTransform: "none" }}
+            >
+              Maia Models
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              href={getMaiaWeightsLink()}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ textTransform: "none" }}
+            >
+              Maia Weights
+            </Button>
           </Box>
+          {installMessage && (
+            <Box
+              sx={{
+                mt: 2,
+                p: 2,
+                bgcolor: installMessage.includes("✅")
+                  ? "success.light"
+                  : "error.light",
+                borderRadius: 1,
+                fontSize: "0.875rem",
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {installMessage}
+            </Box>
+          )}
           <Typography
             variant="caption"
             sx={{ display: "block", mt: 1.5, color: "text.secondary" }}

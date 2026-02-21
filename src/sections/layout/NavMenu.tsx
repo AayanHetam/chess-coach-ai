@@ -12,8 +12,9 @@ import {
 } from "@mui/material";
 
 const MenuOptions = [
+  { text: "Home", icon: "mdi:home-outline", href: "/" },
   { text: "Play", icon: "streamline:chess-pawn", href: "/play" },
-  { text: "Analysis", icon: "streamline:magnifying-glass-solid", href: "/" },
+  { text: "Analysis", icon: "streamline:magnifying-glass-solid", href: "/analysis" },
   {
     text: "Practice",
     icon: "mdi:puzzle",

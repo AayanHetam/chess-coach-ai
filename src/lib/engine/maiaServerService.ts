@@ -377,7 +377,7 @@ export class MaiaServerService {
    * Cleanup all processes
    */
   public async cleanup(): Promise<void> {
-    for (const [rating, process] of this.processes.entries()) {
+    for (const [rating, process] of Array.from(this.processes.entries())) {
       process.stdin?.write("quit\n");
       process.kill();
     }

@@ -1,0 +1,18 @@
+# Exclude large directories and files from Vercel deployment
+node_modules/
+.git/
+.next/
+Chesskit/
+venv_gameknot/
+*.zip
+*.pgn
+*.pb
+*.pyc
+__pycache__/
+*.md
+datasets/
+lichess_elite_pgns/
+maia-weights/
+scripts/
+book_database.json
+test_results.json

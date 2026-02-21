@@ -38,6 +38,8 @@ import {
   PracticePuzzle,
 } from "@/sections/practice/states";
 import { getPuzzlesByTheme, normalizeThemeName } from "@/lib/chessPuzzlesService";
+import { selectedCoachIdAtom } from "@/atoms/coachAtoms";
+import { getPersonalityById } from "@/config/coachPersonalities";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -328,6 +330,14 @@ const ClickableMove: React.FC<{
     </span>
   );
 };
+
+
+
+
+
+
+
+
 
 // New component for hypothetical "what-if" moves
 const HypotheticalMove: React.FC<{
@@ -890,6 +900,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   const gameEval = useAtomValue(gameEvalAtom);
   // Get user player info (username and color)
   const userPlayerInfo = useAtomValue(userPlayerInfoAtom);
+
+  // Coach personality
+  const selectedCoachId = useAtomValue(selectedCoachIdAtom);
+  const personality = getPersonalityById(selectedCoachId);
   
   // Practice state setters
   const setPracticePuzzles = useSetAtom(practicePuzzlesAtom);
@@ -1083,13 +1097,7 @@ INTERACTIVE ELEMENTS:
 - When suggesting a hypothetical move, clearly indicate it's an alternative and explain WHY using PV analysis
 - When discussing a specific position, reference it clearly and explain the plan
 
-TONE AND STYLE:
-- Be encouraging and supportive - celebrate good moves and explain mistakes constructively
-- Use clear, accessible language (avoid overly technical jargon unless the user asks for it)
-- Focus on learning and improvement - help users understand patterns they can apply in future games
-- Be specific with examples rather than giving vague general advice
-- When explaining mistakes, always suggest what should have been played and WHY (using PV analysis)
-- Think like a chess coach: explain the reasoning, not just the result
+${personality.systemPromptOverride}
 
 PRACTICE OFFER PROTOCOL:
 After explaining a mistake and what the user missed, you MUST offer practice puzzles:
@@ -1118,6 +1126,34 @@ IMPORTANT GUIDELINES:
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Track previous personality to detect changes
+  const prevPersonalityRef = useRef<string>(selectedCoachId);
+
+  // Reset conversation when coach personality changes
+  useEffect(() => {
+    if (prevPersonalityRef.current !== selectedCoachId) {
+      prevPersonalityRef.current = selectedCoachId;
+      const newPersonality = getPersonalityById(selectedCoachId);
+      
+      // Rebuild system prompt with new personality
+      const systemMsg = messages.find((m) => m.role === "system");
+      if (systemMsg) {
+        const updatedContent = systemMsg.content.replace(
+          /TONE AND STYLE[^\n]*PERSONALITY[^]*?(?=\n\nPRACTICE OFFER PROTOCOL)/,
+          newPersonality.systemPromptOverride + "\n"
+        );
+        
+        setMessages([
+          { role: "system", content: updatedContent },
+          { role: "assistant", content: newPersonality.greeting },
+        ]);
+      }
+      
+      hasUserMessagedRef.current = false;
+      gameLoadedRef.current = false;
+    }
+  }, [selectedCoachId]);
 
   // Listen for move analysis requests from moves panel
   const moveAnalysisRequest = useAtomValue(moveAnalysisRequestAtom);

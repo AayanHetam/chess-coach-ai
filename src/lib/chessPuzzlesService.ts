@@ -319,7 +319,7 @@ export function identifyTacticalThemes(
         const pieceSquare = board.flat().findIndex((p) => p === piece);
         if (pieceSquare === -1) continue;
         
-        const square = beforeGame.SQUARES[pieceSquare];
+        const square = Object.keys(beforeGame.board())[pieceSquare] as any;
         const pieceMoves = beforeGame.moves({ square, verbose: true });
         
         // Check if moving this piece would expose the king (absolute pin)

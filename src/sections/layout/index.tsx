@@ -5,6 +5,7 @@ import { red } from "@mui/material/colors";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { MAIN_THEME_COLOR } from "@/constants";
 import { Lc0DownloadBanner } from "@/components/Lc0DownloadBanner";
+import { useRouter } from "next/router";
 
 export default function Layout({ children }: PropsWithChildren) {
   // Default to light mode for Chess Masti AI - bright and fun!
@@ -48,7 +49,22 @@ export default function Layout({ children }: PropsWithChildren) {
     [isDarkMode]
   );
 
+  const router = useRouter();
+  const isLandingPage = router.pathname === "/";
+
   if (isDarkMode === null) return null;
+
+  // Landing page: skip NavBar and app chrome for a full-bleed look
+  if (isLandingPage) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <main style={{ overflowX: "hidden", width: "100%" }}>
+          {children}
+        </main>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>

@@ -5,6 +5,7 @@ import { boardAtom, gameAtom, boardOrientationAtom } from "../../states";
 import { useMemo } from "react";
 import { useBoardGameSync } from "../../hooks/useBoardGameSync";
 import dynamic from "next/dynamic";
+import CoachPersonalitySelector from "@/components/coach/CoachPersonalitySelector";
 
 // Dynamically import AICoachChat with no SSR
 const AICoachChat = dynamic(() => import("@/components/AICoachChat"), {
@@ -83,12 +84,17 @@ export default function CoachTab(props: GridProps) {
         props.hidden ? { display: "none" } : { overflow: "hidden", ...props.sx }
       }
     >
-      <Grid size={12} sx={{ height: "100%", overflow: "hidden" }}>
-        <AICoachChat
-          position={unifiedGameData.position}
-          game={unifiedGameData.game}
-          boardOrientation={boardOrientation}
-        />
+      <Grid size={12} sx={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <Box sx={{ px: 2, pt: 1, pb: 0.5, flexShrink: 0 }}>
+          <CoachPersonalitySelector />
+        </Box>
+        <Box sx={{ flex: 1, overflow: "hidden" }}>
+          <AICoachChat
+            position={unifiedGameData.position}
+            game={unifiedGameData.game}
+            boardOrientation={boardOrientation}
+          />
+        </Box>
       </Grid>
     </Grid>
   );

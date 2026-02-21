@@ -5,6 +5,7 @@ import "@fontsource/roboto/700.css";
 import { AppProps } from "next/app";
 import Layout from "@/sections/layout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { Typography, Box, Container } from "@mui/material";
 import Head from "next/head";
 
@@ -58,9 +59,11 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         <title>Chess Masti AI - Make Chess Fun with AI-Powered Coaching!</title>
       </Head>
       <QueryClientProvider client={queryClient}>
-        <Layout>
-          <Component {...pageProps} />
-        </Layout>
+        <AuthProvider>
+          <Layout>
+            <Component {...pageProps} />
+          </Layout>
+        </AuthProvider>
       </QueryClientProvider>
     </>
   );

@@ -1,5 +1,7 @@
 import { FirebaseOptions, initializeApp } from "firebase/app";
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig: FirebaseOptions | undefined = process.env
   .NEXT_PUBLIC_FIREBASE_PROJECT_ID
@@ -15,6 +17,11 @@ const firebaseConfig: FirebaseOptions | undefined = process.env
   : undefined;
 
 const app = firebaseConfig ? initializeApp(firebaseConfig) : undefined;
+
+export const auth = app ? getAuth(app) : undefined;
+export const googleProvider = app ? new GoogleAuthProvider() : undefined;
+export const db = app ? getFirestore(app) : undefined;
+export { app };
 
 isSupported().then((supported) => {
   if (supported && app) {

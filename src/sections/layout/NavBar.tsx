@@ -11,6 +11,7 @@ import NavLink from "@/components/NavLink";
 import Image from "next/image";
 import { styled } from "@mui/material/styles";
 import { MaiaStatusIndicator } from "@/components/MaiaStatusIndicator";
+import UserMenu from "@/components/auth/UserMenu";
 
 interface Props {
   darkMode: boolean;
@@ -93,20 +94,7 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
           </NavLink>
 
           <StyledIconButtonLink
-            href="https://discord.gg/Yr99abAcUr"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <IconButton
-              sx={{ color: darkMode ? "white" : "#FF6B35" }}
-              component="span"
-            >
-              <Icon icon="ri:discord-fill" />
-            </IconButton>
-          </StyledIconButtonLink>
-
-          <StyledIconButtonLink
-            href="https://github.com/your-username/chess-masti-ai"
+            href="https://github.com/AayanHetam/chess-coach-ai"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub repository"
@@ -128,6 +116,10 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
             }}
           >
             <MaiaStatusIndicator size="small" />
+          </Box>
+
+          <Box sx={{ ml: "min(0.6rem, 0.8vw)", display: "flex", alignItems: "center" }}>
+            <UserMenu />
           </Box>
 
           <IconButton

@@ -5,11 +5,18 @@ import { Chess } from "chess.js";
 import { openDB, DBSchema, IDBPDatabase } from "idb";
 import { atom, useAtom } from "jotai";
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  addCloudGame,
+  deleteCloudGame,
+  getCloudGames,
+  updateCloudGameEval,
+} from "@/lib/firestoreGames";
 
 interface GameDatabaseSchema extends DBSchema {
   games: {
-    value: Game;
+    value: Game & { firestoreId?: string };
     key: number;
   };
 }
@@ -22,6 +29,8 @@ export const useGameDatabase = (shouldFetchGames?: boolean) => {
   const [games, setGames] = useAtom(gamesAtom);
   const [fetchGames, setFetchGames] = useAtom(fetchGamesAtom);
   const [gameFromUrl, setGameFromUrl] = useState<Game | undefined>(undefined);
+  const { user } = useAuth();
+  const cloudSyncDone = useRef(false);
 
   useEffect(() => {
     if (shouldFetchGames !== undefined) {
@@ -53,18 +62,73 @@ export const useGameDatabase = (shouldFetchGames?: boolean) => {
     loadGames();
   }, [loadGames]);
 
+  // Cloud sync: pull cloud games into local DB on login
+  useEffect(() => {
+    if (!user || !db || !fetchGames || cloudSyncDone.current) return;
+
+    const syncFromCloud = async () => {
+      try {
+        const cloudGames = await getCloudGames(user.uid);
+        const localGames = await db.getAll("games");
+
+        // Find cloud games not yet in local DB (by firestoreId)
+        const localFirestoreIds = new Set(
+          localGames
+            .map((g) => (g as Game & { firestoreId?: string }).firestoreId)
+            .filter(Boolean)
+        );
+
+        for (const cloudGame of cloudGames) {
+          if (!localFirestoreIds.has(cloudGame.firestoreId)) {
+            const { firestoreId, createdAt, updatedAt, ...gameData } = cloudGame;
+            await db.add("games", {
+              ...gameData,
+              firestoreId,
+            } as Game & { firestoreId?: string });
+          }
+        }
+
+        cloudSyncDone.current = true;
+        loadGames();
+      } catch (error) {
+        console.error("Cloud sync failed:", error);
+      }
+    };
+
+    syncFromCloud();
+  }, [user, db, fetchGames, loadGames]);
+
+  // Reset cloud sync flag when user changes
+  useEffect(() => {
+    cloudSyncDone.current = false;
+  }, [user?.uid]);
+
   const addGame = useCallback(
     async (game: Chess) => {
       if (!db) throw new Error("Database not initialized");
 
       const gameToAdd = formatGameToDatabase(game);
-      const gameId = await db.add("games", gameToAdd as Game);
+
+      // Save to cloud first if logged in
+      let firestoreId: string | undefined;
+      if (user) {
+        try {
+          firestoreId = await addCloudGame(user.uid, gameToAdd);
+        } catch (error) {
+          console.error("Cloud save failed, saving locally:", error);
+        }
+      }
+
+      const gameId = await db.add("games", {
+        ...gameToAdd,
+        ...(firestoreId ? { firestoreId } : {}),
+      } as Game & { firestoreId?: string });
 
       loadGames();
 
       return gameId;
     },
-    [db, loadGames]
+    [db, loadGames, user]
   );
 
   const setGameEval = useCallback(
@@ -76,9 +140,23 @@ export const useGameDatabase = (shouldFetchGames?: boolean) => {
 
       await db.put("games", { ...game, eval: evaluation });
 
+      // Sync eval to cloud
+      const gameWithFirestore = game as Game & { firestoreId?: string };
+      if (user && gameWithFirestore.firestoreId) {
+        try {
+          await updateCloudGameEval(
+            user.uid,
+            gameWithFirestore.firestoreId,
+            evaluation
+          );
+        } catch (error) {
+          console.error("Cloud eval sync failed:", error);
+        }
+      }
+
       loadGames();
     },
-    [db, loadGames]
+    [db, loadGames, user]
   );
 
   const getGame = useCallback(
@@ -94,11 +172,24 @@ export const useGameDatabase = (shouldFetchGames?: boolean) => {
     async (gameId: number) => {
       if (!db) throw new Error("Database not initialized");
 
+      // Delete from cloud if logged in
+      const game = await db.get("games", gameId);
+      const gameWithFirestore = game as
+        | (Game & { firestoreId?: string })
+        | undefined;
+      if (user && gameWithFirestore?.firestoreId) {
+        try {
+          await deleteCloudGame(user.uid, gameWithFirestore.firestoreId);
+        } catch (error) {
+          console.error("Cloud delete failed:", error);
+        }
+      }
+
       await db.delete("games", gameId);
 
       loadGames();
     },
-    [db, loadGames]
+    [db, loadGames, user]
   );
 
   const router = useRouter();

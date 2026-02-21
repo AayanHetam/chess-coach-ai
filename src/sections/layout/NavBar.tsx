@@ -68,10 +68,10 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
 
           <NavLink href="/">
             <img
-              src="/android-chrome-192x192.png"
+              src="/logo.svg"
               width={32}
               height={32}
-              alt="Chess Masti AI - Orange Rook Logo"
+              alt="Chess Coach AI Logo"
               style={{ marginRight: "8px" }}
             />
             <Typography

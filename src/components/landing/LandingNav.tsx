@@ -54,11 +54,10 @@ export default function LandingNav() {
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         >
           <img
-            src="/android-chrome-192x192.png"
+            src="/logo.svg"
             width={32}
             height={32}
             alt="Chess Coach AI"
-            style={{ borderRadius: 8 }}
           />
           <Typography
             variant="h6"

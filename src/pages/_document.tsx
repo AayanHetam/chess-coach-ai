@@ -4,6 +4,7 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
+        <link rel="icon" type="image/svg+xml" href="/logo.svg" />
         <link
           rel="apple-touch-icon"
           sizes="180x180"

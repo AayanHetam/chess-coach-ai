@@ -25,11 +25,10 @@ export default function LandingFooter() {
           {/* Logo & tagline */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <img
-              src="/android-chrome-192x192.png"
+              src="/logo.svg"
               width={28}
               height={28}
               alt="Chess Coach AI"
-              style={{ borderRadius: 6 }}
             />
             <Typography
               variant="body1"

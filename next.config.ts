@@ -18,7 +18,7 @@ const nextConfig = (phase: string): NextConfig => ({
   },
   headers: async () => [
           {
-            source: "/",
+            source: "/((?!_next/static|_next/image|favicon.*|apple-touch-icon.*|android-chrome.*).*)",
             headers: [
               {
                 key: "Cross-Origin-Embedder-Policy",
@@ -26,7 +26,34 @@ const nextConfig = (phase: string): NextConfig => ({
               },
               {
                 key: "Cross-Origin-Opener-Policy",
-                value: "same-origin",
+                value: "same-origin-allow-popups",
+              },
+            ],
+          },
+          {
+            source: "/apple-touch-icon.png",
+            headers: [
+              {
+                key: "Cache-Control",
+                value: "public, max-age=31536000, immutable",
+              },
+            ],
+          },
+          {
+            source: "/favicon.ico",
+            headers: [
+              {
+                key: "Cache-Control",
+                value: "public, max-age=31536000, immutable",
+              },
+            ],
+          },
+          {
+            source: "/(favicon-.*\\.png|android-chrome-.*\\.png)",
+            headers: [
+              {
+                key: "Cache-Control",
+                value: "public, max-age=31536000, immutable",
               },
             ],
           },
@@ -39,7 +66,7 @@ const nextConfig = (phase: string): NextConfig => ({
               },
               {
                 key: "Cross-Origin-Opener-Policy",
-                value: "same-origin",
+                value: "same-origin-allow-popups",
               },
               {
                 key: "Cache-Control",
@@ -60,7 +87,7 @@ const nextConfig = (phase: string): NextConfig => ({
               },
               {
                 key: "Cross-Origin-Opener-Policy",
-                value: "same-origin",
+                value: "same-origin-allow-popups",
               },
             ],
           },
@@ -73,7 +100,7 @@ const nextConfig = (phase: string): NextConfig => ({
               },
               {
                 key: "Cross-Origin-Opener-Policy",
-                value: "same-origin",
+                value: "same-origin-allow-popups",
               },
             ],
           },

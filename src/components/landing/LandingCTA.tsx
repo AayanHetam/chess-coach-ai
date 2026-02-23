@@ -64,7 +64,7 @@ export default function LandingCTA() {
             mx: "auto",
           }}
         >
-          No sign-up required. No payment. Just load a game and start chatting with your AI coach.
+          Analyze games, solve puzzles, scout opponents, and chat with your AI coach. No sign-up, no payment.
         </Typography>
 
         <Box
@@ -122,6 +122,54 @@ export default function LandingCTA() {
             }}
           >
             Play vs Stockfish
+          </Button>
+          <Button
+            variant="outlined"
+            size="large"
+            onClick={() => router.push("/practice")}
+            startIcon={<Icon icon="mdi:puzzle" />}
+            sx={{
+              px: 5,
+              py: 1.8,
+              fontSize: "1.05rem",
+              fontWeight: 700,
+              borderRadius: 3,
+              color: "#FFFFFF",
+              borderColor: "rgba(255,255,255,0.3)",
+              textTransform: "none",
+              "&:hover": {
+                borderColor: "#FF6B35",
+                backgroundColor: "rgba(255,107,53,0.1)",
+                transform: "translateY(-2px)",
+              },
+              transition: "all 0.3s ease",
+            }}
+          >
+            Practice Puzzles
+          </Button>
+          <Button
+            variant="outlined"
+            size="large"
+            onClick={() => router.push("/scout")}
+            startIcon={<Icon icon="mdi:binoculars" />}
+            sx={{
+              px: 5,
+              py: 1.8,
+              fontSize: "1.05rem",
+              fontWeight: 700,
+              borderRadius: 3,
+              color: "#FFFFFF",
+              borderColor: "rgba(255,255,255,0.3)",
+              textTransform: "none",
+              "&:hover": {
+                borderColor: "#FF6B35",
+                backgroundColor: "rgba(255,107,53,0.1)",
+                transform: "translateY(-2px)",
+              },
+              transition: "all 0.3s ease",
+            }}
+          >
+            Scout Opponents
           </Button>
         </Box>
       </Container>

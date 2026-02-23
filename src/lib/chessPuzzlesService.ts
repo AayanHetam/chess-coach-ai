@@ -478,19 +478,25 @@ export function formatTacticalThemesForPrompt(
  */
 export async function getPuzzlesByTheme(
   themes: string[],
-  limit: number = 20
+  limit: number = 20,
+  difficulty?: string
 ): Promise<ChessPuzzle[]> {
   try {
+    const body: Record<string, unknown> = {
+      command: "by_theme",
+      themes: themes,
+      limit: limit,
+    };
+    if (difficulty) {
+      body.difficulty = difficulty;
+    }
+
     const response = await fetch("/api/chess-puzzles-dataset", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        command: "by_theme",
-        themes: themes,
-        limit: limit,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -526,11 +532,13 @@ export function normalizeThemeName(theme: string): string {
   const themeMap: Record<string, string> = {
     "fork": "fork",
     "fork patterns": "fork",
+    "forks": "fork",
     "pins": "pin",
     "pin": "pin",
     "back rank": "backRankMate",
     "back rank weaknesses": "backRankMate",
     "back rank mate": "backRankMate",
+    "backrankmatte": "backRankMate",
     "discovered attack": "discoveredAttack",
     "discovered attacks": "discoveredAttack",
     "skewer": "skewer",
@@ -539,8 +547,52 @@ export function normalizeThemeName(theme: string): string {
     "sacrifices": "sacrifice",
     "mate": "mate",
     "checkmate": "mate",
+    "mate in 1": "mateIn1",
+    "mate in 2": "mateIn2",
+    "mate in 3": "mateIn3",
+    "mate in 4": "mateIn4",
+    "mate in 5": "mateIn5",
     "hanging piece": "hangingPiece",
     "hanging pieces": "hangingPiece",
+    "trapped piece": "trappedPiece",
+    "trapping piece": "trappedPiece",
+    "trappingpiece": "trappedPiece",
+    "double check": "doubleCheck",
+    "x-ray": "xRayAttack",
+    "x-ray attack": "xRayAttack",
+    "xray": "xRayAttack",
+    "smothered mate": "smotheredMate",
+    "promotion": "promotion",
+    "pawn promotion": "promotion",
+    "under promotion": "underPromotion",
+    "underpromotion": "underPromotion",
+    "quiet move": "quietMove",
+    "defensive move": "defensiveMove",
+    "defensive": "defensiveMove",
+    "zwischenzug": "intermezzo",
+    "intermediate move": "intermezzo",
+    "endgame": "endgame",
+    "end game": "endgame",
+    "middlegame": "middlegame",
+    "middle game": "middlegame",
+    "opening": "opening",
+    "bishop endgame": "bishopEndgame",
+    "knight endgame": "knightEndgame",
+    "rook endgame": "rookEndgame",
+    "queen endgame": "queenEndgame",
+    "pawn endgame": "pawnEndgame",
+    "exposed king": "exposedKing",
+    "king safety": "exposedKing",
+    "castling": "castling",
+    "clearance": "clearance",
+    "deflection": "deflection",
+    "attraction": "attraction",
+    "interference": "interference",
+    "advanced pawn": "advancedPawn",
+    "kingside attack": "kingsideAttack",
+    "queenside attack": "queensideAttack",
+    "attacking f2 f7": "attackingF2F7",
+    "zugzwang": "zugzwang",
   };
 
   const normalized = theme.toLowerCase().trim();

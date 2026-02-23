@@ -21,6 +21,11 @@ const MenuOptions = [
     href: "/practice",
   },
   {
+    text: "Scout",
+    icon: "mdi:binoculars",
+    href: "/scout",
+  },
+  {
     text: "Database",
     icon: "streamline:database",
     href: "/database",

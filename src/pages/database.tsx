@@ -1,4 +1,15 @@
-import { Grid, Typography } from "@mui/material";
+import { useState, useCallback, useMemo } from "react";
+import {
+  Grid,
+  Typography,
+  Dialog,
+  DialogContent,
+  Box,
+  Button,
+  ToggleButtonGroup,
+  ToggleButton,
+  IconButton,
+} from "@mui/material";
 import { Icon } from "@iconify/react";
 import {
   DataGrid,
@@ -8,12 +19,13 @@ import {
   GridActionsCellItem,
   GridRowId,
 } from "@mui/x-data-grid";
-import { useCallback, useMemo } from "react";
 import { blue, red } from "@mui/material/colors";
 import LoadGameButton from "@/sections/loadGame/loadGameButton";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useRouter } from "next/router";
 import { PageTitle } from "@/components/pageTitle";
+import { useSetAtom } from "jotai";
+import { userPlayerInfoAtom, boardOrientationAtom } from "@/sections/analysis/states";
 
 const gridLocaleText: GridLocaleText = {
   ...GRID_DEFAULT_LOCALE_TEXT,
@@ -23,8 +35,37 @@ const gridLocaleText: GridLocaleText = {
 export default function GameDatabase() {
   const { games, deleteGame } = useGameDatabase(true);
   const router = useRouter();
+  const setUserPlayerInfo = useSetAtom(userPlayerInfoAtom);
+  const setBoardOrientation = useSetAtom(boardOrientationAtom);
 
-  console.log(games);
+  // Perspective toggle dialog state
+  const [perspectiveDialogOpen, setPerspectiveDialogOpen] = useState(false);
+  const [pendingGameId, setPendingGameId] = useState<GridRowId | null>(null);
+  const [selectedColor, setSelectedColor] = useState<"white" | "black">("white");
+
+  const handleAnalyzeClick = (id: GridRowId) => {
+    // Find the game to pre-fill player names
+    const game = games.find((g) => g.id === id);
+    setPendingGameId(id);
+    setSelectedColor("white"); // default
+    setPerspectiveDialogOpen(true);
+  };
+
+  const handleConfirmAnalyze = () => {
+    if (pendingGameId === null) return;
+    const game = games.find((g) => g.id === pendingGameId);
+    const username = selectedColor === "white"
+      ? game?.white?.name || null
+      : game?.black?.name || null;
+
+    setUserPlayerInfo({
+      username,
+      playerColor: selectedColor,
+    });
+    setBoardOrientation(selectedColor === "white");
+    setPerspectiveDialogOpen(false);
+    router.push({ pathname: "/analysis", query: { gameId: pendingGameId } });
+  };
 
   const handleDeleteGameRow = useCallback(
     (id: GridRowId) => async () => {
@@ -117,9 +158,7 @@ export default function GameDatabase() {
                 <Icon icon="streamline:magnifying-glass-solid" width="20px" />
               }
               label="Open Evaluation"
-              onClick={() =>
-                router.push({ pathname: "/analysis", query: { gameId: id } })
-              }
+              onClick={() => handleAnalyzeClick(id)}
               color="inherit"
               key={`${id}-open-eval-button`}
             />,
@@ -167,50 +206,153 @@ export default function GameDatabase() {
         },
       },
     ],
-    [handleDeleteGameRow, handleCopyGameRow, router]
+    [handleDeleteGameRow, handleCopyGameRow, handleAnalyzeClick]
   );
 
+  const pendingGame = pendingGameId !== null ? games.find((gm) => gm.id === pendingGameId) : undefined;
+
   return (
-    <Grid
-      container
-      justifyContent="center"
-      alignItems="center"
-      gap={4}
-      marginTop={6}
-    >
-      <PageTitle title="Chess Masti AI - Game Database" />
+    <>
+      <Grid
+        container
+        justifyContent="center"
+        alignItems="center"
+        gap={4}
+        marginTop={6}
+      >
+        <PageTitle title="Chess Masti AI - Game Database" />
 
-      <Grid container justifyContent="center" alignItems="center" size={12}>
-        <LoadGameButton />
+        <Grid container justifyContent="center" alignItems="center" size={12}>
+          <LoadGameButton />
+        </Grid>
+
+        <Grid container justifyContent="center" alignItems="center" size={12}>
+          <Typography variant="subtitle2">
+            You have {games.length} game{games.length !== 1 && "s"} in your
+            database
+          </Typography>
+        </Grid>
+
+        <Grid maxWidth="100%" minWidth="50px">
+          <DataGrid
+            aria-label="Games list"
+            rows={games}
+            columns={columns}
+            disableColumnMenu
+            hideFooter={true}
+            localeText={gridLocaleText}
+            initialState={{
+              sorting: {
+                sortModel: [
+                  {
+                    field: "date",
+                    sort: "desc",
+                  },
+                ],
+              },
+            }}
+          />
+        </Grid>
       </Grid>
 
-      <Grid container justifyContent="center" alignItems="center" size={12}>
-        <Typography variant="subtitle2">
-          You have {games.length} game{games.length !== 1 && "s"} in your
-          database
-        </Typography>
-      </Grid>
+      {/* Perspective Toggle Dialog */}
+      <Dialog
+        open={perspectiveDialogOpen}
+        onClose={() => setPerspectiveDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogContent sx={{ textAlign: "center", py: 4, px: 3 }}>
+          <Icon icon="mdi:chess-king" width={40} style={{ marginBottom: 12, color: "#FF6B35" }} />
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+            Analyze from which perspective?
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#777", mb: 3 }}>
+            Choose the color you played so the AI coach analyzes from your point of view.
+          </Typography>
 
-      <Grid maxWidth="100%" minWidth="50px">
-        <DataGrid
-          aria-label="Games list"
-          rows={games}
-          columns={columns}
-          disableColumnMenu
-          hideFooter={true}
-          localeText={gridLocaleText}
-          initialState={{
-            sorting: {
-              sortModel: [
-                {
-                  field: "date",
-                  sort: "desc",
+          <ToggleButtonGroup
+            value={selectedColor}
+            exclusive
+            onChange={(_, val) => val && setSelectedColor(val)}
+            sx={{ mb: 3 }}
+          >
+            <ToggleButton
+              value="white"
+              sx={{
+                px: 4,
+                py: 1.5,
+                textTransform: "none",
+                fontWeight: 600,
+                fontSize: "1rem",
+                borderRadius: "12px 0 0 12px !important",
+                "&.Mui-selected": {
+                  bgcolor: "#fff",
+                  color: "#333",
+                  border: "2px solid #FF6B35",
+                  "&:hover": { bgcolor: "#f5f5f5" },
                 },
-              ],
-            },
-          }}
-        />
-      </Grid>
-    </Grid>
+              }}
+            >
+              <Icon icon="mdi:chess-king" width={20} style={{ marginRight: 8 }} />
+              White
+            </ToggleButton>
+            <ToggleButton
+              value="black"
+              sx={{
+                px: 4,
+                py: 1.5,
+                textTransform: "none",
+                fontWeight: 600,
+                fontSize: "1rem",
+                borderRadius: "0 12px 12px 0 !important",
+                "&.Mui-selected": {
+                  bgcolor: "#333",
+                  color: "#fff",
+                  border: "2px solid #FF6B35",
+                  "&:hover": { bgcolor: "#444" },
+                },
+              }}
+            >
+              <Icon icon="mdi:chess-king" width={20} style={{ marginRight: 8, filter: "invert(1)" }} />
+              Black
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          {pendingGame && (
+            <Typography variant="caption" sx={{ display: "block", mb: 2, color: "#999" }}>
+              {pendingGame.white?.name || "White"} vs {pendingGame.black?.name || "Black"}
+            </Typography>
+          )}
+
+          <Box sx={{ display: "flex", gap: 1.5, justifyContent: "center" }}>
+            <Button
+              onClick={() => setPerspectiveDialogOpen(false)}
+              variant="text"
+              sx={{ textTransform: "none", color: "#888" }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmAnalyze}
+              variant="contained"
+              sx={{
+                px: 4,
+                fontWeight: 700,
+                borderRadius: 2.5,
+                textTransform: "none",
+                background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)",
+                },
+              }}
+            >
+              Analyze
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

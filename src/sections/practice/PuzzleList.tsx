@@ -56,23 +56,22 @@ export default function PuzzleList({ onPuzzleSelect }: PuzzleListProps) {
         sx={{
           p: 3,
           textAlign: "center",
-          color: "text.secondary",
+          color: "grey.500",
         }}
       >
         <Typography variant="body1">
-          No puzzles available. Start practicing by asking your AI coach to
-          identify areas for improvement!
+          No puzzles available.
         </Typography>
       </Box>
     );
   }
 
   return (
-    <Box>
-      <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-        Practice Puzzles ({puzzles.length})
+    <Box sx={{ p: 1.5 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1, px: 1, fontWeight: 600, color: "grey.400" }}>
+        Puzzles ({puzzles.length})
       </Typography>
-      <List sx={{ maxHeight: "60vh", overflowY: "auto" }}>
+      <List disablePadding>
         {puzzles.map((puzzle: PracticePuzzle, index: number) => {
           const isSolved = solvedStatus[puzzle.id] || false;
           const isSelected = index === currentIndex;
@@ -83,42 +82,61 @@ export default function PuzzleList({ onPuzzleSelect }: PuzzleListProps) {
               key={puzzle.id}
               disablePadding
               sx={{
-                mb: 1,
-                border: isSelected ? 2 : 1,
-                borderColor: isSelected ? "primary.main" : "divider",
+                mb: 0.5,
                 borderRadius: 1,
-                backgroundColor: isSelected ? "action.selected" : "background.paper",
+                overflow: "hidden",
+                border: isSelected ? "1px solid" : "1px solid transparent",
+                borderColor: isSelected ? "primary.dark" : "transparent",
+                bgcolor: isSelected ? "rgba(25,118,210,0.12)" : "transparent",
               }}
             >
-              <ListItemButton onClick={() => handlePuzzleClick(index)}>
+              <ListItemButton
+                onClick={() => handlePuzzleClick(index)}
+                sx={{
+                  py: 0.75,
+                  px: 1.5,
+                  "&:hover": { bgcolor: "grey.800" },
+                }}
+              >
                 <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
                   <IconButton
                     onClick={(e) => toggleSolvedStatus(e, puzzle.id)}
-                    sx={{ mr: 1 }}
+                    sx={{ mr: 1, color: isSolved ? "success.main" : "grey.600" }}
                     size="small"
                   >
                     {isSolved ? (
-                      <CheckCircleIcon color="success" />
+                      <CheckCircleIcon fontSize="small" />
                     ) : (
-                      <RadioButtonUncheckedIcon />
+                      <RadioButtonUncheckedIcon fontSize="small" />
                     )}
                   </IconButton>
                   <ListItemText
                     primary={
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Typography variant="body1" fontWeight={isSelected ? 600 : 400}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: isSelected ? 600 : 400,
+                            color: isSelected ? "grey.100" : "grey.300",
+                          }}
+                        >
                           Puzzle {index + 1}
                         </Typography>
                         <Chip
                           label={getThemeDisplayName(primaryTheme)}
                           size="small"
-                          variant="outlined"
+                          sx={{
+                            height: 20,
+                            fontSize: "0.68rem",
+                            bgcolor: "grey.800",
+                            color: "grey.400",
+                          }}
                         />
                       </Box>
                     }
                     secondary={
-                      <Typography variant="caption" color="text.secondary">
-                        Rating: {puzzle.rating} • {puzzle.themes?.length || 0} theme(s)
+                      <Typography variant="caption" sx={{ color: "grey.500" }}>
+                        Rating: {puzzle.rating} &bull; {puzzle.themes?.length || 0} theme(s)
                       </Typography>
                     }
                   />

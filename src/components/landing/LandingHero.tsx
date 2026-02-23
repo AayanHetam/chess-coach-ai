@@ -159,8 +159,9 @@ export default function LandingHero() {
               }}
             >
               Not just engine numbers. An LLM-powered coach that explains moves
-              in human language, explores what-if scenarios, and respects opening
-              theory. Powered by Stockfish, running 100% in your browser.
+              in human language, 9,000+ tactical puzzles to sharpen your skills,
+              and a scout tool to exploit any opponent&apos;s weaknesses. Powered
+              by Stockfish, running 100% in your browser.
             </Typography>
 
             <Box
@@ -220,6 +221,54 @@ export default function LandingHero() {
                 }}
               >
                 Play vs Stockfish
+              </Button>
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={() => router.push("/practice")}
+                startIcon={<Icon icon="mdi:puzzle" />}
+                sx={{
+                  px: 4,
+                  py: 1.6,
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  borderRadius: 3,
+                  color: "#1a1a2e",
+                  borderColor: "rgba(26,26,46,0.2)",
+                  textTransform: "none",
+                  "&:hover": {
+                    borderColor: "#FF6B35",
+                    backgroundColor: "rgba(255,107,53,0.04)",
+                    transform: "translateY(-2px)",
+                  },
+                  transition: "all 0.3s ease",
+                }}
+              >
+                Practice Puzzles
+              </Button>
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={() => router.push("/scout")}
+                startIcon={<Icon icon="mdi:binoculars" />}
+                sx={{
+                  px: 4,
+                  py: 1.6,
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  borderRadius: 3,
+                  color: "#1a1a2e",
+                  borderColor: "rgba(26,26,46,0.2)",
+                  textTransform: "none",
+                  "&:hover": {
+                    borderColor: "#FF6B35",
+                    backgroundColor: "rgba(255,107,53,0.04)",
+                    transform: "translateY(-2px)",
+                  },
+                  transition: "all 0.3s ease",
+                }}
+              >
+                Scout Opponents
               </Button>
             </Box>
 

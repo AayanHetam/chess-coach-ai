@@ -88,6 +88,16 @@ const comparisons = [
     ours: "100% client-side, nothing leaves",
   },
   {
+    label: "Puzzle Practice",
+    others: "Generic puzzle sets",
+    ours: "9,000+ puzzles, 46 themes, 4 difficulty levels",
+  },
+  {
+    label: "Opponent Scouting",
+    others: "Not available",
+    ours: "Full opening tree from Chess.com / Lichess",
+  },
+  {
     label: "Cost",
     others: "$2\u2013$30/hour",
     ours: "Completely free",

@@ -90,19 +90,31 @@ const features = [
     icon: "mdi:cursor-default-click",
     title: "Interactive Move Exploration",
     description:
-      "Every move the coach mentions is clickable. Jump to any position, explore \"what-if\" alternatives, and watch tactical sequences play out on the board \u2014 all from the chat.",
+      "Every move the coach mentions is clickable. Jump to any position, explore \"what-if\" alternatives, and watch tactical sequences play out on the board — all from the chat.",
   },
   {
     icon: "mdi:magnify",
     title: "Deep Stockfish Analysis",
     description:
-      "Multiple Stockfish versions run directly in your browser. Get real-time evaluation bars, engine lines, and move classifications \u2014 no server required, completely private.",
+      "Multiple Stockfish versions run directly in your browser. Get real-time evaluation bars, engine lines, and move classifications — no server required, completely private.",
   },
   {
     icon: "mdi:gamepad-variant-outline",
     title: "Play Against the Engine",
     description:
       "Challenge Stockfish at any difficulty level. After the game, instantly jump into AI-powered analysis to understand what went right, what went wrong, and how to improve.",
+  },
+  {
+    icon: "mdi:puzzle",
+    title: "Practice with Puzzles",
+    description:
+      "Sharpen your tactics with 9,000+ curated puzzles across 46 themes and 4 difficulty levels. Filter by forks, pins, skewers, checkmates, and more — then solve them interactively on the board.",
+  },
+  {
+    icon: "mdi:binoculars",
+    title: "Scout Your Opponents",
+    description:
+      "Enter any Chess.com or Lichess username and we\u2019ll build a full opening tree from their games. See win/draw/loss rates per line, find weaknesses, and get Stockfish-backed prep recommendations.",
   },
   {
     icon: "mdi:book-open-page-variant-outline",
@@ -168,7 +180,7 @@ export default function LandingFeatures() {
           }}
         >
           A complete chess coaching platform powered by AI that actually
-          understands the game \u2014 not just the numbers.
+          understands the game — not just the numbers.
         </Typography>
 
         <Box

@@ -1,235 +1,448 @@
-import { useMemo, useEffect, useState } from "react";
-import { useScreenSize } from "@/hooks/useScreenSize";
-import { Color } from "@/types/enums";
-import { Chess } from "chess.js";
-import { Alert, Snackbar, Box } from "@mui/material";
-import { atom, useAtomValue, useSetAtom } from "jotai";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Chessboard } from "react-chessboard";
+import { Chess, Square } from "chess.js";
+import { Box, Typography } from "@mui/material";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   currentPuzzleAtom,
   puzzleSolvedStatusAtom,
+  currentPuzzleIndexAtom,
+  practicePuzzlesAtom,
 } from "@/sections/practice/states";
-import { useChessActions } from "@/hooks/useChessActions";
-import { Player } from "@/types/game";
+import { useScreenSize } from "@/hooks/useScreenSize";
+import { pieceSetAtom } from "@/components/board/states";
+import { Piece, CustomPieces } from "react-chessboard/dist/chessboard/types";
 
-// Simplified board component for practice mode
+const PIECE_CODES: Piece[] = [
+  "wP", "wB", "wN", "wR", "wQ", "wK",
+  "bP", "bB", "bN", "bR", "bQ", "bK",
+];
+
+export type PuzzleStatus = "loading" | "playing" | "wrong" | "solved";
+
+/**
+ * Parse solution moves array (UCI format like "e2e4") into {from, to, promotion} objects.
+ */
+function parseSolutionMoves(
+  fen: string,
+  moves: string[]
+): { from: Square; to: Square; promotion?: string }[] {
+  const parsed: { from: Square; to: Square; promotion?: string }[] = [];
+  const g = new Chess(fen);
+
+  for (const m of moves) {
+    // Moves are in UCI format: e2e4, e7e8q etc.
+    const from = m.slice(0, 2) as Square;
+    const to = m.slice(2, 4) as Square;
+    const promotion = m.length > 4 ? m[4] : undefined;
+
+    // Validate the move is legal
+    try {
+      const result = g.move({ from, to, promotion });
+      if (result) {
+        parsed.push({ from, to, promotion });
+      } else {
+        break;
+      }
+    } catch {
+      break;
+    }
+  }
+
+  return parsed;
+}
+
 export default function PracticeChessBoard() {
   const screenSize = useScreenSize();
   const currentPuzzle = useAtomValue(currentPuzzleAtom);
-  const [game, setGame] = useState(() => new Chess());
-  const gameAtom = atom(game);
-  const { reset: resetGame } = useChessActions(gameAtom);
   const setSolvedStatus = useSetAtom(puzzleSolvedStatusAtom);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [showWrongMoveMessage, setShowWrongMoveMessage] = useState(false);
+  const pieceSet = useAtomValue(pieceSetAtom);
 
+  // Internal chess game state
+  const [game, setGame] = useState<Chess>(new Chess());
+  const [status, setStatus] = useState<PuzzleStatus>("loading");
+  const [moveIndex, setMoveIndex] = useState(0);
+  const [boardOrientation, setBoardOrientation] = useState<"white" | "black">("white");
+  const [lastMoveSquares, setLastMoveSquares] = useState<{ from: Square; to: Square } | null>(null);
+  const [wrongSquare, setWrongSquare] = useState<Square | null>(null);
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [legalMoveSquares, setLegalMoveSquares] = useState<Square[]>([]);
+
+  // Ref to track puzzle ID to avoid stale closures
+  const puzzleIdRef = useRef<string | null>(null);
+
+  // Parsed solution moves
+  const solutionMoves = useMemo(() => {
+    if (!currentPuzzle) return [];
+    const moves = currentPuzzle.solution || currentPuzzle.moves || [];
+    return parseSolutionMoves(currentPuzzle.fen, moves);
+  }, [currentPuzzle]);
+
+  // Board size calculation
   const boardSize = useMemo(() => {
     const width = screenSize.width;
     const height = screenSize.height;
-
-    if (!width || !height || width <= 0 || height <= 0) {
-      return 400;
-    }
-
+    if (!width || !height || width <= 0 || height <= 0) return 400;
     if (typeof window !== "undefined" && window.innerWidth < 1200) {
-      return Math.max(Math.min(width - 15, height - 200), 300);
+      return Math.max(Math.min(width - 32, height - 200), 300);
     }
-
-    return Math.max(Math.min(width - 500, height * 0.85, 700), 500);
+    return Math.max(Math.min(width - 520, height * 0.82, 640), 360);
   }, [screenSize]);
 
-  // Create practice game atom
-  const [practiceGame, setPracticeGame] = useState(() => new Chess());
-
-  // Load puzzle position when puzzle changes
+  // Initialize puzzle: load FEN, determine orientation, play opponent's first move
   useEffect(() => {
-    if (currentPuzzle) {
-      const newGame = new Chess(currentPuzzle.fen);
-      setGame(newGame);
-      setShowSuccessMessage(false);
-      setShowWrongMoveMessage(false);
-    } else {
-      resetGame();
+    if (!currentPuzzle) {
+      setStatus("loading");
+      return;
     }
-  }, [currentPuzzle, resetGame]);
 
-  // Validate moves against solution
-  useEffect(() => {
-    if (!currentPuzzle || !game) return;
+    const puzzleId = currentPuzzle.id;
+    puzzleIdRef.current = puzzleId;
 
-    const solutionMoves = currentPuzzle.solution || currentPuzzle.moves || [];
-    const gameHistory = game.history();
-    const initialFen = currentPuzzle.fen;
+    const newGame = new Chess(currentPuzzle.fen);
 
-    // Check if we've made any moves
-    if (gameHistory.length === 0) return;
+    // The side to move in the FEN is the opponent — they play the first move.
+    // The user plays as the other side.
+    const opponentColor = newGame.turn(); // side that plays first (opponent)
+    const userColor = opponentColor === "w" ? "black" : "white";
+    setBoardOrientation(userColor);
 
-    // Create a test game from initial position to validate solution
-    const testGame = new Chess(initialFen);
-    let allMovesMatch = true;
+    setGame(newGame);
+    setMoveIndex(0);
+    setStatus("loading");
+    setLastMoveSquares(null);
+    setWrongSquare(null);
+    setSelectedSquare(null);
+    setLegalMoveSquares([]);
 
-    // Play through solution moves to get UCI format
-    const solutionUciMoves: string[] = [];
-    for (const move of solutionMoves) {
-      const moveObj = testGame.move(move, { strict: false });
-      if (moveObj) {
-        solutionUciMoves.push(moveObj.from + moveObj.to + (moveObj.promotion || ""));
-      } else {
-        // If move is already in UCI format
-        if (move.length >= 4) {
-          solutionUciMoves.push(move);
+    // Auto-play opponent's first move after a short delay
+    const timer = setTimeout(() => {
+      if (puzzleIdRef.current !== puzzleId) return;
+
+      const moves = currentPuzzle.solution || currentPuzzle.moves || [];
+      if (moves.length === 0) return;
+
+      const firstMove = moves[0];
+      const from = firstMove.slice(0, 2) as Square;
+      const to = firstMove.slice(2, 4) as Square;
+      const promotion = firstMove.length > 4 ? firstMove[4] : undefined;
+
+      try {
+        const g = new Chess(newGame.fen());
+        g.move({ from, to, promotion });
+        setGame(g);
+        setMoveIndex(1);
+        setLastMoveSquares({ from, to });
+        setStatus("playing");
+      } catch {
+        setStatus("playing");
+        setMoveIndex(0);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [currentPuzzle]);
+
+  // Play opponent's response after user makes a correct move
+  const playOpponentMove = useCallback(
+    (currentGame: Chess, nextMoveIdx: number) => {
+      if (nextMoveIdx >= solutionMoves.length) return;
+
+      const puzzleId = puzzleIdRef.current;
+
+      setTimeout(() => {
+        if (puzzleIdRef.current !== puzzleId) return;
+
+        const move = solutionMoves[nextMoveIdx];
+        try {
+          const g = new Chess(currentGame.fen());
+          g.move({ from: move.from, to: move.to, promotion: move.promotion });
+          setGame(g);
+          setMoveIndex(nextMoveIdx + 1);
+          setLastMoveSquares({ from: move.from, to: move.to });
+
+          // Check if puzzle is now fully solved (opponent played last move)
+          if (nextMoveIdx + 1 >= solutionMoves.length) {
+            setStatus("solved");
+            if (currentPuzzle?.id) {
+              setSolvedStatus((prev) => ({ ...prev, [currentPuzzle.id]: true }));
+            }
+          }
+        } catch {
+          // Move failed
+        }
+      }, 400);
+    },
+    [solutionMoves, currentPuzzle, setSolvedStatus]
+  );
+
+  // Handle user piece drop
+  const onPieceDrop = useCallback(
+    (sourceSquare: string, targetSquare: string, piece: string): boolean => {
+      if (status !== "playing") return false;
+      if (moveIndex >= solutionMoves.length) return false;
+
+      const expectedMove = solutionMoves[moveIndex];
+      const from = sourceSquare as Square;
+      const to = targetSquare as Square;
+
+      // Determine promotion
+      let promotion: string | undefined;
+      if (expectedMove.promotion) {
+        // If this is a promotion move
+        if (from === expectedMove.from && to === expectedMove.to) {
+          promotion = expectedMove.promotion;
+        } else {
+          promotion = piece[1]?.toLowerCase() === "p" ? "q" : undefined;
         }
       }
-    }
 
-    // Reset test game
-    testGame.load(initialFen);
+      // Check if this matches the expected solution move
+      if (from === expectedMove.from && to === expectedMove.to) {
+        try {
+          const g = new Chess(game.fen());
+          g.move({ from, to, promotion: expectedMove.promotion });
+          setGame(g);
+          setLastMoveSquares({ from, to });
+          setWrongSquare(null);
+          setSelectedSquare(null);
+          setLegalMoveSquares([]);
 
-    // Compare user moves with solution
-    for (let i = 0; i < gameHistory.length && i < solutionUciMoves.length; i++) {
-      const userMoveSan = gameHistory[i];
-      const userMoveObj = testGame.move(userMoveSan);
-      
-      if (!userMoveObj) {
-        allMovesMatch = false;
-        break;
+          const nextIdx = moveIndex + 1;
+          setMoveIndex(nextIdx);
+
+          // Check if puzzle is solved
+          if (nextIdx >= solutionMoves.length) {
+            setStatus("solved");
+            if (currentPuzzle?.id) {
+              setSolvedStatus((prev) => ({ ...prev, [currentPuzzle.id]: true }));
+            }
+          } else {
+            // Play opponent's next move
+            playOpponentMove(g, nextIdx);
+          }
+
+          return true;
+        } catch {
+          return false;
+        }
+      } else {
+        // Wrong move
+        setStatus("wrong");
+        setWrongSquare(to);
+        setSelectedSquare(null);
+        setLegalMoveSquares([]);
+
+        // Reset to playing after a delay
+        setTimeout(() => {
+          if (puzzleIdRef.current === currentPuzzle?.id) {
+            setStatus("playing");
+            setWrongSquare(null);
+          }
+        }, 1200);
+
+        return false;
+      }
+    },
+    [game, status, moveIndex, solutionMoves, currentPuzzle, setSolvedStatus, playOpponentMove]
+  );
+
+  // Handle square click for click-to-move
+  const onSquareClick = useCallback(
+    (square: Square) => {
+      if (status !== "playing") return;
+
+      // If no piece selected yet, select this square if it has a user piece
+      if (!selectedSquare) {
+        const piece = game.get(square);
+        if (piece && piece.color === game.turn()) {
+          setSelectedSquare(square);
+          const moves = game.moves({ square, verbose: true });
+          setLegalMoveSquares(moves.map((m) => m.to as Square));
+        }
+        return;
       }
 
-      const userMoveUci = userMoveObj.from + userMoveObj.to + (userMoveObj.promotion || "");
-      const solutionMoveUci = solutionUciMoves[i];
-
-      if (userMoveUci !== solutionMoveUci) {
-        allMovesMatch = false;
-        setShowWrongMoveMessage(true);
-        setTimeout(() => setShowWrongMoveMessage(false), 3000);
-        break;
+      // If clicking the same square, deselect
+      if (selectedSquare === square) {
+        setSelectedSquare(null);
+        setLegalMoveSquares([]);
+        return;
       }
+
+      // If clicking another own piece, switch selection
+      const piece = game.get(square);
+      if (piece && piece.color === game.turn()) {
+        setSelectedSquare(square);
+        const moves = game.moves({ square, verbose: true });
+        setLegalMoveSquares(moves.map((m) => m.to as Square));
+        return;
+      }
+
+      // Try to make the move
+      onPieceDrop(selectedSquare, square, "");
+    },
+    [game, status, selectedSquare, onPieceDrop]
+  );
+
+  // Custom pieces using SVG piece sets
+  const customPieces = useMemo(
+    () =>
+      PIECE_CODES.reduce<CustomPieces>((acc, piece) => {
+        acc[piece] = ({ squareWidth }: { squareWidth: number }) => (
+          <Box
+            width={squareWidth}
+            height={squareWidth}
+            sx={{
+              backgroundImage: `url(/piece/${pieceSet}/${piece}.svg)`,
+              backgroundSize: "contain",
+            }}
+          />
+        );
+        return acc;
+      }, {}),
+    [pieceSet]
+  );
+
+  // Custom square styles for highlights
+  const customSquareStyles = useMemo(() => {
+    const styles: Record<string, React.CSSProperties> = {};
+
+    // Highlight last move
+    if (lastMoveSquares) {
+      styles[lastMoveSquares.from] = { backgroundColor: "rgba(255, 170, 0, 0.4)" };
+      styles[lastMoveSquares.to] = { backgroundColor: "rgba(255, 170, 0, 0.5)" };
     }
 
-    // Check if puzzle is completely solved
-    if (allMovesMatch && gameHistory.length === solutionUciMoves.length) {
-      if (currentPuzzle.id) {
-        setSolvedStatus((prev) => ({
-          ...prev,
-          [currentPuzzle.id]: true,
-        }));
-        setShowSuccessMessage(true);
-        setTimeout(() => setShowSuccessMessage(false), 5000);
-      }
+    // Highlight selected square
+    if (selectedSquare) {
+      styles[selectedSquare] = { backgroundColor: "rgba(20, 85, 180, 0.5)" };
     }
-  }, [practiceGame.fen(), currentPuzzle?.id, setSolvedStatus]);
 
-  // Create dummy players for the board
-  const whitePlayer: Player = { name: "You", rating: undefined };
-  const blackPlayer: Player = { name: "Puzzle", rating: undefined };
+    // Highlight legal move targets
+    for (const sq of legalMoveSquares) {
+      const existing = styles[sq] || {};
+      styles[sq] = {
+        ...existing,
+        background: `${existing.backgroundColor || ""} radial-gradient(circle, rgba(0,0,0,0.15) 25%, transparent 25%)`.trim(),
+      };
+    }
+
+    // Highlight wrong move square
+    if (wrongSquare) {
+      styles[wrongSquare] = { backgroundColor: "rgba(220, 50, 50, 0.6)" };
+    }
+
+    return styles;
+  }, [lastMoveSquares, selectedSquare, legalMoveSquares, wrongSquare]);
+
+  // Status indicator text
+  const statusText = useMemo(() => {
+    if (status === "loading") return "Loading puzzle...";
+    if (status === "solved") return "Puzzle solved!";
+    if (status === "wrong") return "That's not right — try again.";
+
+    // Determine whose turn it is
+    const turn = game.turn();
+    return turn === "w" ? "White to move" : "Black to move";
+  }, [status, game]);
+
+  const statusColor = useMemo(() => {
+    if (status === "solved") return "success.main";
+    if (status === "wrong") return "error.main";
+    return "text.secondary";
+  }, [status]);
 
   if (!currentPuzzle) {
     return (
-      <div
-        style={{
-          width: boardSize,
-          height: boardSize,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#f5f5f5",
-          borderRadius: "8px",
-        }}
-      >
-        <p style={{ color: "#666", fontSize: "18px" }}>
-          Select a puzzle to start practicing
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <>
       <Box
         sx={{
           width: boardSize,
           height: boardSize,
-          backgroundColor: "#f5f5f5",
-          borderRadius: "8px",
-          position: "relative",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          bgcolor: "action.hover",
+          borderRadius: 1,
         }}
       >
-        {/* Simple chess board representation */}
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "grid",
-            gridTemplateColumns: "repeat(8, 1fr)",
-            gridTemplateRows: "repeat(8, 1fr)",
-            gap: "1px",
-            backgroundColor: "#fff",
-            border: "2px solid #333",
-            borderRadius: "4px",
-            aspectRatio: "1",
+        <Typography color="text.secondary">
+          Select a puzzle to start practicing
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      {/* Status bar above board */}
+      <Box
+        sx={{
+          mb: 1,
+          px: 1.5,
+          py: 0.75,
+          borderRadius: 1,
+          bgcolor: status === "solved" ? "success.dark" : status === "wrong" ? "error.dark" : "grey.800",
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+        }}
+      >
+        {status === "playing" && (
+          <Box
+            sx={{
+              width: 14,
+              height: 14,
+              borderRadius: "50%",
+              bgcolor: game.turn() === "w" ? "#fff" : "#333",
+              border: "2px solid",
+              borderColor: "grey.500",
+              flexShrink: 0,
+            }}
+          />
+        )}
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: 600,
+            color: status === "solved" || status === "wrong" ? "#fff" : "grey.300",
           }}
         >
-          {/* Chess board squares - simplified version */}
-          {Array.from({ length: 64 }, (_, index) => {
-            const row = Math.floor(index / 8);
-            const col = index % 8;
-            const isLight = (row + col) % 2 === 0;
-            const piece = game.get(String(index) as any);
-            
-            return (
-              <div
-                key={index}
-                style={{
-                  backgroundColor: isLight ? "#f0d9b5" : "#b58863",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: boardSize / 10,
-                  cursor: "pointer",
-                  position: "relative",
-                }}
-                onClick={() => {
-                  // Handle piece movement (simplified)
-                  console.log(`Square clicked: ${index}, piece: ${piece}`);
-                }}
-              >
-                {piece && (
-                  <span style={{ fontSize: boardSize / 8 }}>
-                    {piece.type === 'p' ? '♟' : 
-                     piece.type === 'n' ? '♞' :
-                     piece.type === 'b' ? '♝' :
-                     piece.type === 'r' ? '♜' :
-                     piece.type === 'q' ? '♛' :
-                     piece.type === 'k' ? '♚' :
-                     piece.color === 'w' ? '♟' : piece.color === 'b' ? '♟' : '?'}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+          {statusText}
+        </Typography>
       </Box>
 
-      <Snackbar
-        open={showSuccessMessage}
-        autoHideDuration={5000}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      {/* Chessboard */}
+      <Box
+        sx={{
+          width: boardSize,
+          "& .board-container": {
+            borderRadius: "4px",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+          },
+        }}
       >
-        <Alert severity="success" sx={{ width: "100%" }}>
-          🎉 Puzzle solved correctly! Great job!
-        </Alert>
-      </Snackbar>
-      <Snackbar
-        open={showWrongMoveMessage}
-        autoHideDuration={3000}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert severity="warning" sx={{ width: "100%" }}>
-          That move doesn't match the solution. Try again!
-        </Alert>
-      </Snackbar>
-    </>
+        <Chessboard
+          id="PracticeBoard"
+          position={game.fen()}
+          onPieceDrop={onPieceDrop}
+          onSquareClick={onSquareClick}
+          boardOrientation={boardOrientation}
+          boardWidth={boardSize}
+          customBoardStyle={{
+            borderRadius: "4px",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+          }}
+          customSquareStyles={customSquareStyles}
+          customPieces={customPieces}
+          isDraggablePiece={({ piece }) => {
+            if (status !== "playing") return false;
+            const color = piece[0] === "w" ? "w" : "b";
+            return color === game.turn();
+          }}
+          animationDuration={200}
+        />
+      </Box>
+    </Box>
   );
 }

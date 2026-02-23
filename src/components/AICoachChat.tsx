@@ -37,9 +37,10 @@ import {
   puzzleSolvedStatusAtom,
   PracticePuzzle,
 } from "@/sections/practice/states";
-import { getPuzzlesByTheme, normalizeThemeName } from "@/lib/chessPuzzlesService";
+import { getPuzzlesByTheme, normalizeThemeName, TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
 import { selectedCoachIdAtom } from "@/atoms/coachAtoms";
 import { getPersonalityById } from "@/config/coachPersonalities";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -51,6 +52,70 @@ interface AICoachChatProps {
   game?: Chess;
   boardOrientation?: boolean;
 }
+
+// Component for inline "Practice Similar Puzzles" button in AI responses
+const PracticePuzzleButton: React.FC<{
+  theme: string;
+  displayTheme: string;
+}> = ({ theme, displayTheme }) => {
+  const router = useRouter();
+  const setPracticePuzzles = useSetAtom(practicePuzzlesAtom);
+  const setCurrentPuzzleIndex = useSetAtom(currentPuzzleIndexAtom);
+  const setPracticeTheme = useSetAtom(practiceThemeAtom);
+  const [loading, setLoading] = React.useState(false);
+
+  const handleClick = async () => {
+    setLoading(true);
+    try {
+      const normalizedTheme = normalizeThemeName(theme);
+      const puzzles = await getPuzzlesByTheme([normalizedTheme], 20);
+      if (puzzles.length > 0) {
+        setPracticePuzzles(puzzles);
+        setCurrentPuzzleIndex(0);
+        setPracticeTheme(normalizedTheme);
+        router.push({ pathname: "/practice", query: { theme: normalizedTheme } });
+      }
+    } catch (error) {
+      console.error("Error fetching practice puzzles:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <span
+      onClick={handleClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        color: "#fff",
+        cursor: loading ? "wait" : "pointer",
+        fontWeight: 600,
+        padding: "6px 14px",
+        borderRadius: "8px",
+        background: "linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)",
+        fontSize: "0.85em",
+        transition: "all 0.2s ease",
+        boxShadow: "0 2px 6px rgba(76, 175, 80, 0.3)",
+        marginTop: "4px",
+      }}
+      onMouseEnter={(e) => {
+        if (!loading) {
+          e.currentTarget.style.background = "linear-gradient(135deg, #43A047 0%, #1B5E20 100%)";
+          e.currentTarget.style.boxShadow = "0 3px 10px rgba(76, 175, 80, 0.4)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)";
+        e.currentTarget.style.boxShadow = "0 2px 6px rgba(76, 175, 80, 0.3)";
+      }}
+      title={`Practice ${displayTheme} puzzles`}
+    >
+      {loading ? "Loading..." : `🧩 Practice ${displayTheme} Puzzles`}
+    </span>
+  );
+};
 
 // Component for "see how" tactical sequence links
 const SeeHowLink: React.FC<{
@@ -452,6 +517,38 @@ const processPositionLinks = (text: string) => {
   return parts.length > 0 ? parts : [text];
 };
 
+// Helper function to process practice puzzle button markers [PRACTICE:theme:displayName]
+const processPracticeButtons = (text: string): Array<string | React.ReactElement> => {
+  if (!text.includes("[PRACTICE:")) {
+    return [text];
+  }
+
+  const parts: Array<string | React.ReactElement> = [];
+  const pattern = /\[PRACTICE:([^:\]]+):([^\]]+)\]/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <PracticePuzzleButton
+        key={`practice-${match.index}`}
+        theme={match[1]}
+        displayTheme={match[2]}
+      />
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [text];
+};
+
 // Helper function to process correct move links [Correct: Move]
 const processCorrectMoveLinks = (text: string, game: Chess, moveNumber?: number, isBlackMove?: boolean) => {
   if (!text.includes("[Correct:") && !text.includes("[correct:")) {
@@ -500,7 +597,19 @@ const processCorrectMoveLinks = (text: string, game: Chess, moveNumber?: number,
 const renderTextWithClickableMoves = (text: string, game?: Chess) => {
   if (!text) return null;
 
-  // First, process position links
+  // First, process practice puzzle buttons [PRACTICE:theme:displayName]
+  const textWithPractice = processPracticeButtons(text);
+  if (textWithPractice.length > 1 || (textWithPractice.length === 1 && typeof textWithPractice[0] !== "string")) {
+    // Has practice buttons — process remaining string parts for other links
+    return <>{textWithPractice.map((part, idx) => {
+      if (typeof part === "string") {
+        return <React.Fragment key={idx}>{renderTextWithClickableMoves(part, game)}</React.Fragment>;
+      }
+      return <React.Fragment key={idx}>{part}</React.Fragment>;
+    })}</>;
+  }
+
+  // Then, process position links
   const textWithPositions = processPositionLinks(text);
 
   // Then process correct move links for each string part
@@ -672,10 +781,9 @@ const renderMovesInText = (text: string) => {
       return; // Unknown pattern type
     }
 
-    // Check if this is a recommended move (green) by looking for "Best Move Instead:" or similar patterns
-    const isRecommendedMove = text.includes("Best Move Instead:") || 
-                             text.includes("Recommended:") || 
-                             text.includes("Instead:");
+    // Check LOCAL context around the move to determine if it's a recommended/best alternative
+    const contextBefore = text.slice(Math.max(0, startIndex - 60), startIndex).toLowerCase();
+    const isRecommendedMove = /best\s*(was|move|is)|should\s*have\s*(played|been)|instead\s*(of|,|:)|better\s*(was|move|is|alternative)|recommended|correct\s*move|improvement/.test(contextBefore);
     
     if (isRecommendedMove) {
       // Use green clickable move with exploration mode
@@ -901,6 +1009,9 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   // Get user player info (username and color)
   const userPlayerInfo = useAtomValue(userPlayerInfoAtom);
 
+  // User profile (chess.com/lichess usernames)
+  const { profile: userProfile } = useAuth();
+
   // Coach personality
   const selectedCoachId = useAtomValue(selectedCoachIdAtom);
   const personality = getPersonalityById(selectedCoachId);
@@ -1099,12 +1210,20 @@ INTERACTIVE ELEMENTS:
 
 ${personality.systemPromptOverride}
 
+PRACTICE PUZZLE SYSTEM:
+You have access to a comprehensive practice puzzle database with the following tactical themes:
+${Object.entries(TACTICAL_THEMES).map(([key, val]) => `- "${key}" → ${val.theme}`).join("\n")}
+
+Difficulty bands: beginner (≤1200 rating), intermediate (1201-1600), advanced (1601-2000), expert (2001+)
+
 PRACTICE OFFER PROTOCOL:
 After explaining a mistake and what the user missed, you MUST offer practice puzzles:
-- After identifying and explaining a principle violation or tactical mistake, ask: "Could I gather for you a bunch of puzzles that help you fix this gap in understanding so you can find it next time?"
+- After identifying and explaining a principle violation or tactical mistake, ask: "Would you like me to send you to practice some [theme] puzzles to strengthen this skill?"
 - Include the specific skill gap identified in your question (e.g., "fork patterns", "back rank weaknesses", "pin tactics", "discovered attacks")
-- Example: "You missed a fork pattern here. Could I gather for you a bunch of puzzles that help you fix this gap in understanding so you can find it next time?"
-- Wait for user acceptance before proceeding with puzzle generation
+- Example: "You missed a fork pattern here. Would you like me to send you to practice some fork puzzles to strengthen this skill?"
+- When the user accepts, they will be redirected to the practice page with the correct theme and difficulty level already set
+- You can also proactively suggest practice if the user asks about improving at a specific area
+- Suggest appropriate difficulty based on the user's apparent skill level (from their game rating or profile)
 - Only offer practice after explaining actual mistakes or principle violations, not after general analysis
 
 IMPORTANT GUIDELINES:
@@ -1275,16 +1394,34 @@ IMPORTANT GUIDELINES:
           : undefined;
 
       // Add user player information to system prompt if available
-      if (userPlayerInfo.username && userPlayerInfo.playerColor && systemPrompt) {
-        const playerInfoSection = `\n\nUSER CONTEXT:
-- The user's username is: ${userPlayerInfo.username}
+      if (systemPrompt) {
+        let playerInfoSection = "\n\nUSER CONTEXT:";
+        let hasContext = false;
+
+        if (userPlayerInfo.username && userPlayerInfo.playerColor) {
+          playerInfoSection += `
+- The user's in-game username is: ${userPlayerInfo.username}
 - The user is playing as: ${userPlayerInfo.playerColor === "white" ? "White" : "Black"}
 - Always analyze the game from the perspective of ${userPlayerInfo.username} playing as ${userPlayerInfo.playerColor === "white" ? "White" : "Black"}
 - When referring to the user's moves, say "your move" or "${userPlayerInfo.username}'s move"
 - When referring to the opponent, say "your opponent" or "the opponent"
 - Focus your analysis on helping ${userPlayerInfo.username} understand their moves and improve their game`;
-        
-        systemPrompt = systemPrompt + playerInfoSection;
+          hasContext = true;
+        }
+
+        // Add chess platform usernames from profile
+        if (userProfile?.chesscomUsername) {
+          playerInfoSection += `\n- Chess.com username: ${userProfile.chesscomUsername} (use this to understand the user's online rating and skill level)`;
+          hasContext = true;
+        }
+        if (userProfile?.lichessUsername) {
+          playerInfoSection += `\n- Lichess username: ${userProfile.lichessUsername} (use this to understand the user's online rating and skill level)`;
+          hasContext = true;
+        }
+
+        if (hasContext) {
+          systemPrompt = systemPrompt + playerInfoSection;
+        }
       }
 
       // Check if this is the first user message (only system message exists)
@@ -1303,31 +1440,42 @@ IMPORTANT GUIDELINES:
         const theme = extractThemeFromConversation();
         
         if (theme) {
+          // Determine difficulty from user rating
+          let difficulty: string | undefined;
+          if (game) {
+            const headers = game.getHeaders();
+            const playerColor = userPlayerInfo.playerColor;
+            const ratingStr = playerColor === "black" ? headers.BlackElo : headers.WhiteElo;
+            const rating = ratingStr ? parseInt(ratingStr) : undefined;
+            if (rating) {
+              if (rating <= 1200) difficulty = "beginner";
+              else if (rating <= 1600) difficulty = "intermediate";
+              else if (rating <= 2000) difficulty = "advanced";
+              else difficulty = "expert";
+            }
+          }
+
           // User accepted practice offer - fetch puzzles and redirect
           setMessages((prev) => [
             ...prev,
             userMessage,
-            { role: "assistant", content: "Great! Let me gather some puzzles for you to practice..." },
+            { role: "assistant", content: `Great! Let me gather some ${theme} puzzles${difficulty ? ` at ${difficulty} level` : ""} for you...` },
           ]);
           
           try {
             const normalizedTheme = normalizeThemeName(theme);
-            const puzzles = await getPuzzlesByTheme([normalizedTheme], 20);
+            const puzzles = await getPuzzlesByTheme([normalizedTheme], 20, difficulty);
             
-            // BUG FIX #2: Explicit handling of empty puzzle array
-            // If no puzzles are found, DO NOT redirect to practice page.
-            // Instead, show an error message and stay in the chat interface.
-            // This prevents users from landing on an empty practice page.
             if (puzzles.length > 0) {
-              // Store puzzles directly (without solved field - solved status is in puzzleSolvedStatusAtom)
               setPracticePuzzles(puzzles);
               setCurrentPuzzleIndex(0);
               setPracticeTheme(normalizedTheme);
               
-              // Only redirect if puzzles were successfully fetched
-              router.push("/practice");
+              // Redirect with theme and difficulty preset
+              const query: Record<string, string> = { theme: normalizedTheme };
+              if (difficulty) query.difficulty = difficulty;
+              router.push({ pathname: "/practice", query });
             } else {
-              // Empty array: show error and stay in chat (no redirect)
               setMessages((prev) => [
                 ...prev,
                 {
@@ -1338,7 +1486,6 @@ IMPORTANT GUIDELINES:
             }
           } catch (error) {
             console.error("Error fetching practice puzzles:", error);
-            // Error case: show error and stay in chat (no redirect)
             setMessages((prev) => [
               ...prev,
               {
@@ -1420,6 +1567,11 @@ IMPORTANT GUIDELINES:
           }
         }
 
+        // Build conversation history for multi-turn context (exclude system messages)
+        const conversationHistory = messages
+          .filter((m) => m.role !== "system")
+          .map((m) => ({ role: m.role, content: m.content }));
+
         // Send full game data for comprehensive analysis
         const requestData: any = {
           analysisType: "game_review",
@@ -1428,6 +1580,7 @@ IMPORTANT GUIDELINES:
           playerColor: userColor,
           systemPrompt: systemPrompt,
           userMessage: textToSend,
+          conversationHistory: conversationHistory,
           responseLength: "comprehensive",
           boardOrientation: boardOrientation,
           gameEval: gameEval,
@@ -1477,6 +1630,39 @@ IMPORTANT GUIDELINES:
           assistantContent += `\n\n**Note:** ${data.aiAnalysisError}`;
         }
 
+        // Scan response for tactical themes and append practice button
+        if (assistantContent && TACTICAL_THEMES) {
+          const contentLower = assistantContent.toLowerCase();
+          // Map of keywords → [themeKey, displayName]
+          const themeKeywords: Array<[string[], string, string]> = [
+            [["fork", "forks", "forking"], "fork", "Fork"],
+            [["pin", "pins", "pinning", "pinned"], "pin", "Pin"],
+            [["skewer", "skewers"], "skewer", "Skewer"],
+            [["back rank", "back-rank", "backrank"], "backRankMate", "Back Rank"],
+            [["discovered attack", "discovered check"], "discoveredAttack", "Discovered Attack"],
+            [["double check"], "doubleCheck", "Double Check"],
+            [["deflection", "deflect"], "deflection", "Deflection"],
+            [["sacrifice", "sacrifices"], "sacrifice", "Sacrifice"],
+            [["trapped piece", "trapping"], "trappedPiece", "Trapped Piece"],
+            [["hanging piece", "hanging"], "hangingPiece", "Hanging Piece"],
+            [["overloaded", "overloading"], "overloading", "Overloading"],
+            [["zwischenzug", "in-between", "intermezzo"], "intermezzo", "Zwischenzug"],
+            [["endgame", "end game"], "endgame", "Endgame"],
+            [["mate in", "checkmate pattern", "mating pattern"], "mate", "Checkmate Patterns"],
+          ];
+
+          // Find the first (most relevant) theme mentioned in the analysis of a mistake
+          const hasMistakeContext = /blunder|mistake|inaccuracy|error|missed|should have|better was|instead of/i.test(contentLower);
+          if (hasMistakeContext) {
+            for (const [keywords, themeKey, displayName] of themeKeywords) {
+              if (keywords.some((kw) => contentLower.includes(kw))) {
+                assistantContent += `\n\n[PRACTICE:${themeKey}:${displayName}]`;
+                break; // Only add one button per response
+              }
+            }
+          }
+        }
+
         setMessages((prev) => [
           ...prev,
           { role: "assistant", content: assistantContent },
@@ -1500,7 +1686,7 @@ IMPORTANT GUIDELINES:
         abortControllerRef.current = null;
       }
     },
-    [messages, game, position, boardOrientation, gameEval, input, router, puzzleSolvedStatus, setPracticePuzzles, setCurrentPuzzleIndex, setPracticeTheme]
+    [messages, game, position, boardOrientation, gameEval, input, router, puzzleSolvedStatus, setPracticePuzzles, setCurrentPuzzleIndex, setPracticeTheme, userProfile]
   );
 
   // Handle move analysis requests from moves panel

@@ -42,16 +42,25 @@ export default function GameAnalysis() {
   const setBoardOrientation = useSetAtom(boardOrientationAtom);
 
   const router = useRouter();
-  const { gameId } = router.query;
+  const { gameId, fen } = router.query;
 
   useEffect(() => {
-    if (!gameId) {
+    if (typeof fen === "string" && fen.trim()) {
+      // Load a specific FEN position (e.g., from practice puzzle "Analyze Position")
+      const decodedFen = decodeURIComponent(fen);
+      resetBoard({ fen: decodedFen });
+      resetGame({ fen: decodedFen, noHeaders: true });
+      setGameEval(undefined);
+      // Determine orientation from FEN (if it's black to move, orient for black)
+      const isBlackToMove = decodedFen.includes(" b ");
+      setBoardOrientation(!isBlackToMove);
+    } else if (!gameId) {
       resetBoard();
       setGameEval(undefined);
       setBoardOrientation(true);
       resetGame({ noHeaders: true });
     }
-  }, [gameId, setGameEval, setBoardOrientation, resetBoard, resetGame]);
+  }, [gameId, fen, setGameEval, setBoardOrientation, resetBoard, resetGame]);
 
   return (
     <Grid

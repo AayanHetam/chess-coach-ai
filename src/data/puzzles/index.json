@@ -1,0 +1,438 @@
+{
+  "totalPuzzles": 9292,
+  "themes": {
+    "advancedPawn": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "attackingF2F7": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "attraction": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "backRankMate": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "bishopEndgame": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "castling": {
+      "total": 214,
+      "bands": {
+        "advanced": 75,
+        "beginner": 2,
+        "expert": 75,
+        "intermediate": 62
+      }
+    },
+    "clearance": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "defensiveMove": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "deflection": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "discoveredAttack": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "doubleCheck": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "endgame": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "exposedKing": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "fork": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "hangingPiece": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "interference": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "intermezzo": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "kingsideAttack": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "knightEndgame": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "long": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "mate": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "mateIn1": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "mateIn2": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "mateIn3": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "mateIn4": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "mateIn5": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "middlegame": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "oneMove": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "opening": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "pawnEndgame": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "pin": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "promotion": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "queenEndgame": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "queenRookEndgame": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "queensideAttack": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "quietMove": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "rookEndgame": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "sacrifice": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "short": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "skewer": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "smotheredMate": {
+      "total": 252,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 27,
+        "intermediate": 75
+      }
+    },
+    "trappedPiece": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "underPromotion": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "veryLong": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "xRayAttack": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    },
+    "zugzwang": {
+      "total": 300,
+      "bands": {
+        "advanced": 75,
+        "beginner": 75,
+        "expert": 75,
+        "intermediate": 75
+      }
+    }
+  },
+  "difficultyBands": {
+    "beginner": [
+      0,
+      1200
+    ],
+    "intermediate": [
+      1201,
+      1600
+    ],
+    "advanced": [
+      1601,
+      2000
+    ],
+    "expert": [
+      2001,
+      9999
+    ]
+  },
+  "generatedAt": "2026-02-23T04:46:36.456869+00:00"
+}

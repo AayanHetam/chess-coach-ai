@@ -10,6 +10,8 @@ import {
   User,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
@@ -74,6 +76,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setLoading(false);
     });
 
+    // Handle redirect result
+    getRedirectResult(auth).catch((error) => {
+      console.error("Redirect sign-in error:", error);
+    });
+
     return () => unsubscribe();
   }, []);
 
@@ -83,12 +90,39 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
     try {
+      // Prefer popup — works better across dev proxies and doesn't navigate away
       await signInWithPopup(auth, googleProvider);
     } catch (error: unknown) {
-      const firebaseError = error as { code?: string; message?: string };
-      if (firebaseError.code === "auth/popup-closed-by-user") {
-        return; // User closed popup, not an error
+      const fbError = error as { code?: string; message?: string };
+
+      // If popup was blocked by browser, fall back to redirect
+      if (fbError.code === "auth/popup-blocked") {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectError) {
+          console.error("Redirect sign-in error:", redirectError);
+          throw redirectError;
+        }
       }
+
+      // Unauthorized domain — give the user a clear message instead of crashing
+      if (fbError.code === "auth/unauthorized-domain") {
+        const host = typeof window !== "undefined" ? window.location.host : "unknown";
+        console.error(
+          `Firebase auth/unauthorized-domain: "${host}" is not in your Firebase authorized domains. ` +
+          `Add it at Firebase Console → Authentication → Settings → Authorized domains, or open the app at localhost:3000.`
+        );
+        throw new Error(
+          `Sign-in is not available on this domain (${host}). Please open the app at localhost:3000 or add this domain to Firebase authorized domains.`
+        );
+      }
+
+      // If popup was closed by user, silently ignore
+      if (fbError.code === "auth/popup-closed-by-user" || fbError.code === "auth/cancelled-popup-request") {
+        return;
+      }
+
       console.error("Sign-in error:", error);
       throw error;
     }

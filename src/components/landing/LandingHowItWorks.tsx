@@ -12,8 +12,8 @@ function StepCard({
   return (
     <Box
       sx={{
-        flex: { xs: "1 1 100%", md: "1 1 30%" },
-        maxWidth: { md: "33%" },
+        flex: { xs: "1 1 100%", md: "1 1 22%" },
+        maxWidth: { md: "25%" },
         textAlign: "center",
         p: 3,
       }}
@@ -85,14 +85,14 @@ export default function LandingHowItWorks() {
             fontSize: { xs: "1.8rem", md: "2.5rem" },
           }}
         >
-          Start Improving in 3 Steps
+          Your Complete Chess Improvement Loop
         </Typography>
 
         <Box
           sx={{
             display: "flex",
             flexWrap: "wrap",
-            gap: 4,
+            gap: 3,
             justifyContent: "center",
             position: "relative",
           }}
@@ -103,8 +103,8 @@ export default function LandingHowItWorks() {
               display: { xs: "none", md: "block" },
               position: "absolute",
               top: 32,
-              left: "22%",
-              right: "22%",
+              left: "10%",
+              right: "10%",
               height: 2,
               background:
                 "linear-gradient(90deg, rgba(255,107,53,0.1) 0%, rgba(255,107,53,0.3) 50%, rgba(255,107,53,0.1) 100%)",
@@ -114,18 +114,23 @@ export default function LandingHowItWorks() {
 
           <StepCard
             number={1}
-            title="Load Your Game"
-            description="Paste a PGN, import from your database, or play a game against Stockfish right here in the app."
+            title="Analyze Your Games"
+            description="Load a PGN or play vs Stockfish. The AI coach explains every move in plain language — not just engine numbers."
           />
           <StepCard
             number={2}
-            title="Get AI Analysis"
-            description="Stockfish evaluates every move in-browser. The AI coach reads the evaluation and explains it in human terms."
+            title="Practice Tactics"
+            description="Solve 9,000+ curated puzzles across 46 themes. Filter by forks, pins, checkmates — sharpen the patterns that win games."
           />
           <StepCard
             number={3}
-            title="Chat & Explore"
-            description="Ask the coach anything. Click moves to jump to positions. Explore what-if scenarios. Learn by interacting."
+            title="Scout Your Opponents"
+            description="Enter any Chess.com or Lichess username. We build their opening tree, show win rates per line, and find exploitable weaknesses."
+          />
+          <StepCard
+            number={4}
+            title="Prepare & Win"
+            description="Combine Stockfish analysis with opponent data to build a targeted prep repertoire. Go into your next game with a plan."
           />
         </Box>
       </Container>

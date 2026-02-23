@@ -1,6 +1,5 @@
 {
   "buildCommand": "next build",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD .",
   "framework": "nextjs",
   "functions": {
     "src/app/api/**/*.ts": {

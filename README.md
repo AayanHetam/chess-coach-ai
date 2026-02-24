@@ -120,7 +120,37 @@ We'd love your contributions to make chess even more fun! Here's how:
 - Follow TypeScript best practices with a smile
 - Ensure all checks pass (but make it fun!)
 
-## 📄 License
+## � Citation
+
+If you use Chess Masti AI in your research, blog posts, articles, or papers, please cite it as:
+
+```bibtex
+@software{hetamsaria2025chessmastiai,
+  author       = {Hetamsaria, Aayan},
+  title        = {Chess Masti AI: Fun AI-Powered Chess Coaching},
+  year         = {2025},
+  url          = {https://github.com/AayanHetam/chess-coach-ai}
+}
+```
+
+This project builds on the chess commentary dataset introduced by Jhamtani et al. (2018). If you use or reference the commentary aspects, please also cite their work:
+
+```bibtex
+@inproceedings{jhamtani-etal-2018-learning,
+  title     = "Learning to Generate Move-by-Move Commentary for Chess Games from Large-Scale Social Forum Data",
+  author    = "Jhamtani, Harsh and Gangal, Varun and Hovy, Eduard and Neubig, Graham and Berg-Kirkpatrick, Taylor",
+  booktitle = "Proceedings of the 56th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)",
+  month     = jul,
+  year      = "2018",
+  address   = "Melbourne, Australia",
+  publisher = "Association for Computational Linguistics",
+  url       = "https://aclanthology.org/P18-1154/",
+  doi       = "10.18653/v1/P18-1154",
+  pages     = "1661--1671"
+}
+```
+
+## �📄 License
 
 Chess Masti AI spreads joy under the GNU Affero General Public License 3. See [COPYING.md](COPYING.md) for the fun legal details.
 
@@ -132,6 +162,7 @@ Big thanks to the amazing projects that make our masti possible:
 - 🤖 [Anthropic](https://anthropic.com/) - AI that makes coaching fun and intelligent  
 - ♟️ [Chess.js](https://github.com/jhlywa/chess.js) - Reliable chess game logic
 - 🎨 [React Chessboard](https://github.com/Clariity/react-chessboard) - Beautiful chess boards for our masti
+- 📊 [Chess Commentary Dataset](https://github.com/harsh19/ChessCommentaryGeneration) - The large-scale chess commentary dataset by [Jhamtani, Gangal et al. (ACL 2018)](https://aclanthology.org/P18-1154/) that informed our AI coaching approach
 
 ---
 

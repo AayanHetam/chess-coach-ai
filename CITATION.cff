@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Chess Masti AI: Fun AI-Powered Chess Coaching"
+authors:
+  - family-names: Hetamsaria
+    given-names: Aayan
+url: "https://github.com/AayanHetam/chess-coach-ai"
+repository-code: "https://github.com/AayanHetam/chess-coach-ai"
+license: AGPL-3.0
+year: 2025
+keywords:
+  - chess
+  - ai-coaching
+  - natural-language-generation
+  - chess-commentary
+  - stockfish
+references:
+  - type: conference-paper
+    title: "Learning to Generate Move-by-Move Commentary for Chess Games from Large-Scale Social Forum Data"
+    authors:
+      - family-names: Jhamtani
+        given-names: Harsh
+      - family-names: Gangal
+        given-names: Varun
+      - family-names: Hovy
+        given-names: Eduard
+      - family-names: Neubig
+        given-names: Graham
+      - family-names: Berg-Kirkpatrick
+        given-names: Taylor
+    year: 2018
+    collection-title: "Proceedings of the 56th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)"
+    conference:
+      name: "ACL 2018"
+      city: Melbourne
+      country: AU
+    url: "https://aclanthology.org/P18-1154/"
+    doi: "10.18653/v1/P18-1154"
+    start: 1661
+    end: 1671

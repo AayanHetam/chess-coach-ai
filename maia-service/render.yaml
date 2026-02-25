@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: maia-chess-service
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: USE_GPU
+        value: "false"
+      - key: MAIA2_GAME_TYPE
+        value: "rapid"

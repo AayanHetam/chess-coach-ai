@@ -1,0 +1,25 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY maia_server.py .
+
+# Pre-download Maia-2 model weights at build time so startup is fast
+RUN python -c "from maia2 import model, inference; m = model.from_pretrained(type='rapid', device='cpu'); inference.prepare(); print('Model pre-downloaded successfully')"
+
+# Render sets PORT env var; default to 8000
+ENV PORT=8000
+EXPOSE 8000
+
+# Run with uvicorn — use $PORT so Render can assign its own port
+CMD uvicorn maia_server:app --host 0.0.0.0 --port $PORT

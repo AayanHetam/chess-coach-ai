@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Typography, Box, Container } from "@mui/material";
 import Head from "next/head";
+import { Analytics } from "@vercel/analytics/next";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ export default function MyApp({ Component, pageProps }: AppProps) {
           </Layout>
         </AuthProvider>
       </QueryClientProvider>
+      <Analytics />
     </>
   );
 }

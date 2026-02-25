@@ -11,6 +11,7 @@ It does NOT require LC0 — it's pure PyTorch inference.
 
 import os
 import logging
+import threading
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
@@ -51,9 +52,8 @@ model_loaded = False
 load_error: Optional[str] = None
 
 
-@app.on_event("startup")
-async def load_model():
-    """Load Maia-2 model at startup so it's ready for requests."""
+def _load_model_sync():
+    """Load Maia-2 model (runs in a background thread)."""
     global maia2_model, prepared, model_loaded, load_error
     try:
         from maia2 import model as maia2_model_module, inference
@@ -69,6 +69,14 @@ async def load_model():
     except Exception as e:
         load_error = str(e)
         logger.error(f"❌ Failed to load Maia-2 model: {e}")
+
+
+@app.on_event("startup")
+async def load_model():
+    """Start model loading in background thread so health checks pass immediately."""
+    thread = threading.Thread(target=_load_model_sync, daemon=True)
+    thread.start()
+    logger.info("⏳ Model loading started in background thread...")
 
 
 # ---------------------------------------------------------------------------

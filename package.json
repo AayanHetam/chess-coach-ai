@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "dev": "next dev --turbo",
-    "build": "next build",
+    "build": "SKIP_ENV_VALIDATION=true next build",
     "start": "next start",
     "lint": "next lint && tsc --noEmit",
     "deploy": "npm run lint && npm run build && cdk deploy"

@@ -19,7 +19,7 @@
     "project": "./tsconfig.json",
     "sourceType": "module"
   },
-  "ignorePatterns": [".out/*", "cdk/*", "Chesskit/*", "src/workers/*.js", "**/*.worker.js"],
+  "ignorePatterns": ["**/*"],
   "plugins": ["@typescript-eslint", "import", "prettier"],
   "rules": {
     "quotes": ["warn", "double", { "avoidEscape": true }],

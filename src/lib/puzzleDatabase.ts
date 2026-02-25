@@ -19,6 +19,7 @@ export interface PuzzleQuery {
   shuffle?: boolean;
   minRating?: number;
   maxRating?: number;
+  excludeIds?: string[];
 }
 
 export interface PuzzleDatabaseIndex {
@@ -108,6 +109,7 @@ export async function queryPuzzles(query: PuzzleQuery): Promise<ChessPuzzle[]> {
     shuffle = true,
     minRating,
     maxRating,
+    excludeIds,
   } = query;
 
   // Determine which themes to load
@@ -145,6 +147,12 @@ export async function queryPuzzles(query: PuzzleQuery): Promise<ChessPuzzle[]> {
     seen.add(p.id);
     return true;
   });
+
+  // Exclude already-solved puzzle IDs
+  if (excludeIds && excludeIds.length > 0) {
+    const excludeSet = new Set(excludeIds);
+    allPuzzles = allPuzzles.filter((p) => !excludeSet.has(p.id));
+  }
 
   // Apply rating range filters
   if (minRating !== undefined) {

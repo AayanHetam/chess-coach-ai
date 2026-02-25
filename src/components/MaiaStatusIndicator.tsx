@@ -1,19 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { Box, Tooltip, CircularProgress } from "@mui/material";
-import { CheckCircle, Cancel } from "@mui/icons-material";
+import { CheckCircle, Cancel, CloudOff } from "@mui/icons-material";
 
 interface MaiaStatus {
   lc0Available: boolean;
   maiaOptimal: boolean;
-  downloadLinks?: {
-    windows: string;
-    macos: string;
-    linux: string;
-    homebrew: string;
-    documentation: string;
-    maiaModels: string;
-    maiaWeights: string;
-  };
+  maiaServiceConfigured?: boolean;
+  maiaServiceReachable?: boolean;
+  maiaModelLoaded?: boolean;
+  model?: string;
+  message?: string;
 }
 
 export const MaiaStatusIndicator: React.FC<{ size?: "small" | "medium" }> = ({
@@ -37,8 +33,8 @@ export const MaiaStatusIndicator: React.FC<{ size?: "small" | "medium" }> = ({
     };
 
     checkStatus();
-    // Refresh status every 30 seconds
-    const interval = setInterval(checkStatus, 30000);
+    // Refresh status every 60 seconds
+    const interval = setInterval(checkStatus, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -56,24 +52,24 @@ export const MaiaStatusIndicator: React.FC<{ size?: "small" | "medium" }> = ({
     );
   }
 
-  const isOptimal = status?.lc0Available ?? false;
+  const isOptimal = status?.maiaOptimal ?? status?.lc0Available ?? false;
+  const isConfigured = status?.maiaServiceConfigured ?? false;
   const iconSize = size === "small" ? 18 : 24;
 
+  const tooltipText = isOptimal
+    ? "Maia-2 is running and ready for human-like move predictions"
+    : !isConfigured
+      ? "Maia-2 service not configured. Set MAIA_API_URL."
+      : status?.message || "Maia-2 service unavailable";
+
   return (
-    <Tooltip
-      title={
-        isOptimal
-          ? "MAIA is running optimally with Lc0 (Leela Chess Zero)"
-          : "MAIA is using fallback mode. Install Lc0 for optimal performance."
-      }
-      arrow
-    >
+    <Tooltip title={tooltipText} arrow>
       <Box
         sx={{
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          color: isOptimal ? "#EC4899" : "#9E9E9E", // Pink (#EC4899) when optimal, gray when not
+          color: isOptimal ? "#EC4899" : isConfigured ? "#FFA726" : "#9E9E9E",
           transition: "color 0.2s ease",
           "&:hover": {
             opacity: 0.8,
@@ -83,6 +79,8 @@ export const MaiaStatusIndicator: React.FC<{ size?: "small" | "medium" }> = ({
       >
         {isOptimal ? (
           <CheckCircle sx={{ fontSize: iconSize }} />
+        ) : !isConfigured ? (
+          <CloudOff sx={{ fontSize: iconSize }} />
         ) : (
           <Cancel sx={{ fontSize: iconSize }} />
         )}

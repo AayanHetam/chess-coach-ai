@@ -9,7 +9,7 @@ import {
 
 export async function POST(req: Request) {
   try {
-    const { fen, themes, limit = 5, command = "find_similar", difficulty } = await req.json();
+    const { fen, themes, limit = 5, command = "find_similar", difficulty, excludeIds } = await req.json();
 
     if (command === "find_similar") {
       if (!themes || themes.length === 0) {
@@ -19,7 +19,12 @@ export async function POST(req: Request) {
         );
       }
 
-      const puzzles = await findSimilarPuzzles(themes, undefined, limit);
+      const puzzles = await queryPuzzles({
+        themes,
+        limit,
+        shuffle: true,
+        excludeIds: excludeIds || undefined,
+      });
 
       return NextResponse.json({
         success: true,
@@ -39,12 +44,43 @@ export async function POST(req: Request) {
         limit,
         difficulty: difficulty as DifficultyBand | DifficultyBand[] | undefined,
         shuffle: true,
+        excludeIds: excludeIds || undefined,
       });
 
       return NextResponse.json({
         success: true,
         puzzles,
         count: puzzles.length,
+      });
+    } else if (command === "random") {
+      const puzzles = await queryPuzzles({
+        limit,
+        difficulty: difficulty as DifficultyBand | DifficultyBand[] | undefined,
+        shuffle: true,
+        excludeIds: excludeIds || undefined,
+      });
+
+      return NextResponse.json({
+        success: true,
+        puzzles,
+        count: puzzles.length,
+      });
+    } else if (command === "daily") {
+      // Deterministic daily puzzle based on date
+      const today = new Date().toISOString().slice(0, 10);
+      const seed = today.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+      const allPuzzles = await queryPuzzles({
+        limit: 500,
+        shuffle: false,
+      });
+      if (allPuzzles.length === 0) {
+        return NextResponse.json({ success: false, error: "No puzzles available" });
+      }
+      const idx = seed % allPuzzles.length;
+      return NextResponse.json({
+        success: true,
+        puzzle: allPuzzles[idx],
+        date: today,
       });
     } else {
       return NextResponse.json(

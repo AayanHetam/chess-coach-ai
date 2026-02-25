@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Chess } from "chess.js";
+import { validateAIResponse } from "@/lib/aiResponseValidator";
+import { annotatePosition, annotationToPromptContext } from "@/lib/positionAnnotator";
+import { selectExamples, formatExamplesForPrompt } from "@/data/goldStandardExamples";
+import { generateCacheKey, getCachedResponse, setCachedResponse } from "@/lib/responseCache";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
@@ -25,6 +29,51 @@ interface GameEvalInput {
 }
 
 /**
+ * Convert a full PV line (array of UCI moves) to SAN notation by replaying each move.
+ */
+function convertPvToSan(fen: string, pvUci: string[]): string[] {
+  const result: string[] = [];
+  try {
+    const g = new Chess(fen);
+    for (const uci of pvUci) {
+      const from = uci.slice(0, 2);
+      const to = uci.slice(2, 4);
+      const promotion = uci.length > 4 ? uci.slice(4) : undefined;
+      const moveResult = g.move({ from, to, promotion });
+      if (!moveResult) break;
+      result.push(moveResult.san);
+    }
+  } catch {
+    // Return what we have so far
+  }
+  return result;
+}
+
+/**
+ * Format a SAN PV array as a numbered move list: "14. Qe2 Nxe5 15. Nxe5 d6"
+ */
+function formatPvAsMoveList(pvSan: string[], startMoveNum: number, startsAsWhite: boolean): string {
+  const parts: string[] = [];
+  let moveNum = startMoveNum;
+  let isWhite = startsAsWhite;
+
+  for (const san of pvSan) {
+    if (isWhite) {
+      parts.push(`${moveNum}. ${san}`);
+    } else {
+      if (parts.length === 0) {
+        parts.push(`${moveNum}... ${san}`);
+      } else {
+        parts.push(san);
+      }
+      moveNum++;
+    }
+    isWhite = !isWhite;
+  }
+  return parts.join(" ");
+}
+
+/**
  * Convert a UCI move string (e.g. "e2e4") to SAN notation using chess.js
  */
 function uciToSan(fen: string, uciMove: string): string {
@@ -37,6 +86,53 @@ function uciToSan(fen: string, uciMove: string): string {
     return result ? result.san : uciMove;
   } catch {
     return uciMove;
+  }
+}
+
+/**
+ * Describe what changed between two FEN positions in plain language.
+ * Reduces LLM hallucination by grounding it in concrete board-state changes.
+ */
+function describeMoveChange(fenBefore: string, moveSan: string): string {
+  try {
+    const g = new Chess(fenBefore);
+    const moveObj = g.move(moveSan);
+    if (!moveObj) return "";
+
+    const parts: string[] = [];
+    const pieceName: Record<string, string> = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
+    const color = moveObj.color === "w" ? "White" : "Black";
+    const piece = pieceName[moveObj.piece] || moveObj.piece;
+
+    if (moveObj.flags.includes("k")) {
+      parts.push(`${color} castled kingside`);
+    } else if (moveObj.flags.includes("q")) {
+      parts.push(`${color} castled queenside`);
+    } else {
+      parts.push(`${color} ${piece} moved from ${moveObj.from} to ${moveObj.to}`);
+    }
+
+    if (moveObj.captured) {
+      const capturedPiece = pieceName[moveObj.captured] || moveObj.captured;
+      parts.push(`capturing ${capturedPiece} on ${moveObj.to}`);
+    }
+
+    if (moveObj.promotion) {
+      const promoPiece = pieceName[moveObj.promotion] || moveObj.promotion;
+      parts.push(`promoted to ${promoPiece}`);
+    }
+
+    if (g.isCheck()) {
+      parts.push("giving check");
+    }
+
+    if (g.isCheckmate()) {
+      parts.push("CHECKMATE");
+    }
+
+    return parts.join(", ");
+  } catch {
+    return "";
   }
 }
 
@@ -91,6 +187,8 @@ function buildGameContext(
       drop: number;
       bestMove: string;
       classification?: string;
+      fenBefore: string;
+      fenAfter: string;
     }> = [];
 
     for (let i = 0; i < moveHistory.length; i++) {
@@ -99,36 +197,48 @@ function buildGameContext(
       const color = i % 2 === 0 ? "White" : "Black";
       const moveLabel = i % 2 === 0 ? `${moveNum}.` : `${moveNum}...`;
 
+      // Compute FEN before and after this move
+      const fenBefore = getFenAtHalfMove(moveHistory, i);
+      const fenAfter = getFenAtHalfMove(moveHistory, i + 1);
+      const moveDescription = describeMoveChange(fenBefore, moveSan);
+
       // Eval BEFORE this move = positions[i], eval AFTER = positions[i+1]
       const evalBefore = gameEval.positions[i];
       const evalAfter = gameEval.positions[i + 1];
 
       let line = `${moveLabel} ${moveSan} (${color})`;
 
+      // Plain-language description of what changed
+      if (moveDescription) {
+        line += ` | ${moveDescription}`;
+      }
+
+      // Before/after FEN for grounding
+      line += `\n    FEN before: ${fenBefore}`;
+      line += `\n    FEN after:  ${fenAfter}`;
+
       // Classification
       const classification = evalAfter?.moveClassification;
       if (classification) {
-        line += ` [${classification.toUpperCase()}]`;
+        line += `\n    Classification: ${classification.toUpperCase()}`;
       }
 
       // Evaluation after
       if (evalAfter?.lines?.[0]) {
         const topLine = evalAfter.lines[0];
         if (topLine.mate !== undefined) {
-          line += ` — Eval: M${topLine.mate > 0 ? "+" : ""}${topLine.mate}`;
+          line += `\n    Eval: M${topLine.mate > 0 ? "+" : ""}${topLine.mate}`;
         } else if (topLine.cp !== undefined) {
           const pawns = (topLine.cp / 100).toFixed(2);
-          line += ` — Eval: ${topLine.cp >= 0 ? "+" : ""}${pawns}`;
+          line += `\n    Eval: ${topLine.cp >= 0 ? "+" : ""}${pawns}`;
         }
       }
 
       // Best move from the position BEFORE this move was played
       if (evalBefore?.bestMove && evalBefore.bestMove !== "N/A") {
-        // We need the FEN before this move to convert UCI to SAN
-        const fenBefore = getFenAtHalfMove(moveHistory, i);
         const bestSan = uciToSan(fenBefore, evalBefore.bestMove);
         if (bestSan !== moveSan) {
-          line += ` — Best was: ${bestSan}`;
+          line += `\n    Best was: ${bestSan}`;
         }
       }
 
@@ -155,7 +265,6 @@ function buildGameContext(
         }
 
         if (drop > 50) { // More than 0.5 pawn drop
-          const fenBefore = getFenAtHalfMove(moveHistory, i);
           const bestSan = evalBefore.bestMove
             ? uciToSan(fenBefore, evalBefore.bestMove)
             : "N/A";
@@ -170,6 +279,8 @@ function buildGameContext(
             drop,
             bestMove: bestSan,
             classification: classification || undefined,
+            fenBefore,
+            fenAfter,
           });
         }
       }
@@ -177,7 +288,7 @@ function buildGameContext(
 
     sections.push(`## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)\n${moveLines.join("\n")}`);
 
-    // --- Top mistakes ---
+    // --- Top mistakes with full PV lines and candidate moves ---
     if (mistakes.length > 0) {
       mistakes.sort((a, b) => b.drop - a.drop);
       const topMistakes = mistakes.slice(0, 10);
@@ -185,10 +296,37 @@ function buildGameContext(
         const severity = m.drop >= 300 ? "BLUNDER" : m.drop >= 150 ? "MISTAKE" : m.drop >= 50 ? "INACCURACY" : "MINOR";
         const evalBeforeStr = Math.abs(m.evalBefore) >= 9000 ? (m.evalBefore > 0 ? "M+" : "M-") : (m.evalBefore / 100).toFixed(2);
         const evalAfterStr = Math.abs(m.evalAfter) >= 9000 ? (m.evalAfter > 0 ? "M+" : "M-") : (m.evalAfter / 100).toFixed(2);
-        return `- Move ${m.moveNum} (${m.color}): ${m.moveSan} [${severity}] — Eval went from ${evalBeforeStr} to ${evalAfterStr} (lost ${(m.drop / 100).toFixed(1)} pawns) — Best was: ${m.bestMove}`;
+        const changeDesc = describeMoveChange(m.fenBefore, m.moveSan);
+        let line = `### Move ${m.moveNum} (${m.color}): ${m.moveSan} [${severity}]`;
+        line += `\n  Eval: ${evalBeforeStr} → ${evalAfterStr} (lost ${(m.drop / 100).toFixed(1)} pawns)`;
+        if (changeDesc) line += `\n  What happened: ${changeDesc}`;
+        line += `\n  FEN before: ${m.fenBefore}`;
+
+        // Include ALL candidate moves with evals and full PV lines from the position BEFORE this move
+        const evalBefore = gameEval!.positions[m.halfMoveIdx];
+        if (evalBefore?.lines && evalBefore.lines.length > 0) {
+          line += `\n  CANDIDATE MOVES (from Stockfish, best first):`;
+          for (const pvLine of evalBefore.lines) {
+            if (!pvLine.pv || pvLine.pv.length === 0) continue;
+            // Convert full PV from UCI to SAN
+            const pvSan = convertPvToSan(m.fenBefore, pvLine.pv);
+            const pvEval = pvLine.mate !== undefined
+              ? `M${pvLine.mate > 0 ? "+" : ""}${pvLine.mate}`
+              : pvLine.cp !== undefined ? `${pvLine.cp >= 0 ? "+" : ""}${(pvLine.cp / 100).toFixed(2)}` : "?";
+            const firstMove = pvSan.length > 0 ? pvSan[0] : pvLine.pv[0];
+            const isPlayed = firstMove === m.moveSan;
+            const fullLine = formatPvAsMoveList(pvSan, m.moveNum, m.halfMoveIdx % 2 === 0);
+            line += `\n    ${isPlayed ? "⮕ PLAYED" : "★ BETTER"}: ${firstMove} (${pvEval}) — Line: ${fullLine} (depth ${pvLine.depth})`;
+          }
+        }
+
+        // What the best line leads to (explain the plan)
+        line += `\n  Best move was: ${m.bestMove}`;
+
+        return line;
       });
 
-      sections.push(`## TOP MISTAKES (sorted by severity)\n${mistakeLines.join("\n")}`);
+      sections.push(`## TOP MISTAKES (sorted by severity — ANALYZE EACH WITH FULL DEPTH)\n${mistakeLines.join("\n\n")}`);
     } else {
       sections.push(`## MISTAKES\nNo significant mistakes detected (all moves within 0.5 pawn of engine best).`);
     }
@@ -198,6 +336,14 @@ function buildGameContext(
 
   // --- Material balance at end ---
   sections.push(`## FINAL POSITION\nFEN: ${game.fen()}\n${getMaterialBalance(game)}`);
+
+  // --- Structured position annotation for the final position ---
+  try {
+    const finalAnnotation = annotatePosition(game.fen());
+    sections.push(annotationToPromptContext(finalAnnotation));
+  } catch (e) {
+    // Non-critical — skip if annotation fails
+  }
 
   return sections.join("\n\n");
 }
@@ -337,7 +483,49 @@ export async function POST(request: NextRequest) {
       userContent += gameContext;
     }
 
+    // Inject gold-standard few-shot examples for quality benchmarking
+    const skillLevel = userRating
+      ? (userRating < 1000 ? "beginner" : userRating < 1600 ? "intermediate" : "advanced") as "beginner" | "intermediate" | "advanced"
+      : "intermediate" as const;
+    const examples = selectExamples(undefined, skillLevel, 2);
+    const examplesContext = formatExamplesForPrompt(examples);
+    if (examplesContext) {
+      userContent += examplesContext;
+    }
+
     openaiMessages.push({ role: "user", content: userContent });
+
+    // Check response cache before calling OpenAI
+    const currentFen = fen || (moveHistory && moveHistory.length > 0
+      ? getFenAtHalfMove(moveHistory, moveHistory.length)
+      : "startpos");
+    const cacheKey = generateCacheKey(currentFen, skillLevel, messageText || "analyze");
+    const cachedResponse = getCachedResponse(cacheKey);
+
+    if (cachedResponse) {
+      // Build game state for metadata even on cache hit
+      const cachedGame = new Chess();
+      if (moveHistory && moveHistory.length > 0) {
+        for (const m of moveHistory) {
+          try { cachedGame.move(m); } catch { break; }
+        }
+      } else if (fen) {
+        try { cachedGame.load(fen); } catch { /* ignore */ }
+      }
+
+      return NextResponse.json({
+        gameAnalysis: {
+          analysis: cachedResponse,
+          position: cachedGame.fen(),
+          turn: cachedGame.turn(),
+          moveCount: Math.ceil(cachedGame.history().length / 2),
+          availableMoves: cachedGame.moves().length,
+          validationScore: 1.0,
+          validationIssues: 0,
+          cached: true,
+        },
+      });
+    }
 
     // Call OpenAI
     const openaiResponse = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
@@ -367,9 +555,9 @@ export async function POST(request: NextRequest) {
     }
 
     const openaiData = await openaiResponse.json();
-    const analysisContent = openaiData.choices?.[0]?.message?.content || "No analysis generated.";
+    const rawAnalysis = openaiData.choices?.[0]?.message?.content || "No analysis generated.";
 
-    // Return the analysis
+    // Build final game state for response metadata
     const game = new Chess();
     if (moveHistory && moveHistory.length > 0) {
       for (const m of moveHistory) {
@@ -379,13 +567,32 @@ export async function POST(request: NextRequest) {
       try { game.load(fen); } catch { /* ignore */ }
     }
 
+    // Validate the LLM response against the actual board state
+    const validationFen = game.fen();
+    const validation = validateAIResponse(rawAnalysis, validationFen, moveHistory);
+
+    if (validation.issues.length > 0) {
+      console.log(`🔍 AI Response Validation: ${validation.issues.length} issue(s) found, score: ${validation.score.toFixed(2)}`);
+      validation.issues.forEach(issue => {
+        console.log(`  [${issue.severity}] ${issue.type}: ${issue.detail}`);
+      });
+    }
+
+    // Use the validated (potentially annotated) response
+    const analysisContent = validation.isValid ? rawAnalysis : validation.correctedResponse;
+
+    // Cache the validated response for future identical queries
+    setCachedResponse(cacheKey, analysisContent, validation.score);
+
     return NextResponse.json({
       gameAnalysis: {
         analysis: analysisContent,
-        position: game.fen(),
+        position: validationFen,
         turn: game.turn(),
         moveCount: Math.ceil(game.history().length / 2),
         availableMoves: game.moves().length,
+        validationScore: validation.score,
+        validationIssues: validation.issues.length,
       },
     });
   } catch (error) {

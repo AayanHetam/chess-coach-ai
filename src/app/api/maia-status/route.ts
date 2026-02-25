@@ -1,82 +1,78 @@
 import { NextResponse } from "next/server";
-import { join } from "path";
-import { spawn } from "child_process";
 
 /**
- * Check if Lc0 is available on the server
+ * Check Maia-2 microservice health.
+ *
+ * Instead of checking for a local LC0 binary (impossible on Vercel),
+ * we ping the external Maia-2 microservice's /health endpoint.
  */
-async function checkLc0Available(): Promise<boolean> {
-  // Check environment variable first
-  if (process.env.LC0_PATH) {
-    return true; // Assume available if path is set
+
+const MAIA_API_URL = process.env.MAIA_API_URL;
+
+async function checkMaiaServiceHealth(): Promise<{
+  available: boolean;
+  modelLoaded: boolean;
+  error?: string;
+}> {
+  if (!MAIA_API_URL) {
+    return {
+      available: false,
+      modelLoaded: false,
+      error: "MAIA_API_URL environment variable is not set",
+    };
   }
 
-  // Check common locations
-  const commonPaths = [
-    "lc0",
-    "/usr/local/bin/lc0",
-    "/usr/bin/lc0",
-    join(process.cwd(), "lc0"),
-    join(process.cwd(), "bin", "lc0"),
-  ];
-
-  // Try to find lc0 in PATH
-  const { exec } = await import("child_process");
-  const { promisify } = await import("util");
-  const execAsync = promisify(exec);
-
-  for (const path of commonPaths) {
-    try {
-      await execAsync(`which ${path}`);
-      return true;
-    } catch {
-      // Try next path
-    }
-  }
-
-  // Try to run lc0 directly
   try {
-    const testProcess = spawn("lc0", ["--help"]);
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        testProcess.kill();
-        resolve(false);
-      }, 2000);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
-      testProcess.on("error", () => {
-        clearTimeout(timeout);
-        resolve(false);
-      });
-
-      testProcess.on("exit", (code) => {
-        clearTimeout(timeout);
-        resolve(code === 0 || code === null);
-      });
+    const response = await fetch(`${MAIA_API_URL}/health`, {
+      signal: controller.signal,
     });
-  } catch {
-    return false;
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return {
+        available: false,
+        modelLoaded: false,
+        error: `Service returned ${response.status}`,
+      };
+    }
+
+    const data = await response.json();
+    return {
+      available: true,
+      modelLoaded: data.model_loaded ?? false,
+      error: data.error || undefined,
+    };
+  } catch (error) {
+    return {
+      available: false,
+      modelLoaded: false,
+      error:
+        error instanceof Error ? error.message : "Failed to reach Maia service",
+    };
   }
 }
 
 export async function GET() {
   try {
-    const lc0Available = await checkLc0Available();
+    const health = await checkMaiaServiceHealth();
 
     return NextResponse.json({
-      lc0Available,
-      maiaOptimal: lc0Available,
-      message: lc0Available
-        ? "MAIA is running optimally with Lc0"
-        : "Lc0 is not installed. Install Lc0 for the best MAIA experience.",
-      downloadLinks: {
-        windows: "https://github.com/LeelaChessZero/lc0/releases/latest",
-        macos: "https://github.com/LeelaChessZero/lc0/releases/latest", 
-        linux: "https://github.com/LeelaChessZero/lc0/releases/latest",
-        homebrew: "brew install lc0",
-        documentation: "https://github.com/LeelaChessZero/lc0",
-        maiaModels: "https://github.com/CSSLab/maia-chess",
-        maiaWeights: "https://github.com/CSSLab/maia-chess/releases",
-      },
+      lc0Available: health.available && health.modelLoaded,
+      maiaOptimal: health.available && health.modelLoaded,
+      maiaServiceConfigured: !!MAIA_API_URL,
+      maiaServiceReachable: health.available,
+      maiaModelLoaded: health.modelLoaded,
+      model: "maia2",
+      message: health.available && health.modelLoaded
+        ? "Maia-2 is running and ready for predictions"
+        : !MAIA_API_URL
+          ? "Maia-2 service not configured. Set MAIA_API_URL environment variable."
+          : health.available
+            ? `Maia-2 service reachable but model not loaded: ${health.error || "unknown error"}`
+            : `Maia-2 service unreachable: ${health.error || "unknown error"}`,
     });
   } catch (error) {
     console.error("Error checking MAIA status:", error);
@@ -84,16 +80,11 @@ export async function GET() {
       {
         lc0Available: false,
         maiaOptimal: false,
-        message: "Unable to check MAIA status",
-        downloadLinks: {
-          windows: "https://github.com/LeelaChessZero/lc0/releases/latest",
-          macos: "https://github.com/LeelaChessZero/lc0/releases/latest",
-          linux: "https://github.com/LeelaChessZero/lc0/releases/latest",
-          homebrew: "brew install lc0",
-          documentation: "https://github.com/LeelaChessZero/lc0",
-          maiaModels: "https://github.com/CSSLab/maia-chess",
-          maiaWeights: "https://github.com/CSSLab/maia-chess/releases",
-        },
+        maiaServiceConfigured: !!MAIA_API_URL,
+        maiaServiceReachable: false,
+        maiaModelLoaded: false,
+        model: "maia2",
+        message: "Unable to check Maia-2 status",
       },
       { status: 500 }
     );

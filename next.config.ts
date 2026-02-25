@@ -11,7 +11,7 @@ const nextConfig = (phase: string): NextConfig => ({
     ignoreDuringBuilds: true,
   },
   typescript: {
-    ignoreBuildErrors: true, // Temporarily ignore to allow deployment
+    ignoreBuildErrors: true,
   },
   images: {
     unoptimized: true,

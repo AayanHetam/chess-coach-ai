@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
-import { MaiaServerService } from "@/lib/engine/maiaServerService";
-import { join } from "path";
+
+/**
+ * Maia-2 Prediction API — proxies to external Maia-2 microservice.
+ *
+ * The Maia-2 model (NeurIPS 2024) runs as a separate Python/FastAPI service
+ * because Vercel serverless cannot run PyTorch or native binaries like LC0.
+ * Set the MAIA_API_URL environment variable to point to your deployed service.
+ */
+
+const MAIA_API_URL = process.env.MAIA_API_URL;
 
 export async function POST(req: Request) {
   try {
-    const { fen, rating } = await req.json();
+    const { fen, rating, opponent_rating } = await req.json();
 
     if (!fen) {
       return NextResponse.json(
@@ -13,39 +21,50 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get server-side Maia service instance (auto-downloads weights)
-    const weightsDir =
-      process.env.MAIA_WEIGHTS_PATH ||
-      join(process.cwd(), "maia-weights");
-    const maiaService = MaiaServerService.getInstance(weightsDir);
-
-    // Initialize if needed (will auto-download weights)
-    try {
-      await maiaService.initialize(rating || 1500);
-    } catch (error) {
-      console.error("Maia initialization error:", error);
-      // Return a fallback response if Maia is not available
+    if (!MAIA_API_URL) {
       return NextResponse.json(
         {
-          error: "Maia engine not available",
+          error: "Maia API not configured",
           message:
-            error instanceof Error
-              ? error.message
-              : "Maia engine is not configured. The system will attempt to download weights automatically on first use.",
+            "MAIA_API_URL environment variable is not set. Deploy the Maia-2 microservice and set the URL.",
           fallback: true,
         },
         { status: 503 }
       );
     }
 
-    // Get prediction
-    const prediction = await maiaService.predictMove(fen, rating || 1500);
+    // Proxy to external Maia-2 microservice
+    const response = await fetch(`${MAIA_API_URL}/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fen,
+        rating: rating || 1500,
+        opponent_rating: opponent_rating || rating || 1500,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Maia-2 service error:", response.status, errorData);
+      return NextResponse.json(
+        {
+          error: "Maia-2 service error",
+          message: errorData.detail || `Service returned ${response.status}`,
+          fallback: true,
+        },
+        { status: response.status }
+      );
+    }
+
+    const prediction = await response.json();
 
     return NextResponse.json({
       humanLikeMove: prediction.humanLikeMove,
       confidence: prediction.confidence,
       alternativeMoves: prediction.alternativeMoves,
       rating: prediction.rating,
+      model: prediction.model || "maia2",
     });
   } catch (error) {
     console.error("Maia prediction error:", error);
@@ -53,37 +72,41 @@ export async function POST(req: Request) {
       {
         error: "Failed to get Maia prediction",
         details: error instanceof Error ? error.message : "Unknown error",
+        fallback: true,
       },
       { status: 500 }
     );
   }
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   // Return API documentation
+  const serviceStatus = MAIA_API_URL ? "configured" : "not configured";
+
   return NextResponse.json({
-    name: "Maia Prediction API",
-    description: "Get human-like move predictions using Maia engine",
+    name: "Maia-2 Prediction API",
+    description:
+      "Get human-like move predictions using Maia-2 (NeurIPS 2024). Proxies to an external Maia-2 microservice.",
+    serviceUrl: MAIA_API_URL ? "(configured)" : "(not set — set MAIA_API_URL)",
+    serviceStatus,
     endpoints: {
       POST: {
         description: "Predict human-like move for a position",
         body: {
           fen: "string (required) - FEN position",
-          rating: "number (optional) - Player rating (default: 1500)",
+          rating: "number (optional) - Player ELO rating (default: 1500)",
+          opponent_rating:
+            "number (optional) - Opponent ELO rating (default: same as rating)",
         },
         response: {
           humanLikeMove: "string - Predicted human-like move in SAN notation",
           confidence: "number - Confidence score (0-1)",
           alternativeMoves: "array - Alternative moves with probabilities",
           rating: "number - Rating level used for prediction",
+          model: "string - Model used (maia2)",
         },
       },
     },
-    notes: [
-      "Requires Lc0 engine to be installed",
-      "Requires Maia weight files (maia-1100.pb, maia-1500.pb, maia-1900.pb, maia-2100.pb)",
-      "Rating determines which Maia model to use",
-    ],
   });
 }
 

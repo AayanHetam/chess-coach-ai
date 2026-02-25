@@ -12,6 +12,10 @@ import {
 import SendIcon from "@mui/icons-material/Send";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ThumbUpOutlinedIcon from "@mui/icons-material/ThumbUpOutlined";
+import ThumbDownOutlinedIcon from "@mui/icons-material/ThumbDownOutlined";
+import ThumbUpIcon from "@mui/icons-material/ThumbUp";
+import ThumbDownIcon from "@mui/icons-material/ThumbDown";
 import { styled } from "@mui/material/styles";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -38,9 +42,12 @@ import {
   PracticePuzzle,
 } from "@/sections/practice/states";
 import { getPuzzlesByTheme, normalizeThemeName, TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
+import { isExplorationModeAtom } from "@/components/board/states";
 import { selectedCoachIdAtom } from "@/atoms/coachAtoms";
 import { getPersonalityById } from "@/config/coachPersonalities";
 import { useAuth } from "@/contexts/AuthContext";
+import { storeFeedback } from "@/lib/feedbackStore";
+import { loadWeaknessProfile, getWeaknessPromptContext } from "@/lib/weaknessProfile";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -271,88 +278,104 @@ const ClickableMove: React.FC<{
   isRecommended?: boolean; // New prop to distinguish recommended moves
 }> = ({ move, moveNumber, isBlackMove, isRecommended = false }) => {
   const game = useAtomValue(gameAtom);
-  const { goToMove } = useChessActions(boardAtom);
+  const board = useAtomValue(boardAtom);
+  const isExplorationMode = useAtomValue(isExplorationModeAtom);
+  const { goToMove, addMoves } = useChessActions(boardAtom);
 
   console.log(
     `ClickableMove created: ${moveNumber}.${isBlackMove ? ".." : ""} ${move} ${isRecommended ? "(recommended)" : ""}`
   );
+
+  // Helper: enter exploration mode by replaying game to a half-move index, then playing an alternative move
+  const enterExplorationAt = (halfMoveIdx: number, altMove: string): boolean => {
+    try {
+      const gameHistory = game.history();
+      const newGame = new Chess();
+      // Replay the original game up to BEFORE the target half-move
+      for (let i = 0; i < halfMoveIdx && i < gameHistory.length; i++) {
+        newGame.move(gameHistory[i]);
+      }
+      // Play the alternative/recommended move
+      newGame.move(altMove);
+      goToMove(newGame.history().length, newGame);
+      console.log(`✅ Entered exploration mode: ${altMove} at half-move ${halfMoveIdx}`);
+      return true;
+    } catch (error) {
+      console.warn(`Could not enter exploration for ${altMove}:`, error);
+      return false;
+    }
+  };
 
   const handleMoveClick = () => {
     console.log(
       `ClickableMove clicked: ${moveNumber}.${isBlackMove ? ".." : ""} ${move}`
     );
     
-    if (isRecommended) {
-      // Exploration mode for recommended moves
-      const gameHistory = game.history();
-      const newGame = new Chess();
-      
-      // Play all moves up to the point before this move
-      for (let i = 0; i < gameHistory.length - 1; i++) {
-        newGame.move(gameHistory[i]);
-      }
-      
-      // Play the recommended move instead
-      newGame.move(move);
-      
-      // Navigate to the new position
-      goToMove(newGame.history().length, newGame);
-      console.log(`✅ Explored recommended move: ${move}`);
+    // Calculate the half-move index for this move number
+    const halfMoveIdx = moveNumber !== undefined
+      ? (isBlackMove ? moveNumber * 2 - 1 : (moveNumber - 1) * 2)
+      : -1;
+
+    if (isRecommended && moveNumber !== undefined) {
+      // GREEN LINK: Enter exploration mode at the correct position
+      enterExplorationAt(halfMoveIdx, move);
       return;
     }
     
     try {
       const gameHistory = game.history();
-      console.log("Game history length:", gameHistory.length);
-      let targetMoveIndex = -1;
 
       if (moveNumber !== undefined) {
-        // Calculate the exact index based on move number and color
-        if (isBlackMove) {
-          // Black move: moveNumber * 2 - 1 (e.g., move 11 black = index 21)
-          targetMoveIndex = moveNumber * 2 - 1;
-        } else {
-          // White move: moveNumber * 2 - 2 (e.g., move 11 white = index 20)
-          targetMoveIndex = moveNumber * 2 - 2;
-        }
+        // We have a move number — use it to navigate precisely
+        const targetMoveIndex = halfMoveIdx;
 
-        console.log(
-          `Calculated target index: ${targetMoveIndex}, Game history at that index: ${gameHistory[targetMoveIndex]}`
-        );
-
-        // Verify the move matches what we expect
+        // Check if the move matches at the expected position in the original game
         if (
           targetMoveIndex >= 0 &&
           targetMoveIndex < gameHistory.length &&
           gameHistory[targetMoveIndex] === move
         ) {
-          console.log("Perfect match found!");
-          // Perfect match found
-        } else {
-          console.log("No perfect match, searching for move...");
-          // Fallback to searching for the move
-          targetMoveIndex = gameHistory.findIndex(
-            (historyMove) => historyMove === move
-          );
-          console.log(`Search result index: ${targetMoveIndex}`);
+          // Exact match — navigate to this move in the original game
+          goToMove(targetMoveIndex + 1, game);
+          console.log(`✅ Navigated to move ${targetMoveIndex + 1}: ${move}`);
+          return;
         }
+
+        // Move doesn't match at expected index — this is an alternative/engine move
+        // Enter exploration mode at this specific move number's position
+        console.log(`Move "${move}" not at expected index ${targetMoveIndex}, entering exploration mode at move ${moveNumber}`);
+        if (enterExplorationAt(halfMoveIdx >= 0 ? halfMoveIdx : 0, move)) return;
+
       } else {
-        // Search for the move in history (find first occurrence)
-        targetMoveIndex = gameHistory.findIndex(
+        // No move number — search for the move in history (find first occurrence)
+        const targetMoveIndex = gameHistory.findIndex(
           (historyMove) => historyMove === move
         );
+        if (targetMoveIndex >= 0) {
+          goToMove(targetMoveIndex + 1, game);
+          console.log(`✅ Navigated to move ${targetMoveIndex + 1}: ${move}`);
+          return;
+        }
       }
 
-      if (targetMoveIndex >= 0) {
-        // Navigate to the move (add 1 because goToMove expects position after the move)
-        goToMove(targetMoveIndex + 1, game);
-        console.log(`✅ Navigated to move ${targetMoveIndex + 1}: ${move}`);
-      } else {
-        console.warn(
-          `❌ Could not find move "${move}" in game history:`,
-          gameHistory
-        );
+      // FALLBACK: If board is already in exploration mode, try playing the move
+      // on the CURRENT board position (supports sequential continuation clicks)
+      if (isExplorationMode) {
+        try {
+          const boardCopy = new Chess();
+          boardCopy.loadPgn(board.pgn());
+          boardCopy.move(move);
+          goToMove(boardCopy.history().length, boardCopy);
+          console.log(`✅ Played continuation move on current board: ${move}`);
+          return;
+        } catch {
+          console.log(`Could not play ${move} on current board`);
+        }
       }
+
+      console.warn(
+        `❌ Could not find or explore move "${move}" in game history`
+      );
     } catch (error) {
       console.error("Error navigating to move:", error);
     }
@@ -403,6 +426,325 @@ const ClickableMove: React.FC<{
 
 
 
+
+// Helper: convert UCI PV array to SAN from a given FEN
+function uciPvToSan(fen: string, pvUci: string[]): string[] {
+  const result: string[] = [];
+  try {
+    const g = new Chess(fen);
+    for (const uci of pvUci) {
+      const from = uci.slice(0, 2);
+      const to = uci.slice(2, 4);
+      const promotion = uci.length > 4 ? uci.slice(4) : undefined;
+      try {
+        const moveResult = g.move({ from, to, promotion });
+        if (!moveResult) break;
+        result.push(moveResult.san);
+      } catch { break; }
+    }
+  } catch { /* ignore */ }
+  return result;
+}
+
+// Helper: format SAN array as numbered move list
+function formatSanAsMoveList(sanMoves: string[], startMoveNum: number, startsAsWhite: boolean): string {
+  const parts: string[] = [];
+  let moveNum = startMoveNum;
+  let isWhite = startsAsWhite;
+  for (const san of sanMoves) {
+    if (isWhite) {
+      parts.push(`${moveNum}. ${san}`);
+    } else {
+      if (parts.length === 0) parts.push(`${moveNum}... ${san}`);
+      else parts.push(san);
+      moveNum++;
+    }
+    isWhite = !isWhite;
+  }
+  return parts.join(" ");
+}
+
+// Engine-backed continuation: reads real Stockfish PV from gameEvalAtom (no LLM hallucinations)
+const EngineContinuation: React.FC<{
+  moveNum: number;    // Full move number (e.g. 14)
+  color: "w" | "b";  // Color whose move this is
+}> = ({ moveNum, color }) => {
+  const gameEval = useAtomValue(gameEvalAtom);
+  const game = useAtomValue(gameAtom);
+  const { goToMove } = useChessActions(boardAtom);
+
+  // Calculate half-move index: white move 14 = index 26, black move 14 = index 27
+  const halfMoveIdx = color === "b" ? moveNum * 2 - 1 : (moveNum - 1) * 2;
+  const gameHistory = game.history();
+
+  // Get PV from Stockfish evaluation data
+  const posEval = gameEval?.positions?.[halfMoveIdx];
+  const pvLine = posEval?.lines?.[0]; // Best line (multiPv=1)
+
+  if (!pvLine?.pv || pvLine.pv.length === 0) {
+    return <span style={{ color: "#999", fontStyle: "italic", fontSize: "0.85em" }}>(Engine line not available for move {moveNum})</span>;
+  }
+
+  // Get FEN at position before this move by replaying game
+  let fenBeforeMove = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  try {
+    const tempGame = new Chess();
+    for (let i = 0; i < halfMoveIdx && i < gameHistory.length; i++) {
+      tempGame.move(gameHistory[i]);
+    }
+    fenBeforeMove = tempGame.fen();
+  } catch { /* use default */ }
+
+  // Convert UCI PV to SAN
+  const pvSan = uciPvToSan(fenBeforeMove, pvLine.pv);
+  if (pvSan.length === 0) {
+    return <span style={{ color: "#999", fontStyle: "italic", fontSize: "0.85em" }}>(Could not parse engine line)</span>;
+  }
+
+  const isWhiteStart = color === "w";
+  const displayText = formatSanAsMoveList(pvSan, moveNum, isWhiteStart);
+
+  // Format eval
+  const evalStr = pvLine.mate !== undefined
+    ? `M${pvLine.mate > 0 ? "+" : ""}${pvLine.mate}`
+    : pvLine.cp !== undefined ? `${pvLine.cp >= 0 ? "+" : ""}${(pvLine.cp / 100).toFixed(1)}` : "";
+
+  const handlePlayLine = () => {
+    try {
+      const newGame = new Chess();
+      for (let i = 0; i < halfMoveIdx && i < gameHistory.length; i++) {
+        newGame.move(gameHistory[i]);
+      }
+      for (const san of pvSan) {
+        try { newGame.move(san); } catch { break; }
+      }
+      goToMove(newGame.history().length, newGame);
+      console.log(`✅ Played engine continuation (${pvSan.length} moves) from move ${moveNum}`);
+    } catch (error) {
+      console.error("Error playing engine continuation:", error);
+    }
+  };
+
+  return (
+    <div style={{
+      margin: "6px 0",
+      padding: "8px 12px",
+      borderRadius: "8px",
+      backgroundColor: "rgba(76, 175, 80, 0.08)",
+      border: "1px solid rgba(76, 175, 80, 0.25)",
+      fontSize: "0.9em",
+    }}>
+      <div style={{ marginBottom: "4px" }}>
+        <strong style={{ color: "#2E7D32" }}>Engine Best Line {evalStr && `(${evalStr})`}:</strong>{" "}
+        <span>{displayText}</span>
+      </div>
+      <span
+        onClick={handlePlayLine}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          color: "#4CAF50",
+          cursor: "pointer",
+          fontWeight: "bold",
+          padding: "3px 8px",
+          borderRadius: "6px",
+          backgroundColor: "rgba(76, 175, 80, 0.15)",
+          border: "1px solid rgba(76, 175, 80, 0.4)",
+          fontSize: "0.85em",
+          transition: "all 0.2s ease",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(76, 175, 80, 0.3)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(76, 175, 80, 0.15)";
+        }}
+        title={`Click to play this line on the board`}
+      >
+        ▶ Play on Board
+      </span>
+    </div>
+  );
+};
+
+// Maia continuation: user's color plays engine best, opponent plays Maia-predicted moves
+const MaiaContinuation: React.FC<{
+  moveNum: number;
+  color: "w" | "b"; // Color of the user (whose mistake this was)
+}> = ({ moveNum, color }) => {
+  const gameEval = useAtomValue(gameEvalAtom);
+  const game = useAtomValue(gameAtom);
+  const { goToMove } = useChessActions(boardAtom);
+  const [maiaLine, setMaiaLine] = React.useState<string[] | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const halfMoveIdx = color === "b" ? moveNum * 2 - 1 : (moveNum - 1) * 2;
+  const gameHistory = game.history();
+
+  const buildMaiaLine = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Get FEN at position before this move
+      const tempGame = new Chess();
+      for (let i = 0; i < halfMoveIdx && i < gameHistory.length; i++) {
+        tempGame.move(gameHistory[i]);
+      }
+
+      // Get the engine best moves from PV
+      const posEval = gameEval?.positions?.[halfMoveIdx];
+      const pvLine = posEval?.lines?.[0];
+      if (!pvLine?.pv || pvLine.pv.length === 0) {
+        setError("No engine data available");
+        setLoading(false);
+        return;
+      }
+
+      // Build hybrid line: user color = engine best, opponent = Maia predicted
+      const resultSan: string[] = [];
+      const userIsWhite = color === "w";
+      let currentIsWhite = userIsWhite; // First move is user's best move
+      
+      // Play engine best move first (this is the recommended move)
+      const firstUci = pvLine.pv[0];
+      const firstResult = tempGame.move({ from: firstUci.slice(0, 2), to: firstUci.slice(2, 4), promotion: firstUci.length > 4 ? firstUci.slice(4) : undefined });
+      if (!firstResult) { setError("Could not play engine move"); setLoading(false); return; }
+      resultSan.push(firstResult.san);
+      currentIsWhite = !currentIsWhite;
+
+      // Now alternate: opponent = Maia, user = engine best
+      for (let step = 0; step < 8; step++) { // Max 8 more half-moves
+        const fen = tempGame.fen();
+        const isUserTurn = (currentIsWhite && userIsWhite) || (!currentIsWhite && !userIsWhite);
+
+        if (isUserTurn) {
+          // User's turn: play engine best from current eval (or PV if available)
+          // Try to use PV continuation
+          const pvIdx = resultSan.length;
+          if (pvIdx < pvLine.pv.length) {
+            const uci = pvLine.pv[pvIdx];
+            try {
+              const r = tempGame.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.length > 4 ? uci.slice(4) : undefined });
+              if (r) { resultSan.push(r.san); currentIsWhite = !currentIsWhite; continue; }
+            } catch { /* fall through */ }
+          }
+          break; // No more engine moves available
+        } else {
+          // Opponent's turn: ask Maia for prediction
+          try {
+            const resp = await fetch("/api/maia-predict", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ fen, rating: 1500 }),
+            });
+            const data = await resp.json();
+            if (data.humanLikeMove) {
+              try {
+                const r = tempGame.move(data.humanLikeMove);
+                if (r) { resultSan.push(r.san); currentIsWhite = !currentIsWhite; continue; }
+              } catch { /* Maia move illegal, try from PV */ }
+            }
+          } catch { /* Maia API failed */ }
+
+          // Fallback: use PV move for opponent too
+          const pvIdx = resultSan.length;
+          if (pvIdx < pvLine.pv.length) {
+            const uci = pvLine.pv[pvIdx];
+            try {
+              const r = tempGame.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.length > 4 ? uci.slice(4) : undefined });
+              if (r) { resultSan.push(r.san); currentIsWhite = !currentIsWhite; continue; }
+            } catch { /* ignore */ }
+          }
+          break; // No more moves available
+        }
+      }
+
+      setMaiaLine(resultSan);
+    } catch (err) {
+      setError("Failed to build Maia line");
+      console.error(err);
+    }
+    setLoading(false);
+  };
+
+  const handlePlayLine = () => {
+    if (!maiaLine || maiaLine.length === 0) return;
+    try {
+      const newGame = new Chess();
+      for (let i = 0; i < halfMoveIdx && i < gameHistory.length; i++) {
+        newGame.move(gameHistory[i]);
+      }
+      for (const san of maiaLine) {
+        try { newGame.move(san); } catch { break; }
+      }
+      goToMove(newGame.history().length, newGame);
+    } catch (error) {
+      console.error("Error playing Maia continuation:", error);
+    }
+  };
+
+  const isWhiteStart = color === "w";
+  const displayText = maiaLine ? formatSanAsMoveList(maiaLine, moveNum, isWhiteStart) : "";
+
+  return (
+    <div style={{
+      margin: "6px 0",
+      padding: "8px 12px",
+      borderRadius: "8px",
+      backgroundColor: "rgba(156, 39, 176, 0.08)",
+      border: "1px solid rgba(156, 39, 176, 0.25)",
+      fontSize: "0.9em",
+    }}>
+      <div style={{ marginBottom: "4px" }}>
+        <strong style={{ color: "#7B1FA2" }}>Maia Realistic Line</strong>
+        <span style={{ color: "#9C27B0", fontSize: "0.8em", marginLeft: "6px" }}>
+          (You play best moves, opponent plays most likely human responses)
+        </span>
+      </div>
+      {!maiaLine && !loading && !error && (
+        <span
+          onClick={buildMaiaLine}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: "4px",
+            color: "#9C27B0", cursor: "pointer", fontWeight: "bold",
+            padding: "3px 8px", borderRadius: "6px",
+            backgroundColor: "rgba(156, 39, 176, 0.15)",
+            border: "1px solid rgba(156, 39, 176, 0.4)",
+            fontSize: "0.85em", transition: "all 0.2s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.3)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.15)"; }}
+        >
+          🤖 Compute Maia Line
+        </span>
+      )}
+      {loading && <span style={{ color: "#9C27B0" }}>Computing Maia predictions...</span>}
+      {error && <span style={{ color: "#999", fontStyle: "italic" }}>{error}</span>}
+      {maiaLine && maiaLine.length > 0 && (
+        <>
+          <div style={{ margin: "4px 0" }}>{displayText}</div>
+          <span
+            onClick={handlePlayLine}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "4px",
+              color: "#9C27B0", cursor: "pointer", fontWeight: "bold",
+              padding: "3px 8px", borderRadius: "6px",
+              backgroundColor: "rgba(156, 39, 176, 0.15)",
+              border: "1px solid rgba(156, 39, 176, 0.4)",
+              fontSize: "0.85em", transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.3)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.15)"; }}
+          >
+            ▶ Play on Board
+          </span>
+        </>
+      )}
+    </div>
+  );
+};
 
 // New component for hypothetical "what-if" moves
 const HypotheticalMove: React.FC<{
@@ -477,6 +819,54 @@ const HypotheticalMove: React.FC<{
       {moveNumber}.{isBlackMove ? ".." : ""} {move}
     </span>
   );
+};
+
+// Helper function to process [CONTINUATION:moveNum:color] and [MAIA_CONTINUATION:moveNum:color] tokens
+// These render engine-backed continuation lines from real Stockfish PV data (no LLM hallucinations)
+const processContinuationTokens = (text: string): Array<string | React.ReactElement> => {
+  const tokenPattern = /\[(CONTINUATION|MAIA_CONTINUATION):(\d+):(w|b)\]/g;
+  
+  const parts: Array<string | React.ReactElement> = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = tokenPattern.exec(text)) !== null) {
+    // Add text before the token
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    const type = match[1]; // "CONTINUATION" or "MAIA_CONTINUATION"
+    const moveNum = parseInt(match[2]);
+    const color = match[3] as "w" | "b";
+
+    if (type === "CONTINUATION") {
+      parts.push(
+        <EngineContinuation
+          key={`engine-cont-${match.index}`}
+          moveNum={moveNum}
+          color={color}
+        />
+      );
+    } else {
+      parts.push(
+        <MaiaContinuation
+          key={`maia-cont-${match.index}`}
+          moveNum={moveNum}
+          color={color}
+        />
+      );
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [text];
 };
 
 // Helper function to process position links
@@ -597,6 +987,17 @@ const processCorrectMoveLinks = (text: string, game: Chess, moveNumber?: number,
 const renderTextWithClickableMoves = (text: string, game?: Chess) => {
   if (!text) return null;
 
+  // Step 0: Process [CONTINUATION:X:c] and [MAIA_CONTINUATION:X:c] tokens → engine-backed lines
+  const textWithContinuations = processContinuationTokens(text);
+  if (textWithContinuations.length > 1 || (textWithContinuations.length === 1 && typeof textWithContinuations[0] !== "string")) {
+    return <>{textWithContinuations.map((part, idx) => {
+      if (typeof part === "string") {
+        return <React.Fragment key={idx}>{renderTextWithClickableMoves(part, game)}</React.Fragment>;
+      }
+      return <React.Fragment key={idx}>{part}</React.Fragment>;
+    })}</>;
+  }
+
   // First, process practice puzzle buttons [PRACTICE:theme:displayName]
   const textWithPractice = processPracticeButtons(text);
   if (textWithPractice.length > 1 || (textWithPractice.length === 1 && typeof textWithPractice[0] !== "string")) {
@@ -682,10 +1083,10 @@ const renderMovesInText = (text: string) => {
       type: "ai",
       priority: 2,
     },
-    // Priority 3: Standard notation "15. Nf3" or "15... cxd4"
+    // Priority 3: Standard notation "15. Nf3" or "15... cxd4" (1-3 dots)
     {
       pattern:
-        /(\d+)\.\.\.?\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g,
+        /(\d+)\.{1,3}\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g,
       type: "standard",
       priority: 3,
     },
@@ -998,6 +1399,44 @@ const MessageBubble = styled(Box, {
   },
 }));
 
+// Smart greeting when a game is loaded — AI speaks first
+function getSmartGameGreeting(
+  game: Chess,
+  playerInfo: { username?: string | null; playerColor?: string | null }
+): string {
+  const moveCount = Math.ceil(game.history().length / 2);
+  const playerColor = playerInfo.playerColor === "white" ? "w" : playerInfo.playerColor === "black" ? "b" : null;
+  const playerName = playerInfo.username || "you";
+
+  if (game.isCheckmate()) {
+    const winnerSide = game.turn() === "w" ? "b" : "w"; // side that delivered mate wins
+    if (playerColor && playerColor === winnerSide) {
+      return `Nice win, ${playerName}! 🎉 You checkmated your opponent in ${moveCount} moves. I'm your AI chess coach — would you like me to review the game, point out your best moves, or focus on any particular part?`;
+    } else if (playerColor) {
+      return `Tough loss, ${playerName}. Your opponent found checkmate on move ${moveCount}. But every loss is a learning opportunity! I'm your AI chess coach — want me to analyze what went wrong and show you how to improve?`;
+    }
+    return `The game ended in checkmate after ${moveCount} moves. I'm your AI chess coach — what would you like to analyze?`;
+  }
+
+  if (game.isDraw()) {
+    if (game.isStalemate()) {
+      return `The game ended in stalemate after ${moveCount} moves — so close! I'm your AI chess coach. Want me to review the endgame and show where the win was?`;
+    }
+    return `A hard-fought draw after ${moveCount} moves. I'm your AI chess coach — would you like me to analyze the key moments or find where you could have pushed for a win?`;
+  }
+
+  if (game.isGameOver()) {
+    return `The game has ended after ${moveCount} moves. I'm your AI chess coach — what aspect would you like me to analyze?`;
+  }
+
+  // Game still in progress (imported mid-game or ongoing)
+  if (moveCount > 0) {
+    return `I see a ${moveCount}-move game loaded. I'm your AI chess coach — you can ask me anything: analyze the full game, review specific moves, explain positions, suggest improvements, or ask about strategy. What would you like to do?`;
+  }
+
+  return `Hi! I'm your AI chess coach. Import a game from the database, paste a PGN, or play moves on the board — then I'll help you analyze it. You can ask me about anything: mistakes, strategy, openings, endgames, or specific moves.`;
+}
+
 const AICoachChat: React.FC<AICoachChatProps> = ({
   position,
   game,
@@ -1028,7 +1467,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   const gameLoadedRef = useRef(false);
   const hasUserMessagedRef = useRef(false);
 
-  // Detect when a new game is loaded
+  // Detect when a new game is loaded and auto-greet
   useEffect(() => {
     if (game) {
       const currentFen = game.fen();
@@ -1045,6 +1484,17 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         if (currentMoves < prevMoves || Math.abs(currentMoves - prevMoves) > 5) {
           gameLoadedRef.current = true;
           hasUserMessagedRef.current = false; // Reset for new game
+
+          // AI speaks first — auto-greet when game is loaded
+          const greeting = getSmartGameGreeting(game, userPlayerInfo);
+          setMessages((prev) => {
+            // Keep system message, remove old conversation
+            const systemMsg = prev.find((m) => m.role === "system");
+            return [
+              ...(systemMsg ? [systemMsg] : []),
+              { role: "assistant" as const, content: greeting },
+            ];
+          });
         }
         prevGameRef.current = currentFen;
       }
@@ -1061,6 +1511,15 @@ YOUR PRIMARY JOB:
 - Use the Stockfish evaluations, game history, and position data provided to fulfill their request
 - Think through the request: What do they want? What information do you have? How can you use it to answer?
 - Provide intelligent, helpful analysis based on their actual question - don't just follow templates
+
+CHAIN-OF-THOUGHT REASONING (internal process before responding):
+Before writing your response, silently work through these steps:
+1. VERIFY: Check the FEN data. Before claiming any piece is on a square, mentally decode the FEN to confirm. If the FEN shows "r1bqkb1r", that means rook-empty-bishop-queen-king-bishop-empty-rook on that rank.
+2. CROSS-CHECK: For every move you suggest, verify it is legal in the given position by checking the piece exists on the source square and the destination is reachable.
+3. GROUND: Only reference information that appears in the Stockfish evaluation data, game history, or position annotation provided. Never guess at evaluations or invent variations.
+4. CALIBRATE: Check the user's skill level from the USER CONTEXT section and adjust vocabulary, depth, and tone accordingly.
+5. STRUCTURE: Select which of the 5 explanation categories (Threats, Best Moves, Plans, Piece Roles, Concepts) are most relevant for this specific position.
+Do NOT show this reasoning process to the user — only output the final, polished coaching response.
 
 CONVERSATION FLOW:
 - If the user makes a specific request (e.g., "best moves", "analyze move 5", "what's wrong here"), use your reasoning to understand what they want, then use the provided Stockfish data to answer their question directly
@@ -1165,6 +1624,56 @@ MAIA INTEGRATION - HUMAN-LIKE MOVE PREDICTIONS:
 - If user's move matches Maia's prediction, acknowledge it's a common choice and explain why it's not optimal
 - If user's move matches Stockfish, celebrate it: "Excellent! You found the engine's best move!"
 
+STRUCTURED EXPLANATION FRAMEWORK (DecodeChess-quality depth):
+For EACH critical mistake or key moment, provide ALL of the following sections that are relevant. Your analysis should match the depth of a professional chess analysis tool.
+
+**For each mistake/key moment, structure as:**
+
+### Move X. [Move] — [Severity: Blunder/Mistake/Inaccuracy]
+**Eval:** [before] → [after] (lost X.X pawns)
+
+**Best Move: X. [BestMove] (eval)**
+[CONTINUATION:X:c]
+[MAIA_CONTINUATION:X:c]
+
+CRITICAL RULES FOR CONTINUATION TOKENS:
+- Replace X with the move number (e.g., 14) and c with the color (w for white, b for black) whose move it was.
+- Example: For white's mistake on move 14, write: [CONTINUATION:14:w] then [MAIA_CONTINUATION:14:w]
+- NEVER write out continuation move sequences yourself — they WILL be wrong. The tokens above are rendered by the app using real Stockfish engine data.
+- The [CONTINUATION] token shows the engine's best line where both sides play perfectly.
+- The [MAIA_CONTINUATION] token shows a realistic line where the user plays best moves but the opponent plays human-likely responses (powered by Maia AI).
+- Always include BOTH tokens for each mistake you analyze.
+
+After the tokens, explain WHY the best move is good — what does it achieve? What threats does it create?
+
+**Why the best move works (Idea → Problem → Solution → Outcome):**
+- **Idea**: What White/Black wants to achieve (e.g., "White wants to win the knight on d7")
+- **Problem**: What obstacle exists (e.g., "Black can play Qb6, threatening the queen on b2")
+- **Solution**: How the best move addresses it (e.g., "Playing Qa1 before Bxd5 avoids the queen trade")
+- **Outcome**: What the resulting position looks like (e.g., "White maintains a decisive advantage with active pieces")
+
+**Why X. [PlayedMove] was wrong:**
+Explain the specific problem — what tactical or strategic issue did it create? Reference the eval drop.
+
+**Threats in this position:**
+- List 2-3 key threats from BOTH sides. What is each side threatening to do?
+- Show how the best move addresses/creates threats
+
+**Key piece roles:**
+- For 2-3 most important pieces: what they do, what they threaten, what they support, what they control
+- Identify the WORST placed piece and suggest where it should go
+
+**Concept:** Name the tactical/strategic concept (pin, fork, outpost, x-ray, overloading, etc.) and briefly explain it.
+
+DEPTH REQUIREMENTS:
+- ALWAYS use [CONTINUATION:X:c] and [MAIA_CONTINUATION:X:c] tokens for each mistake (the app renders real engine lines from these — NEVER write out move sequences yourself)
+- ALWAYS include eval scores in parentheses for candidate moves
+- ALWAYS explain the PLAN behind the best move, not just "this is better"
+- For game reviews, analyze the TOP 3-5 most critical mistakes with full depth
+- After the detailed analysis, include an "Overall Patterns" section identifying recurring weaknesses
+
+CRITICAL RULE: NEVER invent chess analysis beyond what the engine data shows. Your role is to TRANSLATE engine output into structured natural language, not to generate your own chess calculations. Every claim about pieces, squares, and moves MUST be grounded in the FEN and Stockfish data provided.
+
 CORE RESPONSIBILITIES:
 - Use your reasoning capabilities to understand what the user is asking for
 - Analyze chess positions and games using Stockfish engine evaluations as your primary source of truth
@@ -1174,7 +1683,8 @@ CORE RESPONSIBILITIES:
   * Positional reasons: ideal piece placement, how to reach those positions, why the move helps
 - Use Maia predictions to provide personalized, human-level feedback when available
 - Be encouraging and educational, helping users understand the deeper reasoning behind moves
-- Reference specific moves in a clickable format: "move X" or "X." where X is the move number
+- CRITICAL FORMATTING: ALWAYS reference moves with their move number. Use format "X. Move" for white moves and "X... Move" for black moves (e.g., "14. Nb3", "14... Nxe5"). This applies to BOTH played moves AND suggested/best moves. NEVER write bare moves like "Qe2" — always write "14. Qe2". This is required because move numbers make moves clickable in the UI.
+- ALWAYS verify piece placements against the FEN data before claiming a piece is on a specific square
 
 STOCKFISH EVALUATION USAGE:
 - Always ground your analysis in the Stockfish evaluations provided
@@ -1217,14 +1727,45 @@ ${Object.entries(TACTICAL_THEMES).map(([key, val]) => `- "${key}" → ${val.them
 Difficulty bands: beginner (≤1200 rating), intermediate (1201-1600), advanced (1601-2000), expert (2001+)
 
 PRACTICE OFFER PROTOCOL:
-After explaining a mistake and what the user missed, you MUST offer practice puzzles:
-- After identifying and explaining a principle violation or tactical mistake, ask: "Would you like me to send you to practice some [theme] puzzles to strengthen this skill?"
-- Include the specific skill gap identified in your question (e.g., "fork patterns", "back rank weaknesses", "pin tactics", "discovered attacks")
-- Example: "You missed a fork pattern here. Would you like me to send you to practice some fork puzzles to strengthen this skill?"
-- When the user accepts, they will be redirected to the practice page with the correct theme and difficulty level already set
-- You can also proactively suggest practice if the user asks about improving at a specific area
-- Suggest appropriate difficulty based on the user's apparent skill level (from their game rating or profile)
+After explaining mistakes, you MUST offer practice puzzles using a special token format that renders as a clickable button.
+
+HOW TO OFFER PRACTICE:
+Include this exact token in your response: [PRACTICE:themeKey:Display Name]
+- themeKey must be one of the theme keys listed above (e.g., "fork", "pin", "backRankMate", "hangingPiece")
+- Display Name is what the user sees (e.g., "Fork", "Pin Tactics", "Back Rank Mate")
+
+EXAMPLES:
+- "You missed a fork pattern here. Practice this to sharpen your tactical vision:\n[PRACTICE:fork:Fork Tactics]"
+- "This was a classic back rank weakness. Strengthen your awareness:\n[PRACTICE:backRankMate:Back Rank Mate]"
+- "Your piece activity could improve. Try these puzzles:\n[PRACTICE:trappedPiece:Piece Activity]"
+
+RULES:
+- ALWAYS include the [PRACTICE:...] token at the END of your analysis — it renders as a clickable green button
+- Match the theme to the specific mistake type (fork → fork, hanging piece → hangingPiece, pin → pin, etc.)
+- You can include multiple [PRACTICE:...] tokens if multiple weakness areas were identified
+- Also include a brief text prompt like "Want to practice this pattern?" before the token
 - Only offer practice after explaining actual mistakes or principle violations, not after general analysis
+
+SKILL-LEVEL CALIBRATION:
+Adapt your explanations based on the user's rating (provided in USER CONTEXT). If no rating is available, default to intermediate (1000-1600).
+
+BEGINNER (Under 1000):
+- Use plain English. Avoid jargon. Say "your knight can attack two pieces at once" not "the knight fork on e6"
+- Focus on: material safety, basic threats, one-move tactics, piece development
+- Show ONE best move with a clear reason. Maximum 2-3 moves of variation.
+- Tone: Encouraging and patient. Celebrate good moves. Frame mistakes as learning opportunities.
+
+INTERMEDIATE (1000-1600):
+- Introduce chess terms with brief context. "This is a knight fork on e6, where your knight attacks both the queen and rook"
+- Focus on: tactical patterns, pawn structure, piece activity, opening principles
+- Show top 2 moves with tradeoffs. Variations up to 4-5 moves deep.
+- Tone: Constructive and specific. Point out patterns they should recognize.
+
+ADVANCED (1600+):
+- Use standard terminology freely. "Ne6 creates a royal fork with tempo"
+- Focus on: strategic imbalances, prophylaxis, long-term plans, complex endgame technique
+- Show top 3 moves with nuanced comparison. Full principal variations.
+- Tone: Direct and analytical. Treat them as a peer studying the position.
 
 IMPORTANT GUIDELINES:
 - NEVER show FEN strings unless specifically requested
@@ -1237,10 +1778,15 @@ IMPORTANT GUIDELINES:
 - Provide actionable advice that users can apply in similar positions
 - Explain WHERE pieces should be, HOW to get them there, and WHY the best move is best`,
     },
+    {
+      role: "assistant",
+      content: "Hi! I'm your AI chess coach. Import a game from the database, paste a PGN, or play moves on the board — then I'll help you analyze it. You can ask me about anything: mistakes, strategy, openings, endgames, or specific moves.",
+    },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [messageFeedback, setMessageFeedback] = useState<Record<number, "positive" | "negative">>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -1419,8 +1965,36 @@ IMPORTANT GUIDELINES:
           hasContext = true;
         }
 
+        // Inject user rating and skill level tier for calibration
+        let extractedRating: number | undefined;
+        if (game) {
+          const headers = game.getHeaders();
+          if (userPlayerInfo.playerColor === "white" && headers.WhiteElo) {
+            extractedRating = parseInt(headers.WhiteElo);
+          } else if (userPlayerInfo.playerColor === "black" && headers.BlackElo) {
+            extractedRating = parseInt(headers.BlackElo);
+          }
+        }
+        if (extractedRating) {
+          const skillTier = extractedRating < 1000 ? "BEGINNER" : extractedRating < 1600 ? "INTERMEDIATE" : "ADVANCED";
+          playerInfoSection += `\n- User rating: ${extractedRating}`;
+          playerInfoSection += `\n- Skill calibration tier: ${skillTier} — use the ${skillTier} calibration from the SKILL-LEVEL CALIBRATION section above`;
+          hasContext = true;
+        }
+
         if (hasContext) {
           systemPrompt = systemPrompt + playerInfoSection;
+        }
+
+        // Inject weakness profile for personalized coaching
+        try {
+          const weaknessProfile = loadWeaknessProfile();
+          const weaknessContext = getWeaknessPromptContext(weaknessProfile);
+          if (weaknessContext) {
+            systemPrompt = systemPrompt + weaknessContext;
+          }
+        } catch (e) {
+          // Non-critical — skip if localStorage unavailable
         }
       }
 
@@ -1502,41 +2076,9 @@ IMPORTANT GUIDELINES:
         }
       }
 
-      // Handle greetings and new game reactions
-      if (isGreeting(textToSend) || isNewGameLoaded) {
-        let greetingResponse = "";
-        
-        if (isNewGameLoaded && game) {
-          // Game was just loaded - give reaction and ask what to analyze
-          greetingResponse = `${getGameReaction(game)} What would you like to analyze?`;
-          gameLoadedRef.current = false; // Reset flag
-        } else if (isGreeting(textToSend)) {
-          // User greeted - introduce and ask what they want
-          greetingResponse = "Hi! I'm your AI chess coach. Feel free to input a game from the chess database which we can analyze together, or play the moves out on the board in front of you. What would you like to do?";
-        }
-        
-        if (greetingResponse) {
-          setMessages((prev) => [...prev, userMessage, { role: "assistant", content: greetingResponse }]);
-          if (!messageText) {
-            setInput("");
-          }
-          return; // Don't make API call for greetings
-        }
-      }
-
-      // If it's a direct request, proceed with analysis
-      // Otherwise, if it's the first message and not a greeting, ask what they want
-      // "best moves" is always a direct request - proceed with analysis
-      const isBestMovesRequest = textToSend.toLowerCase().includes("best move");
-      
-      if (!isDirectRequest(textToSend) && !isBestMovesRequest && isFirstUserMessage && !isGreeting(textToSend)) {
-        const promptResponse = "Hi! I'm your AI chess coach. What would you like to analyze or discuss about your game?";
-        setMessages((prev) => [...prev, userMessage, { role: "assistant", content: promptResponse }]);
-        if (!messageText) {
-          setInput("");
-        }
-        return;
-      }
+      // All user messages go to the LLM — no more forced canned responses
+      // The AI already speaks first via auto-greet when a game is loaded
+      gameLoadedRef.current = false; // Reset flag if set
 
       setMessages((prev) => [...prev, userMessage]);
       if (!messageText) {
@@ -1736,35 +2278,79 @@ IMPORTANT GUIDELINES:
     if (!game) return content;
 
     const gameHistory = game.history();
-    let enhancedContent = content;
+    if (gameHistory.length === 0) return content;
 
-    // Look for move patterns that might need better citation
-    const movePatterns = [
-      // Match moves without move numbers: "Nf3", "e4", etc.
-      /\b([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\b/g,
-      // Match moves with partial notation: "move Nf3", "played e4"
-      /(?:move|played|moved)\s+([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
-    ];
+    // SAN move pattern (captures piece moves, pawn moves, castling)
+    const sanPattern = /([NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|[a-h]x[a-h][1-8](?:=[NBRQ])?[+#]?|[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g;
 
-    movePatterns.forEach((pattern) => {
-      enhancedContent = enhancedContent.replace(pattern, (match, move) => {
-        // Find the move in game history
-        const moveIndex = gameHistory.findIndex(
-          (historyMove) => historyMove === move
-        );
-        if (moveIndex >= 0) {
-          const moveNumber = Math.floor(moveIndex / 2) + 1;
-          const isBlackMove = moveIndex % 2 === 1;
-          const moveNotation = `${moveNumber}.${isBlackMove ? ".." : ""} ${move}`;
+    // Find all bare SAN moves that DON'T already have a move number prefix
+    const result = content.replace(sanPattern, (match, move, offset) => {
+      // Check if this move is already preceded by a move number like "14." or "14..."
+      const before = content.slice(Math.max(0, offset - 10), offset);
+      if (/\d+\.{1,3}\s*$/.test(before)) {
+        return match; // Already has a move number — don't double-number
+      }
 
-          // Replace with properly cited move
-          return match.replace(move, moveNotation);
+      // Check if this is inside a heading/label like "Best Move:" — we want to number these
+      // But skip things that look like square references, not moves (e.g., "e4" in "pawn on e4")
+      const contextBefore = content.slice(Math.max(0, offset - 30), offset).toLowerCase();
+      if (/(?:on|at|square|from|to)\s*$/.test(contextBefore)) {
+        return match; // This is a square reference, not a move
+      }
+
+      // Try to find the move in game history (for played moves)
+      const moveIndex = gameHistory.findIndex((h) => h === move);
+      if (moveIndex >= 0) {
+        const moveNum = Math.floor(moveIndex / 2) + 1;
+        const isBlack = moveIndex % 2 === 1;
+        return `${moveNum}.${isBlack ? ".." : ""} ${move}`;
+      }
+
+      // For engine-suggested moves NOT in game history, try to infer move number from nearby context
+      const nearbyContext = content.slice(Math.max(0, offset - 80), offset);
+      const nearbyMoveNum = nearbyContext.match(/(?:Move\s+(\d+)|(\d+)\.)/i);
+      if (nearbyMoveNum) {
+        const inferredNum = parseInt(nearbyMoveNum[1] || nearbyMoveNum[2]);
+        if (inferredNum > 0 && inferredNum <= Math.ceil(gameHistory.length / 2) + 5) {
+          return `${inferredNum}. ${move}`;
         }
-        return match;
-      });
+      }
+
+      return match; // Can't determine move number — leave as-is
     });
 
-    return enhancedContent;
+    return result;
+  };
+
+  const handleFeedback = (messageIndex: number, rating: "positive" | "negative") => {
+    // Toggle off if same rating clicked again
+    if (messageFeedback[messageIndex] === rating) {
+      setMessageFeedback((prev) => {
+        const next = { ...prev };
+        delete next[messageIndex];
+        return next;
+      });
+      return;
+    }
+
+    setMessageFeedback((prev) => ({ ...prev, [messageIndex]: rating }));
+
+    // Find the actual message from the filtered list
+    const filteredMessages = messages.filter((m) => m.role !== "system");
+    const message = filteredMessages[messageIndex];
+    if (!message) return;
+
+    // Store feedback
+    try {
+      storeFeedback({
+        rating,
+        responseText: message.content.slice(0, 500),
+        fen: game?.fen(),
+        coachId: selectedCoachId,
+      });
+    } catch (e) {
+      console.warn("Failed to store feedback:", e);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -1796,11 +2382,6 @@ IMPORTANT GUIDELINES:
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  // Custom text renderer for clickable moves
-                  text({ children }) {
-                    const text = String(children);
-                    return renderTextWithClickableMoves(text, game);
-                  },
                   // Preserve existing code component
                   code({ className, children, ...props }: any) {
                     const match = /language-(\w+)/.exec(className || "");
@@ -1867,9 +2448,27 @@ IMPORTANT GUIDELINES:
                   em({ children }) {
                     return <em>{processChildren(children)}</em>;
                   },
+                  h1({ children }) {
+                    return <h1>{processChildren(children)}</h1>;
+                  },
+                  h2({ children }) {
+                    return <h2>{processChildren(children)}</h2>;
+                  },
+                  h3({ children }) {
+                    return <h3>{processChildren(children)}</h3>;
+                  },
+                  h4({ children }) {
+                    return <h4>{processChildren(children)}</h4>;
+                  },
+                  td({ children }: any) {
+                    return <td>{processChildren(children)}</td>;
+                  },
+                  th({ children }: any) {
+                    return <th>{processChildren(children)}</th>;
+                  },
                 }}
               >
-                {message.content}
+                {message.role === "assistant" ? enhanceMoveCitation(message.content, game ?? null) : message.content}
               </ReactMarkdown>
               {isStreaming &&
                 index ===
@@ -1889,6 +2488,47 @@ IMPORTANT GUIDELINES:
                     </Typography>
                   </Box>
                 )}
+              {message.role === "assistant" && !isStreaming && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: 0.5,
+                    mt: 0.5,
+                    opacity: messageFeedback[index] ? 1 : 0.4,
+                    "&:hover": { opacity: 1 },
+                    transition: "opacity 0.2s",
+                  }}
+                >
+                  <IconButton
+                    size="small"
+                    onClick={() => handleFeedback(index, "positive")}
+                    sx={{
+                      padding: "2px",
+                      color: messageFeedback[index] === "positive" ? "#4caf50" : "inherit",
+                    }}
+                  >
+                    {messageFeedback[index] === "positive" ? (
+                      <ThumbUpIcon sx={{ fontSize: 14 }} />
+                    ) : (
+                      <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
+                    )}
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleFeedback(index, "negative")}
+                    sx={{
+                      padding: "2px",
+                      color: messageFeedback[index] === "negative" ? "#f44336" : "inherit",
+                    }}
+                  >
+                    {messageFeedback[index] === "negative" ? (
+                      <ThumbDownIcon sx={{ fontSize: 14 }} />
+                    ) : (
+                      <ThumbDownOutlinedIcon sx={{ fontSize: 14 }} />
+                    )}
+                  </IconButton>
+                </Box>
+              )}
             </MessageBubble>
           ))}
         <div ref={messagesEndRef} />

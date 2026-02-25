@@ -8,7 +8,13 @@ import {
   puzzleSolvedStatusAtom,
   currentPuzzleIndexAtom,
   practicePuzzlesAtom,
+  puzzleBoardStatusAtom,
+  blindModeAtom,
 } from "@/sections/practice/states";
+import {
+  puzzleStatsAtom,
+  updatePuzzleStats,
+} from "@/lib/puzzleRating";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { pieceSetAtom } from "@/components/board/states";
 import { Piece, CustomPieces } from "react-chessboard/dist/chessboard/types";
@@ -57,10 +63,21 @@ export default function PracticeChessBoard() {
   const currentPuzzle = useAtomValue(currentPuzzleAtom);
   const setSolvedStatus = useSetAtom(puzzleSolvedStatusAtom);
   const pieceSet = useAtomValue(pieceSetAtom);
+  const setGlobalStats = useSetAtom(puzzleStatsAtom);
+  const setPuzzleBoardStatus = useSetAtom(puzzleBoardStatusAtom);
+  const blindMode = useAtomValue(blindModeAtom);
+  const puzzleStartTimeRef = useRef<number>(Date.now());
 
   // Internal chess game state
   const [game, setGame] = useState<Chess>(new Chess());
-  const [status, setStatus] = useState<PuzzleStatus>("loading");
+  const [statusLocal, setStatusLocal] = useState<PuzzleStatus>("loading");
+
+  // Wrapper to update both local and shared status
+  const setStatus = useCallback((s: PuzzleStatus) => {
+    setStatusLocal(s);
+    setPuzzleBoardStatus(s);
+  }, [setPuzzleBoardStatus]);
+  const status = statusLocal;
   const [moveIndex, setMoveIndex] = useState(0);
   const [boardOrientation, setBoardOrientation] = useState<"white" | "black">("white");
   const [lastMoveSquares, setLastMoveSquares] = useState<{ from: Square; to: Square } | null>(null);
@@ -114,6 +131,7 @@ export default function PracticeChessBoard() {
     setWrongSquare(null);
     setSelectedSquare(null);
     setLegalMoveSquares([]);
+    puzzleStartTimeRef.current = Date.now();
 
     // Auto-play opponent's first move after a short delay
     const timer = setTimeout(() => {
@@ -166,6 +184,16 @@ export default function PracticeChessBoard() {
             setStatus("solved");
             if (currentPuzzle?.id) {
               setSolvedStatus((prev) => ({ ...prev, [currentPuzzle.id]: true }));
+              setGlobalStats((prev) =>
+                updatePuzzleStats(prev, {
+                  puzzleId: currentPuzzle.id,
+                  puzzleRating: currentPuzzle.rating,
+                  solved: true,
+                  timeMs: Date.now() - puzzleStartTimeRef.current,
+                  theme: currentPuzzle.themes?.[0] || "unknown",
+                  timestamp: Date.now(),
+                })
+              );
             }
           }
         } catch {
@@ -173,7 +201,7 @@ export default function PracticeChessBoard() {
         }
       }, 400);
     },
-    [solutionMoves, currentPuzzle, setSolvedStatus]
+    [solutionMoves, currentPuzzle, setSolvedStatus, setGlobalStats]
   );
 
   // Handle user piece drop
@@ -216,6 +244,16 @@ export default function PracticeChessBoard() {
             setStatus("solved");
             if (currentPuzzle?.id) {
               setSolvedStatus((prev) => ({ ...prev, [currentPuzzle.id]: true }));
+              setGlobalStats((prev) =>
+                updatePuzzleStats(prev, {
+                  puzzleId: currentPuzzle.id,
+                  puzzleRating: currentPuzzle.rating,
+                  solved: true,
+                  timeMs: Date.now() - puzzleStartTimeRef.current,
+                  theme: currentPuzzle.themes?.[0] || "unknown",
+                  timestamp: Date.now(),
+                })
+              );
             }
           } else {
             // Play opponent's next move
@@ -232,6 +270,20 @@ export default function PracticeChessBoard() {
         setWrongSquare(to);
         setSelectedSquare(null);
         setLegalMoveSquares([]);
+
+        // Record failed attempt to stats
+        if (currentPuzzle?.id) {
+          setGlobalStats((prev) =>
+            updatePuzzleStats(prev, {
+              puzzleId: currentPuzzle.id,
+              puzzleRating: currentPuzzle.rating,
+              solved: false,
+              timeMs: Date.now() - puzzleStartTimeRef.current,
+              theme: currentPuzzle.themes?.[0] || "unknown",
+              timestamp: Date.now(),
+            })
+          );
+        }
 
         // Reset to playing after a delay
         setTimeout(() => {
@@ -285,7 +337,7 @@ export default function PracticeChessBoard() {
     [game, status, selectedSquare, onPieceDrop]
   );
 
-  // Custom pieces using SVG piece sets
+  // Custom pieces using SVG piece sets (invisible in blind mode)
   const customPieces = useMemo(
     () =>
       PIECE_CODES.reduce<CustomPieces>((acc, piece) => {
@@ -293,15 +345,19 @@ export default function PracticeChessBoard() {
           <Box
             width={squareWidth}
             height={squareWidth}
-            sx={{
-              backgroundImage: `url(/piece/${pieceSet}/${piece}.svg)`,
-              backgroundSize: "contain",
-            }}
+            sx={
+              blindMode
+                ? { opacity: 0 }
+                : {
+                    backgroundImage: `url(/piece/${pieceSet}/${piece}.svg)`,
+                    backgroundSize: "contain",
+                  }
+            }
           />
         );
         return acc;
       }, {}),
-    [pieceSet]
+    [pieceSet, blindMode]
   );
 
   // Custom square styles for highlights

@@ -3,6 +3,7 @@ import { PageTitle } from "@/components/pageTitle";
 import LandingNav from "@/components/landing/LandingNav";
 import LandingHero from "@/components/landing/LandingHero";
 import LandingFeatures from "@/components/landing/LandingFeatures";
+import DailyPuzzle from "@/components/landing/DailyPuzzle";
 import LandingHowItWorks from "@/components/landing/LandingHowItWorks";
 import LandingComparison from "@/components/landing/LandingComparison";
 import LandingTestimonials from "@/components/landing/LandingTestimonials";
@@ -26,6 +27,7 @@ export default function LandingPage() {
       <LandingNav />
       <LandingHero />
       <LandingFeatures />
+      <DailyPuzzle />
       <LandingHowItWorks />
       <LandingComparison />
       <LandingTestimonials />

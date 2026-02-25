@@ -1,418 +1,634 @@
 {
-  "totalPuzzles": 9292,
+  "totalPuzzles": 90599,
   "themes": {
     "advancedPawn": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "advantage": {
+      "total": 2000,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "anastasiaMate": {
+      "total": 1478,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 405,
+        "expert": 73
+      }
+    },
+    "arabianMate": {
+      "total": 1669,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 169
       }
     },
     "attackingF2F7": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "attraction": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "backRankMate": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "balestraMate": {
+      "total": 1239,
+      "bands": {
+        "beginner": 323,
+        "intermediate": 361,
+        "advanced": 457,
+        "expert": 98
       }
     },
     "bishopEndgame": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "blindSwineMate": {
+      "total": 1703,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 203
+      }
+    },
+    "bodenMate": {
+      "total": 1168,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 455,
+        "advanced": 183,
+        "expert": 30
+      }
+    },
+    "capturingDefender": {
+      "total": 2000,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "castling": {
-      "total": 214,
+      "total": 902,
       "bands": {
-        "advanced": 75,
         "beginner": 2,
-        "expert": 75,
-        "intermediate": 62
+        "intermediate": 63,
+        "advanced": 337,
+        "expert": 500
       }
     },
     "clearance": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "cornerMate": {
+      "total": 1985,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 485
+      }
+    },
+    "crushing": {
+      "total": 2000,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "defensiveMove": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "deflection": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "discoveredAttack": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "discoveredCheck": {
+      "total": 2000,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "doubleBishopMate": {
+      "total": 803,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 202,
+        "advanced": 80,
+        "expert": 21
       }
     },
     "doubleCheck": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "dovetailMate": {
+      "total": 1611,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 443,
+        "expert": 168
+      }
+    },
+    "enPassant": {
+      "total": 1529,
+      "bands": {
+        "beginner": 29,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "endgame": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "equality": {
+      "total": 715,
+      "bands": {
+        "beginner": 440,
+        "intermediate": 257,
+        "advanced": 4,
+        "expert": 14
       }
     },
     "exposedKing": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "fork": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "hangingPiece": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "hookMate": {
+      "total": 1740,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 240
       }
     },
     "interference": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "intermezzo": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "killBoxMate": {
+      "total": 1881,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 381
       }
     },
     "kingsideAttack": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "knightEndgame": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "long": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "master": {
+      "total": 2000,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "masterVsMaster": {
+      "total": 2000,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "mate": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "mateIn1": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "mateIn2": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "mateIn3": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "mateIn4": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "mateIn5": {
-      "total": 300,
+      "total": 1630,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 130,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "middlegame": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "morphysMate": {
+      "total": 1903,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 403
       }
     },
     "oneMove": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "opening": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "operaMate": {
+      "total": 2000,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "pawnEndgame": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "pillsburysMate": {
+      "total": 2000,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "pin": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "promotion": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "queenEndgame": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "queenRookEndgame": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "queensideAttack": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "quietMove": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "rookEndgame": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "sacrifice": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "short": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "skewer": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "smotheredMate": {
-      "total": 252,
+      "total": 1527,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 27,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 27
+      }
+    },
+    "superGM": {
+      "total": 2000,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "trappedPiece": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "triangleMate": {
+      "total": 1777,
+      "bands": {
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 277
       }
     },
     "underPromotion": {
-      "total": 300,
+      "total": 912,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 141,
+        "intermediate": 96,
+        "advanced": 175,
+        "expert": 500
       }
     },
     "veryLong": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
+      }
+    },
+    "vukovicMate": {
+      "total": 1628,
+      "bands": {
+        "beginner": 480,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 148
       }
     },
     "xRayAttack": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     },
     "zugzwang": {
-      "total": 300,
+      "total": 2000,
       "bands": {
-        "advanced": 75,
-        "beginner": 75,
-        "expert": 75,
-        "intermediate": 75
+        "beginner": 500,
+        "intermediate": 500,
+        "advanced": 500,
+        "expert": 500
       }
     }
   },
@@ -434,5 +650,5 @@
       9999
     ]
   },
-  "generatedAt": "2026-02-23T04:46:36.456869+00:00"
+  "generatedAt": "2026-02-24T19:16:16.802Z"
 }

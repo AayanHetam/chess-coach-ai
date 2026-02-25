@@ -1,6 +1,7 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { ChessPuzzle } from "@/lib/chessPuzzlesService";
+import type { PuzzleStatus } from "@/components/PracticeChessBoard";
 
 /**
  * Practice puzzle type - same as ChessPuzzle
@@ -69,3 +70,15 @@ export function isPuzzleSolved(
 ): boolean {
   return solvedStatus[puzzleId] === true;
 }
+
+/**
+ * Shared puzzle board status atom so other components (e.g., PuzzleInfo, CoachExplanation)
+ * can react to solve/fail events from PracticeChessBoard.
+ */
+export const puzzleBoardStatusAtom = atom<PuzzleStatus>("loading");
+
+/**
+ * Blind mode toggle — when true, pieces are hidden on the board.
+ * User must visualize the position and play moves.
+ */
+export const blindModeAtom = atomWithStorage<boolean>("chessMastiBlindMode", false);

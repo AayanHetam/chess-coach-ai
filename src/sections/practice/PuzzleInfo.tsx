@@ -7,7 +7,9 @@ import {
   practicePuzzlesAtom,
   puzzleSolvedStatusAtom,
   practiceSolvedCountAtom,
+  puzzleBoardStatusAtom,
 } from "./states";
+import PuzzleCoachExplanation from "./PuzzleCoachExplanation";
 import { TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
 import SkipPreviousIcon from "@mui/icons-material/SkipPrevious";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
@@ -21,6 +23,7 @@ import { useRouter } from "next/router";
 export default function PuzzleInfo() {
   const router = useRouter();
   const currentPuzzle = useAtomValue(currentPuzzleAtom);
+  const puzzleBoardStatus = useAtomValue(puzzleBoardStatusAtom);
   const currentIndex = useAtomValue(currentPuzzleIndexAtom);
   const puzzles = useAtomValue(practicePuzzlesAtom);
   const solvedStatus = useAtomValue(puzzleSolvedStatusAtom);
@@ -264,6 +267,11 @@ export default function PuzzleInfo() {
             Hint
           </Button>
         </Box>
+
+        <Divider sx={{ borderColor: "grey.800", my: 1.5 }} />
+
+        {/* Coach explains puzzle */}
+        <PuzzleCoachExplanation puzzleStatus={puzzleBoardStatus} />
 
         <Divider sx={{ borderColor: "grey.800", my: 1.5 }} />
 

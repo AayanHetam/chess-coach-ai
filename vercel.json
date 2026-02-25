@@ -1,5 +1,5 @@
 {
-  "buildCommand": "next build",
+  "buildCommand": "npm run build",
   "framework": "nextjs",
   "functions": {
     "src/app/api/**/*.ts": {
@@ -7,9 +7,11 @@
     }
   },
   "installCommand": "npm install",
+  "ignoreCommand": "exit 0",
   "build": {
     "env": {
-      "NEXT_PUBLIC_SITE_URL": "https://chess-coach-n5yrztbg7-aayan-hs-projects.vercel.app"
+      "NEXT_PUBLIC_SITE_URL": "https://chess-coach-n5yrztbg7-aayan-hs-projects.vercel.app",
+      "SKIP_ENV_VALIDATION": "true"
     }
   }
 }

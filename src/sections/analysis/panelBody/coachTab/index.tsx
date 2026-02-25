@@ -91,7 +91,7 @@ export default function CoachTab(props: GridProps) {
         <Box sx={{ flex: 1, overflow: "hidden" }}>
           <AICoachChat
             position={unifiedGameData.position}
-            game={unifiedGameData.game}
+            game={game}
             boardOrientation={boardOrientation}
           />
         </Box>

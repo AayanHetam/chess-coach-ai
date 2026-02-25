@@ -125,9 +125,9 @@ We'd love your contributions to make chess even more fun! Here's how:
 If you use Chess Masti AI in your research, blog posts, articles, or papers, please cite it as:
 
 ```bibtex
-@software{hetamsaria2026chessmastiai,
+@software{hetamsaria2025chessmastiai,
   author       = {Hetamsaria, Aayan},
-  title        = {Chess Masti AI: AI-Powered Chess Coaching},
+  title        = {Chess Masti AI: Fun AI-Powered Chess Coaching},
   year         = {2026},
   url          = {https://github.com/AayanHetam/chess-coach-ai}
 }

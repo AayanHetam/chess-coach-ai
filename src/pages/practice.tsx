@@ -12,7 +12,14 @@ import {
   CircularProgress,
   Alert,
   Divider,
+  Tabs,
+  Tab,
 } from "@mui/material";
+import BoltIcon from "@mui/icons-material/Bolt";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import { useRouter } from "next/router";
 import { useAtom, useAtomValue } from "jotai";
 import { PageTitle } from "@/components/pageTitle";
@@ -24,9 +31,15 @@ import {
   currentPuzzleIndexAtom,
   practiceThemeAtom,
   practiceSolvedCountAtom,
+  puzzleSolvedStatusAtom,
 } from "@/sections/practice/states";
 import { TACTICAL_THEMES, type ChessPuzzle } from "@/lib/chessPuzzlesService";
 import type { DifficultyBand } from "@/types/puzzles";
+import PuzzleRush from "@/sections/practice/PuzzleRush";
+import PuzzleStats from "@/sections/practice/PuzzleStats";
+import PatternTraining from "@/sections/practice/PatternTraining";
+import { blindModeAtom } from "@/sections/practice/states";
+import PsychologyIcon from "@mui/icons-material/Psychology";
 
 const THEME_CATEGORIES: Record<string, { label: string; themes: string[] }> = {
   tactics: {
@@ -72,11 +85,14 @@ function getThemeDisplayName(theme: string): string {
 
 export default function Practice() {
   const router = useRouter();
+  const [practiceMode, setPracticeMode] = useState<"standard" | "rush" | "pattern">("standard");
+  const [blindMode, setBlindMode] = useAtom(blindModeAtom);
 
   const [puzzles, setPuzzles] = useAtom(practicePuzzlesAtom);
   const [currentIndex, setCurrentIndex] = useAtom(currentPuzzleIndexAtom);
   const [practiceTheme, setPracticeTheme] = useAtom(practiceThemeAtom);
   const solvedCount = useAtomValue(practiceSolvedCountAtom);
+  const solvedStatus = useAtomValue(puzzleSolvedStatusAtom);
 
   const [selectedTheme, setSelectedTheme] = useState<string>("");
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyBand | "all">("all");
@@ -101,10 +117,14 @@ export default function Practice() {
     setError(null);
 
     try {
+      // Collect solved puzzle IDs to exclude from results
+      const solvedIds = Object.keys(solvedStatus).filter((id) => solvedStatus[id]);
+
       const body: Record<string, unknown> = {
         command: "by_theme",
         themes: [selectedTheme],
-        limit: 20,
+        limit: 30, // Request extra to compensate for any filtering
+        excludeIds: solvedIds.length > 0 ? solvedIds : undefined,
       };
       if (selectedDifficulty !== "all") {
         body.difficulty = selectedDifficulty;
@@ -144,20 +164,74 @@ export default function Practice() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTheme, selectedDifficulty, setPuzzles, setCurrentIndex, setPracticeTheme]);
+  }, [selectedTheme, selectedDifficulty, solvedStatus, setPuzzles, setCurrentIndex, setPracticeTheme]);
 
   // If we already have puzzles loaded (e.g., from AI Coach redirect), show them
   const hasPuzzles = puzzles.length > 0;
+
+  // If in Puzzle Rush mode
+  if (practiceMode === "rush") {
+    return (
+      <>
+        <PageTitle title="Chess Masti AI - Puzzle Rush" />
+        <Box sx={{ width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } }}>
+          <PuzzleRush onBack={() => setPracticeMode("standard")} />
+        </Box>
+      </>
+    );
+  }
+
+  // If in Pattern Training mode
+  if (practiceMode === "pattern") {
+    return (
+      <>
+        <PageTitle title="Chess Masti AI - Pattern Training" />
+        <Box sx={{ width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } }}>
+          <PatternTraining onBack={() => setPracticeMode("standard")} />
+        </Box>
+      </>
+    );
+  }
 
   return (
     <>
       <PageTitle title="Chess Masti AI - Practice Puzzles" />
       <Box sx={{ width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } }}>
+        {/* Mode tabs + Stats shown when no puzzles loaded */}
+        {!hasPuzzles && (
+          <Paper sx={{ p: 3, mb: 2, maxWidth: 900, mx: "auto" }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 1 }}>
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                Practice
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<BoltIcon />}
+                  onClick={() => setPracticeMode("rush")}
+                  sx={{ textTransform: "none", fontWeight: 600 }}
+                >
+                  Puzzle Rush
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<PsychologyIcon />}
+                  onClick={() => setPracticeMode("pattern")}
+                  sx={{ textTransform: "none", fontWeight: 600 }}
+                >
+                  Pattern Training
+                </Button>
+              </Box>
+            </Box>
+            <PuzzleStats compact />
+          </Paper>
+        )}
+
         {/* Theme & Difficulty Selector */}
         {!hasPuzzles && (
           <Paper sx={{ p: 3, mb: 2, maxWidth: 900, mx: "auto" }}>
-            <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
-              Practice Puzzles
+            <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
+              Standard Puzzles
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Choose a tactical theme and difficulty level to start solving puzzles from the Lichess database.
@@ -276,24 +350,40 @@ export default function Practice() {
                   sx={solvedCount < puzzles.length ? { bgcolor: "grey.800", color: "grey.300" } : {}}
                 />
               </Box>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => {
-                  setPuzzles([]);
-                  setCurrentIndex(-1);
-                  setPracticeTheme(null);
-                  setSelectedTheme("");
-                }}
-                sx={{
-                  color: "grey.300",
-                  borderColor: "grey.700",
-                  "&:hover": { borderColor: "grey.500", bgcolor: "grey.800" },
-                  textTransform: "none",
-                }}
-              >
-                Choose Different Theme
-              </Button>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Tooltip title={blindMode ? "Show pieces" : "Blind mode (hide pieces)"}>
+                  <IconButton
+                    onClick={() => setBlindMode(!blindMode)}
+                    size="small"
+                    sx={{
+                      color: blindMode ? "warning.main" : "grey.500",
+                      border: "1px solid",
+                      borderColor: blindMode ? "warning.dark" : "grey.700",
+                      bgcolor: blindMode ? "rgba(255,167,38,0.08)" : "transparent",
+                    }}
+                  >
+                    {blindMode ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                  </IconButton>
+                </Tooltip>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => {
+                    setPuzzles([]);
+                    setCurrentIndex(-1);
+                    setPracticeTheme(null);
+                    setSelectedTheme("");
+                  }}
+                  sx={{
+                    color: "grey.300",
+                    borderColor: "grey.700",
+                    "&:hover": { borderColor: "grey.500", bgcolor: "grey.800" },
+                    textTransform: "none",
+                  }}
+                >
+                  Choose Different Theme
+                </Button>
+              </Box>
             </Paper>
 
             {/* Main content: board left, panel right */}

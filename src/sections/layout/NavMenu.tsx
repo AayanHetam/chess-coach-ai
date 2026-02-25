@@ -21,6 +21,11 @@ const MenuOptions = [
     href: "/practice",
   },
   {
+    text: "Openings",
+    icon: "mdi:book-open-variant",
+    href: "/openings",
+  },
+  {
     text: "Scout",
     icon: "mdi:binoculars",
     href: "/scout",
@@ -34,6 +39,11 @@ const MenuOptions = [
     text: "Player Feedback",
     icon: "streamline:chart-line-up",
     href: "/feedback",
+  },
+  {
+    text: "Profile",
+    icon: "mdi:account-circle-outline",
+    href: "/profile",
   },
 ];
 

@@ -4,6 +4,10 @@ import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { annotatePosition, annotationToPromptContext } from "@/lib/positionAnnotator";
 import { selectExamples, formatExamplesForPrompt } from "@/data/goldStandardExamples";
 import { generateCacheKey, getCachedResponse, setCachedResponse } from "@/lib/responseCache";
+import {
+  generateContextId,
+  storeAnalysisContext,
+} from "@/lib/analysisContextCache";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
@@ -86,6 +90,154 @@ function uciToSan(fen: string, uciMove: string): string {
     return result ? result.san : uciMove;
   } catch {
     return uciMove;
+  }
+}
+
+/**
+ * Algorithmically detect tactical motifs from a move and its engine PV.
+ * Returns verified string tags — so GPT explains a known motif rather than guessing.
+ */
+function detectTacticalMotifs(fenBefore: string, moveSan: string, pvSan: string[]): string[] {
+  const motifs: string[] = [];
+  const pieceValues: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+  const pieceNames: Record<string, string> = { p: "Pawn", n: "Knight", b: "Bishop", r: "Rook", q: "Queen", k: "King" };
+
+  try {
+    const gameBefore = new Chess(fenBefore);
+    const moveObj = gameBefore.move(moveSan);
+    if (!moveObj) return motifs;
+
+    const gameAfter = new Chess(gameBefore.fen());
+    const ourColor = moveObj.color;
+    const opponentColor = ourColor === "w" ? "b" : "w";
+
+    // 1. Sacrifice — moving piece is worth more than captured piece
+    if (moveObj.captured) {
+      const movingVal = pieceValues[moveObj.piece] ?? 0;
+      const capturedVal = pieceValues[moveObj.captured] ?? 0;
+      if (movingVal > capturedVal) {
+        motifs.push(`SACRIFICE (${pieceNames[moveObj.piece]} for ${pieceNames[moveObj.captured]})`);
+      }
+    }
+
+    // 2. Check — detect if it's a discovered check by checking if the moved piece itself attacks the king
+    if (gameAfter.inCheck()) {
+      const kingSquare = gameAfter.board().flat().find(sq => sq && sq.type === "k" && sq.color === opponentColor)?.square;
+      let isDiscovered = false;
+      if (kingSquare) {
+        try {
+          // Swap turn in FEN so we can query our piece's moves from its landing square
+          const fenParts = gameAfter.fen().split(" ");
+          fenParts[1] = ourColor;
+          const tempGame = new Chess(fenParts.join(" "));
+          const canReachKing = tempGame.moves({ square: moveObj.to as any, verbose: true } as any)
+            .some((m: any) => m.to === kingSquare);
+          isDiscovered = !canReachKing;
+        } catch { /* fallback to plain CHECK */ }
+      }
+      motifs.push(isDiscovered ? "DISCOVERED CHECK" : "CHECK");
+    }
+
+    // 3. Fork / Double Attack — 2+ opponent pieces attacked after the move
+    const opponentPieces: string[] = [];
+    for (const row of gameAfter.board()) {
+      for (const sq of row) {
+        if (sq && sq.color === opponentColor && sq.type !== "k") {
+          opponentPieces.push(sq.square);
+        }
+      }
+    }
+    const attackedOpponentPieces = opponentPieces.filter(sq => gameAfter.isAttacked(sq as any, ourColor));
+    if (attackedOpponentPieces.length >= 2) {
+      motifs.push(`FORK / DOUBLE ATTACK (${attackedOpponentPieces.length} pieces under threat)`);
+    }
+
+    // 4. Promotion threat in PV
+    if (pvSan.some(san => san.includes("=Q") || san.includes("=R"))) {
+      motifs.push("PROMOTION THREAT");
+    }
+
+    // 5. Forced line — opponent has very few responses after first PV move
+    if (pvSan.length >= 2) {
+      const gameAfterFirst = new Chess(gameAfter.fen());
+      const opponentMoves = gameAfterFirst.moves().length;
+      if (opponentMoves <= 3) {
+        motifs.push(`FORCED LINE (opponent has ${opponentMoves} response${opponentMoves === 1 ? "" : "s"})`);
+      }
+    }
+
+    // 6. Quiet move — no capture, no check, but high eval gain (often the hardest to explain)
+    if (!moveObj.captured && !gameAfter.inCheck() && motifs.length === 0) {
+      motifs.push("QUIET MOVE (positional — requires deep calculation to validate)");
+    }
+  } catch {
+    // Non-critical — return what we have
+  }
+
+  return motifs;
+}
+
+/**
+ * Find the move index where two PV lines first diverge.
+ * Returns 0 if they diverge immediately, or pvSan1.length if they're identical.
+ */
+function findBranchPoint(pv1: string[], pv2: string[]): number {
+  let i = 0;
+  while (i < Math.min(pv1.length, pv2.length) && pv1[i] === pv2[i]) i++;
+  return i;
+}
+
+/**
+ * Compute the candidate ranking gap between the best and second-best line.
+ * A large gap signals a critical junction where the best move is uniquely powerful.
+ */
+function computeCandidateGap(lines: PositionEvalInput["lines"]): string {
+  if (lines.length < 2) return "Only one candidate line available.";
+  const line1 = lines[0];
+  const line2 = lines[1];
+  const eval1 = line1.mate !== undefined ? (line1.mate > 0 ? 9999 : -9999) : (line1.cp ?? 0);
+  const eval2 = line2.mate !== undefined ? (line2.mate > 0 ? 9999 : -9999) : (line2.cp ?? 0);
+  const gap = Math.abs(eval1 - eval2);
+  const gapStr = (gap / 100).toFixed(2);
+  const severity = gap >= 300 ? "CRITICAL JUNCTION" : gap >= 100 ? "IMPORTANT CHOICE" : "CLOSE ALTERNATIVES";
+  return `${severity} — gap between #1 and #2 candidate: ${gapStr} pawns`;
+}
+
+/**
+ * Generate a deterministic one-sentence explanation seed from the full PV.
+ * Summarizes which pieces become active, captured, or threatened along the line.
+ */
+function buildExplanationSeed(fenBefore: string, pvSan: string[], moveNum: number, isWhiteMove: boolean): string {
+  if (pvSan.length === 0) return "";
+  try {
+    const game = new Chess(fenBefore);
+    const captures: string[] = [];
+    const checks: string[] = [];
+    let lastMoveNum = moveNum;
+    let isWhite = isWhiteMove;
+
+    for (const san of pvSan.slice(0, Math.min(pvSan.length, 10))) {
+      const moveObj = game.move(san);
+      if (!moveObj) break;
+      const moveLabel = isWhite ? `${lastMoveNum}.` : `${lastMoveNum}...`;
+      if (moveObj.captured) {
+        const pieceNames: Record<string, string> = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen" };
+        captures.push(`${moveLabel} ${san} wins the ${pieceNames[moveObj.captured] || moveObj.captured}`);
+      }
+      if (game.inCheck()) checks.push(`${moveLabel} ${san} gives check`);
+      if (!isWhite) lastMoveNum++;
+      isWhite = !isWhite;
+    }
+
+    const parts: string[] = [];
+    if (captures.length > 0) parts.push(captures.slice(0, 2).join(", then "));
+    if (checks.length > 0 && !captures.some(c => checks[0].includes(c.split(" ")[1]))) {
+      parts.push(checks[0]);
+    }
+    if (parts.length === 0) return `The line runs ${pvSan.slice(0, 5).join(" ")} — a positional sequence building long-term advantage.`;
+    return `The key idea: ${parts.join("; ")}.`;
+  } catch {
+    return "";
   }
 }
 
@@ -234,11 +386,21 @@ function buildGameContext(
         }
       }
 
-      // Best move from the position BEFORE this move was played
+      // Best move from the position BEFORE this move was played — with full engine line
       if (evalBefore?.bestMove && evalBefore.bestMove !== "N/A") {
         const bestSan = uciToSan(fenBefore, evalBefore.bestMove);
         if (bestSan !== moveSan) {
-          line += `\n    Best was: ${bestSan}`;
+          const bestLine = evalBefore.lines?.[0];
+          if (bestLine?.pv && bestLine.pv.length > 0) {
+            const pvSan = convertPvToSan(fenBefore, bestLine.pv);
+            const pvEvalStr = bestLine.mate !== undefined
+              ? `M${bestLine.mate > 0 ? "+" : ""}${bestLine.mate}`
+              : bestLine.cp !== undefined ? `${bestLine.cp >= 0 ? "+" : ""}${(bestLine.cp / 100).toFixed(2)}` : "";
+            const fullPvLine = formatPvAsMoveList(pvSan, moveNum, i % 2 === 0);
+            line += `\n    Best was: ${bestSan} (${pvEvalStr}, depth ${bestLine.depth}) — Engine line: ${fullPvLine}`;
+          } else {
+            line += `\n    Best was: ${bestSan}`;
+          }
         }
       }
 
@@ -305,6 +467,32 @@ function buildGameContext(
         // Include ALL candidate moves with evals and full PV lines from the position BEFORE this move
         const evalBefore = gameEval!.positions[m.halfMoveIdx];
         if (evalBefore?.lines && evalBefore.lines.length > 0) {
+          // Detect verified tactical motifs for the best move
+          const bestPvLine = evalBefore.lines[0];
+          const bestPvSan = bestPvLine?.pv ? convertPvToSan(m.fenBefore, bestPvLine.pv) : [];
+          const motifs = detectTacticalMotifs(m.fenBefore, bestPvSan[0] ?? m.bestMove, bestPvSan);
+          if (motifs.length > 0) {
+            line += `\n  VERIFIED TACTICAL MOTIFS: ${motifs.join(" | ")}`;
+          }
+
+          // Candidate ranking gap
+          const gapAnalysis = computeCandidateGap(evalBefore.lines);
+          line += `\n  ${gapAnalysis}`;
+
+          // Branch point between best line and played move line
+          const playedPvLine = evalBefore.lines.find(l => {
+            const first = l.pv?.[0] ? convertPvToSan(m.fenBefore, [l.pv[0]])[0] : undefined;
+            return first === m.moveSan;
+          });
+          if (bestPvSan.length > 0 && playedPvLine?.pv) {
+            const playedPvSan = convertPvToSan(m.fenBefore, playedPvLine.pv);
+            const branchIdx = findBranchPoint(bestPvSan, playedPvSan);
+            if (branchIdx < Math.min(bestPvSan.length, playedPvSan.length)) {
+              const sharedLine = branchIdx > 0 ? `after ${bestPvSan.slice(0, branchIdx).join(" ")} — ` : "";
+              line += `\n  BRANCH POINT: Lines diverge at move ${branchIdx + 1}. ${sharedLine}Best continues ${bestPvSan[branchIdx] ?? "?"}, played line goes ${playedPvSan[branchIdx] ?? "?"}`;
+            }
+          }
+
           line += `\n  CANDIDATE MOVES (from Stockfish, best first):`;
           for (const pvLine of evalBefore.lines) {
             if (!pvLine.pv || pvLine.pv.length === 0) continue;
@@ -343,6 +531,70 @@ function buildGameContext(
     sections.push(annotationToPromptContext(finalAnnotation));
   } catch (e) {
     // Non-critical — skip if annotation fails
+  }
+
+  // --- Chess Intelligence Layer: pre-computed structured context for critical positions ---
+  // This gives GPT verified tactical tags, explanation seeds, and branch analysis
+  // so it explains known truths rather than hallucinating chess ideas.
+  if (gameEval?.positions) {
+    const sortedMistakes: Array<{ halfMoveIdx: number; moveNum: number; color: string; moveSan: string; drop: number; fenBefore: string }> = [];
+
+    for (let i = 0; i < moveHistory.length; i++) {
+      const evalBefore = gameEval.positions[i];
+      const evalAfter = gameEval.positions[i + 1];
+      if (!evalBefore?.lines?.[0] || !evalAfter?.lines?.[0]) continue;
+
+      const cpBefore = evalBefore.lines[0].mate !== undefined ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999) : (evalBefore.lines[0].cp ?? 0);
+      const cpAfter = evalAfter.lines[0].mate !== undefined ? (evalAfter.lines[0].mate! > 0 ? 9999 : -9999) : (evalAfter.lines[0].cp ?? 0);
+      const drop = i % 2 === 0 ? cpBefore - cpAfter : cpAfter - cpBefore;
+
+      if (drop > 50) {
+        sortedMistakes.push({
+          halfMoveIdx: i,
+          moveNum: Math.floor(i / 2) + 1,
+          color: i % 2 === 0 ? "White" : "Black",
+          moveSan: moveHistory[i],
+          drop,
+          fenBefore: getFenAtHalfMove(moveHistory, i),
+        });
+      }
+    }
+
+    sortedMistakes.sort((a, b) => b.drop - a.drop);
+    const top3 = sortedMistakes.slice(0, 3);
+
+    if (top3.length > 0) {
+      const intelligenceLines: string[] = [];
+      for (const m of top3) {
+        const evalBefore = gameEval.positions[m.halfMoveIdx];
+        if (!evalBefore?.lines?.[0]) continue;
+
+        const bestPvSan = convertPvToSan(m.fenBefore, evalBefore.lines[0].pv ?? []);
+        const motifs = detectTacticalMotifs(m.fenBefore, bestPvSan[0] ?? m.moveSan, bestPvSan);
+        const gapAnalysis = computeCandidateGap(evalBefore.lines);
+        const explanationSeed = buildExplanationSeed(m.fenBefore, bestPvSan, m.moveNum, m.halfMoveIdx % 2 === 0);
+        const severity = m.drop >= 300 ? "BLUNDER" : m.drop >= 150 ? "MISTAKE" : "INACCURACY";
+
+        let block = `### CRITICAL POSITION: Move ${m.moveNum} (${m.color} — ${severity})\n`;
+        block += `VERIFIED MOTIFS: ${motifs.length > 0 ? motifs.join(" | ") : "None detected (positional)"}\n`;
+        block += `CANDIDATE RANKING: ${gapAnalysis}\n`;
+
+        // Branch point between best and 2nd candidate
+        if (evalBefore.lines.length >= 2 && bestPvSan.length > 0) {
+          const pv2San = convertPvToSan(m.fenBefore, evalBefore.lines[1].pv ?? []);
+          const branchIdx = findBranchPoint(bestPvSan, pv2San);
+          const shared = branchIdx > 0 ? `Shared first ${branchIdx} move(s): ${bestPvSan.slice(0, branchIdx).join(" ")}. ` : "";
+          block += `BRANCH POINT: ${shared}Key divergence — best: ${bestPvSan[branchIdx] ?? "?"} vs alternative: ${pv2San[branchIdx] ?? "?"}\n`;
+        }
+
+        if (explanationSeed) block += `ENGINE IDEA: ${explanationSeed}\n`;
+        intelligenceLines.push(block);
+      }
+
+      if (intelligenceLines.length > 0) {
+        sections.push(`## CHESS INTELLIGENCE LAYER\n(Pre-computed verified analysis — use this to ground your explanations)\n\n${intelligenceLines.join("\n")}`);
+      }
+    }
   }
 
   return sections.join("\n\n");
@@ -487,7 +739,7 @@ export async function POST(request: NextRequest) {
     const skillLevel = userRating
       ? (userRating < 1000 ? "beginner" : userRating < 1600 ? "intermediate" : "advanced") as "beginner" | "intermediate" | "advanced"
       : "intermediate" as const;
-    const examples = selectExamples(undefined, skillLevel, 2);
+    const examples = selectExamples(undefined, skillLevel, 3);
     const examplesContext = formatExamplesForPrompt(examples);
     if (examplesContext) {
       userContent += examplesContext;
@@ -584,6 +836,21 @@ export async function POST(request: NextRequest) {
     // Cache the validated response for future identical queries
     setCachedResponse(cacheKey, analysisContent, validation.score);
 
+    // Store full analysis context for fast follow-up chat via /api/chat
+    const contextId = generateContextId(moveHistory, fen, playerColor || "w");
+    storeAnalysisContext({
+      contextId,
+      gameContext,
+      systemPrompt: systemPrompt || "You are an expert chess coach AI.",
+      fewShotExamples: examplesContext,
+      fen: validationFen,
+      skillLevel,
+      playerColor: playerColor || "w",
+      moveCount: Math.ceil(game.history().length / 2),
+      createdAt: Date.now(),
+      initialAnalysis: analysisContent,
+    });
+
     return NextResponse.json({
       gameAnalysis: {
         analysis: analysisContent,
@@ -593,6 +860,7 @@ export async function POST(request: NextRequest) {
         availableMoves: game.moves().length,
         validationScore: validation.score,
         validationIssues: validation.issues.length,
+        contextId,
       },
     });
   } catch (error) {

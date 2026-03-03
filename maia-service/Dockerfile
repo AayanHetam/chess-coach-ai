@@ -21,9 +21,9 @@ COPY maia_server.py .
 # Pre-download Maia-2 model weights at build time so startup is fast
 RUN python -c "from maia2 import model, inference; m = model.from_pretrained(type='rapid', device='cpu'); inference.prepare(); print('Model pre-downloaded successfully')"
 
-# Render sets PORT=10000 by default
-ENV PORT=10000
-EXPOSE 10000
+# HF Spaces uses port 7860
+ENV PORT=7860
+EXPOSE 7860
 
 # Run with uvicorn
 CMD uvicorn maia_server:app --host 0.0.0.0 --port $PORT

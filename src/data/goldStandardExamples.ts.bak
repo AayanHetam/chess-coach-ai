@@ -1,0 +1,412 @@
+/**
+ * Gold-Standard Few-Shot Examples for AI Coach
+ * 20 curated ideal coaching responses across different position types and skill levels.
+ * These are injected into the LLM prompt to improve response consistency and quality.
+ */
+
+export interface GoldStandardExample {
+  id: string;
+  positionType: "tactical" | "strategic" | "endgame" | "opening" | "blunder";
+  skillLevel: "beginner" | "intermediate" | "advanced";
+  scenario: string;
+  idealResponse: string;
+}
+
+export const GOLD_STANDARD_EXAMPLES: GoldStandardExample[] = [
+  // === TACTICAL EXAMPLES ===
+  {
+    id: "tac-fork-beginner",
+    positionType: "tactical",
+    skillLevel: "beginner",
+    scenario: "User (800) played Bd3 but missed a knight fork on e6 that wins the queen.",
+    idealResponse: `Your move Bd3 develops the bishop, which isn't bad on its own. But there was a much stronger move hiding here!
+
+**Threats:** Your opponent's queen on d8 and rook on a8 are both unprotected right now.
+
+**Best Move:** Ne6 was the winning move. Here's why: your knight jumps to e6, and suddenly it attacks BOTH the queen on d8 and the rook on a8 at the same time. Your opponent can only save one of them, so you win the rook for free!
+
+**Concept:** This pattern is called a "fork" — it's when one piece attacks two (or more) enemy pieces at the same time. Knights are especially good at forks because they jump in an L-shape, which makes them hard to see coming. Look for knight forks whenever your opponent has two unprotected pieces!`,
+  },
+  {
+    id: "tac-pin-intermediate",
+    positionType: "tactical",
+    skillLevel: "intermediate",
+    scenario: "User (1300) played h3 but missed Bb5 pinning the knight to the king.",
+    idealResponse: `h3 prevents Bg4 but misses a much stronger idea.
+
+**Threats:** Black's knight on c6 is the key defender of e5. If we can neutralize it, our center collapses their position.
+
+**Best Move:** Bb5 was stronger here — it pins the knight on c6 to the king. After Bb5, the knight can't move without exposing the king to check. This means Black loses control of e5, and after a future Bxc6 dxc6, their pawn structure is permanently damaged.
+
+**Concept:** This is a pin — when a piece can't move because it would expose a more valuable piece behind it. Bishops are ideal for creating pins along diagonals. The combination of the pin + structural damage after the exchange is what makes this so effective.`,
+  },
+  {
+    id: "tac-discovered-advanced",
+    positionType: "tactical",
+    skillLevel: "advanced",
+    scenario: "User (1800) played Re1 but missed Nxf7 with a discovered attack on the queen.",
+    idealResponse: `Re1 is reasonable prophylaxis, but Nxf7 wins material by force.
+
+**Threats:** The knight sacrifice on f7 unleashes a discovered attack — moving the knight reveals your bishop's attack on Black's queen on d8.
+
+**Best Moves:**
+1. **Nxf7** (best) — Kxf7 is forced, then Bxd8 wins the queen. White emerges a full exchange up after Rxd8. The Stockfish line continues with Bc7 Rd7 Bb6 with a dominating position.
+2. **Re1** (played) — Solid but passive. Eval drops from +3.2 to +0.8.
+
+**Concept:** Discovered attack — the knight moves with tempo (threatening the king via the f7 capture) while simultaneously unveiling the bishop's line to d8. Always check for discovered attacks when you have pieces aligned on the same file, rank, or diagonal.`,
+  },
+  {
+    id: "tac-backrank-beginner",
+    positionType: "tactical",
+    skillLevel: "beginner",
+    scenario: "User (700) missed a back rank checkmate with Rd8#.",
+    idealResponse: `You had a checkmate in one move here!
+
+**Threats:** Look at your opponent's king on g8 — it's trapped on the back row. The pawns on f7, g7, and h7 are blocking its escape. That means if you can get a rook or queen to the 8th rank, it's game over!
+
+**Best Move:** Rd8 was checkmate! Your rook slides to d8, and the king has nowhere to go — the pawns block all the escape squares. That's an instant win!
+
+**Concept:** This is called a "back rank checkmate" — one of the most important patterns in chess. It happens when the king is stuck behind its own pawns with no escape. Always check: can my rook or queen reach the back rank? And watch out for it happening to YOUR king too — that's why it's often smart to play h3 or g3 to give your king a "window" to escape.`,
+  },
+
+  // === STRATEGIC EXAMPLES ===
+  {
+    id: "strat-pawnstruct-intermediate",
+    positionType: "strategic",
+    skillLevel: "intermediate",
+    scenario: "User (1400) captured cxd5 creating isolated queen's pawn vs Nxd5 keeping structure intact.",
+    idealResponse: `cxd5 isn't terrible, but Nxd5 was strategically cleaner.
+
+**Plans:** After cxd5, you now have an isolated d-pawn. That means no other pawn can support it, so your opponent can target it by putting a knight on d5 or a rook on the d-file. You'll spend moves defending it rather than attacking.
+
+**Best Move:** Nxd5 keeps your pawn structure intact. Your knight recaptures on a strong central square, and you maintain your pawn chain. From d5, the knight controls key squares (c3, e3, f4, f6, b4, b6), and if Black takes it, your pawn retakes toward the center.
+
+**Piece Roles:** After Nxd5, your knight becomes your best piece — centralized, well-supported, and hard to dislodge. After cxd5, that same d-pawn becomes a liability you have to babysit.
+
+**Concept:** Isolated pawns (called "isolani") are pawns with no friendly pawns on adjacent files. They can be targets in the endgame. The general rule: avoid creating them unless you get very active piece play in return.`,
+  },
+  {
+    id: "strat-pieceactivity-advanced",
+    positionType: "strategic",
+    skillLevel: "advanced",
+    scenario: "User (1900) played a4 but the engine preferred Nd2-f1-e3 maneuver.",
+    idealResponse: `a4 has some merit in space-gaining, but Nd2 initiating the f1-e3 maneuver is the key plan here.
+
+**Plans:** The knight on b1 (or d2) needs to reach e3, where it controls d5, f5, c4, and g4 — all critical squares. The path is Nd2-Nf1-Ne3. This is a standard regrouping in this structure that transforms your worst piece into your best.
+
+**Piece Roles:**
+- Knight on d2: currently passive with limited scope
+- After Ne3: controls the d5 outpost, supports a future f4 break, and eyes both kingside and center
+- Your dark-squared bishop is already active; the knight is the piece that needs improvement
+
+**Concept:** "Improve your worst piece" — a fundamental strategic principle. Before launching any pawn advance, ask: which piece is my worst, and can I improve it? The Nd2-f1-e3 maneuver is one of the most thematic regrouping sequences in these structures (seen in the Spanish, Italian, and many d4 openings).`,
+  },
+  {
+    id: "strat-space-intermediate",
+    positionType: "strategic",
+    skillLevel: "intermediate",
+    scenario: "User (1200) played a3 in a position where d4 opens the center against an uncastled king.",
+    idealResponse: `a3 is a waiting move that doesn't do much. The position called for action!
+
+**Threats:** Your opponent hasn't castled yet — their king is still in the center on e8. This is a big deal. When the opponent's king is stuck in the center, you want to open lines as fast as possible.
+
+**Best Move:** d4 was the right move. It opens the center immediately. After d4 exd4 Nxd4, your knight lands on a powerful square, you open the d-file for your rooks, and your opponent's king is suddenly exposed to all your pieces.
+
+**Plans:** The plan after d4 is simple: open the center → activate your pieces → attack the uncastled king. Every tempo matters when the king is exposed.
+
+**Concept:** When your opponent hasn't castled, opening the center is almost always correct. Think of it like this: their king is standing in the middle of a battlefield, and you want to tear down all the walls (pawns) protecting it.`,
+  },
+
+  // === ENDGAME EXAMPLES ===
+  {
+    id: "end-kingactivity-beginner",
+    positionType: "endgame",
+    skillLevel: "beginner",
+    scenario: "User (900) kept their king on g1 in a king+pawn endgame instead of marching it to the center.",
+    idealResponse: `In the endgame, your king needs to come out and fight!
+
+**Best Move:** Kf2 was the right idea — start walking your king toward the center. In a king and pawn endgame, the king is like a strong piece. It can attack pawns, support your own pawns, and control important squares.
+
+**Plans:** The plan is: Kf2 → Ke3 → Kd4. Once your king reaches d4, it controls the center and supports your d-pawn's advance. Your opponent's king on g8 is far away and can't stop both your king and your pawn.
+
+**Concept:** "Activate your king in the endgame" — this is one of the most important rules in chess. During the middlegame, the king hides in the corner for safety. But once most pieces are traded off, the king becomes a powerful fighter. Bring it to the center as fast as possible!`,
+  },
+  {
+    id: "end-passedpawn-intermediate",
+    positionType: "endgame",
+    skillLevel: "intermediate",
+    scenario: "User (1500) played Rc2 but missed creating a passed pawn with b5.",
+    idealResponse: `Rc2 is passive — your rook belongs behind passed pawns, but first you need to create one!
+
+**Best Move:** b5 was the key move. After b5 axb5 axb5, you create a protected passed pawn on b5. Black's rook will be tied down to stopping it, freeing your king and rook for active play.
+
+**Plans:** After b5 axb5 axb5: 1) Advance the b-pawn to b6, 2) Put your rook behind it on b1 or a1, 3) March your king to support the pawn. Black has to choose between stopping the pawn and defending the kingside.
+
+**Piece Roles:** Your rook should go BEHIND the passed pawn (on the b-file), not sideways. Rooks are strongest behind passed pawns because they gain scope as the pawn advances.
+
+**Concept:** "Passed pawns must be pushed" (Aron Nimzowitsch). A passed pawn — one with no enemy pawns blocking or guarding its path — is a powerful weapon in the endgame. Create them and push them!`,
+  },
+  {
+    id: "end-opposition-advanced",
+    positionType: "endgame",
+    skillLevel: "advanced",
+    scenario: "User (1700) played Ke5 losing the opposition in a K+P vs K endgame.",
+    idealResponse: `Ke5 loses the opposition and lets Black draw. Ke4 was the only winning move.
+
+**Best Moves:**
+1. **Ke4** (wins) — Maintains the opposition. After ...Ke6, Kd4 followed by Kc5 penetrates decisively.
+2. **Ke5** (played, draws) — After ...Ke7, Black maintains the opposition and holds the draw by mirroring your king's movements.
+
+**Concept:** The opposition is when two kings face each other with one square between them, and it's the other player's turn to move. The player who does NOT have to move holds the opposition — they can mirror and block the opponent's king. In K+P endgames, this often determines the entire game. Key rule: approach with your king in front of the pawn, not beside it, to secure the opposition.`,
+  },
+
+  // === OPENING EXAMPLES ===
+  {
+    id: "open-develop-beginner",
+    positionType: "opening",
+    skillLevel: "beginner",
+    scenario: "User (600) played Qh5 on move 3, bringing the queen out early.",
+    idealResponse: `I see you brought your queen out to h5 early! While it looks aggressive, this can actually cause problems.
+
+**Threats:** Your queen on h5 looks scary, but your opponent can develop pieces while attacking it. For example, Nc6 defends and develops, then Nf6 attacks your queen directly.
+
+**Best Move:** In the opening, it's better to develop your knights and bishops first. Nf3 or Bc4 would develop a piece toward the center while keeping your queen safe at home for now.
+
+**Plans:** The opening plan is: 1) Move center pawns (e4, d4), 2) Develop knights and bishops, 3) Castle to get your king safe, 4) THEN bring your queen out. Your queen is too valuable to risk early — every time your opponent attacks it, you lose a turn retreating while they develop.
+
+**Concept:** "Don't bring your queen out too early" — experienced players can gain time by developing their pieces while chasing your queen around the board. Develop the smaller pieces first, castle, then the queen joins the battle.`,
+  },
+  {
+    id: "open-center-intermediate",
+    positionType: "opening",
+    skillLevel: "intermediate",
+    scenario: "User (1300) played the Italian Game and is asking about the plans after 4.d3.",
+    idealResponse: `The Italian Game with 4.d3 — the Giuoco Piano ("quiet game"). Solid choice!
+
+**Plans:** The main plan in the d3 Italian is:
+1. Castle kingside for king safety
+2. Play c3 preparing d4, which would establish an ideal pawn center
+3. Develop the knight from b1 to d2, then reroute it to f1-g3 or f1-e3
+4. Build toward a kingside attack with pieces or a central break
+
+**Piece Roles:** Your bishop on c4 eyes f7 (the weakest square in Black's camp). Your knight should aim for g3 or e3 via f1. The bishop on c1 often goes to e3 or g5, depending on Black's setup.
+
+**Concept:** The Giuoco Piano is about slow, methodical preparation. Unlike the sharp Evans Gambit or Fried Liver, you're building a strong center first and looking for the right moment to strike. Masters like Caruana and Carlsen play this regularly at the highest level.`,
+  },
+
+  // === BLUNDER EXAMPLES ===
+  {
+    id: "blun-hanging-beginner",
+    positionType: "blunder",
+    skillLevel: "beginner",
+    scenario: "User (700) left their queen hanging on d5 and lost it to Nc3xd5.",
+    idealResponse: `Oops! Your queen on d5 was left unprotected, and your opponent captured it with their knight.
+
+**Threats:** Before you moved, you should check: "Is my queen safe on d5? Can anything take it?" The knight on c3 was one jump away from d5, and nothing was defending your queen there.
+
+**Best Move:** Instead of putting your queen on d5, a safer move like Qd7 or Qe7 keeps your queen protected. Always ask yourself: "After I move, can my opponent capture this piece?"
+
+**Concept:** This is called "hanging a piece" — leaving it where it can be captured for free. Here's a simple checklist before every move:
+1. Where am I moving my piece?
+2. Can anything capture it there?
+3. If yes, is it defended by one of my other pieces?
+If the answer to #2 is yes and #3 is no — don't move there!`,
+  },
+  {
+    id: "blun-tactic-intermediate",
+    positionType: "blunder",
+    skillLevel: "intermediate",
+    scenario: "User (1400) played Bg5 allowing Nxe4, winning a pawn due to the pin on the queen.",
+    idealResponse: `Bg5 looks natural but walks into a tactical shot.
+
+**Threats:** After Bg5, Black has Nxe4! This works because your bishop on g5 is pinned to your queen by the enemy bishop on b5. If you take the knight with Bxd8, Black plays Bxd1 winning your queen. If you don't take, you've simply lost the e4 pawn.
+
+**Best Moves:**
+1. **Be2** (best, +0.3) — Breaks the pin on the knight first, keeping material equal
+2. **Bg5** (played, -0.5) — Allows the Nxe4 tactic
+
+**Concept:** Always check for pins before developing pieces. A pin creates a "X-ray" effect — the piece in front can't move because a more valuable piece is behind it. Before playing Bg5, the key question was: "Does this create any tactical vulnerabilities?" The answer was yes — the queen was exposed on the d1-a4 diagonal.`,
+  },
+  {
+    id: "blun-mate-advanced",
+    positionType: "blunder",
+    skillLevel: "advanced",
+    scenario: "User (1800) played Kh1 missing that f2 was a critical weakness leading to Qxf2 with mate threats.",
+    idealResponse: `Kh1 overlooks the f2 vulnerability. Rf1 was necessary to shore up the defense.
+
+**Threats:** After Kh1, Black plays Qxf2 threatening Qg1# (back rank) and Qf1# simultaneously. The only defense is Rxf2 Rxf2, but then Black has Rd1+ picking up more material.
+
+**Best Moves:**
+1. **Rf1** (+0.2) — Defends f2 directly and connects the rooks
+2. **Kh1** (played, -4.1) — Loses to Qxf2 with unstoppable mate threats
+
+**Plans:** After Rf1, the position is roughly equal. White's plan would be to consolidate with Qe2, then look for activity on the c-file.
+
+**Concept:** Prophylaxis — asking "what does my opponent want to do?" before making your move. Here, Black's queen was eyeing f2 with tempo. Kh1 ignores this threat entirely. The discipline of checking your opponent's threats before executing your own plan separates intermediate from advanced players.`,
+  },
+
+  // === MIXED SKILL EXAMPLES ===
+  {
+    id: "mixed-sacrifice-intermediate",
+    positionType: "tactical",
+    skillLevel: "intermediate",
+    scenario: "User (1350) is asking about a position where Stockfish recommends Bxh6 sacrifice.",
+    idealResponse: `This is a classic bishop sacrifice on h6 to destroy the kingside pawn cover!
+
+**Threats:** After Bxh6 gxh6, Black's king loses its pawn shield. The h6 pawn is doubled and weak, and the g-file is blown open for your rook and queen.
+
+**Best Move:** Bxh6 gxh6 Qd2 (targeting h6). The Stockfish line continues with Qxh6, and then Ng5 creates an overwhelming attack against the exposed king. White has Qh7+ ideas and Qg6+ patterns.
+
+**Plans:** After the sacrifice:
+1. Qxh6 — recover the piece and maintain the attack
+2. Ng5 — brings another attacker toward the king
+3. Rooks to the g-file — pile up on the open file
+
+**Concept:** The Greek Gift sacrifice (Bxh7+) and the Bxh6 sacrifice are related patterns — both aim to strip the king's pawn cover. The key conditions for this sacrifice to work: your queen can quickly reach h6, you have a knight that can jump to g5, and your opponent can't easily cover the dark squares around their king.`,
+  },
+  {
+    id: "mixed-tempo-beginner",
+    positionType: "strategic",
+    skillLevel: "beginner",
+    scenario: "User (800) moved their bishop back and forth (Bc4-b3-c4) losing two tempi.",
+    idealResponse: `I noticed your bishop went Bc4, then Bb3, then back to Bc4. That means you spent three moves to end up in the same place!
+
+**Plans:** Every move in chess matters. While you were shuffling your bishop, your opponent was developing new pieces and getting closer to castling. Think of each move like a "turn" — you don't want to waste turns doing nothing.
+
+**Best Move:** Instead of Bb3, you could have played Nc3 (developing a new piece) or O-O (getting your king safe). Both moves improve your position rather than moving the same piece back and forth.
+
+**Concept:** "Tempo" means "time" in chess. Every move is one tempo. When you move a piece to a square and then move it back, you've lost tempi — your opponent got free moves. A good rule: try to move each piece only once in the opening. Develop all your pieces to good squares, then decide which piece needs to move again.`,
+  },
+  {
+    id: "mixed-exchange-advanced",
+    positionType: "strategic",
+    skillLevel: "advanced",
+    scenario: "User (1750) traded their good bishop with Bxf6 instead of maintaining the bishop pair.",
+    idealResponse: `Bxf6 is a significant concession — surrendering the bishop pair without compensation.
+
+**Best Moves:**
+1. **Bg5** (best, maintaining tension) — Keeps the bishop pair and the pin. Black must spend time resolving it.
+2. **Bxf6** (played) — Exchanges your active dark-squared bishop. After Qxf6, Black has the bishop pair in a semi-open position where bishops excel.
+
+**Piece Roles:** Your dark-squared bishop on g5 was your most active minor piece — it pinned the knight, controlled key dark squares, and supported future kingside play. After Bxf6, you're left with a light-squared bishop that's restricted by your own pawns on e4 and d3.
+
+**Concept:** The bishop pair is a long-term strategic advantage, worth roughly +0.5 pawns in open positions. Exchange bishops only when you get concrete compensation (winning material, creating a strong attack, or obtaining a dominant knight outpost). Maintaining tension (keeping pieces where they cause problems) is often stronger than resolving it prematurely.`,
+  },
+  {
+    id: "mixed-prophylaxis-advanced",
+    positionType: "strategic",
+    skillLevel: "advanced",
+    scenario: "User (1800) played b4 but missed that a6 was needed to prevent Nb5.",
+    idealResponse: `b4 looks active but ignores Black's main threat.
+
+**Threats:** Black is threatening Nb5, which would land a knight on the powerful c3 outpost (or fork your a-pawn and c-pawn). Once the knight reaches c3, it's nearly impossible to dislodge.
+
+**Best Move:** a6 is prophylactic — it prevents Nb5 permanently. After a6, you can proceed with your b4 plan on the next move, but now without the Nb5 counter.
+
+**Plans:** The correct sequence was a6 first (preventing the threat), then b4 (executing your plan). This costs one tempo but avoids a strategically disastrous Nb5.
+
+**Concept:** Prophylaxis — the art of preventing your opponent's plans before executing your own. Petrosian was the grandmaster of this concept. Before every move, ask: "What does my opponent WANT to do?" If their plan is dangerous, stop it first. Then pursue your own idea. It's like closing the back door before you go out the front.`,
+  },
+];
+
+/**
+ * Select the most relevant few-shot examples for a given context.
+ * Uses scoring-based selection with diversity guarantee:
+ * - Scores each example by position type + skill level match
+ * - Randomizes among equal-scored candidates for variety
+ * - Avoids duplicate positionType+skillLevel combos when possible
+ *
+ * Handles both the original 20 hand-crafted and data-pipeline curated examples.
+ */
+export function selectExamples(
+  positionType?: string,
+  skillLevel?: "beginner" | "intermediate" | "advanced",
+  maxExamples: number = 2
+): GoldStandardExample[] {
+  const typeMap: Record<string, string[]> = {
+    tactical: ["tactical", "blunder"],
+    strategic: ["strategic", "opening"],
+    endgame: ["endgame"],
+    opening: ["opening"],
+    blunder: ["blunder", "tactical"],
+  };
+
+  // Score each candidate
+  const scored = GOLD_STANDARD_EXAMPLES.map(ex => {
+    let score = 0;
+
+    // Skill level match: +3 exact, +1 adjacent
+    if (skillLevel) {
+      if (ex.skillLevel === skillLevel) {
+        score += 3;
+      } else {
+        // Adjacent levels get partial credit
+        const levels = ["beginner", "intermediate", "advanced"];
+        const diff = Math.abs(levels.indexOf(ex.skillLevel) - levels.indexOf(skillLevel));
+        if (diff === 1) score += 1;
+      }
+    }
+
+    // Position type match: +4 exact, +2 related
+    if (positionType) {
+      const matchTypes = typeMap[positionType] || [positionType];
+      if (matchTypes.includes(ex.positionType)) {
+        score += ex.positionType === positionType ? 4 : 2;
+      }
+    }
+
+    // Small random jitter for variety among equal-scored candidates
+    score += Math.random() * 0.5;
+
+    return { example: ex, score };
+  });
+
+  // Sort by score descending
+  scored.sort((a, b) => b.score - a.score);
+
+  // Select with diversity: avoid same positionType+skillLevel combo
+  const selected: GoldStandardExample[] = [];
+  const usedCombos = new Set<string>();
+
+  // First pass: pick diverse high-scorers
+  for (const { example } of scored) {
+    if (selected.length >= maxExamples) break;
+    const combo = `${example.positionType}-${example.skillLevel}`;
+    if (!usedCombos.has(combo)) {
+      selected.push(example);
+      usedCombos.add(combo);
+    }
+  }
+
+  // Second pass: fill remaining from top scorers regardless of diversity
+  if (selected.length < maxExamples) {
+    const selectedIds = new Set(selected.map(e => e.id));
+    for (const { example } of scored) {
+      if (selected.length >= maxExamples) break;
+      if (!selectedIds.has(example.id)) {
+        selected.push(example);
+      }
+    }
+  }
+
+  return selected;
+}
+
+/**
+ * Format selected examples into a prompt-injectable string.
+ */
+export function formatExamplesForPrompt(examples: GoldStandardExample[]): string {
+  if (examples.length === 0) return "";
+
+  let prompt = "\n\n=== EXAMPLE COACHING RESPONSES (use these as quality benchmarks) ===\n";
+  prompt += "The following are examples of ideal coaching responses. Match this quality and structure:\n\n";
+
+  examples.forEach((ex, i) => {
+    prompt += `EXAMPLE ${i + 1} (${ex.skillLevel} level, ${ex.positionType} position):\n`;
+    prompt += `Scenario: ${ex.scenario}\n`;
+    prompt += `Response:\n${ex.idealResponse}\n\n`;
+  });
+
+  prompt += "Match the quality, structure, and specificity of these examples in your response.\n";
+  return prompt;
+}

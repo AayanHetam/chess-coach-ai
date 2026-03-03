@@ -87,6 +87,19 @@ export default function LandingFooter() {
             </Typography>
             <Typography
               component="a"
+              href="#about"
+              sx={{
+                color: "rgba(255,255,255,0.5)",
+                textDecoration: "none",
+                fontSize: "0.85rem",
+                "&:hover": { color: "#FF6B35" },
+                transition: "color 0.2s",
+              }}
+            >
+              About Us
+            </Typography>
+            <Typography
+              component="a"
               href="https://github.com/AayanHetam/chess-coach-ai"
               target="_blank"
               rel="noopener noreferrer"

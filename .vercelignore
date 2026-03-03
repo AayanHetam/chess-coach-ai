@@ -14,5 +14,6 @@ datasets/
 lichess_elite_pgns/
 maia-weights/
 scripts/
+maia-service/
 book_database.json
 test_results.json

@@ -1,3 +1,14 @@
+/**
+ * Chess Masti AI
+ * Copyright (C) 2024-2026 Aayan Hetamsaria
+ *
+ * This work is licensed under CC BY-NC 4.0
+ * https://creativecommons.org/licenses/by-nc/4.0/
+ *
+ * Commercial use requires explicit written permission.
+ * For commercial licensing inquiries: https://github.com/AayanHetam
+ */
+
 export interface MoveExplanation {
   eval_change: number;
   violated_principles: string[];

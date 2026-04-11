@@ -1,18 +1,28 @@
-<a href="https://github.com/your-username/chess-masti-ai">
-<img width="120" height="120" src="https://github.com/your-username/chess-masti-ai/blob/main/public/android-chrome-192x192.png" alt="Chess Masti AI Logo">
+<a href="https://github.com/AayanHetam/chess-coach-ai">
+<img width="120" height="120" src="https://github.com/AayanHetam/chess-coach-ai/blob/main/public/android-chrome-192x192.png" alt="Chess Masti AI Logo">
 </a>
 
 <h3 align="center">Chess Masti AI</h3>
 
 <p align="center">
-<a href="https://chess-masti-ai.com/" target="_blank" rel="noopener noreferrer"><strong>chess-masti-ai.com</strong></a>
+<a href="https://chessmasti.com/" target="_blank" rel="noopener noreferrer"><strong>chessmasti.com</strong></a>
 <br />
 <em>Make Chess Fun with AI-Powered Coaching</em>
 <br />
 <br />
-<a href="https://github.com/your-username/chess-masti-ai/issues">Report Bug</a>
+<a href="https://github.com/AayanHetam/chess-coach-ai/issues">Report Bug</a>
 ·
-<a href="https://github.com/your-username/chess-masti-ai/issues">Request Feature</a>
+<a href="https://github.com/AayanHetam/chess-coach-ai/issues">Request Feature</a>
+</p>
+
+<p align="center">
+<a href="https://creativecommons.org/licenses/by-nc/4.0/">
+<img src="https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg" alt="License: CC BY-NC 4.0">
+</a>
+<img src="https://img.shields.io/badge/Copyright-2024--2026%20Aayan%20Hetamsaria-blue.svg" alt="Copyright 2024-2026 Aayan Hetamsaria">
+<a href="#citation">
+<img src="https://img.shields.io/badge/Citation-Required-orange.svg" alt="Citation Required">
+</a>
 </p>
 
 ## About
@@ -52,7 +62,7 @@ Transform your chess journey with:
 
 ## Experience the Masti
 
-Ready to make chess fun? Try Chess Masti AI at [chess-masti-ai.com](https://chess-masti-ai.com)
+Ready to make chess fun? Try Chess Masti AI at [chessmasti.com](https://chessmasti.com)
 
 ## Tech Stack
 
@@ -150,9 +160,37 @@ This project builds on the chess commentary dataset introduced by Jhamtani et al
 }
 ```
 
-## License
+## License & Commercial Use
 
-Chess Masti AI is licensed under the GNU Affero General Public License 3. See [COPYING.md](COPYING.md) for details.
+### Non-Commercial License
+
+Chess Masti AI is licensed under **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)**.
+
+**What this means:**
+- ✅ **Free for personal use, education, and research**
+- ✅ **You can study, modify, and share** (with attribution)
+- ❌ **Commercial use is NOT permitted** without explicit written permission
+- ⚖️ **Legal protection** against unauthorized commercial exploitation
+
+**This license protects the work from:**
+- Being copied and sold by others
+- Being integrated into paid products or services
+- Being used in commercial applications without permission
+- Being monetized without authorization from the copyright holder
+
+### Why This Matters
+
+This project represents significant research, development, and innovation. The non-commercial license ensures:
+1. The work remains **free for learners and researchers**
+2. **Commercial entities must seek permission** (and potentially licensing agreements)
+3. **Attribution is always given** to the original creator
+4. The chess community benefits while the creator retains commercial rights
+
+### Commercial Licensing
+
+Interested in using Chess Masti AI commercially? Contact Aayan Hetamsaria via [GitHub](https://github.com/AayanHetam).
+
+**For full license details, see [LICENSE](LICENSE)** or visit https://creativecommons.org/licenses/by-nc/4.0/
 
 ## Citations & Acknowledgments
 
@@ -284,7 +322,7 @@ Chess Masti AI builds upon many amazing open-source projects and datasets. We're
 
 ### Deployment & Infrastructure
 - **AWS Cloud Development Kit (CDK)** - Infrastructure as code
-- **Vercel** - Hosting platform (if applicable)
+- **Vercel** - Hosting platform for chessmasti.com
 - **Firebase** - Authentication and analytics (if applicable)
 
 ---

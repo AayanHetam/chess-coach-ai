@@ -7,8 +7,11 @@ authors:
     given-names: Aayan
 url: "https://github.com/AayanHetam/chess-coach-ai"
 repository-code: "https://github.com/AayanHetam/chess-coach-ai"
-license: AGPL-3.0
+license: CC-BY-NC-4.0
+date-released: "2024-02-01"
 year: 2026
+version: "1.0.0"
+abstract: "An AI-powered chess coaching platform that makes learning chess fun and engaging through principle-based explanations, powered by LLMs and advanced chess engines."
 keywords:
   - chess
   - ai-coaching

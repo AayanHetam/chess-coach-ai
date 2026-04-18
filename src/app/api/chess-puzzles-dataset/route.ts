@@ -6,10 +6,15 @@ import {
   getAvailableThemes,
   type DifficultyBand,
 } from "@/lib/puzzleDatabase";
+import { puzzleDatasetSchema, validateRequest } from "@/lib/validation/schemas";
 
 export async function POST(req: Request) {
   try {
-    const { fen, themes, limit = 5, command = "find_similar", difficulty, excludeIds } = await req.json();
+    const body = await req.json();
+
+    const parsed = validateRequest(puzzleDatasetSchema, body);
+    if (!parsed.success) return parsed.response;
+    const { fen, themes, limit, command, difficulty, excludeIds } = parsed.data;
 
     if (command === "find_similar") {
       if (!themes || themes.length === 0) {
@@ -42,7 +47,7 @@ export async function POST(req: Request) {
       const puzzles = await queryPuzzles({
         themes,
         limit,
-        difficulty: difficulty as DifficultyBand | DifficultyBand[] | undefined,
+        difficulty: difficulty,
         shuffle: true,
         excludeIds: excludeIds || undefined,
       });
@@ -55,7 +60,7 @@ export async function POST(req: Request) {
     } else if (command === "random") {
       const puzzles = await queryPuzzles({
         limit,
-        difficulty: difficulty as DifficultyBand | DifficultyBand[] | undefined,
+        difficulty: difficulty,
         shuffle: true,
         excludeIds: excludeIds || undefined,
       });

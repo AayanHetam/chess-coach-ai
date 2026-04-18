@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import { identifyTacticalThemes, getTacticalPatterns, formatTacticalThemesForPrompt } from "@/lib/chessPuzzlesService";
+import { chessPuzzlesSchema, validateRequest } from "@/lib/validation/schemas";
 
 export async function POST(req: Request) {
   try {
-    const { fen, principalVariation, bestMove } = await req.json();
+    const body = await req.json();
 
-    if (!fen) {
-      return NextResponse.json(
-        { error: "FEN position is required" },
-        { status: 400 }
-      );
-    }
+    const parsed = validateRequest(chessPuzzlesSchema, body);
+    if (!parsed.success) return parsed.response;
+    const { fen, principalVariation, bestMove } = parsed.data;
 
     // Identify tactical themes from the position and principal variation
     const themes = identifyTacticalThemes(

@@ -10,10 +10,16 @@
   "ignoreCommand": "exit 1",
   "build": {
     "env": {
-      "NEXT_PUBLIC_SITE_URL": "https://chess-coach-n5yrztbg7-aayan-hs-projects.vercel.app",
+      "NEXT_PUBLIC_SITE_URL": "https://chessmasti.com",
       "SKIP_ENV_VALIDATION": "true"
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/keep-maia-alive",
+      "schedule": "0 */12 * * *"
+    }
+  ]
 }
 
 

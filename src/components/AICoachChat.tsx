@@ -23,6 +23,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
 import { Chess } from "chess.js";
+import { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import { useChessActions } from "@/hooks/useChessActions";
 import {
   boardAtom,
@@ -47,6 +48,7 @@ import { selectedCoachIdAtom } from "@/atoms/coachAtoms";
 import { getPersonalityById } from "@/config/coachPersonalities";
 import { useAuth } from "@/contexts/AuthContext";
 import { storeFeedback } from "@/lib/feedbackStore";
+import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
 import { loadWeaknessProfile, getWeaknessPromptContext } from "@/lib/weaknessProfile";
 
 interface Message {
@@ -66,6 +68,8 @@ const PracticePuzzleButton: React.FC<{
   displayTheme: string;
 }> = ({ theme, displayTheme }) => {
   const router = useRouter();
+  const game = useAtomValue(gameAtom);
+  const userPlayerInfo = useAtomValue(userPlayerInfoAtom);
   const setPracticePuzzles = useSetAtom(practicePuzzlesAtom);
   const setCurrentPuzzleIndex = useSetAtom(currentPuzzleIndexAtom);
   const setPracticeTheme = useSetAtom(practiceThemeAtom);
@@ -75,6 +79,126 @@ const PracticePuzzleButton: React.FC<{
     setLoading(true);
     try {
       const normalizedTheme = normalizeThemeName(theme);
+
+      // Kebab-case theme IDs (matches Neo4j Theme.id convention)
+      const kebabTheme = theme
+        .trim()
+        .replace(/([a-z])([A-Z])/g, "$1-$2")
+        .replace(/\s+/g, "-")
+        .toLowerCase();
+      const themesForQuery = Array.from(new Set([kebabTheme, normalizedTheme]));
+
+      // Use the CURRENT board position as the reference FEN for similarity ranking.
+      // This is typically the mistake position the user navigated to.
+      const currentFen = (() => {
+        try { return game?.fen?.() ?? null; } catch { return null; }
+      })();
+
+      // Infer user rating from headers if available
+      const userRating = (() => {
+        try {
+          const headers = game?.getHeaders?.() ?? {};
+          const color = userPlayerInfo?.playerColor;
+          const str = color === "black" ? headers.BlackElo : headers.WhiteElo;
+          const n = str ? parseInt(String(str), 10) : NaN;
+          return Number.isFinite(n) ? n : 1500;
+        } catch { return 1500; }
+      })();
+
+      // PRIMARY PATH: /api/similar-puzzles (theme match + FEN similarity re-rank)
+      if (currentFen) {
+        try {
+          const resp = await fetch("/api/similar-puzzles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fen: currentFen,
+              themes: themesForQuery,
+              userRating,
+              limit: 20,
+              candidatePoolSize: 80,
+              excludeIds: [],
+              sideToMoveMustMatch: false,
+            }),
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.puzzles && data.puzzles.length > 0) {
+              const mapped: ChessPuzzle[] = data.puzzles.map((p: any) => ({
+                id: p.puzzleId,
+                fen: p.fen,
+                moves: typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
+                rating: p.rating,
+                themes: p.themes || [],
+                solution: typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
+              }));
+
+              try {
+                const { createTrainingSet } = await import("@/lib/repetitTraining");
+                const trainingSet = createTrainingSet({
+                  conceptName: displayTheme,
+                  theme: normalizedTheme,
+                  puzzles: mapped,
+                  userId: "current-user",
+                });
+                setPracticePuzzles(mapped);
+                setCurrentPuzzleIndex(0);
+                setPracticeTheme(normalizedTheme);
+                router.push({
+                  pathname: "/practice",
+                  query: { theme: normalizedTheme, setId: trainingSet.id },
+                });
+              } catch {
+                setPracticePuzzles(mapped);
+                setCurrentPuzzleIndex(0);
+                setPracticeTheme(normalizedTheme);
+                router.push({ pathname: "/practice", query: { theme: normalizedTheme } });
+              }
+              console.log(`✅ Loaded ${mapped.length} puzzles via similar-puzzles (theme + FEN similarity). Pool=${data.poolSize}`);
+              return;
+            }
+          }
+        } catch (e) {
+          console.log("similar-puzzles failed, falling back to adaptive-puzzles:", (e as Error).message);
+        }
+      }
+
+      // SECONDARY FALLBACK: /api/adaptive-puzzles (theme-only, no FEN re-rank)
+      try {
+        const resp = await fetch("/api/adaptive-puzzles", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: "practice-user",
+            themes: themesForQuery,
+            limit: 20,
+            excludeIds: [],
+          }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.puzzles && data.puzzles.length > 0) {
+            const mapped: ChessPuzzle[] = data.puzzles.map((p: any) => ({
+              id: p.puzzleId,
+              fen: p.fen,
+              moves: typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
+              rating: p.rating,
+              themes: p.themes || [],
+              solution: typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
+            }));
+            setPracticePuzzles(mapped);
+            setCurrentPuzzleIndex(0);
+            setPracticeTheme(normalizedTheme);
+            router.push({ pathname: "/practice", query: { theme: normalizedTheme } });
+            console.log(`✅ Loaded ${mapped.length} puzzles via adaptive-puzzles fallback`);
+            return;
+          }
+        }
+      } catch (e) {
+        console.log("adaptive-puzzles also failed, falling back to static dataset");
+      }
+
+      // TERTIARY FALLBACK: static dataset
       const puzzles = await getPuzzlesByTheme([normalizedTheme], 20);
       if (puzzles.length > 0) {
         setPracticePuzzles(puzzles);
@@ -312,9 +436,37 @@ const ClickableMove: React.FC<{
     );
     
     // Calculate the half-move index for this move number
-    const halfMoveIdx = moveNumber !== undefined
+    let halfMoveIdx = moveNumber !== undefined
       ? (isBlackMove ? moveNumber * 2 - 1 : (moveNumber - 1) * 2)
       : -1;
+
+    // Verify the turn color at the calculated position and correct if needed
+    // This fixes cases where AI writes "20. Rf7" when it means "20... Rf7" (Black's move)
+    if (halfMoveIdx >= 0 && moveNumber !== undefined) {
+      const gameHistory = game.history();
+      const tempGame = new Chess();
+      for (let i = 0; i < halfMoveIdx && i < gameHistory.length; i++) {
+        tempGame.move(gameHistory[i]);
+      }
+      // Check if move is legal at the calculated position
+      const legalMoves = tempGame.moves();
+      const isLegalHere = legalMoves.some(m => m.replace(/[+#]/, '') === move.replace(/[+#]/, ''));
+      if (!isLegalHere) {
+        // Try the other color's position (±1 half-move)
+        const altIdx = isBlackMove ? (moveNumber - 1) * 2 : moveNumber * 2 - 1;
+        if (altIdx >= 0 && altIdx <= gameHistory.length) {
+          const tempGame2 = new Chess();
+          for (let i = 0; i < altIdx && i < gameHistory.length; i++) {
+            tempGame2.move(gameHistory[i]);
+          }
+          const altLegal = tempGame2.moves();
+          if (altLegal.some(m => m.replace(/[+#]/, '') === move.replace(/[+#]/, ''))) {
+            console.log(`Color correction: ${move} not legal at halfMove ${halfMoveIdx}, using ${altIdx} instead`);
+            halfMoveIdx = altIdx;
+          }
+        }
+      }
+    }
 
     if (isRecommended && moveNumber !== undefined) {
       // GREEN LINK: Enter exploration mode at the correct position
@@ -518,8 +670,10 @@ const EngineContinuation: React.FC<{
       for (const san of pvSan) {
         try { newGame.move(san); } catch { break; }
       }
-      goToMove(newGame.history().length, newGame);
-      console.log(`✅ Played engine continuation (${pvSan.length} moves) from move ${moveNum}`);
+      // Go to divergence point (before first PV move), not the end.
+      // The full PV is in the game history so the user can step forward/backward.
+      goToMove(halfMoveIdx, newGame);
+      console.log(`✅ Engine continuation loaded (${pvSan.length} moves) at divergence point move ${moveNum}. Use forward arrow to step through.`);
     } catch (error) {
       console.error("Error playing engine continuation:", error);
     }
@@ -679,7 +833,10 @@ const MaiaContinuation: React.FC<{
       for (const san of maiaLine) {
         try { newGame.move(san); } catch { break; }
       }
-      goToMove(newGame.history().length, newGame);
+      // Go to divergence point (before first Maia move), not the end.
+      // The full line is in the game history so the user can step forward/backward.
+      goToMove(halfMoveIdx, newGame);
+      console.log(`✅ Maia line loaded (${maiaLine.length} moves) at divergence point. Use forward arrow to step through.`);
     } catch (error) {
       console.error("Error playing Maia continuation:", error);
     }
@@ -1513,6 +1670,13 @@ YOUR PRIMARY JOB:
 - Think through the request: What do they want? What information do you have? How can you use it to answer?
 - Provide intelligent, helpful analysis based on their actual question - don't just follow templates
 
+CRITICAL: PLAYER PERSPECTIVE ONLY
+- You are coaching the PLAYER, whose color is provided in the USER CONTEXT section.
+- ONLY analyze the PLAYER's moves and mistakes in detail. Do NOT give detailed analysis of the opponent's mistakes or blunders.
+- If the opponent made a mistake, you may briefly note it ("Your opponent slipped here, giving you an opportunity") but do NOT dedicate a full analysis section to it. The player cannot control what the opponent does.
+- Focus 100% of your coaching on what the PLAYER could have done better or did well.
+- When doing a game review, ONLY pick the PLAYER's critical mistakes (biggest eval drops on THEIR moves). Skip opponent blunders entirely.
+
 CHAIN-OF-THOUGHT REASONING (internal process before responding):
 Before writing your response, silently work through these steps:
 1. VERIFY: Check the FEN data. Before claiming any piece is on a square, mentally decode the FEN to confirm. If the FEN shows "r1bqkb1r", that means rook-empty-bishop-queen-king-bishop-empty-rook on that rank.
@@ -1653,6 +1817,12 @@ After the tokens, explain WHY the best move is good — what does it achieve? Wh
 - **Solution**: How the best move addresses it (e.g., "Playing Qa1 before Bxd5 avoids the queen trade")
 - **Outcome**: What the resulting position looks like (e.g., "White maintains a decisive advantage with active pieces")
 
+CRITICAL — WHEN DISCUSSING OPPONENT RESPONSES:
+- When explaining what happens after the best move, use the ENGINE'S recommended opponent response from the PV (principal variation), NOT what was actually played in the game.
+- Example: "After 9. Be3, the best response for Black is 9... Nbd7 (from engine analysis)" — NOT "After 9. Be3, Black played 9... h6" (what actually happened in the game).
+- The [CONTINUATION] and [MAIA_CONTINUATION] tokens will show these lines automatically, so you can reference them in your explanation.
+- If you want to mention what the opponent actually played, do it SEPARATELY: "In the game, your opponent played 9... h6 instead, which was a mistake."
+
 **Why X. [PlayedMove] was wrong:**
 Explain the specific problem — what tactical or strategic issue did it create? Reference the eval drop.
 
@@ -1686,6 +1856,14 @@ CORE RESPONSIBILITIES:
 - Be encouraging and educational, helping users understand the deeper reasoning behind moves
 - CRITICAL FORMATTING: ALWAYS reference moves with their move number. Use format "X. Move" for white moves and "X... Move" for black moves (e.g., "14. Nb3", "14... Nxe5"). This applies to BOTH played moves AND suggested/best moves. NEVER write bare moves like "Qe2" — always write "14. Qe2". This is required because move numbers make moves clickable in the UI.
 - ALWAYS verify piece placements against the FEN data before claiming a piece is on a specific square
+
+CRITICAL — MOVE TIMING AND BEST MOVE SUGGESTIONS:
+- When suggesting the "Best Move" for a mistake, you MUST use the CORRECT MOVE NUMBER where the mistake occurred, NOT where that move was played later in the game.
+- Example: If the player made a mistake on move 9 by playing 9. O-O, and the best move was 9. Be3, you MUST write "Best Move: 9. Be3" even if Be3 was actually played on move 13 in the game.
+- NEVER write "Best Move: 13. Be3" just because Be3 appears on move 13 in the game history. The move number must match the position where the mistake occurred.
+- After suggesting the best move, when showing the opponent's best response, use the NEXT move number (e.g., "After 9. Be3, the opponent's best response is 9... Nbd7").
+- DO NOT use the move numbers from the actual game for hypothetical variations — use sequential move numbers starting from the position where the variation begins.
+- This is CRITICAL because users click on move numbers to navigate to positions, and wrong move numbers will take them to the wrong position in the game.
 
 STOCKFISH EVALUATION USAGE:
 - Always ground your analysis in the Stockfish evaluations provided
@@ -1721,31 +1899,45 @@ INTERACTIVE ELEMENTS:
 
 ${personality.systemPromptOverride}
 
-PRACTICE PUZZLE SYSTEM:
-You have access to a comprehensive practice puzzle database with the following tactical themes:
-${Object.entries(TACTICAL_THEMES).map(([key, val]) => `- "${key}" → ${val.theme}`).join("\n")}
+PRACTICE PUZZLE SYSTEM — POWERED BY GRAPH DATABASE (200,000+ REAL PUZZLES):
+You have direct access to a Neo4j Graph Database containing 200,000+ real Lichess puzzles with rich theme categorization. This is one of your MOST IMPORTANT capabilities. When the user makes mistakes, you MUST recommend PRECISE practice puzzles that match the EXACT tactical pattern they missed.
+
+Available tactical themes (use the EXACT key on the left for the [PRACTICE:...] token):
+${Object.entries(TACTICAL_THEMES).map(([key, val]) => `- "${key}" → ${val.theme}: ${val.description}`).join("\n")}
 
 Difficulty bands: beginner (≤1200 rating), intermediate (1201-1600), advanced (1601-2000), expert (2001+)
 
 PRACTICE OFFER PROTOCOL:
-After explaining mistakes, you MUST offer practice puzzles using a special token format that renders as a clickable button.
+After explaining EACH mistake, you MUST offer practice puzzles using a special token that renders as a clickable button connected to the Graph DB.
 
 HOW TO OFFER PRACTICE:
-Include this exact token in your response: [PRACTICE:themeKey:Display Name]
-- themeKey must be one of the theme keys listed above (e.g., "fork", "pin", "backRankMate", "hangingPiece")
-- Display Name is what the user sees (e.g., "Fork", "Pin Tactics", "Back Rank Mate")
+Include this exact token: [PRACTICE:themeKey:Display Name]
+- themeKey must EXACTLY match one of the theme keys listed above (e.g., "fork", "pin", "backRankMate", "hangingPiece", "exposedKing")
+- Display Name is what the user sees (e.g., "Fork Tactics", "Pin Patterns", "King Safety")
+- The button queries 200,000+ real puzzles in the Graph Database to find the BEST matching puzzles at the user's skill level
+
+CRITICAL — BE SPECIFIC WITH THEMES:
+- Do NOT suggest generic themes. Match the EXACT tactical pattern from the mistake.
+- If the user missed a knight fork → use [PRACTICE:fork:Knight Fork Tactics]
+- If the user left their king exposed → use [PRACTICE:exposedKing:King Safety Puzzles]
+- If the user missed a back rank threat → use [PRACTICE:backRankMate:Back Rank Defense]
+- If the user hung a piece → use [PRACTICE:hangingPiece:Hanging Piece Awareness]
+- If the user missed a pin → use [PRACTICE:pin:Pin Tactics]
+- If the user missed a discovered attack → use [PRACTICE:discoveredAttack:Discovered Attack Puzzles]
+- If the user missed a skewer → use [PRACTICE:skewer:Skewer Puzzles]
+- For endgame mistakes, use the specific endgame theme (rookEndgame, pawnEndgame, bishopEndgame, etc.)
+- You can include MULTIPLE [PRACTICE:...] tokens if the mistake involves multiple patterns
 
 EXAMPLES:
-- "You missed a fork pattern here. Practice this to sharpen your tactical vision:\n[PRACTICE:fork:Fork Tactics]"
-- "This was a classic back rank weakness. Strengthen your awareness:\n[PRACTICE:backRankMate:Back Rank Mate]"
-- "Your piece activity could improve. Try these puzzles:\n[PRACTICE:trappedPiece:Piece Activity]"
+- "You missed a fork pattern here. The Graph Database has thousands of fork puzzles at your level — let's sharpen that pattern recognition:\n[PRACTICE:fork:Fork Tactics]"
+- "This was a classic back rank weakness. Practice defending against these with real puzzles from the database:\n[PRACTICE:backRankMate:Back Rank Defense]"
+- "Your king safety awareness needs work. Here are targeted puzzles:\n[PRACTICE:exposedKing:King Safety Puzzles]"
 
 RULES:
-- ALWAYS include the [PRACTICE:...] token at the END of your analysis — it renders as a clickable green button
-- Match the theme to the specific mistake type (fork → fork, hanging piece → hangingPiece, pin → pin, etc.)
-- You can include multiple [PRACTICE:...] tokens if multiple weakness areas were identified
-- Also include a brief text prompt like "Want to practice this pattern?" before the token
-- Only offer practice after explaining actual mistakes or principle violations, not after general analysis
+- ALWAYS include at least one [PRACTICE:...] token after your analysis of mistakes — this is INTEGRAL to the coaching experience
+- Match the theme PRECISELY to the mistake pattern (fork → fork, NOT generic "tactics")
+- Include a brief explanation of WHY this practice will help before the token
+- After a game review with multiple mistakes, include a [PRACTICE:...] token for EACH distinct weakness pattern identified
 
 SKILL-LEVEL CALIBRATION:
 Adapt your explanations based on the user's rating (provided in USER CONTEXT). If no rating is available, default to intermediate (1000-1600).
@@ -1788,6 +1980,7 @@ IMPORTANT GUIDELINES:
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [messageFeedback, setMessageFeedback] = useState<Record<number, "positive" | "negative">>({});
+  const [puzzleRecommendations, setPuzzleRecommendations] = useState<any[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -1854,15 +2047,38 @@ IMPORTANT GUIDELINES:
     return requestKeywords.some(keyword => normalizedText.includes(keyword));
   };
 
-  // Helper function to detect if user is accepting practice offer
+  // Helper function to detect if user is accepting practice offer.
+  //
+  // IMPORTANT: Uses word-boundary matching and a short-message cap so that
+  // casual requests like "help me analyze my game please" don't get hijacked
+  // into the practice branch (which was previously happening because "please"
+  // was a substring match).
   const isPracticeAcceptance = (text: string): boolean => {
     const normalizedText = text.toLowerCase().trim();
+    // Acceptance utterances are short affirmations, not long requests.
+    if (normalizedText.length > 60) return false;
+
     const acceptanceKeywords = [
       "yes", "sure", "ok", "okay", "yeah", "yep", "yup", "alright", "all right",
       "let's practice", "let's do it", "sounds good", "that sounds good",
-      "practice", "i'd like to practice", "i want to practice", "please"
+      "i'd like to practice", "i want to practice", "i'd like that",
     ];
-    return acceptanceKeywords.some(keyword => normalizedText.includes(keyword));
+    return acceptanceKeywords.some((keyword) => {
+      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`(^|\\W)${escaped}(\\W|$)`, "i").test(normalizedText);
+    });
+  };
+
+  // Whether the most recent assistant message actually offered a practice drill.
+  // Required gate before treating a message as practice acceptance — otherwise
+  // we'd fire the practice flow on any short "yes" / "ok" regardless of context.
+  const lastAssistantOfferedPractice = (): boolean => {
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    if (!lastAssistant) return false;
+    const c = lastAssistant.content;
+    // Must contain a practice-offer phrase AND end with a question.
+    const offerPhrase = /(practice\s+(?:some\s+)?\w+?\s*puzzles|would you like to (?:practice|drill|work on|try)|shall we (?:practice|drill)|want to practice)/i;
+    return offerPhrase.test(c) && /\?/.test(c);
   };
 
   // Helper function to extract theme from recent conversation
@@ -2012,9 +2228,100 @@ IMPORTANT GUIDELINES:
         hasUserMessagedRef.current = true;
       }
       
-      // Check for practice acceptance BEFORE handling greetings
-      if (isPracticeAcceptance(textToSend)) {
-        const theme = extractThemeFromConversation();
+      // ───────────────────────────────────────────────────────────────
+      // INTENT CLASSIFICATION (LLM-powered router)
+      //
+      // Instead of fragile keyword heuristics, ask a small fast LLM
+      // (Claude Haiku, via /api/classify-intent) what the user actually
+      // wants. Possible intents:
+      //   - accept_practice  → run the puzzle-fetch flow with the extracted theme
+      //   - decline_practice → short canned acknowledgment, stay in analysis
+      //   - off_topic        → polite on-topic redirect (no big LLM call)
+      //   - chess_question   → fall through to /api/enhanced-analysis or /api/chat
+      //
+      // If the classifier fails (network/API error or unparseable), we fall
+      // back to the legacy regex heuristics below so the chat still works.
+      // ───────────────────────────────────────────────────────────────
+      type Intent =
+        | "accept_practice"
+        | "decline_practice"
+        | "off_topic"
+        | "chess_question";
+      let classifiedIntent: Intent | null = null;
+      let classifiedTheme: string | null = null;
+      try {
+        const classifyRes = await fetch("/api/classify-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userMessage: textToSend,
+            recentMessages: messages
+              .filter((m) => m.role === "user" || m.role === "assistant")
+              .slice(-4)
+              .map((m) => ({ role: m.role, content: m.content })),
+          }),
+        });
+        if (classifyRes.ok) {
+          const c = await classifyRes.json();
+          if (
+            c.intent === "accept_practice" ||
+            c.intent === "decline_practice" ||
+            c.intent === "off_topic" ||
+            c.intent === "chess_question"
+          ) {
+            classifiedIntent = c.intent as Intent;
+            classifiedTheme = typeof c.theme === "string" ? c.theme : null;
+          }
+        }
+      } catch (e) {
+        // Swallow — we'll fall back to regex heuristics below.
+        console.warn("Intent classifier call failed, falling back to heuristics:", e);
+      }
+
+      // Route: OFF-TOPIC — short polite redirect, no big LLM call.
+      if (classifiedIntent === "off_topic") {
+        setMessages((prev) => [
+          ...prev,
+          userMessage,
+          {
+            role: "assistant",
+            content:
+              "I'm your chess coach, so I'll stay focused on chess! Ask me to analyze your game, explain a move, or suggest tactics to practice — happy to dive into any of those.",
+          },
+        ]);
+        if (!messageText) setInput("");
+        return;
+      }
+
+      // Route: DECLINE PRACTICE — short acknowledgment, then wait for next message.
+      if (classifiedIntent === "decline_practice") {
+        setMessages((prev) => [
+          ...prev,
+          userMessage,
+          {
+            role: "assistant",
+            content:
+              "No problem! We can keep analyzing the game. Let me know if you want to tackle a specific move or idea.",
+          },
+        ]);
+        if (!messageText) setInput("");
+        return;
+      }
+
+      // Route: ACCEPT PRACTICE — decide whether to trigger the puzzle flow.
+      // Prefer the classifier's decision, but guard with the legacy heuristic
+      // (last assistant actually offered practice) to avoid runaway loops.
+      const shouldTriggerPractice =
+        classifiedIntent === "accept_practice"
+          ? !!classifiedTheme || lastAssistantOfferedPractice()
+          : classifiedIntent === null &&
+            isPracticeAcceptance(textToSend) &&
+            lastAssistantOfferedPractice(); // regex fallback only if classifier unavailable
+
+      if (shouldTriggerPractice) {
+        // Prefer the classifier-extracted theme; fall back to keyword scan of
+        // recent turns if the classifier didn't give us one.
+        const theme = classifiedTheme || extractThemeFromConversation();
         
         if (theme) {
           // Determine difficulty from user rating
@@ -2041,7 +2348,14 @@ IMPORTANT GUIDELINES:
           
           try {
             const normalizedTheme = normalizeThemeName(theme);
-            const puzzles = await getPuzzlesByTheme([normalizedTheme], 20, difficulty);
+            // The static puzzle DB (Lichess-derived) uses camelCase theme IDs
+            // like `mate`, `backRankMate`, `trappedPiece`, etc., while
+            // normalizeThemeName emits kebab-case like `mating-attack`. Pass
+            // both so we hit whichever the local index actually stores.
+            const themeVariants = Array.from(
+              new Set([normalizedTheme, theme].filter(Boolean))
+            );
+            const puzzles = await getPuzzlesByTheme(themeVariants, 20, difficulty);
             
             if (puzzles.length > 0) {
               setPracticePuzzles(puzzles);
@@ -2199,6 +2513,11 @@ IMPORTANT GUIDELINES:
           if (data.gameAnalysis?.contextId) {
             analysisContextIdRef.current = data.gameAnalysis.contextId;
           }
+
+          // Store puzzle recommendations if available
+          if (data.gameAnalysis?.puzzleRecommendations) {
+            setPuzzleRecommendations(data.gameAnalysis.puzzleRecommendations);
+          }
         }
 
         // Add assistant message with the analysis
@@ -2256,11 +2575,15 @@ IMPORTANT GUIDELINES:
           console.log("Request aborted");
         } else {
           console.error("Error sending message:", error);
+          const errMsg =
+            error instanceof Error && error.message
+              ? error.message
+              : "Unknown error";
           setMessages((prev) => [
             ...prev,
             {
               role: "assistant",
-              content: "Sorry, I encountered an error. Please try again.",
+              content: `Sorry, I encountered an error: ${errMsg}. Please try again.`,
             },
           ]);
         }
@@ -2575,6 +2898,29 @@ IMPORTANT GUIDELINES:
           ))}
         <div ref={messagesEndRef} />
       </MessagesContainer>
+
+      {/* Display puzzle recommendations for detected mistakes */}
+      {puzzleRecommendations.length > 0 && (
+        <Box sx={{ mt: 2, mb: 2 }}>
+          <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+            🎯 Targeted Practice Puzzles
+          </Typography>
+          {puzzleRecommendations.map((recommendation, idx) => (
+            <Box key={idx} sx={{ mb: 3 }}>
+              <ContextualPuzzleRecommendations
+                fen={recommendation.fen}
+                movePlayed={recommendation.movePlayed}
+                correctMove={recommendation.correctMove}
+                evalBefore={recommendation.evalBefore}
+                evalAfter={recommendation.evalAfter}
+                tacticalMotifs={recommendation.tacticalMotifs}
+                userRating={userProfile?.rating}
+                mistakeDescription={`Move ${recommendation.moveNumber}: ${recommendation.explanation}`}
+              />
+            </Box>
+          ))}
+        </Box>
+      )}
 
       <Box sx={{ display: "flex", gap: 1, alignItems: "flex-end" }}>
         <TextField

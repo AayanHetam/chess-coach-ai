@@ -80,7 +80,7 @@ export default function LoadGame() {
             gamefromDbChess,
             importedGameInfo,
             gameFromUrl.black.name === "You" &&
-              gameFromUrl.site === "Chess-Masti-AI.com"
+              gameFromUrl.site === "ChessMasti.com"
               ? false
               : true
           );
@@ -97,7 +97,7 @@ export default function LoadGame() {
       setEval(gameFromUrl.eval);
       setBoardOrientation(
         gameFromUrl.black.name === "You" &&
-          gameFromUrl.site === "Chess-Masti-AI.com"
+          gameFromUrl.site === "ChessMasti.com"
           ? false
           : true
       );

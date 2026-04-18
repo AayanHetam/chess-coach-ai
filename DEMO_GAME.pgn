@@ -1,0 +1,89 @@
+[Event "Chess Masti AI Demo - Mistake-to-Puzzle System"]
+[Site "Demo"]
+[Date "2026.04.18"]
+[Round "1"]
+[White "Student"]
+[Black "Opponent"]
+[Result "0-1"]
+
+1. e4 e5
+2. Nf3 Nc6
+3. Bc4 Bc5
+4. c3 Nf6
+5. d4 exd4
+6. cxd4 Bb4+
+7. Bd2 Bxd2+
+8. Nbxd2 d5
+9. exd5 Nxd5
+10. O-O O-O
+11. Re1 Bg4
+{First mistake coming - student will miss a pin}
+12. h3 Bh5??
+{Should play Bf5. Now White can pin the bishop}
+13. Qb3??
+{MISTAKE #1: Missed g4 pinning the bishop to the queen!
+ Correct move: g4 pins the bishop
+ Theme: PIN
+ FEN before mistake: r2q1rk1/ppp2ppp/2n5/3n3b/2BP4/1Q1N1N1P/PP1N1PP1/R3R1K1 w - - 5 13}
+13... Nf6
+14. Ne4 Nxe4
+15. Rxe4 Qd5
+{Second mistake coming - student will miss a fork}
+16. Re1??
+{MISTAKE #2: Missed Nc3 forking queen and bishop!
+ Correct move: Nc3 (knight fork)
+ Theme: KNIGHT-FORK
+ FEN before mistake: r4rk1/ppp2ppp/2n5/3q3b/2BP4/1Q3N1P/PP3PP1/R3R1K1 w - - 1 16}
+16... Bg6
+17. Qd3 Rae8
+18. Rxe8 Rxe8
+19. Qf1 Qe4
+20. Bd3 Qe2
+{Third mistake coming - back rank weakness}
+21. Qxe2??
+{MISTAKE #3: Back rank mate incoming!
+ Should play Qg1 to defend
+ Theme: BACK-RANK-MATE
+ FEN before mistake: 4r1k1/ppp2ppp/2n3b1/8/3P4/3B1N1P/PP3qP1/R5K1 w - - 0 21}
+21... Rxe2
+22. Rc1 Re1+
+23. Rxe1
+{Back rank mate delivered}
+0-1
+
+{DEMONSTRATION NOTES:
+This game contains exactly 3 mistakes perfect for showing the puzzle recommendation system:
+
+MISTAKE #1 (Move 13): PIN
+- Student played Qb3 instead of g4
+- The AI should recommend PIN puzzles
+- FEN: r2q1rk1/ppp2ppp/2n5/3n3b/2BP4/1Q1N1N1P/PP1N1PP1/R3R1K1 w - - 5 13
+
+MISTAKE #2 (Move 16): KNIGHT FORK
+- Student played Re1 instead of Nc3 (forking queen + bishop)
+- The AI should recommend KNIGHT-FORK puzzles
+- FEN: r4rk1/ppp2ppp/2n5/3q3b/2BP4/1Q3N1P/PP3PP1/R3R1K1 w - - 1 16
+
+MISTAKE #3 (Move 21): BACK-RANK MATE
+- Student played Qxe2 allowing back-rank mate
+- The AI should recommend BACK-RANK-MATE puzzles
+- FEN: 4r1k1/ppp2ppp/2n3b1/8/3P4/3B1N1P/PP3qP1/R5K1 w - - 0 21
+
+HOW TO DEMO:
+1. Visit http://localhost:3000
+2. Paste this entire PGN (or use "Import Game")
+3. Click "Analyze My Game"
+4. AI will identify all 3 mistakes with different tactical themes
+5. For each mistake, click the practice button
+6. Show that:
+   - PIN mistake → returns PIN-themed puzzles
+   - FORK mistake → returns KNIGHT-FORK puzzles
+   - BACK-RANK mistake → returns BACK-RANK-MATE puzzles
+7. Highlight the FEN similarity: "Notice these puzzles look similar to where you made your mistake"
+
+TALKING POINTS:
+- "The AI detected 3 different tactical patterns I missed"
+- "For each pattern, it's showing me 5 puzzles that teach that exact concept"
+- "These puzzles look visually similar to my position - that's the FEN similarity system"
+- "This is what TakeTakeTake's AI coach is missing - targeted practice based on actual mistakes"
+}

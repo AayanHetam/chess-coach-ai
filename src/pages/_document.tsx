@@ -46,10 +46,10 @@ export default function Document() {
           content="Make chess fun with AI-powered coaching! Learn through engaging principles and enjoy the masti (fun) of improving your game."
         />
         <meta property="og:site_name" content="Chess Masti AI" />
-        <meta property="og:url" content="https://chess-masti-ai.com/" />
+        <meta property="og:url" content="https://chessmasti.com/" />
         <meta
           property="og:image"
-          content="https://chess-masti-ai.com/social-networks-1200x630.png"
+          content="https://chessmasti.com/social-networks-1200x630.png"
         />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -61,13 +61,13 @@ export default function Document() {
           name="twitter:description"
           content="Make chess fun with AI-powered coaching! Learn through engaging principles and enjoy the masti of improving your game."
         />
-        <meta name="twitter:domain" content="chess-masti-ai.com" />
-        <meta name="twitter:url" content="https://chess-masti-ai.com/" />
+        <meta name="twitter:domain" content="chessmasti.com" />
+        <meta name="twitter:url" content="https://chessmasti.com/" />
         <meta name="twitter:creator" content="@ChessMastiAI" />
         <meta name="twitter:site" content="@ChessMastiAI" />
         <meta
           name="twitter:image"
-          content="https://chess-masti-ai.com/social-networks-1200x630.png"
+          content="https://chessmasti.com/social-networks-1200x630.png"
         />
       </Head>
       <body>

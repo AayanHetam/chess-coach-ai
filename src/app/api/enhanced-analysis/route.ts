@@ -8,9 +8,11 @@ import {
   generateContextId,
   storeAnalysisContext,
 } from "@/lib/analysisContextCache";
+import { enhancedAnalysisSchema, validateRequest } from "@/lib/validation/schemas";
+import { logger, withRequestContext, extractRequestId } from "@/lib/logging";
+import { callLLM, LLMError } from "@/lib/llmProvider";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
+const log = logger.child({ module: "enhanced-analysis" });
 
 interface PositionEvalInput {
   bestMove?: string;
@@ -649,9 +651,106 @@ function getMaterialBalance(game: Chess): string {
   return `Material: ${balance}`;
 }
 
+/**
+ * Generate puzzle recommendations for detected mistakes in the game.
+ * Returns an array of mistake contexts with their matching puzzles.
+ */
+async function generatePuzzleRecommendations(
+  moveHistory: string[] | undefined,
+  gameEval: any,
+  userRating: number = 1500
+): Promise<Array<{
+  moveNumber: number;
+  movePlayed: string;
+  correctMove: string;
+  fen: string;
+  evalBefore: number;
+  evalAfter: number;
+  mistakeSeverity: "blunder" | "mistake" | "inaccuracy";
+  tacticalMotifs: string[];
+  puzzles: any[];
+  explanation: string;
+}>> {
+  if (!moveHistory || !gameEval?.positions) {
+    return [];
+  }
+
+  const recommendations = [];
+
+  // Detect significant mistakes (drop > 150 centipawns)
+  for (let i = 0; i < moveHistory.length; i++) {
+    const evalBefore = gameEval.positions[i];
+    const evalAfter = gameEval.positions[i + 1];
+    if (!evalBefore?.lines?.[0] || !evalAfter?.lines?.[0]) continue;
+
+    const cpBefore = evalBefore.lines[0].mate !== undefined
+      ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
+      : (evalBefore.lines[0].cp ?? 0);
+    const cpAfter = evalAfter.lines[0].mate !== undefined
+      ? (evalAfter.lines[0].mate! > 0 ? 9999 : -9999)
+      : (evalAfter.lines[0].cp ?? 0);
+    const drop = i % 2 === 0 ? cpBefore - cpAfter : cpAfter - cpBefore;
+
+    // Only generate puzzles for mistakes/blunders (not minor inaccuracies)
+    if (drop < 150) continue;
+
+    const fenBefore = getFenAtHalfMove(moveHistory, i);
+    const bestPvSan = convertPvToSan(fenBefore, evalBefore.lines[0].pv ?? []);
+    const bestMove = bestPvSan[0] || "unknown";
+    const motifs = detectTacticalMotifs(fenBefore, bestMove, bestPvSan);
+
+    try {
+      // Call the mistake-puzzles API
+      const response = await fetch("http://localhost:3000/api/mistake-puzzles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fen: fenBefore,
+          movePlayed: moveHistory[i],
+          correctMove: bestMove,
+          evalBefore: cpBefore,
+          evalAfter: cpAfter,
+          tacticalMotifs: motifs,
+          userRating,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        recommendations.push({
+          moveNumber: Math.floor(i / 2) + 1,
+          movePlayed: moveHistory[i],
+          correctMove: bestMove,
+          fen: fenBefore,
+          evalBefore: cpBefore,
+          evalAfter: cpAfter,
+          mistakeSeverity: data.mistakeSeverity,
+          tacticalMotifs: motifs,
+          puzzles: data.puzzles.slice(0, 3), // Top 3 puzzles
+          explanation: data.explanation,
+        });
+      }
+    } catch (error) {
+      console.error(`Failed to fetch puzzles for mistake at move ${Math.floor(i / 2) + 1}:`, error);
+      // Continue with other mistakes even if one fails
+    }
+
+    // Limit to top 3 mistakes to avoid overwhelming the user
+    if (recommendations.length >= 3) break;
+  }
+
+  return recommendations;
+}
+
 export async function POST(request: NextRequest) {
+  const requestId = extractRequestId(request.headers);
+
+  return withRequestContext(requestId, async () => {
   try {
     const body = await request.json();
+
+    const parsed = validateRequest(enhancedAnalysisSchema, body);
+    if (!parsed.success) return parsed.response;
     const {
       userMessage,
       message,
@@ -665,25 +764,19 @@ export async function POST(request: NextRequest) {
       userRating,
       boardOrientation,
       conversationHistory,
-    } = body;
+    } = parsed.data;
     const messageText = userMessage || message || "";
 
-    console.log("Enhanced analysis API called:", {
+    log.info("Enhanced analysis started", {
       hasMessage: !!messageText,
       moveCount: moveHistory?.length,
       hasEval: !!gameEval,
-      hasSystemPrompt: !!systemPrompt,
       playerColor,
+      skillLevel: userRating ? (userRating < 1000 ? "beginner" : userRating < 1600 ? "intermediate" : "advanced") : "intermediate",
     });
 
-    // Check for OpenAI API key
-    if (!OPENAI_API_KEY) {
-      console.error("OPENAI_API_KEY not configured");
-      return NextResponse.json(
-        { error: "OpenAI API key not configured. Please set OPENAI_API_KEY in .env.local." },
-        { status: 500 }
-      );
-    }
+    // API-key presence is now validated inside callLLM(); both Anthropic and
+    // OpenAI are accepted, with automatic fallback from one to the other.
 
     // Build game context for the LLM
     let gameContext = "";
@@ -704,24 +797,17 @@ export async function POST(request: NextRequest) {
       gameContext = "No game data or position provided. The user may be asking a general chess question.";
     }
 
-    // Build the messages for OpenAI
-    const openaiMessages: Array<{ role: string; content: string }> = [];
+    // Build the system prompt for Claude
+    const claudeSystemPrompt = systemPrompt || "You are an expert chess coach AI. Analyze games thoroughly using Stockfish evaluation data when available. Identify mistakes, explain principles violated, suggest improvements, and reference tactical themes. Be specific — cite exact move numbers and variations.";
 
-    // System prompt (from client's AI Coach system prompt)
-    if (systemPrompt) {
-      openaiMessages.push({ role: "system", content: systemPrompt });
-    } else {
-      openaiMessages.push({
-        role: "system",
-        content: "You are an expert chess coach AI. Analyze games thoroughly using Stockfish evaluation data when available. Identify mistakes, explain principles violated, suggest improvements, and reference tactical themes. Be specific — cite exact move numbers and variations.",
-      });
-    }
+    // Build the messages for Claude (user/assistant turns only — system is separate)
+    const claudeMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
 
     // Add conversation history for multi-turn context (prior messages before current)
     if (conversationHistory && Array.isArray(conversationHistory) && conversationHistory.length > 0) {
       for (const msg of conversationHistory) {
-        if (msg.role && msg.content) {
-          openaiMessages.push({ role: msg.role, content: msg.content });
+        if (msg.content && (msg.role === "user" || msg.role === "assistant")) {
+          claudeMessages.push({ role: msg.role, content: msg.content });
         }
       }
     }
@@ -745,9 +831,9 @@ export async function POST(request: NextRequest) {
       userContent += examplesContext;
     }
 
-    openaiMessages.push({ role: "user", content: userContent });
+    claudeMessages.push({ role: "user", content: userContent });
 
-    // Check response cache before calling OpenAI
+    // Check response cache before calling Claude
     const currentFen = fen || (moveHistory && moveHistory.length > 0
       ? getFenAtHalfMove(moveHistory, moveHistory.length)
       : "startpos");
@@ -779,35 +865,30 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Call OpenAI
-    const openaiResponse = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: openaiMessages,
+    // Call the unified LLM provider (Anthropic primary, OpenAI fallback).
+    let llmResult;
+    try {
+      llmResult = await callLLM({
+        tier: "flagship",
+        system: claudeSystemPrompt,
+        messages: claudeMessages,
         temperature: 0.7,
-        max_tokens: 3000,
-      }),
-    });
-
-    if (!openaiResponse.ok) {
-      const errorBody = await openaiResponse.text();
-      console.error("OpenAI API error:", openaiResponse.status, errorBody);
+        maxTokens: 3000,
+      });
+    } catch (err) {
+      const e = err instanceof LLMError ? err : new Error(String(err));
+      log.error("LLM provider failed for enhanced-analysis", {
+        message: e.message,
+      });
       return NextResponse.json(
         {
-          error: "OpenAI API request failed",
-          details: `Status ${openaiResponse.status}: ${errorBody.slice(0, 200)}`,
+          error: "LLM request failed",
+          details: e.message,
         },
         { status: 502 }
       );
     }
-
-    const openaiData = await openaiResponse.json();
-    const rawAnalysis = openaiData.choices?.[0]?.message?.content || "No analysis generated.";
+    const rawAnalysis = llmResult.content || "No analysis generated.";
 
     // Build final game state for response metadata
     const game = new Chess();
@@ -824,9 +905,10 @@ export async function POST(request: NextRequest) {
     const validation = validateAIResponse(rawAnalysis, validationFen, moveHistory);
 
     if (validation.issues.length > 0) {
-      console.log(`🔍 AI Response Validation: ${validation.issues.length} issue(s) found, score: ${validation.score.toFixed(2)}`);
-      validation.issues.forEach(issue => {
-        console.log(`  [${issue.severity}] ${issue.type}: ${issue.detail}`);
+      log.warn("AI response validation issues", {
+        issueCount: validation.issues.length,
+        score: validation.score,
+        issues: validation.issues.map(i => ({ severity: i.severity, type: i.type, detail: i.detail })),
       });
     }
 
@@ -851,6 +933,13 @@ export async function POST(request: NextRequest) {
       initialAnalysis: analysisContent,
     });
 
+    // Generate targeted puzzle recommendations for detected mistakes
+    const puzzleRecommendations = await generatePuzzleRecommendations(
+      moveHistory,
+      gameEval,
+      userRating
+    );
+
     return NextResponse.json({
       gameAnalysis: {
         analysis: analysisContent,
@@ -861,10 +950,14 @@ export async function POST(request: NextRequest) {
         validationScore: validation.score,
         validationIssues: validation.issues.length,
         contextId,
+        puzzleRecommendations, // NEW: Targeted puzzles for each mistake
       },
     });
   } catch (error) {
-    console.error("Error in enhanced analysis:", error);
+    log.error("Enhanced analysis failed", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       {
         error: "Analysis failed",
@@ -873,4 +966,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+  });
 }

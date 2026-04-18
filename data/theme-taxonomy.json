@@ -1,0 +1,738 @@
+{
+  "description": "Hierarchical chess puzzle theme taxonomy for progressive learning",
+  "version": "1.0",
+  "themes": [
+    {
+      "id": "fork",
+      "name": "Fork",
+      "level": 0,
+      "description": "Simultaneous attack on two or more pieces",
+      "subthemes": [
+        {
+          "id": "knight-fork",
+          "name": "Knight Fork",
+          "level": 1,
+          "description": "Fork using knight's L-shaped movement",
+          "keywords": ["knight", "double attack"],
+          "subthemes": [
+            {
+              "id": "king-rook-knight-fork",
+              "name": "King+Rook Knight Fork",
+              "level": 2,
+              "description": "Knight forks king and rook, winning the rook",
+              "commonSquares": ["f7", "f2", "c7", "c2"],
+              "subthemes": [
+                {
+                  "id": "f7-knight-fork",
+                  "name": "f7 Knight Fork",
+                  "level": 3,
+                  "description": "Classic knight fork on f7 attacking king on e8 and rook on h8",
+                  "specificSquares": ["f7"]
+                },
+                {
+                  "id": "c7-knight-fork",
+                  "name": "c7 Knight Fork",
+                  "level": 3,
+                  "description": "Knight fork on c7 attacking king and rook on queenside",
+                  "specificSquares": ["c7"]
+                }
+              ]
+            },
+            {
+              "id": "king-queen-knight-fork",
+              "name": "King+Queen Knight Fork",
+              "level": 2,
+              "description": "Knight forks king and queen, winning the queen",
+              "keywords": ["royal fork", "family fork"]
+            },
+            {
+              "id": "queen-rook-knight-fork",
+              "name": "Queen+Rook Knight Fork",
+              "level": 2,
+              "description": "Knight forks queen and rook, winning material"
+            }
+          ]
+        },
+        {
+          "id": "bishop-fork",
+          "name": "Bishop Fork",
+          "level": 1,
+          "description": "Fork using bishop's diagonal movement",
+          "subthemes": [
+            {
+              "id": "rook-knight-bishop-fork",
+              "name": "Rook+Knight Bishop Fork",
+              "level": 2,
+              "description": "Bishop forks rook and knight on same diagonal"
+            }
+          ]
+        },
+        {
+          "id": "queen-fork",
+          "name": "Queen Fork",
+          "level": 1,
+          "description": "Fork using queen's versatile movement",
+          "subthemes": [
+            {
+              "id": "king-rook-queen-fork",
+              "name": "King+Rook Queen Fork",
+              "level": 2,
+              "description": "Queen forks king and rook"
+            }
+          ]
+        },
+        {
+          "id": "pawn-fork",
+          "name": "Pawn Fork",
+          "level": 1,
+          "description": "Fork using pawn's capture pattern",
+          "keywords": ["pawn fork", "petite combination"]
+        }
+      ]
+    },
+    {
+      "id": "pin",
+      "name": "Pin",
+      "level": 0,
+      "description": "Piece cannot move without exposing a more valuable piece",
+      "subthemes": [
+        {
+          "id": "absolute-pin",
+          "name": "Absolute Pin",
+          "level": 1,
+          "description": "Pinned piece cannot legally move (pinned to king)",
+          "subthemes": [
+            {
+              "id": "bishop-absolute-pin",
+              "name": "Bishop Absolute Pin",
+              "level": 2,
+              "description": "Bishop pins piece to king on diagonal"
+            },
+            {
+              "id": "rook-absolute-pin",
+              "name": "Rook Absolute Pin",
+              "level": 2,
+              "description": "Rook pins piece to king on file or rank"
+            },
+            {
+              "id": "queen-absolute-pin",
+              "name": "Queen Absolute Pin",
+              "level": 2,
+              "description": "Queen pins piece to king"
+            }
+          ]
+        },
+        {
+          "id": "relative-pin",
+          "name": "Relative Pin",
+          "level": 1,
+          "description": "Pinned piece can legally move but would lose material",
+          "subthemes": [
+            {
+              "id": "bishop-relative-pin",
+              "name": "Bishop Relative Pin",
+              "level": 2,
+              "description": "Bishop pins piece to queen or rook"
+            },
+            {
+              "id": "rook-relative-pin",
+              "name": "Rook Relative Pin",
+              "level": 2,
+              "description": "Rook pins piece to queen"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skewer",
+      "name": "Skewer",
+      "level": 0,
+      "description": "Reverse pin - valuable piece must move, exposing less valuable piece",
+      "keywords": ["reverse pin", "x-ray attack"],
+      "subthemes": [
+        {
+          "id": "king-rook-skewer",
+          "name": "King+Rook Skewer",
+          "level": 1,
+          "description": "King must move, exposing rook behind it"
+        },
+        {
+          "id": "queen-rook-skewer",
+          "name": "Queen+Rook Skewer",
+          "level": 1,
+          "description": "Queen must move, exposing rook behind it"
+        }
+      ]
+    },
+    {
+      "id": "discovered-attack",
+      "name": "Discovered Attack",
+      "level": 0,
+      "description": "Moving one piece reveals attack from another piece",
+      "subthemes": [
+        {
+          "id": "discovered-check",
+          "name": "Discovered Check",
+          "level": 1,
+          "description": "Moving piece reveals check on opponent's king",
+          "subthemes": [
+            {
+              "id": "discovered-check-with-capture",
+              "name": "Discovered Check with Capture",
+              "level": 2,
+              "description": "Moving piece captures while revealing check"
+            }
+          ]
+        },
+        {
+          "id": "discovered-attack-on-queen",
+          "name": "Discovered Attack on Queen",
+          "level": 1,
+          "description": "Moving piece reveals attack on opponent's queen"
+        }
+      ]
+    },
+    {
+      "id": "double-attack",
+      "name": "Double Attack",
+      "level": 0,
+      "description": "Two separate threats in one move",
+      "keywords": ["dual threat"],
+      "subthemes": [
+        {
+          "id": "check-and-attack",
+          "name": "Check and Attack",
+          "level": 1,
+          "description": "Give check while attacking another piece"
+        },
+        {
+          "id": "double-check",
+          "name": "Double Check",
+          "level": 1,
+          "description": "Two pieces give check simultaneously (king must move)",
+          "keywords": ["forcing"]
+        }
+      ]
+    },
+    {
+      "id": "sacrifice",
+      "name": "Sacrifice",
+      "level": 0,
+      "description": "Voluntarily giving up material for advantage",
+      "subthemes": [
+        {
+          "id": "queen-sacrifice",
+          "name": "Queen Sacrifice",
+          "level": 1,
+          "description": "Sacrificing the queen for checkmate or winning advantage",
+          "subthemes": [
+            {
+              "id": "queen-sacrifice-for-mate",
+              "name": "Queen Sacrifice for Checkmate",
+              "level": 2,
+              "description": "Queen sacrifice leading directly to checkmate"
+            },
+            {
+              "id": "queen-sacrifice-for-attack",
+              "name": "Queen Sacrifice for Attack",
+              "level": 2,
+              "description": "Queen sacrifice for unstoppable attack"
+            }
+          ]
+        },
+        {
+          "id": "rook-sacrifice",
+          "name": "Rook Sacrifice",
+          "level": 1,
+          "description": "Sacrificing rook for tactical advantage"
+        },
+        {
+          "id": "minor-piece-sacrifice",
+          "name": "Minor Piece Sacrifice",
+          "level": 1,
+          "description": "Sacrificing bishop or knight"
+        },
+        {
+          "id": "exchange-sacrifice",
+          "name": "Exchange Sacrifice",
+          "level": 1,
+          "description": "Giving up rook for minor piece (3 points)"
+        }
+      ]
+    },
+    {
+      "id": "hanging-piece",
+      "name": "Hanging Piece",
+      "level": 0,
+      "description": "Undefended or insufficiently defended piece free to capture",
+      "keywords": ["undefended", "loose piece", "en prise"]
+    },
+    {
+      "id": "exposed-king",
+      "name": "Exposed King",
+      "level": 0,
+      "description": "King with few defenders, vulnerable to attack",
+      "keywords": ["king safety", "open king"],
+      "subthemes": [
+        {
+          "id": "attacking-f2-f7",
+          "name": "Attacking f2/f7",
+          "level": 1,
+          "description": "Attack focusing on the weak f2 or f7 pawn",
+          "keywords": ["fried liver", "f-pawn weakness"]
+        }
+      ]
+    },
+    {
+      "id": "attraction",
+      "name": "Attraction",
+      "level": 0,
+      "description": "Exchange or sacrifice forcing opponent piece to a vulnerable square",
+      "keywords": ["lure", "draw in"]
+    },
+    {
+      "id": "deflection",
+      "name": "Deflection",
+      "level": 0,
+      "description": "Forcing piece away from important square or duty",
+      "keywords": ["luring", "decoy"],
+      "subthemes": [
+        {
+          "id": "deflection-from-defense",
+          "name": "Deflection from Defense",
+          "level": 1,
+          "description": "Deflecting defender away from protected piece"
+        },
+        {
+          "id": "deflection-from-key-square",
+          "name": "Deflection from Key Square",
+          "level": 1,
+          "description": "Forcing piece away from controlling key square"
+        }
+      ]
+    },
+    {
+      "id": "removal-of-defender",
+      "name": "Removal of Defender",
+      "level": 0,
+      "description": "Capturing or deflecting piece that defends target",
+      "keywords": ["undermining", "destruction of defender"],
+      "subthemes": [
+        {
+          "id": "capture-defender",
+          "name": "Capture Defender",
+          "level": 1,
+          "description": "Directly capturing the defending piece"
+        },
+        {
+          "id": "deflect-defender",
+          "name": "Deflect Defender",
+          "level": 1,
+          "description": "Forcing defender to move away"
+        }
+      ]
+    },
+    {
+      "id": "trapped-piece",
+      "name": "Trapped Piece",
+      "level": 0,
+      "description": "Piece has no safe squares to move to",
+      "subthemes": [
+        {
+          "id": "trapped-queen",
+          "name": "Trapped Queen",
+          "level": 1,
+          "description": "Queen has no escape squares"
+        },
+        {
+          "id": "trapped-rook",
+          "name": "Trapped Rook",
+          "level": 1,
+          "description": "Rook has no escape squares"
+        },
+        {
+          "id": "trapped-bishop",
+          "name": "Trapped Bishop",
+          "level": 1,
+          "description": "Bishop trapped by pawns or pieces",
+          "subthemes": [
+            {
+              "id": "bishop-trapped-a7",
+              "name": "Bishop Trapped on a7/h7",
+              "level": 2,
+              "description": "Classic trapped bishop on a7/h7 after capturing b2/g2 pawn"
+            }
+          ]
+        },
+        {
+          "id": "trapped-knight",
+          "name": "Trapped Knight",
+          "level": 1,
+          "description": "Knight trapped with no escape squares",
+          "subthemes": [
+            {
+              "id": "knight-trapped-edge",
+              "name": "Knight Trapped on Edge",
+              "level": 2,
+              "description": "Knight on edge of board with limited mobility"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pawn-tactics",
+      "name": "Pawn Tactics",
+      "level": 0,
+      "description": "Tactics involving pawn moves and pawn structure",
+      "subthemes": [
+        {
+          "id": "advanced-pawn",
+          "name": "Advanced Pawn",
+          "level": 1,
+          "description": "Pawn deep in opponent position, threatening promotion"
+        },
+        {
+          "id": "promotion",
+          "name": "Promotion",
+          "level": 1,
+          "description": "Promoting a pawn to queen or minor piece",
+          "subthemes": [
+            {
+              "id": "underpromotion",
+              "name": "Underpromotion",
+              "level": 2,
+              "description": "Promoting to knight, bishop, or rook instead of queen"
+            }
+          ]
+        },
+        {
+          "id": "en-passant",
+          "name": "En Passant",
+          "level": 1,
+          "description": "Capturing a pawn that bypassed using its initial two-square move"
+        }
+      ]
+    },
+    {
+      "id": "defensive-move",
+      "name": "Defensive Move",
+      "level": 0,
+      "description": "Precise move needed to avoid losing material or another advantage",
+      "keywords": ["defense", "resource"]
+    },
+    {
+      "id": "attacking-patterns",
+      "name": "Attacking Patterns",
+      "level": 0,
+      "description": "Strategic attacking themes",
+      "subthemes": [
+        {
+          "id": "kingside-attack",
+          "name": "Kingside Attack",
+          "level": 1,
+          "description": "Attack on opponent's king castled on the kingside"
+        },
+        {
+          "id": "queenside-attack",
+          "name": "Queenside Attack",
+          "level": 1,
+          "description": "Attack on opponent's king castled on the queenside"
+        },
+        {
+          "id": "castling",
+          "name": "Castling",
+          "level": 1,
+          "description": "Bringing king to safety and deploying rook for attack"
+        },
+        {
+          "id": "collinear-move",
+          "name": "Collinear Move",
+          "level": 1,
+          "description": "Sliding along line of attack without capturing the enemy piece"
+        }
+      ]
+    },
+    {
+      "id": "back-rank",
+      "name": "Back Rank",
+      "level": 0,
+      "description": "Checkmate or threat on opponent's back rank",
+      "subthemes": [
+        {
+          "id": "back-rank-mate",
+          "name": "Back Rank Mate",
+          "level": 1,
+          "description": "Checkmate on back rank with king trapped by own pawns"
+        },
+        {
+          "id": "back-rank-weakness",
+          "name": "Back Rank Weakness",
+          "level": 1,
+          "description": "Exploiting weak back rank for advantage"
+        }
+      ]
+    },
+    {
+      "id": "mating-attack",
+      "name": "Mating Attack",
+      "level": 0,
+      "description": "Direct checkmate or unstoppable mating attack",
+      "subthemes": [
+        {
+          "id": "mate-in-1",
+          "name": "Mate in 1",
+          "level": 1,
+          "description": "Checkmate in one move"
+        },
+        {
+          "id": "mate-in-2",
+          "name": "Mate in 2",
+          "level": 1,
+          "description": "Forced checkmate in two moves"
+        },
+        {
+          "id": "mate-in-3",
+          "name": "Mate in 3",
+          "level": 1,
+          "description": "Forced checkmate in three moves"
+        },
+        {
+          "id": "smothered-mate",
+          "name": "Smothered Mate",
+          "level": 1,
+          "description": "Knight checkmate with king blocked by own pieces"
+        },
+        {
+          "id": "anastasias-mate",
+          "name": "Anastasia's Mate",
+          "level": 1,
+          "description": "Knight and rook checkmate pattern"
+        },
+        {
+          "id": "arabian-mate",
+          "name": "Arabian Mate",
+          "level": 1,
+          "description": "Knight and rook mate on edge of board"
+        },
+        {
+          "id": "dovetail-mate",
+          "name": "Dovetail Mate",
+          "level": 1,
+          "description": "Queen checkmate with king trapped by own pieces in 'v' shape"
+        },
+        {
+          "id": "mate-in-4",
+          "name": "Mate in 4",
+          "level": 1,
+          "description": "Forced checkmate in four moves"
+        },
+        {
+          "id": "mate-in-5",
+          "name": "Mate in 5+",
+          "level": 1,
+          "description": "Forced checkmate in five or more moves"
+        },
+        {
+          "id": "boden-mate",
+          "name": "Boden's Mate",
+          "level": 1,
+          "description": "Two bishops on criss-crossing diagonals deliver mate"
+        },
+        {
+          "id": "corner-mate",
+          "name": "Corner Mate",
+          "level": 1,
+          "description": "Rook or queen and knight confine king to corner"
+        },
+        {
+          "id": "double-bishop-mate",
+          "name": "Double Bishop Mate",
+          "level": 1,
+          "description": "Two bishops on adjacent diagonals deliver mate"
+        },
+        {
+          "id": "epaulette-mate",
+          "name": "Epaulette Mate",
+          "level": 1,
+          "description": "Two adjacent escape squares occupied by own pieces"
+        },
+        {
+          "id": "hook-mate",
+          "name": "Hook Mate",
+          "level": 1,
+          "description": "Rook, knight, and pawn with enemy pawn limiting escape"
+        },
+        {
+          "id": "kill-box-mate",
+          "name": "Kill Box Mate",
+          "level": 1,
+          "description": "Rook and queen create 3x3 kill box around king"
+        },
+        {
+          "id": "morphys-mate",
+          "name": "Morphy's Mate",
+          "level": 1,
+          "description": "Bishop checks king while rook confines it"
+        },
+        {
+          "id": "opera-mate",
+          "name": "Opera Mate",
+          "level": 1,
+          "description": "Rook checks king with bishop defending the rook"
+        },
+        {
+          "id": "pillsburys-mate",
+          "name": "Pillsbury's Mate",
+          "level": 1,
+          "description": "Rook delivers mate while bishop helps confine king"
+        },
+        {
+          "id": "swallowstail-mate",
+          "name": "Swallow's Tail Mate",
+          "level": 1,
+          "description": "V-shaped checkmate pattern"
+        },
+        {
+          "id": "triangle-mate",
+          "name": "Triangle Mate",
+          "level": 1,
+          "description": "Queen and rook form triangle pattern near enemy king"
+        },
+        {
+          "id": "vukovic-mate",
+          "name": "Vuković Mate",
+          "level": 1,
+          "description": "Rook and knight team up, rook supported by third piece"
+        },
+        {
+          "id": "balestra-mate",
+          "name": "Balestra Mate",
+          "level": 1,
+          "description": "Bishop delivers mate while queen blocks escape squares"
+        },
+        {
+          "id": "blind-swine-mate",
+          "name": "Blind Swine Mate",
+          "level": 1,
+          "description": "Two rooks mate king in 2x2 square area"
+        }
+      ]
+    },
+    {
+      "id": "endgame",
+      "name": "Endgame",
+      "level": 0,
+      "description": "Endgame techniques and patterns",
+      "subthemes": [
+        {
+          "id": "pawn-endgame",
+          "name": "Pawn Endgame",
+          "level": 1,
+          "description": "King and pawn endgame technique",
+          "subthemes": [
+            {
+              "id": "opposition",
+              "name": "Opposition",
+              "level": 2,
+              "description": "King opposition in pawn endgames"
+            },
+            {
+              "id": "triangulation",
+              "name": "Triangulation",
+              "level": 2,
+              "description": "King triangulation to lose tempo"
+            }
+          ]
+        },
+        {
+          "id": "rook-endgame",
+          "name": "Rook Endgame",
+          "level": 1,
+          "description": "Rook endgame technique",
+          "subthemes": [
+            {
+              "id": "lucena-position",
+              "name": "Lucena Position",
+              "level": 2,
+              "description": "Winning rook and pawn endgame position"
+            },
+            {
+              "id": "philidor-position",
+              "name": "Philidor Position",
+              "level": 2,
+              "description": "Drawing rook and pawn endgame position"
+            }
+          ]
+        },
+        {
+          "id": "bishop-endgame",
+          "name": "Bishop Endgame",
+          "level": 1,
+          "description": "Endgame with only bishops and pawns"
+        },
+        {
+          "id": "knight-endgame",
+          "name": "Knight Endgame",
+          "level": 1,
+          "description": "Endgame with only knights and pawns"
+        },
+        {
+          "id": "queen-endgame",
+          "name": "Queen Endgame",
+          "level": 1,
+          "description": "Queen endgame technique"
+        },
+        {
+          "id": "queen-rook-endgame",
+          "name": "Queen and Rook Endgame",
+          "level": 1,
+          "description": "Endgame with queens, rooks, and pawns"
+        }
+      ]
+    },
+    {
+      "id": "zugzwang",
+      "name": "Zugzwang",
+      "level": 0,
+      "description": "Position where any move worsens the position",
+      "keywords": ["compulsion to move"]
+    },
+    {
+      "id": "interference",
+      "name": "Interference",
+      "level": 0,
+      "description": "Blocking connection between opponent's pieces",
+      "keywords": ["obstruction"]
+    },
+    {
+      "id": "clearance",
+      "name": "Clearance",
+      "level": 0,
+      "description": "Moving piece to clear line for another piece",
+      "keywords": ["line opening"]
+    },
+    {
+      "id": "x-ray",
+      "name": "X-Ray Attack",
+      "level": 0,
+      "description": "Attack through another piece",
+      "keywords": ["x-ray", "through-attack"]
+    },
+    {
+      "id": "intermediate-move",
+      "name": "Intermediate Move",
+      "level": 0,
+      "description": "In-between move (zwischenzug) before expected reply",
+      "keywords": ["zwischenzug", "intermezzo"]
+    },
+    {
+      "id": "quiet-move",
+      "name": "Quiet Move",
+      "level": 0,
+      "description": "Non-forcing move that creates unstoppable threat",
+      "keywords": ["waiting move", "zugzwang"]
+    }
+  ]
+}

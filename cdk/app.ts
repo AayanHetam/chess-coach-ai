@@ -5,6 +5,6 @@ const app = new cdk.App();
 
 new AppStack(app, "ChessMastiAI", {
   env: { region: "eu-west-3", account: process.env.CDK_DEFAULT_ACCOUNT },
-  domainName: "chess-masti-ai.com",
+  domainName: "chessmasti.com",
   pagePaths: ["play", "database"],
 });

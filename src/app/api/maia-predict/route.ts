@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { maiaPredictSchema, validateRequest } from "@/lib/validation/schemas";
 
 /**
  * Maia-2 Prediction API — proxies to external Maia-2 microservice.
@@ -12,14 +13,11 @@ const MAIA_API_URL = process.env.MAIA_API_URL;
 
 export async function POST(req: Request) {
   try {
-    const { fen, rating, opponent_rating } = await req.json();
+    const body = await req.json();
 
-    if (!fen) {
-      return NextResponse.json(
-        { error: "FEN position is required" },
-        { status: 400 }
-      );
-    }
+    const parsed = validateRequest(maiaPredictSchema, body);
+    if (!parsed.success) return parsed.response;
+    const { fen, rating, opponent_rating } = parsed.data;
 
     if (!MAIA_API_URL) {
       return NextResponse.json(

@@ -1,0 +1,181 @@
+[dotenv@17.3.1] injecting env (16) from .env.local -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+🚀 Lichess Puzzle → Neo4j Loader (v3 — BATCH MODE)
+
+   CSV:        ./data/lichess_puzzles_100k.csv
+   Limit:      100,000 puzzles
+   Batch size: 1000
+   FEN analysis: ENABLED
+
+
+📊 Parsing ./data/lichess_puzzles_100k.csv (limit: 100,000)...
+   Parsed 10,000...
+   Parsed 20,000...
+   Parsed 30,000...
+   Parsed 40,000...
+   Parsed 50,000...
+   Parsed 60,000...
+   Parsed 70,000...
+   Parsed 80,000...
+   Parsed 90,000...
+   Parsed 100,000...
+✅ Parsed 100,000 puzzles
+
+🔬 Running FEN analysis on 100,000 puzzles...
+   Analyzed 10,000 / 100,000...
+   Analyzed 20,000 / 100,000...
+   Analyzed 30,000 / 100,000...
+   Analyzed 40,000 / 100,000...
+   Analyzed 50,000 / 100,000...
+   Analyzed 60,000 / 100,000...
+   Analyzed 70,000 / 100,000...
+   Analyzed 80,000 / 100,000...
+   Analyzed 90,000 / 100,000...
+   Analyzed 100,000 / 100,000...
+✅ FEN analysis complete
+   Puzzles with specific themes: 81,175 (81.2%)
+   Unique theme IDs: 95
+
+📥 Ensuring 95 theme nodes exist...
+✅ Theme nodes ensured
+
+📥 Loading 100,000 puzzles in 100 batches of 1000...
+   (UNWIND+MERGE — ~100x faster than single-row inserts)
+
+   Batch 1/100: 1,000/100,000 (1.0%) — 457 puzzles/s — ETA 217s
+   Batch 2/100: 2,000/100,000 (2.0%) — 379 puzzles/s — ETA 258s
+   Batch 3/100: 3,000/100,000 (3.0%) — 359 puzzles/s — ETA 271s
+   Batch 4/100: 4,000/100,000 (4.0%) — 343 puzzles/s — ETA 280s
+   Batch 5/100: 5,000/100,000 (5.0%) — 339 puzzles/s — ETA 281s
+   Batch 6/100: 6,000/100,000 (6.0%) — 335 puzzles/s — ETA 281s
+   Batch 7/100: 7,000/100,000 (7.0%) — 332 puzzles/s — ETA 280s
+   Batch 8/100: 8,000/100,000 (8.0%) — 331 puzzles/s — ETA 278s
+   Batch 9/100: 9,000/100,000 (9.0%) — 329 puzzles/s — ETA 276s
+   Batch 10/100: 10,000/100,000 (10.0%) — 329 puzzles/s — ETA 274s
+   Batch 11/100: 11,000/100,000 (11.0%) — 324 puzzles/s — ETA 274s
+   Batch 12/100: 12,000/100,000 (12.0%) — 324 puzzles/s — ETA 272s
+   Batch 13/100: 13,000/100,000 (13.0%) — 324 puzzles/s — ETA 269s
+   Batch 14/100: 14,000/100,000 (14.0%) — 318 puzzles/s — ETA 270s
+   Batch 15/100: 15,000/100,000 (15.0%) — 319 puzzles/s — ETA 267s
+   Batch 16/100: 16,000/100,000 (16.0%) — 314 puzzles/s — ETA 267s
+   Batch 17/100: 17,000/100,000 (17.0%) — 314 puzzles/s — ETA 264s
+   Batch 18/100: 18,000/100,000 (18.0%) — 315 puzzles/s — ETA 261s
+   Batch 19/100: 19,000/100,000 (19.0%) — 315 puzzles/s — ETA 257s
+   Batch 20/100: 20,000/100,000 (20.0%) — 315 puzzles/s — ETA 254s
+   Batch 21/100: 21,000/100,000 (21.0%) — 315 puzzles/s — ETA 251s
+   Batch 22/100: 22,000/100,000 (22.0%) — 315 puzzles/s — ETA 247s
+   Batch 23/100: 23,000/100,000 (23.0%) — 316 puzzles/s — ETA 244s
+   Batch 24/100: 24,000/100,000 (24.0%) — 316 puzzles/s — ETA 241s
+   Batch 25/100: 25,000/100,000 (25.0%) — 315 puzzles/s — ETA 238s
+   Batch 26/100: 26,000/100,000 (26.0%) — 316 puzzles/s — ETA 234s
+   Batch 27/100: 27,000/100,000 (27.0%) — 316 puzzles/s — ETA 231s
+   Batch 28/100: 28,000/100,000 (28.0%) — 316 puzzles/s — ETA 228s
+   Batch 29/100: 29,000/100,000 (29.0%) — 315 puzzles/s — ETA 226s
+   Batch 30/100: 30,000/100,000 (30.0%) — 315 puzzles/s — ETA 222s
+   Batch 31/100: 31,000/100,000 (31.0%) — 315 puzzles/s — ETA 219s
+   Batch 32/100: 32,000/100,000 (32.0%) — 315 puzzles/s — ETA 216s
+   Batch 33/100: 33,000/100,000 (33.0%) — 315 puzzles/s — ETA 213s
+   Batch 34/100: 34,000/100,000 (34.0%) — 315 puzzles/s — ETA 210s
+   Batch 35/100: 35,000/100,000 (35.0%) — 315 puzzles/s — ETA 206s
+   Batch 36/100: 36,000/100,000 (36.0%) — 315 puzzles/s — ETA 203s
+   Batch 37/100: 37,000/100,000 (37.0%) — 315 puzzles/s — ETA 200s
+   Batch 38/100: 38,000/100,000 (38.0%) — 315 puzzles/s — ETA 197s
+   Batch 39/100: 39,000/100,000 (39.0%) — 315 puzzles/s — ETA 194s
+   Batch 40/100: 40,000/100,000 (40.0%) — 315 puzzles/s — ETA 190s
+   Batch 41/100: 41,000/100,000 (41.0%) — 308 puzzles/s — ETA 192s
+   Batch 42/100: 42,000/100,000 (42.0%) — 310 puzzles/s — ETA 187s
+   Batch 43/100: 43,000/100,000 (43.0%) — 309 puzzles/s — ETA 185s
+   Batch 44/100: 44,000/100,000 (44.0%) — 309 puzzles/s — ETA 181s
+   Batch 45/100: 45,000/100,000 (45.0%) — 309 puzzles/s — ETA 178s
+   Batch 46/100: 46,000/100,000 (46.0%) — 309 puzzles/s — ETA 175s
+   Batch 47/100: 47,000/100,000 (47.0%) — 309 puzzles/s — ETA 171s
+   Batch 48/100: 48,000/100,000 (48.0%) — 309 puzzles/s — ETA 168s
+   Batch 49/100: 49,000/100,000 (49.0%) — 310 puzzles/s — ETA 165s
+   Batch 50/100: 50,000/100,000 (50.0%) — 310 puzzles/s — ETA 161s
+   Batch 51/100: 51,000/100,000 (51.0%) — 310 puzzles/s — ETA 158s
+   Batch 52/100: 52,000/100,000 (52.0%) — 310 puzzles/s — ETA 155s
+   Batch 53/100: 53,000/100,000 (53.0%) — 310 puzzles/s — ETA 152s
+   Batch 54/100: 54,000/100,000 (54.0%) — 310 puzzles/s — ETA 148s
+   Batch 55/100: 55,000/100,000 (55.0%) — 310 puzzles/s — ETA 145s
+   Batch 56/100: 56,000/100,000 (56.0%) — 311 puzzles/s — ETA 142s
+   Batch 57/100: 57,000/100,000 (57.0%) — 311 puzzles/s — ETA 138s
+   Batch 58/100: 58,000/100,000 (58.0%) — 311 puzzles/s — ETA 135s
+   Batch 59/100: 59,000/100,000 (59.0%) — 311 puzzles/s — ETA 132s
+   Batch 60/100: 60,000/100,000 (60.0%) — 311 puzzles/s — ETA 129s
+   Batch 61/100: 61,000/100,000 (61.0%) — 311 puzzles/s — ETA 126s
+   Batch 62/100: 62,000/100,000 (62.0%) — 310 puzzles/s — ETA 122s
+   Batch 63/100: 63,000/100,000 (63.0%) — 310 puzzles/s — ETA 119s
+   Batch 64/100: 64,000/100,000 (64.0%) — 310 puzzles/s — ETA 116s
+   Batch 65/100: 65,000/100,000 (65.0%) — 310 puzzles/s — ETA 113s
+   Batch 66/100: 66,000/100,000 (66.0%) — 310 puzzles/s — ETA 110s
+   Batch 67/100: 67,000/100,000 (67.0%) — 310 puzzles/s — ETA 106s
+   Batch 68/100: 68,000/100,000 (68.0%) — 310 puzzles/s — ETA 103s
+   Batch 69/100: 69,000/100,000 (69.0%) — 310 puzzles/s — ETA 100s
+   Batch 70/100: 70,000/100,000 (70.0%) — 310 puzzles/s — ETA 97s
+   Batch 71/100: 71,000/100,000 (71.0%) — 309 puzzles/s — ETA 94s
+   Batch 72/100: 72,000/100,000 (72.0%) — 308 puzzles/s — ETA 91s
+   Batch 73/100: 73,000/100,000 (73.0%) — 308 puzzles/s — ETA 88s
+   Batch 74/100: 74,000/100,000 (74.0%) — 308 puzzles/s — ETA 84s
+   Batch 75/100: 75,000/100,000 (75.0%) — 309 puzzles/s — ETA 81s
+   Batch 76/100: 76,000/100,000 (76.0%) — 309 puzzles/s — ETA 78s
+   Batch 77/100: 77,000/100,000 (77.0%) — 309 puzzles/s — ETA 74s
+   Batch 78/100: 78,000/100,000 (78.0%) — 309 puzzles/s — ETA 71s
+   Batch 79/100: 79,000/100,000 (79.0%) — 309 puzzles/s — ETA 68s
+   Batch 80/100: 80,000/100,000 (80.0%) — 309 puzzles/s — ETA 65s
+   Batch 81/100: 81,000/100,000 (81.0%) — 309 puzzles/s — ETA 61s
+   Batch 82/100: 82,000/100,000 (82.0%) — 309 puzzles/s — ETA 58s
+   Batch 83/100: 83,000/100,000 (83.0%) — 309 puzzles/s — ETA 55s
+   Batch 84/100: 84,000/100,000 (84.0%) — 308 puzzles/s — ETA 52s
+   Batch 85/100: 85,000/100,000 (85.0%) — 308 puzzles/s — ETA 49s
+   Batch 86/100: 86,000/100,000 (86.0%) — 308 puzzles/s — ETA 45s
+   Batch 87/100: 87,000/100,000 (87.0%) — 305 puzzles/s — ETA 43s
+   Batch 88/100: 88,000/100,000 (88.0%) — 302 puzzles/s — ETA 40s
+   Batch 89/100: 89,000/100,000 (89.0%) — 303 puzzles/s — ETA 36s
+   Batch 90/100: 90,000/100,000 (90.0%) — 303 puzzles/s — ETA 33s
+   Batch 91/100: 91,000/100,000 (91.0%) — 303 puzzles/s — ETA 30s
+   Batch 92/100: 92,000/100,000 (92.0%) — 304 puzzles/s — ETA 26s
+   Batch 93/100: 93,000/100,000 (93.0%) — 304 puzzles/s — ETA 23s
+   Batch 94/100: 94,000/100,000 (94.0%) — 304 puzzles/s — ETA 20s
+   Batch 95/100: 95,000/100,000 (95.0%) — 304 puzzles/s — ETA 16s
+   Batch 96/100: 96,000/100,000 (96.0%) — 304 puzzles/s — ETA 13s
+   Batch 97/100: 97,000/100,000 (97.0%) — 304 puzzles/s — ETA 10s
+   Batch 98/100: 98,000/100,000 (98.0%) — 304 puzzles/s — ETA 7s
+   Batch 99/100: 99,000/100,000 (99.0%) — 304 puzzles/s — ETA 3s
+   ⚠️  Batch 100 error: You have exceeded the logical size limit of 200000 nodes in your database (attempt to add 150 nodes would reach 200113 nodes). Please consider upgrading to the next tier.
+   🔄 Retrying batch 100 in sub-batches of 50...
+   ⚠️  Sub-batch error: You have exceeded the logical size limit of 200000 nodes in your database (attempt to add 50 nodes would reach 200013 nodes). Please consider upgrading to the next tier.
+   ⚠️  Sub-batch error: You have exceeded the logical size limit of 200000 nodes in your database (attempt to add 50 nodes would reach 200013 nodes). Please consider upgrading to the next tier.
+   ⚠️  Sub-batch error: You have exceeded the logical size limit of 200000 nodes in your database (attempt to add 50 nodes would reach 200013 nodes). Please consider upgrading to the next tier.
+
+✅ Loaded 99,850 puzzles in 334.1s (4 errors)
+   Average: 299 puzzles/s
+
+📊 Database Statistics:
+   Nodes:
+     Position: 99,998
+     Puzzle: 99,850
+     Theme: 109
+     Opening: 5
+     User: 1
+   Relationships:
+     HAS_THEME: 245,585
+     FROM_POSITION: 99,850
+     SUBTHEME_OF: 85
+     STRUGGLED_WITH: 6
+   Top 15 themes:
+     mating-attack: 31,424 puzzles
+     mate-in-1: 14,562 puzzles
+     endgame: 13,184 puzzles
+     mate-in-2: 13,107 puzzles
+     fork: 12,932 puzzles
+     back-rank: 9,846 puzzles
+     back-rank-mate: 9,846 puzzles
+     kingside-attack: 8,656 puzzles
+     sacrifice: 7,601 puzzles
+     advanced-pawn: 6,172 puzzles
+     defensive-move: 6,098 puzzles
+     pin: 5,994 puzzles
+     discovered-attack: 5,634 puzzles
+     rook-endgame: 5,418 puzzles
+     dovetail-mate: 5,115 puzzles
+
+✅ Puzzle loading complete!

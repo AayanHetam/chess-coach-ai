@@ -8,9 +8,65 @@ import {
   PUZZLE_EXPLANATION_SYSTEM_PROMPT,
   buildPuzzleExplanationPrompt,
 } from "@/lib/prompts/puzzleExplanation";
+import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
 
 interface PuzzleCoachExplanationProps {
   puzzleStatus: "loading" | "playing" | "wrong" | "solved";
+}
+
+/**
+ * Generate a fallback explanation when API is unavailable.
+ * Uses puzzle metadata (themes, rating) to provide basic tactical insight.
+ */
+function generateFallbackExplanation(puzzle: ChessPuzzle): string {
+  const themes = puzzle.themes || [];
+  const rating = puzzle.rating || 1500;
+
+  let explanation = "## Puzzle Explanation (Offline Mode)\n\n";
+
+  // Theme-based explanation
+  if (themes.length > 0) {
+    const primaryTheme = themes[0].replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    explanation += `**Key Tactical Theme**: ${primaryTheme}\n\n`;
+
+    // Common tactical patterns
+    const themeExplanations: Record<string, string> = {
+      "fork": "A fork attacks two or more pieces simultaneously, forcing the opponent to lose material.",
+      "pin": "A pin restricts a piece from moving because it would expose a more valuable piece behind it.",
+      "skewer": "A skewer attacks a valuable piece, forcing it to move and exposing a less valuable piece behind it.",
+      "back-rank-mate": "The opponent's king is trapped on the back rank with no escape squares.",
+      "discovered-attack": "Moving one piece reveals an attack from another piece behind it.",
+      "sacrifice": "Giving up material to achieve a tactical advantage or checkmate.",
+      "mate-in-1": "Find the move that delivers checkmate in one move.",
+      "mate-in-2": "Find the forcing sequence that leads to checkmate in two moves.",
+      "exposed-king": "The opponent's king lacks pawn protection or has weak squares nearby.",
+      "hanging-piece": "A piece is undefended and can be captured for free.",
+    };
+
+    const themeKey = themes[0].toLowerCase();
+    if (themeExplanations[themeKey]) {
+      explanation += `${themeExplanations[themeKey]}\n\n`;
+    }
+  }
+
+  // Rating-based difficulty
+  if (rating < 1200) {
+    explanation += "**Difficulty**: Beginner — Focus on finding the key tactical blow.\n\n";
+  } else if (rating < 1800) {
+    explanation += "**Difficulty**: Intermediate — Look for forcing moves (checks, captures, threats).\n\n";
+  } else {
+    explanation += "**Difficulty**: Advanced — Requires deep calculation and precise move order.\n\n";
+  }
+
+  // Solution hint
+  if (puzzle.solution && puzzle.solution.length > 0) {
+    const firstMove = puzzle.solution[0];
+    explanation += `**First Move**: The solution starts with \`${firstMove}\`\n\n`;
+  }
+
+  explanation += "*Coach explanation unavailable. Restart the dev server to enable AI-powered explanations.*";
+
+  return explanation;
 }
 
 export default function PuzzleCoachExplanation({ puzzleStatus }: PuzzleCoachExplanationProps) {
@@ -65,11 +121,23 @@ export default function PuzzleCoachExplanation({ puzzleStatus }: PuzzleCoachExpl
             { role: "system", content: PUZZLE_EXPLANATION_SYSTEM_PROMPT },
             { role: "user", content: prompt },
           ],
+          temperature: 0.7,
+          max_tokens: 1000,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to get explanation");
+        const errorText = await response.text();
+        console.error("API error response:", response.status, errorText);
+
+        // Provide fallback explanation if API fails
+        if (response.status === 404) {
+          setError("Coach explanation service is currently unavailable.");
+          setExplanation(generateFallbackExplanation(currentPuzzle));
+          return;
+        }
+
+        throw new Error(`Failed to get explanation: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -81,7 +149,10 @@ export default function PuzzleCoachExplanation({ puzzleStatus }: PuzzleCoachExpl
       setExplanation(text);
     } catch (err) {
       console.error("Coach explanation error:", err);
-      setError("Could not load coach explanation. Please try again.");
+
+      // Provide fallback explanation on any error
+      setExplanation(generateFallbackExplanation(currentPuzzle));
+      setError("Using offline explanation (API unavailable)");
     } finally {
       setLoading(false);
     }

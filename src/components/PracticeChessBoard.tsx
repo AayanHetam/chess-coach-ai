@@ -3,6 +3,7 @@ import { Chessboard } from "react-chessboard";
 import { Chess, Square } from "chess.js";
 import { Box, Typography } from "@mui/material";
 import { useAtomValue, useSetAtom } from "jotai";
+import { useRouter } from "next/router";
 import {
   currentPuzzleAtom,
   puzzleSolvedStatusAtom,
@@ -18,6 +19,7 @@ import {
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { pieceSetAtom } from "@/components/board/states";
 import { Piece, CustomPieces } from "react-chessboard/dist/chessboard/types";
+import { recordPuzzleAttempt } from "@/lib/repetitTraining";
 
 const PIECE_CODES: Piece[] = [
   "wP", "wB", "wN", "wR", "wQ", "wK",
@@ -59,6 +61,7 @@ function parseSolutionMoves(
 }
 
 export default function PracticeChessBoard() {
+  const router = useRouter();
   const screenSize = useScreenSize();
   const currentPuzzle = useAtomValue(currentPuzzleAtom);
   const setSolvedStatus = useSetAtom(puzzleSolvedStatusAtom);
@@ -67,6 +70,7 @@ export default function PracticeChessBoard() {
   const setPuzzleBoardStatus = useSetAtom(puzzleBoardStatusAtom);
   const blindMode = useAtomValue(blindModeAtom);
   const puzzleStartTimeRef = useRef<number>(Date.now());
+  const [userMoves, setUserMoves] = useState<string[]>([]); // Track user's attempted moves
 
   // Internal chess game state
   const [game, setGame] = useState<Chess>(new Chess());
@@ -194,6 +198,20 @@ export default function PracticeChessBoard() {
                   timestamp: Date.now(),
                 })
               );
+
+              // Record attempt for Repetit Training
+              const setId = router.query.setId as string | undefined;
+              const conceptName = router.query.theme as string | undefined;
+              recordPuzzleAttempt({
+                puzzleId: currentPuzzle.id,
+                setId,
+                userId: "current-user", // TODO: Replace with actual user ID from auth
+                success: true,
+                movesPlayed: userMoves,
+                timeSpentSeconds: Math.round((Date.now() - puzzleStartTimeRef.current) / 1000),
+                hintsUsed: 0, // TODO: Track hints if implemented
+                conceptName,
+              });
             }
           }
         } catch {
@@ -236,6 +254,9 @@ export default function PracticeChessBoard() {
           setSelectedSquare(null);
           setLegalMoveSquares([]);
 
+          // Track user move
+          setUserMoves(prev => [...prev, `${from}${to}${expectedMove.promotion || ''}`]);
+
           const nextIdx = moveIndex + 1;
           setMoveIndex(nextIdx);
 
@@ -254,6 +275,20 @@ export default function PracticeChessBoard() {
                   timestamp: Date.now(),
                 })
               );
+
+              // Record attempt for Repetit Training
+              const setId = router.query.setId as string | undefined;
+              const conceptName = router.query.theme as string | undefined;
+              recordPuzzleAttempt({
+                puzzleId: currentPuzzle.id,
+                setId,
+                userId: "current-user", // TODO: Replace with actual user ID from auth
+                success: true,
+                movesPlayed: userMoves,
+                timeSpentSeconds: Math.round((Date.now() - puzzleStartTimeRef.current) / 1000),
+                hintsUsed: 0, // TODO: Track hints if implemented
+                conceptName,
+              });
             }
           } else {
             // Play opponent's next move

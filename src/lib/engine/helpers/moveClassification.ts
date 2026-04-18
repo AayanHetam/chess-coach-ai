@@ -1,10 +1,11 @@
+import { Chess } from "chess.js";
 import { LineEval, PositionEval } from "@/types/eval";
 import {
   getLineWinPercentage,
   getPositionWinPercentage,
 } from "./winPercentage";
 import { MoveClassification } from "@/types/enums";
-import { openings } from "@/data/openings";
+import { detectOpening } from "@/lib/unifiedOpeningDetector";
 import { getIsPieceSacrifice, isSimplePieceRecapture } from "@/lib/chess";
 
 // Chess.com's Expected Points Model thresholds
@@ -35,15 +36,26 @@ export const getMovesClassification = (
   const positions = rawPositions.map((rawPosition, index) => {
     if (index === 0) return rawPosition;
 
-    const currentFen = fens[index].split(" ")[0];
-    const opening = openings.find((opening) => opening.fen === currentFen);
-    if (opening) {
-      currentOpening = opening.name;
-      return {
-        ...rawPosition,
-        opening: opening.name,
-        moveClassification: MoveClassification.Opening,
-      };
+    // Use unified opening detector
+    const chess = new Chess();
+    try {
+      // Replay moves up to current position
+      for (let i = 0; i < index; i++) {
+        chess.move(uciMoves[i]);
+      }
+
+      const opening = detectOpening(chess);
+      if (opening && opening.moves === index) {
+        // This move completes a known opening
+        currentOpening = opening.name;
+        return {
+          ...rawPosition,
+          opening: opening.name,
+          moveClassification: MoveClassification.Opening,
+        };
+      }
+    } catch (error) {
+      console.error("Error detecting opening in move classification:", error);
     }
 
     const prevPosition = rawPositions[index - 1];

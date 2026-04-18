@@ -41,6 +41,11 @@ const MenuOptions = [
     href: "/feedback",
   },
   {
+    text: "Site Stats",
+    icon: "mdi:chart-line",
+    href: "/site-stats",
+  },
+  {
     text: "Profile",
     icon: "mdi:account-circle-outline",
     href: "/profile",

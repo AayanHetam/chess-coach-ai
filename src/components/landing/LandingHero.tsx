@@ -2,10 +2,14 @@ import { Box, Button, Container, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 import { Icon } from "@iconify/react";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import AuthDialog from "@/components/auth/AuthDialog";
 
 export default function LandingHero() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const { user } = useAuth();
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -175,7 +179,7 @@ export default function LandingHero() {
               <Button
                 variant="contained"
                 size="large"
-                onClick={() => router.push("/analysis")}
+                onClick={() => user ? router.push("/analysis") : setAuthDialogOpen(true)}
                 startIcon={<Icon icon="mdi:magnify" />}
                 sx={{
                   px: 4,
@@ -461,6 +465,7 @@ export default function LandingHero() {
           </Box>
         </Box>
       </Container>
+      <AuthDialog open={authDialogOpen} onClose={() => setAuthDialogOpen(false)} />
     </Box>
   );
 }

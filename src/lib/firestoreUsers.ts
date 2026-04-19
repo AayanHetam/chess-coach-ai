@@ -15,6 +15,7 @@ export interface UserProfile {
   photoURL?: string;
   chesscomUsername?: string;
   lichessUsername?: string;
+  rating?: number;
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
 }

@@ -3,8 +3,8 @@ node_modules/
 .git/
 .next/
 Chesskit/
-chess-coach-ai/
-data/
+/chess-coach-ai/
+/data/
 venv_gameknot/
 *.zip
 *.pgn

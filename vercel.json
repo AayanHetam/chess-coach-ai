@@ -17,7 +17,7 @@
   "crons": [
     {
       "path": "/api/keep-maia-alive",
-      "schedule": "0 */12 * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }

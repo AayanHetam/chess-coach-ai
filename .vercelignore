@@ -3,11 +3,16 @@ node_modules/
 .git/
 .next/
 Chesskit/
+chess-coach-ai/
+data/
 venv_gameknot/
 *.zip
 *.pgn
 *.pb
 *.pyc
+*.csv
+*.log
+*.tar.gz
 __pycache__/
 *.md
 datasets/
@@ -17,3 +22,11 @@ scripts/
 maia-service/
 book_database.json
 test_results.json
+# Test scripts in root
+test-*.mjs
+check-*.mjs
+query-*.mjs
+verify-*.mjs
+write-*.mjs
+add-indexes.mjs
+puzzle_load*.log

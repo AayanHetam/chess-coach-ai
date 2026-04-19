@@ -71,7 +71,7 @@ export interface LLMResult {
 const MODELS = {
   anthropic: {
     flagship: "claude-sonnet-4-20250514",
-    fast: "claude-haiku-4-20250514",
+    fast: "claude-haiku-4-5-20251001",
   },
   openai: {
     flagship: "gpt-4o",

@@ -1,0 +1,5 @@
+chess>=1.10.0
+datasets>=2.14.0
+huggingface_hub>=0.17.0
+zstandard>=0.21.0
+requests>=2.31.0

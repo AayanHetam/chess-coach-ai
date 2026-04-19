@@ -7,6 +7,7 @@ import DailyPuzzle from "@/components/landing/DailyPuzzle";
 import LandingHowItWorks from "@/components/landing/LandingHowItWorks";
 import LandingComparison from "@/components/landing/LandingComparison";
 import LandingTestimonials from "@/components/landing/LandingTestimonials";
+import LandingAbout from "@/components/landing/LandingAbout";
 import LandingCTA from "@/components/landing/LandingCTA";
 import LandingFooter from "@/components/landing/LandingFooter";
 
@@ -31,6 +32,7 @@ export default function LandingPage() {
       <LandingHowItWorks />
       <LandingComparison />
       <LandingTestimonials />
+      <LandingAbout />
       <LandingCTA />
       <LandingFooter />
     </Box>

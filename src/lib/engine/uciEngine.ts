@@ -84,7 +84,7 @@ export class UciEngine {
   private async setMultiPv(multiPv: number) {
     if (multiPv === this.multiPv) return;
 
-    if (multiPv < 2 || multiPv > 6) {
+    if (multiPv < 2 || multiPv > 10) {
       throw new Error(`Invalid MultiPV value : ${multiPv}`);
     }
 

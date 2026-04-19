@@ -1484,6 +1484,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         if (currentMoves < prevMoves || Math.abs(currentMoves - prevMoves) > 5) {
           gameLoadedRef.current = true;
           hasUserMessagedRef.current = false; // Reset for new game
+          analysisContextIdRef.current = null; // Reset context for new game
 
           // AI speaks first — auto-greet when game is loaded
           const greeting = getSmartGameGreeting(game, userPlayerInfo);
@@ -1790,6 +1791,7 @@ IMPORTANT GUIDELINES:
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const analysisContextIdRef = useRef<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Track previous personality to detect changes
@@ -1817,6 +1819,7 @@ IMPORTANT GUIDELINES:
       
       hasUserMessagedRef.current = false;
       gameLoadedRef.current = false;
+      analysisContextIdRef.current = null; // Reset context for new personality
     }
   }, [selectedCoachId]);
 
@@ -2114,50 +2117,89 @@ IMPORTANT GUIDELINES:
           .filter((m) => m.role !== "system")
           .map((m) => ({ role: m.role, content: m.content }));
 
-        // Send full game data for comprehensive analysis
-        const requestData: any = {
-          analysisType: "game_review",
-          model: "gpt-4o",
-          includeAIAnalysis: true,
-          playerColor: userColor,
-          systemPrompt: systemPrompt,
-          userMessage: textToSend,
-          conversationHistory: conversationHistory,
-          responseLength: "comprehensive",
-          boardOrientation: boardOrientation,
-          gameEval: gameEval,
-          // Include username and player color for context
-          username: userPlayerInfo.username || undefined,
-          playerColorName: userPlayerInfo.playerColor || undefined,
-          userRating: userRating || 1500, // Default to 1500 if rating unknown
-        };
+        let data: any;
 
-        // Add game data based on what's available
-        if (game) {
-          requestData.moveHistory = game.history();
-          requestData.fen = game.fen();
-        } else if (position) {
-          requestData.fen = position;
+        // TWO-TIER ROUTING:
+        // - First message (or no contextId): Full deep analysis via /api/enhanced-analysis (gpt-4o, 5-15s)
+        // - Follow-up messages: Fast chat via /api/chat (gpt-4o-mini, 2-5s) using cached context
+        const hasContext = analysisContextIdRef.current && conversationHistory.some(m => m.role === "assistant");
+
+        if (hasContext) {
+          // === FAST PATH: Follow-up via /api/chat ===
+          const chatResponse = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contextId: analysisContextIdRef.current,
+              userMessage: textToSend,
+              conversationHistory: conversationHistory,
+            }),
+            signal: abortControllerRef.current.signal,
+          });
+
+          if (chatResponse.status === 404) {
+            // Context expired — fall through to full analysis below
+            console.log("Analysis context expired, falling back to full analysis");
+            analysisContextIdRef.current = null;
+          } else if (!chatResponse.ok) {
+            const errorData = await chatResponse.json();
+            throw new Error(errorData.error || `HTTP error! status: ${chatResponse.status}`);
+          } else {
+            data = await chatResponse.json();
+          }
         }
 
-        const response = await fetch("/api/enhanced-analysis", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestData),
-          signal: abortControllerRef.current.signal,
-        });
+        // === DEEP PATH: Full analysis via /api/enhanced-analysis (first message or context expired) ===
+        if (!data) {
+          const requestData: any = {
+            analysisType: "game_review",
+            model: "gpt-4o",
+            includeAIAnalysis: true,
+            playerColor: userColor,
+            systemPrompt: systemPrompt,
+            userMessage: textToSend,
+            conversationHistory: conversationHistory,
+            responseLength: "comprehensive",
+            boardOrientation: boardOrientation,
+            gameEval: gameEval,
+            // Include username and player color for context
+            username: userPlayerInfo.username || undefined,
+            playerColorName: userPlayerInfo.playerColor || undefined,
+            userRating: userRating || 1500, // Default to 1500 if rating unknown
+          };
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          const errorMessage =
-            errorData.error ||
-            errorData.details ||
-            `HTTP error! status: ${response.status}`;
-          console.error("API Error:", errorData);
-          throw new Error(errorMessage);
+          // Add game data based on what's available
+          if (game) {
+            requestData.moveHistory = game.history();
+            requestData.fen = game.fen();
+          } else if (position) {
+            requestData.fen = position;
+          }
+
+          const response = await fetch("/api/enhanced-analysis", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestData),
+            signal: abortControllerRef.current.signal,
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            const errorMessage =
+              errorData.error ||
+              errorData.details ||
+              `HTTP error! status: ${response.status}`;
+            console.error("API Error:", errorData);
+            throw new Error(errorMessage);
+          }
+
+          data = await response.json();
+
+          // Store contextId for fast follow-up chat
+          if (data.gameAnalysis?.contextId) {
+            analysisContextIdRef.current = data.gameAnalysis.contextId;
+          }
         }
-
-        const data = await response.json();
 
         // Add assistant message with the analysis
         let assistantContent = "";

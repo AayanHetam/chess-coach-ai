@@ -4,9 +4,8 @@ import {
   buildCondensedContext,
 } from "@/lib/analysisContextCache";
 import { validateAIResponse } from "@/lib/aiResponseValidator";
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
+import { chatSchema, validateRequest } from "@/lib/validation/schemas";
+import { callLLM, LLMError, type LLMMessage } from "@/lib/llmProvider";
 
 /**
  * Lightweight chat endpoint for follow-up messages.
@@ -21,14 +20,13 @@ const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { messages, contextId, userMessage, conversationHistory } = body;
 
-    if (!OPENAI_API_KEY) {
-      return NextResponse.json(
-        { error: "OpenAI API key not configured. Please set OPENAI_API_KEY in .env.local." },
-        { status: 500 }
-      );
-    }
+    const parsed = validateRequest(chatSchema, body);
+    if (!parsed.success) return parsed.response;
+    const { messages, contextId, userMessage, conversationHistory } = parsed.data;
+
+    // API-key presence is validated inside callLLM(); both Anthropic and
+    // OpenAI are accepted, with automatic fallback from one to the other.
 
     // === FAST PATH: Context-cached follow-up ===
     if (contextId && userMessage) {
@@ -78,32 +76,34 @@ export async function POST(request: NextRequest) {
       // Current user message
       chatMessages.push({ role: "user", content: userMessage });
 
-      // Call gpt-4o-mini for speed (follow-ups don't need gpt-4o depth)
-      const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: chatMessages,
-          temperature: 0.7,
-          max_tokens: 1500,
-        }),
-      });
+      // Extract system messages and user/assistant messages for the unified provider
+      const systemText = chatMessages
+        .filter((m) => m.role === "system")
+        .map((m) => m.content)
+        .join("\n\n");
+      const nonSystemMessages: LLMMessage[] = chatMessages
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("OpenAI chat API error:", response.status, errorText);
+      // Fast tier (Haiku primary, gpt-4o-mini fallback)
+      let llmResult;
+      try {
+        llmResult = await callLLM({
+          tier: "fast",
+          system: systemText,
+          messages: nonSystemMessages,
+          temperature: 0.7,
+          maxTokens: 1500,
+        });
+      } catch (err) {
+        const e = err instanceof LLMError ? err : new Error(String(err));
+        console.error("LLM chat call failed:", e.message);
         return NextResponse.json(
-          { error: `OpenAI API error: ${response.status}` },
+          { error: `LLM API error: ${e.message}` },
           { status: 502 }
         );
       }
-
-      const data = await response.json();
-      const rawContent = data.choices?.[0]?.message?.content || "I couldn't generate a response.";
+      const rawContent = llmResult.content || "I couldn't generate a response.";
 
       // Light validation against the cached FEN
       const validation = validateAIResponse(rawContent, context.fen);
@@ -127,31 +127,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: body.model || "gpt-4o-mini",
-        messages,
-        temperature: body.temperature ?? 0.7,
-        max_tokens: body.max_tokens ?? 1500,
-      }),
-    });
+    // Separate system messages from user/assistant messages for the unified provider
+    const fallbackSystem = messages
+      .filter((m: { role: string }) => m.role === "system")
+      .map((m: { content: string }) => m.content)
+      .join("\n\n");
+    const fallbackMessages: LLMMessage[] = messages
+      .filter((m: { role: string }) => m.role === "user" || m.role === "assistant")
+      .map((m: { role: string; content: string }) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API error:", response.status, errorText);
+    let fbResult;
+    try {
+      fbResult = await callLLM({
+        tier: "fast",
+        system: fallbackSystem || "You are a helpful chess coach.",
+        messages:
+          fallbackMessages.length > 0
+            ? fallbackMessages
+            : [{ role: "user", content: "Hello" }],
+        temperature: parsed.data.temperature ?? 0.7,
+        maxTokens: parsed.data.max_tokens ?? 1500,
+      });
+    } catch (err) {
+      const e = err instanceof LLMError ? err : new Error(String(err));
+      console.error("LLM fallback call failed:", e.message);
       return NextResponse.json(
-        { error: `OpenAI API error: ${response.status}` },
-        { status: response.status }
+        { error: `LLM API error: ${e.message}` },
+        { status: 502 }
       );
     }
 
-    const data = await response.json();
-    return NextResponse.json(data);
+    // Return in OpenAI-compatible format so the client doesn't need changes
+    return NextResponse.json({
+      choices: [
+        { message: { role: "assistant", content: fbResult.content || "" } },
+      ],
+    });
   } catch (error) {
     console.error("Chat API error:", error);
     return NextResponse.json(

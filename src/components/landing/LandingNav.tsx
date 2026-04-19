@@ -8,7 +8,7 @@ import AuthDialog from "@/components/auth/AuthDialog";
 export default function LandingNav() {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
-  const { user, loading, isFirebaseConfigured } = useAuth();
+  const { user } = useAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -109,23 +109,6 @@ export default function LandingNav() {
 
         {/* CTA buttons */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          {isFirebaseConfigured && !loading && !user && (
-            <Button
-              variant="text"
-              size="small"
-              onClick={() => setAuthDialogOpen(true)}
-              sx={{
-                display: { xs: "none", sm: "inline-flex" },
-                color: "#555",
-                textTransform: "none",
-                fontWeight: 600,
-                fontSize: "0.9rem",
-                "&:hover": { color: "#FF6B35", backgroundColor: "transparent" },
-              }}
-            >
-              Sign In
-            </Button>
-          )}
           {user && (
             <IconButton
               onClick={() => router.push("/analysis")}
@@ -143,7 +126,7 @@ export default function LandingNav() {
           <Button
             variant="contained"
             size="small"
-            onClick={() => router.push("/analysis")}
+            onClick={() => user ? router.push("/analysis") : setAuthDialogOpen(true)}
             sx={{
               px: 3,
               py: 1,

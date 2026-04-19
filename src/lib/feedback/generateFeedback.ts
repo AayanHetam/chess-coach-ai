@@ -5,7 +5,7 @@ import {
   analyzePosition,
   ChessPrincipleViolation,
 } from "@/lib/chessprinciples/index";
-import { openings } from "@/data/openings";
+import { detectOpening } from "@/lib/unifiedOpeningDetector";
 import {
   PlayerFeedbackData,
   FeedbackRequest,
@@ -213,33 +213,22 @@ async function analyzeSingleGame(
 function determineOpening(moves: string[]): string {
   if (moves.length === 0) return "Unknown";
 
-  // Create a position after the first few moves
+  // Use unified opening detector
   const chess = new Chess();
-  const openingMoves = moves.slice(0, Math.min(10, moves.length));
-
-  // Try to find opening by checking multiple move sequences
-  for (let i = Math.min(8, openingMoves.length); i >= 2; i--) {
-    const chess = new Chess();
-    const movesToCheck = openingMoves.slice(0, i);
-
-    try {
-      for (const move of movesToCheck) {
-        chess.move(move);
-      }
-
-      // Check against known openings
-      const fen = chess.fen().split(" ")[0];
-      const opening = openings.find((op) => op.fen === fen);
-
-      if (opening) {
-        return opening.name;
-      }
-    } catch {
-      continue;
+  try {
+    for (const move of moves) {
+      chess.move(move);
     }
+
+    const opening = detectOpening(chess);
+    if (opening) {
+      return opening.name;
+    }
+  } catch (error) {
+    console.error("Error detecting opening:", error);
   }
 
-  // If no specific opening found, try to identify basic opening types
+  // Fallback to basic opening types
   if (moves.length >= 2) {
     const firstMove = moves[0]?.toLowerCase();
     const secondMove = moves[1]?.toLowerCase();

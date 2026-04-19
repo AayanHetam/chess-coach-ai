@@ -98,7 +98,7 @@ const testimonials = [
   {
     quote:
       "Other tools criticize my Sicilian moves because the engine prefers something else. This coach actually knows it's a book move and explains the theory. Finally!",
-    name: "Sofia",
+    name: "Raghav",
     role: "Tournament Player, 1800 ELO",
   },
 ];

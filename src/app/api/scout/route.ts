@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ScoutGame, Platform } from '@/types/scout';
+import { scoutSchema, validateRequest } from '@/lib/validation/schemas';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { username, platform, months = 12 } = body as {
-      username: string;
-      platform: Platform;
-      months?: number;
-    };
 
-    if (!username || !platform) {
-      return NextResponse.json(
-        { error: 'Username and platform are required' },
-        { status: 400 }
-      );
-    }
+    const parsed = validateRequest(scoutSchema, body);
+    if (!parsed.success) return parsed.response;
+    const { username, platform, months } = parsed.data;
 
     let games: ScoutGame[];
 

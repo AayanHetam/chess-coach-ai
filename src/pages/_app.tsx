@@ -8,6 +8,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Typography, Box, Container } from "@mui/material";
 import Head from "next/head";
+import { Analytics } from "@vercel/analytics/react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -60,11 +62,14 @@ export default function MyApp({ Component, pageProps }: AppProps) {
       </Head>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <Layout>
-            <Component {...pageProps} />
-          </Layout>
+          <ErrorBoundary name="app">
+            <Layout>
+              <Component {...pageProps} />
+            </Layout>
+          </ErrorBoundary>
         </AuthProvider>
       </QueryClientProvider>
+      <Analytics />
     </>
   );
 }

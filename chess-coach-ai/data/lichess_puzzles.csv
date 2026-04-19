@@ -1,0 +1,11 @@
+PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTags
+00008,r6k/pp2r2p/4Rp1Q/3p4/8/1N1P2R1/PqP2bPP/7K b - - 0 24,e7e6 h6h7 h8g8 h7h6,1739,74,93,1407,crushing hangingPiece long middlegame,https://lichess.org/game1,Italian_Game
+00009,5rk1/1p1q2bp/p2pN1p1/2pP2Bn/2P3P1/1P6/P4QKP/5R2 b - - 0 27,d7e7 f2f8,1757,74,91,1526,crushing mate mateIn2 middlegame short,https://lichess.org/game2,Sicilian_Defense
+00012,r4rk1/1bq1bppp/p2p1n2/1p6/3NP3/1BN1B3/PPP2PPP/R2Q1RK1 b - - 6 13,c7c3 b2c3,1770,74,96,1946,advantage middlegame,https://lichess.org/game3,Queens_Pawn_Game
+00013,r3r1k1/1pq1npb1/p2p2pp/3Pp3/1PP1P3/2N2N2/PB3PPP/R2QR1K1 b - - 0 18,e7g6 e4e5,1771,74,96,1677,advantage middlegame,https://lichess.org/game4,Queens_Pawn_Game
+00015,r1bq1rk1/pp1n1pbp/3p1np1/2pP4/2P1P3/2N1BP2/PP2N1PP/R1BQ1RK1 b - - 0 10,d7f8 e3g5,1778,74,92,1595,advantage middlegame queensideAttack,https://lichess.org/game5,Kings_Indian_Defense
+00016,r2qk2r/1p1n1pp1/p1p1p2p/2Nn4/1b1P3P/4BN2/PP2BPP1/R2QK2R w KQkq - 1 14,e3d4 d5e3,1779,74,85,1446,advantage fork middlegame,https://lichess.org/game6,Caro_Kann_Defense
+00017,r3k2r/pbp1qpp1/1p2pn1p/8/1b1P4/2N1PN2/PP2BPPP/R1BQK2R w KQkq - 2 10,e3d5 e6d5,1781,74,91,1490,advantage middlegame,https://lichess.org/game7,French_Defense
+00018,r1bqk2r/pp3ppp/2n1pn2/2p5/1bBP4/2N1PN2/PP3PPP/R1BQK2R w KQkq - 0 8,c4f7 e8f7,1786,74,91,1533,advantage middlegame,https://lichess.org/game8,Italian_Game
+00019,rnbqk2r/ppp1bppp/4pn2/3p4/2PP4/5NP1/PP2PP1P/RNBQKB1R w KQkq - 2 5,c4d5 e6d5,1786,74,96,1589,advantage opening,https://lichess.org/game9,Indian_Defense
+00020,r2qkb1r/1p1n1ppp/p1n1p3/3pP3/3P4/P1N2N2/1P2BPPP/R1BQK2R w KQkq - 0 10,e5e6 f7e6,1787,74,96,1703,advantage middlegame,https://lichess.org/game10,French_Defense

@@ -40,6 +40,7 @@ import PuzzleStats from "@/sections/practice/PuzzleStats";
 import PatternTraining from "@/sections/practice/PatternTraining";
 import { blindModeAtom } from "@/sections/practice/states";
 import PsychologyIcon from "@mui/icons-material/Psychology";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const THEME_CATEGORIES: Record<string, { label: string; themes: string[] }> = {
   tactics: {
@@ -175,7 +176,9 @@ export default function Practice() {
       <>
         <PageTitle title="Chess Masti AI - Puzzle Rush" />
         <Box sx={{ width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } }}>
-          <PuzzleRush onBack={() => setPracticeMode("standard")} />
+          <ErrorBoundary name="puzzle-rush">
+            <PuzzleRush onBack={() => setPracticeMode("standard")} />
+          </ErrorBoundary>
         </Box>
       </>
     );
@@ -187,7 +190,9 @@ export default function Practice() {
       <>
         <PageTitle title="Chess Masti AI - Pattern Training" />
         <Box sx={{ width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } }}>
-          <PatternTraining onBack={() => setPracticeMode("standard")} />
+          <ErrorBoundary name="pattern-training">
+            <PatternTraining onBack={() => setPracticeMode("standard")} />
+          </ErrorBoundary>
         </Box>
       </>
     );
@@ -397,7 +402,9 @@ export default function Practice() {
             >
               {/* Board */}
               <Box sx={{ flexShrink: 0 }}>
-                <PracticeBoard />
+                <ErrorBoundary name="practice-board">
+                  <PracticeBoard />
+                </ErrorBoundary>
               </Box>
 
               {/* Right side: info panel + puzzle list */}

@@ -1,9 +1,14 @@
+import { useState } from "react";
 import { Box, Button, Container, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 import { Icon } from "@iconify/react";
+import { useAuth } from "@/contexts/AuthContext";
+import AuthDialog from "@/components/auth/AuthDialog";
 
 export default function LandingCTA() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
   return (
     <Box
@@ -64,7 +69,7 @@ export default function LandingCTA() {
             mx: "auto",
           }}
         >
-          Analyze games, solve puzzles, scout opponents, and chat with your AI coach. No sign-up, no payment.
+          Analyze games, solve puzzles, scout opponents, and chat with your AI coach. Free forever.
         </Typography>
 
         <Box
@@ -78,7 +83,7 @@ export default function LandingCTA() {
           <Button
             variant="contained"
             size="large"
-            onClick={() => router.push("/analysis")}
+            onClick={() => user ? router.push("/analysis") : setAuthDialogOpen(true)}
             startIcon={<Icon icon="mdi:magnify" />}
             sx={{
               px: 5,
@@ -97,7 +102,7 @@ export default function LandingCTA() {
               transition: "all 0.3s ease",
             }}
           >
-            Analyze a Game
+            Start Analyzing
           </Button>
           <Button
             variant="outlined"
@@ -173,6 +178,7 @@ export default function LandingCTA() {
           </Button>
         </Box>
       </Container>
+      <AuthDialog open={authDialogOpen} onClose={() => setAuthDialogOpen(false)} />
     </Box>
   );
 }

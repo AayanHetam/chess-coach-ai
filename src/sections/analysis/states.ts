@@ -33,6 +33,9 @@ export const moveAnalysisRequestAtom = atom<{
   moveNumber: number;
 } | null>(null);
 
+// Atom for expanding the right panel to fullscreen
+export const panelExpandedAtom = atom(false);
+
 // Atom for storing the user's username and player color
 export const userPlayerInfoAtom = atom<{
   username: string | null;

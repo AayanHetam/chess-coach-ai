@@ -10,29 +10,50 @@ import {
   boardOrientationAtom,
   gameAtom,
   gameEvalAtom,
+  panelExpandedAtom,
 } from "@/sections/analysis/states";
 import {
   Box,
   Divider,
   Grid,
+  IconButton,
   Tab,
   Tabs,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import EngineSettingsButton from "@/sections/engineSettings/engineSettingsButton";
 
 import { PageTitle } from "@/components/pageTitle";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function GameAnalysis() {
   const theme = useTheme();
   const [tab, setTab] = useState(0);
   const isLgOrGreater = useMediaQuery(theme.breakpoints.up("lg"));
+  const [panelExpanded, setPanelExpanded] = useAtom(panelExpandedAtom);
+  const boardContainerRef = useRef<HTMLDivElement>(null);
+  const [boardRight, setBoardRight] = useState(0);
+
+  // Measure the board container's right edge so the expanded panel never overlaps it
+  const updateBoardRight = useCallback(() => {
+    if (boardContainerRef.current) {
+      const rect = boardContainerRef.current.getBoundingClientRect();
+      setBoardRight(rect.right);
+    }
+  }, []);
+
+  useEffect(() => {
+    updateBoardRight();
+    window.addEventListener("resize", updateBoardRight);
+    return () => window.removeEventListener("resize", updateBoardRight);
+  }, [updateBoardRight]);
 
   const { reset: resetBoard } = useChessActions(boardAtom);
   const { reset: resetGame } = useChessActions(gameAtom);
@@ -74,11 +95,31 @@ export default function GameAnalysis() {
       <PageTitle title="Chess Masti AI - Game Analysis" />
 
       <Grid
+        ref={boardContainerRef}
         size={{ xs: 12, lg: "auto" }}
         sx={{ flexShrink: 0, minWidth: { lg: "400px" } }}
       >
-        <Board />
+        <ErrorBoundary name="chessboard">
+          <Board />
+        </ErrorBoundary>
       </Grid>
+
+      {/* Backdrop when panel is expanded */}
+      {panelExpanded && (
+        <Box
+          onClick={() => setPanelExpanded(false)}
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            zIndex: 1200,
+            transition: "opacity 0.3s ease",
+          }}
+        />
+      )}
 
       <Grid
         size={{ xs: 12, lg: "grow" }}
@@ -92,24 +133,69 @@ export default function GameAnalysis() {
           backgroundColor: "secondary.main",
           borderColor: "primary.main",
           borderWidth: 2,
-          boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
+          boxShadow: panelExpanded
+            ? "0 4px 30px rgba(0, 0, 0, 0.6)"
+            : "0 2px 10px rgba(0, 0, 0, 0.5)",
           minWidth: { lg: "420px" },
           width: "100%",
           flex: 1,
           ...(gameEval && { overflow: "visible" }),
+          // Expanded panel styling
+          ...(panelExpanded && {
+            position: "fixed",
+            top: "64px",
+            right: 0,
+            bottom: 0,
+            left: { xs: 0, lg: `${boardRight}px` },
+            width: "auto",
+            zIndex: 1300,
+            borderRadius: { xs: 0, lg: "16px 0 0 0" },
+            overflow: "auto",
+          }),
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
         padding={2}
         rowGap={2}
         height={{
           xs: tab === 1 || tab === 2 ? "40rem" : "auto",
-          lg: "calc(88vh - 60px)",
+          lg: panelExpanded ? "auto" : "calc(88vh - 60px)",
         }}
         display="flex"
         flexDirection="column"
         flexWrap="nowrap"
       >
-        {isLgOrGreater ? (
-          <Box width="100%">
+        {/* Expanded mode: minimal header with just collapse button */}
+        {panelExpanded && (
+          <Box
+            width="100%"
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              pb: 1,
+              borderBottom: 1,
+              borderColor: "divider",
+              flexShrink: 0,
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 600, color: "text.primary" }}>
+              {tab === 0 ? "Analysis" : tab === 1 ? "Moves" : "AI Coach"}
+            </Typography>
+            <Tooltip title="Collapse panel">
+              <IconButton
+                onClick={() => setPanelExpanded(false)}
+                sx={{ color: "primary.main" }}
+                size="small"
+              >
+                <Icon icon="mdi:fullscreen-exit" height={22} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
+
+        {/* Normal mode: full header, tabs, expand button */}
+        {!panelExpanded && isLgOrGreater && (
+          <Box width="100%" sx={{ position: "relative" }}>
             <PanelHeader key="analysis-panel-header" />
             <Divider sx={{ marginX: "5%", marginTop: 2.5 }} />
             <Box
@@ -168,17 +254,35 @@ export default function GameAnalysis() {
                 />
               </Tabs>
             </Box>
+            {/* Expand toggle */}
+            <Tooltip title="Expand panel">
+              <IconButton
+                onClick={() => setPanelExpanded(true)}
+                sx={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  color: "primary.main",
+                  zIndex: 1,
+                }}
+                size="small"
+              >
+                <Icon icon="mdi:fullscreen" height={22} />
+              </IconButton>
+            </Tooltip>
           </Box>
-        ) : (
+        )}
+
+        {!panelExpanded && !isLgOrGreater && (
           <PanelToolBar key="review-panel-toolbar" />
         )}
 
-        {!isLgOrGreater && !gameEval && <Divider sx={{ marginX: "5%" }} />}
-        {!isLgOrGreater && !gameEval && (
+        {!panelExpanded && !isLgOrGreater && !gameEval && <Divider sx={{ marginX: "5%" }} />}
+        {!panelExpanded && !isLgOrGreater && !gameEval && (
           <PanelHeader key="analysis-panel-header" />
         )}
 
-        {!isLgOrGreater && (
+        {!panelExpanded && !isLgOrGreater && (
           <Box
             width="95%"
             sx={{
@@ -236,16 +340,25 @@ export default function GameAnalysis() {
           </Box>
         )}
 
-        <AnalysisTab role="tabpanel" hidden={tab !== 0} id="tabContent0" />
+        <ErrorBoundary name="analysis-tab">
+          <AnalysisTab role="tabpanel" hidden={tab !== 0} id="tabContent0" />
+        </ErrorBoundary>
 
-        <MovesCoachTab role="tabpanel" hidden={tab !== 1} id="tabContent1" />
+        <ErrorBoundary name="moves-coach-tab">
+          <MovesCoachTab role="tabpanel" hidden={tab !== 1} id="tabContent1" />
+        </ErrorBoundary>
 
-        <CoachTab role="tabpanel" hidden={tab !== 2} id="tabContent2" />
+        <ErrorBoundary name="ai-coach-tab">
+          <CoachTab role="tabpanel" hidden={tab !== 2} id="tabContent2" />
+        </ErrorBoundary>
 
-        <Box width="100%">
-          <Divider sx={{ marginX: "5%", marginY: 1.5 }} />
-          <PanelToolBar key="main-panel-toolbar" />
-        </Box>
+        {/* Hide bottom toolbar in expanded mode */}
+        {!panelExpanded && (
+          <Box width="100%">
+            <Divider sx={{ marginX: "5%", marginY: 1.5 }} />
+            <PanelToolBar key="main-panel-toolbar" />
+          </Box>
+        )}
       </Grid>
 
       <EngineSettingsButton />

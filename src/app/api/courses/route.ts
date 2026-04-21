@@ -68,8 +68,11 @@ export async function GET() {
     const coursesWithPuzzles = await Promise.all(
       SAMPLE_COURSES.map(async (course) => {
         // Fetch 50 puzzles for each course based on theme
-        const { getPuzzlesByTheme } = await import("@/lib/chessPuzzlesService");
-        const puzzles = await getPuzzlesByTheme([course.category], 50);
+        const { queryPuzzles } = await import("@/lib/puzzleRepository");
+        const puzzles = await queryPuzzles({
+          themes: [course.category],
+          limit: 50,
+        });
         
         return {
           ...course,

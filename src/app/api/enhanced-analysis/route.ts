@@ -11,6 +11,9 @@ import {
 import { enhancedAnalysisSchema, validateRequest } from "@/lib/validation/schemas";
 import { logger, withRequestContext, extractRequestId } from "@/lib/logging";
 import { callLLM, LLMError } from "@/lib/llmProvider";
+import { getReinforcements } from "@/lib/concept/conceptRetrieval";
+import { detectConcepts } from "@/lib/concept/conceptDetector";
+import { getConcept } from "@/lib/concept/conceptTaxonomy";
 
 const log = logger.child({ module: "enhanced-analysis" });
 
@@ -589,6 +592,11 @@ function buildGameContext(
           block += `BRANCH POINT: ${shared}Key divergence — best: ${bestPvSan[branchIdx] ?? "?"} vs alternative: ${pv2San[branchIdx] ?? "?"}\n`;
         }
 
+        const conceptBlock = buildConceptLayer(m.fenBefore, bestPvSan);
+        if (conceptBlock) {
+          block += `PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):\n${conceptBlock}\n`;
+        }
+
         if (explanationSeed) block += `ENGINE IDEA: ${explanationSeed}\n`;
         intelligenceLines.push(block);
       }
@@ -655,6 +663,92 @@ function getMaterialBalance(game: Chess): string {
  * Generate puzzle recommendations for detected mistakes in the game.
  * Returns an array of mistake contexts with their matching puzzles.
  */
+interface ReinforcementForCoach {
+  concepts: string[];
+  fallbackUsed: "concept" | "theme" | "none";
+  puzzles: Array<{
+    puzzleId: string;
+    fen: string;
+    moves: string;
+    rating: number;
+    concepts: Array<{ id: string; confidence: number }>;
+  }>;
+}
+
+/**
+ * Convert a PV of SAN moves to UCI (from, to, promotion concatenated) starting
+ * from the given FEN. Returns the array up to the first failure.
+ */
+function sanPvToUci(fen: string, sanPv: string[]): string[] {
+  const uci: string[] = [];
+  const chess = new Chess(fen);
+  for (const san of sanPv) {
+    const mv = chess.move(san);
+    if (!mv) break;
+    uci.push(`${mv.from}${mv.to}${mv.promotion ?? ""}`);
+  }
+  return uci;
+}
+
+/**
+ * Pedagogical Concept Layer — name the principle, not the mechanics.
+ *
+ * Runs the same detectConcepts used by retrieval so the chip label and the
+ * prose vocabulary agree. Returns an empty string when no concept fires; the
+ * caller then omits the block entirely (Claude falls back to motif tags).
+ */
+function buildConceptLayer(fenBefore: string, bestPvSan: string[]): string {
+  const uci = sanPvToUci(fenBefore, bestPvSan);
+  if (uci.length === 0) return "";
+  const hits = detectConcepts({ fen: fenBefore, solutionUci: uci });
+  if (hits.length === 0) return "";
+  const lines: string[] = [];
+  for (const h of hits.slice(0, 3)) {
+    const c = getConcept(h.conceptId);
+    if (!c) continue;
+    lines.push(
+      `- ${c.name} (${c.tier}, confidence ${h.confidence.toFixed(2)})\n    Definition: ${c.definition}\n    Evidence: ${h.evidence}`
+    );
+  }
+  return lines.join("\n");
+}
+
+async function buildReinforcements(
+  fenBefore: string,
+  bestMoveSan: string,
+  bestPvSan: string[],
+  userRating: number
+): Promise<ReinforcementForCoach | undefined> {
+  try {
+    const pv = bestPvSan.length > 0 ? bestPvSan : [bestMoveSan];
+    const uci = sanPvToUci(fenBefore, pv);
+    if (uci.length === 0) return undefined;
+    const result = await getReinforcements({
+      anchorFen: fenBefore,
+      anchorSolutionUci: uci,
+      themes: [],
+      userElo: userRating,
+      limit: 3,
+    });
+    return {
+      concepts: result.anchorConcepts,
+      fallbackUsed: result.fallbackUsed,
+      puzzles: result.puzzles.map((p: any) => ({
+        puzzleId: p.puzzleId,
+        fen: p.fen,
+        moves: p.moves,
+        rating: p.rating,
+        concepts: p.concepts ?? [],
+      })),
+    };
+  } catch (err) {
+    log.warn("Reinforcement retrieval failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return undefined;
+  }
+}
+
 async function generatePuzzleRecommendations(
   moveHistory: string[] | undefined,
   gameEval: any,
@@ -670,6 +764,7 @@ async function generatePuzzleRecommendations(
   tacticalMotifs: string[];
   puzzles: any[];
   explanation: string;
+  reinforcements?: ReinforcementForCoach;
 }>> {
   if (!moveHistory || !gameEval?.positions) {
     return [];
@@ -717,6 +812,12 @@ async function generatePuzzleRecommendations(
 
       if (response.ok) {
         const data = await response.json();
+        const reinforcements = await buildReinforcements(
+          fenBefore,
+          bestMove,
+          bestPvSan,
+          userRating
+        );
         recommendations.push({
           moveNumber: Math.floor(i / 2) + 1,
           movePlayed: moveHistory[i],
@@ -726,8 +827,9 @@ async function generatePuzzleRecommendations(
           evalAfter: cpAfter,
           mistakeSeverity: data.mistakeSeverity,
           tacticalMotifs: motifs,
-          puzzles: data.puzzles.slice(0, 3), // Top 3 puzzles
+          puzzles: data.puzzles.slice(0, 3), // Top 3 puzzles (legacy theme path)
           explanation: data.explanation,
+          reinforcements,
         });
       }
     } catch (error) {
@@ -798,7 +900,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Build the system prompt for Claude
-    const claudeSystemPrompt = systemPrompt || "You are an expert chess coach AI. Analyze games thoroughly using Stockfish evaluation data when available. Identify mistakes, explain principles violated, suggest improvements, and reference tactical themes. Be specific — cite exact move numbers and variations.";
+    const claudeSystemPrompt =
+      systemPrompt ||
+      [
+        "You are an expert chess coach AI. Analyze games thoroughly using Stockfish evaluation data when available.",
+        "When the context includes a PEDAGOGICAL CONCEPTS block, you MUST:",
+        "  (a) name the concept explicitly using its human-readable name (e.g., \"this is a back-rank mate\"),",
+        "  (b) teach the principle behind it using the provided definition, adapted to the student's level,",
+        "  (c) ground the explanation in the detector evidence and the actual move played.",
+        "If no concept layer is provided, fall back to explaining tactical themes from the VERIFIED MOTIFS tags.",
+        "Be specific — cite exact move numbers and variations.",
+      ].join("\n");
 
     // Build the messages for Claude (user/assistant turns only — system is separate)
     const claudeMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
@@ -923,7 +1035,7 @@ export async function POST(request: NextRequest) {
     storeAnalysisContext({
       contextId,
       gameContext,
-      systemPrompt: systemPrompt || "You are an expert chess coach AI.",
+      systemPrompt: claudeSystemPrompt,
       fewShotExamples: examplesContext,
       fen: validationFen,
       skillLevel,

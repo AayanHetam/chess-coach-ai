@@ -36,6 +36,19 @@ export const moveAnalysisRequestAtom = atom<{
 // Atom for expanding the right panel to fullscreen
 export const panelExpandedAtom = atom(false);
 
+// Atom for which collapsible analysis sections are visible (persisted)
+export type AnalysisSectionId =
+  | "graph"
+  | "engine"
+  | "stats"
+  | "gameInfo"
+  | "moves";
+
+export const visibleSectionsAtom = atomWithStorage<AnalysisSectionId[]>(
+  "analysisVisibleSections",
+  ["graph", "engine"]
+);
+
 // Atom for storing the user's username and player color
 export const userPlayerInfoAtom = atom<{
   username: string | null;

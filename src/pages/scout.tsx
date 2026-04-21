@@ -1,128 +1,502 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Grid,
-  Typography,
+  Alert,
   Box,
   Button,
-  TextField,
-  ToggleButtonGroup,
-  ToggleButton,
-  CircularProgress,
-  Alert,
   Chip,
-  LinearProgress,
-  Paper,
-  IconButton,
-  Tooltip,
-  Select,
-  MenuItem,
+  CircularProgress,
   FormControl,
+  Grid,
   InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Slider,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+  Typography,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
-import { Chessboard } from 'react-chessboard';
-import { CustomPieces, Piece } from 'react-chessboard/dist/chessboard/types';
 import { useAtomValue } from 'jotai';
 import { pieceSetAtom } from '@/components/board/states';
 import { useScreenSize } from '@/hooks/useScreenSize';
 import { PageTitle } from '@/components/pageTitle';
 import {
+  OpeningTreeNode,
   Platform,
+  ScoutAnalytics,
   ScoutGame,
   ScoutResult,
-  OpeningTreeNode,
-  PrepLine,
 } from '@/types/scout';
-import {
-  buildOpeningTree,
-  getNodeScore,
-  generatePrepLines,
-  formatMoveSequence,
-  getTreeNodeAtPath,
-} from '@/lib/scoutService';
-import { getLichessEval } from '@/lib/lichess';
+import { getTreeNodeAtPath } from '@/lib/scoutService';
+import type {
+  ScoutWorkerRequest,
+  ScoutWorkerResponse,
+} from '@/workers/scoutWorker';
+import AnalyzingModal, { AnalyzingStage } from '@/components/scout/AnalyzingModal';
+import ScoutLanding from '@/components/scout/ScoutLanding';
+import ProfileCard from '@/components/scout/ProfileCard';
+import StalkerScoreCard from '@/components/scout/StalkerScoreCard';
+import TargetedPrepPanel from '@/components/scout/TargetedPrep';
+import PreGameChecklist from '@/components/scout/PreGameChecklist';
+import RivalsPanel from '@/components/scout/RivalsPanel';
+import PsychologyPanel from '@/components/scout/PsychologyPanel';
+import TreeExplorer from '@/components/scout/TreeExplorer';
+import TwinBotDialog from '@/components/scout/TwinBotDialog';
+import TwinBotGame from '@/components/scout/TwinBotGame';
+import NoveltyPanel from '@/components/scout/NoveltyPanel';
+import CollisionPanel from '@/components/scout/CollisionPanel';
+import ShareCardDialog from '@/components/scout/ShareCardDialog';
+import { buildOpeningTree } from '@/lib/scoutService';
+import { computeCollisions } from '@/lib/collisionAnalysis';
+import type { Collisions } from '@/types/scout';
 
-const PIECE_CODES: Piece[] = [
-  'wP', 'wB', 'wN', 'wR', 'wQ', 'wK',
-  'bP', 'bB', 'bN', 'bR', 'bQ', 'bK',
-];
+// ─── Search bar ─────────────────────────────────────────────────────────────
 
-const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+interface SearchBarProps {
+  username: string;
+  yourUsername: string;
+  platform: Platform;
+  months: number;
+  loading: boolean;
+  onUsernameChange: (v: string) => void;
+  onYourUsernameChange: (v: string) => void;
+  onPlatformChange: (p: Platform) => void;
+  onMonthsChange: (m: number) => void;
+  onSubmit: () => void;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+}
 
-function WinDrawLossBar({ wins, draws, losses, total }: { wins: number; draws: number; losses: number; total: number }) {
-  if (total === 0) return null;
-  const wPct = (wins / total) * 100;
-  const dPct = (draws / total) * 100;
-  const lPct = (losses / total) * 100;
-
+function ScoutSearchBar({
+  username,
+  yourUsername,
+  platform,
+  months,
+  loading,
+  onUsernameChange,
+  onYourUsernameChange,
+  onPlatformChange,
+  onMonthsChange,
+  onSubmit,
+  inputRef,
+}: SearchBarProps) {
+  const [showCompare, setShowCompare] = useState(yourUsername.length > 0);
   return (
-    <Tooltip title={`W: ${wins} (${wPct.toFixed(0)}%) | D: ${draws} (${dPct.toFixed(0)}%) | L: ${losses} (${lPct.toFixed(0)}%)`}>
-      <Box sx={{ display: 'flex', height: 18, borderRadius: 1, overflow: 'hidden', minWidth: 120, width: '100%' }}>
-        {wPct > 0 && (
-          <Box sx={{
-            width: `${wPct}%`,
-            bgcolor: '#4caf50',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            {wPct >= 15 && <Typography variant="caption" sx={{ color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>{wPct.toFixed(0)}%</Typography>}
-          </Box>
-        )}
-        {dPct > 0 && (
-          <Box sx={{
-            width: `${dPct}%`,
-            bgcolor: '#9e9e9e',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            {dPct >= 15 && <Typography variant="caption" sx={{ color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>{dPct.toFixed(0)}%</Typography>}
-          </Box>
-        )}
-        {lPct > 0 && (
-          <Box sx={{
-            width: `${lPct}%`,
-            bgcolor: '#f44336',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            {lPct >= 15 && <Typography variant="caption" sx={{ color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>{lPct.toFixed(0)}%</Typography>}
-          </Box>
+    <Paper
+      elevation={0}
+      sx={{
+        p: { xs: 1.25, sm: 1.5 },
+        borderRadius: 999,
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+        display: 'flex',
+        flexWrap: { xs: 'wrap', md: 'nowrap' },
+        alignItems: 'center',
+        gap: 1.25,
+        boxShadow: '0 4px 24px rgba(15,23,42,0.06)',
+      }}
+    >
+      <ToggleButtonGroup
+        value={platform}
+        exclusive
+        size="small"
+        onChange={(_, v) => v && onPlatformChange(v)}
+        sx={{
+          '& .MuiToggleButton-root': {
+            border: 'none',
+            textTransform: 'none',
+            fontWeight: 700,
+            fontSize: '0.78rem',
+            px: 1.5,
+            borderRadius: 999,
+          },
+          '& .Mui-selected': {
+            bgcolor: 'rgba(255,107,53,0.12) !important',
+            color: '#FF6B35 !important',
+          },
+        }}
+      >
+        <ToggleButton value="chess.com">
+          <Icon icon="mdi:chess-pawn" width={14} style={{ marginRight: 4 }} />
+          Chess.com
+        </ToggleButton>
+        <ToggleButton value="lichess">
+          <Icon icon="mdi:chess-king" width={14} style={{ marginRight: 4 }} />
+          Lichess
+        </ToggleButton>
+      </ToggleButtonGroup>
+
+      <Box sx={{ height: 28, width: '1px', bgcolor: 'divider', display: { xs: 'none', md: 'block' } }} />
+
+      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1, minWidth: 240 }}>
+        <Icon icon="mdi:magnify" width={20} style={{ color: '#94a3b8' }} />
+        <TextField
+          inputRef={inputRef}
+          fullWidth
+          variant="standard"
+          placeholder="Enter opponent username…"
+          value={username}
+          onChange={e => onUsernameChange(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') onSubmit();
+          }}
+          InputProps={{
+            disableUnderline: true,
+            sx: { fontSize: '0.95rem', fontWeight: 600 },
+          }}
+        />
+
+        {showCompare ? (
+          <>
+            <Typography
+              sx={{
+                color: 'text.secondary',
+                fontWeight: 800,
+                fontSize: '0.72rem',
+                letterSpacing: 1.5,
+                px: 0.5,
+                flexShrink: 0,
+              }}
+            >
+              VS
+            </Typography>
+            <TextField
+              fullWidth
+              variant="standard"
+              placeholder="Your username"
+              value={yourUsername}
+              onChange={e => onYourUsernameChange(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') onSubmit();
+              }}
+              InputProps={{
+                disableUnderline: true,
+                sx: { fontSize: '0.9rem', fontWeight: 600, color: '#FF6B35' },
+              }}
+              sx={{ maxWidth: 170 }}
+            />
+            <Tooltip title="Remove compare">
+              <Box
+                component="button"
+                onClick={() => {
+                  setShowCompare(false);
+                  onYourUsernameChange('');
+                }}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 22,
+                  height: 22,
+                  borderRadius: '50%',
+                  border: 'none',
+                  bgcolor: 'rgba(0,0,0,0.04)',
+                  color: 'text.secondary',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  '&:hover': { bgcolor: 'rgba(255,107,53,0.12)', color: '#FF6B35' },
+                }}
+              >
+                <Icon icon="mdi:close" width={14} />
+              </Box>
+            </Tooltip>
+          </>
+        ) : (
+          <Tooltip title="Compare your games against theirs (collision mode)">
+            <Chip
+              size="small"
+              icon={<Icon icon="mdi:plus" width={14} />}
+              label="You"
+              onClick={() => setShowCompare(true)}
+              sx={{
+                fontWeight: 700,
+                fontSize: '0.72rem',
+                bgcolor: 'rgba(255,107,53,0.1)',
+                color: '#FF6B35',
+                cursor: 'pointer',
+                '& .MuiChip-icon': { color: '#FF6B35' },
+                '&:hover': { bgcolor: 'rgba(255,107,53,0.2)' },
+              }}
+            />
+          </Tooltip>
         )}
       </Box>
-    </Tooltip>
+
+      <FormControl size="small" variant="standard" sx={{ minWidth: 110 }}>
+        <InputLabel sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>Window</InputLabel>
+        <Select
+          value={months}
+          disableUnderline
+          onChange={e => onMonthsChange(Number(e.target.value))}
+          sx={{ fontSize: '0.85rem', fontWeight: 600 }}
+        >
+          <MenuItem value={3}>3 months</MenuItem>
+          <MenuItem value={6}>6 months</MenuItem>
+          <MenuItem value={12}>1 year</MenuItem>
+          <MenuItem value={24}>2 years</MenuItem>
+        </Select>
+      </FormControl>
+
+      <Button
+        variant="contained"
+        size="large"
+        disabled={loading || !username.trim()}
+        onClick={onSubmit}
+        startIcon={loading ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : <Icon icon="mdi:binoculars" />}
+        sx={{
+          borderRadius: 999,
+          px: 3,
+          py: 1,
+          fontWeight: 800,
+          letterSpacing: 0.5,
+          textTransform: 'uppercase',
+          fontSize: '0.82rem',
+          background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+          boxShadow: '0 6px 18px rgba(255,107,53,0.35)',
+          '&:hover': {
+            background: 'linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)',
+          },
+        }}
+      >
+        {loading ? 'Stalking…' : 'Stalk'}
+      </Button>
+    </Paper>
   );
 }
+
+// ─── Twin banner ────────────────────────────────────────────────────────────
+
+function TwinBanner({
+  username,
+  totalGames,
+  onPlay,
+}: {
+  username: string;
+  totalGames: number;
+  onPlay: () => void;
+}) {
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: { xs: 2, sm: 2.5 },
+        borderRadius: 3,
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #111c38 100%)',
+        color: '#fff',
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        justifyContent: 'space-between',
+        gap: 2,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <Box
+        sx={{
+          position: 'absolute',
+          right: -60,
+          top: -60,
+          width: 220,
+          height: 220,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(34,197,94,0.25) 0%, transparent 65%)',
+          pointerEvents: 'none',
+        }}
+      />
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Box
+          sx={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            flexShrink: 0,
+          }}
+        >
+          <Icon icon="mdi:robot-outline" width={26} />
+        </Box>
+        <Box>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography sx={{ fontWeight: 800, fontSize: '1.05rem' }}>
+              Play against <Box component="span" sx={{ color: '#22c55e' }}>{username}&apos;s</Box> Twin
+            </Typography>
+            <Chip
+              label="NEW"
+              size="small"
+              sx={{
+                bgcolor: 'rgba(34,197,94,0.2)',
+                color: '#22c55e',
+                fontWeight: 800,
+                fontSize: '0.6rem',
+                height: 18,
+                letterSpacing: 1,
+              }}
+            />
+          </Stack>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+            Bot plays their exact opening theory, then Maia-proxy at their phase-ELO.
+          </Typography>
+        </Box>
+      </Stack>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Box sx={{ textAlign: 'right', display: { xs: 'none', md: 'block' } }}>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', letterSpacing: 1, fontWeight: 700 }}>
+            REPERTOIRE LOADED
+          </Typography>
+          <Typography sx={{ color: '#22c55e', fontWeight: 800, fontSize: '0.9rem', lineHeight: 1 }}>
+            {totalGames.toLocaleString()} games analyzed
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          onClick={onPlay}
+          startIcon={<Icon icon="mdi:play-circle-outline" />}
+          sx={{
+            borderRadius: 999,
+            textTransform: 'none',
+            fontWeight: 700,
+            px: 2.5,
+            background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+            boxShadow: '0 6px 18px rgba(34,197,94,0.35)',
+            '&:hover': {
+              background: 'linear-gradient(135deg, #1fb356 0%, #149042 100%)',
+            },
+          }}
+        >
+          Practice bot
+        </Button>
+      </Stack>
+    </Paper>
+  );
+}
+
+// ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function ScoutPage() {
   const pieceSet = useAtomValue(pieceSetAtom);
   const screenSize = useScreenSize();
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Search inputs
   const [username, setUsername] = useState('');
+  const [yourUsername, setYourUsername] = useState('');
   const [platform, setPlatform] = useState<Platform>('chess.com');
   const [months, setMonths] = useState(12);
-  const [colorFilter, setColorFilter] = useState<'white' | 'black' | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // Results
   const [scoutResult, setScoutResult] = useState<ScoutResult | null>(null);
   const [tree, setTree] = useState<OpeningTreeNode | null>(null);
-  const [currentPath, setCurrentPath] = useState<string[]>([]);
-  const [prepLines, setPrepLines] = useState<PrepLine[]>([]);
-  const [cloudEval, setCloudEval] = useState<{ cp?: number; mate?: number; bestMove?: string } | null>(null);
-  const [evalLoading, setEvalLoading] = useState(false);
+  const [analytics, setAnalytics] = useState<ScoutAnalytics | null>(null);
 
+  // Twin Bot state
+  const [twinDialogOpen, setTwinDialogOpen] = useState(false);
+  const [twinGame, setTwinGame] = useState<{
+    tree: OpeningTreeNode;
+    color: 'white' | 'black';
+  } | null>(null);
+
+  // Share card dialog
+  const [shareOpen, setShareOpen] = useState(false);
+
+  // You-vs-them comparison
+  const [collisions, setCollisions] = useState<Collisions | null>(null);
+  const [collisionsLoading, setCollisionsLoading] = useState(false);
+  const [collisionsError, setCollisionsError] = useState<string | null>(null);
+
+  // Tree drill-down state
+  const [colorFilter, setColorFilter] = useState<'white' | 'black'>('white');
+  const [minGames, setMinGames] = useState(1);
+  const [currentPath, setCurrentPath] = useState<string[]>([]);
+  const [history, setHistory] = useState<string[][]>([]);
+  const [future, setFuture] = useState<string[][]>([]);
+
+  // Progress / modal state
+  const [loading, setLoading] = useState(false);
+  const [building, setBuilding] = useState(false);
+  const [stage, setStage] = useState<AnalyzingStage>('connect');
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  // Worker
+  const workerRef = useRef<Worker | null>(null);
+  const pendingRef = useRef<Map<number, (r: ScoutWorkerResponse) => void>>(new Map());
+  const nextReqIdRef = useRef(1);
+
+  // Guards the drill-down rebuild effect from racing against the initial search.
+  const searchInFlightRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof Worker === 'undefined') return;
+    const worker = new Worker(new URL('../workers/scoutWorker.ts', import.meta.url));
+    worker.onmessage = (e: MessageEvent<ScoutWorkerResponse>) => {
+      const resolver = pendingRef.current.get(e.data.id);
+      if (resolver) {
+        pendingRef.current.delete(e.data.id);
+        resolver(e.data);
+      }
+    };
+    workerRef.current = worker;
+    return () => {
+      worker.terminate();
+      workerRef.current = null;
+      pendingRef.current.clear();
+    };
+  }, []);
+
+  const runBuild = useCallback(
+    (
+      games: ScoutGame[],
+      targetUsername: string,
+      color: 'white' | 'black',
+      mg: number,
+      withAnalytics: boolean
+    ): Promise<ScoutWorkerResponse> => {
+      return new Promise((resolve, reject) => {
+        const w = workerRef.current;
+        const id = nextReqIdRef.current++;
+        const req: ScoutWorkerRequest = {
+          id,
+          games,
+          targetUsername,
+          colorFilter: color,
+          minGames: mg,
+          computeAnalytics: withAnalytics,
+        };
+        if (!w) {
+          // Fallback: import on main thread.
+          Promise.all([import('@/lib/scoutService'), import('@/lib/scoutAnalytics')])
+            .then(([{ buildOpeningTree, generatePrepLines }, { computeAnalytics }]) => {
+              const tree = buildOpeningTree(games, targetUsername, color, 25, mg);
+              const prepLines = generatePrepLines(tree, 10, Math.max(2, mg));
+              const analytics = withAnalytics ? computeAnalytics(games, targetUsername) : null;
+              resolve({ id, tree, prepLines, analytics, buildMs: 0 });
+            })
+            .catch(reject);
+          return;
+        }
+        pendingRef.current.set(id, resolve);
+        w.postMessage(req);
+      });
+    },
+    []
+  );
+
+  // Derived nodes
   const currentNode = useMemo(() => {
     if (!tree) return null;
     return getTreeNodeAtPath(tree, currentPath) || tree;
   }, [tree, currentPath]);
 
-  const boardFen = currentNode?.fen || STARTING_FEN;
-
-  const boardOrientation = useMemo(() => {
-    return colorFilter === 'black' ? 'black' as const : 'white' as const;
-  }, [colorFilter]);
+  const boardOrientation = useMemo<'white' | 'black'>(() => colorFilter, [colorFilter]);
 
   const boardSize = useMemo(() => {
     const w = screenSize.width || 800;
@@ -131,466 +505,638 @@ export default function ScoutPage() {
     return Math.min(380, h * 0.6);
   }, [screenSize]);
 
-  const customPieces = useMemo(
-    () =>
-      PIECE_CODES.reduce<CustomPieces>((acc, piece) => {
-        acc[piece] = ({ squareWidth }: { squareWidth: number }) => (
-          <Box
-            width={squareWidth}
-            height={squareWidth}
-            sx={{
-              backgroundImage: `url(/piece/${pieceSet}/${piece}.svg)`,
-              backgroundSize: 'contain',
-            }}
-          />
-        );
-        return acc;
-      }, {}),
-    [pieceSet]
-  );
-
+  // ── Animated progress ticker while loading ──────────────────────────────
   useEffect(() => {
-    if (!currentNode || currentNode.fen === STARTING_FEN) {
-      setCloudEval(null);
-      return;
-    }
-    let cancelled = false;
-    setEvalLoading(true);
-    getLichessEval(currentNode.fen, 1)
-      .then(result => {
-        if (cancelled) return;
-        if (result.lines.length > 0) {
-          setCloudEval({
-            cp: result.lines[0].cp,
-            mate: result.lines[0].mate,
-            bestMove: result.bestMove,
-          });
-        } else {
-          setCloudEval(null);
-        }
-      })
-      .catch(() => { if (!cancelled) setCloudEval(null); })
-      .finally(() => { if (!cancelled) setEvalLoading(false); });
-    return () => { cancelled = true; };
-  }, [currentNode]);
+    if (!loading) return;
+    const id = setInterval(() => {
+      setProgress(p => {
+        const target = stage === 'connect' ? 0.35 : stage === 'download' ? 0.65 : 0.95;
+        if (p >= target) return p;
+        return Math.min(target, p + 0.02);
+      });
+    }, 120);
+    return () => clearInterval(id);
+  }, [loading, stage]);
+
+  const focusSearch = useCallback(() => {
+    searchInputRef.current?.focus();
+    searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
 
   const handleSearch = useCallback(async () => {
-    if (!username.trim() || !colorFilter) return;
+    const name = username.trim();
+    if (!name) return;
+    searchInFlightRef.current = true;
     setLoading(true);
     setError(null);
     setScoutResult(null);
     setTree(null);
+    setAnalytics(null);
     setCurrentPath([]);
-    setPrepLines([]);
-    setCloudEval(null);
+    setHistory([]);
+    setFuture([]);
+    setStage('connect');
+    setProgress(0.05);
 
     try {
       const res = await fetch('/api/scout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.trim(), platform, months }),
+        body: JSON.stringify({ username: name, platform, months }),
       });
 
-      const data = await res.json();
+      setStage('download');
+      setProgress(p => Math.max(p, 0.4));
 
+      const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Failed to fetch games');
       }
 
+      setStage('analyze');
+      setProgress(p => Math.max(p, 0.7));
+      setBuilding(true);
+
+      // First pass: compute the full analytics bundle once.
+      const built = await runBuild(
+        data.games,
+        name,
+        colorFilter,
+        minGames,
+        /* withAnalytics */ true
+      );
+      setTree(built.tree);
+      setAnalytics(built.analytics);
+      setBuilding(false);
+      // Only commit the scout result once the tree is ready, so the rebuild
+      // effect doesn't race against us. The effect will consume the in-flight
+      // flag on its next run.
       setScoutResult(data);
 
-      const openingTree = buildOpeningTree(data.games, username.trim(), colorFilter!);
-      setTree(openingTree);
-
-      const preps = generatePrepLines(openingTree);
-      setPrepLines(preps);
+      setProgress(1);
+      // Brief pause so the 100% tick is visible.
+      setTimeout(() => setLoading(false), 250);
     } catch (err: any) {
       setError(err?.message || 'Failed to scout player');
-    } finally {
+      setBuilding(false);
       setLoading(false);
+      searchInFlightRef.current = false;
     }
-  }, [username, platform, months, colorFilter]); // colorFilter is guaranteed non-null by guard above
+  }, [username, platform, months, colorFilter, minGames, runBuild]);
 
+  // Collisions: fetch YOUR games (debounced) & compute vs target.
   useEffect(() => {
-    if (!scoutResult || !colorFilter) return;
-    const openingTree = buildOpeningTree(scoutResult.games, scoutResult.username, colorFilter);
-    setTree(openingTree);
-    setCurrentPath([]);
-    setPrepLines(generatePrepLines(openingTree));
-  }, [colorFilter, scoutResult]);
+    if (!scoutResult) {
+      setCollisions(null);
+      setCollisionsError(null);
+      return;
+    }
+    const yn = yourUsername.trim();
+    if (!yn) {
+      setCollisions(null);
+      setCollisionsError(null);
+      return;
+    }
+    if (yn.toLowerCase() === scoutResult.username.toLowerCase()) {
+      setCollisions(null);
+      setCollisionsError("Can't compare yourself to yourself 🙂");
+      return;
+    }
+    let cancelled = false;
+    setCollisionsError(null);
+    const t = setTimeout(async () => {
+      setCollisionsLoading(true);
+      try {
+        const res = await fetch('/api/scout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: yn,
+            platform: scoutResult.platform,
+            months: 12,
+          }),
+        });
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          setCollisionsError(data.error || 'Failed to load your games');
+          setCollisions(null);
+          return;
+        }
+        const result = computeCollisions(
+          data.games,
+          yn,
+          scoutResult.games,
+          scoutResult.username
+        );
+        setCollisions(result);
+      } catch (e: any) {
+        if (cancelled) return;
+        setCollisionsError(e?.message || 'Failed to load your games');
+      } finally {
+        if (!cancelled) setCollisionsLoading(false);
+      }
+    }, 700);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [scoutResult, yourUsername]);
 
-  const handleMoveClick = useCallback((move: string) => {
-    setCurrentPath(prev => [...prev, move]);
+  // Rebuild tree when color filter or minGames changes — analytics stay cached.
+  useEffect(() => {
+    if (!scoutResult) return;
+    // First effect run after a fresh search is owned by handleSearch; skip it.
+    if (searchInFlightRef.current) {
+      searchInFlightRef.current = false;
+      return;
+    }
+    let cancelled = false;
+    setBuilding(true);
+    runBuild(scoutResult.games, scoutResult.username, colorFilter, minGames, false)
+      .then(({ tree: openingTree }) => {
+        if (cancelled) return;
+        setTree(openingTree);
+        setCurrentPath(prev => {
+          let node: OpeningTreeNode | null = openingTree;
+          const valid: string[] = [];
+          for (const mv of prev) {
+            const child: OpeningTreeNode | undefined = node?.children.find(c => c.move === mv);
+            if (!child) break;
+            valid.push(mv);
+            node = child;
+          }
+          return valid.length === prev.length ? prev : valid;
+        });
+        setHistory([]);
+        setFuture([]);
+      })
+      .finally(() => {
+        if (!cancelled) setBuilding(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [colorFilter, scoutResult, minGames, runBuild]);
+
+  // Navigation callbacks
+  const navigateTo = useCallback((newPath: string[]) => {
+    setCurrentPath(prev => {
+      if (prev.length === newPath.length && prev.every((m, i) => m === newPath[i])) {
+        return prev;
+      }
+      setHistory(h => [...h, prev]);
+      setFuture([]);
+      return newPath;
+    });
   }, []);
 
+  const handleMoveClick = useCallback(
+    (move: string) => navigateTo([...currentPath, move]),
+    [currentPath, navigateTo]
+  );
   const handleBack = useCallback(() => {
-    setCurrentPath(prev => prev.slice(0, -1));
-  }, []);
+    setHistory(h => {
+      if (h.length === 0) return h;
+      const prev = h[h.length - 1];
+      setFuture(f => [...f, currentPath]);
+      setCurrentPath(prev);
+      return h.slice(0, -1);
+    });
+  }, [currentPath]);
+  const handleForward = useCallback(() => {
+    setFuture(f => {
+      if (f.length === 0) return f;
+      const next = f[f.length - 1];
+      setHistory(h => [...h, currentPath]);
+      setCurrentPath(next);
+      return f.slice(0, -1);
+    });
+  }, [currentPath]);
+  const handleReset = useCallback(() => navigateTo([]), [navigateTo]);
+  const handleBreadcrumb = useCallback(
+    (index: number) => navigateTo(index < 0 ? [] : currentPath.slice(0, index + 1)),
+    [currentPath, navigateTo]
+  );
 
-  const handleReset = useCallback(() => {
-    setCurrentPath([]);
-  }, []);
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); handleBack(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); handleForward(); }
+      else if (e.key === 'Home') { e.preventDefault(); handleReset(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleBack, handleForward, handleReset]);
 
-  const handlePrepLineClick = useCallback((line: PrepLine) => {
-    setCurrentPath(line.moves);
-  }, []);
+  // Exploration from weakness/strength cards — automatically switch to the right color
+  // (weaknesses as white = opponent's black tree, so target color stays whatever they play).
+  const exploreLine = useCallback(
+    (moves: string[], asColor: 'white' | 'black') => {
+      // "as White" tab shows the *opponent's* Black lines → we need the tree filtered on
+      // target (opponent) as Black.
+      const targetColor = asColor === 'white' ? 'black' : 'white';
+      if (colorFilter !== targetColor) setColorFilter(targetColor);
+      navigateTo(moves);
+      // Scroll into view
+      setTimeout(() => {
+        document.getElementById('scout-tree-explorer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    },
+    [colorFilter, navigateTo]
+  );
 
-  const formatEval = (ev: { cp?: number; mate?: number } | null) => {
-    if (!ev) return null;
-    if (ev.mate !== undefined && ev.mate !== null) return `M${ev.mate}`;
-    if (ev.cp !== undefined && ev.cp !== null) return `${ev.cp >= 0 ? '+' : ''}${(ev.cp / 100).toFixed(1)}`;
-    return null;
-  };
-
-  const turnAtCurrentPosition = useMemo(() => {
-    if (!boardFen) return 'w';
-    const parts = boardFen.split(' ');
-    return parts[1] || 'w';
-  }, [boardFen]);
+  const hasResult = !!scoutResult && !!tree;
 
   return (
     <Box sx={{ maxWidth: 1400, mx: 'auto', px: { xs: 1, sm: 2 }, py: 2 }}>
       <PageTitle title="Chess Masti AI - Scout" />
 
-      {/* Header */}
-      <Box sx={{ mb: 3, textAlign: 'center' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
-          <Icon icon="mdi:binoculars" width={32} style={{ color: '#FF6B35' }} />
-          <Typography variant="h4" sx={{ fontWeight: 800, background: 'linear-gradient(45deg, #FF6B35, #FF8C42)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            Scout
-          </Typography>
-        </Box>
-        <Typography variant="body2" color="text.secondary">
-          Analyze any player&apos;s opening repertoire. Find weaknesses. Prepare to win.
-        </Typography>
-      </Box>
-
-      {/* Search Panel */}
-      <Paper elevation={2} sx={{ p: 2.5, mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-          <TextField
-            label="Username"
-            placeholder="Enter opponent username"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
-            size="small"
-            sx={{ minWidth: 200, flex: 1 }}
-          />
-
-          <ToggleButtonGroup
-            value={platform}
-            exclusive
-            onChange={(_, val) => val && setPlatform(val)}
-            size="small"
-          >
-            <ToggleButton value="chess.com" sx={{ textTransform: 'none', px: 2 }}>
-              Chess.com
-            </ToggleButton>
-            <ToggleButton value="lichess" sx={{ textTransform: 'none', px: 2 }}>
-              Lichess
-            </ToggleButton>
-          </ToggleButtonGroup>
-
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Time Range</InputLabel>
-            <Select value={months} onChange={e => setMonths(Number(e.target.value))} label="Time Range">
-              <MenuItem value={3}>3 months</MenuItem>
-              <MenuItem value={6}>6 months</MenuItem>
-              <MenuItem value={12}>1 year</MenuItem>
-              <MenuItem value={24}>2 years</MenuItem>
-            </Select>
-          </FormControl>
-
-          <Box>
-            <Typography variant="caption" color={colorFilter ? 'text.secondary' : 'error'} sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}>
-              Analyze as {colorFilter ? '' : '(required)'}
-            </Typography>
-            <ToggleButtonGroup
-              value={colorFilter}
-              exclusive
-              onChange={(_, val) => val && setColorFilter(val)}
-              size="small"
-            >
-              <ToggleButton value="white" sx={{ textTransform: 'none', px: 2 }}>
-                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#fff', border: '1px solid #999', mr: 0.75 }} /> White
-              </ToggleButton>
-              <ToggleButton value="black" sx={{ textTransform: 'none', px: 2 }}>
-                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#333', mr: 0.75 }} /> Black
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
-
-          <Button
-            variant="contained"
-            onClick={handleSearch}
-            disabled={loading || !username.trim() || !colorFilter}
-            startIcon={loading ? <CircularProgress size={16} /> : <Icon icon="mdi:magnify" />}
+      {/* Sticky search header */}
+      <Box
+        sx={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 20,
+          py: 1.25,
+          backdropFilter: 'blur(8px)',
+          bgcolor: 'rgba(250, 251, 252, 0.85)',
+          borderBottom: scoutResult ? '1px solid' : 'none',
+          borderColor: 'divider',
+          mb: 2,
+        }}
+      >
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5, px: 0.5 }}>
+          <Box
             sx={{
-              px: 3,
-              fontWeight: 700,
+              width: 34,
+              height: 34,
               borderRadius: 2,
-              textTransform: 'none',
               background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-              '&:hover': { background: 'linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)' },
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
             }}
           >
-            {loading ? 'Scouting...' : 'Scout'}
-          </Button>
-        </Box>
-      </Paper>
+            <Icon icon="mdi:binoculars" width={20} />
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', lineHeight: 1 }}>
+              Scout
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+              Decode opponents · 2 platforms supported
+            </Typography>
+          </Box>
+        </Stack>
+        <ScoutSearchBar
+          username={username}
+          yourUsername={yourUsername}
+          platform={platform}
+          months={months}
+          loading={loading}
+          onUsernameChange={setUsername}
+          onYourUsernameChange={setYourUsername}
+          onPlatformChange={setPlatform}
+          onMonthsChange={setMonths}
+          onSubmit={handleSearch}
+          inputRef={searchInputRef}
+        />
+      </Box>
 
-      {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError(null)}>{error}</Alert>}
-
-      {loading && (
-        <Box sx={{ textAlign: 'center', py: 6 }}>
-          <CircularProgress sx={{ color: '#FF6B35', mb: 2 }} />
-          <Typography color="text.secondary">Fetching games from {platform}...</Typography>
-          <Typography variant="caption" color="text.secondary">This may take a moment for large game histories</Typography>
-        </Box>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
       )}
 
-      {/* Stats Summary */}
-      {scoutResult && !loading && (
-        <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
-          <Chip icon={<Icon icon="mdi:account" />} label={`${scoutResult.username} on ${scoutResult.platform}`} color="primary" variant="outlined" />
-          <Chip icon={<Icon icon="mdi:chess-pawn" />} label={`${scoutResult.totalGames} games`} variant="outlined" />
-          {scoutResult.totalGames < 50 && (
-            <Chip icon={<Icon icon="mdi:alert" />} label="Limited data - results may be less reliable" color="warning" variant="outlined" />
+      {/* Result summary chips */}
+      {scoutResult && (
+        <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+          <Chip
+            icon={<Icon icon="mdi:account" />}
+            label={`${scoutResult.username} · ${scoutResult.platform}`}
+            color="primary"
+            variant="outlined"
+          />
+          <Chip
+            icon={<Icon icon="mdi:chess-pawn" />}
+            label={`${scoutResult.totalGames} games`}
+            variant="outlined"
+          />
+          {scoutResult.cached && (
+            <Tooltip title="Served from server cache (10-min TTL)">
+              <Chip
+                icon={<Icon icon="mdi:lightning-bolt" />}
+                label="cached"
+                size="small"
+                sx={{ fontWeight: 700, bgcolor: 'rgba(255,107,53,0.12)', color: '#FF6B35' }}
+              />
+            </Tooltip>
           )}
-          {tree && <Chip icon={<Icon icon="mdi:file-tree" />} label={`${tree.totalGames} games as ${colorFilter}`} variant="outlined" />}
-        </Box>
+          {scoutResult.totalGames < 50 && (
+            <Chip
+              icon={<Icon icon="mdi:alert" />}
+              label="Limited data — results may be less reliable"
+              color="warning"
+              variant="outlined"
+            />
+          )}
+          {building && tree && (
+            <Chip
+              icon={<CircularProgress size={12} sx={{ color: '#FF6B35' }} />}
+              label="Rebuilding…"
+              size="small"
+              variant="outlined"
+              sx={{ borderColor: '#FF6B35', color: '#FF6B35' }}
+            />
+          )}
+        </Stack>
       )}
 
-      {/* Main Content: Board + Tree */}
-      {tree && !loading && (
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          {/* Board Column */}
-          <Grid size={{ xs: 12, lg: 5 }}>
-            <Paper elevation={1} sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-              {/* Breadcrumb */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5, flexWrap: 'wrap' }}>
-                <IconButton size="small" onClick={handleReset} disabled={currentPath.length === 0}>
-                  <Icon icon="mdi:home" />
-                </IconButton>
-                <IconButton size="small" onClick={handleBack} disabled={currentPath.length === 0}>
-                  <Icon icon="mdi:arrow-left" />
-                </IconButton>
-                <Typography variant="body2" sx={{ fontWeight: 600, ml: 1, fontFamily: 'monospace' }}>
-                  {currentPath.length > 0 ? formatMoveSequence(currentPath) : 'Starting position'}
-                </Typography>
-              </Box>
+      {/* Empty / landing state */}
+      {!hasResult && !loading && (
+        <ScoutLanding onFocusSearch={focusSearch} />
+      )}
 
-              {/* Board */}
-              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                <Chessboard
-                  id="ScoutBoard"
-                  position={boardFen}
-                  boardOrientation={boardOrientation}
-                  boardWidth={boardSize}
-                  arePiecesDraggable={false}
-                  customBoardStyle={{ borderRadius: '4px', boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}
-                  customPieces={customPieces}
-                />
-              </Box>
-
-              {/* Eval display */}
-              <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                <Typography variant="caption" color="text.secondary">
-                  {turnAtCurrentPosition === 'w' ? 'White' : 'Black'} to move
-                </Typography>
-                {evalLoading && <CircularProgress size={12} />}
-                {cloudEval && !evalLoading && (
-                  <Chip
-                    size="small"
-                    label={`Eval: ${formatEval(cloudEval)}`}
-                    sx={{
-                      fontWeight: 700,
-                      bgcolor: cloudEval.cp !== undefined && cloudEval.cp > 0 ? '#e8f5e9' : cloudEval.cp !== undefined && cloudEval.cp < 0 ? '#ffebee' : '#f5f5f5',
-                      color: cloudEval.cp !== undefined && cloudEval.cp > 0 ? '#2e7d32' : cloudEval.cp !== undefined && cloudEval.cp < 0 ? '#c62828' : '#333',
-                    }}
-                  />
-                )}
-              </Box>
-
-              {/* Current node stats */}
-              {currentNode && currentNode.totalGames > 0 && (
-                <Box sx={{ mt: 1.5 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                    Opponent&apos;s record in this position ({currentNode.totalGames} games):
-                  </Typography>
-                  <WinDrawLossBar
-                    wins={currentNode.wins}
-                    draws={currentNode.draws}
-                    losses={currentNode.losses}
-                    total={currentNode.totalGames}
-                  />
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                    Score: {getNodeScore(currentNode).toFixed(0)}%
-                  </Typography>
-                </Box>
-              )}
-            </Paper>
+      {/* Dashboard */}
+      {hasResult && analytics && scoutResult && (
+        <Stack spacing={2.5}>
+          <Grid container spacing={2} alignItems="stretch">
+            <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
+              <ProfileCard
+                username={scoutResult.username}
+                platform={scoutResult.platform}
+                profile={analytics.profile}
+                onShare={() => setShareOpen(true)}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
+              <StalkerScoreCard stalker={analytics.stalker} />
+            </Grid>
           </Grid>
 
-          {/* Tree Column */}
-          <Grid size={{ xs: 12, lg: 7 }}>
-            <Paper elevation={1} sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', minHeight: 400 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Icon icon="mdi:file-tree" style={{ color: '#FF6B35' }} />
-                Opening Tree
+          <TwinBanner
+            username={scoutResult.username}
+            totalGames={scoutResult.totalGames}
+            onPlay={() => setTwinDialogOpen(true)}
+          />
+
+          {/* You-vs-them collisions (only when yourUsername provided) */}
+          {collisionsError && yourUsername.trim() && (
+            <Alert severity="warning" sx={{ borderRadius: 2 }} onClose={() => setCollisionsError(null)}>
+              {collisionsError}
+            </Alert>
+          )}
+          {collisionsLoading && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: 3,
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+              }}
+            >
+              <CircularProgress size={18} sx={{ color: '#FF6B35' }} />
+              <Typography variant="body2" color="text.secondary">
+                Loading <strong>{yourUsername}</strong>&apos;s games and computing collisions…
               </Typography>
+            </Paper>
+          )}
+          {collisions && !collisionsLoading && (
+            <CollisionPanel
+              collisions={collisions}
+              targetUsername={scoutResult.username}
+              // yourColor = the color YOU play in the clicked line.
+              // exploreLine expects the color you're playing; it flips internally
+              // to walk the target's tree of the opposite color.
+              onExplore={(moves, yourColor) => exploreLine(moves, yourColor)}
+            />
+          )}
 
-              {currentNode && currentNode.children.length > 0 ? (
-                <Box>
-                  {/* Table Header */}
-                  <Box sx={{
-                    display: 'grid',
-                    gridTemplateColumns: '80px 70px 1fr 60px',
-                    gap: 1,
-                    px: 1,
-                    py: 0.75,
-                    borderBottom: '2px solid',
-                    borderColor: 'divider',
-                    mb: 0.5,
-                  }}>
-                    <Typography variant="caption" sx={{ fontWeight: 700 }}>Move</Typography>
-                    <Typography variant="caption" sx={{ fontWeight: 700 }}>Games</Typography>
-                    <Typography variant="caption" sx={{ fontWeight: 700 }}>Win / Draw / Loss</Typography>
-                    <Typography variant="caption" sx={{ fontWeight: 700, textAlign: 'right' }}>Score</Typography>
-                  </Box>
+          <TargetedPrepPanel
+            prep={analytics.prep}
+            onExplore={(moves, asColor) => exploreLine(moves, asColor)}
+          />
 
-                  {/* Move Rows */}
-                  {currentNode.children.map((child, idx) => {
-                    const score = getNodeScore(child);
-                    const pct = ((child.totalGames / currentNode.totalGames) * 100).toFixed(0);
+          <PreGameChecklist items={analytics.checklist} />
 
-                    return (
-                      <Box
-                        key={child.move}
-                        onClick={() => handleMoveClick(child.move)}
-                        sx={{
-                          display: 'grid',
-                          gridTemplateColumns: '80px 70px 1fr 60px',
-                          gap: 1,
-                          px: 1,
-                          py: 0.75,
-                          cursor: 'pointer',
-                          borderRadius: 1,
-                          bgcolor: idx % 2 === 0 ? 'action.hover' : 'transparent',
-                          '&:hover': { bgcolor: 'action.selected' },
-                          transition: 'background-color 0.15s',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
-                          {child.move}
-                        </Typography>
-                        <Box>
-                          <Typography variant="body2">{child.totalGames}</Typography>
-                          <Typography variant="caption" color="text.secondary">({pct}%)</Typography>
-                        </Box>
-                        <WinDrawLossBar
-                          wins={child.wins}
-                          draws={child.draws}
-                          losses={child.losses}
-                          total={child.totalGames}
-                        />
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            textAlign: 'right',
-                            fontWeight: 700,
-                            color: score >= 55 ? '#2e7d32' : score <= 45 ? '#c62828' : 'text.primary',
-                          }}
-                        >
-                          {score.toFixed(0)}%
-                        </Typography>
-                      </Box>
-                    );
-                  })}
-                </Box>
-              ) : (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Icon icon="mdi:leaf" width={40} style={{ color: '#999', marginBottom: 8 }} />
-                  <Typography color="text.secondary">
-                    {currentNode ? 'End of line - fewer than 5 games continue from here' : 'No data available'}
+          <Grid container spacing={2} alignItems="stretch">
+            <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex' }}>
+              <RivalsPanel rivals={analytics.rivals} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex' }}>
+              <PsychologyPanel
+                psychology={analytics.psychology}
+                recentBuckets={analytics.recentBuckets}
+              />
+            </Grid>
+          </Grid>
+
+          {/* Novelty / deviation finder */}
+          {analytics.novelty.length > 0 && (
+            <NoveltyPanel
+              findings={analytics.novelty}
+              onExplore={(moves, targetColor) => {
+                const yourColor: 'white' | 'black' =
+                  targetColor === 'white' ? 'black' : 'white';
+                exploreLine(moves, yourColor);
+              }}
+            />
+          )}
+
+          {/* Deep-dive tree explorer */}
+          <Box id="scout-tree-explorer">
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: 3,
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                mb: 2,
+              }}
+            >
+              <Stack
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={2}
+                alignItems={{ xs: 'flex-start', md: 'center' }}
+                justifyContent="space-between"
+              >
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Icon icon="mdi:file-tree" width={20} style={{ color: '#FF6B35' }} />
+                  <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>
+                    Deep-dive Opening Tree
                   </Typography>
-                  {currentPath.length > 0 && (
-                    <Button size="small" onClick={handleBack} startIcon={<Icon icon="mdi:arrow-left" />} sx={{ mt: 1, textTransform: 'none' }}>
-                      Go back
-                    </Button>
-                  )}
-                </Box>
-              )}
+                  <Tooltip
+                    title="Drill into the target's repertoire move-by-move. Use ← / → keys."
+                    arrow
+                  >
+                    <Box sx={{ color: 'text.disabled', display: 'flex', cursor: 'help' }}>
+                      <Icon icon="mdi:help-circle-outline" width={14} />
+                    </Box>
+                  </Tooltip>
+                </Stack>
+
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }}>
+                  <ToggleButtonGroup
+                    value={colorFilter}
+                    exclusive
+                    size="small"
+                    onChange={(_, v) => v && setColorFilter(v)}
+                  >
+                    <ToggleButton value="white" sx={{ textTransform: 'none', px: 2 }}>
+                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#fff', border: '1px solid #999', mr: 0.75 }} /> As White
+                    </ToggleButton>
+                    <ToggleButton value="black" sx={{ textTransform: 'none', px: 2 }}>
+                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#333', mr: 0.75 }} /> As Black
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+
+                  <Box sx={{ minWidth: 220 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 0.25 }}>
+                      Min games: <strong style={{ color: '#FF6B35' }}>{minGames}</strong>
+                    </Typography>
+                    <Slider
+                      size="small"
+                      value={minGames}
+                      onChange={(_, v) => setMinGames(Array.isArray(v) ? v[0] : v)}
+                      min={1}
+                      max={10}
+                      step={1}
+                      marks={[
+                        { value: 1, label: '1' },
+                        { value: 5, label: '5' },
+                        { value: 10, label: '10' },
+                      ]}
+                      sx={{ color: '#FF6B35' }}
+                    />
+                  </Box>
+                </Stack>
+              </Stack>
             </Paper>
 
-            {/* Prep Recommendations */}
-            {prepLines.length > 0 && (
-              <Paper elevation={1} sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', mt: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Icon icon="mdi:target" style={{ color: '#FF6B35' }} />
-                  Preparation Targets
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Lines where your opponent struggles most. Click to explore on the board.
-                </Typography>
-
-                {prepLines.map((line, idx) => (
-                  <Box
-                    key={idx}
-                    onClick={() => handlePrepLineClick(line)}
-                    sx={{
-                      p: 1.5,
-                      mb: 1,
-                      borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      cursor: 'pointer',
-                      '&:hover': { bgcolor: 'action.hover', borderColor: '#FF6B35' },
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
-                        {formatMoveSequence(line.moves)}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        label={`${line.opponentScore.toFixed(0)}%`}
-                        sx={{
-                          fontWeight: 700,
-                          bgcolor: '#ffebee',
-                          color: '#c62828',
-                        }}
-                      />
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      {line.recommendation}
-                    </Typography>
-                    <Box sx={{ mt: 0.5 }}>
-                      <WinDrawLossBar wins={line.wins} draws={line.draws} losses={line.losses} total={line.totalGames} />
-                    </Box>
-                  </Box>
-                ))}
-              </Paper>
+            {tree && (
+              <TreeExplorer
+                tree={tree}
+                currentPath={currentPath}
+                orientation={boardOrientation}
+                pieceSet={pieceSet}
+                boardSize={boardSize}
+                minGames={minGames}
+                historyLen={history.length}
+                futureLen={future.length}
+                onMoveClick={handleMoveClick}
+                onBack={handleBack}
+                onForward={handleForward}
+                onReset={handleReset}
+                onBreadcrumbClick={handleBreadcrumb}
+              />
             )}
-          </Grid>
-        </Grid>
+
+            {!currentNode?.children.length && tree && (
+              <Box sx={{ textAlign: 'center', color: 'text.secondary', mt: 1 }}>
+                <Typography variant="caption">
+                  End of line. Use ← to go back or Home to reset.
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Stack>
       )}
 
-      {/* Empty state */}
-      {!tree && !loading && !error && (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <Icon icon="mdi:binoculars" width={64} style={{ color: '#ccc', marginBottom: 16 }} />
-          <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-            Enter a username to start scouting
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            We&apos;ll fetch their games and build an opening tree showing their repertoire, win rates, and exploitable lines.
-          </Typography>
-        </Box>
+      {/* Analyzing modal */}
+      <AnalyzingModal
+        open={loading}
+        username={username}
+        platform={platform}
+        stage={stage}
+        progress={progress}
+        onCancel={() => {
+          setLoading(false);
+          setBuilding(false);
+        }}
+      />
+
+      {/* Twin Bot launch dialog */}
+      {scoutResult && analytics && (
+        <TwinBotDialog
+          open={twinDialogOpen}
+          onClose={() => setTwinDialogOpen(false)}
+          username={scoutResult.username}
+          platform={scoutResult.platform}
+          profile={analytics.profile}
+          onStart={userColor => {
+            // Build the opponent's tree for THEIR color (opposite of user's choice).
+            const oppColor: 'white' | 'black' = userColor === 'white' ? 'black' : 'white';
+            const opponentTree = buildOpeningTree(
+              scoutResult.games,
+              scoutResult.username,
+              oppColor,
+              25,
+              1
+            );
+            setTwinGame({ tree: opponentTree, color: userColor });
+            setTwinDialogOpen(false);
+          }}
+        />
+      )}
+
+      {/* Twin Bot game */}
+      {scoutResult && analytics && twinGame && (
+        <TwinBotGame
+          open={!!twinGame}
+          onClose={() => setTwinGame(null)}
+          username={scoutResult.username}
+          yourUsername={yourUsername.trim() || 'You'}
+          platform={scoutResult.platform}
+          profile={analytics.profile}
+          opponentTree={twinGame.tree}
+          yourColor={twinGame.color}
+          topWeakness={
+            twinGame.color === 'white'
+              ? analytics.prep.asWhite.weaknesses[0]
+              : analytics.prep.asBlack.weaknesses[0]
+          }
+          pieceSet={pieceSet}
+        />
+      )}
+
+      {/* Share card dialog */}
+      {scoutResult && analytics && (
+        <ShareCardDialog
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          data={{
+            username: scoutResult.username,
+            platform: scoutResult.platform,
+            profile: analytics.profile,
+            stalker: analytics.stalker,
+            topOpening: topOpeningFor(analytics),
+          }}
+        />
       )}
     </Box>
   );
+}
+
+function topOpeningFor(analytics: ScoutAnalytics): { eco: string; name: string } | undefined {
+  const candidate =
+    analytics.prep.asWhite.strengths[0] ||
+    analytics.prep.asBlack.strengths[0] ||
+    analytics.prep.asWhite.weaknesses[0] ||
+    analytics.prep.asBlack.weaknesses[0];
+  if (!candidate) return undefined;
+  return { eco: candidate.eco, name: candidate.name };
 }

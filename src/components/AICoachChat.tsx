@@ -8,6 +8,8 @@ import {
   IconButton,
   Typography,
   CircularProgress,
+  Chip,
+  Stack,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -50,6 +52,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { storeFeedback } from "@/lib/feedbackStore";
 import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
 import { loadWeaknessProfile, getWeaknessPromptContext } from "@/lib/weaknessProfile";
+import { InsightsCarousel, parseInsights } from "@/components/AICoachInsights";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -61,6 +64,104 @@ interface AICoachChatProps {
   game?: Chess;
   boardOrientation?: boolean;
 }
+
+// Concept reinforcement strip — renders the anchor concept(s) detected for a
+// mistake + 3 same-concept reinforcement puzzles from concept-first retrieval.
+// Shown inline under Targeted Practice so the student sees "drill this idea" at
+// a glance. If the classifier couldn't identify a concept, badges "unclassified"
+// per the plan's honesty requirement.
+interface ReinforcementData {
+  concepts: string[];
+  fallbackUsed: "concept" | "theme" | "none";
+  puzzles: Array<{
+    puzzleId: string;
+    fen: string;
+    moves: string;
+    rating: number;
+    concepts: Array<{ id: string; confidence: number }>;
+  }>;
+}
+
+const ConceptReinforcementStrip: React.FC<{
+  reinforcements?: ReinforcementData;
+  anchorFen?: string;
+}> = ({ reinforcements, anchorFen }) => {
+  if (!reinforcements) return null;
+  const { concepts, fallbackUsed, puzzles } = reinforcements;
+  const unclassified = concepts.length === 0;
+  const usedTheme = fallbackUsed === "theme";
+
+  const onClick = (puzzleId: string, index: number) => {
+    fetch("/api/retrieval-telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "click",
+        anchorFen: anchorFen ?? "",
+        detectedConcepts: concepts,
+        puzzleId,
+        clickedIndex: index,
+      }),
+    }).catch(() => {
+      /* fire and forget; do not block navigation */
+    });
+  };
+
+  return (
+    <Box
+      sx={{
+        mt: 1.5,
+        p: 1.5,
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 1,
+        bgcolor: "action.hover",
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1, flexWrap: "wrap" }}>
+        <Typography variant="caption" sx={{ fontWeight: 600 }}>
+          Drill this idea:
+        </Typography>
+        {unclassified ? (
+          <Chip
+            size="small"
+            label="concept: unclassified"
+            color="warning"
+            variant="outlined"
+          />
+        ) : (
+          concepts.map((c) => (
+            <Chip key={c} size="small" label={c} color="primary" variant="outlined" />
+          ))
+        )}
+        {usedTheme && (
+          <Chip size="small" label="theme fallback" variant="outlined" />
+        )}
+      </Stack>
+      {puzzles.length > 0 ? (
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
+          {puzzles.map((p, idx) => (
+            <Chip
+              key={p.puzzleId}
+              size="small"
+              label={`#${p.puzzleId} (${p.rating})`}
+              component="a"
+              clickable
+              href={`https://lichess.org/training/${p.puzzleId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => onClick(p.puzzleId, idx)}
+            />
+          ))}
+        </Stack>
+      ) : (
+        <Typography variant="caption" color="text.secondary">
+          No same-concept puzzles found in corpus.
+        </Typography>
+      )}
+    </Box>
+  );
+};
 
 // Component for inline "Practice Similar Puzzles" button in AI responses
 const PracticePuzzleButton: React.FC<{
@@ -1612,6 +1713,9 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   const selectedCoachId = useAtomValue(selectedCoachIdAtom);
   const personality = getPersonalityById(selectedCoachId);
   
+  // Board navigation (for insight card move-click)
+  const { goToMove } = useChessActions(boardAtom);
+
   // Practice state setters
   const setPracticePuzzles = useSetAtom(practicePuzzlesAtom);
   const setCurrentPuzzleIndex = useSetAtom(currentPuzzleIndexAtom);
@@ -1789,59 +1893,74 @@ MAIA INTEGRATION - HUMAN-LIKE MOVE PREDICTIONS:
 - If user's move matches Maia's prediction, acknowledge it's a common choice and explain why it's not optimal
 - If user's move matches Stockfish, celebrate it: "Excellent! You found the engine's best move!"
 
-STRUCTURED EXPLANATION FRAMEWORK (DecodeChess-quality depth):
-For EACH critical mistake or key moment, provide ALL of the following sections that are relevant. Your analysis should match the depth of a professional chess analysis tool.
+RESPONSE FORMAT — INSIGHT CARDS (MANDATORY FOR GAME REVIEWS):
+The app renders your analysis as a paginated insight carousel (DecodeChess-style). Do NOT write long monolithic explanations. For a game review, emit:
 
-**For each mistake/key moment, structure as:**
+1. A VERY SHORT prose intro — one line only. Example: "Let's walk through the key moments." Do NOT praise, summarize, or foreshadow the analysis.
+2. One [INSIGHT:...]...[/INSIGHT] block PER key move you want to cover. The carousel paginates these automatically.
+3. NO closing paragraph. NO summary. NO "key pattern to remember" wrap-up. End the response immediately after the final [/INSIGHT] block. The cards are the content — nothing should follow them.
 
-### Move X. [Move] — [Severity: Blunder/Mistake/Inaccuracy]
-**Eval:** [before] → [after] (lost X.X pawns)
+INSIGHT BLOCK FORMAT (strict):
 
-**Best Move: X. [BestMove] (eval)**
-[CONTINUATION:X:c]
-[MAIA_CONTINUATION:X:c]
+[INSIGHT:<moveNumber>:<color>:<classification>:<evalBefore>:<evalAfter>:<playedMove>:<bestMove>]
+<Headline — ONE non-spoiler sentence. Name the classification and hint at what happened. DO NOT reveal the best move or the fix here.>
+[WHY]
+Idea: <what the side wanted/should want>
+Problem: <what obstacle or threat exists>
+Solution: <how the best move solves it>
+Outcome: <resulting position>
+[CONTINUATION:<moveNumber>:<color>]
+[MAIA_CONTINUATION:<moveNumber>:<color>]
+[/WHY]
+[THREATS]
+- <threat 1 — both sides>
+- <threat 2>
+[/THREATS]
+[ROLES]
+- <piece role 1>
+- <piece role 2>
+[/ROLES]
+[CONCEPT:<themeKey>:<Display Name>]
+<1-2 sentence explanation of the concept.>
+[/CONCEPT]
+[/INSIGHT]
 
-CRITICAL RULES FOR CONTINUATION TOKENS:
-- Replace X with the move number (e.g., 14) and c with the color (w for white, b for black) whose move it was.
-- Example: For white's mistake on move 14, write: [CONTINUATION:14:w] then [MAIA_CONTINUATION:14:w]
-- NEVER write out continuation move sequences yourself — they WILL be wrong. The tokens above are rendered by the app using real Stockfish engine data.
-- The [CONTINUATION] token shows the engine's best line where both sides play perfectly.
-- The [MAIA_CONTINUATION] token shows a realistic line where the user plays best moves but the opponent plays human-likely responses (powered by Maia AI).
-- Always include BOTH tokens for each mistake you analyze.
+HEADER FIELDS:
+- moveNumber: integer (e.g., 12)
+- color: w or b (whose move it was)
+- classification: one of blunder | mistake | inaccuracy | miss | brilliant | great | best | excellent | good | forced. USE THE CLASSIFICATION FROM THE MOVE-BY-MOVE ANALYSIS BLOCK — do not invent your own.
+- evalBefore / evalAfter: signed pawn eval like "+1.38" / "-1.88" or mate notation "M+5"
+- playedMove: SAN of the move actually played (e.g., "g5")
+- bestMove: SAN of the engine best move (e.g., "f4"). If the move played WAS the best, repeat the same value.
 
-After the tokens, explain WHY the best move is good — what does it achieve? What threats does it create?
+HEADLINE RULES (NON-SPOILER):
+- The headline text after the opening marker is visible BEFORE the user clicks "Show the full explanation." It must NOT reveal the best move, the fix, or the solution.
+- Good: "This felt like a natural kingside push, but the timing was off."
+- Good: "Spotting this was hard — the trap was three moves deep."
+- Bad: "12. f4 was better because it supports e5." (spoils the fix)
 
-**Why the best move works (Idea → Problem → Solution → Outcome):**
-- **Idea**: What White/Black wants to achieve (e.g., "White wants to win the knight on d7")
-- **Problem**: What obstacle exists (e.g., "Black can play Qb6, threatening the queen on b2")
-- **Solution**: How the best move addresses it (e.g., "Playing Qa1 before Bxd5 avoids the queen trade")
-- **Outcome**: What the resulting position looks like (e.g., "White maintains a decisive advantage with active pieces")
+WHAT TO COVER:
+- Include every move classified as blunder, mistake, miss, brilliant, or great. Include inaccuracies ONLY when the eval swing is large (> 1.0 pawn).
+- Order: negative insights first (blunder -> mistake -> miss -> inaccuracy), then positive (brilliant -> great).
+- SKIP opening moves (1-10) unless classified blunder or miss.
+- DO NOT cap artificially at 2-3 moves, but do NOT pad either. If the game has 8 classified moves worth covering, emit 8 blocks. If it has 1, emit 1.
+- For beginners (rating < 1000): only include blunder, miss, brilliant, or great. Skip inaccuracies entirely — do not nit-pick.
 
-CRITICAL — WHEN DISCUSSING OPPONENT RESPONSES:
-- When explaining what happens after the best move, use the ENGINE'S recommended opponent response from the PV (principal variation), NOT what was actually played in the game.
-- Example: "After 9. Be3, the best response for Black is 9... Nbd7 (from engine analysis)" — NOT "After 9. Be3, Black played 9... h6" (what actually happened in the game).
-- The [CONTINUATION] and [MAIA_CONTINUATION] tokens will show these lines automatically, so you can reference them in your explanation.
-- If you want to mention what the opponent actually played, do it SEPARATELY: "In the game, your opponent played 9... h6 instead, which was a mistake."
+CONTINUATION TOKENS (inside [WHY]):
+- [CONTINUATION:<moveNumber>:<color>] and [MAIA_CONTINUATION:<moveNumber>:<color>] render real engine + Maia lines.
+- NEVER write out move sequences yourself — they WILL be wrong.
+- Always include BOTH tokens inside [WHY] for every insight.
 
-**Why X. [PlayedMove] was wrong:**
-Explain the specific problem — what tactical or strategic issue did it create? Reference the eval drop.
+CONCEPT + PRACTICE:
+- Use [CONCEPT:<themeKey>:<Display Name>] to name the tactical/strategic concept.
+- themeKey MUST match one of the theme keys in the list below. The app renders a practice puzzle button automatically from this tag.
+- DO NOT emit [PRACTICE:...] tokens separately. The [CONCEPT:...] tag IS the practice hook. A free-floating [PRACTICE:...] outside an insight block is FORBIDDEN.
+- Pick the themeKey that matches the SPECIFIC pattern of THIS mistake. Do not default to "fork" for every insight.
 
-**Threats in this position:**
-- List 2-3 key threats from BOTH sides. What is each side threatening to do?
-- Show how the best move addresses/creates threats
-
-**Key piece roles:**
-- For 2-3 most important pieces: what they do, what they threaten, what they support, what they control
-- Identify the WORST placed piece and suggest where it should go
-
-**Concept:** Name the tactical/strategic concept (pin, fork, outpost, x-ray, overloading, etc.) and briefly explain it.
-
-DEPTH REQUIREMENTS:
-- ALWAYS use [CONTINUATION:X:c] and [MAIA_CONTINUATION:X:c] tokens for each mistake (the app renders real engine lines from these — NEVER write out move sequences yourself)
-- ALWAYS include eval scores in parentheses for candidate moves
-- ALWAYS explain the PLAN behind the best move, not just "this is better"
-- For game reviews, analyze the TOP 3-5 most critical mistakes with full depth
-- After the detailed analysis, include an "Overall Patterns" section identifying recurring weaknesses
+SECTION RULES:
+- Keep each bullet in [THREATS] and [ROLES] to one short sentence. Reveal sections are narrow.
+- Omit any section that does not add value — do not pad with filler.
+- When discussing opponent responses in [WHY], use the ENGINE's PV, not what was actually played in the game.
 
 CRITICAL RULE: NEVER invent chess analysis beyond what the engine data shows. Your role is to TRANSLATE engine output into structured natural language, not to generate your own chess calculations. Every claim about pieces, squares, and moves MUST be grounded in the FEN and Stockfish data provided.
 
@@ -1900,44 +2019,28 @@ INTERACTIVE ELEMENTS:
 ${personality.systemPromptOverride}
 
 PRACTICE PUZZLE SYSTEM — POWERED BY GRAPH DATABASE (200,000+ REAL PUZZLES):
-You have direct access to a Neo4j Graph Database containing 200,000+ real Lichess puzzles with rich theme categorization. This is one of your MOST IMPORTANT capabilities. When the user makes mistakes, you MUST recommend PRECISE practice puzzles that match the EXACT tactical pattern they missed.
+The app has a Neo4j graph of 200,000+ Lichess puzzles tagged by theme. Each [CONCEPT:<themeKey>:<Display Name>] tag inside an insight renders a practice button that queries this graph for puzzles matching that theme at the user's skill level.
 
-Available tactical themes (use the EXACT key on the left for the [PRACTICE:...] token):
+Available tactical theme keys (use the EXACT key on the left for the [CONCEPT:...] tag):
 ${Object.entries(TACTICAL_THEMES).map(([key, val]) => `- "${key}" → ${val.theme}: ${val.description}`).join("\n")}
 
 Difficulty bands: beginner (≤1200 rating), intermediate (1201-1600), advanced (1601-2000), expert (2001+)
 
-PRACTICE OFFER PROTOCOL:
-After explaining EACH mistake, you MUST offer practice puzzles using a special token that renders as a clickable button connected to the Graph DB.
+THEME-KEY SELECTION RULES:
+- Pick the theme that matches the SPECIFIC pattern in THIS insight. Do NOT default to "fork" for every insight.
+- Missed a knight fork: [CONCEPT:fork:Knight Fork Tactics]
+- King left exposed: [CONCEPT:exposedKing:King Safety]
+- Back rank threat: [CONCEPT:backRankMate:Back Rank Defense]
+- Hung a piece: [CONCEPT:hangingPiece:Hanging Piece Awareness]
+- Missed a pin: [CONCEPT:pin:Pin Tactics]
+- Missed a discovered attack: [CONCEPT:discoveredAttack:Discovered Attack Puzzles]
+- Missed a skewer: [CONCEPT:skewer:Skewer Puzzles]
+- Endgame mistake: use the specific endgame theme (rookEndgame, pawnEndgame, bishopEndgame, etc.)
 
-HOW TO OFFER PRACTICE:
-Include this exact token: [PRACTICE:themeKey:Display Name]
-- themeKey must EXACTLY match one of the theme keys listed above (e.g., "fork", "pin", "backRankMate", "hangingPiece", "exposedKing")
-- Display Name is what the user sees (e.g., "Fork Tactics", "Pin Patterns", "King Safety")
-- The button queries 200,000+ real puzzles in the Graph Database to find the BEST matching puzzles at the user's skill level
-
-CRITICAL — BE SPECIFIC WITH THEMES:
-- Do NOT suggest generic themes. Match the EXACT tactical pattern from the mistake.
-- If the user missed a knight fork → use [PRACTICE:fork:Knight Fork Tactics]
-- If the user left their king exposed → use [PRACTICE:exposedKing:King Safety Puzzles]
-- If the user missed a back rank threat → use [PRACTICE:backRankMate:Back Rank Defense]
-- If the user hung a piece → use [PRACTICE:hangingPiece:Hanging Piece Awareness]
-- If the user missed a pin → use [PRACTICE:pin:Pin Tactics]
-- If the user missed a discovered attack → use [PRACTICE:discoveredAttack:Discovered Attack Puzzles]
-- If the user missed a skewer → use [PRACTICE:skewer:Skewer Puzzles]
-- For endgame mistakes, use the specific endgame theme (rookEndgame, pawnEndgame, bishopEndgame, etc.)
-- You can include MULTIPLE [PRACTICE:...] tokens if the mistake involves multiple patterns
-
-EXAMPLES:
-- "You missed a fork pattern here. The Graph Database has thousands of fork puzzles at your level — let's sharpen that pattern recognition:\n[PRACTICE:fork:Fork Tactics]"
-- "This was a classic back rank weakness. Practice defending against these with real puzzles from the database:\n[PRACTICE:backRankMate:Back Rank Defense]"
-- "Your king safety awareness needs work. Here are targeted puzzles:\n[PRACTICE:exposedKing:King Safety Puzzles]"
-
-RULES:
-- ALWAYS include at least one [PRACTICE:...] token after your analysis of mistakes — this is INTEGRAL to the coaching experience
-- Match the theme PRECISELY to the mistake pattern (fork → fork, NOT generic "tactics")
-- Include a brief explanation of WHY this practice will help before the token
-- After a game review with multiple mistakes, include a [PRACTICE:...] token for EACH distinct weakness pattern identified
+HARD RULES:
+- NEVER emit a [PRACTICE:...] token. Practice buttons are rendered ONLY from [CONCEPT:...] tags inside insight blocks.
+- NEVER emit a catch-all practice suggestion at the end of the response (no "Practice Fork Puzzles" trailing button).
+- EXACTLY ONE [CONCEPT:...] tag per insight. If a mistake spans two themes, pick the DOMINANT one.
 
 SKILL-LEVEL CALIBRATION:
 Adapt your explanations based on the user's rating (provided in USER CONTEXT). If no rating is available, default to intermediate (1000-1600).
@@ -2000,7 +2103,7 @@ IMPORTANT GUIDELINES:
       const systemMsg = messages.find((m) => m.role === "system");
       if (systemMsg) {
         const updatedContent = systemMsg.content.replace(
-          /TONE AND STYLE[^\n]*PERSONALITY[^]*?(?=\n\nPRACTICE OFFER PROTOCOL)/,
+          /TONE AND STYLE[^\n]*PERSONALITY[^]*?(?=\n\nPRACTICE PUZZLE SYSTEM)/,
           newPersonality.systemPromptOverride + "\n"
         );
         
@@ -2081,25 +2184,30 @@ IMPORTANT GUIDELINES:
     return offerPhrase.test(c) && /\?/.test(c);
   };
 
-  // Helper function to extract theme from recent conversation
+  // Helper function to extract theme from recent conversation.
+  // Patterns are ordered from MOST-SPECIFIC to LEAST-SPECIFIC so that prose
+  // containing both "discovered attack" and "attack" maps to the specific
+  // theme, not a generic fallback. "fork" is placed last because assistant
+  // responses frequently mention forks in passing prose even when the
+  // position's key motif is something else — we prefer any more specific
+  // match first.
   const extractThemeFromConversation = (): string | null => {
     // Look at the last few assistant messages for practice offer context
     const recentMessages = messages.slice(-5).reverse();
-    
+
     for (const msg of recentMessages) {
       if (msg.role === "assistant") {
         const content = msg.content.toLowerCase();
-        
-        // Look for common theme keywords in the message
+
         const themePatterns = [
-          { keywords: ["fork", "forks"], theme: "fork" },
-          { keywords: ["pin", "pins"], theme: "pin" },
           { keywords: ["back rank", "back-rank"], theme: "backRankMate" },
           { keywords: ["discovered attack", "discovered attacks"], theme: "discoveredAttack" },
-          { keywords: ["skewer", "skewers"], theme: "skewer" },
-          { keywords: ["sacrifice", "sacrifices"], theme: "sacrifice" },
-          { keywords: ["mate", "checkmate"], theme: "mate" },
           { keywords: ["hanging piece", "hanging pieces"], theme: "hangingPiece" },
+          { keywords: ["skewer", "skewers"], theme: "skewer" },
+          { keywords: ["pin", "pins"], theme: "pin" },
+          { keywords: ["sacrifice", "sacrifices"], theme: "sacrifice" },
+          { keywords: ["checkmate", " mate"], theme: "mate" },
+          { keywords: ["fork", "forks"], theme: "fork" },
         ];
 
         for (const pattern of themePatterns) {
@@ -2533,38 +2641,9 @@ IMPORTANT GUIDELINES:
           assistantContent += `\n\n**Note:** ${data.aiAnalysisError}`;
         }
 
-        // Scan response for tactical themes and append practice button
-        if (assistantContent && TACTICAL_THEMES) {
-          const contentLower = assistantContent.toLowerCase();
-          // Map of keywords → [themeKey, displayName]
-          const themeKeywords: Array<[string[], string, string]> = [
-            [["fork", "forks", "forking"], "fork", "Fork"],
-            [["pin", "pins", "pinning", "pinned"], "pin", "Pin"],
-            [["skewer", "skewers"], "skewer", "Skewer"],
-            [["back rank", "back-rank", "backrank"], "backRankMate", "Back Rank"],
-            [["discovered attack", "discovered check"], "discoveredAttack", "Discovered Attack"],
-            [["double check"], "doubleCheck", "Double Check"],
-            [["deflection", "deflect"], "deflection", "Deflection"],
-            [["sacrifice", "sacrifices"], "sacrifice", "Sacrifice"],
-            [["trapped piece", "trapping"], "trappedPiece", "Trapped Piece"],
-            [["hanging piece", "hanging"], "hangingPiece", "Hanging Piece"],
-            [["overloaded", "overloading"], "overloading", "Overloading"],
-            [["zwischenzug", "in-between", "intermezzo"], "intermezzo", "Zwischenzug"],
-            [["endgame", "end game"], "endgame", "Endgame"],
-            [["mate in", "checkmate pattern", "mating pattern"], "mate", "Checkmate Patterns"],
-          ];
-
-          // Find the first (most relevant) theme mentioned in the analysis of a mistake
-          const hasMistakeContext = /blunder|mistake|inaccuracy|error|missed|should have|better was|instead of/i.test(contentLower);
-          if (hasMistakeContext) {
-            for (const [keywords, themeKey, displayName] of themeKeywords) {
-              if (keywords.some((kw) => contentLower.includes(kw))) {
-                assistantContent += `\n\n[PRACTICE:${themeKey}:${displayName}]`;
-                break; // Only add one button per response
-              }
-            }
-          }
-        }
+        // NOTE: Trailing [PRACTICE:...] injection removed.
+        // Practice buttons are now rendered per-insight via [CONCEPT:...] tags
+        // emitted inside each [INSIGHT:...]...[/INSIGHT] block by the LLM.
 
         setMessages((prev) => [
           ...prev,
@@ -2742,99 +2821,129 @@ IMPORTANT GUIDELINES:
       <MessagesContainer isExpanded={isExpanded}>
         {messages
           .filter((m) => m.role !== "system")
-          .map((message, index) => (
-            <MessageBubble key={index} isUser={message.role === "user"}>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  // Preserve existing code component
-                  code({ className, children, ...props }: any) {
-                    const match = /language-(\w+)/.exec(className || "");
-                    const language = match ? match[1] : "";
-                    const isCodeBlock = Boolean(match);
+          .map((message, index) => {
+            const markdownComponents = {
+              code({ className, children, ...props }: any) {
+                const match = /language-(\w+)/.exec(className || "");
+                const language = match ? match[1] : "";
+                const isCodeBlock = Boolean(match);
+                return isCodeBlock ? (
+                  <SyntaxHighlighter
+                    style={vscDarkPlus}
+                    language={language}
+                    PreTag="div"
+                    customStyle={{
+                      margin: 0,
+                      borderRadius: "8px",
+                      fontSize: "0.85em",
+                    }}
+                  >
+                    {String(children).replace(/\n$/, "")}
+                  </SyntaxHighlighter>
+                ) : (
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                );
+              },
+              table({ children }: any) {
+                return (
+                  <div style={{ overflowX: "auto", marginBottom: "1rem" }}>
+                    <table style={{ minWidth: "100%" }}>{children}</table>
+                  </div>
+                );
+              },
+              blockquote({ children }: any) {
+                return (
+                  <blockquote
+                    style={{
+                      borderLeft: "4px solid #1976d2",
+                      paddingLeft: "16px",
+                      margin: "16px 0",
+                      fontStyle: "italic",
+                      backgroundColor: "#f5f5f5",
+                      borderRadius: "4px",
+                      padding: "8px 16px",
+                    }}
+                  >
+                    {children}
+                  </blockquote>
+                );
+              },
+              p({ children }: any) {
+                return <p>{processChildren(children)}</p>;
+              },
+              li({ children }: any) {
+                return <li>{processChildren(children)}</li>;
+              },
+              strong({ children }: any) {
+                return <strong>{processChildren(children)}</strong>;
+              },
+              em({ children }: any) {
+                return <em>{processChildren(children)}</em>;
+              },
+              h1({ children }: any) {
+                return <h1>{processChildren(children)}</h1>;
+              },
+              h2({ children }: any) {
+                return <h2>{processChildren(children)}</h2>;
+              },
+              h3({ children }: any) {
+                return <h3>{processChildren(children)}</h3>;
+              },
+              h4({ children }: any) {
+                return <h4>{processChildren(children)}</h4>;
+              },
+              td({ children }: any) {
+                return <td>{processChildren(children)}</td>;
+              },
+              th({ children }: any) {
+                return <th>{processChildren(children)}</th>;
+              },
+            };
 
-                    return isCodeBlock ? (
-                      <SyntaxHighlighter
-                        style={vscDarkPlus}
-                        language={language}
-                        PreTag="div"
-                        customStyle={{
-                          margin: 0,
-                          borderRadius: "8px",
-                          fontSize: "0.85em",
-                        }}
-                      >
-                        {String(children).replace(/\n$/, "")}
-                      </SyntaxHighlighter>
-                    ) : (
-                      <code className={className} {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
-                  // Preserve existing table component
-                  table({ children }: any) {
-                    return (
-                      <div style={{ overflowX: "auto", marginBottom: "1rem" }}>
-                        <table style={{ minWidth: "100%" }}>{children}</table>
-                      </div>
-                    );
-                  },
-                  // Preserve existing blockquote component
-                  blockquote({ children }: any) {
-                    return (
-                      <blockquote
-                        style={{
-                          borderLeft: "4px solid #1976d2",
-                          paddingLeft: "16px",
-                          margin: "16px 0",
-                          fontStyle: "italic",
-                          backgroundColor: "#f5f5f5",
-                          borderRadius: "4px",
-                          padding: "8px 16px",
-                        }}
-                      >
-                        {children}
-                      </blockquote>
-                    );
-                  },
-                  // Handle paragraphs and other text-containing elements
-                  p({ children }) {
-                    // Process children recursively to handle React elements
-                    return <p>{processChildren(children)}</p>;
-                  },
-                  li({ children }) {
-                    // Process children recursively to handle React elements
-                    return <li>{processChildren(children)}</li>;
-                  },
-                  strong({ children }) {
-                    return <strong>{processChildren(children)}</strong>;
-                  },
-                  em({ children }) {
-                    return <em>{processChildren(children)}</em>;
-                  },
-                  h1({ children }) {
-                    return <h1>{processChildren(children)}</h1>;
-                  },
-                  h2({ children }) {
-                    return <h2>{processChildren(children)}</h2>;
-                  },
-                  h3({ children }) {
-                    return <h3>{processChildren(children)}</h3>;
-                  },
-                  h4({ children }) {
-                    return <h4>{processChildren(children)}</h4>;
-                  },
-                  td({ children }: any) {
-                    return <td>{processChildren(children)}</td>;
-                  },
-                  th({ children }: any) {
-                    return <th>{processChildren(children)}</th>;
-                  },
-                }}
-              >
-                {message.role === "assistant" ? enhanceMoveCitation(message.content, game ?? null) : message.content}
+            const renderMarkdown = (body: string) => (
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                {body}
               </ReactMarkdown>
+            );
+
+            // Parse [INSIGHT:...]...[/INSIGHT] blocks for assistant messages.
+            // When insights are present, render prefix prose + paginated
+            // InsightsCarousel + suffix prose. Everything else keeps its
+            // existing markdown+token rendering.
+            const rawContent =
+              message.role === "assistant"
+                ? enhanceMoveCitation(message.content, game ?? null)
+                : message.content;
+            const parsed =
+              message.role === "assistant"
+                ? parseInsights(rawContent)
+                : { prefix: rawContent, insights: [], suffix: "" };
+            const renderRich = (t: string) => renderTextWithClickableMoves(t, game ?? undefined);
+
+            return (
+            <MessageBubble key={index} isUser={message.role === "user"}>
+              {parsed.insights.length > 0 ? (
+                <>
+                  {parsed.prefix && renderMarkdown(parsed.prefix)}
+                  <InsightsCarousel
+                    insights={parsed.insights}
+                    renderRich={renderRich}
+                    onMoveClick={(moveNum, isBlack) => {
+                      const halfMoveIdx = isBlack
+                        ? moveNum * 2 - 1
+                        : (moveNum - 1) * 2;
+                      if (game && halfMoveIdx >= 0) {
+                        goToMove(halfMoveIdx + 1, game);
+                      }
+                    }}
+                  />
+                  {parsed.suffix && renderMarkdown(parsed.suffix)}
+                </>
+              ) : (
+                renderMarkdown(rawContent)
+              )}
               {isStreaming &&
                 index ===
                   messages.filter((m) => m.role !== "system").length - 1 &&
@@ -2895,32 +3004,14 @@ IMPORTANT GUIDELINES:
                 </Box>
               )}
             </MessageBubble>
-          ))}
+            );
+          })}
         <div ref={messagesEndRef} />
       </MessagesContainer>
 
-      {/* Display puzzle recommendations for detected mistakes */}
-      {puzzleRecommendations.length > 0 && (
-        <Box sx={{ mt: 2, mb: 2 }}>
-          <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
-            🎯 Targeted Practice Puzzles
-          </Typography>
-          {puzzleRecommendations.map((recommendation, idx) => (
-            <Box key={idx} sx={{ mb: 3 }}>
-              <ContextualPuzzleRecommendations
-                fen={recommendation.fen}
-                movePlayed={recommendation.movePlayed}
-                correctMove={recommendation.correctMove}
-                evalBefore={recommendation.evalBefore}
-                evalAfter={recommendation.evalAfter}
-                tacticalMotifs={recommendation.tacticalMotifs}
-                userRating={userProfile?.rating}
-                mistakeDescription={`Move ${recommendation.moveNumber}: ${recommendation.explanation}`}
-              />
-            </Box>
-          ))}
-        </Box>
-      )}
+      {/* Legacy "Targeted Practice Puzzles" block removed.
+          Practice puzzles are now driven by the [CONCEPT:...] tag inside each
+          insight card in the carousel, which queries the same puzzle graph. */}
 
       <Box sx={{ display: "flex", gap: 1, alignItems: "flex-end" }}>
         <TextField

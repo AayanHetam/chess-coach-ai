@@ -3,26 +3,6 @@ import { ScoutGame, OpeningTreeNode, PrepLine } from '@/types/scout';
 
 const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
-function parseGameMoves(pgn: string): { moves: string[]; fens: string[] } | null {
-  try {
-    const chess = new Chess();
-    chess.loadPgn(pgn);
-    const history = chess.history();
-
-    const replay = new Chess();
-    const fens: string[] = [replay.fen()];
-
-    for (const move of history) {
-      replay.move(move);
-      fens.push(replay.fen());
-    }
-
-    return { moves: history, fens };
-  } catch {
-    return null;
-  }
-}
-
 function getOutcome(
   result: string,
   playerColor: 'w' | 'b'
@@ -38,7 +18,7 @@ export function buildOpeningTree(
   targetUsername: string,
   colorFilter: 'both' | 'white' | 'black' = 'both',
   maxDepth: number = 25,
-  minGames: number = 5
+  minGames: number = 1
 ): OpeningTreeNode {
   const root: OpeningTreeNode = {
     move: '',
@@ -51,6 +31,9 @@ export function buildOpeningTree(
   };
 
   const normalizedTarget = targetUsername.toLowerCase();
+  // Reuse a single Chess instance across games — reset() is cheap and avoids
+  // paying construction + PGN tag parsing for every game.
+  const chess = new Chess();
 
   for (const game of games) {
     const isWhite = game.whiteUsername.toLowerCase() === normalizedTarget;
@@ -65,10 +48,8 @@ export function buildOpeningTree(
     const outcome = getOutcome(game.result, playerColor);
     if (!outcome) continue;
 
-    const parsed = parseGameMoves(game.pgn);
-    if (!parsed) continue;
-
-    const { moves, fens } = parsed;
+    const moves = game.moves;
+    if (!moves || moves.length === 0) continue;
 
     let currentNode = root;
     currentNode.totalGames++;
@@ -76,16 +57,25 @@ export function buildOpeningTree(
     else if (outcome === 'draw') currentNode.draws++;
     else currentNode.losses++;
 
+    chess.reset();
     const depth = Math.min(moves.length, maxDepth);
     for (let i = 0; i < depth; i++) {
       const move = moves[i];
-      const fen = fens[i + 1];
 
+      // Only compute a FEN when this ply creates a brand-new node. Existing
+      // nodes already have a FEN — we still need to advance the replay engine
+      // but can skip the fen() serialization cost for already-seen positions.
       let child = currentNode.children.find(c => c.move === move);
+      try {
+        if (!chess.move(move)) break;
+      } catch {
+        break;
+      }
+
       if (!child) {
         child = {
           move,
-          fen,
+          fen: chess.fen(),
           totalGames: 0,
           wins: 0,
           draws: 0,
@@ -123,16 +113,17 @@ export function getNodeScore(node: OpeningTreeNode): number {
 
 export function generatePrepLines(
   tree: OpeningTreeNode,
-  maxLines: number = 10
+  maxLines: number = 10,
+  minGames: number = 2
 ): PrepLine[] {
   const lines: PrepLine[] = [];
 
   function traverse(node: OpeningTreeNode, movePath: string[]): void {
-    if (node.totalGames < 5) return;
+    if (node.totalGames < minGames) return;
 
     const score = getNodeScore(node);
 
-    if (movePath.length >= 2 && score < 45 && node.totalGames >= 5) {
+    if (movePath.length >= 2 && score < 45) {
       lines.push({
         moves: [...movePath],
         fen: node.fen,
@@ -146,7 +137,7 @@ export function generatePrepLines(
     }
 
     for (const child of node.children) {
-      if (child.totalGames >= 5) {
+      if (child.totalGames >= minGames) {
         traverse(child, [...movePath, child.move]);
       }
     }

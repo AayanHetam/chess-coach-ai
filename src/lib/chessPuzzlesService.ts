@@ -1,8 +1,11 @@
 import { Chess } from "chess.js";
 
 /**
- * Service to load and query the Lichess chess puzzles dataset
- * This helps identify tactical patterns in Stockfish's suggestions
+ * Client-safe chess-puzzles service.
+ *
+ * Tactical theme taxonomy + helper that fetches puzzles from the Neo4j-backed
+ * /api/chess-puzzles-dataset endpoint (~200k puzzles). Server-side code should
+ * import from "@/lib/puzzleRepository" instead of going through fetch.
  */
 
 export interface ChessPuzzle {
@@ -473,8 +476,8 @@ export function formatTacticalThemesForPrompt(
 }
 
 /**
- * Query puzzles by tactical theme(s)
- * Uses the chess-puzzles-dataset API endpoint
+ * Client-side: query puzzles by theme via the Neo4j-backed dataset API.
+ * Server-side callers should import from "@/lib/puzzleRepository" directly.
  */
 export async function getPuzzlesByTheme(
   themes: string[],
@@ -484,8 +487,8 @@ export async function getPuzzlesByTheme(
   try {
     const body: Record<string, unknown> = {
       command: "by_theme",
-      themes: themes,
-      limit: limit,
+      themes,
+      limit,
     };
     if (difficulty) {
       body.difficulty = difficulty;
@@ -493,9 +496,7 @@ export async function getPuzzlesByTheme(
 
     const response = await fetch("/api/chess-puzzles-dataset", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
 
@@ -505,18 +506,9 @@ export async function getPuzzlesByTheme(
     }
 
     const data = await response.json();
-    
-    if (data.success && data.puzzles) {
-      return data.puzzles.map((puzzle: any) => ({
-        id: puzzle.id || puzzle.puzzle_id || String(Math.random()),
-        fen: puzzle.fen,
-        moves: puzzle.moves || [],
-        rating: puzzle.rating || 1500,
-        themes: puzzle.themes || [],
-        solution: puzzle.solution || puzzle.moves || [],
-      }));
+    if (data.success && Array.isArray(data.puzzles)) {
+      return data.puzzles as ChessPuzzle[];
     }
-
     return [];
   } catch (error) {
     console.error("Error fetching puzzles by theme:", error);

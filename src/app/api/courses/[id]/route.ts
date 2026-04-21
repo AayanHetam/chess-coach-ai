@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Course } from "../route";
-import { getPuzzlesByTheme } from "@/lib/chessPuzzlesService";
+import { queryPuzzles } from "@/lib/puzzleRepository";
 
 const COURSE_MAP: Record<string, Omit<Course, 'puzzles'>> = {
   "beginner-tactics": {
@@ -64,7 +64,10 @@ export async function GET(
     }
 
     // Fetch 50 puzzles for this course
-    const puzzles = await getPuzzlesByTheme([courseData.category], 50);
+    const puzzles = await queryPuzzles({
+      themes: [courseData.category],
+      limit: 50,
+    });
 
     const course: Course = {
       ...courseData,

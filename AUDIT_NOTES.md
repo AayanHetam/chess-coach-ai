@@ -242,3 +242,80 @@ Production `next build` succeeded with the `next.config.js` ignored — Stockfis
 §6.1 is therefore **not P0** at the build level. Pending Phase 1.5: if the in-browser engine works on the dev server, §6.1 becomes a P2 cleanup (delete `next.config.js`). If the engine fails to load or throws WASM errors, §6.1 stays P0 — the absent worker-loader/babel-loader config will need to be ported into `next.config.ts`.
 
 Files: `/tmp/tsc_baseline.log`, `/tmp/build_baseline.log` (full output, not committed).
+
+## 10. Phase 1.5 — Runtime readiness report
+
+Dev server brought up clean (`Ready in 4.6s`), bound to 127.0.0.1:3000 (Phase 1.4 hardening). All probes below ran against that local server and were stopped before this report was written. No background processes left running.
+
+### 10.1 Tooling status (gates Phase 2 dynamic checks)
+
+| Tool | Status | Action needed |
+|---|---|---|
+| Node 22.16, npm 10.9 | ✅ Installed | none |
+| Playwright | ⚠️ Available via `npx` (1.59.1), but **no browsers installed** and not in `package.json` | `npx playwright install chromium` (~150 MB) and pin in devDeps |
+| Lighthouse | ❌ Not installed (`npx -y lighthouse` would fetch ~10 MB on first use) | `npm i -D lighthouse` or accept `npx -y` per-run cost |
+| `@axe-core/playwright` | ❌ Not in `node_modules` | `npm i -D @axe-core/playwright axe-core` |
+| Google Chrome | ✅ Installed at `/Applications/Google Chrome.app/...` (drivable by Lighthouse via `--chrome-path`) | none |
+| **Test framework** (Jest / Vitest / Playwright Test) | ❌ **None installed** | Phase 3 needs one or there's nothing to run regression tests in. Recommend Vitest + Playwright Test. |
+| CI runner | ❌ No `.github/workflows`, etc. | Phase 3 deliverable: at minimum a workflow that runs `tsc --noEmit` + the new test runner. |
+
+### 10.2 Service / env readiness
+
+`.env.local` is populated. Visible keys (no values logged):
+
+| Service | Status | Notes |
+|---|---|---|
+| **Anthropic** | ✅ Live | `/api/health/llm` → `livePath: anthropic`, Haiku 4.5 probe 934 ms, 25 in / 5 out tokens. |
+| **OpenAI fallback** | ❌ Not configured | No `OPENAI_API_KEY` in `.env.local`. Single-provider mode locally — if Anthropic 5xx's during eval, no fallback, eval breaks. **For Phase 2 Agent A, set `OPENAI_API_KEY` or accept the single-point-of-failure risk.** |
+| **Maia microservice** | ✅ Live | `/api/maia-status` → `maiaServiceReachable: true, maiaModelLoaded: true`. Maia-routed flows work locally — this corrects my Phase 1 assumption. |
+| **Stockfish (in-browser)** | ✅ Loads | `/engines/stockfish-16/stockfish-nnue-16.wasm` → 200, 6 ms, 708 KB, `application/wasm`. **§6.1 confirmed P2 docs cleanup, not P0** — `next.config.js` is dead, engine works without it. |
+| **Lichess OAuth** | ⚠️ Configured (`NEXT_PUBLIC_LICHESS_CLIENT_ID` set) | Live-play / OAuth flows reachable but not exercised by Phase 1.5. Phase 2 Agent C should treat as "configured, untested." |
+| **Firebase** | ⚠️ All 6 NEXT_PUBLIC_FIREBASE_* keys set | Auth/Firestore reachable in principle. No test account seeded — Phase 2 Agent A AI eval can run without auth (endpoints are public — see §6.3) but anything testing logged-in flows needs a seeded user. |
+| **Neo4j puzzle DB** | ✅ Effectively works | `NEO4J_URI`/`USERNAME`/`PASSWORD` are NOT in `.env.local`, but `/api/chess-puzzles-dataset` `command:random` returned 3 real puzzles (1042–1747 rating, themed). Architectural note for Agent A/C: at least some puzzle queries don't go through Neo4j — likely a JSON fixture under `data/` or `Openings/`. The full puzzle architecture is more layered than `NEO4J_ARCHITECTURE.md` suggests; needs Agent C to map. |
+| **Anthropic API key fallback path** | n/a | Phase 1.4 strip means clients can't override system prompts. Tested: schema rejects `systemPrompt` and `role: "system"` per the new validation. |
+
+### 10.3 Endpoint reachability sample
+
+| Endpoint | Result | Notes |
+|---|---|---|
+| `GET /` | 200, 2.9 s | First-hit Turbopack compile cost. |
+| `GET /analysis` | 200, 2.4 s | First-hit compile. |
+| `GET /play` | 200, 340 ms | Warm. |
+| `GET /scout` | 200, 332 ms | Warm. |
+| `GET /practice` | 200, 440 ms | Warm. |
+| `GET /api/health/llm` | 200, ~1 s | Single-provider live (Anthropic). |
+| `GET /api/health/anthropic` | **502, "model: claude-haiku-4-20250514"** | **NEW P1 finding** — endpoint hardcodes a Haiku model ID that doesn't exist in Anthropic's catalog. `llmProvider.ts` uses `claude-haiku-4-5-20251001` (correct). The diagnostic endpoint has been falsely reporting "Anthropic broken" since the rename. Drop-in fix: one-line model rename in `src/app/api/health/anthropic/route.ts:71`. |
+| `GET /api/maia-status` | 200 | Service & model loaded. |
+| `POST /api/chess-puzzles` | 200 | Returns empty themes for the start position — graceful degradation, no Neo4j crash. |
+| `POST /api/chess-puzzles-dataset {command:"random",limit:3}` | 200, 3 puzzles | Live data. |
+| `POST /api/adaptive-puzzles` (no `userId`) | 400 | Zod validation rejects missing `userId`. Endpoint reachable. |
+| `POST /api/classify-intent` (with `message` field) | 400 | Zod expects `userMessage` not `message`. Endpoint reachable. |
+| `GET /engines/stockfish-16/stockfish-nnue-16.wasm` | 200, `application/wasm`, 708 KB, 6 ms | Engine loads. |
+
+### 10.4 New findings surfaced by the runtime check
+
+These weren't in §6 — they only appeared once the server was up. Calling them out so they enter Phase 2's queue with the right priority:
+
+- **NEW P1 — `health/anthropic` is permanently broken.** Hardcoded `claude-haiku-4-20250514`, doesn't exist. Trivial fix; promoted into Agent C's deliverable.
+- **NEW P2 — `enhancedOpenAIService.ts` is NOT dead code.** I assumed orphaned in §3; actually imported by `EnhancedAnalysisPanel.tsx`, `useEnhancedFenTracker.ts`, and `lib/prompts/userPrompts.ts`. The codebase has **two parallel AI paths**: the modern `callLLM`-based server-side path AND an older `EnhancedOpenAIService` class that gets instantiated **client-side** in a hook with `openAIApiKey` (`useEnhancedFenTracker.ts:88`). If that key is `NEXT_PUBLIC_*`-prefixed, it's bundled into the client — that's a credential leak. If it's not prefixed, the hook is silently never reaching the server-required env var. Either way it's a P0/P1 — Agent C should resolve.
+- **NEW P1 — Zero auth middleware on any of the 31 API routes.** No `src/middleware.ts`. No `getServerSession`/`verifyIdToken`/`withAuth`. Combined with §6.3, this means every API route is wide open. Promotes the §6.3 finding from "enhanced-analysis is exposed" to "**all 31 routes are exposed.**" Agent C scope.
+- **NEW P2 — Zero rate limiting** anywhere except where Lichess upstream forces it. Even with the Phase 1.4 strip, anyone can flood the LLM endpoints with valid-shape requests. Agent C scope.
+- **NEW P2 — `.env.example` and `.env.local` schemas have drifted.** `.env.example` is missing 7 keys that the running app uses (`ANALYSIS_INTERVAL`, `ENABLE_AI_ANALYSIS`, `ENABLE_ENHANCED_FEN_TRACKING`, `MAX_POSITIONS_TO_TRACK`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_LICHESS_CLIENT_ID`, the Neo4j trio if those are needed elsewhere). New developers can't `cp .env.example .env.local` and have a working app. Agent D scope.
+
+### 10.5 Phase 2 readiness verdict per agent
+
+| Agent | Can run dynamic checks? | Degradations |
+|---|---|---|
+| **A — Correctness & AI quality** | ✅ Yes, with caveats. Live Claude Sonnet 4 + Haiku 4.5. Real puzzle fixtures available via `/api/chess-puzzles-dataset`. | No OpenAI fallback configured; Anthropic 5xx kills the eval. Recommend setting `OPENAI_API_KEY` before running. Coaching-eval calls cost real $$$ — set a hard budget. |
+| **B — Frontend quality** | ⚠️ Partially. Pages render. Need to install Playwright browsers (`npx playwright install chromium`) and `@axe-core/playwright` + Lighthouse before the dynamic portions. **Static (visual code review, contrast pass against tokens, focus-state grep) can run now.** | Block on the install. |
+| **C — Backend integrity & security** | ✅ Yes. All API surface reachable; auth/rate-limit findings already partially mapped. | None. |
+| **D — Repo hygiene & ops** | ✅ Yes. Static-only by design. | None. |
+
+### 10.6 Asks before you green-light Phase 2
+
+1. **Install the dynamic-check tooling?** Approve `npm i -D @axe-core/playwright axe-core lighthouse vitest @playwright/test` and `npx playwright install chromium` (~150–200 MB). Without these, Agent B is static-only and Phase 3 has no test runner.
+2. **Set `OPENAI_API_KEY` in `.env.local`?** So Agent A's coaching eval has a fallback if Anthropic 5xx's mid-run.
+3. **Budget for Agent A's eval?** A baseline + post-prompt-change re-run on a 30-position suite at flagship tier is roughly 30 × 2 calls × ~3K tokens ≈ ~$2–4 in Claude Sonnet 4 cost. Cheap. Just confirming the order of magnitude is fine.
+4. **Confirm consolidated 4-agent split** from §8.5 still stands now that the readiness picture is sharper.
+
+I'll wait here. On your approval I'll: install tooling (1), then draft `CLAUDE.md` (per §8.2 — post-1.5, pre-2), then spawn the 4 agents and consolidate to `PLAN.md`. PLAN.md is the next user-facing deliverable.

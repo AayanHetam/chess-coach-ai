@@ -82,6 +82,10 @@ export const scoutSchema = z.object({
 });
 
 /** POST /api/chat */
+// AUDIT-PHASE-1.4 (TEMP HARDENING): role enums restricted to user|assistant.
+// Previously accepted "system", which let any client inject an arbitrary system
+// prompt and override the chess-coach persona. Proper fix (auth + rate limit +
+// prompt allowlist) is tracked as a Phase 3 P0 finding.
 export const chatSchema = z.object({
   // Fast-path fields
   contextId: z.string().optional(),
@@ -89,7 +93,7 @@ export const chatSchema = z.object({
   conversationHistory: z
     .array(
       z.object({
-        role: z.enum(["user", "assistant", "system"]),
+        role: z.enum(["user", "assistant"]),
         content: z.string(),
       })
     )
@@ -98,7 +102,7 @@ export const chatSchema = z.object({
   messages: z
     .array(
       z.object({
-        role: z.enum(["user", "assistant", "system"]),
+        role: z.enum(["user", "assistant"]),
         content: z.string(),
       })
     )
@@ -109,13 +113,16 @@ export const chatSchema = z.object({
 });
 
 /** POST /api/enhanced-analysis */
+// AUDIT-PHASE-1.4 (TEMP HARDENING): removed `systemPrompt` (was a prompt-injection
+// vector — client could fully override the chess-coach persona) and restricted
+// `conversationHistory[].role` to user|assistant. Proper Phase 3 P0 fix is
+// auth + rate limit + a server-side prompt allowlist.
 export const enhancedAnalysisSchema = z.object({
   userMessage: z.string().optional(),
   message: z.string().optional(),
   moveHistory: z.array(z.string()).optional(),
   fen: z.string().optional(),
   position: z.string().optional(),
-  systemPrompt: z.string().optional(),
   gameEval: z.any().optional(),
   playerColor: z.string().optional(),
   username: z.string().optional(),
@@ -124,7 +131,7 @@ export const enhancedAnalysisSchema = z.object({
   conversationHistory: z
     .array(
       z.object({
-        role: z.enum(["user", "assistant", "system"]),
+        role: z.enum(["user", "assistant"]),
         content: z.string(),
       })
     )

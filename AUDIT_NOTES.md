@@ -153,7 +153,7 @@ Same shape applies to `chat/route.ts` fallback path which accepts client-supplie
 
 ### 6.4 Untracked / uncommitted state
 
-- `Chesskit/` is a nested git repo (not declared in `.gitmodules`, not a true submodule). Currently dirty: `next.config.ts` modified, `src/pages/play.tsx` deleted, `src/sections/play/board.tsx` deleted, plus 8 other modified files. Origin: appears to be a vendored fork of [Chesskit](https://chesskit.org/) — see `MIGRATION.md`. We should not touch it during this audit; flag the dirty state so you decide what happens to it. `.vercelignore` already excludes it, so it's not deployed.
+- `Chesskit/` is a nested git repo (not declared in `.gitmodules`, not a true submodule). Currently dirty: `next.config.ts` modified, `src/pages/play.tsx` deleted, `src/sections/play/board.tsx` deleted, plus 8 other modified files. Origin: appears to be a vendored fork of [Chesskit](https://chesskit.org/) — see `MIGRATION.md`. We should not touch it during this audit; flag the dirty state so you decide what happens to it. `.vercelignore` already excludes it, so it's not deployed. **Quarantined (2026-04-23): `Chesskit/` is out of scope for this audit. Dirty state preserved verbatim. `.claude/settings.json` `permissions.deny` blocks Read/Glob/Grep/Edit/Write/Bash inside this path so Phase 2 sub-agents don't waste context reading into it. Each sub-agent prompt also reiterates the boundary. Owner decision on whether to upstream, fork, or remove the vendored copy is pending and out of audit scope.**
 - `temp_Lc0DownloadBanner.tsx`, `temp_MaiaStatusIndicator.tsx`, `temp_maia-status.ts` — three leftover scratch files at project root (not in `src/`). Not imported. Cleanup candidate.
 - `chess-coach-ai/data/` — empty recursive subdirectory inside the project root. Cruft.
 - 30+ `test-*.js` + `check-*.mjs` + `query-*.mjs` ad-hoc scripts at root — `.vercelignore` excludes them, but they pollute repo navigation. Cleanup candidate.
@@ -183,10 +183,62 @@ Before Phase 1.5 actually runs, these are likely-known-true:
 - ❓ Firebase — auth/user/games persistence. May work in "live remote" mode if `.env.local` points at a real project; will fail otherwise.
 - ❓ Stockfish.js — runs in browser, no infra needed, but see §6.1.
 
-## 8. Open questions for you (block Phase 1.5 / Phase 2)
+## 8. Decisions log (resolved)
 
-1. **Audit branch.** Should I create `audit/full-sweep-20260423` now? You asked for it in the prompt; I deferred since Plan Mode wasn't active and I haven't written code yet. Say yes and I'll branch + commit AUDIT_NOTES.md as the first phase commit.
-2. **CLAUDE.md.** No file exists. Pick: (a) run `/init` fresh, (b) I draft one from this orientation, (c) defer until after Phase 2.
-3. **§6.1 / §6.2 / §6.3 — pre-Phase-2 fixes?** §6.3 in particular (prompt-injection on a free LLM endpoint) is a security finding the security sub-agent would flag in Phase 2 anyway. If you want to fix it before exposing the dev server for Phase 1.5 dynamic checks, that's an inversion of the planned order — fine, but flagging the deviation. Otherwise I'll route Phase 1.5 traffic through localhost only.
-4. **`Chesskit/` dirty state.** Leave it alone (recommended — we don't own it), or stash/restore it as part of cleanup? Either way it's outside the audit scope.
-5. **Phase 2 sub-agent count.** Your prompt names 7 agents. Each one starts cold and re-derives this orientation context. To save cost I can bundle low-overlap ones (e.g., perf + a11y can share a Playwright session; backend + security can share API-route reads). Want me to keep the 7-way split as written, or consolidate to ~4 agents? Recommend consolidating — but your call.
+The Phase 1 open questions, with the calls made before Phase 1.5 begins:
+
+1. **Audit branch:** created `audit/full-sweep-20260423`. AUDIT_NOTES.md committed first (`audit: phase 1 orientation`). Subsequent phase commits go on this branch, squash/rebase decision deferred to Phase 5.
+2. **CLAUDE.md:** Skip `/init` entirely. Draft from this orientation, but **after Phase 1.5**, not before — runtime readiness will tell us which services actually run locally and which env vars are real, so the file doesn't lie about runnability. Front-loaded contents will be: the single LLM funnel (`llmProvider.ts`), the `PROMPT_VERSION` location, the "build doesn't catch errors, use `tsc --noEmit`" rule, and the list of services that aren't running locally so future Claude stops trying to hit dead endpoints.
+3. **§6.3 (client-supplied systemPrompt):** fixed minimally as Phase 1.4 hardening — schema strip + dev-server localhost bind, two commits. Proper Phase 3 P0 fix (auth + rate limit + prompt allowlist) deferred so it can ship with a regression test through the normal P0 flow. §6.1 and §6.2 left untouched at code level pending the baseline (see §9 — both demoted from "P0 risk" to "documentation cleanup" by the baseline result).
+4. **`Chesskit/` dirty state:** leave alone, do not stash or touch. Quarantined from sub-agent reads via deny rules in `.claude/settings.json`. See §6.4 (updated).
+5. **Phase 2 sub-agent count:** consolidated 7 → 4. Final shape: **A — Correctness & AI quality** (chess rules + AI eval, shared fixtures); **B — Frontend quality** (UI/UX + a11y + perf, one Playwright session); **C — Backend integrity & security** (auth + routes + prompt injection + IDOR); **D — Repo hygiene & ops** (dual configs, build silence, netlify redirect, dead `enhancedOpenAIService.ts`, scratch scripts, README inconsistency, deploy targets).
+6. **Add to Agent A scope:** stamp `PROMPT_VERSION` on every logged response so before/after coaching-eval comparisons in Phase 3 are meaningful.
+
+## 9. Pre-Phase-1.5 baseline (post Phase 1.4 mitigations)
+
+Captured on `audit/full-sweep-20260423` after the strip + bind commits, before Phase 1.5 dynamic checks.
+
+### 9.1 `tsc --noEmit`
+
+```
+exit 0
+0 type errors
+```
+
+The Phase 1.4 strip did not introduce any TypeScript errors. More notably: the project actually type-checks cleanly today, despite `next.config.ts` setting `typescript.ignoreBuildErrors: true`. The build-time bypass is currently unnecessary — turning it back on would be a free quality gate. **Demote §6.2 from "build silently swallows errors" to "build *would* swallow errors if any existed; configure it to fail-fast and you lose nothing."**
+
+### 9.2 `SKIP_ENV_VALIDATION=true npx next build`
+
+```
+exit 0
+✓ Generating static pages (34/34)
+3 webpack warnings (non-blocking)
+```
+
+All 3 warnings are the well-known `Critical dependency: the request of a dependency is an expression` from OpenTelemetry's dynamic `require()`, propagated through `@sentry/nextjs` → `src/lib/logging/sentryIntegration.ts`. Not a project bug. Sentry/Next docs say to ignore.
+
+**Build inventory** (matches and slightly extends Phase 1's count — build is authoritative):
+
+- 31 API routes built (vs my Phase 1 count of 22 — I missed `/api/lichess/*` sub-routes when counting from the directory tree).
+- 14 page routes, all statically prerendered (`○ Static`) except `/_app` and `/_document`. `/404` auto-generated.
+- Largest First Load JS by page (Phase 2 frontend agent will care):
+  | Route | Page chunk | First Load JS |
+  |---|---|---|
+  | `/analysis` | 24.6 kB | **638 kB** |
+  | `/database` | **113 kB** | 575 kB |
+  | `/scout` | 29.6 kB | 524 kB |
+  | `/play` | 12.2 kB | 524 kB |
+  | `/practice` | 21.8 kB | 503 kB |
+  | `/profile` | 11.7 kB | 456 kB |
+  | `/site-stats` | 6.19 kB | 448 kB |
+  | `/openings` | 22 kB | 403 kB |
+  | `/` (landing) | 11.4 kB | **388 kB** |
+- `pages/_app` shared chunk is **250 kB** alone — likely MUI + react-chessboard + chess.js + jotai + react-query all eagerly loaded. That's the perf lever.
+
+### 9.3 §6.1 verdict (engine pipeline)
+
+Production `next build` succeeded with the `next.config.js` ignored — Stockfish.js is bundled by Next 15's default webpack handling, no custom `worker-loader` / `experiments.asyncWebAssembly` required. **`next.config.js` is dead code.** Whether the engine actually loads at runtime is still unverified — that's the Phase 1.5 dev-server smoke test.
+
+§6.1 is therefore **not P0** at the build level. Pending Phase 1.5: if the in-browser engine works on the dev server, §6.1 becomes a P2 cleanup (delete `next.config.js`). If the engine fails to load or throws WASM errors, §6.1 stays P0 — the absent worker-loader/babel-loader config will need to be ported into `next.config.ts`.
+
+Files: `/tmp/tsc_baseline.log`, `/tmp/build_baseline.log` (full output, not committed).

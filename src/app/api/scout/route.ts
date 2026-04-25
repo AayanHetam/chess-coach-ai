@@ -249,6 +249,7 @@ async function fetchChessComGames(username: string, months: number): Promise<Sco
 
   await Promise.all(
     new Array(concurrency).fill(0).map(async () => {
+      // eslint-disable-next-line no-constant-condition -- worker pool: loop exits via `return` when cursor passes length
       while (true) {
         const i = cursor++;
         if (i >= recentArchives.length) return;

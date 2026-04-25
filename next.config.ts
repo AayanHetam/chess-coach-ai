@@ -7,12 +7,6 @@ const nextConfig = (phase: string): NextConfig => ({
   // output: "export" prevents API routes from working
   trailingSlash: false,
   reactStrictMode: true,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
   },

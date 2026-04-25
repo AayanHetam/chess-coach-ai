@@ -19,7 +19,7 @@
     "project": "./tsconfig.json",
     "sourceType": "module"
   },
-  "ignorePatterns": ["**/*"],
+  "ignorePatterns": ["node_modules", ".next", "out", "Chesskit/**", "cdk/**", "src/workers/*.js"],
   "plugins": ["@typescript-eslint", "import", "prettier"],
   "rules": {
     "quotes": ["warn", "double", { "avoidEscape": true }],
@@ -31,5 +31,11 @@
     "react/no-unescaped-entities": 0,
     "react-hooks/rules-of-hooks": "warn",
     "react-hooks/exhaustive-deps": "warn"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**/*"],
+      "parserOptions": { "project": null }
+    }
+  ]
 }

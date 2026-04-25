@@ -185,7 +185,7 @@ export default function DailyPuzzle() {
               );
             }
           }
-        } catch {}
+        } catch { /* chess.js move() can throw on invalid SAN — keep current state */ }
       }, 400);
     },
     [solutionMoves, puzzle, setGlobalStats]

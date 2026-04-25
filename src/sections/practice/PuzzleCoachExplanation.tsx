@@ -9,6 +9,7 @@ import {
   buildPuzzleExplanationPrompt,
 } from "@/lib/prompts/puzzleExplanation";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
+import { getAuthHeader } from "@/lib/auth/getAuthHeader";
 
 interface PuzzleCoachExplanationProps {
   puzzleStatus: "loading" | "playing" | "wrong" | "solved";
@@ -115,7 +116,7 @@ export default function PuzzleCoachExplanation({ puzzleStatus }: PuzzleCoachExpl
 
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
         body: JSON.stringify({
           messages: [
             { role: "system", content: PUZZLE_EXPLANATION_SYSTEM_PROMPT },

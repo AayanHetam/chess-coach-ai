@@ -53,6 +53,7 @@ import { storeFeedback } from "@/lib/feedbackStore";
 import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
 import { loadWeaknessProfile, getWeaknessPromptContext } from "@/lib/weaknessProfile";
 import { InsightsCarousel, parseInsights } from "@/components/AICoachInsights";
+import { getAuthHeader } from "@/lib/auth/getAuthHeader";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -891,7 +892,7 @@ const MaiaContinuation: React.FC<{
           try {
             const resp = await fetch("/api/maia-predict", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
               body: JSON.stringify({ fen, rating: 1500 }),
             });
             const data = await resp.json();
@@ -2360,7 +2361,7 @@ IMPORTANT GUIDELINES:
       try {
         const classifyRes = await fetch("/api/classify-intent", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
           body: JSON.stringify({
             userMessage: textToSend,
             recentMessages: messages
@@ -2550,7 +2551,7 @@ IMPORTANT GUIDELINES:
           // === FAST PATH: Follow-up via /api/chat ===
           const chatResponse = await fetch("/api/chat", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
             body: JSON.stringify({
               contextId: analysisContextIdRef.current,
               userMessage: textToSend,
@@ -2600,7 +2601,7 @@ IMPORTANT GUIDELINES:
 
           const response = await fetch("/api/enhanced-analysis", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
             body: JSON.stringify(requestData),
             signal: abortControllerRef.current.signal,
           });

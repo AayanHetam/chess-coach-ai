@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { callLLM, LLMError, getProviderStatus } from "@/lib/llmProvider";
+import { requireAuth } from "@/lib/auth/requireAuth";
 
 /**
  * Intent Classifier
@@ -121,6 +122,9 @@ function parseClassifierOutput(raw: string): ClassifierResult | null {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
+
   // Ensure at least one provider is usable; callLLM itself double-checks.
   const status = getProviderStatus();
   if (!status.anthropic.keyValid && !status.openai.keyValid) {

@@ -14,6 +14,7 @@ import { callLLM, LLMError } from "@/lib/llmProvider";
 import { getReinforcements } from "@/lib/concept/conceptRetrieval";
 import { detectConcepts } from "@/lib/concept/conceptDetector";
 import { getConcept } from "@/lib/concept/conceptTaxonomy";
+import { requireAuth } from "@/lib/auth/requireAuth";
 
 const log = logger.child({ module: "enhanced-analysis" });
 
@@ -848,6 +849,8 @@ export async function POST(request: NextRequest) {
   const requestId = extractRequestId(request.headers);
 
   return withRequestContext(requestId, async () => {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   try {
     const body = await request.json();
 
@@ -866,9 +869,6 @@ export async function POST(request: NextRequest) {
       boardOrientation,
       conversationHistory,
     } = parsed.data;
-    // AUDIT-PHASE-1.4 (TEMP HARDENING): client-supplied `systemPrompt` is no
-    // longer accepted — schema has been tightened. Server is the sole source
-    // of the system prompt for this endpoint. Phase 3 ships the proper fix.
     const messageText = userMessage || message || "";
 
     log.info("Enhanced analysis started", {

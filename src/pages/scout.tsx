@@ -53,6 +53,7 @@ import ShareCardDialog from '@/components/scout/ShareCardDialog';
 import { buildOpeningTree } from '@/lib/scoutService';
 import { computeCollisions } from '@/lib/collisionAnalysis';
 import type { Collisions } from '@/types/scout';
+import { getAuthHeader } from '@/lib/auth/getAuthHeader';
 
 // ─── Search bar ─────────────────────────────────────────────────────────────
 
@@ -541,7 +542,7 @@ export default function ScoutPage() {
     try {
       const res = await fetch('/api/scout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader()) },
         body: JSON.stringify({ username: name, platform, months }),
       });
 
@@ -609,7 +610,7 @@ export default function ScoutPage() {
       try {
         const res = await fetch('/api/scout', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await getAuthHeader()) },
           body: JSON.stringify({
             username: yn,
             platform: scoutResult.platform,

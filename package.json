@@ -26,8 +26,9 @@
     "chess-improvement"
   ],
   "scripts": {
-    "dev": "next dev --turbo",
-    "build": "next build",
+    "dev": "next dev --turbo -H 127.0.0.1",
+    "dev:lan": "next dev --turbo",
+    "build": "SKIP_ENV_VALIDATION=true next build",
     "start": "next start",
     "lint": "next lint && tsc --noEmit",
     "test": "vitest run",

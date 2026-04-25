@@ -49,6 +49,8 @@ export interface LichessUserProfile {
   title?: string;
   rating?: number;
   ratingPerf?: string;
+  /** All established per-speed ratings (keyed by perf name). */
+  perfs?: Record<string, number>;
   online: boolean;
   playing?: boolean;
   patron?: boolean;
@@ -189,12 +191,24 @@ export async function getUserProfile(accessToken: string): Promise<LichessUserPr
 
   const raw = (await response.json()) as LichessAccountResponse;
   const { rating, perf } = pickPrimaryRating(raw.perfs);
+
+  // Build a map of all established per-speed ratings.
+  const perfs: Record<string, number> = {};
+  if (raw.perfs) {
+    for (const [key, p] of Object.entries(raw.perfs)) {
+      if (p?.rating && (p.games ?? 0) > 0) {
+        perfs[key] = p.rating;
+      }
+    }
+  }
+
   return {
     id: raw.id,
     username: raw.username,
     title: raw.title,
     rating,
     ratingPerf: perf,
+    perfs: Object.keys(perfs).length > 0 ? perfs : undefined,
     online: raw.online ?? true,
     playing: typeof raw.playing === 'string' ? true : !!raw.playing,
     patron: raw.patron,

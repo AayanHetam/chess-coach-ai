@@ -80,6 +80,7 @@ export async function GET(request: NextRequest) {
         title: userProfile.title,
         rating: userProfile.rating,
         ratingPerf: userProfile.ratingPerf,
+        perfs: userProfile.perfs,
       }),
       {
         httpOnly: false,

@@ -1,0 +1,38 @@
+FIXTURE 4 RETRY: K+P endgame key squares (explicit FEN)
+FEN: 8/8/8/4k3/8/8/4P3/4K3 w - - 0 1
+PROMPT: Analyze this position for a 1200-rated player. FEN: 8/8/8/4k3/8/8/4P3/4K3 w - - 0 1
+
+The position: White King on e1, White pawn on e2, Black King on e5. White to move. What are the key endgame concepts?
+
+--- RESPONSE ---
+# King and Pawn Endgame Analysis
+
+This is a **critical endgame position** that beautifully illustrates one of the most important concepts in chess: the **Opposition**.
+
+## The Key Concept: Opposition
+
+In king and pawn endgames, **opposition** determines whether the stronger side wins or draws. Here, the Black king is directly in front of your pawn, and it's your move.
+
+### What Happens Next?
+
+**If you play 1.e4**, you're moving the pawn forward, and Black plays 1...Kd4 (attacking the pawn). After 2.e5, Black plays 2...Kd5, and the pawn gets stopped. **This draws** because Black's king controls the promotion square.
+
+**If you play 1.Kd1** instead, you're moving your king *away* from direct confrontation. Black must make a choice:
+- If Black plays 1...Kd4, then 2.e4 and your pawn advances with your king supporting it
+- If Black plays 1...Kf4, then 2.e4 and again the pawn marches forward
+
+The key insight: **By giving up the opposition, you actually gain it back in a more favorable way** because your king gets behind the pawn to support it.
+
+## Why This Matters at 1200
+
+This position teaches you that:
+
+1. **In king and pawn endgames, the king's position matters more than pawn advancement**
+2. **Sometimes moving your king (not the pawn) is the strongest move**
+3. **Opposition is about controlling key squares, not just being "opposite"**
+
+The winning plan is: get your king behind the pawn, then push it forward with support. That's how you promote and win.
+
+Does this endgame concept click for you?
+
+Tokens: in=276 out=419

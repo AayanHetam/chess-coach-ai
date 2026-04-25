@@ -1,0 +1,42 @@
+FIXTURE 2: Italian Game pin/development
+FEN: r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4
+PROMPT: Analyze this position for a 1200-rated player. White has Bc4 in the Italian Game. What principles should White focus on?
+
+--- RESPONSE ---
+# Italian Game Analysis for 1200-Rated Players
+
+Great question! The **Bc4 setup is one of the most instructive openings** for understanding fundamental chess principles. Here's what you should focus on:
+
+## Core Principles with Bc4
+
+### 1. **Control the Center (d4 and e5)**
+- Your bishop on c4 isn't attacking the center directly, but it supports control of **d5** and **e5**
+- Don't neglect moves like **d4** when the moment is right—this is often the key breakthrough in the Italian
+- The bishop's long diagonal becomes powerful once you plant a pawn on d4
+
+### 2. **King Safety Before Aggression**
+- Bc4 can tempt you into premature attacks (like Ng5 or Bxf7)
+- **Castle kingside early** (usually by move 8-10) unless you have a concrete tactical reason not to
+- At 1200, protecting your king is more important than launching risky attacks
+
+### 3. **Develop Your Pieces Efficiently**
+- Typical move order: **Nf3, d4, O-O, c3, Re1, Bg5 or Bb3**
+- Each piece should have a purpose—don't move the same piece twice without a reason
+- Your light-squared bishop is already developed, so focus on Nf3, d4, and getting your queenside pieces out (Nc3, Bg5)
+
+### 4. **Watch f7 (Black's Weakness)**
+- f7 is Black's most vulnerable square—it's only defended by the king
+- Your Bc4 targets it, but don't attack it without support
+- A real threat only exists when you have multiple pieces attacking (like Ng5 + queen support)
+
+## Practical Checklist for Your Game
+
+Before making an aggressive move, ask yourself:
+- ✓ Have I castled?
+- ✓ Are my pieces developed (Nf3, Nc3)?
+- ✓ Is my center secure (d4 or ready to play)?
+- ✓ Do I have *multiple* pieces supporting my attack?
+
+**What's your current position?** If you share the specific moves, I can give you targeted feedback on whether you're following these principles!
+
+Tokens: in=484 out=532

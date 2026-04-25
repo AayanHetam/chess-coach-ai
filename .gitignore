@@ -69,3 +69,6 @@ cdk.context.json
 
 .vercel
 maia-weights/
+
+# Graphify build artifacts (knowledge graph output)
+graphify-out/

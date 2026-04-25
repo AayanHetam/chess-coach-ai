@@ -88,4 +88,6 @@ export interface LichessStoredUser {
   title?: string;
   rating?: number;
   ratingPerf?: string;
+  /** Per-speed ratings so the UI can show the one matching the selected TC. */
+  perfs?: Record<string, number>;
 }

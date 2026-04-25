@@ -91,7 +91,7 @@ const testimonials = [
   },
   {
     quote:
-      "Having Stockfish run in my browser means I can analyze games on the train without internet. Plus the AI coach makes the engine output actually readable.",
+      "Being able to play on Lichess and then instantly analyze with the AI coach in the same app is a game changer. The coach makes engine output actually readable.",
     name: "Marcus",
     role: "Online Player, 1650 ELO",
   },

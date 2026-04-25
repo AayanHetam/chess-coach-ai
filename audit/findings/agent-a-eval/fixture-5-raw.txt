@@ -1,0 +1,44 @@
+FIXTURE 5: Equal middlegame (no tactics)
+FEN: r2q1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 8
+PROMPT: Analyze this position for a 1200-rated player. Both sides are castled, development is complete. What are the key strategic considerations?
+
+--- RESPONSE ---
+# Strategic Analysis for a Completed Opening Position
+
+I'd be happy to analyze this position, but I need you to provide the actual position first! You can share it in any of these ways:
+
+- **PGN notation** (the moves played so far)
+- **FEN string** (the position diagram)
+- **Description** (where the pieces are located)
+- **Board image** (if you have one)
+
+## What I'll Look For Once You Share It
+
+Once I see the position, here are the key strategic themes I'll evaluate for a 1200-level player:
+
+**Pawn Structure**
+- Which pawns are advanced or weak?
+- Are there any isolated, doubled, or backward pawns?
+- Who controls the center?
+
+**Piece Activity**
+- Which pieces are well-placed vs. passive?
+- Are there any loose pieces or hanging material?
+- Who has better piece coordination?
+
+**King Safety**
+- Are there any attacking chances against either king?
+- Are there weak squares around the castled kings?
+
+**Imbalances**
+- Does one side have a space advantage?
+- Are there any tactical themes (pins, forks, weak squares)?
+- Who has the initiative?
+
+**Practical Plans**
+- What should each side be trying to accomplish?
+- Which moves improve your position most effectively?
+
+**Go ahead and share the position**, and I'll give you a detailed, practical analysis focused on what matters most at 1200 level!
+
+Tokens: in=483 out=331

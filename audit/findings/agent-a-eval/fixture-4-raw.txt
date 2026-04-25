@@ -1,0 +1,24 @@
+FIXTURE 4: K+P endgame key squares
+FEN: 8/8/8/4k3/8/8/4P3/4K3 w - - 0 1
+PROMPT: Analyze this position for a 1200-rated player. It's a king and pawn endgame with White to move. What are the key concepts here?
+
+--- RESPONSE ---
+I'd be happy to help analyze this king and pawn endgame! However, I don't see the position yet. Could you provide it in one of these ways:
+
+1. **FEN notation** (the most precise way)
+2. **Board diagram** (ASCII or image)
+3. **Piece placement description** (e.g., "White King on e4, White pawns on a5 and h3, Black King on d5, Black pawns on b6 and g7")
+
+Once you share the position, I'll analyze it focusing on the key concepts that matter most at 1200 level:
+
+- **King activity** - where the king needs to be to support or stop pawns
+- **Opposition** - the critical concept of king positioning in pawn endgames
+- **Pawn races** - which pawns can promote first
+- **Key squares** - critical squares where the king must reach to win or draw
+- **Zugzwang** - positions where any move worsens your position
+
+These concepts are absolutely foundational for pawn endgames, and understanding them will dramatically improve your endgame play!
+
+Share the position and I'll give you a detailed analysis. 👍
+
+Tokens: in=488 out=271

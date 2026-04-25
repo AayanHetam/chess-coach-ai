@@ -118,7 +118,7 @@ export default function LandingHero() {
                 variant="caption"
                 sx={{ fontWeight: 600, color: "#FF6B35", letterSpacing: 0.5 }}
               >
-                Free &amp; Open Source
+                Free to Use
               </Typography>
             </Box>
 
@@ -163,9 +163,9 @@ export default function LandingHero() {
               }}
             >
               Not just engine numbers. An LLM-powered coach that explains moves
-              in human language, 9,000+ tactical puzzles to sharpen your skills,
-              and a scout tool to exploit any opponent&apos;s weaknesses. Powered
-              by Stockfish, running 100% in your browser.
+              in human language, play real opponents on Lichess right from our
+              site, 9,000+ tactical puzzles, and a scout tool to exploit any
+              opponent&apos;s weaknesses.
             </Typography>
 
             <Box
@@ -206,7 +206,7 @@ export default function LandingHero() {
                 variant="outlined"
                 size="large"
                 onClick={() => router.push("/play")}
-                startIcon={<Icon icon="streamline:chess-pawn" />}
+                startIcon={<Icon icon="simple-icons:lichess" />}
                 sx={{
                   px: 4,
                   py: 1.6,
@@ -224,7 +224,7 @@ export default function LandingHero() {
                   transition: "all 0.3s ease",
                 }}
               >
-                Play vs Stockfish
+                Play on Lichess
               </Button>
               <Button
                 variant="outlined"

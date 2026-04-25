@@ -65,7 +65,16 @@ export async function GET(request: NextRequest) {
 
   if (!upstream.ok) {
     const text = await upstream.text().catch(() => upstream.statusText);
-    return new Response(JSON.stringify({ error: text }), {
+    // Lichess returns form-validation errors as {"global":["msg"]}.
+    // Parse that into a friendlier string for the client.
+    let errorMsg = text;
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed?.global?.[0]) {
+        errorMsg = parsed.global[0];
+      }
+    } catch { /* use raw text */ }
+    return new Response(JSON.stringify({ error: errorMsg }), {
       status: upstream.status,
       headers: { 'Content-Type': 'application/json' },
     });

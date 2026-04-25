@@ -1,0 +1,77 @@
+# Build artifacts and dependencies
+.next/
+node_modules/
+out/
+dist/
+build/
+.vercel/
+cdk.out/
+.cdk.staging/
+
+# Vendored / out-of-scope
+Chesskit/
+chess-coach-ai/
+venv_gameknot/
+
+# public/ — assets, sprites, binaries (zero structural signal)
+public/piece/
+public/icons/
+public/sounds/
+public/engines/
+public/*.png
+public/*.svg
+public/*.ico
+public/*.webp
+public/manifest*
+
+# Other binary/asset noise
+assets/
+maia-weights/
+
+# Reference data (third-party Jhamtani dataset, not project structure)
+data/chess-commentary/
+data/
+
+# Audit byproducts (descriptive about the project; would contaminate the graph)
+audit/
+graphify-out/
+
+# Backup tarballs and large binaries
+*.tar.gz
+*.tgz
+*.zip
+*.pb
+*.pyc
+__pycache__/
+
+# Logs and runtime
+*.log
+
+# Editor / system noise
+.DS_Store
+.idea/
+.vscode/
+
+# Scratch scripts at repo root (Phase 2 Agent D flagged these as cleanup)
+test-*.js
+test-*.mjs
+check-*.mjs
+query-*.mjs
+add-indexes.mjs
+inspect-*.mjs
+verify-*.mjs
+write-*.mjs
+
+# Temp scratch files (Phase 2 Agent D flagged these)
+temp_*.tsx
+temp_*.ts
+
+# Binary docs
+*.docx
+*.xlsx
+*.pdf
+
+# DB load files and JSON datasets at root
+book_database.json
+test_results.json
+jhamtani_dataset_example*

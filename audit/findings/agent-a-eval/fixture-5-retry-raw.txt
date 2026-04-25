@@ -1,0 +1,51 @@
+FIXTURE 5 RETRY: Equal middlegame (explicit FEN)
+FEN: r2q1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 8
+PROMPT: Analyze this position for a 1200-rated player. FEN: r2q1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 8
+
+Both sides castled kingside, symmetric pawn structure, bishops vs bishops (Bc4 vs Bc5). It's White to move after move 7. What are the key strategic considerations? Note: do NOT invent tactics that don't exist.
+
+--- RESPONSE ---
+# Position Analysis for 1200-Rated Player
+
+This is a **critical moment** in what looks like a Closed Sicilian or similar opening. Let me break down what's actually happening here.
+
+## Key Strategic Observations
+
+**The Position's Character:**
+- Both sides have developed naturally with kingside castles
+- White has the c4 bishop (aggressive, pointing at f7)
+- Black has the c5 bishop (solid, controlling the long diagonal)
+- The center is locked with pawns on e4 and e5
+- Knights are well-placed on both sides (White's on c3 and f3, Black's on c6 and f6)
+
+## Critical Strategic Considerations
+
+**1. The d5 Square is Contested**
+This is the **most important square** on the board right now. White's knight on c3 controls it, but Black's knight on c6 also defends it. If White can plant a piece on d5, it would be powerfully centralized and hard to dislodge. This should influence your next moves.
+
+**2. Piece Pressure & Tension**
+- White's Bc4 is eyeing f7 (Black's weak spot)
+- Black's Bc5 is eyeing f2 (White's weak spot)
+- This mutual tension means **avoiding careless moves** is essential
+
+**3. Space and Initiative**
+White has a slight spatial advantage with the e4 pawn and the advanced bishop on c4. This is worth something, but it's not overwhelming at this stage.
+
+## What NOT to Do
+
+- **Don't rush to trade pieces** just for activity—simplification often helps Black equalize
+- **Don't ignore Black's counterplay** on the queenside (the a7-b7-c6 pawn chain)
+- **Don't play carelessly with f7 under pressure**—Black needs to defend it properly
+
+## Reasonable Strategic Plans for White
+
+The most natural continuations involve:
+- Strengthening control of d5
+- Improving piece placement (perhaps Bg5, dxc4, or quiet moves like Be3)
+- Maintaining pressure without forcing trades
+
+**For a 1200 player:** Focus on **piece safety, controlling d5, and keeping your initiative**. Don't rush—good positions reward patience.
+
+What move are you considering?
+
+Tokens: in=326 out=529

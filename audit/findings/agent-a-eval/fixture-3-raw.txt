@@ -1,0 +1,21 @@
+FIXTURE 3: Knight fork opportunity
+FEN: r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 4 4
+PROMPT: Analyze this position for a 1200-rated player. It's White to move. What tactical opportunities exist?
+
+--- RESPONSE ---
+I'd be happy to analyze this position for you! However, I don't see a position provided yet. To give you the best tactical analysis, I'll need one of the following:
+
+1. **A board diagram or image** of the position
+2. **FEN notation** (the position code)
+3. **Move notation** describing where the pieces are
+4. **A full game PGN** if you want me to analyze from the beginning
+
+Once you share the position, I'll:
+- Identify all tactical opportunities (forks, pins, skewers, discovered attacks, etc.)
+- Explain which moves are best and why
+- Show you any tactics your opponent might have
+- Give you practical advice for similar positions in the future
+
+Go ahead and paste the position details, and I'll dive into a detailed analysis! 🎯
+
+Tokens: in=477 out=185

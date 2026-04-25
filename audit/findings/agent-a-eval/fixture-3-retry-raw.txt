@@ -1,0 +1,61 @@
+FIXTURE 3 RETRY: Knight fork opportunity (explicit FEN)
+FEN: r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 4 4
+PROMPT: Analyze this position for a 1200-rated player. FEN: r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 4 4
+
+It's White to move. Both sides have two knights developed, both have e5/e4 pawns. What tactical opportunities exist?
+
+--- RESPONSE ---
+# Position Analysis for 1200 Level
+
+Great position to analyze! You've reached a critical moment in the opening. Let me break down what's happening and the tactical opportunities available.
+
+## The Position at a Glance
+
+Both sides have developed symmetrically with knights on c3/c6 and f3/f6, and you've got a central pawn tension (your e4 vs Black's e5). This is a typical position from openings like the **Four Knights Game** or similar systems.
+
+## Key Tactical Opportunities for White
+
+### 1. **The d5 Square is Vulnerable** ⚠️
+This is your main opportunity! Black's c6-knight is the only defender of d5. You can exploit this:
+
+- **Nxe5** is tempting but let's check: After 1.Nxe5 Nxe5 2.Nxe5, you've traded knights but Black recaptures easily. Not immediately winning, though you've simplified.
+
+- **Better: Look at d5 directly** - If you could jump a knight there, it would be powerfully centralized and hard to dislodge. The move **Nxe5** followed by repositioning, or better yet...
+
+### 2. **Nd5 is a Strong Candidate Move** 🎯
+Wait - let me reconsider the position. Looking at your knights on c3 and f3:
+- Your f3-knight can jump to **d4** or stay flexible
+- The c3-knight eyes d5
+
+If you play something like **d4**, you're:
+- Attacking Black's e5 pawn with your center
+- Opening lines for your pieces
+- Forcing Black to make a decision about the center
+
+### 3. **The Real Tactical Point**
+
+After **d4**, Black faces a problem:
+- If **exd4**, you recapture and have a strong center
+- If Black doesn't take, you've gained space and pressure
+
+This isn't a knockout blow, but it's **principled chess**: you're fighting for the center, which is exactly what you should do in this position.
+
+## What NOT to Do
+
+- Don't play passively - you should be fighting for advantage
+- Don't get distracted by minor tactics; focus on central control
+- Avoid moving the same piece twice without purpose
+
+## Recommendation for Your Level
+
+Play **d4** next. It's the most natural, principled move that:
+✅ Contests the center  
+✅ Develops your position further  
+✅ Creates immediate decisions for Black  
+✅ Follows sound opening principles
+
+This teaches you the most important lesson: **control the center early, and tactical opportunities will follow naturally**.
+
+What happens after Black responds to d4?
+
+Tokens: in=301 out=630

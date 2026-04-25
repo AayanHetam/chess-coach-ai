@@ -1,0 +1,47 @@
+FIXTURE 1: Englund Gambit
+FEN: rnbqkbnr/pppp1ppp/8/4p3/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2
+PROMPT: Analyze this position for a 1200-rated player. The position is from the Englund Gambit after 1.d4 e5. What are the key principles here for White?
+
+--- RESPONSE ---
+# Englund Gambit Analysis for 1200-Rated Players
+
+Great question! The Englund Gambit (1.d4 e5) is a tricky opening where Black sacrifices a pawn for active piece play. Let me break down the key principles White should follow:
+
+## Core Strategic Principles
+
+### 1. **Accept the Challenge (Usually)**
+Most strong players recommend **2.dxe5** - simply taking the pawn. This is sound and doesn't require deep theoretical knowledge. Black gets some activity, but White is up material, which is the main point at your level.
+
+### 2. **Control the Center**
+After taking on e5, White should:
+- Keep the pawn (don't be tricked into returning it without compensation)
+- Support it with moves like **Qd4** or **f4** to reinforce your space advantage
+- Prevent Black from getting too much piece activity for the sacrificed pawn
+
+### 3. **Develop Safely**
+- **Don't rush your attack** - Black will have active pieces, so develop with purpose
+- Get your pieces out to useful squares (Nf3, Bf4, Nc3, etc.)
+- Keep your king safe - Black's compensation includes tactical threats
+
+### 4. **Watch for Black's Compensation**
+Black typically plays for:
+- Quick piece development (Nc6, Bf5, etc.)
+- Attacks on your center pawn or king
+- Rapid mobilization of pieces
+
+**Your job:** Stay calm, develop logically, and don't let Black's activity overwhelm you. You're up a pawn!
+
+---
+
+## Practical Moves After 1.d4 e5 2.dxe5
+
+**Good continuations:**
+- **2...Nc6** attacking your e5 pawn → Play **Qd4** or **f4** to defend it
+- **2...Qh4** (attacking your knight) → Simply develop with **Nf3** or **Nc3**; Black's queen will have to move again
+
+## Key Takeaway
+This is a gambit where Black trades material for activity. **Your advantage is concrete (an extra pawn), so play solid chess**: develop your pieces, keep your king safe, and don't get swept up in Black's tactical threats. At 1200 level, simply being up a pawn while developing normally will often be enough to win!
+
+Would you like me to analyze a specific game position from this opening?
+
+Tokens: in=496 out=564

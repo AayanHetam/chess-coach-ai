@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Button,
+  IconButton,
   Stack,
   Tooltip,
   Typography,
@@ -167,6 +168,78 @@ export default function LichessLiveBoard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.moves]);
 
+  // ── Move history navigation ────────────────────────────────────────────
+  // null = live (showing latest), number = specific half-move index (0-based).
+  const [viewMoveIndex, setViewMoveIndex] = useState<number | null>(null);
+  const allMoves = useMemo(() => state.moves.split(/\s+/).filter(Boolean), [state.moves]);
+  const totalMoves = allMoves.length;
+
+  // When new moves arrive, snap back to live view.
+  useEffect(() => {
+    setViewMoveIndex(null);
+  }, [state.moves]);
+
+  // Build a chess instance at the viewed move index for display.
+  const viewChess = useMemo(() => {
+    if (viewMoveIndex === null) return null; // live view
+    const c =
+      game.initialFen && game.initialFen !== 'startpos'
+        ? new Chess(game.initialFen)
+        : new Chess();
+    for (let i = 0; i < viewMoveIndex; i++) {
+      const uci = allMoves[i];
+      if (!uci) break;
+      try {
+        c.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.length > 4 ? uci[4] : undefined });
+      } catch { break; }
+    }
+    return c;
+  }, [viewMoveIndex, allMoves, game.initialFen]);
+
+  const isViewingHistory = viewMoveIndex !== null;
+
+  // Navigation callbacks.
+  const goBack = useCallback(() => {
+    setViewMoveIndex((prev) => {
+      const cur = prev ?? totalMoves;
+      return Math.max(0, cur - 1);
+    });
+  }, [totalMoves]);
+
+  const goForward = useCallback(() => {
+    setViewMoveIndex((prev) => {
+      if (prev === null) return null; // already live
+      const next = prev + 1;
+      return next >= totalMoves ? null : next;
+    });
+  }, [totalMoves]);
+
+  const goToLive = useCallback(() => setViewMoveIndex(null), []);
+  const goToStart = useCallback(() => setViewMoveIndex(0), []);
+
+  // Keyboard arrow keys for move navigation.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); goBack(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); goForward(); }
+      else if (e.key === 'Home') { e.preventDefault(); goToStart(); }
+      else if (e.key === 'End') { e.preventDefault(); goToLive(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [goBack, goForward, goToStart, goToLive]);
+
+  // ── Last-move highlight (green) ────────────────────────────────────────
+  const lastMove = useMemo<{ from: Square; to: Square } | null>(() => {
+    const movesArr = allMoves;
+    // Determine which move to show based on whether we're in history view.
+    const idx = viewMoveIndex !== null ? viewMoveIndex - 1 : movesArr.length - 1;
+    if (idx < 0 || idx >= movesArr.length) return null;
+    const uci = movesArr[idx];
+    if (!uci || uci.length < 4) return null;
+    return { from: uci.slice(0, 2) as Square, to: uci.slice(2, 4) as Square };
+  }, [allMoves, viewMoveIndex]);
+
   // ── Selected square + legal move highlights ──────────────────────────────
   const [selectedSq, setSelectedSq] = useState<Square | null>(null);
 
@@ -178,16 +251,23 @@ export default function LichessLiveBoard({
   const highlightStyles = useMemo(() => {
     const styles: Record<string, React.CSSProperties> = {};
 
+    // Last-move highlights (green) — lowest priority, everything else overrides.
+    if (lastMove) {
+      styles[lastMove.from] = { backgroundColor: 'rgba(34, 197, 94, 0.35)' };
+      styles[lastMove.to] = { backgroundColor: 'rgba(34, 197, 94, 0.42)' };
+    }
+
     // Premove highlights (blue)
     if (premove) {
       styles[premove.from] = { backgroundColor: 'rgba(0, 150, 255, 0.45)' };
       styles[premove.to] = { backgroundColor: 'rgba(0, 150, 255, 0.45)' };
     }
 
-    // Selected piece + legal move dots (orange — override premove if both)
+    // Selected piece origin square (orange) — so user can drop piece back.
     if (selectedSq) {
-      styles[selectedSq] = { backgroundColor: 'rgba(255, 107, 53, 0.35)' };
+      styles[selectedSq] = { backgroundColor: 'rgba(255, 107, 53, 0.45)' };
     }
+    // Legal move dots (orange)
     for (const m of legalMovesForSelected) {
       const isCapture = m.captured || m.flags.includes('e');
       styles[m.to as string] = isCapture
@@ -201,7 +281,7 @@ export default function LichessLiveBoard({
           };
     }
     return styles;
-  }, [selectedSq, legalMovesForSelected, premove]);
+  }, [selectedSq, legalMovesForSelected, premove, lastMove]);
 
   // ── Move validation & submission ─────────────────────────────────────────
   const finished = state.status !== 'started' && state.status !== 'created';
@@ -402,7 +482,7 @@ export default function LichessLiveBoard({
       >
         <Chessboard
           id={`lichess-live-${game.id}`}
-          position={chess.fen()}
+          position={(viewChess ?? chess).fen()}
           boardOrientation={yourColor}
           onPieceDrop={onPieceDrop}
           onSquareClick={onSquareClick}
@@ -412,7 +492,9 @@ export default function LichessLiveBoard({
           customSquareStyles={highlightStyles}
           boardWidth={boardSize}
           animationDuration={150}
-          arePiecesDraggable={!finished}
+          arePiecesDraggable={!finished && !isViewingHistory}
+          onPieceDragBegin={(_piece: string, sq: Square) => setSelectedSq(sq)}
+          onPieceDragEnd={() => { /* selectedSq cleared by onPieceDrop or onSquareClick */ }}
         />
         {finished && resultLabel && (
           <Box
@@ -511,57 +593,112 @@ export default function LichessLiveBoard({
         materialSide={bottomColor}
       />
 
-      {/* Controls bar */}
-      {!finished && (
-        <Stack
-          direction="row"
-          spacing={1}
-          alignItems="center"
-          justifyContent="center"
-          sx={{ width: boardSize, mt: 1.5 }}
-        >
-          <Tooltip title="Offer draw">
-            <span>
-              <Button
-                variant="text"
-                size="small"
-                disabled={busy !== null}
-                onClick={async () => {
-                  setBusy('draw');
-                  try { await onOfferDraw(); } finally { setBusy(null); }
-                }}
-                sx={{
-                  minWidth: 40,
-                  color: 'text.secondary',
-                  '&:hover': { color: 'text.primary', bgcolor: 'rgba(0,0,0,0.04)' },
-                }}
-              >
-                <Icon icon="mdi:handshake-outline" width={22} />
-              </Button>
-            </span>
-          </Tooltip>
-          <Tooltip title="Resign">
-            <span>
-              <Button
-                variant="text"
-                size="small"
-                disabled={busy !== null}
-                onClick={async () => {
-                  setBusy('resign');
-                  try { await onResign(); } finally { setBusy(null); }
-                }}
-                sx={{
-                  minWidth: 40,
-                  color: 'text.secondary',
-                  '&:hover': { color: 'error.main', bgcolor: 'rgba(239,68,68,0.06)' },
-                }}
-              >
-                <Icon icon="mdi:flag-outline" width={22} />
-              </Button>
-            </span>
-          </Tooltip>
-        </Stack>
-      )}
+      {/* Controls bar: navigation arrows + draw/resign */}
+      <Stack
+        direction="row"
+        spacing={0.5}
+        alignItems="center"
+        justifyContent="center"
+        sx={{ width: boardSize, mt: 1, mb: 0.5 }}
+      >
+        {/* Move navigation arrows */}
+        <Tooltip title="First move">
+          <span>
+            <IconButton
+              size="small"
+              disabled={viewMoveIndex === 0 || (viewMoveIndex === null && totalMoves === 0)}
+              onClick={goToStart}
+              sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+            >
+              <Icon icon="mdi:chevron-double-left" width={22} />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Previous move">
+          <span>
+            <IconButton
+              size="small"
+              disabled={viewMoveIndex === 0 || (viewMoveIndex === null && totalMoves === 0)}
+              onClick={goBack}
+              sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+            >
+              <Icon icon="mdi:chevron-left" width={22} />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Next move">
+          <span>
+            <IconButton
+              size="small"
+              disabled={viewMoveIndex === null}
+              onClick={goForward}
+              sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+            >
+              <Icon icon="mdi:chevron-right" width={22} />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Live position">
+          <span>
+            <IconButton
+              size="small"
+              disabled={viewMoveIndex === null}
+              onClick={goToLive}
+              sx={{
+                color: viewMoveIndex !== null ? '#FF6B35' : 'text.secondary',
+                '&:hover': { color: '#FF6B35' },
+              }}
+            >
+              <Icon icon="mdi:chevron-double-right" width={22} />
+            </IconButton>
+          </span>
+        </Tooltip>
+
+        {/* Spacer */}
+        <Box sx={{ flex: 1 }} />
+
+        {/* Draw + Resign (only during live game) */}
+        {!finished && (
+          <>
+            <Tooltip title="Offer draw">
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={busy !== null}
+                  onClick={async () => {
+                    setBusy('draw');
+                    try { await onOfferDraw(); } finally { setBusy(null); }
+                  }}
+                  sx={{
+                    color: 'text.secondary',
+                    '&:hover': { color: 'text.primary', bgcolor: 'rgba(0,0,0,0.04)' },
+                  }}
+                >
+                  <Icon icon="mdi:handshake-outline" width={20} />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Resign">
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={busy !== null}
+                  onClick={async () => {
+                    setBusy('resign');
+                    try { await onResign(); } finally { setBusy(null); }
+                  }}
+                  sx={{
+                    color: 'text.secondary',
+                    '&:hover': { color: 'error.main', bgcolor: 'rgba(239,68,68,0.06)' },
+                  }}
+                >
+                  <Icon icon="mdi:flag-outline" width={20} />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </>
+        )}
+      </Stack>
     </Stack>
   );
 }

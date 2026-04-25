@@ -22,6 +22,7 @@ Per-agent raw findings (full detail, not duplicated here):
 ## P0 — security / correctness / broken
 
 ### [P0-1] All 31 API routes are unauthenticated; LLM-calling routes are open token sinks
+**Status:** Auth half ✅ shipped — merge `20b56de`, `AUTH_ENFORCED=true` flipped on production 2026-04-25. Rate-limit half (step 4b) outstanding.
 **Source:** Agent C (C1+C2), corroborated by Phase 1.5 §10.4
 **Files:** no `src/middleware.ts`; [src/app/api/enhanced-analysis/route.ts](src/app/api/enhanced-analysis/route.ts), [src/app/api/chat/route.ts](src/app/api/chat/route.ts), [src/app/api/classify-intent/route.ts](src/app/api/classify-intent/route.ts), [src/app/api/feedback/route.ts](src/app/api/feedback/route.ts), [src/app/api/scout/route.ts](src/app/api/scout/route.ts), [src/app/api/maia-predict/route.ts](src/app/api/maia-predict/route.ts)
 **Repro:** `curl -X POST https://chessmasti.com/api/enhanced-analysis -H 'Content-Type: application/json' -d '{"fen":"…"}'` returns a full Claude Sonnet 4 response. No credentials, no rate limit. Anyone with the URL drains the project's Anthropic budget.

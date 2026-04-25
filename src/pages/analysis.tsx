@@ -41,14 +41,30 @@ export default function GameAnalysis() {
   }, [updateBoardRight]);
 
   const { reset: resetBoard } = useChessActions(boardAtom);
-  const { reset: resetGame } = useChessActions(gameAtom);
+  const { reset: resetGame, setPgn: setGamePgn } = useChessActions(gameAtom);
   const [gameEval, setGameEval] = useAtom(gameEvalAtom);
   const setBoardOrientation = useSetAtom(boardOrientationAtom);
 
   const router = useRouter();
-  const { gameId, fen } = router.query;
+  const { gameId, fen, lichessReview } = router.query;
+
+  // Pick up a Lichess game PGN stored by the "Analyze with Coach" button.
+  useEffect(() => {
+    if (lichessReview !== '1') return;
+    const pgn = localStorage.getItem('lichess-review-pgn');
+    if (!pgn) return;
+    localStorage.removeItem('lichess-review-pgn');
+    setGamePgn(pgn);
+    resetBoard();
+    setGameEval(undefined);
+    setBoardOrientation(true);
+    // Remove the query param so refreshing doesn't re-trigger.
+    router.replace('/analysis', undefined, { shallow: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lichessReview]);
 
   useEffect(() => {
+    if (lichessReview === '1') return; // handled above
     if (typeof fen === "string" && fen.trim()) {
       const decodedFen = decodeURIComponent(fen);
       resetBoard({ fen: decodedFen });
@@ -62,7 +78,7 @@ export default function GameAnalysis() {
       setBoardOrientation(true);
       resetGame({ noHeaders: true });
     }
-  }, [gameId, fen, setGameEval, setBoardOrientation, resetBoard, resetGame]);
+  }, [gameId, fen, lichessReview, setGameEval, setBoardOrientation, resetBoard, resetGame]);
 
   return (
     <Grid

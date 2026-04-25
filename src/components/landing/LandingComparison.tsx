@@ -80,7 +80,7 @@ const comparisons = [
   {
     label: "Engine",
     others: "Server-side, usage limits",
-    ours: "In-browser Stockfish, unlimited",
+    ours: "In-browser Stockfish + AI coach, unlimited",
   },
   {
     label: "Privacy",

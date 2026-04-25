@@ -26,6 +26,9 @@ import { useScreenSize } from '@/hooks/useScreenSize';
 import LichessLiveBoard from './LichessLiveBoard';
 
 /* ── Time-control presets ─────────────────────────────────────────────────── */
+// The Lichess Board API restricts seeks to rapid, classical, and
+// correspondence time controls. Bullet/blitz are only allowed for direct
+// challenges, not pool seeks. So we only offer rapid+ here.
 const TIME_CONTROLS: Array<{
   label: string;
   time: number;
@@ -33,16 +36,13 @@ const TIME_CONTROLS: Array<{
   speed: string;
   icon: string;
 }> = [
-  { label: '1+0',  time: 1,  increment: 0,  speed: 'bullet',    icon: 'mdi:bullet' },
-  { label: '2+1',  time: 2,  increment: 1,  speed: 'bullet',    icon: 'mdi:bullet' },
-  { label: '3+0',  time: 3,  increment: 0,  speed: 'blitz',     icon: 'mdi:lightning-bolt' },
-  { label: '3+2',  time: 3,  increment: 2,  speed: 'blitz',     icon: 'mdi:lightning-bolt' },
-  { label: '5+0',  time: 5,  increment: 0,  speed: 'blitz',     icon: 'mdi:lightning-bolt' },
-  { label: '5+3',  time: 5,  increment: 3,  speed: 'blitz',     icon: 'mdi:lightning-bolt' },
-  { label: '10+0', time: 10, increment: 0,  speed: 'rapid',     icon: 'mdi:rabbit' },
-  { label: '10+5', time: 10, increment: 5,  speed: 'rapid',     icon: 'mdi:rabbit' },
-  { label: '15+10',time: 15, increment: 10, speed: 'rapid',     icon: 'mdi:rabbit' },
-  { label: '30+0', time: 30, increment: 0,  speed: 'classical', icon: 'mdi:turtle' },
+  { label: '10+0',  time: 10, increment: 0,  speed: 'rapid',     icon: 'mdi:rabbit' },
+  { label: '10+5',  time: 10, increment: 5,  speed: 'rapid',     icon: 'mdi:rabbit' },
+  { label: '15+10', time: 15, increment: 10, speed: 'rapid',     icon: 'mdi:rabbit' },
+  { label: '15+15', time: 15, increment: 15, speed: 'rapid',     icon: 'mdi:rabbit' },
+  { label: '30+0',  time: 30, increment: 0,  speed: 'classical', icon: 'mdi:turtle' },
+  { label: '30+20', time: 30, increment: 20, speed: 'classical', icon: 'mdi:turtle' },
+  { label: '60+0',  time: 60, increment: 0,  speed: 'classical', icon: 'mdi:turtle' },
 ];
 
 const SPEED_LABEL: Record<string, string> = {
@@ -75,7 +75,7 @@ export default function LichessLivePlay() {
   } = useLichessLiveGame();
 
   // Form state for the lobby.
-  const [tc, setTc] = useState(TIME_CONTROLS[3]); // 3+2 default
+  const [tc, setTc] = useState(TIME_CONTROLS[0]); // 10+0 default
   const [rated, setRated] = useState(true);
   const [color, setColor] = useState<'random' | 'white' | 'black'>('random');
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -102,9 +102,10 @@ export default function LichessLivePlay() {
   const boardSize = useMemo(() => {
     const width = screen.width;
     const height = screen.height;
-    if (typeof window === 'undefined') return 520;
-    if (window.innerWidth < 900) return Math.min(width - 24, height - 200);
-    return Math.min(Math.min(width - 360, 720), height * 0.74);
+    if (typeof window === 'undefined') return 600;
+    if (window.innerWidth < 900) return Math.min(width - 16, height - 160);
+    // Allow up to 85% of viewport height and 800px max for a larger board.
+    return Math.min(Math.min(width - 340, 800), height * 0.85 - 80);
   }, [screen]);
 
   /* ── Not authenticated ─────────────────────────────────────────────────── */
@@ -380,8 +381,38 @@ export default function LichessLivePlay() {
               </Button>
             </Stack>
 
-            {/* Rating stat */}
-            {user?.rating && (
+            {/* Rating stats — show all available, highlight the one matching selected TC */}
+            {user?.perfs && Object.keys(user.perfs).length > 0 ? (
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 2,
+                  flexWrap: 'wrap',
+                  bgcolor: 'rgba(0,0,0,0.025)',
+                  borderRadius: 2.5,
+                  p: 1.5,
+                  px: 2,
+                }}
+              >
+                {(['bullet', 'blitz', 'rapid', 'classical'] as const)
+                  .filter((k) => user.perfs?.[k])
+                  .map((k) => (
+                    <Box
+                      key={k}
+                      sx={{
+                        opacity: k === tc.speed ? 1 : 0.5,
+                        transition: 'opacity 0.15s',
+                      }}
+                    >
+                      <StatItem
+                        label={SPEED_LABEL[k]}
+                        value={String(user.perfs![k])}
+                        icon="mdi:chart-line"
+                      />
+                    </Box>
+                  ))}
+              </Box>
+            ) : user?.rating ? (
               <Box
                 sx={{
                   display: 'flex',
@@ -398,7 +429,7 @@ export default function LichessLivePlay() {
                   icon="mdi:chart-line"
                 />
               </Box>
-            )}
+            ) : null}
           </Stack>
         </Box>
 
@@ -506,6 +537,10 @@ export default function LichessLivePlay() {
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
                 {SPEED_LABEL[tc.speed] ?? tc.speed}
                 {tc.increment > 0 ? ` with ${tc.increment}s increment` : ''}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', opacity: 0.7, fontSize: '0.68rem' }}>
+                The Lichess Board API limits pool seeks to Rapid &amp; Classical.
+                Apps like TakeTakeTake have a formal partnership with Lichess that unlocks faster time controls.
               </Typography>
             </Box>
 

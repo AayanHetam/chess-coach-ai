@@ -115,7 +115,7 @@ export default function LandingHowItWorks() {
           <StepCard
             number={1}
             title="Analyze Your Games"
-            description="Load a PGN or play vs Stockfish. The AI coach explains every move in plain language — not just engine numbers."
+            description="Load a PGN or play a game on Lichess. The AI coach explains every move in plain language — not just engine numbers."
           />
           <StepCard
             number={2}
@@ -130,7 +130,7 @@ export default function LandingHowItWorks() {
           <StepCard
             number={4}
             title="Prepare & Win"
-            description="Combine Stockfish analysis with opponent data to build a targeted prep repertoire. Go into your next game with a plan."
+            description="Combine AI coaching with opponent data to build a targeted prep repertoire. Go into your next game with a plan."
           />
         </Box>
       </Container>

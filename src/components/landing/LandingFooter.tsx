@@ -124,7 +124,7 @@ export default function LandingFooter() {
             variant="caption"
             sx={{ color: "rgba(255,255,255,0.3)", width: { xs: "100%", md: "auto" } }}
           >
-            &copy; {new Date().getFullYear()} Chess Coach AI. Open source & free forever.
+            &copy; {new Date().getFullYear()} Chess Coach AI. Free forever.
           </Typography>
         </Box>
       </Container>

@@ -7,9 +7,9 @@
 //   • gameFull → seeds the chess.js instance from initialFen + UCI move list.
 //   • gameState → replays new moves and updates clocks/status.
 //
-// User moves go out via `onMakeMove(uci)` (returns true if accepted). We
-// optimistically apply locally so the board feels instant; if the server
-// rejects we roll back by refreshing from the latest snapshot.
+// User moves go out via `onMakeMove(uci)` and are applied **optimistically**
+// to the local board so the UI feels instant. When the server echoes the move
+// back via the game stream, the authoritative state takes over.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -100,10 +100,39 @@ export default function LichessLiveBoard({
   const boardHue = useAtomValue(boardHueAtom);
   const [busy, setBusy] = useState<'resign' | 'abort' | 'draw' | null>(null);
 
-  // ── Derive a chess.js instance from the current move list.
-  // Rebuild on every state change — Lichess's UCI move list is authoritative,
-  // so we don't need to maintain a mutable local state machine.
-  const chess = useMemo(() => buildChess(game, state.moves), [game, state.moves]);
+  // ── Derive a chess.js instance from the authoritative server move list.
+  const serverChess = useMemo(() => buildChess(game, state.moves), [game, state.moves]);
+
+  // ── Optimistic move: applied locally so the board updates instantly.
+  const [pendingUci, setPendingUci] = useState<string | null>(null);
+
+  // ── Pre-move: queued while opponent is thinking, auto-fired on our turn.
+  const [premove, setPremove] = useState<{ from: Square; to: Square; promotion?: string } | null>(null);
+  const premoveRef = useRef(premove);
+  premoveRef.current = premove;
+
+  // Clear the pending optimistic move once the server catches up.
+  // Also attempt to execute any queued premove.
+  useEffect(() => {
+    setPendingUci(null);
+    setSelectedSq(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.moves]);
+
+  // Build the display chess instance (server + pending optimistic move).
+  const chess = useMemo(() => {
+    if (!pendingUci) return serverChess;
+    const clone = new Chess(serverChess.fen());
+    try {
+      const from = pendingUci.slice(0, 2);
+      const to = pendingUci.slice(2, 4);
+      const promotion = pendingUci.length > 4 ? pendingUci[4] : undefined;
+      clone.move({ from, to, promotion });
+    } catch {
+      return serverChess;
+    }
+    return clone;
+  }, [serverChess, pendingUci]);
 
   // Track the timestamp at which we received the current state so the clocks
   // know how much to interpolate by. Reset on every state change.
@@ -112,49 +141,189 @@ export default function LichessLiveBoard({
     serverAtRef.current = Date.now();
   }, [state]);
 
+  // ── Auto-fire premove when it becomes our turn ──────────────────────────
+  // Runs after serverChess is rebuilt from the new state.moves.
+  const submitMoveRef = useRef<((uci: string) => Promise<boolean>) | null>(null);
+
+  useEffect(() => {
+    const pm = premoveRef.current;
+    if (!pm) return;
+    if (state.status !== 'started') { setPremove(null); return; }
+    const myTurn = serverChess.turn() === (yourColor === 'white' ? 'w' : 'b');
+    if (!myTurn) return;
+
+    // Validate premove against the NEW position.
+    const legal = serverChess.moves({ square: pm.from, verbose: true });
+    const match = legal.find((m) => m.to === pm.to);
+    setPremove(null);
+    if (match) {
+      const promo =
+        match.piece === 'p' && (pm.to[1] === '8' || pm.to[1] === '1')
+          ? (pm.promotion ?? 'q')
+          : undefined;
+      const uci = `${pm.from}${pm.to}${promo ?? ''}`;
+      submitMoveRef.current?.(uci);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.moves]);
+
+  // ── Selected square + legal move highlights ──────────────────────────────
+  const [selectedSq, setSelectedSq] = useState<Square | null>(null);
+
+  const legalMovesForSelected = useMemo(() => {
+    if (!selectedSq) return [];
+    return serverChess.moves({ square: selectedSq, verbose: true });
+  }, [serverChess, selectedSq]);
+
+  const highlightStyles = useMemo(() => {
+    const styles: Record<string, React.CSSProperties> = {};
+
+    // Premove highlights (blue)
+    if (premove) {
+      styles[premove.from] = { backgroundColor: 'rgba(0, 150, 255, 0.45)' };
+      styles[premove.to] = { backgroundColor: 'rgba(0, 150, 255, 0.45)' };
+    }
+
+    // Selected piece + legal move dots (orange — override premove if both)
+    if (selectedSq) {
+      styles[selectedSq] = { backgroundColor: 'rgba(255, 107, 53, 0.35)' };
+    }
+    for (const m of legalMovesForSelected) {
+      const isCapture = m.captured || m.flags.includes('e');
+      styles[m.to as string] = isCapture
+        ? {
+            background: 'radial-gradient(transparent 50%, rgba(255,107,53,0.45) 50%)',
+            borderRadius: '50%',
+          }
+        : {
+            background: 'radial-gradient(rgba(255,107,53,0.4) 22%, transparent 22%)',
+            borderRadius: '50%',
+          };
+    }
+    return styles;
+  }, [selectedSq, legalMovesForSelected, premove]);
+
   // ── Move validation & submission ─────────────────────────────────────────
+  const finished = state.status !== 'started' && state.status !== 'created';
+
+  // Prevent moves while we're waiting for the server to confirm our optimistic move.
   const isYourTurn =
-    state.status === 'started' && chess.turn() === (yourColor === 'white' ? 'w' : 'b');
+    state.status === 'started' &&
+    !pendingUci &&
+    serverChess.turn() === (yourColor === 'white' ? 'w' : 'b');
 
   const canPromotePiece = useCallback(
     (from: Square, to: Square): boolean => {
-      const moves = chess.moves({ square: from, verbose: true });
+      const moves = serverChess.moves({ square: from, verbose: true });
       return moves.some(
         (m) => m.to === to && m.piece === 'p' && (to[1] === '8' || to[1] === '1')
       );
     },
-    [chess]
+    [serverChess]
   );
 
   const submitMove = useCallback(
     async (uci: string): Promise<boolean> => {
+      // Apply optimistic update immediately.
+      setPendingUci(uci);
+      setPremove(null);
+      setSelectedSq(null);
       const ok = await onMakeMove(uci);
+      if (!ok) {
+        // Server rejected — roll back optimistic move.
+        setPendingUci(null);
+      }
       return ok;
     },
     [onMakeMove]
   );
 
+  // Keep ref in sync so the premove effect can call submitMove.
+  useEffect(() => { submitMoveRef.current = submitMove; }, [submitMove]);
+
+  // Helper: does a square have one of our pieces?
+  const isOurPiece = useCallback(
+    (sq: Square): boolean => {
+      const p = serverChess.get(sq as Parameters<typeof serverChess.get>[0]);
+      if (!p) return false;
+      return yourColor === 'white' ? p.color === 'w' : p.color === 'b';
+    },
+    [serverChess, yourColor]
+  );
+
   const onPieceDrop = useCallback(
     (source: Square, target: Square, piece: string): boolean => {
-      if (!isYourTurn) return false;
+      if (finished) return false;
 
-      // Quick local legality check before hitting the network.
-      const legalMoves = chess.moves({ square: source, verbose: true });
-      const candidate = legalMoves.find((m) => m.to === target);
-      if (!candidate) return false;
+      // ── Your turn → real move
+      if (isYourTurn) {
+        const legalMoves = serverChess.moves({ square: source, verbose: true });
+        const candidate = legalMoves.find((m) => m.to === target);
+        if (!candidate) return false;
 
-      // Auto-queen for drag promotions; click-to-promote dialog handles other choices.
-      const promotion =
-        candidate.piece === 'p' && (target[1] === '8' || target[1] === '1')
-          ? (piece[1]?.toLowerCase() ?? 'q')
-          : undefined;
+        const promotion =
+          candidate.piece === 'p' && (target[1] === '8' || target[1] === '1')
+            ? (piece[1]?.toLowerCase() ?? 'q')
+            : undefined;
 
-      const uci = `${source}${target}${promotion ?? ''}`;
-      // Fire-and-forget; the stream will reflect the move back.
-      void submitMove(uci);
-      return true;
+        void submitMove(`${source}${target}${promotion ?? ''}`);
+        return true;
+      }
+
+      // ── Opponent's turn → queue premove (always auto-queen)
+      if (isOurPiece(source) && source !== target) {
+        setPremove({ from: source, to: target, promotion: 'q' });
+        setSelectedSq(null);
+        return true; // tell react-chessboard the drop was accepted
+      }
+      return false;
     },
-    [chess, isYourTurn, submitMove]
+    [serverChess, isYourTurn, finished, submitMove, isOurPiece]
+  );
+
+  // Click-to-move / click-to-premove
+  const onSquareClick = useCallback(
+    (square: Square) => {
+      if (finished) { setSelectedSq(null); return; }
+
+      // ── Your turn → normal click-to-move
+      if (isYourTurn) {
+        if (selectedSq) {
+          const legalMoves = serverChess.moves({ square: selectedSq, verbose: true });
+          const candidate = legalMoves.find((m) => m.to === square);
+          if (candidate) {
+            const promotion =
+              candidate.piece === 'p' && (square[1] === '8' || square[1] === '1')
+                ? 'q'
+                : undefined;
+            void submitMove(`${selectedSq}${square}${promotion ?? ''}`);
+            return;
+          }
+        }
+        // Select our piece
+        if (isOurPiece(square)) {
+          setSelectedSq(square === selectedSq ? null : square);
+        } else {
+          setSelectedSq(null);
+        }
+        return;
+      }
+
+      // ── Opponent's turn → click-to-premove
+      if (selectedSq && isOurPiece(selectedSq) && square !== selectedSq) {
+        setPremove({ from: selectedSq, to: square, promotion: 'q' });
+        setSelectedSq(null);
+        return;
+      }
+      if (isOurPiece(square)) {
+        setPremove(null); // cancel old premove when selecting a new piece
+        setSelectedSq(square === selectedSq ? null : square);
+      } else {
+        setSelectedSq(null);
+        setPremove(null);
+      }
+    },
+    [isYourTurn, finished, selectedSq, serverChess, submitMove, isOurPiece]
   );
 
   const onPromotionPieceSelect = useCallback(
@@ -196,7 +365,6 @@ export default function LichessLiveBoard({
   );
 
   // ── Status helpers ────────────────────────────────────────────────────────
-  const finished = state.status !== 'started' && state.status !== 'created';
   const resultLabel = finished ? describeResult(state, yourColor, game) : null;
   const canAbort = !finished && state.moves.split(/\s+/).filter(Boolean).length < 2;
   void canPromotePiece;
@@ -221,6 +389,8 @@ export default function LichessLiveBoard({
         clockActive={topActive}
         serverAt={serverAtRef.current}
         isYou={false}
+        fen={chess.fen()}
+        materialSide={topColor}
       />
 
       {/* Board */}
@@ -235,12 +405,14 @@ export default function LichessLiveBoard({
           position={chess.fen()}
           boardOrientation={yourColor}
           onPieceDrop={onPieceDrop}
+          onSquareClick={onSquareClick}
           onPromotionPieceSelect={onPromotionPieceSelect}
           customBoardStyle={customBoardStyle}
           customPieces={customPieces}
+          customSquareStyles={highlightStyles}
           boardWidth={boardSize}
-          animationDuration={180}
-          arePiecesDraggable={isYourTurn}
+          animationDuration={150}
+          arePiecesDraggable={!finished}
         />
         {finished && resultLabel && (
           <Box
@@ -296,11 +468,15 @@ export default function LichessLiveBoard({
               <Button
                 variant="outlined"
                 size="small"
-                component="a"
-                href={`https://lichess.org/${game.id}`}
-                target="_blank"
-                rel="noreferrer"
-                startIcon={<Icon icon="mdi:open-in-new" />}
+                onClick={() => {
+                  // Store the game PGN so the analysis page picks it up.
+                  const pgn = chess.pgn({ maxWidth: 80 });
+                  if (pgn) {
+                    localStorage.setItem('lichess-review-pgn', pgn);
+                  }
+                  window.location.href = '/analysis?lichessReview=1';
+                }}
+                startIcon={<Icon icon="mdi:chart-line" />}
                 sx={{
                   textTransform: 'none',
                   fontWeight: 700,
@@ -311,7 +487,7 @@ export default function LichessLiveBoard({
                   '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
                 }}
               >
-                Review
+                Analyze with Coach
               </Button>
             </Stack>
           </Box>
@@ -331,6 +507,8 @@ export default function LichessLiveBoard({
           setBusy('abort');
           try { await onAbort(); } finally { setBusy(null); }
         }}
+        fen={chess.fen()}
+        materialSide={bottomColor}
       />
 
       {/* Controls bar */}
@@ -390,6 +568,73 @@ export default function LichessLiveBoard({
 
 /* ── Player row ────────────────────────────────────────────────────────────── */
 
+/* ── Material helpers ──────────────────────────────────────────────────────── */
+const PIECE_VALUES: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+const PIECE_UNICODE: Record<string, string> = {
+  wp: '♙', wn: '♘', wb: '♗', wr: '♖', wq: '♕',
+  bp: '♟', bn: '♞', bb: '♝', br: '♜', bq: '♛',
+};
+const STARTING_COUNTS: Record<string, number> = { p: 8, n: 2, b: 2, r: 2, q: 1 };
+
+function computeMaterial(fen: string): {
+  white: Record<string, number>;
+  black: Record<string, number>;
+  whiteScore: number;
+  blackScore: number;
+} {
+  const board = fen.split(' ')[0];
+  const wCounts: Record<string, number> = { p: 0, n: 0, b: 0, r: 0, q: 0 };
+  const bCounts: Record<string, number> = { p: 0, n: 0, b: 0, r: 0, q: 0 };
+  for (const ch of board) {
+    const lower = ch.toLowerCase();
+    if (lower in wCounts) {
+      if (ch === ch.toUpperCase()) wCounts[lower]++;
+      else bCounts[lower]++;
+    }
+  }
+  // Captured = starting - current
+  const wCaptured: Record<string, number> = {};
+  const bCaptured: Record<string, number> = {};
+  let whiteScore = 0;
+  let blackScore = 0;
+  for (const p of Object.keys(STARTING_COUNTS)) {
+    const wLost = STARTING_COUNTS[p] - wCounts[p];
+    const bLost = STARTING_COUNTS[p] - bCounts[p];
+    if (bLost > 0) wCaptured[p] = bLost; // white captured black's pieces
+    if (wLost > 0) bCaptured[p] = wLost;
+    whiteScore += wCounts[p] * PIECE_VALUES[p];
+    blackScore += bCounts[p] * PIECE_VALUES[p];
+  }
+  return { white: wCaptured, black: bCaptured, whiteScore, blackScore };
+}
+
+function CapturedPieces({ fen, side }: { fen: string; side: 'white' | 'black' }) {
+  const { white, black, whiteScore, blackScore } = useMemo(() => computeMaterial(fen), [fen]);
+  const captured = side === 'white' ? white : black;
+  const advantage = side === 'white' ? whiteScore - blackScore : blackScore - whiteScore;
+  const order = ['q', 'r', 'b', 'n', 'p'];
+  const opponentColor = side === 'white' ? 'b' : 'w';
+
+  return (
+    <Stack direction="row" alignItems="center" spacing={0} sx={{ minHeight: 20, flexWrap: 'wrap' }}>
+      {order.map((p) => {
+        const count = captured[p] ?? 0;
+        if (count === 0) return null;
+        return (
+          <Typography key={p} component="span" sx={{ fontSize: '0.95rem', lineHeight: 1, opacity: 0.85, letterSpacing: '-1px' }}>
+            {Array.from({ length: count }, () => PIECE_UNICODE[`${opponentColor}${p}`]).join('')}
+          </Typography>
+        );
+      })}
+      {advantage > 0 && (
+        <Typography component="span" sx={{ fontSize: '0.72rem', fontWeight: 700, color: 'text.secondary', ml: 0.5 }}>
+          +{advantage}
+        </Typography>
+      )}
+    </Stack>
+  );
+}
+
 function PlayerRow({
   player,
   color,
@@ -399,6 +644,8 @@ function PlayerRow({
   isYou,
   canAbort,
   onAbort,
+  fen,
+  materialSide,
 }: {
   player?: LichessPlayer;
   color: 'white' | 'black';
@@ -408,13 +655,15 @@ function PlayerRow({
   isYou: boolean;
   canAbort?: boolean;
   onAbort?: () => void;
+  fen: string;
+  materialSide: 'white' | 'black';
 }) {
   return (
     <Stack
       direction="row"
       alignItems="center"
       justifyContent="space-between"
-      sx={{ width: '100%', maxWidth: 720, px: 0.5, py: 1 }}
+      sx={{ width: '100%', maxWidth: 720, px: 0.5, py: 0.75 }}
     >
       <Stack direction="row" spacing={1.5} alignItems="center">
         {/* Avatar */}
@@ -437,9 +686,12 @@ function PlayerRow({
           {(player?.name ?? '?')[0].toUpperCase()}
         </Box>
         <Box>
-          <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', lineHeight: 1.1 }}>
-            {playerLabel(player, 'Opponent')}
-          </Typography>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', lineHeight: 1.1 }}>
+              {playerLabel(player, 'Opponent')}
+            </Typography>
+          </Stack>
+          <CapturedPieces fen={fen} side={materialSide} />
           {canAbort && onAbort && (
             <Typography
               component="span"

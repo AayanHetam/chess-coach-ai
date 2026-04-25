@@ -108,7 +108,7 @@ export default function LandingCTA() {
             variant="outlined"
             size="large"
             onClick={() => router.push("/play")}
-            startIcon={<Icon icon="streamline:chess-pawn" />}
+            startIcon={<Icon icon="simple-icons:lichess" />}
             sx={{
               px: 5,
               py: 1.8,
@@ -126,7 +126,7 @@ export default function LandingCTA() {
               transition: "all 0.3s ease",
             }}
           >
-            Play vs Stockfish
+            Play on Lichess
           </Button>
           <Button
             variant="outlined"

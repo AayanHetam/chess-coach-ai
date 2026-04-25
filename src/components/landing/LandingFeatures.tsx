@@ -99,10 +99,10 @@ const features = [
       "Multiple Stockfish versions run directly in your browser. Get real-time evaluation bars, engine lines, and move classifications — no server required, completely private.",
   },
   {
-    icon: "mdi:gamepad-variant-outline",
-    title: "Play Against the Engine",
+    icon: "simple-icons:lichess",
+    title: "Play on Lichess",
     description:
-      "Challenge Stockfish at any difficulty level. After the game, instantly jump into AI-powered analysis to understand what went right, what went wrong, and how to improve.",
+      "Play real opponents on Lichess right from ChessMasti. Pre-moves, material balance, and live clocks — then instantly analyze your game with the AI coach.",
   },
   {
     icon: "mdi:puzzle",
@@ -124,9 +124,9 @@ const features = [
   },
   {
     icon: "mdi:shield-check-outline",
-    title: "100% Private & Free",
+    title: "100% Free",
     description:
-      "Everything runs in your browser. No account needed, no data sent to servers, no subscriptions. Your games and analysis stay on your device.",
+      "No subscriptions, no paywalls. Stockfish analysis runs directly in your browser, keeping your games and analysis completely private.",
   },
 ];
 

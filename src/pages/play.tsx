@@ -1,25 +1,14 @@
 import { PageTitle } from "@/components/pageTitle";
-import StockfishPlay from "@/sections/play/StockfishPlay";
 import LichessLivePlay from "@/sections/play/lichess/LichessLivePlay";
 import ChessComPlay from "@/sections/play/chesscom/ChessComPlay";
-import { Box, Chip, Stack, Tab, Tabs } from "@mui/material";
+import { Box, Stack, Tab, Tabs } from "@mui/material";
 import { Icon } from "@iconify/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-type PlayMode = "stockfish" | "lichess" | "chesscom";
+type PlayMode = "lichess" | "chesscom";
 
 export default function Play() {
-  const [mode, setMode] = useState<PlayMode>("stockfish");
-
-  // If we came back from the Lichess OAuth callback (?lichess=connected)
-  // auto-switch to the Lichess tab so the user sees their newly-connected
-  // account immediately. Same treatment for the error query so they see the
-  // banner without having to switch manually.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const q = new URL(window.location.href).searchParams.get("lichess");
-    if (q) setMode("lichess");
-  }, []);
+  const [mode, setMode] = useState<PlayMode>("lichess");
 
   return (
     <Box sx={{ width: "100%", maxWidth: 1280, mx: "auto", px: { xs: 1, md: 2 } }}>
@@ -52,32 +41,11 @@ export default function Play() {
         }}
       >
         <Tab
-          value="stockfish"
-          label={
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Icon icon="mdi:robot" width={18} />
-              <span>vs Stockfish</span>
-            </Stack>
-          }
-        />
-        <Tab
           value="lichess"
           label={
             <Stack direction="row" spacing={1} alignItems="center">
               <Icon icon="simple-icons:lichess" width={18} />
-              <span>Live on Lichess</span>
-              <Chip
-                label="NEW"
-                size="small"
-                sx={{
-                  height: 16,
-                  fontSize: "0.58rem",
-                  fontWeight: 800,
-                  letterSpacing: 1,
-                  bgcolor: "rgba(255,107,53,0.15)",
-                  color: "#FF6B35",
-                }}
-              />
+              <span>Play on Lichess</span>
             </Stack>
           }
         />
@@ -92,7 +60,6 @@ export default function Play() {
         />
       </Tabs>
 
-      {mode === "stockfish" && <StockfishPlay />}
       {mode === "lichess" && (
         <Box sx={{ maxWidth: 1100, mx: "auto" }}>
           <LichessLivePlay />

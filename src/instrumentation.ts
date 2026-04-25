@@ -14,6 +14,12 @@
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+
+  // Validate env at boot — throws on missing ANTHROPIC_API_KEY etc. so the
+  // worker fails fast rather than silently 500ing on the first AI request.
+  const { parseEnv } = await import("./env");
+  parseEnv();
+
   if (process.env.SKIP_RETRIEVAL_SELFTEST === "true") return;
 
   // Defer imports so instrumentation does not drag DB drivers into edge bundles

@@ -228,6 +228,11 @@ Lichess game-action routes (`/api/lichess/game/[gameId]/{move,abort,resign,draw,
 **File:** [src/app/api/keep-maia-alive/route.ts:21-25](src/app/api/keep-maia-alive/route.ts#L21-L25)
 **Fix:** fail-closed when `CRON_SECRET` is missing — return 503, not silently allow.
 
+#### [P2-7a] Duplicate / invalid OpenAI API key env vars in Vercel
+**Where:** Vercel Dashboard → Environment Variables (Preview + Production)
+**Problem:** Two entries exist — `OpenAI_API_Key` (mixed case) and `OPENAI_API_KEY` (all caps). Both are flagged "Needs Attention" with empty/invalid values.
+**Fix:** keep one canonical `OPENAI_API_KEY` with the correct secret; delete the `OpenAI_API_Key` duplicate. Verify the code only references `OPENAI_API_KEY`.
+
 ### Frontend (Agent B — full list in [agent-b.md](audit/findings/agent-b.md))
 
 - **[P2-8]** `react-syntax-highlighter` eagerly loaded inside `AICoachChat` — make lazy via React.lazy

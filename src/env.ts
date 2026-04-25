@@ -23,3 +23,25 @@ export function parseEnv(source: NodeJS.ProcessEnv = process.env) {
   }
   return result.data;
 }
+
+/**
+ * Auth-related env. All optional so the merge is a non-event:
+ * - AUTH_ENFORCED=false (default) → routes accept all requests, same as today.
+ * - AUTH_ENFORCED=true + valid Firebase Admin creds → routes require Bearer token.
+ * - AUTH_ENFORCED=true + missing/invalid creds → routes 503 with a loud log
+ *   (catches "forgot to wire the secret" before it can become "front door open").
+ *
+ * Read via a function (not a top-level const) so tests can flip env vars
+ * between cases without fighting the module cache.
+ */
+export function getAuthEnv() {
+  return {
+    enforced: process.env.AUTH_ENFORCED === "true",
+    firebase: {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      // Vercel UI mangles \n in env vars; accept literal \n and unescape.
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    },
+  };
+}

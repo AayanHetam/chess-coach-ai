@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { PlayerFeedbackData, FeedbackRequest } from "@/types/feedback";
+import { getAuthHeader } from "@/lib/auth/getAuthHeader";
 
 interface Props {
   onFeedbackGenerated: (data: PlayerFeedbackData) => void;
@@ -51,6 +52,7 @@ export default function PlayerFeedbackForm({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(await getAuthHeader()),
         },
         body: JSON.stringify(request),
       });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ScoutGame, Termination, TimeClass } from '@/types/scout';
 import { scoutSchema, validateRequest } from '@/lib/validation/schemas';
+import { requireAuth } from '@/lib/auth/requireAuth';
 
 export const runtime = 'nodejs';
 
@@ -51,6 +52,8 @@ type ScoutResponsePayload = {
 };
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (!auth.ok) return auth.response;
   try {
     const body = await req.json();
 

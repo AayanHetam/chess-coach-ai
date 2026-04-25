@@ -859,7 +859,6 @@ export async function POST(request: NextRequest) {
       moveHistory,
       fen,
       position,
-      systemPrompt,
       gameEval,
       playerColor,
       username,
@@ -867,6 +866,9 @@ export async function POST(request: NextRequest) {
       boardOrientation,
       conversationHistory,
     } = parsed.data;
+    // AUDIT-PHASE-1.4 (TEMP HARDENING): client-supplied `systemPrompt` is no
+    // longer accepted — schema has been tightened. Server is the sole source
+    // of the system prompt for this endpoint. Phase 3 ships the proper fix.
     const messageText = userMessage || message || "";
 
     log.info("Enhanced analysis started", {
@@ -899,18 +901,17 @@ export async function POST(request: NextRequest) {
       gameContext = "No game data or position provided. The user may be asking a general chess question.";
     }
 
-    // Build the system prompt for Claude
-    const claudeSystemPrompt =
-      systemPrompt ||
-      [
-        "You are an expert chess coach AI. Analyze games thoroughly using Stockfish evaluation data when available.",
-        "When the context includes a PEDAGOGICAL CONCEPTS block, you MUST:",
-        "  (a) name the concept explicitly using its human-readable name (e.g., \"this is a back-rank mate\"),",
-        "  (b) teach the principle behind it using the provided definition, adapted to the student's level,",
-        "  (c) ground the explanation in the detector evidence and the actual move played.",
-        "If no concept layer is provided, fall back to explaining tactical themes from the VERIFIED MOTIFS tags.",
-        "Be specific — cite exact move numbers and variations.",
-      ].join("\n");
+    // Build the system prompt for Claude. Server-controlled only — see
+    // AUDIT-PHASE-1.4 hardening note above.
+    const claudeSystemPrompt = [
+      "You are an expert chess coach AI. Analyze games thoroughly using Stockfish evaluation data when available.",
+      "When the context includes a PEDAGOGICAL CONCEPTS block, you MUST:",
+      "  (a) name the concept explicitly using its human-readable name (e.g., \"this is a back-rank mate\"),",
+      "  (b) teach the principle behind it using the provided definition, adapted to the student's level,",
+      "  (c) ground the explanation in the detector evidence and the actual move played.",
+      "If no concept layer is provided, fall back to explaining tactical themes from the VERIFIED MOTIFS tags.",
+      "Be specific — cite exact move numbers and variations.",
+    ].join("\n");
 
     // Build the messages for Claude (user/assistant turns only — system is separate)
     const claudeMessages: Array<{ role: "user" | "assistant"; content: string }> = [];

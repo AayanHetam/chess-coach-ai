@@ -30,6 +30,8 @@
     "build": "SKIP_ENV_VALIDATION=true next build",
     "start": "next start",
     "lint": "next lint && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "deploy": "npm run lint && npm run build && cdk deploy"
   },
   "dependencies": {
@@ -64,6 +66,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.2",
+    "@playwright/test": "^1.59.1",
     "@types/chess.js": "^0.10.1",
     "@types/node": "22.10.5",
     "@types/react": "18.3.13",
@@ -71,13 +75,15 @@
     "@types/tinycolor2": "^1.4.6",
     "@typescript-eslint/eslint-plugin": "^8.18.1",
     "@typescript-eslint/parser": "^8.18.1",
+    "axe-core": "^4.11.3",
     "eslint": "8.57.1",
     "eslint-config-next": "^15.2.4",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-prettier": "^5.2.1",
     "prettier": "^3.4.2",
-    "typescript": "5.7.2"
+    "typescript": "5.7.2",
+    "vitest": "^4.1.5"
   },
   "overrides": {
     "@mui/material": "^7.1.1",

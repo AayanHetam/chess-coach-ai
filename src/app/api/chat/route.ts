@@ -6,6 +6,7 @@ import {
 import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { chatSchema, validateRequest } from "@/lib/validation/schemas";
 import { callLLM, LLMError, type LLMMessage } from "@/lib/llmProvider";
+import { requireAuth } from "@/lib/auth/requireAuth";
 
 /**
  * Lightweight chat endpoint for follow-up messages.
@@ -18,6 +19,8 @@ import { callLLM, LLMError, type LLMMessage } from "@/lib/llmProvider";
  * 2. **Without contextId** (fallback): Plain passthrough to OpenAI, same as before.
  */
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   try {
     const body = await request.json();
 

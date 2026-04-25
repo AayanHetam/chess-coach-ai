@@ -64,3 +64,13 @@ Before hitting an endpoint that depends on a service listed as ❌ or ⚠️, sa
 ## Tests & CI
 
 **There is no test harness and no CI** as of 2026-04-23. The 30+ `test-*.js` files at the repo root are ad-hoc scripts, not a suite. Phase 3 of the audit adds Vitest + Playwright Test + a GitHub Actions workflow running `tsc --noEmit` and the new suites. Until then, regressions are on the eyeball.
+
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- For cross-module "how does X relate to Y" questions, prefer `graphify query "<question>"`, `graphify path "<A>" "<B>"`, or `graphify explain "<concept>"` over grep — these traverse the graph's EXTRACTED + INFERRED edges instead of scanning files
+- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)

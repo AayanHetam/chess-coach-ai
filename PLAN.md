@@ -31,7 +31,7 @@ Per-agent raw findings (full detail, not duplicated here):
 
 Lichess game-action routes (`/api/lichess/game/[gameId]/{move,abort,resign,draw,stream}`) are already cookie-gated and Lichess enforces game ownership upstream — leave them alone.
 **Blast:** high (financial security; no data exfil)
-**Test:** unauthenticated POST → 401; 12th request in 60s → 429 with `Retry-After`. Phase 1.4 hardening's TODO comment in [src/app/api/enhanced-analysis/route.ts:869](src/app/api/enhanced-analysis/route.ts#L869) gets retired here.
+**Test:** unauthenticated POST → 401; request count exceeding the per-route limit specified in [agent-c.md §C2](audit/findings/agent-c.md) → 429 with `Retry-After`. Phase 1.4 hardening's TODO comment in [src/app/api/enhanced-analysis/route.ts:869](src/app/api/enhanced-analysis/route.ts#L869) gets retired here.
 
 ### [P0-2] Viewport meta blocks pinch-to-zoom — WCAG 1.4.4 violation, every mobile user
 **Source:** Agent B (B2 P0, also B1 P1)
@@ -285,10 +285,11 @@ Order is by dependency, not priority — some P0/P1 work needs scaffolding (test
 1. **Test scaffolding first.** `npm i -D vitest @playwright/test @axe-core/playwright axe-core`. Land Vitest config + the smallest possible test (D5 proposes the Phase 1.4 systemPrompt-rejection regression — perfect first test). Add minimal `.github/workflows/ci.yml` running `tsc --noEmit` + `vitest run`. **Without this, every subsequent fix ships untested.**
 2. **P1-16 build gates.** Drop the three bypasses + fix `.eslintrc.json`. tsc + lint pass clean today; this just stops them from silently regressing tomorrow.
 3. **P1-17 env validator.** Then drop `SKIP_ENV_VALIDATION=true` from build.
-4. **P0-1 auth + rate limit.** Two PRs, both with regression tests. This is the highest-financial-risk item.
+4. **P0-1 auth + rate limit.** Two PRs, both with regression tests. Auth PR lands first; rate-limit PR second — the rate limiter needs a per-user identity to limit on. This is the highest-financial-risk item.
 5. **P0-2 viewport fix.** One-line; can ship anytime after step 1.
 6. **P1-1 health/anthropic model ID.** One-character fix, ship immediately after step 1.
-7. **P1-2 delete legacy `enhancedOpenAIService` tree.** After Agent A's eval is locked in (per Agent D's note — A's coaching eval runs against `callLLM`, not the legacy path, so this should be safe). Confirm with one final `grep -r "EnhancedOpenAIService"` before merge.
+7. **P1-2 delete legacy `enhancedOpenAIService` tree.** After the eval harness is in place from step 1 — the prompt change at step 8 is independent of this deletion. A's coaching eval runs against `callLLM`, not the legacy path, so this is safe. Confirm with one final `grep -r "EnhancedOpenAIService"` before merge.
+   - **Step 7.5 — P2-3 stamp `PROMPT_VERSION` on every `callLLM` call.** Promoted out of the polish bucket because step 8's before/after eval depends on it — without version stamps in the log payload, `analysisContext`, and API response body, eval results can't reliably be tied to the prompt that produced them. Bump from "2.0" → "2.1" happens in step 8; this step just wires the field.
 8. **P1-4 prompt change + P1-5 endgame few-shots.** Re-run Agent A's 5-fixture eval BOTH before and after — only ship if discipline AND principle scores improve.
 9. **P1-3 move-replay error surfacing.** Touches 5 sites; bundle as one PR.
 10. **P1-8 / P1-9 / P1-10 / P1-11 a11y.** Group as one a11y sweep; install Playwright browsers and `@axe-core/playwright` first; add automated axe scan to CI.
@@ -318,3 +319,23 @@ Order is by dependency, not priority — some P0/P1 work needs scaffolding (test
 | AI eval tone consistency ≥ 85% | 100% (2.0/2.0 avg) | sustained |
 | All chess edge-case tests pass | no test harness | harness + 100% pass |
 | CI green on the new branch | no CI | CI exists + green |
+
+---
+
+## What's still undecided
+
+These are open questions that need an answer before the work that depends on them. Tracked here (not in conversation memory) so they survive the next session.
+
+### Source of the n≥30 eval fixtures (decide before step 8)
+
+The done-criteria table says "AI eval ≥ 90% factual correctness sustained on n≥30" but doesn't say where the 30 fixtures come from. Pick from:
+
+1. **Agent A generates them.** Re-run Agent A with a "produce 30 diverse fixtures spanning openings/middlegame/endgame/tactics, with expected coaching points" prompt; review and curate down to a stable set.
+2. **Hand-write them.** Author writes 30 positions plus expected coaching rubric; highest quality, highest time cost.
+3. **Sample from real games.** Pull positions from a corpus (Lichess studies, the project's own user-game data, or a public PGN database); run Stockfish + manual rubric to label them.
+
+A hybrid is also fine (e.g., 5 hand-written canon cases + 25 sampled). Decision needed before step 8 starts; the choice affects how comparable Phase 3 evals are to the Phase 2 5-fixture baseline (Phase 2 fixtures are hand-written and live in `audit/findings/agent-a-eval/`).
+
+### Post-Phase-3 fate of `audit/` and `PLAN.md`
+
+Once Phase 3 closes, this directory and file are historical context, not load-bearing. Proposal: move to `docs/historical/audit-20260423/` so the repo root stays focused on the current state of the codebase, with a single line in CLAUDE.md or README pointing to the archive. Decide at Phase 3 closure, not before — the files need to stay at their current paths while the execution order is being followed.

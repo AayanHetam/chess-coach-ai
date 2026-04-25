@@ -322,7 +322,7 @@ function mmrSelect(
   const getVec = (fen: string) => {
     if (vectorCache.has(fen)) return vectorCache.get(fen)!;
     let v: number[] | null = null;
-    try { v = featuresToVector(extractFENFeatures(fen)); } catch {}
+    try { v = featuresToVector(extractFENFeatures(fen)); } catch { /* invalid FEN — leave v null, caller treats null as no-vector */ }
     vectorCache.set(fen, v);
     return v;
   };

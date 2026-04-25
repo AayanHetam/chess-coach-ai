@@ -24,6 +24,7 @@ export function ndjsonToSseStream(
       }, 15_000);
 
       try {
+        // eslint-disable-next-line no-constant-condition -- stream loop: exits via `break` when reader signals done
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;

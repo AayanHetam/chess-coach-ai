@@ -177,7 +177,7 @@ export default function Openings() {
               setDrillMoveIndex(1);
               setLastMoveSquares({ from: result.from as Square, to: result.to as Square });
             }
-          } catch {}
+          } catch { /* chess.js move() can throw on invalid SAN — keep current state */ }
         }, 400);
       }
     },
@@ -216,7 +216,7 @@ export default function Openings() {
               setDrillStatus("complete");
             }
           }
-        } catch {}
+        } catch { /* chess.js move() can throw on invalid SAN — keep current state */ }
       }, 400);
     },
     []
@@ -280,7 +280,7 @@ export default function Openings() {
           }
           return true;
         }
-      } catch {}
+      } catch { /* chess.js move() can throw on invalid SAN — fall through to wrong-move handling */ }
 
       // Wrong move
       setWrongSquare(to);

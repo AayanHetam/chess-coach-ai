@@ -149,7 +149,7 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
         const promo = fm.length > 4 ? fm[4] : undefined;
         try {
           newGame.move({ from, to, promotion: promo });
-        } catch {}
+        } catch { /* chess.js move() can throw on invalid SAN — keep current state */ }
       }
 
       setGame(newGame);
@@ -225,7 +225,7 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
           g.move({ from, to, promotion: expected.promotion });
           setGame(g);
           setLastMoveSquares({ from, to });
-        } catch {}
+        } catch { /* chess.js move() can throw on invalid SAN — keep current state */ }
 
         setTimeout(() => advanceToNext(), 1200);
         return true;

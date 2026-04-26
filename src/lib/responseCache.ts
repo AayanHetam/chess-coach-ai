@@ -5,6 +5,7 @@
  */
 
 import { createHash } from "crypto";
+import { PROMPT_VERSION } from "@/lib/prompts/coachChatPrompt";
 
 interface CacheEntry {
   response: string;
@@ -38,7 +39,10 @@ export function generateCacheKey(
   const fenParts = fen.split(" ");
   const normalizedFen = fenParts.slice(0, 4).join(" ");
 
-  return `${normalizedFen}|${skillLevel}|${messageHash}`;
+  // Prefix with PROMPT_VERSION so a prompt revision (Phase 2 = "3.0") makes
+  // older cache entries unreachable instead of serving stale stub-prompt
+  // analyses to clients on the new prompt.
+  return `v${PROMPT_VERSION}|${normalizedFen}|${skillLevel}|${messageHash}`;
 }
 
 /**

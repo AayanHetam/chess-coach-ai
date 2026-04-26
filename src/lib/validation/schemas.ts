@@ -117,6 +117,14 @@ export const chatSchema = z.object({
 // vector — client could fully override the chess-coach persona) and restricted
 // `conversationHistory[].role` to user|assistant. Proper Phase 3 P0 fix is
 // auth + rate limit + a server-side prompt allowlist.
+//
+// Phase 2 (coach-prompt restoration): added structured fields the server uses
+// to compose the system prompt itself (personalityId, playerColorName,
+// chesscomUsername, lichessUsername). The hardening intent is preserved —
+// personalityId is resolved via a server-side allowlist in
+// getPersonalityById(); the regex below caps it at safe characters before
+// the lookup happens. systemPrompt stays stripped (Zod silently drops unknown
+// keys, which is the test contract in schemas.audit-phase-1-4.test.ts).
 export const enhancedAnalysisSchema = z.object({
   userMessage: z.string().optional(),
   message: z.string().optional(),
@@ -128,6 +136,21 @@ export const enhancedAnalysisSchema = z.object({
   username: z.string().optional(),
   userRating: z.number().int().min(0).max(4000).optional(),
   boardOrientation: z.any().optional(),
+  personalityId: z
+    .string()
+    .regex(/^[a-z0-9_-]{1,40}$/)
+    .optional(),
+  playerColorName: z.enum(["white", "black"]).optional(),
+  chesscomUsername: z
+    .string()
+    .max(50)
+    .regex(/^[a-zA-Z0-9_-]+$/)
+    .optional(),
+  lichessUsername: z
+    .string()
+    .max(50)
+    .regex(/^[a-zA-Z0-9_-]+$/)
+    .optional(),
   conversationHistory: z
     .array(
       z.object({

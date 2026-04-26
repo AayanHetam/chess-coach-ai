@@ -51,7 +51,6 @@ import { getPersonalityById } from "@/config/coachPersonalities";
 import { useAuth } from "@/contexts/AuthContext";
 import { storeFeedback } from "@/lib/feedbackStore";
 import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
-import { loadWeaknessProfile, getWeaknessPromptContext } from "@/lib/weaknessProfile";
 import { InsightsCarousel, parseInsights } from "@/components/AICoachInsights";
 import { getAuthHeader } from "@/lib/auth/getAuthHeader";
 
@@ -2314,16 +2313,7 @@ IMPORTANT GUIDELINES:
           systemPrompt = systemPrompt + playerInfoSection;
         }
 
-        // Inject weakness profile for personalized coaching
-        try {
-          const weaknessProfile = loadWeaknessProfile();
-          const weaknessContext = getWeaknessPromptContext(weaknessProfile);
-          if (weaknessContext) {
-            systemPrompt = systemPrompt + weaknessContext;
-          }
-        } catch (e) {
-          // Non-critical — skip if localStorage unavailable
-        }
+        // TODO(phase-2.5): re-introduce weakness profile via bounded structured field
       }
 
       // Check if this is the first user message (only system message exists)

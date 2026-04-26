@@ -6,7 +6,7 @@ import {
   getAvailableThemes,
   getCorpusStats,
 } from "@/lib/puzzleRepository";
-import { isNeo4jConfigured } from "@/lib/neo4j";
+import { isNeo4jConfigured, executeRead } from "@/lib/neo4j";
 import { puzzleDatasetSchema, validateRequest } from "@/lib/validation/schemas";
 
 /**
@@ -143,6 +143,55 @@ export async function GET(req: Request) {
         success: true,
         themes,
         count: themes.length,
+      });
+    }
+
+    // [PHASE-B-DIAGNOSTICS] probe: confirm the live Aura instance actually has
+    // HAS_THEME edges from puzzles to a known theme node, and report each
+    // matched puzzle's full theme-id list so we can diff against what the
+    // similar-puzzles route returns.
+    if (command === "probe") {
+      const records = await executeRead<{
+        puzzleId: string;
+        rating: number;
+        themeIds: string[];
+      }>(
+        `MATCH (p:Puzzle)-[:HAS_THEME]->(t:Theme)
+         WHERE t.id = "exposed-king"
+         RETURN p.puzzleId AS puzzleId, p.rating AS rating,
+                [(p)-[:HAS_THEME]->(theme) | theme.id] AS themeIds
+         LIMIT 3`
+      );
+      return NextResponse.json({
+        success: true,
+        probe: "exposed-king HAS_THEME edges",
+        count: records.length,
+        records,
+      });
+    }
+
+    // [PHASE-B-DIAGNOSTICS] puzzle_shape: dump a single Puzzle node's full
+    // properties + all relationships so we can confirm field names (themes
+    // property vs HAS_THEME relationship) and the actual data shape.
+    if (command === "puzzle_shape") {
+      const records = await executeRead<{
+        puzzle: Record<string, unknown>;
+        relationships: Array<{
+          rel_type: string;
+          other_label: string[];
+          other_id: string;
+        }>;
+      }>(
+        `MATCH (p:Puzzle) WHERE p.puzzleId IS NOT NULL
+         RETURN p AS puzzle,
+                [(p)-[r]-(other) | { rel_type: type(r), other_label: labels(other), other_id: coalesce(other.id, other.puzzleId) }] AS relationships
+         LIMIT 1`
+      );
+      return NextResponse.json({
+        success: true,
+        probe: "single Puzzle node + all relationships",
+        count: records.length,
+        records,
       });
     }
 

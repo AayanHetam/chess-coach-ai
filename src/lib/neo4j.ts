@@ -34,6 +34,22 @@ export function getDriver(): Driver {
       connectionAcquisitionTimeout: 10000,
       disableLosslessIntegers: true,
     });
+
+    // [PHASE-B-DIAGNOSTICS] one-time per-runtime log of which Aura instance the
+    // driver actually connected to. Host only — never log the full URI or password.
+    try {
+      const uriHost = new URL(process.env.NEO4J_URI ?? "neo4j+s://unknown").host;
+      console.log("neo4j.driver.connected", {
+        uriHost,
+        username: process.env.NEO4J_USERNAME,
+      });
+    } catch (e) {
+      console.log("neo4j.driver.connected", {
+        uriHost: "parse-failed",
+        username: process.env.NEO4J_USERNAME,
+        parseError: (e as Error).message,
+      });
+    }
   }
 
   return driver;

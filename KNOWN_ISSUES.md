@@ -35,3 +35,18 @@ Tracking known bugs and product gaps not yet fixed. Each entry includes reproduc
 **Affected path:** Analysis panel "Load a game" button only. The theme-picker upload path on the database section is unaffected — it already prompts for perspective.
 
 **Proposed fix (not in scope today):** Add a perspective picker (White / Black / Both) to the analysis-panel PGN load flow. Plumb the perspective through to the coach prompt so it filters mistakes to only the user's side. Estimated 1–2 hours of focused work, untested in current code path.
+
+## 3. Insight sections rendered as opaque LLM string, not structured fields
+
+**Severity:** Low. Affects visual polish of "show what you missed" insights but not correctness.
+
+**Symptom:** The four-section coach insight (Idea / Problem / Solution / Outcome) is currently emitted by the LLM as a single plain-text string with inline labels like "Idea: ... Problem: ... Solution: ... Outcome: ...". The renderer treats this as one opaque block, so the four sections cannot be styled, boxed, or visually separated without regex-parsing LLM output — which is fragile.
+
+**Discovered:** 2026-04-26 during Change C scoping. C1 (left-bar accent boxing for the four sections) was deferred to avoid shipping fragile string parsing on demo day.
+
+**Proposed fix:**
+1. Update the coach prompt to emit structured insight output — either JSON with explicit `idea`, `problem`, `solution`, `outcome` fields, or a strict markdown format with reliable section boundaries.
+2. Update the insight rendering component to consume the structured fields directly.
+3. Once structured, apply left-bar accent styling per section (Idea: blue, Problem: red/amber, Solution: green, Outcome: purple/slate).
+
+**Estimated effort:** 30–60 minutes once the prompt change is tested for output reliability across a sample of real coach sessions.

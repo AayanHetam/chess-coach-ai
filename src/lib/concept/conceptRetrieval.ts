@@ -66,6 +66,7 @@ export interface ReinforcementPuzzle {
   fen: string;
   moves: string;
   rating: number;
+  themes: string[];
   concepts: Array<{ id: ConceptId; confidence: number }>;
   conceptMatchScore: number;
   structuralSimilarity: number;
@@ -203,6 +204,7 @@ type Candidate = {
   fen: string;
   moves: string;
   rating: number;
+  themes: string[];
   concepts: Array<{ id: ConceptId; confidence: number }>;
   maxConfidence: number;
 };
@@ -225,6 +227,7 @@ async function conceptStageQuery(
            p.fen       AS fen,
            p.moves     AS moves,
            p.rating    AS rating,
+           [(p)-[:HAS_THEME]->(th:Theme) | coalesce(th.id, th.name)] AS themes,
            concepts,
            maxConf     AS maxConfidence
     ORDER BY maxConfidence DESC
@@ -278,6 +281,7 @@ function rerankByStructure(
       fen: c.fen,
       moves: c.moves,
       rating: c.rating,
+      themes: c.themes ?? [],
       concepts: c.concepts,
       conceptMatchScore: round3(conceptMatchScore),
       structuralSimilarity: round3(structuralSimilarity),
@@ -372,6 +376,7 @@ async function themeFallback(
            p.fen       AS fen,
            p.moves     AS moves,
            p.rating    AS rating,
+           [(p)-[:HAS_THEME]->(th:Theme) | coalesce(th.id, th.name)] AS themes,
            overlap     AS overlap
     ORDER BY overlap DESC, abs(p.rating - $userElo) ASC
     LIMIT $limit
@@ -381,6 +386,7 @@ async function themeFallback(
     fen: string;
     moves: string;
     rating: number;
+    themes: string[];
     overlap: number;
   }>(cypher, {
     themes,
@@ -396,6 +402,7 @@ async function themeFallback(
     fen: r.fen,
     moves: r.moves,
     rating: r.rating,
+    themes: r.themes ?? [],
     concepts: [],
     conceptMatchScore: 0,
     structuralSimilarity: 0,

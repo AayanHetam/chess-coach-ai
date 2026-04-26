@@ -11,6 +11,10 @@ import {
 import { enhancedAnalysisSchema, validateRequest } from "@/lib/validation/schemas";
 import { logger, withRequestContext, extractRequestId } from "@/lib/logging";
 import { callLLM, LLMError } from "@/lib/llmProvider";
+import {
+  getCoachChatSystemPrompt,
+  PROMPT_VERSION,
+} from "@/lib/prompts/coachChatPrompt";
 import { getReinforcements } from "@/lib/concept/conceptRetrieval";
 import { detectConcepts } from "@/lib/concept/conceptDetector";
 import { getConcept } from "@/lib/concept/conceptTaxonomy";
@@ -868,6 +872,10 @@ export async function POST(request: NextRequest) {
       userRating,
       boardOrientation,
       conversationHistory,
+      personalityId,
+      playerColorName,
+      chesscomUsername,
+      lichessUsername,
     } = parsed.data;
     const messageText = userMessage || message || "";
 
@@ -901,17 +909,18 @@ export async function POST(request: NextRequest) {
       gameContext = "No game data or position provided. The user may be asking a general chess question.";
     }
 
-    // Build the system prompt for Claude. Server-controlled only — see
-    // AUDIT-PHASE-1.4 hardening note above.
-    const claudeSystemPrompt = [
-      "You are an expert chess coach AI. Analyze games thoroughly using Stockfish evaluation data when available.",
-      "When the context includes a PEDAGOGICAL CONCEPTS block, you MUST:",
-      "  (a) name the concept explicitly using its human-readable name (e.g., \"this is a back-rank mate\"),",
-      "  (b) teach the principle behind it using the provided definition, adapted to the student's level,",
-      "  (c) ground the explanation in the detector evidence and the actual move played.",
-      "If no concept layer is provided, fall back to explaining tactical themes from the VERIFIED MOTIFS tags.",
-      "Be specific — cite exact move numbers and variations.",
-    ].join("\n");
+    // Build the system prompt for Claude. Server-controlled only — composed
+    // from structured params in the validated body (see AUDIT-PHASE-1.4
+    // hardening note above). personalityId is resolved against a server-side
+    // allowlist via getPersonalityById; unknown ids fall back to the default.
+    const claudeSystemPrompt = getCoachChatSystemPrompt({
+      personalityId: personalityId ?? "friendly",
+      userRating: userRating ?? 1500,
+      username,
+      playerColorName,
+      chesscomUsername,
+      lichessUsername,
+    });
 
     // Build the messages for Claude (user/assistant turns only — system is separate)
     const claudeMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
@@ -1001,6 +1010,12 @@ export async function POST(request: NextRequest) {
         { status: 502 }
       );
     }
+    console.log("coach.tokens", {
+      input: llmResult.inputTokens,
+      output: llmResult.outputTokens,
+      promptVersion: PROMPT_VERSION,
+    });
+
     const rawAnalysis = llmResult.content || "No analysis generated.";
 
     // Build final game state for response metadata

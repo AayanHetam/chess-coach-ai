@@ -46,6 +46,58 @@ describe("Phase 1.4 hardening — enhancedAnalysisSchema", () => {
   });
 });
 
+// Phase 2 regression: new structured fields the route uses to build the
+// system prompt server-side. These are bounded to safe characters so the
+// AUDIT-PHASE-1.4 hardening intent (no client-controlled prompt text) is
+// preserved while restoring the structured persona/profile context.
+describe("Phase 2 structured prompt inputs — enhancedAnalysisSchema", () => {
+  it("accepts personalityId with valid format", () => {
+    const result = enhancedAnalysisSchema.safeParse({
+      ...minimalAnalysisBody,
+      personalityId: "friendly",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.personalityId).toBe("friendly");
+    }
+  });
+
+  it("rejects personalityId with invalid characters or excessive length", () => {
+    const xss = enhancedAnalysisSchema.safeParse({
+      ...minimalAnalysisBody,
+      personalityId: "<script>alert(1)</script>",
+    });
+    expect(xss.success).toBe(false);
+
+    const tooLong = enhancedAnalysisSchema.safeParse({
+      ...minimalAnalysisBody,
+      personalityId: "a".repeat(200),
+    });
+    expect(tooLong.success).toBe(false);
+  });
+
+  it("accepts chesscomUsername and lichessUsername with valid format", () => {
+    const result = enhancedAnalysisSchema.safeParse({
+      ...minimalAnalysisBody,
+      chesscomUsername: "alice_chess",
+      lichessUsername: "alice-lichess",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.chesscomUsername).toBe("alice_chess");
+      expect(result.data.lichessUsername).toBe("alice-lichess");
+    }
+  });
+
+  it("rejects chesscomUsername with invalid characters", () => {
+    const result = enhancedAnalysisSchema.safeParse({
+      ...minimalAnalysisBody,
+      chesscomUsername: "alice@example.com",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
 describe("Phase 1.4 hardening — chatSchema", () => {
   it("rejects conversationHistory entries with role 'system'", () => {
     const result = chatSchema.safeParse({

@@ -358,6 +358,12 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
               : "default"
           }
           variant="outlined"
+          // Force high-contrast text on the light-green StyledPaper background.
+          // The orange MessageBubble parent globally cascades color: #fff into
+          // its children, which made the default Chip label invisible against
+          // the light green. Slate-800 (#1f2937) matches the neutral text used
+          // in AICoachInsights for the same kind of dark-on-light context.
+          sx={{ "& .MuiChip-label": { color: "#1f2937" } }}
         />
       </Box>
 

@@ -51,6 +51,7 @@ import { getPersonalityById } from "@/config/coachPersonalities";
 import { useAuth } from "@/contexts/AuthContext";
 import { storeFeedback } from "@/lib/feedbackStore";
 import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
+import { InlinePuzzleSet } from "@/components/InlinePuzzleSet";
 import { InsightsCarousel, parseInsights } from "@/components/AICoachInsights";
 import { getAuthHeader } from "@/lib/auth/getAuthHeader";
 
@@ -163,18 +164,16 @@ const ConceptReinforcementStrip: React.FC<{
   );
 };
 
-// Component for inline "Practice Similar Puzzles" button in AI responses
+// Component for inline "Practice Similar Puzzles" button in AI responses.
+// Renders 3 puzzles inline inside the chat bubble; never navigates to /practice.
 const PracticePuzzleButton: React.FC<{
   theme: string;
   displayTheme: string;
 }> = ({ theme, displayTheme }) => {
-  const router = useRouter();
   const game = useAtomValue(gameAtom);
   const userPlayerInfo = useAtomValue(userPlayerInfoAtom);
-  const setPracticePuzzles = useSetAtom(practicePuzzlesAtom);
-  const setCurrentPuzzleIndex = useSetAtom(currentPuzzleIndexAtom);
-  const setPracticeTheme = useSetAtom(practiceThemeAtom);
   const [loading, setLoading] = React.useState(false);
+  const [inlinePuzzles, setInlinePuzzles] = React.useState<ChessPuzzle[] | null>(null);
 
   const handleClick = async () => {
     setLoading(true);
@@ -190,7 +189,6 @@ const PracticePuzzleButton: React.FC<{
       const themesForQuery = Array.from(new Set([kebabTheme, normalizedTheme]));
 
       // Use the CURRENT board position as the reference FEN for similarity ranking.
-      // This is typically the mistake position the user navigated to.
       const currentFen = (() => {
         try { return game?.fen?.() ?? null; } catch { return null; }
       })();
@@ -216,8 +214,8 @@ const PracticePuzzleButton: React.FC<{
               fen: currentFen,
               themes: themesForQuery,
               userRating,
-              limit: 20,
-              candidatePoolSize: 80,
+              limit: 3,
+              candidatePoolSize: 60,
               excludeIds: [],
               sideToMoveMustMatch: false,
             }),
@@ -225,7 +223,7 @@ const PracticePuzzleButton: React.FC<{
           if (resp.ok) {
             const data = await resp.json();
             if (data.puzzles && data.puzzles.length > 0) {
-              const mapped: ChessPuzzle[] = data.puzzles.map((p: any) => ({
+              const mapped: ChessPuzzle[] = data.puzzles.slice(0, 3).map((p: any) => ({
                 id: p.puzzleId,
                 fen: p.fen,
                 moves: typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
@@ -233,29 +231,7 @@ const PracticePuzzleButton: React.FC<{
                 themes: p.themes || [],
                 solution: typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
               }));
-
-              try {
-                const { createTrainingSet } = await import("@/lib/repetitTraining");
-                const trainingSet = createTrainingSet({
-                  conceptName: displayTheme,
-                  theme: normalizedTheme,
-                  puzzles: mapped,
-                  userId: "current-user",
-                });
-                setPracticePuzzles(mapped);
-                setCurrentPuzzleIndex(0);
-                setPracticeTheme(normalizedTheme);
-                router.push({
-                  pathname: "/practice",
-                  query: { theme: normalizedTheme, setId: trainingSet.id },
-                });
-              } catch {
-                setPracticePuzzles(mapped);
-                setCurrentPuzzleIndex(0);
-                setPracticeTheme(normalizedTheme);
-                router.push({ pathname: "/practice", query: { theme: normalizedTheme } });
-              }
-              console.log(`✅ Loaded ${mapped.length} puzzles via similar-puzzles (theme + FEN similarity). Pool=${data.poolSize}`);
+              setInlinePuzzles(mapped);
               return;
             }
           }
@@ -272,14 +248,14 @@ const PracticePuzzleButton: React.FC<{
           body: JSON.stringify({
             userId: "practice-user",
             themes: themesForQuery,
-            limit: 20,
+            limit: 3,
             excludeIds: [],
           }),
         });
         if (resp.ok) {
           const data = await resp.json();
           if (data.puzzles && data.puzzles.length > 0) {
-            const mapped: ChessPuzzle[] = data.puzzles.map((p: any) => ({
+            const mapped: ChessPuzzle[] = data.puzzles.slice(0, 3).map((p: any) => ({
               id: p.puzzleId,
               fen: p.fen,
               moves: typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
@@ -287,11 +263,7 @@ const PracticePuzzleButton: React.FC<{
               themes: p.themes || [],
               solution: typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
             }));
-            setPracticePuzzles(mapped);
-            setCurrentPuzzleIndex(0);
-            setPracticeTheme(normalizedTheme);
-            router.push({ pathname: "/practice", query: { theme: normalizedTheme } });
-            console.log(`✅ Loaded ${mapped.length} puzzles via adaptive-puzzles fallback`);
+            setInlinePuzzles(mapped);
             return;
           }
         }
@@ -300,12 +272,9 @@ const PracticePuzzleButton: React.FC<{
       }
 
       // TERTIARY FALLBACK: static dataset
-      const puzzles = await getPuzzlesByTheme([normalizedTheme], 20);
+      const puzzles = await getPuzzlesByTheme([normalizedTheme], 3);
       if (puzzles.length > 0) {
-        setPracticePuzzles(puzzles);
-        setCurrentPuzzleIndex(0);
-        setPracticeTheme(normalizedTheme);
-        router.push({ pathname: "/practice", query: { theme: normalizedTheme } });
+        setInlinePuzzles(puzzles.slice(0, 3));
       }
     } catch (error) {
       console.error("Error fetching practice puzzles:", error);
@@ -313,6 +282,10 @@ const PracticePuzzleButton: React.FC<{
       setLoading(false);
     }
   };
+
+  if (inlinePuzzles) {
+    return <InlinePuzzleSet puzzles={inlinePuzzles} displayTheme={displayTheme} />;
+  }
 
   return (
     <span

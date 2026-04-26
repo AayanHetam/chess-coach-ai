@@ -1016,6 +1016,18 @@ export async function POST(request: NextRequest) {
       promptVersion: PROMPT_VERSION,
     });
 
+    // [PHASE-B-DIAGNOSTICS] surface every [CONCEPT:...] tag the LLM emitted so we
+    // can see whether the prompt produces the themeKey we expect.
+    {
+      const conceptTags =
+        (llmResult.content ?? "").match(/\[CONCEPT:[^\]]+\]/g) ?? [];
+      console.log("coach.concepts.emitted", {
+        promptVersion: PROMPT_VERSION,
+        conceptCount: conceptTags.length,
+        conceptTags: conceptTags.slice(0, 10),
+      });
+    }
+
     const rawAnalysis = llmResult.content || "No analysis generated.";
 
     // Build final game state for response metadata

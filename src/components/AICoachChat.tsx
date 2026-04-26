@@ -206,6 +206,16 @@ const PracticePuzzleButton: React.FC<{
         } catch { return 1500; }
       })();
 
+      // [PHASE-B-DIAGNOSTICS] log the raw click intent before any network call
+      console.log("practice.click", {
+        rawTheme: theme,
+        rawDisplayTheme: displayTheme,
+        normalizedTheme,
+        kebabTheme,
+        themesForQuery,
+        fen: currentFen,
+      });
+
       // PRIMARY PATH: /api/similar-puzzles (theme match + FEN similarity re-rank)
       if (currentFen) {
         try {
@@ -222,8 +232,18 @@ const PracticePuzzleButton: React.FC<{
               sideToMoveMustMatch: false,
             }),
           });
-          if (resp.ok) {
-            const data = await resp.json();
+          let data: any = null;
+          try { data = await resp.json(); } catch { /* leave null */ }
+          // [PHASE-B-DIAGNOSTICS]
+          console.log("practice.similar-puzzles.response", {
+            status: resp.status,
+            ok: resp.ok,
+            puzzleCount: data?.puzzles?.length ?? 0,
+            fallbackUsed: data?.fallbackUsed,
+            firstPuzzleThemes: data?.puzzles?.[0]?.themes,
+            firstPuzzleId: data?.puzzles?.[0]?.puzzleId ?? data?.puzzles?.[0]?.id,
+          });
+          if (resp.ok && data) {
             if (data.puzzles && data.puzzles.length > 0) {
               const mapped: ChessPuzzle[] = data.puzzles.map((p: any) => ({
                 id: p.puzzleId,
@@ -276,8 +296,18 @@ const PracticePuzzleButton: React.FC<{
             excludeIds: [],
           }),
         });
-        if (resp.ok) {
-          const data = await resp.json();
+        let data: any = null;
+        try { data = await resp.json(); } catch { /* leave null */ }
+        // [PHASE-B-DIAGNOSTICS]
+        console.log("practice.adaptive-puzzles.response", {
+          status: resp.status,
+          ok: resp.ok,
+          puzzleCount: data?.puzzles?.length ?? 0,
+          fallbackUsed: data?.fallbackUsed,
+          firstPuzzleThemes: data?.puzzles?.[0]?.themes,
+          firstPuzzleId: data?.puzzles?.[0]?.puzzleId ?? data?.puzzles?.[0]?.id,
+        });
+        if (resp.ok && data) {
           if (data.puzzles && data.puzzles.length > 0) {
             const mapped: ChessPuzzle[] = data.puzzles.map((p: any) => ({
               id: p.puzzleId,
@@ -301,6 +331,15 @@ const PracticePuzzleButton: React.FC<{
 
       // TERTIARY FALLBACK: static dataset
       const puzzles = await getPuzzlesByTheme([normalizedTheme], 20);
+      // [PHASE-B-DIAGNOSTICS] (status/ok N/A — getPuzzlesByTheme swallows the HTTP layer)
+      console.log("practice.chess-puzzles-dataset.response", {
+        status: undefined,
+        ok: puzzles.length > 0,
+        puzzleCount: puzzles.length,
+        fallbackUsed: undefined,
+        firstPuzzleThemes: puzzles[0]?.themes,
+        firstPuzzleId: puzzles[0]?.id,
+      });
       if (puzzles.length > 0) {
         setPracticePuzzles(puzzles);
         setCurrentPuzzleIndex(0);

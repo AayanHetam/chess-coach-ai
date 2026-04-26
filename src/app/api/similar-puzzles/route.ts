@@ -63,15 +63,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // [PHASE-B-DIAGNOSTICS]
+    console.log("similar-puzzles.request", {
+      themes: parsed.data.themes,
+      hasFen: !!parsed.data.fen,
+      v2Enabled: V2_ENABLED,
+      userElo: parsed.data.userRating,
+    });
+
     if (V2_ENABLED) {
       const v2 = await runV2(parsed.data);
       if (v2.puzzles.length > 0 || v2.anchorConcepts.length > 0) {
+        // [PHASE-B-DIAGNOSTICS]
+        console.log("similar-puzzles.result", {
+          themesRequested: parsed.data.themes,
+          puzzleCount: v2.puzzles?.length ?? 0,
+          fallbackUsed: v2.fallbackUsed,
+          themesOnFirstPuzzle: (v2.puzzles?.[0] as { themes?: unknown })?.themes,
+        });
         return NextResponse.json(v2);
       }
       // V2 produced nothing classifiable — drop through to V1 for continuity
     }
 
-    return NextResponse.json(await runV1(parsed.data));
+    const v1 = await runV1(parsed.data);
+    // [PHASE-B-DIAGNOSTICS]
+    console.log("similar-puzzles.result", {
+      themesRequested: parsed.data.themes,
+      puzzleCount: v1.puzzles?.length ?? 0,
+      fallbackUsed: (v1 as { fallbackUsed?: unknown }).fallbackUsed,
+      themesOnFirstPuzzle: (v1.puzzles?.[0] as { themes?: unknown })?.themes,
+    });
+    return NextResponse.json(v1);
   } catch (error: any) {
     console.error("similar-puzzles error:", error);
     return NextResponse.json(

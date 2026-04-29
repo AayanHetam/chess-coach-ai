@@ -1,7 +1,11 @@
 import { FirebaseOptions, initializeApp } from "firebase/app";
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+
+/**
+ * Auth and Firestore have moved server-side. The browser only initializes
+ * Firebase for analytics now, which uses a separate Google domain that is
+ * typically not blocked by the same filters that block firebaseapp.com.
+ */
 
 const firebaseConfig: FirebaseOptions | undefined = process.env
   .NEXT_PUBLIC_FIREBASE_PROJECT_ID
@@ -18,21 +22,21 @@ const firebaseConfig: FirebaseOptions | undefined = process.env
 
 const app = firebaseConfig ? initializeApp(firebaseConfig) : undefined;
 
-export const auth = app ? getAuth(app) : undefined;
-export const googleProvider = app ? new GoogleAuthProvider() : undefined;
-export const db = app ? getFirestore(app) : undefined;
 export { app };
 
-isSupported().then((supported) => {
-  if (supported && app) {
-    getAnalytics(app);
-  }
-});
+if (typeof window !== "undefined") {
+  isSupported().then((supported) => {
+    if (supported && app) {
+      getAnalytics(app);
+    }
+  });
+}
 
 export const logAnalyticsEvent = async (
   eventName: string,
   eventParams?: Record<string, unknown>
 ) => {
+  if (typeof window === "undefined") return;
   if (window.location.hostname === "localhost") return;
 
   const supported = await isSupported();

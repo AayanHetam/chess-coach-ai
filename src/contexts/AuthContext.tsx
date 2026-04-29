@@ -7,23 +7,43 @@ import {
   PropsWithChildren,
 } from "react";
 import {
-  User,
-  onAuthStateChanged,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
-  signOut as firebaseSignOut,
-} from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
-import { createUserProfile, getUserProfile, updateUserProfile, UserProfile } from "@/lib/firestoreUsers";
+  getUserProfile,
+  updateUserProfile,
+  UserProfile,
+  UserProfileUpdates,
+} from "@/lib/firestoreUsers";
+
+/**
+ * Auth runs entirely against chessmasti.com /api/auth/*. The browser
+ * never talks to Firebase domains, which lets the app work on networks
+ * that block them (school WiFi, etc.). Server-side Admin SDK handles
+ * the actual Firestore reads / writes.
+ *
+ * Public shape mirrors the previous Firebase-backed context so existing
+ * callsites (UserMenu, ProfileDialog, useGameDatabase, …) keep working.
+ */
+
+export type AppUser = {
+  uid: string;
+  email: string;
+  displayName?: string;
+  photoURL?: string;
+};
 
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
   profile: UserProfile | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUp: (input: {
+    email: string;
+    password: string;
+    displayName?: string;
+  }) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile: (updates: { chesscomUsername?: string; lichessUsername?: string }) => Promise<void>;
+  updateProfile: (updates: UserProfileUpdates) => Promise<void>;
   isFirebaseConfigured: boolean;
 }
 
@@ -32,123 +52,120 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   signInWithGoogle: async () => {},
+  signInWithEmail: async () => {},
+  signUp: async () => {},
+  forgotPassword: async () => {},
   signOut: async () => {},
   updateProfile: async () => {},
-  isFirebaseConfigured: false,
+  isFirebaseConfigured: true,
 });
 
+function profileToUser(profile: UserProfile | null): AppUser | null {
+  if (!profile) return null;
+  return {
+    uid: profile.uid,
+    email: profile.email,
+    displayName: profile.displayName,
+    photoURL: profile.photoURL,
+  };
+}
+
+async function fetchMe(): Promise<UserProfile | null> {
+  const res = await fetch("/api/auth/me", { credentials: "include" });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { user: UserProfile | null };
+  return data.user ?? null;
+}
+
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const data = (await res.json()) as { error?: string };
+      if (data.error) message = data.error;
+    } catch {
+      // ignore parse error
+    }
+    throw new Error(message);
+  }
+  return (await res.json()) as T;
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const isFirebaseConfigured = !!auth;
+
+  const refresh = useCallback(async () => {
+    try {
+      const p = await fetchMe();
+      setProfile(p);
+      setUser(profileToUser(p));
+    } catch (err) {
+      console.error("Auth refresh failed:", err);
+      setProfile(null);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!auth) {
-      setLoading(false);
-      return;
-    }
+    refresh();
+  }, [refresh]);
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      
-      if (user) {
-        try {
-          let userProfile = await getUserProfile(user.uid);
-          if (!userProfile) {
-            // Create profile for new user
-            await createUserProfile({
-              uid: user.uid,
-              email: user.email!,
-              displayName: user.displayName || undefined,
-              photoURL: user.photoURL || undefined,
-            });
-            userProfile = await getUserProfile(user.uid);
-          }
-          setProfile(userProfile || null);
-        } catch (error) {
-          console.error("Profile sync error:", error);
-        }
-      } else {
-        setProfile(null);
-      }
-      
-      setLoading(false);
-    });
+  const signInWithEmail = useCallback(
+    async (email: string, password: string) => {
+      await postJson("/api/auth/signin", { email, password });
+      await refresh();
+    },
+    [refresh]
+  );
 
-    // Handle redirect result
-    getRedirectResult(auth).catch((error) => {
-      console.error("Redirect sign-in error:", error);
-    });
+  const signUp = useCallback(
+    async (input: { email: string; password: string; displayName?: string }) => {
+      await postJson("/api/auth/signup", input);
+      await refresh();
+    },
+    [refresh]
+  );
 
-    return () => unsubscribe();
+  const forgotPassword = useCallback(async (email: string) => {
+    await postJson("/api/auth/forgot-password", { email });
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    if (!auth || !googleProvider) {
-      console.warn("Firebase Auth is not configured");
-      return;
-    }
-    try {
-      // Prefer popup — works better across dev proxies and doesn't navigate away
-      await signInWithPopup(auth, googleProvider);
-    } catch (error: unknown) {
-      const fbError = error as { code?: string; message?: string };
-
-      // If popup was blocked by browser, fall back to redirect
-      if (fbError.code === "auth/popup-blocked") {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          return;
-        } catch (redirectError) {
-          console.error("Redirect sign-in error:", redirectError);
-          throw redirectError;
-        }
-      }
-
-      // Unauthorized domain — give the user a clear message instead of crashing
-      if (fbError.code === "auth/unauthorized-domain") {
-        const host = typeof window !== "undefined" ? window.location.host : "unknown";
-        console.error(
-          `Firebase auth/unauthorized-domain: "${host}" is not in your Firebase authorized domains. ` +
-          `Add it at Firebase Console → Authentication → Settings → Authorized domains, or open the app at localhost:3000.`
-        );
-        throw new Error(
-          `Sign-in is not available on this domain (${host}). Please open the app at localhost:3000 or add this domain to Firebase authorized domains.`
-        );
-      }
-
-      // If popup was closed by user, silently ignore
-      if (fbError.code === "auth/popup-closed-by-user" || fbError.code === "auth/cancelled-popup-request") {
-        return;
-      }
-
-      console.error("Sign-in error:", error);
-      throw error;
-    }
+    // Server-routed OAuth: full-page redirect through chessmasti.com so
+    // we never hit the *.firebaseapp.com handler that school WiFi blocks.
+    window.location.href = "/api/auth/google/start";
   }, []);
 
   const signOut = useCallback(async () => {
-    if (!auth) return;
     try {
-      await firebaseSignOut(auth);
-    } catch (error) {
-      console.error("Sign-out error:", error);
-      throw error;
+      await fetch("/api/auth/signout", { method: "POST", credentials: "include" });
+    } catch (err) {
+      console.error("Sign-out request failed:", err);
     }
+    setProfile(null);
+    setUser(null);
   }, []);
 
-  const updateProfile = useCallback(async (updates: { chesscomUsername?: string; lichessUsername?: string }) => {
-    if (!user) throw new Error("User not authenticated");
-    try {
+  const updateProfile = useCallback(
+    async (updates: UserProfileUpdates) => {
+      if (!user) throw new Error("User not authenticated");
       await updateUserProfile(user.uid, updates);
-      const updatedProfile = await getUserProfile(user.uid);
-      setProfile(updatedProfile);
-    } catch (error) {
-      console.error("Profile update error:", error);
-      throw error;
-    }
-  }, [user]);
+      const fresh = await getUserProfile(user.uid);
+      setProfile(fresh);
+      setUser(profileToUser(fresh));
+    },
+    [user]
+  );
 
   return (
     <AuthContext.Provider
@@ -157,9 +174,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
         profile,
         loading,
         signInWithGoogle,
+        signInWithEmail,
+        signUp,
+        forgotPassword,
         signOut,
         updateProfile,
-        isFirebaseConfigured,
+        isFirebaseConfigured: true,
       }}
     >
       {children}

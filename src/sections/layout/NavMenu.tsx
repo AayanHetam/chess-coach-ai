@@ -2,6 +2,7 @@ import NavLink from "@/components/NavLink";
 import { Icon } from "@iconify/react";
 import {
   Box,
+  Divider,
   Drawer,
   List,
   ListItem,
@@ -10,6 +11,7 @@ import {
   ListItemText,
   Toolbar,
 } from "@mui/material";
+import ChatHistoryList from "@/components/chat/ChatHistoryList";
 
 const MenuOptions = [
   { text: "Home", icon: "mdi:home-outline", href: "/" },
@@ -61,8 +63,8 @@ export default function NavMenu({ open, onClose }: Props) {
   return (
     <Drawer anchor="left" open={open} onClose={onClose}>
       <Toolbar />
-      <Box sx={{ width: 250, overflow: "hidden" }}>
-        <List>
+      <Box sx={{ width: 280, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+        <List sx={{ flexShrink: 0 }}>
           {MenuOptions.map(({ text, icon, href }) => (
             <ListItem key={text} disablePadding sx={{ margin: 0.7 }}>
               <NavLink href={href}>
@@ -76,6 +78,10 @@ export default function NavMenu({ open, onClose }: Props) {
             </ListItem>
           ))}
         </List>
+        <Divider sx={{ flexShrink: 0 }} />
+        <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          <ChatHistoryList onNavigate={onClose} />
+        </Box>
       </Box>
     </Drawer>
   );

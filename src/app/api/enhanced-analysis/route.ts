@@ -18,8 +18,7 @@ import {
 import { getReinforcements } from "@/lib/concept/conceptRetrieval";
 import { detectConcepts } from "@/lib/concept/conceptDetector";
 import { getConcept } from "@/lib/concept/conceptTaxonomy";
-import { requireAuth } from "@/lib/auth/requireAuth";
-import { getSession } from "@/lib/auth/session";
+import { requireSession } from "@/lib/auth/session";
 import { getUserById } from "@/lib/server/users";
 
 const log = logger.child({ module: "enhanced-analysis" });
@@ -855,8 +854,9 @@ export async function POST(request: NextRequest) {
   const requestId = extractRequestId(request.headers);
 
   return withRequestContext(requestId, async () => {
-  const auth = await requireAuth(request);
-  if (!auth.ok) return auth.response;
+  const guard = await requireSession();
+  if ("response" in guard) return guard.response;
+  const session = guard.session;
   try {
     const body = await request.json();
 
@@ -913,24 +913,23 @@ export async function POST(request: NextRequest) {
 
     // Look up the signed-in user's coaching prefs from Firestore so the
     // system prompt can be personalized. Server-side only — never trust
-    // prefs from the client body. If no session, prefs stay undefined.
+    // prefs from the client body.
     let coachingPrefs: import("@/lib/prompts/coachChatPrompt").CoachingPrefs | undefined;
     try {
-      const session = await getSession();
-      if (session) {
-        const profile = await getUserById(session.uid);
-        if (profile) {
-          coachingPrefs = {
-            coachTone: profile.coachTone,
-            playingStyle: profile.playingStyle,
-            studyGoals: profile.studyGoals,
-            favoriteOpenings: profile.favoriteOpenings,
-          };
-        }
+      const profile = await getUserById(session.uid);
+      if (profile) {
+        coachingPrefs = {
+          coachTone: profile.coachTone,
+          playingStyle: profile.playingStyle,
+          studyGoals: profile.studyGoals,
+          favoriteOpenings: profile.favoriteOpenings,
+        };
       }
     } catch (err) {
       // Personalization is best-effort — never fail the request over it.
-      log.warn("could not load coaching prefs", { err: err instanceof Error ? err.message : String(err) });
+      log.warn("could not load coaching prefs", {
+        err: err instanceof Error ? err.message : String(err),
+      });
     }
 
     // Build the system prompt for Claude. Server-controlled only — composed

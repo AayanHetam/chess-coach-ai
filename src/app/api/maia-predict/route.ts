@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { maiaPredictSchema, validateRequest } from "@/lib/validation/schemas";
-import { requireAuth } from "@/lib/auth/requireAuth";
+import { requireSession } from "@/lib/auth/session";
 
 /**
  * Maia-2 Prediction API — proxies to external Maia-2 microservice.
@@ -13,8 +13,8 @@ import { requireAuth } from "@/lib/auth/requireAuth";
 const MAIA_API_URL = process.env.MAIA_API_URL;
 
 export async function POST(req: Request) {
-  const auth = await requireAuth(req);
-  if (!auth.ok) return auth.response;
+  const guard = await requireSession();
+  if ("response" in guard) return guard.response;
   try {
     const body = await req.json();
 

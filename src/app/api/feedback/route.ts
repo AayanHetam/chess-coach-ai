@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generatePlayerFeedback } from "@/lib/feedback/generateFeedback";
 import { feedbackSchema, validateRequest } from "@/lib/validation/schemas";
 import { logger, withRequestContext, extractRequestId } from "@/lib/logging";
-import { requireAuth } from "@/lib/auth/requireAuth";
+import { requireSession } from "@/lib/auth/session";
 
 const log = logger.child({ module: "feedback" });
 
@@ -10,8 +10,8 @@ export async function POST(request: NextRequest) {
   const requestId = extractRequestId(request.headers);
 
   return withRequestContext(requestId, async () => {
-    const auth = await requireAuth(request);
-    if (!auth.ok) return auth.response;
+    const guard = await requireSession();
+    if ("response" in guard) return guard.response;
     try {
       const body = await request.json();
 

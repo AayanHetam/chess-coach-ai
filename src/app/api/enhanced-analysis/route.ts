@@ -10,7 +10,7 @@ import {
 } from "@/lib/analysisContextCache";
 import { enhancedAnalysisSchema, validateRequest } from "@/lib/validation/schemas";
 import { logger, withRequestContext, extractRequestId } from "@/lib/logging";
-import { callLLM, LLMError } from "@/lib/llmProvider";
+import { callLLM, callLLMStream, LLMError } from "@/lib/llmProvider";
 import {
   getCoachChatSystemPrompt,
   PROMPT_VERSION,
@@ -617,6 +617,147 @@ function buildGameContext(
 }
 
 /**
+ * Compact game context used on follow-up chat turns.
+ *
+ * Cheaper than `buildGameContext` (no per-move FEN, no full PV trees, no motifs)
+ * but rich enough that the LLM can ground answers like "why was move 6 a
+ * mistake?" or "what was my first error?" in real moves and evals.
+ *
+ * Each half-move gets one prose sentence so the LLM can quote pre-narrated
+ * facts rather than synthesize them — the synthesis step is where hallucination
+ * crept in (e.g., inventing "13. Bh7+" when there was no move list at all).
+ *
+ * Sections:
+ *   - MOVES PLAYED (PGN)
+ *   - MOVE-BY-MOVE NARRATIVE  (one sentence per half-move)
+ *   - TOP MISTAKES            (eval drops >= 0.5 pawns, sorted, capped)
+ */
+function buildCompactGameContext(
+  moveHistory: string[],
+  gameEval: GameEvalInput | undefined,
+  playerColor: string
+): string {
+  if (!moveHistory || moveHistory.length === 0) return "";
+
+  const sections: string[] = [];
+
+  sections.push(`## MOVES PLAYED (PGN)\n${buildPgnFromMoves(moveHistory)}`);
+
+  const evalSentences: string[] = [];
+  type Mistake = {
+    moveNum: number;
+    color: string;
+    moveSan: string;
+    cpBefore: number;
+    cpAfter: number;
+    drop: number;
+    bestSan?: string;
+  };
+  const mistakes: Mistake[] = [];
+
+  const formatCp = (cp: number, mate?: number): string => {
+    if (mate !== undefined) return `M${mate > 0 ? "+" : ""}${mate}`;
+    if (Math.abs(cp) >= 9000) return cp > 0 ? "M+" : "M-";
+    return `${cp >= 0 ? "+" : ""}${(cp / 100).toFixed(2)}`;
+  };
+
+  for (let i = 0; i < moveHistory.length; i++) {
+    const moveSan = moveHistory[i];
+    const moveNum = Math.floor(i / 2) + 1;
+    const isWhite = i % 2 === 0;
+    const colorWord = isWhite ? "White" : "Black";
+
+    const evalBefore = gameEval?.positions?.[i];
+    const evalAfter = gameEval?.positions?.[i + 1];
+
+    // Stockfish's preferred move from the position before this one was played
+    let bestSan: string | undefined;
+    if (evalBefore?.bestMove && evalBefore.bestMove !== "N/A") {
+      const fenBefore = getFenAtHalfMove(moveHistory, i);
+      const candidate = uciToSan(fenBefore, evalBefore.bestMove);
+      if (candidate && candidate !== moveSan) bestSan = candidate;
+    }
+
+    // Eval drop from the player's perspective
+    let drop = 0;
+    let cpBefore: number | null = null;
+    let cpAfter: number | null = null;
+    if (evalBefore?.lines?.[0] && evalAfter?.lines?.[0]) {
+      cpBefore = evalBefore.lines[0].mate !== undefined
+        ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
+        : (evalBefore.lines[0].cp ?? 0);
+      cpAfter = evalAfter.lines[0].mate !== undefined
+        ? (evalAfter.lines[0].mate! > 0 ? 9999 : -9999)
+        : (evalAfter.lines[0].cp ?? 0);
+      drop = isWhite ? (cpBefore - cpAfter) : (cpAfter - cpBefore);
+    }
+
+    // Pick a single label: severity for >50cp drops, otherwise the engine's
+    // moveClassification field (book/good/excellent/etc.) when present.
+    let label = "";
+    if (drop >= 300) label = "BLUNDER";
+    else if (drop >= 150) label = "MISTAKE";
+    else if (drop >= 50) label = "INACCURACY";
+    else if (evalAfter?.moveClassification) label = evalAfter.moveClassification;
+
+    // Build the sentence
+    let sentence = `Move ${moveNum} (${colorWord}): ${moveSan}`;
+    if (label) sentence += ` — ${label}`;
+
+    if (drop >= 50 && cpBefore !== null && cpAfter !== null) {
+      // For mistakes, narrate the eval swing
+      const beforeStr = formatCp(cpBefore, evalBefore?.lines?.[0]?.mate);
+      const afterStr = formatCp(cpAfter, evalAfter?.lines?.[0]?.mate);
+      sentence += `; eval ${beforeStr} → ${afterStr} (lost ${(drop / 100).toFixed(1)} pawns)`;
+    } else if (evalAfter?.lines?.[0]) {
+      // For routine moves, just the resulting eval
+      const afterStr = formatCp(evalAfter.lines[0].cp ?? 0, evalAfter.lines[0].mate);
+      sentence += `${label ? ";" : " —"} eval ${afterStr}`;
+    }
+
+    if (bestSan) {
+      sentence += `. Stockfish preferred ${bestSan}.`;
+    } else {
+      sentence += ".";
+    }
+
+    evalSentences.push(sentence);
+
+    if (drop >= 50 && cpBefore !== null && cpAfter !== null) {
+      mistakes.push({
+        moveNum,
+        color: colorWord,
+        moveSan,
+        cpBefore,
+        cpAfter,
+        drop,
+        bestSan,
+      });
+    }
+  }
+
+  sections.push(`## MOVE-BY-MOVE NARRATIVE\n(One sentence per half-move. Eval is in pawns from White's perspective. Quote these sentences directly when asked about specific moves — do not paraphrase or invent.)\n${evalSentences.join("\n")}`);
+
+  if (mistakes.length > 0) {
+    mistakes.sort((a, b) => b.drop - a.drop);
+    const top = mistakes.slice(0, 12);
+    const mistakeLines = top.map((m) => {
+      const severity = m.drop >= 300 ? "BLUNDER" : m.drop >= 150 ? "MISTAKE" : "INACCURACY";
+      const before = formatCp(m.cpBefore);
+      const after = formatCp(m.cpAfter);
+      const lost = (m.drop / 100).toFixed(1);
+      const best = m.bestSan ? `; Stockfish preferred ${m.bestSan}` : "";
+      return `- Move ${m.moveNum} (${m.color}): ${m.moveSan} [${severity}] — eval ${before} → ${after} (lost ${lost} pawns)${best}`;
+    });
+    sections.push(`## TOP MISTAKES (worst eval drops first, max 12)\n${mistakeLines.join("\n")}`);
+  }
+
+  sections.push(`Player is ${playerColor === "w" ? "White" : "Black"}.`);
+
+  return sections.join("\n\n");
+}
+
+/**
  * Get the FEN at a specific half-move index by replaying moves up to that point.
  */
 function getFenAtHalfMove(moveHistory: string[], halfMoveIdx: number): string {
@@ -878,6 +1019,7 @@ export async function POST(request: NextRequest) {
       playerColorName,
       chesscomUsername,
       lichessUsername,
+      stream: streamRequested,
     } = parsed.data;
     const messageText = userMessage || message || "";
 
@@ -997,7 +1139,7 @@ export async function POST(request: NextRequest) {
         try { cachedGame.load(fen); } catch { /* ignore */ }
       }
 
-      return NextResponse.json({
+      const cachedPayload = {
         gameAnalysis: {
           analysis: cachedResponse,
           position: cachedGame.fen(),
@@ -1007,6 +1149,174 @@ export async function POST(request: NextRequest) {
           validationScore: 1.0,
           validationIssues: 0,
           cached: true,
+        },
+      };
+
+      if (streamRequested) {
+        // Emit the cached response as a single SSE event so the client has
+        // one code path. No real "streaming" benefit here, but keeps the
+        // contract uniform.
+        const encoder = new TextEncoder();
+        const sseStream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: "text", delta: cachedResponse })}\n\n`
+              )
+            );
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: "done", metadata: cachedPayload.gameAnalysis })}\n\n`
+              )
+            );
+            controller.close();
+          },
+        });
+        return new Response(sseStream, {
+          headers: {
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+          },
+        });
+      }
+
+      return NextResponse.json(cachedPayload);
+    }
+
+    // ── Streaming branch ────────────────────────────────────────────────
+    // When the client opts into streaming, we forward Claude's incremental
+    // text deltas as Server-Sent Events. Validation, cache write, contextId
+    // generation, and puzzle recommendations all run AFTER the stream ends
+    // and ride on a final `done` event so the client picks them up too.
+    if (streamRequested) {
+      // Compute current FEN/game state up front; the stream's done event
+      // needs them and they're cheap to compute here.
+      const game = new Chess();
+      if (moveHistory && moveHistory.length > 0) {
+        for (const m of moveHistory) {
+          try { game.move(m); } catch { break; }
+        }
+      } else if (fen) {
+        try { game.load(fen); } catch { /* ignore */ }
+      }
+      const validationFen = game.fen();
+
+      const encoder = new TextEncoder();
+      const sseStream = new ReadableStream({
+        async start(controller) {
+          const send = (obj: unknown) => {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+          };
+
+          let fullText = "";
+          let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
+          try {
+            for await (const evt of callLLMStream({
+              tier: "flagship",
+              system: claudeSystemPrompt,
+              messages: claudeMessages,
+              temperature: 0.7,
+              maxTokens: 3000,
+              cacheSystem: true,
+            })) {
+              if (evt.type === "text") {
+                fullText += evt.delta;
+                send({ type: "text", delta: evt.delta });
+              } else {
+                llmDone = evt.result;
+              }
+            }
+          } catch (err) {
+            const e = err instanceof LLMError ? err : new Error(String(err));
+            log.error("LLM streaming failed for enhanced-analysis", { message: e.message });
+            send({ type: "error", error: e.message });
+            controller.close();
+            return;
+          }
+
+          if (llmDone) {
+            console.log("coach.tokens", {
+              input: llmDone.inputTokens,
+              output: llmDone.outputTokens,
+              cacheCreation: llmDone.cacheCreationTokens,
+              cacheRead: llmDone.cacheReadTokens,
+              promptVersion: PROMPT_VERSION,
+              streamed: true,
+            });
+          }
+
+          // Post-stream: validate, cache, store context, build puzzle recs.
+          const rawAnalysis = fullText || "No analysis generated.";
+          const validation = validateAIResponse(rawAnalysis, validationFen, moveHistory);
+          if (validation.issues.length > 0) {
+            log.warn("AI response validation issues", {
+              issueCount: validation.issues.length,
+              score: validation.score,
+              issues: validation.issues.map(i => ({ severity: i.severity, type: i.type, detail: i.detail })),
+            });
+          }
+          const analysisContent = validation.isValid ? rawAnalysis : validation.correctedResponse;
+
+          setCachedResponse(cacheKey, analysisContent, validation.score);
+          const contextId = generateContextId(moveHistory, fen, playerColor || "w");
+          const compactGameContext = buildCompactGameContext(
+            moveHistory ?? [],
+            gameEval,
+            playerColor || "w"
+          );
+          storeAnalysisContext({
+            contextId,
+            gameContext,
+            compactGameContext,
+            playedMoves: moveHistory ?? [],
+            systemPrompt: claudeSystemPrompt,
+            fewShotExamples: examplesContext,
+            fen: validationFen,
+            skillLevel,
+            playerColor: playerColor || "w",
+            moveCount: Math.ceil(game.history().length / 2),
+            createdAt: Date.now(),
+            initialAnalysis: analysisContent,
+          });
+
+          let puzzleRecommendations: unknown = undefined;
+          try {
+            puzzleRecommendations = await generatePuzzleRecommendations(
+              moveHistory,
+              gameEval,
+              userRating
+            );
+          } catch (err) {
+            log.warn("puzzle recs failed in stream", { err: err instanceof Error ? err.message : String(err) });
+          }
+
+          send({
+            type: "done",
+            metadata: {
+              analysis: analysisContent,
+              position: validationFen,
+              turn: game.turn(),
+              moveCount: Math.ceil(game.history().length / 2),
+              availableMoves: game.moves().length,
+              validationScore: validation.score,
+              validationIssues: validation.issues.length,
+              contextId,
+              puzzleRecommendations,
+              corrected: !validation.isValid,
+            },
+          });
+          controller.close();
+        },
+      });
+
+      return new Response(sseStream, {
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
         },
       });
     }
@@ -1020,6 +1330,7 @@ export async function POST(request: NextRequest) {
         messages: claudeMessages,
         temperature: 0.7,
         maxTokens: 3000,
+        cacheSystem: true,
       });
     } catch (err) {
       const e = err instanceof LLMError ? err : new Error(String(err));
@@ -1072,9 +1383,16 @@ export async function POST(request: NextRequest) {
 
     // Store full analysis context for fast follow-up chat via /api/chat
     const contextId = generateContextId(moveHistory, fen, playerColor || "w");
+    const compactGameContext = buildCompactGameContext(
+      moveHistory ?? [],
+      gameEval,
+      playerColor || "w"
+    );
     storeAnalysisContext({
       contextId,
       gameContext,
+      compactGameContext,
+      playedMoves: moveHistory ?? [],
       systemPrompt: claudeSystemPrompt,
       fewShotExamples: examplesContext,
       fen: validationFen,

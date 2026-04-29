@@ -53,6 +53,14 @@ export interface CallLLMOptions {
   maxTokens?: number;
   /** If true, skip Anthropic and go straight to OpenAI. Useful for A/B testing. */
   forceProvider?: LLMProvider;
+  /**
+   * If true (Anthropic only), send the system prompt with an ephemeral
+   * prompt-cache marker. The first call after a 5-min idle will be a cache
+   * write (`cacheCreationTokens > 0`); subsequent calls reusing the same
+   * system prompt become cache reads (`cacheReadTokens > 0`), which are
+   * faster and ~10× cheaper. No-op for OpenAI.
+   */
+  cacheSystem?: boolean;
 }
 
 export interface LLMResult {
@@ -61,6 +69,10 @@ export interface LLMResult {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  /** Tokens written to the prompt cache on this call (Anthropic only). */
+  cacheCreationTokens?: number;
+  /** Tokens served from the prompt cache on this call (Anthropic only). */
+  cacheReadTokens?: number;
   /** How long the provider took (ms). Excludes fallback retry time. */
   elapsedMs: number;
   /** Populated when the primary provider failed and we fell back. */
@@ -91,6 +103,15 @@ async function callAnthropic(
   const model = MODELS.anthropic[tier];
   const startedAt = Date.now();
 
+  // When cacheSystem is on, we send the system as a single content block
+  // with an ephemeral cache marker. The API silently skips the cache when
+  // the block is below the model's minimum cacheable size, so this is safe
+  // even for short prompts.
+  const systemPayload: unknown =
+    opts.cacheSystem && opts.system
+      ? [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }]
+      : opts.system;
+
   const response = await fetch(`${ANTHROPIC_BASE_URL}/v1/messages`, {
     method: "POST",
     headers: {
@@ -100,7 +121,7 @@ async function callAnthropic(
     },
     body: JSON.stringify({
       model,
-      system: opts.system,
+      system: systemPayload,
       messages: opts.messages,
       temperature: opts.temperature ?? 0.7,
       max_tokens: opts.maxTokens ?? 1500,
@@ -126,6 +147,8 @@ async function callAnthropic(
     model,
     inputTokens: data.usage?.input_tokens ?? 0,
     outputTokens: data.usage?.output_tokens ?? 0,
+    cacheCreationTokens: data.usage?.cache_creation_input_tokens ?? 0,
+    cacheReadTokens: data.usage?.cache_read_input_tokens ?? 0,
     elapsedMs,
   };
 }
@@ -188,6 +211,178 @@ async function callOpenAI(
   };
 }
 
+// ── Streaming ───────────────────────────────────────────────────────────────
+//
+// SSE-style incremental output. Anthropic streams natively; OpenAI is used as
+// a non-streaming fallback (whole response emitted as a single chunk) so the
+// route handler doesn't need two code paths.
+
+export type LLMStreamEvent =
+  | { type: "text"; delta: string }
+  | { type: "done"; result: LLMResult };
+
+async function* callAnthropicStream(
+  tier: LLMTier,
+  opts: CallLLMOptions
+): AsyncGenerator<LLMStreamEvent, void, void> {
+  if (!isValidAnthropicKey(ANTHROPIC_API_KEY)) {
+    throw new LLMError("anthropic", 0, "ANTHROPIC_API_KEY not configured or invalid prefix");
+  }
+
+  const model = MODELS.anthropic[tier];
+  const startedAt = Date.now();
+
+  const systemPayload: unknown =
+    opts.cacheSystem && opts.system
+      ? [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }]
+      : opts.system;
+
+  const response = await fetch(`${ANTHROPIC_BASE_URL}/v1/messages`, {
+    method: "POST",
+    headers: {
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      system: systemPayload,
+      messages: opts.messages,
+      temperature: opts.temperature ?? 0.7,
+      max_tokens: opts.maxTokens ?? 1500,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new LLMError("anthropic", response.status, body.slice(0, 300));
+  }
+  if (!response.body) {
+    throw new LLMError("anthropic", 200, "Anthropic streaming response had no body");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullText = "";
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let cacheCreationTokens = 0;
+  let cacheReadTokens = 0;
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE events are separated by a blank line.
+      let evtEnd: number;
+      while ((evtEnd = buffer.indexOf("\n\n")) !== -1) {
+        const evt = buffer.slice(0, evtEnd);
+        buffer = buffer.slice(evtEnd + 2);
+
+        for (const line of evt.split("\n")) {
+          if (!line.startsWith("data:")) continue;
+          const dataStr = line.slice(5).trim();
+          if (!dataStr) continue;
+          let data: any;
+          try {
+            data = JSON.parse(dataStr);
+          } catch {
+            continue;
+          }
+
+          if (data.type === "content_block_delta" && data.delta?.type === "text_delta") {
+            const text: string = data.delta.text || "";
+            if (text) {
+              fullText += text;
+              yield { type: "text", delta: text };
+            }
+          } else if (data.type === "message_start") {
+            const usage = data.message?.usage;
+            if (usage) {
+              inputTokens = usage.input_tokens ?? 0;
+              cacheCreationTokens = usage.cache_creation_input_tokens ?? 0;
+              cacheReadTokens = usage.cache_read_input_tokens ?? 0;
+            }
+          } else if (data.type === "message_delta" && data.usage) {
+            outputTokens = data.usage.output_tokens ?? outputTokens;
+          }
+        }
+      }
+    }
+  } finally {
+    try { reader.releaseLock(); } catch { /* ignore */ }
+  }
+
+  const elapsedMs = Date.now() - startedAt;
+  yield {
+    type: "done",
+    result: {
+      content: fullText,
+      provider: "anthropic",
+      model,
+      inputTokens,
+      outputTokens,
+      cacheCreationTokens,
+      cacheReadTokens,
+      elapsedMs,
+    },
+  };
+}
+
+/**
+ * Streaming counterpart to {@link callLLM}. Yields incremental text deltas
+ * followed by a final `done` event carrying the full {@link LLMResult}.
+ *
+ * Anthropic streams natively. If Anthropic is unavailable or fails, falls back
+ * to a non-streaming OpenAI call and emits the entire response as one chunk
+ * — so the consumer still sees text and a `done` event in the same shape.
+ */
+export async function* callLLMStream(
+  opts: CallLLMOptions
+): AsyncGenerator<LLMStreamEvent, void, void> {
+  const anthropicAvailable = isValidAnthropicKey(ANTHROPIC_API_KEY);
+  const openaiAvailable = isValidOpenAIKey(OPENAI_API_KEY);
+
+  if (!anthropicAvailable && !openaiAvailable) {
+    throw new LLMError(
+      "anthropic",
+      0,
+      "Neither ANTHROPIC_API_KEY nor OPENAI_API_KEY is configured."
+    );
+  }
+
+  if (opts.forceProvider === "openai") {
+    const result = await callOpenAI(opts.tier, opts);
+    if (result.content) yield { type: "text", delta: result.content };
+    yield { type: "done", result };
+    return;
+  }
+
+  if (anthropicAvailable) {
+    try {
+      yield* callAnthropicStream(opts.tier, opts);
+      return;
+    } catch (err) {
+      const e = err instanceof LLMError ? err : new LLMError("anthropic", 0, String(err));
+      log.warn("Anthropic streaming failed, falling back to OpenAI non-streaming", {
+        tier: opts.tier,
+        status: e.status,
+        detail: e.detail.slice(0, 200),
+      });
+      if (!openaiAvailable) throw e;
+      // fall through to OpenAI fallback below
+    }
+  }
+
+  const result = await callOpenAI(opts.tier, opts);
+  if (result.content) yield { type: "text", delta: result.content };
+  yield { type: "done", result };
+}
+
 // ── Custom error type ───────────────────────────────────────────────────────
 export class LLMError extends Error {
   constructor(
@@ -242,6 +437,8 @@ export async function callLLM(opts: CallLLMOptions): Promise<LLMResult> {
         model: result.model,
         inputTokens: result.inputTokens,
         outputTokens: result.outputTokens,
+        cacheCreationTokens: result.cacheCreationTokens,
+        cacheReadTokens: result.cacheReadTokens,
         elapsedMs: result.elapsedMs,
       });
       return result;

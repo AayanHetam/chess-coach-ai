@@ -54,6 +54,13 @@ import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRe
 import { InlinePuzzleSet } from "@/components/InlinePuzzleSet";
 import { InsightsCarousel, parseInsights } from "@/components/AICoachInsights";
 import { getAuthHeader } from "@/lib/auth/getAuthHeader";
+import {
+  createChat,
+  appendMessage,
+  getChat,
+  generateChatTitle,
+  type ChatGameRef,
+} from "@/lib/firestoreChats";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -1680,7 +1687,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   const userPlayerInfo = useAtomValue(userPlayerInfoAtom);
 
   // User profile (chess.com/lichess usernames)
-  const { profile: userProfile } = useAuth();
+  const { user, profile: userProfile } = useAuth();
 
   // Coach personality
   const selectedCoachId = useAtomValue(selectedCoachIdAtom);
@@ -1713,12 +1720,21 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         const currentMoves = game.history().length;
         const prevGame = new Chess(prevGameRef.current);
         const prevMoves = prevGame.history().length;
-        
+
         // If move count decreased or significantly different, it's a new game
         if (currentMoves < prevMoves || Math.abs(currentMoves - prevMoves) > 5) {
+          // While hydrating a saved chat, the game state may briefly diverge
+          // from the FEN that was active when the chat was created. Don't
+          // reset the persistence handle in that window — the hydration
+          // effect owns it.
+          if (hydratingChatRef.current) {
+            prevGameRef.current = currentFen;
+            return;
+          }
           gameLoadedRef.current = true;
           hasUserMessagedRef.current = false; // Reset for new game
           analysisContextIdRef.current = null; // Reset context for new game
+          resetChatPersistence(); // Start a fresh saved chat for the new game
 
           // AI speaks first — auto-greet when game is loaded
           const greeting = getSmartGameGreeting(game, userPlayerInfo);
@@ -1756,6 +1772,134 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   const analysisContextIdRef = useRef<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Chat persistence (signed-in users only). Anonymous users have no
+  // currentChatIdRef and persistTurn() is a no-op.
+  const currentChatIdRef = useRef<string | null>(null);
+  const pendingChatPromiseRef = useRef<Promise<string> | null>(null);
+  const titleRequestedRef = useRef(false);
+  const hasPersistedAssistantRef = useRef(false);
+  const hydratingChatRef = useRef(false);
+
+  const buildGameRef = React.useCallback((): ChatGameRef | null => {
+    if (!game) return null;
+    try {
+      const headers = game.getHeaders?.() ?? {};
+      const userColor = userPlayerInfo?.playerColor;
+      const opponent =
+        userColor === "white"
+          ? headers.Black
+          : userColor === "black"
+            ? headers.White
+            : headers.White || headers.Black;
+      return {
+        pgn: game.pgn?.() ?? undefined,
+        fen: game.fen?.() ?? undefined,
+        opponent: opponent || undefined,
+        result: headers.Result || undefined,
+      };
+    } catch {
+      return null;
+    }
+  }, [game, userPlayerInfo]);
+
+  const ensureChatId = React.useCallback(async (): Promise<string | null> => {
+    if (!user) return null;
+    if (currentChatIdRef.current) return currentChatIdRef.current;
+    if (!pendingChatPromiseRef.current) {
+      pendingChatPromiseRef.current = createChat({
+        coachId: selectedCoachId,
+        gameRef: buildGameRef(),
+      })
+        .then((id) => {
+          currentChatIdRef.current = id;
+          return id;
+        })
+        .catch((err) => {
+          console.error("Failed to create chat:", err);
+          pendingChatPromiseRef.current = null;
+          throw err;
+        });
+    }
+    try {
+      return await pendingChatPromiseRef.current;
+    } catch {
+      return null;
+    }
+  }, [user, selectedCoachId, buildGameRef]);
+
+  const persistTurn = React.useCallback(
+    async (role: "user" | "assistant", content: string) => {
+      if (!user || hydratingChatRef.current) return;
+      if (!content || !content.trim()) return;
+      try {
+        const chatId = await ensureChatId();
+        if (!chatId) return;
+        await appendMessage(chatId, { role, content });
+        if (role === "assistant" && !hasPersistedAssistantRef.current) {
+          hasPersistedAssistantRef.current = true;
+          if (!titleRequestedRef.current) {
+            titleRequestedRef.current = true;
+            generateChatTitle(chatId).catch((err) =>
+              console.warn("Title generation failed:", err)
+            );
+          }
+        }
+      } catch (err) {
+        console.error("persistTurn failed:", err);
+      }
+    },
+    [user, ensureChatId]
+  );
+
+  const resetChatPersistence = React.useCallback(() => {
+    currentChatIdRef.current = null;
+    pendingChatPromiseRef.current = null;
+    titleRequestedRef.current = false;
+    hasPersistedAssistantRef.current = false;
+  }, []);
+
+  // Hydrate from a saved chat when the URL carries ?chatId=…  (set by the
+  // sidebar history list). Skips if user is not signed in or the id
+  // matches what's already loaded.
+  const lastLoadedChatIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const queryChatId =
+      typeof router.query.chatId === "string" ? router.query.chatId : null;
+    if (!queryChatId || !user) return;
+    if (lastLoadedChatIdRef.current === queryChatId) return;
+    lastLoadedChatIdRef.current = queryChatId;
+
+    let cancelled = false;
+    hydratingChatRef.current = true;
+    (async () => {
+      try {
+        const { messages: rows } = await getChat(queryChatId);
+        if (cancelled) return;
+        const hydrated: Message[] = rows
+          .filter((r) => r.role === "user" || r.role === "assistant")
+          .map((r) => ({ role: r.role, content: r.content }));
+        setMessages(hydrated);
+        currentChatIdRef.current = queryChatId;
+        pendingChatPromiseRef.current = Promise.resolve(queryChatId);
+        titleRequestedRef.current = true;
+        hasPersistedAssistantRef.current = hydrated.some(
+          (m) => m.role === "assistant"
+        );
+        analysisContextIdRef.current = null;
+        hasUserMessagedRef.current = hydrated.some((m) => m.role === "user");
+      } catch (err) {
+        console.error("Failed to load chat:", err);
+      } finally {
+        if (!cancelled) hydratingChatRef.current = false;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      hydratingChatRef.current = false;
+    };
+  }, [router.query.chatId, user]);
+
   // Track previous personality to detect changes
   const prevPersonalityRef = useRef<string>(selectedCoachId);
 
@@ -1775,8 +1919,9 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
       hasUserMessagedRef.current = false;
       gameLoadedRef.current = false;
       analysisContextIdRef.current = null; // Reset context for new personality
+      resetChatPersistence();
     }
-  }, [selectedCoachId]);
+  }, [selectedCoachId, resetChatPersistence]);
 
   // Listen for move analysis requests from moves panel
   const moveAnalysisRequest = useAtomValue(moveAnalysisRequestAtom);
@@ -1990,30 +2135,30 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
       // Route: OFF-TOPIC — short polite redirect, no big LLM call.
       if (classifiedIntent === "off_topic") {
+        const offTopicReply =
+          "I'm your chess coach, so I'll stay focused on chess! Ask me to analyze your game, explain a move, or suggest tactics to practice — happy to dive into any of those.";
         setMessages((prev) => [
           ...prev,
           userMessage,
-          {
-            role: "assistant",
-            content:
-              "I'm your chess coach, so I'll stay focused on chess! Ask me to analyze your game, explain a move, or suggest tactics to practice — happy to dive into any of those.",
-          },
+          { role: "assistant", content: offTopicReply },
         ]);
+        void persistTurn("user", textToSend);
+        void persistTurn("assistant", offTopicReply);
         if (!messageText) setInput("");
         return;
       }
 
       // Route: DECLINE PRACTICE — short acknowledgment, then wait for next message.
       if (classifiedIntent === "decline_practice") {
+        const declineReply =
+          "No problem! We can keep analyzing the game. Let me know if you want to tackle a specific move or idea.";
         setMessages((prev) => [
           ...prev,
           userMessage,
-          {
-            role: "assistant",
-            content:
-              "No problem! We can keep analyzing the game. Let me know if you want to tackle a specific move or idea.",
-          },
+          { role: "assistant", content: declineReply },
         ]);
+        void persistTurn("user", textToSend);
+        void persistTurn("assistant", declineReply);
         if (!messageText) setInput("");
         return;
       }
@@ -2050,12 +2195,15 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
           }
 
           // User accepted practice offer - fetch puzzles and redirect
+          const ackReply = `Great! Let me gather some ${theme} puzzles${difficulty ? ` at ${difficulty} level` : ""} for you...`;
           setMessages((prev) => [
             ...prev,
             userMessage,
-            { role: "assistant", content: `Great! Let me gather some ${theme} puzzles${difficulty ? ` at ${difficulty} level` : ""} for you...` },
+            { role: "assistant", content: ackReply },
           ]);
-          
+          void persistTurn("user", textToSend);
+          void persistTurn("assistant", ackReply);
+
           try {
             const normalizedTheme = normalizeThemeName(theme);
             // The static puzzle DB (Lichess-derived) uses camelCase theme IDs
@@ -2077,23 +2225,23 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
               if (difficulty) query.difficulty = difficulty;
               router.push({ pathname: "/practice", query });
             } else {
+              const noPuzzlesReply =
+                "I couldn't find puzzles for that theme right now. Let's continue analyzing your game!";
               setMessages((prev) => [
                 ...prev,
-                {
-                  role: "assistant",
-                  content: "I couldn't find puzzles for that theme right now. Let's continue analyzing your game!",
-                },
+                { role: "assistant", content: noPuzzlesReply },
               ]);
+              void persistTurn("assistant", noPuzzlesReply);
             }
           } catch (error) {
             console.error("Error fetching practice puzzles:", error);
+            const errReply =
+              "Sorry, I encountered an error fetching puzzles. Let's continue analyzing your game!";
             setMessages((prev) => [
               ...prev,
-              {
-                role: "assistant",
-                content: "Sorry, I encountered an error fetching puzzles. Let's continue analyzing your game!",
-              },
+              { role: "assistant", content: errReply },
             ]);
+            void persistTurn("assistant", errReply);
           }
           
           if (!messageText) {
@@ -2108,6 +2256,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
       gameLoadedRef.current = false; // Reset flag if set
 
       setMessages((prev) => [...prev, userMessage]);
+      void persistTurn("user", textToSend);
       if (!messageText) {
         setInput("");
       }
@@ -2205,15 +2354,25 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             requestData.fen = position;
           }
 
+          // Opt into Server-Sent Events streaming. The route emits text
+          // deltas as the LLM generates them, then a final "done" event
+          // carrying validation + contextId + puzzle recommendations.
+          requestData.stream = true;
+
           const response = await fetch("/api/enhanced-analysis", {
             method: "POST",
-            headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "text/event-stream",
+              ...(await getAuthHeader()),
+            },
             body: JSON.stringify(requestData),
             signal: abortControllerRef.current.signal,
           });
 
           if (!response.ok) {
-            const errorData = await response.json();
+            // Server returned an error status BEFORE streaming. Body is JSON.
+            const errorData = await response.json().catch(() => ({}));
             const errorMessage =
               errorData.error ||
               errorData.details ||
@@ -2222,40 +2381,134 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             throw new Error(errorMessage);
           }
 
-          data = await response.json();
+          const isStream = response.headers
+            .get("content-type")
+            ?.includes("text/event-stream");
 
-          // Store contextId for fast follow-up chat
-          if (data.gameAnalysis?.contextId) {
-            analysisContextIdRef.current = data.gameAnalysis.contextId;
+          if (isStream && response.body) {
+            // Push an empty assistant message we'll fill in as text arrives.
+            setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+            setIsStreaming(true);
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            let streamedText = "";
+            let finalMetadata: any = null;
+            let streamErr: string | null = null;
+
+            try {
+              for (;;) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+
+                let evtEnd: number;
+                while ((evtEnd = buffer.indexOf("\n\n")) !== -1) {
+                  const evt = buffer.slice(0, evtEnd);
+                  buffer = buffer.slice(evtEnd + 2);
+                  for (const line of evt.split("\n")) {
+                    if (!line.startsWith("data:")) continue;
+                    const dataStr = line.slice(5).trim();
+                    if (!dataStr) continue;
+                    let parsedEvt: any;
+                    try {
+                      parsedEvt = JSON.parse(dataStr);
+                    } catch {
+                      continue;
+                    }
+                    if (parsedEvt.type === "text" && typeof parsedEvt.delta === "string") {
+                      streamedText += parsedEvt.delta;
+                      setMessages((prev) => {
+                        const next = [...prev];
+                        const last = next[next.length - 1];
+                        if (last && last.role === "assistant") {
+                          next[next.length - 1] = { role: "assistant", content: streamedText };
+                        }
+                        return next;
+                      });
+                    } else if (parsedEvt.type === "done") {
+                      finalMetadata = parsedEvt.metadata;
+                    } else if (parsedEvt.type === "error") {
+                      streamErr = parsedEvt.error || "stream error";
+                    }
+                  }
+                }
+              }
+            } finally {
+              try { reader.releaseLock(); } catch { /* ignore */ }
+              setIsStreaming(false);
+            }
+
+            if (streamErr) throw new Error(streamErr);
+
+            // If validation rewrote the text (e.g. flagged an illegal move
+            // citation), swap in the corrected version. Usually identical.
+            if (
+              finalMetadata?.corrected &&
+              typeof finalMetadata.analysis === "string" &&
+              finalMetadata.analysis !== streamedText
+            ) {
+              streamedText = finalMetadata.analysis;
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last && last.role === "assistant") {
+                  next[next.length - 1] = { role: "assistant", content: streamedText };
+                }
+                return next;
+              });
+            }
+
+            if (finalMetadata?.contextId) {
+              analysisContextIdRef.current = finalMetadata.contextId;
+            }
+            if (finalMetadata?.puzzleRecommendations) {
+              setPuzzleRecommendations(finalMetadata.puzzleRecommendations);
+            }
+
+            // Persist the finalized assistant turn (after any validation
+            // rewrite). Streaming intermediate deltas are not persisted —
+            // we only save the canonical final text.
+            void persistTurn("assistant", streamedText);
+
+            // Streaming path already wrote the assistant message — skip the
+            // append-from-`data` block below.
+            data = { __streamed: true };
+          } else {
+            // Non-streaming JSON fallback (older clients / cache hit paths).
+            data = await response.json();
+
+            if (data.gameAnalysis?.contextId) {
+              analysisContextIdRef.current = data.gameAnalysis.contextId;
+            }
+            if (data.gameAnalysis?.puzzleRecommendations) {
+              setPuzzleRecommendations(data.gameAnalysis.puzzleRecommendations);
+            }
+          }
+        }
+
+        // Add assistant message with the analysis. Skipped when the
+        // streaming path already pushed the message incrementally.
+        if (!data.__streamed) {
+          let assistantContent = "";
+
+          if (data.gameAnalysis) {
+            assistantContent += data.gameAnalysis.analysis;
+          } else if (data.currentPositionAnalysis) {
+            assistantContent += data.currentPositionAnalysis.analysis;
           }
 
-          // Store puzzle recommendations if available
-          if (data.gameAnalysis?.puzzleRecommendations) {
-            setPuzzleRecommendations(data.gameAnalysis.puzzleRecommendations);
+          if (data.aiAnalysisError) {
+            assistantContent += `\n\n**Note:** ${data.aiAnalysisError}`;
           }
+
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: assistantContent },
+          ]);
+          void persistTurn("assistant", assistantContent);
         }
-
-        // Add assistant message with the analysis
-        let assistantContent = "";
-
-        if (data.gameAnalysis) {
-          assistantContent += data.gameAnalysis.analysis;
-        } else if (data.currentPositionAnalysis) {
-          assistantContent += data.currentPositionAnalysis.analysis;
-        }
-
-        if (data.aiAnalysisError) {
-          assistantContent += `\n\n**Note:** ${data.aiAnalysisError}`;
-        }
-
-        // NOTE: Trailing [PRACTICE:...] injection removed.
-        // Practice buttons are now rendered per-insight via [CONCEPT:...] tags
-        // emitted inside each [INSIGHT:...]...[/INSIGHT] block by the LLM.
-
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: assistantContent },
-        ]);
       } catch (error: unknown) {
         if (error instanceof Error && error.name === "AbortError") {
           console.log("Request aborted");

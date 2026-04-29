@@ -159,6 +159,7 @@ export const enhancedAnalysisSchema = z.object({
       })
     )
     .optional(),
+  stream: z.boolean().optional(),
 });
 
 /** POST /api/maia-predict */

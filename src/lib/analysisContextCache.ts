@@ -13,7 +13,9 @@ import { createHash } from "crypto";
 
 export interface AnalysisContext {
   contextId: string;
-  gameContext: string;        // Full pre-built game context string
+  gameContext: string;        // Full pre-built game context string (used for the initial deep analysis only)
+  compactGameContext: string; // Trimmed move list + per-move evals + mistakes — re-sent on every chat follow-up
+  playedMoves: string[];      // SAN move history; lets follow-up code answer "did I play X?" without re-deriving
   systemPrompt: string;       // System prompt with player info + weakness profile
   fewShotExamples: string;    // Pre-selected few-shot examples
   fen: string;                // Current/final FEN
@@ -95,20 +97,40 @@ export function getAnalysisContext(contextId: string): AnalysisContext | null {
 
 /**
  * Build a condensed context summary for follow-up chat messages.
- * This is much shorter than the full gameContext — just enough for the LLM
- * to maintain continuity without re-reading 10K tokens of move-by-move data.
+ *
+ * Sends the moves + Stockfish evals + mistakes (compactGameContext) — far cheaper
+ * than the full move-by-move gameContext used in the deep analysis, but enough
+ * to keep follow-ups grounded so the LLM doesn't invent moves or evals.
+ *
+ * Layout:
+ *   1. Position metadata (FEN, player, skill, length)
+ *   2. Grounding rules — what the LLM is allowed to assert
+ *   3. Pointer to the prior deep analysis (lives in conversation history)
+ *   4. The compactGameContext block (PGN + per-move narrative + top mistakes)
  */
 export function buildCondensedContext(context: AnalysisContext): string {
   const lines: string[] = [];
 
-  lines.push("## ANALYSIS CONTEXT (pre-computed — do NOT repeat this analysis)");
-  lines.push(`Position FEN: ${context.fen}`);
+  lines.push("## ANALYSIS CONTEXT");
+  lines.push(`Final FEN: ${context.fen}`);
   lines.push(`Player: ${context.playerColor === "w" ? "White" : "Black"}, Skill: ${context.skillLevel}`);
-  lines.push(`Game length: ${context.moveCount} moves`);
+  lines.push(`Game length: ${context.moveCount} full moves`);
   lines.push("");
-  lines.push("The full game has already been analyzed. Your initial analysis is in the conversation history.");
-  lines.push("For follow-up questions, refer to your previous analysis. Only add NEW insights the user asks about.");
-  lines.push("Be concise — the user has already read your deep analysis.");
+
+  lines.push("## GROUNDING RULES (read carefully)");
+  lines.push("Every chess fact you state must be derivable from the moves, evals, and position supplied below, OR from your initial deep analysis (your first message in this conversation).");
+  lines.push("- Never invent moves, evals, openings, or 'best was X' recommendations. If a move number or eval the user asks about is not in the data below, say 'I don't have that in the analysis.' rather than guessing.");
+  lines.push("- When asked about a specific move, prefer to quote the corresponding sentence from the MOVE-BY-MOVE NARRATIVE below verbatim, then explain.");
+  lines.push("- Before recommending a move from the current position (e.g., \"play X\"), confirm it is legal in the supplied FEN — do not suggest castling if the relevant rook or king has moved, do not suggest captures of empty squares, etc.");
+  lines.push("");
+
+  lines.push("## PRIOR DEEP ANALYSIS");
+  lines.push("Your initial deep analysis of this game is in the conversation history as your first assistant message. Treat it as the canonical narrative — when the user asks about themes, weaknesses, or moments you've already analyzed, reference and build on what you said before rather than re-deriving from scratch. If the user contradicts or corrects something in that prior analysis, update accordingly.");
+  lines.push("");
+
+  if (context.compactGameContext) {
+    lines.push(context.compactGameContext);
+  }
 
   return lines.join("\n");
 }

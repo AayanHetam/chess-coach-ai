@@ -89,6 +89,8 @@ export async function POST(request: NextRequest) {
         .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
       // Fast tier (Haiku primary, gpt-4o-mini fallback)
+      // maxTokens here is the OUTPUT cap; raised so answers about long games
+      // (many moves discussed) don't get truncated mid-explanation.
       let llmResult;
       try {
         llmResult = await callLLM({
@@ -96,7 +98,8 @@ export async function POST(request: NextRequest) {
           system: systemText,
           messages: nonSystemMessages,
           temperature: 0.7,
-          maxTokens: 1500,
+          maxTokens: 3000,
+          cacheSystem: true,
         });
       } catch (err) {
         const e = err instanceof LLMError ? err : new Error(String(err));
@@ -152,7 +155,7 @@ export async function POST(request: NextRequest) {
             ? fallbackMessages
             : [{ role: "user", content: "Hello" }],
         temperature: parsed.data.temperature ?? 0.7,
-        maxTokens: parsed.data.max_tokens ?? 1500,
+        maxTokens: parsed.data.max_tokens ?? 3000,
       });
     } catch (err) {
       const e = err instanceof LLMError ? err : new Error(String(err));

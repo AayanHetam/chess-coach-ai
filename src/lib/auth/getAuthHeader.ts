@@ -1,23 +1,13 @@
-import { auth } from "@/lib/firebase";
-
 /**
- * Client-side helper. Returns the Authorization header for the current
- * Firebase user, or an empty object if no user is signed in / Firebase
- * is not configured. Spread into fetch headers:
+ * No-op shim. Pre-migration, this returned an `Authorization: Bearer <id>`
+ * header from the Firebase Auth client SDK. Now auth flows through a
+ * httpOnly session cookie which the browser attaches automatically for
+ * same-origin requests, so the header is no longer needed.
  *
- *   const headers = { "Content-Type": "application/json", ...(await getAuthHeader()) };
- *
- * Designed to be safe to call regardless of `AUTH_ENFORCED` server state —
- * if the server isn't enforcing, the missing header is ignored.
+ * Kept as a deliberate stub so existing call sites
+ * `...(await getAuthHeader())` continue to compile and run unchanged.
+ * Safe to delete in Phase 5 cleanup once we sweep the call sites.
  */
 export async function getAuthHeader(): Promise<Record<string, string>> {
-  if (!auth) return {};
-  const user = auth.currentUser;
-  if (!user) return {};
-  try {
-    const token = await user.getIdToken();
-    return { Authorization: `Bearer ${token}` };
-  } catch {
-    return {};
-  }
+  return {};
 }

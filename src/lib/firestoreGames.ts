@@ -1,94 +1,75 @@
-import {
-  collection,
-  doc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  orderBy,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+/**
+ * Client-side wrappers for the cloud-games API. Same signatures as the
+ * pre-migration Firebase implementation; every call now goes through
+ * chessmasti.com /api/games endpoints.
+ *
+ * `userId` arguments are redundant since the server resolves the user
+ * from the session cookie. Kept for backward compat and ignored.
+ */
+
 import { Game } from "@/types/game";
 import { GameEval } from "@/types/eval";
 
-const GAMES_COLLECTION = "games";
-
-// Recursively strip undefined values — Firestore rejects them
-function stripUndefined(obj: Record<string, any>): Record<string, any> {
-  const result: Record<string, any> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (value === undefined) continue;
-    if (Array.isArray(value)) {
-      result[key] = value.map((item) =>
-        item !== null && typeof item === "object" && !(item instanceof Timestamp)
-          ? stripUndefined(item)
-          : item
-      );
-    } else if (value !== null && typeof value === "object" && !(value instanceof Timestamp)) {
-      result[key] = stripUndefined(value);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
-
-function getUserGamesRef(userId: string) {
-  if (!db) throw new Error("Firestore not initialized");
-  return collection(db, "users", userId, GAMES_COLLECTION);
-}
-
 export interface CloudGame extends Omit<Game, "id"> {
   firestoreId: string;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  // Server returns Firestore Timestamps as { _seconds, _nanoseconds }.
+  createdAt?: unknown;
+  updatedAt?: unknown;
 }
 
-export async function getCloudGames(userId: string): Promise<CloudGame[]> {
-  const gamesRef = getUserGamesRef(userId);
-  const q = query(gamesRef, orderBy("createdAt", "desc"));
-  const snapshot = await getDocs(q);
+async function asJson<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Request failed (${res.status}): ${text || res.statusText}`);
+  }
+  return (await res.json()) as T;
+}
 
-  return snapshot.docs.map((doc) => ({
-    ...doc.data(),
-    firestoreId: doc.id,
-  })) as CloudGame[];
+export async function getCloudGames(_userId: string): Promise<CloudGame[]> {
+  void _userId;
+  const res = await fetch("/api/games", { credentials: "include" });
+  const data = await asJson<{ games: CloudGame[] }>(res);
+  return data.games;
 }
 
 export async function addCloudGame(
-  userId: string,
+  _userId: string,
   game: Omit<Game, "id">
 ): Promise<string> {
-  const gamesRef = getUserGamesRef(userId);
-  const docRef = await addDoc(gamesRef, stripUndefined({
-    ...game,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  }));
-  return docRef.id;
+  void _userId;
+  const res = await fetch("/api/games", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(game),
+  });
+  const data = await asJson<{ firestoreId: string }>(res);
+  return data.firestoreId;
 }
 
 export async function updateCloudGameEval(
-  userId: string,
+  _userId: string,
   firestoreId: string,
   evaluation: GameEval
 ): Promise<void> {
-  if (!db) throw new Error("Firestore not initialized");
-  const gameRef = doc(db, "users", userId, GAMES_COLLECTION, firestoreId);
-  await updateDoc(gameRef, stripUndefined({
-    eval: evaluation,
-    updatedAt: serverTimestamp(),
-  }));
+  void _userId;
+  const res = await fetch(`/api/games/${encodeURIComponent(firestoreId)}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eval: evaluation }),
+  });
+  await asJson(res);
 }
 
 export async function deleteCloudGame(
-  userId: string,
+  _userId: string,
   firestoreId: string
 ): Promise<void> {
-  if (!db) throw new Error("Firestore not initialized");
-  const gameRef = doc(db, "users", userId, GAMES_COLLECTION, firestoreId);
-  await deleteDoc(gameRef);
+  void _userId;
+  const res = await fetch(`/api/games/${encodeURIComponent(firestoreId)}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  await asJson(res);
 }

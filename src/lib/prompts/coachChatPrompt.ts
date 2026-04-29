@@ -23,6 +23,17 @@ export const PROMPT_VERSION = "3.0";
 
 export type SkillTier = "beginner" | "intermediate" | "advanced";
 
+export type CoachTone = "friendly" | "strict" | "masti";
+export type PlayingStyle = "tactical" | "positional" | "balanced";
+export type StudyGoal = "tactics" | "endgames" | "openings" | "time-management";
+
+export interface CoachingPrefs {
+  coachTone?: CoachTone;
+  playingStyle?: PlayingStyle;
+  studyGoals?: StudyGoal[];
+  favoriteOpenings?: string[];
+}
+
 export interface CoachChatPromptInput {
   personalityId: string;
   userRating: number;
@@ -30,6 +41,58 @@ export interface CoachChatPromptInput {
   playerColorName?: "white" | "black";
   chesscomUsername?: string;
   lichessUsername?: string;
+  coachingPrefs?: CoachingPrefs;
+}
+
+const TONE_GUIDANCE: Record<CoachTone, string> = {
+  friendly:
+    "Adopt a warm, encouraging voice. Celebrate progress. Frame mistakes as learning opportunities. Use gentle phrasing.",
+  strict:
+    "Adopt a direct, no-nonsense voice. Skip pleasantries. State what was wrong, why, and what to do differently. Trust the user can handle blunt feedback.",
+  masti:
+    "Adopt the playful, spirited 'Masti' house voice. Light humor when natural, energetic phrasing — never at the cost of chess accuracy or clarity.",
+};
+
+const STYLE_GUIDANCE: Record<PlayingStyle, string> = {
+  tactical:
+    "When you have a choice of what to highlight, lean toward sharp lines, sacrifices, attacking ideas, and combinational themes — these match how this player thinks.",
+  positional:
+    "When you have a choice of what to highlight, lean toward long-term plans, structural advantages, piece coordination, and prophylaxis — these match how this player thinks.",
+  balanced:
+    "Match emphasis to what the position actually demands — sometimes tactical sharpness, sometimes positional patience. The player wants to grow into both.",
+};
+
+const GOAL_LABELS: Record<StudyGoal, string> = {
+  tactics: "tactical pattern recognition",
+  endgames: "endgame technique",
+  openings: "opening understanding",
+  "time-management": "clock and time-management discipline",
+};
+
+function renderCoachingPrefs(prefs: CoachingPrefs | undefined): string | null {
+  if (!prefs) return null;
+  const lines: string[] = [];
+  if (prefs.coachTone) {
+    lines.push(`- Voice: ${TONE_GUIDANCE[prefs.coachTone]}`);
+  }
+  if (prefs.playingStyle) {
+    lines.push(`- Emphasis: ${STYLE_GUIDANCE[prefs.playingStyle]}`);
+  }
+  if (prefs.studyGoals && prefs.studyGoals.length) {
+    const goalText = prefs.studyGoals.map((g) => GOAL_LABELS[g]).join(", ");
+    lines.push(
+      `- Active study focus: ${goalText}. When a moment in the game touches one of these themes, lean into it as a teaching opportunity.`
+    );
+  }
+  if (prefs.favoriteOpenings && prefs.favoriteOpenings.length) {
+    lines.push(
+      `- The user has flagged these openings as favorites: ${prefs.favoriteOpenings.join(
+        ", "
+      )}. If the game enters one of these, you can reference it by name without re-introducing the basics.`
+    );
+  }
+  if (!lines.length) return null;
+  return ["PERSONALIZATION (user-set preferences):", ...lines].join("\n");
 }
 
 function deriveSkillTier(rating: number): SkillTier {
@@ -78,7 +141,10 @@ export function getCoachChatSystemPrompt(input: CoachChatPromptInput): string {
     `- Skill calibration tier: ${tierUpper} — use the ${tierUpper} calibration from the SKILL-LEVEL CALIBRATION section above`
   );
 
-  const userContext = userContextLines.join("\n");
+  const personalizationBlock = renderCoachingPrefs(input.coachingPrefs);
+  const userContext = personalizationBlock
+    ? `${userContextLines.join("\n")}\n\n${personalizationBlock}`
+    : userContextLines.join("\n");
 
   const body = `You are an expert grandmaster-level chess coach with deep knowledge of chess principles, strategy, and tactics. Your role is to guide users through their games by providing clear, actionable feedback that helps them improve.
 

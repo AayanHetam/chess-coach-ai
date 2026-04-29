@@ -43,5 +43,50 @@ export function getAuthEnv() {
       // Vercel UI mangles \n in env vars; accept literal \n and unescape.
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
     },
+    session: {
+      secret: process.env.SESSION_SECRET,
+    },
+    google: {
+      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    },
+    email: {
+      resendApiKey: process.env.RESEND_API_KEY,
+      fromAddress: process.env.RESEND_FROM_EMAIL ?? "noreply@chessmasti.com",
+    },
+    appBaseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   };
+}
+
+/**
+ * Throw early if required auth-migration secrets are missing.
+ * Call from auth route handlers, NOT module-load. The route then 503s
+ * with a loud server log instead of crashing the whole app.
+ */
+export function assertAuthSecrets(opts: {
+  needsSession?: boolean;
+  needsAdmin?: boolean;
+  needsGoogle?: boolean;
+  needsEmail?: boolean;
+} = {}): void {
+  const env = getAuthEnv();
+  const missing: string[] = [];
+  if (opts.needsSession && (!env.session.secret || env.session.secret.length < 32)) {
+    missing.push("SESSION_SECRET (≥32 chars)");
+  }
+  if (opts.needsAdmin) {
+    if (!env.firebase.projectId) missing.push("FIREBASE_PROJECT_ID");
+    if (!env.firebase.clientEmail) missing.push("FIREBASE_CLIENT_EMAIL");
+    if (!env.firebase.privateKey) missing.push("FIREBASE_PRIVATE_KEY");
+  }
+  if (opts.needsGoogle) {
+    if (!env.google.clientId) missing.push("GOOGLE_OAUTH_CLIENT_ID");
+    if (!env.google.clientSecret) missing.push("GOOGLE_OAUTH_CLIENT_SECRET");
+  }
+  if (opts.needsEmail && !env.email.resendApiKey) {
+    missing.push("RESEND_API_KEY");
+  }
+  if (missing.length) {
+    throw new Error(`Missing required auth env: ${missing.join(", ")}`);
+  }
 }

@@ -8,6 +8,7 @@ import LandingHowItWorks from "@/components/landing/LandingHowItWorks";
 import LandingComparison from "@/components/landing/LandingComparison";
 import LandingTestimonials from "@/components/landing/LandingTestimonials";
 import LandingAbout from "@/components/landing/LandingAbout";
+import LandingInternship from "@/components/landing/LandingInternship";
 import LandingCTA from "@/components/landing/LandingCTA";
 import LandingFooter from "@/components/landing/LandingFooter";
 
@@ -33,6 +34,7 @@ export default function LandingPage() {
       <LandingComparison />
       <LandingTestimonials />
       <LandingAbout />
+      <LandingInternship />
       <LandingCTA />
       <LandingFooter />
     </Box>

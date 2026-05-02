@@ -54,6 +54,11 @@ export function getAuthEnv() {
       resendApiKey: process.env.RESEND_API_KEY,
       fromAddress: process.env.RESEND_FROM_EMAIL ?? "noreply@chessmasti.com",
     },
+    cmip: {
+      fromEmail: process.env.CMIP_FROM_EMAIL ?? "noreply@chessmasti.com",
+      adminEmail: process.env.CMIP_ADMIN_EMAIL,
+      contactEmail: process.env.CMIP_CONTACT_EMAIL ?? "applications@chessmasti.com",
+    },
     appBaseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   };
 }

@@ -88,6 +88,7 @@ export default function LandingNav() {
             { label: "Compare", href: "#comparison" },
             { label: "Testimonials", href: "#testimonials" },
             { label: "About Us", href: "#about" },
+            { label: "Internship", href: "/internship" },
           ].map((link) => (
             <Typography
               key={link.label}

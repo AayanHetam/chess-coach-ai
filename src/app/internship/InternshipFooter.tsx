@@ -1,7 +1,8 @@
-import { Box, Container, Typography } from "@mui/material";
-import { Icon } from "@iconify/react";
+"use client";
 
-export default function LandingFooter() {
+import { Box, Container, Typography } from "@mui/material";
+
+export default function InternshipFooter() {
   return (
     <Box
       component="footer"
@@ -22,14 +23,8 @@ export default function LandingFooter() {
             gap: 3,
           }}
         >
-          {/* Logo & tagline */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <img
-              src="/logo.svg"
-              width={28}
-              height={28}
-              alt="Chess Coach AI"
-            />
+            <img src="/logo.svg" width={28} height={28} alt="Chess Masti" />
             <Typography
               variant="body1"
               sx={{
@@ -44,59 +39,18 @@ export default function LandingFooter() {
             </Typography>
           </Box>
 
-          {/* Links */}
           <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
             <Typography
               component="a"
-              href="#features"
+              href="/"
               sx={{
                 color: "rgba(255,255,255,0.5)",
                 textDecoration: "none",
                 fontSize: "0.85rem",
                 "&:hover": { color: "#FF6B35" },
-                transition: "color 0.2s",
               }}
             >
-              Features
-            </Typography>
-            <Typography
-              component="a"
-              href="#how-it-works"
-              sx={{
-                color: "rgba(255,255,255,0.5)",
-                textDecoration: "none",
-                fontSize: "0.85rem",
-                "&:hover": { color: "#FF6B35" },
-                transition: "color 0.2s",
-              }}
-            >
-              How It Works
-            </Typography>
-            <Typography
-              component="a"
-              href="#comparison"
-              sx={{
-                color: "rgba(255,255,255,0.5)",
-                textDecoration: "none",
-                fontSize: "0.85rem",
-                "&:hover": { color: "#FF6B35" },
-                transition: "color 0.2s",
-              }}
-            >
-              Compare
-            </Typography>
-            <Typography
-              component="a"
-              href="#about"
-              sx={{
-                color: "rgba(255,255,255,0.5)",
-                textDecoration: "none",
-                fontSize: "0.85rem",
-                "&:hover": { color: "#FF6B35" },
-                transition: "color 0.2s",
-              }}
-            >
-              About Us
+              Home
             </Typography>
             <Typography
               component="a"
@@ -106,33 +60,24 @@ export default function LandingFooter() {
                 textDecoration: "none",
                 fontSize: "0.85rem",
                 "&:hover": { color: "#FF6B35" },
-                transition: "color 0.2s",
               }}
             >
               Internship
             </Typography>
             <Typography
               component="a"
-              href="https://github.com/AayanHetam/chess-coach-ai"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/internship/apply"
               sx={{
                 color: "rgba(255,255,255,0.5)",
                 textDecoration: "none",
                 fontSize: "0.85rem",
-                display: "flex",
-                alignItems: "center",
-                gap: 0.5,
                 "&:hover": { color: "#FF6B35" },
-                transition: "color 0.2s",
               }}
             >
-              <Icon icon="mdi:github" width={16} />
-              GitHub
+              Apply
             </Typography>
           </Box>
 
-          {/* Copyright */}
           <Typography
             variant="caption"
             sx={{ color: "rgba(255,255,255,0.3)", width: { xs: "100%", md: "auto" } }}

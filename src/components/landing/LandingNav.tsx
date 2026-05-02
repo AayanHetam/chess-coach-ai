@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthDialog from "@/components/auth/AuthDialog";
+import { ANNOUNCEMENT_BAR_HEIGHT } from "@/components/landing/LandingAnnouncementBar";
 
 export default function LandingNav() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function LandingNav() {
       component="nav"
       sx={{
         position: "fixed",
-        top: 0,
+        top: ANNOUNCEMENT_BAR_HEIGHT,
         left: 0,
         right: 0,
         zIndex: 1100,
@@ -88,7 +89,7 @@ export default function LandingNav() {
             { label: "Compare", href: "#comparison" },
             { label: "Testimonials", href: "#testimonials" },
             { label: "About Us", href: "#about" },
-            { label: "Internship", href: "/internship" },
+            { label: "Internship", href: "/internship", badge: "HIRING" },
           ].map((link) => (
             <Typography
               key={link.label}
@@ -99,11 +100,32 @@ export default function LandingNav() {
                 textDecoration: "none",
                 fontSize: "0.9rem",
                 fontWeight: 500,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.75,
                 "&:hover": { color: "#FF6B35" },
                 transition: "color 0.2s",
               }}
             >
               {link.label}
+              {link.badge && (
+                <Box
+                  component="span"
+                  sx={{
+                    px: 0.75,
+                    py: 0.15,
+                    borderRadius: 1,
+                    background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
+                    color: "#FFFFFF",
+                    fontSize: "0.6rem",
+                    fontWeight: 800,
+                    letterSpacing: 0.5,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {link.badge}
+                </Box>
+              )}
             </Typography>
           ))}
         </Box>

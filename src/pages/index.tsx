@@ -1,5 +1,6 @@
 import { Box } from "@mui/material";
 import { PageTitle } from "@/components/pageTitle";
+import LandingAnnouncementBar from "@/components/landing/LandingAnnouncementBar";
 import LandingNav from "@/components/landing/LandingNav";
 import LandingHero from "@/components/landing/LandingHero";
 import LandingFeatures from "@/components/landing/LandingFeatures";
@@ -26,15 +27,16 @@ export default function LandingPage() {
       }}
     >
       <PageTitle title="Chess Coach AI - Your AI Chess Coach That Actually Understands Chess" />
+      <LandingAnnouncementBar />
       <LandingNav />
       <LandingHero />
+      <LandingInternship />
       <LandingFeatures />
       <DailyPuzzle />
       <LandingHowItWorks />
       <LandingComparison />
       <LandingTestimonials />
       <LandingAbout />
-      <LandingInternship />
       <LandingCTA />
       <LandingFooter />
     </Box>

@@ -9,7 +9,11 @@ import { useRouter } from "next/router";
 
 export default function Layout({ children }: PropsWithChildren) {
   // Default to light mode for Chess Masti AI - bright and fun!
-  const [isDarkMode, setDarkMode] = useLocalStorage("useDarkMode", false);
+  // Coalesce null → false so SSR renders a real tree (light theme) instead of
+  // bailing the whole app to client-only render. Dark-mode users see a brief
+  // light-theme flash on hydration; trade-off is documented in PR #site-content-ssr.
+  const [storedDarkMode, setDarkMode] = useLocalStorage("useDarkMode", false);
+  const isDarkMode = storedDarkMode ?? false;
 
   const theme = useMemo(
     () =>
@@ -51,8 +55,6 @@ export default function Layout({ children }: PropsWithChildren) {
 
   const router = useRouter();
   const isLandingPage = router.pathname === "/";
-
-  if (isDarkMode === null) return null;
 
   // Landing page: skip NavBar and app chrome for a full-bleed look
   if (isLandingPage) {

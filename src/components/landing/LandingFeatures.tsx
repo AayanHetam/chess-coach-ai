@@ -82,51 +82,51 @@ function FeatureCard({
 const features = [
   {
     icon: "mdi:robot-happy-outline",
-    title: "AI Coach That Understands Chess",
+    title: "Engine-grounded coaching",
     description:
-      "Not just an engine wrapper. Our LLM-powered coach understands strategic themes, explains why moves are good or bad, respects opening theory, and gives grandmaster-level feedback in plain language.",
+      "Stockfish 17 produces the position evaluation, candidate moves, and tactical motifs first. Claude Sonnet then translates the engine's verdict into language. The LLM never invents chess facts — it only paraphrases what the engine already said.",
   },
   {
-    icon: "mdi:cursor-default-click",
-    title: "Interactive Move Exploration",
+    icon: "mdi:shield-check",
+    title: "Hallucination validator",
     description:
-      "Every move the coach mentions is clickable. Jump to any position, explore \"what-if\" alternatives, and watch tactical sequences play out on the board — all from the chat.",
+      "Every coaching response is parsed and each piece, square, and move reference is checked against the live chess.js board state before display. Claims that don't check out are rewritten or discarded. The trust layer most AI coaches skip.",
   },
   {
     icon: "mdi:magnify",
-    title: "Deep Stockfish Analysis",
+    title: "Stockfish 17 in your browser",
     description:
-      "Multiple Stockfish versions run directly in your browser. Get real-time evaluation bars, engine lines, and move classifications — no server required, completely private.",
+      "Stockfish 17 ships as a WebAssembly worker that runs locally — no server round-trip, no rate limit, no analysis quota. Tactical motif detection, candidate-move gap analysis, and branch-point analysis layer on top.",
   },
   {
     icon: "simple-icons:lichess",
-    title: "Play on Lichess",
+    title: "Live play on Lichess",
     description:
-      "Play real opponents on Lichess right from ChessMasti. Pre-moves, material balance, and live clocks — then instantly analyze your game with the AI coach.",
+      "Lichess OAuth 2.0 PKCE plus dual-SSE streams mirror your live game into the app. Pre-moves, material balance, clocks, then one-click jump straight to analysis.",
   },
   {
     icon: "mdi:puzzle",
-    title: "Practice with Puzzles",
+    title: "100,000+ puzzles in a Neo4j graph",
     description:
-      "Sharpen your tactics with 9,000+ curated puzzles across 46 themes and 4 difficulty levels. Filter by forks, pins, skewers, checkmates, and more — then solve them interactively on the board.",
+      "A Neo4j Aura graph of 100,000+ quality-filtered Lichess puzzles, structured across 46 tactical themes and 4 difficulty bands, joined with 298,000+ Jhamtani expert-commentary pairs. Recommendations come from graph traversal plus 49-dimensional FEN cosine-similarity re-ranking against your actual mistake.",
   },
   {
     icon: "mdi:binoculars",
-    title: "Scout Your Opponents",
+    title: "Scout your opponents",
     description:
-      "Enter any Chess.com or Lichess username and we\u2019ll build a full opening tree from their games. See win/draw/loss rates per line, find weaknesses, and get Stockfish-backed prep recommendations.",
+      "Paste a Lichess or Chess.com username for opening trees, repertoire collisions against yours, a \"Stalker Score\" exploitability index, tilt and timeout psychology profiles, and a shareable SVG player card.",
   },
   {
-    icon: "mdi:book-open-page-variant-outline",
-    title: "Opening Theory Awareness",
+    icon: "mdi:account-circle-outline",
+    title: "Twin Bot — humanlike opponent",
     description:
-      "The coach never criticizes established book moves. It understands opening theory, explains the ideas behind your chosen lines, and suggests modern alternatives when appropriate.",
+      "Twin Bot runs on Maia-2 (NeurIPS 2024), a neural network trained to predict human moves at a target Elo. Optionally seed it with a public Lichess username and play someone who blunders the way humans blunder.",
   },
   {
-    icon: "mdi:shield-check-outline",
-    title: "100% Free",
+    icon: "mdi:currency-usd-off",
+    title: "Free, no paid tier",
     description:
-      "No subscriptions, no paywalls. Stockfish analysis runs directly in your browser, keeping your games and analysis completely private.",
+      "No subscriptions, no paywalls, no upsell. Built and maintained by Aayan Hetamsaria, a high-school student. Priority markets are India and Southeast Asia.",
   },
 ];
 
@@ -179,8 +179,9 @@ export default function LandingFeatures() {
             lineHeight: 1.6,
           }}
         >
-          A complete chess coaching platform powered by AI that actually
-          understands the game — not just the numbers.
+          The engine evaluates first. The LLM only translates what the engine
+          said. A validator checks every claim against the live board.
+          Then training matches your actual mistake.
         </Typography>
 
         <Box

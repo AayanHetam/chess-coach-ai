@@ -1,0 +1,58 @@
+# Chess Masti AI
+
+> Free, conversational chess coaching at chessmasti.com. Stockfish 17 evaluates positions, Claude translates the verdict into language, a hallucination validator checks every claim against the live board, and adaptive puzzles come from a 100,000+ position Neo4j graph re-ranked by FEN cosine similarity.
+
+## What it is
+
+- Web app, Next.js 15 + TypeScript on Vercel.
+- Free, no paid tier. Built and maintained by Aayan Hetamsaria, a high-school student.
+- Priority markets: India, Southeast Asia.
+
+## Engine layer (runs before the LLM, not after)
+
+- Stockfish 17 WASM in-browser worker.
+- Tactical motif detection, candidate-move gap analysis, branch-point analysis.
+
+## LLM layer
+
+- Anthropic Claude. Sonnet for deep analysis. Haiku for sub-5-second chat with server-side context caching.
+
+## Validator layer
+
+- Hallucination validator: every coaching response is parsed and each piece, square, and move reference is checked against the live chess.js board state. Failed claims are rewritten or discarded.
+
+## Humanlike opponent
+
+- Twin Bot is built on Maia-2 (NeurIPS 2024), deployed as a FastAPI/PyTorch microservice on Hugging Face Spaces.
+- Optional opening-tree mirroring of a public Lichess player.
+
+## Puzzle retrieval
+
+- Neo4j Aura graph: 100,000+ quality-filtered Lichess puzzles (popularity ≥ 60, plays ≥ 50, rating deviation ≤ 120).
+- 46 tactical themes × 4 difficulty bands.
+- Joined with 298,000+ Jhamtani expert-commentary pairs.
+- Graph traversal + 49-dimensional FEN cosine-similarity re-ranking against the user's mistake position.
+- SM-2 spaced repetition over puzzle progress.
+
+## Live play
+
+- Lichess OAuth 2.0 PKCE.
+- Dual-SSE live game stream.
+
+## Opponent scouting
+
+- Lichess / Chess.com username → opening trees, repertoire collisions, "Stalker Score" exploitability index, tilt and timeout psychology profiles, shareable SVG player card.
+
+## Pages
+
+- [How it works](https://chessmasti.com/how-it-works): the engine → LLM → validator → puzzle pipeline in plain English.
+- [Architecture](https://chessmasti.com/architecture): technical deep-dive.
+- [Compare](https://chessmasti.com/vs): comparison against Sensei Chess, Noctie, Chessvia, DecodeChess, Chess.com Coach.
+- [FAQ](https://chessmasti.com/faq): common questions about the pipeline, validator, Maia-2, pricing.
+
+## What we don't do
+
+- No paid tier.
+- No advertising.
+- No selling game data.
+- No fine-tuned proprietary chess LLM. The validator is the trust layer.

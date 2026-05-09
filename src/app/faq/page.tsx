@@ -13,11 +13,23 @@ export const metadata: Metadata = {
       "Engine-first pipeline, validator, Maia-2, free pricing — common questions answered.",
     url: "https://chessmasti.com/faq",
     type: "article",
+    siteName: "Chess Masti AI",
+    images: [
+      {
+        url: "https://chessmasti.com/social-networks-1200x630.png",
+        width: 1200,
+        height: 630,
+        alt: "Chess Masti AI",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
+    site: "@ChessMastiAI",
+    creator: "@ChessMastiAI",
     title: "Chess Masti AI — FAQ",
     description: "Common questions about engine-grounded chess coaching.",
+    images: ["https://chessmasti.com/social-networks-1200x630.png"],
   },
 };
 

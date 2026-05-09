@@ -17,6 +17,7 @@ const HOME_TITLE =
   "Chess Masti AI — engine-grounded chess coaching, free";
 const HOME_DESC =
   "A chess coach that runs Stockfish 17 first, asks Claude to explain in plain English, then validates every claim against the live board. 100,000+ Lichess puzzles in a Neo4j graph. Free.";
+const HOME_OG_IMAGE = "https://chessmasti.com/social-networks-1200x630.png";
 
 const HOME_JSON_LD = {
   "@context": "https://schema.org",
@@ -58,20 +59,59 @@ export default function LandingPage() {
         <title key="title">{HOME_TITLE}</title>
         <meta key="description" name="description" content={HOME_DESC} />
         <link key="canonical" rel="canonical" href="https://chessmasti.com/" />
-        <meta key="og:title" property="og:title" content={HOME_TITLE} />
-        <meta key="og:description" property="og:description" content={HOME_DESC} />
-        <meta key="og:url" property="og:url" content="https://chessmasti.com/" />
+
         <meta key="og:type" property="og:type" content="website" />
         <meta
-          key="twitter:title"
-          name="twitter:title"
-          content={HOME_TITLE}
+          key="og:site_name"
+          property="og:site_name"
+          content="Chess Masti AI"
         />
+        <meta key="og:title" property="og:title" content={HOME_TITLE} />
+        <meta
+          key="og:description"
+          property="og:description"
+          content={HOME_DESC}
+        />
+        <meta key="og:url" property="og:url" content="https://chessmasti.com/" />
+        <meta key="og:image" property="og:image" content={HOME_OG_IMAGE} />
+        <meta
+          key="og:image:width"
+          property="og:image:width"
+          content="1200"
+        />
+        <meta
+          key="og:image:height"
+          property="og:image:height"
+          content="630"
+        />
+
+        <meta
+          key="twitter:card"
+          name="twitter:card"
+          content="summary_large_image"
+        />
+        <meta
+          key="twitter:site"
+          name="twitter:site"
+          content="@ChessMastiAI"
+        />
+        <meta
+          key="twitter:creator"
+          name="twitter:creator"
+          content="@ChessMastiAI"
+        />
+        <meta key="twitter:title" name="twitter:title" content={HOME_TITLE} />
         <meta
           key="twitter:description"
           name="twitter:description"
           content={HOME_DESC}
         />
+        <meta
+          key="twitter:image"
+          name="twitter:image"
+          content={HOME_OG_IMAGE}
+        />
+
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(HOME_JSON_LD) }}

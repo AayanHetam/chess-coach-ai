@@ -14,11 +14,23 @@ export const metadata: Metadata = {
       "Comparison against Sensei Chess, Noctie, Chessvia, DecodeChess, Chess.com Coach.",
     url: "https://chessmasti.com/vs",
     type: "article",
+    siteName: "Chess Masti AI",
+    images: [
+      {
+        url: "https://chessmasti.com/social-networks-1200x630.png",
+        width: 1200,
+        height: 630,
+        alt: "Chess Masti AI",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
+    site: "@ChessMastiAI",
+    creator: "@ChessMastiAI",
     title: "Chess Masti AI vs the alternatives",
     description: "Honest comparison across 5 AI chess coaches.",
+    images: ["https://chessmasti.com/social-networks-1200x630.png"],
   },
 };
 

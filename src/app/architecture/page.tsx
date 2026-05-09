@@ -13,11 +13,23 @@ export const metadata: Metadata = {
       "Stockfish 17 WASM, two-tier Claude, Maia-2, Neo4j with FEN cosine re-ranking, hallucination validator.",
     url: "https://chessmasti.com/architecture",
     type: "article",
+    siteName: "Chess Masti AI",
+    images: [
+      {
+        url: "https://chessmasti.com/social-networks-1200x630.png",
+        width: 1200,
+        height: 630,
+        alt: "Chess Masti AI",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
+    site: "@ChessMastiAI",
+    creator: "@ChessMastiAI",
     title: "Chess Masti AI architecture",
     description: "Engineering deep-dive on the chess coaching pipeline.",
+    images: ["https://chessmasti.com/social-networks-1200x630.png"],
   },
 };
 

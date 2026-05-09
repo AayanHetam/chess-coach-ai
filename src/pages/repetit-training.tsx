@@ -18,6 +18,7 @@ import {
 } from "@/lib/repetitTraining";
 import { useRouter } from "next/router";
 import { useSetAtom } from "jotai";
+import { PageTitle } from "@/components/pageTitle";
 import {
   practicePuzzlesAtom,
   currentPuzzleIndexAtom,
@@ -75,6 +76,7 @@ export default function RepetitTrainingPage() {
       color: "#fff",
       padding: "2rem",
     }}>
+      <PageTitle title="Chess Masti AI - Repetit Training" />
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
         {/* Header */}
         <div style={{ marginBottom: "2rem" }}>

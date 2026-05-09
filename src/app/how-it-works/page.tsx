@@ -13,12 +13,24 @@ export const metadata: Metadata = {
       "Engine-first chess coaching pipeline: Stockfish, then Claude, then a validator, then targeted puzzles.",
     url: "https://chessmasti.com/how-it-works",
     type: "article",
+    siteName: "Chess Masti AI",
+    images: [
+      {
+        url: "https://chessmasti.com/social-networks-1200x630.png",
+        width: 1200,
+        height: 630,
+        alt: "Chess Masti AI",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
+    site: "@ChessMastiAI",
+    creator: "@ChessMastiAI",
     title: "How Chess Masti AI Works",
     description:
       "Engine-first chess coaching: Stockfish → Claude → validator → puzzles.",
+    images: ["https://chessmasti.com/social-networks-1200x630.png"],
   },
 };
 

@@ -16,7 +16,7 @@ import LandingFooter from "@/components/landing/LandingFooter";
 const HOME_TITLE =
   "Chess Masti AI — engine-grounded chess coaching, free";
 const HOME_DESC =
-  "A chess coach that runs Stockfish 17 first, asks Claude to explain in plain English, then validates every claim against the live board. 100,000+ Lichess puzzles in a Neo4j graph. Free.";
+  "AI chess coach: Stockfish 17 evaluates first, Claude explains, a hallucination validator checks every claim. 100,000+ Lichess puzzles in a Neo4j graph. Free.";
 const HOME_OG_IMAGE = "https://chessmasti.com/social-networks-1200x630.png";
 
 const HOME_JSON_LD = {

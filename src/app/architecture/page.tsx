@@ -5,7 +5,7 @@ import { contentPageStyles } from "../_seo/styles";
 export const metadata: Metadata = {
   title: "Chess Masti AI — architecture (Stockfish 17, Claude, Maia-2, Neo4j)",
   description:
-    "How the system is built: Next.js 15 on Vercel, Stockfish 17 WASM in-browser, two-tier Anthropic Claude with context caching, Maia-2 microservice on Hugging Face, hallucination validator, Neo4j Aura graph with FEN cosine re-ranking.",
+    "Next.js 15 on Vercel, Stockfish 17 WASM, two-tier Claude, Maia-2 on Hugging Face, hallucination validator, Neo4j with FEN cosine re-ranking.",
   alternates: { canonical: "https://chessmasti.com/architecture" },
   openGraph: {
     title: "Chess Masti AI architecture",

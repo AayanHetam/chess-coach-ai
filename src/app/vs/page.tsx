@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title:
     "Chess Masti AI vs Sensei Chess, Noctie, Chessvia, DecodeChess, Chess.com Coach",
   description:
-    "Honest comparison: where Chess Masti AI's engine-first pipeline and 100,000-puzzle Neo4j graph beat the alternatives, and where established players (Chess.com Coach, DecodeChess) are stronger.",
+    "Chess Masti AI vs Sensei Chess, Noctie, Chessvia, DecodeChess, Chess.com Coach. Engine-first pipeline + 100,000-puzzle Neo4j graph, free.",
   alternates: { canonical: "https://chessmasti.com/vs" },
   openGraph: {
     title: "Chess Masti AI vs the alternatives",

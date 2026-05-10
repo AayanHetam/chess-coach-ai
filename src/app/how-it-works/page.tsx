@@ -5,7 +5,7 @@ import { contentPageStyles } from "../_seo/styles";
 export const metadata: Metadata = {
   title: "How Chess Masti AI Works — engine-first, then the LLM",
   description:
-    "Stockfish 17 evaluates first. Claude translates the engine's verdict into language. A hallucination validator checks every claim against the live board. Then 3 adaptive puzzles render inside the coaching reply.",
+    "Engine-first chess coaching: Stockfish 17 runs first, Claude translates the verdict, a chess.js validator checks every claim before display.",
   alternates: { canonical: "https://chessmasti.com/how-it-works" },
   openGraph: {
     title: "How Chess Masti AI Works",

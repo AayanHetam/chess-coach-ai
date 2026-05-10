@@ -85,7 +85,7 @@ export default function LandingHowItWorks() {
             fontSize: { xs: "1.8rem", md: "2.5rem" },
           }}
         >
-          Your Complete Chess Improvement Loop
+          Engine → Claude → Validator → Targeted Puzzles
         </Typography>
 
         <Box
@@ -114,23 +114,23 @@ export default function LandingHowItWorks() {
 
           <StepCard
             number={1}
-            title="Analyze Your Games"
-            description="Load a PGN or play a game on Lichess. The AI coach explains every move in plain language — not just engine numbers."
+            title="Engine evaluates first"
+            description="Stockfish 17 runs in your browser as a WASM worker, surfaces tactical motifs, candidate gaps, and branch points. The LLM never sees the raw board."
           />
           <StepCard
             number={2}
-            title="Practice Tactics"
-            description="Solve 9,000+ curated puzzles across 46 themes. Filter by forks, pins, checkmates — sharpen the patterns that win games."
+            title="Claude explains, validator checks"
+            description="Claude Sonnet writes the coaching response from the engine's structured output. A hallucination validator cross-checks every claim against chess.js before display."
           />
           <StepCard
             number={3}
-            title="Scout Your Opponents"
-            description="Enter any Chess.com or Lichess username. We build their opening tree, show win rates per line, and find exploitable weaknesses."
+            title="Targeted puzzles, inline"
+            description="3 puzzles render inside the same chat bubble, retrieved from a 100,000+ position Neo4j graph and re-ranked by 49-dimensional FEN cosine similarity to your mistake."
           />
           <StepCard
             number={4}
-            title="Prepare & Win"
-            description="Combine AI coaching with opponent data to build a targeted prep repertoire. Go into your next game with a plan."
+            title="Train, then go play"
+            description="SM-2 spaced repetition files what you solved. Twin Bot (Maia-2) gives you humanlike practice. Scout dashboard preps you against a specific opponent."
           />
         </Box>
       </Container>

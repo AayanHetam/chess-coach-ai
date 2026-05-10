@@ -118,7 +118,7 @@ export default function LandingHero() {
                 variant="caption"
                 sx={{ fontWeight: 600, color: "#FF6B35", letterSpacing: 0.5 }}
               >
-                Free to Use
+                Free · No install · Engine-grounded
               </Typography>
             </Box>
 
@@ -162,10 +162,12 @@ export default function LandingHero() {
                 fontSize: { xs: "1rem", md: "1.15rem" },
               }}
             >
-              Not just engine numbers. An LLM-powered coach that explains moves
-              in human language, play real opponents on Lichess right from our
-              site, 9,000+ tactical puzzles, and a scout tool to exploit any
-              opponent&apos;s weaknesses.
+              Stockfish 17 evaluates the position. Claude turns the
+              engine&apos;s verdict into plain English. A hallucination
+              validator checks every claim against the live board before you
+              read it. Then the next 3 puzzles you solve are pulled from a
+              100,000+ position Neo4j graph and ranked against your actual
+              mistake — not a generic theme bucket.
             </Typography>
 
             <Box
@@ -279,9 +281,9 @@ export default function LandingHero() {
             {/* Trust indicators */}
             <Box sx={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
               {[
-                { icon: "mdi:shield-check-outline", text: "100% Private" },
-                { icon: "mdi:currency-usd-off", text: "Always Free" },
-                { icon: "mdi:download-off", text: "No Install" },
+                { icon: "mdi:engine-outline", text: "Engine-grounded" },
+                { icon: "mdi:shield-check-outline", text: "Validated against chess.js" },
+                { icon: "mdi:currency-usd-off", text: "Free, no paid tier" },
               ].map((item) => (
                 <Box
                   key={item.text}

@@ -24,50 +24,13 @@ export default function Document() {
           href="/favicon-16x16.png"
         />
 
-        {/* SEO and Social Media Tags */}
-        <meta
-          name="description"
-          content="Chess Masti AI - Make chess fun with AI-powered coaching! Learn through engaging principles-based feedback, enjoy the masti (fun) of improving your game, and discover the joy of chess mastery."
-        />
+        {/* Generic SEO meta. OG/Twitter tags are owned per-route by
+         * pages/index.tsx, the PageTitle component (other Pages routes), and
+         * Metadata exports (App Router). Don't add og:* / twitter:* here. */}
+        <meta name="author" content="Chess Masti AI" />
         <meta
           name="keywords"
           content="chess masti, chess fun, chess ai, enjoyable chess, chess learning, chess training, fun chess coaching, chess improvement, chess enjoyment"
-        />
-        <meta name="author" content="Chess Masti AI" />
-
-        {/* Open Graph / Facebook */}
-        <meta property="og:type" content="website" />
-        <meta
-          property="og:title"
-          content="Chess Masti AI - Make Chess Fun with AI!"
-        />
-        <meta
-          property="og:description"
-          content="Make chess fun with AI-powered coaching! Learn through engaging principles and enjoy the masti (fun) of improving your game."
-        />
-        <meta property="og:site_name" content="Chess Masti AI" />
-        <meta property="og:url" content="https://chessmasti.com/" />
-        <meta
-          property="og:image"
-          content="https://chessmasti.com/social-networks-1200x630.png"
-        />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-
-        {/* Twitter */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Chess Masti AI - Make Chess Fun!" />
-        <meta
-          name="twitter:description"
-          content="Make chess fun with AI-powered coaching! Learn through engaging principles and enjoy the masti of improving your game."
-        />
-        <meta name="twitter:domain" content="chessmasti.com" />
-        <meta name="twitter:url" content="https://chessmasti.com/" />
-        <meta name="twitter:creator" content="@ChessMastiAI" />
-        <meta name="twitter:site" content="@ChessMastiAI" />
-        <meta
-          name="twitter:image"
-          content="https://chessmasti.com/social-networks-1200x630.png"
         />
       </Head>
       <body>

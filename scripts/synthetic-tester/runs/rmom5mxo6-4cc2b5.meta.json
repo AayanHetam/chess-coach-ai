@@ -1,0 +1,70 @@
+{
+  "run_id": "rmom5mxo6-4cc2b5",
+  "started_at": "2026-05-01T00:08:30.258Z",
+  "seed": 42,
+  "app_git_sha": "9d2f37f50cb90abe12b69e5e2c9ae285e19a3098",
+  "base_url": "http://127.0.0.1:3000",
+  "cli_args": [
+    "--games",
+    "3",
+    "--personas",
+    "confused_beginner,tilted_intermediate,curious_advanced,trick_questioner",
+    "--questions",
+    "2",
+    "--max-cost",
+    "1.0",
+    "--seed",
+    "42"
+  ],
+  "options": {
+    "games": 3,
+    "questions": 2,
+    "personas": [
+      "confused_beginner",
+      "tilted_intermediate",
+      "curious_advanced",
+      "trick_questioner"
+    ],
+    "concurrency": 1,
+    "max_cost_usd": 1,
+    "personality_id": "friendly",
+    "min_plies": 30,
+    "stockfish_depth": 14,
+    "persona_temperature": 0.3
+  },
+  "persona_files": {
+    "confused_beginner": {
+      "path": "scripts/synthetic-tester/personas/confused_beginner.md",
+      "sha256": "b0e076b4a944c236",
+      "version": 1,
+      "date_calibrated": "2026-04-30",
+      "source": "scaffold"
+    },
+    "tilted_intermediate": {
+      "path": "scripts/synthetic-tester/personas/tilted_intermediate.md",
+      "sha256": "94067bba7ae2af1d",
+      "version": 1,
+      "date_calibrated": "2026-04-30",
+      "source": "scaffold"
+    },
+    "curious_advanced": {
+      "path": "scripts/synthetic-tester/personas/curious_advanced.md",
+      "sha256": "f3eba02b54b6417f",
+      "version": 1,
+      "date_calibrated": "2026-04-30",
+      "source": "scaffold"
+    },
+    "trick_questioner": {
+      "path": "scripts/synthetic-tester/personas/trick_questioner.md",
+      "sha256": "291638a0f46a82d1",
+      "version": 1,
+      "date_calibrated": "2026-04-30",
+      "source": "scaffold"
+    }
+  },
+  "ended_at": "2026-05-01T00:12:20.022Z",
+  "totals": {
+    "rows_written": 24,
+    "cost_usd_spent": 0.018864
+  }
+}

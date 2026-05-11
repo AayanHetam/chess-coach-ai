@@ -454,6 +454,16 @@ The Anthropic prompt cache has a 5-min TTL and is ~10× cheaper on hits.
 
 ### 9.4 Cost model
 
+**Canonical reading of "validation pipeline cost ≤ $0.01 / turn at p99"** (tech-lead, 2026-05-11):
+
+The PR 1.B spec set a ceiling of "$0.01 per turn at p99 for the full validation pipeline (parse + check + up to 2 retries)." A literal reading is infeasible — a single Sonnet retry alone is ~$0.03, which busts the ceiling at p99 if retries fire.
+
+**Interpretation A (canonical):** the ceiling applies to **validation overhead** — the cost the pipeline adds *on top of* the original LLM call. Regenerate replaces the original Sonnet output rather than adding to it; whether the call passed first time or after a retry, the user pays for Sonnet once. Under this reading, p99 validation overhead = 2 Haiku parses + telemetry ≈ $0.002. Cleanly under $0.01.
+
+**Same-tier rule stays.** Retries call the same tier as the original (Sonnet → Sonnet, Haiku → Haiku). The cost-ceiling argument does not relax this rule because the regenerate is replacement, not addition.
+
+**Total per-turn cost stays as projected below.** Validators don't add cost in the steady state; they redirect spend toward "useful Sonnet calls that pass validation." See [PR_1B_PLAN.md §10.3](PR_1B_PLAN.md) for the full discussion and the alternative (Interpretation B) the team considered and rejected.
+
 Projected per-turn cost under the expanded scope:
 
 | Component | Tokens | Cost |

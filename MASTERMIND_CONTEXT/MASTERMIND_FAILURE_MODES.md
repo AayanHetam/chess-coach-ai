@@ -149,6 +149,13 @@ Added 2026-05-08 alongside the Stage 3 grounding tools (`compute_feature_delta`,
 - **Failure mode**: if `annotatePosition` throws, `compute_feature_delta` throws, the per-move loop in `enhanced-analysis/route.ts` either crashes or silently drops the move's `## Position changes` block — same observability gap as PLAN.md §P1-3 (move-replay errors silently swallowed).
 - **Recovery path**: surface the error to the route handler with a sentinel (`{error: "position-annotator-failed", fen}`); the prompt-context builder logs and emits a comment in the prompt context so the LLM knows the delta is unavailable for that move. Validator-style "swallow + warn" is the wrong pattern here; PLAN.md §P1-3 already names this anti-pattern.
 
+### 10f. Absolute-state claims unchecked by PR 1.B validators (KNOWN GAP, deferred)
+
+- **Trigger**: LLM emits an absolute-state claim about a single position — e.g., "the queen on e5 is undefended", "your knight is active", "the bishop is bad" — that is factually wrong against the live position.
+- **Scope clarification (Aayan, 2026-05-11)**: PR 1.B's `validateFeatureDeltaCitations` validates **changes between two positions** (feature deltas, piece-role diffs, threat additions/removals). It does NOT validate absolute-state claims about a single position. Those are checked partially by the existing chess.js piece-on-square validator at [aiResponseValidator.ts:92-148](../src/lib/aiResponseValidator.ts#L92-L148), but only for piece-on-square existence — not for derived attributes like defended/undefended/active/passive/well-placed.
+- **Failure mode**: a coaching response containing "your queen on h5 is undefended" against a position where h5 is defended by a pawn on g4 passes all current validators silently. The LLM is wrong; nothing catches it.
+- **Recovery path**: not Phase 1. A future absolute-state validator would: (a) parse claims of the form `<piece> on <square> is <attribute>` via a Haiku sub-call, (b) compute the actual attribute from `positionAnnotator.ts` outputs (defended-by count, piece-activity score, etc.), (c) cross-check. Designed to compose with PR 1.B's `regenerate.ts` orchestrator so the retry path covers both delta-claims and absolute-state-claims uniformly. Defer until after PR 1.C ships and the synthetic-tester exposes which absolute-state hallucination patterns are most common — that data picks which claim types to invest in.
+
 ---
 
 ## 11. Other gotchas worth knowing

@@ -21,6 +21,12 @@ These three SUMMARY blocks total roughly 600 words. They are foundational: the a
 | 3 | [MASTERMIND_USER_MODEL.md](MASTERMIND_USER_MODEL.md) | What the agent can read about the user, with storage-tier discipline |
 | 4 | [MASTERMIND_TOOLS.md](MASTERMIND_TOOLS.md) | The agent's action surface; design-only entries flag what the agent can't do |
 
+### Build plan (load when actively shipping Mastermind code)
+
+| Doc | Purpose |
+|---|---|
+| [MASTERMIND_BUILD_PLAN.md](MASTERMIND_BUILD_PLAN.md) | Executable 5-phase plan with mandatory call sites, per-PR merge contract, current file:line landmarks. Builders read this end-to-end before PR 1.A; experienced builders jump to the active phase section. |
+
 ### Tier 2 — load on demand (cheap)
 
 Loaded when the conversation specifically enters their territory. Each is a single-doc read.

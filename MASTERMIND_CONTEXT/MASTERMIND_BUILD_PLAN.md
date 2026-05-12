@@ -160,6 +160,8 @@ The user's directive on 2026-05-11 was "increase scope significantly, chase qual
 
 **Acceptance gate:** all Vitest tests green; `npx tsc --noEmit` clean.
 
+**Unit-test vs production gap (tech-lead 2026-05-11):** PR 1.B's adversarial metaphorical-prose tests verify validator **logic** against mocked parser output, not real Haiku classification quality under the cached system prompt. The parser-quality question — does real Haiku correctly classify "the queen is screaming at h7" as metaphorical at production traffic volumes? — is answered by PR 1.C's synthetic-tester sweep against a preview deploy. See [PR_1B_PLAN.md §13.1](PR_1B_PLAN.md) for the full split.
+
 ### 4.3 PR 1.B — Validator hardening (~400 LOC)
 
 **Branch:** `mastermind/validator-eval-mismatch`
@@ -533,6 +535,24 @@ Every PR in this plan must satisfy **all** of:
 **Auto-merge eligibility:** Phase 1 + 2 PRs are auto-merge when CI green and nothing weird (per [feedback_auto_merge_phase3.md](../../memory/feedback_auto_merge_phase3.md), extended). Phase 3 onward requires user review (content choices are scope-shaping).
 
 **Scope-change rule:** technical-correctness deviations from this plan are OK with a PR-description note; scope changes (adding/removing tools, changing the phasing) require asking first per [feedback_plan_deviations.md](../../memory/feedback_plan_deviations.md).
+
+### 11.1 Merge-history preservation (tech-lead 2026-05-11)
+
+**Do not squash Phase 1 PRs into a single merge to main.** Three separate merges in order:
+
+1. `mastermind/planning-docs` → main (build plan, recovered planning docs, synthetic-tester)
+2. `mastermind/stage-3-primitives` → main (PR 1.A library)
+3. `mastermind/stage-3-validators` → main (PR 1.B library, PR 1.C wiring + sweep)
+
+**Rationale:** the audit trail for ISEF and for future debugging needs to show the decision points distinctly. A squashed merge collapses "what was planned" / "what was built" / "what was wired" into one blob, making it hard to trace why a particular choice was made. Three merges in order keep the boundaries legible:
+
+- planning-docs answers *"why this shape?"*
+- primitives answers *"what computes the deltas?"*
+- validators+wiring answers *"how are they enforced and surfaced?"*
+
+When PR 1.C ships, its merge to main collapses the validators branch + its dependencies-via-merge into a single linear sequence on main, which is the desired flat history. Each merge gets its own commit; nothing is squashed.
+
+This rule extends to future Phase 1+ PR series unless a tech-lead override is recorded here.
 
 ---
 

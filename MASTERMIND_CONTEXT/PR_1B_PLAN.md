@@ -718,10 +718,26 @@ Extra adversarial cases worth adding (will include unless cut):
 
 1. **TSC:** `npx tsc --noEmit` clean.
 2. **Tests:** `npm run test` 100% green; 43 new tests + 98 existing = 141 cases.
-3. **Manual seeded run:** Construct a fixture with a known-bad LLM response (hardcoded), seed Stockfish eval, run the pipeline, capture telemetry log + corrected output, paste both into the PR description.
+3. **Manual seeded run:** Construct a fixture with a known-bad LLM response (hardcoded), seed Stockfish eval, run the pipeline, capture telemetry log + corrected output, paste both into the PR description. Shipped as [scripts/mastermind/seeded-regenerate-demo.ts](../scripts/mastermind/seeded-regenerate-demo.ts) — runnable via `npx tsx scripts/mastermind/seeded-regenerate-demo.ts`. Output dump from a run is in the PR 1.B commit description and reproducible offline.
 4. **Synthetic-tester:** Run `mastermind/stage-3-validators` against the 50-turn synthetic-tester sweep (10 master games × 5 personas). Compare chess-correctness score and hallucination-escape rate to main. Report both in PR description.
 5. **Cache hit verification:** Capture `cacheReadTokens > 0` on second parser invocation in the test suite. Confirms `cacheSystem: true` is actually firing.
 6. **Cost dump:** Total `costUsd` across the 50-turn run, broken down by component (parsers / Sonnet initial / Sonnet retries / fallback) and reported in PR description.
+
+### 13.1 Honest framing of what PR 1.B proves (tech-lead 2026-05-11)
+
+The adversarial metaphorical-prose tests (§12.2 #13-16) verify validator logic against **mocked parser output**. They do NOT verify that real Haiku correctly classifies metaphorical prose under the cached system prompt at production traffic volumes. That validation lands in PR 1.C's synthetic-tester sweep, where real Haiku is invoked under real conditions.
+
+Concretely, what PR 1.B proves:
+- Given parser-output classifying a claim as `metaphorical`, validator does not fire. ✓
+- Given parser-output classifying as `evaluative` outside tolerance, validator fires. ✓
+- Given malformed JSON from parser, validator silently skips. ✓
+
+What PR 1.B does NOT prove, deferred to PR 1.C:
+- Real Haiku, given "the queen is screaming at h7", returns `claim_class: "metaphorical"`.
+- Real Haiku doesn't over-classify rich coaching prose as evaluative under the prompt cache.
+- Real Haiku's classifier holds across the persona variations the synthetic-tester exercises.
+
+This separation is intentional: unit tests cover the validator's logic surface; integration tests against real Haiku cover the parser's classification quality. The latter requires production traffic and is PR 1.C's gate, not 1.B's.
 
 ---
 

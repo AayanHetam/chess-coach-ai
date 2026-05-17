@@ -130,12 +130,12 @@ export default function InternHome() {
           <Box>
             <Button
               component={Link}
-              href="/"
+              href="/analysis"
               variant="contained"
               size="large"
               sx={{ textTransform: "none", fontWeight: 600 }}
             >
-              Back to dogfooding →
+              Open the chess coach →
             </Button>
           </Box>
         </Stack>

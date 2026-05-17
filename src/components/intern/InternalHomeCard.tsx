@@ -56,19 +56,43 @@ export function InternalHomeCard() {
 
           <Box>
             <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-              Welcome back, {firstName}.
+              Welcome, {firstName}.
             </Typography>
             <Typography variant="body1" sx={{ mt: 1.5, opacity: 0.92, maxWidth: 620 }}>
-              You&apos;re viewing chessmasti.com as an employee — same product the
-              customer sees, with the team tools the customer doesn&apos;t. Every
-              bad response you flag here makes the coach measurably smarter.
+              You&apos;re viewing chessmasti.com as an employee, not a customer.
+              The blue theme and EMPLOYEE badge confirm your intern access is
+              live. The actual feedback workflow ships next:
             </Typography>
+          </Box>
+
+          <Box
+            sx={{
+              backgroundColor: "rgba(255,255,255,0.10)",
+              borderRadius: 1.5,
+              p: 2,
+              border: "1px solid rgba(255,255,255,0.18)",
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ display: "block", opacity: 0.75, letterSpacing: "0.06em", mb: 1 }}
+            >
+              SHIPPING NEXT
+            </Typography>
+            <Stack spacing={0.75}>
+              <Typography variant="body2">
+                <strong>CMIP-1.B</strong> — A 🚩 button appears next to every coach message in analysis chat. One click captures the full session.
+              </Typography>
+              <Typography variant="body2">
+                <strong>CMIP-1.C</strong> — The /intern dashboard lists your flagged items so you can write the ideal response when you have time. Target: 10 per week.
+              </Typography>
+            </Stack>
           </Box>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
             <Button
               component={Link}
-              href="/"
+              href="/analysis"
               variant="contained"
               size="large"
               sx={{
@@ -79,7 +103,7 @@ export function InternalHomeCard() {
                 "&:hover": { backgroundColor: "#F5F5F5" },
               }}
             >
-              Continue dogfooding →
+              Open the chess coach →
             </Button>
             <Button
               component={Link}
@@ -97,14 +121,9 @@ export function InternalHomeCard() {
                 },
               }}
             >
-              Go to intern dashboard
+              Open intern dashboard
             </Button>
           </Stack>
-
-          <Typography variant="caption" sx={{ opacity: 0.7, pt: 1 }}>
-            Flag-response button + submissions dashboard land in CMIP-1.B / 1.C.
-            For now, /intern is a placeholder.
-          </Typography>
         </Stack>
       </Paper>
     </Box>

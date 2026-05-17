@@ -12,6 +12,7 @@ import {
   Toolbar,
 } from "@mui/material";
 import ChatHistoryList from "@/components/chat/ChatHistoryList";
+import { useViewer } from "@/hooks/useViewer";
 
 const MenuOptions = [
   { text: "Home", icon: "mdi:home-outline", href: "/" },
@@ -54,18 +55,28 @@ const MenuOptions = [
   },
 ];
 
+// Resolved 2026-05-17: when isIntern, hide everything except these three.
+// Profile + account settings stay reachable via the UserMenu avatar dropdown,
+// not the burger nav, to remove noise from the daily flag-and-author surface.
+const INTERN_VISIBLE_HREFS = new Set(["/", "/play", "/analysis"]);
+
 interface Props {
   open: boolean;
   onClose: () => void;
 }
 
 export default function NavMenu({ open, onClose }: Props) {
+  const { isIntern } = useViewer();
+  const items = isIntern
+    ? MenuOptions.filter((o) => INTERN_VISIBLE_HREFS.has(o.href))
+    : MenuOptions;
+
   return (
     <Drawer anchor="left" open={open} onClose={onClose}>
       <Toolbar />
       <Box sx={{ width: 280, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
         <List sx={{ flexShrink: 0 }}>
-          {MenuOptions.map(({ text, icon, href }) => (
+          {items.map(({ text, icon, href }) => (
             <ListItem key={text} disablePadding sx={{ margin: 0.7 }}>
               <NavLink href={href}>
                 <ListItemButton onClick={onClose}>

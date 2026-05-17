@@ -172,10 +172,10 @@ Interns have a regular `users/{uid}` doc in Firestore — they signed up like an
 
 | PR | Branch | Scope | LOC | Unblocks |
 |---|---|---|---|---|
-| CMIP-1.A | `cmip/auth-and-chrome` | Allowlist + `isIntern` propagation + site-wide employee chrome | ~600 | 1.B and 1.C |
-| CMIP-1.B | `cmip/flag-capture` | Flag button + Supabase capture pipeline | ~450 | 1.C, eval feeder |
-| CMIP-1.C | `cmip/intern-dashboard` | `/intern` dashboard, submission authoring flow, quota tracker | ~700 | Submitted-pair data |
-| CMIP-1.D | `cmip/export-pipeline` | Admin export endpoint → JSONL for Mastermind eval consumption | ~200 | Phase 1.C synthetic-tester augmentation |
+| CMIP-1.A | `cmip/auth-and-chrome` | Allowlist + `isIntern` propagation + site-wide employee chrome | ~600 | 1.B and 1.C | ✅ merged 2026-05-17 (PR #20) |
+| CMIP-1.B | `cmip/flag-capture` | Flag button + Supabase capture + **intern nav surface restriction** | ~550 | 1.C, eval feeder | |
+| CMIP-1.C | `cmip/intern-dashboard` | `/intern` dashboard, submission authoring flow, **pacing-aware quota widget** | ~750 | Submitted-pair data | |
+| CMIP-1.D | `cmip/admin-dashboard-and-export` | **Admin progress dashboard for all interns** + JSONL export for eval | ~500 | Phase 1.C synthetic-tester augmentation | scope expanded 2026-05-17 |
 
 ### 5.1 PR CMIP-1.A — Intern auth + site-wide chrome reskin (~600 LOC)
 
@@ -231,7 +231,7 @@ Interns have a regular `users/{uid}` doc in Firestore — they signed up like an
 - `npx tsc --noEmit` clean.
 - Manually verified on dev: removing email from `intern_allowlist`, signing out, signing back in → chrome reverts to customer.
 
-### 5.2 PR CMIP-1.B — Flag-response capture (~450 LOC)
+### 5.2 PR CMIP-1.B — Flag-response capture + intern nav surface restriction (~550 LOC)
 
 **Branch:** `cmip/flag-capture`
 
@@ -243,28 +243,33 @@ Interns have a regular `users/{uid}` doc in Firestore — they signed up like an
 
 **Edits:**
 - `src/components/AICoachChat.tsx` — for each assistant message, render `<FlagButton>` (which itself no-ops when not intern).
+- `src/sections/layout/NavMenu.tsx` — **surface restriction (resolved 2026-05-17)**: when `useViewer().isIntern === true`, the hamburger nav shows ONLY `Home`, `Play`, `Analysis`. The other 7 items (Practice, Openings, Scout, Database, Player Feedback, Site Stats, Profile) are filtered out. `/profile` remains reachable via the UserMenu avatar dropdown (account-settings access kept; nav clutter removed). Customer view unchanged.
 - `src/lib/auth/requireAuth.ts` (or wherever route guards live) — add `requireIntern()` variant.
 
-**Supabase migration `0002_intern_flags.sql`:**
+**Supabase migration `20260517190000_intern_flags.sql`:**
 ```sql
 create table intern_flags (
   id uuid primary key default gen_random_uuid(),
   intern_email text not null references intern_allowlist(email),
   intern_uid text not null,
-  chat_session_id text not null,
+  chat_session_id text,                  -- nullable, see schema notes in migration
   flagged_message_id text not null,
   flagged_message_content text not null,
-  flagged_message_tier text not null,    -- 'flagship' | 'fast'
-  prompt_version text not null,          -- PROMPT_VERSION at flag time
-  chat_history jsonb not null,           -- full message array
+  flagged_message_index integer not null,
+  flagged_message_tier text,             -- nullable, see schema notes
+  prompt_version text not null,
+  chat_history jsonb not null,
   game_pgn text,                         -- nullable: not all chats analyze a game
-  fen_at_flag text,                      -- nullable: same reason
-  flag_category text not null,           -- 'bad' | 'inaccurate' | 'incomplete' (resolved 2026-05-17)
-  flag_note text,
+  fen_at_flag text,
+  flag_category text not null check (flag_category in ('bad','inaccurate','incomplete')),
+  why_wrong text not null check (length(why_wrong) >= 30),       -- merged in 2026-05-17
+  ideal_response text not null check (length(ideal_response) >= 50),  -- merged in 2026-05-17
   flagged_at timestamptz not null default now()
 );
 create index on intern_flags (intern_email, flagged_at desc);
 ```
+
+**Capture-and-author merge (resolved 2026-05-17 mid-CMIP-1.B build):** the original plan decoupled "flag now, author the ideal response later on the dashboard" (CMIP-1.C). User pushed back during manual testing: flagging without explanation produces useless rows, and authoring while the bad response is fresh produces better data. So `why_wrong` (≥30 chars) and `ideal_response` (≥50 chars) are now captured **in the same modal as the flag**, both required. CMIP-1.C is correspondingly simpler — it becomes a viewer + quota dashboard, not an author surface. The "pending vs. submitted" tab split goes away; every flag IS a submission.
 
 **Acceptance gate:**
 - Intern flags a response → row appears in `intern_flags` within 2 s of click.
@@ -280,33 +285,40 @@ create index on intern_flags (intern_email, flagged_at desc);
 **New files:**
 - `src/pages/intern/submissions/index.tsx` — list view. Pending + Submitted tabs. Quota widget on top.
 - `src/pages/intern/submissions/[id].tsx` — authoring view. Board + chat history + flagged-message highlight + ideal-response textarea + submit.
-- `src/components/intern/QuotaWidget.tsx` — "6 of 10 this week · Streak: 3 weeks". Reads from `/api/intern/quota`.
+- `src/components/intern/QuotaWidget.tsx` — pacing-aware: shows "6 of 10 this week · 🟢 On track · Streak: 3 weeks" or "3 of 10 · 🟡 2 behind pace" or "Pre-program · 2 submitted (ahead of schedule)" depending on `programStartMs` and `delta`. Reads from `/api/intern/quota`.
 - `src/components/intern/FlaggedMessageReplay.tsx` — read-only chat-history renderer that highlights `flagged_message_id` in red.
-- `src/app/api/intern/quota/route.ts` — returns `{thisWeek: 6, target: 10, streakWeeks: 3}` for the logged-in intern.
+- `src/app/api/intern/quota/route.ts` — returns `PacingResult` for the logged-in intern: `{ submittedThisWeek, target, status: "pre-program" | "on-track" | "behind" | "ahead", delta, streakWeeks, programStartMs, weekStartMs }`.
 - `src/app/api/intern/submissions/list/route.ts` — returns intern's flags split by `pending` vs `submitted`.
 - `src/app/api/intern/submissions/[id]/route.ts` — single submission detail (GET) + submit ideal response (POST).
 
 **Edits:**
 - `src/pages/intern/index.tsx` — replace placeholder with real landing: quota widget + "Continue dogfooding" CTA + "Author pending submissions" CTA.
 
-**Supabase migration `0003_intern_submissions.sql`:**
-```sql
--- ideal_response lives on the flag row; "submitted" is just a non-null ideal_response.
-alter table intern_flags
-  add column ideal_response text,
-  add column submitted_at timestamptz;
+**Supabase migration for CMIP-1.C:** **NOT NEEDED.** The original plan added `ideal_response` and `submitted_at` columns as a phase-2 alter. With the capture-and-author merge in CMIP-1.B, those columns already exist as `ideal_response` (NOT NULL) and `flagged_at` (which is now also effectively the submitted_at). No additional schema work in 1.C.
 
-create index on intern_flags (intern_email, submitted_at)
-  where submitted_at is not null;
-```
+**Quota + pacing calculation (refined 2026-05-17):**
 
-Single-table design (vs. separate `intern_submissions` table) chosen because every submission is 1:1 with a flag, and SQL queries are simpler against one table.
+- **Timezone**: `America/Los_Angeles` (PT). All ISO week boundaries computed in PT.
+- **Program start date**: **2026-06-30** (Tuesday). Before this date, pacing is disabled — status is always `Pre-program — anything is ahead of schedule`.
+- **"This week"**: current Mon 00:00 → Sun 23:59 PT.
+- **Submissions count**: rows where `submitted_at` falls in this week's window AND `intern_email` matches.
+- **Target**: hardcoded 10 (per intern per week) for v1; configurable per-intern in `intern_allowlist` as a follow-up.
+- **Pacing (only after 2026-06-30)**:
+  ```
+  fractionThroughWeek = (nowMs − weekStartMs) / weekDurationMs   // 0 → 1
+  expected = fractionThroughWeek × target                         // 0 → 10
+  delta    = actual − expected
+  ```
+- **Status pill** (only computed when on/after 2026-06-30):
+  - `🟢 On track` — `|delta| < 2`
+  - `🟡 Behind` — `delta ≤ −2` (shown as "N behind pace")
+  - `🔵 Ahead` — `delta ≥ +2` (shown as "N ahead — strong week")
+- **Pre-program label** (when `now < 2026-06-30 PT`): `Pre-program · X submitted (any work counts as ahead)`. No red/yellow ever surfaces before start date.
+- **Streak**: consecutive prior weeks (in PT) where the intern hit ≥ 10 submissions. Resets to 0 on any < 10 week. Weeks before 2026-06-30 don't count toward streak.
 
-**Quota calculation:**
-- "This week" = current ISO week (Mon–Sun) in `America/Los_Angeles`.
-- Counts rows where `submitted_at` is in this week and `intern_email` matches.
-- Target is `10` (hardcoded for v1; configurable per-intern in `intern_allowlist` as a follow-up).
-- Streak = consecutive prior weeks where the intern hit ≥ 10 submissions.
+**Where pacing logic lives:**
+- `src/lib/intern/pacing.ts` (server-only) — pure function `computePacing({ submittedThisWeek, target, nowMs, weekStartMs, weekDurationMs, programStartMs }) → PacingResult`. Easy to unit test; no React or Supabase coupling.
+- The `/api/intern/quota` endpoint calls into it; the intern's `<QuotaWidget>` consumes its output as JSON.
 
 **Acceptance gate:**
 - Intern flags 3 responses on Surface A, then opens dashboard → sees 3 in Pending, 0 in Submitted.
@@ -315,13 +327,20 @@ Single-table design (vs. separate `intern_submissions` table) chosen because eve
 - Mobile rendering of the authoring view is usable (chat history scrollable, textarea ≥ 8 lines).
 - 1 Playwright integration test covering flag → author → submit → appears in submitted list.
 
-### 5.4 PR CMIP-1.D — Admin export pipeline (~200 LOC)
+### 5.4 PR CMIP-1.D — Admin progress dashboard + JSONL export (~500 LOC)
 
-**Branch:** `cmip/export-pipeline`
+**Scope expanded 2026-05-17.** Originally an export-only follow-up; user explicitly asked for visibility into all interns' progress, "even the ones to be added." Dashboard is now the primary surface; export is a secondary capability on the same page.
+
+**Branch:** `cmip/admin-dashboard-and-export`
 
 **New files:**
-- `src/pages/admin/intern-data/index.tsx` — admin-only page (gated by `user.role === "admin"` per the existing admin pattern referenced in MASTERMIND_BUILD_PLAN.md §9.2). Shows aggregate stats: total flags, total submissions, per-intern weekly throughput, conversion rate. **Read-only.**
-- `src/app/api/admin/intern-data/export/route.ts` — streams JSONL of all `submitted_at IS NOT NULL` rows. Schema:
+- `src/pages/admin/intern-data/index.tsx` — admin-only page (gated by `user.role === "admin"` for `aayanhetamsaria4@gmail.com`). Two sections:
+  1. **Roster + progress table** (primary). One row per intern, **auto-discovered from `intern_allowlist`** so any intern added via `scripts/intern/add-to-allowlist.mjs` shows up on next page load without code changes. Columns: name (or email if no display name), this-week submissions vs target with status pill (`🟢 / 🟡 / 🔵 / Pre-program`), streak, all-time submissions, conversion (flags → submitted), last activity. Sortable. Default sort: status (`🟡 Behind` first, then `🟢`, then `🔵`, then `Pre-program`) so attention goes where it's needed.
+  2. **Export panel**. One button: "Download submissions as JSONL." Same schema as before. Includes a toggle to include/exclude `intern_email` attribution.
+- `src/pages/admin/intern-data/[email].tsx` — per-intern detail. Last 8 weeks bar chart of submissions, recent pending (unsubmitted) flags list, and a "send nudge" placeholder (CMIP-1.D.1 follow-up).
+- `src/app/api/admin/intern-data/roster/route.ts` — returns the full roster + per-intern progress (joins `intern_allowlist` LEFT with aggregated `intern_flags` data). Admin-only.
+- `src/app/api/admin/intern-data/detail/[email]/route.ts` — per-intern detail data.
+- `src/app/api/admin/intern-data/export/route.ts` — streams JSONL of submitted rows. Schema:
   ```jsonc
   {
     "schema_version": "1.0.0",
@@ -330,16 +349,42 @@ Single-table design (vs. separate `intern_submissions` table) chosen because eve
     "context": { "chat_history": [...], "game_pgn": "...", "fen_at_flag": "..." },
     "bad_response": { "content": "...", "tier": "flagship", "prompt_version": "2.0" },
     "ideal_response": "...",
-    "flag_metadata": { "category": "hallucination", "note": "..." }
-    // intern_email omitted by default for downstream eval use; include behind ?include_attribution=1
+    "flag_metadata": { "category": "bad", "note": "..." }
+    // intern_email omitted by default; include via ?include_attribution=1
   }
   ```
-- `scripts/export-intern-submissions.ts` — CLI variant for local export → file. Mostly a thin wrapper around the API endpoint.
+- `scripts/intern/export-submissions.mjs` — CLI variant for local export → file.
+
+**Edits:**
+- Existing admin pattern: confirm `users/{uid}.role === "admin"` is set for `aayanhetamsaria4@gmail.com` (one-time Firestore write) before this PR ships.
+
+**Roster query (Supabase, simplified):**
+```sql
+select
+  a.email,
+  a.cohort,
+  count(f.id)            filter (where f.flagged_at  >= week_start) as flags_this_week,
+  count(f.id)            filter (where f.submitted_at >= week_start) as submitted_this_week,
+  count(f.id)            filter (where f.submitted_at is not null)   as submitted_all_time,
+  count(f.id)                                                        as flags_all_time,
+  max(coalesce(f.submitted_at, f.flagged_at))                        as last_activity
+from intern_allowlist a
+left join intern_flags f on f.intern_email = a.email
+group by a.email, a.cohort
+order by a.email;
+```
+Pacing status + streak are computed in JS (using `computePacing` from CMIP-1.C's `src/lib/intern/pacing.ts`) so business logic stays in one place. Streak is computed via a second query that buckets `submitted_at` into ISO weeks.
+
+**Privacy posture:**
+- Aayan-only. No intern can ever reach `/admin/intern-data/*` (route guard checks `users.role === "admin"`).
+- Interns can NOT see each other's stats. The personal `<QuotaWidget>` on `/intern` shows only the logged-in intern's own numbers (matches plan §8 Q5).
 
 **Acceptance gate:**
-- Export endpoint returns N lines for N submitted rows.
-- Each line parses as JSON and matches the schema_version 1.0.0 contract.
-- Schema_version is bumped (major) on breaking changes.
+- Aayan signs in → `/admin/intern-data` shows the 3 cohort interns + any test entries. All show `Pre-program` status today (before 2026-06-30).
+- Add a new intern via `add-to-allowlist.mjs` → refresh page → new intern appears with `0 of 10 · Pre-program`.
+- Non-admin (including interns themselves) hitting `/admin/intern-data` → 403.
+- JSONL export returns valid newline-delimited JSON.
+- All-time + this-week counts match a hand-counted spot check on a fresh seed.
 
 ---
 
@@ -510,3 +555,19 @@ User answers captured verbatim. Plan body updated in-place to reflect each decis
 CMIP-1.A is unblocked.
 
 **One pre-CMIP-1.A action Aayan owns:** create the "Chess Masti" Supabase org and a fresh project inside it, then share `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` so they can land in the dev `.env.local`. Everything else is in-PR work.
+
+---
+
+## 13a. Round-2 scope refinements — RESOLVED 2026-05-17 (after CMIP-1.A merged)
+
+After CMIP-1.A merged (PR #20), Aayan added three scope decisions that affect CMIP-1.B → 1.D. Captured here as the audit trail; the relevant phase sections (§5.2, §5.3, §5.4) already reflect them.
+
+| # | Refinement | Answer | Section updated |
+|---|---|---|---|
+| G | Each intern should be able to see their own progress vs. expectations (ahead/behind) | **Yes — pacing-aware `<QuotaWidget>` in CMIP-1.C.** Linear pacing model: `expected = (elapsedFractionOfWeek) × 10`. Three-state pill (🟢 on-track / 🟡 behind / 🔵 ahead) at ±2 thresholds. | §5.3 |
+| H | Aayan should see all interns' progress (including future ones) | **Yes — admin progress dashboard at `/admin/intern-data` in CMIP-1.D.** Auto-discovers interns from `intern_allowlist` (zero-config when new interns added). Sortable roster table + per-intern detail view. Scope expanded from export-only (~200 LOC) to full dashboard (~500 LOC). | §5.4 |
+| I | Intern view should only surface `/`, `/play`, `/analysis` (everything else is noise) | **Yes — NavMenu filtered when `isIntern`.** Hide Practice, Openings, Scout, Database, Player Feedback, Site Stats, Profile. Keep `/profile` reachable via the UserMenu avatar dropdown for account settings. | §5.2 |
+| J | Pacing timezone | **`America/Los_Angeles` (PT).** ISO weeks Mon→Sun in PT. | §5.3 |
+| K | Program start date — pacing pressure activates when? | **2026-06-30 (Tuesday).** Before this date: status is always `Pre-program — any work counts as ahead`. No red/yellow ever surfaces. First officially tracked week is Mon 2026-06-29 → Sun 2026-07-05. Streaks don't accrue before program start. | §5.3 |
+
+**Why move admin progress out of "follow-up" and into CMIP-1.D first-class scope:** export endpoints are useless without the dashboard answering "who needs nudging?" first. Aayan explicitly framed this as a need: "I should be able to access the progress of all interns (even the ones to be added)." The auto-discover-from-allowlist design means CMIP-1.D never needs to be touched again as interns are added to the program.

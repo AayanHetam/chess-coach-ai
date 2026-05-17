@@ -61,6 +61,7 @@ import {
   generateChatTitle,
   type ChatGameRef,
 } from "@/lib/firestoreChats";
+import { FlagButton } from "@/components/intern/FlagButton";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -2679,9 +2680,12 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
       </Box>
 
       <MessagesContainer isExpanded={isExpanded}>
-        {messages
-          .filter((m) => m.role !== "system")
-          .map((message, index) => {
+        {(() => {
+          // Filter once so we can pass the same array to FlagButton (intern
+          // feature) as `chatHistory` while the .map keeps using `index` as
+          // the position in that filtered list.
+          const visibleMessages = messages.filter((m) => m.role !== "system");
+          return visibleMessages.map((message, index) => {
             const markdownComponents = {
               code({ className, children, ...props }: any) {
                 const match = /language-(\w+)/.exec(className || "");
@@ -2861,11 +2865,19 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                       <ThumbDownOutlinedIcon sx={{ fontSize: 14 }} />
                     )}
                   </IconButton>
+                  {/* CMIP intern flag — renders only when isIntern. */}
+                  <FlagButton
+                    message={message}
+                    messageIndex={index}
+                    chatHistory={visibleMessages}
+                    contextId={analysisContextIdRef.current ?? null}
+                  />
                 </Box>
               )}
             </MessageBubble>
             );
-          })}
+          });
+        })()}
         <div ref={messagesEndRef} />
       </MessagesContainer>
 

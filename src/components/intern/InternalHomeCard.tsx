@@ -60,8 +60,10 @@ export function InternalHomeCard() {
             </Typography>
             <Typography variant="body1" sx={{ mt: 1.5, opacity: 0.92, maxWidth: 620 }}>
               You&apos;re viewing chessmasti.com as an employee, not a customer.
-              The blue theme and EMPLOYEE badge confirm your intern access is
-              live. The actual feedback workflow ships next:
+              The full feedback loop is live: dogfood the coach, flag any
+              response that&apos;s wrong / inaccurate / incomplete, and track
+              your weekly progress on your dashboard. Target: 10 submissions
+              per week once the program starts on June 30.
             </Typography>
           </Box>
 
@@ -77,14 +79,17 @@ export function InternalHomeCard() {
               variant="caption"
               sx={{ display: "block", opacity: 0.75, letterSpacing: "0.06em", mb: 1 }}
             >
-              SHIPPING NEXT
+              HOW IT WORKS
             </Typography>
             <Stack spacing={0.75}>
               <Typography variant="body2">
-                <strong>CMIP-1.B</strong> — A 🚩 button appears next to every coach message in analysis chat. One click captures the full session.
+                <strong>1.</strong> Use the coach normally on <code>/analysis</code> — analyze your games, ask questions.
               </Typography>
               <Typography variant="body2">
-                <strong>CMIP-1.C</strong> — The /intern dashboard lists your flagged items so you can write the ideal response when you have time. Target: 10 per week.
+                <strong>2.</strong> When you spot a bad response, hit the 🚩 Flag button on that message. Write a short &quot;why it&apos;s wrong&quot; and what the ideal response would have been.
+              </Typography>
+              <Typography variant="body2">
+                <strong>3.</strong> Check <code>/intern</code> any time to see your pacing for the week + every submission you&apos;ve made.
               </Typography>
             </Stack>
           </Box>

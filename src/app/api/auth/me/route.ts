@@ -17,7 +17,10 @@ export async function GET() {
       // Session points to a deleted user — treat as signed-out.
       return NextResponse.json({ user: null }, { status: 200 });
     }
-    return NextResponse.json({ user: toSafe(user) });
+    // isIntern is stamped into the session JWT at sign-in time; surface it
+    // alongside the user payload so `useViewer()` can read it without a
+    // second roundtrip.
+    return NextResponse.json({ user: toSafe(user), isIntern: !!session.isIntern });
   } catch (err) {
     if (err instanceof AdminConfigError) {
       console.error("[auth/me]", err);

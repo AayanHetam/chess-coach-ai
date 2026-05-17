@@ -12,6 +12,7 @@ import LandingAbout from "@/components/landing/LandingAbout";
 import LandingInternship from "@/components/landing/LandingInternship";
 import LandingCTA from "@/components/landing/LandingCTA";
 import LandingFooter from "@/components/landing/LandingFooter";
+import { InternalHomeCard } from "@/components/intern/InternalHomeCard";
 
 const HOME_TITLE =
   "Chess Masti AI — engine-grounded chess coaching, free";
@@ -119,6 +120,8 @@ export default function LandingPage() {
       </Head>
       <LandingAnnouncementBar />
       <LandingNav />
+      {/* Renders only for logged-in CMIP interns; renders nothing for customers. */}
+      <InternalHomeCard />
       <LandingHero />
       <LandingInternship />
       <LandingFeatures />

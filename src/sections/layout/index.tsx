@@ -3,9 +3,15 @@ import { PropsWithChildren, useMemo } from "react";
 import NavBar from "./NavBar";
 import { red } from "@mui/material/colors";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { MAIN_THEME_COLOR } from "@/constants";
+import {
+  MAIN_THEME_COLOR,
+  INTERN_THEME_COLOR,
+  INTERN_THEME_COLOR_LIGHT,
+} from "@/constants";
 import { Lc0DownloadBanner } from "@/components/Lc0DownloadBanner";
 import { useRouter } from "next/router";
+import { useViewer } from "@/hooks/useViewer";
+import { EmployeeChrome } from "@/components/intern/EmployeeChrome";
 
 export default function Layout({ children }: PropsWithChildren) {
   // Default to light mode for Chess Masti AI - bright and fun!
@@ -14,24 +20,36 @@ export default function Layout({ children }: PropsWithChildren) {
   // light-theme flash on hydration; trade-off is documented in PR #site-content-ssr.
   const [storedDarkMode, setDarkMode] = useLocalStorage("useDarkMode", false);
   const isDarkMode = storedDarkMode ?? false;
+  const { isIntern } = useViewer();
 
   const theme = useMemo(
-    () =>
-      createTheme({
+    () => {
+      // CMIP intern view swaps the brand primary to deep blue. Customer view
+      // (default) keeps the orange theme unchanged.
+      const primary = isIntern ? INTERN_THEME_COLOR : MAIN_THEME_COLOR;
+      const secondaryLight = isIntern ? "#D8E4F4" : "#FFE4D6";
+      const paperTint = isIntern ? "#F4F7FC" : "#FFF8F5";
+      const appBarShadow = isIntern
+        ? "0 2px 8px rgba(10, 77, 168, 0.18)"
+        : "0 2px 8px rgba(255, 107, 53, 0.15)";
+      const appBarBorder = isIntern ? "1px solid #D8E4F4" : "1px solid #FFE4D6";
+
+      return createTheme({
         palette: {
           mode: isDarkMode ? "dark" : "light",
           error: {
             main: red[400],
           },
           primary: {
-            main: MAIN_THEME_COLOR, // Orange
+            main: primary,
+            light: isIntern ? INTERN_THEME_COLOR_LIGHT : "#FF8C42",
           },
           secondary: {
-            main: isDarkMode ? "#424242" : "#FFE4D6", // Light orange for light mode
+            main: isDarkMode ? "#424242" : secondaryLight,
           },
           background: {
-            default: isDarkMode ? "#121212" : "#FFFFFF", // Pure white for light mode
-            paper: isDarkMode ? "#1e1e1e" : "#FFF8F5", // Very light orange-tinted white
+            default: isDarkMode ? "#121212" : "#FFFFFF",
+            paper: isDarkMode ? "#1e1e1e" : paperTint,
           },
         },
         components: {
@@ -41,16 +59,15 @@ export default function Layout({ children }: PropsWithChildren) {
               root: {
                 backgroundColor: isDarkMode ? "#19191c" : "#FFFFFF",
                 color: isDarkMode ? "#FFFFFF" : "#333333",
-                boxShadow: isDarkMode
-                  ? "none"
-                  : "0 2px 8px rgba(255, 107, 53, 0.15)",
-                borderBottom: isDarkMode ? "none" : "1px solid #FFE4D6",
+                boxShadow: isDarkMode ? "none" : appBarShadow,
+                borderBottom: isDarkMode ? "none" : appBarBorder,
               },
             },
           },
         },
-      }),
-    [isDarkMode]
+      });
+    },
+    [isDarkMode, isIntern]
   );
 
   const router = useRouter();
@@ -61,9 +78,11 @@ export default function Layout({ children }: PropsWithChildren) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <main style={{ overflowX: "hidden", width: "100%" }}>
-          {children}
-        </main>
+        <EmployeeChrome>
+          <main style={{ overflowX: "hidden", width: "100%" }}>
+            {children}
+          </main>
+        </EmployeeChrome>
       </ThemeProvider>
     );
   }
@@ -71,32 +90,34 @@ export default function Layout({ children }: PropsWithChildren) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <NavBar
-        darkMode={isDarkMode}
-        switchDarkMode={() => setDarkMode((val) => !val)}
-      />
-      <main
-        style={{
-          margin: "2vh 0.5vw",
-          backgroundColor: isDarkMode ? undefined : "#FAFAFA", // Very light background
-          overflowX: "hidden", // Prevent horizontal scrolling
-          maxWidth: "100vw", // Ensure content doesn't exceed viewport width
-          boxSizing: "border-box", // Include padding/borders in width calculation
-          width: "100%",
-        }}
-      >
-        <Box
-          sx={{
-            maxWidth: "1400px",
-            margin: "0 auto",
-            px: { xs: 1, sm: 2 },
-            mb: 2,
+      <EmployeeChrome>
+        <NavBar
+          darkMode={isDarkMode}
+          switchDarkMode={() => setDarkMode((val) => !val)}
+        />
+        <main
+          style={{
+            margin: "2vh 0.5vw",
+            backgroundColor: isDarkMode ? undefined : "#FAFAFA",
+            overflowX: "hidden",
+            maxWidth: "100vw",
+            boxSizing: "border-box",
+            width: "100%",
           }}
         >
-          <Lc0DownloadBanner />
-        </Box>
-        {children}
-      </main>
+          <Box
+            sx={{
+              maxWidth: "1400px",
+              margin: "0 auto",
+              px: { xs: 1, sm: 2 },
+              mb: 2,
+            }}
+          >
+            <Lc0DownloadBanner />
+          </Box>
+          {children}
+        </main>
+      </EmployeeChrome>
     </ThemeProvider>
   );
 }

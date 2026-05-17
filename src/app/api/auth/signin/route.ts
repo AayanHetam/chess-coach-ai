@@ -5,6 +5,7 @@ import { signinSchema, firstZodError } from "@/lib/auth/validation";
 import { setSessionCookieOnResponse } from "@/lib/auth/session";
 import { toSafe, updateLastLoginAt, verifyPassword } from "@/lib/server/users";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
+import { isAllowlistedIntern } from "@/lib/intern/allowlist";
 
 export const runtime = "nodejs";
 
@@ -45,6 +46,8 @@ export async function POST(request: Request) {
 
     await updateLastLoginAt(user.uid);
 
+    const isIntern = await isAllowlistedIntern(user.email);
+
     const safe = toSafe(user);
     const response = NextResponse.json({ user: safe });
     await setSessionCookieOnResponse(response, {
@@ -52,6 +55,7 @@ export async function POST(request: Request) {
       email: user.email,
       displayName: user.displayName,
       avatarUrl: user.photoURL,
+      isIntern,
     });
     return response;
   } catch (err) {

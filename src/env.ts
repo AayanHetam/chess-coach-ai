@@ -59,6 +59,10 @@ export function getAuthEnv() {
       adminEmail: process.env.CMIP_ADMIN_EMAIL,
       contactEmail: process.env.CMIP_CONTACT_EMAIL ?? "applications@chessmasti.com",
     },
+    supabase: {
+      url: process.env.SUPABASE_URL,
+      serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    },
     appBaseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   };
 }
@@ -73,6 +77,7 @@ export function assertAuthSecrets(opts: {
   needsAdmin?: boolean;
   needsGoogle?: boolean;
   needsEmail?: boolean;
+  needsSupabase?: boolean;
 } = {}): void {
   const env = getAuthEnv();
   const missing: string[] = [];
@@ -90,6 +95,10 @@ export function assertAuthSecrets(opts: {
   }
   if (opts.needsEmail && !env.email.resendApiKey) {
     missing.push("RESEND_API_KEY");
+  }
+  if (opts.needsSupabase) {
+    if (!env.supabase.url) missing.push("SUPABASE_URL");
+    if (!env.supabase.serviceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY");
   }
   if (missing.length) {
     throw new Error(`Missing required auth env: ${missing.join(", ")}`);

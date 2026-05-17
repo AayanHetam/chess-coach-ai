@@ -4,6 +4,12 @@ import { EngineName, MoveClassification } from "./types/enums";
 export const MAIN_THEME_COLOR = "#FF6B35";
 export const LINEAR_PROGRESS_BAR_COLOR = "#FF8C42"; // Light orange for progress bars
 
+// Intern (CMIP) theme — deep blue. Surfaces site-wide when the logged-in user
+// is in the intern_allowlist. Resolved 2026-05-17.
+export const INTERN_THEME_COLOR = "#0A4DA8";
+export const INTERN_THEME_COLOR_LIGHT = "#3A78D8";
+export const INTERN_THEME_COLOR_DARK = "#08376D";
+
 export const CLASSIFICATION_COLORS: Record<MoveClassification, string> = {
   [MoveClassification.Opening]: "#dbac86",
   [MoveClassification.Forced]: "#dbac86",

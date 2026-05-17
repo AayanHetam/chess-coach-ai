@@ -12,6 +12,10 @@ import Image from "next/image";
 import { styled } from "@mui/material/styles";
 import { MaiaStatusIndicator } from "@/components/MaiaStatusIndicator";
 import UserMenu from "@/components/auth/UserMenu";
+import { useViewer } from "@/hooks/useViewer";
+import { EmployeePill } from "@/components/intern/EmployeePill";
+import { InternalNavLinks } from "@/components/intern/InternalNavLinks";
+import { INTERN_THEME_COLOR } from "@/constants";
 
 interface Props {
   darkMode: boolean;
@@ -33,10 +37,24 @@ const StyledIconButtonLink = styled("a")({
 export default function NavBar({ darkMode, switchDarkMode }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const router = useRouter();
+  const { isIntern } = useViewer();
 
   useEffect(() => {
     setDrawerOpen(false);
   }, [router.pathname]);
+
+  // Intern view swaps the brand orange to deep blue across nav chrome.
+  // Customer view (default) is unchanged.
+  const brandColor = isIntern ? INTERN_THEME_COLOR : "#FF6B35";
+  const brandBorder = isIntern ? "#D8E4F4" : "#FFE4D6";
+  const brandShadow = isIntern
+    ? "0 2px 12px rgba(10, 77, 168, 0.12)"
+    : "0 2px 12px rgba(255, 107, 53, 0.1)";
+  const titleGradient = darkMode
+    ? "linear-gradient(45deg, #FF6B6B 30%, #4ECDC4 90%)"
+    : isIntern
+      ? "linear-gradient(45deg, #0A4DA8 30%, #3A78D8 90%)"
+      : "linear-gradient(45deg, #FF6B35 30%, #FF8C42 90%)";
 
   return (
     <Box sx={{ flexGrow: 1, display: "flex" }}>
@@ -46,8 +64,8 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
           zIndex: (theme) => theme.zIndex.drawer + 1,
           backgroundColor: darkMode ? "#19191c" : "#FFFFFF",
           color: darkMode ? "white" : "#333333",
-          borderBottom: darkMode ? "none" : "2px solid #FFE4D6",
-          boxShadow: darkMode ? "none" : "0 2px 12px rgba(255, 107, 53, 0.1)",
+          borderBottom: darkMode ? "none" : `2px solid ${brandBorder}`,
+          boxShadow: darkMode ? "none" : brandShadow,
         }}
         enableColorOnDark
       >
@@ -59,7 +77,7 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
               mr: "min(0.5vw, 0.6rem)",
               padding: 1,
               my: 1,
-              color: darkMode ? "white" : "#FF6B35", // Orange icon in light mode
+              color: darkMode ? "white" : brandColor,
             }}
             onClick={() => setDrawerOpen((val) => !val)}
           >
@@ -80,9 +98,7 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
               sx={{
                 flexGrow: 1,
                 fontWeight: "bold",
-                background: darkMode
-                  ? "linear-gradient(45deg, #FF6B6B 30%, #4ECDC4 90%)"
-                  : "linear-gradient(45deg, #FF6B35 30%, #FF8C42 90%)", // Orange gradient for light mode
+                background: titleGradient,
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -93,6 +109,20 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
             </Typography>
           </NavLink>
 
+          {isIntern && (
+            <Box sx={{ ml: 1.5, display: { xs: "none", sm: "flex" }, alignItems: "center" }}>
+              <EmployeePill />
+            </Box>
+          )}
+
+          <Box sx={{ flexGrow: 1 }} />
+
+          {isIntern && (
+            <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", mr: 1 }}>
+              <InternalNavLinks />
+            </Box>
+          )}
+
           <StyledIconButtonLink
             href="https://github.com/AayanHetam/chess-coach-ai"
             target="_blank"
@@ -101,7 +131,7 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
             sx={{ ml: "min(0.6rem, 0.8vw)" }}
           >
             <IconButton
-              sx={{ color: darkMode ? "white" : "#FF6B35" }}
+              sx={{ color: darkMode ? "white" : brandColor }}
               component="span"
             >
               <Icon icon="mdi:github" />
@@ -125,7 +155,7 @@ export default function NavBar({ darkMode, switchDarkMode }: Props) {
           <IconButton
             sx={{
               ml: "min(0.6rem, 0.8vw)",
-              color: darkMode ? "white" : "#FF6B35",
+              color: darkMode ? "white" : brandColor,
             }}
             onClick={switchDarkMode}
             edge="end"

@@ -34,6 +34,9 @@ interface AuthContextType {
   user: AppUser | null;
   profile: UserProfile | null;
   loading: boolean;
+  // CMIP intern allowlist membership, stamped into the cm_session JWT at
+  // sign-in. Drives the site-wide "employee experience" reskin.
+  isIntern: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUp: (input: {
@@ -51,6 +54,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   loading: true,
+  isIntern: false,
   signInWithGoogle: async () => {},
   signInWithEmail: async () => {},
   signUp: async () => {},
@@ -70,11 +74,11 @@ function profileToUser(profile: UserProfile | null): AppUser | null {
   };
 }
 
-async function fetchMe(): Promise<UserProfile | null> {
+async function fetchMe(): Promise<{ profile: UserProfile | null; isIntern: boolean }> {
   const res = await fetch("/api/auth/me", { credentials: "include" });
-  if (!res.ok) return null;
-  const data = (await res.json()) as { user: UserProfile | null };
-  return data.user ?? null;
+  if (!res.ok) return { profile: null, isIntern: false };
+  const data = (await res.json()) as { user: UserProfile | null; isIntern?: boolean };
+  return { profile: data.user ?? null, isIntern: !!data.isIntern };
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -100,17 +104,20 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isIntern, setIsIntern] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
-      const p = await fetchMe();
+      const { profile: p, isIntern: intern } = await fetchMe();
       setProfile(p);
       setUser(profileToUser(p));
+      setIsIntern(intern);
     } catch (err) {
       console.error("Auth refresh failed:", err);
       setProfile(null);
       setUser(null);
+      setIsIntern(false);
     } finally {
       setLoading(false);
     }
@@ -154,6 +161,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
     setProfile(null);
     setUser(null);
+    setIsIntern(false);
   }, []);
 
   const updateProfile = useCallback(
@@ -173,6 +181,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         user,
         profile,
         loading,
+        isIntern,
         signInWithGoogle,
         signInWithEmail,
         signUp,

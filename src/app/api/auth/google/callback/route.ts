@@ -14,6 +14,7 @@ import {
   updateUser,
 } from "@/lib/server/users";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
+import { isAllowlistedIntern } from "@/lib/intern/allowlist";
 
 export const runtime = "nodejs";
 
@@ -159,6 +160,10 @@ export async function GET(request: Request) {
 
     await updateLastLoginAt(user.uid);
 
+    // Stamp CMIP intern allowlist membership into the session at sign-in time.
+    // Failures are logged inside isAllowlistedIntern and fall closed to false.
+    const isIntern = await isAllowlistedIntern(user.email);
+
     const target = new URL(stateCookie.returnTo ?? "/", env.appBaseUrl);
     const response = NextResponse.redirect(target);
     await setSessionCookieOnResponse(response, {
@@ -166,6 +171,7 @@ export async function GET(request: Request) {
       email: user.email,
       displayName: user.displayName,
       avatarUrl: user.photoURL,
+      isIntern,
     });
     clearOAuthStateCookie(response);
     return response;

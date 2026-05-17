@@ -5,6 +5,7 @@ import { signupSchema, firstZodError } from "@/lib/auth/validation";
 import { setSessionCookieOnResponse } from "@/lib/auth/session";
 import { createUser, toSafe, UserError } from "@/lib/server/users";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
+import { isAllowlistedIntern } from "@/lib/intern/allowlist";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,8 @@ export async function POST(request: Request) {
       displayName: input.displayName,
     });
 
+    const isIntern = await isAllowlistedIntern(user.email);
+
     const safe = toSafe(user);
     const response = NextResponse.json({ user: safe }, { status: 201 });
     await setSessionCookieOnResponse(response, {
@@ -47,6 +50,7 @@ export async function POST(request: Request) {
       email: user.email,
       displayName: user.displayName,
       avatarUrl: user.photoURL,
+      isIntern,
     });
     return response;
   } catch (err) {

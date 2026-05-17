@@ -11,6 +11,9 @@ export type SessionPayload = {
   email: string;
   displayName?: string;
   avatarUrl?: string;
+  // CMIP intern allowlist membership at sign-in time. Stamped by the auth
+  // routes after isAllowlistedIntern(email); flipping requires re-signin.
+  isIntern?: boolean;
 };
 
 let cachedKey: Uint8Array | null = null;
@@ -44,6 +47,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       email: payload.email,
       displayName: typeof payload.displayName === "string" ? payload.displayName : undefined,
       avatarUrl: typeof payload.avatarUrl === "string" ? payload.avatarUrl : undefined,
+      isIntern: payload.isIntern === true ? true : undefined,
     };
   } catch {
     return null;

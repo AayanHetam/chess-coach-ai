@@ -40,6 +40,7 @@ System prompt body: [src/lib/chessPrinciples.ts:172](src/lib/chessPrinciples.ts#
 - **Google OAuth**: server-routed via [src/app/api/auth/google/start](src/app/api/auth/google/start) + `callback`. The redirect_uri is chessmasti.com — never `*.firebaseapp.com`. Account-links by email so the existing 50 Firebase Auth users keep their UID and saved games when they sign in via Google for the first time.
 - **Firestore reads**: server-side via Firebase Admin SDK ([src/lib/server/firebaseAdmin.ts](src/lib/server/firebaseAdmin.ts)). Browser calls `/api/users/me`, `/api/games`, etc. — never `firestore.googleapis.com` directly.
 - **Personalization**: `users/{uid}` doc carries `coachTone`, `playingStyle`, `studyGoals`, `favoriteOpenings`, `boardTheme`, `pieceSet`, etc. The 4-tab ProfileDialog edits them. [/api/enhanced-analysis](src/app/api/enhanced-analysis/route.ts) reads the session cookie and threads prefs into `getCoachChatSystemPrompt`.
+- **Intern mode (CMIP)**: at sign-in (Google OAuth + email/password), the auth callbacks check the email against the Supabase `intern_allowlist` table via [src/lib/intern/allowlist.ts](src/lib/intern/allowlist.ts) and stamp `isIntern: boolean` into the `cm_session` JWT claim. Flipping the allowlist takes effect on next sign-in. The browser reads `isIntern` from `/api/auth/me` via [useAuth](src/contexts/AuthContext.tsx) / [useViewer](src/hooks/useViewer.ts); intern-only UI (header EmployeePill, InternalNavLinks, InternalHomeCard, `/intern` dashboard, blue theme swap) is gated on this flag. See [MASTERMIND_CONTEXT/PR_CMIP_1_PLAN.md](MASTERMIND_CONTEXT/PR_CMIP_1_PLAN.md) for the broader plan.
 
 **Things still using Firebase from the browser** (intentionally, since their domain isn't `firebaseapp.com`-blocked):
 - `firebase/app` + `firebase/analytics` in [src/lib/firebase.ts](src/lib/firebase.ts).
@@ -61,16 +62,18 @@ System prompt body: [src/lib/chessPrinciples.ts:172](src/lib/chessPrinciples.ts#
 | Resend (password reset emails) | ⚠️ wired; deliveries fail until `chessmasti.com` is verified in Resend (DNS records) |
 | Lichess OAuth | ⚠️ configured, flows not exercised recently |
 | Neo4j | ⚠️ env keys (`NEO4J_URI/USERNAME/PASSWORD`) not in `.env.local`, but `/api/chess-puzzles-dataset command:random` returns real data — some puzzle queries use a non-Neo4j store |
+| Supabase (CMIP intern portal) | ✅ live; needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`. Read-only allowlist check at sign-in only (CMIP-1.A) |
 
 Before hitting an endpoint that depends on a service listed as ❌ or ⚠️, sanity-check via `/api/health/llm` or `/api/maia-status` rather than assuming.
 
 **Known bug in diagnostics:** [src/app/api/health/anthropic/route.ts:71](src/app/api/health/anthropic/route.ts#L71) hardcodes `claude-haiku-4-20250514`, which is not a real model ID. Endpoint returns 502 permanently. Not used for live traffic; fix is a one-line rename to `claude-haiku-4-5-20251001`.
 
-## Persistence layers (three of them, know which one you're touching)
+## Persistence layers (four of them, know which one you're touching)
 
 - **Firebase Firestore** — user accounts, saved games, openings repertoire. See [src/lib/firebase.ts](src/lib/firebase.ts), [src/lib/firestore*.ts](src/lib/).
 - **IndexedDB** (via `idb`) — client-side puzzle progress, spaced-repetition state. See [src/lib/spacedRepetition.ts](src/lib/spacedRepetition.ts), [src/lib/repetitTraining.ts](src/lib/repetitTraining.ts).
 - **Neo4j** — puzzle graph DB for similarity / theme queries. See [src/lib/neo4j.ts](src/lib/neo4j.ts). Optional for some puzzle paths (see table above).
+- **Supabase (Postgres)** — CMIP intern feedback portal data only. Server-side, service-role key, never exposed to browser. Tables: `intern_allowlist` (added CMIP-1.A); `intern_flags` and submissions land in CMIP-1.B / 1.C. See [src/lib/intern/supabase.ts](src/lib/intern/supabase.ts), [supabase/migrations/](supabase/migrations/).
 
 ## Things not to do
 

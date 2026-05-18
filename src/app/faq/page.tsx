@@ -56,7 +56,7 @@ const QA: { q: string; a: string }[] = [
   },
   {
     q: "Where do the puzzles come from?",
-    a: "A Neo4j Aura graph of 100,000+ quality-filtered Lichess puzzles (popularity ≥ 60, plays ≥ 50, rating deviation ≤ 120), structured across 46 tactical themes and 4 difficulty bands, joined with 298,000+ Jhamtani expert-commentary pairs.",
+    a: "A Neo4j Aura graph of 100,000+ quality-filtered Lichess puzzles (popularity ≥ 60, plays ≥ 50, rating deviation ≤ 120), structured across 46 tactical themes and 4 difficulty bands.",
   },
   {
     q: "Why a graph database?",

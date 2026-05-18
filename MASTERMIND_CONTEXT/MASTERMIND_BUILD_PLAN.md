@@ -99,17 +99,31 @@ Mastermind tools that read user state are listed in [MASTERMIND_TOOLS.md `read_u
 
 ---
 
-## 3. Phasing overview
+## 3. Phasing overview (REVISED 2026-05-17)
 
-Five phases. Phases 1–3 are sequenced (each unblocks the next). Phase 4 can parallelize with 3 once Stage 3 is in production. Phase 5 is the innovation layer — distribution, acquisition, surprise — and can stagger throughout.
+Five phases as before, with one new interstitial phase between Phase 1 and Phase 2: **CMIP human evaluation**. Phase 2 is blocked on CMIP rating data confirming (or recalibrating) the synthetic-tester metrics.
 
 | Phase | Theme | Ships in PRs | Unlocks |
 |---|---|---|---|
-| 1 | **Stage 3 grounding (expanded)** | 3 PRs | Coach-grade prose in flagship; primitives for Phase 2 |
-| 2 | **Agent loop refactor** | 4 PRs | Tool-using Claude inside `/api/enhanced-analysis` |
+| 1 | **Stage 3 grounding (expanded)** | 3 PRs (1.A, 1.B, 1.C) | Coach-grade prose in flagship; primitives for Phase 2; synthetic-tester gate |
+| **1.5** | **CMIP human evaluation** | 1.A-1.D shipped 2026-05-17; CMIP-2 (rating UI rollout) next | Real-user feedback corpus; correlation analysis vs synthetic-tester metrics |
+| 2 | **Agent loop refactor** | 4 PRs — **BLOCKED on CMIP rating data** | Tool-using Claude inside `/api/enhanced-analysis` |
 | 3 | **Tier A content + tools** | 5 PRs | GM games, drills, endgame studies, opening traps |
 | 4 | **Multi-perspective + persona** | 2 PRs | Chesstalker voice, richer persona conditioning |
 | 5 | **Innovation + distribution** | rolling | Reddit bot, browser ext, Lichess studies export |
+
+### 3.1 Why CMIP gates Phase 2 (added 2026-05-17)
+
+The synthetic-tester metrics introduced in PR 1.C (hallucination rate per category, citation rate per category, persona fidelity) are *correlates* of coaching quality, not measurements of it. They proxy "does this response cite the right grounded data without inventing claims?" — but they don't measure "does a real user feel like they got a good answer?"
+
+CMIP closes that gap. Interns (1.A-1.D) flag bad responses and author ideal ones; CMIP-2 expands to real-user ratings via a UI on the coach surface. Once enough rating data accumulates, a correlation analysis between synthetic-tester metrics and human ratings tells us whether the gate is doing useful work:
+
+- **Strong correlation:** the metrics are real proxies. Phase 2's agent loop refactor unblocks.
+- **Weak correlation:** the metrics need recalibration. Iterate before committing to Phase 2.
+
+Phase 2 is structurally large (route becomes tool-using agent loop, AICoachChat grows tool-call UI, runValidationPipeline becomes one tool among many). Building it on metrics that don't correlate with user satisfaction is expensive cleanup. The order-of-operations cost of pausing for CMIP data is small relative to that risk.
+
+See [PR_1C_PLAN.md §11](PR_1C_PLAN.md) for the detailed CMIP redirection writeup.
 
 **No work in this directory ships outside this phase plan.** Backlog items in MASTERMIND_TOOLS.md `STATUS: design-only` that don't fit a phase below are deferred until they earn a first consumer.
 

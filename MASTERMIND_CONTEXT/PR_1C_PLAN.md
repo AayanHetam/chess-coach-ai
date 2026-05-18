@@ -1,8 +1,17 @@
 # PR 1.C — Stage 3 wiring + gate verification + preview rollout — Plan
 
 **Branch:** `mastermind/stage-3-wire` off `mastermind/stage-3-validators` (which carries 1.B + 1.A + planning-docs).
-**Posture:** plan-first per user 2026-05-11. No code yet. Awaiting tech-lead review (architecture / wiring / flag) and Aayan review (gate thresholds / persona-fidelity rubric).
+**Posture:** plan-first per user 2026-05-11; **revised 2026-05-17 per coaching review (Revisions 1–4 below)**. No code yet. Original §8 open questions ratified — see §8 for the audit trail.
 **Why stack on 1.B and not main:** 1.B's validators are referenced directly by the route wiring; merge order per [BUILD_PLAN.md §11.1](MASTERMIND_BUILD_PLAN.md) is planning-docs → primitives → validators+wiring.
+
+## Revision summary (2026-05-17)
+
+This plan was materially revised after the original 2026-05-11 draft. The four revisions:
+
+1. **§5.3 metrics** — flat 0.85 structural-grounding metric retired. Replaced by two metrics across six question categories: **hallucination rate** (≥95% per category, no exceptions) and **citation rate** (per-category floors from 20% to 90% — see §5.3.2). Both metrics resist each other's gaming.
+2. **§2.5 + §6 scope** — three additional validators added: `scoutCitation.ts`, `userHistoryCitation.ts`, `jhamtaniCitation.ts`. Each extends the PR 1.B parser-then-cross-check pattern to a new data source. Total LOC grows from ~1,150 lib / ~400 test to **~3,500 lib / ~1,500 test**. Aayan explicitly authorized scope expansion for quality.
+3. **§1.7 persona-script pipeline (new)** — five existing persona scripts keep their voices but their *questions* are replaced with real prompts scraped from r/chess, r/chessbeginners, Lichess forums, Chess.com forums, and Chess Stack Exchange. Pipeline: scrape (ToS-compliant per source) → classify into six categories → Aayan 30-question spot-check → rewrite persona scripts with observed category distribution.
+4. **§11 CMIP redirection (new)** — post-1.C work is **CMIP human evaluation infrastructure**, not Phase 2 (agent loop). Phase 2 is blocked until CMIP produces enough human ratings to either confirm or recalibrate the synthetic-tester metrics. Documented in BUILD_PLAN.md as the phase-2-gating decision.
 
 ---
 
@@ -12,11 +21,11 @@ PR 1.C is three stages in a deliberate order. Stage A must pass before Stage B s
 
 | Stage | What | When |
 |---|---|---|
-| **A. Gate dry-run** | Prove the synthetic-tester gate catches a known-broken validator config — BEFORE touching any route. Build the dry-run harness, run with normal config (pass), run with intentionally weakened config (fail), revert config. | Commits 1–2 |
-| **B. Wiring** | Wire `runValidationPipeline` into `/api/enhanced-analysis` and `/api/chat`; route reads `result.telemetry` and forwards to logger; feature flag `MASTERMIND_VALIDATORS_ENABLED`, preview-only. | Commits 3–N |
-| **C. Sweep** | Full 50-turn synthetic-tester run against the preview deploy with flag on. Five metrics captured: chess correctness, structural grounding, persona fidelity, tool calls/turn, cost/turn. All five must pass thresholds for merge. | Final commit + PR description |
+| **A. Gate dry-run + persona pipeline + new validators** | Prove the synthetic-tester gate catches a known-broken validator config — BEFORE touching any route. Build dry-run harness with both metrics (hallucination + citation), run with normal config (pass), run with weakened config (fail). Also: scrape real forum questions, classify into six categories, Aayan spot-check, rewrite persona scripts. Also: ship the three new citation validators (scout, user-history, jhamtani) and the six-category classifier as library code (no route changes yet). | Commits 1–N1 |
+| **B. Wiring** | Wire `runValidationPipeline` into `/api/enhanced-analysis` and `/api/chat`; route reads `result.telemetry` and forwards to logger; feature flag `MASTERMIND_VALIDATORS_ENABLED`, preview-only. | Commits N1+1 to N2 |
+| **C. Sweep** | Full 50-turn synthetic-tester run against the preview deploy with flag on, using the rewritten persona prompts. Five metrics captured per §5.3: hallucination rate per category, citation rate per category, chess correctness, persona fidelity, cost. All metrics must pass for merge. | Final commit + PR description |
 
-**Rationale.** "Does the gate work?" and "does the wiring work?" are independent questions. Conflating them means a passing sweep could mean either real quality or a broken gate that catches nothing. Stage A separates them.
+**Rationale.** "Does the gate work?" and "does the wiring work?" are independent questions. Conflating them means a passing sweep could mean either real quality or a broken gate that catches nothing. Stage A separates them. **Revision 2026-05-17:** the new citation validators and the persona-script rewrite also live in Stage A because they're library code + script work that's not coupled to the route; doing them in Stage A means Stage B's wiring is mechanical (just plug runValidationPipeline in) and Stage C's sweep exercises the full surface from day one.
 
 ---
 
@@ -65,9 +74,49 @@ If 1.C.A.2 doesn't fail, the gate is broken. Stop. Investigate why the broken-va
 
 | § | Question | Default |
 |---|---|---|
-| 1.3 | Structural-grounding metric definition — "at least one matching delta entry" sufficient, or require N citations per expected? | One match minimum (lenient); revisit if false-pass rate is high |
 | 1.5 | What's the rollback procedure if 1.C.A.2 doesn't fail? | Pause PR 1.C, investigate gate, ship gate fix as a separate sub-PR before resuming wiring |
 | 1.3 | Persona fidelity in dry-run: skip, or stub with a static rubric (e.g. heuristic length/tone keyword match)? | Skip in dry-run; full metric in Stage C |
+
+### 1.7 Persona-script rewrite from real forum data (REVISED 2026-05-17)
+
+The five existing persona scripts (`confused_beginner`, `tilted_intermediate`, `curious_advanced`, `hinglish_learner`, `trick_questioner`) keep their **voices** — tone, vocabulary, comprehension level — but the **questions** each persona asks are replaced with real questions scraped from chess discourse online. This makes the sweep representative of what users actually ask, not what we imagined they'd ask.
+
+#### 1.7.1 Sources (priority order)
+
+| Source | Access pattern | ToS posture | Estimated yield |
+|---|---|---|---|
+| r/chess + r/chessbeginners | **Reddit API via OAuth.** Use `r/chess/search` and `r/chessbeginners/search` with `q=?` and `flair_name="help"` filters. Public API, documented rate limit 60 req/min, ToS allows research use with attribution. Use [Reddit API rules](https://www.redditinc.com/policies/data-api-terms) — store post IDs not content, re-fetch live for analysis when needed. | API-allowed | ~150 questions |
+| Lichess forums (study/practice) | **No public API for forums.** Lichess [Terms of Service](https://lichess.org/terms-of-service) allow non-commercial research; the forum HTML is scrape-permissive by precedent (the lichess-bot community has done it). Use a polite scraper with `User-Agent: chessmasti-research-bot` and a 2-second delay between requests. | ToS-permissive; scraping by precedent | ~80 questions |
+| Chess.com forums | **Chess.com [API](https://www.chess.com/news/view/published-data-api) does not expose forums.** Forum scraping is **not** explicitly permitted by their [ToS](https://www.chess.com/legal/terms) — they reserve the right to restrict automated access. Default posture: **skip this source.** Document the gap. Revisit if a researcher contact at chess.com can be reached for permission. | ToS-restrictive | 0 (skipped) |
+| Chess Stack Exchange | **Stack Exchange [API](https://api.stackexchange.com/docs)**, documented and generous. Public domain via CC BY-SA license — no scraping concerns. Use `chess.stackexchange.com` site filter with `tagged=beginner,opening,middlegame,endgame,strategy`. | API-allowed, CC BY-SA | ~70 questions |
+
+**Net target:** ~300 questions if all three permitted sources hit their estimated yields; ~220 if chess.com stays skipped. Either is sufficient — the synthetic-tester uses 50 turns, so a 4× oversample lets the category-distribution rewrite be statistically meaningful.
+
+#### 1.7.2 Pipeline stages
+
+1. **Scrape.** New script `scripts/mastermind/persona-data/scrape-forum-questions.ts` (~250 LOC). Per-source modules: `reddit.ts`, `lichess.ts`, `stackexchange.ts`. Outputs `scripts/mastermind/persona-data/raw-questions.json` — array of `{source, sourceUrl, capturedAt, questionText, contextMeta}`. **Rate-limited per source; idempotent re-runs use a local dedup cache keyed by sourceUrl.**
+2. **Classify.** New script `scripts/mastermind/persona-data/classify-questions.ts` (~120 LOC). Runs the six-category classifier (§6) over the raw questions. Outputs `classified-questions.json` adding `{category, confidence}` per entry. Cost: ~300 questions × $0.001/classify ≈ $0.30 total.
+3. **Spot-check.** Aayan reads a **30-question random sample** (uniform across the six categories — 5 per category). For each, Aayan flags the assigned category as correct or wrong. Pass criterion: ≥27/30 correct (90%). If <27, the classifier prompt needs iteration; loop back to step 2 with prompt refinements.
+4. **Rewrite persona scripts.** New script `scripts/mastermind/persona-data/rewrite-scripts.ts` (~180 LOC). For each persona, draws a 10-question sequence weighted by the **observed category distribution** from the classified corpus (e.g., if 35% of real questions are "improvement strategy," then 35% of the persona's prompts come from that category). Within each category, the persona's voice constraints (vocabulary, hedging, length) are applied as a transform — the underlying question stays semantically real but the wording matches the persona. Transform is also a Haiku call (~$0.001/question; ~$0.05/persona × 5 personas = $0.25 total). Final output: replace existing `scripts/synthetic-tester/personas/<persona>.md` files.
+
+#### 1.7.3 ToS compliance documentation
+
+Committed alongside the scraper: `scripts/mastermind/persona-data/COMPLIANCE.md` documenting per-source:
+- ToS link reviewed (with date of review)
+- Rate-limit posture (req/min, delay between)
+- Attribution requirements (Reddit: post ID + permalink; Stack Exchange: CC BY-SA citation in any derivative; Lichess: User-Agent identification)
+- What we store (post ID + question text only; **never user identity, usernames, or other PII**)
+- What we don't store (votes, scores, user metadata)
+- Take-down procedure if a source contacts us
+
+#### 1.7.4 Open questions for Aayan on §1.7
+
+| # | Question | Default |
+|---|---|---|
+| 1.7-a | Skip chess.com forums entirely, or attempt scraping with conservative posture? | Skip. Document the gap in COMPLIANCE.md |
+| 1.7-b | Spot-check pass criterion — 27/30 too lax, too strict? | 27/30 = 90%. Tighten to 28/30 if categorizer is borderline |
+| 1.7-c | Should the persona "voice transform" preserve question semantics exactly, or only approximately? | Approximately. The voice (tone, vocabulary, length) is what's persona-specific; the semantic intent is what's drawn from real discourse |
+| 1.7-d | Rerun cadence — re-scrape monthly to track distribution drift, or one-shot for 1.C? | One-shot for 1.C. Add to CMIP backlog as a recurring data-refresh task |
 
 ---
 
@@ -142,19 +191,63 @@ Three coexistence options:
 
 **Decision needed from tech-lead.** A vs B vs C.
 
-### 2.5 Files in scope
+### 2.5 Files in scope (REVISED 2026-05-17 — expanded with three new validators + classifier)
+
+#### 2.5.1 Stage A — library additions (new validators + classifier + persona pipeline)
 
 | File | Change | LOC |
 |---|---|---|
-| `src/app/api/enhanced-analysis/route.ts` | Add flag check, route through runValidationPipeline when on, emit telemetry forwarding | ~150 |
-| `src/app/api/chat/route.ts` | Same shape as enhanced-analysis, smaller | ~90 |
-| `src/lib/mastermind/wireValidators.ts` | New: helper that wraps runValidationPipeline with route-specific context (user_id, session_id from cookie), parser injection, callLLM wiring, and the synthetic-streaming re-emit | ~140 |
-| `src/lib/mastermind/validatorTelemetry.ts` | New: route-side telemetry forwarder. Reads `result.telemetry`, adds route-level context (user_id, session_id, response_id), calls `logger.info("validator_event", payload)` | ~60 |
-| `src/env.ts` | Add `MASTERMIND_VALIDATORS_ENABLED` env var to the Zod schema | ~10 |
-| `src/lib/mastermind/__tests__/wireValidators.test.ts` | Unit tests for the wiring helper | ~250 |
-| `src/lib/mastermind/__tests__/validatorTelemetry.test.ts` | Unit tests for the telemetry forwarder | ~150 |
+| `src/lib/mastermind/categorization/categoryClassifier.ts` | New: six-category Haiku classifier — see §6. Takes `userQuestion: string`, returns `{ category, confidence }`. Cached system prompt. | ~120 |
+| `src/lib/mastermind/categorization/categoryPrompts.ts` | Cached system prompt for the classifier with six-category definitions and exemplars | ~80 |
+| `src/lib/mastermind/validators/scoutCitation.ts` | New: validates opening-tree claims, repertoire-collision claims, Stalker Score claims, tilt/timeout-pattern claims against [scoutService.ts](../src/lib/scoutService.ts) output | ~280 |
+| `src/lib/mastermind/validators/userHistoryCitation.ts` | New: validates user-play-pattern claims (rating trajectory, puzzle stats, time-control performance, opening repertoire performance) against Firestore user data | ~260 |
+| `src/lib/mastermind/validators/jhamtaniCitation.ts` | New: validates concept-explanation claims against the Jhamtani commentary corpus in Neo4j. Cross-checks whether cited example commentary actually appears | ~240 |
+| `src/lib/mastermind/validators/citationRate.ts` | New: helper that computes citation-rate metric per category given a `ValidatorResult` and the source's "opportunities" count | ~120 |
+| `src/lib/mastermind/validators/parserPrompts.ts` | Extend with three new cached prompts: `SCOUT_CITATION_PARSER_SYSTEM`, `USER_HISTORY_CITATION_PARSER_SYSTEM`, `JHAMTANI_CITATION_PARSER_SYSTEM` | +180 |
+| `src/lib/mastermind/validators/types.ts` | Extend with new `FeatureClaimType` values per data source, `Opportunity` interface, `CitationRateResult` | +90 |
+| `src/lib/mastermind/validators/index.ts` | Add exports for the three new validators + classifier; extend `runValidationPipeline` to accept scout/userHistory/jhamtani data sources and orchestrate the citation-rate computation | +130 |
+| `src/lib/mastermind/__tests__/categorization/categoryClassifier.test.ts` | Mocked-parser tests over the six categories + adversarial cases | ~180 |
+| `src/lib/mastermind/__tests__/validators/scoutCitation.test.ts` | Mocked-parser tests + cross-check correctness over scout-output fixtures | ~280 |
+| `src/lib/mastermind/__tests__/validators/userHistoryCitation.test.ts` | Mocked-parser tests + cross-check over fixture user-history blobs | ~270 |
+| `src/lib/mastermind/__tests__/validators/jhamtaniCitation.test.ts` | Mocked-parser tests + cross-check over fixture corpus entries | ~250 |
+| `src/lib/mastermind/__tests__/validators/citationRate.test.ts` | Opportunities-counted-correctly + per-category rate aggregation | ~140 |
+| `scripts/mastermind/persona-data/scrape-forum-questions.ts` | Reddit + Lichess + Stack Exchange scrapers, ToS-aware | ~250 |
+| `scripts/mastermind/persona-data/classify-questions.ts` | Runs `categoryClassifier` over raw questions, outputs categorized corpus | ~120 |
+| `scripts/mastermind/persona-data/rewrite-scripts.ts` | Draws from categorized corpus weighted by observed distribution, applies persona-voice transform | ~180 |
+| `scripts/mastermind/persona-data/COMPLIANCE.md` | ToS posture per source (see §1.7.3) | ~100 lines doc |
+| `scripts/mastermind/validator-gate-dryrun.ts` | Now runs all five validators (PR 1.B's two + 1.C's three) and reports both hallucination and citation metrics | ~280 |
+| `scripts/mastermind/fixtures/gate-dryrun.json` | Expanded: 60 hand-curated tuples spanning all six categories with opportunities counts | ~40 KB |
+| `scripts/mastermind/gate-thresholds.json` | Revised per §5.3 — hallucination ≥0.95 per category, citation floors per category | ~2 KB |
 
-**Total Stage B: ~850 LOC + ~400 LOC tests.**
+#### 2.5.2 Stage B — route wiring (mostly unchanged from original §2.5)
+
+| File | Change | LOC |
+|---|---|---|
+| `src/app/api/enhanced-analysis/route.ts` | Add flag check, route through `runValidationPipeline` when on, fetch scout/user-history/jhamtani data alongside feature delta, emit telemetry forwarding | ~220 |
+| `src/app/api/chat/route.ts` | Same shape as enhanced-analysis, smaller | ~130 |
+| `src/lib/mastermind/wireValidators.ts` | New: route-side helper that fetches the four data sources (feature delta, scout, user history, jhamtani) and threads them into `runValidationPipeline` | ~220 |
+| `src/lib/mastermind/validatorTelemetry.ts` | New: route-side telemetry forwarder. Reads `result.telemetry`, adds route-level context (user_id, session_id, response_id, category), calls logger | ~80 |
+| `src/env.ts` | Add `MASTERMIND_VALIDATORS_ENABLED` env var to the Zod schema | ~10 |
+| `src/lib/mastermind/__tests__/wireValidators.test.ts` | Unit tests for the wiring helper | ~280 |
+| `src/lib/mastermind/__tests__/validatorTelemetry.test.ts` | Unit tests for the telemetry forwarder | ~180 |
+
+#### 2.5.3 Stage C — sweep outputs (committed JSON, not LOC)
+
+| File | Purpose |
+|---|---|
+| `audit/findings/agent-c-eval/sweep-{date}.json` | Full 50-turn sweep results: per-turn response, telemetry, latency, cost, hallucination + citation metrics |
+| `audit/findings/agent-c-eval/sweep-{date}-summary.md` | Human-readable summary: aggregate metrics, by-category breakdown, baseline comparison |
+
+#### 2.5.4 LOC totals
+
+| Stage | Lib LOC | Test LOC | Other |
+|---|---|---|---|
+| A (validators + classifier + persona pipeline + dry-run) | ~1,840 | ~1,120 | ~700 LOC scripts + ~42 KB fixtures + ~100 lines compliance doc |
+| B (route wiring + telemetry forwarding) | ~660 | ~460 | — |
+| C (sweep outputs) | — | — | ~50 KB JSON |
+| **PR 1.C total** | **~2,500** | **~1,580** | scripts + fixtures + compliance + sweep output |
+
+Above the original ~1,150/~400 estimate but in line with the user-authorized revision. Sub-stage A.5 (scout/user-history/jhamtani validators) is the largest single-section growth driver; the persona pipeline contributes ~700 LOC of scripts; classifier and citation-rate aggregator add the rest.
 
 ### 2.6 Don't-touch list (per spec + existing CLAUDE.md)
 
@@ -312,15 +405,68 @@ The full 50-turn sweep against a preview deploy with `MASTERMIND_VALIDATORS_ENAB
 8. Compare against the baseline run (same sweep against main with flag off).
 ```
 
-### 5.3 The five gate metrics
+### 5.3 The gate metrics — hallucination + citation across six categories (REVISED 2026-05-17)
+
+Original flat 0.85 grounding metric retired. Replaced with two metrics that measure different failure modes and resist gaming each other.
+
+#### 5.3.1 Hallucination rate
+
+**Definition.** Of factual claims made by the coach in a response, the fraction supported by the relevant data source.
+
+**Target.** ≥ 95% **across all six categories, no exceptions.** A 95% overall rate masking 70% on one category and 100% on another is not acceptable. Report the by-category breakdown alongside the overall rate; any category < 95% fails the gate.
+
+**Computation.** For each turn:
+1. The pipeline runs through all five validators (PR 1.B: `evalClaim`, `featureDeltaCitation`; PR 1.C: `scoutCitation`, `userHistoryCitation`, `jhamtaniCitation`). Each validator's parser counts the factual claims it detects.
+2. Total claims = sum across all five validators per turn.
+3. Hallucinated claims = total `cumulativeIssues` from `runValidationPipeline` AFTER all retries (final response, not initial response).
+4. Hallucination rate per turn = 1 − (hallucinated / total).
+5. Per-category aggregate: filter turns by category (via §6 classifier) and average.
+
+Claims of type `qualitative_commentary`, `metaphorical`, `conditional_speculation` are NOT counted in either numerator or denominator — they're not factual assertions.
+
+#### 5.3.2 Citation rate
+
+**Definition.** Of opportunities to cite personalized data (turns where relevant data exists in the corresponding source), the fraction the coach actually uses.
+
+**Target — by category.** No flat floor; each category has its own:
+
+| Category | Citation rate floor | Authoritative data source | First-consumer validator |
+|---|---|---|---|
+| Game review | 90% | Feature delta (PR 1.A `compute_feature_delta`) | `featureDeltaCitation` (PR 1.B) |
+| Opponent prep | 85% | Scout output: opening tree, repertoire collisions, Stalker Score, tilt/timeout profiles — see [scoutService.ts](../src/lib/scoutService.ts) | `scoutCitation` (new, §6) |
+| Position analysis | 70% | Feature delta (PR 1.A) | `featureDeltaCitation` (PR 1.B) |
+| Concept explanation | 60% | Jhamtani commentary corpus in Neo4j | `jhamtaniCitation` (new, §6) |
+| Improvement strategy | 50% | User play history, puzzle history, win rate by time control — see [firestoreGames.ts](../src/lib/firestoreGames.ts), `users/{uid}/puzzle_stats` | `userHistoryCitation` (new, §6) |
+| Meta and motivational | 20% | User progress data: rating curve, hours played, puzzle rating trajectory | `userHistoryCitation` (new, §6) |
+
+**Computation.** For each turn:
+1. Classify question into one of the six categories via §6 classifier.
+2. Query the relevant data source. Count "opportunities" = the cardinality of cite-able entries in that source for the position/user/game context. Definition of "cite-able entry" is per-validator (see §6 for each validator's `countOpportunities` logic).
+3. Count "citations" = entries the coach's response actually references (matched via that category's parser, same pattern as PR 1.B).
+4. Citation rate for the turn = citations / opportunities. Zero-opportunity turns are excluded from the denominator entirely (you can't fail at citing what doesn't exist).
+5. Aggregate by category across the sweep; each category must clear its floor.
+
+**Why two metrics, not one.** Hallucination ceilings stop the coach from lying. Citation floors stop the coach from giving generic answers when personalized data is available. A response can hit 100% hallucination rate by saying nothing factual; can hit 100% citation rate by citing everything verbatim (verbose, low-signal). The two metrics together force the coach into the useful middle: cite when relevant data exists, don't invent when it doesn't. **Neither games the other.**
+
+#### 5.3.3 The other three gate metrics (mostly unchanged)
 
 | Metric | Target | How measured |
 |---|---|---|
-| Chess correctness | 0 violations per 50-turn run | Sum `cumulativeIssues` with `severity="error"` after pipeline; sum `validateAIResponse` errors. Both must be 0. |
-| Structural grounding | ≥ 0.85 | For each turn, ratio of "expected feature citations" (per the persona's scripted prompt) that appear in the response with matching delta entries. Mean across 50 turns. |
-| Persona fidelity | ≥ 7/10 per persona, mean ≥ 7.5 | Separate flagship Claude rubric call (one per turn) scoring the response against the persona's tone profile. Costs ~$0.02/turn extra; only runs in sweeps, not production. |
-| Tool calls/turn | ≤ 4 median | Count of `tool_call_*` SSE events per turn. Validators don't count (they're not "tools" in the agent-loop sense). In 1.C this is 0 since no agent loop yet — kept as a placeholder metric. |
-| Cost per turn | ≤ $0.03 flagship, ≤ $0.005 fast | Sum from telemetry `costUsd` fields + route's `inputTokens/outputTokens` log. |
+| Chess correctness (board-state) | 0 violations per 50-turn run | `validateAIResponse` errors (piece-on-square, illegal-move, nonexistent-square). Separate from §5.3.1 hallucination — the existing chess.js board-state check, kept as defense-in-depth per §2.4 Option A. |
+| Persona fidelity | ≥ 7/10 per persona, mean ≥ 7.5 | Separate flagship Claude rubric call (one per turn) scoring the response against the persona's tone profile. ~$0.02/turn extra; only runs in sweeps, not production. |
+| Cost per turn | ≤ $0.035 flagship, ≤ $0.005 fast | Sum from telemetry `costUsd` fields + route's `inputTokens/outputTokens` log. **Ceiling raised from $0.03 to $0.035** to absorb the new validators' parser cost (3 additional Haiku parses per turn at ~$0.001 each). Per Interpretation A, retries are replacement-not-addition; overhead bound is parsers + telemetry. |
+
+Tool calls/turn (originally listed) dropped from PR 1.C since the agent loop isn't here yet; revisit in Phase 2.
+
+#### 5.3.4 Pass criteria — all of the following must hold
+
+- **Hallucination rate ≥ 95% per category**, not just overall.
+- **Citation rate ≥ floor per category** per §5.3.2 table.
+- Chess correctness = 0 violations.
+- Persona fidelity ≥ 7/10 per persona, mean ≥ 7.5.
+- Cost per turn ≤ $0.035 flagship, ≤ $0.005 fast.
+
+Failing any of the above blocks merge.
 
 ### 5.4 Comparison to baseline
 
@@ -328,64 +474,181 @@ The baseline is the same sweep against main with flag off. Required outcomes:
 
 | Metric | Baseline (main) | Expected at PR 1.C |
 |---|---|---|
+| Hallucination rate (per category) | Uncomputed; some implicit hallucination exists | ≥ 0.95 per category |
+| Citation rate (per category) | Uncomputed; coach probably under-cites scout/user-history | ≥ floor per category |
 | Chess correctness | Some violations (existing piece-on-square misses) | Fewer or equal violations (pipeline adds protection) |
-| Structural grounding | Currently uncomputed (no prior measurement) | ≥ 0.85 (new metric, target threshold) |
 | Persona fidelity | Currently uncomputed | ≥ 7/10 |
-| Tool calls/turn | 0 (no agent loop) | 0 (no agent loop) |
 | Cost per turn | ~$0.025 flagship | ≤ $0.035 (overhead ≤ $0.01 per Interpretation A) |
 
 ### 5.5 Aayan review items for Stage C
 
 | § | Question | Default |
 |---|---|---|
-| 5.3 | Persona fidelity rubric — Claude flagship call per turn at $0.02 each × 50 turns = $1 per sweep. Acceptable? | Yes; sweeps run on every PR not on every commit, so ~10 sweeps/month at most |
-| 5.3 | Structural grounding ≥ 0.85 — too high for a first measurement, or right? | Right per BUILD_PLAN §9.1. Adjust down if first sweep shows < 0.7 and adversarial inspection shows fixture issues |
+| 5.3.2 | Citation rate floors — are these the right per-category numbers? Game review 90% / Opponent prep 85% / etc. | Yes per coaching-review 2026-05-17. Revisit after first sweep if any category misses dramatically |
+| 5.3.1 | Hallucination ≥95% per category — too strict? | Per coaching review: no exceptions. If first sweep shows e.g. 87% on concept-explanation, that's a coaching failure to investigate, not a threshold to relax |
+| 5.3 | Persona fidelity rubric — flagship Claude call per turn at $0.02 × 50 = $1/sweep. Acceptable? | Approved (§8 Q8) |
 | 5.4 | Cost-per-turn budget ≤ $0.035: hard fail or soft warning? | Hard fail. Tech-lead override possible if Stage C shows ~$0.04 but no path to lower; we'd then revisit Interpretation A's overhead assumption |
 
 ---
 
-## 6. Summary commit sequence
+## 6. Six-category classifier + new validator specs (REVISED 2026-05-17)
 
-Single PR, six commits in order. Each builds on the prior; no commit standalone-mergeable.
+This section specs the new library code Stage A adds. Each validator follows the PR 1.B parser-then-cross-check shape; only the data source and the cross-check logic vary.
+
+### 6.1 Six-category classifier — `categoryClassifier.ts`
+
+**Signature:**
+
+```ts
+export type QuestionCategory =
+  | "game_review"            // Coach analyzes a played game
+  | "opponent_prep"          // Coach analyzes opponent's tendencies / opening repertoire
+  | "position_analysis"      // Coach analyzes a position outside game context
+  | "concept_explanation"    // Coach explains a chess concept (pin, outpost, etc.)
+  | "improvement_strategy"   // Coach advises on what to study or how to improve
+  | "meta_motivational";     // User asks about progress, motivation, frustration
+
+export interface CategorizedQuestion {
+  category: QuestionCategory;
+  confidence: number;        // 0-1
+  rationale: string;         // brief, why this category
+}
+
+export async function classifyQuestion(
+  question: string,
+  parseCall?: ParserCall
+): Promise<CategorizedQuestion>;
+```
+
+**Cached system prompt** at `categoryPrompts.ts` (~800 tokens) defines each category with exemplars and disambiguators:
+- "Why did I lose this rook ending?" → `game_review`
+- "What does my opponent like to play vs the Najdorf?" → `opponent_prep`
+- "Is +1.5 winning here?" → `position_analysis`
+- "What's an outpost?" → `concept_explanation`
+- "How do I get to 1800?" → `improvement_strategy`
+- "I keep losing the same way, am I plateaued?" → `meta_motivational`
+
+Returns structured JSON same pattern as the other parser prompts. Confidence <0.5 → caller treats as ambiguous and assigns to the lowest-floor category (`meta_motivational`) by default to avoid false-positive citation-rate failures.
+
+### 6.2 `scoutCitation.ts` — opponent-prep validator
+
+**Data source.** [scoutService.ts](../src/lib/scoutService.ts) returns: opening tree (by ECO + most-played continuations), repertoire collisions (where user-repertoire intersects opponent-tree), Stalker Score, tilt/timeout patterns from opponent's last N games.
+
+**Parser claim types (extends `FeatureClaimType`):**
+
+| Claim | Example | Cross-check |
+|---|---|---|
+| `opponent_plays_opening` | "Your opponent plays the Sicilian Dragon 60% of the time" | Opening tree node frequency matches stated % within ±5% |
+| `repertoire_collision` | "You both like the Caro-Kann Advance" | Repertoire collision entry exists for the named opening |
+| `stalker_score_claim` | "Your opponent has a high Stalker Score in time trouble" | Stalker Score sub-metric matches stated direction |
+| `tilt_pattern` | "Your opponent loses focus after move 30" | Tilt profile shows accuracy drop after the stated move |
+| `timeout_pattern` | "Your opponent loses on time in 15% of games" | Timeout-pattern metric matches stated % within ±5% |
+
+**Opportunity counting** (for citation rate denominator): each non-empty entry in the scout output is one opportunity. A coach's response in the opponent-prep category needs to cite ≥85% of available scout entries.
+
+### 6.3 `userHistoryCitation.ts` — improvement-strategy + meta-motivational validator
+
+**Data source.** Firestore (`users/{uid}/games`, `users/{uid}/puzzle_stats`, `users/{uid}/rating_history`). All reads server-side via Firebase Admin (per CLAUDE.md auth model).
+
+**Parser claim types:**
+
+| Claim | Example | Cross-check |
+|---|---|---|
+| `rating_trajectory` | "Your rating climbed from 1200 to 1400 over last month" | Rating history matches the trajectory within ±50 points |
+| `time_control_performance` | "You're 65% in rapid but only 48% in blitz" | Win rate by time control matches within ±5% |
+| `puzzle_stats_claim` | "Your puzzle rating is 1850 with 70% accuracy" | Puzzle stats match within ±5% |
+| `opening_repertoire_performance` | "You score 60% with white in 1.e4" | Game-history aggregation by opening matches |
+| `hours_played_claim` | "You've played 120 games this month" | Game-count matches |
+| `puzzle_rating_trajectory` | "Your puzzle rating jumped 100 points last week" | Recent puzzle-rating delta matches |
+
+**Opportunity counting:** any of the above data points that exist for this user. Coach's response in improvement-strategy needs to cite ≥50%; in meta-motivational, ≥20%.
+
+### 6.4 `jhamtaniCitation.ts` — concept-explanation validator
+
+**Data source.** Neo4j Jhamtani commentary corpus. Schema: nodes of type `:Concept` (knight outpost, isolated queen pawn, etc.) with `:HAS_COMMENTARY` edges to `:CommentaryEntry` nodes containing example games + prose snippets. Confirmed via [conceptDetector.ts](../src/lib/concept/conceptDetector.ts) consumer pattern.
+
+**Parser claim types:**
+
+| Claim | Example | Cross-check |
+|---|---|---|
+| `concept_definition` | "An outpost is a square that no opposing pawn can attack" | Concept node exists in Neo4j with matching canonical definition (Levenshtein or paraphrase check) |
+| `commentary_citation` | "Like in Kasparov-Karpov 1985 where the knight on e5 dominated" | A `:CommentaryEntry` matching the cited game exists under the relevant `:Concept` node |
+| `concept_example` | "This is similar to position X from the corpus" | Position-similarity match in corpus |
+
+**Opportunity counting:** Concept nodes related to the position (via `conceptDetector.detectConcepts(fen)`). Coach's response in concept-explanation category needs to cite ≥60% of relevant concepts.
+
+### 6.5 Citation-rate aggregator — `citationRate.ts`
+
+Pure helper consumed by `runValidationPipeline`:
+
+```ts
+export interface Opportunity {
+  category: QuestionCategory;
+  dataSource: "feature_delta" | "scout" | "user_history" | "jhamtani";
+  entry: unknown;            // opaque; the validator knows its shape
+  citedByLlm: boolean;       // populated by the parser after match
+}
+
+export interface CitationRateResult {
+  overall: number;
+  byCategory: Record<QuestionCategory, { rate: number; cited: number; opportunities: number }>;
+}
+
+export function computeCitationRate(opportunities: Opportunity[]): CitationRateResult;
+```
+
+`runValidationPipeline` is extended to accept `dataSources: { scout?, userHistory?, jhamtani? }` alongside `featureDelta`. Each is optional; if absent, that source contributes zero opportunities (and zero citations) — appropriate for turns where the source isn't applicable to the question.
+
+---
+
+## 7. Summary commit sequence (REVISED 2026-05-17)
+
+Single PR, more commits than the original plan because Stage A grew. Each builds on the prior; no commit standalone-mergeable.
 
 | # | Commit | Approx. LOC |
 |---|---|---|
-| 1.C.A.1 | Land dry-run gate harness + fixtures + thresholds + initial pass output | ~400 |
-| 1.C.A.2 | Demonstrate gate sensitivity via `--override-tolerance=2000`; output in commit message | 0 (script flag only) |
-| 1.C.B.1 | Wire `runValidationPipeline` into `/api/enhanced-analysis` behind flag + helper module | ~300 |
-| 1.C.B.2 | Wire into `/api/chat` (same shape, smaller diff) | ~200 |
-| 1.C.B.3 | Telemetry forwarding + Sentry tags + tests | ~250 |
-| 1.C.C | Synthetic-tester sweep results captured in PR description; sweep output JSON committed to `audit/findings/agent-c-eval/` | ~30 KB JSON |
+| 1.C.A.1 | Land `categoryClassifier.ts` + cached prompt + tests | ~380 |
+| 1.C.A.2 | Land `scoutCitation.ts` + tests | ~560 |
+| 1.C.A.3 | Land `userHistoryCitation.ts` + tests | ~530 |
+| 1.C.A.4 | Land `jhamtaniCitation.ts` + tests | ~490 |
+| 1.C.A.5 | Land `citationRate.ts` helper + extend `runValidationPipeline` + tests | ~390 |
+| 1.C.A.6 | Land persona-data scraper + classifier-run + COMPLIANCE.md | ~470 |
+| 1.C.A.7 | Aayan spot-check sample produced; if ≥27/30 pass, persona-script rewrite committed | ~200 + replacement of `personas/*.md` |
+| 1.C.A.8 | Land dry-run gate harness (expanded for all 5 validators) + fixtures (60 tuples) + thresholds (revised per §5.3) + initial pass output | ~660 |
+| 1.C.A.9 | Demonstrate gate sensitivity via `--override-tolerance=2000` and `--override-citation-floor=0` (new flags). Outputs in commit message. | 0 (script flag only) |
+| 1.C.B.1 | Wire `runValidationPipeline` into `/api/enhanced-analysis` behind flag + `wireValidators.ts` helper fetching all 4 data sources | ~440 |
+| 1.C.B.2 | Wire into `/api/chat` (same shape, smaller diff) | ~310 |
+| 1.C.B.3 | Telemetry forwarding + Sentry tags + tests | ~260 |
+| 1.C.C | Synthetic-tester sweep results captured in PR description; sweep output JSON committed to `audit/findings/agent-c-eval/` | ~50 KB JSON |
 
-**Total PR 1.C: ~1,150 lib LOC + ~400 test LOC + dry-run + fixtures + sweep output.**
-
----
-
-## 7. Verification — how I'll prove this works pre-merge
-
-1. **TSC clean** at every commit.
-2. **`npm run test` 100% green** at every commit.
-3. **Stage A proof in commit messages:** 1.C.A.1 commit message includes the dry-run output (pass); 1.C.A.2 commit message includes the broken-config output (fail with specific metric that failed). Both reproducible by anyone via `npx tsx scripts/mastermind/validator-gate-dryrun.ts`.
-4. **Stage B integration:** at least one passing turn against the preview deploy is captured in commit 1.C.B.1 description (curl or Playwright transcript).
-5. **Stage C sweep:** the full 50-turn sweep output committed to `audit/findings/agent-c-eval/`. PR description includes the five-metric summary, baseline comparison, and total cost.
-6. **Telemetry sample:** one full correlation_id's events from a passing turn AND one full trace from a failing-then-recovered turn, both committed as fixtures alongside the sweep output.
+**Total PR 1.C revised: ~2,500 lib + ~1,580 test + scripts + fixtures + compliance doc + sweep output.** Up from original ~1,150 / ~400. Aayan explicitly authorized this expansion 2026-05-17.
 
 ---
 
-## 8. Open questions for review
+## 8. Decisions — RATIFIED 2026-05-17
 
-| # | Question | Reviewer | Default |
+Original §8 open questions resolved. Plan body updated; this section is the audit trail.
+
+| # | Question | Decision | Section affected |
 |---|---|---|---|
-| 1 | Footnote-append coexistence: Option A (stays alongside pipeline), B (disabled when flag on), or C (removed) — §2.4 | tech-lead | A — defense-in-depth, removable later |
-| 2 | Streaming gotcha: buffer-then-restream (proposed) vs other approach — §2.1 | tech-lead | Buffer-then-restream with synthetic stream |
-| 3 | Total pipeline budget 30s — too long, too short? — §2.3 | tech-lead | 30s |
-| 4 | Flag name `MASTERMIND_VALIDATORS_ENABLED` (distinct from agent-loop flag) — §4.1 | tech-lead | This name |
-| 5 | Promotion criterion 3 — "gate has caught at least one real regression" — how do we operationalize "real"? — §4.4 | tech-lead | A regression introduced unintentionally (not by --override flag) AND caught before merge by the gate. Honor-system; revisit if abuse |
-| 6 | `user_tier` field in telemetry — populate now or skip until paid tier? — §3.5 | tech-lead | Populate with `"free"` for all in 1.C |
-| 7 | Stage A — what's the rollback if gate doesn't fail on broken config? — §1.5 | tech-lead | Pause PR 1.C, ship gate fix as sub-PR, then resume |
-| 8 | Persona fidelity rubric — flagship Claude call per turn at $0.02 × 50 = $1/sweep, acceptable? — §5.5 | Aayan | Yes |
-| 9 | Structural grounding ≥ 0.85 threshold — right for first measurement? — §5.5 | Aayan | Yes; adjust down if fixtures need rework |
-| 10 | Adversarial gate-sensitivity flags: tolerance, numeric threshold, confidence. Others worth supporting? — §1.2 | Aayan | These three; add fixture-injection as a separate `--inject-fixture` flag if needed later |
+| 1 | Footnote-append coexistence | **Option A: stays alongside pipeline** (defense-in-depth) | §2.4 |
+| 2 | Streaming gotcha | **Buffer-then-restream with `validating` SSE event** | §2.1 |
+| 3 | Total pipeline budget | **30s** | §2.3 |
+| 4 | Flag name | **`MASTERMIND_VALIDATORS_ENABLED`** (distinct from agent-loop flag) | §4.1 |
+| 5 | "Real regression" definition | **Honor system** — regression introduced unintentionally and caught by the gate before merge | §4.4 |
+| 6 | `user_tier` telemetry field | **Populate as `"free"`** (paid tier doesn't exist yet, but the field shape is ISEF-stable) | §3.5 |
+| 7 | Stage A rollback procedure | **Pause PR 1.C, ship gate-fix sub-PR, resume** | §1.5 |
+| 8 | Persona fidelity at $1/sweep | **Approved** | §5.5 |
+| 9 | Structural grounding 0.85 | **SUPERSEDED by Revision 1** — replaced with hallucination ≥95% per category + per-category citation floors | §5.3 |
+| 10 | Gate-sensitivity overrides | **Include all four: `--override-tolerance`, `--override-numeric`, `--override-confidence`, `--inject-fixture`** | §1.2 |
+
+### 8.1 New questions added in the 2026-05-17 revision
+
+Questions in §1.7.4, §5.5 (citation-floors validity), and any in §6 are still open. Listed by section for the reviewers:
+
+- **§1.7.4:** chess.com forum skip vs scrape, spot-check pass criterion (27/30 default), persona voice-transform semantic strictness, scrape cadence.
+- **§5.5:** hallucination 95% as hard ceiling (no per-category relaxation), citation floor calibration after first sweep.
+- **§6:** are the parser claim-types for the three new validators (§6.2-6.4) complete? Or are there scout/user-history/jhamtani claim patterns the coach makes that I haven't enumerated?
 
 ---
 
@@ -399,14 +662,75 @@ Single PR, six commits in order. Each builds on the prior; no commit standalone-
 - Add per-user feature-flag overrides (out-of-scope for preview-only rollout).
 - Change Sonnet/Haiku tier routing.
 - Modify `aiResponseValidator.ts` source.
+- Build the absolute-state validator (FAILURE_MODES §10f deferred).
+- Begin Phase 2 work — per §11 CMIP redirection.
 
 ---
 
-## 10. Pause
+## 10. Verification (revised)
 
-Plan written. No code yet. Awaiting:
+How I'll prove PR 1.C works pre-merge:
 
-- **Tech-lead** (questions 1-7 in §8): footnote coexistence, streaming, timeout, flag name, promotion criteria, telemetry field, rollback procedure.
-- **Aayan** (questions 8-10): persona fidelity cost, structural grounding threshold, gate-sensitivity overrides.
+1. **TSC clean** at every commit.
+2. **`npm run test` 100% green** at every commit. Net new test count: ~1,580 LOC.
+3. **Stage A.1-A.5 proof:** each new validator (`scoutCitation`, `userHistoryCitation`, `jhamtaniCitation`) ships with mocked-parser tests covering positive, negative, adversarial cases for each claim-type. Citation-rate helper ships with opportunities-counted-correctly tests.
+4. **Stage A.6-A.7 proof:** scraper produces a corpus of ≥220 questions (220 if chess.com skipped, ~300 if scraped) committed alongside the COMPLIANCE.md. Aayan's 30-question spot-check sample committed as a fixture; pass-criterion result (≥27/30) is the gate. Rewritten persona scripts diff'd against the originals in the PR description.
+5. **Stage A.8-A.9 proof:** dry-run gate harness exits 0 with all metrics passing on PR 1.B as-is; exits non-zero on `--override-tolerance=2000` and `--override-citation-floor=0`. Both runs' outputs in commit messages.
+6. **Stage B proof:** at least one passing turn against the preview deploy captured in commit 1.C.B.1 description.
+7. **Stage C proof:** full 50-turn sweep against preview with `MASTERMIND_VALIDATORS_ENABLED=true`. All five gate metrics passing per §5.3.4. By-category breakdown (hallucination rate per category, citation rate per category) in PR description.
+8. **Telemetry sample:** one full correlation_id's events from a passing turn AND one from a failing-then-recovered turn, both committed as fixtures alongside the sweep output.
 
-On approval, I begin with 1.C.A.1 (dry-run harness). Code-only work; the doc updates this plan ships with are the `audit/findings/agent-c-eval/` sweep output and the commit messages for the two A-stage demonstrations.
+---
+
+## 11. CMIP redirection — post-1.C work is human evaluation, not Phase 2 (NEW 2026-05-17)
+
+### 11.1 The redirection
+
+After PR 1.C merges, **CMIP (Chess Masti Internship Program) feedback infrastructure is the next major workstream — NOT Phase 2 (agent loop refactor)**. This is a phase-ordering change vs the original [BUILD_PLAN.md §3](MASTERMIND_BUILD_PLAN.md) sequencing, which had Phase 2 queued right after Phase 1 completion.
+
+### 11.2 Why CMIP comes first
+
+The synthetic-tester metrics (hallucination rate, citation rate per category, persona fidelity) are *correlates* of coaching quality, not measurements of it. The honest test is: does a real user, reading a coach response, feel like they got a good answer? CMIP captures this signal at scale.
+
+Concretely: CMIP gives interns the ability to (a) flag bad coach responses with a why-it-was-bad note, (b) author the *ideal* response they'd have wanted, (c) ship that data into a Supabase-backed feedback DB. The 1.A-1.D PRs (already shipped 2026-05-17, see [PR_CMIP_1_PLAN.md](PR_CMIP_1_PLAN.md)) put the infrastructure in place; the data accumulation now begins.
+
+The next CMIP phase ("CMIP-2" or "human-eval-rollout") expands this beyond interns to real users via a rating UI on coach responses. Once the human-rating corpus exists, we can run a correlation analysis between the synthetic-tester metrics (PR 1.C) and the human ratings:
+
+- **If correlation is strong:** synthetic-tester gates are doing useful work. Phase 2 unblocks.
+- **If correlation is weak:** the metrics need recalibration. Iterate on either the validators (more accurate cross-checks), the category classifier (better question-routing), or the gate thresholds (different floors) before committing to Phase 2's agent loop refactor.
+
+### 11.3 Why this gating is necessary
+
+Phase 2 is a large structural refactor (`runValidationPipeline` becomes one tool among many; the route becomes a tool-using agent loop; AICoachChat.tsx grows tool-call narration UI). Doing that on top of metrics that turn out not to correlate with real user satisfaction would be expensive cleanup. The order-of-operations cost of pausing for CMIP rating data is small (a few weeks) relative to the cost of refactoring on a wrong foundation.
+
+### 11.4 What stays paused
+
+Until CMIP rating data confirms (or recalibrates) the metrics:
+- **Phase 2 — Agent loop refactor** (entire phase, all PRs).
+- Any new Mastermind tool integrations beyond Stage 3 validators.
+- Tier A content authoring (Phase 3) — premature without a stable agent layer.
+- Chesstalker perspective (Phase 4) — premature.
+
+### 11.5 What continues
+
+- **CMIP data accumulation** via the already-shipped 1.A-1.D infrastructure.
+- **CMIP-2 design** for the human-rating UI (separate planning doc).
+- **Bug fixes** in PR 1.C library code as preview surfaces issues.
+- **Flag promotion** preview → prod when criteria in §4.4 fire (independent of Phase 2 gating).
+- **Synthetic-tester refinement** as classifier or validator quality issues surface.
+
+### 11.6 Documentation tasks for this revision
+
+- Update [BUILD_PLAN.md §3 phasing overview](MASTERMIND_BUILD_PLAN.md) to insert "CMIP human evaluation" between Phase 1 and Phase 2, marked as a Phase 2 prerequisite. **Done in same commit as this plan revision.**
+- Add a project memory entry noting Phase 2 is blocked on CMIP rating data. **Will land in the conversation memory store, not in this doc.**
+
+---
+
+## 12. Pause (revised)
+
+Plan revised. No code yet. Awaiting:
+
+- **Tech-lead** (§8 ratifications confirmed; new questions in §6 — are the new-validator claim type lists complete?).
+- **Aayan** (§1.7.4 persona-pipeline questions; §5.5 metric calibration confirmation).
+
+On approval, I begin with 1.C.A.1 (`categoryClassifier.ts` + cached prompt + tests) as the foundation for everything downstream. Then bottom-up through the new validators, then the persona pipeline, then the dry-run harness, then wiring, then sweep.

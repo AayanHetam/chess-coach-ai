@@ -58,6 +58,10 @@ export function getAuthEnv() {
       fromEmail: process.env.CMIP_FROM_EMAIL ?? "noreply@chessmasti.com",
       adminEmail: process.env.CMIP_ADMIN_EMAIL,
       contactEmail: process.env.CMIP_CONTACT_EMAIL ?? "applications@chessmasti.com",
+      // Personal email of the human admin who can reach /admin/intern-data.
+      // Distinct from `adminEmail` (which is the role-mailbox recipient for
+      // application notifications). Resolved 2026-05-17: aayanhetamsaria4@gmail.com.
+      dashboardAdminEmail: process.env.CMIP_DASHBOARD_ADMIN_EMAIL,
     },
     supabase: {
       url: process.env.SUPABASE_URL,

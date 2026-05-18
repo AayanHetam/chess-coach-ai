@@ -6,6 +6,7 @@ import { setSessionCookieOnResponse } from "@/lib/auth/session";
 import { createUser, toSafe, UserError } from "@/lib/server/users";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
 import { isAllowlistedIntern } from "@/lib/intern/allowlist";
+import { isDashboardAdminEmail } from "@/lib/auth/isAdmin";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
     });
 
     const isIntern = await isAllowlistedIntern(user.email);
+    const isAdmin = isDashboardAdminEmail(user.email);
 
     const safe = toSafe(user);
     const response = NextResponse.json({ user: safe }, { status: 201 });
@@ -51,6 +53,7 @@ export async function POST(request: Request) {
       displayName: user.displayName,
       avatarUrl: user.photoURL,
       isIntern,
+      isAdmin,
     });
     return response;
   } catch (err) {

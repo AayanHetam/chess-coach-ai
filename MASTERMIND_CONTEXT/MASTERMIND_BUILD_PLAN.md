@@ -99,18 +99,26 @@ Mastermind tools that read user state are listed in [MASTERMIND_TOOLS.md `read_u
 
 ---
 
-## 3. Phasing overview (REVISED 2026-05-17)
+## 3. Phasing overview (AUDIT-REVISED 2026-05-17)
 
-Five phases as before, with one new interstitial phase between Phase 1 and Phase 2: **CMIP human evaluation**. Phase 2 is blocked on CMIP rating data confirming (or recalibrating) the synthetic-tester metrics.
+Five phases, with an interstitial Phase 1.5 (CMIP human eval) and two Aayan-triggered cleanup PRs (1.D + 1.E) that restore Stage-3 surface area deferred during the PR 1.C data audit.
 
 | Phase | Theme | Ships in PRs | Unlocks |
 |---|---|---|---|
-| 1 | **Stage 3 grounding (expanded)** | 3 PRs (1.A, 1.B, 1.C) | Coach-grade prose in flagship; primitives for Phase 2; synthetic-tester gate |
-| **1.5** | **CMIP human evaluation** | 1.A-1.D shipped 2026-05-17; CMIP-2 (rating UI rollout) next | Real-user feedback corpus; correlation analysis vs synthetic-tester metrics |
+| 1 | **Stage 3 grounding (expanded)** | 3 PRs (1.A ✅, 1.B ✅, 1.C in flight) | Coach-grade prose in flagship; primitives for Phase 2; synthetic-tester gate |
+| **1.D** | **Jhamtani wire-up** — *Aayan-triggered, not auto-rolling* | 1 PR, scope in [PR_1C_PLAN §11.6](PR_1C_PLAN.md) | Restores `jhamtaniCitation` for the concept_explanation category. Step 1 is investigation-only — find where the corpus actually lives now (audit §A.3 left this unverifiable). |
+| **1.E** | **puzzle-stats sync + restore 3 deferred user-history claim types** — *Aayan-triggered, not auto-rolling* | 1 PR, scope in [PR_1C_PLAN §11.6](PR_1C_PLAN.md) | Adds `POST /api/puzzle-stats` so server can read `puzzleStatsAtom` data. Restores `rating_trajectory`, `puzzle_stats_claim`, `puzzle_rating_trajectory`. Also closes MASTERMIND_TOOLS `get_weakness_profile` / `get_srs_state` / `get_repetit_history` 🟡 partials. |
+| **1.5** | **CMIP human evaluation** | 1.A-1.D shipped 2026-05-17 ([PR_CMIP_1_PLAN.md](PR_CMIP_1_PLAN.md)); CMIP-2 (rating UI rollout) next | Real-user feedback corpus; correlation analysis vs synthetic-tester metrics |
 | 2 | **Agent loop refactor** | 4 PRs — **BLOCKED on CMIP rating data** | Tool-using Claude inside `/api/enhanced-analysis` |
 | 3 | **Tier A content + tools** | 5 PRs | GM games, drills, endgame studies, opening traps |
 | 4 | **Multi-perspective + persona** | 2 PRs | Chesstalker voice, richer persona conditioning |
 | 5 | **Innovation + distribution** | rolling | Reddit bot, browser ext, Lichess studies export |
+
+### 3.0.1 Phase 1.D and 1.E rules (audit 2026-05-17)
+
+Both PRs are **explicit-trigger only**. PR 1.C merging to main does NOT auto-start either. Aayan opens the next-in-line PR when ready. Order is independent — 1.D can ship before 1.E or vice versa.
+
+Neither is on Phase 2's critical path: Phase 2 unblocks on CMIP rating-data correlation regardless of whether 1.D and 1.E have shipped. Their value is restoring the audit-deferred surface area of PR 1.C itself, so by the time Phase 2 lands, the validation pipeline is complete.
 
 ### 3.1 Why CMIP gates Phase 2 (added 2026-05-17)
 

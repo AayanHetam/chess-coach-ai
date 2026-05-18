@@ -201,33 +201,36 @@ Three coexistence options:
 
 **Decision needed from tech-lead.** A vs B vs C.
 
-### 2.5 Files in scope (REVISED 2026-05-17 — expanded with three new validators + classifier)
+### 2.5 Files in scope (AUDIT-REVISED 2026-05-17)
+
+Audit findings (§A/§C/§D in [PR_1C_DATA_AUDIT.md](PR_1C_DATA_AUDIT.md)) materially changed the per-validator scope: scout expanded to full coverage, user-history restricted to 3 derivable claim types, jhamtani deferred to PR 1.D entirely.
 
 #### 2.5.1 Stage A — library additions (new validators + classifier + persona pipeline)
 
 | File | Change | LOC |
 |---|---|---|
-| `src/lib/mastermind/categorization/categoryClassifier.ts` | New: six-category Haiku classifier — see §6. Takes `userQuestion: string`, returns `{ category, confidence }`. Cached system prompt. | ~120 |
-| `src/lib/mastermind/categorization/categoryPrompts.ts` | Cached system prompt for the classifier with six-category definitions and exemplars | ~80 |
-| `src/lib/mastermind/validators/scoutCitation.ts` | New: validates opening-tree claims, repertoire-collision claims, Stalker Score claims, tilt/timeout-pattern claims against [scoutService.ts](../src/lib/scoutService.ts) output | ~280 |
-| `src/lib/mastermind/validators/userHistoryCitation.ts` | New: validates user-play-pattern claims (rating trajectory, puzzle stats, time-control performance, opening repertoire performance) against Firestore user data | ~260 |
-| `src/lib/mastermind/validators/jhamtaniCitation.ts` | New: validates concept-explanation claims against the Jhamtani commentary corpus in Neo4j. Cross-checks whether cited example commentary actually appears | ~240 |
-| `src/lib/mastermind/validators/citationRate.ts` | New: helper that computes citation-rate metric per category given a `ValidatorResult` and the source's "opportunities" count | ~120 |
-| `src/lib/mastermind/validators/parserPrompts.ts` | Extend with three new cached prompts: `SCOUT_CITATION_PARSER_SYSTEM`, `USER_HISTORY_CITATION_PARSER_SYSTEM`, `JHAMTANI_CITATION_PARSER_SYSTEM` | +180 |
-| `src/lib/mastermind/validators/types.ts` | Extend with new `FeatureClaimType` values per data source, `Opportunity` interface, `CitationRateResult` | +90 |
-| `src/lib/mastermind/validators/index.ts` | Add exports for the three new validators + classifier; extend `runValidationPipeline` to accept scout/userHistory/jhamtani data sources and orchestrate the citation-rate computation | +130 |
-| `src/lib/mastermind/__tests__/categorization/categoryClassifier.test.ts` | Mocked-parser tests over the six categories + adversarial cases | ~180 |
-| `src/lib/mastermind/__tests__/validators/scoutCitation.test.ts` | Mocked-parser tests + cross-check correctness over scout-output fixtures | ~280 |
-| `src/lib/mastermind/__tests__/validators/userHistoryCitation.test.ts` | Mocked-parser tests + cross-check over fixture user-history blobs | ~270 |
-| `src/lib/mastermind/__tests__/validators/jhamtaniCitation.test.ts` | Mocked-parser tests + cross-check over fixture corpus entries | ~250 |
+| `src/lib/mastermind/categorization/categoryClassifier.ts` | Six-category Haiku classifier (§6.1). Takes `userQuestion: string`, returns `{ category, confidence }`. Cached system prompt. | ~120 |
+| `src/lib/mastermind/categorization/categoryPrompts.ts` | Cached classifier system prompt with six-category definitions + exemplars | ~80 |
+| `src/lib/mastermind/validators/scoutCitation.ts` | **EXPANDED per audit §C.** Validates full `ScoutAnalytics` + `Collisions` surface — 20 claim types across prep, profile, stalker, psychology, rivals, collisions, novelty, checklist, recent-form | **~1,100** |
+| `src/lib/mastermind/validators/userHistoryCitation.ts` | **RESTRICTED per audit §D.** Ships 3 server-derivable claim types only: `time_control_performance`, `opening_repertoire_performance`, `hours_played_claim`. Other 3 deferred to PR 1.E | **~150** |
+| ~~`src/lib/mastermind/validators/jhamtaniCitation.ts`~~ | **DEFERRED per audit §A — does not ship in PR 1.C.** Queued for PR 1.D | **0** |
+| `src/lib/mastermind/validators/userHistoryAggregates.ts` | New helper module for the 3 derivable claim types: `aggregateWinRateByTimeControl`, `aggregateScoreByOpening`, `countGamesInDateRange`. Pure functions over `Game[]` from Firestore | ~140 |
+| `src/lib/mastermind/validators/citationRate.ts` | Helper computing citation-rate metric per category given `ValidatorResult` + source's `Opportunity[]` | ~120 |
+| `src/lib/mastermind/validators/parserPrompts.ts` | Extend with **TWO** new cached prompts: `SCOUT_CITATION_PARSER_SYSTEM` (covers all 20 claim types), `USER_HISTORY_CITATION_PARSER_SYSTEM` (covers 3 derivable types). Jhamtani prompt NOT shipped | +200 |
+| `src/lib/mastermind/validators/types.ts` | Extend with the 20 scout `FeatureClaimType` values, 3 user-history values, `Opportunity` interface, `CitationRateResult`. Reserve `jhamtani` data-source slot in types but leave field unused | +110 |
+| `src/lib/mastermind/validators/index.ts` | Add exports for the 2 new validators + classifier; extend `runValidationPipeline` to accept `dataSources: { scout?, userHistory? }`. Jhamtani slot reserved in type, unused in PR 1.C | +120 |
+| `src/lib/mastermind/__tests__/categorization/categoryClassifier.test.ts` | Mocked-parser tests over six categories + adversarial cases | ~180 |
+| `src/lib/mastermind/__tests__/validators/scoutCitation.test.ts` | Mocked-parser tests + cross-check over scout-output fixtures across all 20 claim types | **~550** |
+| `src/lib/mastermind/__tests__/validators/userHistoryCitation.test.ts` | Mocked-parser tests + cross-check over fixture `Game[]` for the 3 derivable types | **~160** |
+| `src/lib/mastermind/__tests__/validators/userHistoryAggregates.test.ts` | Direct unit tests on the 3 aggregator helpers | ~140 |
 | `src/lib/mastermind/__tests__/validators/citationRate.test.ts` | Opportunities-counted-correctly + per-category rate aggregation | ~140 |
 | `scripts/mastermind/persona-data/scrape-forum-questions.ts` | Reddit + Lichess + Stack Exchange scrapers, ToS-aware | ~250 |
 | `scripts/mastermind/persona-data/classify-questions.ts` | Runs `categoryClassifier` over raw questions, outputs categorized corpus | ~120 |
-| `scripts/mastermind/persona-data/rewrite-scripts.ts` | Draws from categorized corpus weighted by observed distribution, applies persona-voice transform | ~180 |
-| `scripts/mastermind/persona-data/COMPLIANCE.md` | ToS posture per source (see §1.7.3) | ~100 lines doc |
-| `scripts/mastermind/validator-gate-dryrun.ts` | Now runs all five validators (PR 1.B's two + 1.C's three) and reports both hallucination and citation metrics | ~280 |
-| `scripts/mastermind/fixtures/gate-dryrun.json` | Expanded: 60 hand-curated tuples spanning all six categories with opportunities counts | ~40 KB |
-| `scripts/mastermind/gate-thresholds.json` | Revised per §5.3 — hallucination ≥0.95 per category, citation floors per category | ~2 KB |
+| `scripts/mastermind/persona-data/rewrite-scripts.ts` | Draws from categorized corpus weighted by observed distribution; applies persona-voice transform (strict per §1.7-c) | ~180 |
+| `scripts/mastermind/persona-data/COMPLIANCE.md` | ToS posture per source (§1.7.3) including retirement trigger | ~120 lines doc |
+| `scripts/mastermind/validator-gate-dryrun.ts` | Runs all four shipped validators (PR 1.B's two + PR 1.C's two: scout, user-history). Concept-explanation category metric reports as "n/a — deferred to PR 1.D" | ~300 |
+| `scripts/mastermind/fixtures/gate-dryrun.json` | Hand-curated tuples spanning the FIVE active categories (concept_explanation has no citation metric in 1.C) | ~36 KB |
+| `scripts/mastermind/gate-thresholds.json` | Revised per §5.3 — hallucination ≥0.95 per active category; citation floors per active category (concept_explanation marked deferred) | ~2 KB |
 
 #### 2.5.2 Stage B — route wiring (mostly unchanged from original §2.5)
 
@@ -248,16 +251,18 @@ Three coexistence options:
 | `audit/findings/agent-c-eval/sweep-{date}.json` | Full 50-turn sweep results: per-turn response, telemetry, latency, cost, hallucination + citation metrics |
 | `audit/findings/agent-c-eval/sweep-{date}-summary.md` | Human-readable summary: aggregate metrics, by-category breakdown, baseline comparison |
 
-#### 2.5.4 LOC totals
+#### 2.5.4 LOC totals (AUDIT-REVISED 2026-05-17)
 
 | Stage | Lib LOC | Test LOC | Other |
 |---|---|---|---|
-| A (validators + classifier + persona pipeline + dry-run) | ~1,840 | ~1,120 | ~700 LOC scripts + ~42 KB fixtures + ~100 lines compliance doc |
+| A (validators + classifier + persona pipeline + dry-run) | **~2,140** | **~1,170** | ~720 LOC scripts + ~38 KB fixtures + ~120 lines compliance doc |
 | B (route wiring + telemetry forwarding) | ~660 | ~460 | — |
 | C (sweep outputs) | — | — | ~50 KB JSON |
-| **PR 1.C total** | **~2,500** | **~1,580** | scripts + fixtures + compliance + sweep output |
+| **PR 1.C total** | **~2,800** | **~1,630** | scripts + fixtures + compliance + sweep output |
 
-Above the original ~1,150/~400 estimate but in line with the user-authorized revision. Sub-stage A.5 (scout/user-history/jhamtani validators) is the largest single-section growth driver; the persona pipeline contributes ~700 LOC of scripts; classifier and citation-rate aggregator add the rest.
+Net shift from the prior (pre-audit) estimate: scout LOC grew dramatically (+~820 lib + ~270 test for full ~20-pattern coverage), user-history shrank (−~110 lib + ~110 test for 3-of-6 scope), jhamtani removed entirely (−240 lib + ~250 test). Plus the new `userHistoryAggregates.ts` helper module (+140 lib + ~140 test).
+
+PR 1.D (Jhamtani wire-up) and PR 1.E (puzzle-stats sync + restore deferred user-history claim types) are separate, Aayan-triggered PRs — not auto-rolling — that restore the deferred surface area. See §11 below.
 
 ### 2.6 Don't-touch list (per spec + existing CLAUDE.md)
 
@@ -440,16 +445,16 @@ Claims of type `qualitative_commentary`, `metaphorical`, `conditional_speculatio
 
 **Definition.** Of opportunities to cite personalized data (turns where relevant data exists in the corresponding source), the fraction the coach actually uses.
 
-**Target — by category.** No flat floor; each category has its own:
+**Target — by category.** No flat floor; each category has its own. **Concept explanation floor temporarily lifted in PR 1.C** per audit §A — `jhamtaniCitation` is deferred to PR 1.D, so the floor is reinstated when PR 1.D lands.
 
-| Category | Citation rate floor | Authoritative data source | First-consumer validator |
+| Category | Citation rate floor (PR 1.C) | Authoritative data source | First-consumer validator |
 |---|---|---|---|
 | Game review | 90% | Feature delta (PR 1.A `compute_feature_delta`) | `featureDeltaCitation` (PR 1.B) |
-| Opponent prep | 85% | Scout output: opening tree, repertoire collisions, Stalker Score, tilt/timeout profiles — see [scoutService.ts](../src/lib/scoutService.ts) | `scoutCitation` (new, §6) |
+| Opponent prep | 85% | Scout output: full `ScoutAnalytics` + `Collisions` (audit §C expanded to ~20 patterns) — see [src/types/scout.ts](../src/types/scout.ts) | `scoutCitation` (new, §6.2) |
 | Position analysis | 70% | Feature delta (PR 1.A) | `featureDeltaCitation` (PR 1.B) |
-| Concept explanation | 60% | Jhamtani commentary corpus in Neo4j | `jhamtaniCitation` (new, §6) |
-| Improvement strategy | 50% | User play history, puzzle history, win rate by time control — see [firestoreGames.ts](../src/lib/firestoreGames.ts), `users/{uid}/puzzle_stats` | `userHistoryCitation` (new, §6) |
-| Meta and motivational | 20% | User progress data: rating curve, hours played, puzzle rating trajectory | `userHistoryCitation` (new, §6) |
+| Concept explanation | **n/a (deferred to PR 1.D)** | Jhamtani commentary corpus — corpus state uncertain per audit §A; validator deferred | None in 1.C; `jhamtaniCitation` queued for PR 1.D |
+| Improvement strategy | 50% **on the 3 derivable claim types** (time_control_performance, opening_repertoire_performance, hours_played_claim — audit §D Option B) | `users/{uid}/games` subcollection aggregates; puzzle stats + rating history deferred to PR 1.E (localStorage-bound) | `userHistoryCitation` (new, §6.3) — restricted scope |
+| Meta and motivational | 20% **on the 3 derivable claim types** (same restriction) | `users/{uid}/games` subcollection aggregates | `userHistoryCitation` (new, §6.3) — restricted scope |
 
 **Computation.** For each turn:
 1. Classify question into one of the six categories via §6 classifier.
@@ -542,52 +547,126 @@ export async function classifyQuestion(
 
 Returns structured JSON same pattern as the other parser prompts. Confidence <0.5 → caller treats as ambiguous and assigns to the lowest-floor category (`meta_motivational`) by default to avoid false-positive citation-rate failures.
 
-### 6.2 `scoutCitation.ts` — opponent-prep validator
+### 6.2 `scoutCitation.ts` — opponent-prep validator (EXPANDED 2026-05-17 per audit §C)
 
-**Data source.** [scoutService.ts](../src/lib/scoutService.ts) returns: opening tree (by ECO + most-played continuations), repertoire collisions (where user-repertoire intersects opponent-tree), Stalker Score, tilt/timeout patterns from opponent's last N games.
+**Data source.** [scoutService.ts](../src/lib/scoutService.ts) + [src/types/scout.ts](../src/types/scout.ts) `ScoutAnalytics` + `Collisions`. The audit found that the actual scout output is **substantially richer** than the original 5-claim spec accounted for; the full type carries 8 top-level fields plus a separate `Collisions` type. Aayan authorized full coverage (Option A in audit §C.5): all ~20 citation patterns the coach can legitimately make.
 
 **Parser claim types (extends `FeatureClaimType`):**
 
-| Claim | Example | Cross-check |
+#### 6.2.1 Opening / prep claims (`prep` + opening tree)
+
+| Claim | Example | Source field | Cross-check |
+|---|---|---|---|
+| `opponent_plays_opening` | "Your opponent plays the Sicilian Dragon 60% of the time" | `prep.asWhite/asBlack.{weaknesses,strengths}[].name` + `totalGames / sum(totalGames)` | Opening tree frequency matches stated % within ±5% |
+| `opponent_strength_opening` | "They score 70% with white in the King's Indian" | `prep.asWhite.strengths[].scorePct + .totalGames` | Stated score% within ±5% |
+| `opponent_weakness_opening` | "They struggle as black against 1.d4 (45% score)" | `prep.asBlack.weaknesses[].scorePct + .totalGames` | Stated score% within ±5% |
+
+#### 6.2.2 Profile claims (`profile`)
+
+| Claim | Example | Source field | Cross-check |
+|---|---|---|---|
+| `archetype` | "They play like a positional grinder" | `profile.archetype` | Stated archetype matches the labeled archetype |
+| `profile_dimension` | "Their attacking score is 78" | `profile.{ovr,atk,def,time,mind}` | Stated value within ±5 of the 0-100 score |
+| `rating_by_timeclass` | "1800 in rapid, 1500 in blitz" | `profile.ratings.{bullet,blitz,rapid,classical,daily}` | Stated rating within ±25 |
+| `peak_rating` | "They peaked at 2050" | `profile.peakRating` | Stated within ±25 |
+| `low_rating` | "Bottomed out at 1750" | `profile.lowRating` | Stated within ±25 |
+| `latest_rating` | "Currently rated 1920" | `profile.latestRating` | Stated within ±25 |
+| `recent_form_trend` | "They've won 6 of their last 10" | `profile.recent[]` + `profile.recentAccuracy` | Recent W/D/L counts match stated ratio within ±1 |
+| `phase_elo` | "Their endgame ELO is 200 below their middlegame" | `profile.phaseElo.{opening,middle,endgame,baseline}` | Stated delta within ±50 cp |
+
+#### 6.2.3 Stalker claims (`stalker`)
+
+| Claim | Example | Source field | Cross-check |
+|---|---|---|---|
+| `stalker_total` | "Stalker Score 72 — highly exploitable" | `stalker.total + .predictability` | Stated score within ±5 + predictability bucket match |
+| `stalker_factor` | "Tilts hard after a loss (factor score 80)" | `stalker.factors[].{id,score}` matching `tilts`/`time_trouble`/`limited_rep`/`repetitive` | Factor id present + score within ±10 |
+
+#### 6.2.4 Psychology claims (`psychology`)
+
+| Claim | Example | Source field | Cross-check |
+|---|---|---|---|
+| `tilt_pattern` | "Loss rate jumps to 68% after a previous loss" | `psychology.tiltAfterLossLossRate` | Stated % within ±5 |
+| `timeout_pattern` | "Loses 15% of games on time" | `psychology.timeoutRate` | Stated % within ±5 |
+| `resign_pattern` | "Resigns in 60% of losses" | `psychology.resignRate` | Stated % within ±5 |
+| `checkmate_rate` | "Wins 40% of games by checkmate" | `psychology.checkmateRate` | Stated % within ±5 |
+| `quick_loss_pattern` | "Loses 12% of games under 50 plies" | `psychology.quickLossRate` | Stated % within ±5 |
+| `long_game_pattern` | "Long games (>120 plies) are 35% of their losses" | `psychology.longGameLossRate` | Stated % within ±5 |
+| `streak_claim` | "Max win streak of 14, longest losing run was 7" | `psychology.{maxWinStreak,maxLossStreak}` | Stated streak ±1 |
+| `avg_game_length` | "Their games average 60 plies" | `psychology.avgGameLength` | Stated avg within ±10 plies |
+
+#### 6.2.5 Rival / collision / novelty / checklist / form claims
+
+| Claim | Example | Source field | Cross-check |
+|---|---|---|---|
+| `rival_record` | "You've played them 8 times — you're 3-2-3" | `rivals[].{name,games,wins,draws,losses,scorePct}` | Counts match the rival entry by name |
+| `collision_edge` | "When you play White and they play Black, you score 65% in the Caro-Kann" | `Collisions.whenYouPlayWhite[]` / `whenYouPlayBlack[]` (separate type) | Specific `CollisionLine` exists with matching `eco`/`name`, `yourScorePct` within ±5 |
+| `novelty_finding` | "On move 8 in game X they deviated from their book" | `novelty[]` `NoveltyFinding{moves,playedMove,bookMove,bookFrequency,ply,gameLost}` | Matching novelty entry by gameId or `playedMove` |
+| `checklist_item` | "Watch out for their kingside attack pattern" | `checklist[]` `ChecklistItem{id,title,detail,severity}` | Checklist entry exists with matching title or id |
+| `recent_form_bucket` | "Their last 20 games: 12 wins, 3 draws, 5 losses" | `recentBuckets[]` `{label,wins,draws,losses}` | Bucket exists with matching label + counts |
+
+**20 claim types total.** Roughly grouped: 3 opening, 7 profile, 2 stalker, 8 psychology + rivals/collisions/novelty/checklist/form.
+
+**Opportunity counting** (for citation-rate denominator):
+- Each `prep` opening entry (weaknesses + strengths, both colors) = 1 opportunity
+- Each `profile` dimension with non-default value = 1 opportunity each (ovr, atk, def, time, mind, ratings entries, peakRating, lowRating, archetype, phaseElo deltas)
+- Stalker total + each non-zero factor = 1 opportunity each
+- Each `psychology` metric with notable value (defined per-metric — e.g., timeoutRate > 5%, maxWinStreak > 3) = 1 opportunity
+- Each rival, novelty finding, checklist item, recent-form bucket = 1 opportunity each
+- Each `CollisionLine` in `whenYouPlayWhite` and `whenYouPlayBlack` = 1 opportunity each
+
+A coach response in the opponent-prep category needs to cite ≥85% of available opportunities. Note that "available" is data-driven: an opponent with limited game history may have fewer opportunities, in which case the floor applies to that smaller denominator.
+
+**Cross-source coordination.** The audit (§F.4) flagged composite claims like "Your opponent crushes you in Najdorf positions" (combines opponent-plays-Najdorf from scout AND your win-rate vs Najdorf from user history). Not enumerated as a separate claim type in 1.C — handled by parser emitting two separate claims (one against scout, one against user history). If the coach phrases it as a single sentence, parser splits into two. **Tech-lead flag from audit §F.4:** a future `cross_source_claim` type may be warranted if splitting produces false-fires; defer until first-sweep data shows the pattern is real.
+
+### 6.3 `userHistoryCitation.ts` — improvement-strategy + meta-motivational validator (RESTRICTED 2026-05-17 per audit §D)
+
+**Data source.** Firestore — **`users/{uid}/games` subcollection only** (verified via audit §D.2; other claimed subcollections like `puzzle_stats` and `rating_history` don't exist server-side — they're localStorage atoms). All reads server-side via Firebase Admin (per CLAUDE.md auth model).
+
+**Audit-restricted scope (Aayan 2026-05-17 Option B).** Ship the 3 claim types that ARE server-derivable from the `games` subcollection. Defer the 3 claim types that depend on localStorage data to **PR 1.E (puzzle-stats sync precursor + restore three deferred user-history claim types)** — Aayan-triggered, not auto-rolling.
+
+**Parser claim types shipped in PR 1.C (3 of original 6):**
+
+| Claim | Example | Source | Cross-check |
+|---|---|---|---|
+| `time_control_performance` | "You're 65% in rapid but only 48% in blitz" | Aggregation over `users/{uid}/games[]` filtered by `timeControl` field + computing W/L/D ratios per bucket | Win rate by time control matches stated value within ±5%. New helper: `aggregateWinRateByTimeControl(games)` |
+| `opening_repertoire_performance` | "You score 60% with white in 1.e4 e5 lines" | Aggregation over `games[]` parsing PGN headers (ECO, opening) + result | Stated score% within ±5% over the named opening/color combination. New helper: `aggregateScoreByOpening(games, color?)` |
+| `hours_played_claim` | "You've played 120 games this month" | Count + date-range filter over `games[]` | Stated count within ±2; date range matched against `games[].createdAt` timestamps. New helper: `countGamesInDateRange(games, fromMs, toMs)` |
+
+**Parser claim types DEFERRED to PR 1.E (3 deferred):**
+
+| Claim | Why deferred | Restore target |
 |---|---|---|
-| `opponent_plays_opening` | "Your opponent plays the Sicilian Dragon 60% of the time" | Opening tree node frequency matches stated % within ±5% |
-| `repertoire_collision` | "You both like the Caro-Kann Advance" | Repertoire collision entry exists for the named opening |
-| `stalker_score_claim` | "Your opponent has a high Stalker Score in time trouble" | Stalker Score sub-metric matches stated direction |
-| `tilt_pattern` | "Your opponent loses focus after move 30" | Tilt profile shows accuracy drop after the stated move |
-| `timeout_pattern` | "Your opponent loses on time in 15% of games" | Timeout-pattern metric matches stated % within ±5% |
+| `rating_trajectory` | Rating history lives in `puzzleStats.ratingHistory` (localStorage atom at [puzzleRating.ts:46](../src/lib/puzzleRating.ts#L46)); no server endpoint reads it | PR 1.E — adds `/api/puzzle-stats` POST endpoint, client syncs on update, server reads from Firestore |
+| `puzzle_stats_claim` | Full `PuzzleStats` (rating, totalAttempts, accuracy, streaks, themeStats) is localStorage-only | Same — PR 1.E sync |
+| `puzzle_rating_trajectory` | `puzzleStats.ratingHistory[]` time-series — localStorage-only | Same — PR 1.E sync |
 
-**Opportunity counting** (for citation rate denominator): each non-empty entry in the scout output is one opportunity. A coach's response in the opponent-prep category needs to cite ≥85% of available scout entries.
+**Opportunity counting (PR 1.C scope only):**
+- Each distinct time-control bucket the user has played ≥10 games in = 1 opportunity (`time_control_performance`)
+- Each opening/color combination with ≥5 games = 1 opportunity (`opening_repertoire_performance`)
+- The total game count + date-range coverage = 1 opportunity (`hours_played_claim`)
 
-### 6.3 `userHistoryCitation.ts` — improvement-strategy + meta-motivational validator
+**Citation rate floors with restricted scope:**
+- improvement-strategy: still **≥50%** of available opportunities (floor unchanged; floor measures coverage of what IS available, which is now smaller per user)
+- meta-motivational: still **≥20%** (same reasoning)
 
-**Data source.** Firestore (`users/{uid}/games`, `users/{uid}/puzzle_stats`, `users/{uid}/rating_history`). All reads server-side via Firebase Admin (per CLAUDE.md auth model).
+**Important nuance for the audit-restricted scope.** With 3 of 6 claim types deferred, the citation-rate denominator shrinks. A coach response that previously would have cited puzzle stats (e.g., "your puzzle rating jumped 100 points") now produces zero validator activity for that part of the response — neither a hallucination fire (parser skips because the claim_type isn't in the parser's enumerated list) nor a citation opportunity. **Net effect:** improvement-strategy responses citing only localStorage data will read as "no opportunities, no citations" and pass the floor trivially. This is acceptable for PR 1.C; PR 1.E closes the gap.
 
-**Parser claim types:**
+**Surface in §5.3.4 pass criteria:** for PR 1.C, citation-rate floor for improvement_strategy applies to whatever opportunities are derivable; PR 1.E will tighten this once puzzle stats are server-readable.
 
-| Claim | Example | Cross-check |
-|---|---|---|
-| `rating_trajectory` | "Your rating climbed from 1200 to 1400 over last month" | Rating history matches the trajectory within ±50 points |
-| `time_control_performance` | "You're 65% in rapid but only 48% in blitz" | Win rate by time control matches within ±5% |
-| `puzzle_stats_claim` | "Your puzzle rating is 1850 with 70% accuracy" | Puzzle stats match within ±5% |
-| `opening_repertoire_performance` | "You score 60% with white in 1.e4" | Game-history aggregation by opening matches |
-| `hours_played_claim` | "You've played 120 games this month" | Game-count matches |
-| `puzzle_rating_trajectory` | "Your puzzle rating jumped 100 points last week" | Recent puzzle-rating delta matches |
+### 6.4 `jhamtaniCitation.ts` — DEFERRED to PR 1.D (Aayan 2026-05-17 per audit §A)
 
-**Opportunity counting:** any of the above data points that exist for this user. Coach's response in improvement-strategy needs to cite ≥50%; in meta-motivational, ≥20%.
+**Original spec scope was wrong.** Audit §A revealed that the §6.4 schema (`:Concept` / `:HAS_COMMENTARY` / `:CommentaryEntry`) does not match the actual loader (`:Commentary` nodes hung off `:Position` via `[:FROM_POSITION]`). Beyond that, live Aura state is unknown — Aayan may have removed the Commentary nodes at some point. The `/api/commentary-by-fen` route has zero in-app callers, and [conceptRetrieval.ts](../src/lib/concept/conceptRetrieval.ts) doesn't reference Commentary at all.
 
-### 6.4 `jhamtaniCitation.ts` — concept-explanation validator
+**Aayan's call (audit §A.5 Option C — defer).** `jhamtaniCitation.ts` does NOT ship in PR 1.C. Concept-explanation category has **no automated citation-rate validator** in 1.C.
 
-**Data source.** Neo4j Jhamtani commentary corpus. Schema: nodes of type `:Concept` (knight outpost, isolated queen pawn, etc.) with `:HAS_COMMENTARY` edges to `:CommentaryEntry` nodes containing example games + prose snippets. Confirmed via [conceptDetector.ts](../src/lib/concept/conceptDetector.ts) consumer pattern.
+**What this means for the gate (§5.3.2):**
 
-**Parser claim types:**
+- **Hallucination ceiling still applies** to concept-explanation responses. The LLM cannot fabricate concepts — the `evalClaim` + `featureDeltaCitation` validators still catch eval-mismatch and false feature deltas inside concept-explanation prose. If the coach says "an outpost is a knight that controls e5" against a position where e5 isn't actually controlled, `featureDeltaCitation` catches the structural-claim error.
+- **No per-category citation floor for concept_explanation in PR 1.C.** The 60% floor is dropped from §5.3.4 pass criteria (see §5.3.2 table updated below). Concept-explanation category turns flow through the pipeline but the citation-rate metric is reported as "n/a — validator deferred to PR 1.D" rather than producing a pass/fail signal.
 
-| Claim | Example | Cross-check |
-|---|---|---|
-| `concept_definition` | "An outpost is a square that no opposing pawn can attack" | Concept node exists in Neo4j with matching canonical definition (Levenshtein or paraphrase check) |
-| `commentary_citation` | "Like in Kasparov-Karpov 1985 where the knight on e5 dominated" | A `:CommentaryEntry` matching the cited game exists under the relevant `:Concept` node |
-| `concept_example` | "This is similar to position X from the corpus" | Position-similarity match in corpus |
+**PR 1.D queued (NOT auto-rolling — Aayan triggers explicitly).** Name: **"Jhamtani wire-up."** Step 1 is **investigation-only**: find where the corpus actually lives today (in-repo `data/chess-commentary/`? live Aura with `:Commentary` nodes? cloud storage? removed entirely?). Decide whether and how to restore it. Then re-spec `jhamtaniCitation.ts` against the verified shape and ship.
 
-**Opportunity counting:** Concept nodes related to the position (via `conceptDetector.detectConcepts(fen)`). Coach's response in concept-explanation category needs to cite ≥60% of relevant concepts.
+**Implication on docs (handled separately).** The audit (§A.5) flagged that 4 prod pages claim "298,000+ Jhamtani expert-commentary pairs" — those will be addressed by a separate doc-fix PR off main, not bundled into PR 1.C. Aayan's directive 2026-05-17.
 
 ### 6.5 Citation-rate aggregator — `citationRate.ts`
 
@@ -609,33 +688,34 @@ export interface CitationRateResult {
 export function computeCitationRate(opportunities: Opportunity[]): CitationRateResult;
 ```
 
-`runValidationPipeline` is extended to accept `dataSources: { scout?, userHistory?, jhamtani? }` alongside `featureDelta`. Each is optional; if absent, that source contributes zero opportunities (and zero citations) — appropriate for turns where the source isn't applicable to the question.
+`runValidationPipeline` is extended to accept `dataSources: { scout?, userHistory? }` alongside `featureDelta`. **Note: `jhamtani` data source is deferred to PR 1.D** per audit §A (§6.4); the field is reserved in the type but unused in PR 1.C. Each source is optional; if absent, that source contributes zero opportunities (and zero citations) — appropriate for turns where the source isn't applicable to the question.
 
 ---
 
-## 7. Summary commit sequence (REVISED 2026-05-17)
+## 7. Summary commit sequence (AUDIT-REVISED 2026-05-17)
 
-Single PR, more commits than the original plan because Stage A grew. Each builds on the prior; no commit standalone-mergeable.
+Single PR, ~16 commits in order. Each builds on the prior; no commit standalone-mergeable.
 
 | # | Commit | Approx. LOC |
 |---|---|---|
 | 1.C.A.1 | Land `categoryClassifier.ts` + cached prompt + tests | ~380 |
-| 1.C.A.2 | Land `scoutCitation.ts` + tests | ~560 |
-| 1.C.A.3 | Land `userHistoryCitation.ts` + tests | ~530 |
-| 1.C.A.4 | Land `jhamtaniCitation.ts` + tests | ~490 |
-| 1.C.A.5 | Land `citationRate.ts` helper + extend `runValidationPipeline` + tests | ~390 |
-| 1.C.A.6 | Land persona-data scraper + classifier-run + COMPLIANCE.md | ~470 |
-| 1.C.A.7 | Aayan spot-check sample produced; if ≥27/30 pass, persona-script rewrite committed | ~200 + replacement of `personas/*.md` |
-| 1.C.A.8 | Land dry-run gate harness (expanded for all 5 validators) + fixtures (60 tuples) + thresholds (revised per §5.3) + initial pass output | ~660 |
+| 1.C.A.2 | Land `scoutCitation.ts` + tests (full 20-pattern coverage) | **~1,650** |
+| 1.C.A.3 | Land `userHistoryAggregates.ts` helpers + tests | ~280 |
+| 1.C.A.4 | Land `userHistoryCitation.ts` + tests (3 derivable claim types) | **~310** |
+| ~~1.C.A.5 jhamtani~~ | **REMOVED — deferred to PR 1.D per audit §A** | — |
+| 1.C.A.5 | Land `citationRate.ts` helper + extend `runValidationPipeline` (data sources: scout + userHistory, jhamtani reserved) + tests | ~380 |
+| 1.C.A.6 | Land persona-data scraper + classifier-run + COMPLIANCE.md (incl. retirement trigger per §1.7.3) | ~470 |
+| 1.C.A.7 | Aayan spot-check sample produced; if ≥27/30 pass, persona-script rewrite committed. On failure, Aayan reviews every misclassification before any prompt iteration starts (§1.7.2 anti-auto-iterate rule). | ~200 + replacement of `personas/*.md` |
+| 1.C.A.8 | Land dry-run gate harness (expanded for the **four** active validators: PR 1.B's two + scout + userHistory) + fixtures spanning the **five active categories** (concept_explanation marked deferred) + thresholds (revised per §5.3, concept_explanation floor lifted) + initial pass output | ~700 |
 | 1.C.A.9 | Demonstrate gate sensitivity via `--override-tolerance=2000` and `--override-citation-floor=0` (new flags). Outputs in commit message. | 0 (script flag only) |
-| 1.C.B.1 | Wire `runValidationPipeline` into `/api/enhanced-analysis` behind flag + `wireValidators.ts` helper fetching all 4 data sources | ~440 |
+| 1.C.B.1 | Wire `runValidationPipeline` into `/api/enhanced-analysis` behind flag + `wireValidators.ts` helper fetching three data sources (feature delta + scout + user-history; jhamtani slot reserved but unused) | ~440 |
 | 1.C.B.2 | Wire into `/api/chat` (same shape, smaller diff) | ~310 |
 | 1.C.B.3 | Telemetry forwarding + Sentry tags + tests | ~260 |
-| 1.C.C.0 | First synthetic-tester sweep against preview deploy. Capture by-category hallucination + citation breakdowns. | ~50 KB JSON output |
-| 1.C.C.iter.* | **Validator iteration commits (open count)** — one or more, fired by §5.3.1 hard-ceiling rule if any category misses 95% hallucination on the first sweep. Each iteration fixes the responsible validator (precision tightening, broader claim-type coverage, prompt iteration), re-runs the sweep, captures the new breakdown. Not scope creep — required for merge. | varies |
-| 1.C.C.final | Final sweep that passes all five gate metrics per §5.3.4. PR description summarizes by-category breakdown + total cost + iteration history. | ~50 KB JSON |
+| 1.C.C.0 | First synthetic-tester sweep against preview deploy. Capture by-category hallucination + citation breakdowns (concept_explanation citation reported as "n/a — deferred to PR 1.D"). | ~50 KB JSON output |
+| 1.C.C.iter.* | **Validator iteration commits (open count)** — one or more, fired by §5.3.1 hard-ceiling rule if any active category misses 95% hallucination on the first sweep. Each iteration fixes the responsible validator (precision tightening, broader claim-type coverage, prompt iteration), re-runs the sweep. Not scope creep — required for merge. | varies |
+| 1.C.C.final | Final sweep passes all gate metrics per §5.3.4. PR description summarizes by-category breakdown + total cost + iteration history + the two deferred surface areas (jhamtani for PR 1.D, three localStorage-bound claim types for PR 1.E). | ~50 KB JSON |
 
-**Total PR 1.C revised: ~2,500 lib + ~1,580 test + scripts + fixtures + compliance doc + sweep output + N iteration commits.** Up from original ~1,150 / ~400. Aayan explicitly authorized this expansion 2026-05-17. The iteration slot lands here so the merge path is explicit when first-sweep numbers don't all clear.
+**Total PR 1.C audit-revised: ~2,800 lib + ~1,630 test + scripts + fixtures + compliance doc + sweep output + N iteration commits.** Up from ~1,150 / ~400 original; up from ~2,500 / ~1,580 pre-audit revised. Scout expansion drives most of the growth; jhamtani removal and user-history scope reduction partially offset.
 
 ---
 
@@ -689,18 +769,19 @@ Questions in §1.7.4 and §5.5 resolved. §6 (validator claim-type completeness)
 
 ---
 
-## 10. Verification (revised)
+## 10. Verification (AUDIT-REVISED)
 
 How I'll prove PR 1.C works pre-merge:
 
 1. **TSC clean** at every commit.
-2. **`npm run test` 100% green** at every commit. Net new test count: ~1,580 LOC.
-3. **Stage A.1-A.5 proof:** each new validator (`scoutCitation`, `userHistoryCitation`, `jhamtaniCitation`) ships with mocked-parser tests covering positive, negative, adversarial cases for each claim-type. Citation-rate helper ships with opportunities-counted-correctly tests.
-4. **Stage A.6-A.7 proof:** scraper produces a corpus of ≥220 questions (220 if chess.com skipped, ~300 if scraped) committed alongside the COMPLIANCE.md. Aayan's 30-question spot-check sample committed as a fixture; pass-criterion result (≥27/30) is the gate. Rewritten persona scripts diff'd against the originals in the PR description.
-5. **Stage A.8-A.9 proof:** dry-run gate harness exits 0 with all metrics passing on PR 1.B as-is; exits non-zero on `--override-tolerance=2000` and `--override-citation-floor=0`. Both runs' outputs in commit messages.
+2. **`npm run test` 100% green** at every commit. Net new test count: ~1,630 LOC.
+3. **Stage A.1-A.5 proof:** each shipped new validator (`scoutCitation` with 20 claim types, `userHistoryCitation` with 3 claim types) ships with mocked-parser tests covering positive, negative, adversarial cases per claim-type. `userHistoryAggregates` ships with direct unit tests on the 3 aggregator helpers. Citation-rate helper ships with opportunities-counted-correctly tests. **`jhamtaniCitation` does not exist in PR 1.C** — explicitly noted in commit messages and §6.4.
+4. **Stage A.6-A.7 proof:** scraper produces a corpus of ≥220 questions (chess.com skipped per §1.7) committed alongside COMPLIANCE.md. Aayan's 30-question spot-check sample committed as a fixture; pass-criterion result (≥27/30) is the gate. Rewritten persona scripts diff'd against originals in PR description. **Strict voice-transform** rule observed per §1.7-c (skip-not-transform when a question doesn't fit a persona).
+5. **Stage A.8-A.9 proof:** dry-run gate harness exits 0 with all active-category metrics passing on PR 1.B-as-is; exits non-zero on `--override-tolerance=2000` and `--override-citation-floor=0`. Both runs' outputs in commit messages. Concept-explanation category citation metric reports "n/a — deferred to PR 1.D" rather than producing a pass/fail.
 6. **Stage B proof:** at least one passing turn against the preview deploy captured in commit 1.C.B.1 description.
-7. **Stage C proof:** full 50-turn sweep against preview with `MASTERMIND_VALIDATORS_ENABLED=true`. All five gate metrics passing per §5.3.4. By-category breakdown (hallucination rate per category, citation rate per category) in PR description.
+7. **Stage C proof:** full 50-turn sweep against preview with `MASTERMIND_VALIDATORS_ENABLED=true`. **Active-category gate metrics passing** per §5.3.4: hallucination ≥95% per category (all 6 — concept_explanation hallucination still measured), citation ≥ floor per active category (5 — concept_explanation citation deferred). By-category breakdown in PR description.
 8. **Telemetry sample:** one full correlation_id's events from a passing turn AND one from a failing-then-recovered turn, both committed as fixtures alongside the sweep output.
+9. **Audit deferral surfaced in PR description:** explicit list of what PR 1.C ships vs what PR 1.D + PR 1.E restore (see §11.6 below).
 
 ---
 
@@ -741,18 +822,64 @@ Until CMIP rating data confirms (or recalibrates) the metrics:
 - **Flag promotion** preview → prod when criteria in §4.4 fire (independent of Phase 2 gating).
 - **Synthetic-tester refinement** as classifier or validator quality issues surface.
 
-### 11.6 Documentation tasks for this revision
+### 11.6 PR 1.D and PR 1.E — explicit-trigger queue (AUDIT 2026-05-17)
 
-- Update [BUILD_PLAN.md §3 phasing overview](MASTERMIND_BUILD_PLAN.md) to insert "CMIP human evaluation" between Phase 1 and Phase 2, marked as a Phase 2 prerequisite. **Done in same commit as this plan revision.**
-- Add a project memory entry noting Phase 2 is blocked on CMIP rating data. **Will land in the conversation memory store, not in this doc.**
+Two Aayan-triggered PRs queued post-1.C. **Neither auto-rolls.** Phase 2 (agent loop refactor) remains blocked on CMIP rating data regardless of 1.D / 1.E state.
+
+#### PR 1.D — Jhamtani wire-up
+
+**Trigger:** Aayan explicit go. PR 1.C completion does not auto-start it.
+
+**Scope:**
+1. **Step 1 (investigation only):** find where the corpus actually lives now. Candidates: (a) `data/chess-commentary/` on disk + `scripts/neo4j-loaders/load-commentary.mjs` can re-load to Aura; (b) live Aura with `:Commentary` nodes already present; (c) cloud storage; (d) removed entirely. Audit §A.3 flagged this as unverifiable from the audit branch. Land a sub-doc `PR_1D_INVESTIGATION.md` recording the verified state.
+2. **Step 2:** decide whether and how to restore — load to Aura if needed.
+3. **Step 3:** re-spec `jhamtaniCitation.ts` against the verified shape (the §6.4 original spec's `:Concept`/`:HAS_COMMENTARY` schema is wrong; actual loader builds `:Commentary` via `[:FROM_POSITION]` from `:Position`).
+4. **Step 4:** ship `jhamtaniCitation.ts` + tests + extend `runValidationPipeline.dataSources.jhamtani`. Restore concept_explanation citation floor (60%) in §5.3.2.
+5. **Step 5:** if Aura is confirmed populated with `:Commentary` nodes, optionally restore the doc-fix marketing copy (option (a) in the audit §A.5 follow-up).
+
+**Hallucination ceiling for concept_explanation remains active in PR 1.C** (eval-mismatch + feature-citation validators still catch chess-correctness errors within concept-explanation prose). PR 1.D adds the *citation* dimension.
+
+#### PR 1.E — puzzle-stats sync precursor + restore three deferred user-history claim types
+
+**Trigger:** Aayan explicit go. Same explicit-trigger rule.
+
+**Scope:**
+1. **Step 1:** add `POST /api/puzzle-stats` endpoint. Client syncs `puzzleStatsAtom` ([puzzleRating.ts:46](../src/lib/puzzleRating.ts#L46)) to Firestore at `users/{uid}/puzzle_stats` (single doc) on every update.
+2. **Step 2:** add `aggregatePuzzleStats(uid)` server-side reader. Firebase Admin reads `users/{uid}/puzzle_stats` doc.
+3. **Step 3:** extend `userHistoryCitation.ts` parser + cross-check with the 3 deferred claim types — `rating_trajectory`, `puzzle_stats_claim`, `puzzle_rating_trajectory`. Restore the original 6-of-6 §6.3 scope.
+4. **Step 4 (couples to MASTERMIND_TOOLS 🟡 partials per audit §D.4):** the same puzzle-stats sync also closes `get_weakness_profile`, `get_srs_state`, `get_repetit_history` from MASTERMIND_TOOLS (those are blocked on the same localStorage-only state). Update MASTERMIND_TOOLS table to ✅ for those tools.
+5. **Step 5:** new sweep against preview confirms citation floors at improvement-strategy (50%) and meta-motivational (20%) are still passing with the restored claim types.
+
+#### Sequencing
+
+PR 1.D and PR 1.E are **independent** — either can ship first. Both are independent of CMIP-2 (which gates Phase 2). The earliest possible ordering is:
+
+```
+PR 1.C → main
+   ├── PR 1.D (Aayan trigger)         — restores concept_explanation citation
+   ├── PR 1.E (Aayan trigger)         — restores 3 deferred user-history types
+   └── CMIP-2 design + rollout        — produces human-rating corpus
+        └── correlation analysis      — unlocks Phase 2 or recalibrates metrics
+              └── Phase 2 (agent loop)
+```
+
+### 11.7 Documentation tasks for this revision
+
+- Update [BUILD_PLAN.md §3 phasing overview](MASTERMIND_BUILD_PLAN.md) to insert "CMIP human evaluation" between Phase 1 and Phase 2, marked as a Phase 2 prerequisite. **Done in the same commit as this plan revision.**
+- Update [BUILD_PLAN.md](MASTERMIND_BUILD_PLAN.md) with PR 1.D + PR 1.E queue entries. **Done in same commit.**
+- Add a project memory entry noting Phase 2 is blocked on CMIP rating data + PR 1.D / 1.E are explicit-trigger only. **In conversation memory store.**
 
 ---
 
-## 12. Pause (revised)
+## 12. Pause (audit-revised)
 
-Plan revised. No code yet. Awaiting:
+Plan audit-revised. No code yet. PR 1.C scope is finalized:
 
-- **Tech-lead** (§8 ratifications confirmed; new questions in §6 — are the new-validator claim type lists complete?).
-- **Aayan** (§1.7.4 persona-pipeline questions; §5.5 metric calibration confirmation).
+- **§6.2** Scout — expanded to 20 claim types (full `ScoutAnalytics` + `Collisions` coverage).
+- **§6.3** User history — restricted to 3 server-derivable claim types; 3 deferred to PR 1.E.
+- **§6.4** Jhamtani — REMOVED from PR 1.C; deferred to PR 1.D.
+- **§5.3.2** concept_explanation citation floor temporarily lifted; hallucination ceiling still applies.
 
-On approval, I begin with 1.C.A.1 (`categoryClassifier.ts` + cached prompt + tests) as the foundation for everything downstream. Then bottom-up through the new validators, then the persona pipeline, then the dry-run harness, then wiring, then sweep.
+Doc-fix PR (Jhamtani marketing claim removal) shipped separately off main as `docfix/jhamtani-marketing-claim`, commit `e2384f0`.
+
+On approval of this audit-revised plan, **Stage A.1 unblocks**. Build begins with `categoryClassifier.ts` + cached prompt + tests, then bottom-up through `scoutCitation` (largest single piece at ~1,100 lib LOC), `userHistoryAggregates`, `userHistoryCitation`, then `citationRate` + `runValidationPipeline` extension, then persona pipeline, then dry-run harness, then Stage B wiring, then Stage C sweep with possible C.iter.* iterations.

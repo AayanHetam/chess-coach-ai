@@ -87,7 +87,7 @@ The five existing persona scripts (`confused_beginner`, `tilted_intermediate`, `
 |---|---|---|---|
 | r/chess + r/chessbeginners | **Reddit API via OAuth.** Use `r/chess/search` and `r/chessbeginners/search` with `q=?` and `flair_name="help"` filters. Public API, documented rate limit 60 req/min, ToS allows research use with attribution. Use [Reddit API rules](https://www.redditinc.com/policies/data-api-terms) — store post IDs not content, re-fetch live for analysis when needed. | API-allowed | ~150 questions |
 | Lichess forums (study/practice) | **No public API for forums.** Lichess [Terms of Service](https://lichess.org/terms-of-service) allow non-commercial research; the forum HTML is scrape-permissive by precedent (the lichess-bot community has done it). Use a polite scraper with `User-Agent: chessmasti-research-bot` and a 2-second delay between requests. | ToS-permissive; scraping by precedent | ~80 questions |
-| Chess.com forums | **Chess.com [API](https://www.chess.com/news/view/published-data-api) does not expose forums.** Forum scraping is **not** explicitly permitted by their [ToS](https://www.chess.com/legal/terms) — they reserve the right to restrict automated access. Default posture: **skip this source.** Document the gap. Revisit if a researcher contact at chess.com can be reached for permission. | ToS-restrictive | 0 (skipped) |
+| Chess.com forums | **Skip confirmed (Aayan 2026-05-17).** Chess.com [API](https://www.chess.com/news/view/published-data-api) does not expose forums; their [ToS](https://www.chess.com/legal/terms) doesn't explicitly permit scraping. Documented in COMPLIANCE.md as a known coverage gap. Revisit only if a researcher contact at chess.com can be reached for explicit permission. | ToS-restrictive | 0 (skipped) |
 | Chess Stack Exchange | **Stack Exchange [API](https://api.stackexchange.com/docs)**, documented and generous. Public domain via CC BY-SA license — no scraping concerns. Use `chess.stackexchange.com` site filter with `tagged=beginner,opening,middlegame,endgame,strategy`. | API-allowed, CC BY-SA | ~70 questions |
 
 **Net target:** ~300 questions if all three permitted sources hit their estimated yields; ~220 if chess.com stays skipped. Either is sufficient — the synthetic-tester uses 50 turns, so a 4× oversample lets the category-distribution rewrite be statistically meaningful.
@@ -96,8 +96,13 @@ The five existing persona scripts (`confused_beginner`, `tilted_intermediate`, `
 
 1. **Scrape.** New script `scripts/mastermind/persona-data/scrape-forum-questions.ts` (~250 LOC). Per-source modules: `reddit.ts`, `lichess.ts`, `stackexchange.ts`. Outputs `scripts/mastermind/persona-data/raw-questions.json` — array of `{source, sourceUrl, capturedAt, questionText, contextMeta}`. **Rate-limited per source; idempotent re-runs use a local dedup cache keyed by sourceUrl.**
 2. **Classify.** New script `scripts/mastermind/persona-data/classify-questions.ts` (~120 LOC). Runs the six-category classifier (§6) over the raw questions. Outputs `classified-questions.json` adding `{category, confidence}` per entry. Cost: ~300 questions × $0.001/classify ≈ $0.30 total.
-3. **Spot-check.** Aayan reads a **30-question random sample** (uniform across the six categories — 5 per category). For each, Aayan flags the assigned category as correct or wrong. Pass criterion: ≥27/30 correct (90%). If <27, the classifier prompt needs iteration; loop back to step 2 with prompt refinements.
-4. **Rewrite persona scripts.** New script `scripts/mastermind/persona-data/rewrite-scripts.ts` (~180 LOC). For each persona, draws a 10-question sequence weighted by the **observed category distribution** from the classified corpus (e.g., if 35% of real questions are "improvement strategy," then 35% of the persona's prompts come from that category). Within each category, the persona's voice constraints (vocabulary, hedging, length) are applied as a transform — the underlying question stays semantically real but the wording matches the persona. Transform is also a Haiku call (~$0.001/question; ~$0.05/persona × 5 personas = $0.25 total). Final output: replace existing `scripts/synthetic-tester/personas/<persona>.md` files.
+3. **Spot-check.** Aayan reads a **30-question random sample** (uniform across the six categories — 5 per category). For each, Aayan flags the assigned category as correct or wrong. Pass criterion: ≥27/30 correct (90%).
+
+   **On failure (<27/30) — anti-auto-iterate rule (Aayan 2026-05-17):** CC does **not** auto-iterate the classifier prompt. Aayan reads every misclassification first. The misclassifications may reveal the categories themselves are wrong (e.g., "opponent prep" and "improvement strategy" blur on certain question shapes), not just the prompt. Only Aayan decides whether to (a) iterate the classifier prompt, (b) redefine the categories, or (c) accept the misclassifications and proceed. CC waits for explicit go before any prompt refinement work.
+
+4. **Rewrite persona scripts.** New script `scripts/mastermind/persona-data/rewrite-scripts.ts` (~180 LOC). For each persona, draws a 10-question sequence weighted by the **observed category distribution** from the classified corpus (e.g., if 35% of real questions are "improvement strategy," then 35% of the persona's prompts come from that category).
+
+   **Strict voice-transform rule (Aayan 2026-05-17):** the transform preserves **question type and underlying intent exactly**. Only **tone and vocabulary** shift to match the persona profile. A "confused_beginner" version of "Why did White's bishop give up the diagonal?" might be "I don't understand why the bishop moved off that long line, was that bad?" — same question, different voice. If a scraped question doesn't fit a persona (e.g., a deeply technical question into the confused_beginner voice), **skip it rather than transform aggressively.** This anchor keeps the synthetic distribution honest against real user distribution. Transform is a Haiku call (~$0.001/question; ~$0.05/persona × 5 personas = $0.25 total). Final output: replace existing `scripts/synthetic-tester/personas/<persona>.md` files.
 
 #### 1.7.3 ToS compliance documentation
 
@@ -108,15 +113,20 @@ Committed alongside the scraper: `scripts/mastermind/persona-data/COMPLIANCE.md`
 - What we store (post ID + question text only; **never user identity, usernames, or other PII**)
 - What we don't store (votes, scores, user metadata)
 - Take-down procedure if a source contacts us
+- **Coverage gap: chess.com forums skipped** (Aayan 2026-05-17). Revisit if a researcher contact yields explicit permission.
+- **Refresh cadence (Aayan 2026-05-17):** quarterly re-scrape after the initial 1.C run, with the same per-source dedup behavior. Refresh is mechanical — re-run `scrape-forum-questions.ts`, re-classify, append-only to the corpus (existing question IDs aren't re-fetched).
+- **Retirement trigger (Aayan 2026-05-17):** **once CMIP produces real user questions from Chess Masti's own users at sufficient volume (rough threshold: ≥500 categorized real-user questions across the six categories), retire the forum scraper entirely.** Real questions from logged-in coach users displace scraped public-forum questions as the persona-script source. The COMPLIANCE.md file gains a retirement-decision section at that point recording the cutover date and the final scraped-corpus snapshot for ISEF reproducibility.
 
-#### 1.7.4 Open questions for Aayan on §1.7
+#### 1.7.4 §1.7 questions — RESOLVED 2026-05-17
 
-| # | Question | Default |
+All four answers ratified to §8.1 round-2 decisions; reflected in §1.7.1–§1.7.3 above.
+
+| # | Question | Decision |
 |---|---|---|
-| 1.7-a | Skip chess.com forums entirely, or attempt scraping with conservative posture? | Skip. Document the gap in COMPLIANCE.md |
-| 1.7-b | Spot-check pass criterion — 27/30 too lax, too strict? | 27/30 = 90%. Tighten to 28/30 if categorizer is borderline |
-| 1.7-c | Should the persona "voice transform" preserve question semantics exactly, or only approximately? | Approximately. The voice (tone, vocabulary, length) is what's persona-specific; the semantic intent is what's drawn from real discourse |
-| 1.7-d | Rerun cadence — re-scrape monthly to track distribution drift, or one-shot for 1.C? | One-shot for 1.C. Add to CMIP backlog as a recurring data-refresh task |
+| 1.7-a | Skip chess.com forums entirely, or attempt scraping? | **Skip.** Documented in COMPLIANCE.md (§1.7.3) as a known coverage gap. |
+| 1.7-b | Spot-check pass criterion (27/30) and failure behavior | **27/30 confirmed.** On failure, Aayan reads every misclassification before any iteration starts; CC does NOT auto-iterate the prompt. Categories themselves may be the issue, not the prompt. |
+| 1.7-c | Persona voice-transform strictness | **Strict.** Question type + intent preserved exactly. Tone/vocabulary shift only. If a question doesn't fit a persona, skip-not-transform. |
+| 1.7-d | Scrape cadence | **Once at 1.C, then quarterly until CMIP launches.** Retire scraper once CMIP yields ≥500 real-user questions across categories. |
 
 ---
 
@@ -415,6 +425,8 @@ Original flat 0.85 grounding metric retired. Replaced with two metrics that meas
 
 **Target.** ≥ 95% **across all six categories, no exceptions.** A 95% overall rate masking 70% on one category and 100% on another is not acceptable. Report the by-category breakdown alongside the overall rate; any category < 95% fails the gate.
 
+**Hard-ceiling rule (Aayan 2026-05-17).** This is a hard ceiling. **No per-category relaxation, ever.** If a category's first sweep falls short, the fix is the validator — precision-tightening, broader claim-type coverage, prompt iteration — **not the threshold**. Validator iteration under this rule is **permitted and expected; threshold relaxation is not.** Iterations to validator code triggered by a short hallucination-rate on a category are **not scope creep** — they are required for merge. Plan-wise: PR 1.C's commit sequence (§7) explicitly leaves room for "validator iteration" commits between the initial Stage A landings and the Stage C sweep.
+
 **Computation.** For each turn:
 1. The pipeline runs through all five validators (PR 1.B: `evalClaim`, `featureDeltaCitation`; PR 1.C: `scoutCitation`, `userHistoryCitation`, `jhamtaniCitation`). Each validator's parser counts the factual claims it detects.
 2. Total claims = sum across all five validators per turn.
@@ -460,7 +472,7 @@ Tool calls/turn (originally listed) dropped from PR 1.C since the agent loop isn
 
 #### 5.3.4 Pass criteria — all of the following must hold
 
-- **Hallucination rate ≥ 95% per category**, not just overall.
+- **Hallucination rate ≥ 95% per category**, not just overall. **Hard ceiling — see §5.3.1 hard-ceiling rule. Validator iteration is the response to a short category, not threshold relaxation.**
 - **Citation rate ≥ floor per category** per §5.3.2 table.
 - Chess correctness = 0 violations.
 - Persona fidelity ≥ 7/10 per persona, mean ≥ 7.5.
@@ -480,14 +492,14 @@ The baseline is the same sweep against main with flag off. Required outcomes:
 | Persona fidelity | Currently uncomputed | ≥ 7/10 |
 | Cost per turn | ~$0.025 flagship | ≤ $0.035 (overhead ≤ $0.01 per Interpretation A) |
 
-### 5.5 Aayan review items for Stage C
+### 5.5 Stage C metric items — RESOLVED 2026-05-17
 
-| § | Question | Default |
+| § | Question | Decision |
 |---|---|---|
-| 5.3.2 | Citation rate floors — are these the right per-category numbers? Game review 90% / Opponent prep 85% / etc. | Yes per coaching-review 2026-05-17. Revisit after first sweep if any category misses dramatically |
-| 5.3.1 | Hallucination ≥95% per category — too strict? | Per coaching review: no exceptions. If first sweep shows e.g. 87% on concept-explanation, that's a coaching failure to investigate, not a threshold to relax |
+| 5.3.2 | Citation rate floors — are these the right per-category numbers? Game review 90% / Opponent prep 85% / etc. | **Yes** per coaching-review 2026-05-17. Revisit after first sweep only if a category misses dramatically AND validator iteration can't close the gap |
+| 5.3.1 | Hallucination ≥95% per category — too strict? | **Hard ceiling, no relaxation** (Aayan 2026-05-17). Below-target categories are validator failures to fix, not thresholds to lower. See §5.3.1 hard-ceiling rule |
 | 5.3 | Persona fidelity rubric — flagship Claude call per turn at $0.02 × 50 = $1/sweep. Acceptable? | Approved (§8 Q8) |
-| 5.4 | Cost-per-turn budget ≤ $0.035: hard fail or soft warning? | Hard fail. Tech-lead override possible if Stage C shows ~$0.04 but no path to lower; we'd then revisit Interpretation A's overhead assumption |
+| 5.4 | Cost-per-turn budget ≤ $0.035: hard fail or soft warning? | **Hard fail.** Tech-lead override possible if Stage C shows ~$0.04 with no path to lower; we'd then revisit Interpretation A's overhead assumption |
 
 ---
 
@@ -619,9 +631,11 @@ Single PR, more commits than the original plan because Stage A grew. Each builds
 | 1.C.B.1 | Wire `runValidationPipeline` into `/api/enhanced-analysis` behind flag + `wireValidators.ts` helper fetching all 4 data sources | ~440 |
 | 1.C.B.2 | Wire into `/api/chat` (same shape, smaller diff) | ~310 |
 | 1.C.B.3 | Telemetry forwarding + Sentry tags + tests | ~260 |
-| 1.C.C | Synthetic-tester sweep results captured in PR description; sweep output JSON committed to `audit/findings/agent-c-eval/` | ~50 KB JSON |
+| 1.C.C.0 | First synthetic-tester sweep against preview deploy. Capture by-category hallucination + citation breakdowns. | ~50 KB JSON output |
+| 1.C.C.iter.* | **Validator iteration commits (open count)** — one or more, fired by §5.3.1 hard-ceiling rule if any category misses 95% hallucination on the first sweep. Each iteration fixes the responsible validator (precision tightening, broader claim-type coverage, prompt iteration), re-runs the sweep, captures the new breakdown. Not scope creep — required for merge. | varies |
+| 1.C.C.final | Final sweep that passes all five gate metrics per §5.3.4. PR description summarizes by-category breakdown + total cost + iteration history. | ~50 KB JSON |
 
-**Total PR 1.C revised: ~2,500 lib + ~1,580 test + scripts + fixtures + compliance doc + sweep output.** Up from original ~1,150 / ~400. Aayan explicitly authorized this expansion 2026-05-17.
+**Total PR 1.C revised: ~2,500 lib + ~1,580 test + scripts + fixtures + compliance doc + sweep output + N iteration commits.** Up from original ~1,150 / ~400. Aayan explicitly authorized this expansion 2026-05-17. The iteration slot lands here so the merge path is explicit when first-sweep numbers don't all clear.
 
 ---
 
@@ -642,13 +656,21 @@ Original §8 open questions resolved. Plan body updated; this section is the aud
 | 9 | Structural grounding 0.85 | **SUPERSEDED by Revision 1** — replaced with hallucination ≥95% per category + per-category citation floors | §5.3 |
 | 10 | Gate-sensitivity overrides | **Include all four: `--override-tolerance`, `--override-numeric`, `--override-confidence`, `--inject-fixture`** | §1.2 |
 
-### 8.1 New questions added in the 2026-05-17 revision
+### 8.1 New questions added in the 2026-05-17 revision — RESOLVED 2026-05-17 (round 2)
 
-Questions in §1.7.4, §5.5 (citation-floors validity), and any in §6 are still open. Listed by section for the reviewers:
+Questions in §1.7.4 and §5.5 resolved. §6 (validator claim-type completeness) still open and sent to tech-lead for review before Stage A code starts.
 
-- **§1.7.4:** chess.com forum skip vs scrape, spot-check pass criterion (27/30 default), persona voice-transform semantic strictness, scrape cadence.
-- **§5.5:** hallucination 95% as hard ceiling (no per-category relaxation), citation floor calibration after first sweep.
-- **§6:** are the parser claim-types for the three new validators (§6.2-6.4) complete? Or are there scout/user-history/jhamtani claim patterns the coach makes that I haven't enumerated?
+| # | Question | Decision | Section updated |
+|---|---|---|---|
+| §1.7.4-a | chess.com forum skip vs scrape attempt | **Skip confirmed.** Documented in COMPLIANCE.md as a known coverage gap. | §1.7.1 (chess.com row), §1.7.3 |
+| §1.7.4-b | Spot-check pass criterion (27/30) and behavior on failure | **27/30 confirmed.** On failure, **Aayan reads every misclassification before any classifier prompt iteration starts.** The misclassifications may reveal the categories themselves are wrong, not the classifier prompt. **Only Aayan makes that call. CC does not auto-iterate the classifier prompt on failed spot-check without explicit go from Aayan.** | §1.7.2 step 3 expanded |
+| §1.7.4-c | Persona voice-transform semantic strictness | **Strict.** Preserve question type and underlying intent exactly. Only shift tone and vocabulary to match the persona profile. If a scraped question doesn't fit a persona, skip it rather than transform aggressively. Anchor that keeps the synthetic distribution honest against real user distribution. | §1.7.2 step 4 expanded |
+| §1.7.4-d | Scrape cadence | **Once at PR 1.C, then quarterly refresh until CMIP launches.** Once CMIP produces real user questions from Chess Masti's own users, retire the scraper entirely. Retirement trigger documented in COMPLIANCE.md. | §1.7.1 (frequency note), §1.7.3 (retirement trigger) |
+| §5.5-a | Hallucination ≥95% per category — is it a hard ceiling? | **Hard ceiling. No per-category relaxation, ever.** If a category's first sweep falls short, the fix is the validator — precision-tightening, broader claim-type coverage, prompt iteration — **not the threshold.** **Validator iteration is permitted and expected; threshold relaxation is not. Iterations under this rule are not scope creep — they are required for merge.** | §5.3.1 + §5.3.4 footnote |
+
+**Remaining open for tech-lead review (blocks Stage A code start):**
+
+- **§6.2-§6.4:** parser claim-type lists for `scoutCitation`, `userHistoryCitation`, `jhamtaniCitation`. Are the lists complete? Are there scout/user-history/jhamtani claim patterns the coach makes that I haven't enumerated? Reviewable as-is in §6 of this doc; sent in chat for direct review.
 
 ---
 

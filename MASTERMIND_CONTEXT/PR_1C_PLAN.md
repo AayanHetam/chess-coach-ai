@@ -616,7 +616,9 @@ Returns structured JSON same pattern as the other parser prompts. Confidence <0.
 
 A coach response in the opponent-prep category needs to cite ≥85% of available opportunities. Note that "available" is data-driven: an opponent with limited game history may have fewer opportunities, in which case the floor applies to that smaller denominator.
 
-**Cross-source coordination.** The audit (§F.4) flagged composite claims like "Your opponent crushes you in Najdorf positions" (combines opponent-plays-Najdorf from scout AND your win-rate vs Najdorf from user history). Not enumerated as a separate claim type in 1.C — handled by parser emitting two separate claims (one against scout, one against user history). If the coach phrases it as a single sentence, parser splits into two. **Tech-lead flag from audit §F.4:** a future `cross_source_claim` type may be warranted if splitting produces false-fires; defer until first-sweep data shows the pattern is real.
+**Cross-source coordination — DEFERRED, measure-then-decide (Aayan 2026-05-17).** The audit (§F.4) flagged composite claims like "Your opponent crushes you in Najdorf positions" (combines opponent-plays-Najdorf from scout AND your win-rate vs Najdorf from user history). Not enumerated as a separate claim type in 1.C — handled by parser emitting two separate claims (one against scout, one against user history). If the coach phrases it as a single sentence, parser splits into two.
+
+**Build against measured behavior, not hypothesis.** After Stage C sweep completes, examine sweep telemetry for LLM responses that span data sources. If composite-claim patterns appear at meaningful rate (rough threshold: ≥5% of turns in `opponent_prep` or `improvement_strategy` categories produce a sentence the parser had to split across scout + user-history validators), file **PR 1.F** to add a `cross_source_claim` type + a coordinator that catches the composite claim atomically. If the pattern doesn't appear, the validator stays unbuilt. See §11.6 for PR 1.F conditional queue entry.
 
 ### 6.3 `userHistoryCitation.ts` — improvement-strategy + meta-motivational validator (RESTRICTED 2026-05-17 per audit §D)
 
@@ -850,16 +852,32 @@ Two Aayan-triggered PRs queued post-1.C. **Neither auto-rolls.** Phase 2 (agent 
 4. **Step 4 (couples to MASTERMIND_TOOLS 🟡 partials per audit §D.4):** the same puzzle-stats sync also closes `get_weakness_profile`, `get_srs_state`, `get_repetit_history` from MASTERMIND_TOOLS (those are blocked on the same localStorage-only state). Update MASTERMIND_TOOLS table to ✅ for those tools.
 5. **Step 5:** new sweep against preview confirms citation floors at improvement-strategy (50%) and meta-motivational (20%) are still passing with the restored claim types.
 
+#### PR 1.F — `cross_source_claim` coordinator (CONDITIONAL, Aayan 2026-05-17)
+
+**Trigger:** Aayan-explicit, AND the trigger criterion is met. Same explicit-trigger rule as 1.D / 1.E with one addition — the trigger is itself gated on observed behavior.
+
+**Conditional trigger criterion:** after Stage C sweep telemetry is in, examine LLM responses for sentences that span data sources (scout + user-history; in the future scout + Jhamtani, etc.). If composite-claim sentences appear in **≥5% of turns in either `opponent_prep` or `improvement_strategy` categories**, file PR 1.F. Below that threshold, leave the coordinator unbuilt — the per-validator parsers handle the split-claim case adequately. Reporting + criterion check land in the Stage C sweep summary `audit/findings/agent-c-eval/sweep-{date}-summary.md`.
+
+**Scope (if triggered):**
+1. New `crossSourceCitation.ts` parser claim type — parser identifies sentences that name attributes from two or more data sources atomically.
+2. New `crossSourceCoordinator.ts` — coordinates validator results from scout + user-history (or other source pairs) for composite claims; emits one validator issue per atomic composite rather than two separate ones.
+3. Extend `runValidationPipeline` to route composite claims through the coordinator rather than each per-source validator individually.
+4. Re-run Stage C sweep against the preview deploy with the coordinator wired; confirm hallucination/citation metrics improve on the composite-claim subset.
+
+**Why measure-then-decide is the right posture.** Building the coordinator on hypothesis means we spend ~600 LOC + tests on a feature that may never fire. Building on measured behavior means the implementation is calibrated against real frequencies in the sweep dataset.
+
 #### Sequencing
 
-PR 1.D and PR 1.E are **independent** — either can ship first. Both are independent of CMIP-2 (which gates Phase 2). The earliest possible ordering is:
+PR 1.D, PR 1.E, and PR 1.F are **independent** — any order. Both 1.D and 1.E are unconditional (just await Aayan trigger). 1.F is doubly gated: Aayan trigger AND the ≥5% measurement threshold. Earliest possible ordering:
 
 ```
 PR 1.C → main
-   ├── PR 1.D (Aayan trigger)         — restores concept_explanation citation
-   ├── PR 1.E (Aayan trigger)         — restores 3 deferred user-history types
-   └── CMIP-2 design + rollout        — produces human-rating corpus
-        └── correlation analysis      — unlocks Phase 2 or recalibrates metrics
+   ├── PR 1.D (Aayan trigger)            — restores concept_explanation citation
+   ├── PR 1.E (Aayan trigger)            — restores 3 deferred user-history types
+   ├── PR 1.F (conditional + Aayan)      — IF Stage C sweep shows composite-claim
+   │                                       rate ≥5% in opponent_prep OR improvement_strategy
+   └── CMIP-2 design + rollout           — produces human-rating corpus
+        └── correlation analysis         — unlocks Phase 2 or recalibrates metrics
               └── Phase 2 (agent loop)
 ```
 

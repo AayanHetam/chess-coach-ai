@@ -108,17 +108,20 @@ Five phases, with an interstitial Phase 1.5 (CMIP human eval) and two Aayan-trig
 | 1 | **Stage 3 grounding (expanded)** | 3 PRs (1.A ✅, 1.B ✅, 1.C in flight) | Coach-grade prose in flagship; primitives for Phase 2; synthetic-tester gate |
 | **1.D** | **Jhamtani wire-up** — *Aayan-triggered, not auto-rolling* | 1 PR, scope in [PR_1C_PLAN §11.6](PR_1C_PLAN.md) | Restores `jhamtaniCitation` for the concept_explanation category. Step 1 is investigation-only — find where the corpus actually lives now (audit §A.3 left this unverifiable). |
 | **1.E** | **puzzle-stats sync + restore 3 deferred user-history claim types** — *Aayan-triggered, not auto-rolling* | 1 PR, scope in [PR_1C_PLAN §11.6](PR_1C_PLAN.md) | Adds `POST /api/puzzle-stats` so server can read `puzzleStatsAtom` data. Restores `rating_trajectory`, `puzzle_stats_claim`, `puzzle_rating_trajectory`. Also closes MASTERMIND_TOOLS `get_weakness_profile` / `get_srs_state` / `get_repetit_history` 🟡 partials. |
+| **1.F** | **`cross_source_claim` coordinator** — *conditional + Aayan-triggered* | 1 PR (only if criterion met), scope in [PR_1C_PLAN §11.6](PR_1C_PLAN.md) | Build IF Stage C sweep telemetry shows composite-claim sentences in ≥5% of turns in `opponent_prep` OR `improvement_strategy`. Adds an atomic coordinator for claims that span scout + user-history data sources. Below threshold, validator stays unbuilt — build against measured behavior, not hypothesis. |
 | **1.5** | **CMIP human evaluation** | 1.A-1.D shipped 2026-05-17 ([PR_CMIP_1_PLAN.md](PR_CMIP_1_PLAN.md)); CMIP-2 (rating UI rollout) next | Real-user feedback corpus; correlation analysis vs synthetic-tester metrics |
 | 2 | **Agent loop refactor** | 4 PRs — **BLOCKED on CMIP rating data** | Tool-using Claude inside `/api/enhanced-analysis` |
 | 3 | **Tier A content + tools** | 5 PRs | GM games, drills, endgame studies, opening traps |
 | 4 | **Multi-perspective + persona** | 2 PRs | Chesstalker voice, richer persona conditioning |
 | 5 | **Innovation + distribution** | rolling | Reddit bot, browser ext, Lichess studies export |
 
-### 3.0.1 Phase 1.D and 1.E rules (audit 2026-05-17)
+### 3.0.1 Phase 1.D / 1.E / 1.F rules (audit + Stage A.1 review 2026-05-17)
 
-Both PRs are **explicit-trigger only**. PR 1.C merging to main does NOT auto-start either. Aayan opens the next-in-line PR when ready. Order is independent — 1.D can ship before 1.E or vice versa.
+All three PRs are **explicit-trigger only**. PR 1.C merging to main does NOT auto-start any of them. Aayan opens the next-in-line PR when ready. Order is independent — any of 1.D, 1.E, 1.F can ship first or be skipped indefinitely.
 
-Neither is on Phase 2's critical path: Phase 2 unblocks on CMIP rating-data correlation regardless of whether 1.D and 1.E have shipped. Their value is restoring the audit-deferred surface area of PR 1.C itself, so by the time Phase 2 lands, the validation pipeline is complete.
+**1.F has an additional gate.** It's *conditional* on Stage C sweep telemetry showing the composite-claim pattern at ≥5% of turns in `opponent_prep` or `improvement_strategy`. Below threshold, 1.F doesn't get filed. Aayan's directive 2026-05-17: build against measured behavior, not hypothesis.
+
+None of 1.D / 1.E / 1.F is on Phase 2's critical path: Phase 2 unblocks on CMIP rating-data correlation regardless. Their value is restoring (1.D, 1.E) or adding (1.F) audit-deferred surface area of the PR 1.C validation pipeline so it's complete when Phase 2 lands.
 
 ### 3.1 Why CMIP gates Phase 2 (added 2026-05-17)
 

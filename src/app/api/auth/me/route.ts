@@ -17,10 +17,14 @@ export async function GET() {
       // Session points to a deleted user — treat as signed-out.
       return NextResponse.json({ user: null }, { status: 200 });
     }
-    // isIntern is stamped into the session JWT at sign-in time; surface it
-    // alongside the user payload so `useViewer()` can read it without a
-    // second roundtrip.
-    return NextResponse.json({ user: toSafe(user), isIntern: !!session.isIntern });
+    // isIntern + isAdmin are stamped into the session JWT at sign-in time;
+    // surface them alongside the user payload so `useViewer()` can read both
+    // without a second roundtrip.
+    return NextResponse.json({
+      user: toSafe(user),
+      isIntern: !!session.isIntern,
+      isAdmin: !!session.isAdmin,
+    });
   } catch (err) {
     if (err instanceof AdminConfigError) {
       console.error("[auth/me]", err);

@@ -11,10 +11,11 @@ import { useAuth, type AppUser } from "@/contexts/AuthContext";
 export type Viewer = {
   user: AppUser | null;
   isIntern: boolean;
+  isAdmin: boolean;
   loading: boolean;
 };
 
 export function useViewer(): Viewer {
-  const { user, isIntern, loading } = useAuth();
-  return { user, isIntern, loading };
+  const { user, isIntern, isAdmin, loading } = useAuth();
+  return { user, isIntern, isAdmin, loading };
 }

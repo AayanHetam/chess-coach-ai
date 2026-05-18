@@ -15,6 +15,7 @@ import {
 } from "@/lib/server/users";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
 import { isAllowlistedIntern } from "@/lib/intern/allowlist";
+import { isDashboardAdminEmail } from "@/lib/auth/isAdmin";
 
 export const runtime = "nodejs";
 
@@ -160,9 +161,11 @@ export async function GET(request: Request) {
 
     await updateLastLoginAt(user.uid);
 
-    // Stamp CMIP intern allowlist membership into the session at sign-in time.
-    // Failures are logged inside isAllowlistedIntern and fall closed to false.
+    // Stamp CMIP intern allowlist membership + admin status into the session
+    // at sign-in time. Allowlist failures fall closed to false; admin check
+    // is a pure email comparison.
     const isIntern = await isAllowlistedIntern(user.email);
+    const isAdmin = isDashboardAdminEmail(user.email);
 
     const target = new URL(stateCookie.returnTo ?? "/", env.appBaseUrl);
     const response = NextResponse.redirect(target);
@@ -172,6 +175,7 @@ export async function GET(request: Request) {
       displayName: user.displayName,
       avatarUrl: user.photoURL,
       isIntern,
+      isAdmin,
     });
     clearOAuthStateCookie(response);
     return response;

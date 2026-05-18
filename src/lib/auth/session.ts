@@ -14,6 +14,11 @@ export type SessionPayload = {
   // CMIP intern allowlist membership at sign-in time. Stamped by the auth
   // routes after isAllowlistedIntern(email); flipping requires re-signin.
   isIntern?: boolean;
+  // CMIP dashboard admin (matches CMIP_DASHBOARD_ADMIN_EMAIL at sign-in).
+  // Stamped at session creation for browser-side UI gating. Server-side
+  // admin routes additionally re-check via requireAdmin() so an env change
+  // takes effect on next request without re-signin.
+  isAdmin?: boolean;
 };
 
 let cachedKey: Uint8Array | null = null;
@@ -48,6 +53,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       displayName: typeof payload.displayName === "string" ? payload.displayName : undefined,
       avatarUrl: typeof payload.avatarUrl === "string" ? payload.avatarUrl : undefined,
       isIntern: payload.isIntern === true ? true : undefined,
+      isAdmin: payload.isAdmin === true ? true : undefined,
     };
   } catch {
     return null;

@@ -76,7 +76,7 @@ let callIdx = 0;
 const callLLM = async (_opts: CallLLMOptions): Promise<LLMResult> => {
   const content = callIdx === 0 ? HALLUCINATED : CORRECTED;
   callIdx++;
-  return { content, provider: "anthropic", model: "claude-sonnet-4-test", inputTokens: 1200, outputTokens: 80 };
+  return { content, provider: "anthropic", model: "claude-sonnet-4-test", inputTokens: 1200, outputTokens: 80, elapsedMs: 0 };
 };
 
 async function main() {

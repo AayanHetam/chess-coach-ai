@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "createdAt": "2026-05-18",
+  "_note": "Dry-run gate thresholds per PR_1C_PLAN.md §1.2. Versioned so future tightening is auditable. Persona fidelity is skipped in dry-run (no Claude rubric call) and measured in Stage C against the preview deploy. Tool calls per turn is hardcoded to 0 in dry-run (no agent loop in 1.C); full metric in Stage C.",
+  "thresholds": {
+    "chessCorrectnessViolationsMax": 0,
+    "structuralGroundingMin": 0.85,
+    "toolCallsPerTurnMedianMax": 4,
+    "costPerTurnFlagshipUsdMax": 0.03,
+    "personaFidelityMin": 7,
+    "_personaFidelityNote": "deferred to Stage C — not enforced in dry-run"
+  }
+}

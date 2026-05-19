@@ -16,7 +16,19 @@ Cross-check the LLM coach's claims about an opponent (scout output) against the 
 
 ---
 
-## 1. SCOPE QUESTION — Aayan must answer before code starts
+## 1. SCOPE — RESOLVED 2026-05-18: Option A (ship all 26 claim types)
+
+Aayan ratified Option A. Reasoning (captured for the audit trail): the 20 in §6.2's header was rounding; the 26-row enumeration is the real count; merging or subsetting costs more than the extra LOC because **merging forces parser ambiguity to be resolved in cross-check logic instead of in the parser, which ages badly**, and **subsetting ships invisible blind spots where the coach can hallucinate freely about uncovered dimensions**. The Haiku parser cost is roughly flat in claim-type count and the cached prompt is a stable contract once shipped, so ship the right scope once.
+
+**Follow-up requirement added to Stage C sweep:** log per-claim-type firing rates across the 50 turns. If three or more claim types never fire, surface them in the sweep report as candidates for merge in a follow-up PR. **Do not auto-merge** — surface to Aayan, decide based on data, not guess. Tracked in [PR_1C_PLAN.md §5.3](PR_1C_PLAN.md) extension once Stage C planning resumes.
+
+**Implementation discipline (plan-first applies inside implementation too):**
+- If a claim type turns out to require richer cross-check infrastructure than this plan estimated (e.g., a tolerance needs to be configurable, a dimension needs fuzzy matching when the plan assumed exact), **pause and surface as a deviation**. Don't just write whatever feels right.
+- The ~2,120 LOC estimate is a **budget, not a target**. Actual LOC landing at 1,800 or 2,400 is fine as long as the deviation is real implementation reality, not scope creep / scope shrink. Document actual in the commit message.
+
+The rest of this section is the original scope question, kept for the audit trail:
+
+### 1.1 The discrepancy (resolved as Option A)
 
 [PR_1C_PLAN.md §6.2](PR_1C_PLAN.md) audit-revised header reads **"20 claim types total"** but the §6.2.1–§6.2.5 row-by-row enumeration lists **26 distinct claim types**. Counted programmatically:
 
@@ -39,11 +51,9 @@ The "20" header appears to come from the inline grouping prose ("3 opening, 7 pr
 | **B** | **20 — collapsed coverage matching the header** | Merge `peak_rating`/`low_rating`/`latest_rating` into a single `rating_landmark` claim (3→1); merge `quick_loss_pattern`/`long_game_pattern` into `loss_length_pattern` (2→1); merge `resign_pattern`/`checkmate_rate`/`streak_claim` into bucketed psychology claims (3→2); keep all others. Lossless in coaching value, narrower API surface. | ~1,100 + ~550 |
 | **C** | **High-value subset first** (~15 types: opening 3 + profile collapsed to 4 + stalker 2 + psychology collapsed to 3 + rivals/collisions/novelty 3) | Ship the most-frequently-cited claim shapes first; defer the long tail (checklist items, recent-form buckets, finer psychology splits) to a follow-up PR after Stage C sweep shows real coaching frequencies | ~850 + ~450 |
 
-**Recommended default:** **Option A (ship all 26).** Per Aayan's brief 2026-05-18, default is "ship all 20" but the enumerated count is 26; treating the count as the source of truth (more comprehensive coverage = higher citation-rate ceiling achievable) is consistent with the "go big on Scout because it's the differentiation" rationale.
+**Recommended default:** **Option A (ship all 26).** ← ratified.
 
-**Why this scope question matters now:** the parser claim-type enum is a stable contract once it ships — adding a new type later means updating the cached Haiku system prompt, which busts the cache and incurs warmup cost. Better to settle the enum size before code starts.
-
-**Don't proceed past this section until Aayan answers.** Once answered, replace this section with "Resolved: Option {A,B,C}" and code begins.
+**Why this scope question mattered:** the parser claim-type enum is a stable contract once it ships — adding a new type later means updating the cached Haiku system prompt, which busts the cache and incurs warmup cost. Better to settle the enum size before code starts.
 
 ---
 

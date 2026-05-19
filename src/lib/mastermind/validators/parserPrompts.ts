@@ -141,3 +141,163 @@ export function buildFeatureCitationUserTurn(input: FeatureCitationParseInput): 
     input.llmResponse,
   ].join("\n");
 }
+
+export const SCOUT_CITATION_PARSER_SYSTEM = `You extract opponent-scouting claims from chess coaching prose.
+
+INPUT: a passage of coaching prose discussing the user's opponent — their opening repertoire, ratings, psychology, recent results, prep notes.
+
+OUTPUT: a JSON array. Each element is one distinct scouting claim found in the passage:
+
+  {
+    "claim_text": verbatim quote from input,
+    "claim_type": one of [
+      "opponent_plays_opening","opponent_strength_opening","opponent_weakness_opening",
+      "archetype","profile_dimension","rating_by_timeclass",
+      "peak_rating","low_rating","latest_rating","recent_form_trend","phase_elo",
+      "stalker_total","stalker_factor",
+      "tilt_pattern","timeout_pattern","resign_pattern","checkmate_rate",
+      "quick_loss_pattern","long_game_pattern","streak_claim","avg_game_length",
+      "rival_record","collision_edge","novelty_finding","checklist_item","recent_form_bucket"
+    ],
+    "expected_in_data": {
+      "opening_name"?: string,
+      "opening_eco"?: string,
+      "opponent_color"?: "white" | "black",
+      "stated_pct"?: number,
+      "stated_rating"?: number,
+      "time_class"?: "bullet" | "blitz" | "rapid" | "classical" | "daily",
+      "stated_value"?: number,
+      "stated_archetype"?: string,
+      "dimension"?: "ovr" | "atk" | "def" | "time" | "mind",
+      "factor_id"?: "time_trouble" | "tilts" | "limited_rep" | "repetitive",
+      "phase"?: "opening" | "middle" | "endgame",
+      "rival_name"?: string,
+      "your_color"?: "white" | "black",
+      "novelty_game_id"?: string,
+      "novelty_ply"?: number,
+      "novelty_played_move"?: string,
+      "checklist_title"?: string,
+      "form_bucket_label"?: string,
+      "stated_wins"?: number,
+      "stated_draws"?: number,
+      "stated_losses"?: number
+    },
+    "claim_class": "factual_scouting_claim" | "qualitative_commentary" | "conditional_speculation",
+    "confidence": number in [0, 1]
+  }
+
+Return ONLY the JSON array. No prose, no preamble. If the passage contains no scouting claims, return [].
+
+CLAIM-TYPE DEFINITIONS:
+
+[Opening / prep]
+- "opponent_plays_opening" — opponent's frequency of playing a named opening.
+  Example: "Vinod plays the Najdorf 60% of the time" →
+    expected_in_data: { opening_name: "Najdorf", stated_pct: 60 }
+- "opponent_strength_opening" — opponent's score % in a named opening they do well in.
+  Example: "They score 70% with white in the King's Indian" →
+    expected_in_data: { opening_name: "King's Indian", opponent_color: "white", stated_pct: 70 }
+- "opponent_weakness_opening" — opponent's score % in a named opening they struggle in.
+
+[Profile]
+- "archetype" — opponent's archetype label.
+  Example: "Plays like a positional grinder" →
+    expected_in_data: { stated_archetype: "positional grinder" }
+- "profile_dimension" — numeric score 0-100 on a profile dimension.
+  Example: "Attacking score 78" →
+    expected_in_data: { dimension: "atk", stated_value: 78 }
+- "rating_by_timeclass" — rating in a named time class.
+  Example: "1800 in rapid" →
+    expected_in_data: { time_class: "rapid", stated_rating: 1800 }
+- "peak_rating" / "low_rating" / "latest_rating" — rating landmarks.
+  Example: "Peaked at 2050" → claim_type: peak_rating, expected_in_data: { stated_rating: 2050 }
+- "recent_form_trend" — W/D/L counts in a generic recent-results window (NOT a named bucket).
+  Example: "Won 6 of their last 10" →
+    expected_in_data: { stated_wins: 6, stated_value: 10 }
+- "phase_elo" — ELO estimate in a game phase, or a phase-vs-phase delta.
+  Example: "Endgame ELO is 200 below their middlegame" →
+    expected_in_data: { phase: "endgame", stated_value: 200 }
+  Example: "Middlegame ELO 1850" →
+    expected_in_data: { phase: "middle", stated_rating: 1850 }
+
+[Stalker]
+- "stalker_total" — overall stalker score 0-100 + predictability.
+  Example: "Stalker Score 72 — highly exploitable" →
+    expected_in_data: { stated_value: 72 }
+- "stalker_factor" — named stalker factor + its score.
+  Example: "Tilts hard after a loss (factor score 80)" →
+    expected_in_data: { factor_id: "tilts", stated_value: 80 }
+
+[Psychology]
+- "tilt_pattern" — loss rate after a previous loss.
+- "timeout_pattern" — % losses by timeout.
+- "resign_pattern" — % losses by resignation.
+- "checkmate_rate" — % wins by checkmate.
+- "quick_loss_pattern" — % losses under 50 plies.
+- "long_game_pattern" — % losses over 120 plies.
+- "streak_claim" — max win streak or max loss streak.
+  Example: "Max win streak 14" → expected_in_data: { stated_value: 14 }
+- "avg_game_length" — average game length in plies.
+  Example: "Their games average 60 plies" → expected_in_data: { stated_value: 60 }
+For all psychology rate claims (tilt/timeout/resign/checkmate/quick_loss/long_game): expected_in_data: { stated_pct: <number> }.
+
+[Rivals / collisions / novelty / checklist / recent-form]
+- "rival_record" — user's record vs a named rival.
+  Example: "You've played them 8 times — you're 3-2-3" →
+    expected_in_data: { rival_name: "<the named rival or opponent>", stated_wins: 3, stated_draws: 2, stated_losses: 3 }
+- "collision_edge" — user's score in a specific opening when playing a specific color.
+  Example: "When you play White, you score 65% in the Caro-Kann" →
+    expected_in_data: { your_color: "white", opening_name: "Caro-Kann", stated_pct: 65 }
+- "novelty_finding" — opponent's deviation from book on a specific move/game.
+  Example: "On move 8 in game X they deviated from their book" →
+    expected_in_data: { novelty_game_id: "<id-if-cited>", novelty_ply: 16, novelty_played_move: "<if-cited>" }
+- "checklist_item" — prep checklist item referenced by title.
+  Example: "Watch out for their kingside attack pattern" → only mark as checklist_item if the coach explicitly references a checklist (title/ID); otherwise mark as qualitative_commentary.
+- "recent_form_bucket" — W/D/L counts in a NAMED recent-form bucket.
+  Example: "Their last 20 games: 12 wins, 3 draws, 5 losses" →
+    expected_in_data: { form_bucket_label: "last 20", stated_wins: 12, stated_draws: 3, stated_losses: 5 }
+
+CLAIM_CLASS RULES:
+
+- "factual_scouting_claim" — asserts a SPECIFIC value from scout data: a percentage, a rating, an archetype label, a factor score, a count.
+- "qualitative_commentary" — describes opponent style or tendencies WITHOUT citing a specific scout value.
+  Examples: "they like attacking positions", "they're a strong Najdorf player", "watch their kingside attacks". NOT factual_scouting_claim.
+- "conditional_speculation" — claims gated on a continuation or hypothesis.
+  Example: "if they play 6.Be3 again, they'll usually continue with…".
+
+ATTRIBUTION RULE: claims attributed to the user, the engine, or external sources (NOT the coach asserting from scout data) → qualitative_commentary.
+  Examples that are NOT factual_scouting_claim:
+  - "You mentioned they tilt" — user-attributed.
+  - "The engine thinks they're better here" — engine-attributed.
+  - "Their friend said they prefer 1.e4" — third-party-attributed.
+
+CONFIDENCE GUIDE:
+- 0.9-1.0: unambiguous factual scouting claim citing a specific value.
+- 0.5-0.8: factual but hedged ("around 60%", "roughly 1800").
+- 0.0-0.4: vague, qualified, or impossible to map to a single source field.
+
+Reasoning rules:
+- If the prose names a number ("60%", "1800", "Score 72"), prefer factual_scouting_claim.
+- If the prose names a category without a number ("strong Najdorf player"), prefer qualitative_commentary.
+- "%" or "score" or "rating" almost always implies a factual_scouting_claim.`;
+
+export interface ScoutCitationParseInput {
+  llmResponse: string;
+  opponentUsername: string;
+  /**
+   * Primary time-class context for rating disambiguation. Optional —
+   * the coach may name the time-class explicitly inside the passage,
+   * in which case this hint is redundant but harmless.
+   */
+  primaryTimeClass?: "bullet" | "blitz" | "rapid" | "classical" | "daily";
+}
+
+export function buildScoutCitationUserTurn(input: ScoutCitationParseInput): string {
+  return [
+    `Opponent username: ${input.opponentUsername}.`,
+    `Primary time class (context, optional): ${input.primaryTimeClass ?? "unspecified"}.`,
+    `Passage:`,
+    ``,
+    input.llmResponse,
+  ].join("\n");
+}

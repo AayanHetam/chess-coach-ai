@@ -12,6 +12,8 @@ export { validateEvalClaim } from "./evalClaim";
 export type { EvalClaimOpts, ParserCall } from "./evalClaim";
 export { validateFeatureDeltaCitations } from "./featureDeltaCitation";
 export type { FeatureCitationOpts } from "./featureDeltaCitation";
+export { validateScoutCitation, countScoutOpportunities, SCOUT_TOLERANCE } from "./scoutCitation";
+export type { ScoutCitationOpts } from "./scoutCitation";
 export { regenerateUntilValid, buildRetryInstruction } from "./regenerate";
 export type { RegenerateOpts, RegenerateResult } from "./regenerate";
 export { buildFallbackResponse } from "./fallback";

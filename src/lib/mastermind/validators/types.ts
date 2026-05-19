@@ -4,6 +4,7 @@ export type CheckName =
   | "eval_mismatch_numeric"
   | "eval_mismatch_qualitative"
   | "feature_citation_unsupported"
+  | "scout_citation_unsupported"
   | "parser_failure";
 
 export type FireReason =
@@ -103,3 +104,91 @@ export interface ParsedFeatureClaim {
 
 export const PARSER_LOW_CONFIDENCE_THRESHOLD = 0.5;
 export const EVAL_NUMERIC_THRESHOLD_CP = 150;
+
+// ─────────────────────────────────────────────────────────────────────────
+// Scout citation (Stage A.6 — PR_1C_SCOUT_CITATION_PLAN.md)
+// ─────────────────────────────────────────────────────────────────────────
+
+export type ScoutClaimType =
+  // §3.1 Opening / prep (3)
+  | "opponent_plays_opening"
+  | "opponent_strength_opening"
+  | "opponent_weakness_opening"
+  // §3.2 Profile (8)
+  | "archetype"
+  | "profile_dimension"
+  | "rating_by_timeclass"
+  | "peak_rating"
+  | "low_rating"
+  | "latest_rating"
+  | "recent_form_trend"
+  | "phase_elo"
+  // §3.3 Stalker (2)
+  | "stalker_total"
+  | "stalker_factor"
+  // §3.4 Psychology (8)
+  | "tilt_pattern"
+  | "timeout_pattern"
+  | "resign_pattern"
+  | "checkmate_rate"
+  | "quick_loss_pattern"
+  | "long_game_pattern"
+  | "streak_claim"
+  | "avg_game_length"
+  // §3.5 Rivals / collisions / novelty / checklist / recent-form (5)
+  | "rival_record"
+  | "collision_edge"
+  | "novelty_finding"
+  | "checklist_item"
+  | "recent_form_bucket";
+
+export type ScoutDimension = "ovr" | "atk" | "def" | "time" | "mind";
+export type ScoutFactorId = "time_trouble" | "tilts" | "limited_rep" | "repetitive";
+export type ScoutPhase = "opening" | "middle" | "endgame";
+export type ScoutTimeClass = "bullet" | "blitz" | "rapid" | "classical" | "daily";
+
+export interface ParsedScoutClaim {
+  claim_text: string;
+  claim_type: ScoutClaimType;
+  expected_in_data: {
+    opening_name?: string;
+    opening_eco?: string;
+    opponent_color?: "white" | "black";
+    stated_pct?: number;
+    stated_rating?: number;
+    time_class?: ScoutTimeClass;
+    stated_value?: number;
+    stated_archetype?: string;
+    dimension?: ScoutDimension;
+    factor_id?: ScoutFactorId;
+    phase?: ScoutPhase;
+    rival_name?: string;
+    your_color?: "white" | "black";
+    novelty_game_id?: string;
+    novelty_ply?: number;
+    novelty_played_move?: string;
+    checklist_title?: string;
+    form_bucket_label?: string;
+    stated_wins?: number;
+    stated_draws?: number;
+    stated_losses?: number;
+  };
+  claim_class:
+    | "factual_scouting_claim"
+    | "qualitative_commentary"
+    | "conditional_speculation";
+  confidence: number;
+}
+
+/**
+ * Opportunity for the citation-rate denominator. Each "non-default" entry
+ * in scout output counts as one opportunity. Local shape for Stage A.6;
+ * Stage A.9's citationRate.ts widens this into a cross-source Opportunity
+ * type that also covers feature_delta / user_history / jhamtani sources.
+ */
+export interface ScoutOpportunity {
+  dataSource: "scout";
+  claim_type: ScoutClaimType;
+  /** Opaque pointer back to the source entry (for debugging/logging). */
+  ref: unknown;
+}

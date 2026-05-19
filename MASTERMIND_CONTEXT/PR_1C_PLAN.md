@@ -936,6 +936,20 @@ PR 1.C → main
 
 ---
 
+## 11.7 Known measurement gap — `feature_delta` opportunity counter not shipped in A.9 (NEW 2026-05-18)
+
+Stage A.9's `citationRate.ts` aggregates citations per source against per-source opportunity arrays. Stage A.6 shipped `countScoutOpportunities`; Stage A.8 shipped `countUserHistoryOpportunities`. **No equivalent `countFeatureDeltaOpportunities` exists** — the `feature_delta` source has no opportunity counter.
+
+**Consequence for the Stage C sweep:** `game_review` and `position_analysis` (whose [§5.3.2](PR_1C_PLAN.md) primary source is `feature_delta`) produce **hallucination-check data only** (PR 1.B's `featureDeltaCitation` still fires on unsupported claims), **no citation-rate denominator**. Future readers of [§5.3.2](PR_1C_PLAN.md) and Stage C reports should NOT assume those categories are fully measured against their listed citation-rate floors.
+
+**Stage C treatment** (ratified Aayan 2026-05-18 C2): treat null citation-rate as "not measured" and pass-by-default. The hallucination ceiling still applies — PR 1.B catches fabricated feature-delta claims. The categories are not entirely unmeasured, just narrower than [§5.3.2](PR_1C_PLAN.md)'s floors imply.
+
+**Tracking:** `MASTERMIND_CONTEXT/cleanup_followups.md` carries the build spec for `countFeatureDeltaOpportunities` when CMIP data informs what counts as a citable opportunity in feature_delta. Trigger: CMIP-2 surfaces real coach behavior on feature_delta claims, OR Stage C surfaces under-measurement complaints.
+
+This note exists so future readers of `PR_1C_PLAN.md` see the gap explicitly rather than inferring "all six categories are fully measured" from the §5.3.2 table.
+
+---
+
 ## 12. Pause (audit-revised)
 
 Plan audit-revised. No code yet. PR 1.C scope is finalized:

@@ -110,3 +110,34 @@ Option A is preferred because the classifier utility is the primary source of tr
 **Why deferred.** Stage A.9 is the final Stage A commit. Touching either type definition during A.9 expands scope. The structural-typing compatibility is sufficient today; the refactor is preventative.
 
 **Recommended trigger:** any future PR that adds a new TimeClass value (e.g., `"correspondence"` becoming first-class instead of folded into `"daily"`). At that point the divergence becomes a real bug rather than a latent fragility.
+
+---
+
+## 2026-05-18 — `feature_delta` opportunity counter not shipped in A.9
+
+**Status:** flagged during PR 1.C Stage A.9 plan approval (C2 / T4).
+
+**Background.** Stage A.9's `citationRate.ts` aggregates citations per source against per-source opportunity arrays. Stage A.6 shipped `countScoutOpportunities`; Stage A.8 shipped `countUserHistoryOpportunities`. **No equivalent `countFeatureDeltaOpportunities` exists** for the `feature_delta` source.
+
+**Consequence for the Stage C sweep:** the `game_review` and `position_analysis` categories' citation-rate floors (90% and 70% per [PR_1C_PLAN.md §5.3.2](../MASTERMIND_CONTEXT/PR_1C_PLAN.md)) produce **hallucination-check data only** (PR 1.B's `featureDeltaCitation` still fires on unsupported claims) but **no citation-rate denominator** (we can count the citations the coach made, but not the opportunities they passed over).
+
+`citationRate.ts` handles this by returning `null` for the `feature_delta` source bucket when no opportunity array is provided. Stage C sweep treats null as "not measured" — the hallucination ceiling still applies (the LLM can't fabricate feature-delta claims; PR 1.B catches that). The citation-rate metric is one of multiple; one being unmeasured doesn't invalidate the rest.
+
+**Cleanup task.** Build `countFeatureDeltaOpportunities(delta: PositionFeatureDelta): FeatureDeltaOpportunity[]`. Each "non-default" entry in the delta counts as one opportunity. Existence-based thresholds, mirroring `countScoutOpportunities`:
+
+- Each entry in `passedPawnsGained.{white,black}` → 1 opp
+- Each entry in `passedPawnsLost.{white,black}` → 1 opp
+- Each entry in `openFilesGained` / `openFilesLost` → 1 opp
+- `materialDelta.{white,black}` non-zero → 1 opp each
+- `kingSafetyDelta.{white,black}` non-zero → 1 opp each
+- Each entry in `hangingPiecesDelta.{newlyHanging,nowDefended}` → 1 opp
+- Each entry in `threatsDelta.{newThreats,resolvedThreats}` → 1 opp
+- Doubled/isolated pawn changes → 1 opp each when non-zero
+
+Plus a corresponding `featureDelta?: FeatureDeltaOpportunity[]` field on `citationRate.ts`'s `opportunities` input, populated from `wireValidators.ts`.
+
+Estimated size: ~120 lib + ~150 test = ~270 LOC.
+
+**Why deferred.** Stage A.9 plan §1.1 explicitly defers; per C2, building the counter without CMIP data on what coaches actually cite in feature_delta is speculation. CMIP-2 ratings + correlation analysis will inform what "non-default" actually means in this source.
+
+**Recommended trigger:** CMIP-2 surfaces real coach behavior on feature_delta claims, OR Stage C sweep shows game_review / position_analysis hallucination rates passing but the categories feel under-measured against coaching quality.

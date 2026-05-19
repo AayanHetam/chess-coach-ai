@@ -613,6 +613,92 @@
       "expectedFinalOutcome": "passed_after_retry",
       "groundingOpportunityCount": 0,
       "groundingMatchedCount": 0
+    },
+    {
+      "name": "BAD-11: adjacent band-flip on the other side of boundary 150",
+      "category": "known_bad",
+      "description": "Stockfish +120cp (slightly_better band); response claims much_better. Adjacent flip across the same 150 boundary as BAD-1 but from the other side — slightly_better → much_better at distance 30. |120-150|=30 > default tolerance 20 → fires. --override-tolerance=2000 suppresses (30 < 2000). Generalizes BAD-1's case across direction: BAD-1 underestimates (much_better expected, slightly_better claimed) at distance 100; BAD-11 overestimates (slightly_better expected, much_better claimed) at distance 30.",
+      "stockfishEval": { "cp": 120 },
+      "playerPerspective": "white",
+      "featureDelta": {},
+      "pieceRoleDiff": [],
+      "response": "White has a clear advantage here.",
+      "correctedResponse": "White is slightly better here.",
+      "evalParserOutput": [
+        {
+          "stated_band": "much_better",
+          "stated_cp": null,
+          "supporting_spans": ["White has a clear advantage"],
+          "confidence": 0.95,
+          "claim_class": "evaluative",
+          "perspective": "white"
+        }
+      ],
+      "citationParserOutput": [],
+      "expectedFires": {
+        "eval_mismatch_numeric": false,
+        "eval_mismatch_qualitative": true,
+        "feature_citation_unsupported": false
+      },
+      "expectedFinalOutcome": "passed_after_retry",
+      "groundingOpportunityCount": 0,
+      "groundingMatchedCount": 0
+    },
+    {
+      "name": "GOOD-11: partial grounding — 4 opportunities, response cites 2",
+      "category": "known_good",
+      "description": "Delta has 4 citable entries (passed pawn on d5, role change knight-outpost-e5, open file e, material loss). Response cites the passed pawn AND the material loss but skips the role change and open file. Ratio 2/4 = 0.5 → drags the aggregate grounding metric from 1.00 to 0.875, demonstrating the threshold catches incomplete grounding. Validators don't fire (all cited claims match the delta); finalOutcome is passed_initial.",
+      "stockfishEval": { "cp": -50 },
+      "playerPerspective": "white",
+      "featureDelta": {
+        "materialDelta": { "white": -3, "black": 0 },
+        "pawnStructureDelta": {
+          "doubledPawnsChange": { "white": 0, "black": 0 },
+          "isolatedPawnsChange": { "white": 0, "black": 0 },
+          "passedPawnsGained": { "white": ["d5"], "black": [] },
+          "passedPawnsLost": { "white": [], "black": [] },
+          "openFilesGained": ["e"],
+          "openFilesLost": [],
+          "semiOpenFilesGained": { "white": [], "black": [] },
+          "semiOpenFilesLost": { "white": [], "black": [] }
+        },
+        "isEmptyDelta": false
+      },
+      "pieceRoleDiff": [
+        {
+          "square": "e5",
+          "piece": "n",
+          "color": "w",
+          "gained": ["outpost"],
+          "lost": []
+        }
+      ],
+      "response": "You traded a piece for the d5 passed pawn — material is now down but the pawn is a long-term asset.",
+      "evalParserOutput": [],
+      "citationParserOutput": [
+        {
+          "claim_text": "d5 passed pawn",
+          "claim_type": "new_passed_pawn",
+          "expected_in_delta": { "side": "white", "square": "d5" },
+          "claim_class": "factual_delta_claim",
+          "confidence": 0.95
+        },
+        {
+          "claim_text": "traded a piece",
+          "claim_type": "lost_piece",
+          "expected_in_delta": { "side": "white" },
+          "claim_class": "factual_delta_claim",
+          "confidence": 0.95
+        }
+      ],
+      "expectedFires": {
+        "eval_mismatch_numeric": false,
+        "eval_mismatch_qualitative": false,
+        "feature_citation_unsupported": false
+      },
+      "expectedFinalOutcome": "passed_initial",
+      "groundingOpportunityCount": 4,
+      "groundingMatchedCount": 2
     }
   ]
 }

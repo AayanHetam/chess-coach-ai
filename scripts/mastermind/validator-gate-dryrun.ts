@@ -336,7 +336,8 @@ interface FixtureResult {
   totalCostUsd: number;
   groundingOpportunityCount: number;
   groundingMatchedCount: number;
-  groundedAtLeastOne: boolean;
+  /** Per-fixture grounding ratio: matched/opportunities. null when opp=0 (excluded from aggregate). */
+  groundingRatio: number | null;
 }
 
 async function processFixture(fixture: FixtureTuple, overrides: CliOverrides): Promise<FixtureResult> {
@@ -347,6 +348,11 @@ async function processFixture(fixture: FixtureTuple, overrides: CliOverrides): P
     expectedFires.eval_mismatch_numeric === actualFires.eval_mismatch_numeric &&
     expectedFires.eval_mismatch_qualitative === actualFires.eval_mismatch_qualitative &&
     expectedFires.feature_citation_unsupported === actualFires.feature_citation_unsupported;
+
+  const groundingRatio =
+    fixture.groundingOpportunityCount > 0
+      ? fixture.groundingMatchedCount / fixture.groundingOpportunityCount
+      : null;
 
   return {
     name: fixture.name,
@@ -361,8 +367,7 @@ async function processFixture(fixture: FixtureTuple, overrides: CliOverrides): P
     totalCostUsd: result.totalCostUsd,
     groundingOpportunityCount: fixture.groundingOpportunityCount,
     groundingMatchedCount: fixture.groundingMatchedCount,
-    groundedAtLeastOne:
-      fixture.groundingOpportunityCount > 0 && fixture.groundingMatchedCount > 0,
+    groundingRatio,
   };
 }
 
@@ -387,12 +392,12 @@ function aggregate(results: FixtureResult[], thresholds: Thresholds): MetricRepo
   const chessCorrectnessViolations = results.filter((r) => !r.outcomeMatches || !r.firesMatch).length;
   const chessCorrectnessPasses = chessCorrectnessViolations <= thresholds.chessCorrectnessViolationsMax;
 
-  const groundingDenominator = results.filter((r) => r.groundingOpportunityCount > 0);
+  const groundingDenominator = results.filter((r) => r.groundingRatio !== null);
   let structuralGrounding: number | null = null;
   let structuralGroundingPasses = true;
   if (groundingDenominator.length > 0) {
-    const grounded = groundingDenominator.filter((r) => r.groundedAtLeastOne).length;
-    structuralGrounding = grounded / groundingDenominator.length;
+    const ratioSum = groundingDenominator.reduce((acc, r) => acc + (r.groundingRatio ?? 0), 0);
+    structuralGrounding = ratioSum / groundingDenominator.length;
     structuralGroundingPasses = structuralGrounding >= thresholds.structuralGroundingMin;
   }
 

@@ -108,7 +108,7 @@ const features = [
     icon: "mdi:puzzle",
     title: "100,000+ puzzles in a Neo4j graph",
     description:
-      "A Neo4j Aura graph of 100,000+ quality-filtered Lichess puzzles, structured across 46 tactical themes and 4 difficulty bands, joined with 298,000+ Jhamtani expert-commentary pairs. Recommendations come from graph traversal plus 49-dimensional FEN cosine-similarity re-ranking against your actual mistake.",
+      "A Neo4j Aura graph of 100,000+ quality-filtered Lichess puzzles, structured across 46 tactical themes and 4 difficulty bands. Recommendations come from graph traversal plus 49-dimensional FEN cosine-similarity re-ranking against your actual mistake.",
   },
   {
     icon: "mdi:binoculars",

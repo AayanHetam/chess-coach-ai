@@ -225,8 +225,7 @@ export default function ArchitecturePage() {
               The puzzle graph in <strong>Neo4j Aura</strong> holds 100,000+
               Lichess puzzles, filtered by quality (popularity ≥ 60, plays ≥
               50, rating deviation ≤ 120) and structured across 46 tactical
-              themes and 4 difficulty bands. We join in 298,000+ commentary
-              pairs from the Jhamtani expert-commentary dataset.
+              themes and 4 difficulty bands.
             </p>
             <p>Recommendation is a two-stage process:</p>
             <ol>

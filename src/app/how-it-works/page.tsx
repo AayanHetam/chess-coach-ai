@@ -178,12 +178,12 @@ export default function HowItWorksPage() {
               same chat bubble, same chess board, no tab switch. They&apos;re
               pulled from a{" "}
               <strong>Neo4j graph of 100,000+ Lichess puzzles</strong> filtered
-              to popularity ≥ 60, plays ≥ 50, rating deviation ≤ 120 — joined
-              to 298,000+ Jhamtani expert-commentary pairs. Retrieval is a
-              graph traversal (your skill band × the relevant tactical theme),
-              then a 49-dimensional FEN cosine-similarity re-ranking against
-              the FEN you just lost. You train on the geometry of your specific
-              mistake, not a generic &quot;back-rank tactics&quot; bucket.
+              to popularity ≥ 60, plays ≥ 50, rating deviation ≤ 120. Retrieval
+              is a graph traversal (your skill band × the relevant tactical
+              theme), then a 49-dimensional FEN cosine-similarity re-ranking
+              against the FEN you just lost. You train on the geometry of your
+              specific mistake, not a generic &quot;back-rank tactics&quot;
+              bucket.
             </p>
             <p>
               Solve them, the SM-2 spaced-repetition scheduler files them away,

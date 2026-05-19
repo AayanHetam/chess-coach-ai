@@ -42,3 +42,43 @@ Three-line change effectively: remove the private function, add the import, rena
 **Risk if left:** the two copies could drift over time (e.g., one gains tag-name normalization, the other doesn't). Low probability — the regex is short and stable, and the PGN header format hasn't changed in 25 years.
 
 **Recommended trigger:** if any future PR touches `repertoireParser.ts` for an unrelated reason, fold this consolidation in. Otherwise wait until cleanup PR cadence resumes.
+
+---
+
+## 2026-05-18 — Future expansion: move-sequence-based opening repertoire validation
+
+**Status:** flagged during PR 1.C Stage A.8 plan approval (C2 / T3).
+
+**Background.** Stage A.8's `userHistoryCitation` validator handles `opening_repertoire_performance` claims that name the opening (e.g., "your Najdorf as black has been 41%") or the ECO code. Move-prefix claims like "you score 65% in 1.e4 e5 lines" or "your French Defense after 1.e4 e6 2.d4 d5" route to `qualitative_commentary` and skip validation — the parser can't reliably resolve a move-prefix to the ECO/Opening that the aggregator stores.
+
+The existing [`scoutEco.ts`](../src/lib/scoutEco.ts) is a SAN-prefix → ECO lookup table designed for the Scout UI's opening labeling — could *in principle* be extended into the parser pipeline to resolve move-prefix claims at parse time. But the parsing is fragile (LLMs phrase move sequences inconsistently — "1.e4 e5", "after 1...e5", "the e5 pawn structure", "the King's Pawn opening lines"), and Stage A.8 defers to keep MVP scope tight.
+
+**Cleanup task (future expansion).** When the time comes, build move-sequence-based opening repertoire validation:
+
+1. Extend the `USER_HISTORY_CITATION_PARSER_SYSTEM` prompt to recognize SAN-prefix patterns in claims and emit them in `expected_in_data.move_prefix`.
+2. Add a new helper `resolveMovesToOpening(moves: string[]) → { eco, opening, variation } | null` that walks `scoutEco.ts` to find the deepest matching ECO entry.
+3. In `userHistoryCitation.ts`'s `opening_repertoire_performance` branch, if the claim's `move_prefix` is present and `opening_name`/`opening_eco` are not, resolve via the helper before cross-checking.
+4. Tests covering common SAN-prefix phrasings.
+
+Estimated size: ~200 LOC + ~100 test. Real infrastructure when it lands — not a one-line patch.
+
+**Recommended trigger:** Stage C sweep observes ≥5% of `opening_repertoire_performance` claims firing as `qualitative_commentary` because they cite move-prefix instead of opening-name. Below 5% the expansion isn't load-bearing.
+
+---
+
+## 2026-05-18 — Cross-platform user-identifier reconciliation
+
+**Status:** flagged during PR 1.C Stage A.8 plan approval (C4).
+
+**Background.** Stage A.7's `detectUserColor` matches `userName` as a case-insensitive substring against `Player.name`. Single-identifier MVP — works fine when the user plays under one consistent name. Doesn't handle the common case of one user playing under different usernames on Lichess vs Chess.com (e.g., "Aayan_K" on Lichess, "aayanhetam" on Chess.com).
+
+**Consequence today.** When the validator runs `userHistoryCitation` with a single `userName`, games where the user played under the OTHER platform's name are silently excluded from the aggregator output. The citation-rate denominator under-counts opportunities for that user; some valid citations may surface as `unsupported_citation` fires because the relevant games weren't aggregated.
+
+**Cleanup task.** Add cross-platform identity reconciliation, post-PR-1.E (where the user profile data model is expanded):
+
+1. Extend `UserProfile` (Firestore) with a canonical list of aliases: `{ lichessUsername?, chesscomUsername?, otherAliases?: string[] }` (the first two already exist).
+2. Update the route handler that calls `validateUserHistoryCitation` to pass the user's full alias set instead of a single `userName` string.
+3. Update `detectUserColor` to test the game against ANY alias in the set, returning the color of the first match.
+4. Tests covering the multi-alias case + the (unchanged) single-name case.
+
+**Recommended trigger:** PR 1.E lands and the user-profile shape gains the alias fields, OR Stage C sweep surfaces user-history citation-rate gaps that trace back to single-alias undercounting.

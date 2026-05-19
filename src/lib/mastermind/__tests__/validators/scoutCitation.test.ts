@@ -260,6 +260,47 @@ describe("scoutCitation: opening / prep claims", () => {
       ]);
       expect(r.passed).toBe(false);
     });
+
+    // Unhinted-claim handling (Aayan 2026-05-18). Three paths:
+    it("Path A: unhinted claim — Najdorf at ≥5% frequency → passes (no stated_pct)", async () => {
+      // richScout: Sicilian Najdorf in asWhite.weaknesses (30 games) + Sicilian
+      // Defense Najdorf in asBlack.strengths (38 games). Total pool ~103 games.
+      // Either Najdorf is well above 5% baseline.
+      const r = await runValidator(richScout(), [
+        factualClaim("opponent_plays_opening", { opening_name: "Najdorf" }),
+      ]);
+      expect(r.passed).toBe(true);
+    });
+
+    it("Path B: unhinted claim — Najdorf at near-zero frequency → fires (below baseline)", async () => {
+      const scout = richScout();
+      // Replace Najdorf entries with low-frequency ones; keep other openings high
+      // so the Najdorf falls below the 5% baseline of the total pool.
+      scout.prep.asWhite.weaknesses = [
+        { eco: "B90", name: "Sicilian Najdorf", variation: "", moves: [], totalGames: 1, scorePct: 0, wins: 0, draws: 0, losses: 1 },
+      ];
+      scout.prep.asBlack.strengths = []; // remove the high-frequency Najdorf entry
+      // Total pool now: 1 (Najdorf) + 20 (Ruy Lopez) + 15 (London) = 36 games
+      // Najdorf frequency = 1/36 = 2.8% < 5% baseline → fires.
+      const r = await runValidator(scout, [
+        factualClaim("opponent_plays_opening", { opening_name: "Najdorf" }),
+      ]);
+      expect(r.passed).toBe(false);
+    });
+
+    it("Path C: unhinted claim — no Najdorf data at all → fires (no match)", async () => {
+      const scout = richScout();
+      scout.prep.asWhite.weaknesses = scout.prep.asWhite.weaknesses.filter(
+        (o) => !`${o.name} ${o.variation}`.toLowerCase().includes("najdorf")
+      );
+      scout.prep.asBlack.strengths = scout.prep.asBlack.strengths.filter(
+        (o) => !`${o.name} ${o.variation}`.toLowerCase().includes("najdorf")
+      );
+      const r = await runValidator(scout, [
+        factualClaim("opponent_plays_opening", { opening_name: "Najdorf" }),
+      ]);
+      expect(r.passed).toBe(false);
+    });
   });
 
   describe("opponent_strength_opening", () => {

@@ -109,6 +109,16 @@ function lower(s: string | undefined): string {
  * literal substring fails when intermediate words like "Defense" sit
  * between the matched terms. Token-overlap handles all word-order
  * variants without needing claim-side normalization.
+ *
+ * Stage C watchpoint (Aayan 2026-05-18): token overlap can over-match
+ * if common tokens like "Defense" or "Gambit" appear across distinct
+ * openings. If false positives surface in the sweep where the validator
+ * accepts a wrong opening due to overlap on non-distinctive tokens, the
+ * fix is requiring overlap on the *distinctive* tokens specifically
+ * (e.g., drop a stopword list like ["defense", "opening", "gambit"]
+ * from both sides before checking). Not a code change now; the watch
+ * lives in this comment so it's visible to anyone iterating on the
+ * matcher post-Stage-C.
  */
 function substringMatch(haystack: string, needle: string): boolean {
   const h = lower(haystack);
@@ -195,6 +205,28 @@ function matchScoutClaim(
       if (matches.length === 0) return { matched: false };
       const total = pool.reduce((s, o) => s + o.totalGames, 0);
       if (total === 0) return { matched: false, matchedEntry: { matchCount: matches.length } };
+      // Unhinted-claim handling (Aayan 2026-05-18). When the parser couldn't
+      // extract a stated % — e.g., "they play the Najdorf a lot" parsed as
+      // factual_scouting_claim with no stated_pct — treat as an existence-
+      // only check. Three paths:
+      //   (A) Najdorf at ≥5% of pool frequency → passes (matched on baseline).
+      //   (B) Najdorf at < 5% (near-zero) → fires (below baseline; cited
+      //       opening exists in data but isn't load-bearing in the opponent's
+      //       repertoire — coach is overstating).
+      //   (C) Najdorf not in scout data at all → fires via the matches.length
+      //       === 0 guard above.
+      // UNHINTED_FREQ_BASELINE_PCT chosen at 5 for consistency with
+      // OPP_THRESHOLD.timeoutPct: the same threshold marks "non-default" in
+      // the opportunity counter.
+      const UNHINTED_FREQ_BASELINE_PCT = 5;
+      if (ex.stated_pct === undefined) {
+        const found = matches.find((o) => (o.totalGames / total) * 100 >= UNHINTED_FREQ_BASELINE_PCT);
+        if (found) {
+          const computedPct = (found.totalGames / total) * 100;
+          return { matched: true, matchedEntry: { opening: found.name, computedPct, unhinted: true } };
+        }
+        return { matched: false, matchedEntry: { matchCount: matches.length, allBelowBaseline: true } };
+      }
       for (const found of matches) {
         const computedPct = (found.totalGames / total) * 100;
         if (withinPct(ex.stated_pct, computedPct)) {

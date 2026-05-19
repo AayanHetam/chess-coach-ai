@@ -82,3 +82,31 @@ Estimated size: ~200 LOC + ~100 test. Real infrastructure when it lands — not 
 4. Tests covering the multi-alias case + the (unchanged) single-name case.
 
 **Recommended trigger:** PR 1.E lands and the user-profile shape gains the alias fields, OR Stage C sweep surfaces user-history citation-rate gaps that trace back to single-alias undercounting.
+
+---
+
+## 2026-05-18 — `TimeControlClass` ↔ `ScoutTimeClass` type derivation
+
+**Status:** flagged during PR 1.C Stage A.8 approval (Aayan, post-impl note).
+
+**Background.** Stage A.8 introduced [`TimeControlClass`](../src/lib/utils/timeControlClass.ts) (`"bullet" | "blitz" | "rapid" | "classical" | "daily" | "unknown"`) — the narrow return type of `classifyTimeControl`. [`ScoutTimeClass`](../src/lib/mastermind/validators/types.ts) (`"bullet" | "blitz" | "rapid" | "classical" | "daily"`) was introduced in Stage A.6 for scout's `rating_by_timeclass` claim type. The two types are structurally identical except `TimeControlClass` adds `"unknown"`.
+
+Today the validators compose without explicit casts (TypeScript's structural typing handles the equivalence after `if (cls === "unknown") continue;` narrowing). But the parallel type declarations are subtly fragile — if either side adds a value (e.g., scout adds `"correspondence"`), the other doesn't get the update automatically and the structural compatibility breaks silently.
+
+**Cleanup task.** Refactor so `ScoutTimeClass` is derived from `TimeControlClass` via exclusion (or vice versa):
+
+```typescript
+// Option A (preferred): ScoutTimeClass derived from TimeControlClass
+import type { TimeControlClass } from "@/lib/utils/timeControlClass";
+export type ScoutTimeClass = Exclude<TimeControlClass, "unknown">;
+
+// Option B: TimeControlClass derived from ScoutTimeClass
+import type { ScoutTimeClass } from "@/lib/mastermind/validators/types";
+export type TimeControlClass = ScoutTimeClass | "unknown";
+```
+
+Option A is preferred because the classifier utility is the primary source of truth for the underlying classes (it owns the bucketing thresholds). Drop this entry when shipped.
+
+**Why deferred.** Stage A.9 is the final Stage A commit. Touching either type definition during A.9 expands scope. The structural-typing compatibility is sufficient today; the refactor is preventative.
+
+**Recommended trigger:** any future PR that adds a new TimeClass value (e.g., `"correspondence"` becoming first-class instead of folded into `"daily"`). At that point the divergence becomes a real bug rather than a latent fragility.

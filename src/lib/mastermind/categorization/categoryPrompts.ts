@@ -68,19 +68,28 @@ CATEGORY DEFINITIONS:
 CONFIDENCE GUIDE:
 
 - 0.9-1.0: unambiguous; the question fits cleanly in one category
-- 0.5-0.8: clear primary fit but with overlap to one neighbor
-- 0.0-0.4: genuinely ambiguous between two categories OR ambiguous between coaching and non-coaching
+- 0.5-0.8: clear primary fit but with overlap to one neighbor, or the rule-of-thumb resolution below applied
+- 0.0-0.4: reserved for genuinely non-coaching or non-classifiable questions ("What" / "hi" / off-topic), or ambiguity between two non-default categories where no focus dominates. Most ambiguity between meta_motivational and a substantive category should resolve at 0.5-0.7 per the rule of thumb below — not default-route.
 
-DISAMBIGUATION HINTS:
+DISAMBIGUATION HINTS (heuristics, not absolute rules — generally more true than not, but can vary case-to-case):
 
-- A question referencing "this game" / "I played" → game_review.
-- A question referencing "this position" / "here" with no named game → position_analysis (when a game is named, prefer game_review).
-- A question about another player → opponent_prep, not concept_explanation.
-- A question that names a concept but in the context of a specific position ("Why is the knight an outpost here?") → position_analysis (the position is the locus), not concept_explanation.
-- A question that names a concept abstractly ("What's an outpost?") → concept_explanation.
-- A question about HOW to study ("What should I study?") → improvement_strategy.
-- A question about FEELINGS, self-doubt, or general progress ("Am I improving?") → meta_motivational.
-- If a question is genuinely ambiguous between two equally-good categories, lower confidence to 0.3-0.4 so the caller can default-route.`;
+- A question referencing "this game" / "I played" usually fits game_review.
+- A question referencing "this position" / "here" with no named game usually fits position_analysis; when a game is named, prefer game_review.
+- A question about another player usually fits opponent_prep, not concept_explanation.
+- A question that names a concept inside a specific position ("Why is the knight an outpost here?") usually fits position_analysis (the position is the locus), not concept_explanation.
+- A question that names a concept abstractly ("What's an outpost?") usually fits concept_explanation.
+- A question about HOW to study ("What should I study?") usually fits improvement_strategy.
+- A question about FEELINGS, self-doubt, or general progress ("Am I improving?") usually fits meta_motivational — but see the rule of thumb below.
+
+RULE OF THUMB — meta_motivational is the low-confidence default; treat it as a last resort:
+
+meta_motivational is the default route when confidence falls below 0.5. **This default exists for genuinely non-coaching or non-classifiable questions, not for borderline coaching questions.** When a question feels ambiguous between meta_motivational and a substantive category, the substantive coaching topic is usually the focus and meta_motivational is usually NOT the focus. Lean toward the non-default category at moderate confidence (0.5-0.7) rather than defaulting.
+
+Example: "I'm always confused about pawn structures" reads as concept_explanation with frustration framing — not the other way around. Classify as concept_explanation at ~0.6, not meta_motivational at 0.4.
+
+The rule is a heuristic, not always accurate. A question like "I just lost 5 in a row, what's wrong with me?" mentions losses (game_review-adjacent) but the focus is clearly meta_motivational — trust your read of the focus over the rule.
+
+If a question is genuinely ambiguous between two non-default categories with no clear focus, lower confidence to 0.3-0.4 so the caller can default-route.`;
 
 export function buildCategoryClassifierUserTurn(question: string): string {
   return `Question:\n\n${question}`;

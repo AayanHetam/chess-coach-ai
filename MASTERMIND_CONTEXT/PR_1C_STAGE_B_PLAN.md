@@ -1,8 +1,23 @@
 # PR 1.C Stage B — route wiring plan
 
+**⚠️ PAUSED 2026-05-18 — pending Stage A completion.**
+
+Aayan reopened Stage A on 2026-05-18. The tighter Stage B scope defaulted in §12 Q1 was rejected. The four outstanding Stage A items — `scoutCitation`, `userHistoryAggregates`, `userHistoryCitation`, and the `runValidationPipeline.dataSources` extension — must ship before Stage B begins. Rationale: wiring routes with only feature-delta + role-diff coverage means the Stage C sweep measures opponent_prep and improvement_strategy categories against validators that don't exist; the metrics return meaningless numbers; Stage B would be paid for twice. Also, Scout citation and user-history citation are the higher-differentiation validators — the part of the architecture nobody else has. Shipping Stage B without them ships the commodity half of the validation layer first.
+
+**Decisions captured for Stage B resumption** (do NOT relitigate when Stage B resumes):
+
+- **Aayan Q2–Q7** all defaults accepted: per-retry SSE on every boundary; chat skips pipeline on no-contextId; telemetry field set ships as specced; categoryClassifier wiring waits until scout/user-history validators land; partial-data UX silently degrades; local-only sweeps in Stage B, CI sweep after 30 days of stability.
+- **Tech-lead T1–T10** all defaults accepted: Option (b) `Promise.race` wrapper for 30s pipeline timeout (no PR 1.B touch); ship and tune synthetic-stream pacing; chat `maxRetries: 1`; existing Sentry sink with `module=mastermind-validator` tag filter; function-based env reader matching `getAuthEnv`; JSON fixtures matching the dry-run harness style; no per-route opt-out until the first request lands; no per-request opt-out; route allowlist confirmed `/api/enhanced-analysis` + `/api/chat`; auth posture unchanged.
+
+These captured decisions ride forward unchanged into the resumed Stage B plan once Stage A seals.
+
+**Stage A resumption tracked in** [PR_1C_SCOUT_CITATION_PLAN.md](PR_1C_SCOUT_CITATION_PLAN.md) (scoutCitation first; subsequent plan addenda for `userHistoryAggregates`, `userHistoryCitation`, and the pipeline extension follow as those workstreams advance). Stage A scope-correction documented in [PR_1C_PLAN.md §7 addendum](PR_1C_PLAN.md).
+
+---
+
 **Branch:** `mastermind/stage-3-validators` (continues the existing PR 1.C branch — Stage A.1, Stage A.2, Stage A.2.5 already on it).
 
-**Status:** plan-first. Drafted 2026-05-18 per the Stage A.2.5 brief. **No code yet** — review-then-iterate-then-build, per [feedback_mastermind_plan_first.md](../../memory/feedback_mastermind_plan_first.md).
+**Status:** plan-first. Drafted 2026-05-18 per the Stage A.2.5 brief. **No code yet** — review-then-iterate-then-build, per [feedback_mastermind_plan_first.md](../../memory/feedback_mastermind_plan_first.md). **Plan is paused per banner above; revise to reflect post-Stage-A reality when Stage B resumes.**
 
 **Scope:** route wiring per [PR_1C_PLAN.md §2](PR_1C_PLAN.md). Wires `runValidationPipeline` into `/api/enhanced-analysis` and `/api/chat` behind `MASTERMIND_VALIDATORS_ENABLED`, plumbs telemetry forwarding through the existing Sentry path, preserves footnote-append (Option A coexistence per [PR_1C_PLAN.md §2.4](PR_1C_PLAN.md)).
 

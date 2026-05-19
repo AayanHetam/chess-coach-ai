@@ -719,6 +719,53 @@ Single PR, ~16 commits in order. Each builds on the prior; no commit standalone-
 
 **Total PR 1.C audit-revised: ~2,800 lib + ~1,630 test + scripts + fixtures + compliance doc + sweep output + N iteration commits.** Up from ~1,150 / ~400 original; up from ~2,500 / ~1,580 pre-audit revised. Scout expansion drives most of the growth; jhamtani removal and user-history scope reduction partially offset.
 
+### 7.1 Scope correction (Stage A reopened — 2026-05-18)
+
+The audit-revised commit sequence above lists nine Stage A commits (1.C.A.1–1.C.A.9). **Only five shipped under the initial "Stage A sealed" attempt:** classifier, classifier boundary iteration, dry-run harness, gate sensitivity demo, fixture extension. Four were skipped: `scoutCitation` (1.C.A.2), `userHistoryAggregates` (1.C.A.3), `userHistoryCitation` (1.C.A.4), `citationRate` + `runValidationPipeline.dataSources` extension (1.C.A.5). The persona-data work (1.C.A.6–1.C.A.7) was also skipped but is a separable concern (see below).
+
+When Stage B planning surfaced this in [PR_1C_STAGE_B_PLAN.md §0](PR_1C_STAGE_B_PLAN.md), Aayan rejected the tighter Stage B scope (which would have wired only feature-delta + role-diff and treated the unbuilt validators as a follow-up commit). Reopened Stage A 2026-05-18. **Stage B is paused pending the four outstanding items.**
+
+**Rationale:** wiring routes with only feature-delta + role-diff coverage means the Stage C sweep measures opponent_prep and improvement_strategy citation rates against validators that don't exist — meaningless numbers. Stage B would be paid for twice (build, sweep, then re-build the validators, re-sweep). Also, Scout citation and user-history citation are the higher-differentiation validators — the part of the architecture nobody else has. Shipping Stage B without them would ship the commodity half of the validation layer first.
+
+**Stage A redefined.** The original five-commit "seal" is reframed as Stage A.1–A.5 (the work that did ship). The four outstanding items become Stage A.6–A.9, in this order:
+
+| # | Commit | Plan doc | Status |
+|---|---|---|---|
+| 1.C.A.1 | `categoryClassifier.ts` + boundary iteration | §6.1, classifier boundaries reviewed 2026-05-18 | ✅ shipped (`cc8bd81`, `495a416`) |
+| 1.C.A.2 | dry-run gate harness + 20 fixtures + thresholds | §1.2 (renumbered from original A.8) | ✅ shipped (`120653b`) |
+| 1.C.A.3 | gate sensitivity demo (`--override-tolerance=2000`) | §1.5 (renumbered from original A.9) | ✅ shipped (`587043a`) |
+| 1.C.A.4 | dry-run fixture extension (BAD-11, GOOD-11, ratio metric) | Stage A.2.5 brief | ✅ shipped (`84a5118`) |
+| 1.C.A.5 | (build plan rewrite — orchestrator framing, not gating) | [MASTERMIND_BUILD_PLAN.md](MASTERMIND_BUILD_PLAN.md) | ✅ shipped (`6e2907c`, `fd8d851` Stage B plan) |
+| **1.C.A.6** | **`scoutCitation.ts` + tests (full claim-type coverage)** | **[PR_1C_SCOUT_CITATION_PLAN.md](PR_1C_SCOUT_CITATION_PLAN.md)** | ⏳ in flight — plan-first |
+| **1.C.A.7** | **`userHistoryAggregates.ts` helpers + tests** | TBD (plan addendum after Aayan sign-off on §6.3 scope) | ⏳ queued |
+| **1.C.A.8** | **`userHistoryCitation.ts` + tests (3 derivable claim types)** | TBD (plan addendum) | ⏳ queued |
+| **1.C.A.9** | **`citationRate.ts` + `runValidationPipeline.dataSources` extension + tests** | TBD (plan addendum — touches PR 1.B sealed surface; Aayan approves the touch as part of this scope correction) | ⏳ queued |
+
+**On the persona-data work (originally 1.C.A.6–1.C.A.7).** Out of Stage A's current critical path. The persona scraper + script rewrite gates Stage C sweep quality (per-category question distribution must reflect real questions, not Aayan's hand-written persona scripts). Two options for resequencing:
+
+- **Option A (default):** ship persona work in parallel with Stage A.6–A.9 since it's independent code. Aayan-triggered when Stage A.7 (userHistoryAggregates) is mid-flight.
+- **Option B:** defer persona work until just before Stage C. Stage C runs against Aayan's existing personas first, then re-runs against the scraped-corpus personas after they ship. Two sweep runs, but cleaner separation.
+
+Default Option A unless Aayan signals otherwise. Either way, persona work does NOT gate Stage B from resuming — Stage B unblocks when 1.C.A.6–A.9 seal.
+
+**PR 1.B is touched by 1.C.A.9** — the `runValidationPipeline.dataSources` extension adds optional parameters to the pipeline's signature in `src/lib/mastermind/validators/index.ts`. The "PR 1.B sealed" rule was a planning convenience; extending the pipeline's signature with optional fields is non-breaking and was always implicit in the audit-revised §2.5 scope. Aayan ratified this scope correction 2026-05-18.
+
+**Renumbered commit sequence (the new authoritative version):**
+
+| # | Commit | Status |
+|---|---|---|
+| 1.C.A.1 – 1.C.A.5 | Classifier, dry-run harness, sensitivity demo, fixture extension, build plan rewrite | ✅ shipped |
+| 1.C.A.6 | scoutCitation (this PR adds it) | ⏳ in flight |
+| 1.C.A.7 | userHistoryAggregates | ⏳ queued |
+| 1.C.A.8 | userHistoryCitation | ⏳ queued |
+| 1.C.A.9 | citationRate + runValidationPipeline.dataSources extension | ⏳ queued |
+| 1.C.A.10 | persona-data scraper + classifier-run + COMPLIANCE.md (was original 1.C.A.6) | ⏳ Option A: in parallel with A.7; Option B: deferred to A.11.5 pre-Stage-C |
+| 1.C.A.11 | persona-script rewrite + spot-check (was original 1.C.A.7) | ⏳ same as above |
+| 1.C.B.1 – 1.C.B.3 | Route wiring (Stage B) | ⏸️ paused pending A.6–A.9 |
+| 1.C.C.0 – 1.C.C.final | Stage C sweep + iteration | ⏸️ pending Stage B |
+
+Total ETA shift: ~2 weeks of Stage A work re-added; Stage B unchanged in scope but resumes after Stage A seals. Calendar is flexible per [MASTERMIND_BUILD_PLAN.md §11](MASTERMIND_BUILD_PLAN.md) — this resequencing trades calendar for build correctness.
+
 ---
 
 ## 8. Decisions — RATIFIED 2026-05-17

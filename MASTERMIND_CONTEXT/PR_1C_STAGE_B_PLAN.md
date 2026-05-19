@@ -1,59 +1,74 @@
 # PR 1.C Stage B — route wiring plan
 
-**⚠️ PAUSED 2026-05-18 — pending Stage A completion.**
+**Revised 2026-05-18 — post-Stage-A seal.** Stage A reopened and ratified per [PR_1C_PLAN.md §7.1](PR_1C_PLAN.md); all four outstanding items shipped (commits `4f6cc3a` scoutCitation, `a067d3b` userHistoryAggregates, `15b3121` userHistoryCitation, `573eab5` citationRate + pipeline.dataSources extension). Stage B planning resumes against the now-real four-validator surface.
 
-Aayan reopened Stage A on 2026-05-18. The tighter Stage B scope defaulted in §12 Q1 was rejected. The four outstanding Stage A items — `scoutCitation`, `userHistoryAggregates`, `userHistoryCitation`, and the `runValidationPipeline.dataSources` extension — must ship before Stage B begins. Rationale: wiring routes with only feature-delta + role-diff coverage means the Stage C sweep measures opponent_prep and improvement_strategy categories against validators that don't exist; the metrics return meaningless numbers; Stage B would be paid for twice. Also, Scout citation and user-history citation are the higher-differentiation validators — the part of the architecture nobody else has. Shipping Stage B without them ships the commodity half of the validation layer first.
+**Branch:** `mastermind/stage-3-validators` (continues the existing PR 1.C branch with all of Stage A on it).
 
-**Decisions captured for Stage B resumption** (do NOT relitigate when Stage B resumes):
+**Status:** plan-first. **No code yet** — pause for tech-lead review of the revised §3 `wireValidators.ts` spec specifically (the main architectural surface that changed post-Stage A). Other sections carry the decisions from the pre-Stage-A planning round.
 
-- **Aayan Q2–Q7** all defaults accepted: per-retry SSE on every boundary; chat skips pipeline on no-contextId; telemetry field set ships as specced; categoryClassifier wiring waits until scout/user-history validators land; partial-data UX silently degrades; local-only sweeps in Stage B, CI sweep after 30 days of stability.
-- **Tech-lead T1–T10** all defaults accepted: Option (b) `Promise.race` wrapper for 30s pipeline timeout (no PR 1.B touch); ship and tune synthetic-stream pacing; chat `maxRetries: 1`; existing Sentry sink with `module=mastermind-validator` tag filter; function-based env reader matching `getAuthEnv`; JSON fixtures matching the dry-run harness style; no per-route opt-out until the first request lands; no per-request opt-out; route allowlist confirmed `/api/enhanced-analysis` + `/api/chat`; auth posture unchanged.
+**Scope:** route wiring per [PR_1C_PLAN.md §2](PR_1C_PLAN.md). Wires `runValidationPipeline` into `/api/enhanced-analysis` and `/api/chat` behind `MASTERMIND_VALIDATORS_ENABLED`, threads four data sources (feature delta + piece-role diff + Scout output + user-history aggregates) through `runValidationPipeline.dataSources`, runs `categoryClassifier` to populate per-turn category, computes citation-rate metric post-pipeline, plumbs telemetry forwarding through the existing Sentry path, preserves footnote-append (Option A coexistence per [PR_1C_PLAN.md §2.4](PR_1C_PLAN.md)).
 
-These captured decisions ride forward unchanged into the resumed Stage B plan once Stage A seals.
+**Stage C** (full synthetic-tester sweep against preview deploy) gates merge to main. Per-claim-type firing-rate aggregation lands in the sweep summary per Aayan's Stage A.6 follow-up requirement — flags ≥3-never-fire claim types as merge candidates to surface for review.
 
-**Stage A resumption tracked in** [PR_1C_SCOUT_CITATION_PLAN.md](PR_1C_SCOUT_CITATION_PLAN.md) (scoutCitation first; subsequent plan addenda for `userHistoryAggregates`, `userHistoryCitation`, and the pipeline extension follow as those workstreams advance). Stage A scope-correction documented in [PR_1C_PLAN.md §7 addendum](PR_1C_PLAN.md).
+**Decisions ratified during pre-Stage-A planning** (carried forward unchanged):
 
----
+- **Aayan Q2–Q7** all defaults ratified: per-retry SSE on every boundary; chat skips pipeline on no-contextId; telemetry field set ships as specced; **Q5 categoryClassifier wiring fires now** (scout + user-history validators have shipped — Q5's default rationale applies); partial-data UX silently degrades; local-only sweeps in Stage B, CI sweep after 30 days of stability.
+- **Tech-lead T1–T10** all defaults ratified: Option (b) `Promise.race` wrapper for 30s pipeline timeout (kept even though the §7.1 scope correction also approves touching PR 1.B sealed surface — the wrapper is simpler than extending the pipeline's return type); ship and tune synthetic-stream pacing; chat `maxRetries: 1`; existing Sentry sink with `module=mastermind-validator` tag filter; function-based env reader matching `getAuthEnv`; JSON fixtures matching the dry-run harness style; no per-route opt-out until the first request lands; no per-request opt-out; route allowlist confirmed `/api/enhanced-analysis` + `/api/chat`; auth posture unchanged.
 
-**Branch:** `mastermind/stage-3-validators` (continues the existing PR 1.C branch — Stage A.1, Stage A.2, Stage A.2.5 already on it).
-
-**Status:** plan-first. Drafted 2026-05-18 per the Stage A.2.5 brief. **No code yet** — review-then-iterate-then-build, per [feedback_mastermind_plan_first.md](../../memory/feedback_mastermind_plan_first.md). **Plan is paused per banner above; revise to reflect post-Stage-A reality when Stage B resumes.**
-
-**Scope:** route wiring per [PR_1C_PLAN.md §2](PR_1C_PLAN.md). Wires `runValidationPipeline` into `/api/enhanced-analysis` and `/api/chat` behind `MASTERMIND_VALIDATORS_ENABLED`, plumbs telemetry forwarding through the existing Sentry path, preserves footnote-append (Option A coexistence per [PR_1C_PLAN.md §2.4](PR_1C_PLAN.md)).
-
-**Stage A is sealed** as of 2026-05-18 with commits `cc8bd81` (categoryClassifier) + `120653b`/`587043a`/`84a5118` (dry-run harness + override demo + extended fixtures). Stage C (full synthetic-tester sweep against preview deploy) gates merge to main.
+The §12 ratification table captures these. New questions added in §12.3 surface architectural choices that emerge from the now-real four-validator wiring surface (Scout-fetch identity, per-source caching, citationRate lifecycle position).
 
 ---
 
-## 0. Scope reconciliation against the original PR_1C_PLAN §7 commit sequence
+## 0. Stage A surface available to Stage B (post-seal 2026-05-18)
 
-[PR_1C_PLAN.md §7](PR_1C_PLAN.md) listed Stage A as a nine-commit sequence: classifier (1.C.A.1), `scoutCitation` (1.C.A.2), `userHistoryAggregates` helpers (1.C.A.3), `userHistoryCitation` (1.C.A.4), `citationRate` helper + `runValidationPipeline.dataSources` extension (1.C.A.5), persona-data scraper (1.C.A.6), persona-script rewrite (1.C.A.7), dry-run harness (1.C.A.8), gate sensitivity demo (1.C.A.9). **What actually shipped under "Stage A sealed":**
+Stage A sealed with commits A.1 through A.9 — see the [PR_1C_PLAN.md §7.1 renumbered sequence](PR_1C_PLAN.md). Stage B has the full validator surface available; the tighter-scope framing from the pre-Stage-A draft (carry-forward null slots, defer Scout/user-history wiring) is replaced.
 
-| Original plan commit | Shipped? | Reality |
+### 0.1 Shipped Stage A surface that Stage B consumes
+
+**Four validators** — all library code, all consumed by `runValidationPipeline`:
+
+| Validator | File | Source | Tests |
+|---|---|---|---|
+| `validateEvalClaim` | [`src/lib/mastermind/validators/evalClaim.ts`](../src/lib/mastermind/validators/evalClaim.ts) | PR 1.B | shipped |
+| `validateFeatureDeltaCitations` | [`src/lib/mastermind/validators/featureDeltaCitation.ts`](../src/lib/mastermind/validators/featureDeltaCitation.ts) | PR 1.B | shipped |
+| `validateScoutCitation` (26 claim types) | [`src/lib/mastermind/validators/scoutCitation.ts`](../src/lib/mastermind/validators/scoutCitation.ts) | Stage A.6 | 110 |
+| `validateUserHistoryCitation` (3 claim types — server-derivable; 3 deferred to PR 1.E) | [`src/lib/mastermind/validators/userHistoryCitation.ts`](../src/lib/mastermind/validators/userHistoryCitation.ts) | Stage A.8 | 69 |
+
+**Pipeline extension:** `runValidationPipeline.dataSources` in [`src/lib/mastermind/validators/index.ts`](../src/lib/mastermind/validators/index.ts) (Stage A.9). Optional field; when present with `scout` or `userHistory`, the pipeline dispatches the corresponding validators inside its `validate` closure. **Binary-equality preservation contract enforced** — `dataSources: undefined` produces byte-identical output to PR 1.B.
+
+**Citation-rate aggregator:** [`src/lib/mastermind/citationRate.ts`](../src/lib/mastermind/citationRate.ts) (Stage A.9). Pure function `computeCitationRate(opts) → CitationRateResult`. Six-category-aware via `CATEGORY_PRIMARY_SOURCE`. Floor enforcement lives in the sweep harness, not here. **`feature_delta` source has no opportunity counter** (deferred per [PR_1C_PLAN.md §11.7](PR_1C_PLAN.md) — `game_review` and `position_analysis` produce hallucination-check data only).
+
+**User-history aggregator:** [`src/lib/mastermind/userHistoryAggregates.ts`](../src/lib/mastermind/userHistoryAggregates.ts) (Stage A.7). Three pure functions over `UserHistoryGame[]`: `aggregateWinRateByTimeControl`, `aggregateScoreByOpening`, `countGamesInDateRange`.
+
+**Shared utilities** (carried as Stage A side outputs):
+
+| Utility | File | Used by |
 |---|---|---|
-| 1.C.A.1 categoryClassifier | ✅ | `cc8bd81` |
-| 1.C.A.1 boundary iteration (Aayan spot-check) | ✅ | `495a416` |
-| 1.C.A.2 `scoutCitation` (20 patterns) | ❌ | not in tree |
-| 1.C.A.3 `userHistoryAggregates` helpers | ❌ | not in tree |
-| 1.C.A.4 `userHistoryCitation` (3 derivable types) | ❌ | not in tree |
-| 1.C.A.5 `citationRate` helper + `runValidationPipeline.dataSources` extension | ❌ | not in tree |
-| 1.C.A.6 persona-data scraper + COMPLIANCE.md | ❌ | not in tree |
-| 1.C.A.7 persona-script rewrite (Aayan spot-check) | ❌ | not in tree |
-| 1.C.A.8 dry-run gate harness | ✅ | `120653b` (renumbered 1.C.A.1 in Stage A.2 work) |
-| 1.C.A.9 gate sensitivity demo | ✅ | `587043a` |
-| Stage A.2.5 fixture expansion | ✅ | `84a5118` |
+| `extractPgnHeaders` | [`src/lib/utils/pgnHeaders.ts`](../src/lib/utils/pgnHeaders.ts) | `userHistoryAggregates` |
+| `substringMatch` + `lower` | [`src/lib/utils/fuzzyMatch.ts`](../src/lib/utils/fuzzyMatch.ts) | `scoutCitation`, `userHistoryCitation` |
+| `classifyTimeControl` | [`src/lib/utils/timeControlClass.ts`](../src/lib/utils/timeControlClass.ts) | `userHistoryCitation` |
 
-**Consequence for Stage B planning.** The original PR_1C_PLAN.md §2.5.2 spec assumed Stage B's `wireValidators.ts` would thread four data sources (feature delta + scout + user history + jhamtani slot reserved) into `runValidationPipeline`. **Three of those data sources require validators that have not yet been built** (`scoutCitation`, `userHistoryCitation`, `userHistoryAggregates`) **and an extension of `runValidationPipeline` to accept the `dataSources` arg** — and that extension touches PR 1.B's sealed `src/lib/mastermind/validators/index.ts`.
+**Dry-run harness** (Stage A.2/A.2.5): [`scripts/mastermind/validator-gate-dryrun.ts`](../scripts/mastermind/validator-gate-dryrun.ts) + 22-fixture corpus. Verifies validator behavior offline; pre-merge gate.
 
-**This plan defaults to a tighter Stage B scope** consistent with what's actually in tree:
+**categoryClassifier** ready to wire: [`src/lib/mastermind/categorization/categoryClassifier.ts`](../src/lib/mastermind/categorization/categoryClassifier.ts) + seed fixtures. Per Q5 default (now ratified — see §12.1) Stage B wires the classifier so per-turn `category` populates telemetry and citation-rate metric input.
 
-- Stage B wires `runValidationPipeline` with **feature delta + piece-role diff only** — the two data sources PR 1.B already consumes via `validateEvalClaim` + `validateFeatureDeltaCitations`. No extension to `runValidationPipeline`'s signature.
-- `wireValidators.ts` is designed with a **forward-compatible shape** — its return type carries optional `scout`, `userHistory`, and `jhamtani` slots that are set to `null` today and populated when the corresponding validators ship in a follow-up commit (Stage A continuation or a separate PR).
-- The "four data sources" language from the Stage B brief is read as the **eventual** helper shape, not Stage B's first-merge scope.
+### 0.2 What Stage B builds against the Stage A surface
 
-**Open for Aayan (§12, Q1) before code starts:** approve the tighter Stage B scope (feature delta + role diff today; scout/user-history wiring lands later, with a separate decision about whether extending `runValidationPipeline` violates the "PR 1.B sealed" rule); OR reopen Stage A first and ship 1.C.A.2–A.5 before Stage B starts. **Don't start Stage B code until this is resolved** — the helper signature and the route diff both depend on the answer.
+Stage B's job is now narrow and well-defined:
 
-The rest of this plan is written assuming the tighter scope. If the broader scope wins on review, §3, §6, §9, and §11 are revised in the second draft.
+1. **`wireValidators.ts`** — helper that fetches the four data sources (PR 1.A primitives + Scout + user-history aggregates) and threads them into `runValidationPipeline.dataSources`. Independent failure tolerance per source.
+2. **Route handlers** — `/api/enhanced-analysis` + `/api/chat` gain a flag-on lifecycle wing that calls `wireValidators.fetchDataSources(...)`, runs `categoryClassifier`, calls `runValidationPipeline`, calls `computeCitationRate`, forwards telemetry, and synthetic-streams the result.
+3. **`validatorTelemetry.ts`** — forwards `result.telemetry` events to Sentry via the existing logger with the new tag schema.
+4. **`MASTERMIND_VALIDATORS_ENABLED`** flag + `getMastermindEnv()` reader in `src/env.ts`.
+
+Stage A's preservation contract means `wireValidators.ts` failing to fetch any of the four sources (returning `dataSources: undefined`) produces unchanged PR 1.B behavior — safe degradation.
+
+### 0.3 What's still out of scope for Stage B
+
+- **`feature_delta` opportunity counter** — deferred per [PR_1C_PLAN.md §11.7](PR_1C_PLAN.md) + [`cleanup_followups.md`](cleanup_followups.md). game_review + position_analysis citation rates report null perSource bucket; treated as "not measured" by the sweep. Hallucination ceiling still applies via PR 1.B validators.
+- **Jhamtani validator wiring** — `dataSources.jhamtani` slot reserved as `unknown` in PR 1.B-extended signature; PR 1.D wires the validator behind it.
+- **Cross-source claim coordinator** — PR 1.F, conditional on Stage C sweep showing ≥5% composite-claim rate.
+- **Removing footnote-append** — Option A coexistence stays per [PR_1C_PLAN.md §2.4](PR_1C_PLAN.md).
 
 ---
 
@@ -237,30 +252,49 @@ POST /api/chat  (MASTERMIND_VALIDATORS_ENABLED=true, only fast-path branch wires
 
 ---
 
-## 3. `wireValidators.ts` helper module spec
+## 3. `wireValidators.ts` helper module spec (revised post-Stage-A seal)
 
-The route doesn't call `validateEvalClaim` or `validateFeatureDeltaCitations` directly. Both are owned by `runValidationPipeline`. The route's responsibility is **fetching the data sources** the pipeline consumes, then handing them to the pipeline. That's what `wireValidators.ts` does.
+The route doesn't call any validator directly. All four are owned by `runValidationPipeline`. The route's responsibility is **fetching the four data sources**, then handing them to the pipeline via the (now-shipped) `dataSources` field. That's what `wireValidators.ts` does. Plus a small post-pipeline step: compute the citation-rate metric using the shipped `citationRate.ts` aggregator.
 
 ### 3.1 File: `src/lib/mastermind/wireValidators.ts`
 
 ```typescript
-import type {
-  PositionFeatureDelta,
-} from "@/lib/mastermind/featureDelta";
+import type { PositionFeatureDelta } from "@/lib/mastermind/featureDelta";
 import type { RoleChange } from "@/lib/mastermind/pieceRoles";
 import type { ThreatNode } from "@/lib/mastermind/threatTree";
+import type {
+  ScoutAnalytics,
+  Collisions,
+  ScoutGame,
+} from "@/types/scout";
+import type {
+  UserHistoryGame,
+} from "@/lib/mastermind/userHistoryAggregates";
+import type { ScoutTimeClass } from "@/lib/mastermind/validators";
 
-export interface ValidatorDataSources {
+/**
+ * The four data sources the pipeline consumes plus PR 1.A primitives the
+ * pipeline already requires top-level (featureDelta + pieceRoleDiff).
+ * Same shape as ValidatorDataSources in validators/index.ts plus the two
+ * always-present PR 1.A inputs.
+ */
+export interface FetchedDataSources {
+  // PR 1.A — always present (pipeline requires them at top-level).
   featureDelta: PositionFeatureDelta;
   pieceRoleDiff: RoleChange[];
   threatTree?: ThreatNode[];
-  // Forward-compatible slots — null today; populated when the corresponding
-  // Stage A continuation commits ship (scoutCitation + userHistoryCitation
-  // + userHistoryAggregates + citationRate + runValidationPipeline.dataSources
-  // extension). See §0 scope reconciliation.
-  scout: null;
-  userHistory: null;
-  jhamtani: null;
+  // Stage A.6 + A.8 — optional, fetched independently with failure tolerance.
+  scout?: {
+    scout: ScoutAnalytics;
+    collisions?: Collisions;
+    opponentUsername: string;
+    primaryTimeClass?: ScoutTimeClass;
+  };
+  userHistory?: {
+    games: UserHistoryGame[];
+    userName: string;
+    nowMs?: number;
+  };
 }
 
 export interface FetchOpts {
@@ -270,48 +304,127 @@ export interface FetchOpts {
   fenAfter: string;
   /** Optional resolution-point FEN — caller supplies if known. */
   fenAtResolution?: string;
-  /** PV from Stockfish, used by find_resolution_point if no resolution FEN given. */
+  /** PV from Stockfish for find_resolution_point fallback. */
   pv?: string[];
-  /** Optional move history (for chat path / chat context). */
+  /** Optional move history for chat context. */
   moveHistory?: string[];
-  /** For telemetry context. */
+
+  /** Player perspective for telemetry. */
   playerPerspective: "white" | "black";
-  /** For telemetry context. */
+
+  /** Per-turn telemetry context. */
   correlationId: string;
+
+  /** Authenticated user's UID — for Firestore games subcollection read. */
+  uid: string;
+
+  /** User's primary identifier — for detectUserColor matching across games. */
+  userName: string;
+
+  /** Opponent's username — fetch Scout when supplied; skip when undefined. */
+  opponentUsername?: string;
+
+  /** Opponent's platform if known — guides scoutService.ts path. */
+  opponentPlatform?: "lichess" | "chess.com";
+
+  /** Time-class hint for Scout rating disambiguation; optional. */
+  primaryTimeClass?: ScoutTimeClass;
 }
 
-export async function fetchDataSources(
-  opts: FetchOpts
-): Promise<ValidatorDataSources>;
+export async function fetchDataSources(opts: FetchOpts): Promise<FetchedDataSources>;
 ```
 
 **Behavior:**
 
-1. **`featureDelta` (required, never null).** Calls `compute_feature_delta(fenBefore, fenAfter, { fenAtResolution, pv })` from PR 1.A. Pure CPU, deterministic. Should never fail under valid FEN input. If the chat path supplies `fenBefore === fenAfter` (no move), produces an empty delta — the validator gracefully no-ops on empty deltas.
-2. **`pieceRoleDiff` (required, never null — but may be empty array).** Calls `classifyPieceRoles(fenBefore)` and `classifyPieceRoles(fenAfter)`, computes the diff. Wrapped in try/catch; on failure returns `[]` (empty — validator just won't fire role-gained/role-lost). Logs the failure to Sentry as a warning.
-3. **`threatTree` (optional, omitted if not yet computed).** Not currently computed in the route; PR 1.A primitive exists but no per-move loop calls it. Stage B leaves this `undefined` and lets `runValidationPipeline` handle the optional input.
-4. **`scout`, `userHistory`, `jhamtani` (all null today).** Reserved slots. When the corresponding Stage A continuation commits ship, these are populated by per-source fetchers that follow the same try/catch + null-on-failure pattern. **Hard requirement from the brief:** one source's failure must not block the others. Today this is trivial since three of four are always null; the contract becomes load-bearing when Scout + user-history fetches go live (each could fail independently — Firestore subcollection read could 5xx, scoutService could timeout against chess.com).
+1. **`featureDelta` (required, never null).** Calls `compute_feature_delta(fenBefore, fenAfter, { fenAtResolution, pv })` from PR 1.A. Pure CPU, deterministic. Throws only on invalid FEN — route handles by skipping the pipeline for this turn (fall back to flag-off behavior, logged).
+2. **`pieceRoleDiff` (required, never null — but may be empty array).** Wraps `classifyPieceRoles(fenBefore)` + `classifyPieceRoles(fenAfter)` + diff in try/catch; on failure returns `[]` and logs the warning.
+3. **`threatTree` (optional, omitted when not computed).** Stage B leaves undefined; the pipeline handles the optional input.
+4. **`scout` (NEW post-Stage-A, optional with graceful failure).** When `opts.opponentUsername` is supplied:
+   - Call existing `scoutService.ts` pipeline (or `/api/scout` endpoint internally) to fetch `ScoutGame[]` for the opponent.
+   - Compute `ScoutAnalytics` + `Collisions` via the already-shipped scout analytics computation.
+   - Return `{ scout, collisions, opponentUsername, primaryTimeClass }`.
+   - On any failure (timeout, 5xx, opponent-not-found, private profile): catch the error, log to Sentry as a warning with `module=mastermind-validator, source=scout`, and **omit the `scout` field entirely** (not null — undefined). The pipeline sees no `dataSources.scout` and skips the validator.
+   - **Trusts scoutService's existing 10-min server-side cache** — no new caching layer in `wireValidators.ts`.
+5. **`userHistory` (NEW post-Stage-A, optional with graceful failure).** Always attempted when `opts.uid` is supplied:
+   - Read `users/{uid}/games` subcollection via Firebase Admin (cap at 200 most-recent for cost — open question §12.3 T11 for tuning).
+   - Return `{ games, userName, nowMs: Date.now() }`.
+   - On any failure (Firestore 5xx, AdminConfigError, query timeout): catch, log warning, omit the `userHistory` field. Pipeline skips the validator.
 
-### 3.2 Partial-data handling contract
+### 3.2 Partial-data handling contract (load-bearing now)
 
-Today (FD + role diff only):
-- FD fails → fatal. The route should not proceed (the entire pipeline is FD-grounded). The helper rethrows; route handles by skipping the pipeline path entirely for this turn (fall back to flag-off behavior for the turn, logged as a warning).
-- Role diff fails → graceful. Helper returns `[]`. Validator just doesn't fire role-gained/role-lost checks for this turn.
+Failure independence — **each of the four sources fails independently without blocking the others.** Sequence-of-failures matrix:
 
-Future (when Scout/user-history wire in):
-- Scout fails → graceful. `scout: null` is the same as `scout: <empty analytics>` from the pipeline's perspective; `scoutCitation` validator skips the source entirely and contributes zero opportunities + zero issues.
-- User history fails → same shape. `userHistory: null` → no `userHistoryCitation` fires.
-- Jhamtani — remains null until PR 1.D ships per [PR_1C_PLAN.md §6.4](PR_1C_PLAN.md). Not in Stage B's scope.
+| Failed source | Pipeline behavior | Telemetry consequence |
+|---|---|---|
+| FD throws (invalid FEN) | Route skips pipeline entirely for the turn → flag-off path | Single warning log; no `validator_event` Sentry events for this turn |
+| Role diff throws | `pieceRoleDiff: []` → `validateFeatureDeltaCitations` runs without role-gained/role-lost checks | Single warning log + normal pipeline telemetry |
+| Scout fetch fails | `scout` undefined → `validateScoutCitation` skipped | Warning log + opponent_prep citation-rate reports `perSource.scout: null` (zero opportunities, zero citations) |
+| User-history fetch fails | `userHistory` undefined → `validateUserHistoryCitation` skipped | Warning log + improvement_strategy/meta_motivational categories' citation rates report `perSource.user_history: null` |
+
+The `runValidationPipeline.dataSources` extension's contract (Stage A.9) means omitting a source = identical behavior to PR 1.B for that validator slot. Pipeline output stays well-formed regardless of which sources resolved.
 
 ### 3.3 Bounded concurrency
 
-When all four sources go live, `fetchDataSources` will run them in parallel with `Promise.allSettled` and a per-source timeout (default 2s, configurable). Today (FD + role diff only) it's sequential — both are pure CPU and complete in <100ms.
+Four sources fetched concurrently via `Promise.allSettled`:
+
+```typescript
+const [fdResult, roleDiffResult, scoutResult, userHistoryResult] = await Promise.allSettled([
+  computeFeatureDelta(opts),         // pure CPU — <50ms
+  computeRoleDiff(opts),             // pure CPU — <50ms
+  fetchScoutWithFailureTolerance(opts), // ~2s p95 (Lichess/chess.com round-trip + scoutAnalytics compute)
+  fetchUserHistoryWithFailureTolerance(opts), // ~200ms (Firestore Admin read)
+]);
+```
+
+Per-source timeout: **3s default** (matches the per-Haiku-parser budget; the slowest source — Scout — can hit this on a cold opponent fetch). On timeout: log warning, treat as failed source per §3.2.
+
+Parallel concurrency is safe — sources are independent. Aggregate latency ≈ max(individual source latencies) ≈ 2-3s p95 vs sequential's 5-7s. Material win.
 
 ### 3.4 Chat-path degraded mode
 
-The chat route has no per-move context. To still pipe runValidationPipeline through, the helper supplies a **degraded feature delta**: `featureDelta = compute_feature_delta(context.fen, context.fen)` (fenBefore === fenAfter), which produces an empty delta (`isEmptyDelta: true`). The pipeline runs normally; validators see no deltas and just don't fire feature-citation checks. Eval-mismatch checks still apply against the chat response — that's the main value of running the pipeline on chat.
+The chat route has no per-move context (just a position FEN). The helper supplies a **degraded feature delta**: `featureDelta = compute_feature_delta(context.fen, context.fen)` → empty delta (`isEmptyDelta: true`). `validateFeatureDeltaCitations` runs without firing feature-citation checks.
 
-**Open question §12 Q3:** is chat's value-add from running the pipeline (i.e., catching eval-mismatch claims in follow-up responses) worth the latency cost (~3–6s vs today's ~1.5s)? Default: yes; revisit after first Stage C sweep.
+Chat-specific source posture:
+- **Scout** — skip in chat (no opponent context in chat fast-path; the `opponentUsername` field isn't typically set on chat requests). Set `opts.opponentUsername = undefined` from the route's chat handler.
+- **User history** — keep enabled in chat. The user's history is relevant for improvement_strategy / meta_motivational chat follow-ups ("am I improving in blitz?"). Same Firestore Admin read.
+- **Eval-mismatch checks** still apply against the chat response — the main value of running the pipeline on chat.
+
+Per Q3 ratified: the no-`contextId` chat fallback path skips the pipeline entirely. The chat changes here apply only to the contextId-present fast path.
+
+### 3.5 Post-pipeline: citation-rate computation
+
+After `runValidationPipeline` returns and BEFORE the route emits the `done` SSE event, the route calls:
+
+```typescript
+const citationRateResult = computeCitationRate({
+  category: classifiedCategory,         // from categoryClassifier, see §3.6
+  validatorResults: [pipelineResult],   // the RegenerateResult's wrapped Validator output is read for telemetry
+  opportunities: {
+    scout: dataSources.scout ? countScoutOpportunities(dataSources.scout.scout, dataSources.scout.collisions) : undefined,
+    userHistory: dataSources.userHistory ? countUserHistoryOpportunities(dataSources.userHistory.games, dataSources.userHistory.userName) : undefined,
+  },
+});
+```
+
+The `citationRateResult` rides in the `done` SSE event's metadata (under `pipeline.citationRate`) and gets logged into Sentry telemetry as a single `citation_rate_summary` event (one per turn, distinct from per-validator events).
+
+**No floor enforcement here** — that lives in the Stage C sweep. The route just computes + logs the metric.
+
+### 3.6 categoryClassifier wiring (NEW post-Stage-A, Q5 default fires)
+
+Before `fetchDataSources` is called, the route runs the classifier:
+
+```typescript
+const categorized = await classifyQuestion({
+  question: opts.userQuestion,          // depends on route: enhanced-analysis has the user's prompt; chat has the userMessage
+  parseCall: opts.parseCall,            // production parser; mocked in tests
+});
+const category = categorized.category;  // QuestionCategory enum value
+```
+
+The classifier is one extra Haiku call (~$0.001/turn, ~$0.0002 with cache-warm). `category` is attached to telemetry's RouteContext and consumed by `computeCitationRate(...)`'s category-to-source mapping.
+
+**Confidence < 0.5 → default to `meta_motivational`** per [`categoryClassifier.ts`](../src/lib/mastermind/categorization/categoryClassifier.ts) `DEFAULT_LOW_CONFIDENCE_CATEGORY`. Stage A.1's boundary iteration validated this default; the classifier is shipped as-is.
 
 ---
 
@@ -450,7 +563,7 @@ export interface RouteContext {
   sessionId?: string;    // analysisContext.contextId or new per-turn ID
   responseId: string;    // generated per-turn (uuid)
   userTier: "free";      // populated as "free" today; "paid" hook for Phase 5.E
-  category?: string;     // populated when categoryClassifier is wired in
+  category: QuestionCategory;  // populated by Stage B's classifier wiring (§3.6) — always set
   finalOutcome: FinalOutcome | "pipeline_timed_out" | null;
   retryCount: number;
   totalCostUsd: number;
@@ -480,7 +593,7 @@ Per [PR_1B_PLAN.md §3.1](PR_1B_PLAN.md) plus route-level additions:
   "response_id": "resp-...",              // route generates per turn
   "route": "/api/enhanced-analysis",      // route adds
   "user_tier": "free",                    // route adds
-  "category": null,                       // null until categoryClassifier wires in
+  "category": "opponent_prep",            // always populated post-Stage-B per §3.6 classifier wiring
   "expected": { "band": "slightly_better", "cp": 70 },
   "actual": { "band": "winning", "cp": null },
   "llm_span": "Black is winning",         // ≤200 chars per parser-prompt cap
@@ -614,48 +727,54 @@ Important: the pipeline's telemetry was emitted **against the un-footnoted final
 
 ---
 
-## 9. File scope + LOC estimates
+## 9. File scope + LOC estimates (revised post-Stage-A seal)
 
 Stage B file changes. **Route files explicitly called out** since they touch live traffic.
 
-### 9.1 New library files (Stage B introduces)
+### 9.1 New library files
 
 | File | LOC est | Notes |
 |---|---|---|
-| `src/lib/mastermind/wireValidators.ts` | ~180 | The helper (§3). Forward-compat shape — feature delta + role diff today; null slots for scout/userHistory/jhamtani. |
-| `src/lib/mastermind/validatorTelemetry.ts` | ~120 | The forwarder (§6). Reads `result.telemetry`, adds route context, calls existing structured logger. |
-| `src/lib/mastermind/__tests__/wireValidators.test.ts` | ~220 | Unit tests for the helper, mocked dependencies. Tests partial-data graceful handling. |
-| `src/lib/mastermind/__tests__/validatorTelemetry.test.ts` | ~160 | Unit tests for the forwarder, mocked logger sink. Covers level mapping + PII discipline + tag schema. |
-| `src/lib/mastermind/__tests__/route-integration/enhanced-analysis.test.ts` | ~250 | Integration tests for `/api/enhanced-analysis` flag-on (§10). Mock LLM + mock parser + assertion on SSE event sequence + assertion on telemetry shape. |
-| `src/lib/mastermind/__tests__/route-integration/chat.test.ts` | ~180 | Integration tests for `/api/chat` flag-on. Same shape, smaller. |
+| `src/lib/mastermind/wireValidators.ts` | ~320 | The helper (§3). Now wires four real sources (FD + role diff + Scout + user history) with independent failure tolerance + Promise.allSettled parallel fetch. Plus the categoryClassifier wiring + post-pipeline citationRate computation. |
+| `src/lib/mastermind/validatorTelemetry.ts` | ~140 | The forwarder (§6). Includes `category` in every event (not "null until classifier wires in" — classifier is wired). New `citation_rate_summary` event type for per-turn citationRate result. |
+| `src/lib/mastermind/__tests__/wireValidators.test.ts` | ~420 | Unit tests for the four-source fetch + partial-data graceful handling matrix (§3.2 — six failure permutations) + categoryClassifier wiring. |
+| `src/lib/mastermind/__tests__/validatorTelemetry.test.ts` | ~180 | Sentry tag schema + PII discipline + `citation_rate_summary` event shape. |
+| `src/lib/mastermind/__tests__/route-integration/enhanced-analysis.test.ts` | ~320 | Integration tests for `/api/enhanced-analysis` flag-on. Mock all four data-source paths (FD primitives + scout fetch + Firestore Admin) + LLM + parser; assertion on SSE event sequence, telemetry shape, citation-rate metadata in `done`. |
+| `src/lib/mastermind/__tests__/route-integration/chat.test.ts` | ~220 | Same shape for `/api/chat`. Chat-specific: no Scout, user-history kept. |
 
-**Library total:** ~1,110 LOC (lib + tests).
+**Library total:** ~1,600 LOC (~460 lib + ~1,140 test). The ~20-25% Stage A overage pattern likely applies — realistic landing 1,900-2,000 LOC.
 
 ### 9.2 Modified files (route — live traffic surface)
 
 | File | Approximate diff | Notes |
 |---|---|---|
-| `src/app/api/enhanced-analysis/route.ts` | ~+180 / −0 LOC (additions only — flag-off path stays unchanged) | The flag branch + pipeline wiring (§1.2). Streaming + non-streaming branches both gain a flag-on wing. Imports of `runValidationPipeline`, `wireValidators.fetchDataSources`, `forwardTelemetry` added. |
-| `src/app/api/chat/route.ts` | ~+90 / −0 LOC | The fast-path flag branch (§2.2). Fallback path unchanged. |
-| `src/env.ts` | ~+6 LOC | New `getMastermindEnv()` reader function. |
+| `src/app/api/enhanced-analysis/route.ts` | ~+230 / −0 LOC (additions only — flag-off path stays unchanged) | Flag branch + classifier call + wireValidators fetch + pipeline call + citationRate + telemetry + synthetic-stream. Streaming + non-streaming branches both gain a flag-on wing. New imports of `runValidationPipeline`, `wireValidators.fetchDataSources`, `forwardTelemetry`, `classifyQuestion`, `computeCitationRate`. |
+| `src/app/api/chat/route.ts` | ~+110 / −0 LOC | Fast-path flag branch only. Same shape but smaller (no scout, smaller pipeline). |
+| `src/env.ts` | ~+6 LOC | `getMastermindEnv()` reader function. |
 
-**Route total:** ~+276 LOC. All additive; existing lines unchanged (the flag-off path must not regress).
+**Route total:** ~+346 LOC. All additive; existing lines unchanged (the flag-off path must not regress).
 
 ### 9.3 No other files modified
 
 - PR 1.A primitives (sealed): no edits.
-- PR 1.B validators (sealed): no edits — including no extension of `runValidationPipeline.dataSources` (§0).
-- Stage A.1 categoryClassifier (sealed): no edits — and Stage B does NOT yet wire the classifier in (open question §12 Q5; defaults to "wire in a future commit").
+- PR 1.B validators + Stage A.6–A.9 validators (sealed): no edits.
+- Stage A.1 categoryClassifier (sealed): no edits — Stage B IMPORTS the shipped classifier; doesn't modify it.
 - Stage A.2/A.2.5 dry-run harness (sealed): no edits.
 - `aiResponseValidator.ts` (out of scope per don't-touch list): no edits.
 
-### 9.4 LOC totals (Stage B)
+### 9.4 LOC totals (Stage B revised)
 
-- New library: ~1,110 LOC (300 lib + ~810 test)
-- Route modifications: ~+276 LOC
-- **Stage B total:** ~1,386 LOC additions, 0 deletions
+- New library: ~1,600 LOC (~460 lib + ~1,140 test)
+- Route modifications: ~+346 LOC
+- **Stage B total: ~1,946 LOC additions**, 0 deletions
 
-Smaller than the ~2,800/~1,630 PR_1C_PLAN.md §2.5.4 estimate because three Stage A validators (`scoutCitation`, `userHistoryCitation`, `userHistoryAggregates`, `citationRate`) aren't in scope per §0.
+Up from the pre-Stage-A-seal estimate of ~1,386 because:
+- `wireValidators.ts` grows from forward-compat null slots (~180) to four real source fetches (~320) — +140 LOC.
+- `validatorTelemetry.ts` grows for `citation_rate_summary` events + populated `category` field — +20 LOC.
+- Test files grow because the partial-data matrix is now real (six failure permutations vs the original "future scout fails" placeholder) — +200 LOC.
+- Route files grow for the classifier call + citationRate post-step — +70 LOC.
+
+Realistic landing accounting for the consistent Stage A overage pattern: ~2,300-2,500 LOC. Variance acceptable; documented in commits per the Stage A discipline.
 
 ---
 
@@ -760,83 +879,114 @@ Runs against a Vercel preview deploy with `MASTERMIND_VALIDATORS_ENABLED=true`. 
 
 All of:
 
-1. PR 1.C commits A.1, A.2, A.2.5, B.1-Bn all on branch.
+1. PR 1.C commits A.1 through A.9 (Stage A sealed) + B.1 through B.N (Stage B) all on branch.
 2. TSC clean, tests green.
 3. Dry-run harness exits 0 on default config, exits 1 on `--override-tolerance=2000`.
 4. **Stage C synthetic-tester sweep run on preview deploy, all five gate metrics passing per [PR_1C_PLAN.md §5.3.4](PR_1C_PLAN.md):**
-   - Hallucination rate ≥95% per active category (note: only `featureDeltaCitation` + `evalClaim` active in Stage B; the per-category hallucination metric for scout/user-history categories is N/A until the corresponding validators ship — see §0)
-   - Citation rate ≥ floor per active category (also limited to feature-delta-source categories)
-   - Chess correctness 0 violations
-   - Persona fidelity ≥7/10 per persona, mean ≥7.5
-   - Cost per turn ≤$0.035 flagship, ≤$0.005 fast
-5. PR description includes: by-category breakdown of metrics, total cost, sweep duration, comparison against baseline (main with flag off).
-6. No Sentry tier-1 alerts in the 24h preview window after Stage B lands.
+   - **Hallucination rate ≥95% per category** across all six categories. All four validators active (PR 1.B's two + scout + user-history).
+   - **Citation rate ≥ floor per category** per [PR_1C_PLAN.md §5.3.2](PR_1C_PLAN.md): opponent_prep 85% (scout source), improvement_strategy 50% (user_history), meta_motivational 20% (user_history). game_review (90%) and position_analysis (70%) report `null` perSource bucket per [PR_1C_PLAN.md §11.7](PR_1C_PLAN.md) feature_delta opportunity counter gap — Stage C treats null as "not measured" + pass-by-default. concept_explanation marked "deferred to PR 1.D" per [PR_1C_PLAN.md §6.4](PR_1C_PLAN.md).
+   - Chess correctness 0 violations.
+   - Persona fidelity ≥7/10 per persona, mean ≥7.5.
+   - Cost per turn ≤$0.035 flagship, ≤$0.005 fast.
+5. **Per-claim-type firing-rate aggregation in the sweep summary** (Aayan's Stage A.6 follow-up). Surface ≥3-never-fire claim types as merge-candidates for review. **Surface to Aayan, don't auto-merge.**
+6. PR description includes: by-category breakdown of metrics, total cost, sweep duration, per-claim-type firing-rate breakdown, comparison against baseline (main with flag off).
+7. No Sentry tier-1 alerts in the 24h preview window after Stage B lands.
 
-**Promotion to prod (separate ops PR, not part of Stage B merge):** the five §7.4 promotion criteria fire later.
-
----
-
-## 12. Open design questions, by reviewer
-
-### 12.1 Aayan reviews (chess + coaching + UX judgment)
-
-| # | Question | Default if no input |
-|---|---|---|
-| **Q1** | **Stage A scope decision (§0).** Approve tighter Stage B scope (feature delta + role diff today; scout/user-history wiring lands in a later commit alongside the unbuilt Stage A validators and a `runValidationPipeline.dataSources` extension)? Or reopen Stage A first and ship 1.C.A.2–A.5 before Stage B code starts? | Proceed with tighter scope — Stage B ships with the validators already in tree; Scout/user-history wire in a separate follow-up commit. |
-| **Q2** | **Per-retry `validating` SSE events (§4).** Emit one `validating` event per retry boundary (phase="retry-1", "retry-2", "fallback") so UI can narrate "checking again…"? Or emit only the initial `validating` event and stay silent on retries? Tradeoff: more events = more transparency, but pipeline that retries 0 times shouldn't suddenly look noisy. | Emit on every boundary. Phase 2 UI can decide whether to render or suppress later events per persona; the wire format ships forward-compatible either way. |
-| **Q3** | **`/api/chat` no-context fallback path (§2.2).** Skip the pipeline on chat requests that don't have a `contextId` (no FEN, no delta)? Or attempt a degraded pipeline run anyway, just for eval-mismatch coverage? | Skip the pipeline on no-context chat. Eval-mismatch coverage on plain chat isn't worth the latency cost without a FEN to validate against. |
-| **Q4** | **Telemetry field choices that affect ISEF analyzability.** Per §6.2 the per-event schema includes `response_id`, `user_tier`, and a `category` slot that's null until classifier wires in. Is the schema complete enough to support the ISEF correlation analyses, or are there fields you want now to avoid backfilling later? Specifically: do we want `prompt_version`, `model_id`, `route_request_id` in the schema today? | Ship as specified. `prompt_version` is already in the existing `coach.tokens` log line; can be joined out-of-band. `model_id` is implicit in tier+date; skip. `route_request_id` overlaps with `correlation_id`; skip. |
-| **Q5** | **CategoryClassifier wiring posture in Stage B.** Stage A.1 ships the classifier but Stage B doesn't yet call it. Wire it in Stage B (one extra Haiku call per turn before the pipeline, attaches `category` to telemetry)? Or wait until the per-category citation validators ship, which is when the category actually matters for the gate? | Wait. Calling the classifier without using its output for routing or gating adds Haiku cost ($0.001/turn) for no behavior change. Wire it in the same commit that ships `scoutCitation` + `userHistoryCitation` (the validators that read category). |
-| **Q6** | **Partial-data degraded-response UX.** When Scout/user-history sources fail (future-state, post-Q1 resolution), the validators just don't fire for those sources. Does the user need any UI indication ("Limited opponent data — based on engine + position only") or is the response self-contained enough that we silently degrade? | Silently degrade. The response is built from whatever sources resolved; the user has no expectation about which sources were live. UI surface for degraded mode is a Phase 2 concern (when the orchestrator presents structured citations per source). |
-| **Q7** | **CI sweep workflow.** Add a "ci-sweep" GitHub Action with a manual trigger button that runs the synthetic-tester against the preview URL for any PR touching the validator surface? Or keep sweep as a local-only Aayan-runs-before-merge step? | Local-only for Stage B. Add CI sweep after Stage B has been in prod stably for 30+ days and the sweep is a routine pre-merge check, not a one-off. |
-
-### 12.2 Tech-lead reviews (architecture + scope)
-
-| # | Question | Default if no input |
-|---|---|---|
-| **T1** | **Pipeline-timeout option (§5.1).** Wrap `runValidationPipeline` in a 30s race inside `wireValidators.ts` (option b) rather than extending the pipeline's return type to carry a `pipeline_timed_out` outcome (option a — touches PR 1.B sealed surface). Acceptable? | Option (b) ships. PR 1.B stays sealed. Wrapper synthesizes the `pipeline_timed_out` shape from `Promise.race`. |
-| **T2** | **Streaming branch buffer-then-restream.** Synthetic re-stream pacing (§4.3): chunk size 64 chars, inter-chunk 30 ms. Tune values? Or ship and tune post-deploy? | Ship the values; tune post-deploy. Both are tunable constants in `wireValidators.ts`. |
-| **T3** | **`maxRetries: 1` for chat vs 2 for enhanced-analysis (§2.2).** Chat is fast-tier (Haiku 4.5) with tight budget. Acceptable to cap chat retries at 1? Or align both at 2? | Cap chat at 1. Chat's quality-vs-latency tradeoff weights latency more — users expect fast follow-up. Two Haiku retries on a chat turn is 6-9s of LLM time. |
-| **T4** | **Telemetry routing through existing Sentry pipeline vs. dedicated sink.** §6 uses the existing structured logger that already forwards to Sentry. Acceptable, or do we want a dedicated `mastermind-validator` Sentry project / breadcrumb category? | Existing pipeline. One sink, one query path. The `module=mastermind-validator` tag is the filter. |
-| **T5** | **Flag reader pattern (§7.2 Option A vs B).** Function-based reader (Option A, matches `getAuthEnv`) vs Zod schema extension (Option B). | Option A. Easier to test, no required-env coupling. |
-| **T6** | **Route integration tests — fixture format.** §10.5 uses JSON fixtures mirroring the dry-run harness style. Acceptable, or do we want inline-TS fixtures for stricter typing? | JSON. Consistency with the dry-run harness wins over slightly looser typing. Zod-validate fixtures at load time. |
-| **T7** | **Per-route opt-out.** A future route might want to bypass validators (e.g. a hypothetical `/api/quick-tip` route where Haiku is fine without grounding). Default: no opt-out mechanism in Stage B. Acceptable? Or design the opt-out shape now? | No opt-out in Stage B. Add when first opt-out request lands. |
-| **T8** | **Per-request opt-out.** Add a `validate=false` request param so clients can skip validation per-call (e.g. for performance-sensitive callsites)? Default: no per-request opt-out — flag is the only knob. Acceptable? | No per-request opt-out. Surfacing it now invites premature use; revisit only if a specific case warrants. |
-| **T9** | **Running validation on puzzle / Maia / other routes.** Out of scope for PR 1.C per the brief. Confirm the route allowlist for Stage B is only `/api/enhanced-analysis` and `/api/chat`? | Confirmed. Other routes (puzzles, Maia, scout, etc.) untouched in Stage B. Future PR if/when desired. |
-| **T10** | **Auth-required for the flag-on path.** Both routes already `requireSession()`. Confirm the flag-on path inherits the same auth requirement (no anonymous access bypasses validation)? | Confirmed. The flag changes the post-auth lifecycle; the auth boundary is unchanged. |
+**Promotion to prod (separate ops PR, not part of Stage B merge):** the five §7.4 promotion criteria fire later — preview-only stays until the gate catches a real regression, 7-day clean window, p95 latency ≤ 1.5× prod baseline.
 
 ---
 
-## 13. Out of scope for Stage B
+## 12. Open design questions
+
+### 12.1 Aayan reviews — Q1-Q7 RATIFIED (carried forward from pre-Stage-A round)
+
+| # | Question | Resolution |
+|---|---|---|
+| **Q1** | Stage A scope decision (§0). | **RESOLVED 2026-05-18 — Stage A reopened and shipped.** All four outstanding Stage A items (`scoutCitation`, `userHistoryAggregates`, `userHistoryCitation`, `runValidationPipeline.dataSources` extension) shipped in commits A.6 through A.9. Stage B as planned wires all four validators. The pre-Stage-A "tighter scope" default no longer applies. |
+| **Q2** | Per-retry `validating` SSE events (§4) — every boundary or initial only? | **Ratified: emit on every boundary.** Phase 2 UI can decide whether to render or suppress later events per persona; the wire format ships forward-compatible either way. |
+| **Q3** | `/api/chat` no-`contextId` fallback — skip the pipeline or attempt a degraded run? | **Ratified: skip on no-context chat.** Eval-mismatch coverage on plain chat isn't worth the latency cost without a FEN. |
+| **Q4** | Telemetry field set for ISEF analyzability — ship as specced or add `prompt_version` / `model_id` / `route_request_id`? | **Ratified: ship as specified.** `prompt_version` already in `coach.tokens` log; `model_id` implicit in tier+date; `route_request_id` overlaps with `correlation_id`. |
+| **Q5** | CategoryClassifier wiring posture in Stage B. | **Ratified: wire in Stage B (revised — the wait condition has now fired).** Q5's original "wait until scout + user-history validators land" rationale is now satisfied — both shipped in Stage A.6/A.8. Stage B wires the classifier; `category` populates telemetry + citation-rate input. ~$0.001/turn extra cost acceptable. |
+| **Q6** | Partial-data degraded UX — surface to user or silently degrade? | **Ratified: silently degrade.** UI surface for degraded mode is a Phase 2 orchestrator concern. |
+| **Q7** | CI sweep workflow — manual-trigger GitHub Action or local-only? | **Ratified: local-only for Stage B.** Add CI sweep after Stage B has been in prod stably for 30+ days. |
+
+### 12.2 Tech-lead reviews — T1-T10 RATIFIED (carried forward)
+
+| # | Question | Resolution |
+|---|---|---|
+| **T1** | Pipeline-timeout option — Promise.race wrapper (b) vs return-type extension (a). | **Ratified: option (b) — Promise.race wrapper in `wireValidators.ts`.** Even though Stage A.9 confirmed touching PR 1.B's sealed surface is acceptable (per [§7.1 scope correction](PR_1C_PLAN.md)), the wrapper is simpler than extending `RegenerateResult` with a new outcome enum. PR 1.B + Stage A.9 surface stays untouched by the timeout concern. |
+| **T2** | Streaming pacing constants (64 chars / 30ms) — ship-and-tune. | **Ratified: ship the values; tune post-deploy.** |
+| **T3** | `maxRetries: 1` for chat vs 2 for enhanced-analysis. | **Ratified: cap chat at 1.** |
+| **T4** | Telemetry routing — existing Sentry pipeline vs dedicated sink. | **Ratified: existing pipeline; `module=mastermind-validator` tag filter.** |
+| **T5** | Flag reader pattern — function-based (a) vs Zod (b). | **Ratified: option (a) — `getMastermindEnv()` function-based.** |
+| **T6** | Route integration tests — JSON fixtures vs inline-TS. | **Ratified: JSON fixtures.** Zod-validate at load time. |
+| **T7** | Per-route opt-out shape — design now or add later. | **Ratified: no opt-out in Stage B.** Add when the first opt-out request lands. |
+| **T8** | Per-request opt-out (`validate=false` param). | **Ratified: skip.** Flag is the only knob. |
+| **T9** | Route allowlist — `/api/enhanced-analysis` + `/api/chat` only. | **Ratified.** Other routes untouched. |
+| **T10** | Auth boundary unchanged on flag-on path. | **Ratified.** Flag changes post-auth lifecycle; boundary unchanged. |
+
+### 12.3 New open questions surfaced by the four-validator wiring surface (post-Stage-A)
+
+These weren't in the pre-Stage-A draft because the wiring surface didn't exist. Pause for tech-lead review:
+
+| # | Question | Default if no input |
+|---|---|---|
+| **T11** | **Opponent identity for Scout fetch (§3.1).** `/api/enhanced-analysis` doesn't currently carry an `opponentUsername` field in its request schema. Three options: (a) Parse opponent name from PGN headers (`white.name` / `black.name` matched against `userName`); (b) Add a new optional `opponentUsername` field to the route's request schema (route consumer change); (c) Both — try PGN parse first, fall back to explicit field. | **Option (a) — parse from PGN headers.** Most existing analysis flows include the opponent name in the PGN. The route doesn't need a schema change; `wireValidators.ts` does the parsing. If PGN omits the opponent (anonymous game), Scout fetch is skipped — silently degrades per Q6. |
+| **T12** | **Firestore games query bound (§3.1 #5).** Reading `users/{uid}/games` for every flag-on `/api/enhanced-analysis` request — bound at 200 most-recent games for the aggregator? More? Less? Tradeoff: more games = better aggregator stats but slower Firestore read + larger memory footprint. | **200 most-recent.** Covers ~1 year of typical play for active users; sufficient sample size for `aggregateWinRateByTimeControl` thresholds (≥10 games per class). Tune if Stage C surfaces opportunity-undercount complaints. |
+| **T13** | **Where citationRate fires in the route lifecycle (§3.5).** After `runValidationPipeline` returns, before `validateAIResponse` (footnote-append), before `forwardTelemetry`? Or after telemetry? Tradeoff: ordering affects what's in the `citation_rate_summary` event's correlation timeline. | **After pipeline, before forwardTelemetry.** citationRate output rides on the telemetry sink as a final `citation_rate_summary` event; sequence preserves the per-validator events that precede it. |
+| **T14** | **Scout cache strategy.** `scoutService.ts` has a 10-min server-side cache per opponent username. `wireValidators.ts` doesn't add its own cache layer; trusts the upstream. Acceptable? | **Yes, trust scoutService's existing cache.** Per-route cache would double-buffer for no win; `scoutService.ts` is the canonical Scout pipeline. |
+| **T15** | **`UserHistoryGame` import path coupling.** `wireValidators.ts` imports `UserHistoryGame` type from `@/lib/mastermind/userHistoryAggregates` (Stage A.7's home for the aggregator + its type). This couples `wireValidators.ts` (Stage B) to the Stage A.7 file's type export. Acceptable, or should `UserHistoryGame` move to a more central types module? | **Acceptable.** Type lives where the aggregator lives; centralizing into a separate types module is premature cleanup. The cleanup_followups.md `TimeControlClass` entry is the prototype for "we'll consolidate type-derivation when a real need surfaces." |
+| **T16** | **`citation_rate_summary` Sentry event level.** Per-turn summary event with citation rates per source. Sentry level: `info` (every turn) or `debug` (volume concern)? | **`info`.** Stage C sweep + Sentry analytics rely on these being routinely visible; volume is bounded (≤1 per turn, ≤250k/month at 50k MAU steady state). |
+
+These six new questions all default-resolve in the implementation. Tech-lead may override before code starts; otherwise the defaults are implementation.
+
+---
+
+## 13. Out of scope for Stage B (revised post-Stage-A seal)
 
 Surfaced so the boundaries are explicit:
 
+- **`feature_delta` opportunity counter.** Deferred per [PR_1C_PLAN.md §11.7](PR_1C_PLAN.md) + [`cleanup_followups.md`](cleanup_followups.md). game_review and position_analysis categories' citation rates report null perSource bucket; Stage C treats null as "not measured" + pass-by-default. Hallucination ceiling still applies.
 - **Removing footnote-append.** Coexistence is intentional (§8). Removal is a separate decision after 30+ days of prod stability post-PR-1.C promotion.
-- **Wiring `categoryClassifier`.** Stage A ships the classifier, but Stage B doesn't call it (§12 Q5). Wired in the commit that introduces `scoutCitation` + `userHistoryCitation`.
-- **Adding scout / user-history data sources to `wireValidators.ts` actually returning data.** Slots are reserved (§3.1) but null. They wire in when the corresponding validators ship.
-- **Extending `runValidationPipeline`'s signature** to accept `dataSources: { scout?, userHistory?, jhamtani? }`. Touches PR 1.B sealed surface. Separate scope decision (§12 Q1).
 - **Per-user feature-flag overrides** (beta cohort gets it on prod ahead of promotion). Skip in Stage B; revisit if a paid-tier launch lands before promotion criteria fire.
-- **Footnote-append removal / replacement.** See above.
-- **`/api/puzzle-stats`** (PR 1.E precursor). Aayan-triggered, separate workstream.
-- **Jhamtani wire-up.** PR 1.D, Aayan-triggered, separate workstream.
+- **`/api/puzzle-stats`** (PR 1.E precursor). Aayan-triggered, separate workstream. Restoring the three deferred user-history claim types (rating_trajectory, puzzle_stats_claim, puzzle_rating_trajectory) lives in PR 1.E.
+- **Jhamtani wire-up.** PR 1.D, Aayan-triggered, separate workstream. `dataSources.jhamtani` slot reserved in PR 1.B-extended signature but consumed by no validator yet.
 - **Cross-source claim coordinator** (PR 1.F). Conditional on Stage C sweep showing ≥5% composite-claim rate; Aayan-triggered.
 - **Validation on puzzle / Maia / scout / other routes** (§12 T9).
 - **Per-route opt-out, per-request opt-out** (§12 T7/T8).
+- **Cross-platform user identity reconciliation** (Lichess vs Chess.com aliases). Deferred to post-PR-1.E per `cleanup_followups.md` C4 entry. Stage B uses single-name substring match per Stage A.7's `detectUserColor`.
+- **Move-prefix opening-claim validation.** Deferred per `cleanup_followups.md` C2/T3. Coach claims like "1.e4 e5 lines" route to qualitative_commentary; the validator doesn't try to resolve move-prefix to ECO.
+
+**Items now IN scope** (moved from out-of-scope vs pre-Stage-A draft):
+
+- Wiring `categoryClassifier` — Q5 resolved (wait condition fired); classifier wires in Stage B.
+- Scout + user-history data sources in `wireValidators.ts` — Stage A.6/A.8 validators shipped; sources now real (not null).
+- `runValidationPipeline.dataSources` extension — already shipped in Stage A.9. Stage B consumes; doesn't extend.
 
 ---
 
-## 14. Pause for review
+## 14. Pause for review (revised post-Stage-A seal)
 
-This plan is the brief for Stage B code. **Don't start Stage B code until both reviewer threads sign off — Aayan on §12.1 (chess/coaching/UX), tech-lead on §12.2 (architecture/scope).** The §0 scope reconciliation (Q1) is the load-bearing gate — every downstream section depends on its resolution.
+**Don't start Stage B code until tech-lead signs off on the revised §3 `wireValidators.ts` spec specifically** — the four-validator wiring surface is the main architectural change between the pre-Stage-A draft and this revision. Other sections carry decisions ratified in the pre-Stage-A round (§12.1 Q1–Q7, §12.2 T1–T10).
 
 Specifically pending:
 
-- **Aayan (Q1):** approve tighter Stage B scope (feature delta + role diff today) OR reopen Stage A to ship 1.C.A.2–A.5 first.
-- **Aayan (Q2):** per-retry `validating` SSE events on every boundary or only the initial?
-- **Aayan (Q3):** `/api/chat` no-contextId fallback — skip pipeline or attempt degraded run?
-- **Aayan (Q4–Q7):** telemetry field set, classifier wiring posture, partial-data UX, CI sweep workflow.
-- **Tech-lead (T1–T10):** architecture decisions across pipeline-timeout wrapper, streaming pacing, retry caps, telemetry routing, flag reader pattern, fixture format, opt-out scope, route allowlist, auth posture.
+- **Tech-lead (§12.3 T11–T16):** opponent identity for Scout fetch (PGN parsing vs request field); Firestore games query bound (200 most-recent); citationRate lifecycle position (post-pipeline, pre-telemetry); Scout cache strategy (trust scoutService); `UserHistoryGame` type coupling acceptable; `citation_rate_summary` Sentry event level (info).
 
-Once both sign off, Stage B code begins. Commits land in the order specified by [PR_1C_PLAN.md §7](PR_1C_PLAN.md) renumbered to start from where Stage A left off (next commit: `1.C.B.1` — `wireValidators.ts` + tests).
+All six default-resolve in the implementation. Override surface to keep narrow.
 
-Stage A is sealed; this Stage B plan does not modify Stage A code. Stage C (synthetic-tester sweep against preview) is the merge gate; this plan documents the sweep's role in §11.2 + §11.3 but does not yet author the sweep changes — those land alongside Stage B.B.N code if there's a final-PR-readiness commit needed, or stay in the existing `scripts/synthetic-tester/` infrastructure unchanged.
+Once tech-lead signs off (or accepts §12.3 defaults silently), Stage B code begins. Commit order:
+
+| # | Commit | Surface |
+|---|---|---|
+| `1.C.B.1` | `wireValidators.ts` + tests | Library — the four-source fetch helper + categoryClassifier wiring + citationRate post-step + partial-data failure matrix |
+| `1.C.B.2` | `validatorTelemetry.ts` + tests | Library — forwardTelemetry, RouteContext, citation_rate_summary event |
+| `1.C.B.3` | `getMastermindEnv()` in `src/env.ts` + flag plumbing | Single small env addition |
+| `1.C.B.4` | `/api/enhanced-analysis/route.ts` flag-on wing + integration test | **Route file (live traffic surface)** — tech-lead review required |
+| `1.C.B.5` | `/api/chat/route.ts` flag-on wing + integration test | **Route file (live traffic surface)** — tech-lead review required |
+
+After Stage B's final commit (1.C.B.5), the next step is the **Stage C synthetic-tester sweep against preview deploy with `MASTERMIND_VALIDATORS_ENABLED=true`**. Sweep output includes per-claim-type firing-rate aggregation per Aayan's Stage A.6 follow-up — flags ≥3-never-fire claim types as merge candidates for review.
+
+After Stage C passes all five gate metrics per §11.3, PR 1.C merges to main.
+
+**Reminder:** PR 1.C merge to main **does not flip `MASTERMIND_VALIDATORS_ENABLED` in production.** The flag stays preview-only until the §7.4 promotion criteria fire (gate caught real regression in CI, 7-day clean preview window, p95 latency ≤ 1.5× prod baseline). Promotion happens later as a separate ops PR.

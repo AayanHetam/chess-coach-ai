@@ -5,6 +5,7 @@ export type CheckName =
   | "eval_mismatch_qualitative"
   | "feature_citation_unsupported"
   | "scout_citation_unsupported"
+  | "user_history_citation_unsupported"
   | "parser_failure";
 
 export type FireReason =
@@ -190,5 +191,59 @@ export interface ScoutOpportunity {
   dataSource: "scout";
   claim_type: ScoutClaimType;
   /** Opaque pointer back to the source entry (for debugging/logging). */
+  ref: unknown;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// User-history citation (Stage A.8 — PR_1C_USER_HISTORY_CITATION_PLAN.md)
+// ─────────────────────────────────────────────────────────────────────────
+
+export type UserHistoryClaimType =
+  | "time_control_performance"
+  | "opening_repertoire_performance"
+  | "hours_played_claim";
+
+export type DateRangeType =
+  | "this_month"
+  | "last_month"
+  | "this_year"
+  | "last_year"
+  | "last_n_days"
+  | "in_year"
+  | "all_time";
+
+export interface ParsedUserHistoryClaim {
+  claim_text: string;
+  claim_type: UserHistoryClaimType;
+  expected_in_data: {
+    // For time_control_performance:
+    time_class?: ScoutTimeClass;
+    specific_time_control?: string;
+    stated_pct?: number;
+    stated_metric?: "score_pct" | "win_rate";
+    // For opening_repertoire_performance:
+    opening_name?: string;
+    opening_eco?: string;
+    user_color?: "white" | "black";
+    // For hours_played_claim:
+    stated_count?: number;
+    date_range_type?: DateRangeType;
+    date_range_n?: number;
+    date_range_year?: number;
+  };
+  claim_class:
+    | "factual_user_history_claim"
+    | "qualitative_commentary"
+    | "conditional_speculation";
+  confidence: number;
+}
+
+/**
+ * Opportunity for the citation-rate denominator. Local Stage A.8 shape;
+ * Stage A.9 widens into the cross-source Opportunity type.
+ */
+export interface UserHistoryOpportunity {
+  dataSource: "user_history";
+  claim_type: UserHistoryClaimType;
   ref: unknown;
 }

@@ -14,6 +14,14 @@ export { validateFeatureDeltaCitations } from "./featureDeltaCitation";
 export type { FeatureCitationOpts } from "./featureDeltaCitation";
 export { validateScoutCitation, countScoutOpportunities, SCOUT_TOLERANCE } from "./scoutCitation";
 export type { ScoutCitationOpts } from "./scoutCitation";
+export {
+  validateUserHistoryCitation,
+  countUserHistoryOpportunities,
+  resolveDateRange,
+  hoursPlayedTolerance,
+  USER_HISTORY_TOLERANCE,
+} from "./userHistoryCitation";
+export type { UserHistoryCitationOpts } from "./userHistoryCitation";
 export { regenerateUntilValid, buildRetryInstruction } from "./regenerate";
 export type { RegenerateOpts, RegenerateResult } from "./regenerate";
 export { buildFallbackResponse } from "./fallback";

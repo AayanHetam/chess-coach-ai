@@ -301,3 +301,114 @@ export function buildScoutCitationUserTurn(input: ScoutCitationParseInput): stri
     input.llmResponse,
   ].join("\n");
 }
+
+export const USER_HISTORY_CITATION_PARSER_SYSTEM = `You extract user-history claims from chess coaching prose.
+
+INPUT: a passage of coaching prose discussing the USER's own playing history — their performance by time control, by opening repertoire, or game volume in a date range.
+
+OUTPUT: a JSON array. Each element is one distinct user-history claim:
+
+  {
+    "claim_text": verbatim quote from input,
+    "claim_type": one of [
+      "time_control_performance",
+      "opening_repertoire_performance",
+      "hours_played_claim"
+    ],
+    "expected_in_data": {
+      // time_control_performance:
+      "time_class"?: "bullet" | "blitz" | "rapid" | "classical" | "daily",
+      "specific_time_control"?: string,
+      "stated_pct"?: number,
+      "stated_metric"?: "score_pct" | "win_rate",
+      // opening_repertoire_performance:
+      "opening_name"?: string,
+      "opening_eco"?: string,
+      "user_color"?: "white" | "black",
+      // hours_played_claim:
+      "stated_count"?: number,
+      "date_range_type"?: "this_month" | "last_month" | "this_year" | "last_year" | "last_n_days" | "in_year" | "all_time",
+      "date_range_n"?: number,
+      "date_range_year"?: number
+    },
+    "claim_class": "factual_user_history_claim" | "qualitative_commentary" | "conditional_speculation",
+    "confidence": number in [0, 1]
+  }
+
+Return ONLY the JSON array. No prose, no preamble. If the passage contains no user-history claims, return [].
+
+CLAIM-TYPE DEFINITIONS:
+
+- "time_control_performance" — the user's score % or win rate in a named time class or specific time control.
+  Examples:
+  - "You're 65% in rapid"             → time_class: "rapid", stated_pct: 65, stated_metric: "score_pct"
+  - "Your win rate in 300+5 is 60%"   → specific_time_control: "300+5", stated_pct: 60, stated_metric: "win_rate"
+  - "You score 48% in blitz"          → time_class: "blitz", stated_pct: 48, stated_metric: "score_pct"
+
+- "opening_repertoire_performance" — the user's score in a named opening, optionally filtered by their color.
+  Examples:
+  - "Your Najdorf as black has been disappointing — 41%" →
+      opening_name: "Najdorf", user_color: "black", stated_pct: 41, stated_metric: "score_pct"
+  - "70% in the Sicilian as white" →
+      opening_name: "Sicilian", user_color: "white", stated_pct: 70, stated_metric: "score_pct"
+  - "ECO B23 is your strongest line — 75%" →
+      opening_eco: "B23", stated_pct: 75, stated_metric: "score_pct"
+  - Move-prefix claims like "you score 60% in 1.e4 e5 lines" — DO NOT extract as opening_repertoire_performance; mark as qualitative_commentary instead (the validator can't reliably resolve move-prefix to opening name).
+
+- "hours_played_claim" — the count of games the user played in a date range.
+  Examples:
+  - "You've played 120 games this month" →
+      stated_count: 120, date_range_type: "this_month"
+  - "You played 50 blitz games last week" →
+      stated_count: 50, time_class: "blitz", date_range_type: "last_n_days", date_range_n: 7
+  - "Over 200 games in 2025" →
+      stated_count: 200, date_range_type: "in_year", date_range_year: 2025
+  - "You play a lot" — no specific count → qualitative_commentary
+  - "You played 10 hours this week" — coach citing HOURS, not games → qualitative_commentary
+
+CLASSIFICATION RULES:
+
+- "factual_user_history_claim" — asserts a SPECIFIC value about the user's own playing history.
+- "qualitative_commentary" — describes the user's history WITHOUT citing a specific value.
+  Examples: "you've been struggling in blitz", "the Sicilian hasn't worked out for you", "you've been playing a lot lately", "you score 60% in 1.e4 e5 lines" (move-prefix), "you played 10 hours" (hours-not-games). NOT factual.
+- "conditional_speculation" — claims gated on a continuation or hypothesis.
+
+ATTRIBUTION RULE: the subject must be the USER's own history. Claims about the opponent's history are NOT user-history claims — return [] for those, or omit them. Examples that ARE user-history:
+- "You're 65% in rapid"               — user is the subject.
+- "Scout shows you're 65% in rapid"   — still user-history (the user IS the subject, regardless of attribution).
+Examples that are NOT user-history (omit, don't extract):
+- "Your opponent has been losing in rapid" — opponent's history.
+- "Vinod_kk's rapid record is 70%"         — opponent.
+
+DATE-RANGE PARSING HINTS:
+- "this month" / "this week" → date_range_type: "this_month" (week → last_n_days, 7).
+  ("this week" is approximated as last_n_days: 7 to avoid week-boundary ambiguity.)
+- "last month" → date_range_type: "last_month".
+- "this year" → date_range_type: "this_year". "last year" → "last_year".
+- "in 2024" / "during 2024" → date_range_type: "in_year", date_range_year: 2024.
+- "last 30 days" / "past 30 days" / "last week" → date_range_type: "last_n_days", date_range_n: 30 (or 7 for "last week").
+- "ever" / "all-time" / "overall" / "total" → date_range_type: "all_time".
+
+CONFIDENCE GUIDE:
+- 0.9-1.0: unambiguous factual claim with a specific numeric value.
+- 0.5-0.8: factual but hedged ("around 60%", "roughly 100 games").
+- 0.0-0.4: vague or impossible to map to a single source field.
+
+The user turn supplies the user's name + the current time anchor (ms-since-epoch) for resolving relative date phrases.`;
+
+export interface UserHistoryCitationParseInput {
+  llmResponse: string;
+  userName: string;
+  /** Ms-since-epoch — current time, so "this month"/"last week" resolve consistently. */
+  nowMs: number;
+}
+
+export function buildUserHistoryCitationUserTurn(input: UserHistoryCitationParseInput): string {
+  return [
+    `User name: ${input.userName}.`,
+    `Current time (ms-since-epoch UTC): ${input.nowMs}.`,
+    `Passage:`,
+    ``,
+    input.llmResponse,
+  ].join("\n");
+}

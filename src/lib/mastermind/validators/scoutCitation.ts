@@ -14,6 +14,7 @@ import {
   ScoutTimeClass,
   PARSER_LOW_CONFIDENCE_THRESHOLD,
 } from "./types";
+import { lower, substringMatch } from "@/lib/utils/fuzzyMatch";
 import type {
   ScoutAnalytics,
   Collisions,
@@ -92,44 +93,10 @@ interface MatchResult {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────
 
-function lower(s: string | undefined): string {
-  return (s ?? "").toLowerCase().trim();
-}
-
-/**
- * Case-insensitive name match. Returns true when:
- *   (a) `needle` is a contiguous substring of `haystack`, OR
- *   (b) all of `needle`'s whitespace-split tokens appear in `haystack`'s
- *       tokens (word-order-tolerant).
- *
- * Both are lowercased + trimmed. The token-overlap fallback was added
- * during Stage A.6 implementation as a documented deviation from the
- * plan §5 substring spec — the plan anticipated word-order variation
- * ("LLM may phrase 'Sicilian Najdorf' or 'Najdorf Sicilian'") but
- * literal substring fails when intermediate words like "Defense" sit
- * between the matched terms. Token-overlap handles all word-order
- * variants without needing claim-side normalization.
- *
- * Stage C watchpoint (Aayan 2026-05-18): token overlap can over-match
- * if common tokens like "Defense" or "Gambit" appear across distinct
- * openings. If false positives surface in the sweep where the validator
- * accepts a wrong opening due to overlap on non-distinctive tokens, the
- * fix is requiring overlap on the *distinctive* tokens specifically
- * (e.g., drop a stopword list like ["defense", "opening", "gambit"]
- * from both sides before checking). Not a code change now; the watch
- * lives in this comment so it's visible to anyone iterating on the
- * matcher post-Stage-C.
- */
-function substringMatch(haystack: string, needle: string): boolean {
-  const h = lower(haystack);
-  const n = lower(needle);
-  if (!n) return false;
-  if (h.includes(n)) return true;
-  const haystackTokens = new Set(h.split(/\s+/).filter(Boolean));
-  const needleTokens = n.split(/\s+/).filter(Boolean);
-  if (needleTokens.length === 0) return false;
-  return needleTokens.every((t) => haystackTokens.has(t));
-}
+// `lower` + `substringMatch` extracted to src/lib/utils/fuzzyMatch.ts
+// during Stage A.8 (Aayan T2 ratified) so userHistoryCitation can reuse
+// the same matcher for opening-name claims. Docblock + Stage C watchpoint
+// for token-overlap over-matching now live in the utility module.
 
 /**
  * Match an OpeningSummary against the claim's opening hints. Prefers ECO

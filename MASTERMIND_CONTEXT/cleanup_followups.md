@@ -165,3 +165,34 @@ Estimated size: ~80 LOC + ~80 test = ~160 LOC.
 **Why deferred.** Stage B's scope is the four-source fetch + telemetry forwarding. Collisions adds a fifth fetch path (user repertoire from Firestore) with its own failure mode, plus the compute step — meaningful surface for a cleanup PR but not load-bearing for the citation-rate floors that gate PR 1.C merge. The repertoire data shape is also in flux (the repertoire parser is among Stage A.7's `cleanup_followups` items).
 
 **Recommended trigger:** Stage C sweep surfaces a real prep-collision-needed signal — e.g., opponent_prep responses citing collision-style claims (`"they're weak against your French"`, `"their Najdorf prep doesn't cover your Sveshnikov line"`) and firing as `unsupported_citation` because the validator has no collisions data to cross-check. Sub-5% rate of these claims means the cleanup is low-priority; above 10% it becomes load-bearing for opponent_prep's 85% citation-rate floor.
+
+---
+
+## 2026-05-22 — `enhanced-analysis` route has 2 raw `console.*` calls outside the structured logger
+
+**Status:** flagged during PR 1.C Stage B commit `1.C.B.3.5` (audit of route file).
+
+**Background.** The audit at [PR_1C_STAGE_B_PLAN.md §3.7.8](PR_1C_STAGE_B_PLAN.md) surfaced two telemetry emissions in [`src/app/api/enhanced-analysis/route.ts`](../src/app/api/enhanced-analysis/route.ts) that bypass the structured logger:
+
+1. **`console.log("coach.tokens", {...})`** at line 1240 (streaming branch) and line 1348 (non-streaming branch) — token-usage tracking that emits as plain console.log JSON-ish output, NOT routed through `logger.info`. Misses the structured `requestId` / `module` correlation that the rest of the route uses.
+2. **`console.error("Failed to fetch puzzles for mistake at move N", ...)`** at line 983 in `generatePuzzleRecommendations` — per-mistake failure log that bypasses `logger.error` so it doesn't carry the request-context fields and doesn't surface to Sentry consistently.
+
+**Consequence today.** Token usage and puzzle-fetch failures aren't queryable by `requestId` in Vercel Log Drain (they're text-not-JSON for `coach.tokens`) and aren't correlated with the rest of the route's logging in Sentry. Low-severity discipline drift, not a correctness bug.
+
+**Cleanup task.** Three-line migration per call site:
+
+```typescript
+// Before:
+console.log("coach.tokens", { input: ..., output: ..., promptVersion: PROMPT_VERSION, streamed: true });
+
+// After:
+log.info("coach.tokens", { input: ..., output: ..., promptVersion: PROMPT_VERSION, streamed: true });
+```
+
+Same shape for the `console.error` in `generatePuzzleRecommendations` → `log.warn` (failure to fetch puzzles for one mistake is recoverable; warn-level matches the surrounding pattern at line 1292's `log.warn("puzzle recs failed in stream", ...)`).
+
+Estimated size: ~5 LOC change. Net trivial.
+
+**Why deferred.** Stage B's flag-on wing has plenty of surface; touching `coach.tokens` mid-stream during 1.C.B.4 risks the byte-identical-flag-off invariant getting harder to reason about (the audit relies on the existing console.log lines being unchanged when the flag is off). Cleanup PR after Stage B lands.
+
+**Recommended trigger:** any future PR that touches the route file for an unrelated reason, OR a dedicated cleanup PR resuming the structured-logger migration cadence.

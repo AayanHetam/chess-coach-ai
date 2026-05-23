@@ -1098,6 +1098,8 @@ Runs against a Vercel preview deploy with `MASTERMIND_VALIDATORS_ENABLED=true`. 
 
 **Telemetry-read dependency (added 2026-05-22 per §6.3.1 verified-behavior lock):** the sweep reads `citation_rate_summary` events from **Vercel Log Drain JSON lines**, not from Sentry — debug-level events are dropped at the logger gate before reaching Sentry per §6.3.1 finding 1, and Sentry breadcrumbs are not standalone-queryable per finding 2. **Ops prerequisite:** Vercel Preview env must have `LOG_LEVEL=debug` set before the sweep runs, or routine citation_rate_summary events are dropped and the sweep sees only the noteworthy + 1-in-100 sampled subset. This env setting lands as part of the preview-env setup that turns on `MASTERMIND_VALIDATORS_ENABLED=true`, not as a separate ops step.
 
+**Fixture-design requirement (added 2026-05-22 per §3.7.10 Question C resolution):** Stage C sweep fixtures **must include `opponentUsername` explicitly** for any opponent_prep test case. The flag-on `/api/enhanced-analysis` route doesn't auto-populate `opponentUsername` from existing `chesscomUsername`/`lichessUsername` fields (Stage B keeps it opt-in to bound the PR); if sweep fixtures omit it, scout fetch is skipped and Scout citation perSource is null, underrepresenting what scout validation can actually catch on opponent_prep. Sweep authors: when designing opponent_prep fixtures, set `opponentUsername` to a real public chess.com / lichess handle (or a deterministic stub the harness mocks).
+
 ### 11.3 Merge gate (Stage B → main = PR 1.C merge)
 
 All of:

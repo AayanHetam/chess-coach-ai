@@ -435,6 +435,121 @@ The classifier is one extra Haiku call (~$0.001/turn, ~$0.0002 with cache-warm).
 
 **Confidence < 0.5 → default to `meta_motivational`** per [`categoryClassifier.ts`](../src/lib/mastermind/categorization/categoryClassifier.ts) `DEFAULT_LOW_CONFIDENCE_CATEGORY`. Stage A.1's boundary iteration validated this default; the classifier is shipped as-is.
 
+### 3.7 Route audit: `/api/enhanced-analysis` (pre-1.C.B.4)
+
+End-to-end read of [`src/app/api/enhanced-analysis/route.ts`](../src/app/api/enhanced-analysis/route.ts) — **1440 lines** (grew from the 1082 CLAUDE.md cites; CLAUDE.md is stale on the line count, semantics unchanged). Captures every entry/exit point, telemetry emission, error path, streaming detail, auth boundary, and where the flag-on wing inserts. The flag-on path has to coexist with all of this without touching flag-off behavior.
+
+#### 3.7.1 Route shape — top-level structure
+
+- **Single `export async function POST(request)`** at line 994.
+- Wrapped in `withRequestContext(requestId, async () => { ... })` — the request-context provider for the structured logger (sets the `requestId` field on every `logger.child({...})` emission). `extractRequestId(request.headers)` reads the incoming `x-request-id` header or generates a UUID.
+- **No other exported methods** (no GET / PUT / DELETE).
+
+#### 3.7.2 Entry, validation, auth (lines 994–1023)
+
+1. **L994:** `POST(request)` entry.
+2. **L995–997:** `extractRequestId` + `withRequestContext` wrap.
+3. **L998–999:** `requireSession()` guard — returns `guard.response` (401/403) on failure. **Exit point #1.**
+4. **L1001–1023:** body parse + Zod schema validation via `validateRequest(enhancedAnalysisSchema, body)`. On schema failure → `parsed.response` (400). **Exit point #2.**
+5. The destructured request fields used downstream: `userMessage, message, moveHistory, fen, position, gameEval, playerColor, username, userRating, boardOrientation, conversationHistory, personalityId, playerColorName, chesscomUsername, lichessUsername, stream: streamRequested`.
+
+**Flag-on schema additions needed (per T11 Option (c)):** extend `enhancedAnalysisSchema` in [`src/lib/validation/schemas.ts`](../src/lib/validation/schemas.ts) at line 128 with `opponentUsername: z.string().max(50).regex(/^[a-zA-Z0-9_-]+$/).optional()`. Non-breaking; PGN-parsing path doesn't apply here since enhanced-analysis doesn't carry a PGN body.
+
+#### 3.7.3 Pre-LLM setup (lines 1024–1122)
+
+- **L1026:** `log.info("Enhanced analysis started", {...})` — the per-request audit entry.
+- **L1038–1054:** game-context build via `buildGameContext` / `buildCompactGameContext` (these are the prompt-injection helpers that produce the gameContext string for the user message).
+- **L1059–1075:** coaching prefs fetch via `getUserById(session.uid)`. Wrapped in try/catch; failure emits `log.warn("could not load coaching prefs", ...)` — **telemetry emission #1.**
+- **L1081–1089:** `claudeSystemPrompt = getCoachChatSystemPrompt({...})`.
+- **L1092–1122:** `claudeMessages` array build — assistant/user turn alternation plus the final user-content composition (with `selectExamples` + `formatExamplesForPrompt` few-shot injection).
+
+#### 3.7.4 Response cache (lines 1124–1186)
+
+Cache key: `generateCacheKey(currentFen, skillLevel, messageText || "analyze")` — same key for both streaming and non-streaming. On cache hit:
+
+- **Streaming branch (L1155–1183):** synthesizes a one-shot SSE response with the cached text + `done` event. **Exit point #3.**
+- **Non-streaming branch (L1185):** returns `NextResponse.json(cachedPayload)`. **Exit point #4.**
+
+Cache-hit metadata lacks `corrected`, `contextId`, `puzzleRecommendations` (cache short-circuits the post-LLM pipeline that produces them).
+
+**Flag-on policy on cache hits:** per §8 (no cutover), flag-on cache hits return the cached response unchanged. **Decision item below (§3.7.10 open question A):** do we still emit a `citation_rate_summary` event tagged `cached: true` for analytics consistency, or skip telemetry entirely on cache hits?
+
+#### 3.7.5 Streaming branch (lines 1193–1322)
+
+When `streamRequested === true` and cache misses:
+
+- **L1194–1204:** compute `validationFen` and the `game` object up front (the `done` event needs them).
+- **L1206–1207:** SSE plumbing — `TextEncoder` + `new ReadableStream({ async start(controller) {...} })`. Helper: `send = (obj) => controller.enqueue(encoder.encode(\`data: ${JSON.stringify(obj)}\\n\\n\`))`.
+- **L1215–1237:** `for await (const evt of callLLMStream({...}))` loop. Three event types from the LLM stream:
+  - `evt.type === "text"` → accumulate into `fullText` AND forward via `send({ type: "text", delta: evt.delta })`.
+  - `evt.type === "done" /* implicit */` → captures `llmDone: LLMResult` (final usage tokens).
+  - **On exception:** catches `LLMError` (or wraps unknown errors), emits `send({ type: "error", error: e.message })`, closes the stream. **Exit point #5 (early-out).** This is `log.error("LLM streaming failed for enhanced-analysis", ...)` — **telemetry emission #2.**
+- **L1239–1248:** `console.log("coach.tokens", {...})` — **telemetry emission #3** (NB: bypasses the structured logger; raw `console.log`).
+- **L1250–1262:** post-stream validation via `validateAIResponse(rawAnalysis, validationFen, moveHistory)`. On `validation.issues.length > 0` → `log.warn("AI response validation issues", ...)` — **telemetry emission #4.** `analysisContent = validation.isValid ? rawAnalysis : validation.correctedResponse` — this is the **existing footnote-append path** per §8.
+- **L1262–1282:** post-validation effects: `setCachedResponse` writes cache; `generateContextId` + `storeAnalysisContext` write the analysis-context cache (consumed by `/api/chat`).
+- **L1284–1293:** puzzle recommendations via `generatePuzzleRecommendations`. Wrapped in try/catch; failure → `log.warn("puzzle recs failed in stream", ...)` — **telemetry emission #5.**
+- **L1295–1310:** `send({ type: "done", metadata: {...} })` carries: analysis text, position, turn, moveCount, availableMoves, validationScore, validationIssues, contextId, puzzleRecommendations, corrected (`!validation.isValid`).
+- **L1314–1321:** `return new Response(sseStream, {headers: ...})`. **Exit point #6.** Headers: `text/event-stream`, `no-cache`, `keep-alive`, `X-Accel-Buffering: no`.
+
+**Streaming pre-flag-on observation:** the route **does not currently buffer-then-restream**. Deltas are forwarded live as Claude emits them. The post-stream validation runs AFTER the stream completes — but only emits `done` metadata at that point, never retracts already-streamed text. That's the discontinuity with §4: when the flag is on, the pipeline buffers because retries may replace the response, so the route cannot stream deltas live anymore. §4's "synthetic re-stream" replaces the L1224 forwarding path entirely on the flag-on wing.
+
+#### 3.7.6 Non-streaming branch (lines 1324–1425)
+
+When `streamRequested === false` (or absent) and cache misses:
+
+- **L1326–1334:** single `callLLM({...})` call.
+- **L1335–1347:** on `LLMError`/`Error` → `log.error("LLM provider failed for enhanced-analysis", ...)` (**telemetry emission #6**), returns `NextResponse.json({error: ..., details: ...}, { status: 502 })`. **Exit point #7.**
+- **L1348–1352:** `console.log("coach.tokens", {...})` — **telemetry emission #7** (mirror of #3).
+- **L1354–1364:** build `game` for response metadata.
+- **L1366–1376:** `validateAIResponse` (footnote-append path) + `log.warn("AI response validation issues", ...)` — **telemetry emission #8** (mirror of #4).
+- **L1378–1404:** `setCachedResponse`, `generateContextId`, `storeAnalysisContext` — same as streaming branch.
+- **L1407–1411:** `generatePuzzleRecommendations(...)` — note: NOT wrapped in try/catch here; failures propagate to the outer catch (the streaming branch wraps because closing the stream cleanly matters; the non-streaming branch can let the outer 500 handle it).
+- **L1413–1425:** `return NextResponse.json({ gameAnalysis: {...} })`. **Exit point #8.**
+
+#### 3.7.7 Outer error handler (lines 1426–1438)
+
+`try` block wraps everything from L1001 to L1425. Catch at L1426:
+- `log.error("Enhanced analysis failed", { error, stack })` — **telemetry emission #9.**
+- Returns `NextResponse.json({error: "Analysis failed", details: ...}, { status: 500 })`. **Exit point #9.**
+
+Streaming branch's `controller.close()` after the in-stream error already bypassed the outer catch (the SSE response was already returned at L1314 — exceptions inside the stream's `start` are scoped to the stream, not the route handler).
+
+#### 3.7.8 Other helpers + telemetry surfaces
+
+- `buildReinforcements` at L863 — `log.warn("Reinforcement retrieval failed", ...)` — **telemetry emission #10** (called from inside `buildGameContext` → `buildConceptLayer`'s reinforcement path; only fires when reinforcement lookup throws).
+- `generatePuzzleRecommendations` at L899 — emits `console.error("Failed to fetch puzzles for mistake at move N", ...)` per failed mistake (NOT through the structured logger). **Telemetry emission #11.**
+- **No rate-limit middleware** — the route has no per-IP / per-UID throttling. CLAUDE.md notes rate limiting was deferred to Phase 5 audit work; this is out of Stage B scope.
+
+#### 3.7.9 Identified flag-on insertion points (lines + rationale)
+
+The flag-on wing branches at six places. Each is gated by `if (validatorsEnabled)` from `getMastermindEnv()`. Flag-off path is byte-identical to today.
+
+| # | Line | Insertion | Rationale |
+|---|---|---|---|
+| **A** | After L1024 (post-`messageText`) | `const { validatorsEnabled } = getMastermindEnv();` | Single env read, no branching cost. Threads through both stream + non-stream paths via a captured const. |
+| **B** | After L1122 (final `claudeMessages.push`) | If `validatorsEnabled` and not a cache-hit candidate, run `classifyQuestion({question: messageText, parseCall})` → produces `category`. Threads into RouteContext + downstream citationRate call. | Pre-LLM placement matches §3.6 — classifier output is needed before we know whether to fetch sources, since some sources are category-conditional. (Stage B fetches all four regardless, but the classifier still has to run before pipeline call so RouteContext.category is populated for telemetry.) |
+| **C** | After L1186 (cache-hit non-stream return) | No new code on the flag-on cache-hit path per §8 (no cutover). **Open question §3.7.10 (A):** decide whether to still emit a "cached" citation_rate_summary marker. | §8 says cache hits stay unchanged. If we skip telemetry here, Stage C analytics will undercount turns (cache-hit turns disappear from the denominator). Surface for tech-lead decision. |
+| **D** | L1193 (streaming branch start, `if (streamRequested) {`) | Wrap entire branch: `if (validatorsEnabled) { /* new buffer-then-restream + pipeline */ } else { /* existing live-stream code */ }`. New branch implements §4 — emits `validating` SSE events during buffer, runs `runValidationPipeline({...dataSources, ...callLLMOpts})`, synthetic re-streams the final pipeline text via `send({type:"text",...})` in paced chunks, emits `done` with `pipeline.{finalOutcome, citationRate, telemetry, retryCount, totalCostUsd}` metadata appended to the existing fields. | §4 streaming gotcha is fully here. Pipeline buffers because retries can replace the response — live-streaming and then retracting is bad UX. |
+| **E** | L1324 (non-streaming branch start, `// Call the unified LLM provider`) | Wrap callLLM: `if (validatorsEnabled) { llmResult = await runValidationPipeline({initialRequest: {tier,system,messages,...}, dataSources, ...}); /* extract content from RegenerateResult */ } else { /* existing callLLM */ }`. Tail of the branch (L1354 onward) consumes `analysisContent` the same way. | Non-stream is the easier path — no buffering needed since there's no stream to disrupt. The pipeline handles retries and fallback internally; the route just sees a final RegenerateResult. |
+| **F** | Between L1404 and L1407 (after `storeAnalysisContext`, before puzzle recs) | If `validatorsEnabled`: build `RouteContext`, call `computeCitationRate({...})`, then `forwardTelemetry(pipelineResult.telemetry, ctx, {citationRate, userHistoryGameCount})`. Same logic in both streaming (synth-restream done) and non-streaming branches — extract into a small `forwardPipelineTelemetry(pipelineResult, dataSources, classifierResult, ctx)` helper that both branches call. | §13 / T13 ratified: citationRate fires post-pipeline, pre-forwardTelemetry. The route assembles the RouteContext (route, userId from session, sessionId=contextId, responseId, userTier, category, finalOutcome, retryCount, totalCostUsd) and hands events + summary to the forwarder. |
+
+**Source fetch placement (the `fetchDataSources(...)` call from 1.C.B.1):** fits between B (classifier) and D/E (LLM/pipeline call). Both stream and non-stream paths need it. Extract a small `prepareMastermindContext(opts, session)` helper that calls classifier + fetchDataSources concurrently (the classifier is one Haiku call, fetchDataSources is the four-source fetch — both are independent of the LLM); reduces total pre-LLM latency. Helper returns `{category, dataSources, classifierMs, fetchMs}` for telemetry.
+
+#### 3.7.10 Open questions surfaced by the audit (tech-lead review)
+
+These weren't in the pre-implementation plan and need resolution before 1.C.B.4 starts:
+
+| # | Question | Default proposal |
+|---|---|---|
+| **A** | **Cache-hit telemetry on flag-on path (§3.7.4 / §3.7.9 insertion C).** Emit a `citation_rate_summary` event tagged `cached: true` for cache-hit turns? Or skip telemetry entirely? Tradeoff: emitting keeps Stage C analytics turn-count consistent; skipping reduces noise. | **Skip on cache hits.** Cache hits already short-circuit `validateAIResponse`, contextId generation, and puzzle recs — they're already not a "turn" in any other telemetry surface. Stage C sweep should run with cache disabled anyway (the sweep is per-position deterministic; cache would hide real LLM behavior). |
+| **B** | **`responseId` source.** §6.1 RouteContext requires `responseId: string`. The route already has `requestId` from `extractRequestId(...)` (header or generated UUID). Use `requestId` directly as `responseId`, or generate a separate per-response UUID? | **Use `requestId` as `responseId`.** One ID per request matches the existing request-correlation pattern; generating two IDs adds confusion. The `sessionId` field can be the `contextId` (which is post-LLM, so threaded back into the RouteContext we build right before forwardTelemetry). |
+| **C** | **`opponentUsername` schema field reach.** §3.1 #4 adds it to `enhancedAnalysisSchema`. Should the client UI be updated to populate it from the existing `lichessUsername` / `chesscomUsername` request fields, or stay a pure server-side opt-in field that clients add later? | **Stay opt-in for Stage B.** Adding client-side wiring expands the PR's surface and pulls in UI work. Stage B ships the schema field; whichever client codepath needs opponent_prep validation can populate it incrementally. Anonymous-opponent flows continue to skip scout (graceful degradation per §3.2). |
+| **D** | **`userHistoryGameCount` plumbing back to citation_rate_summary.** §3.5 wires the count from `dataSources.userHistory?.games.length`. But `fetchDataSources` returns `userHistory: undefined` when the fetch fails — count is `null` then. Confirm the null case is handled in the route's RouteContext build. | **`userHistoryGameCount: dataSources.userHistory?.games.length ?? null`** — exactly what §3.5 spec'd; surface here just to confirm the route handles the undefined case correctly. |
+| **E** | **PGN body availability.** §3.1 #4's PGN-parsing branch needs a full PGN with White/Black headers. Enhanced-analysis carries `moveHistory: string[]` and `username` (the user, not the opponent); not a PGN body. `wireValidators` will fall through to `opts.opponentUsername` (T11 (c) second branch). Confirm: enhanced-analysis flag-on path **never** synthesizes a PGN — opponent identity comes from the new schema field. | **Confirmed.** PGN parsing is useful for `/api/chat` (which may carry a PGN body) but enhanced-analysis route just passes `opponentUsername` to `wireValidators.fetchDataSources`. |
+| **F** | **`buildReinforcements` / concept-layer LLM call cost-accounting.** Existing concept-layer fires extra LLM-ish work (concept retrieval). Should `totalCostUsd` in RouteContext include this, or only the pipeline + classifier cost? | **Pipeline + classifier only.** Reinforcement and concept-detection cost lives in their own logging surface; mixing them into RouteContext.totalCostUsd would double-count and muddy the validator-pipeline cost signal. |
+
+All six default-resolve in implementation; tech-lead override surface kept narrow.
+
 ---
 
 ## 4. The streaming gotcha — buffer-then-restream
@@ -871,6 +986,61 @@ Tests run against a mocked Next.js request/response, mocked LLM (`callLLM` and `
 | Flag on, response passes pipeline but fails footnote-append | analysisContent === validation.correctedResponse; both telemetry classes fire (pipeline=passed, footnote=warn) |
 | Flag on, request lacks auth | 401 from `requireSession`; no pipeline runs |
 | Flag on, FD fails on invalid FEN | falls back to flag-off path for the turn (logged) |
+
+#### 10.3.1 Pre-implementation test design (added 2026-05-22 alongside §3.7 audit)
+
+**Path:** `src/app/api/enhanced-analysis/__tests__/route.test.ts`. Convention matches the existing `src/lib/*/__tests__/` pattern. Route handler is invoked directly via `import { POST } from "../route"` — not via supertest / Next.js test client; mocking `NextRequest` is simpler and faster.
+
+**Mock surface (full enumeration so 1.C.B.4 can build the harness as commit-1 prep):**
+
+| Module | What it provides | Mock strategy |
+|---|---|---|
+| `@/lib/llmProvider` (`callLLM`, `callLLMStream`) | Flagship + Haiku LLM call | `vi.mock` with `callLLM` returning canned `{content, inputTokens, outputTokens, ...}`; `callLLMStream` returning an async iterator over canned `{type:"text", delta}` chunks + a final `{type:"done", result}`. Per-test override sets which content/tokens/error to emit. |
+| `@/lib/mastermind/validators` (`runValidationPipeline`) | The pipeline orchestrator (parser → cross-check → retry → fallback) | **Two strategies depending on case:** flag-off tests don't mock (pipeline never invoked). Flag-on happy-path / retry / fallback tests mock with canned `RegenerateResult` matching the expected `finalOutcome`. Per-source-failure tests mock `fetchDataSources` (see below) and let the real pipeline run against the resulting partial dataSources — exercises §3.2 contract end-to-end. |
+| `@/lib/mastermind/wireValidators` (`fetchDataSources`) | Four-source fetch helper (1.C.B.1) | `vi.mock` with canned `FetchedDataSources`. Per-test sets which sources are present / absent / throwing. Used in source-failure-matrix tests. |
+| `@/lib/server/scoutFetch` (`fetchOpponentGames`) | Server-side scout fetcher (1.C.B.0) | Mocked transitively via `wireValidators` mock; direct mock not needed unless a test wants to assert specific cache-key behavior at the route level. |
+| `@/lib/server/firebaseAdmin` (`getAdminFirestore`) | Firestore admin client (userHistory source + coachingPrefs fetch) | `vi.mock` returning chained `.collection().doc().collection().orderBy().limit().get()` mock (same pattern as `wireValidators.test.ts`). |
+| `@/lib/server/users` (`getUserById`) | Coaching-prefs lookup at L1061 | `vi.mock` returning a canned `StoredUser` or `null`. |
+| `@/lib/auth/session` (`requireSession`) | Auth boundary at L998 | `vi.mock` with `{session: {uid: 'test-uid'}}` happy-path; `{response: NextResponse.json(..., {status:401})}` for the unauth case. |
+| `@/lib/mastermind/categorization/categoryClassifier` (`classifyQuestion`) | Pre-LLM Haiku classifier (§3.6) | `vi.mock` returning canned `{category: "opponent_prep", confidence: 0.9}`. Confidence-below-threshold case uses `{category: "meta_motivational", confidence: 0.3}` (the low-confidence default). |
+| `@/lib/mastermind/validatorTelemetry` (`forwardTelemetry`) | Logger emit path (1.C.B.2) | **NOT mocked.** Real implementation runs; tests instead `vi.mock("@/lib/logging")` (the underlying logger). Lets tests assert per-event level routing end-to-end. |
+| `@/lib/responseCache` (`getCachedResponse`, `setCachedResponse`) | Response cache (L1124-1186) | `vi.mock` returning `null` (cache miss) by default; per-test override to return canned string for cache-hit test. |
+| `@/lib/analysisContextCache` (`generateContextId`, `storeAnalysisContext`) | Post-LLM context store (consumed by /api/chat) | `vi.mock` with passthrough `generateContextId` returning a stable test ID; `storeAnalysisContext` as `vi.fn()` for call-tracking. |
+| `@/lib/aiResponseValidator` (`validateAIResponse`) | Footnote-append path (L1252, L1368) | `vi.mock` returning canned `{isValid, score, issues, correctedResponse}`. Tests can flip `isValid` to exercise the footnote-correction interaction with the new pipeline. |
+
+**Fixture shapes:**
+
+- **Request bodies** live at `src/app/api/enhanced-analysis/__tests__/fixtures/requests/*.json`. Three shapes:
+  - `game-review.json` — full `moveHistory` + `gameEval` + `playerColor` + skill-level fields → drives `game_review` category.
+  - `opponent-prep.json` — adds `opponentUsername: "TestOpp"` and `userMessage: "tell me about my opponent's tendencies"` → drives `opponent_prep` category.
+  - `improvement-strategy.json` — `userMessage: "how do I improve my blitz?"` + `userRating: 1450` → drives `improvement_strategy` category.
+- **Canned LLM responses** at `src/app/api/enhanced-analysis/__tests__/fixtures/llm-responses/*.txt` — plain text files with realistic coach analyses, sized to ~1-2k chars. Includes one "good" response per category and one "bad" response per category (the bad ones trigger an `unsupported_citation` fire on retry; the second-call canned response is the corrected version).
+- **Canned pipeline outcomes** as inline TS const objects in the test file (not separate files — they're 5-10 lines each and easier to grep alongside the assertion).
+- **Canned Firestore games** for userHistory tests — array of 3-5 `UserHistoryGame` objects with varied time controls and openings.
+- **Canned ScoutAnalytics** for scout tests — minimal `ScoutAnalytics` matching the validator's expected shape.
+
+**Test cases (extends the §10.3 table above with the implementation-detail layer):**
+
+| Case | Mock setup | Assertion |
+|---|---|---|
+| Flag off, non-stream | `getMastermindEnv` returns `{validatorsEnabled: false}`; `callLLM` canned | Response is byte-identical to today; no `validating` events; no `pipeline` metadata; `forwardTelemetry` NOT called |
+| Flag off, stream | Same as above with `streamRequested: true` | SSE stream emits `text` + `done`; no `validating` or `pipeline.*` |
+| Flag on, non-stream, happy path | Flag on; classifier→opponent_prep; fetchDataSources returns all four; pipeline returns `passed_initial` | `pipeline.finalOutcome === "passed_initial"`; `pipeline.citationRate` present; logger.info called for validator events + 1-in-100 sampled citation_rate_summary (depending on `vi.spyOn(Math, "random")`) |
+| Flag on, stream, happy path | Same flag-on stack + `streamRequested: true` | SSE sequence: `validating` (phase=initial) → `text` deltas (synthetic re-stream) → `done` with `pipeline.*` metadata |
+| Flag on, stream, response passes initial | Mock `runValidationPipeline` returning `{passed: true, finalOutcome: "passed_initial", text, telemetry: [...]}` | Pipeline telemetry events flow through forwardTelemetry; citation_rate_summary present; debug-level for routine, info for noteworthy (per §6.3.1) |
+| Flag on, stream, retry path | Mock pipeline returning `{finalOutcome: "passed_after_retry", retryCount: 1, ...}` | Noteworthy citation_rate_summary fires at info (retryCount > 0); `validating` event with `phase: "retry-1"` |
+| Flag on, stream, fallback | Mock pipeline returning `{finalOutcome: "fallback_used", retryCount: 2, ...}` | Sentry error-level event for `fallback_used`; noteworthy citation_rate_summary at info; fallback text in `done.metadata.analysis` |
+| Flag on, pipeline timeout (30s default) | Mock `runValidationPipeline` rejecting with timeout error | Route catches; `done` SSE emitted with `metadata.pipeline.timedOut: true`; user gets a response, not a 502 |
+| Flag on, FD throws (invalid FEN) | `fetchDataSources` rejects | Route falls back to flag-off path for this turn (per §3.2); `log.warn` emitted; no pipeline runs |
+| Flag on, scout fetch fails | `fetchDataSources` returns `{...others, scout: undefined}`; pipeline runs | scout validator skipped (per §3.2); citation_rate_summary's perSource.scout is null; pipeline still passes |
+| Flag on, userHistory fetch fails | `fetchDataSources` returns `{...others, userHistory: undefined}` | user_history validator skipped; perSource.user_history is null |
+| Flag on, opponent_prep + scout 80% (below 85% floor, ≥3 opps) | Canned citationRate with `perSource.scout: {citations: 4, opportunities: 5, ratePct: 80}` + `category: opponent_prep` | Noteworthy citation_rate_summary at info (below-floor trigger) |
+| Flag on, footnote-append fails post-pipeline | Pipeline passes; `validateAIResponse` returns `{isValid: false, correctedResponse: "..."}` | `analysisContent === validation.correctedResponse`; both telemetry surfaces fire (pipeline at info, validator-issues at warn) |
+| Flag on, cache hit | `getCachedResponse` returns canned string | Per §3.7.10 (A) default: NO citation_rate_summary emitted; cache-hit path unchanged from today |
+| Flag on, request lacks auth | `requireSession` returns `{response: 401}` | 401 returned; no pipeline runs; no telemetry emitted |
+| Flag on, request schema rejects `opponentUsername` regex | Mock body with `opponentUsername: "bad chars!"` | 400 from validateRequest; no pipeline runs |
+
+**Integration with the Stage A.2 dry-run harness:** **Independent.** Stage A.2's [`scripts/mastermind/validator-gate-dryrun.ts`](../scripts/mastermind/validator-gate-dryrun.ts) is a fixture-driven tsx script that runs PR 1.B validators directly against curated fixture tuples — no route, no Next.js, no LLM mock. The route integration tests live under `vitest` and exercise the route's wire-up. **No shared fixtures.** The dry-run harness's `gate-dryrun.json` is in the validator's input shape (parsed claims + fake LLM responses); the route tests use the request-body shape. Future cross-pollination is possible (e.g., feeding the dry-run harness's "known-bad" LLM responses into the route test's canned-LLM responses) but adds coupling we don't need yet. **Recommend keeping them independent unless Stage C surfaces a coverage gap.**
 
 ### 10.4 Integration tests — `chat.test.ts`
 

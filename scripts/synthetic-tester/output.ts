@@ -7,7 +7,15 @@ export interface Row {
   run_seed: number;
   app_git_sha: string;
 
-  game_id: number;
+  // Stage C category-dispatch fields (blank for legacy game-loop rows;
+  // populated for --force-category / --category-mix runs).
+  turn_idx?: number | "";
+  category?: string;
+  generator_metadata?: string; // JSON-stringified per-generator metadata
+  body_extensions?: string; // JSON-stringified per-generator body extensions
+  mock_llm?: "true" | "false" | "";
+
+  game_id: number | "";
   white: string;
   black: string;
   persona: string;
@@ -52,6 +60,7 @@ export interface Row {
 
 const COLUMNS: Array<keyof Row> = [
   "timestamp", "run_id", "run_seed", "app_git_sha",
+  "turn_idx", "category", "generator_metadata", "body_extensions", "mock_llm",
   "game_id", "white", "black", "persona", "persona_file_hash",
   "ply", "fen", "last_move", "last_n_moves", "checkpoint_kind",
   "eval_before_cp", "eval_after_cp", "swing_cp", "move_classification",

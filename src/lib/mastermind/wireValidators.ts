@@ -26,6 +26,7 @@ import { computeAnalytics } from "@/lib/scoutAnalytics";
 import { fetchOpponentGames } from "@/lib/server/scoutFetch";
 import { getAdminFirestore } from "@/lib/server/firebaseAdmin";
 import { extractPgnHeaders } from "@/lib/utils/pgnHeaders";
+import { tryReadStageCUserHistoryCache } from "@/lib/mastermind/stageCcacheFallback";
 import type { PositionFeatureDelta } from "@/lib/mastermind/featureDelta";
 import type { RoleChange } from "@/lib/mastermind/pieceRoles";
 import type { ThreatNode } from "@/lib/mastermind/threatTree";
@@ -239,6 +240,17 @@ async function fetchScoutWithFailureTolerance(
 async function fetchUserHistoryWithFailureTolerance(
   opts: FetchOpts,
 ): Promise<NonNullable<FetchedDataSources["userHistory"]> | undefined> {
+  // Stage C cache fallback — preview env + cached test users only.
+  // Production traffic falls through to the Firestore read below.
+  const cached = tryReadStageCUserHistoryCache(opts.userName);
+  if (cached !== null) {
+    return {
+      games: cached,
+      userName: opts.userName,
+      nowMs: Date.now(),
+    };
+  }
+
   const db = await getAdminFirestore();
   const limit = opts.userHistoryGamesLimit ?? DEFAULT_USER_HISTORY_GAMES_LIMIT;
 

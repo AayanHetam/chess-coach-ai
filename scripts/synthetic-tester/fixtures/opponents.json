@@ -40,43 +40,43 @@
     "expected_scout": "has_data"
   },
   {
-    "fixture_id": "stub_e4_kid_id5",
-    "handle_kind": "stub",
-    "username": "stub_e4_kid_id5",
+    "fixture_id": "real_chargehim40",
+    "handle_kind": "real",
+    "username": "Chargehim40",
     "platform": "chess.com",
-    "profile_summary": "Synthetic profile: ~1400 chess.com blitz. Plays 1.e4 exclusively as white. Open Sicilian against Sicilian Defense; Italian against e5. Time-pressure prone in endgames.",
-    "expected_scout": "no_data"
+    "profile_summary": "Active chess.com player. Style profile not pre-characterized — Scout fetch will surface live tendencies (openings, time-class distribution, win rate).",
+    "expected_scout": "has_data"
   },
   {
-    "fixture_id": "stub_london_grinder",
-    "handle_kind": "stub",
-    "username": "stub_london_grinder",
+    "fixture_id": "real_fcheckmatemaster8983",
+    "handle_kind": "real",
+    "username": "FCheckmateMaster8983",
     "platform": "chess.com",
-    "profile_summary": "Synthetic profile: ~1500 chess.com rapid. London System (1.d4 Nf6 2.Bf4) as white in 90%+ of games. Slow positional grinder, rarely loses on time but often draws drawn positions.",
-    "expected_scout": "no_data"
+    "profile_summary": "Active chess.com player. Style profile not pre-characterized — Scout fetch will surface live tendencies.",
+    "expected_scout": "has_data"
   },
   {
-    "fixture_id": "stub_kings_indian_obsessed",
-    "handle_kind": "stub",
-    "username": "stub_kings_indian_obsessed",
+    "fixture_id": "real_raghav_chaturvedi",
+    "handle_kind": "real",
+    "username": "Raghav_Chaturvedi",
     "platform": "chess.com",
-    "profile_summary": "Synthetic profile: ~1600 chess.com blitz. King's Indian Defense as black against everything. Very aggressive kingside attacks; passive in queen's-pawn structures where KID doesn't apply.",
-    "expected_scout": "no_data"
+    "profile_summary": "Active chess.com player. Style profile not pre-characterized — Scout fetch will surface live tendencies.",
+    "expected_scout": "has_data"
   },
   {
-    "fixture_id": "stub_blitz_premover",
-    "handle_kind": "stub",
-    "username": "stub_blitz_premover",
-    "platform": "lichess",
-    "profile_summary": "Synthetic profile: ~1700 lichess bullet. High pre-move rate, sharp openings, often gets winning positions then flags in the endgame.",
-    "expected_scout": "no_data"
+    "fixture_id": "real_lemongamerchess",
+    "handle_kind": "real",
+    "username": "Lemongamerchess",
+    "platform": "chess.com",
+    "profile_summary": "Active chess.com player. Style profile not pre-characterized — Scout fetch will surface live tendencies.",
+    "expected_scout": "has_data"
   },
   {
-    "fixture_id": "stub_anonymous_opponent",
-    "handle_kind": "stub",
-    "username": "stub_anonymous_opponent",
+    "fixture_id": "real_givemyratingback",
+    "handle_kind": "real",
+    "username": "GiveMyRatingBack",
     "platform": "chess.com",
-    "profile_summary": "Synthetic profile: unknown rating, unknown style. Used to test the 'opponent has no Scout data' degraded path — the coach should refuse to invent specifics about a player they can't lookup.",
-    "expected_scout": "no_data"
+    "profile_summary": "Active chess.com player. Style profile not pre-characterized — Scout fetch will surface live tendencies.",
+    "expected_scout": "has_data"
   }
 ]

@@ -338,6 +338,66 @@ describe("resolveOpponent: T11 Option (c) chain", () => {
 // Cache sharing (T14 / Option β)
 // ─────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────
+// Stage C user-history cache fallback (preview env + cached usernames)
+// ─────────────────────────────────────────────────────────────────────
+
+describe("fetchDataSources: Stage C user-history cache fallback", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("preview env + cached username → userHistory served from cache, Firestore mock not consulted", async () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubGlobal("fetch", mockLichessFetch());
+    // mockFirestoreGames returns 0 games; if the fallback works, we
+    // see 200 cached games instead.
+    const { get: firestoreGetSpy } = mockFirestoreGames([]);
+
+    const result = await fetchDataSources(
+      baseOpts({ userName: "Lazer_Wizard" }),
+    );
+
+    expect(result.userHistory).toBeDefined();
+    expect(result.userHistory!.games.length).toBe(200);
+    expect(result.userHistory!.userName).toBe("Lazer_Wizard");
+    // Firestore .get() should NOT have been called — the cache fallback
+    // resolved before the Firestore read.
+    expect(firestoreGetSpy).not.toHaveBeenCalled();
+  });
+
+  it("preview env + non-cached username → falls through to Firestore", async () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubGlobal("fetch", mockLichessFetch());
+    const { get: firestoreGetSpy } = mockFirestoreGames([
+      { pgn: "1. e4 e5", white: { name: "Random" }, black: { name: "Other" } },
+    ]);
+
+    const result = await fetchDataSources(
+      baseOpts({ userName: "SomeRandomUser" }),
+    );
+
+    expect(result.userHistory).toBeDefined();
+    expect(result.userHistory!.games.length).toBe(1);
+    expect(firestoreGetSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("production env + cached username → falls through to Firestore (production-safety invariant)", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubGlobal("fetch", mockLichessFetch());
+    const { get: firestoreGetSpy } = mockFirestoreGames([]);
+
+    const result = await fetchDataSources(
+      baseOpts({ userName: "Lazer_Wizard" }),
+    );
+
+    // Production traffic hits Firestore (mocked here as empty), NOT the cache.
+    expect(result.userHistory).toBeDefined();
+    expect(result.userHistory!.games.length).toBe(0);
+    expect(firestoreGetSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("fetchDataSources: shared scout cache", () => {
   it("two consecutive fetches for same opponent share the scoutFetch cache", async () => {
     const fetchSpy = mockLichessFetch();

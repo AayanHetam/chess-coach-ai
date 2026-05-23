@@ -1,0 +1,14 @@
+# Local sweep artifacts. Each run writes <runId>.csv + <runId>.meta.json
+# here; they're per-developer dev outputs, not source. The historical
+# rmom5mxo6-* run from 2026-05-22 is the only run intentionally committed
+# (it predates this gitignore and stays as a known-good reference).
+#
+# Tracked files (do not gitignore):
+#   - rmom5mxo6-4cc2b5.csv         (Tuesday harness smoke from 2026-05-22)
+#   - rmom5mxo6-4cc2b5.meta.json   (matching meta sidecar)
+#
+# Everything else is local-only.
+*.csv
+*.meta.json
+!rmom5mxo6-4cc2b5.csv
+!rmom5mxo6-4cc2b5.meta.json

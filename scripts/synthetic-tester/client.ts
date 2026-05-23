@@ -28,23 +28,29 @@ export interface AnalyzeArgs {
   playerColor: "w" | "b";
   userRating: number;
   personalityId: string;
+  /** Optional extra body fields — used by Stage C category-dispatch turns
+   *  to pass opponentUsername / username / userMessage / opponentPlatform
+   *  through to the route. Merged into the JSON body. */
+  bodyExtensions?: Record<string, unknown>;
 }
 
 export async function analyzeGame(args: AnalyzeArgs): Promise<ChatMastiResponse> {
   const t0 = Date.now();
   try {
+    const body: Record<string, unknown> = {
+      moveHistory: args.moveHistory,
+      fen: args.fen,
+      gameEval: args.gameEval,
+      playerColor: args.playerColor,
+      userRating: args.userRating,
+      personalityId: args.personalityId,
+      playerColorName: args.playerColor === "w" ? "white" : "black",
+      ...(args.bodyExtensions ?? {}),
+    };
     const res = await fetch(`${args.baseUrl}/api/enhanced-analysis`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: args.cookie },
-      body: JSON.stringify({
-        moveHistory: args.moveHistory,
-        fen: args.fen,
-        gameEval: args.gameEval,
-        playerColor: args.playerColor,
-        userRating: args.userRating,
-        personalityId: args.personalityId,
-        playerColorName: args.playerColor === "w" ? "white" : "black",
-      }),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(120_000),
     });
     const latencyMs = Date.now() - t0;
@@ -58,6 +64,60 @@ export async function analyzeGame(args: AnalyzeArgs): Promise<ChatMastiResponse>
       status: res.status,
       contextId: json.gameAnalysis?.contextId,
       initialAnalysis: json.gameAnalysis?.analysis,
+      validationScore: json.gameAnalysis?.validationScore,
+      latencyMs,
+    };
+  } catch (err) {
+    return { ok: false, status: 0, errorMessage: String(err), latencyMs: Date.now() - t0 };
+  }
+}
+
+/**
+ * Stage C category-dispatch client. Used by run.ts for the four
+ * non-position generators (opponent_prep, improvement_strategy,
+ * meta_motivational, concept_explanation). POSTs to
+ * /api/enhanced-analysis with userMessage + body extensions, no
+ * position fields. The route's flag-on wing handles the
+ * pipeline + classifier dispatch.
+ */
+export interface CategoryTurnArgs {
+  baseUrl: string;
+  cookie: string;
+  userMessage: string;
+  userRating: number;
+  personalityId: string;
+  bodyExtensions: Record<string, unknown>;
+}
+
+export async function analyzeCategoryTurn(args: CategoryTurnArgs): Promise<ChatMastiResponse> {
+  const t0 = Date.now();
+  try {
+    const body: Record<string, unknown> = {
+      userMessage: args.userMessage,
+      userRating: args.userRating,
+      personalityId: args.personalityId,
+      ...args.bodyExtensions,
+    };
+    const res = await fetch(`${args.baseUrl}/api/enhanced-analysis`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: args.cookie },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(120_000),
+    });
+    const latencyMs = Date.now() - t0;
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return { ok: false, status: res.status, errorMessage: text.slice(0, 500), latencyMs };
+    }
+    const json = (await res.json()) as {
+      gameAnalysis?: { contextId?: string; analysis?: string; validationScore?: number };
+    };
+    return {
+      ok: true,
+      status: res.status,
+      contextId: json.gameAnalysis?.contextId,
+      initialAnalysis: json.gameAnalysis?.analysis,
+      responseText: json.gameAnalysis?.analysis,
       validationScore: json.gameAnalysis?.validationScore,
       latencyMs,
     };

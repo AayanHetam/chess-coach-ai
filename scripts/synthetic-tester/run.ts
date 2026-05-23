@@ -21,9 +21,24 @@ import {
   chatFollowUp,
   generatePersonaQuestion,
   buildGameEval,
+  analyzeCategoryTurn,
 } from "./client";
 import { CsvWriter, writeMeta, type Row, type RunMeta } from "./output";
 import { validateAIResponse } from "../../src/lib/aiResponseValidator";
+import {
+  pickGenerator,
+  mulberry32,
+  makeMockLlmCall,
+  type LlmCall,
+  type GeneratorContextBase,
+  type GeneratorFixtures,
+  type GeneratorResult,
+} from "./generators";
+import {
+  loadAllFixtures,
+  loadPersonaSystemPrompts,
+} from "./generators/loaders";
+import type { QuestionCategory } from "../../src/lib/mastermind/categorization/categoryClassifier";
 
 const SCRIPT_DIR = resolve(__dirname);
 const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..");
@@ -43,6 +58,13 @@ interface Args {
   gamesFile?: string;
   stockfishDepth: number;
   personaTemperature: number;
+  // Stage C category-dispatch flags. When forceCategory or categoryMix
+  // is set, the run uses pickGenerator() instead of the legacy
+  // game × checkpoint × persona loop. See CATEGORY_GENERATOR_DESIGN.md.
+  forceCategory?: string;
+  categoryMix?: string;
+  mockLlm: boolean;
+  samples?: number;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -50,9 +72,18 @@ function parseArgs(argv: string[]): Args {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a.startsWith("--")) {
-      const key = a.slice(2);
-      const val = argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[++i] : "true";
-      opts[key] = val;
+      const eq = a.indexOf("=");
+      if (eq !== -1) {
+        // --key=value form
+        const key = a.slice(2, eq);
+        const val = a.slice(eq + 1);
+        opts[key] = val;
+      } else {
+        // --key value form (boolean if next token is also --flag)
+        const key = a.slice(2);
+        const val = argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[++i] : "true";
+        opts[key] = val;
+      }
     }
   }
   const seed = opts.seed ? parseInt(opts.seed, 10) : (Date.now() >>> 0);
@@ -73,8 +104,32 @@ function parseArgs(argv: string[]): Args {
     gamesFile: opts["games-file"],
     stockfishDepth: opts["sf-depth"] ? parseInt(opts["sf-depth"], 10) : 14,
     personaTemperature: opts["persona-temp"] ? parseFloat(opts["persona-temp"]) : 0.3,
+    forceCategory: opts["force-category"],
+    categoryMix: opts["category-mix"],
+    mockLlm: opts["mock-llm"] === "true",
+    samples: opts.samples ? parseInt(opts.samples, 10) : undefined,
   };
 }
+
+// Stage C category-balanced default per CATEGORY_GENERATOR_DESIGN.md §11
+// (O7-ratified): 60 turns total across the six categories.
+const BALANCED_DEFAULT_COUNTS: Record<QuestionCategory, number> = {
+  game_review: 12,
+  opponent_prep: 12,
+  position_analysis: 12,
+  improvement_strategy: 12,
+  meta_motivational: 12,
+  concept_explanation: 8,
+};
+
+const CATEGORY_ORDER: QuestionCategory[] = [
+  "game_review",
+  "opponent_prep",
+  "position_analysis",
+  "improvement_strategy",
+  "meta_motivational",
+  "concept_explanation",
+];
 
 const ALL_PERSONAS = [
   "confused_beginner",
@@ -228,21 +283,27 @@ async function main() {
 
   const sessionSecret = process.env.SESSION_SECRET || "";
   const anthropicKey = process.env.ANTHROPIC_API_KEY || "";
-  if (!sessionSecret) {
-    console.error("ABORT: SESSION_SECRET not set in .env.local");
-    process.exit(2);
-  }
-  if (!anthropicKey) {
-    console.error("ABORT: ANTHROPIC_API_KEY not set in .env.local");
-    process.exit(2);
+  // In mock-LLM mode no POST happens and no Anthropic call fires, so neither
+  // secret is required. Outside mock-LLM mode the guards still abort fast.
+  if (!args.mockLlm) {
+    if (!sessionSecret) {
+      console.error("ABORT: SESSION_SECRET not set in .env.local");
+      process.exit(2);
+    }
+    if (!anthropicKey) {
+      console.error("ABORT: ANTHROPIC_API_KEY not set in .env.local");
+      process.exit(2);
+    }
   }
 
   const runId = `r${Date.now().toString(36)}-${randomUUID().slice(0, 6)}`;
   const runUid = makeRunUid(runId);
-  const cookie = await mintSessionCookie(sessionSecret, {
-    uid: runUid,
-    email: "synthtest@chessmasti.local",
-  });
+  const cookie = args.mockLlm
+    ? "mock-cookie"
+    : await mintSessionCookie(sessionSecret, {
+        uid: runUid,
+        email: "synthtest@chessmasti.local",
+      });
 
   let appGitSha = "unknown";
   try {
@@ -304,6 +365,26 @@ async function main() {
   if (args.dryRun) {
     console.log("DRY RUN — exiting without API calls. Meta written to", `${runId}.meta.json`);
     csv.close();
+    return;
+  }
+
+  // Stage C category-dispatch branch. When --force-category or
+  // --category-mix is set, the run skips the legacy game × checkpoint
+  // × persona loop and uses pickGenerator() per turn instead. The
+  // legacy flow continues to work when neither flag is set.
+  if (args.forceCategory || args.categoryMix) {
+    await runCategoryDispatchFlow({
+      args,
+      games,
+      personas,
+      runId,
+      csv,
+      meta,
+      runsDir,
+      cookie,
+      anthropicKey,
+      appGitSha,
+    });
     return;
   }
 
@@ -543,6 +624,363 @@ function buildErrorRow(opts: {
     failure_mode: "",
     notes: "",
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Stage C category-dispatch flow
+// ─────────────────────────────────────────────────────────────────────
+
+interface CategoryDispatchOpts {
+  args: Args;
+  games: LoadedGame[];
+  personas: PersonaSpec[];
+  runId: string;
+  csv: CsvWriter;
+  meta: RunMeta;
+  runsDir: string;
+  cookie: string;
+  anthropicKey: string;
+  appGitSha: string;
+}
+
+interface TurnSpec {
+  turnIdx: number;
+  category: QuestionCategory;
+  /** For position-anchored categories: which (game, persona) hint to use. */
+  gameAndPersonaHint?: { gameIdx: number; persona: string };
+}
+
+/**
+ * Build the turn plan from args. Three modes (in priority order):
+ *   1. --category-mix=cat:N,cat:N,... → custom counts per category.
+ *   2. --force-category=X --samples=N → N samples of category X.
+ *   3. --force-category=balanced (default for category-dispatch) →
+ *      uses BALANCED_DEFAULT_COUNTS if --samples unset; otherwise N
+ *      per category (uniform).
+ */
+function buildTurnPlan(args: Args, games: LoadedGame[], personas: PersonaSpec[]): TurnSpec[] {
+  const counts: Record<QuestionCategory, number> = (() => {
+    if (args.categoryMix) {
+      const parsed: Partial<Record<QuestionCategory, number>> = {};
+      for (const pair of args.categoryMix.split(",")) {
+        const [k, v] = pair.split(":").map((s) => s.trim());
+        if (!k || !v) continue;
+        if (!CATEGORY_ORDER.includes(k as QuestionCategory)) {
+          throw new Error(`--category-mix: unknown category "${k}". Use one of: ${CATEGORY_ORDER.join(",")}`);
+        }
+        parsed[k as QuestionCategory] = parseInt(v, 10);
+      }
+      const out = { ...BALANCED_DEFAULT_COUNTS, ...parsed } as Record<QuestionCategory, number>;
+      // Zero out any category not explicitly mentioned.
+      for (const c of CATEGORY_ORDER) if (!(c in parsed)) out[c] = 0;
+      return out;
+    }
+    if (args.forceCategory && args.forceCategory !== "balanced") {
+      if (!CATEGORY_ORDER.includes(args.forceCategory as QuestionCategory)) {
+        throw new Error(`--force-category: unknown category "${args.forceCategory}". Use "balanced" or one of: ${CATEGORY_ORDER.join(",")}`);
+      }
+      const n = args.samples ?? 12;
+      const out: Record<QuestionCategory, number> = {
+        game_review: 0,
+        opponent_prep: 0,
+        position_analysis: 0,
+        improvement_strategy: 0,
+        meta_motivational: 0,
+        concept_explanation: 0,
+      };
+      out[args.forceCategory as QuestionCategory] = n;
+      return out;
+    }
+    // balanced (default for category-dispatch)
+    if (args.samples !== undefined) {
+      return CATEGORY_ORDER.reduce((acc, c) => ({ ...acc, [c]: args.samples }), {} as Record<QuestionCategory, number>);
+    }
+    return { ...BALANCED_DEFAULT_COUNTS };
+  })();
+
+  const plan: TurnSpec[] = [];
+  let turnIdx = 0;
+  for (const cat of CATEGORY_ORDER) {
+    const n = counts[cat];
+    for (let i = 0; i < n; i++) {
+      const t: TurnSpec = { turnIdx, category: cat };
+      if (cat === "game_review" || cat === "position_analysis") {
+        // Deterministic (game, persona) pick via turnIdx. Stockfish runs
+        // lazily in executeTurn when live mode requires it.
+        const gameIdx = games.length > 0 ? turnIdx % games.length : 0;
+        const personaIdx = personas.length > 0 ? turnIdx % personas.length : 0;
+        t.gameAndPersonaHint = { gameIdx, persona: personas[personaIdx]?.name ?? "confused_beginner" };
+      }
+      plan.push(t);
+      turnIdx++;
+    }
+  }
+  return plan;
+}
+
+/**
+ * Stub position context for mock-LLM mode (no stockfish, no game loading).
+ * Matches the smoke-generators.ts stub so output is consistent across
+ * the two dev entry points.
+ */
+function stubPositionContext(turn: TurnSpec) {
+  const FEN_STUB = "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3";
+  return {
+    fenAfter: FEN_STUB,
+    fenBefore: FEN_STUB,
+    moveHistory: ["e4", "e5", "Nf3", "Nc6"],
+    gameEval: { positions: [], accuracy: { white: 0, black: 0 } } as any,
+    playerColor: "w" as const,
+    recentSan: "1.e4 e5 2.Nf3 Nc6",
+    classification: turn.category === "game_review" ? "inaccuracy" : "book",
+    initialAnalysis:
+      "You're in an Italian/Ruy Lopez opening — White has the initiative with a3 + Bb5 to follow. Your last move was solid; consider d6 next to support e5.",
+    persona: turn.gameAndPersonaHint?.persona ?? "confused_beginner",
+    subcategory: turn.category as "game_review" | "position_analysis",
+    gameId: `stub-game-${turn.turnIdx}`,
+  };
+}
+
+function buildTurnRow(args: {
+  meta: RunMeta;
+  runId: string;
+  appGitSha: string;
+  baseUrl: string;
+  personality: string;
+  turn: TurnSpec;
+  result: GeneratorResult;
+  mockLlm: boolean;
+  chatResponse?: string;
+  http_status?: number | "";
+  latencyMs?: number | "";
+  errorMessage?: string;
+}): Row {
+  const { turn, result } = args;
+  return {
+    timestamp: new Date().toISOString(),
+    run_id: args.runId,
+    run_seed: args.meta.seed,
+    app_git_sha: args.appGitSha,
+    turn_idx: turn.turnIdx,
+    category: turn.category,
+    generator_metadata: JSON.stringify(result.metadata),
+    body_extensions: JSON.stringify(result.bodyExtensions),
+    mock_llm: args.mockLlm ? "true" : "false",
+    game_id: turn.gameAndPersonaHint?.gameIdx ?? "",
+    white: "",
+    black: "",
+    persona: result.personaUsed,
+    persona_file_hash: "",
+    ply: "",
+    fen: "",
+    last_move: "",
+    last_n_moves: "",
+    checkpoint_kind: "",
+    eval_before_cp: "",
+    eval_after_cp: "",
+    swing_cp: "",
+    move_classification: "",
+    student_question: result.question,
+    chat_response: args.chatResponse ?? "",
+    context_id: "",
+    analysis_latency_ms: "",
+    chat_latency_ms: args.latencyMs ?? "",
+    model_chat: args.mockLlm ? "mock" : "claude-haiku-4-5",
+    model_analysis: args.mockLlm ? "mock" : "claude-sonnet-4",
+    personality_id: args.personality,
+    base_url: args.baseUrl,
+    validator_score: "",
+    validator_issue_count: "",
+    validator_issues_json: "",
+    prompt_tokens: "",
+    completion_tokens: "",
+    est_cost_usd: "",
+    http_status: args.http_status ?? "",
+    error_message: args.errorMessage ?? "",
+    grade: "",
+    failure_mode: "",
+    notes: "",
+  };
+}
+
+async function runCategoryDispatchFlow(opts: CategoryDispatchOpts): Promise<void> {
+  const { args, games, personas, runId, csv, meta, runsDir, cookie, anthropicKey, appGitSha } = opts;
+
+  console.log(`\n=== Stage C category-dispatch flow ===`);
+  console.log(`  mode: ${args.forceCategory ? `force=${args.forceCategory}` : `mix=${args.categoryMix}`}`);
+  console.log(`  mock-LLM: ${args.mockLlm}`);
+
+  // Load category-generator fixtures + personas
+  let fixtures: GeneratorFixtures;
+  let personaPrompts: Record<string, string>;
+  try {
+    fixtures = loadAllFixtures();
+    personaPrompts = loadPersonaSystemPrompts();
+  } catch (err) {
+    console.error("ABORT: failed to load fixtures / personas:", err instanceof Error ? err.message : String(err));
+    csv.close();
+    return;
+  }
+  console.log(`  fixtures: ${fixtures.opponents.length} opponents, ${fixtures.concepts.length} concepts, ${fixtures.lossSummaries.length} loss snippets, ${Object.keys(fixtures.userHistories).length} user histories`);
+
+  const plan = buildTurnPlan(args, games, personas);
+  console.log(`  plan: ${plan.length} turns`);
+  const planSummary: Record<string, number> = {};
+  for (const t of plan) planSummary[t.category] = (planSummary[t.category] ?? 0) + 1;
+  for (const c of CATEGORY_ORDER) {
+    if (planSummary[c]) console.log(`    ${c}: ${planSummary[c]}`);
+  }
+
+  const cost = new CostTracker(args.maxCost);
+  const startedAt = Date.now();
+  let abortedReason: string | undefined;
+
+  // Real LLM call wrapper (only constructed when not in mock mode).
+  const realLlmCall: LlmCall = async ({ systemPrompt, userPrompt }) => {
+    const r = await generatePersonaQuestion({
+      apiKey: anthropicKey,
+      systemPrompt,
+      contextBlock: userPrompt,
+      temperature: args.personaTemperature,
+      costTracker: cost,
+    });
+    return { ok: r.ok, text: r.text, errorMessage: r.errorMessage };
+  };
+
+  TURN_LOOP: for (const turn of plan) {
+    if (cost.totalSpent() >= args.maxCost) {
+      abortedReason = `cost cap $${args.maxCost} hit at $${cost.totalSpent().toFixed(4)}`;
+      console.warn(`ABORT: ${abortedReason}`);
+      break TURN_LOOP;
+    }
+
+    const gen = pickGenerator(turn.category);
+    const llmCall: LlmCall = args.mockLlm ? makeMockLlmCall() : realLlmCall;
+    const rng = mulberry32(args.seed + turn.turnIdx * 13 + 1);
+
+    const baseCtx: GeneratorContextBase = {
+      category: turn.category,
+      rng,
+      llmCall,
+      personas: personaPrompts,
+      fixtures,
+    };
+
+    let ctx: Parameters<typeof gen>[0] = baseCtx;
+    if (turn.category === "game_review" || turn.category === "position_analysis") {
+      // Stub position context for both mock and live modes in this commit.
+      // Live mode will swap in real stockfish + analyzeGame in a follow-up;
+      // surfacing as a known limitation (see commit body).
+      ctx = { ...baseCtx, ...stubPositionContext(turn) };
+    }
+
+    let result: GeneratorResult;
+    try {
+      result = await gen(ctx);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`  turn ${turn.turnIdx} [${turn.category}] generator failed: ${msg}`);
+      csv.appendRow(
+        buildTurnRow({
+          meta,
+          runId,
+          appGitSha,
+          baseUrl: args.baseUrl,
+          personality: args.personality,
+          turn,
+          result: {
+            question: "",
+            personaUsed: "",
+            bodyExtensions: {},
+            metadata: { error: msg },
+          },
+          mockLlm: args.mockLlm,
+          errorMessage: `generator_failed: ${msg}`,
+        }),
+      );
+      continue;
+    }
+
+    if (args.mockLlm) {
+      csv.appendRow(
+        buildTurnRow({
+          meta,
+          runId,
+          appGitSha,
+          baseUrl: args.baseUrl,
+          personality: args.personality,
+          turn,
+          result,
+          mockLlm: true,
+        }),
+      );
+      console.log(`  turn ${turn.turnIdx} [${turn.category}] persona=${result.personaUsed} mock`);
+      console.log(`    Q: ${result.question.slice(0, 100)}${result.question.length > 100 ? "..." : ""}`);
+      continue;
+    }
+
+    // Live mode: POST to /api/enhanced-analysis with the generator's
+    // question + body extensions. Position-anchored turns currently use
+    // the same path; a follow-up will route them through the original
+    // analyzeGame + chatFollowUp two-step (initial analysis + chat turn)
+    // for full parity with the legacy flow.
+    const apiRes = await analyzeCategoryTurn({
+      baseUrl: args.baseUrl,
+      cookie,
+      userMessage: result.question,
+      userRating: 1500,
+      personalityId: args.personality,
+      bodyExtensions: result.bodyExtensions,
+    });
+
+    let validatorScore: number | "" = "";
+    let validatorIssueCount: number | "" = "";
+    let validatorIssuesJson = "";
+    if (apiRes.ok && apiRes.responseText) {
+      try {
+        const v = validateAIResponse(apiRes.responseText, "");
+        validatorScore = Number(v.score.toFixed(3));
+        validatorIssueCount = v.issues.length;
+        validatorIssuesJson = JSON.stringify(v.issues);
+      } catch (vErr) {
+        validatorIssuesJson = `[validator_error: ${String(vErr).slice(0, 200)}]`;
+      }
+    }
+
+    const row = buildTurnRow({
+      meta,
+      runId,
+      appGitSha,
+      baseUrl: args.baseUrl,
+      personality: args.personality,
+      turn,
+      result,
+      mockLlm: false,
+      chatResponse: apiRes.responseText ?? "",
+      http_status: apiRes.status,
+      latencyMs: apiRes.latencyMs,
+      errorMessage: apiRes.ok ? "" : (apiRes.errorMessage ?? ""),
+    });
+    row.validator_score = validatorScore;
+    row.validator_issue_count = validatorIssueCount;
+    row.validator_issues_json = validatorIssuesJson;
+    row.est_cost_usd = Number(cost.totalSpent().toFixed(6));
+    csv.appendRow(row);
+
+    const ok = apiRes.ok ? "✓" : "✗";
+    console.log(`  turn ${turn.turnIdx} [${turn.category}] ${ok} persona=${result.personaUsed} (${apiRes.latencyMs}ms)`);
+  }
+
+  meta.ended_at = new Date().toISOString();
+  meta.totals = {
+    rows_written: csv.count(),
+    cost_usd_spent: Number(cost.totalSpent().toFixed(6)),
+    aborted_reason: abortedReason,
+  };
+  writeMeta(runsDir, meta);
+  csv.close();
+
+  console.log(`\nDone (category-dispatch). ${csv.count()} rows in ${((Date.now() - startedAt) / 1000).toFixed(1)}s, $${cost.totalSpent().toFixed(4)} spent.`);
 }
 
 main().catch((err) => {

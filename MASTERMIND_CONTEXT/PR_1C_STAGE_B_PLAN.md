@@ -339,12 +339,17 @@ export async function fetchDataSources(opts: FetchOpts): Promise<FetchedDataSour
 1. **`featureDelta` (required, never null).** Calls `compute_feature_delta(fenBefore, fenAfter, { fenAtResolution, pv })` from PR 1.A. Pure CPU, deterministic. Throws only on invalid FEN — route handles by skipping the pipeline for this turn (fall back to flag-off behavior, logged).
 2. **`pieceRoleDiff` (required, never null — but may be empty array).** Wraps `classifyPieceRoles(fenBefore)` + `classifyPieceRoles(fenAfter)` + diff in try/catch; on failure returns `[]` and logs the warning.
 3. **`threatTree` (optional, omitted when not computed).** Stage B leaves undefined; the pipeline handles the optional input.
-4. **`scout` (NEW post-Stage-A, optional with graceful failure).** When `opts.opponentUsername` is supplied:
-   - Call existing `scoutService.ts` pipeline (or `/api/scout` endpoint internally) to fetch `ScoutGame[]` for the opponent.
-   - Compute `ScoutAnalytics` + `Collisions` via the already-shipped scout analytics computation.
+4. **`scout` (NEW post-Stage-A, optional with graceful failure).** Opponent identity resolution per T11 Option (c):
+   - **First**, try to parse the opponent's name from PGN headers — match `White` / `Black` against `opts.userName` and take the other side. Anonymous-PGN flows yield no opponent here.
+   - **Else**, fall back to the explicit `opts.opponentUsername` field. `/api/enhanced-analysis` request schema gains an optional `opponentUsername?: string` (non-breaking) so the route can pass it through. `/api/chat` skips this fallback since chat fast-path has no opponent context.
+   - **Else**, skip Scout fetch entirely — no opponent to fetch against.
+
+   When an opponent is resolved:
+   - Call `fetchOpponentGames(username, platform, months)` from `@/lib/server/scoutFetch` — the shared server lib extracted in commit `1.C.B.0`. Returns `ScoutGame[]` plus payload metadata; the 10-min cache (32-entry LRU) applies automatically.
+   - Compute `ScoutAnalytics` + `Collisions` via `computeAnalytics(games, opponentUsername)` from `@/lib/scoutAnalytics`.
    - Return `{ scout, collisions, opponentUsername, primaryTimeClass }`.
    - On any failure (timeout, 5xx, opponent-not-found, private profile): catch the error, log to Sentry as a warning with `module=mastermind-validator, source=scout`, and **omit the `scout` field entirely** (not null — undefined). The pipeline sees no `dataSources.scout` and skips the validator.
-   - **Trusts scoutService's existing 10-min server-side cache** — no new caching layer in `wireValidators.ts`.
+   - **Trusts the shared 10-min cache** in `scoutFetch.ts` — no per-route or per-call cache layer. Same cache serves `/api/scout/route.ts` HTTP callers and `wireValidators.ts` internal callers.
 5. **`userHistory` (NEW post-Stage-A, optional with graceful failure).** Always attempted when `opts.uid` is supplied:
    - Read `users/{uid}/games` subcollection via Firebase Admin (cap at 200 most-recent for cost — open question §12.3 T11 for tuning).
    - Return `{ games, userName, nowMs: Date.now() }`.
@@ -407,6 +412,10 @@ const citationRateResult = computeCitationRate({
 ```
 
 The `citationRateResult` rides in the `done` SSE event's metadata (under `pipeline.citationRate`) and gets logged into Sentry telemetry as a single `citation_rate_summary` event (one per turn, distinct from per-validator events).
+
+The `citation_rate_summary` event includes a `userHistoryGameCount` field carrying the actual count of games returned from the Firestore read (`dataSources.userHistory?.games.length ?? null`). Per T12 resolution: the 200-most-recent default is the starting bound, but emitting the count lets us detect whether users routinely hit the ceiling (revisit upward) or never approach it (we're undersized).
+
+**Per-turn event level:** routine `citation_rate_summary` events emit at Sentry `debug`. Promote to `info` when any of the following hold: category produced a below-floor citation rate, `final_outcome=fallback_used` on the turn, retries hit (`retry_count > 0`), or any validator fired more than once. See §6.3 for the level discipline. Stage C sweep harness queries the debug-level events directly from Sentry.
 
 **No floor enforcement here** — that lives in the Stage C sweep. The route just computes + logs the metric.
 
@@ -605,11 +614,12 @@ Per [PR_1B_PLAN.md §3.1](PR_1B_PLAN.md) plus route-level additions:
 ### 6.3 Sentry tags + levels
 
 - **Tags applied to every event:** `module=mastermind-validator`, `fire_reason=<value>`, `route=<value>`. Plus `final_outcome=<value>` when the event is terminal (regenerate's passed / regenerate's fallback_used).
-- **Level mapping:**
+- **Level mapping (per-validator `validator_event`):**
   - `fire_reason: "passed"` → Sentry `info`.
   - `fire_reason: "parser_json_invalid"` / `"parser_low_confidence"` → Sentry `info` (parser-level skips are expected, not alerts).
   - `fire_reason: "qualitative_band_flip"` / `"numeric_diff_exceeds_threshold"` / `"unsupported_citation"` / `"regenerate_invoked"` → Sentry `warning`.
   - `fire_reason: "fallback_used"` → Sentry **`error`** (2 retries failed → production-grade signal we want to know about).
+- **`citation_rate_summary` event level (per T16 resolution — override):** routine per-turn summary at Sentry **`debug`**. At ~250k events/month at 50k MAU steady state, `info`-level routine emission burns the Sentry budget for telemetry that's only interesting in aggregate. Promote to `info` only on **noteworthy** turns where any of the following hold: a category produced a below-floor citation rate; `final_outcome=fallback_used`; `retry_count > 0`; any validator fired more than once. Stage C sweep harness reads debug-level events directly from Sentry (debug events are retained-and-queryable, just not surfaced in default views). **Fallback posture if the Stage C harness cannot read debug for any reason:** keep debug for routine + add 1-in-100 sampled emission at `info` for trend visibility. Verify Stage C harness access before locking the sampling fallback off.
 
 ### 6.4 Alert posture
 
@@ -925,20 +935,20 @@ All of:
 | **T9** | Route allowlist — `/api/enhanced-analysis` + `/api/chat` only. | **Ratified.** Other routes untouched. |
 | **T10** | Auth boundary unchanged on flag-on path. | **Ratified.** Flag changes post-auth lifecycle; boundary unchanged. |
 
-### 12.3 New open questions surfaced by the four-validator wiring surface (post-Stage-A)
+### 12.3 Tech-lead reviews — T11–T16 RESOLVED (post-Stage-A planning round, 2026-05-22)
 
-These weren't in the pre-Stage-A draft because the wiring surface didn't exist. Pause for tech-lead review:
+These weren't in the pre-Stage-A draft because the four-validator wiring surface didn't exist. Resolved 2026-05-22 — four ratifications, two overrides, one extension. All decisions captured in commit `1.C.B.0.5` (the decision-capture commit) ahead of `1.C.B.1` code starting.
 
-| # | Question | Default if no input |
+| # | Question | Resolution |
 |---|---|---|
-| **T11** | **Opponent identity for Scout fetch (§3.1).** `/api/enhanced-analysis` doesn't currently carry an `opponentUsername` field in its request schema. Three options: (a) Parse opponent name from PGN headers (`white.name` / `black.name` matched against `userName`); (b) Add a new optional `opponentUsername` field to the route's request schema (route consumer change); (c) Both — try PGN parse first, fall back to explicit field. | **Option (a) — parse from PGN headers.** Most existing analysis flows include the opponent name in the PGN. The route doesn't need a schema change; `wireValidators.ts` does the parsing. If PGN omits the opponent (anonymous game), Scout fetch is skipped — silently degrades per Q6. |
-| **T12** | **Firestore games query bound (§3.1 #5).** Reading `users/{uid}/games` for every flag-on `/api/enhanced-analysis` request — bound at 200 most-recent games for the aggregator? More? Less? Tradeoff: more games = better aggregator stats but slower Firestore read + larger memory footprint. | **200 most-recent.** Covers ~1 year of typical play for active users; sufficient sample size for `aggregateWinRateByTimeControl` thresholds (≥10 games per class). Tune if Stage C surfaces opportunity-undercount complaints. |
-| **T13** | **Where citationRate fires in the route lifecycle (§3.5).** After `runValidationPipeline` returns, before `validateAIResponse` (footnote-append), before `forwardTelemetry`? Or after telemetry? Tradeoff: ordering affects what's in the `citation_rate_summary` event's correlation timeline. | **After pipeline, before forwardTelemetry.** citationRate output rides on the telemetry sink as a final `citation_rate_summary` event; sequence preserves the per-validator events that precede it. |
-| **T14** | **Scout cache strategy.** `scoutService.ts` has a 10-min server-side cache per opponent username. `wireValidators.ts` doesn't add its own cache layer; trusts the upstream. Acceptable? | **Yes, trust scoutService's existing cache.** Per-route cache would double-buffer for no win; `scoutService.ts` is the canonical Scout pipeline. |
-| **T15** | **`UserHistoryGame` import path coupling.** `wireValidators.ts` imports `UserHistoryGame` type from `@/lib/mastermind/userHistoryAggregates` (Stage A.7's home for the aggregator + its type). This couples `wireValidators.ts` (Stage B) to the Stage A.7 file's type export. Acceptable, or should `UserHistoryGame` move to a more central types module? | **Acceptable.** Type lives where the aggregator lives; centralizing into a separate types module is premature cleanup. The cleanup_followups.md `TimeControlClass` entry is the prototype for "we'll consolidate type-derivation when a real need surfaces." |
-| **T16** | **`citation_rate_summary` Sentry event level.** Per-turn summary event with citation rates per source. Sentry level: `info` (every turn) or `debug` (volume concern)? | **`info`.** Stage C sweep + Sentry analytics rely on these being routinely visible; volume is bounded (≤1 per turn, ≤250k/month at 50k MAU steady state). |
+| **T11** | **Opponent identity for Scout fetch (§3.1).** `/api/enhanced-analysis` doesn't currently carry an `opponentUsername` field. Options: (a) PGN parsing only; (b) explicit request field only; (c) both. | **OVERRIDE to Option (c).** Try PGN parse first; fall back to optional `opponentUsername?: string` field on `/api/enhanced-analysis` request body; skip Scout if neither resolves. Reason: PGN-only would silently kill Scout citation on "tell me about player X" queries that lack a PGN, and opponent_prep is the highest-differentiation category — failing it silently is the wrong default. Schema addition is non-breaking. `/api/chat` doesn't take the fallback (no chat opponent context). Behavior captured in §3.1 #4. |
+| **T12** | **Firestore games query bound (§3.1 #5).** 200 most-recent? More? Less? | **RATIFIED at 200 most-recent + telemetry extension.** Covers ~1 year of typical play for active users; sufficient for `aggregateWinRateByTimeControl` (≥10 games/class) and `aggregateScoreByOpening` (≥5 games/opening) thresholds. **Plus:** emit `userHistoryGameCount` field in `citation_rate_summary` capturing the actual count returned from Firestore. If users routinely hit the 200 ceiling we'll know to revisit upward; if they never approach it we're undersized. Captured in §3.5. |
+| **T13** | **Where citationRate fires in the route lifecycle (§3.5).** Post-pipeline pre-`validateAIResponse`? Post-telemetry? | **RATIFIED — post-pipeline, pre-forwardTelemetry.** Citation rate rides the telemetry sink as a final `citation_rate_summary` event; sequence preserves per-validator events that precede it. |
+| **T14** | **Scout cache strategy.** Trust existing 10-min cache? Add wireValidators-side caching? | **RATIFIED via Option β cache extraction (commit `1.C.B.0`, 2026-05-22).** Cache + Lichess/Chess.com fetchers moved out of `/api/scout/route.ts` into `src/lib/server/scoutFetch.ts` (`fetchOpponentGames` is the shared entry point). Both `/api/scout` HTTP callers and `wireValidators.ts` internal callers consume the same module-scoped cache by reference — no double-buffering. Verified by unit test (`scoutFetch.test.ts` covers cache-hit, tuple-isolation, casing-normalization, payload-shape, error-path). Captured in §3.1 #4. |
+| **T15** | **`UserHistoryGame` import path coupling.** Type lives at `userHistoryAggregates.ts`; couples `wireValidators.ts` to that file. Acceptable? | **RATIFIED — type stays at `userHistoryAggregates.ts`.** Centralizing into a separate types module is premature cleanup; the `cleanup_followups.md` `TimeControlClass` entry is the prototype for "consolidate when a real need surfaces." |
+| **T16** | **`citation_rate_summary` Sentry event level.** `info` every turn or `debug` for volume? | **OVERRIDE to debug routine + promote-on-noteworthy.** Per-turn `info` at ~250k events/month (50k MAU steady state) burns Sentry budget for telemetry that's only interesting in aggregate. Routine `citation_rate_summary` emits at `debug`. Promote to `info` when any of: category produced below-floor citation rate, `final_outcome=fallback_used`, `retry_count > 0`, any validator fired more than once. Stage C sweep harness reads debug-level events from Sentry directly (debug events are retained-and-queryable, just not surfaced in default views). **Verify-before-locking fallback:** if Stage C harness cannot read debug, fallback posture is debug routine + 1-in-100 sampled at `info` for trend visibility. Captured in §6.3. |
 
-These six new questions all default-resolve in the implementation. Tech-lead may override before code starts; otherwise the defaults are implementation.
+All six are now decision-frozen for Stage B implementation. Any further override surfaces as a deviation in the relevant commit message.
 
 ---
 
@@ -965,25 +975,21 @@ Surfaced so the boundaries are explicit:
 
 ---
 
-## 14. Pause for review (revised post-Stage-A seal)
+## 14. Pause for review (revised post-Stage-A seal, post-T11–T16 resolution)
 
-**Don't start Stage B code until tech-lead signs off on the revised §3 `wireValidators.ts` spec specifically** — the four-validator wiring surface is the main architectural change between the pre-Stage-A draft and this revision. Other sections carry decisions ratified in the pre-Stage-A round (§12.1 Q1–Q7, §12.2 T1–T10).
+**Tech-lead review of §3 + §12.3 completed 2026-05-22.** §12.1 (Q1–Q7) and §12.2 (T1–T10) were ratified in the pre-Stage-A round; §12.3 (T11–T16) ratifications + overrides captured above.
 
-Specifically pending:
-
-- **Tech-lead (§12.3 T11–T16):** opponent identity for Scout fetch (PGN parsing vs request field); Firestore games query bound (200 most-recent); citationRate lifecycle position (post-pipeline, pre-telemetry); Scout cache strategy (trust scoutService); `UserHistoryGame` type coupling acceptable; `citation_rate_summary` Sentry event level (info).
-
-All six default-resolve in the implementation. Override surface to keep narrow.
-
-Once tech-lead signs off (or accepts §12.3 defaults silently), Stage B code begins. Commit order:
+Stage B code is unblocked. Revised commit order (one prep commit + one decision-capture commit prepended to the original five):
 
 | # | Commit | Surface |
 |---|---|---|
+| `1.C.B.0` | Extract scout fetchers + cache into `src/lib/server/scoutFetch.ts`; thin `/api/scout/route.ts` to a wrapper | **Prep (server lib)** — required by Option β cache-path resolution for T14. Landed 2026-05-22 at commit `c353eba`. |
+| `1.C.B.0.5` | Plan: §12.3 T11–T16 resolutions + §3.1 #4 / §3.5 / §6.3 implementation surface updates | **Plan (decision capture)** — no code change, ratifies the resolved questions and aligns the spec. |
 | `1.C.B.1` | `wireValidators.ts` + tests | Library — the four-source fetch helper + categoryClassifier wiring + citationRate post-step + partial-data failure matrix |
 | `1.C.B.2` | `validatorTelemetry.ts` + tests | Library — forwardTelemetry, RouteContext, citation_rate_summary event |
 | `1.C.B.3` | `getMastermindEnv()` in `src/env.ts` + flag plumbing | Single small env addition |
-| `1.C.B.4` | `/api/enhanced-analysis/route.ts` flag-on wing + integration test | **Route file (live traffic surface)** — tech-lead review required |
-| `1.C.B.5` | `/api/chat/route.ts` flag-on wing + integration test | **Route file (live traffic surface)** — tech-lead review required |
+| `1.C.B.4` | `/api/enhanced-analysis/route.ts` flag-on wing + integration test | **Route file (live traffic surface)** — Aayan review required |
+| `1.C.B.5` | `/api/chat/route.ts` flag-on wing + integration test | **Route file (live traffic surface)** — Aayan review required |
 
 After Stage B's final commit (1.C.B.5), the next step is the **Stage C synthetic-tester sweep against preview deploy with `MASTERMIND_VALIDATORS_ENABLED=true`**. Sweep output includes per-claim-type firing-rate aggregation per Aayan's Stage A.6 follow-up — flags ≥3-never-fire claim types as merge candidates for review.
 

@@ -926,6 +926,8 @@ Runs against a Vercel preview deploy with `MASTERMIND_VALIDATORS_ENABLED=true`. 
 
 **In CI:** the sweep is too slow + too costly for every PR (~50 turns × ~$0.03 = ~$1.50/sweep, plus 30+ minutes wall-clock). Not in default CI. Run **on demand** before merging Stage B → main and before any future PR that touches the pipeline or validator surface. Aayan's call on whether to add a "ci-sweep" workflow with a manual trigger button (open question §12 Q6).
 
+**Telemetry-read dependency (added 2026-05-22 per §6.3.1 verified-behavior lock):** the sweep reads `citation_rate_summary` events from **Vercel Log Drain JSON lines**, not from Sentry — debug-level events are dropped at the logger gate before reaching Sentry per §6.3.1 finding 1, and Sentry breadcrumbs are not standalone-queryable per finding 2. **Ops prerequisite:** Vercel Preview env must have `LOG_LEVEL=debug` set before the sweep runs, or routine citation_rate_summary events are dropped and the sweep sees only the noteworthy + 1-in-100 sampled subset. This env setting lands as part of the preview-env setup that turns on `MASTERMIND_VALIDATORS_ENABLED=true`, not as a separate ops step.
+
 ### 11.3 Merge gate (Stage B → main = PR 1.C merge)
 
 All of:

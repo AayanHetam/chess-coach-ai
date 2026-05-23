@@ -32,9 +32,15 @@ export function vercelBypassHeaders(baseUrl: string): Record<string, string> {
   } catch {
     return {};
   }
+  // Send protection-bypass header only. x-vercel-set-bypass-cookie:true
+  // caused an infinite redirect loop in dry-run testing 2026-05-23 (50
+  // redirects to the same URL before fetch gave up). The cookie-set
+  // mechanism is designed for browser flows where the cookie persists
+  // across the SPA's subsequent requests; the harness is one-shot fetch
+  // per turn and re-presents the bypass header each time, so the cookie
+  // doesn't buy anything.
   return {
     "x-vercel-protection-bypass": secret,
-    "x-vercel-set-bypass-cookie": "true",
   };
 }
 

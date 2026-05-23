@@ -14,20 +14,24 @@ describe("vercelBypassHeaders", () => {
   });
 
   describe("env var set + base URL is *.vercel.app → headers injected", () => {
-    it("returns both bypass headers for a typical preview URL", () => {
+    it("returns the protection-bypass header for a typical preview URL", () => {
       vi.stubEnv("VERCEL_AUTOMATION_BYPASS_SECRET", "test-secret-value-abc123");
       const headers = vercelBypassHeaders("https://chess-coach-abc123.vercel.app");
       expect(headers).toEqual({
         "x-vercel-protection-bypass": "test-secret-value-abc123",
-        "x-vercel-set-bypass-cookie": "true",
       });
+    });
+
+    it("does NOT include x-vercel-set-bypass-cookie (causes infinite redirect loop)", () => {
+      vi.stubEnv("VERCEL_AUTOMATION_BYPASS_SECRET", "secret-xyz");
+      const headers = vercelBypassHeaders("https://chess-coach-abc.vercel.app");
+      expect(headers["x-vercel-set-bypass-cookie"]).toBeUndefined();
     });
 
     it("works with subdomain variants (production-like vercel.app subdomains)", () => {
       vi.stubEnv("VERCEL_AUTOMATION_BYPASS_SECRET", "secret-xyz");
       const headers = vercelBypassHeaders("https://chess-coach-mbeuac5re-aayan-hs-projects.vercel.app");
       expect(headers["x-vercel-protection-bypass"]).toBe("secret-xyz");
-      expect(headers["x-vercel-set-bypass-cookie"]).toBe("true");
     });
 
     it("preserves trailing path / query without affecting host detection", () => {

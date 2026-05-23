@@ -20,8 +20,235 @@ import { detectConcepts } from "@/lib/concept/conceptDetector";
 import { getConcept } from "@/lib/concept/conceptTaxonomy";
 import { requireSession } from "@/lib/auth/session";
 import { getUserById } from "@/lib/server/users";
+// ── Stage B (PR 1.C) Mastermind validator pipeline imports ──────────
+// All flag-gated by getMastermindEnv().validatorsEnabled. When false, none
+// of these symbols execute. See PR_1C_STAGE_B_PLAN.md §3.7 for the audit
+// and §3.7.9 for insertion-point rationale.
+import { getMastermindEnv } from "@/env";
+import {
+  runValidationPipeline,
+  countScoutOpportunities,
+  countUserHistoryOpportunities,
+} from "@/lib/mastermind/validators";
+import { fetchDataSources, type FetchedDataSources } from "@/lib/mastermind/wireValidators";
+import { computeCitationRate } from "@/lib/mastermind/citationRate";
+import {
+  forwardTelemetry,
+  type RouteContext,
+} from "@/lib/mastermind/validatorTelemetry";
+import {
+  classifyQuestion,
+  type QuestionCategory,
+  DEFAULT_LOW_CONFIDENCE_CATEGORY,
+} from "@/lib/mastermind/categorization/categoryClassifier";
 
 const log = logger.child({ module: "enhanced-analysis" });
+
+// ─────────────────────────────────────────────────────────────────────
+// Stage B (PR 1.C) helpers — flag-gated, never execute when the env
+// flag is off. See PR_1C_STAGE_B_PLAN.md §3.7 for the audit anchoring
+// these helpers to the route shape.
+// ─────────────────────────────────────────────────────────────────────
+
+interface MastermindMoveContext {
+  fenBefore: string;
+  fenAfter: string;
+  moveSan?: string;
+  stockfishEval: { cp?: number; mate?: number };
+}
+
+/**
+ * Derive the Mastermind pipeline's per-turn move context from the route
+ * request inputs. Three cases:
+ *
+ *   1. moveHistory present + non-empty → use the LAST move as the anchor.
+ *      fenBefore = position before last move, fenAfter = position after.
+ *      stockfishEval = gameEval.positions[N].lines[0] when available.
+ *   2. fen-only (position analysis) → degraded: fenBefore === fenAfter.
+ *      stockfishEval pulled from gameEval.positions[0] when present.
+ *   3. Neither moveHistory nor fen → fully degraded against starting FEN.
+ *
+ * Note: §3.7.10 did not pre-specify this — surfaced during 1.C.B.4
+ * implementation. Last-move-as-anchor is the obvious default for game
+ * review; chat-path or position-only flows use the degraded mode that
+ * wireValidators.ts already handles (empty featureDelta).
+ */
+function deriveMastermindMoveContext(
+  moveHistory: string[] | undefined,
+  fen: string | undefined,
+  gameEval: GameEvalInput | undefined,
+): MastermindMoveContext {
+  if (moveHistory && moveHistory.length > 0) {
+    const lastIdx = moveHistory.length;
+    const fenBefore = getFenAtHalfMove(moveHistory, lastIdx - 1);
+    const fenAfter = getFenAtHalfMove(moveHistory, lastIdx);
+    const evalAfter = gameEval?.positions?.[lastIdx];
+    const stockfishEval = {
+      cp: evalAfter?.lines?.[0]?.cp,
+      mate: evalAfter?.lines?.[0]?.mate,
+    };
+    return {
+      fenBefore,
+      fenAfter,
+      moveSan: moveHistory[lastIdx - 1],
+      stockfishEval,
+    };
+  }
+  if (fen) {
+    const eval0 = gameEval?.positions?.[0];
+    return {
+      fenBefore: fen,
+      fenAfter: fen,
+      stockfishEval: {
+        cp: eval0?.lines?.[0]?.cp,
+        mate: eval0?.lines?.[0]?.mate,
+      },
+    };
+  }
+  // Fully degraded — starting position, no eval. Pipeline still runs
+  // featureDeltaCitation against an empty delta (per §3.4 chat-path mode).
+  return {
+    fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    fenAfter: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    stockfishEval: {},
+  };
+}
+
+interface MastermindPrepResult {
+  /** null when featureDelta-required source fetch threw — caller falls back to flag-off. */
+  dataSources: FetchedDataSources | null;
+  category: QuestionCategory;
+  classifierConfidence: number;
+  prepMs: number;
+}
+
+/**
+ * Concurrent pre-LLM prep: run the category classifier AND fetch all four
+ * data sources in parallel. Classifier failure defaults to
+ * meta_motivational; fetchDataSources throw on featureDelta failure
+ * propagates as `dataSources: null` so the route can fall back to flag-off
+ * per §3.2 contract.
+ *
+ * Two independent failure paths (Promise.allSettled discipline matches
+ * wireValidators.ts internally) — neither blocks the other.
+ */
+async function prepareMastermindContext(opts: {
+  userMessage: string;
+  moveCtx: MastermindMoveContext;
+  pv?: string[];
+  moveHistory?: string[];
+  playerPerspective: "white" | "black";
+  correlationId: string;
+  uid: string;
+  userName: string;
+  opponentUsername?: string;
+  opponentPlatform?: "lichess" | "chess.com";
+}): Promise<MastermindPrepResult> {
+  const t0 = Date.now();
+
+  const classifierP = classifyQuestion({ question: opts.userMessage }).catch((err) => {
+    log.warn("mastermind classifier failed", {
+      err: err instanceof Error ? err.message : String(err),
+      correlation_id: opts.correlationId,
+    });
+    return {
+      category: DEFAULT_LOW_CONFIDENCE_CATEGORY,
+      confidence: 0,
+      rationale: "classifier_call_threw",
+    };
+  });
+
+  const sourcesP = fetchDataSources({
+    fenBefore: opts.moveCtx.fenBefore,
+    fenAfter: opts.moveCtx.fenAfter,
+    pv: opts.pv,
+    moveHistory: opts.moveHistory,
+    playerPerspective: opts.playerPerspective,
+    correlationId: opts.correlationId,
+    uid: opts.uid,
+    userName: opts.userName,
+    opponentUsername: opts.opponentUsername,
+    opponentPlatform: opts.opponentPlatform,
+  }).then((ds) => ds as FetchedDataSources | null).catch((err) => {
+    // featureDelta is required — fetchDataSources throws when FD fails.
+    // Route falls back to flag-off path per §3.2.
+    log.warn("mastermind fetchDataSources failed (likely invalid FEN); flag-off fallback for this turn", {
+      err: err instanceof Error ? err.message : String(err),
+      correlation_id: opts.correlationId,
+    });
+    return null;
+  });
+
+  const [classifierResult, dataSources] = await Promise.all([classifierP, sourcesP]);
+
+  return {
+    dataSources,
+    category: classifierResult.category,
+    classifierConfidence: classifierResult.confidence,
+    prepMs: Date.now() - t0,
+  };
+}
+
+/**
+ * Build RouteContext + compute citationRate + forward telemetry.
+ * Both streaming and non-streaming branches call this after the pipeline
+ * finishes. Pipeline-failure path (caller did not invoke pipeline, e.g.
+ * FD threw) does not call this helper; it falls back to flag-off entirely.
+ */
+function forwardPipelineTelemetryForRoute(args: {
+  pipelineResult: import("@/lib/mastermind/validators").RegenerateResult;
+  dataSources: FetchedDataSources;
+  category: QuestionCategory;
+  routeKind: "/api/enhanced-analysis" | "/api/chat";
+  userId: string | undefined;
+  sessionId: string | undefined;
+  responseId: string;
+}): void {
+  const userHistoryGameCount = args.dataSources.userHistory?.games.length ?? null;
+
+  const citationRate = computeCitationRate({
+    category: args.category,
+    validatorResults: [
+      {
+        issues: args.pipelineResult.cumulativeIssues,
+        passed: args.pipelineResult.finalOutcome !== "fallback_used",
+        telemetry: args.pipelineResult.telemetry,
+        costUsd: args.pipelineResult.totalCostUsd,
+      },
+    ],
+    opportunities: {
+      scout: args.dataSources.scout
+        ? countScoutOpportunities(
+            args.dataSources.scout.scout,
+            args.dataSources.scout.collisions,
+          )
+        : undefined,
+      userHistory: args.dataSources.userHistory
+        ? countUserHistoryOpportunities(
+            args.dataSources.userHistory.games,
+            args.dataSources.userHistory.userName,
+          )
+        : undefined,
+    },
+  });
+
+  const ctx: RouteContext = {
+    route: args.routeKind,
+    userId: args.userId,
+    sessionId: args.sessionId,
+    responseId: args.responseId,
+    userTier: "free",
+    category: args.category,
+    finalOutcome: args.pipelineResult.finalOutcome,
+    retryCount: args.pipelineResult.retryCount,
+    totalCostUsd: args.pipelineResult.totalCostUsd,
+  };
+
+  forwardTelemetry(args.pipelineResult.telemetry, ctx, {
+    citationRate,
+    userHistoryGameCount,
+  });
+}
 
 interface PositionEvalInput {
   bestMove?: string;
@@ -1019,9 +1246,15 @@ export async function POST(request: NextRequest) {
       playerColorName,
       chesscomUsername,
       lichessUsername,
+      opponentUsername,
+      opponentPlatform,
       stream: streamRequested,
     } = parsed.data;
     const messageText = userMessage || message || "";
+
+    // Stage B insertion point A (§3.7.9): single env read. No branching cost
+    // when off; flag-off path remains byte-identical to today.
+    const { validatorsEnabled } = getMastermindEnv();
 
     log.info("Enhanced analysis started", {
       hasMessage: !!messageText,
@@ -1185,7 +1418,296 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(cachedPayload);
     }
 
-    // ── Streaming branch ────────────────────────────────────────────────
+    // ── Stage B insertion point D (§3.7.9): flag-on streaming branch ──
+    // Buffer-then-restream per §4. The pipeline can replace the response
+    // on retry; live-streaming and then retracting would be bad UX. We
+    // open the SSE stream immediately, emit `validating` phase events
+    // while the pipeline buffers, then synthetically re-stream the final
+    // text in paced chunks. If FD throws (per §3.2), we fall back to the
+    // flag-off live-stream loop inside the same already-opened SSE.
+    if (streamRequested && validatorsEnabled) {
+      const game = new Chess();
+      if (moveHistory && moveHistory.length > 0) {
+        for (const m of moveHistory) {
+          try { game.move(m); } catch { break; }
+        }
+      } else if (fen) {
+        try { game.load(fen); } catch { /* ignore */ }
+      }
+      const validationFen = game.fen();
+      const playerPerspective: "white" | "black" =
+        playerColor === "b" ? "black" : "white";
+      const moveCtx = deriveMastermindMoveContext(moveHistory, fen, gameEval);
+
+      const encoder = new TextEncoder();
+      const sseStream = new ReadableStream({
+        async start(controller) {
+          const send = (obj: unknown) => {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+          };
+
+          send({ type: "validating", phase: "initial" });
+
+          const prep = await prepareMastermindContext({
+            userMessage: messageText,
+            moveCtx,
+            moveHistory,
+            playerPerspective,
+            correlationId: requestId,
+            uid: session.uid,
+            userName: username ?? session.uid,
+            opponentUsername,
+            opponentPlatform,
+          });
+
+          // §3.2 contract: FD throws → fall back to flag-off path.
+          if (!prep.dataSources) {
+            send({ type: "validating", phase: "fallback-to-flagoff" });
+            // Reuse the live-stream loop from the flag-off path inline.
+            let fullText = "";
+            let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
+            try {
+              for await (const evt of callLLMStream({
+                tier: "flagship",
+                system: claudeSystemPrompt,
+                messages: claudeMessages,
+                temperature: 0.7,
+                maxTokens: 3000,
+                cacheSystem: true,
+              })) {
+                if (evt.type === "text") {
+                  fullText += evt.delta;
+                  send({ type: "text", delta: evt.delta });
+                } else {
+                  llmDone = evt.result;
+                }
+              }
+            } catch (err) {
+              const e = err instanceof LLMError ? err : new Error(String(err));
+              log.error("LLM streaming failed (flagoff-fallback inside flag-on stream)", { message: e.message });
+              send({ type: "error", error: e.message });
+              controller.close();
+              return;
+            }
+            if (llmDone) {
+              console.log("coach.tokens", {
+                input: llmDone.inputTokens,
+                output: llmDone.outputTokens,
+                cacheCreation: llmDone.cacheCreationTokens,
+                cacheRead: llmDone.cacheReadTokens,
+                promptVersion: PROMPT_VERSION,
+                streamed: true,
+                flagOnFallback: true,
+              });
+            }
+            const rawAnalysis = fullText || "No analysis generated.";
+            const validation = validateAIResponse(rawAnalysis, validationFen, moveHistory);
+            if (validation.issues.length > 0) {
+              log.warn("AI response validation issues (flagoff-fallback)", {
+                issueCount: validation.issues.length,
+                score: validation.score,
+              });
+            }
+            const analysisContent = validation.isValid ? rawAnalysis : validation.correctedResponse;
+            setCachedResponse(cacheKey, analysisContent, validation.score);
+            const contextId = generateContextId(moveHistory, fen, playerColor || "w");
+            const compactGameContext = buildCompactGameContext(
+              moveHistory ?? [],
+              gameEval,
+              playerColor || "w",
+            );
+            storeAnalysisContext({
+              contextId,
+              gameContext,
+              compactGameContext,
+              playedMoves: moveHistory ?? [],
+              systemPrompt: claudeSystemPrompt,
+              fewShotExamples: examplesContext,
+              fen: validationFen,
+              skillLevel,
+              playerColor: playerColor || "w",
+              moveCount: Math.ceil(game.history().length / 2),
+              createdAt: Date.now(),
+              initialAnalysis: analysisContent,
+            });
+            let puzzleRecommendations: unknown = undefined;
+            try {
+              puzzleRecommendations = await generatePuzzleRecommendations(
+                moveHistory,
+                gameEval,
+                userRating,
+              );
+            } catch (err) {
+              log.warn("puzzle recs failed in stream (flagoff-fallback)", {
+                err: err instanceof Error ? err.message : String(err),
+              });
+            }
+            send({
+              type: "done",
+              metadata: {
+                analysis: analysisContent,
+                position: validationFen,
+                turn: game.turn(),
+                moveCount: Math.ceil(game.history().length / 2),
+                availableMoves: game.moves().length,
+                validationScore: validation.score,
+                validationIssues: validation.issues.length,
+                contextId,
+                puzzleRecommendations,
+                corrected: !validation.isValid,
+                pipeline: { fallbackReason: "fd_failed" },
+              },
+            });
+            controller.close();
+            return;
+          }
+
+          // Run the validator pipeline against the four-source context.
+          let pipelineResult: import("@/lib/mastermind/validators").RegenerateResult;
+          try {
+            pipelineResult = await runValidationPipeline({
+              initialRequest: {
+                tier: "flagship",
+                system: claudeSystemPrompt,
+                messages: claudeMessages,
+                temperature: 0.7,
+                maxTokens: 3000,
+                cacheSystem: true,
+              },
+              stockfishEval: moveCtx.stockfishEval,
+              featureDelta: prep.dataSources.featureDelta,
+              pieceRoleDiff: prep.dataSources.pieceRoleDiff,
+              threatTree: prep.dataSources.threatTree,
+              playerPerspective,
+              fen: validationFen,
+              moveSan: moveCtx.moveSan,
+              correlationId: requestId,
+              dataSources: {
+                scout: prep.dataSources.scout,
+                userHistory: prep.dataSources.userHistory,
+              },
+            });
+          } catch (err) {
+            const e = err instanceof LLMError ? err : new Error(String(err));
+            log.error("Mastermind pipeline failed in stream", { message: e.message });
+            send({ type: "error", error: e.message });
+            controller.close();
+            return;
+          }
+
+          if (pipelineResult.retryCount > 0) {
+            send({ type: "validating", phase: `retry-${pipelineResult.retryCount}` });
+          }
+          if (pipelineResult.finalOutcome === "fallback_used") {
+            send({ type: "validating", phase: "fallback" });
+          }
+
+          // Synthetic re-stream the final pipeline text in paced chunks.
+          const finalText = pipelineResult.finalResponse || "No analysis generated.";
+          const CHUNK_SIZE = 60;
+          const CHUNK_DELAY_MS = 15;
+          for (let i = 0; i < finalText.length; i += CHUNK_SIZE) {
+            send({ type: "text", delta: finalText.slice(i, i + CHUNK_SIZE) });
+            if (i + CHUNK_SIZE < finalText.length) {
+              await new Promise((r) => setTimeout(r, CHUNK_DELAY_MS));
+            }
+          }
+
+          // Post-pipeline: footnote-append still applies per §8 (no cutover).
+          const validation = validateAIResponse(finalText, validationFen, moveHistory);
+          if (validation.issues.length > 0) {
+            log.warn("AI response validation issues (post-pipeline)", {
+              issueCount: validation.issues.length,
+              score: validation.score,
+              issues: validation.issues.map((i) => ({ severity: i.severity, type: i.type, detail: i.detail })),
+            });
+          }
+          const analysisContent = validation.isValid ? finalText : validation.correctedResponse;
+
+          setCachedResponse(cacheKey, analysisContent, validation.score);
+          const contextId = generateContextId(moveHistory, fen, playerColor || "w");
+          const compactGameContext = buildCompactGameContext(
+            moveHistory ?? [],
+            gameEval,
+            playerColor || "w",
+          );
+          storeAnalysisContext({
+            contextId,
+            gameContext,
+            compactGameContext,
+            playedMoves: moveHistory ?? [],
+            systemPrompt: claudeSystemPrompt,
+            fewShotExamples: examplesContext,
+            fen: validationFen,
+            skillLevel,
+            playerColor: playerColor || "w",
+            moveCount: Math.ceil(game.history().length / 2),
+            createdAt: Date.now(),
+            initialAnalysis: analysisContent,
+          });
+
+          let puzzleRecommendations: unknown = undefined;
+          try {
+            puzzleRecommendations = await generatePuzzleRecommendations(
+              moveHistory,
+              gameEval,
+              userRating,
+            );
+          } catch (err) {
+            log.warn("puzzle recs failed in stream (flag-on)", {
+              err: err instanceof Error ? err.message : String(err),
+            });
+          }
+
+          // §3.7.9 insertion point F: forward pipeline telemetry + citationRate.
+          forwardPipelineTelemetryForRoute({
+            pipelineResult,
+            dataSources: prep.dataSources,
+            category: prep.category,
+            routeKind: "/api/enhanced-analysis",
+            userId: session.uid,
+            sessionId: contextId,
+            responseId: requestId,
+          });
+
+          send({
+            type: "done",
+            metadata: {
+              analysis: analysisContent,
+              position: validationFen,
+              turn: game.turn(),
+              moveCount: Math.ceil(game.history().length / 2),
+              availableMoves: game.moves().length,
+              validationScore: validation.score,
+              validationIssues: validation.issues.length,
+              contextId,
+              puzzleRecommendations,
+              corrected: !validation.isValid,
+              pipeline: {
+                finalOutcome: pipelineResult.finalOutcome,
+                retryCount: pipelineResult.retryCount,
+                totalCostUsd: pipelineResult.totalCostUsd,
+                category: prep.category,
+                classifierConfidence: prep.classifierConfidence,
+                prepMs: prep.prepMs,
+              },
+            },
+          });
+          controller.close();
+        },
+      });
+
+      return new Response(sseStream, {
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
+
+    // ── Streaming branch (flag-off) ─────────────────────────────────────
     // When the client opts into streaming, we forward Claude's incremental
     // text deltas as Server-Sent Events. Validation, cache write, contextId
     // generation, and puzzle recommendations all run AFTER the stream ends
@@ -1321,37 +1843,132 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Call the unified LLM provider (Anthropic primary, OpenAI fallback).
-    let llmResult;
-    try {
-      llmResult = await callLLM({
-        tier: "flagship",
-        system: claudeSystemPrompt,
-        messages: claudeMessages,
-        temperature: 0.7,
-        maxTokens: 3000,
-        cacheSystem: true,
-      });
-    } catch (err) {
-      const e = err instanceof LLMError ? err : new Error(String(err));
-      log.error("LLM provider failed for enhanced-analysis", {
-        message: e.message,
-      });
-      return NextResponse.json(
-        {
-          error: "LLM request failed",
-          details: e.message,
-        },
-        { status: 502 }
-      );
-    }
-    console.log("coach.tokens", {
-      input: llmResult.inputTokens,
-      output: llmResult.outputTokens,
-      promptVersion: PROMPT_VERSION,
-    });
+    // ── Stage B insertion point E (§3.7.9): non-streaming flag-on wing ──
+    // Pipeline replaces callLLM. If FD throws (prep.dataSources === null),
+    // fall back to the existing callLLM path per §3.2.
+    let rawAnalysis: string;
+    let pipelineResultForTelemetry: import("@/lib/mastermind/validators").RegenerateResult | null = null;
+    let mastermindPrepForTelemetry: MastermindPrepResult | null = null;
 
-    const rawAnalysis = llmResult.content || "No analysis generated.";
+    if (validatorsEnabled) {
+      const playerPerspective: "white" | "black" =
+        playerColor === "b" ? "black" : "white";
+      const moveCtx = deriveMastermindMoveContext(moveHistory, fen, gameEval);
+      const prep = await prepareMastermindContext({
+        userMessage: messageText,
+        moveCtx,
+        moveHistory,
+        playerPerspective,
+        correlationId: requestId,
+        uid: session.uid,
+        userName: username ?? session.uid,
+        opponentUsername,
+        opponentPlatform,
+      });
+
+      if (prep.dataSources) {
+        try {
+          const pipelineResult = await runValidationPipeline({
+            initialRequest: {
+              tier: "flagship",
+              system: claudeSystemPrompt,
+              messages: claudeMessages,
+              temperature: 0.7,
+              maxTokens: 3000,
+              cacheSystem: true,
+            },
+            stockfishEval: moveCtx.stockfishEval,
+            featureDelta: prep.dataSources.featureDelta,
+            pieceRoleDiff: prep.dataSources.pieceRoleDiff,
+            threatTree: prep.dataSources.threatTree,
+            playerPerspective,
+            fen: moveCtx.fenAfter,
+            moveSan: moveCtx.moveSan,
+            correlationId: requestId,
+            dataSources: {
+              scout: prep.dataSources.scout,
+              userHistory: prep.dataSources.userHistory,
+            },
+          });
+          rawAnalysis = pipelineResult.finalResponse || "No analysis generated.";
+          pipelineResultForTelemetry = pipelineResult;
+          mastermindPrepForTelemetry = prep;
+          console.log("coach.tokens", {
+            input: undefined,  // pipeline-managed; surfaced via pipelineResult.totalCostUsd
+            output: undefined,
+            promptVersion: PROMPT_VERSION,
+            pipelineCostUsd: pipelineResult.totalCostUsd,
+            pipelineFinalOutcome: pipelineResult.finalOutcome,
+            pipelineRetryCount: pipelineResult.retryCount,
+          });
+        } catch (err) {
+          const e = err instanceof LLMError ? err : new Error(String(err));
+          log.error("Mastermind pipeline failed for enhanced-analysis", { message: e.message });
+          return NextResponse.json(
+            { error: "Pipeline request failed", details: e.message },
+            { status: 502 },
+          );
+        }
+      } else {
+        // FD failed → flag-off fallback for this turn.
+        let llmResult;
+        try {
+          llmResult = await callLLM({
+            tier: "flagship",
+            system: claudeSystemPrompt,
+            messages: claudeMessages,
+            temperature: 0.7,
+            maxTokens: 3000,
+            cacheSystem: true,
+          });
+        } catch (err) {
+          const e = err instanceof LLMError ? err : new Error(String(err));
+          log.error("LLM provider failed (flag-on fallback after FD failure)", { message: e.message });
+          return NextResponse.json(
+            { error: "LLM request failed", details: e.message },
+            { status: 502 },
+          );
+        }
+        console.log("coach.tokens", {
+          input: llmResult.inputTokens,
+          output: llmResult.outputTokens,
+          promptVersion: PROMPT_VERSION,
+          flagOnFallback: true,
+        });
+        rawAnalysis = llmResult.content || "No analysis generated.";
+      }
+    } else {
+      // Call the unified LLM provider (Anthropic primary, OpenAI fallback).
+      let llmResult;
+      try {
+        llmResult = await callLLM({
+          tier: "flagship",
+          system: claudeSystemPrompt,
+          messages: claudeMessages,
+          temperature: 0.7,
+          maxTokens: 3000,
+          cacheSystem: true,
+        });
+      } catch (err) {
+        const e = err instanceof LLMError ? err : new Error(String(err));
+        log.error("LLM provider failed for enhanced-analysis", {
+          message: e.message,
+        });
+        return NextResponse.json(
+          {
+            error: "LLM request failed",
+            details: e.message,
+          },
+          { status: 502 }
+        );
+      }
+      console.log("coach.tokens", {
+        input: llmResult.inputTokens,
+        output: llmResult.outputTokens,
+        promptVersion: PROMPT_VERSION,
+      });
+      rawAnalysis = llmResult.content || "No analysis generated.";
+    }
 
     // Build final game state for response metadata
     const game = new Chess();
@@ -1410,6 +2027,20 @@ export async function POST(request: NextRequest) {
       userRating
     );
 
+    // Stage B insertion point F: forward pipeline telemetry + citationRate.
+    // Only when the pipeline actually ran (validatorsEnabled + FD succeeded).
+    if (pipelineResultForTelemetry && mastermindPrepForTelemetry?.dataSources) {
+      forwardPipelineTelemetryForRoute({
+        pipelineResult: pipelineResultForTelemetry,
+        dataSources: mastermindPrepForTelemetry.dataSources,
+        category: mastermindPrepForTelemetry.category,
+        routeKind: "/api/enhanced-analysis",
+        userId: session.uid,
+        sessionId: contextId,
+        responseId: requestId,
+      });
+    }
+
     return NextResponse.json({
       gameAnalysis: {
         analysis: analysisContent,
@@ -1421,6 +2052,18 @@ export async function POST(request: NextRequest) {
         validationIssues: validation.issues.length,
         contextId,
         puzzleRecommendations, // NEW: Targeted puzzles for each mistake
+        ...(pipelineResultForTelemetry && mastermindPrepForTelemetry
+          ? {
+              pipeline: {
+                finalOutcome: pipelineResultForTelemetry.finalOutcome,
+                retryCount: pipelineResultForTelemetry.retryCount,
+                totalCostUsd: pipelineResultForTelemetry.totalCostUsd,
+                category: mastermindPrepForTelemetry.category,
+                classifierConfidence: mastermindPrepForTelemetry.classifierConfidence,
+                prepMs: mastermindPrepForTelemetry.prepMs,
+              },
+            }
+          : {}),
       },
     });
   } catch (error) {

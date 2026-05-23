@@ -454,3 +454,62 @@ describe("enhanced-analysis route: cross-feature interactions", () => {
     expect(mockRunValidationPipeline).not.toHaveBeenCalled();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// Category-aware move-context (1.C.B.5 follow-up #2) — 15th case
+// ─────────────────────────────────────────────────────────────────────
+
+describe("enhanced-analysis route: category-aware move context (1.C.B.5)", () => {
+  it("opponent_prep with moveHistory → pipeline gets degraded featureDelta (fenBefore === fenAfter)", async () => {
+    enableFlag();
+    // Capture the fetchDataSources args so we can assert fenBefore===fenAfter for non-move-focus.
+    let capturedFetchOpts: { fenBefore?: string; fenAfter?: string } | null = null;
+    mockFetchDataSources.mockImplementation(async (opts: unknown) => {
+      capturedFetchOpts = opts as { fenBefore: string; fenAfter: string };
+      return happyDataSources();
+    });
+    mockClassifyQuestion.mockResolvedValue({
+      category: "opponent_prep",
+      confidence: 0.9,
+      rationale: "opp prep query",
+    });
+
+    const res = await POST(
+      makeRequest({
+        ...baseRequestBody(),
+        userMessage: "tell me about my opponent's tendencies",
+        moveHistory: ["e4", "e5", "Nf3", "Nc6", "Bb5", "a6"],
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(capturedFetchOpts).not.toBeNull();
+    expect(capturedFetchOpts!.fenBefore).toBe(capturedFetchOpts!.fenAfter);
+  });
+
+  it("game_review with moveHistory → pipeline gets last-move-anchored featureDelta (fenBefore !== fenAfter)", async () => {
+    enableFlag();
+    let capturedFetchOpts: { fenBefore?: string; fenAfter?: string } | null = null;
+    mockFetchDataSources.mockImplementation(async (opts: unknown) => {
+      capturedFetchOpts = opts as { fenBefore: string; fenAfter: string };
+      return happyDataSources();
+    });
+    mockClassifyQuestion.mockResolvedValue({
+      category: "game_review",
+      confidence: 0.9,
+      rationale: "game review query",
+    });
+
+    const res = await POST(
+      makeRequest({
+        ...baseRequestBody(),
+        userMessage: "what was my biggest mistake in this game?",
+        moveHistory: ["e4", "e5", "Nf3", "Nc6", "Bb5", "a6"],
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(capturedFetchOpts).not.toBeNull();
+    expect(capturedFetchOpts!.fenBefore).not.toBe(capturedFetchOpts!.fenAfter);
+  });
+});

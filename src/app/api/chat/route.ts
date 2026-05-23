@@ -7,6 +7,22 @@ import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { chatSchema, validateRequest } from "@/lib/validation/schemas";
 import { callLLM, LLMError, type LLMMessage } from "@/lib/llmProvider";
 import { requireSession } from "@/lib/auth/session";
+import { logger, extractRequestId } from "@/lib/logging";
+// ── Stage B (PR 1.C) Mastermind validator pipeline imports ──────────
+// All flag-gated by getMastermindEnv().validatorsEnabled. Flag-off path
+// remains byte-identical to today.
+import { getMastermindEnv } from "@/env";
+import { runValidationPipeline } from "@/lib/mastermind/validators";
+import {
+  withPipelineTimeout,
+  type PipelineResultWithTimeout,
+} from "@/lib/mastermind/pipelineTimeout";
+import {
+  prepareMastermindContext,
+  forwardPipelineTelemetryForRoute,
+} from "@/lib/mastermind/routeHelpers";
+
+const log = logger.child({ module: "chat" });
 
 /**
  * Lightweight chat endpoint for follow-up messages.
@@ -87,6 +103,121 @@ export async function POST(request: NextRequest) {
       const nonSystemMessages: LLMMessage[] = chatMessages
         .filter((m) => m.role === "user" || m.role === "assistant")
         .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+
+      // Stage B insertion (§3.7.9 chat-equivalent of A): single env read.
+      const { validatorsEnabled } = getMastermindEnv();
+      const requestId = extractRequestId(request.headers);
+
+      // ── Stage B flag-on wing for /api/chat fast path ────────────────
+      // Per §3.4: chat path uses degraded mode (no scout — chat fast-path
+      // has no opponent context; userHistory stays enabled for
+      // improvement_strategy / meta_motivational follow-ups).
+      // Per Q3 ratified default: no-contextId fallback path stays
+      // unchanged (handled outside this block).
+      if (validatorsEnabled) {
+        const playerPerspective: "white" | "black" =
+          (context.playerColor === "b" || context.playerColor === "black") ? "black" : "white";
+        const prep = await prepareMastermindContext({
+          userMessage,
+          moveHistory: context.playedMoves,
+          fen: context.fen,
+          // gameEval: not threaded through analysisContext today; chat
+          // path is happy with stockfishEval={} (degraded mode means
+          // the eval-claim validator just doesn't fire on this turn).
+          gameEval: undefined,
+          playerPerspective,
+          correlationId: requestId,
+          uid: guard.session.uid,
+          // analysisContext doesn't carry a userName today — fall back
+          // to session uid for detectUserColor matching (single-identifier
+          // MVP per Stage A.7 detectUserColor design).
+          userName: guard.session.uid,
+          // §3.4: skip scout in chat fast-path; opponent context isn't
+          // typically set on chat requests.
+          opponentUsername: undefined,
+          opponentPlatform: undefined,
+        });
+
+        if (prep.dataSources) {
+          let pipelineResult: PipelineResultWithTimeout;
+          try {
+            pipelineResult = await withPipelineTimeout(
+              runValidationPipeline({
+                initialRequest: {
+                  tier: "fast",
+                  system: systemText,
+                  messages: nonSystemMessages,
+                  temperature: 0.7,
+                  maxTokens: 3000,
+                  cacheSystem: true,
+                },
+                stockfishEval: prep.moveCtx.stockfishEval,
+                featureDelta: prep.dataSources.featureDelta,
+                pieceRoleDiff: prep.dataSources.pieceRoleDiff,
+                threatTree: prep.dataSources.threatTree,
+                playerPerspective,
+                fen: prep.moveCtx.fenAfter,
+                moveSan: prep.moveCtx.moveSan,
+                correlationId: requestId,
+                // §10.4 + §3.4: chat retry budget is tighter than
+                // enhanced-analysis (1 retry max) to keep follow-up
+                // latency in chat tolerance.
+                maxRetries: 1,
+                dataSources: {
+                  scout: prep.dataSources.scout,
+                  userHistory: prep.dataSources.userHistory,
+                },
+              }),
+              {
+                correlationId: requestId,
+                fallbackResponse:
+                  "Still thinking — the deep-validation pass took longer than expected. Try asking again.",
+              },
+            );
+          } catch (err) {
+            const e = err instanceof LLMError ? err : new Error(String(err));
+            log.error("Mastermind pipeline failed for chat", { message: e.message });
+            return NextResponse.json(
+              { error: `LLM API error: ${e.message}` },
+              { status: 502 },
+            );
+          }
+
+          const rawContent = pipelineResult.finalResponse || "I couldn't generate a response.";
+          const validation = validateAIResponse(rawContent, context.fen);
+
+          forwardPipelineTelemetryForRoute({
+            pipelineResult,
+            dataSources: prep.dataSources,
+            category: prep.category,
+            routeKind: "/api/chat",
+            userId: guard.session.uid,
+            sessionId: contextId,
+            responseId: requestId,
+          });
+
+          return NextResponse.json({
+            gameAnalysis: {
+              analysis: validation.isValid ? rawContent : validation.correctedResponse,
+              position: context.fen,
+              validationScore: validation.score,
+              cached: false,
+              fastPath: true,
+              pipeline: {
+                finalOutcome: pipelineResult.finalOutcome,
+                retryCount: pipelineResult.retryCount,
+                totalCostUsd: pipelineResult.totalCostUsd,
+                category: prep.category,
+                classifierConfidence: prep.classifierConfidence,
+                prepMs: prep.prepMs,
+                timedOut: pipelineResult.timedOut,
+              },
+            },
+          });
+        }
+        // prep.dataSources === null → FD failure; fall through to flag-off
+        // callLLM below for this turn (§3.2 contract).
+      }
 
       // Fast tier (Haiku primary, gpt-4o-mini fallback)
       // maxTokens here is the OUTPUT cap; raised so answers about long games

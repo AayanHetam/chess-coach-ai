@@ -37,218 +37,23 @@ import {
   type RouteContext,
 } from "@/lib/mastermind/validatorTelemetry";
 import {
-  classifyQuestion,
-  type QuestionCategory,
-  DEFAULT_LOW_CONFIDENCE_CATEGORY,
-} from "@/lib/mastermind/categorization/categoryClassifier";
+  withPipelineTimeout,
+  type PipelineResultWithTimeout,
+} from "@/lib/mastermind/pipelineTimeout";
+import {
+  prepareMastermindContext,
+  forwardPipelineTelemetryForRoute,
+  type MastermindPrepResult,
+} from "@/lib/mastermind/routeHelpers";
 
 const log = logger.child({ module: "enhanced-analysis" });
 
 // ─────────────────────────────────────────────────────────────────────
-// Stage B (PR 1.C) helpers — flag-gated, never execute when the env
-// flag is off. See PR_1C_STAGE_B_PLAN.md §3.7 for the audit anchoring
-// these helpers to the route shape.
+// Stage B Mastermind helpers live in src/lib/mastermind/routeHelpers.ts
+// (extracted in 1.C.B.5 so /api/chat can reuse). This file consumes them
+// via the imports above. The route still owns request-shape mapping —
+// which inputs become moveHistory / fen / gameEval / opponentUsername.
 // ─────────────────────────────────────────────────────────────────────
-
-interface MastermindMoveContext {
-  fenBefore: string;
-  fenAfter: string;
-  moveSan?: string;
-  stockfishEval: { cp?: number; mate?: number };
-}
-
-/**
- * Derive the Mastermind pipeline's per-turn move context from the route
- * request inputs. Three cases:
- *
- *   1. moveHistory present + non-empty → use the LAST move as the anchor.
- *      fenBefore = position before last move, fenAfter = position after.
- *      stockfishEval = gameEval.positions[N].lines[0] when available.
- *   2. fen-only (position analysis) → degraded: fenBefore === fenAfter.
- *      stockfishEval pulled from gameEval.positions[0] when present.
- *   3. Neither moveHistory nor fen → fully degraded against starting FEN.
- *
- * Note: §3.7.10 did not pre-specify this — surfaced during 1.C.B.4
- * implementation. Last-move-as-anchor is the obvious default for game
- * review; chat-path or position-only flows use the degraded mode that
- * wireValidators.ts already handles (empty featureDelta).
- */
-function deriveMastermindMoveContext(
-  moveHistory: string[] | undefined,
-  fen: string | undefined,
-  gameEval: GameEvalInput | undefined,
-): MastermindMoveContext {
-  if (moveHistory && moveHistory.length > 0) {
-    const lastIdx = moveHistory.length;
-    const fenBefore = getFenAtHalfMove(moveHistory, lastIdx - 1);
-    const fenAfter = getFenAtHalfMove(moveHistory, lastIdx);
-    const evalAfter = gameEval?.positions?.[lastIdx];
-    const stockfishEval = {
-      cp: evalAfter?.lines?.[0]?.cp,
-      mate: evalAfter?.lines?.[0]?.mate,
-    };
-    return {
-      fenBefore,
-      fenAfter,
-      moveSan: moveHistory[lastIdx - 1],
-      stockfishEval,
-    };
-  }
-  if (fen) {
-    const eval0 = gameEval?.positions?.[0];
-    return {
-      fenBefore: fen,
-      fenAfter: fen,
-      stockfishEval: {
-        cp: eval0?.lines?.[0]?.cp,
-        mate: eval0?.lines?.[0]?.mate,
-      },
-    };
-  }
-  // Fully degraded — starting position, no eval. Pipeline still runs
-  // featureDeltaCitation against an empty delta (per §3.4 chat-path mode).
-  return {
-    fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-    fenAfter: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-    stockfishEval: {},
-  };
-}
-
-interface MastermindPrepResult {
-  /** null when featureDelta-required source fetch threw — caller falls back to flag-off. */
-  dataSources: FetchedDataSources | null;
-  category: QuestionCategory;
-  classifierConfidence: number;
-  prepMs: number;
-}
-
-/**
- * Concurrent pre-LLM prep: run the category classifier AND fetch all four
- * data sources in parallel. Classifier failure defaults to
- * meta_motivational; fetchDataSources throw on featureDelta failure
- * propagates as `dataSources: null` so the route can fall back to flag-off
- * per §3.2 contract.
- *
- * Two independent failure paths (Promise.allSettled discipline matches
- * wireValidators.ts internally) — neither blocks the other.
- */
-async function prepareMastermindContext(opts: {
-  userMessage: string;
-  moveCtx: MastermindMoveContext;
-  pv?: string[];
-  moveHistory?: string[];
-  playerPerspective: "white" | "black";
-  correlationId: string;
-  uid: string;
-  userName: string;
-  opponentUsername?: string;
-  opponentPlatform?: "lichess" | "chess.com";
-}): Promise<MastermindPrepResult> {
-  const t0 = Date.now();
-
-  const classifierP = classifyQuestion({ question: opts.userMessage }).catch((err) => {
-    log.warn("mastermind classifier failed", {
-      err: err instanceof Error ? err.message : String(err),
-      correlation_id: opts.correlationId,
-    });
-    return {
-      category: DEFAULT_LOW_CONFIDENCE_CATEGORY,
-      confidence: 0,
-      rationale: "classifier_call_threw",
-    };
-  });
-
-  const sourcesP = fetchDataSources({
-    fenBefore: opts.moveCtx.fenBefore,
-    fenAfter: opts.moveCtx.fenAfter,
-    pv: opts.pv,
-    moveHistory: opts.moveHistory,
-    playerPerspective: opts.playerPerspective,
-    correlationId: opts.correlationId,
-    uid: opts.uid,
-    userName: opts.userName,
-    opponentUsername: opts.opponentUsername,
-    opponentPlatform: opts.opponentPlatform,
-  }).then((ds) => ds as FetchedDataSources | null).catch((err) => {
-    // featureDelta is required — fetchDataSources throws when FD fails.
-    // Route falls back to flag-off path per §3.2.
-    log.warn("mastermind fetchDataSources failed (likely invalid FEN); flag-off fallback for this turn", {
-      err: err instanceof Error ? err.message : String(err),
-      correlation_id: opts.correlationId,
-    });
-    return null;
-  });
-
-  const [classifierResult, dataSources] = await Promise.all([classifierP, sourcesP]);
-
-  return {
-    dataSources,
-    category: classifierResult.category,
-    classifierConfidence: classifierResult.confidence,
-    prepMs: Date.now() - t0,
-  };
-}
-
-/**
- * Build RouteContext + compute citationRate + forward telemetry.
- * Both streaming and non-streaming branches call this after the pipeline
- * finishes. Pipeline-failure path (caller did not invoke pipeline, e.g.
- * FD threw) does not call this helper; it falls back to flag-off entirely.
- */
-function forwardPipelineTelemetryForRoute(args: {
-  pipelineResult: import("@/lib/mastermind/validators").RegenerateResult;
-  dataSources: FetchedDataSources;
-  category: QuestionCategory;
-  routeKind: "/api/enhanced-analysis" | "/api/chat";
-  userId: string | undefined;
-  sessionId: string | undefined;
-  responseId: string;
-}): void {
-  const userHistoryGameCount = args.dataSources.userHistory?.games.length ?? null;
-
-  const citationRate = computeCitationRate({
-    category: args.category,
-    validatorResults: [
-      {
-        issues: args.pipelineResult.cumulativeIssues,
-        passed: args.pipelineResult.finalOutcome !== "fallback_used",
-        telemetry: args.pipelineResult.telemetry,
-        costUsd: args.pipelineResult.totalCostUsd,
-      },
-    ],
-    opportunities: {
-      scout: args.dataSources.scout
-        ? countScoutOpportunities(
-            args.dataSources.scout.scout,
-            args.dataSources.scout.collisions,
-          )
-        : undefined,
-      userHistory: args.dataSources.userHistory
-        ? countUserHistoryOpportunities(
-            args.dataSources.userHistory.games,
-            args.dataSources.userHistory.userName,
-          )
-        : undefined,
-    },
-  });
-
-  const ctx: RouteContext = {
-    route: args.routeKind,
-    userId: args.userId,
-    sessionId: args.sessionId,
-    responseId: args.responseId,
-    userTier: "free",
-    category: args.category,
-    finalOutcome: args.pipelineResult.finalOutcome,
-    retryCount: args.pipelineResult.retryCount,
-    totalCostUsd: args.pipelineResult.totalCostUsd,
-  };
-
-  forwardTelemetry(args.pipelineResult.telemetry, ctx, {
-    citationRate,
-    userHistoryGameCount,
-  });
-}
 
 interface PositionEvalInput {
   bestMove?: string;
@@ -1437,7 +1242,6 @@ export async function POST(request: NextRequest) {
       const validationFen = game.fen();
       const playerPerspective: "white" | "black" =
         playerColor === "b" ? "black" : "white";
-      const moveCtx = deriveMastermindMoveContext(moveHistory, fen, gameEval);
 
       const encoder = new TextEncoder();
       const sseStream = new ReadableStream({
@@ -1450,8 +1254,9 @@ export async function POST(request: NextRequest) {
 
           const prep = await prepareMastermindContext({
             userMessage: messageText,
-            moveCtx,
             moveHistory,
+            fen,
+            gameEval,
             playerPerspective,
             correlationId: requestId,
             uid: session.uid,
@@ -1562,31 +1367,42 @@ export async function POST(request: NextRequest) {
             return;
           }
 
-          // Run the validator pipeline against the four-source context.
-          let pipelineResult: import("@/lib/mastermind/validators").RegenerateResult;
+          // Run the validator pipeline against the four-source context,
+          // wrapped in a 30s top-level timer per §10.3.1 case 8 (1.C.B.5
+          // follow-up). On timeout the helper resolves with a graceful
+          // fallback result; the route emits done with pipeline.timedOut=true
+          // rather than an SSE error or 502.
+          let pipelineResult: PipelineResultWithTimeout;
           try {
-            pipelineResult = await runValidationPipeline({
-              initialRequest: {
-                tier: "flagship",
-                system: claudeSystemPrompt,
-                messages: claudeMessages,
-                temperature: 0.7,
-                maxTokens: 3000,
-                cacheSystem: true,
+            pipelineResult = await withPipelineTimeout(
+              runValidationPipeline({
+                initialRequest: {
+                  tier: "flagship",
+                  system: claudeSystemPrompt,
+                  messages: claudeMessages,
+                  temperature: 0.7,
+                  maxTokens: 3000,
+                  cacheSystem: true,
+                },
+                stockfishEval: prep.moveCtx.stockfishEval,
+                featureDelta: prep.dataSources.featureDelta,
+                pieceRoleDiff: prep.dataSources.pieceRoleDiff,
+                threatTree: prep.dataSources.threatTree,
+                playerPerspective,
+                fen: validationFen,
+                moveSan: prep.moveCtx.moveSan,
+                correlationId: requestId,
+                dataSources: {
+                  scout: prep.dataSources.scout,
+                  userHistory: prep.dataSources.userHistory,
+                },
+              }),
+              {
+                correlationId: requestId,
+                fallbackResponse:
+                  "Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase.",
               },
-              stockfishEval: moveCtx.stockfishEval,
-              featureDelta: prep.dataSources.featureDelta,
-              pieceRoleDiff: prep.dataSources.pieceRoleDiff,
-              threatTree: prep.dataSources.threatTree,
-              playerPerspective,
-              fen: validationFen,
-              moveSan: moveCtx.moveSan,
-              correlationId: requestId,
-              dataSources: {
-                scout: prep.dataSources.scout,
-                userHistory: prep.dataSources.userHistory,
-              },
-            });
+            );
           } catch (err) {
             const e = err instanceof LLMError ? err : new Error(String(err));
             log.error("Mastermind pipeline failed in stream", { message: e.message });
@@ -1595,10 +1411,12 @@ export async function POST(request: NextRequest) {
             return;
           }
 
-          if (pipelineResult.retryCount > 0) {
+          if (pipelineResult.timedOut) {
+            send({ type: "validating", phase: "timed-out" });
+          } else if (pipelineResult.retryCount > 0) {
             send({ type: "validating", phase: `retry-${pipelineResult.retryCount}` });
           }
-          if (pipelineResult.finalOutcome === "fallback_used") {
+          if (pipelineResult.finalOutcome === "fallback_used" && !pipelineResult.timedOut) {
             send({ type: "validating", phase: "fallback" });
           }
 
@@ -1690,6 +1508,7 @@ export async function POST(request: NextRequest) {
                 category: prep.category,
                 classifierConfidence: prep.classifierConfidence,
                 prepMs: prep.prepMs,
+                timedOut: pipelineResult.timedOut,
               },
             },
           });
@@ -1847,17 +1666,17 @@ export async function POST(request: NextRequest) {
     // Pipeline replaces callLLM. If FD throws (prep.dataSources === null),
     // fall back to the existing callLLM path per §3.2.
     let rawAnalysis: string;
-    let pipelineResultForTelemetry: import("@/lib/mastermind/validators").RegenerateResult | null = null;
+    let pipelineResultForTelemetry: PipelineResultWithTimeout | null = null;
     let mastermindPrepForTelemetry: MastermindPrepResult | null = null;
 
     if (validatorsEnabled) {
       const playerPerspective: "white" | "black" =
         playerColor === "b" ? "black" : "white";
-      const moveCtx = deriveMastermindMoveContext(moveHistory, fen, gameEval);
       const prep = await prepareMastermindContext({
         userMessage: messageText,
-        moveCtx,
         moveHistory,
+        fen,
+        gameEval,
         playerPerspective,
         correlationId: requestId,
         uid: session.uid,
@@ -1868,28 +1687,35 @@ export async function POST(request: NextRequest) {
 
       if (prep.dataSources) {
         try {
-          const pipelineResult = await runValidationPipeline({
-            initialRequest: {
-              tier: "flagship",
-              system: claudeSystemPrompt,
-              messages: claudeMessages,
-              temperature: 0.7,
-              maxTokens: 3000,
-              cacheSystem: true,
+          const pipelineResult = await withPipelineTimeout(
+            runValidationPipeline({
+              initialRequest: {
+                tier: "flagship",
+                system: claudeSystemPrompt,
+                messages: claudeMessages,
+                temperature: 0.7,
+                maxTokens: 3000,
+                cacheSystem: true,
+              },
+              stockfishEval: prep.moveCtx.stockfishEval,
+              featureDelta: prep.dataSources.featureDelta,
+              pieceRoleDiff: prep.dataSources.pieceRoleDiff,
+              threatTree: prep.dataSources.threatTree,
+              playerPerspective,
+              fen: prep.moveCtx.fenAfter,
+              moveSan: prep.moveCtx.moveSan,
+              correlationId: requestId,
+              dataSources: {
+                scout: prep.dataSources.scout,
+                userHistory: prep.dataSources.userHistory,
+              },
+            }),
+            {
+              correlationId: requestId,
+              fallbackResponse:
+                "Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase.",
             },
-            stockfishEval: moveCtx.stockfishEval,
-            featureDelta: prep.dataSources.featureDelta,
-            pieceRoleDiff: prep.dataSources.pieceRoleDiff,
-            threatTree: prep.dataSources.threatTree,
-            playerPerspective,
-            fen: moveCtx.fenAfter,
-            moveSan: moveCtx.moveSan,
-            correlationId: requestId,
-            dataSources: {
-              scout: prep.dataSources.scout,
-              userHistory: prep.dataSources.userHistory,
-            },
-          });
+          );
           rawAnalysis = pipelineResult.finalResponse || "No analysis generated.";
           pipelineResultForTelemetry = pipelineResult;
           mastermindPrepForTelemetry = prep;
@@ -1900,6 +1726,7 @@ export async function POST(request: NextRequest) {
             pipelineCostUsd: pipelineResult.totalCostUsd,
             pipelineFinalOutcome: pipelineResult.finalOutcome,
             pipelineRetryCount: pipelineResult.retryCount,
+            pipelineTimedOut: pipelineResult.timedOut,
           });
         } catch (err) {
           const e = err instanceof LLMError ? err : new Error(String(err));
@@ -2061,6 +1888,7 @@ export async function POST(request: NextRequest) {
                 category: mastermindPrepForTelemetry.category,
                 classifierConfidence: mastermindPrepForTelemetry.classifierConfidence,
                 prepMs: mastermindPrepForTelemetry.prepMs,
+                timedOut: pipelineResultForTelemetry.timedOut,
               },
             }
           : {}),

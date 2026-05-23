@@ -211,6 +211,14 @@ export async function POST(request: NextRequest) {
                 classifierConfidence: prep.classifierConfidence,
                 prepMs: prep.prepMs,
                 timedOut: pipelineResult.timedOut,
+                // Stage C telemetry expose (Follow-up B, 2026-05-23): preview
+                // env only. Mirrors the /api/enhanced-analysis extension from
+                // Follow-up A. Production responses do not include the
+                // telemetry array — events still emit through the structured
+                // logger to Vercel Log Drain on every env.
+                ...(process.env.VERCEL_ENV === "preview"
+                  ? { telemetry: pipelineResult.telemetry }
+                  : {}),
               },
             },
           });

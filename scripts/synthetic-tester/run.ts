@@ -14,7 +14,7 @@ import { Chess } from "chess.js";
 
 import { mintSessionCookie, makeRunUid } from "./auth";
 import { StockfishEngine } from "./stockfish";
-import { evaluateGame, pickCheckpoints } from "./checkpoints";
+import { evaluateGame, pickCheckpoints, type PerPlyState } from "./checkpoints";
 import { CostTracker } from "./costTracker";
 import {
   analyzeGame,
@@ -23,6 +23,7 @@ import {
   buildGameEval,
   analyzeCategoryTurn,
 } from "./client";
+import type { GameEval } from "../../src/types/eval";
 import { CsvWriter, writeMeta, type Row, type RunMeta } from "./output";
 import { validateAIResponse } from "../../src/lib/aiResponseValidator";
 import {
@@ -766,6 +767,22 @@ function buildTurnRow(args: {
   errorMessage?: string;
   /** Stage C pipeline metadata from the route response (Follow-up A). */
   pipeline?: import("./client").ChatMastiResponse["pipeline"];
+  /** Follow-up B: position-anchored turn data (populated from the real
+   *  game + stockfish checkpoint for game_review / position_analysis live
+   *  turns). Blank for other categories. */
+  ply?: number | "";
+  fen?: string;
+  lastMove?: string;
+  lastNMoves?: string;
+  checkpointKind?: "swing" | "quiet" | "opening" | "endgame" | "";
+  evalBeforeCp?: number | "";
+  evalAfterCp?: number | "";
+  swingCp?: number | "";
+  moveClassification?: string;
+  contextId?: string;
+  analysisLatencyMs?: number | "";
+  white?: string;
+  black?: string;
 }): Row {
   const { turn, result } = args;
   const p = args.pipeline;
@@ -788,23 +805,23 @@ function buildTurnRow(args: {
     pipeline_timed_out: p?.timedOut === undefined ? "" : (p.timedOut ? "true" : "false"),
     pipeline_telemetry_json: p?.telemetry ? JSON.stringify(p.telemetry) : "",
     game_id: turn.gameAndPersonaHint?.gameIdx ?? "",
-    white: "",
-    black: "",
+    white: args.white ?? "",
+    black: args.black ?? "",
     persona: result.personaUsed,
     persona_file_hash: "",
-    ply: "",
-    fen: "",
-    last_move: "",
-    last_n_moves: "",
-    checkpoint_kind: "",
-    eval_before_cp: "",
-    eval_after_cp: "",
-    swing_cp: "",
-    move_classification: "",
+    ply: args.ply ?? "",
+    fen: args.fen ?? "",
+    last_move: args.lastMove ?? "",
+    last_n_moves: args.lastNMoves ?? "",
+    checkpoint_kind: args.checkpointKind ?? "",
+    eval_before_cp: args.evalBeforeCp ?? "",
+    eval_after_cp: args.evalAfterCp ?? "",
+    swing_cp: args.swingCp ?? "",
+    move_classification: args.moveClassification ?? "",
     student_question: result.question,
     chat_response: args.chatResponse ?? "",
-    context_id: "",
-    analysis_latency_ms: "",
+    context_id: args.contextId ?? "",
+    analysis_latency_ms: args.analysisLatencyMs ?? "",
     chat_latency_ms: args.latencyMs ?? "",
     model_chat: args.mockLlm ? "mock" : "claude-haiku-4-5",
     model_analysis: args.mockLlm ? "mock" : "claude-sonnet-4",
@@ -868,129 +885,347 @@ async function runCategoryDispatchFlow(opts: CategoryDispatchOpts): Promise<void
     return { ok: r.ok, text: r.text, errorMessage: r.errorMessage };
   };
 
-  TURN_LOOP: for (const turn of plan) {
-    if (cost.totalSpent() >= args.maxCost) {
-      abortedReason = `cost cap $${args.maxCost} hit at $${cost.totalSpent().toFixed(4)}`;
-      console.warn(`ABORT: ${abortedReason}`);
-      break TURN_LOOP;
-    }
-
-    const gen = pickGenerator(turn.category);
-    const llmCall: LlmCall = args.mockLlm ? makeMockLlmCall() : realLlmCall;
-    const rng = mulberry32(args.seed + turn.turnIdx * 13 + 1);
-
-    const baseCtx: GeneratorContextBase = {
-      category: turn.category,
-      rng,
-      llmCall,
-      personas: personaPrompts,
-      fixtures,
-    };
-
-    let ctx: Parameters<typeof gen>[0] = baseCtx;
-    if (turn.category === "game_review" || turn.category === "position_analysis") {
-      // Stub position context for both mock and live modes in this commit.
-      // Live mode will swap in real stockfish + analyzeGame in a follow-up;
-      // surfacing as a known limitation (see commit body).
-      ctx = { ...baseCtx, ...stubPositionContext(turn) };
-    }
-
-    let result: GeneratorResult;
+  // Follow-up B (2026-05-23): lazy Stockfish init for position-anchored
+  // live turns. Mock mode never needs the engine (uses stubPositionContext).
+  // Non-position-anchored categories use single-POST and skip engine setup.
+  const needsStockfish =
+    !args.mockLlm &&
+    plan.some((t) => t.category === "game_review" || t.category === "position_analysis");
+  let sf: StockfishEngine | null = null;
+  if (needsStockfish) {
     try {
-      result = await gen(ctx);
+      sf = new StockfishEngine();
+      await sf.init();
+      console.log(`  stockfish: engine initialized (depth ${args.stockfishDepth})`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`  turn ${turn.turnIdx} [${turn.category}] generator failed: ${msg}`);
-      csv.appendRow(
-        buildTurnRow({
-          meta,
-          runId,
-          appGitSha,
-          baseUrl: args.baseUrl,
-          personality: args.personality,
-          turn,
-          result: {
-            question: "",
-            personaUsed: "",
-            bodyExtensions: {},
-            metadata: { error: msg },
-          },
-          mockLlm: args.mockLlm,
-          errorMessage: `generator_failed: ${msg}`,
-        }),
-      );
-      continue;
+      console.error("ABORT: stockfish init failed:", err instanceof Error ? err.message : String(err));
+      csv.close();
+      return;
     }
+  }
 
-    if (args.mockLlm) {
-      csv.appendRow(
-        buildTurnRow({
-          meta,
-          runId,
-          appGitSha,
-          baseUrl: args.baseUrl,
-          personality: args.personality,
-          turn,
-          result,
-          mockLlm: true,
-        }),
-      );
-      console.log(`  turn ${turn.turnIdx} [${turn.category}] persona=${result.personaUsed} mock`);
-      console.log(`    Q: ${result.question.slice(0, 100)}${result.question.length > 100 ? "..." : ""}`);
-      continue;
+  // Per-game eval cache so multiple game_review/position_analysis turns
+  // pointing at the same gameIdx don't re-run stockfish.
+  interface GameCacheEntry {
+    states: PerPlyState[];
+    chessjsHistory: string[];
+    gameEval: GameEval;
+    finalFen: string;
+  }
+  const gameEvalCache = new Map<number, GameCacheEntry>();
+  async function getOrEvalGame(gameIdx: number): Promise<GameCacheEntry | null> {
+    if (gameEvalCache.has(gameIdx)) return gameEvalCache.get(gameIdx)!;
+    if (!sf) return null;
+    const game = games[gameIdx];
+    if (!game) return null;
+    try {
+      const t0 = Date.now();
+      const { states, chessjsHistory } = await evaluateGame(game.pgn, sf, args.stockfishDepth);
+      console.log(`  stockfish: game ${gameIdx} (${game.white} vs ${game.black}) — ${states.length} plies in ${Date.now() - t0}ms`);
+      const finalFen = states[states.length - 1]?.fenAfter || "";
+      const gameEval = buildGameEval(states, args.stockfishDepth);
+      const entry: GameCacheEntry = { states, chessjsHistory, gameEval, finalFen };
+      gameEvalCache.set(gameIdx, entry);
+      return entry;
+    } catch (err) {
+      console.warn(`  stockfish eval failed for game ${gameIdx}: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
     }
+  }
 
-    // Live mode: POST to /api/enhanced-analysis with the generator's
-    // question + body extensions. Position-anchored turns currently use
-    // the same path; a follow-up will route them through the original
-    // analyzeGame + chatFollowUp two-step (initial analysis + chat turn)
-    // for full parity with the legacy flow.
-    const apiRes = await analyzeCategoryTurn({
-      baseUrl: args.baseUrl,
-      cookie,
-      userMessage: result.question,
-      userRating: 1500,
-      personalityId: args.personality,
-      bodyExtensions: result.bodyExtensions,
-    });
-
-    let validatorScore: number | "" = "";
-    let validatorIssueCount: number | "" = "";
-    let validatorIssuesJson = "";
-    if (apiRes.ok && apiRes.responseText) {
-      try {
-        const v = validateAIResponse(apiRes.responseText, "");
-        validatorScore = Number(v.score.toFixed(3));
-        validatorIssueCount = v.issues.length;
-        validatorIssuesJson = JSON.stringify(v.issues);
-      } catch (vErr) {
-        validatorIssuesJson = `[validator_error: ${String(vErr).slice(0, 200)}]`;
+  try {
+    TURN_LOOP: for (const turn of plan) {
+      if (cost.totalSpent() >= args.maxCost) {
+        abortedReason = `cost cap $${args.maxCost} hit at $${cost.totalSpent().toFixed(4)}`;
+        console.warn(`ABORT: ${abortedReason}`);
+        break TURN_LOOP;
       }
+
+      const gen = pickGenerator(turn.category);
+      const llmCall: LlmCall = args.mockLlm ? makeMockLlmCall() : realLlmCall;
+      const rng = mulberry32(args.seed + turn.turnIdx * 13 + 1);
+
+      const baseCtx: GeneratorContextBase = {
+        category: turn.category,
+        rng,
+        llmCall,
+        personas: personaPrompts,
+        fixtures,
+      };
+
+      const isPositionAnchored =
+        turn.category === "game_review" || turn.category === "position_analysis";
+
+      // ── MOCK MODE: stub position context for position-anchored, then
+      // run generator + write row. Identical to the pre-Follow-up-B path. ──
+      if (args.mockLlm) {
+        let ctx: Parameters<typeof gen>[0] = baseCtx;
+        if (isPositionAnchored) {
+          ctx = { ...baseCtx, ...stubPositionContext(turn) };
+        }
+        let result: GeneratorResult;
+        try {
+          result = await gen(ctx);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(`  turn ${turn.turnIdx} [${turn.category}] generator failed: ${msg}`);
+          csv.appendRow(
+            buildTurnRow({
+              meta, runId, appGitSha, baseUrl: args.baseUrl, personality: args.personality, turn,
+              result: { question: "", personaUsed: "", bodyExtensions: {}, metadata: { error: msg } },
+              mockLlm: true,
+              errorMessage: `generator_failed: ${msg}`,
+            }),
+          );
+          continue;
+        }
+        csv.appendRow(
+          buildTurnRow({
+            meta, runId, appGitSha, baseUrl: args.baseUrl, personality: args.personality, turn,
+            result, mockLlm: true,
+          }),
+        );
+        console.log(`  turn ${turn.turnIdx} [${turn.category}] persona=${result.personaUsed} mock`);
+        console.log(`    Q: ${result.question.slice(0, 100)}${result.question.length > 100 ? "..." : ""}`);
+        continue;
+      }
+
+      // ── LIVE MODE, position-anchored: two-step flow (Follow-up B). ──
+      // Real game → stockfish checkpoint → analyzeGame → chatFollowUp.
+      if (isPositionAnchored) {
+        const hint = turn.gameAndPersonaHint;
+        if (!hint) {
+          csv.appendRow(buildTurnRow({
+            meta, runId, appGitSha, baseUrl: args.baseUrl, personality: args.personality, turn,
+            result: { question: "", personaUsed: "", bodyExtensions: {}, metadata: { error: "no_game_hint" } },
+            mockLlm: false,
+            errorMessage: "no_game_hint",
+          }));
+          console.warn(`  turn ${turn.turnIdx} [${turn.category}] ✗ no gameAndPersonaHint`);
+          continue;
+        }
+        const gameEntry = await getOrEvalGame(hint.gameIdx);
+        if (!gameEntry) {
+          csv.appendRow(buildTurnRow({
+            meta, runId, appGitSha, baseUrl: args.baseUrl, personality: args.personality, turn,
+            result: { question: "", personaUsed: "", bodyExtensions: {}, metadata: { error: "stockfish_eval_failed" } },
+            mockLlm: false,
+            errorMessage: `stockfish_eval_failed: gameIdx=${hint.gameIdx}`,
+          }));
+          console.warn(`  turn ${turn.turnIdx} [${turn.category}] ✗ stockfish eval failed for game ${hint.gameIdx}`);
+          continue;
+        }
+        const checkpoints = pickCheckpoints(gameEntry.states, 1, args.seed + turn.turnIdx * 31);
+        if (checkpoints.length === 0) {
+          csv.appendRow(buildTurnRow({
+            meta, runId, appGitSha, baseUrl: args.baseUrl, personality: args.personality, turn,
+            result: { question: "", personaUsed: "", bodyExtensions: {}, metadata: { error: "no_checkpoint" } },
+            mockLlm: false,
+            errorMessage: `no_checkpoint: gameIdx=${hint.gameIdx}`,
+          }));
+          console.warn(`  turn ${turn.turnIdx} [${turn.category}] ✗ no checkpoint pickable`);
+          continue;
+        }
+        const cp = checkpoints[0];
+        const game = games[hint.gameIdx];
+
+        // Step 1: deep analysis on /api/enhanced-analysis (Sonnet flagship).
+        const analyzeRes = await analyzeGame({
+          baseUrl: args.baseUrl,
+          cookie,
+          moveHistory: gameEntry.chessjsHistory,
+          fen: gameEntry.finalFen,
+          gameEval: gameEntry.gameEval,
+          playerColor: "w",
+          userRating: 1500,
+          personalityId: args.personality,
+        });
+        if (!analyzeRes.ok || !analyzeRes.contextId) {
+          csv.appendRow(buildTurnRow({
+            meta, runId, appGitSha, baseUrl: args.baseUrl, personality: args.personality, turn,
+            result: { question: "", personaUsed: "", bodyExtensions: {}, metadata: { error: "analyzeGame_failed" } },
+            mockLlm: false,
+            http_status: analyzeRes.status,
+            errorMessage: `analyzeGame_failed: ${analyzeRes.errorMessage || "?"}`,
+            analysisLatencyMs: analyzeRes.latencyMs,
+            ply: cp.ply,
+            fen: cp.state.fenAfter,
+            lastMove: cp.state.sanMove,
+            lastNMoves: recentSan(gameEntry.chessjsHistory, cp.ply),
+            checkpointKind: cp.kind,
+            evalBeforeCp: cp.state.evalBefore,
+            evalAfterCp: cp.state.evalAfter,
+            swingCp: cp.state.swing,
+            moveClassification: cp.classification,
+            white: game.white,
+            black: game.black,
+          }));
+          console.warn(`  turn ${turn.turnIdx} [${turn.category}] ✗ analyzeGame failed: ${analyzeRes.status} ${analyzeRes.errorMessage}`);
+          continue;
+        }
+        const initialAnalysis = analyzeRes.initialAnalysis || "";
+
+        // Step 2: run the generator with REAL position context.
+        const realPositionCtx = {
+          fenAfter: cp.state.fenAfter,
+          fenBefore: cp.state.fenBefore,
+          moveHistory: gameEntry.chessjsHistory,
+          gameEval: gameEntry.gameEval,
+          playerColor: "w" as const,
+          recentSan: recentSan(gameEntry.chessjsHistory, cp.ply),
+          classification: cp.classification,
+          initialAnalysis,
+          persona: hint.persona,
+          subcategory: turn.category as "game_review" | "position_analysis",
+          gameId: `game-${hint.gameIdx}`,
+        };
+        let result: GeneratorResult;
+        try {
+          result = await gen({ ...baseCtx, ...realPositionCtx });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          csv.appendRow(buildTurnRow({
+            meta, runId, appGitSha, baseUrl: args.baseUrl, personality: args.personality, turn,
+            result: { question: "", personaUsed: hint.persona, bodyExtensions: {}, metadata: { error: msg } },
+            mockLlm: false,
+            errorMessage: `generator_failed: ${msg}`,
+            analysisLatencyMs: analyzeRes.latencyMs,
+            contextId: analyzeRes.contextId,
+            ply: cp.ply,
+            fen: cp.state.fenAfter,
+            lastMove: cp.state.sanMove,
+            lastNMoves: recentSan(gameEntry.chessjsHistory, cp.ply),
+            checkpointKind: cp.kind,
+            evalBeforeCp: cp.state.evalBefore,
+            evalAfterCp: cp.state.evalAfter,
+            swingCp: cp.state.swing,
+            moveClassification: cp.classification,
+            white: game.white,
+            black: game.black,
+          }));
+          console.warn(`  turn ${turn.turnIdx} [${turn.category}] ✗ generator failed: ${msg}`);
+          continue;
+        }
+
+        // Step 3: chat turn on /api/chat with the persona question.
+        const chatRes = await chatFollowUp({
+          baseUrl: args.baseUrl,
+          cookie,
+          contextId: analyzeRes.contextId,
+          userMessage: result.question,
+          conversationHistory: [{ role: "assistant", content: initialAnalysis }],
+        });
+
+        // Validator runs against the REAL fenAfter — eliminates the
+        // "Invalid FEN, skipping validation" warning seen in the
+        // concept_explanation smoke (which had no position).
+        let validatorScore: number | "" = "";
+        let validatorIssueCount: number | "" = "";
+        let validatorIssuesJson = "";
+        if (chatRes.ok && chatRes.responseText) {
+          try {
+            const v = validateAIResponse(chatRes.responseText, cp.state.fenAfter);
+            validatorScore = Number(v.score.toFixed(3));
+            validatorIssueCount = v.issues.length;
+            validatorIssuesJson = JSON.stringify(v.issues);
+          } catch (vErr) {
+            validatorIssuesJson = `[validator_error: ${String(vErr).slice(0, 200)}]`;
+          }
+        }
+
+        const row = buildTurnRow({
+          meta, runId, appGitSha, baseUrl: args.baseUrl, personality: args.personality, turn, result,
+          mockLlm: false,
+          chatResponse: chatRes.responseText ?? "",
+          http_status: chatRes.status,
+          latencyMs: chatRes.latencyMs,
+          errorMessage: chatRes.ok ? "" : (chatRes.errorMessage ?? ""),
+          pipeline: chatRes.pipeline,
+          ply: cp.ply,
+          fen: cp.state.fenAfter,
+          lastMove: cp.state.sanMove,
+          lastNMoves: recentSan(gameEntry.chessjsHistory, cp.ply),
+          checkpointKind: cp.kind,
+          evalBeforeCp: cp.state.evalBefore,
+          evalAfterCp: cp.state.evalAfter,
+          swingCp: cp.state.swing,
+          moveClassification: cp.classification,
+          contextId: analyzeRes.contextId,
+          analysisLatencyMs: analyzeRes.latencyMs,
+          white: game.white,
+          black: game.black,
+        });
+        row.validator_score = validatorScore;
+        row.validator_issue_count = validatorIssueCount;
+        row.validator_issues_json = validatorIssuesJson;
+        row.est_cost_usd = Number(cost.totalSpent().toFixed(6));
+        csv.appendRow(row);
+        const ok = chatRes.ok ? "✓" : "✗";
+        console.log(`  turn ${turn.turnIdx} [${turn.category}] ${ok} persona=${result.personaUsed} (analyze ${analyzeRes.latencyMs}ms + chat ${chatRes.latencyMs}ms)`);
+        continue;
+      }
+
+      // ── LIVE MODE, non-position-anchored: single-POST (unchanged). ──
+      let result: GeneratorResult;
+      try {
+        result = await gen(baseCtx);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`  turn ${turn.turnIdx} [${turn.category}] generator failed: ${msg}`);
+        csv.appendRow(
+          buildTurnRow({
+            meta, runId, appGitSha, baseUrl: args.baseUrl, personality: args.personality, turn,
+            result: { question: "", personaUsed: "", bodyExtensions: {}, metadata: { error: msg } },
+            mockLlm: false,
+            errorMessage: `generator_failed: ${msg}`,
+          }),
+        );
+        continue;
+      }
+
+      const apiRes = await analyzeCategoryTurn({
+        baseUrl: args.baseUrl,
+        cookie,
+        userMessage: result.question,
+        userRating: 1500,
+        personalityId: args.personality,
+        bodyExtensions: result.bodyExtensions,
+      });
+
+      let validatorScore: number | "" = "";
+      let validatorIssueCount: number | "" = "";
+      let validatorIssuesJson = "";
+      if (apiRes.ok && apiRes.responseText) {
+        try {
+          const v = validateAIResponse(apiRes.responseText, "");
+          validatorScore = Number(v.score.toFixed(3));
+          validatorIssueCount = v.issues.length;
+          validatorIssuesJson = JSON.stringify(v.issues);
+        } catch (vErr) {
+          validatorIssuesJson = `[validator_error: ${String(vErr).slice(0, 200)}]`;
+        }
+      }
+
+      const row = buildTurnRow({
+        meta, runId, appGitSha, baseUrl: args.baseUrl, personality: args.personality, turn, result,
+        mockLlm: false,
+        chatResponse: apiRes.responseText ?? "",
+        http_status: apiRes.status,
+        latencyMs: apiRes.latencyMs,
+        errorMessage: apiRes.ok ? "" : (apiRes.errorMessage ?? ""),
+        pipeline: apiRes.pipeline,
+      });
+      row.validator_score = validatorScore;
+      row.validator_issue_count = validatorIssueCount;
+      row.validator_issues_json = validatorIssuesJson;
+      row.est_cost_usd = Number(cost.totalSpent().toFixed(6));
+      csv.appendRow(row);
+
+      const ok = apiRes.ok ? "✓" : "✗";
+      console.log(`  turn ${turn.turnIdx} [${turn.category}] ${ok} persona=${result.personaUsed} (${apiRes.latencyMs}ms)`);
     }
-
-    const row = buildTurnRow({
-      meta,
-      runId,
-      appGitSha,
-      baseUrl: args.baseUrl,
-      personality: args.personality,
-      turn,
-      result,
-      mockLlm: false,
-      chatResponse: apiRes.responseText ?? "",
-      http_status: apiRes.status,
-      latencyMs: apiRes.latencyMs,
-      errorMessage: apiRes.ok ? "" : (apiRes.errorMessage ?? ""),
-      pipeline: apiRes.pipeline,
-    });
-    row.validator_score = validatorScore;
-    row.validator_issue_count = validatorIssueCount;
-    row.validator_issues_json = validatorIssuesJson;
-    row.est_cost_usd = Number(cost.totalSpent().toFixed(6));
-    csv.appendRow(row);
-
-    const ok = apiRes.ok ? "✓" : "✗";
-    console.log(`  turn ${turn.turnIdx} [${turn.category}] ${ok} persona=${result.personaUsed} (${apiRes.latencyMs}ms)`);
+  } finally {
+    if (sf) sf.close();
   }
 
   meta.ended_at = new Date().toISOString();

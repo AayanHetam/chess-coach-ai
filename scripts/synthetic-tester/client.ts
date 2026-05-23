@@ -232,13 +232,29 @@ export async function chatFollowUp(args: ChatArgs): Promise<ChatMastiResponse> {
       const text = await res.text().catch(() => "");
       return { ok: false, status: res.status, errorMessage: text.slice(0, 500), latencyMs };
     }
-    const json = (await res.json()) as { gameAnalysis?: { analysis?: string; validationScore?: number } };
+    const json = (await res.json()) as {
+      gameAnalysis?: {
+        analysis?: string;
+        validationScore?: number;
+        pipeline?: {
+          finalOutcome?: string;
+          retryCount?: number;
+          totalCostUsd?: number;
+          category?: string;
+          classifierConfidence?: number;
+          prepMs?: number;
+          timedOut?: boolean;
+          telemetry?: unknown[];
+        };
+      };
+    };
     return {
       ok: true,
       status: res.status,
       responseText: json.gameAnalysis?.analysis,
       validationScore: json.gameAnalysis?.validationScore,
       latencyMs,
+      pipeline: json.gameAnalysis?.pipeline,
     };
   } catch (err) {
     return { ok: false, status: 0, errorMessage: String(err), latencyMs: Date.now() - t0 };

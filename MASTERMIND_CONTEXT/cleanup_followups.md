@@ -6,6 +6,18 @@ Non-blocking cleanups that are surfaced during Mastermind PR work but kept out o
 
 ---
 
+## Stage C Follow-up sequence — source of truth
+
+The Stage C validation sweep (synthetic-tester against preview deploy) ships in a lettered Follow-up sequence. Each Follow-up addresses a gap surfaced in the prior pause-point dry-run, with a pause for Aayan review between each. **From 2026-05-23 forward this is the canonical record of the sequence — the lettering existed only in compacted chat history before this entry.**
+
+- **Follow-up A — shipped at `437e852` (2026-05-23).** Pipeline telemetry capture in sweep CSV: 8 new columns (`pipeline_final_outcome`, `pipeline_retry_count`, `pipeline_total_cost_usd`, `pipeline_category`, `pipeline_classifier_confidence`, `pipeline_prep_ms`, `pipeline_timed_out`, `pipeline_telemetry_json`). Coordinated route extension on `/api/enhanced-analysis` to inline `gameAnalysis.pipeline.telemetry` when `VERCEL_ENV === "preview"` (production responses byte-identical).
+- **Follow-up B — shipped at `<this commit>` (2026-05-23).** Position-anchored two-step flow for `game_review` / `position_analysis` live turns: real game → stockfish checkpoint → `analyzeGame` (`/api/enhanced-analysis`, Sonnet flagship) → `chatFollowUp` (`/api/chat`). Replaces the stub position context that caused the "Invalid FEN, skipping validation" warning in the Pause Point 4 dry-run. Coordinated route extension on `/api/chat` mirrors Follow-up A's pattern: inlines `pipeline.telemetry` when `VERCEL_ENV === "preview"` (production responses byte-identical). Mock-mode path keeps the stub for $0-cost development.
+- **Main sweep — parameters TBD, expected $10-15 envelope.** Triggered after Follow-up B's smoke is reviewed. Exact turn counts / category mix not yet scoped. Surface targets include per-claim-type firing-rate aggregation (≥3-never-fire claim types flagged for review, not auto-merged).
+
+**Sequence pause discipline.** Aayan reviews the smoke output between each Follow-up and approves the next step explicitly. No chaining into the main sweep without explicit confirm.
+
+---
+
 ## 2026-05-18 — `extractPgnHeaders` utility consolidation
 
 **Status:** flagged during PR 1.C Stage A.7 (`a067d3b`).

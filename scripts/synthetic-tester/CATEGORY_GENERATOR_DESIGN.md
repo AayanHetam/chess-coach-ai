@@ -164,13 +164,8 @@ You will be given an opponent's handle and a brief profile (their primary openin
 4. Generate question via Haiku call.
 5. Request body to `/api/chat` (or `/api/enhanced-analysis` for first-turn cases): `userMessage: <generated question>`, `opponentUsername: <handle>`, `opponentPlatform: <platform>`. **NO** `moveHistory` / `fen` / `gameEval`.
 
-### Open question O1
-**Are the opponent fixtures real chess.com / lichess handles or stub handles backed by mocked Scout data?**
-
-- **Real handles:** sweep traffic hits the live chess.com / lichess APIs through `scoutFetch.ts`. Authentic data but adds per-sweep network cost + rate-limit risk + brittleness if the handle goes private.
-- **Stub handles:** mock `scoutFetch.fetchOpponentGames` for sweep runs (via env flag or test mode). Deterministic, free, but the sweep no longer exercises the live Scout integration.
-
-**Default proposal:** real handles for ~3 fixtures (production-truthy) + stub for the rest (deterministic baseline). Mix gives both signals. Awaiting Aayan's call.
+### O1 — RATIFIED (2026-05-23): 5 real + 5 stub opponent fixtures
+Real opponents fetched via `scoutFetch.ts` against live chess.com / lichess APIs. Stub fixtures are deterministic JSON files committed to the harness. Real handles exercise the live integration; stubs give a stable baseline that doesn't depend on third-party uptime. Both contribute to opponent_prep sweep coverage.
 
 ---
 
@@ -223,13 +218,20 @@ You will be given a brief summary of your recent playing pattern (time controls,
 4. Generate question via Haiku.
 5. Request body to `/api/enhanced-analysis` (this is a chat-style follow-up rather than a position-analysis call): `userMessage: <generated>`, no `moveHistory` / `fen`. The route's `prepareMastermindContext` will fetch `userHistory` from a mocked Firestore (per `--mock-firestore` flag, see §10).
 
-### Open question O2
-**Where does the user-history fixture come from?** Two options:
+### O2 — RATIFIED (2026-05-23): real chess.com user histories cached to disk
 
-- **(a) Mocked Firestore:** harness writes fixture games into a mocked Firestore that `getAdminFirestore` returns. Bypasses real Firestore entirely. Deterministic, free.
-- **(b) Real Firestore test collection:** harness writes fixture games into `users/synthtest-<runId>/games` subcollection in a dedicated Firebase Admin project. Costs ~$0 (low volume) but adds setup complexity and a real Firestore dependency for sweep runs.
+**Four chess.com test users:** `Lazer_Wizard`, `JSNoverPuka`, `Chilllychess`, `gothamchess`. All chess.com platform.
 
-**Default proposal:** Option (a) mocked Firestore, gated behind `--mock-firestore` flag (default on for sweeps, off for live testing). Awaiting Aayan's call.
+**Workflow:**
+1. CC writes [`scripts/synthetic-tester/load-real-user-history.ts`](load-real-user-history.ts) — a one-shot Node script that uses `scoutFetch.ts` to fetch each user's last 200 games from chess.com, transforms them into the `UserHistoryGame` shape (per `src/lib/mastermind/userHistoryAggregates.ts`), and writes them to `scripts/synthetic-tester/fixtures/user_history_cache/<username>.json`.
+2. Cache is committed to git so collaborators get the same data.
+3. Sweep's mocked Firestore reads from this cache file when validators request games at `users/synthtest-<username>/games`.
+4. Hybrid refresh: cached fixtures by default, `--refresh-fixtures` flag triggers re-fetch from chess.com APIs. After re-fetch, cache is overwritten and recommitted.
+
+**Failure handling:**
+- chess.com rate limits during load → retry with exponential backoff (1s, 2s, 4s).
+- Partial fetch for a user (chess.com returns fewer games than expected, or one archive month fails) → log the gap, move on with what was collected. Don't fail the whole load.
+- Whole-user fetch fails (all retries exhausted) → log the failure with the error, write an empty cache file for that user marked as `loadFailed: true`, continue with the other users.
 
 ---
 
@@ -288,12 +290,21 @@ You will optionally be given a brief recent-history summary. Ask ONE reflective 
 4. Generate question via Haiku.
 5. Request body to `/api/enhanced-analysis`: `userMessage: <generated>`, no chess context. The route will degrade featureDelta correctly via the category-aware `deriveMastermindMoveContext`.
 
-### Open question O3
-**Should meta_motivational questions ever carry chess context (a recent game), or always be context-free?**
+### O3 — RATIFIED (2026-05-23): three-way meta_motivational split
 
-Tradeoff: context-free is purer (forces the route's degraded-mode path to be exercised); some-context is more realistic (real users often anchor "did i play well today" on the day's game).
+Roughly **40% performance trajectory** (cold context, plateau / improvement framing), **30% loss-anchored** (recent specific loss attached as a 1-line snippet), **30% existential** (questions about chess itself, not the user's performance).
 
-**Default proposal:** 70% context-free, 30% anchored on a recent-loss snippet. Both flavors get represented. Awaiting Aayan's call.
+The **existential** shape is the new addition vs the draft. Questions are about chess as an activity — boredom, depth fatigue, meaning, role in life — not "am I improving?" framing. Example seed: *"I'm getting bored of chess, there's so much theory and it just feels repetitive. Even Bobby Fischer openly hated chess for the last half of his life."*
+
+**Implementation choice:** CC's judgment call on whether the existential shape composes cleanly into [`reflective_learner.md`](personas/reflective_learner.md) (one persona, two registers) or needs its own [`existential_doubter.md`](personas/existential_doubter.md). Read the prompts together; if the reflective_learner system prompt gets bloated trying to cover both shapes, split. Otherwise keep one persona with an additional example-utterance block.
+
+**Example utterances for the existential shape** (added directly so the persona prompt has them):
+
+- "I'm getting bored of chess, even Bobby Fischer hated it for half his life"
+- "why am I doing this, what's the point of moving wooden pieces"
+- "is chess just memorization at this point, every position has a known answer"
+- "i look at theory and i just feel exhausted, not curious"
+- "honestly is it healthy to spend this much time on a game"
 
 ---
 
@@ -346,14 +357,36 @@ You will be given a target concept name. Ask ONE focused question about it, unde
 4. Generate question via Haiku.
 5. Request body to `/api/chat` (or `/api/enhanced-analysis` for cold-start): `userMessage: <generated>`. No chess position; no opponent.
 
-### Open question O4
-**Concept list source.** Three options:
+### O4 — RATIFIED (2026-05-23): concept list scraped from three named curators
 
-- **(a) Hand-curated by Aayan:** ~80 concepts spanning the chess taxonomy. Highest quality. ~2-3 hours of work.
-- **(b) Imported from existing concept taxonomy:** the repo already has [`src/lib/concept/conceptTaxonomy.ts`](../../src/lib/concept/conceptTaxonomy.ts) for the reinforcement-puzzle pipeline. ~120 concepts (`themes` mostly). Sampling from there is free and keeps the eval coupled to the production concept vocabulary.
-- **(c) Hybrid:** import from taxonomy + Aayan hand-adds 20-30 concepts that aren't in the taxonomy (modern opening trends, named GM ideas, etc.).
+Sources:
+- **Yusupov's *Build Up Your Chess* curriculum** — ~300 concepts across all skill levels (Foundation, Beyond the Basics, Mastery; orange / blue / green workbooks).
+- **Jeremy Silman's *How to Reassess Your Chess*, 4th edition** — ~50-80 positional concepts (the imbalances framework + named middlegame patterns).
+- **John Watson's *Modern Chess Strategy*** — ~80-120 contemporary positional concepts (rule independence, exchange sacrifices, modern dynamic play).
 
-**Default proposal:** Option (b) — import from `conceptTaxonomy.ts`. The classifier was trained against the same vocabulary; staying coupled is a feature for Stage C. Awaiting Aayan's call.
+**Scrape sources** (publicly indexed, low-friction):
+- Goodreads book pages (chapter listings, "what's inside" excerpts)
+- Publisher sites (Quality Chess for Yusupov, Siles Press for Silman, Gambit Publications for Watson)
+- Amazon "Look Inside" previews (TOC + selected chapters)
+- Chess wikis (Chess.com / Wikipedia for the named-concept entries)
+- Book TOC aggregators (Open Library, archive.org)
+
+Dedupe across sources. Output to [`scripts/synthetic-tester/fixtures/concepts.json`](fixtures/concepts.json) with per-concept metadata:
+
+```json
+{
+  "concept_id": "minority-attack",
+  "name": "Minority attack",
+  "source": "silman_reassess_4e",
+  "level": "intermediate-advanced",
+  "category": "positional_pawn_play",
+  "notes": "Chapter 5 — Pawn Structure imbalances"
+}
+```
+
+**Process:** CC commits the deduped fixture, surfaces in chat with source attribution + concept counts per source. Aayan reads, approves or flags specific entries to remove. Final lock after Aayan's pass.
+
+**Fallback if a source is hard to access** (paywalled TOC, missing indexing): fall back to publisher's preview page or major bookseller's preview. If a source can't be scraped at all, surface to Aayan with what was collected from the other two and Aayan decides whether to substitute or proceed without it.
 
 ---
 
@@ -415,15 +448,17 @@ Tests (vitest):
 
 ## 11. Open questions summary — for Aayan review
 
-| # | Question | Default proposal |
+All seven RATIFIED on 2026-05-23. Per-question detail in §§5-8 above; condensed summary:
+
+| # | Question | Resolution |
 |---|---|---|
-| **O1** | Opponent fixtures — real handles or stub handles? | Mix: 3 real (production-truthy) + 5-7 stub (deterministic baseline). |
-| **O2** | User-history fixture source — mocked Firestore or real Firestore test collection? | Option (a) mocked Firestore via `--mock-firestore` flag. |
-| **O3** | meta_motivational chess context — always context-free or sometimes anchored? | 70% context-free, 30% anchored on recent-loss snippet. |
-| **O4** | Concept list source — hand-curate, import from taxonomy, hybrid? | Option (b) import from `conceptTaxonomy.ts`. |
-| **O5** | Persona file naming — folder structure or flat? | Flat (current pattern). Subdivide into `personas/<category>/` only if list grows past ~15 personas. |
-| **O6** | `meta_motivational` route choice — `/api/chat` (no contextId) fallback path or `/api/enhanced-analysis`? | `/api/enhanced-analysis` — the route's flag-on wing fires; chat fallback would skip the pipeline per §3.4 / Q3. |
-| **O7** | Balanced-mode default count — 10? 15? 20 per category? | 12 per category × 6 = 72 turns per sweep. Cost: ~$7-18 per sweep at ratified per-turn cost. Matches §11.2 cost envelope ($5-12.50 was per 50 turns; 72 turns scales to $7-18). |
+| **O1** | Opponent fixtures — real handles or stub handles? | **5 real + 5 stub.** Real exercises live integration; stubs give a stable baseline. |
+| **O2** | User-history fixture source. | **Real chess.com fetches cached to disk.** Four test users (`Lazer_Wizard`, `JSNoverPuka`, `Chilllychess`, `gothamchess`); `load-real-user-history.ts` script populates `fixtures/user_history_cache/<username>.json`; `--refresh-fixtures` flag re-fetches. Cache committed to git. |
+| **O3** | meta_motivational chess context. | **40/30/30 split** — 40% performance trajectory (cold), 30% loss-anchored, 30% existential. Existential register is new; CC's call whether it folds into `reflective_learner` or needs its own `existential_doubter.md`. |
+| **O4** | Concept list source. | **Scraped from Yusupov + Silman + Watson.** Goodreads / publisher / Amazon / chess wikis as scrape surfaces. Deduped to `fixtures/concepts.json`. Aayan review-and-lock after CC surfaces. |
+| **O5** | Persona file naming — folder structure or flat? | **Flat** (current pattern). No sub-folders. |
+| **O6** | `meta_motivational` route choice — `/api/chat` or `/api/enhanced-analysis`? | **`/api/enhanced-analysis`** — guarantees the pipeline runs (chat fallback would skip per §3.4 / Q3). |
+| **O7** | Balanced-mode default count. | **60 turns** total. Five categories at 12 turns each (game_review, opponent_prep, position_analysis, improvement_strategy, meta_motivational) + concept_explanation at 8 (no validator exists for it — citation rate is null by design; 8 turns is enough for qualitative review without wasting budget on statistical power for an unmeasurable metric). Expected cost: $8-13. Worst case: $15. |
 
 ---
 
@@ -444,6 +479,28 @@ The non-null-bucket floors (opponent_prep, improvement_strategy, meta_motivation
 
 ---
 
+## 12.5 Budget discipline (RATIFIED 2026-05-23)
+
+**Hard cap: $70 for Stage C through PR 1.C merge.** Aayan funds from personal money; the $100 added to the Anthropic API account holds $30 buffer for unexpected costs and early Phase 2 testing.
+
+**Cost shape with frugal adjustments:**
+
+| Step | Cost |
+|---|---|
+| Step 2 development (all generator implementation work) | **$0** — mock-LLM mode is mandatory. Zero real API calls during development. |
+| `load-real-user-history.ts` run (once) | **$0** from Anthropic. chess.com API only. |
+| 6-turn dry-run after generators land | **$0.60** — **SKIP IF mock-mode tests are clean.** Reinstate only if mock tests surface wiring concerns. |
+| Main 60-turn sweep | **$8-15** |
+| One tune-and-rerun if needed | **$8-15** — **NOT auto-authorized.** |
+| Reserve for unexpected costs / future work | **$40-50** remaining |
+
+**Hard-stop discipline:**
+- If projected spend would exceed $70 at any decision point, CC stops and surfaces to Aayan. Does not auto-proceed.
+- Reruns are NOT auto-authorized. CC surfaces sweep results and any issues; Aayan explicitly authorizes any rerun.
+- If first sweep surfaces multiple issues, CC stops and surfaces all of them. Aayan decides which are merge-blockers vs post-merge follow-ups. **Frugal default: most issues become post-merge follow-ups; rerun is reserved for genuine merge-blockers.**
+- The reserve is for unexpected costs (a sweep with p95 outliers, an unanticipated retry storm), not for additional sweeps beyond main + one rerun.
+- When a cheaper version of any step achieves the same signal, do the cheaper version. **Don't burn reserve "because it's there."**
+
 ## 13. Out of scope
 
 - **Persona calibration against real chat traffic.** Personas today carry `sample_size: 0` (uncalibrated scaffolds). Calibration against CMIP feedback data is Phase 3 work, not Stage C prereq.
@@ -452,10 +509,20 @@ The non-null-bucket floors (opponent_prep, improvement_strategy, meta_motivation
 
 ---
 
-## 14. Pause for review
+## 14. Step 2 pause points (RATIFIED 2026-05-23)
 
-Aayan reviews this design doc, ratifies the 7 open questions (O1-O7), confirms persona prompt drafts, then signs off on generator implementation in Step 2.
+Design doc + O1-O7 ratified. Step 2 implementation proceeds with four pause points so the cost-of-iteration on bad generation stays small.
 
-After Step 2 ships, Aayan smoke-tests in Step 3 (run with `--force-category=opponent_prep` etc., read 3-5 sample questions per category, confirm realism). If smoke surfaces bad generation, iterate on prompts and re-test.
+**Pause 1 — After `load-real-user-history.ts` lands.** Aayan runs it once to populate `fixtures/user_history_cache/`. Confirms games loaded successfully for all four chess.com users (`Lazer_Wizard`, `JSNoverPuka`, `Chilllychess`, `gothamchess`). chess.com API only — no Anthropic cost.
 
-**Step 2 LOC envelope:** 400-600 across the new files + run.ts modifications. Cost-of-iteration is small per-file; the design doc is the load-bearing artifact.
+**Pause 2 — After `concepts.json` fixture lands.** Surface the deduped concept list with per-source attribution + counts. Aayan reads, flags bad entries. Lock the fixture after Aayan's pass.
+
+**Pause 3 — After all generators implement.** CC runs each generator once in **mock mode** (no real LLM calls — zero cost) and surfaces 4-5 sample questions per category. Aayan reads, confirms realism. Iterate on persona prompts if needed (still mock mode, zero cost).
+
+**Pause 4 — After mock-mode smoke passes.** Two paths:
+- **If mock tests are clean and Aayan is confident:** skip 6-turn dry-run, surface for main sweep authorization.
+- **If mock tests showed any wiring concerns:** run 6-turn dry-run ($0.60), confirm clean, then surface for main sweep authorization.
+
+After Aayan authorizes the main sweep, CC runs the 60-turn category-balanced sweep against the preview deploy and surfaces results.
+
+**Step 2 LOC envelope:** 400-600 across new files + `run.ts` modifications. Mock-LLM mode is **mandatory** for all CC development work — see §12.5 budget discipline.

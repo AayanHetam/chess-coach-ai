@@ -1,0 +1,82 @@
+[
+  {
+    "fixture_id": "real_gothamchess",
+    "handle_kind": "real",
+    "username": "GothamChess",
+    "platform": "chess.com",
+    "profile_summary": "IM Levy Rozman. Active blitz/bullet player, ~3000 chess.com bullet, content-creator-style aggressive play. Wide opening repertoire — d4 systems, e4 sharp lines.",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_daniel_naroditsky",
+    "handle_kind": "real",
+    "username": "DanielNaroditsky",
+    "platform": "chess.com",
+    "profile_summary": "GM Daniel Naroditsky. Top-100 GM, very active blitz/rapid streamer. Technical endgame style, plays Sicilian + 1.d4 Catalan.",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_chilllychess",
+    "handle_kind": "real",
+    "username": "Chilllychess",
+    "platform": "chess.com",
+    "profile_summary": "Active chess.com bullet player. Sharp tactical style. (User-history cache also exists for this handle — useful for cross-referencing opponent vs user-history validators.)",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_jspoverpuka",
+    "handle_kind": "real",
+    "username": "JSNoverPuka",
+    "platform": "chess.com",
+    "profile_summary": "Active chess.com player. Mixed time-control activity across blitz and rapid.",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_lazer_wizard",
+    "handle_kind": "real",
+    "username": "Lazer_Wizard",
+    "platform": "chess.com",
+    "profile_summary": "Active chess.com player. Bullet-heavy time control activity.",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "stub_e4_kid_id5",
+    "handle_kind": "stub",
+    "username": "stub_e4_kid_id5",
+    "platform": "chess.com",
+    "profile_summary": "Synthetic profile: ~1400 chess.com blitz. Plays 1.e4 exclusively as white. Open Sicilian against Sicilian Defense; Italian against e5. Time-pressure prone in endgames.",
+    "expected_scout": "no_data"
+  },
+  {
+    "fixture_id": "stub_london_grinder",
+    "handle_kind": "stub",
+    "username": "stub_london_grinder",
+    "platform": "chess.com",
+    "profile_summary": "Synthetic profile: ~1500 chess.com rapid. London System (1.d4 Nf6 2.Bf4) as white in 90%+ of games. Slow positional grinder, rarely loses on time but often draws drawn positions.",
+    "expected_scout": "no_data"
+  },
+  {
+    "fixture_id": "stub_kings_indian_obsessed",
+    "handle_kind": "stub",
+    "username": "stub_kings_indian_obsessed",
+    "platform": "chess.com",
+    "profile_summary": "Synthetic profile: ~1600 chess.com blitz. King's Indian Defense as black against everything. Very aggressive kingside attacks; passive in queen's-pawn structures where KID doesn't apply.",
+    "expected_scout": "no_data"
+  },
+  {
+    "fixture_id": "stub_blitz_premover",
+    "handle_kind": "stub",
+    "username": "stub_blitz_premover",
+    "platform": "lichess",
+    "profile_summary": "Synthetic profile: ~1700 lichess bullet. High pre-move rate, sharp openings, often gets winning positions then flags in the endgame.",
+    "expected_scout": "no_data"
+  },
+  {
+    "fixture_id": "stub_anonymous_opponent",
+    "handle_kind": "stub",
+    "username": "stub_anonymous_opponent",
+    "platform": "chess.com",
+    "profile_summary": "Synthetic profile: unknown rating, unknown style. Used to test the 'opponent has no Scout data' degraded path — the coach should refuse to invent specifics about a player they can't lookup.",
+    "expected_scout": "no_data"
+  }
+]

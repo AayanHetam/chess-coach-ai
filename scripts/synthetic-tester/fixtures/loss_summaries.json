@@ -1,0 +1,42 @@
+[
+  {
+    "snippet_id": "endgame_blunder_3plus0",
+    "text": "Lost a 3+0 blitz game where I held a balanced endgame for 40 moves, then blundered a piece in time pressure on move 52."
+  },
+  {
+    "snippet_id": "rep_drew_from_winning",
+    "text": "Drew a position I was up two pawns in by repetition — couldn't find a way through the opposite-coloured-bishop ending."
+  },
+  {
+    "snippet_id": "kingside_attack_collapsed",
+    "text": "Built a kingside attack with all pieces aimed at the king, then missed the defensive resource and got mated in 4."
+  },
+  {
+    "snippet_id": "queen_trade_into_losing_endgame",
+    "text": "Traded queens into a knight endgame I thought was holding. It was lost; I resigned on move 38."
+  },
+  {
+    "snippet_id": "opening_misremember_kid",
+    "text": "Mis-remembered my King's Indian repertoire move 9, gave up the d5 break, slow positional loss over 50 moves."
+  },
+  {
+    "snippet_id": "blundered_back_rank",
+    "text": "Up a pawn in a rook endgame, walked into a back-rank mate I should have seen three moves out."
+  },
+  {
+    "snippet_id": "flagged_winning_position",
+    "text": "Had a clearly winning position with 2 seconds left to make 10 moves. Flagged. Opponent had 30 seconds."
+  },
+  {
+    "snippet_id": "tactical_miss_combo",
+    "text": "Missed a forced 4-move combination that would have won material. Engine showed +4.5; played a quiet move that lost the thread."
+  },
+  {
+    "snippet_id": "trade_into_drawn_endgame",
+    "text": "Traded down from a complex position I should have kept tense. Resulting endgame was dead-drawn; agreed draw move 60."
+  },
+  {
+    "snippet_id": "psychological_loss_round_1",
+    "text": "Lost round 1 of a tournament to a lower-rated player and never recovered psychologically — went 0/4 the rest of the day."
+  }
+]

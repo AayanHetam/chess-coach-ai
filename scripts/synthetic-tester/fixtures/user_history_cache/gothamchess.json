@@ -1,0 +1,2610 @@
+{
+  "username": "gothamchess",
+  "platform": "chess.com",
+  "loadedAt": "2026-05-23T17:30:09.829Z",
+  "totalFetchedFromApi": 2327,
+  "gamesCached": 200,
+  "monthsRequested": 12,
+  "games": [
+    {
+      "pgn": "[Event \"chess.com game d1a3bca8-56c9-11f1-8a69-dff90e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.23\"]\n[White \"Antony-soprano01\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3041\"]\n[BlackElo \"3054\"]\n1. d4 f5 2. c4 Nf6 3. Nc3 e6 4. g3 Bb4 5. Bg2 Bxc3+ 6. bxc3 Nc6 7. Nf3 O-O 8. O-O d6 9. Re1 Bd7 10. Nd2 e5 11. e4 exd4 12. cxd4 Nxd4 13. exf5 Bc6 14. Bb2 Bxg2 15. Bxd4 Bc6 1-0",
+      "white": {
+        "name": "Antony-soprano01"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.23",
+      "createdAt": 1779556160000
+    },
+    {
+      "pgn": "[Event \"chess.com game 38961141-56c9-11f1-8a69-dff90e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.23\"]\n[White \"GothamChess\"]\n[Black \"Wise_Guyyy\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3063\"]\n[BlackElo \"3027\"]\n1. d4 d5 2. Bg5 Nf6 3. Nd2 h6 4. Bxf6 exf6 5. e3 c6 6. g3 Bd6 7. Bg2 O-O 8. Ne2 Re8 9. O-O Bg4 10. c4 dxc4 11. Nxc4 Bc7 12. Re1 Nd7 13. Qb3 Nb6 14. Na5 Rb8 15. Nc3 Be6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Wise_Guyyy"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.23",
+      "createdAt": 1779555880000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0839d99f-56c9-11f1-bd98-82f4f401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.23\"]\n[White \"Wise_Guyyy\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3035\"]\n[BlackElo \"3055\"]\n1. d4 Nf6 2. Nc3 b6 3. Bf4 Bb7 4. e3 g6 5. Nf3 Nh5 6. Be5 f6 7. Bg3 Nxg3 8. hxg3 Bg7 9. Bd3 e6 10. e4 Nc6 11. Qe2 Qe7 12. O-O-O Nb4 13. a3 Nxd3+ 14. Rxd3 Ba6 15. Rhd1 O-O 0-1",
+      "white": {
+        "name": "Wise_Guyyy"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.23",
+      "createdAt": 1779555764000
+    },
+    {
+      "pgn": "[Event \"chess.com game a8df8689-5636-11f1-9abb-140f6401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"Ultra_D_Instinct\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3047\"]\n[BlackElo \"2974\"]\n1. d4 Nf6 2. Bg5 d5 3. Nd2 c5 4. e3 cxd4 5. exd4 Nc6 6. c3 h6 7. Bxf6 exf6 8. Bd3 Bd6 9. Ne2 O-O 10. O-O Re8 11. Nf3 Bg4 12. Ng3 Qc7 13. Nf5 Bxf5 14. Bxf5 g6 15. Bd3 Kg7 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Ultra_D_Instinct"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779492877000
+    },
+    {
+      "pgn": "[Event \"chess.com game 5730aef1-561b-11f1-bd98-82f4f401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"Antony-soprano01\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3026\"]\n[BlackElo \"3057\"]\n1. d4 c5 2. c3 cxd4 3. cxd4 d5 4. Nf3 Nc6 5. g3 Bg4 6. Bg2 e6 7. O-O Bd6 8. Ne5 Bxe5 9. dxe5 Nxe5 10. Bf4 Nc6 11. Nc3 Nf6 12. Rc1 O-O 13. Bg5 h6 14. Bxf6 Qxf6 15. h3 Bh5 1-0",
+      "white": {
+        "name": "Antony-soprano01"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779481157000
+    },
+    {
+      "pgn": "[Event \"chess.com game 07f7ec64-561b-11f1-8f46-c8322601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"Antony-soprano01\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"3066\"]\n[BlackElo \"3017\"]\n1. c3 e5 2. Na3 Bxa3 3. bxa3 d6 4. a4 Ne7 5. Rb1 O-O 6. d4 Nbc6 7. Nf3 exd4 8. cxd4 d5 9. e3 Bg4 10. Rxb7 Rb8 11. Rxb8 Qxb8 12. Be2 Qb4+ 13. Bd2 Qa3 14. Qb3 Qxb3 15. axb3 Ra8 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Antony-soprano01"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779481082000
+    },
+    {
+      "pgn": "[Event \"chess.com game e20d5934-561a-11f1-ae89-2b507e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"Antony-soprano01\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3016\"]\n[BlackElo \"3067\"]\n1. d4 Na6 2. c4 c6 3. Nc3 Nc7 4. e4 d5 5. cxd5 cxd5 6. e5 Bf5 7. Nf3 e6 8. Bd3 Ne7 9. O-O Bxd3 10. Qxd3 Nc6 11. a3 Be7 12. b4 a6 13. Bf4 h6 14. Rac1 Rc8 15. h4 Bxh4 0-1",
+      "white": {
+        "name": "Antony-soprano01"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779480950000
+    },
+    {
+      "pgn": "[Event \"chess.com game 9b32764c-561a-11f1-ab7f-df456c01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"Antony-soprano01\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3060\"]\n[BlackElo \"3023\"]\n1. c3 e5 2. Na3 Nc6 3. Nc2 d5 4. d4 exd4 5. Nxd4 Nf6 6. Nxc6 bxc6 7. Nf3 Bd6 8. g3 O-O 9. Bg2 Re8 10. O-O Ne4 11. Bf4 Bg4 12. Qd4 Bxf4 13. gxf4 Qd6 14. Ne5 Bxe2 15. Rfe1 Bh5 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Antony-soprano01"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779480885000
+    },
+    {
+      "pgn": "[Event \"chess.com game 836579b8-561a-11f1-90b7-eaa88901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"Antony-soprano01\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3031\"]\n[BlackElo \"3052\"]\n1. d4 c6 2. c4 Na6 3. Nc3 Nc7 4. d5 cxd5 5. cxd5 d6 6. e4 g6 7. Bd3 Bg7 8. Nge2 Nf6 9. O-O Nd7 10. Bf4 Ne5 11. Rc1 Nxd3 12. Qxd3 Bd7 13. Nd4 a6 14. Rfe1 O-O 15. e5 dxe5 0-1",
+      "white": {
+        "name": "Antony-soprano01"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779480768000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2f4dc40f-561a-11f1-8a69-dff90e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"Antony-soprano01\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3044\"]\n[BlackElo \"3039\"]\n1. Na3 e6 2. c3 d5 3. Nc2 c5 4. d4 Nc6 5. Nf3 cxd4 6. cxd4 Nf6 7. Bf4 Ne4 8. a3 Be7 9. e3 O-O 10. Bd3 f5 11. O-O Bd7 12. Nce1 Be8 13. Bb5 Bh5 14. Qa4 Rc8 15. Bxc6 bxc6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Antony-soprano01"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779480728000
+    },
+    {
+      "pgn": "[Event \"chess.com game f98dd8eb-5619-11f1-aeec-b5154d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"Antony-soprano01\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3047\"]\n[BlackElo \"3036\"]\n1. d4 g6 2. c4 Bg7 3. Nc3 c5 4. d5 d6 5. e4 Bxc3+ 6. bxc3 e5 7. f4 exf4 8. Bxf4 f6 9. Bd3 Kd7 10. Ne2 Kc7 11. O-O Nd7 12. Bg3 Qe7 13. Nf4 Ne5 14. Rb1 b6 15. a4 Bd7 1-0",
+      "white": {
+        "name": "Antony-soprano01"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779480586000
+    },
+    {
+      "pgn": "[Event \"chess.com game c8fb75b4-5619-11f1-bd98-82f4f401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"Antony-soprano01\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3044\"]\n[BlackElo \"3039\"]\n1. e4 e5 2. Nc3 Nf6 3. f4 d5 4. fxe5 Nxe4 5. Qf3 f5 6. d3 Nxc3 7. bxc3 d4 8. Qg3 Nc6 9. Nf3 dxc3 10. Rb1 Be6 11. Bg5 Qd7 12. Rxb7 Bd5 13. Be2 Nd4 14. Nxd4 Bxb7 15. Qh4 h6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Antony-soprano01"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779480496000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6e15322f-5619-11f1-8a69-dff90e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"BilodeauA\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3036\"]\n[BlackElo \"2998\"]\n1. d4 d5 2. Bg5 h6 3. Bh4 c5 4. dxc5 Nc6 5. c3 Nf6 6. Bxf6 gxf6 7. e3 e6 8. b4 a5 9. b5 Ne5 10. Nf3 Bxc5 11. Nxe5 fxe5 12. Qh5 e4 13. Be2 Qg5 14. Qxg5 hxg5 15. h3 Bd7 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "BilodeauA"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779480362000
+    },
+    {
+      "pgn": "[Event \"chess.com game 295c1eda-5619-11f1-9dde-fdc6d501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"BilodeauA\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"2989\"]\n[BlackElo \"3045\"]\n1. d4 d5 2. Nc3 Nf6 3. Bf4 a6 4. e3 h6 5. Nf3 Bg4 6. Be2 e6 7. Ne5 Bxe2 8. Qxe2 Nfd7 9. O-O Nxe5 10. Bxe5 Nd7 11. Bg3 Bd6 12. e4 Bxg3 13. fxg3 Nf6 14. e5 Nd7 15. Rf4 Rf8 1-0",
+      "white": {
+        "name": "BilodeauA"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779480262000
+    },
+    {
+      "pgn": "[Event \"chess.com game 70d6b8d7-5618-11f1-8a69-dff90e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"GorVM\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3055\"]\n[BlackElo \"2966\"]\n1. d4 c5 2. d5 d6 3. Nc3 e5 4. dxe6 f5 5. e4 Bxe6 6. exf5 Bxf5 7. Bc4 Nf6 8. Nf3 Be7 9. O-O Nbd7 10. Re1 Kf8 11. Ng5 Ne5 12. Ne6+ Bxe6 13. Bxe6 g6 14. f4 Nf7 15. f5 Kg7 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "GorVM"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779479956000
+    },
+    {
+      "pgn": "[Event \"chess.com game 00764a6c-560a-11f1-ae89-2b507e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"fastestmindalive\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3049\"]\n[BlackElo \"2984\"]\n1. Na3 Nf6 2. c3 g6 3. Nc2 Bg7 4. d4 O-O 5. e4 d6 6. e5 dxe5 7. dxe5 Qxd1+ 8. Kxd1 Ng4 9. Nh3 Nxe5 10. Be3 Bxh3 11. gxh3 Rd8+ 12. Ke2 Nbc6 13. Bg2 Rab8 14. Rad1 Nc4 15. Bc1 N6e5 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "fastestmindalive"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779473758000
+    },
+    {
+      "pgn": "[Event \"chess.com game cbf5e4ce-5609-11f1-ab7f-df456c01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"fastestmindalive\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2991\"]\n[BlackElo \"3042\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. Nf3 Nf6 5. h3 Bf5 6. d3 e6 7. g4 Bg6 8. Bg2 Nc6 9. Nh4 Bb4 10. Bd2 O-O-O 11. Qe2 Nd4 12. Qd1 Nxc2+ 13. Qxc2 Bxd3 14. Qb3 Rd7 15. Nf3 Rhd8 0-1",
+      "white": {
+        "name": "fastestmindalive"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779473636000
+    },
+    {
+      "pgn": "[Event \"chess.com game 883c3f78-5609-11f1-ab7f-df456c01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"fastestmindalive\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"3035\"]\n[BlackElo \"2998\"]\n1. c4 e5 2. g3 Nc6 3. Bg2 f5 4. Nc3 Nf6 5. d3 Bb4 6. Bd2 Bxc3 7. bxc3 d6 8. e3 O-O 9. a4 e4 10. d4 b6 11. Nh3 Ne7 12. Nf4 c5 13. h4 Ng6 14. Nd5 Nxd5 15. cxd5 Ba6 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "fastestmindalive"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779473547000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3140a399-5609-11f1-aeec-b5154d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"fastestmindalive\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2997\"]\n[BlackElo \"3036\"]\n1. e4 c6 2. Nc3 Na6 3. Nf3 Nc7 4. d4 d5 5. Bd3 dxe4 6. Nxe4 Nf6 7. O-O Nxe4 8. Bxe4 Bg4 9. h3 Bh5 10. a4 e6 11. a5 Bd6 12. Re1 O-O 13. c3 Nd5 14. Qd3 Bg6 15. b4 a6 0-1",
+      "white": {
+        "name": "fastestmindalive"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779473433000
+    },
+    {
+      "pgn": "[Event \"chess.com game e970a750-5607-11f1-aeec-b5154d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"adotand\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3100\"]\n[BlackElo \"3029\"]\n1. Nf3 g6 2. c4 Bg7 3. Nc3 b6 4. e4 Bb7 5. d4 e6 6. Bd3 d6 7. h4 h6 8. Be3 Nd7 9. Qd2 Ngf6 10. O-O-O Ng4 11. Kb1 Nxe3 12. fxe3 Qe7 13. Rdf1 O-O-O 14. Qe2 Kb8 15. Nd2 c5 1-0",
+      "white": {
+        "name": "adotand"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779472861000
+    },
+    {
+      "pgn": "[Event \"chess.com game 99a4304a-5607-11f1-bd98-82f4f401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"adotand\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3036\"]\n[BlackElo \"3093\"]\n1. d4 c6 2. Bf4 d5 3. c4 Nf6 4. Nc3 e6 5. e3 Be7 6. Nf3 O-O 7. h4 Nbd7 8. h5 h6 9. g4 Ne4 10. Nxe4 dxe4 11. Nd2 e5 12. dxe5 Nc5 13. Qc2 Bxg4 14. Be2 Nd3+ 15. Kf1 Bf5 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "adotand"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779472738000
+    },
+    {
+      "pgn": "[Event \"chess.com game 552fecea-5607-11f1-90b7-eaa88901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"fastestmindalive\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3026\"]\n[BlackElo \"2985\"]\n1. e4 c5 2. a3 g6 3. Nc3 Bg7 4. Bc4 Nc6 5. d3 e6 6. Ba2 Nge7 7. Bd2 d5 8. h4 h5 9. Nh3 Rb8 10. Ng5 b5 11. Bf4 Rb6 12. exd5 exd5 13. O-O O-O 14. Re1 Nd4 15. Rxe7 Qxe7 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "fastestmindalive"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779472595000
+    },
+    {
+      "pgn": "[Event \"chess.com game 251f15e5-5607-11f1-ab7f-df456c01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"fastestmindalive\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2976\"]\n[BlackElo \"3035\"]\n1. e4 e5 2. Nf3 Nf6 3. Nc3 Bb4 4. Nxe5 O-O 5. Nd3 Bxc3 6. dxc3 Nxe4 7. Be2 d5 8. O-O Nc6 9. Bf4 Bf5 10. Bf3 Re8 11. Bg3 Qd7 12. Nf4 Rad8 13. a4 a5 14. Re1 d4 15. Bxe4 Rxe4 0-1",
+      "white": {
+        "name": "fastestmindalive"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779472489000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7dd62160-5600-11f1-ab7f-df456c01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"Rutricks\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"2958\"]\n[BlackElo \"3028\"]\n1. e4 c6 2. Nf3 d5 3. Nc3 a6 4. exd5 cxd5 5. a4 Bg4 6. h3 Bxf3 7. Qxf3 e6 8. Ne2 Nc6 9. c3 Nf6 10. d4 g6 11. g3 Bg7 12. Bg2 O-O 13. O-O Ne4 14. Nf4 Qd6 15. Nd3 b5 1-0",
+      "white": {
+        "name": "Rutricks"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779469592000
+    },
+    {
+      "pgn": "[Event \"chess.com game 4a488017-5600-11f1-979f-a110ce01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"Rutricks\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3038\"]\n[BlackElo \"2948\"]\n1. c4 g6 2. Nc3 Bg7 3. d4 d6 4. e4 Nd7 5. f4 e5 6. fxe5 dxe5 7. d5 Ngf6 8. Nf3 O-O 9. Be2 Nc5 10. Qc2 Nh5 11. O-O f5 12. Be3 Nxe4 13. Nxe4 fxe4 14. Ng5 Bf5 15. g4 Nf4 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Rutricks"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779469552000
+    },
+    {
+      "pgn": "[Event \"chess.com game 094a9f60-5600-11f1-bd98-82f4f401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"Rutricks\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2938\"]\n[BlackElo \"3048\"]\n1. e4 d5 2. exd5 Qxd5 3. Nf3 Bg4 4. Nc3 Qh5 5. Be2 Nc6 6. h3 O-O-O 7. Rg1 Bxf3 8. Bxf3 Qg6 9. Be4 f5 10. Bf3 Nd4 11. d3 e5 12. Be3 Bc5 13. Bxd4 exd4 14. Ne2 Nf6 15. Qd2 Qf7 0-1",
+      "white": {
+        "name": "Rutricks"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779469463000
+    },
+    {
+      "pgn": "[Event \"chess.com game c030eff7-55ff-11f1-9dde-fdc6d501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"Rutricks\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3042\"]\n[BlackElo \"2944\"]\n1. e4 g6 2. Bc4 Bg7 3. Qf3 e6 4. d4 Bxd4 5. Ne2 Bg7 6. Nbc3 Nc6 7. Qg3 Ne5 8. Bb3 h5 9. Bg5 Bf6 10. h4 Bxg5 11. hxg5 d6 12. O-O-O Bd7 13. f4 Nc6 14. f5 exf5 15. Rhf1 Nge7 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Rutricks"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779469356000
+    },
+    {
+      "pgn": "[Event \"chess.com game 4212ac0c-55fe-11f1-b45e-6b336f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"Ultra_D_Instinct\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3051\"]\n[BlackElo \"3036\"]\n1. e4 e6 2. Nf3 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. d3 Nxe4 6. dxe4 Qxd1+ 7. Kxd1 c5 8. Bd3 Nc6 9. Ke2 b6 10. c3 Bb7 11. a4 O-O-O 12. Bf4 f6 13. Rad1 g5 14. Be3 h5 15. Bc4 Re8 0-1",
+      "white": {
+        "name": "Ultra_D_Instinct"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779468715000
+    },
+    {
+      "pgn": "[Event \"chess.com game f738d600-55fd-11f1-90b7-eaa88901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"GothamChess\"]\n[Black \"Ultra_D_Instinct\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3027\"]\n[BlackElo \"3060\"]\n1. e4 c5 2. a3 d5 3. exd5 Nf6 4. c4 e6 5. dxe6 Bxe6 6. Nf3 Nc6 7. Be2 Bd6 8. O-O O-O 9. b4 cxb4 10. d4 Bg4 11. Be3 Re8 12. h3 Bh5 13. d5 Ne5 14. Nxe5 Bxe5 15. Ra2 b3 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Ultra_D_Instinct"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.22",
+      "createdAt": 1779468592000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0dbd6cf1-5562-11f1-a6a9-0a9fe401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Rubinstein_Akiba\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"2994\"]\n[BlackElo \"3018\"]\n1. Nf3 g5 2. Nxg5 e5 3. Nf3 e4 4. Ng1 d5 5. d3 f5 6. dxe4 fxe4 7. e3 Nf6 8. Nc3 c6 9. Be2 Rg8 10. Bh5+ Ke7 11. g3 Nxh5 12. Qxh5 Bg4 13. Qh4+ Kd7 14. Qxd8+ Kxd8 15. h3 Bh5 1-0",
+      "white": {
+        "name": "Rubinstein_Akiba"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779401611000
+    },
+    {
+      "pgn": "[Event \"chess.com game f43b1fa0-5561-11f1-ba3c-668f2601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Rubinstein_Akiba\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"3027\"]\n[BlackElo \"2985\"]\n1. e4 c6 2. e5 d5 3. exd6 exd6 4. d4 Nf6 5. Nf3 Be7 6. h3 O-O 7. Bd3 d5 8. O-O c5 9. dxc5 Bxc5 10. c3 h6 11. Bf4 Nc6 12. Nbd2 a5 13. Nb3 Ba7 14. Nbd4 Nxd4 15. Nxd4 Bd7 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Rubinstein_Akiba"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779401502000
+    },
+    {
+      "pgn": "[Event \"chess.com game a3a982ee-5561-11f1-a6a9-0a9fe401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Rubinstein_Akiba\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2984\"]\n[BlackElo \"3028\"]\n1. Nf3 g5 2. g3 g4 3. Ng1 h5 4. h4 Bg7 5. e4 c6 6. Bg2 d5 7. exd5 cxd5 8. d4 Nc6 9. Ne2 Bf5 10. O-O e6 11. c3 Nge7 12. Nd2 Ng6 13. Nb3 Nxh4 14. gxh4 Qxh4 15. Bf4 Qe7 0-1",
+      "white": {
+        "name": "Rubinstein_Akiba"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779401458000
+    },
+    {
+      "pgn": "[Event \"chess.com game 9189ed33-5561-11f1-aa73-396c0801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Rubinstein_Akiba\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3021\"]\n[BlackElo \"2991\"]\n1. c4 c5 2. Nc3 Nc6 3. g3 Nf6 4. Bg2 g6 5. d3 Bg7 6. Bxc6 O-O 7. Bg2 d6 8. Nf3 Rb8 9. O-O a6 10. Qd2 b5 11. b3 b4 12. Na4 Ne4 13. dxe4 Bxa1 14. e5 dxe5 15. Qh6 e4 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Rubinstein_Akiba"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779401324000
+    },
+    {
+      "pgn": "[Event \"chess.com game 57704470-5561-11f1-a4af-3d1b7901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Rubinstein_Akiba\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2999\"]\n[BlackElo \"3013\"]\n1. e4 Na6 2. Nc3 Nb8 3. Nf3 Na6 4. Bc4 Nb8 5. O-O e6 6. d4 d6 7. e5 d5 8. Bd3 a6 9. Ne2 c5 10. c3 Nc6 11. Nf4 c4 12. Bc2 b5 13. Be3 Qc7 14. h4 Nge7 15. Ng5 h6 0-1",
+      "white": {
+        "name": "Rubinstein_Akiba"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779401293000
+    },
+    {
+      "pgn": "[Event \"chess.com game ff928698-5560-11f1-a374-2dcc3501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Rubinstein_Akiba\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3005\"]\n[BlackElo \"3007\"]\n1. e4 c6 2. Nc3 d5 3. Qe2 dxe4 4. Nxe4 Nf6 5. Nxf6+ gxf6 6. g3 Qd5 7. Nf3 Bg4 8. Bg2 Nd7 9. h3 Bxf3 10. Bxf3 Qe5 11. c3 O-O-O 12. d4 Qxe2+ 13. Kxe2 e5 14. Be3 Kc7 15. Bh5 Bd6 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Rubinstein_Akiba"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779401195000
+    },
+    {
+      "pgn": "[Event \"chess.com game c0bfe994-5560-11f1-b3aa-73b0e701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Rubinstein_Akiba\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2999\"]\n[BlackElo \"3013\"]\n1. Nf3 Nf6 2. g3 g5 3. Bg2 g4 4. Ne5 h5 5. h4 gxh3 6. Bxh3 d6 7. Nf3 Bxh3 8. Rxh3 Qd7 9. Rh4 e5 10. d3 Nc6 11. Nc3 Be7 12. Bg5 O-O-O 13. Qd2 Ng4 14. Bxe7 Nxe7 15. O-O-O Nxf2 0-1",
+      "white": {
+        "name": "Rubinstein_Akiba"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779401048000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6db55e90-5560-11f1-9f33-90b72101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Rubinstein_Akiba\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3005\"]\n[BlackElo \"3007\"]\n1. e4 c6 2. Nc3 d5 3. Qf3 dxe4 4. Nxe4 Nf6 5. Bc4 Nbd7 6. Ne2 Ne5 7. Nxf6+ gxf6 8. Qb3 Nxc4 9. Qxc4 Be6 10. Qh4 Qd5 11. O-O O-O-O 12. d4 Rg8 13. f3 Bf5 14. c3 Bd3 15. Nf4 Qf5 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Rubinstein_Akiba"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779400943000
+    },
+    {
+      "pgn": "[Event \"chess.com game 1aec2170-5560-11f1-bf1f-81610e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Rubinstein_Akiba\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3015\"]\n[BlackElo \"2997\"]\n1. Nf3 g6 2. g3 Bg7 3. Bg2 d6 4. O-O Bd7 5. d4 Qc8 6. c4 Bh3 7. Nc3 h5 8. Bg5 f6 9. Bd2 h4 10. Qc2 Kf7 11. Qe4 hxg3 12. fxg3 Bxg2 13. Ng5+ Kf8 14. Kxg2 f5 15. Nd5 Nc6 1-0",
+      "white": {
+        "name": "Rubinstein_Akiba"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779400803000
+    },
+    {
+      "pgn": "[Event \"chess.com game ca5d930c-555f-11f1-b3aa-73b0e701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Rubinstein_Akiba\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3005\"]\n[BlackElo \"3007\"]\n1. d4 c6 2. c4 d5 3. Nf3 Nf6 4. e3 e6 5. Nc3 Be7 6. Be2 O-O 7. O-O Nbd7 8. b3 b6 9. Bb2 Bb7 10. Bd3 Rc8 11. e4 dxe4 12. Nxe4 Nxe4 13. Bxe4 Nf6 14. Qe2 Nxe4 15. Qxe4 Qc7 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Rubinstein_Akiba"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779400665000
+    },
+    {
+      "pgn": "[Event \"chess.com game 797f83dd-555f-11f1-b81f-172aec01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Lempire123\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"2924\"]\n[BlackElo \"2997\"]\n1. d4 b6 2. Nf3 Bb7 3. Nc3 e6 4. e4 h6 5. Bd3 a6 6. Qe2 d6 7. O-O Nd7 8. a4 Ne7 9. h3 g6 10. Bf4 Bg7 11. Bh2 g5 12. Rfe1 Ng6 13. Rad1 h5 14. Nd2 Nf4 15. Bxf4 gxf4 1-0",
+      "white": {
+        "name": "Lempire123"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779400497000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2ab90b3a-555f-11f1-aa73-396c0801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Lempire123\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3007\"]\n[BlackElo \"2914\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. d3 Be7 5. f4 O-O 6. Nf3 d6 7. O-O Be6 8. Bb3 Bxb3 9. axb3 exf4 10. Bxf4 a6 11. Kh1 Qd7 12. Qd2 Ng4 13. d4 Nf6 14. d5 Nb4 15. Nd4 Rfe8 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Lempire123"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779400395000
+    },
+    {
+      "pgn": "[Event \"chess.com game de7b5fe0-555e-11f1-ba3c-668f2601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Lempire123\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2903\"]\n[BlackElo \"3018\"]\n1. d4 g6 2. Nf3 Bg7 3. Nc3 d6 4. h4 h6 5. e4 a6 6. a4 Nc6 7. Bc4 Bg4 8. Be3 Bxf3 9. gxf3 e5 10. Ne2 Qf6 11. c3 Qxf3 12. Rg1 Qxe4 13. Qb3 O-O-O 14. Bxf7 exd4 15. cxd4 Nge7 0-1",
+      "white": {
+        "name": "Lempire123"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779400263000
+    },
+    {
+      "pgn": "[Event \"chess.com game bf3a466d-555e-11f1-a4af-3d1b7901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Lempire123\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3012\"]\n[BlackElo \"2909\"]\n1. e4 c5 2. a3 e6 3. b4 b6 4. bxc5 Bxc5 5. Nc3 Nf6 6. d4 Be7 7. e5 Nd5 8. Nxd5 exd5 9. Qg4 g6 10. Qf3 O-O 11. h4 Nc6 12. c3 f6 13. Qxd5+ Kg7 14. h5 fxe5 15. hxg6 h5 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Lempire123"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779400135000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7102512d-555e-11f1-a4af-3d1b7901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Lempire123\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2915\"]\n[BlackElo \"3006\"]\n1. e4 g6 2. Nc3 Bg7 3. h4 h6 4. Nf3 d6 5. Bc4 e6 6. d4 a6 7. Bb3 b5 8. Qe2 Bb7 9. Bf4 Nd7 10. O-O-O Ne7 11. g4 Nb6 12. Kb1 c6 13. d5 exd5 14. exd5 c5 15. a4 Bxc3 0-1",
+      "white": {
+        "name": "Lempire123"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779400083000
+    },
+    {
+      "pgn": "[Event \"chess.com game 38114ae1-555e-11f1-891e-df6acd01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Lempire123\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3000\"]\n[BlackElo \"2921\"]\n1. d4 Nf6 2. Bg5 c5 3. Nc3 cxd4 4. Qxd4 Nc6 5. Qh4 h6 6. O-O-O Qa5 7. Bxf6 gxf6 8. Kb1 Bg7 9. e4 f5 10. Nge2 d6 11. Qg3 Bf6 12. Nd5 Be6 13. Nxf6+ exf6 14. Nc3 O-O-O 15. exf5 Bxf5 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Lempire123"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779399952000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7f47f39d-555c-11f1-ba3c-668f2601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"alextsolov2011\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2905\"]\n[BlackElo \"2994\"]\n1. e4 g6 2. Nf3 Bg7 3. Nc3 d6 4. Bc4 a6 5. d4 e6 6. a4 b6 7. O-O Bb7 8. e5 d5 9. Bd3 c5 10. dxc5 bxc5 11. b3 Ne7 12. Ne2 Nd7 13. Ng3 Nxe5 14. Nxe5 Bxe5 15. Rb1 Nc6 0-1",
+      "white": {
+        "name": "alextsolov2011"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779399232000
+    },
+    {
+      "pgn": "[Event \"chess.com game 15cb1996-555c-11f1-b3aa-73b0e701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"alextsolov2011\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"2988\"]\n[BlackElo \"2911\"]\n1. e4 e5 2. Nc3 Nf6 3. f4 d6 4. Nf3 Nc6 5. Bb5 Bd7 6. Bxc6 Bxc6 7. d3 exf4 8. Bxf4 Be7 9. Qd2 Qd7 10. O-O O-O-O 11. Rae1 h6 12. Be3 Ng4 13. Bxa7 b6 14. a4 Kb7 15. a5 Kxa7 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "alextsolov2011"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779399051000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6637706e-555b-11f1-ba3c-668f2601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"alextsolov2011\"]\n[Black \"GothamChess\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"2909\"]\n[BlackElo \"2990\"]\n1. e4 e6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nf6 5. Nxf6+ gxf6 6. Nf3 Nc6 7. Be3 e5 8. dxe5 Qxd1+ 9. Rxd1 fxe5 10. c3 Bg4 11. Be2 f6 12. h3 Be6 13. b3 Rg8 14. g3 Rd8 15. Rxd8+ Kxd8 1/2-1/2",
+      "white": {
+        "name": "alextsolov2011"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779398764000
+    },
+    {
+      "pgn": "[Event \"chess.com game 380e8893-555a-11f1-b839-6cfe54652c60\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Sokoloco\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2878\"]\n[BlackElo \"3057\"]\n1. d4 Nf6 2. Bg5 Ne4 3. h4 d5 4. e3 Bf5 5. g4 Bd7 6. Bd3 Nxg5 7. hxg5 e5 8. dxe5 Qxg5 9. f4 Qxg4 10. Qxg4 Bxg4 11. Nc3 Bb4 12. Kd2 Nd7 13. a3 Bxc3+ 14. Kxc3 f6 15. Kd4 fxe5+ 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Sokoloco"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.21",
+      "createdAt": 1779398482000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3dda41e1-5559-11f1-b839-6cfe54652c60\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"alexrustemov\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2943\"]\n[BlackElo \"2882\"]\n1. d4 g6 2. c4 Bg7 3. Nf3 d6 4. g3 Bd7 5. Bg2 Qc8 6. Nc3 Bh3 7. O-O h5 8. e4 Nc6 9. Bxh3 Qxh3 10. d5 Ne5 11. Ng5 Qg4 12. f3 Qd7 13. f4 Nxc4 14. e5 dxe5 15. Nxf7 exf4 0-1",
+      "white": {
+        "name": "alexrustemov"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.21",
+      "createdAt": 1779398096000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3bbb2769-5558-11f1-b839-6cfe54652c60\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Gianmarco_es\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2872\"]\n[BlackElo \"2926\"]\n1. e4 c5 2. a3 g6 3. Nc3 Bg7 4. Bc4 Nc6 5. d3 e6 6. Ba2 Nge7 7. Bd2 O-O 8. h4 h6 9. h5 g5 10. f4 gxf4 11. Bxf4 Kh8 12. Qd2 Ng8 13. g4 d6 14. g5 hxg5 15. Bxg5 Bf6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Gianmarco_es"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.21",
+      "createdAt": 1779397617000
+    },
+    {
+      "pgn": "[Event \"chess.com game 43e988f8-5557-11f1-b839-6cfe54652c60\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"dosto07\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2862\"]\n[BlackElo \"2622\"]\n1. Nh3 d5 2. g3 Nf6 3. Bg2 Bf5 4. O-O e6 5. d3 h6 6. c4 c6 7. Nc3 Be7 8. Qb3 Qb6 9. Be3 Qxb3 10. axb3 a6 11. f3 Nbd7 12. Nf2 Bc5 13. d4 Bd6 14. Bd2 Bc2 15. c5 Bc7 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "dosto07"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.21",
+      "createdAt": 1779397238000
+    },
+    {
+      "pgn": "[Event \"chess.com game 421a639d-5556-11f1-b839-6cfe54652c60\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Kirill_Klukin\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"3059\"]\n[BlackElo \"2859\"]\n1. d4 b6 2. Nf3 Bb7 3. e3 f5 4. Bd3 e6 5. Nbd2 Nf6 6. c4 Bb4 7. O-O Bxd2 8. Nxd2 O-O 9. f3 d6 10. b3 Nbd7 11. Bb2 g6 12. Qe2 e5 13. Bc2 Qe7 14. d5 a5 15. a3 Ba6 1-0",
+      "white": {
+        "name": "Kirill_Klukin"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.21",
+      "createdAt": 1779396792000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7c112c8f-5554-11f1-b839-6cfe54652c60\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"IlanSchnaider\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2863\"]\n[BlackElo \"2986\"]\n1. d4 d5 2. Bg5 h6 3. Bh4 c5 4. dxc5 g5 5. Bg3 Bg7 6. c3 Na6 7. e4 dxe4 8. Qa4+ Bd7 9. Qxe4 Nxc5 10. Qc2 Nf6 11. Nd2 O-O 12. Ngf3 Rc8 13. Be2 Ba4 14. Qb1 Ne6 15. Be5 Bc6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "IlanSchnaider"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.21",
+      "createdAt": 1779396026000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8542094d-5553-11f1-b839-6cfe54652c60\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"MarkusRagger\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"3007\"]\n[BlackElo \"2852\"]\n1. Nf3 g6 2. e4 Bg7 3. d4 d6 4. Be3 Nf6 5. Nc3 Ng4 6. Bg5 h6 7. Bh4 g5 8. Bg3 Nc6 9. Qd2 e5 10. d5 Nd4 11. h4 Bd7 12. O-O-O gxh4 13. Nxh4 h5 14. Kb1 Bh6 15. Qe1 Qf6 1-0",
+      "white": {
+        "name": "MarkusRagger"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.21",
+      "createdAt": 1779395559000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8cabe21c-5552-11f1-b839-6cfe54652c60\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"matematillo\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2446\"]\n[BlackElo \"2857\"]\n1. d4 g6 2. e4 Bg7 3. Nf3 d6 4. Bd3 Nc6 5. c3 e5 6. dxe5 dxe5 7. Qe2 Nge7 8. O-O O-O 9. Rd1 h6 10. b4 Qe8 11. Bb2 Be6 12. Nbd2 a6 13. Nb3 Kh7 14. Nc5 Bc8 15. a4 Ng8 0-1",
+      "white": {
+        "name": "matematillo"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.21",
+      "createdAt": 1779395179000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8d09fd76-5551-11f1-b839-6cfe54652c60\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Sergg33\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2856\"]\n[BlackElo \"2560\"]\n1. e4 c5 2. a3 Nc6 3. b4 cxb4 4. axb4 Nxb4 5. c3 Nc6 6. d4 e6 7. d5 Ne5 8. f4 Ng6 9. d6 Nf6 10. e5 Nd5 11. g3 f6 12. Nf3 Qb6 13. Qd4 Qxd4 14. cxd4 Rg8 15. Bc4 Nb6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Sergg33"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.21",
+      "createdAt": 1779394694000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8fd0db4a-5550-11f1-b839-6cfe54652c60\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"DanielGallegosQ\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"180\"]\n[WhiteElo \"2853\"]\n[BlackElo \"2561\"]\n1. Nh3 Nf6 2. g3 d5 3. Bg2 e5 4. O-O Bd6 5. c4 dxc4 6. Qa4+ Nbd7 7. Qxc4 a6 8. Qc2 O-O 9. Nc3 Re8 10. b3 Rb8 11. Bb2 b6 12. Ng5 Bb7 13. Nce4 h6 14. Nxd6 cxd6 15. Nf3 d5 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "DanielGallegosQ"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "180",
+      "date": "2026.05.21",
+      "createdAt": 1779394345000
+    },
+    {
+      "pgn": "[Event \"chess.com game a6c6807b-554f-11f1-b839-6cfe54652c60\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Qenzy10\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2516\"]\n[BlackElo \"2859\"]\n1. Nf3 e6 2. b3 f5 3. Bb2 Nf6 4. c4 b6 5. d3 Bb7 6. Nbd2 g6 7. e4 Bg7 8. e5 Ng4 9. h3 Nh6 10. d4 d6 11. Qc2 dxe5 12. Nxe5 O-O 13. Ndf3 Nd7 14. Nxd7 Qxd7 15. Be2 Nf7 1-0",
+      "white": {
+        "name": "Qenzy10"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.21",
+      "createdAt": 1779393951000
+    },
+    {
+      "pgn": "[Event \"chess.com game 1f118dd4-554e-11f1-ba3c-668f2601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"GummyFox\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2992\"]\n[BlackElo \"2927\"]\n1. e4 c5 2. a3 e6 3. b4 cxb4 4. axb4 Bxb4 5. c3 Be7 6. d4 d5 7. e5 Nc6 8. Bd3 Bd7 9. Qg4 g6 10. h4 h5 11. Qg3 Nh6 12. Bxg6 fxg6 13. Qxg6+ Nf7 14. Rh3 Qc7 15. Rf3 Rf8 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "GummyFox"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779393068000
+    },
+    {
+      "pgn": "[Event \"chess.com game d28db188-554d-11f1-ba3c-668f2601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GummyFox\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2917\"]\n[BlackElo \"3002\"]\n1. g3 h5 2. Nf3 e6 3. h4 Nf6 4. Bg2 Ng4 5. d3 d5 6. O-O Bd6 7. b3 c5 8. Bb2 d4 9. e3 e5 10. exd4 exd4 11. Re1+ Kd7 12. Nbd2 Nc6 13. Ne4 Be7 14. a3 a5 15. Qd2 f6 0-1",
+      "white": {
+        "name": "GummyFox"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779392941000
+    },
+    {
+      "pgn": "[Event \"chess.com game 5f76a5d0-554d-11f1-b81f-172aec01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"GummyFox\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"2996\"]\n[BlackElo \"2923\"]\n1. e4 g6 2. Bc4 Bg7 3. Qf3 e6 4. d4 c6 5. Ne2 d5 6. Bb3 Nf6 7. e5 Nfd7 8. c3 c5 9. h4 h5 10. Bg5 Qb6 11. O-O Nc6 12. Nd2 cxd4 13. cxd4 Nxd4 14. Nxd4 Qxd4 15. Rad1 Qxe5 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "GummyFox"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779392747000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3a2d5ccc-554d-11f1-87fc-dc9b6901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GummyFox\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2921\"]\n[BlackElo \"2998\"]\n1. Nf3 g5 2. Nxg5 e5 3. d3 Be7 4. Nf3 Nc6 5. e4 f5 6. Nc3 Nf6 7. exf5 d5 8. Bg5 Bxf5 9. Qd2 d4 10. Ne4 Bxe4 11. Bxf6 Bxf3 12. gxf3 Bxf6 13. Bh3 Qe7 14. Rg1 h6 15. Bf5 Kf7 0-1",
+      "white": {
+        "name": "GummyFox"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779392620000
+    },
+    {
+      "pgn": "[Event \"chess.com game 06e2697e-554d-11f1-aa73-396c0801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"temus_galaktionov\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2991\"]\n[BlackElo \"2915\"]\n1. e4 c6 2. d4 d5 3. f3 Qb6 4. Nc3 e5 5. dxe5 dxe4 6. f4 Bf5 7. g4 Be6 8. Nxe4 Bd5 9. Bg2 h5 10. gxh5 Bxe4 11. Bxe4 Qb4+ 12. Kf2 Qxe4 13. Nf3 Bc5+ 14. Kg3 Ne7 15. Re1 Nf5+ 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "temus_galaktionov"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779392556000
+    },
+    {
+      "pgn": "[Event \"chess.com game bbcfa8f9-554c-11f1-a374-2dcc3501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"temus_galaktionov\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2905\"]\n[BlackElo \"3001\"]\n1. d4 g6 2. Nf3 Bg7 3. c4 f5 4. Nc3 Nf6 5. g3 b6 6. Bg2 Bb7 7. O-O Ne4 8. Nxe4 Bxe4 9. Bf4 O-O 10. Qd2 c5 11. dxc5 bxc5 12. Bh6 d6 13. Bxg7 Kxg7 14. Qc3+ Rf6 15. Rfd1 Kg8 0-1",
+      "white": {
+        "name": "temus_galaktionov"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779392470000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6efdfb59-554c-11f1-87fc-dc9b6901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"temus_galaktionov\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"2995\"]\n[BlackElo \"2911\"]\n1. d4 c6 2. Bf4 d6 3. c4 g6 4. Nc3 Bg7 5. e3 Nd7 6. Nf3 e5 7. Bg3 Qe7 8. Be2 Ngf6 9. O-O O-O 10. b4 Re8 11. a4 a5 12. b5 e4 13. Nd2 h5 14. h3 Nf8 15. bxc6 bxc6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "temus_galaktionov"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779392346000
+    },
+    {
+      "pgn": "[Event \"chess.com game 236e69a7-554c-11f1-b81f-172aec01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"temus_galaktionov\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2917\"]\n[BlackElo \"2989\"]\n1. d4 b6 2. Nf3 Bb7 3. c3 e6 4. g3 f5 5. Bg2 Nf6 6. O-O g6 7. c4 Bg7 8. Nc3 Ne4 9. Bd2 Nxd2 10. Qxd2 O-O 11. d5 Na6 12. Nd4 e5 13. Nc2 d6 14. b4 Qe7 15. e3 e4 0-1",
+      "white": {
+        "name": "temus_galaktionov"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779392216000
+    },
+    {
+      "pgn": "[Event \"chess.com game c14cf3bd-554b-11f1-aa73-396c0801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Rakitic2010\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2982\"]\n[BlackElo \"3011\"]\n1. d4 Nf6 2. Bg5 c5 3. Nc3 cxd4 4. Qxd4 Nc6 5. Qh4 h6 6. O-O-O Qa5 7. Bxf6 gxf6 8. Kb1 d6 9. e4 Be6 10. Bb5 Rc8 11. a3 a6 12. Bxc6+ Rxc6 13. Nge2 Rb6 14. Ka1 Bg7 15. Nd4 f5 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Rakitic2010"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779392040000
+    },
+    {
+      "pgn": "[Event \"chess.com game 9d722e10-554b-11f1-891e-df6acd01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Rakitic2010\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3003\"]\n[BlackElo \"2990\"]\n1. b3 b6 2. Bb2 Bb7 3. Nf3 g6 4. Bxh8 1-0",
+      "white": {
+        "name": "Rakitic2010"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779391894000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7b9630c1-5549-11f1-a4af-3d1b7901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"JLL2006\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2914\"]\n[BlackElo \"2998\"]\n1. b3 b6 2. Bb2 Bb7 3. e3 Nf6 4. Nf3 h5 5. d4 h4 6. c4 h3 7. g3 g5 8. Rg1 g4 9. Ne5 d6 10. Nd3 Bf3 11. Be2 Bxe2 12. Qxe2 Qd7 13. Nc3 Nc6 14. O-O-O O-O-O 15. e4 Nxd4 0-1",
+      "white": {
+        "name": "JLL2006"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779391028000
+    },
+    {
+      "pgn": "[Event \"chess.com game 18968ffc-5549-11f1-87fc-dc9b6901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Sanyura\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2893\"]\n[BlackElo \"2992\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. Nf3 Nf6 5. g3 Bf5 6. Bg2 e6 7. O-O c6 8. d4 Be7 9. Qe2 O-O 10. Re1 h6 11. a3 Nbd7 12. Bd2 Qc7 13. Bf4 Bd6 14. Ne5 Rfe8 15. Rad1 Rad8 0-1",
+      "white": {
+        "name": "Sanyura"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779390862000
+    },
+    {
+      "pgn": "[Event \"chess.com game f1e8e638-5546-11f1-9f33-90b72101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"Sanyura\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"2986\"]\n[BlackElo \"2906\"]\n1. e4 c5 2. a3 Nc6 3. b4 cxb4 4. axb4 Nxb4 5. c3 Nc6 6. d4 e6 7. d5 exd5 8. exd5 Ne5 9. d6 Nf6 10. Bf4 Qb6 11. Bxe5 Ne4 12. Qe2 f5 13. f3 Bxd6 14. Bxd6 Qxd6 15. fxe4 O-O 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Sanyura"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779389922000
+    },
+    {
+      "pgn": "[Event \"chess.com game aaab238a-5546-11f1-860c-89f36701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"Sanyura\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2912\"]\n[BlackElo \"2980\"]\n1. Nf3 e6 2. g3 g5 3. d3 g4 4. Nd4 h5 5. e4 c5 6. Ne2 Nc6 7. Bg2 h4 8. gxh4 Qxh4 9. Ng3 Nd4 10. c3 Nf3+ 11. Bxf3 gxf3 12. Qxf3 d6 13. Nd2 Bd7 14. Nc4 Bc6 15. Bf4 e5 0-1",
+      "white": {
+        "name": "Sanyura"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779389859000
+    },
+    {
+      "pgn": "[Event \"chess.com game aff724bf-5545-11f1-891e-df6acd01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.21\"]\n[White \"GothamChess\"]\n[Black \"JLL2006\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"2973\"]\n[BlackElo \"2898\"]\n1. e4 e6 2. b3 d5 3. Bb2 dxe4 4. Nc3 Nf6 5. Qe2 Nc6 6. O-O-O Be7 7. Nxe4 Nxe4 8. Qxe4 Bf6 9. d4 Qd5 10. f3 Bd7 11. Bc4 Qxe4 12. fxe4 O-O-O 13. Nf3 h6 14. Rhf1 Rhe8 15. e5 Be7 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "JLL2006"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.21",
+      "createdAt": 1779389403000
+    },
+    {
+      "pgn": "[Event \"chess.com game 91bfb0a3-53de-11f1-9353-39b98501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Javokhir_Sindarov05\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2975\"]\n[BlackElo \"3139\"]\n1. b3 Nf6 2. Bb2 g6 3. e3 Bg7 4. f4 O-O 5. Nf3 d6 6. g3 e5 7. Bg2 e4 8. Nd4 Bg4 9. Ne2 Re8 10. h3 Bxe2 11. Qxe2 Nh5 12. Bxg7 Nxg3 13. Qg4 Nxh1 14. Bb2 f5 15. Qe2 Qh4+ 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779235192000
+    },
+    {
+      "pgn": "[Event \"chess.com game 5727feef-53de-11f1-a650-0f0ccc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Javokhir_Sindarov05\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3134\"]\n[BlackElo \"2980\"]\n1. e4 e5 2. Nf3 Nf6 3. Nxe5 d5 4. d4 Nxe4 5. Bd3 Bd6 6. O-O O-O 7. Re1 f5 8. c4 c6 9. Nc3 Be6 10. Qb3 Bxe5 11. dxe5 Qb6 12. Qxb6 axb6 13. cxd5 cxd5 14. Be3 Nc6 15. Bxb6 Nxe5 1-0",
+      "white": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779235075000
+    },
+    {
+      "pgn": "[Event \"chess.com game 20ac1686-53de-11f1-a76f-e64b2301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Javokhir_Sindarov05\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"2985\"]\n[BlackElo \"3129\"]\n1. e4 c5 2. a3 g6 3. Nc3 Bg7 4. Bc4 Nc6 5. d3 Nf6 6. Ba2 d6 7. h4 Bg4 8. f3 Bd7 9. g4 h5 10. g5 Nh7 11. f4 Bg4 12. Nf3 e6 13. Be3 Nd4 14. Bxd4 Bxd4 15. Rf1 O-O 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779234978000
+    },
+    {
+      "pgn": "[Event \"chess.com game d2d554d8-53dd-11f1-9343-061f6e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Javokhir_Sindarov05\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3141\"]\n[BlackElo \"2973\"]\n1. e4 e5 2. Nf3 Nf6 3. d4 d5 4. dxe5 Nxe4 5. Nbd2 Nc6 6. Nxe4 dxe4 7. Qxd8+ Kxd8 8. Ng5 Nxe5 9. Bf4 Be7 10. O-O-O+ Ke8 11. Nxe4 f6 12. Bxe5 fxe5 13. Bc4 Bf5 14. Ng3 Bg4 15. f3 Bd7 1-0",
+      "white": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779234890000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8d49391b-53dd-11f1-917d-32866601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Javokhir_Sindarov05\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2978\"]\n[BlackElo \"3136\"]\n1. c4 e6 2. Nc3 d5 3. e3 c5 4. cxd5 exd5 5. d4 Nf6 6. Nf3 Nc6 7. Bb5 Be7 8. dxc5 Bxc5 9. O-O O-O 10. b3 Bg4 11. Be2 d4 12. Na4 Bb6 13. Nxb6 Qxb6 14. Nxd4 Bxe2 15. Nxe2 Rfd8 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779234760000
+    },
+    {
+      "pgn": "[Event \"chess.com game 552ee381-53dd-11f1-959f-3e3f1801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Javokhir_Sindarov05\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3131\"]\n[BlackElo \"2983\"]\n1. e4 d5 2. e5 c5 3. c3 Nc6 4. d4 cxd4 5. cxd4 Bf5 6. Nc3 e6 7. h4 Bb4 8. g4 Be4 9. f3 Qa5 10. Qd2 Nge7 11. fxe4 dxe4 12. Bg2 O-O-O 13. Nge2 h5 14. Bxe4 hxg4 15. Qc2 Rxd4 0-1",
+      "white": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779234643000
+    },
+    {
+      "pgn": "[Event \"chess.com game 1662fe2a-53dd-11f1-b32c-e4ed3201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Javokhir_Sindarov05\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2971\"]\n[BlackElo \"3143\"]\n1. e4 c5 2. a3 g6 3. Nc3 Bg7 4. Bc4 Nc6 5. d3 e6 6. Ba2 Nge7 7. Bd2 b6 8. h4 h6 9. h5 g5 10. f4 gxf4 11. Bxf4 d5 12. Nf3 Ba6 13. Qd2 Qd7 14. O-O-O O-O-O 15. Rde1 d4 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779234548000
+    },
+    {
+      "pgn": "[Event \"chess.com game c8f277d3-53dc-11f1-917d-32866601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Javokhir_Sindarov05\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3138\"]\n[BlackElo \"2976\"]\n1. e4 e6 2. Qe2 Nc6 3. Nf3 e5 4. g3 Bc5 5. Bg2 d6 6. O-O Bg4 7. c3 Bb6 8. Na3 a6 9. Nc4 Ba7 10. Ne3 h5 11. h3 Be6 12. Rd1 g5 13. h4 Bg4 14. Nxg4 hxg4 15. Nxg5 Qd7 1-0",
+      "white": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779234443000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8f8cdcca-53dc-11f1-b32c-e4ed3201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Javokhir_Sindarov05\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"2981\"]\n[BlackElo \"3133\"]\n1. c4 Nf6 2. Nc3 g6 3. d4 Bg7 4. e4 O-O 5. f4 d6 6. Nf3 c5 7. d5 e6 8. dxe6 Bxe6 9. Bd3 Bg4 10. O-O Nc6 11. h3 Bxf3 12. Qxf3 Nd4 13. Qf2 Re8 14. Be3 a6 15. Rad1 Nd7 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779234312000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7397bb01-53dc-11f1-9343-061f6e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Javokhir_Sindarov05\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3145\"]\n[BlackElo \"2969\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. d4 Nf6 5. Nf3 Bf5 6. Bc4 e6 7. O-O Bb4 8. Ne2 O-O 9. Ng3 Bg4 10. h3 Bxf3 11. Qxf3 Nc6 12. c3 Be7 13. Re1 Nxd4 14. Qxb7 Nc2 15. b3 0-1",
+      "white": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779234216000
+    },
+    {
+      "pgn": "[Event \"chess.com game 4e28e7d2-53dc-11f1-b32c-e4ed3201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Javokhir_Sindarov05\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2957\"]\n[BlackElo \"3157\"]\n1. c4 e6 2. Nc3 d5 3. e3 Nf6 4. Nf3 Be7 5. b3 O-O 6. Bb2 c5 7. cxd5 exd5 8. d4 Nc6 9. Be2 Ne4 10. O-O Bf6 11. Rc1 cxd4 12. Nxe4 dxe4 13. Nxd4 Nxd4 14. Bxd4 Bxd4 15. Qxd4 Qxd4 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779234170000
+    },
+    {
+      "pgn": "[Event \"chess.com game 05aa8e6b-53dc-11f1-b32c-e4ed3201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Javokhir_Sindarov05\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3153\"]\n[BlackElo \"2961\"]\n1. Nf3 g6 2. c4 Bg7 3. d4 d6 4. g3 Nf6 5. Bg2 O-O 6. Nc3 c5 7. O-O Na6 8. b3 Bg4 9. Bb2 Rc8 10. Qd2 Bxf3 11. Bxf3 cxd4 12. Qxd4 Nc5 13. Qd2 Qd7 14. Rfd1 Qh3 15. Bg2 Qh5 1-0",
+      "white": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779234107000
+    },
+    {
+      "pgn": "[Event \"chess.com game c4d3e3dc-53db-11f1-a650-0f0ccc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Javokhir_Sindarov05\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2965\"]\n[BlackElo \"3149\"]\n1. d4 Nf6 2. Bg5 c5 3. Nc3 e6 4. d5 h6 5. Bf4 Nxd5 6. Nxd5 exd5 7. Qxd5 Nc6 8. Nf3 d6 9. O-O-O Be6 10. Qd2 d5 11. e3 Be7 12. h4 O-O 13. g4 Bxg4 14. Be2 Bf6 15. Rhg1 Qb6 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779233985000
+    },
+    {
+      "pgn": "[Event \"chess.com game 94d55d05-53db-11f1-9353-39b98501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Javokhir_Sindarov05\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3145\"]\n[BlackElo \"2969\"]\n1. Nf3 g6 2. c4 Bg7 3. d4 d6 4. Nc3 Bg4 5. g3 Nc6 6. Be3 Nh6 7. Bxh6 Bxh6 8. Bg2 Bg7 9. e3 e5 10. d5 Ne7 11. h3 Bc8 12. O-O O-O 13. Rc1 f5 14. Ng5 h6 15. Ne6 Bxe6 1-0",
+      "white": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779233877000
+    },
+    {
+      "pgn": "[Event \"chess.com game 5553e25b-53db-11f1-a795-afbd8d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Javokhir_Sindarov05\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2973\"]\n[BlackElo \"3141\"]\n1. d4 d5 2. Bg5 Nf6 3. Bxf6 exf6 4. e3 c6 5. g3 Bd6 6. Bg2 h5 7. h4 Bg4 8. Ne2 O-O 9. Nd2 Re8 10. O-O Nd7 11. c4 dxc4 12. Nxc4 Bc7 13. Re1 Nf8 14. Qc2 Ne6 15. b4 Qe7 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Javokhir_Sindarov05"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779233795000
+    },
+    {
+      "pgn": "[Event \"chess.com game e64a22a4-53da-11f1-b35c-3f410401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"RaunakSadhwani2005\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2978\"]\n[BlackElo \"3123\"]\n1. e4 e6 2. b3 d5 3. Bb2 dxe4 4. Nc3 Nf6 5. Qe2 Nc6 6. O-O-O Be7 7. Kb1 Nd4 8. Qe1 a5 9. a4 e5 10. Nxe4 Bf5 11. Bd3 Bg6 12. Nf3 Nxf3 13. gxf3 O-O 14. h4 Bh5 15. Rh3 Re8 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "RaunakSadhwani2005"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779233620000
+    },
+    {
+      "pgn": "[Event \"chess.com game b0589513-53d9-11f1-9343-061f6e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"RaunakSadhwani2005\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3106\"]\n[BlackElo \"2983\"]\n1. Nf3 e6 2. b3 Nf6 3. Bb2 g6 4. e4 Bg7 5. e5 Nd5 6. d4 Nb6 7. c4 d5 8. Nc3 dxc4 9. bxc4 O-O 10. h4 Na6 11. h5 c5 12. d5 exd5 13. cxd5 Nb4 14. d6 Bf5 15. Rc1 c4 1-0",
+      "white": {
+        "name": "RaunakSadhwani2005"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779233117000
+    },
+    {
+      "pgn": "[Event \"chess.com game 19c670bd-53d9-11f1-b35c-3f410401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"RaunakSadhwani2005\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2989\"]\n[BlackElo \"3100\"]\n1. d4 c5 2. Nc3 cxd4 3. Qxd4 e6 4. Nf3 Nc6 5. Qd3 d5 6. a3 Nf6 7. Bg5 Be7 8. e4 d4 9. Ne2 e5 10. Bxf6 Bxf6 11. Ng3 O-O 12. Be2 Be6 13. O-O Qb6 14. Rab1 Rac8 15. Nh5 Be7 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "RaunakSadhwani2005"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779232851000
+    },
+    {
+      "pgn": "[Event \"chess.com game f5f9dc6e-53d8-11f1-9353-39b98501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"RaunakSadhwani2005\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3094\"]\n[BlackElo \"2995\"]\n1. d4 f5 2. Nf3 Nf6 3. Bf4 e6 4. e3 b6 5. h3 Bb7 6. Bh2 Bd6 7. Bxd6 cxd6 8. Be2 O-O 9. O-O Ne4 10. c4 Qf6 11. Nbd2 Nc6 12. Nxe4 fxe4 13. Nd2 Ne7 14. b4 Nf5 15. a4 Qg5 0-1",
+      "white": {
+        "name": "RaunakSadhwani2005"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779232730000
+    },
+    {
+      "pgn": "[Event \"chess.com game c01021e4-53d8-11f1-a650-0f0ccc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Rutricks\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2984\"]\n[BlackElo \"3033\"]\n1. d4 g6 2. h4 Nf6 3. h5 Nxh5 4. Rxh5 gxh5 5. e4 d5 6. e5 Bg4 7. Be2 Bxe2 8. Qxe2 Qd7 9. Qxh5 Qe6 10. Nc3 c6 11. Nf3 Qg6 12. Qh3 e6 13. Bg5 Qxc2 14. Bf6 Rg8 15. Kf1 Qxb2 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Rutricks"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779232663000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7a47c093-53d8-11f1-959f-3e3f1801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Rutricks\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3026\"]\n[BlackElo \"2991\"]\n1. e4 e6 2. Nf3 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ gxf6 6. d4 Nc6 7. g3 e5 8. Be2 e4 9. Nh4 Nxd4 10. Be3 Nxe2 11. Qxe2 c6 12. Qc4 Qd5 13. Qc3 Be6 14. Qxf6 Rg8 15. Rd1 Qa5+ 1-0",
+      "white": {
+        "name": "Rutricks"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779232580000
+    },
+    {
+      "pgn": "[Event \"chess.com game 4fa8a630-53d8-11f1-bf21-9ad37101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Rutricks\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"2999\"]\n[BlackElo \"3018\"]\n1. Na3 g6 2. c3 Bg7 3. Nc2 d6 4. d4 Bg4 5. f3 Bc8 6. e4 Nc6 7. Be3 e5 8. d5 Nce7 9. c4 Bh6 10. Qd2 Bxe3 11. Qxe3 h5 12. h4 a5 13. c5 Nf6 14. Nh3 Nd7 15. cxd6 cxd6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Rutricks"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779232464000
+    },
+    {
+      "pgn": "[Event \"chess.com game 1ad1bc39-53d8-11f1-9353-39b98501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Rutricks\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3027\"]\n[BlackElo \"2990\"]\n1. e4 c6 2. Nf3 Na6 3. d4 Nc7 4. Bd3 d5 5. e5 Bg4 6. h3 Bxf3 7. Qxf3 e6 8. O-O Ne7 9. Qe2 c5 10. c3 cxd4 11. cxd4 Nc6 12. Be3 Nb4 13. Bb5+ Nxb5 14. Qxb5+ Qd7 15. Qe2 Nc6 1-0",
+      "white": {
+        "name": "Rutricks"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779232391000
+    },
+    {
+      "pgn": "[Event \"chess.com game 14405df3-53d8-11f1-bf21-9ad37101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Rutricks\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2997\"]\n[BlackElo \"3020\"]\n1. d4 g6 2. Bh6 Nxh6 3. e3 Bg7 4. h4 d6 5. h5 Bg4 6. c3 Bxd1 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Rutricks"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779232303000
+    },
+    {
+      "pgn": "[Event \"chess.com game 072cdaa1-53d7-11f1-b8e8-c9b05901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Omid-Khaledi\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2833\"]\n[BlackElo \"2873\"]\n1. e4 e6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ gxf6 6. Nf3 Nc6 7. Bf4 Bd6 8. Qd2 Ne7 9. O-O-O b6 10. Bxd6 Qxd6 11. Qh6 Ng6 12. d5 e5 13. Bb5+ Ke7 14. Rhe1 Bg4 15. Bc6 Rad8 1-0",
+      "white": {
+        "name": "Omid-Khaledi"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779232159000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3c1630bb-53d6-11f1-b32c-e4ed3201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Omid-Khaledi\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2882\"]\n[BlackElo \"2824\"]\n1. e4 c5 2. a3 e6 3. b4 cxb4 4. axb4 Bxb4 5. c3 Be7 6. d4 Nf6 7. e5 Nd5 8. Qg4 g6 9. Bd3 d6 10. f4 h5 11. Qe2 Bd7 12. Nf3 Bc6 13. O-O h4 14. c4 Nb4 15. Nc3 Nxd3 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Omid-Khaledi"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779231832000
+    },
+    {
+      "pgn": "[Event \"chess.com game 95222c20-53d5-11f1-bf21-9ad37101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Omid-Khaledi\"]\n[Black \"GothamChess\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"180\"]\n[WhiteElo \"2831\"]\n[BlackElo \"2875\"]\n1. e4 Nf6 2. e5 Nd5 3. d4 d6 4. Nf3 dxe5 5. Nxe5 Nd7 6. Bc4 Nxe5 7. dxe5 Be6 8. O-O c6 9. Qf3 Qc7 10. Re1 g6 11. Nc3 Rd8 12. Nxd5 Bxd5 13. Bxd5 Rxd5 14. Bf4 e6 15. c4 Rd4 1/2-1/2",
+      "white": {
+        "name": "Omid-Khaledi"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779231498000
+    },
+    {
+      "pgn": "[Event \"chess.com game c73ea715-53d4-11f1-b8e8-c9b05901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Omid-Khaledi\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2876\"]\n[BlackElo \"2830\"]\n1. d4 Nf6 2. Bg5 d5 3. Nd2 g6 4. Bxf6 exf6 5. e3 c6 6. Ngf3 Nd7 7. g3 f5 8. Bg2 Bd6 9. c4 Nf6 10. cxd5 Nxd5 11. O-O O-O 12. Nc4 Bc7 13. Rc1 Be6 14. Nce5 a5 15. a3 Ra6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Omid-Khaledi"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779231218000
+    },
+    {
+      "pgn": "[Event \"chess.com game c84ead1d-53d3-11f1-9353-39b98501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"slidingknight2775\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2884\"]\n[BlackElo \"2869\"]\n1. Nf3 g6 2. g3 Bg7 3. d4 d6 4. Bg2 Bd7 5. h4 h6 6. c4 Qc8 7. Nc3 c5 8. Be3 Na6 9. Rc1 Nf6 10. dxc5 Nxc5 11. O-O Bh3 12. Bd4 Bxg2 13. Kxg2 O-O 14. b3 b6 15. Qd2 Nce4 1-0",
+      "white": {
+        "name": "slidingknight2775"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779230801000
+    },
+    {
+      "pgn": "[Event \"chess.com game e9d4a2c3-53d2-11f1-959f-3e3f1801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Mattechecetmatt\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2867\"]\n[BlackElo \"2877\"]\n1. d4 g6 2. Nf3 Bg7 3. c4 f5 4. Nc3 Nf6 5. b3 d6 6. Bb2 O-O 7. e3 Nc6 8. d5 Nb4 9. Nd4 e5 10. dxe6 c6 11. Be2 Qe7 12. O-O Bxe6 13. Nxe6 Qxe6 14. Qd2 Rad8 15. a3 Na6 1-0",
+      "white": {
+        "name": "Mattechecetmatt"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779230444000
+    },
+    {
+      "pgn": "[Event \"chess.com game 944a225d-53d2-11f1-b35c-3f410401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Mattechecetmatt\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2886\"]\n[BlackElo \"2858\"]\n1. c4 Nf6 2. Nc3 g6 3. e4 d6 4. d4 Bg7 5. f4 O-O 6. Nf3 c5 7. d5 e6 8. dxe6 Bxe6 9. Bd3 Nc6 10. f5 Bc8 11. O-O Ng4 12. Nd5 Nge5 13. Nxe5 Nxe5 14. f6 Bh8 15. Ne7+ Qxe7 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Mattechecetmatt"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779230074000
+    },
+    {
+      "pgn": "[Event \"chess.com game b92f9692-53d1-11f1-bf21-9ad37101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Mattechecetmatt\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2866\"]\n[BlackElo \"2878\"]\n1. d4 Na6 2. e4 c6 3. Nf3 d5 4. Nc3 dxe4 5. Nxe4 Nf6 6. Nxf6+ gxf6 7. g3 Bf5 8. Bg2 Nb4 9. O-O e6 10. Ne1 h5 11. a3 Nd5 12. h4 Bg4 13. Qd3 Qc7 14. c4 Ne7 15. Bf4 Qd7 0-1",
+      "white": {
+        "name": "Mattechecetmatt"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779229929000
+    },
+    {
+      "pgn": "[Event \"chess.com game 4fd3d933-53d1-11f1-bf21-9ad37101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Mattechecetmatt\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2870\"]\n[BlackElo \"2874\"]\n1. d4 Nf6 2. Bg5 d5 3. Nd2 Nbd7 4. e3 c5 5. c3 e6 6. Bd3 Bd6 7. f4 h6 8. Bxf6 Nxf6 9. Ngf3 cxd4 10. cxd4 Bd7 11. Ne5 Qb6 12. Rb1 Rc8 13. O-O Bb5 14. Qe2 Bxd3 15. Qxd3 O-O 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Mattechecetmatt"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779229561000
+    },
+    {
+      "pgn": "[Event \"chess.com game 26806ea9-53d0-11f1-917d-32866601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Pudj_prime\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2878\"]\n[BlackElo \"2792\"]\n1. e4 c5 2. a3 Nc6 3. b4 cxb4 4. axb4 Nxb4 5. c3 Nc6 6. d4 d5 7. exd5 Qxd5 8. Na3 Nf6 9. Nb5 Qd8 10. d5 Ne5 11. Bf4 Nfd7 12. Qd4 f6 13. Nf3 Kf7 14. Nxe5+ Nxe5 15. Bxe5 fxe5 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Pudj_prime"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779229233000
+    },
+    {
+      "pgn": "[Event \"chess.com game 830def14-53cf-11f1-b8e8-c9b05901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"AmericanPatzer3\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2891\"]\n[BlackElo \"2872\"]\n1. e4 e6 2. d4 d5 3. e5 c5 4. c3 Ne7 5. Nf3 Nec6 6. h4 h6 7. h5 b6 8. a4 Be7 9. Bb5 a6 10. Bd3 c4 11. Bc2 Bb7 12. O-O b5 13. axb5 axb5 14. Rxa8 Bxa8 15. Nh2 b4 0-1",
+      "white": {
+        "name": "AmericanPatzer3"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779228876000
+    },
+    {
+      "pgn": "[Event \"chess.com game b26dbb10-53ce-11f1-b35c-3f410401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Agent-JL\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2847\"]\n[BlackElo \"2863\"]\n1. b3 b6 2. c4 Bb7 3. Bb2 Nf6 4. d3 d5 5. Nd2 d4 6. Ngf3 c5 7. g3 e5 8. Bg2 Bd6 9. O-O O-O 10. a3 Qc7 11. e4 g6 12. h3 Nbd7 13. Qe2 Rfe8 14. Nh2 Nh5 15. Ng4 Kg7 1-0",
+      "white": {
+        "name": "Agent-JL"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779228567000
+    },
+    {
+      "pgn": "[Event \"chess.com game d28b6e5f-53cd-11f1-959f-3e3f1801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Agent-JL\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"180\"]\n[WhiteElo \"2872\"]\n[BlackElo \"2838\"]\n1. d4 Nf6 2. Bg5 d5 3. Nd2 c5 4. e3 e6 5. c3 Nbd7 6. Bd3 Bd6 7. f4 Qc7 8. Bxf6 Nxf6 9. Ngf3 cxd4 10. cxd4 Bd7 11. Ne5 O-O 12. Rc1 Qa5 13. O-O Bb5 14. Nb3 Qa4 15. Nc5 Qxd1 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Agent-JL"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779228263000
+    },
+    {
+      "pgn": "[Event \"chess.com game 17b820d6-53cd-11f1-9353-39b98501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Agent-JL\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2837\"]\n[BlackElo \"2873\"]\n1. e4 c6 2. Ne2 d5 3. e5 h5 4. h3 h4 5. d4 c5 6. c3 Nc6 7. Be3 cxd4 8. cxd4 Nh6 9. Nbc3 Nf5 10. Qd2 Nxe3 11. Qxe3 e6 12. Rd1 Qb6 13. Qd2 g6 14. Na4 Qd8 15. a3 Bh6 0-1",
+      "white": {
+        "name": "Agent-JL"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779227887000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2dcb5492-53cc-11f1-b35c-3f410401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"brm72\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2865\"]\n[BlackElo \"2812\"]\n1. e4 c6 2. d4 d5 3. f3 e6 4. Nc3 Qb6 5. a3 Nd7 6. Be3 Ngf6 7. e5 Nxe5 8. Qd2 Ned7 9. Bd3 Bd6 10. Nge2 O-O 11. O-O Qc7 12. f4 a6 13. b4 b6 14. Ng3 c5 15. b5 cxd4 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "brm72"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779227560000
+    },
+    {
+      "pgn": "[Event \"chess.com game 810523b9-53cb-11f1-b32c-e4ed3201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"brm72\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2802\"]\n[BlackElo \"2875\"]\n1. e4 e6 2. d4 d5 3. e5 Ne7 4. c3 b6 5. Nf3 Bb7 6. Bd3 c5 7. h4 h6 8. h5 Qc8 9. Be3 Ba6 10. a4 Bxd3 11. Qxd3 Qa6 12. Qd1 Nf5 13. Na3 Nxe3 14. fxe3 Qc8 15. a5 Nc6 0-1",
+      "white": {
+        "name": "brm72"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779227180000
+    },
+    {
+      "pgn": "[Event \"chess.com game 93ba1179-53ca-11f1-9343-061f6e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"EchecsEnFrance\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2825\"]\n[BlackElo \"2868\"]\n1. e4 b6 2. a4 a6 3. d4 Bb7 4. Bd3 e6 5. Nc3 Bb4 6. Nf3 d6 7. O-O Bxc3 8. bxc3 Nd7 9. a5 b5 10. Re1 Ne7 11. c4 bxc4 12. Bxc4 d5 13. exd5 Nxd5 14. Bg5 N7f6 15. Ne5 O-O 1-0",
+      "white": {
+        "name": "EchecsEnFrance"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779226852000
+    },
+    {
+      "pgn": "[Event \"chess.com game 03d955ad-53ca-11f1-b32c-e4ed3201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"EchecsEnFrance\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2877\"]\n[BlackElo \"2816\"]\n1. c4 Nc6 2. Nc3 d6 3. d4 g6 4. e4 Bg7 5. d5 Nd4 6. Nge2 c5 7. Nxd4 Bxd4 8. Be2 Nf6 9. Bd2 h5 10. h3 h4 11. Qc2 Nh5 12. O-O-O Bd7 13. Bxh5 Rxh5 14. Ne2 Bxf2 15. Rhf1 Bd4 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "EchecsEnFrance"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779226488000
+    },
+    {
+      "pgn": "[Event \"chess.com game 26977d52-53c9-11f1-bf21-9ad37101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"EchecsEnFrance\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2823\"]\n[BlackElo \"2870\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. g3 Nf6 5. Bg2 c6 6. Nge2 h5 7. h3 h4 8. g4 e5 9. d4 Bb4 10. dxe5 Qxe5 11. O-O Nxg4 12. hxg4 Bxg4 13. Qd4 Qxd4 14. Nxd4 h3 15. Bf3 h2+ 1-0",
+      "white": {
+        "name": "EchecsEnFrance"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779226249000
+    },
+    {
+      "pgn": "[Event \"chess.com game 9d0103b5-53c8-11f1-bf21-9ad37101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"EchecsEnFrance\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2879\"]\n[BlackElo \"2814\"]\n1. e4 c5 2. a3 g6 3. Nc3 Bg7 4. Bc4 Nc6 5. d3 e6 6. Ba2 Nge7 7. Bd2 b6 8. h4 h6 9. h5 g5 10. f4 gxf4 11. Bxf4 d6 12. Nf3 Nd4 13. Nxd4 Bxd4 14. Qd2 Ng8 15. O-O-O Bb7 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "EchecsEnFrance"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779225878000
+    },
+    {
+      "pgn": "[Event \"chess.com game bb211288-53c7-11f1-a650-0f0ccc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"EchecsEnFrance\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2821\"]\n[BlackElo \"2872\"]\n1. e4 c6 2. Ne2 Na6 3. d4 d5 4. Nbc3 dxe4 5. Nxe4 Nf6 6. Nxf6+ gxf6 7. h4 Bg4 8. f3 Bf5 9. g4 Be6 10. Nf4 Qc7 11. Bxa6 Qa5+ 12. Kf2 Qxa6 13. Nxe6 fxe6 14. Re1 h5 15. g5 O-O-O 1-0",
+      "white": {
+        "name": "EchecsEnFrance"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779225618000
+    },
+    {
+      "pgn": "[Event \"chess.com game 505a7a5d-53c7-11f1-a650-0f0ccc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"EchecsEnFrance\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2882\"]\n[BlackElo \"2811\"]\n1. Na3 e5 2. c3 Nf6 3. Nc2 d5 4. d4 Nc6 5. dxe5 Nxe5 6. Nf3 Qe7 7. Nxe5 Qxe5 8. g3 Qe4 9. f3 Qe7 10. Bg2 c6 11. Be3 g6 12. Qd2 Bg7 13. Bh6 Bxh6 14. Qxh6 Bf5 15. Nd4 O-O-O 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "EchecsEnFrance"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779225269000
+    },
+    {
+      "pgn": "[Event \"chess.com game 4073202d-53c7-11f1-8420-87272701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"EchecsEnFrance\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2818\"]\n[BlackElo \"2875\"]\n1. e4 e6 2. Qe2 Nc6 3. Nf3 e5 4. c3 Bc5 5. b4 1-0",
+      "white": {
+        "name": "EchecsEnFrance"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779225085000
+    },
+    {
+      "pgn": "[Event \"chess.com game cde36e12-53c6-11f1-b35c-3f410401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"bach12345_lfay\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2885\"]\n[BlackElo \"2811\"]\n1. Na3 b6 2. c3 Bb7 3. Nc2 e6 4. d4 f5 5. f3 Nf6 6. Nh3 Be7 7. Nf2 O-O 8. e3 d5 9. Bd3 Bd6 10. Qe2 Nbd7 11. e4 fxe4 12. fxe4 e5 13. Bg5 Qe8 14. Bxf6 Nxf6 15. dxe5 Bxe5 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "bach12345_lfay"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779225058000
+    },
+    {
+      "pgn": "[Event \"chess.com game ef7dfd5a-53c5-11f1-b8e8-c9b05901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"GreyMetric\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2895\"]\n[BlackElo \"2893\"]\n1. d4 Nf6 2. Bg5 d5 3. Nd2 c5 4. e3 Nc6 5. c3 Qb6 6. Qb3 c4 7. Qc2 e6 8. Bxf6 gxf6 9. e4 Bd7 10. g3 h5 11. h4 O-O-O 12. Bg2 Qa5 13. Ne2 Bd6 14. O-O Rhg8 15. b3 cxb3 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "GreyMetric"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779224839000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0fcecdc5-53c5-11f1-8420-87272701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GreyMetric\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2885\"]\n[BlackElo \"2903\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. Bc4 Nf6 5. d3 Bg4 6. f3 Bd7 7. Bd2 Qb6 8. Qe2 e6 9. O-O-O Nc6 10. Na4 Nd4 11. Nxb6 Nxe2+ 12. Nxe2 axb6 13. f4 g6 14. Nd4 c6 15. Rhe1 Bg7 0-1",
+      "white": {
+        "name": "GreyMetric"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779224499000
+    },
+    {
+      "pgn": "[Event \"chess.com game 78b358ee-53bd-11f1-b32c-e4ed3201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Boundless_Strike\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3005\"]\n[BlackElo \"2951\"]\n1. e4 d5 2. exd5 Nf6 3. Nf3 Bg4 4. Be2 Qxd5 5. d4 Nc6 6. O-O O-O-O 7. Be3 Qh5 8. h3 e5 9. c3 e4 10. hxg4 Nxg4 11. Nh4 f5 12. Bxg4 fxg4 13. g3 Ne5 14. dxe5 Rxd1 15. Rxd1 Be7 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Boundless_Strike"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779220986000
+    },
+    {
+      "pgn": "[Event \"chess.com game 62000a57-53bd-11f1-a650-0f0ccc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Boundless_Strike\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2941\"]\n[BlackElo \"3015\"]\n1. e4 e6 2. d4 d5 3. Nc3 dxe4 4. f3 Nf6 5. fxe4 c5 6. d5 exd5 7. exd5 Bd6 8. Qe2+ Qe7 9. Nb5 Qxe2+ 10. Bxe2 Kd7 11. Nxd6 Kxd6 12. Bf4+ Kxd5 13. O-O-O+ Kc6 14. Rd5 Nxd5 15. Bf3 Be6 0-1",
+      "white": {
+        "name": "Boundless_Strike"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779220864000
+    },
+    {
+      "pgn": "[Event \"chess.com game 46a1a92b-53bd-11f1-b32c-e4ed3201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"GothamChess\"]\n[Black \"Boundless_Strike\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3008\"]\n[BlackElo \"2948\"]\n1. Na3 e5 2. c3 d5 3. Nc2 Nc6 4. d4 a6 5. dxe5 f6 6. Nf3 fxe5 7. e4 dxe4 8. Qxd8+ Kxd8 9. Ng5 Nh6 10. Nxe4 Bf5 11. Bg5+ Be7 12. O-O-O+ Ke8 13. Bxh6 Bxe4 14. Bxg7 Bg5+ 15. Ne3 Rg8 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Boundless_Strike"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779220826000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2cc972e5-53bd-11f1-b8e8-c9b05901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Boundless_Strike\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"2938\"]\n[BlackElo \"3018\"]\n1. d4 b6 2. e4 Bb7 3. Bg5 h6 4. Bh4 g5 5. Bg3 Bg7 6. Nc3 d6 7. h4 e6 8. hxg5 Qxg5 9. Nf3 Qg6 10. Nh4 Qg5 11. Nf3 Qg6 12. Bb5+ c6 13. Bd3 d5 14. e5 Qg4 15. Rh4 Qxh4 1-0",
+      "white": {
+        "name": "Boundless_Strike"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779220780000
+    },
+    {
+      "pgn": "[Event \"chess.com game e4ee37d6-53bc-11f1-a650-0f0ccc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Swiss_Fighter\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3053\"]\n[BlackElo \"3028\"]\n1. g3 h5 2. Bg2 h4 3. d4 d6 4. e4 Nc6 5. Ne2 h3 6. Bf3 e5 7. d5 Qf6 8. Nec3 Nd4 9. Be2 Nxe2 10. Qxe2 Qg6 11. f3 a6 12. Be3 f5 13. Nd2 Nf6 14. O-O-O Bd7 15. Kb1 O-O-O 1-0",
+      "white": {
+        "name": "Swiss_Fighter"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779220687000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8bf963ba-53bc-11f1-8420-87272701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"M4444710\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2926\"]\n[BlackElo \"3036\"]\n1. Nf3 g6 2. c4 Bg7 3. Nc3 d6 4. d4 Bg4 5. e4 Bxf3 6. gxf3 Nc6 7. Be3 e5 8. d5 Nd4 9. f4 Ne7 10. h4 h5 11. Rg1 c5 12. f5 Bf6 13. Bg5 Bxg5 14. Rxg5 gxf5 15. Rxh5 Kd7 0-1",
+      "white": {
+        "name": "M4444710"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.19",
+      "createdAt": 1779220511000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0eae9aeb-5249-11f1-91f6-03617901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"MolecularChemist\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3030\"]\n[BlackElo \"3100\"]\n1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nf6 5. Nxf6+ exf6 6. Nf3 Bd6 7. Be2 O-O 8. O-O Re8 9. h3 Nd7 10. c4 Nf8 11. b3 Ng6 12. Bb2 Nf4 13. Re1 Bf5 14. Bf1 Qd7 15. Rxe8+ Rxe8 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "MolecularChemist"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779061028000
+    },
+    {
+      "pgn": "[Event \"chess.com game d5f608df-5248-11f1-adfa-f7014301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"MolecularChemist\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3093\"]\n[BlackElo \"3037\"]\n1. Nf3 e6 2. d3 Nf6 3. Nbd2 d5 4. g3 d4 5. Bg2 c5 6. O-O Nc6 7. c3 Be7 8. cxd4 cxd4 9. a3 O-O 10. b4 a6 11. Bb2 e5 12. Nc4 Bd6 13. Rc1 Bb8 14. Nfd2 Nd5 15. Ne4 Be6 1-0",
+      "white": {
+        "name": "MolecularChemist"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779060913000
+    },
+    {
+      "pgn": "[Event \"chess.com game a252e3dd-5248-11f1-83b6-71760f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"whiteshark01\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3044\"]\n[BlackElo \"3151\"]\n1. b3 e6 2. Bb2 Nf6 3. e3 d6 4. f4 Nbd7 5. Nf3 g6 6. g4 Bg7 7. g5 Nh5 8. Bxg7 Nxg7 9. h4 h6 10. Nc3 hxg5 11. Nxg5 d5 12. Qe2 c6 13. O-O-O Qe7 14. Kb2 Nf5 15. h5 Ng3 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "whiteshark01"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779060816000
+    },
+    {
+      "pgn": "[Event \"chess.com game 5d8c3a31-5248-11f1-a546-1ad65601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"whiteshark01\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3145\"]\n[BlackElo \"3050\"]\n1. Nf3 g6 2. e4 Bg7 3. d4 d6 4. Be3 e6 5. Qd2 h6 6. h4 Nd7 7. Bd3 Ngf6 8. c3 Ng4 9. Bf4 e5 10. Bg3 Ngf6 11. dxe5 dxe5 12. Nxe5 Nh5 13. Nxd7 Qxd7 14. Bh2 b6 15. Be2 Nf6 1-0",
+      "white": {
+        "name": "whiteshark01"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779060731000
+    },
+    {
+      "pgn": "[Event \"chess.com game 180ffd28-5248-11f1-b998-38a2dc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"whiteshark01\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3056\"]\n[BlackElo \"3139\"]\n1. d4 d6 2. Bg5 c6 3. Nc3 Nd7 4. e4 Ngf6 5. f4 Qb6 6. Rb1 e5 7. Nf3 Be7 8. Bc4 h6 9. Bxf6 Bxf6 10. fxe5 dxe5 11. d5 O-O 12. Qe2 Nc5 13. Qf2 Bg4 14. O-O Bxf3 15. gxf3 Rad8 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "whiteshark01"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779060612000
+    },
+    {
+      "pgn": "[Event \"chess.com game ceea672f-5247-11f1-8643-164e0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"whiteshark01\"]\n[Black \"GothamChess\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"3133\"]\n[BlackElo \"3062\"]\n1. d4 b6 2. c4 Bb7 3. Nc3 e6 4. a3 f5 5. Nf3 Nf6 6. Bg5 Be7 7. Bxf6 Bxf6 8. g3 O-O 9. Bg2 Qe7 10. O-O d6 11. Qd3 g6 12. e4 Nd7 13. Rfe1 Qg7 14. exf5 exf5 15. Re2 Rae8 1/2-1/2",
+      "white": {
+        "name": "whiteshark01"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779060500000
+    },
+    {
+      "pgn": "[Event \"chess.com game 837e1601-5247-11f1-92d2-ca68c301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"whiteshark01\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3060\"]\n[BlackElo \"3135\"]\n1. e4 d6 2. d4 Nf6 3. Nc3 e5 4. Nge2 Nbd7 5. h3 c6 6. g4 d5 7. exd5 Nxd5 8. Bg2 Nxc3 9. Nxc3 Be7 10. d5 cxd5 11. Nxd5 O-O 12. Nxe7+ Qxe7 13. O-O f6 14. Qd5+ Kh8 15. Be3 Nb6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "whiteshark01"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779060376000
+    },
+    {
+      "pgn": "[Event \"chess.com game 5139bd43-5247-11f1-a546-1ad65601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"whiteshark01\"]\n[Black \"GothamChess\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"3145\"]\n[BlackElo \"3050\"]\n1. g3 h5 2. Bg2 h4 3. gxh4 Rxh4 4. d4 c5 5. Nf3 Rg4 6. Bh3 Rg6 7. Nc3 cxd4 8. Nxd4 a6 9. Bf5 Rf6 10. Bg5 Rd6 11. Bf4 Rf6 12. Be5 Rh6 13. Qd2 d6 14. Bxc8 dxe5 15. Bxb7 exd4 1/2-1/2",
+      "white": {
+        "name": "whiteshark01"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779060250000
+    },
+    {
+      "pgn": "[Event \"chess.com game 19bb58e1-5247-11f1-b30e-91219a01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"whiteshark01\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3048\"]\n[BlackElo \"3147\"]\n1. d4 e6 2. Nf3 c5 3. Bg5 Qb6 4. dxc5 Bxc5 5. e3 h6 6. Bf4 Nf6 7. Nbd2 O-O 8. a3 d5 9. b4 Be7 10. c4 Qd8 11. Be2 a5 12. b5 b6 13. O-O Bb7 14. Ne5 Nfd7 15. Ndf3 Bf6 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "whiteshark01"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779060167000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0ed8bf6e-5246-11f1-acc4-7be18901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"c63_amg\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2963\"]\n[BlackElo \"2895\"]\n1. e4 e5 2. Nf3 Nf6 3. d4 d5 4. dxe5 Nxe4 5. Nbd2 Nc5 6. Be2 Be7 7. O-O O-O 8. Re1 Ne6 9. Nf1 c5 10. c3 Nc6 11. Ne3 d4 12. Nf5 dxc3 13. bxc3 Qa5 14. Qc2 Qc7 15. Bd3 g6 0-1",
+      "white": {
+        "name": "c63_amg"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779059997000
+    },
+    {
+      "pgn": "[Event \"chess.com game 437a0fff-5245-11f1-8643-164e0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"Anton_Zlatkov\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2885\"]\n[BlackElo \"2885\"]\n1. e4 c5 2. a3 g6 3. Nc3 Bg7 4. Bc4 Nc6 5. d3 e6 6. Ba2 Nf6 7. h4 h6 8. h5 g5 9. f4 gxf4 10. Bxf4 d5 11. Nf3 O-O 12. Qd2 dxe4 13. Bxh6 exf3 14. gxf3 Nd4 15. O-O-O Nf5 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Anton_Zlatkov"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779059586000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8dcd1f9a-5244-11f1-91f6-03617901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"Tactican_228\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2877\"]\n[BlackElo \"2869\"]\n1. d4 Nf6 2. Bg5 c5 3. Nc3 cxd4 4. Qxd4 Nc6 5. Qh4 Qa5 6. Bd2 Qh5 7. Qxh5 Nxh5 8. e4 Nf6 9. Nb5 Kd8 10. Nc3 d6 11. Bc4 Be6 12. Bxe6 fxe6 13. f4 g6 14. Nf3 Bg7 15. e5 dxe5 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Tactican_228"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779059258000
+    },
+    {
+      "pgn": "[Event \"chess.com game b06b3bfe-5243-11f1-94da-11d9b101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"Rutricks\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2882\"]\n[BlackElo \"2886\"]\n1. e4 Nc6 2. Nf3 Nb8 3. d4 Nc6 4. c4 Nb8 5. Nc3 e6 6. h3 d6 7. Bf4 h6 8. Qd2 a6 9. Bd3 Nd7 10. O-O g5 11. Be3 Bg7 12. Rae1 Ne7 13. Nh2 e5 14. d5 Ng6 15. Be2 Nf4 0-1",
+      "white": {
+        "name": "Rutricks"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779058970000
+    },
+    {
+      "pgn": "[Event \"chess.com game c0f29b08-5242-11f1-adfa-f7014301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"infinite-student\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2905\"]\n[BlackElo \"2878\"]\n1. Nf3 g6 2. c4 Bg7 3. d4 f5 4. Nc3 Nf6 5. g3 d6 6. Bg2 O-O 7. O-O Nc6 8. d5 Na5 9. Qd3 c5 10. Ng5 h6 11. Ne6 Bxe6 12. dxe6 Qc8 13. Nd5 Nxd5 14. Bxd5 Nc6 15. a3 Kh7 1-0",
+      "white": {
+        "name": "infinite-student"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779058571000
+    },
+    {
+      "pgn": "[Event \"chess.com game e7c9a62b-5241-11f1-94da-11d9b101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"infinite-student\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2886\"]\n[BlackElo \"2897\"]\n1. d4 Nf6 2. Bg5 e6 3. Nd2 d5 4. e3 c5 5. c3 Nc6 6. Bd3 h6 7. Bxf6 Qxf6 8. f4 c4 9. Bc2 b5 10. Ngf3 b4 11. Ne5 Nxe5 12. dxe5 Qh4+ 13. g3 Qh3 14. Ba4+ Kd8 15. Kf2 Ba6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "infinite-student"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779058206000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2b66e009-5241-11f1-ac77-8f036401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"infinite-student\"]\n[Black \"GothamChess\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"180\"]\n[WhiteElo \"2906\"]\n[BlackElo \"2877\"]\n1. Nc3 a6 2. d4 b5 3. e4 Bb7 4. Bd3 e6 5. Nf3 d6 6. O-O Nd7 7. Re1 h6 8. h3 g5 9. a4 b4 10. Ne2 c5 11. Be3 Rc8 12. dxc5 Nxc5 13. Bd4 e5 14. Bxc5 Rxc5 15. b3 h5 1/2-1/2",
+      "white": {
+        "name": "infinite-student"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779057841000
+    },
+    {
+      "pgn": "[Event \"chess.com game 51db3113-5240-11f1-91f6-03617901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"infinite-student\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2876\"]\n[BlackElo \"2907\"]\n1. e4 e5 2. Nc3 Nf6 3. f4 d5 4. fxe5 Nxe4 5. Qf3 Nc6 6. Bb5 Nxc3 7. dxc3 Qh4+ 8. g3 Qe4+ 9. Be3 Bd7 10. Qxe4 dxe4 11. Ne2 Nxe5 12. Bxd7+ Nxd7 13. O-O g6 14. Bd4 Bc5 15. Rad1 f5 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "infinite-student"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779057523000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6ee2a3d6-523f-11f1-92d2-ca68c301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"beyoglu20\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2884\"]\n[BlackElo \"2864\"]\n1. a3 d5 2. c3 e5 3. h3 Nc6 4. d4 e4 5. Bf4 g5 6. Bc1 Be6 7. e3 h5 8. c4 Nge7 9. cxd5 Nxd5 10. Nc3 Qd7 11. Bb5 a6 12. Qa4 f5 13. Nge2 Be7 14. h4 Kf7 15. Bxc6 Qxc6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "beyoglu20"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779057160000
+    },
+    {
+      "pgn": "[Event \"chess.com game f0d1d81f-523e-11f1-83b6-71760f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"Anton_Zlatkov\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2910\"]\n[BlackElo \"2876\"]\n1. c4 b6 2. d4 Bb7 3. Nc3 e6 4. e4 Bb4 5. Ne2 Ne7 6. a3 Bxc3+ 7. Nxc3 d6 8. Qg4 Ng6 9. h4 h5 10. Qg3 Nc6 11. Be3 e5 12. d5 Nd4 13. O-O-O Nb3+ 14. Kc2 Nc5 15. b4 Nd7 1-0",
+      "white": {
+        "name": "Anton_Zlatkov"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779056741000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0f357efd-523e-11f1-adfa-f7014301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"WhoCanItBeNowA\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"180\"]\n[WhiteElo \"2884\"]\n[BlackElo \"2989\"]\n1. d4 d5 2. Bg5 Nf6 3. Nd2 e6 4. e3 Be7 5. Bd3 b6 6. c3 Bb7 7. Bxf6 Bxf6 8. f4 O-O 9. Ngf3 Ba6 10. Qe2 Bxd3 11. Qxd3 c5 12. g4 Nc6 13. h4 Be7 14. Ng5 g6 15. Ndf3 cxd4 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "WhoCanItBeNowA"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779056530000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7b291aaf-523d-11f1-9907-13a8bd01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"WhoCanItBeNowA\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2991\"]\n[BlackElo \"2882\"]\n1. d4 Na6 2. e4 c6 3. Nf3 d5 4. Nc3 dxe4 5. Nxe4 Nf6 6. Nxf6+ gxf6 7. g3 Bf5 8. c3 Qd7 9. Bg2 Bh3 10. O-O Bxg2 11. Kxg2 h5 12. h4 Nc7 13. Qe2 Rg8 14. a4 Qf5 15. Re1 e6 1-0",
+      "white": {
+        "name": "WhoCanItBeNowA"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779056186000
+    },
+    {
+      "pgn": "[Event \"chess.com game 92d9360b-523c-11f1-acc4-7be18901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"Anton_Zlatkov\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2900\"]\n[BlackElo \"2888\"]\n1. c4 g6 2. g3 Bg7 3. Bg2 d6 4. Nf3 Bd7 5. d4 Qc8 6. h3 c5 7. d5 Nf6 8. Nc3 Na6 9. e4 Nc7 10. Bf4 Nh5 11. Be3 b5 12. g4 Bxc3+ 13. bxc3 Nf6 14. e5 Ne4 15. Qc2 f5 1-0",
+      "white": {
+        "name": "Anton_Zlatkov"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779055881000
+    },
+    {
+      "pgn": "[Event \"chess.com game f9cff727-523b-11f1-8643-164e0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"juanquiros7\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2896\"]\n[BlackElo \"2774\"]\n1. c4 e5 2. g3 Nc6 3. Bg2 Bc5 4. Nc3 d6 5. a3 a6 6. e3 Ba7 7. b4 Nge7 8. Bb2 h5 9. h3 h4 10. g4 f5 11. Nd5 fxg4 12. hxg4 Nxd5 13. cxd5 Ne7 14. f4 Ng6 15. Be4 Qf6 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "juanquiros7"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779055526000
+    },
+    {
+      "pgn": "[Event \"chess.com game 38d24be4-523b-11f1-9907-13a8bd01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"juanquiros7\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2763\"]\n[BlackElo \"2907\"]\n1. d4 Nf6 2. Nf3 b6 3. Bf4 Nh5 4. e3 Nxf4 5. exf4 g6 6. Bd3 Bb7 7. Qe2 Bh6 8. g3 Bg7 9. c3 d6 10. Nbd2 Nd7 11. O-O-O e6 12. h4 Qe7 13. Be4 d5 14. Bc2 c5 15. Kb1 c4 0-1",
+      "white": {
+        "name": "juanquiros7"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779055293000
+    },
+    {
+      "pgn": "[Event \"chess.com game e34c7c0f-5239-11f1-91f6-03617901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"Tsana37\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2902\"]\n[BlackElo \"2738\"]\n1. e4 e5 2. Nc3 Nf6 3. f4 d5 4. fxe5 Nxe4 5. Qf3 Nxc3 6. bxc3 Be6 7. Rb1 Qc8 8. d4 Nd7 9. Bd3 Be7 10. Ne2 Nf8 11. Nf4 c6 12. Nxe6 Nxe6 13. O-O O-O 14. Qh5 g6 15. Qh6 Qd7 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Tsana37"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779054537000
+    },
+    {
+      "pgn": "[Event \"chess.com game fe5e86eb-5238-11f1-acc4-7be18901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"Tsana37\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2743\"]\n[BlackElo \"2897\"]\n1. e4 e6 2. d4 b6 3. Nd2 Bb7 4. Bd3 d5 5. Ne2 c5 6. c3 cxd4 7. Nxd4 Nf6 8. Qe2 Be7 9. e5 Nfd7 10. O-O Nc6 11. Nxc6 Bxc6 12. Nf3 h6 13. Nd4 Bb7 14. f4 Qb8 15. Qh5 Nc5 0-1",
+      "white": {
+        "name": "Tsana37"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779054397000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8b17b977-5238-11f1-ac77-8f036401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"Not-Weak-moves\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"2989\"]\n[BlackElo \"2892\"]\n1. e4 c6 2. Nf3 d5 3. d3 Qc7 4. exd5 cxd5 5. c4 Nf6 6. Nc3 e6 7. a3 dxc4 8. dxc4 Nc6 9. g3 Be7 10. Bf4 e5 11. Bg5 Bg4 12. Bxf6 Bxf6 13. Nd5 Qd8 14. Be2 e4 15. Nd2 Bxe2 1-0",
+      "white": {
+        "name": "Not-Weak-moves"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779053939000
+    },
+    {
+      "pgn": "[Event \"chess.com game c17539b9-5237-11f1-91f6-03617901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"Not-Weak-moves\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"2898\"]\n[BlackElo \"2983\"]\n1. d4 d6 2. Nc3 Nf6 3. e4 e5 4. Nge2 exd4 5. Nxd4 Be7 6. h3 O-O 7. g4 Re8 8. Bg2 d5 9. e5 Nfd7 10. O-O Nxe5 11. Nxd5 Bd6 12. Nb5 Nbc6 13. Nxd6 Qxd6 14. Ne3 Qc5 15. a3 Be6 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Not-Weak-moves"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1779053815000
+    },
+    {
+      "pgn": "[Event \"chess.com game 63591fba-5237-11f1-83b6-71760f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"Blazinq\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3009\"]\n[BlackElo \"3054\"]\n1. d4 g6 2. e4 Bg7 3. Nc3 d6 4. Be3 a6 5. Qd2 b5 6. O-O-O Bb7 7. f3 Nd7 8. h4 h6 9. g4 Rc8 10. Nh3 c5 11. dxc5 Nxc5 12. Bd4 Nf6 13. g5 hxg5 14. hxg5 Nh5 15. Bxg7 Nxg7 1-0",
+      "white": {
+        "name": "Blazinq"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779053442000
+    },
+    {
+      "pgn": "[Event \"chess.com game c5536282-520b-11f1-ac77-8f036401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"ulises2013\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3056\"]\n[BlackElo \"3063\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. d4 Nf6 5. Nf3 Bf5 6. Bd3 Bxd3 7. Qxd3 e6 8. O-O Bb4 9. Bd2 Bxc3 10. Bxc3 Qa6 11. Qe3 Nd5 12. Qg5 O-O 13. Bd2 Qc4 14. Rfc1 Nd7 15. b3 Qe2 0-1",
+      "white": {
+        "name": "ulises2013"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779034717000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7a5c8f2e-520b-11f1-acc4-7be18901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"ulises2013\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"3055\"]\n[BlackElo \"3064\"]\n1. e4 g6 2. Bc4 Bg7 3. Qf3 e6 4. d4 Nc6 5. Ne2 Nge7 6. c3 d5 7. Bb3 dxe4 8. Qxe4 O-O 9. Bg5 h6 10. Bh4 a5 11. Nd2 a4 12. Bc2 e5 13. O-O-O Bf5 14. Qf3 Bxc2 15. Kxc2 g5 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "ulises2013"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779034591000
+    },
+    {
+      "pgn": "[Event \"chess.com game 31c9265e-520b-11f1-adfa-f7014301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"ulises2013\"]\n[Black \"GothamChess\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"3064\"]\n[BlackElo \"3055\"]\n1. e4 e6 2. g3 d5 3. Bg2 dxe4 4. Bxe4 Nf6 5. Bg2 c5 6. Nf3 Nc6 7. O-O Bd6 8. d4 cxd4 9. Nxd4 Nxd4 10. Qxd4 O-O 11. Rd1 Be7 12. Be3 Qxd4 13. Bxd4 Bd7 14. Bxb7 Rab8 15. Bg2 Rb7 1/2-1/2",
+      "white": {
+        "name": "ulises2013"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779034466000
+    },
+    {
+      "pgn": "[Event \"chess.com game ed1bab13-520a-11f1-ac77-8f036401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"ulises2013\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3055\"]\n[BlackElo \"3064\"]\n1. e4 g6 2. Bc4 Bg7 3. Qf3 e6 4. d4 Bxd4 5. Ne2 Bg7 6. Nbc3 Nc6 7. Qg3 h5 8. h4 d6 9. Bg5 Bf6 10. O-O-O Qe7 11. Kb1 Bd7 12. f4 Bxg5 13. hxg5 O-O-O 14. Qe3 Kb8 15. g4 e5 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "ulises2013"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779034344000
+    },
+    {
+      "pgn": "[Event \"chess.com game a0fea761-520a-11f1-94da-11d9b101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"ulises2013\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3073\"]\n[BlackElo \"3046\"]\n1. e4 e6 2. g3 d5 3. Bg2 dxe4 4. Bxe4 Nf6 5. Bg2 Nc6 6. Nf3 b6 7. O-O Bb7 8. d4 Qd7 9. c3 O-O-O 10. Qe2 Bd6 11. a4 a5 12. Nbd2 h5 13. h4 Kb8 14. Nc4 Ng4 15. Re1 Rde8 0-1",
+      "white": {
+        "name": "ulises2013"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779034228000
+    },
+    {
+      "pgn": "[Event \"chess.com game 76786c24-520a-11f1-adfa-f7014301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"ulises2013\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3037\"]\n[BlackElo \"3082\"]\n1. d4 g6 2. e4 Bg7 3. Nc3 c5 4. dxc5 Bxc3+ 5. bxc3 Qa5 6. Nf3 Nc6 7. Bd3 Nf6 8. O-O Qxc5 9. Be3 Qa5 10. Rb1 a6 11. Bd4 d6 12. h3 O-O 13. Bb6 Qh5 14. Nh2 Qxd1 15. Rfxd1 Nd7 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "ulises2013"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779034100000
+    },
+    {
+      "pgn": "[Event \"chess.com game 361d3409-520a-11f1-ac77-8f036401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"ulises2013\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3091\"]\n[BlackElo \"3028\"]\n1. e4 b6 2. g3 Bb7 3. Bg2 e6 4. Nc3 h5 5. Nge2 h4 6. d4 Nf6 7. Bg5 h3 8. Bf3 Be7 9. O-O Ng8 10. Bxe7 Qxe7 11. Re1 d6 12. a4 a6 13. Qd2 Nd7 14. Nf4 Ngf6 15. Qd3 e5 1-0",
+      "white": {
+        "name": "ulises2013"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779034029000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0f5deb80-520a-11f1-b998-38a2dc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"ulises2013\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"3035\"]\n[BlackElo \"3084\"]\n1. d4 g6 2. h4 h6 3. h5 g5 4. f4 gxf4 5. Bxf4 Bg7 6. Nc3 c5 7. dxc5 Qa5 8. Qd2 Qxc5 9. e4 Nf6 10. Bd3 Nc6 11. Nge2 d6 12. O-O-O Be6 13. a3 Rc8 14. Kb1 a6 15. Be3 Qa5 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "ulises2013"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779033921000
+    },
+    {
+      "pgn": "[Event \"chess.com game da82e240-5209-11f1-a546-1ad65601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"ulises2013\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3085\"]\n[BlackElo \"3034\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. d4 Nf6 5. Nf3 Bf5 6. Bd3 Bxd3 7. Qxd3 e6 8. O-O c6 9. Bd2 Qa6 10. Qe2 Qxe2 11. Nxe2 Bd6 12. Rfe1 Nbd7 13. Bf4 Bxf4 14. Nxf4 O-O 15. Nd3 Nb6 1-0",
+      "white": {
+        "name": "ulises2013"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779033856000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6c778012-5209-11f1-83b6-71760f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"GorVM\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"3041\"]\n[BlackElo \"2938\"]\n1. Nh3 a6 2. g3 b6 3. Bg2 c6 4. c4 d6 5. d4 e6 6. d5 cxd5 7. cxd5 e5 8. O-O Nd7 9. Nc3 g6 10. e4 Bg7 11. f4 Ne7 12. f5 b5 13. Bg5 Nf6 14. Kh1 O-O 15. Qd2 gxf5 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "GorVM"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779033693000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2ebeb7e3-5209-11f1-83b6-71760f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GorVM\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"2936\"]\n[BlackElo \"3043\"]\n1. d4 c6 2. c4 Na6 3. e3 Nc7 4. Nf3 d5 5. Bd3 Nf6 6. cxd5 cxd5 7. Nc3 g6 8. O-O Bg7 9. h3 O-O 10. Re1 Bf5 11. Bxf5 gxf5 12. Ne5 e6 13. Qf3 Ne4 14. Nd3 Ne8 15. Nf4 N8d6 0-1",
+      "white": {
+        "name": "GorVM"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779033582000
+    },
+    {
+      "pgn": "[Event \"chess.com game fc31bcfc-5208-11f1-b30e-91219a01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"GorVM\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3037\"]\n[BlackElo \"2942\"]\n1. Na3 c5 2. c3 d5 3. Nc2 e6 4. d4 Nf6 5. Nf3 cxd4 6. cxd4 Nc6 7. Bf4 Bd7 8. e3 Bb4+ 9. Nxb4 Nxb4 10. Qd2 Nc6 11. Be2 O-O 12. O-O Ne4 13. Qd1 f6 14. a3 g5 15. Bg3 h5 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "GorVM"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779033480000
+    },
+    {
+      "pgn": "[Event \"chess.com game b7977b35-5208-11f1-ac77-8f036401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GorVM\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"2948\"]\n[BlackElo \"3031\"]\n1. d4 b6 2. c4 Bb7 3. e3 e6 4. Nf3 Bb4+ 5. Nc3 Bxc3+ 6. bxc3 f5 7. Bd3 Nf6 8. O-O Ne4 9. h3 O-O 10. Qc2 d6 11. Ba3 Nd7 12. Rab1 c5 13. Kh2 Rc8 14. Bc1 Qf6 15. Re1 g5 1-0",
+      "white": {
+        "name": "GorVM"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779033392000
+    },
+    {
+      "pgn": "[Event \"chess.com game c51bbf5a-5205-11f1-ac77-8f036401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"GothamChess\"]\n[Black \"chess_master_8820\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3041\"]\n[BlackElo \"3083\"]\n1. c4 g6 2. Nc3 Bg7 3. d4 Nf6 4. e4 O-O 5. f4 c5 6. d5 d6 7. Nf3 Bg4 8. Be2 a6 9. e5 Ne8 10. e6 fxe6 11. Ng5 Bxe2 12. Qxe2 exd5 13. Ne6 Qd7 14. Nxf8 Kxf8 15. Nxd5 Qd8 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "chess_master_8820"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779032086000
+    },
+    {
+      "pgn": "[Event \"chess.com game 76109c01-5205-11f1-92d2-ca68c301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"chess_master_8820\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3092\"]\n[BlackElo \"3032\"]\n1. Nf3 e6 2. g3 g5 3. Bg2 g4 4. Ne5 h5 5. d4 d6 6. Nd3 Bg7 7. c3 h4 8. e4 h3 9. Bf1 e5 10. Be2 exd4 11. cxd4 Nc6 12. Bxg4 Nxd4 13. Bxc8 Rxc8 14. Nc3 c6 15. Be3 Qe7 0-1",
+      "white": {
+        "name": "chess_master_8820"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.17",
+      "createdAt": 1779032013000
+    },
+    {
+      "pgn": "[Event \"chess.com game 56e02bc8-5163-11f1-b3b6-8f036401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"chess_master_8820\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3067\"]\n[BlackElo \"3022\"]\n1. Nc3 a6 2. d4 b5 3. e4 Bb7 4. Bd3 e6 5. Nf3 d6 6. O-O Nd7 7. Qe2 g6 8. Bf4 Bg7 9. Rad1 h6 10. Rfe1 Ne7 11. e5 Bxf3 12. Qxf3 d5 13. h4 c5 14. dxc5 Nxc5 15. h5 g5 1-0",
+      "white": {
+        "name": "chess_master_8820"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778962393000
+    },
+    {
+      "pgn": "[Event \"chess.com game 19271600-5163-11f1-92d2-ca68c301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"GothamChess\"]\n[Black \"chess_master_8820\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"3029\"]\n[BlackElo \"3060\"]\n1. a3 c5 2. h3 d5 3. g3 e5 4. b3 Nf6 5. Bb2 Bd6 6. Bg2 O-O 7. e3 Nc6 8. d3 Re8 9. Ne2 h6 10. Nd2 Be6 11. e4 d4 12. f4 exf4 13. Nxf4 Qc7 14. O-O Ne5 15. Nxe6 Rxe6 1/2-1/2",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "chess_master_8820"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778962250000
+    },
+    {
+      "pgn": "[Event \"chess.com game acee292e-5162-11f1-adfa-f7014301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"GothamChess\"]\n[Black \"Aryan_Tamadon\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3028\"]\n[BlackElo \"2856\"]\n1. Nh3 d5 2. g3 e5 3. Bg2 Nc6 4. c4 Nf6 5. cxd5 Nxd5 6. Nc3 Be6 7. d3 Be7 8. O-O O-O 9. Bd2 Qd7 10. Ng5 Nxc3 11. bxc3 Bxg5 12. Bxg5 f6 13. Be3 Bd5 14. f3 b6 15. Qa4 Rfd8 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Aryan_Tamadon"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778962107000
+    },
+    {
+      "pgn": "[Event \"chess.com game 83c0791e-5162-11f1-8643-164e0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"chess_master_8820\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3052\"]\n[BlackElo \"3024\"]\n1. Nc3 c6 2. d4 Na6 3. e4 Nc7 4. Nf3 d5 5. e5 Bg4 6. h3 Bxf3 7. Qxf3 Ne6 8. Be3 g6 9. O-O-O Bh6 10. h4 Bxe3+ 11. Qxe3 Qb6 12. h5 g5 13. g3 g4 14. Be2 Qa5 15. Bxg4 b5 1-0",
+      "white": {
+        "name": "chess_master_8820"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778961958000
+    },
+    {
+      "pgn": "[Event \"chess.com game 4fcb3c44-5162-11f1-acc4-7be18901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"GothamChess\"]\n[Black \"chess_master_8820\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3032\"]\n[BlackElo \"3044\"]\n1. Na3 Nf6 2. c3 e5 3. Nc2 d5 4. d4 Bd6 5. dxe5 Bxe5 6. Nf3 Bd6 7. g3 O-O 8. Bg2 c6 9. Bf4 h6 10. Qd2 Re8 11. O-O Bf5 12. Ncd4 Bg4 13. Bxd6 Qxd6 14. Qf4 Qxf4 15. gxf4 Nbd7 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "chess_master_8820"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778961896000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0d0c980e-5162-11f1-a546-1ad65601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"chess_master_8820\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3036\"]\n[BlackElo \"3040\"]\n1. Nf3 b6 2. g3 Bb7 3. Bg2 g6 4. Nh4 Qc8 5. O-O Bg7 6. e4 Nf6 7. Nc3 e6 8. d4 d5 9. exd5 Nxd5 10. Nxd5 Bxd5 11. Bxd5 exd5 12. Re1+ Kf8 13. Qf3 Qd7 14. Ng2 Nc6 15. c3 Re8 1-0",
+      "white": {
+        "name": "chess_master_8820"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778961809000
+    },
+    {
+      "pgn": "[Event \"chess.com game e763f053-5161-11f1-8643-164e0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"GothamChess\"]\n[Black \"chess_master_8820\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3048\"]\n[BlackElo \"3028\"]\n1. c4 g6 2. Nc3 Nf6 3. d4 Bg7 4. e4 d6 5. f4 O-O 6. Nf3 c5 7. d5 Bg4 8. h3 Bxf3 9. Qxf3 a6 10. g4 b5 11. h4 bxc4 12. h5 Nbd7 13. hxg6 fxg6 14. Bxc4 Rb8 15. g5 Nh5 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "chess_master_8820"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778961696000
+    },
+    {
+      "pgn": "[Event \"chess.com game 733470af-5161-11f1-8643-164e0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"GothamChess\"]\n[Black \"Philippians46\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3040\"]\n[BlackElo \"3207\"]\n1. d4 Nf6 2. Bg5 d5 3. Nd2 c5 4. e3 Nc6 5. c3 Bf5 6. Qb3 Qd7 7. Ngf3 e6 8. Ne5 Qc7 9. Bf4 Bd6 10. Ndf3 O-O 11. h3 cxd4 12. exd4 Nd7 13. Nxd7 Qxd7 14. Bxd6 Qxd6 15. Be2 Na5 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Philippians46"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778961536000
+    },
+    {
+      "pgn": "[Event \"chess.com game 364d501b-5161-11f1-94da-11d9b101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"Philippians46\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3202\"]\n[BlackElo \"3045\"]\n1. b3 Na6 2. Bb2 c6 3. Nh3 Nc7 4. f3 d5 5. Nf2 f6 6. e4 Nh6 7. Na3 Nf7 8. c3 e5 9. Nc2 Bd6 10. d4 dxe4 11. Nxe4 O-O 12. Bd3 exd4 13. Nxd4 Bf4 14. O-O Be3+ 15. Kh1 f5 1-0",
+      "white": {
+        "name": "Philippians46"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778961439000
+    },
+    {
+      "pgn": "[Event \"chess.com game e7318ba0-5160-11f1-91f6-03617901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"GothamChess\"]\n[Black \"Philippians46\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3050\"]\n[BlackElo \"3197\"]\n1. e4 c5 2. a3 d5 3. exd5 Nf6 4. Nc3 g6 5. Nf3 Bg7 6. Bb5+ Nbd7 7. Bxd7+ Qxd7 8. O-O Nxd5 9. Nxd5 Qxd5 10. h3 O-O 11. d3 Bf5 12. Re1 e6 13. Bd2 h5 14. Bc3 Rfd8 15. Bxg7 Kxg7 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Philippians46"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778961337000
+    },
+    {
+      "pgn": "[Event \"chess.com game aacc45d7-5160-11f1-92d2-ca68c301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"Philippians46\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3192\"]\n[BlackElo \"3055\"]\n1. c4 b6 2. g3 Bb7 3. Nf3 Bxf3 4. exf3 c5 5. d4 cxd4 6. Qxd4 Nc6 7. Qd2 g6 8. b3 Bg7 9. Bb2 Bxb2 10. Qxb2 Nf6 11. Bg2 Qc7 12. O-O Qe5 13. Nc3 O-O 14. Rfe1 Qa5 15. Rad1 Rad8 1-0",
+      "white": {
+        "name": "Philippians46"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778961204000
+    },
+    {
+      "pgn": "[Event \"chess.com game 74226f12-5160-11f1-b3b6-8f036401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"GothamChess\"]\n[Black \"Philippians46\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3060\"]\n[BlackElo \"3187\"]\n1. c4 g6 2. Nc3 Bg7 3. d4 Nf6 4. e4 d6 5. f4 O-O 6. Nf3 Nc6 7. d5 Nb4 8. a3 Na6 9. Bd3 Nc5 10. Bc2 a5 11. O-O e5 12. fxe5 dxe5 13. Be3 Qe7 14. h3 Bd7 15. Qd2 Nh5 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Philippians46"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778961103000
+    },
+    {
+      "pgn": "[Event \"chess.com game 344d7e9c-5160-11f1-8643-164e0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"Philippians46\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3198\"]\n[BlackElo \"3049\"]\n1. b3 b6 2. Bb2 Bb7 3. Nf3 Nf6 4. g3 g6 5. Bg2 Bg7 6. O-O O-O 7. c4 d6 8. d4 Nbd7 9. Nc3 Ne4 10. Qc2 Nxc3 11. Bxc3 e6 12. Rad1 Qe7 13. e4 e5 14. Rfe1 h6 15. h4 Kh7 1-0",
+      "white": {
+        "name": "Philippians46"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778961011000
+    },
+    {
+      "pgn": "[Event \"chess.com game e4fbdbfa-515f-11f1-acc4-7be18901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"GothamChess\"]\n[Black \"Philippians46\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3054\"]\n[BlackElo \"3193\"]\n1. e4 g6 2. Bc4 Bg7 3. Qf3 e6 4. d4 Bxd4 5. Ne2 Bg7 6. Nbc3 Nc6 7. Qg3 Nge7 8. h4 d5 9. Bb3 dxe4 10. Nxe4 Nf5 11. Qh3 h5 12. Bg5 f6 13. Bd2 e5 14. O-O-O Nfd4 15. Qe3 Bh6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Philippians46"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778960902000
+    },
+    {
+      "pgn": "[Event \"chess.com game c244fcfa-515f-11f1-acc4-7be18901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"Philippians46\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3204\"]\n[BlackElo \"3043\"]\n1. c4 e6 2. g3 h5 3. Bg2 h4 4. d4 Nf6 5. Nc3 d5 6. Nf3 h3 7. Bf1 dxc4 8. e4 a6 9. Bxc4 b5 10. Bd3 Bb7 11. Qc2 c5 12. dxc5 Nbd7 13. b4 Ng4 14. Bf4 Qf6 15. O-O e5 1-0",
+      "white": {
+        "name": "Philippians46"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778960770000
+    },
+    {
+      "pgn": "[Event \"chess.com game 841270db-515f-11f1-adfa-f7014301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"GothamChess\"]\n[Black \"Philippians46\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3048\"]\n[BlackElo \"3199\"]\n1. d4 Nf6 2. Bg5 b6 3. Bxf6 exf6 4. c4 Bb7 5. Nc3 g6 6. e3 Bg7 7. Nh3 O-O 8. Nf4 Re8 9. Be2 f5 10. Bf3 Bxf3 11. gxf3 Nc6 12. Nfe2 Qh4 13. Nd5 Rac8 14. f4 Nd8 15. Qd3 c6 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Philippians46"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778960712000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3e33c8d6-515f-11f1-adfa-f7014301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"Philippians46\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3194\"]\n[BlackElo \"3053\"]\n1. b3 d5 2. Bb2 Bg4 3. Nf3 Bxf3 4. exf3 Nf6 5. g3 g6 6. Bg2 Bg7 7. O-O c6 8. f4 O-O 9. d4 a5 10. Nd2 a4 11. Nf3 Ne4 12. Rb1 a3 13. Ba1 Nd7 14. Nd2 Ndf6 15. c4 Nd6 0-1",
+      "white": {
+        "name": "Philippians46"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778960608000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3c1f35ec-515e-11f1-b998-38a2dc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"GothamChess\"]\n[Black \"Blazinq\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3041\"]\n[BlackElo \"2993\"]\n1. d4 c5 2. Nc3 cxd4 3. Qxd4 Nc6 4. Qh4 d5 5. Nf3 d4 6. Ne4 Nf6 7. Nxf6+ gxf6 8. Bd2 Bf5 9. e4 dxe3 10. Bxe3 Bxc2 11. Rc1 Qa5+ 12. Bd2 Qf5 13. Bb5 Rg8 14. Qc4 Be4 15. Nd4 Qe5 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "Blazinq"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778960128000
+    },
+    {
+      "pgn": "[Event \"chess.com game e8b9e078-515d-11f1-91f6-03617901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.16\"]\n[White \"Blazinq\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"2984\"]\n[BlackElo \"3050\"]\n1. d4 b6 2. e4 Bb7 3. Bd3 e6 4. Nf3 Nf6 5. Qe2 d5 6. e5 Ne4 7. Nbd2 Nxd2 8. Bxd2 c5 9. c3 h6 10. h4 Qc8 11. Rh3 Ba6 12. Rg3 Bxd3 13. Qxd3 Qa6 14. Qe3 Nc6 15. a3 Rc8 1-0",
+      "white": {
+        "name": "Blazinq"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.16",
+      "createdAt": 1778960056000
+    },
+    {
+      "pgn": "[Event \"chess.com game eae2d11f-50b2-11f1-8643-164e0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.15\"]\n[White \"GothamChess\"]\n[Black \"MeAndMyBirdie\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3060\"]\n[BlackElo \"3032\"]\n1. d4 e5 2. dxe5 Nc6 3. Nf3 d6 4. Nc3 Bg4 5. Bg5 f6 6. exf6 Nxf6 7. e3 Be7 8. Be2 O-O 9. Nd5 Nxd5 10. Qxd5+ Kh8 11. Bxe7 Qxe7 12. O-O-O Rae8 13. a3 Be6 14. Qe4 a6 15. h4 Qf6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "MeAndMyBirdie"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.15",
+      "createdAt": 1778886585000
+    },
+    {
+      "pgn": "[Event \"chess.com game 9f2ec885-50b2-11f1-adfa-f7014301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.15\"]\n[White \"MeAndMyBirdie\"]\n[Black \"GothamChess\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3040\"]\n[BlackElo \"3052\"]\n1. e4 e5 2. Nf3 Nf6 3. Nxe5 d5 4. exd5 Qxd5 5. Qe2 Be7 6. Nc3 Qa5 7. Qb5+ Qxb5 8. Nxb5 Na6 9. d4 c6 10. Nc3 Nb4 11. Kd1 Bf5 12. Nd3 O-O-O 13. Be3 Nxd3 14. Bxd3 Bxd3 15. cxd3 Nd5 0-1",
+      "white": {
+        "name": "MeAndMyBirdie"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.15",
+      "createdAt": 1778886478000
+    },
+    {
+      "pgn": "[Event \"chess.com game 56738cee-50b2-11f1-acc4-7be18901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.15\"]\n[White \"GothamChess\"]\n[Black \"MeAndMyBirdie\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3044\"]\n[BlackElo \"3048\"]\n1. b3 d5 2. Bb2 Bg4 3. f3 Bh5 4. e4 dxe4 5. Nc3 e3 6. Qe2 Nc6 7. dxe3 e5 8. Rd1 Qe7 9. Nd5 Qd8 10. Qb5 Bd6 11. Qxb7 Nge7 12. Bb5 O-O 13. Bxc6 Nf5 14. Qxa8 Qh4+ 15. g3 Nxg3 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "MeAndMyBirdie"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.15",
+      "createdAt": 1778886351000
+    },
+    {
+      "pgn": "[Event \"chess.com game 04bd205c-50b2-11f1-92d2-ca68c301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.15\"]\n[White \"GothamChess\"]\n[Black \"MeAndMyBirdie\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"3036\"]\n[BlackElo \"3056\"]\n1. b4 e5 2. Bb2 d6 3. b5 Nf6 4. a4 Be7 5. e3 O-O 6. Nf3 e4 7. Nd4 c5 8. Ne2 d5 9. Nf4 Be6 10. Nxe6 fxe6 11. Be2 Nbd7 12. d3 Bd6 13. Nd2 exd3 14. Bxd3 Be5 15. Qc1 Qc7 0-1",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "MeAndMyBirdie"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.15",
+      "createdAt": 1778886167000
+    },
+    {
+      "pgn": "[Event \"chess.com game bec34e03-50b1-11f1-b3b6-8f036401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.15\"]\n[White \"MeAndMyBirdie\"]\n[Black \"GothamChess\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3048\"]\n[BlackElo \"3044\"]\n1. d4 e5 2. dxe5 Nc6 3. Nf3 Qe7 4. Bf4 Qb4+ 5. Bd2 Qxb2 6. Nc3 Bb4 7. Rb1 Qa3 8. Rb3 Qa5 9. Qa1 Nge7 10. a3 Bxc3 11. Bxc3 Qc5 12. e4 O-O 13. Rb5 Qxb5 14. Bxb5 Ng6 15. O-O Nf4 1-0",
+      "white": {
+        "name": "MeAndMyBirdie"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.15",
+      "createdAt": 1778886090000
+    },
+    {
+      "pgn": "[Event \"chess.com game 9b6e3320-50b1-11f1-adfa-f7014301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.15\"]\n[White \"GothamChess\"]\n[Black \"MeAndMyBirdie\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"3052\"]\n[BlackElo \"3040\"]\n1. d4 g6 2. h4 h5 3. Nh3 d5 4. Ng5 Nf6 5. c4 c6 6. Nc3 Bg7 7. Bf4 O-O 8. e3 dxc4 9. Bxc4 b5 10. Bb3 a5 11. a4 b4 12. Nce4 Nxe4 13. Nxe4 Bf5 14. Nc5 Nd7 15. Rc1 Nb6 1-0",
+      "white": {
+        "name": "GothamChess"
+      },
+      "black": {
+        "name": "MeAndMyBirdie"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.15",
+      "createdAt": 1778885975000
+    },
+    {
+      "pgn": "[Event \"chess.com game 68f66eb1-50b1-11f1-92d2-ca68c301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.15\"]\n[White \"MeAndMyBirdie\"]\n[Black \"GothamChess\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"3048\"]\n[BlackElo \"3044\"]\n1. e4 e6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nf6 5. Ng5 c5 6. N1f3 Nc6 7. Ne5 Nxe5 8. dxe5 Qxd1+ 9. Kxd1 Ng4 10. Bb5+ Ke7 11. Ke2 Nxe5 12. Bf4 Nc6 13. Bxc6 bxc6 14. Rad1 Ba6+ 15. Kf3 f6 1/2-1/2",
+      "white": {
+        "name": "MeAndMyBirdie"
+      },
+      "black": {
+        "name": "GothamChess"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.05.15",
+      "createdAt": 1778885914000
+    }
+  ]
+}

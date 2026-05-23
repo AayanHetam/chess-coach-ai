@@ -18,6 +18,26 @@ The Stage C validation sweep (synthetic-tester against preview deploy) ships in 
 
 ---
 
+## 2026-05-23 — Off-by-one in `deriveMastermindMoveContext` positions lookup
+
+**Status:** surfaced during Follow-up B investigation (post-smoke diagnosis of why eval_claim events didn't fire).
+
+**Where:** [`src/lib/mastermind/routeHelpers.ts:113-145`](../src/lib/mastermind/routeHelpers.ts#L113-L145), function `deriveMastermindMoveContext`. The non-degraded branch with non-empty `moveHistory` looks up `gameEval?.positions?.[lastIdx]` where `lastIdx = moveHistory.length`.
+
+**Symptom:** the harness's `buildGameEval` ([scripts/synthetic-tester/client.ts:335-352](../scripts/synthetic-tester/client.ts#L335-L352)) produces `positions.length === moveHistory.length` (0-indexed: positions[i] is PositionEval for state after move i+1). So `positions[lastIdx]` is always undefined (out of bounds by 1). The route then sets `stockfishEval: { cp: undefined, mate: undefined }`, which means the **eval_claim validator has no stockfish ground truth to compare LLM claims against and can't fire numeric_mismatch events.** Likely explains why the Follow-up B smoke produced only the terminal `regenerate` event with no individual validator check events — eval_claim's primary firing condition can't be met.
+
+**Two interpretations, not resolving here:**
+- (a) Route expects positions to be 1-indexed (positions[0] = starting state, positions[N] = after Nth move). Harness produces 0-indexed.
+- (b) Off-by-one bug on route side; should be `positions[lastIdx - 1]`.
+
+Production callsites (webapp's enhanced-analysis path) probably hit the same offset, so fixing this could change production validator behavior — needs careful audit before fix.
+
+**Why it matters now:** prime suspect if the post-truncation Follow-up B smoke still produces only the regenerate event. Truncation aligns the operating *position* with the harness checkpoint, but does not fix the gameEval lookup — so eval_claim still won't have ground truth even after truncation if interpretation (b) is correct. If smoke surfaces this gap, this becomes the next investigation in its own scope.
+
+**Status:** tracked, not fixed in this commit. Separate read-only investigation will scope the fix and check production callsite impact before any code change.
+
+---
+
 ## 2026-05-18 — `extractPgnHeaders` utility consolidation
 
 **Status:** flagged during PR 1.C Stage A.7 (`a067d3b`).

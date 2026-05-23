@@ -1030,12 +1030,24 @@ async function runCategoryDispatchFlow(opts: CategoryDispatchOpts): Promise<void
         const game = games[hint.gameIdx];
 
         // Step 1: deep analysis on /api/enhanced-analysis (Sonnet flagship).
+        // Truncate moveHistory + gameEval.positions to the checkpoint ply.
+        // The route's deriveMastermindMoveContext picks "last move of
+        // moveHistory" as the validator's operating position; sending the
+        // full game makes that anchor the END of the game, not the
+        // checkpoint we picked. Truncating means the route's default
+        // behavior produces our checkpoint FEN. The cache stays full-length;
+        // only the wire payload is sliced.
+        const truncatedMoveHistory = gameEntry.chessjsHistory.slice(0, cp.ply);
+        const truncatedGameEval = {
+          ...gameEntry.gameEval,
+          positions: gameEntry.gameEval.positions.slice(0, cp.ply),
+        };
         const analyzeRes = await analyzeGame({
           baseUrl: args.baseUrl,
           cookie,
-          moveHistory: gameEntry.chessjsHistory,
+          moveHistory: truncatedMoveHistory,
           fen: gameEntry.finalFen,
-          gameEval: gameEntry.gameEval,
+          gameEval: truncatedGameEval,
           playerColor: "w",
           userRating: 1500,
           personalityId: args.personality,

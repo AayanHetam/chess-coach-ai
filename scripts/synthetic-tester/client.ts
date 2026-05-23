@@ -3,6 +3,7 @@ import { EngineName, MoveClassification } from "../../src/types/enums";
 import type { PerPlyState } from "./checkpoints";
 import type { CostTracker } from "./costTracker";
 import { classifyBySwing } from "./checkpoints";
+import type { EngineScore } from "./stockfish";
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Vercel Deployment Protection bypass
@@ -332,8 +333,35 @@ export async function generatePersonaQuestion(args: PersonaArgs): Promise<Person
  * in src/app/api/enhanced-analysis/route.ts:26)
  * ────────────────────────────────────────────────────────────────────────── */
 
-export function buildGameEval(states: PerPlyState[], depth = 14): GameEval {
-  const positions: PositionEval[] = states.map((s) => {
+export function buildGameEval(
+  states: PerPlyState[],
+  startingScore: EngineScore,
+  depth = 14,
+): GameEval {
+  // Production's getEvaluateGameParams (src/lib/chess.ts:11-12) pushes the
+  // starting FEN into the fens array before any move's "after" FEN, so
+  // engine.evaluateGame produces positions.length === moveHistory.length + 1
+  // with positions[0] = starting state. The route's deriveMastermindMoveContext
+  // relies on this convention (positions[lastIdx] where lastIdx =
+  // moveHistory.length returns the after-last-move eval). Harness must match
+  // it for stockfishEval to thread through to the eval_claim validator. The
+  // starting PositionEval mirrors production's shape: lines[0] with cp/mate
+  // from the engine, no moveClassification (production leaves index 0
+  // unchanged through getMovesClassification — moveClassification.ts:37).
+  const startingCp = startingScore.kind === "cp" ? startingScore.cp : undefined;
+  const startingMate = startingScore.kind === "mate" ? startingScore.mate : undefined;
+  const startingPosition: PositionEval = {
+    lines: [
+      {
+        pv: [],
+        cp: startingCp,
+        mate: startingMate,
+        depth,
+        multiPv: 1,
+      },
+    ],
+  };
+  const movePositions: PositionEval[] = states.map((s) => {
     const cp = s.rawScoreAfter.kind === "cp" ? s.rawScoreAfter.cp : undefined;
     const mate = s.rawScoreAfter.kind === "mate" ? s.rawScoreAfter.mate : undefined;
     const cls: MoveClassification = classifyBySwing(s.swing);
@@ -350,6 +378,7 @@ export function buildGameEval(states: PerPlyState[], depth = 14): GameEval {
       ],
     };
   });
+  const positions: PositionEval[] = [startingPosition, ...movePositions];
   return {
     positions,
     accuracy: { white: 0, black: 0 },

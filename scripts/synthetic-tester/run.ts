@@ -411,7 +411,7 @@ async function main() {
     GAME_LOOP: for (const game of games) {
       console.log(`\n[game ${game.id + 1}/${games.length}] ${game.white} vs ${game.black} (${game.plies} plies)`);
       const t0 = Date.now();
-      const { states, chessjsHistory } = await evaluateGame(game.pgn, sf, args.stockfishDepth);
+      const { states, chessjsHistory, startingScore } = await evaluateGame(game.pgn, sf, args.stockfishDepth);
       console.log(`  stockfish: ${states.length} plies evaluated in ${Date.now() - t0}ms`);
 
       const checkpoints = pickCheckpoints(states, args.questions, args.seed + game.id);
@@ -419,7 +419,7 @@ async function main() {
 
       const finalFen = states[states.length - 1].fenAfter;
       const playerColor: "w" | "b" = "w";
-      const gameEval = buildGameEval(states, args.stockfishDepth);
+      const gameEval = buildGameEval(states, startingScore, args.stockfishDepth);
 
       // ─── ONE enhanced-analysis per game ───
       console.log(`  → /api/enhanced-analysis ...`);
@@ -920,10 +920,10 @@ async function runCategoryDispatchFlow(opts: CategoryDispatchOpts): Promise<void
     if (!game) return null;
     try {
       const t0 = Date.now();
-      const { states, chessjsHistory } = await evaluateGame(game.pgn, sf, args.stockfishDepth);
+      const { states, chessjsHistory, startingScore } = await evaluateGame(game.pgn, sf, args.stockfishDepth);
       console.log(`  stockfish: game ${gameIdx} (${game.white} vs ${game.black}) — ${states.length} plies in ${Date.now() - t0}ms`);
       const finalFen = states[states.length - 1]?.fenAfter || "";
-      const gameEval = buildGameEval(states, args.stockfishDepth);
+      const gameEval = buildGameEval(states, startingScore, args.stockfishDepth);
       const entry: GameCacheEntry = { states, chessjsHistory, gameEval, finalFen };
       gameEvalCache.set(gameIdx, entry);
       return entry;

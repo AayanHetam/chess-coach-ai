@@ -31,14 +31,16 @@ export async function evaluateGame(
   pgn: string,
   engine: StockfishEngine,
   depth = 14
-): Promise<{ states: PerPlyState[]; chessjsHistory: string[] }> {
+): Promise<{ states: PerPlyState[]; chessjsHistory: string[]; startingScore: EngineScore }> {
   const game = new Chess();
   game.loadPgn(pgn, { strict: false }); // throws on failure in chess.js v1.x
   const history = game.history({ verbose: true });
 
   // Replay from start, capturing FEN before/after each move.
   const replay = new Chess();
-  let prevEval = normalizeEval((await engine.evaluate(replay.fen(), depth)).score);
+  const startingEvalRes = await engine.evaluate(replay.fen(), depth);
+  const startingScore = startingEvalRes.score;
+  let prevEval = normalizeEval(startingScore);
 
   const states: PerPlyState[] = [];
   for (let i = 0; i < history.length; i++) {
@@ -65,7 +67,7 @@ export async function evaluateGame(
     });
     prevEval = evalAfter;
   }
-  return { states, chessjsHistory: history.map((h) => h.san) };
+  return { states, chessjsHistory: history.map((h) => h.san), startingScore };
 }
 
 /**

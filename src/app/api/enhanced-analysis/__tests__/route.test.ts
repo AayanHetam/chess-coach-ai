@@ -176,6 +176,7 @@ async function readSSE(res: Response): Promise<Array<{ type: string; [k: string]
   const decoder = new TextDecoder();
   let buf = "";
   const events: Array<{ type: string; [k: string]: unknown }> = [];
+  // eslint-disable-next-line no-constant-condition -- SSE read-until-done loop; exits via the `break` when reader.read() reports done.
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;

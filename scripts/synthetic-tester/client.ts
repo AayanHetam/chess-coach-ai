@@ -57,6 +57,19 @@ export interface ChatMastiResponse {
   responseText?: string;
   validationScore?: number;
   latencyMs: number;
+  /** Stage C pipeline metadata captured from gameAnalysis.pipeline.
+   *  Present when the route's flag-on path ran AND VERCEL_ENV=preview
+   *  (production responses don't include telemetry). */
+  pipeline?: {
+    finalOutcome?: string;
+    retryCount?: number;
+    totalCostUsd?: number;
+    category?: string;
+    classifierConfidence?: number;
+    prepMs?: number;
+    timedOut?: boolean;
+    telemetry?: unknown[]; // per-event TelemetryEvent objects; opaque to harness
+  };
 }
 
 export interface AnalyzeArgs {
@@ -158,7 +171,21 @@ export async function analyzeCategoryTurn(args: CategoryTurnArgs): Promise<ChatM
       return { ok: false, status: res.status, errorMessage: text.slice(0, 500), latencyMs };
     }
     const json = (await res.json()) as {
-      gameAnalysis?: { contextId?: string; analysis?: string; validationScore?: number };
+      gameAnalysis?: {
+        contextId?: string;
+        analysis?: string;
+        validationScore?: number;
+        pipeline?: {
+          finalOutcome?: string;
+          retryCount?: number;
+          totalCostUsd?: number;
+          category?: string;
+          classifierConfidence?: number;
+          prepMs?: number;
+          timedOut?: boolean;
+          telemetry?: unknown[];
+        };
+      };
     };
     return {
       ok: true,
@@ -168,6 +195,7 @@ export async function analyzeCategoryTurn(args: CategoryTurnArgs): Promise<ChatM
       responseText: json.gameAnalysis?.analysis,
       validationScore: json.gameAnalysis?.validationScore,
       latencyMs,
+      pipeline: json.gameAnalysis?.pipeline,
     };
   } catch (err) {
     return { ok: false, status: 0, errorMessage: String(err), latencyMs: Date.now() - t0 };

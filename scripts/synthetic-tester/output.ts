@@ -15,6 +15,18 @@ export interface Row {
   body_extensions?: string; // JSON-stringified per-generator body extensions
   mock_llm?: "true" | "false" | "";
 
+  // Stage C pipeline-metadata capture (Follow-up A, 2026-05-23).
+  // Populated when the route returned gameAnalysis.pipeline in its
+  // response (flag-on, preview-env). Blank for mock-LLM and legacy rows.
+  pipeline_final_outcome?: string;
+  pipeline_retry_count?: number | "";
+  pipeline_total_cost_usd?: number | "";
+  pipeline_category?: string;
+  pipeline_classifier_confidence?: number | "";
+  pipeline_prep_ms?: number | "";
+  pipeline_timed_out?: "true" | "false" | "";
+  pipeline_telemetry_json?: string; // JSON-stringified telemetry events array
+
   game_id: number | "";
   white: string;
   black: string;
@@ -61,6 +73,9 @@ export interface Row {
 const COLUMNS: Array<keyof Row> = [
   "timestamp", "run_id", "run_seed", "app_git_sha",
   "turn_idx", "category", "generator_metadata", "body_extensions", "mock_llm",
+  "pipeline_final_outcome", "pipeline_retry_count", "pipeline_total_cost_usd",
+  "pipeline_category", "pipeline_classifier_confidence", "pipeline_prep_ms",
+  "pipeline_timed_out", "pipeline_telemetry_json",
   "game_id", "white", "black", "persona", "persona_file_hash",
   "ply", "fen", "last_move", "last_n_moves", "checkpoint_kind",
   "eval_before_cp", "eval_after_cp", "swing_cp", "move_classification",

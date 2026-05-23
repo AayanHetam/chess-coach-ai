@@ -764,8 +764,11 @@ function buildTurnRow(args: {
   http_status?: number | "";
   latencyMs?: number | "";
   errorMessage?: string;
+  /** Stage C pipeline metadata from the route response (Follow-up A). */
+  pipeline?: import("./client").ChatMastiResponse["pipeline"];
 }): Row {
   const { turn, result } = args;
+  const p = args.pipeline;
   return {
     timestamp: new Date().toISOString(),
     run_id: args.runId,
@@ -776,6 +779,14 @@ function buildTurnRow(args: {
     generator_metadata: JSON.stringify(result.metadata),
     body_extensions: JSON.stringify(result.bodyExtensions),
     mock_llm: args.mockLlm ? "true" : "false",
+    pipeline_final_outcome: p?.finalOutcome ?? "",
+    pipeline_retry_count: p?.retryCount ?? "",
+    pipeline_total_cost_usd: p?.totalCostUsd ?? "",
+    pipeline_category: p?.category ?? "",
+    pipeline_classifier_confidence: p?.classifierConfidence ?? "",
+    pipeline_prep_ms: p?.prepMs ?? "",
+    pipeline_timed_out: p?.timedOut === undefined ? "" : (p.timedOut ? "true" : "false"),
+    pipeline_telemetry_json: p?.telemetry ? JSON.stringify(p.telemetry) : "",
     game_id: turn.gameAndPersonaHint?.gameIdx ?? "",
     white: "",
     black: "",
@@ -970,6 +981,7 @@ async function runCategoryDispatchFlow(opts: CategoryDispatchOpts): Promise<void
       http_status: apiRes.status,
       latencyMs: apiRes.latencyMs,
       errorMessage: apiRes.ok ? "" : (apiRes.errorMessage ?? ""),
+      pipeline: apiRes.pipeline,
     });
     row.validator_score = validatorScore;
     row.validator_issue_count = validatorIssueCount;

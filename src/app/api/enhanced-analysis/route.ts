@@ -1889,6 +1889,17 @@ export async function POST(request: NextRequest) {
                 classifierConfidence: mastermindPrepForTelemetry.classifierConfidence,
                 prepMs: mastermindPrepForTelemetry.prepMs,
                 timedOut: pipelineResultForTelemetry.timedOut,
+                // Stage C telemetry expose (Follow-up A, 2026-05-23): preview
+                // env only. Production responses do not include the telemetry
+                // array — see Stage C dispatch design + Pause 4 dry-run
+                // surface for context. The events still emit through the
+                // structured logger to Vercel Log Drain on every env; this
+                // field just additionally inlines them in the response so
+                // the synthetic-tester harness can capture per-turn telemetry
+                // without a separate Log Drain reader.
+                ...(process.env.VERCEL_ENV === "preview"
+                  ? { telemetry: pipelineResultForTelemetry.telemetry }
+                  : {}),
               },
             }
           : {}),

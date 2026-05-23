@@ -1,0 +1,2162 @@
+[
+  {
+    "concept_id": "silman-bishops-diagonals",
+    "name": "Bishops on Diagonals",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Silman Part 2: Bishops / Speed Demons of the Diagonals"
+  },
+  {
+    "concept_id": "silman-bishops-vs-knights",
+    "name": "Bishops vs. Knights",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Silman Part 2: Bishops vs. Knights / Grudge Match; also Part 1 imbalance: Superior Minor Piece - Bishops vs. Knights"
+  },
+  {
+    "concept_id": "silman-boxer-vs-puncher",
+    "name": "Boxer vs. Puncher",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "psychology",
+    "notes": "Silman Part 6: Boxer vs. Puncher - A Battle of Opposing Philosophies"
+  },
+  {
+    "concept_id": "silman-control-of-key-file",
+    "name": "Control of a Key File",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Silman Part 1 imbalance: Control of a Key File - Roads for Rooks"
+  },
+  {
+    "concept_id": "silman-control-of-weak-square",
+    "name": "Control of a Weak Square",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Silman Part 1 imbalance: Control of a Hole/Weak Square - Homes for Horses"
+  },
+  {
+    "concept_id": "silman-dragging-central-king",
+    "name": "Dragging Down the Central Enemy King",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Silman Part 5: Dragging Down the Central Enemy King!"
+  },
+  {
+    "concept_id": "silman-fear-of-material",
+    "name": "Fear of Giving Up or Taking Material",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "psychology",
+    "notes": "Silman Part 4: Material / Fear of Giving Up or Taking Material"
+  },
+  {
+    "concept_id": "silman-imbalances",
+    "name": "Imbalances",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Silman Part 1: Imbalances / Learning the ABCs - the core organizing framework of the book"
+  },
+  {
+    "concept_id": "silman-imbalances-in-opening",
+    "name": "Imbalances in the Opening",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "opening",
+    "notes": "Silman Part 9: Imbalances in the Opening"
+  },
+  {
+    "concept_id": "silman-initiative",
+    "name": "Initiative",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Silman Part 1 imbalance: Initiative - Calling the Shots"
+  },
+  {
+    "concept_id": "silman-king-safety",
+    "name": "King Safety",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Silman Part 1 imbalance: King Safety - Dragging Down the Enemy Monarch"
+  },
+  {
+    "concept_id": "silman-knights-psychopaths",
+    "name": "Knights",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Silman Part 2: Knights / Psychopaths of the Chessboard!"
+  },
+  {
+    "concept_id": "silman-lead-in-development",
+    "name": "Lead in Development",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Silman Part 1 imbalance: Lead in Development - You're Outnumbered!"
+  },
+  {
+    "concept_id": "silman-macho-chess",
+    "name": "Macho Chess",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "psychology",
+    "notes": "Silman Part 4: Macho Chess / The Art of Insistence"
+  },
+  {
+    "concept_id": "silman-material-philosophy-of-greed",
+    "name": "Material",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Silman Part 1 imbalance: Material - The Philosophy of Greed"
+  },
+  {
+    "concept_id": "silman-mental-breakdown",
+    "name": "Mental Breakdown",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "psychology",
+    "notes": "Silman Part 4: Mental Breakdown / Overcoming the Trap of 'I Can't' and 'I Must'"
+  },
+  {
+    "concept_id": "silman-mixing-imbalances",
+    "name": "Mixing Imbalances",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Silman Part 9: Mixing Imbalances - combining multiple imbalance themes"
+  },
+  {
+    "concept_id": "silman-passed-pawns-baby-queens",
+    "name": "Passed Pawns",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "endgame",
+    "notes": "Silman Part 8: Baby Queens on the Run; also Part 1: Pawn Structure - Weak Pawns, Passed Pawns, etc."
+  },
+  {
+    "concept_id": "silman-pawn-structure",
+    "name": "Pawn Structure",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Silman Part 1 imbalance: Pawn Structure - Weak Pawns, Passed Pawns, etc."
+  },
+  {
+    "concept_id": "silman-planning",
+    "name": "Planning",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Silman Part 1 imbalance: Planning - Creating Your Own Future"
+  },
+  {
+    "concept_id": "silman-rooks-files-ranks-targets",
+    "name": "Rooks on Files, Ranks, and Targets",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Silman Part 3: Rooks / Files, Ranks, and Targets"
+  },
+  {
+    "concept_id": "silman-space-advantage",
+    "name": "Space",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Silman Part 1 imbalance: Space - The Annexation of Territory; Part 7: Crushing Your Opponent in Space's Embrace"
+  },
+  {
+    "concept_id": "silman-states-of-chess-consciousness",
+    "name": "States of Chess Consciousness",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "psychology",
+    "notes": "Silman Part 4: Various States of Chess Consciousness"
+  },
+  {
+    "concept_id": "silman-statics-vs-dynamics",
+    "name": "Statics vs. Dynamics",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Silman Part 1 and Part 6: Statics vs. Dynamics - The Battle Between Short Term and Long Term Imbalances"
+  },
+  {
+    "concept_id": "silman-statics-vs-dynamics-in-openings",
+    "name": "Statics vs. Dynamics in the Openings",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "opening",
+    "notes": "Silman Part 6: Statics vs. Dynamics in the Openings"
+  },
+  {
+    "concept_id": "silman-talk-to-the-board",
+    "name": "Talk to the Board",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "psychology",
+    "notes": "Silman Part 1: Talk to the Board and It Will Talk to You - listening to position cues"
+  },
+  {
+    "concept_id": "silman-weak-pawns",
+    "name": "Weak Pawns",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Silman Part 5: Weak Pawns / The Sound of Ripe Fruit Falling"
+  },
+  {
+    "concept_id": "silman-weak-squares",
+    "name": "Weak Squares",
+    "source": "silman_reassess_4e",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Silman Part 5: Weak Squares"
+  },
+  {
+    "concept_id": "watson-hedgehogs",
+    "name": "Hedgehogs and their Territoriality",
+    "source": "watson_chess_strategy_in_action",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Watson Chess Strategy in Action Part 1: Hedgehogs and their Territoriality - hedgehog pawn structure"
+  },
+  {
+    "concept_id": "watson-flank-pawns-have-their-say",
+    "name": "The Flank Pawns Have Their Say",
+    "source": "watson_chess_strategy_in_action",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Chess Strategy in Action Part 1: flank pawn advances such as g2-g4 and h7-h5"
+  },
+  {
+    "concept_id": "watson-accumulation-or-plunder",
+    "name": "Accumulation or Plunder",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 10: Accumulation or Plunder? - dynamism subtheme"
+  },
+  {
+    "concept_id": "watson-affording-courtesy-horse",
+    "name": "Affording Common Courtesy to a Horse",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 2: Affording Common Courtesy to a Horse - rule-independence example with knights"
+  },
+  {
+    "concept_id": "watson-old-dispute-doubled-pawns",
+    "name": "An Old Dispute on Doubled Pawns",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 4: An Old Dispute - on doubled pawns"
+  },
+  {
+    "concept_id": "watson-backward-pawns-reconsidered",
+    "name": "Backward Pawns Reconsidered",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 3: Are Your Pawns Really Backward? - modern view of backward pawns"
+  },
+  {
+    "concept_id": "watson-modern-bishop-bad",
+    "name": "Bad Bishops Reconsidered",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 4: The New Morality of Bad Bishops"
+  },
+  {
+    "concept_id": "watson-bishops-vs-knights-pairs",
+    "name": "Bishops versus Knights: Minor-Piece Pairs",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 7: Bishops versus Knights 2: Minor-Piece Pairs"
+  },
+  {
+    "concept_id": "watson-bishops-vs-knights-one-on-one",
+    "name": "Bishops versus Knights: One-on-One",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 6: Bishops versus Knights 1: The Minor Pieces Face Off - One-on-One"
+  },
+  {
+    "concept_id": "watson-classical-permanent-weaknesses",
+    "name": "Classical Case: Permanent Weaknesses",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 7: Classical Case: Permanent Weaknesses"
+  },
+  {
+    "concept_id": "watson-demise-of-general-rule",
+    "name": "Demise of the General Rule",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 2: The Demise of the General Rule; Examples from Practice"
+  },
+  {
+    "concept_id": "watson-description-vs-reality",
+    "name": "Description Versus Reality",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 2: Description Versus Reality - rule-independence"
+  },
+  {
+    "concept_id": "watson-drawish-endings",
+    "name": "Drawish Endings",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "endgame",
+    "notes": "Watson Part 1 Chapter 7: Drawish Endings? - rooks in endgames"
+  },
+  {
+    "concept_id": "watson-dynamic-balance-planning",
+    "name": "Dynamic Balance and Planning",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 10: Dynamic Balance and Planning"
+  },
+  {
+    "concept_id": "watson-dynamism-and-provocation",
+    "name": "Dynamism and Provocation",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 12: Dynamism and Provocation"
+  },
+  {
+    "concept_id": "watson-dynamism",
+    "name": "Dynamism: The Modern Difference",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 10: Dynamism: The Modern Difference"
+  },
+  {
+    "concept_id": "watson-evolution-of-doubled-pawn-theory",
+    "name": "Evolution of Doubled-Pawn Theory",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 4: The Evolution of Doubled-Pawn Theory"
+  },
+  {
+    "concept_id": "watson-evolution-of-iqp",
+    "name": "Evolution of the IQP",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 5: The Evolution of the IQP (isolated queen's pawn)"
+  },
+  {
+    "concept_id": "watson-exchanging-old-and-new",
+    "name": "Exchanging, Old and New",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 1 Chapter 9: Exchanging, Old and New"
+  },
+  {
+    "concept_id": "watson-fianchettoing",
+    "name": "Fianchettoing",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 4: All That Fianchettoing - on the modern bishop"
+  },
+  {
+    "concept_id": "watson-framing-iqp",
+    "name": "Framing the IQP Issue",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 5: Framing the Issue (IQP)"
+  },
+  {
+    "concept_id": "watson-information-theory",
+    "name": "Information Theory and Chess",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "other",
+    "notes": "Watson Part 2 Chapter 11: Information Theory and Chess"
+  },
+  {
+    "concept_id": "watson-king-adventures",
+    "name": "King Adventures after Nimzowitsch",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 1 Chapter 8: King Adventures after Nimzowitsch - on royalty in our times"
+  },
+  {
+    "concept_id": "watson-knights-on-the-edge",
+    "name": "Knights on the Edge",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 5: They Live on the Edge - the contemporary knight"
+  },
+  {
+    "concept_id": "watson-majorities-and-candidates",
+    "name": "Majorities and Candidates",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "endgame",
+    "notes": "Watson Part 1 Chapter 3: Majorities and Candidates"
+  },
+  {
+    "concept_id": "watson-manoeuvring-and-weaknesses",
+    "name": "Manoeuvring and Weaknesses",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 1 Chapter 9: Manoeuvring and Weaknesses"
+  },
+  {
+    "concept_id": "watson-minor-piece-issues",
+    "name": "Minor-Piece Issues",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 6: Minor-Piece Issues - the conventional view"
+  },
+  {
+    "concept_id": "watson-modern-iqp-environment",
+    "name": "Modern IQP Environment",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 5: The Modern IQP Environment"
+  },
+  {
+    "concept_id": "watson-modern-pawn-play",
+    "name": "Modern Pawn Play",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 3: Modern Pawn Play"
+  },
+  {
+    "concept_id": "watson-prophylaxis-modern",
+    "name": "Modern Prophylaxis",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 9: Modern Prophylaxis: Pervasive Prevention"
+  },
+  {
+    "concept_id": "watson-nature-of-middlegame-theory",
+    "name": "Nature of Middlegame Theory",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 1 Chapter 1: The Nature of Middlegame Theory"
+  },
+  {
+    "concept_id": "watson-new-pawn-chain-treatments",
+    "name": "New Treatments of the Pawn-chain",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 3: New Treatments of the Pawn-chain"
+  },
+  {
+    "concept_id": "watson-nimzo-kingdian",
+    "name": "Nimzo-Kingdian Defence",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Watson Part 1 Chapter 8: The Nimzo-Kingdian Defence - early king moves as strategy"
+  },
+  {
+    "concept_id": "watson-nimzowitsch-doubled-pawns",
+    "name": "Nimzowitsch and Doubled Pawns",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 4: Nimzowitsch and Doubled Pawns"
+  },
+  {
+    "concept_id": "watson-nimzowitsch-new-ideas",
+    "name": "Nimzowitsch's New Ideas",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 1 Chapter 4: Nimzowitsch's New Ideas - pawns in chains"
+  },
+  {
+    "concept_id": "watson-opposite-colour-bishops",
+    "name": "Opposite-Colour Bishops",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "endgame",
+    "notes": "Watson Part 1 Chapter 6: Opposite Colours Attract? Folklore or Reality?"
+  },
+  {
+    "concept_id": "watson-optical-advantages",
+    "name": "Optical Advantages versus Elasticity",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 10: Optical Advantages versus Elasticity"
+  },
+  {
+    "concept_id": "watson-optical-illusions-knights",
+    "name": "Optical Illusions of Knights",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 5: Optical Illusions - the contemporary knight"
+  },
+  {
+    "concept_id": "watson-overprotection",
+    "name": "Overprotection",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 9: Overprotection: A Few Remarks"
+  },
+  {
+    "concept_id": "watson-passed-pawns-blockade",
+    "name": "Passed Pawns and the Blockade",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "endgame",
+    "notes": "Watson Part 1 Chapter 3: Passed Pawns and the Blockade"
+  },
+  {
+    "concept_id": "watson-pawn-grabbing",
+    "name": "Pawn-Grabbing in the Opening",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Watson Part 1 Chapter 2: Pawn-Grabbing in the Opening"
+  },
+  {
+    "concept_id": "watson-conclusion-playing-modern-chess",
+    "name": "Playing Modern Chess",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 14: Playing Modern Chess / Conclusion"
+  },
+  {
+    "concept_id": "watson-queens-and-knights",
+    "name": "Queens and Knights",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 6: Queens and Knights - minor-piece issues"
+  },
+  {
+    "concept_id": "watson-radical-rooks",
+    "name": "Radical Rooks",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 7: Those Radical Rooks"
+  },
+  {
+    "concept_id": "watson-flank-to-centre",
+    "name": "Relationship of Flank to Centre",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 3: The New Relationship of Flank to Centre"
+  },
+  {
+    "concept_id": "watson-remis",
+    "name": "Remis (Draw Tendencies)",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 11: Remis? - the modern draw problem"
+  },
+  {
+    "concept_id": "watson-rooks-on-ranks",
+    "name": "Rooks Who Roam on Ranks",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 7: Rooks Who Roam on Ranks"
+  },
+  {
+    "concept_id": "watson-rule-independence",
+    "name": "Rule-Independence",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 2: Rule-Independence - the foundation of modern strategy"
+  },
+  {
+    "concept_id": "watson-rooks-on-7th-8th-ranks",
+    "name": "Seventh and Eighth Ranks",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Watson Part 1 Chapter 7: Seventh and Eighth Ranks - rooks on far ranks"
+  },
+  {
+    "concept_id": "watson-space-centre-trade",
+    "name": "Space/Centre for Bishops Trade-off",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 7: Space/Centre for Bishops: An Obscure Trade-off"
+  },
+  {
+    "concept_id": "watson-superfluous-knights",
+    "name": "Superfluous Knights",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 5: Are You Feeling Superfluous? - extra knights"
+  },
+  {
+    "concept_id": "watson-symmetry",
+    "name": "Symmetry as Opportunity",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 11: Today's Symmetry is Tomorrow's Opportunity"
+  },
+  {
+    "concept_id": "watson-analytical-revolution",
+    "name": "The Analytical Revolution",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Watson Part 2 Chapter 13: The Analytical Revolution - contemporary opening theory"
+  },
+  {
+    "concept_id": "watson-avant-garde",
+    "name": "The Avant-Garde",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Watson Part 2 Chapter 13: The Avant-Garde - leading-edge modern opening ideas"
+  },
+  {
+    "concept_id": "watson-bishop-pair-reconsidered",
+    "name": "The Bishop Pair Reconsidered",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 4: The Bishop-pair Reconsidered"
+  },
+  {
+    "concept_id": "watson-centre-and-development",
+    "name": "The Centre and Development",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 1 Chapter 2: The Centre and Development"
+  },
+  {
+    "concept_id": "watson-centre-and-tempi",
+    "name": "The Centre and Tempi",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Watson Part 1 Chapter 2: The Centre and Tempi"
+  },
+  {
+    "concept_id": "watson-contemporary-knight",
+    "name": "The Contemporary Knight",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 5: The Contemporary Knight"
+  },
+  {
+    "concept_id": "watson-death-of-chess-revisited",
+    "name": "The Death of Chess Revisited",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "other",
+    "notes": "Watson Part 2 Chapter 1: The Death of Chess Revisited - overview of modern revolution"
+  },
+  {
+    "concept_id": "watson-exchange-sacrifice",
+    "name": "The Exchange Sacrifice",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Watson Part 2 Chapter 8: The Exchange Sacrifice"
+  },
+  {
+    "concept_id": "watson-initiative-dance",
+    "name": "The Initiative Dance",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 12: The Initiative Dance: Some Musings"
+  },
+  {
+    "concept_id": "watson-contemporary-passed-pawn",
+    "name": "The Lustful Contemporary Passed Pawn",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "endgame",
+    "notes": "Watson Part 1 Chapter 3: The Lustful Contemporary Passed Pawn"
+  },
+  {
+    "concept_id": "watson-mobile-central-pawn-mass",
+    "name": "The Mobile Central Pawn-Mass",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 2: The Mobile Central Pawn-Mass"
+  },
+  {
+    "concept_id": "watson-modern-bishop",
+    "name": "The Modern Bishop",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 4: The Modern Bishop"
+  },
+  {
+    "concept_id": "watson-modern-opening-reconsidered",
+    "name": "The Modern Opening Reconsidered",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Watson Part 2 Chapter 13: The Modern Opening Reconsidered"
+  },
+  {
+    "concept_id": "watson-paradox-of-alekhine",
+    "name": "The Paradox of Alekhine",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Watson Part 2 Chapter 13: The Paradox of Alekhine"
+  },
+  {
+    "concept_id": "watson-really-big-centre",
+    "name": "The Really Big Centre",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 2: The Really Big Centre - extended central pawn formations"
+  },
+  {
+    "concept_id": "watson-royal-guard",
+    "name": "The Royal Guard and How It Strays",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 2: The Royal Guard and How It Strays"
+  },
+  {
+    "concept_id": "watson-time-and-information",
+    "name": "Time and Information",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 11: Time and Information"
+  },
+  {
+    "concept_id": "watson-reversed-openings",
+    "name": "Time and Reversed Openings",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Watson Part 2 Chapter 11: Time and Reversed Openings"
+  },
+  {
+    "concept_id": "watson-tripling-pawns",
+    "name": "Tripling Pawns",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 1 Chapter 4: Tripling Up - tripled pawns"
+  },
+  {
+    "concept_id": "watson-vengeance-of-bishops",
+    "name": "Vengeance of the Bishops",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Watson Part 2 Chapter 7: Vengeance of the Bishops"
+  },
+  {
+    "concept_id": "watson-what-is-an-advantage",
+    "name": "What is an Advantage?",
+    "source": "watson_secrets_modern_strategy",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 12: The Mysteries of Momentum: What is an Advantage?"
+  },
+  {
+    "concept_id": "watson-surrender-of-centre",
+    "name": "Surrender of the Centre",
+    "source": "watson_secrets_modern_strategy+watson_chess_strategy_in_action",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 1 Chapter 2: Surrender of the Centre; also Chess Strategy in Action Part 1: The Surrender of the Centre"
+  },
+  {
+    "concept_id": "watson-positional-pawn-sacrifice",
+    "name": "The Positional Pawn Sacrifice",
+    "source": "watson_secrets_modern_strategy+watson_chess_strategy_in_action",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Watson Part 2 Chapter 3: The Positional Pawn Sacrifice; also featured in Chess Strategy in Action Part 1"
+  },
+  {
+    "concept_id": "yusupov-combinations-diagonals",
+    "name": "Combinations Involving Diagonals",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 1 (blue) chapter 15: Combinations involving diagonals"
+  },
+  {
+    "concept_id": "yusupov-combinations-knights",
+    "name": "Combinations with Knights",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 1 chapter 17 (and 23): Combinations with knights"
+  },
+  {
+    "concept_id": "yusupov-combinations-major-pieces",
+    "name": "Combinations with Major Pieces",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 1 chapter 21: Combinations with the major pieces"
+  },
+  {
+    "concept_id": "yusupov-coordination-of-pieces",
+    "name": "Coordination of the Pieces",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Boost Your Chess 1 chapter 22: Coordination of the pieces"
+  },
+  {
+    "concept_id": "yusupov-elementary-endgames",
+    "name": "Elementary Endgames",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "endgame",
+    "notes": "Boost Your Chess 1 chapter 16: Elementary endgames"
+  },
+  {
+    "concept_id": "yusupov-mate-bishop-knight",
+    "name": "Mate with Bishop and Knight",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "endgame",
+    "notes": "Boost Your Chess 1 chapter 12: Mate with bishop and knight"
+  },
+  {
+    "concept_id": "yusupov-opening-traps",
+    "name": "Opening Traps",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "opening",
+    "notes": "Boost Your Chess 1 chapter 8: Opening traps"
+  },
+  {
+    "concept_id": "yusupov-pawn-weaknesses",
+    "name": "Pawn Weaknesses",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Boost Your Chess 1 chapter 2: Pawn weaknesses"
+  },
+  {
+    "concept_id": "yusupov-perpetual-check",
+    "name": "Perpetual Check",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 1 chapter 19: Perpetual check"
+  },
+  {
+    "concept_id": "yusupov-mobilization",
+    "name": "Principles Behind Mobilization",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "opening",
+    "notes": "Boost Your Chess 1 chapter 18: The principles behind mobilization"
+  },
+  {
+    "concept_id": "yusupov-seventh-rank",
+    "name": "The 7th Rank",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 1 chapter 5: The 7th rank"
+  },
+  {
+    "concept_id": "yusupov-pawn-wedge",
+    "name": "The Pawn Wedge",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Boost Your Chess 1 chapter 7: The pawn wedge"
+  },
+  {
+    "concept_id": "yusupov-semi-open-file",
+    "name": "The Semi-Open File",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Boost Your Chess 1 chapter 11: The semi-open file"
+  },
+  {
+    "concept_id": "yusupov-use-of-traps",
+    "name": "The Use of Traps",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "psychology",
+    "notes": "Boost Your Chess 1 chapter 9: The use of traps"
+  },
+  {
+    "concept_id": "yusupov-windmill",
+    "name": "The Windmill",
+    "source": "yusupov_byc_blue_book_1",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 1 chapter 1: The windmill"
+  },
+  {
+    "concept_id": "yusupov-combinations-files",
+    "name": "Combinations Involving Files",
+    "source": "yusupov_byc_blue_book_1+yusupov_byc_green_book_1",
+    "level": "all",
+    "category": "tactics",
+    "notes": "Boost Your Chess 1 chapter 13: Combinations involving files; Chess Evolution 1 chapter 23"
+  },
+  {
+    "concept_id": "yusupov-exploiting-weaknesses",
+    "name": "Exploiting Weaknesses",
+    "source": "yusupov_byc_blue_book_1+yusupov_byc_green_book_2",
+    "level": "all",
+    "category": "strategy",
+    "notes": "Boost Your Chess 1 chapter 4: Exploiting weaknesses; Chess Evolution 2 chapter 7: Exploiting weaknesses"
+  },
+  {
+    "concept_id": "yusupov-fortresses",
+    "name": "Fortresses",
+    "source": "yusupov_byc_blue_book_1+yusupov_byc_green_book_3",
+    "level": "all",
+    "category": "endgame",
+    "notes": "Boost Your Chess 1 chapter 6: Fortresses; Chess Evolution 3 chapter 8: Fortresses"
+  },
+  {
+    "concept_id": "yusupov-outposts-knights",
+    "name": "Outposts for Knights",
+    "source": "yusupov_byc_blue_book_1+yusupov_byc_green_book_3",
+    "level": "all",
+    "category": "positional",
+    "notes": "Boost Your Chess 1 chapter 14: Outposts; Chess Evolution 3 chapter 20: Outposts for knights"
+  },
+  {
+    "concept_id": "yusupov-stalemate-combinations",
+    "name": "Stalemate Combinations",
+    "source": "yusupov_byc_blue_book_1+yusupov_byc_orange_book_1",
+    "level": "all",
+    "category": "tactics",
+    "notes": "Boost Your Chess 1 chapter 10: Stalemate combinations; Build Up Your Chess 1 chapter 17: Stalemate motifs"
+  },
+  {
+    "concept_id": "yusupov-back-rank-combinations",
+    "name": "Back Rank Combinations",
+    "source": "yusupov_byc_blue_book_1+yusupov_byc_orange_book_2",
+    "level": "all",
+    "category": "tactics",
+    "notes": "Boost Your Chess 1 (blue) chapter 3: Back rank combinations; Build Up Your Chess 2 (orange) chapter 3: Combinations involving the back rank"
+  },
+  {
+    "concept_id": "yusupov-blocking-combinations",
+    "name": "Blocking Combinations",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 2 (blue): Blocking combinations"
+  },
+  {
+    "concept_id": "yusupov-closed-openings",
+    "name": "Closed Openings",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "opening",
+    "notes": "Boost Your Chess 2 (blue): Closed openings"
+  },
+  {
+    "concept_id": "yusupov-dragging-king-out",
+    "name": "Dragging the King Out",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 2 (blue): Dragging the king out"
+  },
+  {
+    "concept_id": "yusupov-endgame-technique",
+    "name": "Endgame Technique",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "endgame",
+    "notes": "Boost Your Chess 2 (blue): Endgame technique"
+  },
+  {
+    "concept_id": "yusupov-fighting-against-pawn-centre",
+    "name": "Fighting Against the Pawn Centre",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Boost Your Chess 2 (blue): Fighting against the pawn centre"
+  },
+  {
+    "concept_id": "yusupov-king-attacks",
+    "name": "King Attacks",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 2 (blue): King attacks"
+  },
+  {
+    "concept_id": "yusupov-line-blocking",
+    "name": "Line Blocking",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 2 (blue): Line blocking"
+  },
+  {
+    "concept_id": "yusupov-line-clearing",
+    "name": "Line Clearing",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 2 (blue): Line clearing"
+  },
+  {
+    "concept_id": "yusupov-minor-tactics",
+    "name": "Minor Tactics",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 2 (blue): 'Minor' tactics"
+  },
+  {
+    "concept_id": "yusupov-removing-the-defence",
+    "name": "Removing the Defence",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 2 (blue): Removing the defence"
+  },
+  {
+    "concept_id": "yusupov-trapping-pieces",
+    "name": "Trapping Pieces",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 2 (blue): Trapping pieces"
+  },
+  {
+    "concept_id": "yusupov-typical-mistakes-calculating",
+    "name": "Typical Mistakes in Calculating Variations",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "calculation",
+    "notes": "Boost Your Chess 2 (blue): Typical mistakes in calculating variations"
+  },
+  {
+    "concept_id": "yusupov-typical-mistakes-endgame",
+    "name": "Typical Mistakes in the Endgame",
+    "source": "yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "endgame",
+    "notes": "Boost Your Chess 2 (blue): Typical mistakes in the endgame"
+  },
+  {
+    "concept_id": "yusupov-bishop-pair",
+    "name": "The Bishop Pair",
+    "source": "yusupov_byc_blue_book_2+yusupov_byc_green_book_3",
+    "level": "all",
+    "category": "positional",
+    "notes": "Boost Your Chess 2 (blue): The bishop pair; Chess Evolution 3 (green) chapter 11: The bishop pair"
+  },
+  {
+    "concept_id": "yusupov-blockade",
+    "name": "Blockade",
+    "source": "yusupov_byc_blue_book_2+yusupov_byc_orange_book_3",
+    "level": "all",
+    "category": "positional",
+    "notes": "Boost Your Chess 2: Blockade; Build Up Your Chess 3 chapter 13: Blockade"
+  },
+  {
+    "concept_id": "yusupov-attacking-king-in-centre",
+    "name": "Attacking the King in the Centre",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 3 (Yusupov Beyond the Basics, blue) chapter 1: Attacking the king in the centre"
+  },
+  {
+    "concept_id": "yusupov-bishop-against-knight",
+    "name": "Bishop Against Knight",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "endgame",
+    "notes": "Boost Your Chess 3 (blue) chapter 13: Bishop against knight"
+  },
+  {
+    "concept_id": "yusupov-central-pawn-majority",
+    "name": "Central Pawn Majority",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Boost Your Chess 3 (blue) chapter 19: Central pawn majority"
+  },
+  {
+    "concept_id": "yusupov-combinational-vision",
+    "name": "Combinational Vision",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 3 chapter 16: Combinational vision"
+  },
+  {
+    "concept_id": "yusupov-counter-attack",
+    "name": "Counter-Attack",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 3 chapter 7: Counter-attack"
+  },
+  {
+    "concept_id": "yusupov-counterplay",
+    "name": "Counterplay",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Boost Your Chess 3 chapter 3: Counterplay"
+  },
+  {
+    "concept_id": "yusupov-defence",
+    "name": "Defence",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Boost Your Chess 3 chapter 14: Defence"
+  },
+  {
+    "concept_id": "yusupov-knight-against-bishop",
+    "name": "Knight Against Bishop",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "endgame",
+    "notes": "Boost Your Chess 3 chapter 24: Knight against bishop"
+  },
+  {
+    "concept_id": "yusupov-knight-endings",
+    "name": "Knight Endings",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "endgame",
+    "notes": "Boost Your Chess 3 chapter 4: Knight endings"
+  },
+  {
+    "concept_id": "yusupov-pawn-storms",
+    "name": "Pawn Storms",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "tactics",
+    "notes": "Boost Your Chess 3 chapter 20: Pawn storms"
+  },
+  {
+    "concept_id": "yusupov-prophylactic-thinking",
+    "name": "Prophylactic Thinking",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Boost Your Chess 3 chapter 12: Prophylactic thinking"
+  },
+  {
+    "concept_id": "yusupov-queenside-pawn-majority",
+    "name": "Queenside Pawn Majority",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "positional",
+    "notes": "Boost Your Chess 3 chapter 18: Queenside pawn majority"
+  },
+  {
+    "concept_id": "yusupov-realizing-an-advantage",
+    "name": "Realizing an Advantage",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Boost Your Chess 3 chapter 2: Realizing an advantage - principles of technique"
+  },
+  {
+    "concept_id": "yusupov-rook-against-pawn",
+    "name": "Rook Against Pawn",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "endgame",
+    "notes": "Boost Your Chess 3 chapter 8: Rook against pawn"
+  },
+  {
+    "concept_id": "yusupov-grunfeld-defence",
+    "name": "The Grunfeld Defence",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "opening",
+    "notes": "Boost Your Chess 3 chapter 22: The Grunfeld Defence"
+  },
+  {
+    "concept_id": "yusupov-initiative",
+    "name": "The Initiative",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "strategy",
+    "notes": "Boost Your Chess 3 chapter 21: The initiative"
+  },
+  {
+    "concept_id": "yusupov-kings-indian-defence",
+    "name": "The King's Indian Defence",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "opening",
+    "notes": "Boost Your Chess 3 chapter 17: The King's Indian Defence"
+  },
+  {
+    "concept_id": "yusupov-technique-of-calculating",
+    "name": "The Technique of Calculating Variations",
+    "source": "yusupov_byc_blue_book_3",
+    "level": "intermediate",
+    "category": "calculation",
+    "notes": "Boost Your Chess 3 chapter 9: The technique of calculating variations"
+  },
+  {
+    "concept_id": "yusupov-reti-opening",
+    "name": "The Reti Opening",
+    "source": "yusupov_byc_blue_book_3+yusupov_byc_blue_book_2",
+    "level": "intermediate",
+    "category": "opening",
+    "notes": "Boost Your Chess 3 chapter 10: The Reti Opening; Boost Your Chess 2: Reti/English Opening"
+  },
+  {
+    "concept_id": "yusupov-english-opening",
+    "name": "The English Opening",
+    "source": "yusupov_byc_blue_book_3+yusupov_byc_green_book_2",
+    "level": "all",
+    "category": "opening",
+    "notes": "Boost Your Chess 3 chapter 5: The English Opening; Chess Evolution 2 chapter 4: Opening repertoire against 1.c4"
+  },
+  {
+    "concept_id": "yusupov-elimination-method",
+    "name": "The Elimination Method",
+    "source": "yusupov_byc_blue_book_3+yusupov_byc_orange_book_3",
+    "level": "all",
+    "category": "calculation",
+    "notes": "Boost Your Chess 3 chapter 23; Build Up Your Chess 3 chapter 17: The elimination method"
+  },
+  {
+    "concept_id": "yusupov-attacking",
+    "name": "Attacking",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 1 (Yusupov Mastery, green) chapter 14: Attacking"
+  },
+  {
+    "concept_id": "yusupov-attacking-queen-bishop",
+    "name": "Attacking with Queen and Bishop",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 1 (Yusupov Mastery, green) chapter 10: Attacking with queen and bishop"
+  },
+  {
+    "concept_id": "yusupov-attacking-queen-knight",
+    "name": "Attacking with Queen and Knight",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 1 (Yusupov Mastery, green) chapter 6: Attacking with queen and knight"
+  },
+  {
+    "concept_id": "yusupov-attacking-queen-pawn",
+    "name": "Attacking with Queen and Pawn",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 1 (Yusupov Mastery, green) chapter 13: Attacking with queen and pawn"
+  },
+  {
+    "concept_id": "yusupov-attacking-queen-rook",
+    "name": "Attacking with Queen and Rook",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 1 (Yusupov Mastery, green) chapter 8: Attacking with queen and rook"
+  },
+  {
+    "concept_id": "yusupov-attacking-rook-bishop",
+    "name": "Attacking with Rook and Bishop",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 1 (Yusupov Mastery, green) chapter 15: Attacking with rook and bishop"
+  },
+  {
+    "concept_id": "yusupov-attacking-rook-knight",
+    "name": "Attacking with Rook and Knight",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 1 (Yusupov Mastery, green) chapter 17: Attacking with rook and knight"
+  },
+  {
+    "concept_id": "yusupov-bishop-against-pawns",
+    "name": "Bishop Against Pawns",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "endgame",
+    "notes": "Chess Evolution 1 (green) chapter 12: Bishop against pawns"
+  },
+  {
+    "concept_id": "yusupov-combinations-bishops",
+    "name": "Combinations Involving Bishops",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 1 chapter 1: Combinations involving bishops"
+  },
+  {
+    "concept_id": "yusupov-diagonals",
+    "name": "Diagonals",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Chess Evolution 1 chapter 2: Diagonals"
+  },
+  {
+    "concept_id": "yusupov-forcing-the-issue",
+    "name": "Forcing the Issue",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "calculation",
+    "notes": "Chess Evolution 1: Forcing the issue (forcing-moves discipline)"
+  },
+  {
+    "concept_id": "yusupov-knight-against-pawn",
+    "name": "Knight Against Pawn",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "endgame",
+    "notes": "Chess Evolution 1 chapter 16: Knight against pawn"
+  },
+  {
+    "concept_id": "yusupov-mate-in-three",
+    "name": "Mate in Three Moves",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 1 chapter 20: Mate in three moves"
+  },
+  {
+    "concept_id": "yusupov-mating-nets-endgame",
+    "name": "Mating Nets in the Endgame",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "endgame",
+    "notes": "Chess Evolution 1 chapter 21: Mating nets in the endgame"
+  },
+  {
+    "concept_id": "yusupov-positional-advantages",
+    "name": "Positional Advantages",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Chess Evolution 1 chapter 11: Positional advantages"
+  },
+  {
+    "concept_id": "yusupov-queen-against-rook",
+    "name": "Queen Against Rook",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "endgame",
+    "notes": "Chess Evolution 1 chapter 24: Queen against rook"
+  },
+  {
+    "concept_id": "yusupov-queen-sacrifices",
+    "name": "Queen Sacrifices",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 1 chapter 3: Queen sacrifices"
+  },
+  {
+    "concept_id": "yusupov-semi-open-games",
+    "name": "Semi-Open Games",
+    "source": "yusupov_byc_green_book_1",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Chess Evolution 1 chapter 18: Semi-open games"
+  },
+  {
+    "concept_id": "yusupov-passed-pawn",
+    "name": "The Passed Pawn",
+    "source": "yusupov_byc_green_book_1+yusupov_byc_blue_book_3",
+    "level": "all",
+    "category": "endgame",
+    "notes": "Chess Evolution 1 chapter 22: The passed pawn; Boost Your Chess 3 chapter 11: The passed pawn in the middlegame"
+  },
+  {
+    "concept_id": "yusupov-open-games",
+    "name": "Open Games",
+    "source": "yusupov_byc_green_book_1+yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Chess Evolution 1 chapter 7: The open games; Chess Evolution 3 chapter 5: Open games"
+  },
+  {
+    "concept_id": "yusupov-active-moves",
+    "name": "Active Moves",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "calculation",
+    "notes": "Chess Evolution 2 (Yusupov Mastery, green) chapter 15: Active moves"
+  },
+  {
+    "concept_id": "yusupov-pawn-structures-better",
+    "name": "Better Pawn Structures",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Chess Evolution 2 chapter 9: Better pawn structures"
+  },
+  {
+    "concept_id": "yusupov-combined-attack-7th-8th",
+    "name": "Combined Attack on the 7th and 8th Ranks",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 2 chapter 1: Combined attack on the seventh and eighth ranks"
+  },
+  {
+    "concept_id": "yusupov-counter-blows",
+    "name": "Counter-Blows",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 2 chapter 22: Counter-blows"
+  },
+  {
+    "concept_id": "yusupov-dont-allow-counterplay",
+    "name": "Don't Allow Counterplay",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 2 chapter 5: Don't allow counterplay!"
+  },
+  {
+    "concept_id": "yusupov-dont-be-too-hasty",
+    "name": "Don't Be Too Hasty",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 2 chapter 12: Don't be too hasty!"
+  },
+  {
+    "concept_id": "yusupov-intermediate-checks",
+    "name": "Intermediate Checks",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 2 chapter 16: Intermediate checks"
+  },
+  {
+    "concept_id": "yusupov-intermediate-moves",
+    "name": "Intermediate Moves",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 2 chapter 19: Intermediate moves (zwischenzug)"
+  },
+  {
+    "concept_id": "yusupov-lead-in-development",
+    "name": "Lead in Development",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Chess Evolution 2 chapter 6: A lead in development"
+  },
+  {
+    "concept_id": "yusupov-pawn-play",
+    "name": "Pawn Play",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 2 chapter 14: Pawn play"
+  },
+  {
+    "concept_id": "yusupov-pawn-sacrifices-opening",
+    "name": "Pawn Sacrifices in the Opening",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Chess Evolution 2 chapter 18: Pawn sacrifices in the opening"
+  },
+  {
+    "concept_id": "yusupov-two-weaknesses-principle",
+    "name": "Principle of Two Weaknesses",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 2 chapter 20: The principle of two weaknesses"
+  },
+  {
+    "concept_id": "yusupov-centre-in-opening",
+    "name": "The Centre in the Opening",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Chess Evolution 2 (green) chapter 23: The centre in the opening"
+  },
+  {
+    "concept_id": "yusupov-correct-exchanges",
+    "name": "The Correct Exchanges",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 2 chapter 24: The correct exchanges"
+  },
+  {
+    "concept_id": "yusupov-double-bishop-sacrifice",
+    "name": "The Double Bishop Sacrifice",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 2 chapter 13: The double bishop sacrifice"
+  },
+  {
+    "concept_id": "yusupov-pawn-phalanx",
+    "name": "The Pawn Phalanx",
+    "source": "yusupov_byc_green_book_2",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Chess Evolution 2 chapter 10: The pawn phalanx"
+  },
+  {
+    "concept_id": "yusupov-exchanging",
+    "name": "Exchanging",
+    "source": "yusupov_byc_green_book_2+yusupov_byc_orange_book_2",
+    "level": "all",
+    "category": "strategy",
+    "notes": "Chess Evolution 2 chapter 2: Exchanging; Build Up Your Chess 2 chapter 18: Exchanging"
+  },
+  {
+    "concept_id": "yusupov-castling-opposite-sides",
+    "name": "Castling on Opposite Sides",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 3 (green) chapter 16: Castling on opposite sides"
+  },
+  {
+    "concept_id": "yusupov-complex-positions",
+    "name": "Complex Positions",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 3 chapters 9 and 23: Complex positions (and Complex positions 2)"
+  },
+  {
+    "concept_id": "yusupov-complicated-combinations",
+    "name": "Complicated Combinations",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 3 chapter 7: Complicated Combinations"
+  },
+  {
+    "concept_id": "yusupov-desperadoes",
+    "name": "Desperadoes",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "tactics",
+    "notes": "Chess Evolution 3 chapter 1: Desperadoes"
+  },
+  {
+    "concept_id": "yusupov-exchanging-queens",
+    "name": "Exchanging Queens to Enter the Endgame",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "endgame",
+    "notes": "Chess Evolution 3 chapter 19: Exchanging queens - the transition to the ending"
+  },
+  {
+    "concept_id": "yusupov-pawn-chains",
+    "name": "Pawn Chains",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "positional",
+    "notes": "Chess Evolution 3 chapter 17: Pawn chains"
+  },
+  {
+    "concept_id": "yusupov-pirc-modern-defences",
+    "name": "Pirc and Modern Defences",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "opening",
+    "notes": "Chess Evolution 3 chapter 22: Pirc and Modern Defences"
+  },
+  {
+    "concept_id": "yusupov-playing-against-pieces",
+    "name": "Playing Against Pieces",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 3 chapter 13: Playing against pieces"
+  },
+  {
+    "concept_id": "yusupov-playing-for-traps",
+    "name": "Playing for Traps",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "psychology",
+    "notes": "Chess Evolution 3 chapter 15: Playing for traps"
+  },
+  {
+    "concept_id": "yusupov-queen-endings",
+    "name": "Queen Endings",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "endgame",
+    "notes": "Chess Evolution 3 chapter 24: Queen endings"
+  },
+  {
+    "concept_id": "yusupov-rook-against-two-minor-pieces",
+    "name": "Rook Against Two Minor Pieces",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 3 chapter 4: Rook against two minor pieces"
+  },
+  {
+    "concept_id": "yusupov-shutting-out-a-piece",
+    "name": "Shutting Out a Piece",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 3 chapter 12: Shutting out a piece"
+  },
+  {
+    "concept_id": "yusupov-static-advantages",
+    "name": "Static Advantages",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 3 chapter 2: Static advantages"
+  },
+  {
+    "concept_id": "yusupov-minority-attack",
+    "name": "The Minority Attack",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 3 chapter 6: The minority attack"
+  },
+  {
+    "concept_id": "yusupov-transition-opening-to-ending",
+    "name": "Transition from Opening to Ending",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "endgame",
+    "notes": "Chess Evolution 3 chapter 18: Transition from the opening to the ending"
+  },
+  {
+    "concept_id": "yusupov-transition-middlegame",
+    "name": "Transition to the Middlegame",
+    "source": "yusupov_byc_green_book_3",
+    "level": "advanced",
+    "category": "strategy",
+    "notes": "Chess Evolution 3 chapter 10: The transition to the middlegame"
+  },
+  {
+    "concept_id": "yusupov-rook-endings-principles",
+    "name": "Principles of Rook Endings",
+    "source": "yusupov_byc_green_book_3+yusupov_byc_blue_book_2",
+    "level": "all",
+    "category": "endgame",
+    "notes": "Chess Evolution 3 chapter 14: Principles of rook endings; Boost Your Chess 2: Simple rook endings (1 and 2)"
+  },
+  {
+    "concept_id": "yusupov-centralizing-pieces",
+    "name": "Centralizing the Pieces",
+    "source": "yusupov_byc_orange_book_1",
+    "level": "beginner",
+    "category": "strategy",
+    "notes": "Build Up Your Chess 1 chapter 8: Centralizing the pieces"
+  },
+  {
+    "concept_id": "yusupov-combinations",
+    "name": "Combinations",
+    "source": "yusupov_byc_orange_book_1",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 1 chapter 15: Combinations"
+  },
+  {
+    "concept_id": "yusupov-double-check",
+    "name": "Double Check",
+    "source": "yusupov_byc_orange_book_1",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 1 chapter 5: Double check"
+  },
+  {
+    "concept_id": "yusupov-gambits",
+    "name": "Gambits",
+    "source": "yusupov_byc_orange_book_1",
+    "level": "beginner",
+    "category": "opening",
+    "notes": "Build Up Your Chess 1 chapter 24: Gambits"
+  },
+  {
+    "concept_id": "yusupov-mating-motifs",
+    "name": "Mating Motifs",
+    "source": "yusupov_byc_orange_book_1",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 1 chapters 1 and 2: Mating motifs / Mating motifs 2"
+  },
+  {
+    "concept_id": "yusupov-pawn-combinations",
+    "name": "Pawn Combinations",
+    "source": "yusupov_byc_orange_book_1",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 1 chapter 21: Pawn combinations"
+  },
+  {
+    "concept_id": "yusupov-queen-against-pawn",
+    "name": "Queen Against Pawn",
+    "source": "yusupov_byc_orange_book_1",
+    "level": "beginner",
+    "category": "endgame",
+    "notes": "Build Up Your Chess 1 chapter 16: Queen against pawn"
+  },
+  {
+    "concept_id": "yusupov-smothered-mate",
+    "name": "Smothered Mate",
+    "source": "yusupov_byc_orange_book_1",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 1 chapter 23: Smothered mate"
+  },
+  {
+    "concept_id": "yusupov-opposition",
+    "name": "The Opposition",
+    "source": "yusupov_byc_orange_book_1",
+    "level": "beginner",
+    "category": "endgame",
+    "notes": "Build Up Your Chess 1 chapter 10: The opposition"
+  },
+  {
+    "concept_id": "yusupov-pin",
+    "name": "The Pin",
+    "source": "yusupov_byc_orange_book_1",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 1 chapter 11: The pin"
+  },
+  {
+    "concept_id": "yusupov-value-of-pieces",
+    "name": "The Value of the Pieces",
+    "source": "yusupov_byc_orange_book_1",
+    "level": "beginner",
+    "category": "strategy",
+    "notes": "Build Up Your Chess 1 chapter 6: The value of the pieces"
+  },
+  {
+    "concept_id": "yusupov-wrong-bishop",
+    "name": "The Wrong Bishop",
+    "source": "yusupov_byc_orange_book_1",
+    "level": "beginner",
+    "category": "endgame",
+    "notes": "Build Up Your Chess 1 chapter 22: The wrong bishop"
+  },
+  {
+    "concept_id": "yusupov-mate-in-two",
+    "name": "Mate in Two Moves",
+    "source": "yusupov_byc_orange_book_1+yusupov_byc_blue_book_1",
+    "level": "all",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 1 chapter 9; Boost Your Chess 1 chapter 20: Mate in two moves"
+  },
+  {
+    "concept_id": "yusupov-open-files",
+    "name": "Open Files and Outposts",
+    "source": "yusupov_byc_orange_book_1+yusupov_byc_blue_book_2",
+    "level": "all",
+    "category": "positional",
+    "notes": "Build Up Your Chess 1 chapter 14: Open files and Outposts; Boost Your Chess 2: The open file"
+  },
+  {
+    "concept_id": "yusupov-weak-points",
+    "name": "Weak Points",
+    "source": "yusupov_byc_orange_book_1+yusupov_byc_blue_book_2",
+    "level": "all",
+    "category": "positional",
+    "notes": "Build Up Your Chess 1 chapter 20: Weak points; Boost Your Chess 2 (blue): Weak points"
+  },
+  {
+    "concept_id": "yusupov-forced-variations",
+    "name": "Forced Variations",
+    "source": "yusupov_byc_orange_book_1+yusupov_byc_green_book_1",
+    "level": "all",
+    "category": "calculation",
+    "notes": "Build Up Your Chess 1 chapter 18: Forced variations; Chess Evolution 1 chapter 9: Forced variations"
+  },
+  {
+    "concept_id": "yusupov-realizing-material-advantage",
+    "name": "Realizing a Material Advantage",
+    "source": "yusupov_byc_orange_book_1+yusupov_byc_green_book_1",
+    "level": "all",
+    "category": "strategy",
+    "notes": "Build Up Your Chess 1 chapter 13: Realizing a material advantage; Chess Evolution 1 chapters 4 and 5"
+  },
+  {
+    "concept_id": "yusupov-combinations-promotion",
+    "name": "Combinations Involving Promotion",
+    "source": "yusupov_byc_orange_book_1+yusupov_byc_green_book_1+yusupov_byc_orange_book_3",
+    "level": "all",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 1 chapter 19; Chess Evolution 1 chapter 19; Build Up Your Chess 3 chapter 1"
+  },
+  {
+    "concept_id": "yusupov-basic-opening-principles",
+    "name": "Basic Opening Principles",
+    "source": "yusupov_byc_orange_book_1+yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "opening",
+    "notes": "Build Up Your Chess 1 chapter 3: Basic opening principles; Build Up Your Chess 2 chapter 4: General opening principles"
+  },
+  {
+    "concept_id": "yusupov-discovered-attack",
+    "name": "The Discovered Attack",
+    "source": "yusupov_byc_orange_book_1+yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 1 chapter 7: The discovered attack; Build Up Your Chess 2 chapter 9: The pin and the discovered attack"
+  },
+  {
+    "concept_id": "yusupov-double-attack",
+    "name": "The Double Attack",
+    "source": "yusupov_byc_orange_book_1+yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 1 chapter 12; Build Up Your Chess 2 chapter 5: The double attack"
+  },
+  {
+    "concept_id": "yusupov-pawn-endings",
+    "name": "Pawn Endings",
+    "source": "yusupov_byc_orange_book_1+yusupov_byc_orange_book_2+yusupov_byc_orange_book_3",
+    "level": "all",
+    "category": "endgame",
+    "notes": "Build Up Your Chess 1 chapter 4: Simple pawn endings; Build Up Your Chess 2 chapters 20 and 24: Pawn endings 1 and 2; Build Up Your Chess 3 chapter 3: Pawn endings"
+  },
+  {
+    "concept_id": "yusupov-decoying",
+    "name": "Decoying",
+    "source": "yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 2 chapter 21: Decoying"
+  },
+  {
+    "concept_id": "yusupov-deflection",
+    "name": "Deflection",
+    "source": "yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 2 chapter 11: Deflection"
+  },
+  {
+    "concept_id": "yusupov-destroying-castled-position",
+    "name": "Destroying the Castled Position",
+    "source": "yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 2 chapter 16: Destroying the castled position"
+  },
+  {
+    "concept_id": "yusupov-endgame-strategy",
+    "name": "General Endgame Principles",
+    "source": "yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "endgame",
+    "notes": "Build Up Your Chess 2 chapter 2: General endgame principles"
+  },
+  {
+    "concept_id": "yusupov-mating-combinations",
+    "name": "Mating Combinations",
+    "source": "yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 2 chapter 1: Mating combinations"
+  },
+  {
+    "concept_id": "yusupov-opening-repertoire-vs-1e4",
+    "name": "Opening Repertoire against 1.e4",
+    "source": "yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "opening",
+    "notes": "Build Up Your Chess 2 chapter 17: An opening repertoire against 1.e4"
+  },
+  {
+    "concept_id": "yusupov-opening-repertoire-white-1e4-e5",
+    "name": "Opening Repertoire for White after 1.e4 e5",
+    "source": "yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "opening",
+    "notes": "Build Up Your Chess 2 chapter 15: An opening repertoire for White after 1.e4 e5"
+  },
+  {
+    "concept_id": "yusupov-centre",
+    "name": "The Centre",
+    "source": "yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "strategy",
+    "notes": "Build Up Your Chess 2 chapter 8: The centre"
+  },
+  {
+    "concept_id": "yusupov-greek-gift-sacrifice",
+    "name": "The Greek Gift Sacrifice",
+    "source": "yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 2 chapter 12: The Greek gift sacrifice"
+  },
+  {
+    "concept_id": "yusupov-time-in-opening",
+    "name": "Time in the Opening",
+    "source": "yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "opening",
+    "notes": "Build Up Your Chess 2 chapter 22: Time in the opening"
+  },
+  {
+    "concept_id": "yusupov-zugzwang",
+    "name": "Zugzwang",
+    "source": "yusupov_byc_orange_book_2+yusupov_byc_blue_book_1",
+    "level": "all",
+    "category": "endgame",
+    "notes": "Build Up Your Chess 2 chapter 10: Zugzwang; Boost Your Chess 1 chapter 24: Zugzwang"
+  },
+  {
+    "concept_id": "yusupov-good-and-bad-bishops",
+    "name": "Good and Bad Bishops",
+    "source": "yusupov_byc_orange_book_2+yusupov_byc_blue_book_2",
+    "level": "all",
+    "category": "positional",
+    "notes": "Build Up Your Chess 2 chapter 6: Good and bad bishops; Boost Your Chess 2 (blue): Good and bad bishops"
+  },
+  {
+    "concept_id": "yusupov-candidate-moves",
+    "name": "Candidate Moves",
+    "source": "yusupov_byc_orange_book_2+yusupov_byc_blue_book_3",
+    "level": "all",
+    "category": "calculation",
+    "notes": "Build Up Your Chess 2 chapter 7: Candidate moves; Boost Your Chess 3 chapter 15: Candidate moves"
+  },
+  {
+    "concept_id": "yusupov-attacking-the-king",
+    "name": "Attacking the King",
+    "source": "yusupov_byc_orange_book_2+yusupov_byc_green_book_2",
+    "level": "all",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 2 (orange) chapter 1: Attacking the King; Chess Evolution 2 (green) chapter 3: Attacking the king"
+  },
+  {
+    "concept_id": "yusupov-improving-piece-position",
+    "name": "Improving the Position of Your Pieces",
+    "source": "yusupov_byc_orange_book_2+yusupov_byc_green_book_2",
+    "level": "all",
+    "category": "strategy",
+    "notes": "Build Up Your Chess 2 chapter 23; Chess Evolution 2 chapter 17: Improving the position of your pieces"
+  },
+  {
+    "concept_id": "yusupov-priorities-calculating",
+    "name": "Priorities When Calculating Variations",
+    "source": "yusupov_byc_orange_book_2+yusupov_byc_green_book_2",
+    "level": "all",
+    "category": "calculation",
+    "notes": "Build Up Your Chess 2 chapter 19: Priorities when calculating variations; Chess Evolution 2 chapter 8: Calculating short variations"
+  },
+  {
+    "concept_id": "yusupov-having-a-plan",
+    "name": "Having a Plan",
+    "source": "yusupov_byc_orange_book_2+yusupov_byc_green_book_3",
+    "level": "all",
+    "category": "strategy",
+    "notes": "Build Up Your Chess 2 chapter 14: Planning in chess; Chess Evolution 3 chapter 21: Having a plan"
+  },
+  {
+    "concept_id": "yusupov-bishop-endings",
+    "name": "Bishop Endings",
+    "source": "yusupov_byc_orange_book_3",
+    "level": "beginner",
+    "category": "endgame",
+    "notes": "Build Up Your Chess 3 (orange) chapter 10: Bishop endings"
+  },
+  {
+    "concept_id": "yusupov-doubled-pawns",
+    "name": "Doubled Pawns",
+    "source": "yusupov_byc_orange_book_3",
+    "level": "beginner",
+    "category": "positional",
+    "notes": "Build Up Your Chess 3 chapter 21: Doubled pawns"
+  },
+  {
+    "concept_id": "yusupov-drawing-combinations",
+    "name": "Drawing Combinations",
+    "source": "yusupov_byc_orange_book_3",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 3 chapter 14: Drawing combinations"
+  },
+  {
+    "concept_id": "yusupov-opening-repertoire-white-1d4",
+    "name": "Opening Repertoire for White with 1.d4",
+    "source": "yusupov_byc_orange_book_3",
+    "level": "beginner",
+    "category": "opening",
+    "notes": "Build Up Your Chess 3 chapters 5 and 16: Opening repertoire for White with 1.d4"
+  },
+  {
+    "concept_id": "yusupov-opposite-coloured-bishops",
+    "name": "Opposite-Coloured Bishops",
+    "source": "yusupov_byc_orange_book_3",
+    "level": "beginner",
+    "category": "endgame",
+    "notes": "Build Up Your Chess 3 chapter 15: Opposite-coloured bishops"
+  },
+  {
+    "concept_id": "yusupov-playing-against-hanging-pawns",
+    "name": "Playing Against Hanging Pawns",
+    "source": "yusupov_byc_orange_book_3",
+    "level": "beginner",
+    "category": "positional",
+    "notes": "Build Up Your Chess 3 chapter 19: Playing against hanging pawns"
+  },
+  {
+    "concept_id": "yusupov-rook-against-bishop",
+    "name": "Rook Against Bishop",
+    "source": "yusupov_byc_orange_book_3",
+    "level": "beginner",
+    "category": "endgame",
+    "notes": "Build Up Your Chess 3 chapter 4: Rook against bishop"
+  },
+  {
+    "concept_id": "yusupov-rook-against-knight",
+    "name": "Rook Against Knight",
+    "source": "yusupov_byc_orange_book_3",
+    "level": "beginner",
+    "category": "endgame",
+    "notes": "Build Up Your Chess 3 chapter 24: Rook against knight"
+  },
+  {
+    "concept_id": "yusupov-simple-tactics",
+    "name": "Simple Tactics",
+    "source": "yusupov_byc_orange_book_3",
+    "level": "beginner",
+    "category": "tactics",
+    "notes": "Build Up Your Chess 3 chapters 8 and 20: Simple tactics (and Simple tactics 2)"
+  },
+  {
+    "concept_id": "yusupov-backward-pawn",
+    "name": "The Backward Pawn",
+    "source": "yusupov_byc_orange_book_3",
+    "level": "beginner",
+    "category": "positional",
+    "notes": "Build Up Your Chess 3 (Yusupov Foundation, orange) chapter 9: The backward pawn"
+  },
+  {
+    "concept_id": "yusupov-isolated-pawn",
+    "name": "The Isolated Pawn",
+    "source": "yusupov_byc_orange_book_3",
+    "level": "beginner",
+    "category": "positional",
+    "notes": "Build Up Your Chess 3 chapters 6 and 7: The isolated pawn; Playing against the isolated pawn"
+  },
+  {
+    "concept_id": "yusupov-training-with-studies",
+    "name": "Training with Studies",
+    "source": "yusupov_byc_orange_book_3",
+    "level": "beginner",
+    "category": "endgame",
+    "notes": "Build Up Your Chess 3 chapter 12: Training with studies"
+  },
+  {
+    "concept_id": "yusupov-french-defence",
+    "name": "French Defence",
+    "source": "yusupov_byc_orange_book_3+yusupov_byc_blue_book_2",
+    "level": "all",
+    "category": "opening",
+    "notes": "Build Up Your Chess 3 chapter 11: French Defence; Boost Your Chess 2 (blue): Opening repertoire for White - the French Defence"
+  },
+  {
+    "concept_id": "yusupov-opening-repertoire-black-vs-1d4",
+    "name": "Opening Repertoire for Black against 1.d4",
+    "source": "yusupov_byc_orange_book_3+yusupov_byc_blue_book_2",
+    "level": "all",
+    "category": "opening",
+    "notes": "Build Up Your Chess 3 chapter 22: Opening repertoire for Black against 1.d4 (Lasker QGD); Boost Your Chess 2: Opening repertoire for Black against 1.d4"
+  },
+  {
+    "concept_id": "yusupov-hanging-pawns",
+    "name": "Hanging Pawns",
+    "source": "yusupov_byc_orange_book_3+yusupov_byc_blue_book_3",
+    "level": "all",
+    "category": "positional",
+    "notes": "Build Up Your Chess 3 chapters 18 and 19: Hanging pawns; Boost Your Chess 3 chapter 6: Hanging pawns on c3-d4"
+  },
+  {
+    "concept_id": "yusupov-comparison-method",
+    "name": "The Comparison Method",
+    "source": "yusupov_byc_orange_book_3+yusupov_byc_green_book_3",
+    "level": "all",
+    "category": "calculation",
+    "notes": "Build Up Your Chess 3 chapter 23; Chess Evolution 3 chapter 3: The comparison method"
+  },
+  {
+    "concept_id": "yusupov-evaluation-of-position",
+    "name": "Evaluation of the Position",
+    "source": "yusupov_byc_orange_book_3+yusupov_byc_orange_book_2",
+    "level": "beginner",
+    "category": "strategy",
+    "notes": "Build Up Your Chess 3 chapter 2; Build Up Your Chess 2 chapter 13: Evaluating the position"
+  }
+]

@@ -5,6 +5,40 @@ import type { CostTracker } from "./costTracker";
 import { classifyBySwing } from "./checkpoints";
 
 /* ──────────────────────────────────────────────────────────────────────────
+ * Vercel Deployment Protection bypass
+ *
+ * Vercel preview deploys are gated behind an SSO login wall by default;
+ * automation needs the "Protection Bypass for Automation" secret. When
+ * VERCEL_AUTOMATION_BYPASS_SECRET is set AND the request target is a
+ * *.vercel.app preview URL, inject the two documented bypass headers.
+ *
+ * The secret never appears in logs. Only the variable NAME is logged
+ * on startup ("VERCEL_AUTOMATION_BYPASS_SECRET set; ..."), never the value.
+ * The harness does not redact header values from third-party logging
+ * — if a request gets logged elsewhere, the secret would leak — but
+ * the harness itself does not log request headers.
+ *
+ * Reference: https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const VERCEL_PREVIEW_HOST_RE = /\.vercel\.app$/i;
+
+export function vercelBypassHeaders(baseUrl: string): Record<string, string> {
+  const secret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  if (!secret) return {};
+  try {
+    const host = new URL(baseUrl).hostname;
+    if (!VERCEL_PREVIEW_HOST_RE.test(host)) return {};
+  } catch {
+    return {};
+  }
+  return {
+    "x-vercel-protection-bypass": secret,
+    "x-vercel-set-bypass-cookie": "true",
+  };
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
  * Chess Masti server clients
  * ────────────────────────────────────────────────────────────────────────── */
 
@@ -49,7 +83,11 @@ export async function analyzeGame(args: AnalyzeArgs): Promise<ChatMastiResponse>
     };
     const res = await fetch(`${args.baseUrl}/api/enhanced-analysis`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: args.cookie },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: args.cookie,
+        ...vercelBypassHeaders(args.baseUrl),
+      },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(120_000),
     });
@@ -100,7 +138,11 @@ export async function analyzeCategoryTurn(args: CategoryTurnArgs): Promise<ChatM
     };
     const res = await fetch(`${args.baseUrl}/api/enhanced-analysis`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: args.cookie },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: args.cookie,
+        ...vercelBypassHeaders(args.baseUrl),
+      },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(120_000),
     });
@@ -139,7 +181,11 @@ export async function chatFollowUp(args: ChatArgs): Promise<ChatMastiResponse> {
   try {
     const res = await fetch(`${args.baseUrl}/api/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: args.cookie },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: args.cookie,
+        ...vercelBypassHeaders(args.baseUrl),
+      },
       body: JSON.stringify({
         contextId: args.contextId,
         userMessage: args.userMessage,

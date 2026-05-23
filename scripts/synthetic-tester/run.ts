@@ -281,6 +281,16 @@ async function main() {
     process.exit(2);
   }
 
+  // Vercel automation-bypass status. Never log the secret value — only
+  // the variable NAME. The harness reads the secret at request time per
+  // call site; nothing else logs it.
+  if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
+    const isPreview = /\.vercel\.app$/i.test((() => { try { return new URL(args.baseUrl).hostname; } catch { return ""; } })());
+    if (isPreview) {
+      console.log("Vercel automation bypass: VERCEL_AUTOMATION_BYPASS_SECRET set; injecting bypass headers for *.vercel.app POSTs (secret redacted).");
+    }
+  }
+
   const sessionSecret = process.env.SESSION_SECRET || "";
   const anthropicKey = process.env.ANTHROPIC_API_KEY || "";
   // In mock-LLM mode no POST happens and no Anthropic call fires, so neither

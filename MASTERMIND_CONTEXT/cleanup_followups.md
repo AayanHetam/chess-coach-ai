@@ -196,3 +196,52 @@ Estimated size: ~5 LOC change. Net trivial.
 **Why deferred.** Stage B's flag-on wing has plenty of surface; touching `coach.tokens` mid-stream during 1.C.B.4 risks the byte-identical-flag-off invariant getting harder to reason about (the audit relies on the existing console.log lines being unchanged when the flag is off). Cleanup PR after Stage B lands.
 
 **Recommended trigger:** any future PR that touches the route file for an unrelated reason, OR a dedicated cleanup PR resuming the structured-logger migration cadence.
+
+---
+
+## 2026-05-23 — GitHub Actions CI doesn't run `next build`, allowing build-fatal lint errors to slip through to Vercel
+
+**Status:** flagged during PR #26 (`mastermind/stage-3-validators` → main) when the first Vercel preview build failed on an ESLint `no-constant-condition` error in `route.test.ts` that CI hadn't caught.
+
+**Background.** Today's CI workflow runs `tsc --noEmit` + vitest. Neither invokes `next build`. Vercel's preview builds DO run `next build`, which lints the codebase (including `__tests__/` directories) as part of the build. Build-fatal ESLint errors (e.g., `no-constant-condition`, `no-unused-vars` at error level) slip through CI green and surface as Vercel build failures on the PR.
+
+**Consequence today.** CI green doesn't guarantee Vercel green. Discovered the hard way on PR #26: commit `5ace169` passed CI but failed Vercel; fix landed at `67b7c50` after one Vercel rebuild cycle.
+
+**Cleanup task.** Add an `npm run build` step to the GH Actions workflow (or a CI-specific build script that mirrors what Vercel runs). Place after the tsc + vitest steps. Caches the `.next/` directory between runs to keep the step cheap.
+
+```yaml
+# Sketch — add after the existing typecheck-and-test job
+- name: Vercel-parity build check
+  run: npm run build
+  env:
+    SKIP_ENV_VALIDATION: "true"
+    NODE_OPTIONS: "--max-old-space-size=4096"
+```
+
+Estimated size: ~10 LOC YAML + a build-cache directive. Trivial.
+
+**Why deferred.** Not 1.C scope; Vercel green is the gate that matters for PR 1.C merge. Cleanup PR can land alongside any future infra-touching change.
+
+**Recommended trigger:** any future Vercel build failure that should have been caught in CI (i.e., this issue happening twice), OR a dedicated infra cleanup PR.
+
+---
+
+## 2026-05-23 — CLAUDE.md note 1 references `ignoreDuringBuilds:true` which is no longer set; lint is now an active build gate
+
+**Status:** flagged during PR #26 alongside the CI-gap entry above. The two findings are paired — both surfaced from the same Vercel build failure investigation.
+
+**Background.** [CLAUDE.md](../CLAUDE.md) note 1 ("Rules that bit us in the audit") states:
+
+> `npm run build` and `npm run lint` are not quality gates. [next.config.ts](next.config.ts) sets `typescript.ignoreBuildErrors: true` and `eslint.ignoreDuringBuilds: true`; [.eslintrc.json](.eslintrc.json) has `"ignorePatterns": ["**/*"]` so `next lint` lints zero files. **Use `npx tsc --noEmit` as the pre-commit check.** Today it runs clean (0 errors) — keep it that way.
+
+The `eslint.ignoreDuringBuilds` flag is **no longer present** in [next.config.ts](../next.config.ts) — likely removed during one of the recent infra hardening passes (auth migration / Sentry wiring). `next build` now treats ESLint errors as build-fatal. The note is stale; future-Claude reading CLAUDE.md will assume lint is permissive when it isn't.
+
+**Cleanup task.** One-line CLAUDE.md edit to note 1. Reframe:
+
+> `npm run build` lints the codebase as a hard gate (Vercel parity). ESLint errors in any file under `src/` (including `__tests__/`) fail the build. `typescript.ignoreBuildErrors: true` is still set so tsc warnings don't fail, but lint does. **Use `npx tsc --noEmit && npx next lint` together for pre-commit parity with Vercel.**
+
+Estimated size: 2-3 line edit. Trivial.
+
+**Why deferred.** Documentation correctness, not a code or behavior change. Folds naturally into the CI-gap cleanup PR above (same context, single PR for both).
+
+**Recommended trigger:** same as CI-gap — any future incident traceable to this stale note, OR the same infra cleanup PR.

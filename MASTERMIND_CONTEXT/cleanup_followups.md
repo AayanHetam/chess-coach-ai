@@ -141,3 +141,27 @@ Estimated size: ~120 lib + ~150 test = ~270 LOC.
 **Why deferred.** Stage A.9 plan §1.1 explicitly defers; per C2, building the counter without CMIP data on what coaches actually cite in feature_delta is speculation. CMIP-2 ratings + correlation analysis will inform what "non-default" actually means in this source.
 
 **Recommended trigger:** CMIP-2 surfaces real coach behavior on feature_delta claims, OR Stage C sweep shows game_review / position_analysis hallucination rates passing but the categories feel under-measured against coaching quality.
+
+---
+
+## 2026-05-22 — `Collisions` not wired into `wireValidators.ts` scout source
+
+**Status:** flagged during PR 1.C Stage B commit `1.C.B.1` (`b578168`).
+
+**Background.** PR_1C_STAGE_B_PLAN.md §3.1 #4 says the scout source returns `{ scout, collisions, opponentUsername, primaryTimeClass }`, with both `scout: ScoutAnalytics` and `collisions: Collisions` populated. Collisions detection is the cross-reference between the user's opening repertoire and the opponent's tendencies — what scout calls "your weapons vs their preparation gaps." [`src/lib/collisionAnalysis.ts`](../src/lib/collisionAnalysis.ts) is the compute path; it consumes a user-repertoire input alongside the scout's opening tree.
+
+**Consequence today.** [`wireValidators.ts`](../src/lib/mastermind/wireValidators.ts) leaves `collisions: undefined` in the scout payload. The pipeline's `validateScoutCitation` validator already handles undefined collisions gracefully (per Stage A.6 — `collisions?: Collisions` in `ScoutCitationOpts`), so the validator runs without collision-specific claim checks. The hallucination ceiling still applies via the per-claim-type cross-checker; the gap is opportunity-coverage, not safety.
+
+**Cleanup task.** Wire user-repertoire-based collision detection into `wireValidators.ts`:
+
+1. Fetch the user's opening repertoire — currently stored in Firestore under `users/{uid}/repertoire` per [`src/lib/repertoireParser.ts`](../src/lib/repertoireParser.ts) (verify exact path during the cleanup PR).
+2. Build a `userRepertoireTree` via `buildOpeningTree(...)` from `scoutService.ts` against the user's saved games.
+3. Compute `collisions` by intersecting `userRepertoireTree` with `dataSources.scout.scout.openingTree` via `collisionAnalysis.ts`.
+4. Return `collisions` alongside `scout` in the wireValidators scout payload.
+5. Tests covering: user with rich repertoire + opponent with overlapping prep → collisions populated; user with no repertoire → collisions undefined; failure of repertoire fetch → collisions undefined, scout still returned.
+
+Estimated size: ~80 LOC + ~80 test = ~160 LOC.
+
+**Why deferred.** Stage B's scope is the four-source fetch + telemetry forwarding. Collisions adds a fifth fetch path (user repertoire from Firestore) with its own failure mode, plus the compute step — meaningful surface for a cleanup PR but not load-bearing for the citation-rate floors that gate PR 1.C merge. The repertoire data shape is also in flux (the repertoire parser is among Stage A.7's `cleanup_followups` items).
+
+**Recommended trigger:** Stage C sweep surfaces a real prep-collision-needed signal — e.g., opponent_prep responses citing collision-style claims (`"they're weak against your French"`, `"their Najdorf prep doesn't cover your Sveshnikov line"`) and firing as `unsupported_citation` because the validator has no collisions data to cross-check. Sub-5% rate of these claims means the cleanup is low-priority; above 10% it becomes load-bearing for opponent_prep's 85% citation-rate floor.

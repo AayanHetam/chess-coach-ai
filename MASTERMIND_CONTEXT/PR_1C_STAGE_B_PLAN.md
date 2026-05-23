@@ -415,7 +415,7 @@ The `citationRateResult` rides in the `done` SSE event's metadata (under `pipeli
 
 The `citation_rate_summary` event includes a `userHistoryGameCount` field carrying the actual count of games returned from the Firestore read (`dataSources.userHistory?.games.length ?? null`). Per T12 resolution: the 200-most-recent default is the starting bound, but emitting the count lets us detect whether users routinely hit the ceiling (revisit upward) or never approach it (we're undersized).
 
-**Per-turn event level:** routine `citation_rate_summary` events emit at Sentry `debug`. Promote to `info` when any of the following hold: category produced a below-floor citation rate, `final_outcome=fallback_used` on the turn, retries hit (`retry_count > 0`), or any validator fired more than once. See §6.3 for the level discipline. Stage C sweep harness queries the debug-level events directly from Sentry.
+**Per-turn event level:** routine `citation_rate_summary` events emit at `logger.debug(...)` always (visible in Vercel Log Drain when `LOG_LEVEL=debug`) plus a 1-in-100 sampled `logger.info(...)` for Sentry trend visibility. Noteworthy turns (below-floor citation rate per §11.3 floors with ≥3 opportunities; `final_outcome=fallback_used`; `retry_count > 0`; any validator's `check_name` fired >1×) emit at `logger.info(...)` always. **See §6.3.1 for the verified-behavior lock-in** — the original "trust Sentry retains debug queryable" assumption from 2026-05-18 was verified against this codebase's logger + Sentry SDK config on 2026-05-22 and does not hold; the fallback posture is the locked posture.
 
 **No floor enforcement here** — that lives in the Stage C sweep. The route just computes + logs the metric.
 
@@ -619,7 +619,48 @@ Per [PR_1B_PLAN.md §3.1](PR_1B_PLAN.md) plus route-level additions:
   - `fire_reason: "parser_json_invalid"` / `"parser_low_confidence"` → Sentry `info` (parser-level skips are expected, not alerts).
   - `fire_reason: "qualitative_band_flip"` / `"numeric_diff_exceeds_threshold"` / `"unsupported_citation"` / `"regenerate_invoked"` → Sentry `warning`.
   - `fire_reason: "fallback_used"` → Sentry **`error`** (2 retries failed → production-grade signal we want to know about).
-- **`citation_rate_summary` event level (per T16 resolution — override):** routine per-turn summary at Sentry **`debug`**. At ~250k events/month at 50k MAU steady state, `info`-level routine emission burns the Sentry budget for telemetry that's only interesting in aggregate. Promote to `info` only on **noteworthy** turns where any of the following hold: a category produced a below-floor citation rate; `final_outcome=fallback_used`; `retry_count > 0`; any validator fired more than once. Stage C sweep harness reads debug-level events directly from Sentry (debug events are retained-and-queryable, just not surfaced in default views). **Fallback posture if the Stage C harness cannot read debug for any reason:** keep debug for routine + add 1-in-100 sampled emission at `info` for trend visibility. Verify Stage C harness access before locking the sampling fallback off.
+- **`citation_rate_summary` event level (per T16 resolution + 2026-05-22 verified-behavior lock):** see §6.3.1 below — fallback discipline applies because the original "trust Sentry retains debug queryable" assumption does not hold in this codebase as configured.
+
+### 6.3.1 Verified logging behavior (2026-05-22) — T16 fallback locked
+
+Pre-1.C.B.2 verification of how this codebase's logger + Sentry actually behave. Findings drive the locked level discipline for `citation_rate_summary` and any other Mastermind-emitted events.
+
+**Three findings:**
+
+1. **Debug filtering happens at the logger gate, before any output.** [`src/lib/logging/logger.ts:66`](../src/lib/logging/logger.ts#L66) returns early when `LEVEL_ORDER[level] < LEVEL_ORDER[LOG_LEVEL]`. Production default is `LOG_LEVEL = (process.env.LOG_LEVEL || (NODE_ENV === "production" ? "info" : "debug"))` — so `log.debug(...)` calls in prod emit **nothing**: not to console, not to Vercel Log Drain, not to Sentry. Setting `LOG_LEVEL=debug` in Vercel env brings debug events to console JSON lines (and thus to Log Drain).
+2. **Sentry breadcrumbs are not standalone-queryable.** [`src/lib/logging/sentryIntegration.ts`](../src/lib/logging/sentryIntegration.ts) exposes `addLogBreadcrumb()` (for info/warn/debug breadcrumbs) and `logErrorToSentry()` (for captured exceptions), but the logger's `log()` method does not currently call `addLogBreadcrumb` on its emit path. Even if it did, Sentry breadcrumbs attach to the next captured exception/event — they are not first-class queryable telemetry. The persistent Sentry-side surface is **captured events (errors + messages)** + their breadcrumb trail, not the breadcrumbs themselves.
+3. **Console JSON lines flow to Vercel Log Drain in production.** Info/warn/error JSON-line output (`console.log` / `console.warn` / `console.error`) is captured by Vercel's logging pipeline and forwarded to any configured drain (Datadog / Axiom / etc.). This is the durable per-event channel. Sentry is reserved for errors + alert signals; routine telemetry lives in Log Drain.
+
+**Implication for T16:** the original 2026-05-18 phrasing ("Sentry retains debug queryable, just not surfaced in default views") does not hold. T16's fallback posture is now the locked posture, not a contingency.
+
+**Locked `citation_rate_summary` level discipline:**
+
+| Trigger | Channels |
+|---|---|
+| **Routine** (no noteworthy flags hit) | `logger.debug(...)` always (visible in Vercel Log Drain when `LOG_LEVEL=debug` is set in the env — recommended for Vercel Preview, optional for Prod). **PLUS** `logger.info(...)` sampled 1-in-100 (`Math.random() < 0.01`) for Sentry/info trend visibility regardless of `LOG_LEVEL`. |
+| **Noteworthy** — any of: category produced a below-floor citation rate (see floor table below); `final_outcome=fallback_used`; `retry_count > 0`; any validator's `check_name` fired more than once in the turn's telemetry array | `logger.info(...)` always — no sampling. |
+
+**Below-floor thresholds (per §11.3 floors):**
+
+| Category | Primary source | Floor | In-Stage-B check? |
+|---|---|---|---|
+| opponent_prep | scout | 85% | Yes |
+| improvement_strategy | user_history | 50% | Yes |
+| meta_motivational | user_history | 20% | Yes |
+| game_review | feature_delta | 90% | Skipped (perSource bucket null — feature_delta opportunity counter not shipped per `cleanup_followups.md`) |
+| position_analysis | feature_delta | 70% | Skipped (same reason) |
+| concept_explanation | none (PR 1.D) | n/a | Skipped (primary source null) |
+
+**Minimum-opportunities gate:** to avoid noisy per-turn floor fires (a single-opportunity turn with 0 citations always reads 0% — meaningless signal), the floor check requires `bucket.opportunities >= 3`. Below that, the floor criterion does not fire even if the rate is technically below. Hand-tuned threshold; Stage C sweep can refine if false-noteworthy rate is too high or genuine misses are missed.
+
+**Event-volume implications at 50k MAU, ~250k turns/month:**
+- Routine events: 100% emit at `debug` (visible in Log Drain when `LOG_LEVEL=debug`); 1% (~2.5k/month) emit at `info` (Sentry-visible).
+- Noteworthy events: estimated 5-15% of turns based on retry + fallback rates — Stage C sweep will refine the actual rate. All visible at `info` in Sentry.
+- Total Sentry/info volume: ~12-40k/month — within budget.
+
+**Stage C sweep harness implication:** the sweep reads `citation_rate_summary` events from **Vercel Log Drain JSON lines** (where `LOG_LEVEL=debug` exposes all routine events plus noteworthy), not from Sentry. If Stage C currently assumes Sentry as the source, the harness needs a Log Drain reader. Surface to 1.C.B.4 / 1.C.B.5 route-handler discussion and to PR_1C_PLAN.md §5 (Stage C scope).
+
+**Production env requirement:** the §7 feature-flag setup gains a recommended `LOG_LEVEL=debug` in Vercel Preview env (where Stage B traffic lives until promotion). Vercel Production keeps default `LOG_LEVEL=info`; revisit during the §7.4 promotion to prod if the routine debug stream is needed there.
 
 ### 6.4 Alert posture
 
@@ -946,7 +987,7 @@ These weren't in the pre-Stage-A draft because the four-validator wiring surface
 | **T13** | **Where citationRate fires in the route lifecycle (§3.5).** Post-pipeline pre-`validateAIResponse`? Post-telemetry? | **RATIFIED — post-pipeline, pre-forwardTelemetry.** Citation rate rides the telemetry sink as a final `citation_rate_summary` event; sequence preserves per-validator events that precede it. |
 | **T14** | **Scout cache strategy.** Trust existing 10-min cache? Add wireValidators-side caching? | **RATIFIED via Option β cache extraction (commit `1.C.B.0`, 2026-05-22).** Cache + Lichess/Chess.com fetchers moved out of `/api/scout/route.ts` into `src/lib/server/scoutFetch.ts` (`fetchOpponentGames` is the shared entry point). Both `/api/scout` HTTP callers and `wireValidators.ts` internal callers consume the same module-scoped cache by reference — no double-buffering. Verified by unit test (`scoutFetch.test.ts` covers cache-hit, tuple-isolation, casing-normalization, payload-shape, error-path). Captured in §3.1 #4. |
 | **T15** | **`UserHistoryGame` import path coupling.** Type lives at `userHistoryAggregates.ts`; couples `wireValidators.ts` to that file. Acceptable? | **RATIFIED — type stays at `userHistoryAggregates.ts`.** Centralizing into a separate types module is premature cleanup; the `cleanup_followups.md` `TimeControlClass` entry is the prototype for "consolidate when a real need surfaces." |
-| **T16** | **`citation_rate_summary` Sentry event level.** `info` every turn or `debug` for volume? | **OVERRIDE to debug routine + promote-on-noteworthy.** Per-turn `info` at ~250k events/month (50k MAU steady state) burns Sentry budget for telemetry that's only interesting in aggregate. Routine `citation_rate_summary` emits at `debug`. Promote to `info` when any of: category produced below-floor citation rate, `final_outcome=fallback_used`, `retry_count > 0`, any validator fired more than once. Stage C sweep harness reads debug-level events from Sentry directly (debug events are retained-and-queryable, just not surfaced in default views). **Verify-before-locking fallback:** if Stage C harness cannot read debug, fallback posture is debug routine + 1-in-100 sampled at `info` for trend visibility. Captured in §6.3. |
+| **T16** | **`citation_rate_summary` Sentry event level.** `info` every turn or `debug` for volume? | **OVERRIDE — debug routine + 1-in-100 sampled info + always-info on noteworthy.** Initial 2026-05-18 framing assumed Sentry retains debug events queryable. 2026-05-22 verification of `src/lib/logging/logger.ts` + `sentryIntegration.ts` showed debug events are filtered at the logger gate (production default `LOG_LEVEL=info` drops them) and Sentry breadcrumbs are not standalone-queryable. **Fallback posture is now the locked posture.** Routine `citation_rate_summary` emits at `logger.debug` (visible in Vercel Log Drain when `LOG_LEVEL=debug` is set) plus 1-in-100 sampled at `logger.info` for Sentry trend visibility. Noteworthy turns (below-floor per §11.3, `fallback_used`, `retry_count > 0`, any check_name fired >1×, with `opportunities >= 3` gate on the floor check) emit at `logger.info` always. Full discipline captured in §6.3.1. |
 
 All six are now decision-frozen for Stage B implementation. Any further override surfaces as a deviation in the relevant commit message.
 

@@ -224,6 +224,24 @@ Estimated size: ~10 LOC YAML + a build-cache directive. Trivial.
 
 **Recommended trigger:** any future Vercel build failure that should have been caught in CI (i.e., this issue happening twice), OR a dedicated infra cleanup PR.
 
+**2026-05-23 update — second instance of the same gap.** The Stage C
+Step 2.3.3 + cache wiring commit (`9436e5f`) deployed by Vercel failed
+because `.vercelignore` excluded `scripts/` — but the new
+`src/lib/mastermind/stageCcacheFallback.ts` statically imports
+`scripts/synthetic-tester/fixtures/user_history_cache/*.json` at build
+time. With `scripts/` excluded, the JSONs weren't uploaded to Vercel's
+build machine, webpack couldn't resolve the imports, and `next build`
+failed. Local builds passed (no analog ignore locally). CI passed
+(`tsc + vitest`, no `next build` step). The same root cause as
+the no-constant-condition issue at commit `5ace169`, different
+mechanism — this time it's build context exclusion via `.vercelignore`
+rather than ESLint rule. Fixed at commit `bc845ab` by replacing the
+broad `scripts/` exclude with a targeted `scripts/data-pipeline/` (33 MB).
+
+Updated cleanup task: the CI `next build` step should be the gate for
+both ESLint errors AND build-context resolution. Same single workflow
+addition catches both categories.
+
 ---
 
 ## 2026-05-23 — CLAUDE.md note 1 references `ignoreDuringBuilds:true` which is no longer set; lint is now an active build gate

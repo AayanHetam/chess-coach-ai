@@ -6,6 +6,33 @@ Non-blocking cleanups that are surfaced during Mastermind PR work but kept out o
 
 ---
 
+## 2026-05-24 — Mastermind merged to main (PR #26)
+
+**Merge commit:** [`1715e5c`](https://github.com/AayanHetam/chess-coach-ai/commit/1715e5c) ("Merge pull request #26 from AayanHetam/mastermind/stage-3-validators")
+**Merged at:** 2026-05-24T15:16:00Z
+**Production deploy serving the merge:** `chess-coach-ipz94vo90-aayan-hs-projects.vercel.app` (Ready, 3min build, auto-deployed from `main` HEAD)
+**Source branch:** `mastermind/stage-3-validators` (preserved, NOT deleted — recovery point)
+**Scope:** 69 commits landing Stage A validator foundations + Stage B route wiring + Stage C harness + Follow-up A (telemetry inline) + Follow-up B (chat-side eval validation + four off-by-one bug-class fixes) + audit/docs.
+
+**Verification confirmed (2026-05-24, post-deploy):**
+- Public surface healthy: `https://chessmasti.com/` → HTTP 200 in 889ms; `/api/health/llm` returns `ok: true, livePath: "anthropic"`, Anthropic model live in ~1s.
+- One authenticated chat-turn smoke performed manually by Aayan against the production deploy. Response came back cleanly, normal latency, no errors. Flag-off path (`MASTERMIND_VALIDATORS_ENABLED` unset in Production env) confirmed running unchanged from pre-merge behavior. **Synthetic-tester correctly refused automated execution** against `chessmasti.com` per the production guard at [`scripts/synthetic-tester/run.ts:279-282`](../scripts/synthetic-tester/run.ts#L279-L282); that guard exists precisely to prevent unintended prod spend, and it worked as designed.
+- OpenAI fallback shows pre-existing 429/`insufficient_quota` — independent of this merge; surfaces on every prod health check.
+
+**Next gate: flag-flip observation period (1 week from merge).** Production runs with `MASTERMIND_VALIDATORS_ENABLED` unset through approximately 2026-05-31. During this window, the merged code is a NO-OP for users (validators not invoked from either route handler's flag-on branch). Watch Vercel runtime logs and any user-facing chat anomalies. **DO NOT flip the flag earlier than 2026-05-31 without explicit authorization from Aayan.** The audit at [`MASTERMIND_CONTEXT/production_telemetry_audit.md`](production_telemetry_audit.md) tracks the post-flip prerequisites (telemetry destination + verification chat turn).
+
+**Rollback procedure** (in case anomaly surfaces during observation window):
+1. `git revert 1715e5c` on local `main`
+2. `git push origin main`
+3. Vercel auto-redeploys the prior `main` HEAD (`a36fa12`) within ~3 minutes
+4. No env-var changes needed, no state cleanup (no migrations, no schema changes, no Firestore writes from the merge itself)
+5. Verify rollback via `npx vercel ls --prod` showing the pre-merge SHA Ready
+6. The `mastermind/stage-3-validators` branch remains intact for re-investigation post-rollback
+
+**Source-of-truth for the merge:** [PR #26](https://github.com/AayanHetam/chess-coach-ai/pull/26) (MERGED) + [`MASTERMIND_CONTEXT/mastermind_main_merge_plan.md`](mastermind_main_merge_plan.md) (the Phase 1 investigation that scoped the merge).
+
+---
+
 ## Stage C Follow-up sequence — source of truth
 
 The Stage C validation sweep (synthetic-tester against preview deploy) ships in a lettered Follow-up sequence. Each Follow-up addresses a gap surfaced in the prior pause-point dry-run, with a pause for Aayan review between each. **From 2026-05-23 forward this is the canonical record of the sequence — the lettering existed only in compacted chat history before this entry.**

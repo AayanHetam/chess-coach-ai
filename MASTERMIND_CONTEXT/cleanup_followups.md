@@ -34,8 +34,6 @@ Tracked separately from the chronological cleanup stream — these are provenanc
 
 **Recommended trigger:** Paper 1 methods-section draft begins. First-pass response is a citation hunt against Lichess puzzle DB documentation. Ablation deferred unless a reviewer requests one.
 
-**Owner:** Aayan.
-
 ### Skill-tier boundary provenance
 
 **Status:** flagged 2026-05-23 by architecture audit (§G).
@@ -43,8 +41,6 @@ Tracked separately from the chronological cleanup stream — these are provenanc
 **Context:** the rating boundaries 1000 and 1600 used by `deriveSkillTier(rating)` in [`src/lib/prompts/coachChatPrompt.ts:98-102`](../src/lib/prompts/coachChatPrompt.ts#L98-L102) — `<1000 → beginner`, `<1600 → intermediate`, `≥1600 → advanced` — are unsourced per the architecture audit. Paper 1's skill-calibration claims need defensible boundaries.
 
 **Recommended trigger:** Paper 1 methods-section draft begins. Cite chess.com / Lichess rating distributions or USCF skill descriptors. Ablation only if reviewers push.
-
-**Owner:** Aayan.
 
 ---
 
@@ -60,8 +56,6 @@ Tracked separately from the chronological cleanup stream — these are provenanc
 Provenance needed before any of these appear in a published methods section.
 
 **Recommended trigger:** Paper 1 outline confirms whether these constants appear in a methods-section claim. Defer until then — if Paper 1 doesn't surface them, leave as code-only magic numbers. If it does, citation hunt or ablation per the section's needs.
-
-**Owner:** Aayan.
 
 ---
 

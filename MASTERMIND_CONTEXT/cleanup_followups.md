@@ -11,8 +11,12 @@ Non-blocking cleanups that are surfaced during Mastermind PR work but kept out o
 The Stage C validation sweep (synthetic-tester against preview deploy) ships in a lettered Follow-up sequence. Each Follow-up addresses a gap surfaced in the prior pause-point dry-run, with a pause for Aayan review between each. **From 2026-05-23 forward this is the canonical record of the sequence — the lettering existed only in compacted chat history before this entry.**
 
 - **Follow-up A — shipped at `437e852` (2026-05-23).** Pipeline telemetry capture in sweep CSV: 8 new columns (`pipeline_final_outcome`, `pipeline_retry_count`, `pipeline_total_cost_usd`, `pipeline_category`, `pipeline_classifier_confidence`, `pipeline_prep_ms`, `pipeline_timed_out`, `pipeline_telemetry_json`). Coordinated route extension on `/api/enhanced-analysis` to inline `gameAnalysis.pipeline.telemetry` when `VERCEL_ENV === "preview"` (production responses byte-identical).
-- **Follow-up B — shipped at `<this commit>` (2026-05-23).** Position-anchored two-step flow for `game_review` / `position_analysis` live turns: real game → stockfish checkpoint → `analyzeGame` (`/api/enhanced-analysis`, Sonnet flagship) → `chatFollowUp` (`/api/chat`). Replaces the stub position context that caused the "Invalid FEN, skipping validation" warning in the Pause Point 4 dry-run. Coordinated route extension on `/api/chat` mirrors Follow-up A's pattern: inlines `pipeline.telemetry` when `VERCEL_ENV === "preview"` (production responses byte-identical). Mock-mode path keeps the stub for $0-cost development.
-- **Main sweep — parameters TBD, expected $10-15 envelope.** Triggered after Follow-up B's smoke is reviewed. Exact turn counts / category mix not yet scoped. Surface targets include per-claim-type firing-rate aggregation (≥3-never-fire claim types flagged for review, not auto-merged).
+- **Follow-up B — shipped across four commits (2026-05-23):**
+  - **`1e5bf8c`** — initial position-anchored two-step flow for `game_review` / `position_analysis` live turns: real game → stockfish checkpoint → `analyzeGame` (`/api/enhanced-analysis`, Sonnet flagship) → `chatFollowUp` (`/api/chat`). Replaces the stub position context that caused the "Invalid FEN, skipping validation" warning in the Pause Point 4 dry-run. Coordinated route extension on `/api/chat` mirrors Follow-up A's pattern: inlines `pipeline.telemetry` when `VERCEL_ENV === "preview"`. Mock-mode path keeps the stub for $0-cost development.
+  - **`be1515d`** — truncation (α): slice `moveHistory` + `gameEval.positions` to `cp.ply` before sending. Route's `deriveMastermindMoveContext` picks "last move of moveHistory" as the validator's operating position; without truncation that anchored the END of the game instead of the harness's checkpoint. Truncation makes the route's default produce the checkpoint FEN.
+  - **`7341fa1`** — starting-position prepend (α-extension): the harness's `buildGameEval` produced `positions.length === moveHistory.length`, but production's `getEvaluateGameParams` (`src/lib/chess.ts:11-12`) pushes the starting FEN first so production sends `positions.length === moveHistory.length + 1` with `positions[0] = starting state`. Harness was off by 1 (missing the starting entry); route's `positions[lastIdx]` lookup returned `undefined` against the harness's shape. Aligned harness to production's convention.
+  - **`cc10524`** — validator skip on undefined stockfishEval (β): `validateEvalClaim` now early-returns with a `fire_reason: "no_stockfish_eval"` telemetry event when both `cp` and `mate` are undefined, instead of letting `evalToCp` silently default to 0 and firing false-positive `eval_mismatch_numeric` / `eval_mismatch_qualitative` against fabricated ground truth. Skips the parser call too (no Haiku cost when there's no ground truth to validate). Defense-in-depth: catches the chat-route's `gameEval: undefined` path that (α)/(α-ext) can't reach.
+- **Main sweep — parameters TBD, expected $10-15 envelope.** Scoping to happen after Follow-up B closes. Three smoke data points (`be1515d`, `7341fa1`, `cc10524`) give cost per turn in the $0.003–0.013 range; sizing decision pending. Surface targets include per-claim-type firing-rate aggregation (≥3-never-fire claim types flagged for review, not auto-merged).
 
 **Sequence pause discipline.** Aayan reviews the smoke output between each Follow-up and approves the next step explicitly. No chaining into the main sweep without explicit confirm.
 
@@ -35,6 +39,71 @@ Production callsites (webapp's enhanced-analysis path) probably hit the same off
 **Why it matters now:** prime suspect if the post-truncation Follow-up B smoke still produces only the regenerate event. Truncation aligns the operating *position* with the harness checkpoint, but does not fix the gameEval lookup — so eval_claim still won't have ground truth even after truncation if interpretation (b) is correct. If smoke surfaces this gap, this becomes the next investigation in its own scope.
 
 **Status:** tracked, not fixed in this commit. Separate read-only investigation will scope the fix and check production callsite impact before any code change.
+
+**Resolved at `cc10524` (2026-05-23).** Root cause turned out to be harness-side, not the route: production's `getEvaluateGameParams` produces `positions.length === moveHistory.length + 1` with `positions[0] = starting state`, and the route's `positions[lastIdx]` lookup is correct against that shape. The harness was off by 1 (missing the starting-state entry). Fix shipped in two layers: `7341fa1` aligned the harness to production's convention by prepending the starting eval; `cc10524` added a defensive skip in `validateEvalClaim` for any caller that still produces `stockfishEval: { cp: undefined, mate: undefined }` (the chat-route's `gameEval: undefined` path remains — see (γ-route) entry below). The route's indexing stays untouched. Neither interpretation (a) nor (b) above was the answer.
+
+---
+
+## 2026-05-23 — (γ-route) Thread `gameEval` through `AnalysisContext` for chat-route turns
+
+**Status:** scoped during Follow-up B (α) re-smoke. Deferred.
+
+**Where:** [`src/app/api/chat/route.ts:120-127`](../src/app/api/chat/route.ts#L120-L127) currently passes `gameEval: undefined` to `prepareMastermindContext`. The `AnalysisContext` cache ([`src/lib/analysisContextCache.ts:14-27`](../src/lib/analysisContextCache.ts#L14-L27)) does not persist `gameEval` between the initial `/api/enhanced-analysis` call and follow-up `/api/chat` calls.
+
+**Symptom (pre-(β)):** chat-route pipeline's `prep.moveCtx.stockfishEval` came back as `{ cp: undefined, mate: undefined }`. `validateEvalClaim` ran against fabricated ground truth (0/equal) and fired false-positive `eval_mismatch_*` events on every non-near-zero LLM eval claim.
+
+**Symptom (post-(β)):** `validateEvalClaim` now emits a `no_stockfish_eval` skip event. False positives gone, but the chat-route's pipeline still has no real eval-claim validation coverage — it always skips.
+
+**Cleanup task.** Persist `gameEval` (or the relevant `positions[lastIdx]` PositionEval, or `stockfishEval` directly) into `AnalysisContext` at the enhanced-analysis store-site ([`src/app/api/enhanced-analysis/route.ts:1835`](../src/app/api/enhanced-analysis/route.ts#L1835)), retrieve in the chat route, thread through to `prepareMastermindContext`. Lets chat-route pipelines actually validate eval claims against real ground truth instead of skipping.
+
+**Why deferred.** Changes production behavior on every chat-route turn (chat pipeline gains eval-claim ground truth where today it has none). Could meaningfully change production firing rates and surface real LLM eval-claim errors that production has been silently shipping. Needs its own study + audit before flipping.
+
+**Re-evaluation trigger.** Main sweep firing rates. If sweep produces mostly-skip events on chat-route turns (i.e., almost no real eval-claim validation coverage because validators always skip), (γ-route) becomes the next eval-infrastructure priority. If sweep finds real LLM eval errors via other validators (feature_citation, scout_citation, user_history_citation), (γ-route)'s urgency drops — the eval-claim gap is only one of several validator surfaces.
+
+---
+
+## 2026-05-23 — Stale comment at `src/app/api/chat/route.ts:124-126`
+
+**Status:** trivial cleanup, flagged during Follow-up B (β).
+
+**Where:** the comment block at [`src/app/api/chat/route.ts:124-126`](../src/app/api/chat/route.ts#L124-L126) reads *"gameEval: not threaded through analysisContext today; chat path is happy with stockfishEval={} (degraded mode means the eval-claim validator just doesn't fire on this turn)."*
+
+**Why stale.** Pre-(β) the second sentence was wrong (validator fired false positives, not "just doesn't fire"). Post-(β) the validator emits an explicit `no_stockfish_eval` skip event — closer to "doesn't fire as a real check" but still not literally "doesn't fire." The wording implies silent no-op, but the actual behavior is "emits a skip telemetry event but raises no issue."
+
+**Cleanup task.** Reword to something like: *"gameEval: not threaded through analysisContext today (see (γ-route) entry in cleanup_followups.md). Chat path's stockfishEval comes back undefined; validateEvalClaim handles this by emitting a `no_stockfish_eval` skip telemetry event and skipping the parser call entirely."* One-line change.
+
+**Why deferred.** Not load-bearing; only relevant if (γ-route) ships (at which point this comment gets replaced entirely) or someone reads the comment cold and gets misled. Fold into any future chat-route touch.
+
+---
+
+## 2026-05-23 — `buildFallbackResponse` asserts "balanced" when no stockfish ground truth
+
+**Status:** contract-incorrect, surfaced during Follow-up B (β) investigation.
+
+**Where:** [`src/lib/mastermind/validators/fallback.ts:166-194`](../src/lib/mastermind/validators/fallback.ts#L166-L194), `buildFallbackResponse`. At line 168, `const stockfishCp = evalToCp(opts.stockfishEval)`. When `opts.stockfishEval = { cp: undefined, mate: undefined }`, `evalToCp` returns 0 ([`qualitativeBands.ts:105`](../src/lib/mastermind/validators/qualitativeBands.ts#L105)), `cpToBand(0)` returns `"equal"`, and the fallback response opens with the equal-band phrase: *"The position is balanced — neither side has a clear advantage."* (or the corresponding `blunt` / `playful` variant).
+
+**Why not a false-positive in the (α)/(β) sense.** `buildFallbackResponse` is a phrase-builder, not a telemetry-emitting validator — it doesn't fire `eval_mismatch_*` events. But it does assert an eval claim ("balanced") it has no ground truth for, which violates the function's own docstring constraint at line 162: *"Never invents claims beyond what the inputs prove."*
+
+**Cleanup task.** When both `cp` and `mate` are undefined, pick a phrase that makes no eval claim. Examples (warm tone): *"Here's what I can tell you about this position..."* or *"Let me describe what's happening on the board..."*. Then proceed with `featureDelta` / `threatTree` / `pieceRoleDiff` sections as today — those have their own ground truth and are unaffected.
+
+**Why deferred.** Today the fallback path only triggers after the regenerate pipeline exhausts retries — relatively rare. When the chat-route hits it with `gameEval: undefined`, the user sees a "balanced" assertion that may not be accurate. Post-sweep cleanup; track whether actual users hit this path frequently before prioritizing.
+
+---
+
+## 2026-05-23 — LLM phrases eval-cp drops as "lost N pawns"
+
+**Status:** observed during Follow-up B (β) smoke. Pattern, not yet a fix.
+
+**Symptom.** The coaching LLM (Sonnet 4) describes eval shifts using material vocabulary: *"eval dropped from +2.79 to +2.15 (lost 0.6 pawns)"*, *"eval staying at +3.14"*, *"the +2 or +3 advantage you had in the middlegame"*. The `feature_citation_unsupported` validator parses *"lost 0.6 pawns"* as a literal material-change claim, checks `featureDelta.change`, finds 0 (no actual pawn loss), and fires `unsupported_citation`. The (β) smoke fired three such events on a single turn before the retry produced cleaner phrasing.
+
+**Why not a validator bug.** The validator is doing its job — the LLM said "lost 0.6 pawns," there was no material change, the citation is unsupported. The LLM was using material vocabulary as colloquial gloss for eval-centipawn shifts, but the validator (correctly) can't distinguish gloss from claim. Either the LLM stops doing this, or the validator routes "lost N pawns" patterns to `eval_claim` instead of `feature_citation`, or we treat it as a pedagogy finding.
+
+**Three possible directions (not picking one here):**
+- **(i) Prompt hygiene.** Add an instruction to the coaching system prompt telling the model not to gloss eval-cp drops as material loss. Cheapest. Risk: prompt churn touches a load-bearing surface.
+- **(ii) Architectural.** Extend the `feature_citation` parser to recognize *"lost N pawns"* / *"gained N pawns"* patterns adjacent to eval-numeric context and route them to `eval_claim` instead. Larger change. Better long-term separation of concerns.
+- **(iii) Paper observation only.** LLM coaches misusing material vocabulary for eval shifts is itself a pedagogy finding the validator caught. Track as data, not a bug — surfaces the LLM's mental model gap and may be informative for the Mastermind eval study.
+
+**Re-evaluation trigger.** Main sweep firing rates. If `feature_citation_unsupported` events on "lost N pawns" spans dominate the failure mode across personas + categories, (i) becomes urgent. If it's a one-off persona thing (only confused_beginner provokes verbose eval-as-material narration), it's data and we leave it.
 
 ---
 

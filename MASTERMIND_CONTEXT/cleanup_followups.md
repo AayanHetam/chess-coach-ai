@@ -22,6 +22,49 @@ The Stage C validation sweep (synthetic-tester against preview deploy) ships in 
 
 ---
 
+## Pre-paper provenance gaps
+
+Tracked separately from the chronological cleanup stream — these are provenance-of-constants questions surfaced by the architecture audit at [`architecture_audit.md`](architecture_audit.md). Each blocks a defensible methods-section claim in Paper 1; none block any code work in flight.
+
+### Neo4j ingest threshold provenance
+
+**Status:** flagged 2026-05-23 by architecture audit (§H.3).
+
+**Context:** the Neo4j puzzle-ingest filters `MIN_POPULARITY ≥ 60`, `MIN_NB_PLAYS ≥ 50`, `MAX_RATING_DEVIATION ≤ 120` ([`scripts/build-puzzle-db.py:31-33`](../scripts/build-puzzle-db.py#L31-L33)) are anchored in product copy per the architecture audit, not in measured retrieval quality or cited Lichess puzzle documentation. Paper 1's methods section needs either a citation or an ablation.
+
+**Recommended trigger:** Paper 1 methods-section draft begins. First-pass response is a citation hunt against Lichess puzzle DB documentation. Ablation deferred unless a reviewer requests one.
+
+**Owner:** Aayan.
+
+### Skill-tier boundary provenance
+
+**Status:** flagged 2026-05-23 by architecture audit (§G).
+
+**Context:** the rating boundaries 1000 and 1600 used by `deriveSkillTier(rating)` in [`src/lib/prompts/coachChatPrompt.ts:98-102`](../src/lib/prompts/coachChatPrompt.ts#L98-L102) — `<1000 → beginner`, `<1600 → intermediate`, `≥1600 → advanced` — are unsourced per the architecture audit. Paper 1's skill-calibration claims need defensible boundaries.
+
+**Recommended trigger:** Paper 1 methods-section draft begins. Cite chess.com / Lichess rating distributions or USCF skill descriptors. Ablation only if reviewers push.
+
+**Owner:** Aayan.
+
+---
+
+## 2026-05-23 — Magic numbers in chess-intelligence layer have unsourced provenance
+
+**Status:** flagged 2026-05-23 by architecture audit (§A.3, §A.5, §A.6). Deferred.
+
+**Context:** three constant-provenance gaps surfaced by the architecture audit:
+- [`src/lib/mastermind/complexity.ts:12-13`](../src/lib/mastermind/complexity.ts#L12-L13) — `FAN_OUT_NORMALIZATION = 35` (legal-moves divisor) and `SPREAD_NORMALIZATION_CP = 200` (top-vs-3rd-line cp normalizer). Origin not surfaced in comments.
+- [`src/lib/mastermind/pieceRoles.ts:31-32`](../src/lib/mastermind/pieceRoles.ts#L31-L32) — `OUTPOST_RANKS_WHITE = [4,5,6]`, `OUTPOST_RANKS_BLACK = [3,4,5]`. Standard chess heuristic, no citation in code.
+- [`src/lib/mastermind/threatTree.ts:22`](../src/lib/mastermind/threatTree.ts#L22) uses Stockfish HCE-style piece values `{p:100, n:320, b:330, r:500, q:900}` while [`src/lib/mastermind/featureDelta.ts:11`](../src/lib/mastermind/featureDelta.ts#L11) uses textbook `{p:1, n:3, b:3, r:5, q:9}` — same module family, two scales, no comment surfaces the discrepancy.
+
+Provenance needed before any of these appear in a published methods section.
+
+**Recommended trigger:** Paper 1 outline confirms whether these constants appear in a methods-section claim. Defer until then — if Paper 1 doesn't surface them, leave as code-only magic numbers. If it does, citation hunt or ablation per the section's needs.
+
+**Owner:** Aayan.
+
+---
+
 ## 2026-05-23 — Off-by-one in `deriveMastermindMoveContext` positions lookup
 
 **Status: RESOLVED** across three layers (Layer 1: `7341fa1`, Layer 2: `32f6477`, Layer 3: this commit, see "Three layers" paragraph below). Defensive boundary checks shipped alongside Layer 3 to catch any fourth surface loudly.

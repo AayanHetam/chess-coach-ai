@@ -30,11 +30,14 @@ export interface EvalClaimOpts {
   toleranceCp?: number;
   confidenceThreshold?: number;
   parseCall?: ParserCall;
+  /** AbortSignal threaded from withPipelineTimeout. Forwarded to parseCall. */
+  signal?: AbortSignal;
 }
 
 export type ParserCall = (opts: {
   system: string;
   user: string;
+  signal?: AbortSignal;
 }) => Promise<{ raw: string; costUsd: number; result?: LLMResult }>;
 
 const HAIKU_INPUT_PRICE_PER_M = 1.0;
@@ -46,7 +49,7 @@ const HAIKU_CACHE_READ_PRICE_PER_M = 0.1;
  * EVAL_CLAIM_PARSER_SYSTEM string stays warm. Tests inject a mock to avoid
  * network calls; PR 1.C wires this to live Anthropic.
  */
-export const defaultEvalParserCall: ParserCall = async ({ system, user }) => {
+export const defaultEvalParserCall: ParserCall = async ({ system, user, signal }) => {
   const result = await callLLM({
     tier: "fast",
     system,
@@ -54,6 +57,7 @@ export const defaultEvalParserCall: ParserCall = async ({ system, user }) => {
     temperature: 0,
     maxTokens: 600,
     cacheSystem: true,
+    signal,
   });
   const costUsd = estimateHaikuCost(result);
   return { raw: result.content, costUsd, result };
@@ -180,7 +184,7 @@ export async function validateEvalClaim(opts: EvalClaimOpts): Promise<ValidatorR
     citedMove: opts.moveSan,
   });
 
-  const parsed = await parseCall({ system: EVAL_CLAIM_PARSER_SYSTEM, user: userTurn });
+  const parsed = await parseCall({ system: EVAL_CLAIM_PARSER_SYSTEM, user: userTurn, signal: opts.signal });
   const claims = tryParseClaims(parsed.raw);
 
   if (claims === null) {

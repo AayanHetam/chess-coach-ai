@@ -61,6 +61,15 @@ export interface CallLLMOptions {
    * faster and ~10× cheaper. No-op for OpenAI.
    */
   cacheSystem?: boolean;
+  /**
+   * Optional AbortSignal (2026-05-25 fix-orphan-pipeline-cancellation).
+   * When provided, propagated to the underlying fetch() call so the
+   * provider can abort cleanly on timeout. When the signal aborts, the
+   * fallback to the secondary provider is skipped (belt-and-suspenders
+   * check: AbortError name + signal.aborted state) to prevent re-spawning
+   * the orphan as an OpenAI request.
+   */
+  signal?: AbortSignal;
 }
 
 export interface LLMResult {
@@ -126,6 +135,7 @@ async function callAnthropic(
       temperature: opts.temperature ?? 0.7,
       max_tokens: opts.maxTokens ?? 1500,
     }),
+    signal: opts.signal,
   });
 
   const elapsedMs = Date.now() - startedAt;
@@ -186,6 +196,7 @@ async function callOpenAI(
       temperature: opts.temperature ?? 0.7,
       max_tokens: opts.maxTokens ?? 1500,
     }),
+    signal: opts.signal,
   });
 
   const elapsedMs = Date.now() - startedAt;
@@ -252,6 +263,7 @@ async function* callAnthropicStream(
       max_tokens: opts.maxTokens ?? 1500,
       stream: true,
     }),
+    signal: opts.signal,
   });
 
   if (!response.ok) {
@@ -443,6 +455,19 @@ export async function callLLM(opts: CallLLMOptions): Promise<LLMResult> {
       });
       return result;
     } catch (err) {
+      // Belt-and-suspenders abort check: if the caller's signal aborted
+      // OR the error is named AbortError, do NOT fall back to OpenAI —
+      // that would re-spawn the orphan as an OpenAI request and defeat
+      // the purpose of withPipelineTimeout's cancellation. The two
+      // conditions should coincide but timing windows can fool a
+      // single-condition check; checking both is cheap.
+      const isAbort =
+        (err instanceof Error && err.name === "AbortError") ||
+        opts.signal?.aborted === true;
+      if (isAbort) {
+        throw err;
+      }
+
       const e = err instanceof LLMError ? err : new LLMError("anthropic", 0, String(err));
       log.warn("Anthropic call failed, falling back to OpenAI", {
         tier: opts.tier,

@@ -120,6 +120,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       moveSan: opts.moveSan,
       correlationId: opts.correlationId,
       parseCall: opts.parseCall,
+      signal: opts.signal,
     });
     const citationResult = await validateFeatureDeltaCitations({
       llmResponse: response,
@@ -131,6 +132,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       moveSan: opts.moveSan,
       correlationId: opts.correlationId,
       parseCall: opts.parseCall,
+      signal: opts.signal,
     });
 
     // Stage A.9 conditional dispatch — order matters for telemetry sequence.
@@ -146,6 +148,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
         primaryTimeClass: opts.dataSources.scout.primaryTimeClass,
         correlationId: opts.correlationId,
         parseCall: opts.parseCall,
+        signal: opts.signal,
       });
     }
 
@@ -158,6 +161,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
         nowMs: opts.dataSources.userHistory.nowMs,
         correlationId: opts.correlationId,
         parseCall: opts.parseCall,
+        signal: opts.signal,
       });
     }
 
@@ -209,5 +213,6 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       move_san: opts.moveSan,
       player_perspective: opts.playerPerspective,
     },
+    signal: opts.signal,
   });
 }

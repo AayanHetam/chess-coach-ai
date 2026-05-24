@@ -28,6 +28,8 @@ export interface FeatureCitationOpts {
   correlationId: string;
   confidenceThreshold?: number;
   parseCall?: ParserCall;
+  /** AbortSignal threaded from withPipelineTimeout. Forwarded to parseCall. */
+  signal?: AbortSignal;
 }
 
 interface MatchResult {
@@ -255,7 +257,7 @@ export async function validateFeatureDeltaCitations(opts: FeatureCitationOpts): 
     citedMove: opts.moveSan,
   });
 
-  const parsed = await parseCall({ system: FEATURE_CITATION_PARSER_SYSTEM, user: userTurn });
+  const parsed = await parseCall({ system: FEATURE_CITATION_PARSER_SYSTEM, user: userTurn, signal: opts.signal });
   const claims = tryParseFeatureClaims(parsed.raw);
 
   if (claims === null) {

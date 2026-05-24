@@ -134,15 +134,42 @@ export async function validateEvalClaim(opts: EvalClaimOpts): Promise<ValidatorR
   const confidenceThreshold = opts.confidenceThreshold ?? PARSER_LOW_CONFIDENCE_THRESHOLD;
   const parseCall = opts.parseCall ?? defaultEvalParserCall;
 
-  const stockfishCp = evalToCp(opts.stockfishEval);
-  const expectedBand = cpToBand(stockfishCp);
-
   const baseContext = {
     fen: opts.fen,
     move_san: opts.moveSan,
     player_perspective: opts.playerPerspective,
     correlation_id: opts.correlationId,
   } as const;
+
+  // Skip path: no stockfish ground truth → can't compare LLM eval claims.
+  // evalToCp would silently return 0 when both cp and mate are undefined
+  // (qualitativeBands.ts:105), causing every non-near-zero LLM claim to fire
+  // false-positive eval_mismatch_numeric + eval_mismatch_qualitative against
+  // a fabricated "equal" baseline. Return early with a single skip event
+  // and zero parser cost.
+  //
+  // Skip event uses check_name "eval_claim" for telemetry consistency with
+  // the "passed" event below (same emit-point semantics: no issue raised,
+  // outcome recorded), but fire_reason "no_stockfish_eval" distinguishes it.
+  // citationRate.ts counts only fire_reason === "passed", so skip events
+  // are correctly excluded from the citation-rate numerator.
+  if (opts.stockfishEval.cp === undefined && opts.stockfishEval.mate === undefined) {
+    return {
+      issues: [],
+      passed: true,
+      telemetry: [
+        createTelemetryEvent({
+          check_name: "eval_claim",
+          fire_reason: "no_stockfish_eval",
+          context: baseContext,
+        }),
+      ],
+      costUsd: 0,
+    };
+  }
+
+  const stockfishCp = evalToCp(opts.stockfishEval);
+  const expectedBand = cpToBand(stockfishCp);
 
   const issues: ValidatorIssue[] = [];
   const telemetry: TelemetryEvent[] = [];

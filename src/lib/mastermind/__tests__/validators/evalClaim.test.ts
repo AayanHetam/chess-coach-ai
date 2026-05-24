@@ -282,3 +282,86 @@ describe("validateEvalClaim — cost accounting", () => {
     expect(r.costUsd).toBeGreaterThan(0);
   });
 });
+
+describe("validateEvalClaim — no-stockfish-eval skip path", () => {
+  it("skips comparison entirely when both cp and mate are undefined", async () => {
+    const r = await validateEvalClaim({
+      llmResponse: "White is winning with a +3 advantage.",
+      stockfishEval: { cp: undefined, mate: undefined },
+      playerPerspective: "white",
+      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      moveSan: undefined,
+      correlationId: "skip-1",
+      parseCall: mockParser([
+        claim({ stated_band: "winning", stated_cp: 300, perspective: "white" }),
+      ]),
+    });
+    expect(r.passed).toBe(true);
+    expect(r.issues).toEqual([]);
+    expect(r.telemetry).toHaveLength(1);
+    expect(r.telemetry[0].check_name).toBe("eval_claim");
+    expect(r.telemetry[0].fire_reason).toBe("no_stockfish_eval");
+    expect(r.costUsd).toBe(0);
+  });
+
+  it("does NOT call parseCall when stockfishEval is missing (cost-avoidance invariant)", async () => {
+    let parserCalled = false;
+    const spyParser: ParserCall = async () => {
+      parserCalled = true;
+      return { raw: "[]", costUsd: 0.001 };
+    };
+    await validateEvalClaim({
+      llmResponse: "any text the LLM produced",
+      stockfishEval: { cp: undefined, mate: undefined },
+      playerPerspective: "white",
+      correlationId: "skip-2",
+      parseCall: spyParser,
+    });
+    expect(parserCalled).toBe(false);
+  });
+
+  it("skip event context carries fen + correlation_id for Log Drain traceability", async () => {
+    const r = await validateEvalClaim({
+      llmResponse: "anything",
+      stockfishEval: { cp: undefined, mate: undefined },
+      playerPerspective: "black",
+      fen: "8/8/8/8/8/8/4k3/4K3 w - - 0 1",
+      moveSan: "Kf1",
+      correlationId: "skip-3-trace",
+      parseCall: mockParser([]),
+    });
+    expect(r.telemetry[0].context.fen).toBe("8/8/8/8/8/8/4k3/4K3 w - - 0 1");
+    expect(r.telemetry[0].context.move_san).toBe("Kf1");
+    expect(r.telemetry[0].context.player_perspective).toBe("black");
+    expect(r.telemetry[0].context.correlation_id).toBe("skip-3-trace");
+  });
+
+  it("does NOT fire when only cp is set (stockfishEval present, real comparison runs)", async () => {
+    const r = await validateEvalClaim({
+      llmResponse: "Even position.",
+      stockfishEval: { cp: 0 },
+      playerPerspective: "white",
+      correlationId: "skip-4",
+      parseCall: mockParser([
+        claim({ stated_band: "equal", stated_cp: 0, perspective: "white" }),
+      ]),
+    });
+    // Real comparison path: passes because LLM claim matches stockfish.
+    // Telemetry contains "passed", NOT "no_stockfish_eval".
+    expect(r.telemetry.some((e) => e.fire_reason === "no_stockfish_eval")).toBe(false);
+    expect(r.telemetry.some((e) => e.fire_reason === "passed")).toBe(true);
+  });
+
+  it("does NOT fire when only mate is set (stockfishEval present, real comparison runs)", async () => {
+    const r = await validateEvalClaim({
+      llmResponse: "White is winning by mate.",
+      stockfishEval: { mate: 3 },
+      playerPerspective: "white",
+      correlationId: "skip-5",
+      parseCall: mockParser([
+        claim({ stated_band: "winning", perspective: "white" }),
+      ]),
+    });
+    expect(r.telemetry.some((e) => e.fire_reason === "no_stockfish_eval")).toBe(false);
+  });
+});

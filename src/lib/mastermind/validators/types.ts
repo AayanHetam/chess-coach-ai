@@ -16,7 +16,8 @@ export type FireReason =
   | "parser_json_invalid"
   | "regenerate_invoked"
   | "fallback_used"
-  | "passed";
+  | "passed"
+  | "no_stockfish_eval";
 
 export type FinalOutcome =
   | "passed_initial"

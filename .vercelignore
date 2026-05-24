@@ -18,7 +18,12 @@ __pycache__/
 datasets/
 lichess_elite_pgns/
 maia-weights/
-scripts/
+# Broad scripts/ exclude removed 2026-05-23 — Stage C route-side cache
+# fallback (src/lib/mastermind/stageCcacheFallback.ts) imports
+# scripts/synthetic-tester/fixtures/user_history_cache/*.json at build
+# time. Only scripts/data-pipeline/ is large enough (33 MB) to warrant
+# its own exclude; the rest of scripts/ (~2 MB) ships to Vercel.
+scripts/data-pipeline/
 maia-service/
 book_database.json
 test_results.json

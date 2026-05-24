@@ -1,0 +1,78 @@
+{
+  "version": "1.0",
+  "createdAt": "2026-05-17",
+  "purpose": "Hand-curated seed examples per category. Used to bootstrap the persona-script spot-check pipeline (PR_1C_PLAN §1.7.2 step 3) before live scraped questions arrive. The real spot-check sample (30 questions stratified across the six categories) will replace this file's role once it's generated in PR 1.C.A.7.",
+  "_note_to_aayan": "Use this as the spot-check seed when reviewing classifier category boundaries. Each category has 5-7 examples. The ambiguous_examples section tests two things: (a) the rule of thumb that meta_motivational is rarely the focus of an ambiguous coaching question — the classifier should lean toward the substantive category at moderate confidence (0.5-0.7) rather than default-routing; (b) genuinely non-coaching questions still default-route correctly. See the RULE OF THUMB section in categoryPrompts.ts.",
+  "categories": {
+    "game_review": [
+      "Why did I lose this rook ending?",
+      "Walk me through where I went wrong in this game",
+      "Analyze move 14 in this PGN",
+      "I just played a game where I sacrificed a piece — was it sound?",
+      "Was move 22 really a blunder, or was I already lost?",
+      "In my last game, I played Nxe5 — Stockfish says it was OK but the position fell apart. What did I miss?"
+    ],
+    "opponent_prep": [
+      "What does my opponent like to play vs the Najdorf?",
+      "Is this person a tactical player or positional?",
+      "How should I prep for them?",
+      "What's their score with white in 1.e4?",
+      "Do they tend to lose on time?",
+      "My next opponent is rated 1850 — what do they typically play against the King's Indian?"
+    ],
+    "position_analysis": [
+      "Is +1.5 winning here?",
+      "What's the best plan in this position?",
+      "Who's better here?",
+      "How should I evaluate the bishop pair vs the knight outpost here?",
+      "Is f5 a good break in this structure?",
+      "Here White has an isolated queen pawn — is that a long-term weakness or just temporary?"
+    ],
+    "concept_explanation": [
+      "What's an outpost?",
+      "Explain when to give up the bishop pair",
+      "How do isolated pawn structures usually play?",
+      "What does prophylaxis mean?",
+      "When should I castle long?",
+      "What's the difference between a passed pawn and a protected passed pawn?"
+    ],
+    "improvement_strategy": [
+      "How do I get to 1800?",
+      "Should I study tactics or endgames first?",
+      "What's the most efficient training routine for me?",
+      "I have 30 minutes a day — what should I focus on?",
+      "Are puzzles overrated?",
+      "I'm 1400 in rapid but 1100 in blitz — should I just stop playing blitz?"
+    ],
+    "meta_motivational": [
+      "I keep losing the same way, am I plateaued?",
+      "I feel like I'm not improving",
+      "Is chess just not for me?",
+      "How long should it take to reach 1500?",
+      "I just lost 5 in a row, what's wrong with me?",
+      "I've been studying for a year — is this rating realistic?"
+    ]
+  },
+  "ambiguous_examples": [
+    {
+      "question": "Should I trade queens here or study endgames?",
+      "expected_outcome": "improvement_strategy OR position_analysis at moderate confidence (0.5-0.7)",
+      "why_ambiguous": "Split between position_analysis ('trade queens here') and improvement_strategy ('study endgames'). Neither candidate is the meta_motivational default, so the rule of thumb doesn't directly apply — the classifier should pick whichever feels like the focus (improvement_strategy is plausible since 'study' is the active verb) and assign moderate confidence rather than default-route."
+    },
+    {
+      "question": "I'm always confused about pawn structures",
+      "expected_outcome": "concept_explanation at moderate confidence (0.5-0.7)",
+      "why_ambiguous": "Surface frustration ('always confused') reads like meta_motivational, but the substantive topic is pawn structures (concept_explanation). The rule of thumb says lean toward the non-default — classify as concept_explanation at ~0.6, not meta_motivational at 0.4."
+    },
+    {
+      "question": "Walk me through what to do here and how I could have avoided getting here",
+      "expected_outcome": "position_analysis OR game_review at moderate confidence (0.5-0.7)",
+      "why_ambiguous": "Split between position_analysis ('what to do here') and game_review ('how I got here'). Neither is the meta_motivational default, so the rule of thumb doesn't directly apply — pick whichever feels like the focus (position_analysis is plausible since 'what to do' is the active ask) at moderate confidence rather than default-routing."
+    },
+    {
+      "question": "What",
+      "expected_outcome": "low_confidence_default",
+      "why_ambiguous": "Not a coaching question at all. Confidence should be very low; default-route to meta_motivational is correct here — this is exactly the kind of case the default is for."
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+[
+  {
+    "fixture_id": "real_gothamchess",
+    "handle_kind": "real",
+    "username": "GothamChess",
+    "platform": "chess.com",
+    "profile_summary": "IM Levy Rozman. Active blitz/bullet player, ~3000 chess.com bullet, content-creator-style aggressive play. Wide opening repertoire — d4 systems, e4 sharp lines.",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_daniel_naroditsky",
+    "handle_kind": "real",
+    "username": "DanielNaroditsky",
+    "platform": "chess.com",
+    "profile_summary": "GM Daniel Naroditsky. Top-100 GM, very active blitz/rapid streamer. Technical endgame style, plays Sicilian + 1.d4 Catalan.",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_chilllychess",
+    "handle_kind": "real",
+    "username": "Chilllychess",
+    "platform": "chess.com",
+    "profile_summary": "Active chess.com bullet player. Sharp tactical style. (User-history cache also exists for this handle — useful for cross-referencing opponent vs user-history validators.)",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_jspoverpuka",
+    "handle_kind": "real",
+    "username": "JSNoverPuka",
+    "platform": "chess.com",
+    "profile_summary": "Active chess.com player. Mixed time-control activity across blitz and rapid.",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_lazer_wizard",
+    "handle_kind": "real",
+    "username": "Lazer_Wizard",
+    "platform": "chess.com",
+    "profile_summary": "Active chess.com player. Bullet-heavy time control activity.",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_chargehim40",
+    "handle_kind": "real",
+    "username": "Chargehim40",
+    "platform": "chess.com",
+    "profile_summary": "Active chess.com player. Style profile not pre-characterized — Scout fetch will surface live tendencies (openings, time-class distribution, win rate).",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_fcheckmatemaster8983",
+    "handle_kind": "real",
+    "username": "FCheckmateMaster8983",
+    "platform": "chess.com",
+    "profile_summary": "Active chess.com player. Style profile not pre-characterized — Scout fetch will surface live tendencies.",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_raghav_chaturvedi",
+    "handle_kind": "real",
+    "username": "Raghav_Chaturvedi",
+    "platform": "chess.com",
+    "profile_summary": "Active chess.com player. Style profile not pre-characterized — Scout fetch will surface live tendencies.",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_lemongamerchess",
+    "handle_kind": "real",
+    "username": "Lemongamerchess",
+    "platform": "chess.com",
+    "profile_summary": "Active chess.com player. Style profile not pre-characterized — Scout fetch will surface live tendencies.",
+    "expected_scout": "has_data"
+  },
+  {
+    "fixture_id": "real_givemyratingback",
+    "handle_kind": "real",
+    "username": "GiveMyRatingBack",
+    "platform": "chess.com",
+    "profile_summary": "Active chess.com player. Style profile not pre-characterized — Scout fetch will surface live tendencies.",
+    "expected_scout": "has_data"
+  }
+]

@@ -72,6 +72,55 @@ export function getAuthEnv() {
 }
 
 /**
+ * Mastermind validator-pipeline feature flag (Stage B, 1.C.B.3).
+ *
+ * Reads `MASTERMIND_VALIDATORS_ENABLED` and returns the parsed boolean.
+ * Default false on unset / unrecognized / empty — production stays off
+ * until the §7.4 promotion criteria fire in a separate ops PR.
+ *
+ * Truthy values (case-insensitive, whitespace-trimmed): "true", "1", "yes".
+ * Everything else — "false", "0", "no", "", undefined, garbage — is false.
+ *
+ * Memoized after first call within a process lifetime; the env var doesn't
+ * change between requests in a Next.js server runtime. Tests that need to
+ * flip the env between cases call `__resetMastermindEnvCacheForTests()`
+ * (mirrors firebaseAdmin's __resetAdminCacheForTests seam).
+ *
+ * Function-based reader (T5 ratified — Option A, matches getAuthEnv style).
+ * Not a Zod schema extension; this is a single optional boolean, not a
+ * required secret.
+ *
+ * Distinct from any future MASTERMIND_ORCHESTRATOR_ENABLED (Phase 2) —
+ * two flags, two rollout knobs, per MASTERMIND_BUILD_PLAN.md §12.2 T9.
+ */
+export function parseMastermindFlag(raw: string | undefined): boolean {
+  if (!raw) return false;
+  const v = raw.trim().toLowerCase();
+  return v === "true" || v === "1" || v === "yes";
+}
+
+let cachedMastermindEnv: { validatorsEnabled: boolean } | undefined;
+
+export function getMastermindEnv(): { validatorsEnabled: boolean } {
+  if (cachedMastermindEnv) return cachedMastermindEnv;
+  cachedMastermindEnv = {
+    validatorsEnabled: parseMastermindFlag(
+      process.env.MASTERMIND_VALIDATORS_ENABLED,
+    ),
+  };
+  return cachedMastermindEnv;
+}
+
+/**
+ * Test-only seam — clears the memoized cache so a vi.stubEnv flip
+ * is visible to the next getMastermindEnv() call. Not for production
+ * callers.
+ */
+export function __resetMastermindEnvCacheForTests(): void {
+  cachedMastermindEnv = undefined;
+}
+
+/**
  * Throw early if required auth-migration secrets are missing.
  * Call from auth route handlers, NOT module-load. The route then 503s
  * with a loud server log instead of crashing the whole app.

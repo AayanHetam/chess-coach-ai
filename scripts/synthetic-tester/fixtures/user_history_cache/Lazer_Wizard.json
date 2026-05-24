@@ -1,0 +1,2610 @@
+{
+  "username": "Lazer_Wizard",
+  "platform": "chess.com",
+  "loadedAt": "2026-05-23T17:30:04.885Z",
+  "totalFetchedFromApi": 1336,
+  "gamesCached": 200,
+  "monthsRequested": 12,
+  "games": [
+    {
+      "pgn": "[Event \"chess.com game 06b28c83-5621-11f1-bd98-82f4f401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.22\"]\n[White \"SahUzSoljuKafe\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1545\"]\n[BlackElo \"1547\"]\n1. e4 c6 2. Nc3 d5 3. exd5 cxd5 4. d4 Nf6 5. Nf3 Nc6 6. Bg5 Bg4 7. Bxf6 exf6 8. Be2 Bb4 9. O-O O-O 10. Qd3 Rc8 11. h3 Bh5 12. a3 Bg6 13. Qd2 Bxc3 14. bxc3 Na5 15. Rfb1 Nc4 0-1",
+      "white": {
+        "name": "SahUzSoljuKafe"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.22",
+      "createdAt": 1779483767000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8e87f469-53b0-11f1-8950-e1094201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"DeOriginalSander\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1577\"]\n[BlackElo \"1539\"]\n1. d4 Nf6 2. Nf3 d5 3. Bf4 Bg4 4. Nbd2 c5 5. e3 Nc6 6. Be2 Qb6 7. b3 e6 8. c3 Bxf3 9. Nxf3 1-0",
+      "white": {
+        "name": "DeOriginalSander"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779215397000
+    },
+    {
+      "pgn": "[Event \"chess.com game c5f9a8a5-539d-11f1-8c14-d04f8a01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Lazer_Wizard\"]\n[Black \"Lorddemos\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1546\"]\n[BlackElo \"1584\"]\n1. e4 e6 2. Nf3 d5 3. Nc3 dxe4 4. Nxe4 Nd7 5. d4 Ngf6 6. Nxf6+ Nxf6 7. Bd3 Be7 8. Bf4 O-O 9. O-O b6 10. c3 Bb7 11. Ng5 c5 12. Qc2 h6 13. Nh7 Nxh7 14. Bxh7+ Kh8 15. Be4 Bxe4 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Lorddemos"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779207462000
+    },
+    {
+      "pgn": "[Event \"chess.com game f054aa24-539c-11f1-ad8d-65f76101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Lazer_Wizard\"]\n[Black \"OliverDelaCruzz\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1553\"]\n[BlackElo \"1558\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Bc5 4. Qg4 Bf8 5. Qf3 Nf6 6. Nge2 d6 7. h3 Be7 8. d3 h6 9. O-O Be6 10. Nd5 Qd7 11. Nxf6+ Bxf6 12. Bxe6 fxe6 13. Qh5+ Qf7 14. Qxf7+ Kxf7 15. f4 Rhe8 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "OliverDelaCruzz"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779207244000
+    },
+    {
+      "pgn": "[Event \"chess.com game a53e8f5e-539c-11f1-8c14-d04f8a01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"Lazer_Wizard\"]\n[Black \"Arijit1286\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1545\"]\n[BlackElo \"1531\"]\n1. e4 c6 2. d4 d5 3. e5 c5 4. dxc5 Nc6 5. f4 Bf5 6. Nf3 e6 7. Be3 Qa5+ 8. c3 Bxc5 9. b4 Bxb4 10. cxb4 Qxb4+ 11. Qd2 Qxd2+ 12. Nbxd2 Nge7 13. Bb5 O-O 14. O-O Rac8 15. Bc5 Rfe8 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Arijit1286"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779206888000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6e36e243-539c-11f1-b34c-8dbbd401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.19\"]\n[White \"NACHIKETJAIN\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1500\"]\n[BlackElo \"1537\"]\n1. e4 c6 2. Nc3 d5 3. exd5 cxd5 4. d4 Nf6 5. Bd3 Nc6 6. Nge2 Bg4 7. O-O e6 8. f3 Bh5 9. Nf4 Bg6 10. Nxg6 hxg6 11. Bg5 Bd6 12. h3 Qc7 13. Kh1 Nh5 14. Bh4 Bg3 15. Bxg3 Nxg3+ 0-1",
+      "white": {
+        "name": "NACHIKETJAIN"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.19",
+      "createdAt": 1779206761000
+    },
+    {
+      "pgn": "[Event \"chess.com game 70cedbd9-5306-11f1-9b9a-8621b901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.18\"]\n[White \"Lazer_Wizard\"]\n[Black \"neverthehero\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1529\"]\n[BlackElo \"1566\"]\n1. e4 g6 2. d4 d6 3. Nc3 Bg7 4. Nf3 Nc6 5. Be3 Bg4 6. Bb5 Bd7 7. O-O e6 8. d5 exd5 9. exd5 Ne5 10. Bxd7+ Qxd7 11. Nxe5 Bxe5 12. Re1 Ne7 13. Bd4 Bxd4 14. Qxd4 O-O 15. Qe4 Nf5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "neverthehero"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.18",
+      "createdAt": 1779142355000
+    },
+    {
+      "pgn": "[Event \"chess.com game 875cb3d2-5304-11f1-b84b-092d4d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.18\"]\n[White \"Maisaaamgh\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1545\"]\n[BlackElo \"1536\"]\n1. d4 Nf6 2. c4 g6 3. Nc3 d5 4. e3 Bg7 5. Bd3 dxc4 6. Bxc4 O-O 7. Nf3 Bg4 8. h3 Bxf3 9. Qxf3 e6 10. Qxb7 Nbd7 11. O-O Nb6 12. Be2 Rb8 13. Qxa7 Nfd5 14. Nxd5 Qxd5 15. Qxc7 Rfc8 1-0",
+      "white": {
+        "name": "Maisaaamgh"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.18",
+      "createdAt": 1779141625000
+    },
+    {
+      "pgn": "[Event \"chess.com game d5a7ff72-5303-11f1-90cb-f375d601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.18\"]\n[White \"AntMorken\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"180\"]\n[WhiteElo \"1560\"]\n[BlackElo \"1544\"]\n1. d4 Nf6 2. c4 g6 3. Nc3 d5 4. cxd5 Nxd5 5. e4 Nxc3 6. bxc3 Bg7 7. e5 O-O 8. Nf3 Bg4 9. Be2 c5 10. Be3 Qa5 11. Qd2 Nc6 12. O-O Bxf3 13. Bxf3 cxd4 14. cxd4 Qxd2 15. Bxd2 Nxd4 1/2-1/2",
+      "white": {
+        "name": "AntMorken"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "180",
+      "date": "2026.05.18",
+      "createdAt": 1779141429000
+    },
+    {
+      "pgn": "[Event \"chess.com game 985c29b6-5303-11f1-9b9a-8621b901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.18\"]\n[White \"Lazer_Wizard\"]\n[Black \"leitoperalta\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1544\"]\n[BlackElo \"1526\"]\n1. e4 e5 2. Nc3 Nf6 3. f4 d5 4. fxe5 Nxe4 5. Qf3 f5 6. d3 Nxc3 7. bxc3 Be6 8. Ne2 Be7 9. d4 O-O 10. Ng3 c6 11. Bd3 g6 12. O-O Nd7 13. Bh6 Re8 14. Nxf5 gxf5 15. Qg3+ 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "leitoperalta"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.18",
+      "createdAt": 1779141131000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0f53de89-5189-11f1-92d2-ca68c301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"MY_TITO_POGI\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1576\"]\n[BlackElo \"1536\"]\n1. d4 Nf6 2. Nd2 d5 3. e3 g6 4. Ngf3 Bg7 5. Bd3 O-O 6. c3 Bg4 7. h3 Bh5 8. O-O Bxf3 9. Nxf3 c6 10. Re1 Nbd7 11. e4 e6 12. e5 Ne8 13. Be3 f6 14. Qd2 1-0",
+      "white": {
+        "name": "MY_TITO_POGI"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1778978532000
+    },
+    {
+      "pgn": "[Event \"chess.com game 9e2bab76-5188-11f1-b30e-91219a01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"rrcosta\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1546\"]\n[BlackElo \"1543\"]\n1. e4 c6 2. Nf3 d5 3. d4 dxe4 4. Ng5 h6 5. Nxe4 Bf5 6. Ng3 Bg6 7. Nc3 e6 8. Be3 Nf6 9. Qf3 Bb4 10. Be2 Nd5 11. O-O Nxc3 12. bxc3 Bxc3 13. Rab1 Nd7 14. Rxb7 O-O 15. Qxc6 Rc8 0-1",
+      "white": {
+        "name": "rrcosta"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1778978407000
+    },
+    {
+      "pgn": "[Event \"chess.com game 556da633-5187-11f1-acc4-7be18901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"EUBRA123456\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1540\"]\n[BlackElo \"1535\"]\n1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ exf6 6. Bc4 Bd6 7. Be3 Bf5 8. Ne2 O-O 9. O-O Qc7 10. g3 Bh3 11. Re1 Re8 12. Bf4 Bxf4 13. Nxf4 Bd7 14. Rxe8+ Bxe8 15. Qe2 Nd7 1-0",
+      "white": {
+        "name": "EUBRA123456"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1778978064000
+    },
+    {
+      "pgn": "[Event \"chess.com game c1f3493d-5186-11f1-91f6-03617901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.17\"]\n[White \"Lazer_Wizard\"]\n[Black \"MY_TITO_POGI\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1543\"]\n[BlackElo \"1578\"]\n1. e4 c6 2. d4 d5 3. e5 Bf5 4. h4 h6 5. g4 Bh7 6. e6 Qd6 7. exf7+ Kxf7 8. Bd3 Nf6 9. Bxh7 Nxh7 10. Nf3 e6 11. Ne5+ Ke7 12. Ng6+ Kd7 13. Nxh8 Na6 14. Ng6 Be7 15. Bf4 Qb4+ 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "MY_TITO_POGI"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.17",
+      "createdAt": 1778977706000
+    },
+    {
+      "pgn": "[Event \"chess.com game 448c5987-5020-11f1-91f6-03617901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.15\"]\n[White \"Lazer_Wizard\"]\n[Black \"Dudum05\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1551\"]\n[BlackElo \"1548\"]\n1. e4 c6 2. d4 Qb6 3. e5 e6 4. Nf3 c5 5. c3 Nc6 6. Be3 Qxb2 7. Qb3 Qxb3 8. axb3 a5 9. Bb5 Nge7 10. O-O Nd5 11. Nbd2 Nxc3 12. Bxc6 dxc6 13. dxc5 f6 14. Nc4 Bd7 15. Nd6+ Bxd6 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Dudum05"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.15",
+      "createdAt": 1778823769000
+    },
+    {
+      "pgn": "[Event \"chess.com game fc53941a-501f-11f1-83b6-71760f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.15\"]\n[White \"Lazer_Wizard\"]\n[Black \"raviduttsharma\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1559\"]\n[BlackElo \"1528\"]\n1. e4 d5 2. exd5 c6 3. dxc6 Nxc6 4. Bb5 Bd7 5. Nf3 e6 6. d4 Nf6 7. O-O Be7 8. c4 O-O 9. Nc3 a6 10. Ba4 b5 11. cxb5 axb5 12. Bxb5 Nxd4 13. Nxd4 Bc8 14. Bd3 Bb7 15. Nf3 Qc7 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "raviduttsharma"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.15",
+      "createdAt": 1778823488000
+    },
+    {
+      "pgn": "[Event \"chess.com game c8e8ecfa-4fe1-11f1-b998-38a2dc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.14\"]\n[White \"Posedorp\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"1198\"]\n[BlackElo \"1197\"]\n1. d4 Nf6 2. g3 d5 3. Bg2 Bf5 4. Nf3 e6 5. e3 c5 6. O-O Nc6 7. c3 Be7 8. Nbd2 O-O 9. a4 cxd4 10. Nxd4 Qb6 11. b4 Nxd4 12. exd4 Bxb4 13. cxb4 Qxd4 14. Nf3 Qxa1 15. Qb3 Ne4 1-0",
+      "white": {
+        "name": "Posedorp"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.14",
+      "createdAt": 1778796768000
+    },
+    {
+      "pgn": "[Event \"chess.com game 794b2624-4fe1-11f1-8643-164e0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.14\"]\n[White \"bornah13\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"1225\"]\n[BlackElo \"1205\"]\n1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ exf6 6. Bc4 Bd6 7. Nf3 O-O 8. O-O Bg4 9. c3 Nd7 10. h3 Bh5 11. Qd3 Nb6 12. Bb3 a5 13. Nh4 a4 14. Bc2 Bg6 15. Nf5 Qd7 1-0",
+      "white": {
+        "name": "bornah13"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.05.14",
+      "createdAt": 1778796654000
+    },
+    {
+      "pgn": "[Event \"chess.com game e0eae422-4fd3-11f1-9907-13a8bd01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.14\"]\n[White \"Lazer_Wizard\"]\n[Black \"Lucascattt\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"1213\"]\n[BlackElo \"1234\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. d4 Nf6 5. Nf3 c6 6. Bc4 Bf5 7. Ne5 e6 8. f3 Nbd7 9. g4 Bg6 10. h4 h6 11. h5 Bh7 12. Bf4 Nxe5 13. Bxe5 Nd5 14. O-O Nxc3 15. bxc3 Qxc3 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Lucascattt"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.14",
+      "createdAt": 1778790765000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2b43c05d-4fd3-11f1-b3b6-8f036401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.14\"]\n[White \"khamiisss\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1564\"]\n[BlackElo \"1551\"]\n1. e4 d6 2. Nf3 Nf6 3. d3 g6 4. Be2 Bg7 5. c3 Nbd7 6. Bg5 O-O 7. O-O h6 8. Bf4 Re8 9. Nbd2 e5 10. Be3 Nb6 11. d4 Be6 12. d5 Bd7 13. Nb3 c6 14. Qc2 cxd5 15. exd5 Nfxd5 1-0",
+      "white": {
+        "name": "khamiisss"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.14",
+      "createdAt": 1778790672000
+    },
+    {
+      "pgn": "[Event \"chess.com game c16abbfa-4fd2-11f1-a546-1ad65601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.14\"]\n[White \"Lazer_Wizard\"]\n[Black \"Muchoacan\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1559\"]\n[BlackElo \"1559\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Bc5 4. Qg4 Qf6 5. Nd5 Qxf2+ 6. Kd1 Bd6 7. Nh3 Qc5 8. Qxg7 Qxc4 9. Qxh8 Kf8 10. Nf6 Ne7 11. Ng5 b6 12. Ngxh7# 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Muchoacan"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.14",
+      "createdAt": 1778790365000
+    },
+    {
+      "pgn": "[Event \"chess.com game efcdd87a-4fd1-11f1-8643-164e0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.14\"]\n[White \"Lazer_Wizard\"]\n[Black \"Ketvirtadienis\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1551\"]\n[BlackElo \"1560\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Bb4 4. Qg4 Bxc3 5. dxc3 Qf6 6. Bg5 Qg6 7. O-O-O d6 8. Qf3 f6 9. Bh4 Nge7 10. Nh3 h5 11. Bg5 Bd7 12. Be3 O-O-O 13. Bd5 Nxd5 14. exd5 Ne7 15. Bxa7 b6 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Ketvirtadienis"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.14",
+      "createdAt": 1778790197000
+    },
+    {
+      "pgn": "[Event \"chess.com game 53ff10bb-4fd1-11f1-92d2-ca68c301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.14\"]\n[White \"fabulouschesssplayer95\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1525\"]\n[BlackElo \"1559\"]\n1. e4 c6 2. Bc4 d5 3. exd5 cxd5 4. Bb3 Nf6 5. Nf3 Nc6 6. O-O Bg4 7. d3 e5 8. h3 Bh5 9. g4 Nxg4 10. hxg4 Bxg4 11. Nc3 Nd4 12. Bxd5 h5 13. Be3 h4 14. Be4 f5 15. Bxb7 Rb8 0-1",
+      "white": {
+        "name": "fabulouschesssplayer95"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.14",
+      "createdAt": 1778789824000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7016f2e7-4fd0-11f1-b998-38a2dc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.14\"]\n[White \"F-societyy\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1537\"]\n[BlackElo \"1551\"]\n1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. d4 Nc6 5. c4 Nf6 6. Nc3 Bg4 7. Be2 dxc4 8. Bxc4 Nxd4 9. Qxd4 Bxf3 10. Qxd8+ Rxd8 11. gxf3 e6 12. Bb5+ Nd7 13. Bg5 f6 14. Bh4 Bb4 15. O-O Bxc3 0-1",
+      "white": {
+        "name": "F-societyy"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.14",
+      "createdAt": 1778789572000
+    },
+    {
+      "pgn": "[Event \"chess.com game 9f9f073f-4fcf-11f1-92d2-ca68c301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.14\"]\n[White \"Lazer_Wizard\"]\n[Black \"fourthholegambit\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1543\"]\n[BlackElo \"1543\"]\n1. e4 c5 2. c3 Nc6 3. d4 cxd4 4. cxd4 e6 5. Nc3 g6 6. Nf3 Bg7 7. Be3 Nge7 8. d5 exd5 9. exd5 Bxc3+ 10. bxc3 Nb8 11. Bd4 O-O 12. Bc4 Nf5 13. O-O Nxd4 14. Qxd4 d6 15. h4 Nd7 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "fourthholegambit"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.14",
+      "createdAt": 1778789136000
+    },
+    {
+      "pgn": "[Event \"chess.com game e65d3031-4fce-11f1-b998-38a2dc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.14\"]\n[White \"Lazer_Wizard\"]\n[Black \"Vladmachine123\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1535\"]\n[BlackElo \"1503\"]\n1. e4 c6 2. d4 d5 3. e5 Bf5 4. h4 h5 5. Bg5 Nd7 6. Bd3 Bxd3 7. Qxd3 Qb6 8. e6 Ndf6 9. exf7+ Kxf7 10. Nf3 Ne4 11. Ne5+ Ke8 12. f3 Nxg5 13. Qg6+ Kd8 14. hxg5 Qxd4 15. Qe6 Qe3+ 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Vladmachine123"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.14",
+      "createdAt": 1778788844000
+    },
+    {
+      "pgn": "[Event \"chess.com game a66c9bde-4fb0-11f1-94da-11d9b101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.14\"]\n[White \"Lazer_Wizard\"]\n[Black \"CaiNicolas\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1527\"]\n[BlackElo \"1489\"]\n1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Bf5 5. Ng5 Bg6 6. Bd3 Bxd3 7. Qxd3 h6 8. Nxf7 Kxf7 9. Nf3 Nf6 10. Ne5+ Kg8 11. Qb3+ Qd5 12. Qxb7 Qxg2 13. Qxa8 Qxh1+ 14. Kd2 Ne4+ 15. Kd3 Nxf2+ 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "CaiNicolas"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.14",
+      "createdAt": 1778775756000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8111779e-4f41-11f1-bf09-5e9d7c01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.14\"]\n[White \"Lazer_Wizard\"]\n[Black \"1saacYan\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1520\"]\n[BlackElo \"1553\"]\n1. e4 d6 2. d4 Nf6 3. Nc3 g5 4. h3 Bg7 5. Bxg5 h6 6. Bxf6 Bxf6 7. Nf3 b6 8. e5 dxe5 9. dxe5 Qxd1+ 10. Rxd1 Bg7 11. Bc4 Bf5 12. O-O Bxc2 13. Rd2 Bf5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "1saacYan"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.14",
+      "createdAt": 1778727900000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3685737d-4f1c-11f1-9ffd-1a480d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.13\"]\n[White \"jaimevillafuerteiii\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1495\"]\n[BlackElo \"1528\"]\n1. d4 Nf6 2. c4 g6 3. Nc3 d5 4. Nf3 Bg7 5. Bg5 Ne4 6. Nxe4 dxe4 7. Ng1 O-O 8. e3 c6 9. Ne2 Qa5+ 10. Nc3 Qxg5 11. g3 Bf5 12. Bg2 Nd7 13. Nxe4 Bxe4 14. Bxe4 c5 15. d5 Ne5 0-1",
+      "white": {
+        "name": "jaimevillafuerteiii"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.13",
+      "createdAt": 1778712132000
+    },
+    {
+      "pgn": "[Event \"chess.com game 48cecaea-4e53-11f1-b19f-c8c65301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.12\"]\n[White \"Shaka-laska2018\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1532\"]\n[BlackElo \"1520\"]\n1. e4 c6 2. d4 d5 3. e5 Bf5 4. c4 e6 5. c5 Ne7 6. Nf3 Ng6 7. Bd3 Bxd3 8. Qxd3 Be7 9. O-O O-O 10. Nc3 Nd7 11. b4 b6 12. a4 a5 13. cxb6 Nxb6 14. b5 Bb4 15. Ba3 Nf4 1-0",
+      "white": {
+        "name": "Shaka-laska2018"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.12",
+      "createdAt": 1778625782000
+    },
+    {
+      "pgn": "[Event \"chess.com game 619b9447-4e1d-11f1-800e-31114e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.12\"]\n[White \"SuddenOlympian\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1503\"]\n[BlackElo \"1528\"]\n1. d4 Nf6 2. c3 d5 3. f3 g6 4. Nd2 Bg7 5. e4 e6 6. e5 Nfd7 7. f4 O-O 8. g3 c5 9. Ngf3 c4 10. b3 Nb6 11. h4 Bd7 12. h5 Bb5 13. hxg6 fxg6 14. a4 Ba6 15. b4 N6d7 0-1",
+      "white": {
+        "name": "SuddenOlympian"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.12",
+      "createdAt": 1778602555000
+    },
+    {
+      "pgn": "[Event \"chess.com game e935e479-4e1c-11f1-94f2-61b4a901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.12\"]\n[White \"Lazer_Wizard\"]\n[Black \"LibyisnotArab\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1520\"]\n[BlackElo \"1495\"]\n1. e4 e6 2. Nf3 b6 3. Nc3 Bb7 4. d4 Qe7 5. Bd3 d5 6. e5 Na6 7. O-O O-O-O 8. Qe2 Nb8 9. a4 f6 10. a5 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "LibyisnotArab"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.12",
+      "createdAt": 1778602250000
+    },
+    {
+      "pgn": "[Event \"chess.com game 9ebe209d-4c9e-11f1-b303-92948401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.10\"]\n[White \"Lazer_Wizard\"]\n[Black \"scudobravo\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1512\"]\n[BlackElo \"1484\"]\n1. e4 e5 2. Nc3 Bb4 3. d4 exd4 4. Qxd4 Nc6 5. Qxg7 Qf6 6. Bh6 d6 7. Qxf6 Nxf6 8. Bg7 Rg8 9. Bxf6 Bg4 10. Nf3 Kd7 11. Bb5 Rae8 12. Bxc6+ Kxc6 13. Nd4+ Kd7 14. f3 Bh5 15. O-O Rg6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "scudobravo"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.10",
+      "createdAt": 1778438257000
+    },
+    {
+      "pgn": "[Event \"chess.com game 523ebd87-4c89-11f1-ab7e-c4c69201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.10\"]\n[White \"codalama0109\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1504\"]\n[BlackElo \"1504\"]\n1. e4 c6 2. Nf3 d5 3. e5 Bg4 4. c4 e6 5. cxd5 cxd5 6. d4 Nc6 7. Be3 Bb4+ 8. Nc3 Nge7 9. a3 Bxc3+ 10. bxc3 Nf5 11. Bd3 O-O 12. Bd2 Ncxd4 13. cxd4 Nxd4 14. Be2 Nxe2 15. Qxe2 d4 1-0",
+      "white": {
+        "name": "codalama0109"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.10",
+      "createdAt": 1778428918000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7a47df7a-4c19-11f1-aac6-22d83301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.10\"]\n[White \"1tr4gfghuiihh\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1565\"]\n[BlackElo \"1512\"]\n1. g3 Nf6 2. Bg2 d5 3. Nf3 e5 4. O-O Nc6 5. a3 Bd6 6. b4 O-O 7. Bb2 a6 8. d3 Bg4 9. Nbd2 e4 10. dxe4 dxe4 11. Bxf6 Qxf6 12. Nxe4 Qe7 13. Nxd6 cxd6 14. c4 Ne5 15. Qd5 Qe6 0-1",
+      "white": {
+        "name": "1tr4gfghuiihh"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.10",
+      "createdAt": 1778380888000
+    },
+    {
+      "pgn": "[Event \"chess.com game c72cbd06-4c18-11f1-aac6-22d83301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.10\"]\n[White \"Lazer_Wizard\"]\n[Black \"HomebrewJ\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1502\"]\n[BlackElo \"1517\"]\n1. e4 d6 2. d4 Nf6 3. Nc3 g6 4. h3 Bg7 5. g4 O-O 6. Bg2 e5 7. dxe5 dxe5 8. Qxd8 Rxd8 9. Nge2 c6 10. f4 exf4 11. Bxf4 Be6 12. O-O Nbd7 13. Rad1 Nc5 14. Nd4 Bc4 15. Rf2 Nfxe4 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "HomebrewJ"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.10",
+      "createdAt": 1778380767000
+    },
+    {
+      "pgn": "[Event \"chess.com game 861476ed-4c18-11f1-bb36-611ace01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.10\"]\n[White \"Mathis-95\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1504\"]\n[BlackElo \"1510\"]\n1. d4 Nf6 2. Bf4 d5 3. e3 c5 4. c3 Nc6 5. Nf3 Qb6 6. Qc2 Bf5 7. Bd3 Bxd3 8. Qxd3 Qxb2 9. O-O Qxa1 10. dxc5 Qxa2 11. Nbd2 e6 12. Ne5 Nxe5 13. Bxe5 Bxc5 14. Qb5+ Nd7 15. Qxb7 O-O 0-1",
+      "white": {
+        "name": "Mathis-95"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.10",
+      "createdAt": 1778380468000
+    },
+    {
+      "pgn": "[Event \"chess.com game 9892c446-4c17-11f1-b713-35658f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.10\"]\n[White \"Lazer_Wizard\"]\n[Black \"javiervega2511\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1502\"]\n[BlackElo \"1463\"]\n1. e4 c5 2. c3 d6 3. d4 cxd4 4. cxd4 Nf6 5. Nc3 e6 6. Bd3 Be7 7. e5 dxe5 8. dxe5 Nd5 9. Nf3 Nxc3 10. bxc3 O-O 11. h4 Nc6 12. Ng5 h6 13. Qh5 Nxe5 14. Bb1 Bxg5 15. hxg5 Nc4 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "javiervega2511"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.10",
+      "createdAt": 1778380313000
+    },
+    {
+      "pgn": "[Event \"chess.com game ef8d7c99-4bef-11f1-8f45-ca452001000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.09\"]\n[White \"Lazer_Wizard\"]\n[Black \"pineapple_montana\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1495\"]\n[BlackElo \"1498\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Bc5 4. Qg4 Kf8 5. Nge2 d5 6. Qf3 dxc4 7. d3 Nd4 8. Nxd4 Bxd4 9. O-O cxd3 10. cxd3 h5 11. Ne2 Bg4 12. Qg3 Nf6 13. Nxd4 exd4 14. b3 h4 15. Ba3+ Kg8 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "pineapple_montana"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.09",
+      "createdAt": 1778363155000
+    },
+    {
+      "pgn": "[Event \"chess.com game b482687b-4b78-11f1-bb36-611ace01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.09\"]\n[White \"hellochesssc\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1542\"]\n[BlackElo \"1503\"]\n1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. d4 Nc6 5. Be2 Bg4 6. O-O e6 7. c3 Bd6 8. Bg5 Nf6 9. h3 Bxf3 10. Bxf3 h6 11. Bh4 g5 12. Bg3 Bxg3 13. fxg3 Qd7 14. Nd2 O-O-O 15. a4 h5 1-0",
+      "white": {
+        "name": "hellochesssc"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.09",
+      "createdAt": 1778311930000
+    },
+    {
+      "pgn": "[Event \"chess.com game cde85b08-4b36-11f1-bb36-611ace01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"danielavieira28\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1547\"]\n[BlackElo \"1510\"]\n1. d4 Nf6 2. f3 d5 3. Nc3 Bf5 4. g4 e6 5. gxf5 Ne4 6. Nxe4 dxe4 7. fxe4 Qh4+ 8. Kd2 Qxe4 9. Nf3 c5 10. dxc5 Bxc5 11. Ke1 Nc6 12. Qd3 exf5 13. Qxe4+ fxe4 14. Ng5 e3 15. Bg2 Nb4 1-0",
+      "white": {
+        "name": "danielavieira28"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778283694000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0746e67c-4b36-11f1-b713-35658f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Lazer_Wizard\"]\n[Black \"Ronaldoboyyy\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1517\"]\n[BlackElo \"1488\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 f5 4. exf5 Bb4 5. Qh5+ g6 6. fxg6 Nf6 7. g7+ Nxh5 8. gxh8=Q+ Ke7 9. Nd5+ Kd6 10. Qxd8 Nxd8 11. Nxb4 Kc5 12. Be2 Kxb4 13. Bxh5 d5 14. c3+ Kc5 15. b4+ Kc6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Ronaldoboyyy"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778283409000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8aa7bd2f-4b33-11f1-b713-35658f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Lazer_Wizard\"]\n[Black \"almendradocarlsen1984\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1509\"]\n[BlackElo \"1476\"]\n1. e4 c5 2. c3 d6 3. d4 cxd4 4. cxd4 Nc6 5. d5 Ne5 6. f4 Ng6 7. Nf3 Nf6 8. Nc3 Bg4 9. Bd3 Qb6 10. Na4 Qb4+ 11. Bd2 Bxf3 12. Bxb4 Bxd1 13. Bb5+ Nd7 14. Rxd1 Nxf4 15. Rc1 a6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "almendradocarlsen1984"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778282176000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6072be42-4b2d-11f1-aac6-22d83301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"treno92\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1540\"]\n[BlackElo \"1501\"]\n1. e4 c6 2. f4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Ng3 Bf5 6. Nf3 Bg4 7. Be2 e6 8. O-O Bc5+ 9. d4 Bb6 10. c3 O-O 11. Kh1 Nbd7 12. b3 Nd5 13. Bb2 N7f6 14. Qc1 Bc7 15. Ne5 Bf5 1-0",
+      "white": {
+        "name": "treno92"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778279535000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0283e868-4b28-11f1-a02c-a2c9ca01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Lazer_Wizard\"]\n[Black \"freddy025\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1508\"]\n[BlackElo \"1512\"]\n1. e4 g6 2. Nc3 Bg7 3. d4 e6 4. Nf3 Ne7 5. Bd3 d6 6. O-O O-O 7. Be3 b6 8. Qd2 Bb7 9. Bh6 f5 10. Bxg7 Kxg7 11. Qg5 h6 12. Qg3 fxe4 13. Bxe4 Bxe4 14. Nxe4 Nf5 15. Qg4 Nd7 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "freddy025"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778277414000
+    },
+    {
+      "pgn": "[Event \"chess.com game 87e251ec-4b27-11f1-aac6-22d83301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Javieransa2009\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1464\"]\n[BlackElo \"1500\"]\n1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. d4 Nf6 5. c4 Bg4 6. c5 e6 7. Nc3 Nc6 8. Bb5 Ne4 9. h3 Nxc3 10. bxc3 Bxf3 11. Qxf3 Qa5 12. Bxc6+ bxc6 13. O-O Be7 14. Bf4 O-O 15. Be5 Rab8 1-0",
+      "white": {
+        "name": "Javieransa2009"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778277052000
+    },
+    {
+      "pgn": "[Event \"chess.com game 12d4cdfb-4b27-11f1-bb36-611ace01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"AhmadDarwiche\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1509\"]\n[BlackElo \"1509\"]\n1. e4 c6 2. Nc3 d5 3. exd5 cxd5 4. Nf3 d4 5. Ne2 e5 6. Nxe5 Qe7 7. Nf3 Nc6 8. d3 Bg4 9. Bf4 Bxf3 10. gxf3 Nf6 11. Qd2 Nd5 12. Bg3 Qe6 13. O-O-O g5 14. Qxg5 Bh6 15. Nf4 Bxg5 0-1",
+      "white": {
+        "name": "AhmadDarwiche"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778276852000
+    },
+    {
+      "pgn": "[Event \"chess.com game 833a1bf4-4b26-11f1-a02c-a2c9ca01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Lazer_Wizard\"]\n[Black \"robchess95m\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1501\"]\n[BlackElo \"1476\"]\n1. e4 c5 2. c3 Nc6 3. d4 cxd4 4. cxd4 d5 5. exd5 Qxd5 6. Nf3 g6 7. Nc3 Qd8 8. Bb5 Bg7 9. d5 a6 10. Ba4 b5 11. Nxb5 Qa5+ 12. Bd2 Qb6 13. Nd6+ exd6 14. Bxc6+ Kd8 15. Bxa8 Nf6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "robchess95m"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778276655000
+    },
+    {
+      "pgn": "[Event \"chess.com game c591b607-4b25-11f1-aa58-a277c101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"moolZprodigy\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1493\"]\n[BlackElo \"1493\"]\n1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c3 Nf6 5. Nf3 Nc6 6. Bg5 Bg4 7. Bb5 e6 8. h3 Bxf3 9. Qxf3 Be7 10. O-O O-O 11. Nd2 h6 12. Bh4 a6 13. Bd3 Nd7 14. Bxe7 Qxe7 15. Qg3 e5 0-1",
+      "white": {
+        "name": "moolZprodigy"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778276414000
+    },
+    {
+      "pgn": "[Event \"chess.com game 1f4b7cde-4b25-11f1-bb36-611ace01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Lazer_Wizard\"]\n[Black \"Muhkeme\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1485\"]\n[BlackElo \"1484\"]\n1. e4 c5 2. c3 Nc6 3. d4 cxd4 4. cxd4 d6 5. d5 Ne5 6. f4 Ng6 7. Nf3 f6 8. f5 Ne5 9. Nxe5 dxe5 10. Qh5+ Kd7 11. Bb5+ Kc7 12. Nc3 Bd7 13. Bxd7 Qxd7 14. Be3 b6 15. Rc1 Kb7 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Muhkeme"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778276096000
+    },
+    {
+      "pgn": "[Event \"chess.com game d100eaa1-4b24-11f1-bb36-611ace01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"B1gTruzz\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1460\"]\n[BlackElo \"1477\"]\n1. e4 c6 2. d4 d5 3. e5 Bf5 4. h4 h5 5. Nf3 e6 6. Bg5 Qb6 7. Bd3 Qxb2 8. Bxf5 Qxa1 9. Bh3 Be7 10. Qd3 Qxb1+ 11. Ke2 Qxh1 0-1",
+      "white": {
+        "name": "B1gTruzz"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778275773000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2c66dc6a-4b19-11f1-aa58-a277c101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"LeonardoPetrone3\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1488\"]\n[BlackElo \"1469\"]\n1. d4 Nf6 2. c4 g6 3. e3 d5 4. Nf3 Bg7 5. Nc3 O-O 6. Bd3 dxc4 7. Bxc4 c5 8. O-O Nc6 9. dxc5 Qxd1 10. Rxd1 Bg4 11. Be2 Rad8 12. h3 Bf5 13. Nb5 Nb4 14. Nbd4 Nc2 15. Nxc2 Bxc2 1-0",
+      "white": {
+        "name": "LeonardoPetrone3"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778270967000
+    },
+    {
+      "pgn": "[Event \"chess.com game 1f429d4f-4af8-11f1-aac6-22d83301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Lazer_Wizard\"]\n[Black \"coppelbaptiste\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1477\"]\n[BlackElo \"1489\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. d3 Bc5 5. f4 d6 6. Nf3 Bg4 7. h3 Bh5 8. g4 Nxg4 9. hxg4 Bxg4 10. Bxf7+ Kf8 11. Bh5 Qd7 12. f5 Bxf3 13. Qxf3 Nd4 14. Qg2 Nxc2+ 15. Qxc2 Bd4 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "coppelbaptiste"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778256756000
+    },
+    {
+      "pgn": "[Event \"chess.com game c0c636d9-4a84-11f1-9762-11ef0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"jamilebranco\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1512\"]\n[BlackElo \"1485\"]\n1. d4 Nf6 2. c4 g6 3. Nc3 d5 4. cxd5 Nxd5 5. e4 Nxc3 6. bxc3 Bg7 7. Nf3 O-O 8. Be2 c5 9. O-O Nc6 10. Bb2 Bg4 11. d5 Ne5 12. Nxe5 Bxe2 13. Qxe2 Bxe5 14. f4 Bg7 15. Rad1 Qb6 1-0",
+      "white": {
+        "name": "jamilebranco"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778207319000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6f4f3877-4a83-11f1-9762-11ef0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Lazer_Wizard\"]\n[Black \"orlando-krompak\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1493\"]\n[BlackElo \"1459\"]\n1. e4 e5 2. Nc3 Nf6 3. d4 exd4 4. Qxd4 Nc6 5. Qd1 Be7 6. Bc4 O-O 7. Bf4 Bb4 8. f3 a6 9. Qd2 b5 10. Bd3 d6 11. O-O-O Be6 12. a3 Ba5 13. Nge2 b4 14. Nb1 bxa3 15. Qe3 axb2+ 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "orlando-krompak"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778206688000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2882d58d-4a83-11f1-81ca-ca4be801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Lazer_Wizard\"]\n[Black \"AIRTONGUIDI\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1502\"]\n[BlackElo \"1478\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. d3 d6 5. f4 Be7 6. Nf3 exf4 7. Bxf4 O-O 8. O-O Na5 9. Bb3 Nxb3 10. axb3 Nd7 11. Qe1 Bf6 12. Qg3 Kh8 13. Nd5 Be5 14. Nxe5 Nxe5 15. Bxe5 dxe5 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "AIRTONGUIDI"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778206374000
+    },
+    {
+      "pgn": "[Event \"chess.com game 68779fb2-4a82-11f1-851f-5aa68801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Lazer_Wizard\"]\n[Black \"Arajinggggg\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1494\"]\n[BlackElo \"1482\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Nc6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Arajinggggg"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778205947000
+    },
+    {
+      "pgn": "[Event \"chess.com game 42f23f55-4a7f-11f1-9762-11ef0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Mercurial_Mania\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1483\"]\n[BlackElo \"1486\"]\n1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ exf6 6. Nf3 Bg4 7. Be2 Bd6 8. O-O O-O 9. h3 Bh5 10. c3 Nd7 11. Re1 Re8 12. Be3 Nb6 13. g4 Bg6 14. Nh4 Nd5 15. Bd2 Qc7 1-0",
+      "white": {
+        "name": "Mercurial_Mania"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778204792000
+    },
+    {
+      "pgn": "[Event \"chess.com game af848c69-4a7e-11f1-81ca-ca4be801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Lazer_Wizard\"]\n[Black \"ninjax3\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1494\"]\n[BlackElo \"1462\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qe5+ 4. Be2 Bg4 5. d4 Bxe2 6. Ngxe2 Qd6 7. Bf4 Qd8 8. Nb5 Na6 9. Nec3 e6 10. Qe2 Nf6 11. O-O-O Be7 12. d5 exd5 13. Rhe1 O-O 14. Qxe7 Qxe7 15. Rxe7 Nc5 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "ninjax3"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778204542000
+    },
+    {
+      "pgn": "[Event \"chess.com game c1a9eb89-4a7a-11f1-81ca-ca4be801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Lazer_Wizard\"]\n[Black \"alexr456789\"]\n[Result \"1-0\"]\n[TimeControl \"600\"]\n[WhiteElo \"1851\"]\n[BlackElo \"1092\"]\n1. e4 c6 2. d4 d5 3. e5 c5 4. dxc5 e6 5. a3 Bxc5 6. Nf3 Nc6 7. b4 Bb6 8. Bb2 Nge7 9. Bd3 Qc7 10. O-O a6 11. Re1 Ba7 12. Nbd2 b5 13. Nb3 Bb7 14. Ng5 Ng6 15. Qf3 Nd8 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "alexr456789"
+      },
+      "result": "1-0",
+      "timeControl": "600",
+      "date": "2026.05.08",
+      "createdAt": 1778203388000
+    },
+    {
+      "pgn": "[Event \"chess.com game bb3c6378-4a72-11f1-9762-11ef0901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Marco5120\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1501\"]\n[BlackElo \"1486\"]\n1. b3 b6 2. Bb2 Bb7 3. Nf3 Nf6 4. d4 d5 5. Nbd2 Nbd7 6. g3 g6 7. Bg2 Bg7 8. e3 O-O 9. Qe2 e6 10. O-O-O a5 11. Ne5 Nxe5 12. dxe5 Nd7 13. f4 a4 14. Kb1 axb3 15. Nxb3 Nc5 0-1",
+      "white": {
+        "name": "Marco5120"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778199508000
+    },
+    {
+      "pgn": "[Event \"chess.com game 25d323f5-4a71-11f1-af4c-7c85cf01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.08\"]\n[White \"Lazer_Wizard\"]\n[Black \"hamidkhd\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1477\"]\n[BlackElo \"1474\"]\n1. e4 e6 2. Nc3 b6 3. Nf3 Bb7 4. d4 g6 5. Bd3 Bg7 6. Bf4 a6 7. O-O h6 8. h4 Nc6 9. d5 Nd4 10. Nxd4 Bxd4 11. Qg4 Bxc3 12. bxc3 Nf6 13. Qg3 Nh5 14. Qg4 f5 15. Qxg6+ Kf8 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "hamidkhd"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.08",
+      "createdAt": 1778198709000
+    },
+    {
+      "pgn": "[Event \"chess.com game e61bc2da-4a64-11f1-81ca-ca4be801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.07\"]\n[White \"Elanuz\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1429\"]\n[BlackElo \"1469\"]\n1. e4 c6 2. d4 d5 3. e5 Bf5 4. Nf3 e6 5. Bd3 Bxd3 6. Qxd3 Ne7 7. O-O Nf5 8. Re1 Nd7 9. Nc3 Bb4 10. a3 Ba5 11. b4 Bb6 12. Na4 O-O 13. Nxb6 Nxb6 14. g4 Ne7 15. Bg5 h6 0-1",
+      "white": {
+        "name": "Elanuz"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.07",
+      "createdAt": 1778193638000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0fa5a4c1-496e-11f1-8ac9-5f169801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.06\"]\n[White \"roeas\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1466\"]\n[BlackElo \"1462\"]\n1. e4 c6 2. Nc3 d5 3. f4 dxe4 4. Nxe4 Nf6 5. Nxf6+ exf6 6. Nf3 Qd7 7. d3 Bd6 8. Be2 O-O 9. O-O Qe7 10. a3 Bg4 11. c3 Nd7 12. d4 Nb6 13. Re1 Nd5 14. f5 Qc7 15. g3 Bxg3 0-1",
+      "white": {
+        "name": "roeas"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.06",
+      "createdAt": 1778087352000
+    },
+    {
+      "pgn": "[Event \"chess.com game 60472c70-4904-11f1-83a3-68fb0e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.06\"]\n[White \"Lazer_Wizard\"]\n[Black \"neighborhoodss\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"180\"]\n[WhiteElo \"1454\"]\n[BlackElo \"1442\"]\n1. e4 e6 2. Nf3 Ne7 3. Nc3 Ng6 4. d4 Be7 5. Bd3 O-O 6. e5 c6 7. h4 Nh8 8. Ng5 Bxg5 9. Bxh7+ Kxh7 10. Qh5+ Bh6 11. Bxh6 gxh6 12. Ne4 f5 13. Nf6+ Rxf6 14. exf6 Qxf6 15. O-O-O Ng6 1/2-1/2",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "neighborhoodss"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "180",
+      "date": "2026.05.06",
+      "createdAt": 1778042253000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2f9875c8-48e4-11f1-95a1-bed71001000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.06\"]\n[White \"Lazer_Wizard\"]\n[Black \"kaydEnDogGER0\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"1851\"]\n[BlackElo \"899\"]\n1. b3 d6 2. Bb2 Bd7 3. e4 Nc6 4. d4 a6 5. d5 Na7 6. Qd2 Nf6 7. Qb4 b5 8. Nd2 c5 9. Qc3 g6 10. Qf3 Bg7 11. Ne2 b4 12. Nf4 Bb5 13. Bxb5+ Nxb5 14. O-O Nd4 15. Bxd4 cxd4 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "kaydEnDogGER0"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.05.06",
+      "createdAt": 1778028917000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3e7e3303-48e3-11f1-a4e0-d3b37f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.06\"]\n[White \"kaydEnDogGER0\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"600\"]\n[WhiteElo \"899\"]\n[BlackElo \"1851\"]\n1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. b3 Nc6 5. Bb2 Bg4 6. Be2 Bxf3 7. Bxf3 e5 8. Nc3 Nf6 9. Qe2 Bb4 10. Nxd5 Nxd5 11. Bxd5 Qxd5 12. c3 Qxg2 13. O-O-O O-O-O 14. cxb4 Qg6 15. b5 Nd4 1-0",
+      "white": {
+        "name": "kaydEnDogGER0"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "600",
+      "date": "2026.05.06",
+      "createdAt": 1778028015000
+    },
+    {
+      "pgn": "[Event \"chess.com game a8365e80-48e2-11f1-83a3-68fb0e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.06\"]\n[White \"Lazer_Wizard\"]\n[Black \"kaydEnDogGER0\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"1851\"]\n[BlackElo \"899\"]\n1. e4 g6 2. d4 Bg7 3. Nc3 Nf6 4. h3 e6 5. g4 d5 6. e5 Nfd7 7. Bg2 Nb6 8. Nge2 Nc4 9. O-O f6 10. b3 Nb6 11. Ng3 fxe5 12. f4 exd4 13. Nce2 Nc6 14. f5 exf5 15. gxf5 gxf5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "kaydEnDogGER0"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.05.06",
+      "createdAt": 1778027619000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2c8dba4f-48a7-11f1-83a3-68fb0e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.05\"]\n[White \"Lazer_Wizard\"]\n[Black \"LS07051977\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"1851\"]\n[BlackElo \"1878\"]\n1. e4 e6 2. Nf3 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ Qxf6 6. d4 Bd6 7. Bd3 Qe7 8. O-O Nc6 9. Qe2 Bd7 10. c3 f6 11. b4 a6 12. a4 O-O 13. Qe4 f5 14. Qh4 Qxh4 15. Nxh4 f4 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "LS07051977"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.05.05",
+      "createdAt": 1778002584000
+    },
+    {
+      "pgn": "[Event \"chess.com game 1152b162-4833-11f1-b750-7a1a4401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.05\"]\n[White \"Rocha8676\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"600\"]\n[WhiteElo \"1881\"]\n[BlackElo \"1859\"]\n1. e4 c6 2. d4 d5 3. exd5 cxd5 4. Nf3 Nf6 5. Bd3 Nc6 6. Bf4 Bg4 7. c3 e6 8. h3 Bxf3 9. Qxf3 Bd6 10. Nd2 O-O 11. O-O Qc7 12. Bg5 Be7 13. Rfe1 h6 14. Bxf6 Bxf6 15. Qg4 Ne7 1-0",
+      "white": {
+        "name": "Rocha8676"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "600",
+      "date": "2026.05.05",
+      "createdAt": 1777952728000
+    },
+    {
+      "pgn": "[Event \"chess.com game 13dc12dd-481c-11f1-b750-7a1a4401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.05\"]\n[White \"Lazer_Wizard\"]\n[Black \"lidjikla\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"1867\"]\n[BlackElo \"1904\"]\n1. e4 c5 2. c3 d5 3. exd5 Qxd5 4. d4 Bf5 5. Nf3 cxd4 6. Qxd4 Qxd4 7. Nxd4 Bg6 8. Bf4 a6 9. Na3 Nd7 10. Nc4 Rc8 11. Na5 e5 12. O-O-O Bc5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "lidjikla"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.05.05",
+      "createdAt": 1777942322000
+    },
+    {
+      "pgn": "[Event \"chess.com game 443d8cd7-481a-11f1-ba5a-99101f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.05\"]\n[White \"lidjikla\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"600\"]\n[WhiteElo \"1896\"]\n[BlackElo \"1875\"]\n1. d4 Nf6 2. Bf4 d5 3. e3 c5 4. c3 Nc6 5. dxc5 e5 6. Bg3 Bxc5 7. Bb5 e4 8. Ne2 Bg4 9. O-O O-O 10. Qd2 Qb6 11. Ba4 Na5 12. Na3 Bxa3 13. bxa3 Nc4 14. Qc2 Nxa3 15. Qd2 Nc4 1-0",
+      "white": {
+        "name": "lidjikla"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "600",
+      "date": "2026.05.05",
+      "createdAt": 1777942073000
+    },
+    {
+      "pgn": "[Event \"chess.com game a654a6ba-4813-11f1-b750-7a1a4401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.04\"]\n[White \"PlasmaGamer23\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"491\"]\n[BlackElo \"1221\"]\n1. d4 c6 2. Nf3 d5 3. Nc3 Nf6 4. Bg5 g6 5. e3 Bg7 6. Bd3 h6 7. Bxf6 Bxf6 8. O-O O-O 9. h3 Nd7 10. e4 dxe4 11. Nxe4 e6 12. Ne5 Bxe5 13. dxe5 Nxe5 14. Re1 Nxd3 15. Qxd3 Qxd3 0-1",
+      "white": {
+        "name": "PlasmaGamer23"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.05.04",
+      "createdAt": 1777938584000
+    },
+    {
+      "pgn": "[Event \"chess.com game dcf73bcb-4811-11f1-80e2-8556be01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.04\"]\n[White \"Lazer_Wizard\"]\n[Black \"PlasmaGamer23\"]\n[Result \"1-0\"]\n[TimeControl \"600\"]\n[WhiteElo \"1883\"]\n[BlackElo \"612\"]\n1. e4 c6 2. d4 d5 3. e5 f6 4. Bd3 e6 5. Qh5+ g6 6. Bxg6+ hxg6 7. Qxh8 Ne7 8. Bh6 Kd7 9. Bxf8 Nf5 10. Qh7+ Ne7 11. Bxe7 Qxe7 12. Qxe7+ Kxe7 13. exf6+ Kxf6 14. Nf3 b6 15. O-O c5 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "PlasmaGamer23"
+      },
+      "result": "1-0",
+      "timeControl": "600",
+      "date": "2026.05.04",
+      "createdAt": 1777938450000
+    },
+    {
+      "pgn": "[Event \"chess.com game ffab9f15-4810-11f1-b750-7a1a4401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.04\"]\n[White \"PlasmaGamer23\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"612\"]\n[BlackElo \"1883\"]\n1. d4 e5 2. e3 exd4 3. exd4 d5 4. Nc3 Nf6 5. Nf3 c5 6. b3 Nc6 7. dxc5 Bxc5 8. Bg5 O-O 9. Bxf6 Qxf6 10. Qxd5 Qxc3+ 11. Ke2 Re8+ 12. Kd1 Bb4 13. Kc1 Qxa1# 0-1",
+      "white": {
+        "name": "PlasmaGamer23"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.05.04",
+      "createdAt": 1777937506000
+    },
+    {
+      "pgn": "[Event \"chess.com game f0036676-480f-11f1-b2e7-b3316601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.04\"]\n[White \"Lazer_Wizard\"]\n[Black \"PlasmaGamer23\"]\n[Result \"1-0\"]\n[TimeControl \"600\"]\n[WhiteElo \"1883\"]\n[BlackElo \"612\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qd8 4. Nf3 Nf6 5. Bc4 h6 6. Ne5 Qd4 7. Qe2 e6 8. Nb5 Na6 9. c3 Qe4 10. Qxe4 Nxe4 11. Rxa6 bxa6 12. Nxc7+ Kd8 13. Nxa8 Bb7 14. Nxf7+ Ke8 15. Nxh8 Bxa8 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "PlasmaGamer23"
+      },
+      "result": "1-0",
+      "timeControl": "600",
+      "date": "2026.05.04",
+      "createdAt": 1777937320000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6758fb2e-480f-11f1-80e2-8556be01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.04\"]\n[White \"Lazer_Wizard\"]\n[Black \"PlasmaGamer23\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"1883\"]\n[BlackElo \"612\"]\n1. e4 c5 2. c3 Nc6 3. d4 cxd4 4. cxd4 Nxd4 5. Bd3 b6 6. Be3 e5 7. Nc3 Ba6 8. Bxa6 Nc2+ 9. Kd1 Nxa1 10. Nf3 Bc5 11. Bxc5 bxc5 12. Kd2 Qb6 13. Bd3 Qxb2+ 14. Bc2 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "PlasmaGamer23"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.05.04",
+      "createdAt": 1777936820000
+    },
+    {
+      "pgn": "[Event \"chess.com game 204043dd-47d3-11f1-9d18-83ac5001000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.04\"]\n[White \"Lazer_Wizard\"]\n[Black \"HalconDeUruguay333\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1454\"]\n[BlackElo \"1450\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. d3 h6 5. f4 exf4 6. Bxf4 Bc5 7. Nf3 O-O 8. d4 Bb4 9. O-O Bxc3 10. bxc3 Nxe4 11. Qe1 d5 12. Bd3 Bf5 13. Nh4 Bg6 14. Nxg6 fxg6 15. Bxe4 dxe4 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "HalconDeUruguay333"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.04",
+      "createdAt": 1777911009000
+    },
+    {
+      "pgn": "[Event \"chess.com game 97978a5a-47cb-11f1-97cc-615feb01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.04\"]\n[White \"Bert1000\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1468\"]\n[BlackElo \"1463\"]\n1. d4 Nf6 2. c4 g6 3. Nc3 d5 4. cxd5 Nxd5 5. e4 Nxc3 6. bxc3 Bg7 7. Nf3 c5 8. e5 O-O 9. Be2 Nc6 10. Bb2 Bg4 11. O-O Bxf3 12. Bxf3 cxd4 13. Bxc6 bxc6 14. cxd4 e6 15. Rc1 Qb6 1-0",
+      "white": {
+        "name": "Bert1000"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.04",
+      "createdAt": 1777907776000
+    },
+    {
+      "pgn": "[Event \"chess.com game a3ab5c33-472e-11f1-b750-7a1a4401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.03\"]\n[White \"Lazer_Wizard\"]\n[Black \"leoangelodollete\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1471\"]\n[BlackElo \"1469\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 d6 4. d3 Nf6 5. f4 exf4 6. Bxf4 Be7 7. Nf3 O-O 8. O-O Na5 9. Bb3 Nxb3 10. axb3 b6 11. Qe1 Bb7 12. Qg3 Kh8 13. Qh3 h6 14. Bxh6 gxh6 15. Qxh6+ Nh7 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "leoangelodollete"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.03",
+      "createdAt": 1777840334000
+    },
+    {
+      "pgn": "[Event \"chess.com game 84d63aae-4686-11f1-b750-7a1a4401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.03\"]\n[White \"mvmcgrady\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1445\"]\n[BlackElo \"1463\"]\n1. e4 c6 2. f4 d5 3. e5 Bf5 4. Nf3 e6 5. d4 c5 6. Bb5+ Nc6 7. Bxc6+ bxc6 8. O-O cxd4 9. Qxd4 Ne7 10. Nc3 Ng6 11. Kh1 Be7 12. Qd1 O-O 13. Ne2 Qb6 14. Ned4 Be4 15. c3 c5 0-1",
+      "white": {
+        "name": "mvmcgrady"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.03",
+      "createdAt": 1777768264000
+    },
+    {
+      "pgn": "[Event \"chess.com game 073d45c0-4675-11f1-b2e7-b3316601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.02\"]\n[White \"Lazer_Wizard\"]\n[Black \"AnwarMarquez93\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1455\"]\n[BlackElo \"1449\"]\n1. e4 g6 2. d4 Bg7 3. Nf3 d6 4. Nc3 Bg4 5. Be3 Nc6 6. Bb5 a6 7. Ba4 b5 8. Bb3 e6 9. h3 Bxf3 10. Qxf3 Bxd4 11. O-O Bxe3 12. fxe3 Ne5 13. Qg3 Ne7 14. Rad1 O-O 15. Ne2 Qc8 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "AnwarMarquez93"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.02",
+      "createdAt": 1777760709000
+    },
+    {
+      "pgn": "[Event \"chess.com game e3d2f0f0-4656-11f1-ba5a-99101f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.02\"]\n[White \"iarri16\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1453\"]\n[BlackElo \"1447\"]\n1. d4 Nf6 2. Bf4 d5 3. e3 c5 4. c3 Nc6 5. Bb5 Bf5 6. Nf3 Qb6 7. Qa4 Bd7 8. Bxc6 Bxc6 9. Qc2 Bd7 10. Ne5 Bf5 11. Qd2 Ne4 12. Qc1 e6 13. Nd2 Nxd2 14. Qxd2 Bd6 15. O-O O-O 1-0",
+      "white": {
+        "name": "iarri16"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.02",
+      "createdAt": 1777747619000
+    },
+    {
+      "pgn": "[Event \"chess.com game 524177d8-4656-11f1-9dd6-5614fe01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.02\"]\n[White \"Lazer_Wizard\"]\n[Black \"vtchasy\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1455\"]\n[BlackElo \"1435\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. d3 Bc5 5. f4 d5 6. exd5 Nd4 7. fxe5 Ng4 8. Nh3 Qh4+ 9. Kf1 Nxh2+ 10. Rxh2 Bxh3 11. Rxh3 Qe7 12. Be3 O-O-O 13. Bxd4 Bxd4 14. Qg4+ Kb8 15. Qxd4 f6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "vtchasy"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.02",
+      "createdAt": 1777747387000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3d88b5f3-4655-11f1-b750-7a1a4401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.02\"]\n[White \"MJ_gehenna\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1533\"]\n[BlackElo \"1447\"]\n1. e4 c6 2. c4 d5 3. exd5 cxd5 4. cxd5 Qxd5 5. Nc3 Qd8 6. Bc4 Nf6 7. Nf3 Bg4 8. O-O e6 9. d4 Bd6 10. Bg5 O-O 11. h3 Bh5 12. g4 Bg6 13. Qb3 b5 14. Nxb5 Be7 15. Ne5 Nbd7 0-1",
+      "white": {
+        "name": "MJ_gehenna"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.02",
+      "createdAt": 1777747039000
+    },
+    {
+      "pgn": "[Event \"chess.com game 8b75a878-45ef-11f1-a978-adba2101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.02\"]\n[White \"PangolinPie\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1483\"]\n[BlackElo \"1447\"]\n1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. d4 Nc6 5. Nc3 Bg4 6. Be2 Nf6 7. h3 Bh5 8. Be3 e6 9. Ne5 Bxe2 10. Nxe2 Bd6 11. Nxc6 bxc6 12. c3 O-O 13. b4 Ne4 14. O-O a5 15. a3 e5 1-0",
+      "white": {
+        "name": "PangolinPie"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.02",
+      "createdAt": 1777703156000
+    },
+    {
+      "pgn": "[Event \"chess.com game 9047ea51-45e7-11f1-80e2-8556be01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.02\"]\n[White \"Lazer_Wizard\"]\n[Black \"AC_Kurniawan\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1455\"]\n[BlackElo \"1491\"]\n1. e4 c5 2. c3 e6 3. d4 d5 4. exd5 exd5 5. Bb5+ Nc6 6. Nf3 Bd6 7. O-O Ne7 8. dxc5 Bxc5 9. Re1 O-O 10. Nbd2 Qb6 11. Bxc6 Bxf2+ 12. Kh1 Bxe1 13. Bxd5 Bxd2 14. Qxd2 Nxd5 15. Qxd5 Rd8 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "AC_Kurniawan"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.02",
+      "createdAt": 1777699776000
+    },
+    {
+      "pgn": "[Event \"chess.com game 74c2b2f2-45e5-11f1-ba5a-99101f01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.02\"]\n[White \"unicornaya\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1457\"]\n[BlackElo \"1463\"]\n1. d4 Nf6 2. c4 g6 3. Nc3 d5 4. f3 Bg7 5. Bg5 c6 6. e4 e6 7. e5 O-O 8. exf6 Bxf6 9. Bxf6 Qxf6 10. Nge2 e5 11. dxe5 Qxe5 12. Qd2 Re8 13. O-O-O dxc4 14. f4 Qa5 15. Kb1 Bf5+ 0-1",
+      "white": {
+        "name": "unicornaya"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.02",
+      "createdAt": 1777699080000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2cfd9f7d-45b2-11f1-b2e7-b3316601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.01\"]\n[White \"dfaseeh\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1462\"]\n[BlackElo \"1455\"]\n1. d4 c6 2. e3 d5 3. c3 Nf6 4. Bd3 Nbd7 5. Nd2 Nb6 6. Ne2 e6 7. O-O Bd6 8. Bb1 O-O 9. Qc2 Qc7 10. f4 g6 11. Ng3 a5 12. Nf3 Nbd7 13. Re1 b5 14. Ne5 Rb8 15. a3 Ba6 1-0",
+      "white": {
+        "name": "dfaseeh"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.01",
+      "createdAt": 1777676887000
+    },
+    {
+      "pgn": "[Event \"chess.com game d1a62c6f-4598-11f1-80e2-8556be01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.01\"]\n[White \"yyounsi\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1505\"]\n[BlackElo \"1463\"]\n1. d4 Nf6 2. Bf4 d5 3. Nf3 c5 4. c3 Nc6 5. e3 Qb6 6. Qc1 e6 7. h3 Bd6 8. Bxd6 1-0",
+      "white": {
+        "name": "yyounsi"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.01",
+      "createdAt": 1777665911000
+    },
+    {
+      "pgn": "[Event \"chess.com game e42b9146-44f6-11f1-b8f1-0775b801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.01\"]\n[White \"Lazer_Wizard\"]\n[Black \"L0rens\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1463\"]\n[BlackElo \"1429\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. Nf3 c6 5. d4 Nf6 6. Bc4 e6 7. O-O Bd6 8. Re1 O-O 9. Bg5 Nbd7 10. h4 b5 11. Bd3 h6 12. Be3 Nd5 13. Nxd5 cxd5 14. Qd2 Qxd2 15. Bxd2 a6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "L0rens"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.01",
+      "createdAt": 1777596605000
+    },
+    {
+      "pgn": "[Event \"chess.com game 80143ed8-44f6-11f1-90be-2f02ba01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.01\"]\n[White \"Andre5420\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1388\"]\n[BlackElo \"1455\"]\n1. e4 c6 2. d4 d5 3. e5 Bf5 4. Bd3 Bxd3 5. Qxd3 e6 6. f4 Ne7 7. Nf3 Ng6 8. g3 Be7 9. Nc3 O-O 10. Be3 Nd7 11. O-O-O Nb6 12. Rdg1 Nc4 13. h4 Qa5 14. a3 Bxa3 15. bxa3 Qxa3+ 0-1",
+      "white": {
+        "name": "Andre5420"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.01",
+      "createdAt": 1777596229000
+    },
+    {
+      "pgn": "[Event \"chess.com game b7f85f15-44f5-11f1-b86e-a86b5801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.01\"]\n[White \"Lazer_Wizard\"]\n[Black \"Wallythebeerman\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1448\"]\n[BlackElo \"1449\"]\n1. e4 e5 2. Nc3 d6 3. Bc4 Be6 4. Bxe6 fxe6 5. d3 c6 6. f4 exf4 7. Bxf4 h6 8. Qh5+ Kd7 9. Nf3 Nf6 10. Qg6 Qe7 11. Bxd6 Qxd6 12. e5 Qe7 13. exf6 Qxf6 14. Qxf6 gxf6 15. Ne4 Bg7 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Wallythebeerman"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.05.01",
+      "createdAt": 1777596012000
+    },
+    {
+      "pgn": "[Event \"chess.com game 206d0d86-44f5-11f1-90be-2f02ba01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.01\"]\n[White \"Lazer_Wizard\"]\n[Black \"romazepam\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1440\"]\n[BlackElo \"1435\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Bb4 4. Qg4 Qf6 5. Nd5 Qg6 6. Qxg6 hxg6 7. Nxc7+ Kd8 8. Nxa8 Nd4 9. Bd3 Nf6 10. Ne2 d5 11. c3 Nxe2 12. Kxe2 Bc5 13. exd5 Nxd5 14. Bc2 Nf4+ 15. Kf3 Be6 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "romazepam"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.01",
+      "createdAt": 1777595698000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3733b33a-44f4-11f1-90be-2f02ba01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.05.01\"]\n[White \"Lazer_Wizard\"]\n[Black \"bicofevo\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1449\"]\n[BlackElo \"1460\"]\n1. e4 c6 2. d4 d5 3. e5 c5 4. dxc5 Nc6 5. f4 e6 6. Be3 Qa5+ 7. c3 Bxc5 8. b4 Nxb4 9. cxb4 Bxb4+ 10. Bd2 Bd7 11. Bxb4 Qxb4+ 12. Qd2 Qe4+ 13. Be2 Ne7 14. Nf3 Nf5 15. Nc3 Qb4 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "bicofevo"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.05.01",
+      "createdAt": 1777595451000
+    },
+    {
+      "pgn": "[Event \"chess.com game b5782c11-44ef-11f1-9c0f-473d1701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"verybadplayersorry\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1464\"]\n[BlackElo \"1457\"]\n1. b3 b6 2. Bb2 Bb7 3. e3 e6 4. Nf3 Nf6 5. d4 d5 6. c4 c5 7. Nc3 Nc6 8. dxc5 dxc4 9. Bxc4 Bxc5 10. O-O O-O 11. Na4 Na5 12. Nxc5 Nxc4 13. Nxb7 Nxb2 14. Nxd8 Nxd1 15. Rfxd1 Rfxd8 1-0",
+      "white": {
+        "name": "verybadplayersorry"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777593338000
+    },
+    {
+      "pgn": "[Event \"chess.com game 225ab082-445a-11f1-b218-fe201401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"Lazer_Wizard\"]\n[Black \"Barczz\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1465\"]\n[BlackElo \"1438\"]\n1. e4 d5 2. exd5 c5 3. Nc3 Nf6 4. Bb5+ Bd7 5. Bxd7+ Nbxd7 6. d4 e5 7. dxe5 Nxe5 8. Nf3 Bd6 9. O-O Qc7 10. Re1 O-O-O 11. Nb5 Qe7 12. Nxe5 Bxe5 13. f4 Bd4+ 14. Nxd4 Qd6 15. Nb5 Qa6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Barczz"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777529166000
+    },
+    {
+      "pgn": "[Event \"chess.com game 64e50beb-4454-11f1-a933-b29a5001000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"prollylying\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1476\"]\n[BlackElo \"1457\"]\n1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. d4 Bg4 5. Bd3 Nc6 6. Be3 Nf6 7. Nbd2 e6 8. O-O Bd6 9. b3 O-O 10. c4 dxc4 11. bxc4 Nb4 12. Be2 Rc8 13. c5 Bc7 14. Qb3 Nbd5 15. Qxb7 Nxe3 1-0",
+      "white": {
+        "name": "prollylying"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777526780000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7ae13a26-444c-11f1-83fe-c026c101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"dilkaz\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1489\"]\n[BlackElo \"1465\"]\n1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. d4 Bg4 5. Nc3 Nc6 6. Be3 Nf6 7. h3 Bxf3 8. Qxf3 e6 9. a3 Bd6 10. O-O-O O-O 11. Bd3 a6 12. g4 b5 13. h4 b4 14. axb4 Bxb4 15. Ne2 Qa5 1-0",
+      "white": {
+        "name": "dilkaz"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777523246000
+    },
+    {
+      "pgn": "[Event \"chess.com game d5efbb69-444b-11f1-8f4d-4e625e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"Lazer_Wizard\"]\n[Black \"GambleGene\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1473\"]\n[BlackElo \"1446\"]\n1. e4 e6 2. Nf3 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ Qxf6 6. d4 c5 7. Bd3 cxd4 8. Bg5 Bb4+ 9. Kf1 Qg6 10. Bxg6 hxg6 11. Qxd4 Nc6 12. Qxg7 Rh5 13. Qg8+ Kd7 14. Rd1+ Kc7 15. Bf4+ e5 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "GambleGene"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777523055000
+    },
+    {
+      "pgn": "[Event \"chess.com game 53ada23c-444b-11f1-8f4d-4e625e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"Lazer_Wizard\"]\n[Black \"ddeeps2610\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1465\"]\n[BlackElo \"1429\"]\n1. e4 e5 2. Nc3 Bc5 3. Bc4 Qf6 4. Nf3 Nc6 5. Nd5 Qd6 6. d3 Nf6 7. Nxf6+ Qxf6 8. Bg5 Qg6 9. O-O b6 10. Qd2 Bb7 11. Nh4 Qd6 12. Nf5 Qg6 13. h3 f6 14. Nh4 O-O-O 15. Nxg6 hxg6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "ddeeps2610"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777522788000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6a13fec7-444a-11f1-8f4d-4e625e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"mrPUBIE1\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1455\"]\n[BlackElo \"1457\"]\n1. e4 c6 2. d4 d5 3. e5 Bf5 4. Bd3 Bxd3 5. Qxd3 e6 6. f4 Nd7 7. Ne2 Ne7 8. Ng3 Ng6 9. f5 exf5 10. Qxf5 Be7 11. O-O O-O 12. Nd2 Bh4 13. Ne2 f6 14. e6 Nb6 15. b3 Bg5 1-0",
+      "white": {
+        "name": "mrPUBIE1"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777522530000
+    },
+    {
+      "pgn": "[Event \"chess.com game 244f6ebc-444a-11f1-a933-b29a5001000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"Lazer_Wizard\"]\n[Black \"skyvados\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1465\"]\n[BlackElo \"1441\"]\n1. e4 d5 2. exd5 Nf6 3. d4 Nxd5 4. c4 Nf6 5. Nf3 Bg4 6. Be3 e6 7. Nc3 Bb4 8. h3 Bh5 9. Be2 Ne4 10. O-O Nxc3 11. bxc3 Bxc3 12. Qb3 Bxd4 13. Bxd4 Qxd4 14. Nxd4 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "skyvados"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777522167000
+    },
+    {
+      "pgn": "[Event \"chess.com game 5f87adee-4447-11f1-a484-0e44b601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"Royaldouchebag\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1493\"]\n[BlackElo \"1457\"]\n1. e4 c6 2. f4 d5 3. exd5 cxd5 4. Nf3 Nc6 5. b3 Bg4 6. Bb2 e6 7. h3 Bh5 8. g4 Bg6 9. Bb5 Bd6 10. Bxg7 Be4 11. Bxh8 Bxf4 12. d3 Bg3+ 13. Kf1 Bxf3 14. Qxf3 Qh4 15. Bxc6+ bxc6 1-0",
+      "white": {
+        "name": "Royaldouchebag"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777520974000
+    },
+    {
+      "pgn": "[Event \"chess.com game 50717be8-4446-11f1-83fe-c026c101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"Lazer_Wizard\"]\n[Black \"N-G-Ugray\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1464\"]\n[BlackElo \"1508\"]\n1. e4 c5 2. c3 e6 3. d4 cxd4 4. cxd4 Bb4+ 5. Nc3 Ne7 6. Nf3 Nbc6 7. Bd3 Bxc3+ 8. bxc3 Ng6 9. O-O O-O 10. e5 a6 11. Bxg6 fxg6 12. Bg5 Qc7 13. Qd3 b5 14. Nh4 Bb7 15. Nxg6 hxg6 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "N-G-Ugray"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777520600000
+    },
+    {
+      "pgn": "[Event \"chess.com game 16de68e6-4446-11f1-8f4d-4e625e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"SajanSingh321\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1447\"]\n[BlackElo \"1471\"]\n1. g3 g6 2. Bg2 Bg7 3. d3 d6 4. Nc3 e5 5. Nf3 Ne7 6. O-O O-O 7. e4 Be6 8. Be3 Nd7 9. Nd5 Bxd5 10. exd5 Nxd5 11. Nd2 Nxe3 12. fxe3 Rb8 13. Nc4 Nb6 14. Nxb6 axb6 15. a4 Qg5 0-1",
+      "white": {
+        "name": "SajanSingh321"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777520414000
+    },
+    {
+      "pgn": "[Event \"chess.com game 96e2e469-4445-11f1-83fe-c026c101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"solobuffs\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1467\"]\n[BlackElo \"1463\"]\n1. e4 c6 2. Nf3 d5 3. e5 Bg4 4. h3 Bh5 5. Be2 e6 6. d4 Ne7 7. O-O Bxf3 8. Bxf3 Ng6 9. Be3 Be7 10. Qd2 O-O 11. Bh5 Nd7 12. Bxg6 hxg6 13. f4 Nb6 14. b3 Rc8 15. Na3 Bxa3 0-1",
+      "white": {
+        "name": "solobuffs"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777520316000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7f1aa225-4445-11f1-8f4d-4e625e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"Rika_pap\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1447\"]\n[BlackElo \"1455\"]\n1. e4 c6 2. Nc3 d5 3. d4 dxe4 4. Nxe4 Nf6 5. Ng5 h6 6. Nxf7 Kxf7 7. Nf3 Nbd7 8. Bc4+ e6 9. Ne5+ Nxe5 0-1",
+      "white": {
+        "name": "Rika_pap"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777520100000
+    },
+    {
+      "pgn": "[Event \"chess.com game ba29279e-4444-11f1-83fe-c026c101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"Lazer_Wizard\"]\n[Black \"Heltoncapitolio\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1447\"]\n[BlackElo \"1414\"]\n1. e4 c5 2. c3 d5 3. exd5 Qxd5 4. d4 cxd4 5. cxd4 Nc6 6. Nf3 Bg4 7. Nc3 Qd8 8. Bb5 e6 9. O-O Be7 10. h3 Bxf3 11. Qxf3 Qc7 12. d5 exd5 13. Nxd5 Qa5 14. b4 Qd8 15. Bf4 Rc8 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Heltoncapitolio"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777520006000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7fd3ae68-4444-11f1-83fe-c026c101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"BlinkFlow\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1436\"]\n[BlackElo \"1439\"]\n1. e4 c6 2. d4 d5 3. f3 e6 4. c4 Nf6 5. cxd5 cxd5 6. Nc3 Bb4 7. Bg5 O-O 8. e5 Bxc3+ 9. bxc3 Qa5 10. exf6 gxf6 11. Bd2 Nc6 12. Bd3 b6 13. a3 Ba6 14. c4 1-0",
+      "white": {
+        "name": "BlinkFlow"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777519734000
+    },
+    {
+      "pgn": "[Event \"chess.com game bbb56273-4443-11f1-a484-0e44b601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.30\"]\n[White \"Lazer_Wizard\"]\n[Black \"safsaf10\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1447\"]\n[BlackElo \"1446\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. d3 Bc5 5. f4 exf4 6. Bxf4 O-O 7. Nf3 Ng4 8. d4 Bb6 9. Qd2 Nb4 10. O-O-O a5 11. h3 Nf6 12. e5 Nh5 13. Bh2 c6 14. g4 d5 15. Be2 c5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "safsaf10"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.30",
+      "createdAt": 1777519632000
+    },
+    {
+      "pgn": "[Event \"chess.com game 058fc8cc-441f-11f1-a933-b29a5001000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"Lazer_Wizard\"]\n[Black \"Gomez12483318\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1455\"]\n[BlackElo \"1486\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. d3 d6 5. f4 exf4 6. Bxf4 Bg4 7. Nf3 Nd4 8. Rf1 Be7 9. h3 Nxf3+ 10. gxf3 Bxh3 11. Rg1 g6 12. Qe2 a6 13. Bh6 Qd7 14. Qh2 Be6 15. Bxe6 Qxe6 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Gomez12483318"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777503895000
+    },
+    {
+      "pgn": "[Event \"chess.com game 727c5350-440d-11f1-975b-e00ee201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"Lazer_Wizard\"]\n[Black \"Miba277\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1463\"]\n[BlackElo \"1487\"]\n1. e4 d5 2. exd5 e6 3. dxe6 Bxe6 4. Nf3 Bd6 5. d4 Nc6 6. Bb5 Qd7 7. d5 Bxd5 8. Qxd5 Bb4+ 9. c3 Qxd5 10. Bxc6+ Qxc6 11. cxb4 O-O-O 12. O-O Nf6 13. Nc3 Kb8 14. b5 Qc5 15. Be3 Qh5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Miba277"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777496292000
+    },
+    {
+      "pgn": "[Event \"chess.com game 379be090-440a-11f1-975b-e00ee201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"Belfagor24\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1449\"]\n[BlackElo \"1471\"]\n1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. d4 Nc6 5. Nc3 Nf6 6. Bb5 Bg4 7. O-O e6 8. Be3 Bd6 9. h3 Bxf3 10. Qxf3 O-O 11. Bg5 Nxd4 12. Qd3 Nxb5 13. Qxb5 Be7 14. Rad1 b6 15. Qe2 h6 0-1",
+      "white": {
+        "name": "Belfagor24"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777494912000
+    },
+    {
+      "pgn": "[Event \"chess.com game 98b3cb14-4409-11f1-bd49-de522201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"Lazer_Wizard\"]\n[Black \"whynot_brother\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1463\"]\n[BlackElo \"1468\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qd8 4. Nf3 Nf6 5. d4 Bg4 6. Bc4 Bxf3 7. Qxf3 c6 8. Ne4 Qxd4 9. Nxf6+ Qxf6 10. Qxf6 exf6 11. O-O Be7 12. Re1 Nd7 13. Bf4 Nb6 14. Bb3 a5 15. a4 Nc8 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "whynot_brother"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777494604000
+    },
+    {
+      "pgn": "[Event \"chess.com game d0f5e946-4408-11f1-8f4d-4e625e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"HaykVardanyan9\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1416\"]\n[BlackElo \"1454\"]\n1. d4 Nf6 2. c4 g6 3. e3 d5 4. Nf3 Bg7 5. Bd3 Bg4 6. O-O O-O 7. h3 Bxf3 8. Qxf3 c6 9. Nc3 e6 10. b3 Nbd7 11. Ba3 Re8 12. Rfb1 e5 13. cxd5 cxd5 14. dxe5 Nxe5 15. Qe2 Nxd3 0-1",
+      "white": {
+        "name": "HaykVardanyan9"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777494337000
+    },
+    {
+      "pgn": "[Event \"chess.com game d2d9b10e-43f0-11f1-bbc4-8a7cda01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"Lazer_Wizard\"]\n[Black \"TrevorNS1\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1447\"]\n[BlackElo \"1443\"]\n1. e4 e5 2. Nc3 d6 3. Bc4 f5 4. d3 fxe4 5. dxe4 Nf6 6. f4 Nc6 7. Nf3 Bg4 8. h3 Bxf3 9. Qxf3 Nd4 10. Qf2 c6 11. O-O Be7 12. fxe5 dxe5 13. Be3 b5 14. Bb3 Nxb3 15. axb3 O-O 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "TrevorNS1"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777483952000
+    },
+    {
+      "pgn": "[Event \"chess.com game dabffbb5-43e6-11f1-975b-e00ee201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"cesardilan\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1467\"]\n[BlackElo \"1455\"]\n1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. d4 Nf6 5. c4 Bg4 6. Nc3 g6 7. c5 Bg7 8. Be2 O-O 9. O-O Nc6 10. Be3 e6 11. Ne5 Nxe5 12. dxe5 Bxe2 13. Qxe2 Nd7 14. Bd4 Rc8 15. b4 a5 1-0",
+      "white": {
+        "name": "cesardilan"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777479768000
+    },
+    {
+      "pgn": "[Event \"chess.com game 69fb6c9c-43e6-11f1-975b-e00ee201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"pk1291\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1430\"]\n[BlackElo \"1463\"]\n1. Nf3 d5 2. d4 Nf6 3. Bg5 Bg4 4. e3 g6 5. Be2 Bg7 6. c3 O-O 7. h3 Bf5 8. Ne5 Nbd7 9. Bf4 Nxe5 10. Bxe5 c6 11. Nd2 h5 12. c4 dxc4 13. Nxc4 b5 14. Nd2 Qa5 15. O-O Ne4 0-1",
+      "white": {
+        "name": "pk1291"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777479417000
+    },
+    {
+      "pgn": "[Event \"chess.com game ff5a84df-43e5-11f1-8287-d8b6cc01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"Lazer_Wizard\"]\n[Black \"jflsperez13-10-1944\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1455\"]\n[BlackElo \"1489\"]\n1. e4 c5 2. c3 e6 3. d4 d5 4. exd5 Qxd5 5. Nf3 cxd4 6. cxd4 a6 7. Nc3 Qd8 8. Bf4 Nf6 9. Bd3 Be7 10. O-O Nc6 11. Re1 O-O 12. Ng5 h6 13. Nge4 b5 14. Nxf6+ Bxf6 15. Qg4 e5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "jflsperez13-10-1944"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777479146000
+    },
+    {
+      "pgn": "[Event \"chess.com game 883851ce-43e5-11f1-b931-d633d901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"ChezTuliano\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1442\"]\n[BlackElo \"1463\"]\n1. e4 c6 2. Bc4 d5 3. exd5 cxd5 4. Bb3 Nf6 5. d4 Nc6 6. Be3 Bf5 7. Nf3 e6 8. c3 Bd6 9. O-O O-O 10. h3 Be4 11. Nbd2 Na5 12. Bc2 Bxc2 13. Qxc2 Nc4 14. Nxc4 dxc4 15. Qa4 Qc7 0-1",
+      "white": {
+        "name": "ChezTuliano"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777479046000
+    },
+    {
+      "pgn": "[Event \"chess.com game c4fedcce-43e3-11f1-975b-e00ee201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"Lazer_Wizard\"]\n[Black \"youuuudese\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1455\"]\n[BlackElo \"1457\"]\n1. e4 c6 2. d4 d5 3. e5 c5 4. dxc5 Bf5 5. h4 Qc7 6. g4 Bd7 7. Be3 Qxe5 8. Nf3 Qxb2 9. Bd4 Qb4+ 10. Nc3 Bxg4 11. Be2 Bxf3 12. Bxf3 Nc6 13. Rb1 Qa3 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "youuuudese"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777478268000
+    },
+    {
+      "pgn": "[Event \"chess.com game ef1497fa-43e2-11f1-a484-0e44b601000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"Lazer_Wizard\"]\n[Black \"KiraKrampus\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1463\"]\n[BlackElo \"1492\"]\n1. e4 e5 2. Nc3 Nf6 3. f4 d6 4. Nf3 Nc6 5. Bb5 Bd7 6. d3 exf4 7. Bxf4 Be7 8. O-O h6 9. d4 O-O 10. d5 Nb8 11. Bd3 Nh7 12. e5 dxe5 13. Bxe5 Bf6 14. Bf4 Bg5 15. Bxg5 Nxg5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "KiraKrampus"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777478070000
+    },
+    {
+      "pgn": "[Event \"chess.com game 021b011b-43e2-11f1-8f4d-4e625e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"Lazer_Wizard\"]\n[Black \"ModernBathtub\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1471\"]\n[BlackElo \"1468\"]\n1. e4 e5 2. Nc3 Nf6 3. f4 exf4 4. e5 Ng8 5. Nf3 Nc6 6. d4 d6 7. Bxf4 Nge7 8. Qe2 Ng6 9. exd6+ Be6 10. dxc7 Qc8 11. Bg3 Nce7 12. d5 Bg4 13. d6 Bxf3 14. gxf3 Qe6 15. O-O-O Nf5 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "ModernBathtub"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777477726000
+    },
+    {
+      "pgn": "[Event \"chess.com game 47f64411-43e1-11f1-975b-e00ee201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"CaptainPerera\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1464\"]\n[BlackElo \"1463\"]\n1. e4 c6 2. Nc3 d5 3. d4 dxe4 4. Nxe4 Nf6 5. f3 Bf5 6. c3 Bxe4 7. fxe4 Nxe4 8. Qf3 Nf6 9. Bg5 Nbd7 10. O-O-O e6 11. Bd3 Be7 12. Ne2 Nd5 13. Bxe7 Qxe7 14. Rhf1 O-O-O 15. Qxf7 Rdf8 0-1",
+      "white": {
+        "name": "CaptainPerera"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777477336000
+    },
+    {
+      "pgn": "[Event \"chess.com game def5e5a2-438e-11f1-bcc7-bb39a401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"EndgameFirst\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1439\"]\n[BlackElo \"1455\"]\n1. d4 Nf6 2. c4 g6 3. Nc3 d5 4. cxd5 Nxd5 5. e4 Nxc3 6. bxc3 Bg7 7. Nf3 c5 8. Ba3 Qa5 9. Bxc5 Qxc3+ 10. Ke2 Bg4 11. Rc1 Bxf3+ 12. gxf3 Qb2+ 13. Rc2 Qb5+ 14. Ke3 Qa5 15. Bh3 O-O 0-1",
+      "white": {
+        "name": "EndgameFirst"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777441974000
+    },
+    {
+      "pgn": "[Event \"chess.com game fa0a619e-438d-11f1-9345-4e28d401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"Lazer_Wizard\"]\n[Black \"fcontardo\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1447\"]\n[BlackElo \"1476\"]\n1. e4 c5 2. c3 Nc6 3. d4 cxd4 4. cxd4 e6 5. Nc3 a6 6. Nf3 h6 7. Bd3 Bb4 8. O-O Nf6 9. Nh4 Nxe4 10. Bxe4 Qxh4 11. Qf3 O-O 12. g3 Qh3 13. Qd3 f5 14. Bg2 Qg4 15. h3 Qxd4 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "fcontardo"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777441619000
+    },
+    {
+      "pgn": "[Event \"chess.com game 4088e8b4-438d-11f1-b2a2-3af7ff01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"wang_wenwei\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1436\"]\n[BlackElo \"1455\"]\n1. d4 Nf6 2. Nf3 d5 3. c4 g6 4. Nc3 Bg7 5. Bg5 Ne4 6. cxd5 Nxg5 7. Nxg5 O-O 8. e4 e5 9. Nf3 exd4 10. Nxd4 c5 11. Nf3 Qa5 12. Bc4 Bxc3+ 13. bxc3 Qxc3+ 14. Nd2 Nd7 15. O-O Nb6 0-1",
+      "white": {
+        "name": "wang_wenwei"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777441243000
+    },
+    {
+      "pgn": "[Event \"chess.com game 92965513-437b-11f1-8f8d-93d98c01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"pinaka108\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1448\"]\n[BlackElo \"1447\"]\n1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. g3 Nf6 5. Bg2 g6 6. O-O Bg7 7. c3 O-O 8. d4 Bg4 9. Qb3 Nbd7 10. Qxb7 Nb6 11. Qa6 e6 12. Ne5 Bf5 13. Nd2 Qd6 14. Qe2 Nfd7 15. Nxd7 Qxd7 1-0",
+      "white": {
+        "name": "pinaka108"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777433623000
+    },
+    {
+      "pgn": "[Event \"chess.com game 1e6af3bb-437b-11f1-b2a2-3af7ff01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.29\"]\n[White \"Lazer_Wizard\"]\n[Black \"jack09767\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1455\"]\n[BlackElo \"1425\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qd8 4. Bc4 Nf6 5. Nf3 Nc6 6. O-O Bg4 7. d4 Nxd4 8. Be2 Nxf3+ 9. Bxf3 Bxf3 10. Qxf3 c6 11. Rd1 Qc7 12. Bf4 Qb6 13. Na4 Qb4 14. b3 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "jack09767"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.29",
+      "createdAt": 1777433338000
+    },
+    {
+      "pgn": "[Event \"chess.com game a1926677-4340-11f1-bcc7-bb39a401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.28\"]\n[White \"SpeedShadowDemon\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"863\"]\n[BlackElo \"1197\"]\n1. Nc3 b6 2. b3 d5 3. d4 Bc6 4. e3 e5 5. Bf3 Nbd7 6. Nd2 e4 7. Be2 f5 8. f3 Ng6 9. Bg3 f4 10. exf4 Bb7 11. fxe4 dxe4 12. Bg4 Ngf8 13. Kf2 e3+ 14. Kxe3 Bxg2 15. Rhg1 Bf6 0-1",
+      "white": {
+        "name": "SpeedShadowDemon"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.28",
+      "createdAt": 1777408334000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7fa646dc-433f-11f1-bcc7-bb39a401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.28\"]\n[White \"Lazer_Wizard\"]\n[Black \"SpeedShadowDemon\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"1883\"]\n[BlackElo \"742\"]\n1. e4 d6 2. d4 Nf6 3. Nc3 g6 4. h3 Bd7 5. g4 c5 6. Nf3 b6 7. Bg2 Nc6 8. O-O Bg7 9. h4 Qc7 10. Bd2 cxd4 11. Nxd4 Nxd4 12. Be3 Ne6 13. f4 Nc5 14. h5 Nfxe4 15. Nxe4 Bc6 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "SpeedShadowDemon"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.04.28",
+      "createdAt": 1777407858000
+    },
+    {
+      "pgn": "[Event \"chess.com game b5c5374d-433e-11f1-9972-18bebe01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.28\"]\n[White \"SpeedShadowDemon\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"600\"]\n[WhiteElo \"742\"]\n[BlackElo \"1883\"]\n1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Ng5 h6 6. Nxf7 Kxf7 7. Nf3 c5 8. Bc4+ e6 9. Ne5+ Ke8 10. O-O Bd6 11. Re1 Bxe5 12. dxe5 Qxd1 13. Rxd1 Nbd7 14. exf6 gxf6 15. Re1 Ke7 1-0",
+      "white": {
+        "name": "SpeedShadowDemon"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "600",
+      "date": "2026.04.28",
+      "createdAt": 1777407504000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0aff1a8c-433e-11f1-b60c-6a857501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.28\"]\n[White \"Lazer_Wizard\"]\n[Black \"SpeedShadowDemon\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"1883\"]\n[BlackElo \"742\"]\n1. e4 d6 2. d4 Nf6 3. Nc3 Nc6 4. h3 g6 5. g4 Bd7 6. Bg2 Bg7 7. Nge2 O-O 8. O-O e5 9. dxe5 Nxe5 10. f4 Bxg4 11. Qd2 Bxe2 12. Qxe2 Nc6 13. Re1 Nh5 14. Kh2 Nxf4 15. Qg4 Be5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "SpeedShadowDemon"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.04.28",
+      "createdAt": 1777407195000
+    },
+    {
+      "pgn": "[Event \"chess.com game 193c6318-433d-11f1-b2a2-3af7ff01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.28\"]\n[White \"Lazer_Wizard\"]\n[Black \"SpeedShadowDemon\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1447\"]\n[BlackElo \"863\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qd8 4. Nf3 Nc6 5. d4 Nf6 6. Bb5 Bd7 7. O-O a6 8. Bc4 e6 9. Re1 Be7 10. Bf4 Na5 11. Bd3 c6 12. a3 b5 13. b4 Nc4 14. Bxc4 bxc4 15. Qe2 a5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "SpeedShadowDemon"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.28",
+      "createdAt": 1777406887000
+    },
+    {
+      "pgn": "[Event \"chess.com game 5df1c660-431b-11f1-b2ea-bfe07c01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.28\"]\n[White \"Lazer_Wizard\"]\n[Black \"ryykko\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1463\"]\n[BlackElo \"1493\"]\n1. e4 c5 2. c3 Nc6 3. d4 d5 4. exd5 Qxd5 5. Nf3 Nf6 6. Be2 Bg4 7. h3 Bh5 8. c4 Qd7 9. d5 Nb4 10. O-O O-O-O 11. a3 Na6 12. Bf4 e6 13. Nc3 Bd6 14. Bxd6 Qxd6 15. Nb5 Qe7 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "ryykko"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.28",
+      "createdAt": 1777392311000
+    },
+    {
+      "pgn": "[Event \"chess.com game 5fc0eff8-4315-11f1-b2a2-3af7ff01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.28\"]\n[White \"jojo_tarek\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1465\"]\n[BlackElo \"1471\"]\n1. d4 Nf6 2. e3 d5 3. Bd3 Bf5 4. Nf3 Bxd3 5. Qxd3 e6 6. O-O c5 7. dxc5 Bxc5 8. Qb5+ Nbd7 9. Ne5 O-O 10. Nxd7 Nxd7 11. b4 a6 12. Qa4 Bd6 13. Nd2 Ne5 14. f4 Ng4 15. Rf3 Qh4 1-0",
+      "white": {
+        "name": "jojo_tarek"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.28",
+      "createdAt": 1777389688000
+    },
+    {
+      "pgn": "[Event \"chess.com game 40cdde16-42a0-11f1-9221-05c0b401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.28\"]\n[White \"Lazer_Wizard\"]\n[Black \"Frey_Train\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1480\"]\n[BlackElo \"1468\"]\n1. e4 e5 2. Nc3 Nf6 3. f4 d5 4. fxe5 Nxe4 5. Qf3 Nxc3 6. dxc3 Nc6 7. Bb5 Be6 8. Ne2 Bc5 9. Nd4 O-O 10. Bxc6 bxc6 11. O-O Rb8 12. Kh1 Qd7 13. Qg3 Be7 14. Bh6 Bg4 15. e6 fxe6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Frey_Train"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.28",
+      "createdAt": 1777339343000
+    },
+    {
+      "pgn": "[Event \"chess.com game f81b4020-429d-11f1-9221-05c0b401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.28\"]\n[White \"Capsari\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1513\"]\n[BlackElo \"1472\"]\n1. d4 Nf6 2. h4 d5 3. f3 h5 4. a4 Bf5 5. a5 a6 6. Nc3 e6 7. Na4 b5 8. axb6 cxb6 9. Nh3 b5 10. Nc3 Bb4 11. Nf4 Nc6 12. Bd2 e5 13. dxe5 Nxe5 14. e4 dxe4 15. fxe4 Bxc3 1-0",
+      "white": {
+        "name": "Capsari"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.28",
+      "createdAt": 1777338497000
+    },
+    {
+      "pgn": "[Event \"chess.com game 07179277-429d-11f1-9221-05c0b401000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.28\"]\n[White \"Rgo666killer\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1470\"]\n[BlackElo \"1479\"]\n1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. d3 Nf6 5. b3 Nc6 6. Bb2 Bg4 7. Be2 e6 8. a3 Bd6 9. Nbd2 O-O 10. O-O e5 11. c4 e4 12. dxe4 dxe4 13. Bxf6 Qxf6 14. Nxe4 Qe7 15. Nxd6 Bxf3 0-1",
+      "white": {
+        "name": "Rgo666killer"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.28",
+      "createdAt": 1777338145000
+    },
+    {
+      "pgn": "[Event \"chess.com game a2e48ba4-4197-11f1-b90b-29acff01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.26\"]\n[White \"Lazer_Wizard\"]\n[Black \"Kleen17\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1471\"]\n[BlackElo \"1506\"]\n1. e4 c5 2. c3 e6 3. d4 cxd4 4. cxd4 Ne7 5. Nc3 Ng6 6. Nf3 a6 7. Bd3 Nc6 8. O-O Qc7 9. d5 Nce5 10. Nxe5 Qxe5 11. f4 Qd4+ 12. Kh1 b5 13. Qf3 Bd6 14. Be3 Qxd3 15. Rad1 Qc4 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Kleen17"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.26",
+      "createdAt": 1777225661000
+    },
+    {
+      "pgn": "[Event \"chess.com game e375231a-40e1-11f1-b96b-314a9e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.25\"]\n[White \"Lazer_Wizard\"]\n[Black \"mmfoolb\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1479\"]\n[BlackElo \"1475\"]\n1. e4 e5 2. Nc3 Nf6 3. f4 d5 4. fxe5 Nxe4 5. Qf3 Ng5 6. Qxd5 Qxd5 7. Nxd5 Ne6 8. d4 c6 9. Nc3 Bb4 10. Bd2 O-O 11. Nf3 Nd7 12. O-O-O Nb6 13. Bd3 a5 14. a3 Be7 15. h4 Nd5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "mmfoolb"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.25",
+      "createdAt": 1777147768000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7b732bc7-4051-11f1-b96b-314a9e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.25\"]\n[White \"Lazer_Wizard\"]\n[Black \"ludobj\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1487\"]\n[BlackElo \"1476\"]\n1. e4 e6 2. Nf3 b6 3. Nc3 Bb7 4. d4 Bb4 5. Bd3 h6 6. O-O Bxc3 7. bxc3 Nf6 8. Re1 O-O 9. e5 Nd5 10. Bd2 Ba6 11. g3 Bxd3 12. cxd3 Nc6 13. Nh4 Nde7 14. Qg4 Ng6 15. Nxg6 fxg6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "ludobj"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.25",
+      "createdAt": 1777085527000
+    },
+    {
+      "pgn": "[Event \"chess.com game 4e353c24-4032-11f1-a3f9-c6287501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.24\"]\n[White \"risasaki\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1465\"]\n[BlackElo \"1479\"]\n1. e4 c6 2. d4 d5 3. e5 Bf5 4. c3 e6 5. Bd3 Bxd3 6. Qxd3 Nd7 7. f4 Ne7 8. Nf3 Ng6 9. f5 exf5 10. Qxf5 Be7 11. Nbd2 O-O 12. Nf1 Nb6 13. Ng3 Nh4 14. Nxh4 Bxh4 15. O-O Bxg3 0-1",
+      "white": {
+        "name": "risasaki"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.24",
+      "createdAt": 1777072385000
+    },
+    {
+      "pgn": "[Event \"chess.com game 33b40e33-4008-11f1-a168-b9fa2e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.24\"]\n[White \"Lazer_Wizard\"]\n[Black \"ohnoair\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1471\"]\n[BlackElo \"1016\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Bc5 4. Qg4 Qf6 5. Nd5 Qxf2+ 6. Kd1 Nf6 7. Qxg7 Rf8 8. Rf1 Qh4 9. Nxf6+ Ke7 10. Nd5+ Ke8 11. Nxc7+ Ke7 12. Nxa8 Qh5+ 13. Be2 Qxh2 14. d4 Nxd4 15. Bg5+ Ke8 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "ohnoair"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.24",
+      "createdAt": 1777054128000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6af8488d-3f91-11f1-b96b-314a9e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.24\"]\n[White \"neverlowcrow\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1465\"]\n[BlackElo \"1471\"]\n1. d4 Nf6 2. Bf4 d5 3. Nf3 c5 4. c3 Nc6 5. dxc5 e5 6. Bxe5 Nxe5 7. Nxe5 Bxc5 8. e3 Bf5 9. Bb5+ Kf8 10. g4 a6 11. Ba4 b5 12. Bb3 Be6 13. Qf3 b4 14. cxb4 Bxb4+ 15. Kf1 Qc7 1-0",
+      "white": {
+        "name": "neverlowcrow"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.24",
+      "createdAt": 1777003050000
+    },
+    {
+      "pgn": "[Event \"chess.com game 03a3673d-3f80-11f1-b96b-314a9e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.24\"]\n[White \"Lazer_Wizard\"]\n[Black \"cdummy25\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1480\"]\n[BlackElo \"1498\"]\n1. e4 e5 2. Nc3 Nf6 3. f4 Nc6 4. fxe5 Nxe5 5. d4 Ng6 6. e5 Ng8 7. Nf3 d6 8. Bc4 dxe5 9. O-O exd4 10. Bxf7+ Kxf7 11. Ne5+ Ke8 12. Nf7 Qd7 13. Nxh8 dxc3 14. Re1+ N8e7 15. Qxd7+ Bxd7 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "cdummy25"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.24",
+      "createdAt": 1776995632000
+    },
+    {
+      "pgn": "[Event \"chess.com game 34506c78-3f52-11f1-a3f9-c6287501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"noobzanger\"]\n[Result \"1-0\"]\n[TimeControl \"600\"]\n[WhiteElo \"1883\"]\n[BlackElo \"1015\"]\n1. e4 c6 2. d4 d5 3. e5 Bf5 4. h4 c5 5. g4 Qa5+ 6. Bd2 Qb6 7. gxf5 Qxb2 8. Bc3 Qb6 9. Nf3 Nc6 10. dxc5 Qxc5 11. Bd3 e6 12. Qd2 exf5 13. Bxf5 d4 14. O-O Rd8 15. Bb2 Qb6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "noobzanger"
+      },
+      "result": "1-0",
+      "timeControl": "600",
+      "date": "2026.04.23",
+      "createdAt": 1776976314000
+    },
+    {
+      "pgn": "[Event \"chess.com game 795e1bd7-3f50-11f1-a3f9-c6287501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"noobzanger\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"1883\"]\n[BlackElo \"1015\"]\n1. b4 d5 2. Bb2 Nf6 3. e3 a5 4. bxa5 c5 5. f4 Bf5 6. Nf3 Qxa5 7. Nc3 Nc6 8. Nb5 Qb6 9. Be5 Nxe5 10. Nxe5 c4 11. Nd4 e6 12. Be2 Bc5 13. Rb1 Qa7 14. Nb5 Qa5 15. Bxc4 O-O 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "noobzanger"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.04.23",
+      "createdAt": 1776975667000
+    },
+    {
+      "pgn": "[Event \"chess.com game 107af09a-3f4d-11f1-bd57-1b04b701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Raghav_Chaturvedi\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"833\"]\n[BlackElo \"1488\"]\n1. e3 e6 2. Nc3 Nf6 3. Nb5 Ne4 4. Nxc7+ Qxc7 5. Bb5 Nc6 6. f3 Ng5 7. Kf1 a6 8. Bxc6 Qxc6 9. Qe2 Qxc2 10. Kf2 Ne4+ 0-1",
+      "white": {
+        "name": "Raghav_Chaturvedi"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776973735000
+    },
+    {
+      "pgn": "[Event \"chess.com game f171fe45-3f4c-11f1-a3f9-c6287501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"Raghav_Chaturvedi\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1488\"]\n[BlackElo \"833\"]\n1. e4 d6 2. Bb5+ c6 3. Bxc6+ bxc6 4. Qf3 f6 5. e5 g6 6. Qxc6+ 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Raghav_Chaturvedi"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776973559000
+    },
+    {
+      "pgn": "[Event \"chess.com game d9e8c0ec-3f4c-11f1-bd57-1b04b701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Raghav_Chaturvedi\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"833\"]\n[BlackElo \"1488\"]\n1. e3 d6 2. Bb5+ c6 3. Bxc6+ bxc6 4. Qf3 1-0",
+      "white": {
+        "name": "Raghav_Chaturvedi"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776973506000
+    },
+    {
+      "pgn": "[Event \"chess.com game 1c4823cb-3f4c-11f1-b96b-314a9e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"Raghav_Chaturvedi\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1488\"]\n[BlackElo \"833\"]\n1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 Nxd4 5. Qxd4 a6 6. c3 Nf6 7. Bc4 e6 8. Bg5 b5 9. Bxf6 Qxf6 10. Qxf6 gxf6 11. Bd3 Rg8 12. Nd2 Rxg2 13. O-O-O Bh6 14. Kc2 Rxf2 15. Rhg1 Ke7 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Raghav_Chaturvedi"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776973467000
+    },
+    {
+      "pgn": "[Event \"chess.com game e21f11fb-3f4b-11f1-a3f9-c6287501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Raghav_Chaturvedi\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"833\"]\n[BlackElo \"1488\"]\n1. e4 c6 2. Bc4 e6 3. Nf3 d5 4. exd5 exd5 5. Qe2+ Be7 6. Qxe7+ Qxe7+ 7. Be2 Qxe2+ 8. Kxe2 Bg4 9. Kf1 Nf6 10. h3 Bf5 11. d3 Bxd3+ 0-1",
+      "white": {
+        "name": "Raghav_Chaturvedi"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776973149000
+    },
+    {
+      "pgn": "[Event \"chess.com game 60f98bac-3f4b-11f1-bd57-1b04b701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"Raghav_Chaturvedi\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1488\"]\n[BlackElo \"833\"]\n1. e4 a6 2. d4 e6 3. c3 Be7 4. Bd3 Bg5 5. Bxg5 Qxg5 6. Nf3 Qxg2 7. Rg1 Qxg1+ 8. Nxg1 Nc6 9. Qg4 Kf8 10. Nd2 Nf6 11. Qg2 h5 12. Ndf3 Rh6 13. Ng5 Ke8 14. N1f3 Rg6 15. e5 Nh7 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Raghav_Chaturvedi"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776973049000
+    },
+    {
+      "pgn": "[Event \"chess.com game 60190cd1-3f4a-11f1-ab2e-dd36d901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Raghav_Chaturvedi\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"833\"]\n[BlackElo \"1488\"]\n1. e3 e6 2. Nc3 Bb4 3. a3 Bd6 4. Nb5 Kf8 5. Nf3 a6 6. Nxd6 cxd6 7. b4 b5 8. Bb2 Nf6 9. Bxf6 Qxf6 10. c3 Bb7 11. h4 Nc6 12. Ng5 Ke7 13. Ne4 Qg6 14. Qf3 Ne5 15. Qxf7+ Nxf7 0-1",
+      "white": {
+        "name": "Raghav_Chaturvedi"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776972813000
+    },
+    {
+      "pgn": "[Event \"chess.com game 44c3d2ef-3f4a-11f1-b96b-314a9e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"Raghav_Chaturvedi\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1488\"]\n[BlackElo \"833\"]\n1. e4 c6 2. Bc4 e6 3. Nc3 d5 4. exd5 exd5 5. Qe2+ Be6 6. Nxd5 cxd5 7. Bb5+ 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Raghav_Chaturvedi"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776972403000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0f268bcd-3f4a-11f1-a3f9-c6287501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Raghav_Chaturvedi\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"833\"]\n[BlackElo \"1488\"]\n1. e4 e6 2. Nc3 Bc5 3. d4 Bb4 4. Bd2 Nf6 5. f3 Nxe4 6. fxe4 Qh4+ 7. g3 Qxe4+ 0-1",
+      "white": {
+        "name": "Raghav_Chaturvedi"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776972358000
+    },
+    {
+      "pgn": "[Event \"chess.com game 74865d24-3f42-11f1-b96b-314a9e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"Raghav_Chaturvedi\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1488\"]\n[BlackElo \"833\"]\n1. e4 e5 2. Nc3 d6 3. Bc4 Nc6 4. d3 Na5 5. f4 Nxc4 6. dxc4 f6 7. f5 Ne7 8. O-O Nc6 9. Qh5+ Kd7 10. Nd5 Qe8 11. Qxe8+ Kxe8 12. Nxc7+ Kd7 13. Nxa8 b6 14. Be3 Bb7 15. Nxb6+ axb6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Raghav_Chaturvedi"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776969339000
+    },
+    {
+      "pgn": "[Event \"chess.com game 85cd3c3f-3f41-11f1-bd57-1b04b701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"Raghav_Chaturvedi\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1488\"]\n[BlackElo \"833\"]\n1. e4 c5 2. c3 Nc6 3. d4 cxd4 4. cxd4 e6 5. Nc3 Nge7 6. d5 exd5 7. exd5 Ne5 8. Qe2 d6 9. f4 N5g6 10. f5 Ne5 11. Bf4 f6 12. Bxe5 dxe5 13. O-O-O Nxf5 14. Qf2 Bd6 15. Bb5+ Kf7 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Raghav_Chaturvedi"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776968968000
+    },
+    {
+      "pgn": "[Event \"chess.com game fa120a7c-3f3c-11f1-8755-a6d30a01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"SpeedShadowDemon\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"621\"]\n[BlackElo \"1221\"]\n1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nf6 5. Ng5 h6 6. Nxf7 Kxf7 7. Nf3 Nbd7 8. Bc4+ e6 9. O-O Bd6 10. Re1 Re8 11. Qe2 Nb6 12. Bb3 Kf8 13. Ne5 Bxe5 14. dxe5 Nfd5 15. Qf3+ Kg8 0-1",
+      "white": {
+        "name": "SpeedShadowDemon"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.04.23",
+      "createdAt": 1776966779000
+    },
+    {
+      "pgn": "[Event \"chess.com game dbaef533-3f3c-11f1-ab2e-dd36d901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"SpeedShadowDemon\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"621\"]\n[BlackElo \"1221\"]\n1. e4 c6 2. d4 d5 3. Bd2 dxe4 4. Bc1 Nf6 5. Nc3 Bf5 6. f4 e6 7. Be3 Bb4 8. a3 Bxc3+ 9. bxc3 Nd5 10. Rb1 Nxe3 11. c4 Nxd1 12. Kxd1 Qxd4+ 13. Ke2 e3 0-1",
+      "white": {
+        "name": "SpeedShadowDemon"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.04.23",
+      "createdAt": 1776966643000
+    },
+    {
+      "pgn": "[Event \"chess.com game ab511036-3f3c-11f1-8755-a6d30a01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"SpeedShadowDemon\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"621\"]\n[BlackElo \"1221\"]\n1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nf6 5. Ng5 h6 6. Nxf7 Kxf7 7. Nf3 Nbd7 8. Bc4+ e6 9. O-O c5 10. Re1 Qb6 11. Ne5+ Nxe5 12. dxe5 Be7 13. exf6 Kxf6 14. Qf3+ Kg6 15. Qg4+ Kh7 0-1",
+      "white": {
+        "name": "SpeedShadowDemon"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.04.23",
+      "createdAt": 1776966590000
+    },
+    {
+      "pgn": "[Event \"chess.com game f75877da-3f36-11f1-bd57-1b04b701000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"SpeedShadowDemon\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"785\"]\n[BlackElo \"1883\"]\n1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ exf6 6. Nf3 Bg4 7. Be2 Bd6 8. h3 Bxf3 9. Bxf3 O-O 10. Be3 Re8 11. Qd3 Nd7 12. h4 Nb6 13. d5 Nxd5 14. Bxd5 cxd5 15. Qxd5 Bb4+ 0-1",
+      "white": {
+        "name": "SpeedShadowDemon"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.04.23",
+      "createdAt": 1776964195000
+    },
+    {
+      "pgn": "[Event \"chess.com game be9e71d3-3f34-11f1-b7ad-e3cc5501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"SpeedShadowDemon\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"785\"]\n[BlackElo \"1883\"]\n1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nf6 5. Ng5 h6 6. Nxf7 Kxf7 7. Bc4+ e6 8. Nf3 Bd6 9. O-O Re8 10. Re1 b5 11. Bb3 Na6 12. Ne5+ Bxe5 13. dxe5 Qxd1 14. Rxd1 Nd5 15. c4 bxc4 0-1",
+      "white": {
+        "name": "SpeedShadowDemon"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.04.23",
+      "createdAt": 1776964018000
+    },
+    {
+      "pgn": "[Event \"chess.com game 1b86f57c-3f32-11f1-ab2e-dd36d901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"JSNoverPuka\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"1883\"]\n[BlackElo \"2001\"]\n1. e4 e6 2. Nf3 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ Qxf6 6. d4 Nc6 7. Bd3 h6 8. Qe2 Nxd4 9. Nxd4 Qxd4 10. O-O Be7 11. c3 Qb6 12. Qe4 Bd7 13. Re1 Bc6 14. Qg4 O-O-O 15. Be3 Bc5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "JSNoverPuka"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.04.23",
+      "createdAt": 1776962997000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2dd48b91-3f30-11f1-b96b-314a9e01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"JSNoverPuka\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"2001\"]\n[BlackElo \"1883\"]\n1. e4 c6 2. d4 d5 3. e5 Bf5 4. h4 h5 5. Bg5 Qb6 6. Bd3 Qxd4 7. Nf3 Qg4 8. O-O Bxd3 9. Qxd3 Nd7 10. Re1 e6 11. Nbd2 Be7 12. c4 Bxg5 13. Nxg5 O-O-O 14. Nxf7 dxc4 15. Qxc4 Qxc4 0-1",
+      "white": {
+        "name": "JSNoverPuka"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.04.23",
+      "createdAt": 1776961857000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6299bf9b-3eb2-11f1-8849-28ad8d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"my_dieyu\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1484\"]\n[BlackElo \"1488\"]\n1. e4 Nf6 2. Nc3 Nc6 3. Nf3 Ng8 4. d4 Nb8 5. Bc4 e6 6. O-O Bb4 7. d5 Ne7 8. dxe6 dxe6 9. Qxd8+ Kxd8 10. Rd1+ Bd7 11. e5 Bxc3 12. bxc3 Nbc6 13. Bg5 h6 14. Bh4 g5 15. Bg3 Nf5 1-0",
+      "white": {
+        "name": "my_dieyu"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776907465000
+    },
+    {
+      "pgn": "[Event \"chess.com game ef4ccd15-3eb0-11f1-a0f1-86ad2101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"faapmd\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1496\"]\n[BlackElo \"1510\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. d3 Bc5 5. f4 exf4 6. Bxf4 h6 7. Nf3 O-O 8. d4 Bb4 9. O-O Bxc3 10. bxc3 Nxe4 11. Qe1 d5 12. Bd3 Nf6 13. Qg3 Nh5 14. Bxc7 Nxg3 15. Bxd8 Ne2+ 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "faapmd"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.23",
+      "createdAt": 1776906832000
+    },
+    {
+      "pgn": "[Event \"chess.com game ca71ef11-3eab-11f1-8849-28ad8d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"jeff_ab29\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"1239\"]\n[BlackElo \"1221\"]\n1. e4 c6 2. Nc3 d5 3. b3 e5 4. exd5 cxd5 5. Qf3 Nf6 6. Bb2 Nc6 7. Bb5 Be6 8. O-O-O e4 9. Qg3 Nh5 10. Qe3 Bd6 11. g3 O-O 12. f3 exf3 13. Nxf3 d4 14. Nxd4 Nxd4 15. Qxd4 Bxg3 1-0",
+      "white": {
+        "name": "jeff_ab29"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.04.23",
+      "createdAt": 1776904414000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7dc04be3-3eab-11f1-a0f1-86ad2101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"akleop7\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"1229\"]\n[BlackElo \"1193\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. d3 Bb4 5. Ne2 O-O 6. f4 exf4 7. Bxf4 d6 8. O-O Bg4 9. Qc1 Bxc3 10. Nxc3 Ne5 11. Bg5 Nxc4 12. dxc4 Be6 13. Nd5 Bxd5 14. cxd5 Kh8 15. Bxf6 gxf6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "akleop7"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.04.23",
+      "createdAt": 1776904284000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3a9ec771-3eab-11f1-8849-28ad8d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"SeYsla\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"1221\"]\n[BlackElo \"1219\"]\n1. e4 c5 2. c3 Nc6 3. d4 cxd4 4. cxd4 d6 5. d5 Ne5 6. f4 Nd7 7. Nf3 e5 8. Nc3 Ngf6 9. Bb5 a6 10. Ba4 b5 11. Nxb5 axb5 12. Bxb5 Ba6 13. Bc6 Qb6 14. Bxa8 Bb7 15. Bxb7 Qxb7 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "SeYsla"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.04.23",
+      "createdAt": 1776904164000
+    },
+    {
+      "pgn": "[Event \"chess.com game ede4728d-3eaa-11f1-8849-28ad8d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"cavalote\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"1187\"]\n[BlackElo \"1213\"]\n1. e4 c6 2. Nf3 d5 3. e5 Bg4 4. d4 e6 5. Be2 Nd7 6. O-O Ne7 7. c3 Ng6 8. Be3 Be7 9. Nbd2 c5 10. h3 Bxf3 11. Nxf3 O-O 12. Nh2 Qb6 13. b3 cxd4 14. cxd4 Bb4 15. Rc1 Rac8 0-1",
+      "white": {
+        "name": "cavalote"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.04.23",
+      "createdAt": 1776904050000
+    },
+    {
+      "pgn": "[Event \"chess.com game b50bd5d2-3eaa-11f1-8849-28ad8d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"yoshberg\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"1177\"]\n[BlackElo \"1205\"]\n1. g3 d5 2. Bg2 Nf6 3. Nf3 Nc6 4. O-O e5 5. d3 Bf5 6. Nbd2 e4 7. dxe4 dxe4 8. Nh4 Bg6 9. Nxg6 hxg6 10. Nxe4 Nxe4 11. Bxe4 Bd6 12. Bxc6+ bxc6 13. h4 Rxh4 14. gxh4 Qxh4 15. f4 O-O-O 0-1",
+      "white": {
+        "name": "yoshberg"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.04.23",
+      "createdAt": 1776903888000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6d14fbb8-3eaa-11f1-936c-2e0a7901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Pash008\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"1216\"]\n[BlackElo \"1197\"]\n1. Nc3 e5 2. e4 Nf6 3. f3 Nc6 4. d3 Bc5 5. Bg5 h6 6. Bxf6 Qxf6 7. Nge2 O-O 8. Ng3 d6 9. Nf5 Bxf5 10. exf5 Qxf5 11. g4 Qg5 12. Ne4 Qh4+ 13. Kd2 Bb6 14. c3 f5 15. gxf5 Rxf5 1-0",
+      "white": {
+        "name": "Pash008"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.04.23",
+      "createdAt": 1776903825000
+    },
+    {
+      "pgn": "[Event \"chess.com game 33a931b2-3ea8-11f1-a0f1-86ad2101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"nealmew\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"1883\"]\n[BlackElo \"458\"]\n1. e4 e5 2. Nc3 Nf6 3. Bc4 Bc5 4. Nf3 Nxe4 5. Nxe4 Nc6 6. Nxc5 Nd4 7. Nxd4 exd4 8. O-O b6 9. Re1+ Kf8 10. Ne4 d5 11. d3 dxe4 12. Rxe4 Be6 13. Bb5 Bxa2 14. h4 a6 15. Bc6 Bd5 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "nealmew"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.04.23",
+      "createdAt": 1776903104000
+    },
+    {
+      "pgn": "[Event \"chess.com game 0a6fd405-3ea6-11f1-a0f1-86ad2101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.23\"]\n[White \"Lazer_Wizard\"]\n[Black \"nealmew\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"1883\"]\n[BlackElo \"458\"]\n1. e4 e5 2. Bc4 c5 3. Nc3 Nf6 4. Nf3 Nc6 5. Ng5 Rg8 6. Bxf7+ Ke7 7. Bxg8 Nxg8 8. Nd5+ Ke8 9. d3 Nf6 10. Nxf6+ Qxf6 11. Nxh7 Qd8 12. h4 Qa5+ 13. c3 Qxa2 14. h5 d6 15. h6 Bh3 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "nealmew"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.04.23",
+      "createdAt": 1776902749000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7d3ea641-3e66-11f1-8849-28ad8d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.22\"]\n[White \"SpeedShadowDemon\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"785\"]\n[BlackElo \"1883\"]\n1. e4 c6 2. d4 d5 3. Nd2 dxe4 4. Nxe4 Nf6 5. Ng5 h6 6. Nxf7 Kxf7 7. Nf3 c5 8. Bc4+ e6 9. Ne5+ Kg8 10. Ng6 Nc6 11. O-O Qxd4 12. Qxd4 Nxd4 13. Re1 Nxc2 14. Rxe6 Bxe6 15. Bxe6+ Kh7 0-1",
+      "white": {
+        "name": "SpeedShadowDemon"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.04.22",
+      "createdAt": 1776874663000
+    },
+    {
+      "pgn": "[Event \"chess.com game 98e2b796-3e65-11f1-8c71-37b35301000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.22\"]\n[White \"SpeedShadowDemon\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"785\"]\n[BlackElo \"1883\"]\n1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Ng5 h6 6. Nxf7 Kxf7 7. Nf3 c5 8. c3 Nc6 9. Bc4+ e6 10. O-O Bd6 11. Re1 Re8 12. Ne5+ Bxe5 13. dxe5 Qxd1 14. Rxd1 Nxe5 15. Bb3 Kf8 0-1",
+      "white": {
+        "name": "SpeedShadowDemon"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.04.22",
+      "createdAt": 1776874444000
+    },
+    {
+      "pgn": "[Event \"chess.com game a928c595-3e60-11f1-b438-b269b001000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.22\"]\n[White \"Lazer_Wizard\"]\n[Black \"someonecheck\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"1205\"]\n[BlackElo \"1189\"]\n1. e4 e6 2. Nf3 c5 3. c3 Nc6 4. d4 Nf6 5. e5 Nd5 6. Bc4 f6 7. Bxd5 exd5 8. dxc5 Bxc5 9. Qxd5 Bb6 10. exf6 Qxf6 11. O-O d6 12. Re1+ Ne7 13. Bg5 Qf8 14. Rxe7+ 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "someonecheck"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.04.22",
+      "createdAt": 1776872113000
+    },
+    {
+      "pgn": "[Event \"chess.com game 00044bad-3d08-11f1-a3e1-e59f8801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.20\"]\n[White \"Lazer_Wizard\"]\n[Black \"CodySchutte\"]\n[Result \"1-0\"]\n[TimeControl \"300\"]\n[WhiteElo \"1504\"]\n[BlackElo \"222\"]\n1. e4 e5 2. Bc4 Bc5 3. Nf3 d6 4. d3 Bg4 5. Ng5 f6 6. Nf7 Ke7 7. Nxd8 Kxd8 8. f3 Bh5 9. g4 Bg6 10. h4 h5 11. gxh5 Bxh5 12. Ke2 Nc6 13. a3 Nd4+ 14. Kf1 Bxf3 15. Rg1 Bg4 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "CodySchutte"
+      },
+      "result": "1-0",
+      "timeControl": "300",
+      "date": "2026.04.20",
+      "createdAt": 1776724396000
+    },
+    {
+      "pgn": "[Event \"chess.com game 35a3841c-3d07-11f1-a952-a749f801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.20\"]\n[White \"Lazer_Wizard\"]\n[Black \"CodySchutte\"]\n[Result \"1-0\"]\n[TimeControl \"600\"]\n[WhiteElo \"1883\"]\n[BlackElo \"222\"]\n1. e4 e5 2. Nc3 d6 3. Bc4 Nc6 4. d3 Be6 5. Bxe6 fxe6 6. f4 Nb4 7. a3 Na6 8. Nf3 Qh4+ 9. Nxh4 O-O-O 10. Qh5 Nf6 11. Qf3 Be7 12. fxe5 c5 13. O-O Nh5 14. Qxh5 g6 15. Qg4 h5 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "CodySchutte"
+      },
+      "result": "1-0",
+      "timeControl": "600",
+      "date": "2026.04.20",
+      "createdAt": 1776723962000
+    },
+    {
+      "pgn": "[Event \"chess.com game becc8e79-3ce5-11f1-a5ab-addcb201000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.20\"]\n[White \"marcosgaviola\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"60\"]\n[WhiteElo \"1193\"]\n[BlackElo \"1197\"]\n1. e4 c6 2. d3 d5 3. Be2 dxe4 4. dxe4 Qxd1+ 5. Bxd1 e5 6. Nc3 Nf6 7. a3 Be6 8. Bg5 Bc5 9. Nf3 Nbd7 10. Bxf6 gxf6 11. O-O Rg8 12. Be2 Bh3 13. g3 Bxf1 14. Kxf1 h5 15. Nh4 O-O-O 1/2-1/2",
+      "white": {
+        "name": "marcosgaviola"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "60",
+      "date": "2026.04.20",
+      "createdAt": 1776709418000
+    },
+    {
+      "pgn": "[Event \"chess.com game e806da50-3ce0-11f1-911e-d1608c01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.20\"]\n[White \"SpeedShadowDemon\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180+2\"]\n[WhiteElo \"810\"]\n[BlackElo \"1504\"]\n1. e4 d5 2. d4 dxe4 3. Nd2 f5 4. f3 e3 5. Nc4 f4 6. g3 e5 7. Nxe5 Nd7 8. Nf7 Kxf7 9. Bc4+ Ke8 10. c3 Nb6 11. Bd3 Bd6 12. Ne2 Nf6 13. gxf4 Qe7 14. Ng1 Nfd5 15. Be4 Nxf4 0-1",
+      "white": {
+        "name": "SpeedShadowDemon"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180+2",
+      "date": "2026.04.20",
+      "createdAt": 1776707502000
+    },
+    {
+      "pgn": "[Event \"chess.com game 6ee63d06-3cd1-11f1-aaf8-52f56b01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.20\"]\n[White \"featMikeTyson\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"60\"]\n[WhiteElo \"1176\"]\n[BlackElo \"1197\"]\n1. e4 c6 2. Bc4 d5 3. exd5 cxd5 4. Bb3 Nf6 5. Nf3 Nc6 6. d3 Bg4 7. Bg5 e6 8. h3 Bh5 9. g4 Bg6 10. Nbd2 Be7 11. Qe2 h6 12. Bh4 Nd7 13. Bg3 O-O 14. O-O-O Na5 15. h4 Nxb3+ 0-1",
+      "white": {
+        "name": "featMikeTyson"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "60",
+      "date": "2026.04.20",
+      "createdAt": 1776700689000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2cda6f16-3cd1-11f1-8a27-80708d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.20\"]\n[White \"Lazer_Wizard\"]\n[Black \"LegoCreator365\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"1189\"]\n[BlackElo \"1194\"]\n1. e4 e5 2. Nc3 Nf6 3. f4 exf4 4. e5 Ng8 5. Nf3 d6 6. d4 dxe5 7. Nxe5 Nc6 8. Nxc6 bxc6 9. Bxf4 Bb4 10. Bd3 Nf6 11. O-O O-O 12. Bg5 Qxd4+ 13. Kh1 Bxc3 14. bxc3 Qxc3 15. Rb1 Bg4 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "LegoCreator365"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.04.20",
+      "createdAt": 1776700559000
+    },
+    {
+      "pgn": "[Event \"chess.com game d712e636-3cd0-11f1-936c-2e0a7901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.20\"]\n[White \"Lazer_Wizard\"]\n[Black \"Rax0205\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"1181\"]\n[BlackElo \"1158\"]\n1. e4 d5 2. exd5 Qxd5 3. Nc3 Qe6+ 4. Be2 Nc6 5. Nf3 Bd7 6. d4 O-O-O 7. O-O Qf6 8. Bg5 Qg6 9. Bd3 Qh5 10. Be3 Bg4 11. Be2 Bxf3 12. Bxf3 Qg6 13. Be4 Qf6 14. Qg4+ e6 15. Bxc6 bxc6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Rax0205"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.04.20",
+      "createdAt": 1776700442000
+    },
+    {
+      "pgn": "[Event \"chess.com game a0311021-3cd0-11f1-911e-d1608c01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.20\"]\n[White \"Lazer_Wizard\"]\n[Black \"Bakermatt1\"]\n[Result \"1-0\"]\n[TimeControl \"60\"]\n[WhiteElo \"1173\"]\n[BlackElo \"1172\"]\n1. e4 b6 2. Nc3 Bb7 3. d3 e6 4. Be3 Bb4 5. Nf3 Nf6 6. Be2 d5 7. exd5 Nxd5 8. O-O Bxc3 9. bxc3 Nxc3 10. Qd2 Nxe2+ 11. Qxe2 Nd7 12. Bd4 Qe7 13. Rfe1 O-O-O 14. Bxg7 Rhg8 15. Bc3 Bxf3 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Bakermatt1"
+      },
+      "result": "1-0",
+      "timeControl": "60",
+      "date": "2026.04.20",
+      "createdAt": 1776700302000
+    },
+    {
+      "pgn": "[Event \"chess.com game ec52e178-3cce-11f1-aaf8-52f56b01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.20\"]\n[White \"Valentin_Bellegarde\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1510\"]\n[BlackElo \"1504\"]\n1. d4 Nf6 2. Bf4 d5 3. e3 Bf5 4. Nf3 e6 5. Nc3 c5 6. Nb5 Na6 7. Be2 c4 8. O-O Qd7 9. a4 Be7 10. Ne5 Qd8 11. g4 Bg6 12. h4 Ne4 13. f3 Bxh4 14. fxe4 Bxe4 15. Nf3 Bxf3 0-1",
+      "white": {
+        "name": "Valentin_Bellegarde"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.20",
+      "createdAt": 1776699840000
+    },
+    {
+      "pgn": "[Event \"chess.com game debf2d3d-3b71-11f1-a0f1-86ad2101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.18\"]\n[White \"Spidisense\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"600\"]\n[WhiteElo \"1722\"]\n[BlackElo \"1883\"]\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 Nf6 5. d4 exd4 6. cxd4 Bb4+ 7. Bd2 Bxd2+ 8. Nbxd2 d5 9. exd5 Nxd5 10. O-O O-O 11. Re1 Bg4 12. h3 Bh5 13. Qb3 Nf6 14. Ne4 Nxe4 15. Rxe4 Qd5 0-1",
+      "white": {
+        "name": "Spidisense"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "600",
+      "date": "2026.04.18",
+      "createdAt": 1776549768000
+    },
+    {
+      "pgn": "[Event \"chess.com game 3ae8dfab-3b6d-11f1-936c-2e0a7901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.18\"]\n[White \"Lazer_Wizard\"]\n[Black \"ramingadirov_05\"]\n[Result \"1/2-1/2\"]\n[TimeControl \"180\"]\n[WhiteElo \"1495\"]\n[BlackElo \"1510\"]\n1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. d3 Bc5 5. f4 exf4 6. Bxf4 d6 7. Nf3 Ng4 8. d4 Bb6 9. h3 Nf6 10. O-O O-O 11. e5 dxe5 12. Nxe5 Bxd4+ 13. Kh1 Bxe5 14. Bxe5 Nxe5 15. Qxd8 Rxd8 1/2-1/2",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "ramingadirov_05"
+      },
+      "result": "1/2-1/2",
+      "timeControl": "180",
+      "date": "2026.04.18",
+      "createdAt": 1776547852000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7787a19f-3b6c-11f1-b35e-ec76d501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.18\"]\n[White \"Lazer_Wizard\"]\n[Black \"Zeph007\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1495\"]\n[BlackElo \"1460\"]\n1. e4 e6 2. Nf3 Ne7 3. Nc3 Ng6 4. d4 Be7 5. e5 Nh4 6. Bd3 Nxg2+ 7. Ke2 f5 8. Rg1 Nh4 9. Nxh4 Bxh4 10. Kf1 g6 11. d5 Qe7 12. dxe6 dxe6 13. Bh6 Qc5 14. Qe2 Bd7 15. Bg7 Rg8 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Zeph007"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.18",
+      "createdAt": 1776547473000
+    },
+    {
+      "pgn": "[Event \"chess.com game aa396694-3b65-11f1-a0f1-86ad2101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.18\"]\n[White \"BryanDG58\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1523\"]\n[BlackElo \"1487\"]\n1. e4 c6 2. Bc4 d5 3. exd5 cxd5 4. Bb3 Nf6 5. Ne2 Nc6 6. O-O Bf5 7. Ng3 Bg6 8. f4 e6 9. d3 Bc5+ 10. Kh1 h5 11. f5 exf5 12. Nxf5 Ng4 13. Qe2+ Ne7 14. Nxg7+ Kf8 15. Ne6+ 1-0",
+      "white": {
+        "name": "BryanDG58"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.18",
+      "createdAt": 1776544418000
+    },
+    {
+      "pgn": "[Event \"chess.com game 19163f38-3b65-11f1-a0f1-86ad2101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.18\"]\n[White \"vladimirvc\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1472\"]\n[BlackElo \"1494\"]\n1. e4 c6 2. Nf3 d5 3. e5 Bg4 4. d4 e6 5. Be2 c5 6. c3 Nc6 7. a3 cxd4 8. cxd4 Nge7 9. b4 a6 10. Bb2 Nf5 11. Qd3 Be7 12. Nbd2 O-O 13. O-O Rc8 14. Rac1 b5 15. Nb3 Bxb4 0-1",
+      "white": {
+        "name": "vladimirvc"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.18",
+      "createdAt": 1776544319000
+    },
+    {
+      "pgn": "[Event \"chess.com game a8e21ac7-3b62-11f1-8849-28ad8d01000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.18\"]\n[White \"Lazer_Wizard\"]\n[Black \"gokssasajma63\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1486\"]\n[BlackElo \"1446\"]\n1. e4 e5 2. Nc3 Bc5 3. f4 exf4 4. Nf3 d6 5. d4 Bb4 6. Bxf4 Bxc3+ 7. bxc3 Qf6 8. Bg5 Qg6 9. Bd3 f6 10. e5 f5 11. O-O d5 12. Qd2 Nc6 13. Nh4 Qh5 14. Nxf5 Bxf5 15. Rxf5 g6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "gokssasajma63"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.18",
+      "createdAt": 1776543206000
+    },
+    {
+      "pgn": "[Event \"chess.com game e5a6511e-3b5f-11f1-936c-2e0a7901000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.18\"]\n[White \"Lisaesam90\"]\n[Black \"Lazer_Wizard\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1479\"]\n[BlackElo \"1479\"]\n1. e4 c6 2. Bc4 d5 3. exd5 cxd5 4. Bb3 Nf6 5. d4 Nc6 6. Ne2 Bf5 7. O-O e6 8. c3 Bd6 9. Bf4 O-O 10. Bxd6 Qxd6 11. Ng3 Bg6 12. f4 Na5 13. f5 exf5 14. Nxf5 Bxf5 15. Rxf5 Nxb3 1-0",
+      "white": {
+        "name": "Lisaesam90"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.18",
+      "createdAt": 1776541943000
+    },
+    {
+      "pgn": "[Event \"chess.com game 2e86c2d4-3b4d-11f1-b35e-ec76d501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.18\"]\n[White \"Lazer_Wizard\"]\n[Black \"EddyTodd\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1487\"]\n[BlackElo \"1526\"]\n1. e4 g6 2. d4 Bg7 3. Nc3 c6 4. h3 Qb6 5. Nf3 e6 6. Na4 Qa5+ 7. c3 b5 8. b4 Qxa4 9. Qxa4 bxa4 10. Bc4 a5 11. bxa5 Rxa5 12. O-O Ba6 13. Rb1 Bxc4 14. Rxb8+ Ke7 15. Ba3+ d6 0-1",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "EddyTodd"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.18",
+      "createdAt": 1776534146000
+    },
+    {
+      "pgn": "[Event \"chess.com game af687df0-3b4c-11f1-b35e-ec76d501000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.18\"]\n[White \"Lazer_Wizard\"]\n[Black \"Blunder-boy1\"]\n[Result \"1-0\"]\n[TimeControl \"180\"]\n[WhiteElo \"1494\"]\n[BlackElo \"1462\"]\n1. e4 c5 2. c3 Nf6 3. e5 Nd5 4. d4 cxd4 5. Nf3 e6 6. Bc4 Nb6 7. Bb3 dxc3 8. Nxc3 d5 9. exd6 Qxd6 10. O-O Qxd1 11. Rxd1 Be7 12. Nb5 Na6 13. Be3 O-O 14. Bxb6 axb6 15. Ne5 f6 1-0",
+      "white": {
+        "name": "Lazer_Wizard"
+      },
+      "black": {
+        "name": "Blunder-boy1"
+      },
+      "result": "1-0",
+      "timeControl": "180",
+      "date": "2026.04.18",
+      "createdAt": 1776533728000
+    },
+    {
+      "pgn": "[Event \"chess.com game 7aa430bb-3b4c-11f1-a0f1-86ad2101000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.18\"]\n[White \"Math3us5\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1485\"]\n[BlackElo \"1486\"]\n1. e4 c6 2. d4 d5 3. exd5 cxd5 4. Bd3 Nf6 5. Ne2 Nc6 6. c3 Bd7 7. O-O e6 8. f3 Bd6 9. Bf4 Qc7 10. Bxd6 Qxd6 11. Nd2 Nh5 12. c4 Nf4 13. Nxf4 Qxf4 14. cxd5 exd5 15. Re1+ Be6 0-1",
+      "white": {
+        "name": "Math3us5"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.18",
+      "createdAt": 1776533593000
+    },
+    {
+      "pgn": "[Event \"chess.com game 30a15a9e-3b4c-11f1-96c0-4606c801000f\"]\n[Site \"chess.com\"]\n[Date \"2026.04.18\"]\n[White \"acroplamen\"]\n[Black \"Lazer_Wizard\"]\n[Result \"0-1\"]\n[TimeControl \"180\"]\n[WhiteElo \"1464\"]\n[BlackElo \"1478\"]\n1. d4 Nf6 2. Nc3 g6 3. Bg5 Bg7 4. e4 d6 5. Bd3 e5 6. dxe5 dxe5 7. Qe2 Nc6 8. O-O-O Nd4 9. Qf1 O-O 10. Bxf6 Bxf6 11. Nf3 Bg5+ 12. Kb1 Be6 13. Nd5 Nxf3 14. gxf3 Bxd5 15. exd5 Qxd5 0-1",
+      "white": {
+        "name": "acroplamen"
+      },
+      "black": {
+        "name": "Lazer_Wizard"
+      },
+      "result": "0-1",
+      "timeControl": "180",
+      "date": "2026.04.18",
+      "createdAt": 1776533505000
+    }
+  ]
+}

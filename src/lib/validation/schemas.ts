@@ -151,6 +151,18 @@ export const enhancedAnalysisSchema = z.object({
     .max(50)
     .regex(/^[a-zA-Z0-9_-]+$/)
     .optional(),
+  // Stage B (PR 1.C, §3.7.10 Question C): opt-in opponent identifier for the
+  // Mastermind scout-citation validator. When MASTERMIND_VALIDATORS_ENABLED
+  // is on, this drives the opponent_prep category's scout fetch via
+  // wireValidators.ts (per T11 Option (c) — explicit field, no PGN parsing
+  // since enhanced-analysis doesn't carry a PGN body). Anonymous-opponent
+  // flows continue to skip scout (graceful degradation per §3.2).
+  opponentUsername: z
+    .string()
+    .max(50)
+    .regex(/^[a-zA-Z0-9_-]+$/)
+    .optional(),
+  opponentPlatform: z.enum(["lichess", "chess.com"]).optional(),
   conversationHistory: z
     .array(
       z.object({

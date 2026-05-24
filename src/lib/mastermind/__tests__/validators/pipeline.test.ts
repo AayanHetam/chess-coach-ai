@@ -359,3 +359,81 @@ describe("runValidationPipeline: Stage A.9 dataSources extension", () => {
     expect(r.telemetry.length).toBeGreaterThan(0);
   });
 });
+
+describe("runValidationPipeline: signal propagation (fix-orphan-pipeline-cancellation)", () => {
+  it("threads signal into each validator's parseCall + callLLM", async () => {
+    const controller = new AbortController();
+    const seenSignals: Array<AbortSignal | undefined> = [];
+    const spyParser: ParserCall = async ({ signal }) => {
+      seenSignals.push(signal);
+      return { raw: "[]", costUsd: 0.001 };
+    };
+    let llmSignal: AbortSignal | undefined;
+    const spyLlm: (opts: CallLLMOptions) => Promise<LLMResult> = async (opts) => {
+      llmSignal = opts.signal;
+      return {
+        content: "ok",
+        provider: "anthropic",
+        model: "claude-sonnet-4-test",
+        inputTokens: 1,
+        outputTokens: 1,
+      } as LLMResult;
+    };
+    await runValidationPipeline({
+      initialRequest,
+      stockfishEval: { cp: 0 },
+      featureDelta: emptyDelta(),
+      pieceRoleDiff: [],
+      playerPerspective: "white",
+      correlationId: "pipe-signal",
+      parseCall: spyParser,
+      callLLM: spyLlm,
+      signal: controller.signal,
+    });
+    // Initial LLM call received the signal.
+    expect(llmSignal).toBe(controller.signal);
+    // Each validator's parseCall received the signal. With no dataSources,
+    // eval_claim + feature_citation run → 2 parser invocations.
+    expect(seenSignals.length).toBeGreaterThanOrEqual(2);
+    for (const s of seenSignals) {
+      expect(s).toBe(controller.signal);
+    }
+  });
+
+  it("undefined signal preserves byte-identical behavior to pre-Commit-2", async () => {
+    // Regression guard: a caller that doesn't pass signal sees zero
+    // signal-aware behavior. parseCall + callLLM both receive undefined
+    // in their opts.signal slot.
+    const seenSignals: Array<AbortSignal | undefined> = [];
+    const spyParser: ParserCall = async ({ signal }) => {
+      seenSignals.push(signal);
+      return { raw: "[]", costUsd: 0.001 };
+    };
+    let llmSignal: AbortSignal | undefined = "sentinel" as unknown as AbortSignal;
+    const spyLlm: (opts: CallLLMOptions) => Promise<LLMResult> = async (opts) => {
+      llmSignal = opts.signal;
+      return {
+        content: "ok",
+        provider: "anthropic",
+        model: "claude-sonnet-4-test",
+        inputTokens: 1,
+        outputTokens: 1,
+      } as LLMResult;
+    };
+    await runValidationPipeline({
+      initialRequest,
+      stockfishEval: { cp: 0 },
+      featureDelta: emptyDelta(),
+      pieceRoleDiff: [],
+      playerPerspective: "white",
+      correlationId: "pipe-no-signal",
+      parseCall: spyParser,
+      callLLM: spyLlm,
+      // no signal field
+    });
+    expect(llmSignal).toBeUndefined();
+    for (const s of seenSignals) {
+      expect(s).toBeUndefined();
+    }
+  });
+});

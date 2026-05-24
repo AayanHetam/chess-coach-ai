@@ -188,3 +188,98 @@ describe("regenerateUntilValid", () => {
     expect(r.totalCostUsd).toBeGreaterThan(0);
   });
 });
+
+describe("regenerateUntilValid: signal cancellation (fix-orphan-pipeline-cancellation)", () => {
+  it("signal aborted before first attempt → breaks loop immediately, calls fallback, 0 LLM calls", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const llm = mockLlmReturning(["never reached"]);
+    const r = await regenerateUntilValid({
+      initialRequest,
+      validate: failingValidator([
+        {
+          check_name: "eval_mismatch_qualitative",
+          severity: "error",
+          llm_span: "",
+          expected: null,
+          actual: null,
+          detail: "",
+        },
+      ]),
+      buildFallback: async () => "fallback used",
+      correlationId: "rg-abort-pre",
+      callLLM: llm.fn,
+      signal: controller.signal,
+    });
+    expect(llm.calls).toBe(0); // never entered the loop body
+    expect(r.finalResponse).toBe("fallback used");
+    expect(r.finalOutcome).toBe("fallback_used");
+  });
+
+  it("signal aborts mid-loop → breaks before spawning next retry's callLLM", async () => {
+    // First attempt completes (signal not yet aborted), validation fails →
+    // would normally retry. Before retry, signal aborts. Loop should break,
+    // fallback runs. llm.calls === 1, not 2.
+    const controller = new AbortController();
+    const llm = mockLlmReturning(["bad1", "bad2"]);
+    let validateCount = 0;
+    const validateAndAbort = async (): Promise<ValidatorResult> => {
+      validateCount++;
+      if (validateCount === 1) {
+        // After the first validate completes, abort the signal so the next
+        // loop iteration's top-of-loop signal.aborted check triggers break.
+        controller.abort();
+      }
+      return {
+        issues: [
+          {
+            check_name: "eval_mismatch_qualitative",
+            severity: "error",
+            llm_span: "",
+            expected: null,
+            actual: null,
+            detail: "",
+          } as ValidatorIssue,
+        ],
+        passed: false,
+        telemetry: [],
+        costUsd: 0.001,
+      };
+    };
+    const r = await regenerateUntilValid({
+      initialRequest,
+      validate: validateAndAbort,
+      buildFallback: async () => "fallback after abort",
+      correlationId: "rg-abort-mid",
+      callLLM: llm.fn,
+      signal: controller.signal,
+    });
+    expect(llm.calls).toBe(1); // only the first attempt; retry never spawned
+    expect(r.finalResponse).toBe("fallback after abort");
+    expect(r.finalOutcome).toBe("fallback_used");
+  });
+
+  it("signal threaded into callLLM opts (default-undefined preserves existing behavior)", async () => {
+    const controller = new AbortController();
+    let receivedSignal: AbortSignal | undefined;
+    const spyLlm: (opts: CallLLMOptions) => Promise<LLMResult> = async (opts) => {
+      receivedSignal = opts.signal;
+      return {
+        content: "ok",
+        provider: "anthropic",
+        model: "claude-sonnet-4-test",
+        inputTokens: 1,
+        outputTokens: 1,
+      } as LLMResult;
+    };
+    await regenerateUntilValid({
+      initialRequest,
+      validate: passingValidator(),
+      buildFallback: async () => "fb",
+      correlationId: "rg-signal-thread",
+      callLLM: spyLlm,
+      signal: controller.signal,
+    });
+    expect(receivedSignal).toBe(controller.signal);
+  });
+});

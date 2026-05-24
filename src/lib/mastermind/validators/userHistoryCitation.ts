@@ -69,6 +69,8 @@ export interface UserHistoryCitationOpts {
   correlationId: string;
   confidenceThreshold?: number;
   parseCall?: ParserCall;
+  /** AbortSignal threaded from withPipelineTimeout. Forwarded to parseCall. */
+  signal?: AbortSignal;
 }
 
 interface MatchResult {
@@ -384,7 +386,7 @@ export async function validateUserHistoryCitation(
     nowMs,
   });
 
-  const parsed = await parseCall({ system: USER_HISTORY_CITATION_PARSER_SYSTEM, user: userTurn });
+  const parsed = await parseCall({ system: USER_HISTORY_CITATION_PARSER_SYSTEM, user: userTurn, signal: opts.signal });
   const claims = tryParseClaims(parsed.raw);
 
   if (claims === null) {

@@ -20,6 +20,14 @@ export interface RegenerateOpts {
     move_san?: string;
     player_perspective?: "white" | "black";
   };
+  /**
+   * Optional AbortSignal (2026-05-25 fix-orphan-pipeline-cancellation).
+   * Propagated into each callLLM(...) invocation so in-flight requests
+   * abort on timeout. Also checked before each retry attempt — if the
+   * signal aborts mid-loop we exit immediately rather than spawning a
+   * fresh retry that would also abort.
+   */
+  signal?: AbortSignal;
 }
 
 export interface RegenerateResult {
@@ -104,9 +112,17 @@ export async function regenerateUntilValid(opts: RegenerateOpts): Promise<Regene
   let finalResponse = "";
 
   while (retry <= maxRetries) {
+    // Abort check before each attempt: if the upstream timeout already
+    // fired, exit the retry loop immediately rather than spawning a
+    // fresh LLM call that will just abort too. The buildFallback path
+    // below still runs (synchronous; no LLM call) so the caller gets a
+    // well-formed RegenerateResult.
+    if (opts.signal?.aborted) break;
+
     const requestForThisAttempt: CallLLMOptions = {
       ...opts.initialRequest,
       messages,
+      signal: opts.signal,
     };
     const llmResult = await callLLM(requestForThisAttempt);
     totalCostUsd += estimateCost(llmResult);

@@ -38,6 +38,7 @@ import {
 } from "@/lib/mastermind/validatorTelemetry";
 import {
   withPipelineTimeout,
+  readPipelineTimeoutMs,
   type PipelineResultWithTimeout,
 } from "@/lib/mastermind/pipelineTimeout";
 import {
@@ -1373,33 +1374,41 @@ export async function POST(request: NextRequest) {
           // follow-up). On timeout the helper resolves with a graceful
           // fallback result; the route emits done with pipeline.timedOut=true
           // rather than an SSE error or 502.
+          //
+          // Capture narrowed dataSources locally so the factory closure
+          // below preserves the non-null type (TS loses control-flow
+          // narrowing across function boundaries).
+          const streamingDataSources = prep.dataSources;
           let pipelineResult: PipelineResultWithTimeout;
           try {
             pipelineResult = await withPipelineTimeout(
-              runValidationPipeline({
-                initialRequest: {
-                  tier: "flagship",
-                  system: claudeSystemPrompt,
-                  messages: claudeMessages,
-                  temperature: 0.7,
-                  maxTokens: 3000,
-                  cacheSystem: true,
-                },
-                stockfishEval: prep.moveCtx.stockfishEval,
-                featureDelta: prep.dataSources.featureDelta,
-                pieceRoleDiff: prep.dataSources.pieceRoleDiff,
-                threatTree: prep.dataSources.threatTree,
-                playerPerspective,
-                fen: validationFen,
-                moveSan: prep.moveCtx.moveSan,
-                correlationId: requestId,
-                dataSources: {
-                  scout: prep.dataSources.scout,
-                  userHistory: prep.dataSources.userHistory,
-                },
-              }),
+              (signal) =>
+                runValidationPipeline({
+                  initialRequest: {
+                    tier: "flagship",
+                    system: claudeSystemPrompt,
+                    messages: claudeMessages,
+                    temperature: 0.7,
+                    maxTokens: 3000,
+                    cacheSystem: true,
+                  },
+                  stockfishEval: prep.moveCtx.stockfishEval,
+                  featureDelta: streamingDataSources.featureDelta,
+                  pieceRoleDiff: streamingDataSources.pieceRoleDiff,
+                  threatTree: streamingDataSources.threatTree,
+                  playerPerspective,
+                  fen: validationFen,
+                  moveSan: prep.moveCtx.moveSan,
+                  correlationId: requestId,
+                  dataSources: {
+                    scout: streamingDataSources.scout,
+                    userHistory: streamingDataSources.userHistory,
+                  },
+                  signal,
+                }),
               {
                 correlationId: requestId,
+                timeoutMs: readPipelineTimeoutMs(),
                 fallbackResponse:
                   "Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase.",
               },
@@ -1689,32 +1698,39 @@ export async function POST(request: NextRequest) {
       });
 
       if (prep.dataSources) {
+        // Capture narrowed dataSources locally so the factory closure
+        // below preserves the non-null type (TS loses control-flow
+        // narrowing across function boundaries).
+        const nonStreamingDataSources = prep.dataSources;
         try {
           const pipelineResult = await withPipelineTimeout(
-            runValidationPipeline({
-              initialRequest: {
-                tier: "flagship",
-                system: claudeSystemPrompt,
-                messages: claudeMessages,
-                temperature: 0.7,
-                maxTokens: 3000,
-                cacheSystem: true,
-              },
-              stockfishEval: prep.moveCtx.stockfishEval,
-              featureDelta: prep.dataSources.featureDelta,
-              pieceRoleDiff: prep.dataSources.pieceRoleDiff,
-              threatTree: prep.dataSources.threatTree,
-              playerPerspective,
-              fen: prep.moveCtx.fenAfter,
-              moveSan: prep.moveCtx.moveSan,
-              correlationId: requestId,
-              dataSources: {
-                scout: prep.dataSources.scout,
-                userHistory: prep.dataSources.userHistory,
-              },
-            }),
+            (signal) =>
+              runValidationPipeline({
+                initialRequest: {
+                  tier: "flagship",
+                  system: claudeSystemPrompt,
+                  messages: claudeMessages,
+                  temperature: 0.7,
+                  maxTokens: 3000,
+                  cacheSystem: true,
+                },
+                stockfishEval: prep.moveCtx.stockfishEval,
+                featureDelta: nonStreamingDataSources.featureDelta,
+                pieceRoleDiff: nonStreamingDataSources.pieceRoleDiff,
+                threatTree: nonStreamingDataSources.threatTree,
+                playerPerspective,
+                fen: prep.moveCtx.fenAfter,
+                moveSan: prep.moveCtx.moveSan,
+                correlationId: requestId,
+                dataSources: {
+                  scout: nonStreamingDataSources.scout,
+                  userHistory: nonStreamingDataSources.userHistory,
+                },
+                signal,
+              }),
             {
               correlationId: requestId,
+              timeoutMs: readPipelineTimeoutMs(),
               fallbackResponse:
                 "Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase.",
             },

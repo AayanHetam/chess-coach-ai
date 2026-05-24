@@ -86,6 +86,14 @@ export interface PipelineOpts {
    * exactly as PR 1.B (eval + feature-citation only). See ValidatorDataSources.
    */
   dataSources?: ValidatorDataSources;
+  /**
+   * Optional AbortSignal from withPipelineTimeout (2026-05-25 fix-orphan-
+   * pipeline-cancellation). When provided, the pipeline propagates it to
+   * inner LLM/fetch calls so they unwind cleanly on timeout. Plumbing lands
+   * in Commit 2; this commit just accepts the field at the type boundary
+   * so route callsites can pass it without tsc errors.
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -112,6 +120,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       moveSan: opts.moveSan,
       correlationId: opts.correlationId,
       parseCall: opts.parseCall,
+      signal: opts.signal,
     });
     const citationResult = await validateFeatureDeltaCitations({
       llmResponse: response,
@@ -123,6 +132,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       moveSan: opts.moveSan,
       correlationId: opts.correlationId,
       parseCall: opts.parseCall,
+      signal: opts.signal,
     });
 
     // Stage A.9 conditional dispatch — order matters for telemetry sequence.
@@ -138,6 +148,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
         primaryTimeClass: opts.dataSources.scout.primaryTimeClass,
         correlationId: opts.correlationId,
         parseCall: opts.parseCall,
+        signal: opts.signal,
       });
     }
 
@@ -150,6 +161,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
         nowMs: opts.dataSources.userHistory.nowMs,
         correlationId: opts.correlationId,
         parseCall: opts.parseCall,
+        signal: opts.signal,
       });
     }
 
@@ -201,5 +213,6 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       move_san: opts.moveSan,
       player_perspective: opts.playerPerspective,
     },
+    signal: opts.signal,
   });
 }

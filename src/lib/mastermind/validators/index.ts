@@ -86,6 +86,14 @@ export interface PipelineOpts {
    * exactly as PR 1.B (eval + feature-citation only). See ValidatorDataSources.
    */
   dataSources?: ValidatorDataSources;
+  /**
+   * Optional AbortSignal from withPipelineTimeout (2026-05-25 fix-orphan-
+   * pipeline-cancellation). When provided, the pipeline propagates it to
+   * inner LLM/fetch calls so they unwind cleanly on timeout. Plumbing lands
+   * in Commit 2; this commit just accepts the field at the type boundary
+   * so route callsites can pass it without tsc errors.
+   */
+  signal?: AbortSignal;
 }
 
 /**

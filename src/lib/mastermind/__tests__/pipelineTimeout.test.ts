@@ -8,6 +8,7 @@ import {
 } from "vitest";
 import {
   withPipelineTimeout,
+  readPipelineTimeoutMs,
   DEFAULT_PIPELINE_TIMEOUT_MS,
 } from "@/lib/mastermind/pipelineTimeout";
 import type { RegenerateResult } from "@/lib/mastermind/validators";
@@ -30,12 +31,13 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllEnvs();
 });
 
 describe("withPipelineTimeout: pipeline resolves before timer", () => {
   it("returns pipeline result with timedOut: false", async () => {
-    const pipelinePromise = Promise.resolve(happyResult());
-    const result = await withPipelineTimeout(pipelinePromise, {
+    const factory = (_signal: AbortSignal) => Promise.resolve(happyResult());
+    const result = await withPipelineTimeout(factory, {
       timeoutMs: 5000,
       correlationId: "test-corr",
       fallbackResponse: "should not appear",
@@ -46,8 +48,8 @@ describe("withPipelineTimeout: pipeline resolves before timer", () => {
   });
 
   it("clears the timer when pipeline wins (no zombie callbacks)", async () => {
-    const pipelinePromise = Promise.resolve(happyResult());
-    const result = await withPipelineTimeout(pipelinePromise, {
+    const factory = (_signal: AbortSignal) => Promise.resolve(happyResult());
+    const result = await withPipelineTimeout(factory, {
       timeoutMs: 5000,
       correlationId: "test-corr",
       fallbackResponse: "fb",
@@ -60,12 +62,28 @@ describe("withPipelineTimeout: pipeline resolves before timer", () => {
     // No assertion needed beyond "no unhandled rejection" — vitest will
     // surface any if the timer fired against a settled promise.
   });
+
+  it("signal is NOT aborted when pipeline wins (no spurious cancellation)", async () => {
+    let capturedSignal: AbortSignal | undefined;
+    const factory = (signal: AbortSignal) => {
+      capturedSignal = signal;
+      return Promise.resolve(happyResult());
+    };
+    await withPipelineTimeout(factory, {
+      timeoutMs: 5000,
+      correlationId: "test-corr",
+      fallbackResponse: "fb",
+    });
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal!.aborted).toBe(false);
+  });
 });
 
 describe("withPipelineTimeout: timer fires first", () => {
   it("resolves with synthetic timed-out result", async () => {
-    const slowPromise = new Promise<RegenerateResult>(() => {});
-    const racePromise = withPipelineTimeout(slowPromise, {
+    const factory = (_signal: AbortSignal) =>
+      new Promise<RegenerateResult>(() => {});
+    const racePromise = withPipelineTimeout(factory, {
       timeoutMs: 100,
       correlationId: "test-corr",
       fallbackResponse: "Sorry, still working on this — try again in a moment.",
@@ -82,8 +100,9 @@ describe("withPipelineTimeout: timer fires first", () => {
   });
 
   it("synthetic telemetry event has check_name=pipeline_timeout + correlation_id", async () => {
-    const slowPromise = new Promise<RegenerateResult>(() => {});
-    const racePromise = withPipelineTimeout(slowPromise, {
+    const factory = (_signal: AbortSignal) =>
+      new Promise<RegenerateResult>(() => {});
+    const racePromise = withPipelineTimeout(factory, {
       timeoutMs: 100,
       correlationId: "corr-xyz",
       fallbackResponse: "fb",
@@ -105,8 +124,9 @@ describe("withPipelineTimeout: timer fires first", () => {
   });
 
   it("uses default 30s when timeoutMs not provided", async () => {
-    const slowPromise = new Promise<RegenerateResult>(() => {});
-    const racePromise = withPipelineTimeout(slowPromise, {
+    const factory = (_signal: AbortSignal) =>
+      new Promise<RegenerateResult>(() => {});
+    const racePromise = withPipelineTimeout(factory, {
       correlationId: "test-corr",
       fallbackResponse: "fb",
     });
@@ -122,13 +142,38 @@ describe("withPipelineTimeout: timer fires first", () => {
 
 describe("withPipelineTimeout: pipeline rejection passes through", () => {
   it("rejected pipeline propagates the error (not a timeout)", async () => {
-    const rejectingPromise = Promise.reject(new Error("pipeline blew up"));
+    const factory = (_signal: AbortSignal) =>
+      Promise.reject(new Error("pipeline blew up"));
     await expect(
-      withPipelineTimeout(rejectingPromise, {
+      withPipelineTimeout(factory, {
         timeoutMs: 5000,
         correlationId: "test-corr",
         fallbackResponse: "fb",
       }),
     ).rejects.toThrow("pipeline blew up");
+  });
+});
+
+describe("readPipelineTimeoutMs: env var override", () => {
+  it("defaults to 30000ms when PIPELINE_TIMEOUT_MS is unset", () => {
+    vi.stubEnv("PIPELINE_TIMEOUT_MS", "");
+    expect(readPipelineTimeoutMs()).toBe(DEFAULT_PIPELINE_TIMEOUT_MS);
+  });
+
+  it("respects PIPELINE_TIMEOUT_MS when set to a positive integer", () => {
+    vi.stubEnv("PIPELINE_TIMEOUT_MS", "5000");
+    expect(readPipelineTimeoutMs()).toBe(5000);
+  });
+
+  it("falls back to default on non-numeric input", () => {
+    vi.stubEnv("PIPELINE_TIMEOUT_MS", "banana");
+    expect(readPipelineTimeoutMs()).toBe(DEFAULT_PIPELINE_TIMEOUT_MS);
+  });
+
+  it("falls back to default on zero or negative input (no sub-second timeouts)", () => {
+    vi.stubEnv("PIPELINE_TIMEOUT_MS", "0");
+    expect(readPipelineTimeoutMs()).toBe(DEFAULT_PIPELINE_TIMEOUT_MS);
+    vi.stubEnv("PIPELINE_TIMEOUT_MS", "-100");
+    expect(readPipelineTimeoutMs()).toBe(DEFAULT_PIPELINE_TIMEOUT_MS);
   });
 });

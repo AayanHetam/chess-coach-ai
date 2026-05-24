@@ -15,6 +15,7 @@ import { getMastermindEnv } from "@/env";
 import { runValidationPipeline } from "@/lib/mastermind/validators";
 import {
   withPipelineTimeout,
+  readPipelineTimeoutMs,
   type PipelineResultWithTimeout,
 } from "@/lib/mastermind/pipelineTimeout";
 import {
@@ -143,37 +144,44 @@ export async function POST(request: NextRequest) {
         });
 
         if (prep.dataSources) {
+          // Capture narrowed dataSources locally so the factory closure
+          // below preserves the non-null type (TS loses control-flow
+          // narrowing across function boundaries).
+          const dataSources = prep.dataSources;
           let pipelineResult: PipelineResultWithTimeout;
           try {
             pipelineResult = await withPipelineTimeout(
-              runValidationPipeline({
-                initialRequest: {
-                  tier: "fast",
-                  system: systemText,
-                  messages: nonSystemMessages,
-                  temperature: 0.7,
-                  maxTokens: 3000,
-                  cacheSystem: true,
-                },
-                stockfishEval: prep.moveCtx.stockfishEval,
-                featureDelta: prep.dataSources.featureDelta,
-                pieceRoleDiff: prep.dataSources.pieceRoleDiff,
-                threatTree: prep.dataSources.threatTree,
-                playerPerspective,
-                fen: prep.moveCtx.fenAfter,
-                moveSan: prep.moveCtx.moveSan,
-                correlationId: requestId,
-                // §10.4 + §3.4: chat retry budget is tighter than
-                // enhanced-analysis (1 retry max) to keep follow-up
-                // latency in chat tolerance.
-                maxRetries: 1,
-                dataSources: {
-                  scout: prep.dataSources.scout,
-                  userHistory: prep.dataSources.userHistory,
-                },
-              }),
+              (signal) =>
+                runValidationPipeline({
+                  initialRequest: {
+                    tier: "fast",
+                    system: systemText,
+                    messages: nonSystemMessages,
+                    temperature: 0.7,
+                    maxTokens: 3000,
+                    cacheSystem: true,
+                  },
+                  stockfishEval: prep.moveCtx.stockfishEval,
+                  featureDelta: dataSources.featureDelta,
+                  pieceRoleDiff: dataSources.pieceRoleDiff,
+                  threatTree: dataSources.threatTree,
+                  playerPerspective,
+                  fen: prep.moveCtx.fenAfter,
+                  moveSan: prep.moveCtx.moveSan,
+                  correlationId: requestId,
+                  // §10.4 + §3.4: chat retry budget is tighter than
+                  // enhanced-analysis (1 retry max) to keep follow-up
+                  // latency in chat tolerance.
+                  maxRetries: 1,
+                  dataSources: {
+                    scout: dataSources.scout,
+                    userHistory: dataSources.userHistory,
+                  },
+                  signal,
+                }),
               {
                 correlationId: requestId,
+                timeoutMs: readPipelineTimeoutMs(),
                 fallbackResponse:
                   "Still thinking — the deep-validation pass took longer than expected. Try asking again.",
               },

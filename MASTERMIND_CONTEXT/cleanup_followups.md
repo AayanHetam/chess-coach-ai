@@ -6,6 +6,43 @@ Non-blocking cleanups that are surfaced during Mastermind PR work but kept out o
 
 ---
 
+## 2026-05-25 — Flag flip rolled back after first production test
+
+**Timeline:**
+- **Flipped:** `MASTERMIND_VALIDATORS_ENABLED=true` added to Production env at ~2026-05-24 ~16:00 UTC (Sat). Redeployed via `vercel redeploy chess-coach-oczv6fvv1-aayan-hs-projects.vercel.app` to pick up the new env var. Post-flip deploy: `chess-coach-knme361jj-aayan-hs-projects.vercel.app` (3min build, Ready ~16:04 UTC).
+- **First production test:** ~16:12 UTC. Single authenticated chat turn ("analyze my game") by Aayan against chessmasti.com.
+- **Rolled back:** `MASTERMIND_VALIDATORS_ENABLED` removed from Production env at ~16:50 UTC. Redeployed → `chess-coach-ltyp2xf6o-aayan-hs-projects.vercel.app` (4min build, Ready ~17:00 UTC).
+- **Duration on production with flag on:** ~1 hour.
+- **User-facing impact during flag-on window:** Aayan's single test chat turn returned the `withPipelineTimeout` fallback string twice in sequence (one against `/api/enhanced-analysis`, one against `/api/chat`). No CMIP testers were exercising prod during the window. No other user reports.
+
+**What happened.** Both routes' flag-on wings hit the 30s `withPipelineTimeout` and returned the synthetic fallback response to the user:
+- `/api/enhanced-analysis` returned *"Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase."* ([route.ts:1716](../src/app/api/enhanced-analysis/route.ts#L1716)).
+- `/api/chat` returned *"Still thinking — the deep-validation pass took longer than expected. Try asking again."* ([route.ts:174](../src/app/api/chat/route.ts#L174)).
+
+**Two findings from log investigation:**
+
+**Finding 1: validator parser LLM call stalled at 60s with 9 output tokens.** Vercel runtime logs show a `tier=fast` Haiku call (`claude-haiku-4-5-20251001`) at 16:15:13Z with `inputTokens: 3929, outputTokens: 9, elapsedMs: 60009`. This is orphaned to a `/api/maia-status` request line (function instance reused after the original chat request's response had returned, but the underlying LLM promise kept running and logged on completion). The shape — large input, near-zero output, 60s elapsed — is consistent with the eval-claim / feature-citation parser stalling. **Normal parser calls complete in 3-8s.** Production-scale behavior diverges from preview-smoke behavior measured during Stage C Follow-up B. Root cause unknown; could be Anthropic queue/rate limiting at prod cookie scope, cold-start variance, or a real parser bug surfacing only at production input shapes.
+
+**Finding 2: post-timeout telemetry not reaching Vercel logs.** When `withPipelineTimeout` resolves with the synthetic timeout result, the route is supposed to emit two things to the structured logger before returning the response: (i) `console.log("coach.tokens", {...})` at [enhanced-analysis/route.ts:1726](../src/app/api/enhanced-analysis/route.ts#L1726), and (ii) `forwardPipelineTelemetryForRoute({...})` at [enhanced-analysis/route.ts:1860](../src/app/api/enhanced-analysis/route.ts#L1860). The latter iterates the timeout result's `telemetry` array (which always contains at least the `pipeline_timeout`/`fallback_used` event from [pipelineTimeout.ts:80](../src/lib/mastermind/pipelineTimeout.ts#L80)) and calls `log.error("mastermind validator fallback", ...)`. **Neither log entry appeared** in Vercel logs for the production chat turn. The `--level error` query returned zero entries. `-q mastermind`, `-q pipeline`, `-q timeout`, `-q coach.tokens`, `-q validator_event` all returned zero matches. By contrast, `llm-provider`'s `"LLM call succeeded via Anthropic"` info-level logs DO appear, so the logger mechanism itself works. Suspected cause: log buffer loss on synchronous return-after-timeout path in Vercel serverless. Untested in smokes (preview smokes always include `VERCEL_ENV === "preview"` which inlines telemetry in the response body — a separate observability path that bypasses the structured logger gap surfaced here).
+
+**Rollback procedure executed cleanly.** Steps + verification:
+1. `npx vercel env rm MASTERMIND_VALIDATORS_ENABLED production` — confirmed empty `vercel env ls production` grep.
+2. `npx vercel redeploy chess-coach-oczv6fvv1-aayan-hs-projects.vercel.app` — triggered rebuild with current (now-empty) env. Note: `vercel --prod` from local would have failed due to untracked landing-v2 files with `@react-three/fiber` import; `vercel redeploy` of a known-good deploy bypasses this.
+3. New prod deploy: `chess-coach-ltyp2xf6o-aayan-hs-projects.vercel.app`, Ready in 4min.
+4. Public surface verified: `https://chessmasti.com/` 200/782ms; `/api/health/llm` returns `ok: true, livePath: "anthropic"`, Anthropic responding in 806ms.
+5. `vercel logs --deployment chess-coach-ltyp2xf6o ... -q mastermind` returns zero matches (correct flag-off behavior — pipeline doesn't run, no telemetry emitted).
+6. Total rollback time from `env rm` to `Ready`: ~5 min, matching the documented rollback envelope from the prior cleanup_followups entry.
+
+**Next gate.** **Do NOT re-flip the production flag until both findings are understood and verified-fixed on Preview.** Specifically:
+
+- **For Finding 1 (parser stall):** investigate on Preview with a focused chat-turn smoke that captures parser timing per-call. Compare against the Follow-up B preview smokes (which showed parser calls in 1-10s range against the same Haiku model). Hypotheses to test: cold-start cost on prod-region containers, Anthropic queue depth under prod-scale concurrency, parser prompt-cache hit-rate differences between preview and prod, request-shape differences (prod chats have more conversation history loaded; preview chats are one-shot).
+- **For Finding 2 (telemetry gap):** test whether the structured logger emits reliably from `forwardPipelineTelemetryForRoute` after a `withPipelineTimeout` resolution. Possible test: a Preview smoke where the LLM is deliberately slow (mocked or rate-limited) to force the timeout path, then verify `mastermind validator fallback` appears in Vercel logs. If it doesn't appear on Preview either, the logger code itself has a bug. If it appears on Preview but not Prod, it's a Vercel runtime difference.
+- **CMIP impact:** interns start ~next weekend. Cannot ship flag-on for CMIP without Finding 1 fixed. Three options for CMIP: (a) keep flag off and let CMIP test the legacy callLLM path qualitatively (no validator coverage but no risk), (b) ship flag-on to a small subset of intern accounts via a per-user feature toggle (substantial new infrastructure work), (c) defer CMIP-vs-sweep comparison to post-investigation.
+
+**Source-of-truth for the rollback:** this entry + the preceding "Mastermind merged to main (PR #26)" entry. Merge commit `1715e5c` remains on main; only the runtime flag was flipped and rolled back. No code revert needed.
+
+---
+
 ## 2026-05-24 — Mastermind merged to main (PR #26)
 
 **Merge commit:** [`1715e5c`](https://github.com/AayanHetam/chess-coach-ai/commit/1715e5c) ("Merge pull request #26 from AayanHetam/mastermind/stage-3-validators")

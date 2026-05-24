@@ -24,7 +24,11 @@ The Stage C validation sweep (synthetic-tester against preview deploy) ships in 
 
 ## 2026-05-23 — Off-by-one in `deriveMastermindMoveContext` positions lookup
 
-**Status:** surfaced during Follow-up B investigation (post-smoke diagnosis of why eval_claim events didn't fire).
+**Status: RESOLVED** across three layers (Layer 1: `7341fa1`, Layer 2: `32f6477`, Layer 3: this commit, see "Three layers" paragraph below). Defensive boundary checks shipped alongside Layer 3 to catch any fourth surface loudly.
+
+**Boundary contract documentation.** The canonical contract — `gameEval.positions.length === moveHistory.length + 1` with `positions[0]` = starting state and `positions[N]` = after the Nth move — was undocumented across three layers of the codebase before Layer 3. It now lives in three grep-able places: the WHY comment at [`scripts/synthetic-tester/client.ts:343`](../scripts/synthetic-tester/client.ts#L343), the harness-side invariant at [`scripts/synthetic-tester/client.ts:analyzeGame`](../scripts/synthetic-tester/client.ts) (throws on violation in dev/test/CI), and the route-side warning at [`src/lib/mastermind/routeHelpers.ts:prepareMastermindContext`](../src/lib/mastermind/routeHelpers.ts) (logs to Log Drain in production). Any future developer touching gameEval shape should grep for either signature and find this entry.
+
+**Original surface (2026-05-23).**
 
 **Where:** [`src/lib/mastermind/routeHelpers.ts:113-145`](../src/lib/mastermind/routeHelpers.ts#L113-L145), function `deriveMastermindMoveContext`. The non-degraded branch with non-empty `moveHistory` looks up `gameEval?.positions?.[lastIdx]` where `lastIdx = moveHistory.length`.
 
@@ -41,6 +45,14 @@ Production callsites (webapp's enhanced-analysis path) probably hit the same off
 **Status:** tracked, not fixed in this commit. Separate read-only investigation will scope the fix and check production callsite impact before any code change.
 
 **Resolved at `cc10524` (2026-05-23).** Root cause turned out to be harness-side, not the route: production's `getEvaluateGameParams` produces `positions.length === moveHistory.length + 1` with `positions[0] = starting state`, and the route's `positions[lastIdx]` lookup is correct against that shape. The harness was off by 1 (missing the starting-state entry). Fix shipped in two layers: `7341fa1` aligned the harness to production's convention by prepending the starting eval; `cc10524` added a defensive skip in `validateEvalClaim` for any caller that still produces `stockfishEval: { cp: undefined, mate: undefined }` (the chat-route's `gameEval: undefined` path remains — see (γ-route) entry below). The route's indexing stays untouched. Neither interpretation (a) nor (b) above was the answer.
+
+**Three layers (2026-05-24 addendum).** The "Resolved at cc10524" statement above was premature — the bug surfaced a third time during the (γ-route) smoke. The same conceptual off-by-one against the undocumented `positions.length === moveHistory.length + 1` contract appeared in three independent surfaces, all closed across separate commits:
+
+- **Layer 1 (route-side lookup looking like off-by-one):** resolved at `7341fa1` by aligning the harness's `buildGameEval` to production's convention (prepend the starting-position PositionEval). The route's `positions[lastIdx]` indexing was correct all along; the harness was missing the index-0 entry.
+- **Layer 2 (chat-route silently passing `gameEval: undefined`):** resolved at `32f6477` ((γ-route)) by threading `gameEval` through `AnalysisContext` from the enhanced-analysis store-site to the chat-route consumer. Pre-(γ-route), chat-route pipelines had no eval-claim ground truth regardless of what the harness sent.
+- **Layer 3 (harness truncation slicing the +1 entry off):** resolved at *this commit* by changing `gameEval.positions.slice(0, cp.ply)` to `slice(0, cp.ply + 1)` at the position-anchored two-step site. `moveHistory.slice(0, cp.ply)` stays as-is; positions now has `cp.ply + 1` entries so that `positions[cp.ply]` is the checkpoint's PositionEval. Without this slice fix, (γ-route)'s threading delivered a wrong-shape `gameEval` to the chat-route pipeline, which then routed through the (β) skip path — Layer 2's fix exposed Layer 3.
+
+**Defensive boundary checks (shipped with Layer 3).** Three surfaces in three days against an undocumented contract is the rationale for failing loudly on the fourth: (b1) at the harness/route boundary, `analyzeGame` throws if `positions.length !== moveHistory.length + 1` (dev/test/CI hard-fail before fetch); (b2) at the route's request-body boundary, `prepareMastermindContext` emits a structured `log.warn` to Log Drain when the contract is violated for move-focused categories — production keeps degrading via the (β) skip path, but the warning makes the next variant visible in monitoring.
 
 ---
 

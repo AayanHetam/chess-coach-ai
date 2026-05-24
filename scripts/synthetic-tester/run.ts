@@ -1037,10 +1037,24 @@ async function runCategoryDispatchFlow(opts: CategoryDispatchOpts): Promise<void
         // checkpoint we picked. Truncating means the route's default
         // behavior produces our checkpoint FEN. The cache stays full-length;
         // only the wire payload is sliced.
+        //
+        // Boundary contract: production's getEvaluateGameParams (src/lib/
+        // chess.ts:11-12) pushes the starting fen first, producing
+        // positions.length === moveHistory.length + 1 (positions[0] =
+        // starting state, positions[N] = after the Nth move). The harness
+        // must match. moveHistory slices to cp.ply entries; positions
+        // slices to cp.ply + 1 entries so that positions[cp.ply] is the
+        // checkpoint's PositionEval. See MASTERMIND_CONTEXT/cleanup_
+        // followups.md off-by-one entry — this is Layer 3 of the same
+        // bug class (Layer 1: 7341fa1 prepend; Layer 2: 32f6477 γ-route
+        // threading; Layer 3: this slice). Defensive invariant checks in
+        // analyzeGame and deriveMastermindMoveContext catch the fourth
+        // surface, if any, instead of letting it silently fall into the
+        // (β) skip path.
         const truncatedMoveHistory = gameEntry.chessjsHistory.slice(0, cp.ply);
         const truncatedGameEval = {
           ...gameEntry.gameEval,
-          positions: gameEntry.gameEval.positions.slice(0, cp.ply),
+          positions: gameEntry.gameEval.positions.slice(0, cp.ply + 1),
         };
         const analyzeRes = await analyzeGame({
           baseUrl: args.baseUrl,

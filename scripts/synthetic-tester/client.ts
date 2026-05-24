@@ -91,6 +91,24 @@ export interface AnalyzeArgs {
 export async function analyzeGame(args: AnalyzeArgs): Promise<ChatMastiResponse> {
   const t0 = Date.now();
   try {
+    // Boundary invariant: production's getEvaluateGameParams produces
+    // positions.length === moveHistory.length + 1 (positions[0] = starting
+    // state, positions[N] = after the Nth move). The route's
+    // deriveMastermindMoveContext relies on this; violating it silently
+    // routes through the (β) skip path with no eval validation. This is
+    // the third surface of the same off-by-one in three days — fail loud
+    // in dev/test/CI so the fourth surface (if any) shows up immediately.
+    // See MASTERMIND_CONTEXT/cleanup_followups.md off-by-one entry.
+    if (
+      args.moveHistory.length > 0 &&
+      args.gameEval.positions.length !== args.moveHistory.length + 1
+    ) {
+      throw new Error(
+        `gameEval shape contract violated: positions.length=${args.gameEval.positions.length}, ` +
+          `expected moveHistory.length + 1 = ${args.moveHistory.length + 1}. ` +
+          `See MASTERMIND_CONTEXT/cleanup_followups.md off-by-one entry.`,
+      );
+    }
     const body: Record<string, unknown> = {
       moveHistory: args.moveHistory,
       fen: args.fen,

@@ -210,6 +210,34 @@ export async function prepareMastermindContext(
     };
   });
 
+  // Boundary contract observability: positions.length should be
+  // moveHistory.length + 1 (positions[0] = starting state, positions[N] =
+  // after the Nth move). The route silently degrades to the (β) skip path
+  // on violation, which is the right protective behavior — but the next
+  // such violation should surface in monitoring rather than being
+  // invisible. Only check for move-focused categories where positions is
+  // actually consumed; NON_MOVE_FOCUS categories degrade by design and
+  // would generate noise here. See MASTERMIND_CONTEXT/cleanup_followups.md
+  // off-by-one entry.
+  if (
+    opts.moveHistory &&
+    opts.moveHistory.length > 0 &&
+    opts.gameEval?.positions &&
+    !NON_MOVE_FOCUS_CATEGORIES.has(classifierResult.category) &&
+    opts.gameEval.positions.length !== opts.moveHistory.length + 1
+  ) {
+    log.warn(
+      "gameEval positions/moveHistory shape mismatch — see MASTERMIND_CONTEXT/cleanup_followups.md off-by-one entry",
+      {
+        expected_positions_length: opts.moveHistory.length + 1,
+        actual_positions_length: opts.gameEval.positions.length,
+        move_history_length: opts.moveHistory.length,
+        category: classifierResult.category,
+        correlation_id: opts.correlationId,
+      },
+    );
+  }
+
   const moveCtx = deriveMastermindMoveContext(
     classifierResult.category,
     opts.moveHistory,

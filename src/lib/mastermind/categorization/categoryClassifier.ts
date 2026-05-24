@@ -42,15 +42,27 @@ const ALL_CATEGORIES: ReadonlyArray<QuestionCategory> = [
 const HAIKU_INPUT_PRICE_PER_M = 1.0;
 const HAIKU_OUTPUT_PRICE_PER_M = 5.0;
 const HAIKU_CACHE_READ_PRICE_PER_M = 0.1;
+const HAIKU_CACHE_WRITE_PRICE_PER_M = 1.25; // 1.25× base input for 5-min TTL
 
-function estimateHaikuCost(r: LLMResult): number {
-  const cacheRead = r.cacheReadTokens ?? 0;
-  const inputUncached = (r.inputTokens - cacheRead) / 1_000_000;
-  const cacheReadM = cacheRead / 1_000_000;
+/**
+ * Per Anthropic's Messages API docs, `input_tokens` is the uncached portion
+ * (tokens after the last cache breakpoint), NOT the total. Total billable
+ * input = input_tokens + cache_read_input_tokens + cache_creation_input_tokens.
+ * Each component is priced independently.
+ *
+ * Exported for direct testing — the classifier's ParserCall mock layer
+ * bypasses this function in unit tests, so the cost-correctness regression
+ * test calls it directly.
+ */
+export function estimateHaikuCost(r: LLMResult): number {
+  const inputUncached = r.inputTokens / 1_000_000;
+  const cacheReadM = (r.cacheReadTokens ?? 0) / 1_000_000;
+  const cacheWriteM = (r.cacheCreationTokens ?? 0) / 1_000_000;
   const output = r.outputTokens / 1_000_000;
   return (
     inputUncached * HAIKU_INPUT_PRICE_PER_M +
     cacheReadM * HAIKU_CACHE_READ_PRICE_PER_M +
+    cacheWriteM * HAIKU_CACHE_WRITE_PRICE_PER_M +
     output * HAIKU_OUTPUT_PRICE_PER_M
   );
 }

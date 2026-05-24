@@ -34,20 +34,35 @@ export interface RegenerateResult {
 const SONNET_INPUT_PER_M = 3.0;
 const SONNET_OUTPUT_PER_M = 15.0;
 const SONNET_CACHE_READ_PER_M = 0.3;
+const SONNET_CACHE_WRITE_PER_M = 3.75; // 1.25× base input for 5-min TTL
 const HAIKU_INPUT_PER_M = 1.0;
 const HAIKU_OUTPUT_PER_M = 5.0;
 const HAIKU_CACHE_READ_PER_M = 0.1;
+const HAIKU_CACHE_WRITE_PER_M = 1.25; // 1.25× base input for 5-min TTL
 
+/**
+ * Per Anthropic's Messages API docs, `input_tokens` is the uncached portion
+ * (tokens after the last cache breakpoint), NOT the total. Total billable
+ * input = input_tokens + cache_read_input_tokens + cache_creation_input_tokens.
+ * Each component is priced independently. Exercised indirectly via
+ * `regenerateUntilValid`'s totalCostUsd in unit tests.
+ */
 function defaultEstimateCost(result: LLMResult): number {
   const isFast = result.model.includes("haiku");
   const inP = isFast ? HAIKU_INPUT_PER_M : SONNET_INPUT_PER_M;
   const outP = isFast ? HAIKU_OUTPUT_PER_M : SONNET_OUTPUT_PER_M;
-  const cacheP = isFast ? HAIKU_CACHE_READ_PER_M : SONNET_CACHE_READ_PER_M;
-  const cacheRead = result.cacheReadTokens ?? 0;
-  const inputUncached = (result.inputTokens - cacheRead) / 1_000_000;
-  const cacheReadM = cacheRead / 1_000_000;
+  const cacheReadP = isFast ? HAIKU_CACHE_READ_PER_M : SONNET_CACHE_READ_PER_M;
+  const cacheWriteP = isFast ? HAIKU_CACHE_WRITE_PER_M : SONNET_CACHE_WRITE_PER_M;
+  const inputUncached = result.inputTokens / 1_000_000;
+  const cacheReadM = (result.cacheReadTokens ?? 0) / 1_000_000;
+  const cacheWriteM = (result.cacheCreationTokens ?? 0) / 1_000_000;
   const output = result.outputTokens / 1_000_000;
-  return inputUncached * inP + cacheReadM * cacheP + output * outP;
+  return (
+    inputUncached * inP +
+    cacheReadM * cacheReadP +
+    cacheWriteM * cacheWriteP +
+    output * outP
+  );
 }
 
 /**

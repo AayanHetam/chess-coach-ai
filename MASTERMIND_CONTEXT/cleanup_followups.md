@@ -49,6 +49,21 @@ The Stage C validation sweep (synthetic-tester against preview deploy) ships in 
 
 ---
 
+## 2026-05-24 — Cost-estimator duplication across three call sites
+
+**Status:** flagged 2026-05-24 alongside the cost-calc fix PR (cache-read subtraction + missing cache-write accounting). Deferred.
+
+**Context:** the same per-token cost-estimator pattern is implemented three times across the validator family with hardcoded per-million rate constants duplicated each time:
+- [`src/lib/mastermind/validators/regenerate.ts`](../src/lib/mastermind/validators/regenerate.ts) — `defaultEstimateCost` (Sonnet + Haiku, branched on model name)
+- [`src/lib/mastermind/categorization/categoryClassifier.ts`](../src/lib/mastermind/categorization/categoryClassifier.ts) — `estimateHaikuCost` (Haiku-only)
+- [`src/lib/mastermind/validators/evalClaim.ts`](../src/lib/mastermind/validators/evalClaim.ts) — `estimateHaikuCost` (Haiku-only)
+
+All three replicate the same per-million rate constants and the same `(inputUncached + cacheRead + cacheWrite + output) × prices` arithmetic. The cost-calc fix had to land the same change in three places. Two of the three (evalClaim, categoryClassifier) had to be exported solely so the regression tests could exercise them directly — the existing `ParserCall` mocks bypass them entirely.
+
+**Recommended trigger:** next time anyone touches validator cost calc, consolidate into a shared `estimateLLMCost(result: LLMResult, tier: "flagship" | "fast")` helper (probably in `src/lib/llmProvider.ts` or a new `src/lib/llmCost.ts`). Single source of truth for per-million rates; single function to update when Anthropic prices change. When consolidating, also revert the `estimateHaikuCost` exports in evalClaim.ts and categoryClassifier.ts back to internal — the shared helper would be the public surface, not the per-file copies.
+
+---
+
 ## Pre-paper provenance gaps
 
 Tracked separately from the chronological cleanup stream — these are provenance-of-constants questions surfaced by the architecture audit at [`architecture_audit.md`](architecture_audit.md). Each blocks a defensible methods-section claim in Paper 1; none block any code work in flight.

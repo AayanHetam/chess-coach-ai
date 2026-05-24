@@ -10,6 +10,7 @@
  */
 
 import { createHash } from "crypto";
+import type { MastermindGameEval } from "./mastermind/routeHelpers";
 
 export interface AnalysisContext {
   contextId: string;
@@ -24,6 +25,15 @@ export interface AnalysisContext {
   moveCount: number;
   createdAt: number;
   initialAnalysis: string;    // The first LLM response (deep analysis)
+  // (γ-route, 2026-05-23): persisted from /api/enhanced-analysis so chat-route
+  // follow-ups can validate eval claims against real stockfish ground truth
+  // instead of skipping. Optional to preserve backward-compat with legacy
+  // cache entries created before this field landed (in-memory cache; cold
+  // starts and TTL expiry already invalidate, so the legacy window is small).
+  // Legacy entries get gameEval: undefined → (β) skip path in validateEvalClaim
+  // emits a no_stockfish_eval telemetry event rather than firing false-positive
+  // eval_mismatch_* events.
+  gameEval?: MastermindGameEval;
 }
 
 const MAX_CACHE_SIZE = 50;

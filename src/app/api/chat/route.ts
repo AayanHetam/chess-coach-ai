@@ -121,10 +121,14 @@ export async function POST(request: NextRequest) {
           userMessage,
           moveHistory: context.playedMoves,
           fen: context.fen,
-          // gameEval: not threaded through analysisContext today; chat
-          // path is happy with stockfishEval={} (degraded mode means
-          // the eval-claim validator just doesn't fire on this turn).
-          gameEval: undefined,
+          // (γ-route, 2026-05-23): gameEval is now persisted into
+          // AnalysisContext at /api/enhanced-analysis store-sites and
+          // threaded through here. Legacy cache entries created before
+          // this change have gameEval: undefined; in that case the (β)
+          // skip path in validateEvalClaim emits a no_stockfish_eval
+          // telemetry event rather than firing false-positive
+          // eval_mismatch_* events.
+          gameEval: context.gameEval,
           playerPerspective,
           correlationId: requestId,
           uid: guard.session.uid,

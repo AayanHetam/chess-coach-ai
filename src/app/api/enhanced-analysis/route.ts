@@ -1334,6 +1334,7 @@ export async function POST(request: NextRequest) {
               moveCount: Math.ceil(game.history().length / 2),
               createdAt: Date.now(),
               initialAnalysis: analysisContent,
+              gameEval,
             });
             let puzzleRecommendations: unknown = undefined;
             try {
@@ -1462,6 +1463,7 @@ export async function POST(request: NextRequest) {
             moveCount: Math.ceil(game.history().length / 2),
             createdAt: Date.now(),
             initialAnalysis: analysisContent,
+            gameEval,
           });
 
           let puzzleRecommendations: unknown = undefined;
@@ -1620,6 +1622,7 @@ export async function POST(request: NextRequest) {
             moveCount: Math.ceil(game.history().length / 2),
             createdAt: Date.now(),
             initialAnalysis: analysisContent,
+            gameEval,
           });
 
           let puzzleRecommendations: unknown = undefined;
@@ -1845,6 +1848,7 @@ export async function POST(request: NextRequest) {
       moveCount: Math.ceil(game.history().length / 2),
       createdAt: Date.now(),
       initialAnalysis: analysisContent,
+      gameEval,
     });
 
     // Generate targeted puzzle recommendations for detected mistakes

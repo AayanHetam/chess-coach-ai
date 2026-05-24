@@ -339,3 +339,129 @@ describe("chat route: flag-on edge cases", () => {
     expect(json.gameAnalysis.pipeline.finalOutcome).toBe("fallback_used");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// γ-route: gameEval threading through AnalysisContext
+// ─────────────────────────────────────────────────────────────────────
+
+describe("chat route: gameEval threading (γ-route, 2026-05-23)", () => {
+  // happyContext's playedMoves has 6 entries (e4 e5 Nf3 Nc6 Bb5 a6). Per
+  // production's getEvaluateGameParams (src/lib/chess.ts:11-12), gameEval
+  // .positions.length === moveHistory.length + 1: positions[0] = starting
+  // state, positions[6] = state after the last move (3...a6 — Ruy Lopez
+  // Morphy Defense, eval ~+45 cp for white).
+  function gameEvalForHappyContext() {
+    return {
+      positions: [
+        { lines: [{ pv: [], cp: 0, depth: 14, multiPv: 1 }] },   // start
+        { lines: [{ pv: [], cp: 30, depth: 14, multiPv: 1 }] },  // 1.e4
+        { lines: [{ pv: [], cp: 25, depth: 14, multiPv: 1 }] },  // 1...e5
+        { lines: [{ pv: [], cp: 35, depth: 14, multiPv: 1 }] },  // 2.Nf3
+        { lines: [{ pv: [], cp: 30, depth: 14, multiPv: 1 }] },  // 2...Nc6
+        { lines: [{ pv: [], cp: 40, depth: 14, multiPv: 1 }] },  // 3.Bb5
+        { lines: [{ pv: [], cp: 45, depth: 14, multiPv: 1 }] },  // 3...a6
+      ],
+    };
+  }
+
+  it("gameEval present in context → runValidationPipeline receives real stockfishEval (cp 45 for the post-a6 position)", async () => {
+    enableFlag();
+    // deriveMastermindMoveContext degrades to stockfishEval={} for
+    // NON_MOVE_FOCUS_CATEGORIES (opponent_prep / improvement_strategy /
+    // meta_motivational), so the gameEval lookup only runs for move-
+    // focused categories. game_review exercises the moveHistory-anchored
+    // path that reads gameEval.positions[lastIdx].
+    mockClassifyQuestion.mockResolvedValue({
+      category: "game_review",
+      confidence: 0.85,
+      rationale: "test",
+    });
+    mockGetAnalysisContext.mockReturnValue({
+      ...happyContext(),
+      gameEval: gameEvalForHappyContext(),
+    });
+
+    let capturedStockfishEval: { cp?: number; mate?: number } | null = null;
+    mockRunValidationPipeline.mockImplementation(async (opts: unknown) => {
+      capturedStockfishEval = (opts as { stockfishEval: { cp?: number; mate?: number } }).stockfishEval;
+      return happyPipelineResult();
+    });
+
+    const res = await POST(makeRequest(fastPathBody()));
+    expect(res.status).toBe(200);
+    expect(capturedStockfishEval).not.toBeNull();
+    expect(capturedStockfishEval!.cp).toBe(45);
+    expect(capturedStockfishEval!.mate).toBeUndefined();
+  });
+
+  it("gameEval present + pipeline reports passing eval_claim → telemetry contains eval_claim with passed/numeric/qualitative fire_reason, NOT no_stockfish_eval", async () => {
+    enableFlag();
+    vi.stubEnv("VERCEL_ENV", "preview"); // expose telemetry in response
+    mockClassifyQuestion.mockResolvedValue({
+      category: "game_review",
+      confidence: 0.85,
+      rationale: "test",
+    });
+    mockGetAnalysisContext.mockReturnValue({
+      ...happyContext(),
+      gameEval: gameEvalForHappyContext(),
+    });
+    mockRunValidationPipeline.mockResolvedValue(
+      happyPipelineResult({
+        telemetry: [
+          {
+            check_name: "eval_claim",
+            fire_reason: "passed",
+            llm_span: "slight edge for white",
+            expected: { band: "slightly_better", cp: 45 },
+            actual: { band: "slightly_better", cp: 45 },
+            retry_count: 0,
+            final_outcome: null,
+            context: { fen: "test-fen", correlation_id: "test" },
+            timestamp_ms: Date.now(),
+          },
+        ],
+      }),
+    );
+
+    const res = await POST(makeRequest(fastPathBody()));
+    const json = await res.json();
+    const telemetry = json.gameAnalysis.pipeline.telemetry;
+    expect(telemetry).toBeDefined();
+    expect(telemetry).toHaveLength(1);
+    // Negative: skip path must NOT have fired (regression guard against
+    // a future refactor silently dropping gameEval threading).
+    expect(telemetry.some((e: { fire_reason: string }) => e.fire_reason === "no_stockfish_eval")).toBe(false);
+    // Positive: eval_claim fired with a real-comparison fire_reason.
+    const evalClaimEvents = telemetry.filter((e: { check_name: string }) => e.check_name === "eval_claim");
+    expect(evalClaimEvents.length).toBeGreaterThan(0);
+    expect(["passed", "numeric_diff_exceeds_threshold", "qualitative_band_flip"]).toContain(
+      evalClaimEvents[0].fire_reason,
+    );
+  });
+
+  it("legacy cache entry (gameEval omitted) → stockfishEval undefined → (β) skip path remains the safety net", async () => {
+    enableFlag();
+    // Force game_review category so we exercise the moveHistory-anchored
+    // branch (where gameEval would normally be read). With gameEval
+    // missing, stockfishEval comes through undefined and (β)'s skip path
+    // catches it downstream.
+    mockClassifyQuestion.mockResolvedValue({
+      category: "game_review",
+      confidence: 0.85,
+      rationale: "test",
+    });
+    // happyContext() returns the legacy shape (no gameEval field) — same
+    // shape as cache entries created before this commit ships.
+    let capturedStockfishEval: { cp?: number; mate?: number } | null = null;
+    mockRunValidationPipeline.mockImplementation(async (opts: unknown) => {
+      capturedStockfishEval = (opts as { stockfishEval: { cp?: number; mate?: number } }).stockfishEval;
+      return happyPipelineResult();
+    });
+
+    await POST(makeRequest(fastPathBody()));
+    expect(capturedStockfishEval).not.toBeNull();
+    expect(capturedStockfishEval!.cp).toBeUndefined();
+    expect(capturedStockfishEval!.mate).toBeUndefined();
+  });
+});

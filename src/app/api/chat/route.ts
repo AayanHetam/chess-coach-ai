@@ -12,7 +12,10 @@ import { logger, extractRequestId } from "@/lib/logging";
 // All flag-gated by getMastermindEnv().validatorsEnabled. Flag-off path
 // remains byte-identical to today.
 import { getMastermindEnv } from "@/env";
-import { runValidationPipeline } from "@/lib/mastermind/validators";
+import {
+  runValidationPipeline,
+  POSITION_ANCHORED_VALIDATOR_CATEGORIES,
+} from "@/lib/mastermind/validators";
 import {
   withPipelineTimeout,
   readPipelineTimeoutMs,
@@ -209,9 +212,21 @@ export async function POST(request: NextRequest) {
             responseId: requestId,
           });
 
+          // 2026-05-26 fix-game-review-false-positives: chess.js
+          // disclaimer skipped for non-position-anchored categories
+          // (mirrors enhanced-analysis flag-on behavior). The validator
+          // still runs above for observability (logged via validation
+          // object); we just don't annotate user-visible prose with the
+          // generic "may be inaccurate" footnote when false positives
+          // are systematic.
+          const usePositionAnchoredAnnotation =
+            POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
           return NextResponse.json({
             gameAnalysis: {
-              analysis: validation.isValid ? rawContent : validation.correctedResponse,
+              analysis:
+                usePositionAnchoredAnnotation && !validation.isValid
+                  ? validation.correctedResponse
+                  : rawContent,
               position: context.fen,
               validationScore: validation.score,
               cached: false,

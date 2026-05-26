@@ -9,6 +9,8 @@ import {
   IconButton,
   Snackbar,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
@@ -33,17 +35,30 @@ export interface AnalysisSnippetDialogProps {
   data: AnalysisSnippetData;
 }
 
+type ShareKind = 'single' | 'transcript';
+
 export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisSnippetDialogProps) {
   const [pieceAssets, setPieceAssets] = useState<PieceAssetMap | null>(null);
   const [copying, setCopying] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
-  // Insight ID minted by POST /api/insights when the dialog opens. While null,
-  // share URLs fall back to ?fen= (still works, just doesn't carry the saved
-  // coach message). Network failures here are non-fatal — the share still
-  // works in degraded form.
+  // Share mode — picked by the user via the segmented control at the top of
+  // the dialog. 'single' shares just the message they clicked; 'transcript'
+  // shares the full chat history up to and including this message.
+  // Default 'single' for the lighter, more focused share.
+  const [shareKind, setShareKind] = useState<ShareKind>('single');
+
+  // Insight ID minted by POST /api/insights when the dialog opens (or when
+  // shareKind changes — a new ID is minted for the new mode so the recipient
+  // gets the right payload). While null, share URLs fall back to ?fen=.
   const [insightId, setInsightId] = useState<string | null>(null);
+
+  // Whether a transcript share is possible at all. If there's no real
+  // conversation history (e.g. just the greeting and this message), the
+  // "Whole conversation" mode would be empty — disable the toggle in that
+  // case.
+  const transcriptHasContent = (data.transcript?.length ?? 0) > 1;
 
   // Load real piece SVGs on first open. Module-level cache in chessPieceAssets
   // means subsequent opens resolve synchronously from cache.
@@ -65,21 +80,30 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
   }, [open]);
 
   // POST the insight to /api/insights on open. The returned ID upgrades the
-  // share URLs from ?fen= (lossy) to ?insightId= (carries the coach message).
-  // We don't block the dialog on this — the SVG preview renders immediately,
-  // and the share URLs become richer when the POST resolves a moment later.
+  // share URLs from ?fen= (lossy) to ?insightId=. Re-runs when shareKind
+  // changes — a new ID is minted for the new payload (transcript vs single)
+  // so the recipient gets exactly what the sharer selected.
   useEffect(() => {
     if (!open) return;
+    if (!pieceAssets) return; // wait until ready so we don't POST then re-POST
+    // Clear stale ID from previous mode so share URLs fall back to ?fen=
+    // while the new POST is in flight.
+    setInsightId(null);
     let cancelled = false;
     (async () => {
       try {
+        const body: Record<string, unknown> = {
+          fen: data.fen,
+          coachContent: data.explanation,
+          kind: shareKind,
+        };
+        if (shareKind === 'transcript' && data.transcript && data.transcript.length > 0) {
+          body.transcript = data.transcript;
+        }
         const res = await fetch('/api/insights', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fen: data.fen,
-            coachContent: data.explanation,
-          }),
+          body: JSON.stringify(body),
           credentials: 'same-origin',
         });
         if (!res.ok) return; // graceful degradation — keep ?fen= fallback
@@ -94,7 +118,8 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
     return () => {
       cancelled = true;
     };
-  }, [open, data.fen, data.explanation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pieceAssets, shareKind, data.fen, data.explanation]);
 
   useEffect(() => {
     if (!open) {
@@ -102,6 +127,7 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
       setCopying(false);
       setDownloading(false);
       setInsightId(null);
+      setShareKind('single');
     }
   }, [open]);
 
@@ -218,6 +244,51 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
             <Icon icon="mdi:close" width={18} />
           </IconButton>
         </Stack>
+
+        {/* Share-mode segmented control. Two pills: just this insight vs.
+            whole conversation. Disabled when there's no real conversation
+            history (only the greeting + this message). */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <ToggleButtonGroup
+            value={shareKind}
+            exclusive
+            size="small"
+            onChange={(_, v) => v && setShareKind(v)}
+            aria-label="Share mode"
+            sx={{
+              bgcolor: 'rgba(0,0,0,0.04)',
+              borderRadius: 999,
+              p: 0.5,
+              '& .MuiToggleButton-root': {
+                border: 'none',
+                borderRadius: '999px !important',
+                textTransform: 'none',
+                fontWeight: 700,
+                fontSize: '0.78rem',
+                px: 2,
+                py: 0.5,
+                color: 'text.secondary',
+                gap: 0.75,
+                '&.Mui-selected': {
+                  bgcolor: '#fff',
+                  color: '#FF6B35',
+                  boxShadow: '0 2px 8px rgba(15,23,42,0.10)',
+                  '&:hover': { bgcolor: '#fff' },
+                },
+                '&.Mui-disabled': { opacity: 0.4 },
+              },
+            }}
+          >
+            <ToggleButton value="single">
+              <Icon icon="mdi:bookmark-outline" width={14} />
+              Just this insight
+            </ToggleButton>
+            <ToggleButton value="transcript" disabled={!transcriptHasContent}>
+              <Icon icon="mdi:forum-outline" width={14} />
+              Whole conversation
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
 
         {/* Card preview (landscape — keep the 1200/675 = 16/9 aspect).
             Until piece assets resolve, show a centered spinner at the same

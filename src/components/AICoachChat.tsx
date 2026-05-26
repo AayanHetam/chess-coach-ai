@@ -1791,8 +1791,21 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   const preloadedInsight = useAtomValue(preloadedInsightAtom);
   const [messages, setMessages] = useState<Message[]>(() => {
     if (preloadedInsight) {
+      const greeting: Message = { role: "assistant", content: personality.greeting };
+      // 'transcript' mode: hydrate the full chat history after the greeting.
+      // 'single' mode: just append the one saved coach message.
+      if (preloadedInsight.kind === "transcript" && preloadedInsight.transcript) {
+        return [
+          greeting,
+          ...preloadedInsight.transcript.map(m => ({
+            role: m.role,
+            content: m.content,
+            ...(m.fen ? { fen: m.fen } : {}),
+          })),
+        ];
+      }
       return [
-        { role: "assistant", content: personality.greeting },
+        greeting,
         {
           role: "assistant",
           content: preloadedInsight.coachContent,
@@ -2956,12 +2969,29 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                       <IconButton
                         size="small"
                         aria-label="Share insight"
-                        onClick={() =>
+                        onClick={() => {
+                          // Capture the conversation up to and including this
+                          // message for the "Whole conversation" share mode.
+                          // System messages are already excluded from
+                          // visibleMessages; we further restrict to user/
+                          // assistant roles to match the ShareableMessage type.
+                          const transcript = visibleMessages
+                            .slice(0, index + 1)
+                            .filter(
+                              (m): m is typeof m & { role: "user" | "assistant" } =>
+                                m.role === "user" || m.role === "assistant"
+                            )
+                            .map(m => ({
+                              role: m.role,
+                              content: m.content,
+                              ...(m.fen ? { fen: m.fen } : {}),
+                            }));
                           setSnippetDialog({
                             fen: message.fen as string,
                             explanation: message.content,
-                          })
-                        }
+                            transcript,
+                          });
+                        }}
                         sx={{ padding: "2px", color: "inherit" }}
                       >
                         <ShareIcon sx={{ fontSize: 14 }} />

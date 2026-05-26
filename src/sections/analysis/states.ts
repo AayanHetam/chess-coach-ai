@@ -59,11 +59,16 @@ export const userPlayerInfoAtom = atom<{
 });
 
 // Set by /analysis when it loads an insight permalink (?insightId=). The AI
-// Coach reads this on mount and seeds its first assistant message with the
-// saved coach response, so the recipient sees the exact original
-// explanation without paying for a fresh LLM call.
+// Coach reads this on mount and seeds its messages with the saved content,
+// so the recipient sees the exact original conversation without paying for
+// a fresh LLM call.
+//
+// kind='single' → seed one assistant message with coachContent
+// kind='transcript' → seed the full user+assistant array in order
 export const preloadedInsightAtom = atom<{
   fen: string;
   coachContent: string;
   createdAt: number;
+  kind: "single" | "transcript";
+  transcript: Array<{ role: "user" | "assistant"; content: string; fen?: string }> | null;
 } | null>(null);

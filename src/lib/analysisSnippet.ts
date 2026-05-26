@@ -14,6 +14,11 @@ export interface AnalysisSnippetData {
   fen: string;          // FEN of the position the message is about
   explanation: string;  // Claude's coaching text (will be truncated for the card)
   moveLabel?: string;   // optional caption, e.g. "After 12.Nf3"
+  // The full chat transcript up to and including this message — used when
+  // the user picks "Whole conversation" share mode in the dialog. The card
+  // preview always uses `explanation` (the latest message); transcript only
+  // matters at POST time when minting the insight record.
+  transcript?: Array<{ role: 'user' | 'assistant'; content: string; fen?: string }>;
 }
 
 // Exported so the rasterizer below (and any external caller) uses the

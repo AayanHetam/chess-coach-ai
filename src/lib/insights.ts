@@ -10,9 +10,30 @@
 
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminFirestore } from "@/lib/server/firebaseAdmin";
-import type { InsightCreateRequest, InsightRecord } from "@/types/insights";
+import type {
+  InsightCreateRequest,
+  InsightRecord,
+  ShareableMessage,
+} from "@/types/insights";
 
 const COLLECTION = "insights";
+
+function sanitizeTranscript(raw: unknown): ShareableMessage[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: ShareableMessage[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const m = item as Record<string, unknown>;
+    if (m.role !== "user" && m.role !== "assistant") continue;
+    if (typeof m.content !== "string") continue;
+    out.push({
+      role: m.role,
+      content: m.content,
+      fen: typeof m.fen === "string" ? m.fen : undefined,
+    });
+  }
+  return out.length > 0 ? out : null;
+}
 
 export async function createInsight(
   data: InsightCreateRequest,
@@ -20,11 +41,14 @@ export async function createInsight(
 ): Promise<string> {
   const db = await getAdminFirestore();
   const ref = db.collection(COLLECTION).doc();
+  const kind = data.kind === "transcript" ? "transcript" : "single";
   await ref.set({
     fen: data.fen,
     pgn: data.pgn ?? null,
     coachContent: data.coachContent,
     coachContextId: data.coachContextId ?? null,
+    kind,
+    transcript: kind === "transcript" ? data.transcript ?? null : null,
     sharerUid,
     createdAt: FieldValue.serverTimestamp(),
     viewCount: 0,
@@ -47,12 +71,15 @@ export async function getInsight(id: string): Promise<InsightRecord | null> {
     raw.createdAt && typeof raw.createdAt.toMillis === "function"
       ? raw.createdAt.toMillis()
       : Date.now();
+  const kind = raw.kind === "transcript" ? "transcript" : "single";
   return {
     id,
     fen: String(raw.fen ?? ""),
     pgn: raw.pgn ?? null,
     coachContent: String(raw.coachContent ?? ""),
     coachContextId: raw.coachContextId ?? null,
+    kind,
+    transcript: kind === "transcript" ? sanitizeTranscript(raw.transcript) : null,
     sharerUid: raw.sharerUid ?? null,
     createdAt: createdAtMs,
     viewCount: typeof raw.viewCount === "number" ? raw.viewCount : 0,

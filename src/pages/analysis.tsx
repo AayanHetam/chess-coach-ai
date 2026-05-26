@@ -122,10 +122,16 @@ export default function GameAnalysis() {
           setBoardOrientation(!insight.fen.includes(' b '));
         }
         if (typeof insight.coachContent === 'string' && insight.coachContent.trim()) {
+          const kind = insight.kind === 'transcript' ? 'transcript' : 'single';
           setPreloadedInsight({
             fen: insight.fen,
             coachContent: insight.coachContent,
             createdAt: insight.createdAt ?? Date.now(),
+            kind,
+            transcript:
+              kind === 'transcript' && Array.isArray(insight.transcript)
+                ? insight.transcript
+                : null,
           });
         }
       } catch (err) {

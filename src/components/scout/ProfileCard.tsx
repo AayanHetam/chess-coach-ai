@@ -1,4 +1,4 @@
-import { Box, Chip, Grid, IconButton, Paper, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Chip, Grid, Paper, Stack, Tooltip, Typography } from '@mui/material';
 import { Icon } from '@iconify/react';
 import { ProfileSnapshot, Platform } from '@/types/scout';
 
@@ -111,23 +111,6 @@ export default function ProfileCard({ username, platform, profile, onShare }: Pr
 
         <Stack direction="column" alignItems="center" spacing={0.5}>
           <OvrRing value={profile.ovr} />
-          {onShare && (
-            <Tooltip title="Share player card (PNG)" arrow>
-              <IconButton
-                size="small"
-                onClick={onShare}
-                sx={{
-                  color: 'text.secondary',
-                  bgcolor: 'rgba(255,107,53,0.08)',
-                  width: 26,
-                  height: 26,
-                  '&:hover': { bgcolor: 'rgba(255,107,53,0.18)', color: '#FF6B35' },
-                }}
-              >
-                <Icon icon="mdi:share-variant" width={14} />
-              </IconButton>
-            </Tooltip>
-          )}
         </Stack>
       </Stack>
 
@@ -287,6 +270,34 @@ export default function ProfileCard({ username, platform, profile, onShare }: Pr
           )}
         </Stack>
       </Box>
+
+      {/* Prominent share CTA — drives the viral loop */}
+      {onShare && (
+        <Button
+          fullWidth
+          onClick={onShare}
+          startIcon={<Icon icon="mdi:share-variant" width={18} />}
+          sx={{
+            mt: 2,
+            py: 1.25,
+            textTransform: 'none',
+            fontWeight: 800,
+            fontSize: '0.95rem',
+            color: '#fff',
+            background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+            boxShadow: '0 6px 18px rgba(255,107,53,0.32)',
+            borderRadius: 2,
+            transition: 'transform 0.12s ease, box-shadow 0.12s ease',
+            '&:hover': {
+              background: 'linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)',
+              boxShadow: '0 8px 22px rgba(255,107,53,0.44)',
+              transform: 'translateY(-1px)',
+            },
+          }}
+        >
+          Share &amp; flex this scout
+        </Button>
+      )}
     </Paper>
   );
 }

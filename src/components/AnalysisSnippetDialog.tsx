@@ -12,30 +12,28 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import {
-  buildLinkedInShareUrl,
-  buildRedditShareUrl,
-  buildShareCardSvg,
-  buildShareUrl,
-  buildTwitterShareUrl,
-  copyPngToClipboard,
-  renderSvgToPng,
-  ShareCardData,
-  triggerDownload,
-} from '@/lib/shareCard';
+  AnalysisSnippetData,
+  buildAnalysisSnippetSvg,
+  buildSnippetLinkedInShareUrl,
+  buildSnippetRedditShareUrl,
+  buildSnippetTwitterShareUrl,
+  buildSnippetUrl,
+} from '@/lib/analysisSnippet';
+// Reuse PNG/canvas helpers — they're generic, not Stalker-card-specific.
+import { copyPngToClipboard, renderSvgToPng, triggerDownload } from '@/lib/shareCard';
 
-export interface ShareCardDialogProps {
+export interface AnalysisSnippetDialogProps {
   open: boolean;
   onClose: () => void;
-  data: ShareCardData;
+  data: AnalysisSnippetData;
 }
 
-export default function ShareCardDialog({ open, onClose, data }: ShareCardDialogProps) {
-  const svg = useMemo(() => buildShareCardSvg(data), [data]);
+export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisSnippetDialogProps) {
+  const svg = useMemo(() => buildAnalysisSnippetSvg(data), [data]);
   const [copying, setCopying] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
-  // Reset transient state on open change.
   useEffect(() => {
     if (!open) {
       setToast(null);
@@ -46,11 +44,18 @@ export default function ShareCardDialog({ open, onClose, data }: ShareCardDialog
 
   if (!open) return null;
 
+  const twitterUrl = buildSnippetTwitterShareUrl(data);
+  const linkedInUrl = buildSnippetLinkedInShareUrl(data);
+  const redditUrl = buildSnippetRedditShareUrl(data);
+  const deepLink = buildSnippetUrl(data.fen);
+
   const handleDownload = async () => {
     try {
       setDownloading(true);
       const blob = await renderSvgToPng(svg);
-      triggerDownload(blob, `chessstalker-${data.username}.png`);
+      // Filename: short FEN slug so users can tell their downloads apart.
+      const slug = data.fen.split(' ')[0]?.replace(/[^a-zA-Z0-9]/g, '').slice(0, 24) || 'position';
+      triggerDownload(blob, `chessmasti-analysis-${slug}.png`);
       setToast({ kind: 'ok', msg: 'PNG downloaded.' });
     } catch (e) {
       setToast({ kind: 'err', msg: `Download failed: ${(e as Error).message}` });
@@ -59,14 +64,14 @@ export default function ShareCardDialog({ open, onClose, data }: ShareCardDialog
     }
   };
 
-  const handleCopy = async () => {
+  const handleCopyImage = async () => {
     try {
       setCopying(true);
       const blob = await renderSvgToPng(svg);
       const ok = await copyPngToClipboard(blob);
       setToast(
         ok
-          ? { kind: 'ok', msg: 'Card copied to clipboard!' }
+          ? { kind: 'ok', msg: 'Image copied to clipboard!' }
           : { kind: 'err', msg: 'Clipboard image copy not supported in this browser.' }
       );
     } catch (e) {
@@ -75,11 +80,6 @@ export default function ShareCardDialog({ open, onClose, data }: ShareCardDialog
       setCopying(false);
     }
   };
-
-  const twitterUrl = buildTwitterShareUrl(data);
-  const linkedInUrl = buildLinkedInShareUrl(data);
-  const redditUrl = buildRedditShareUrl(data);
-  const deepLink = buildShareUrl(data.username, data.platform);
 
   const handleCopyLink = async () => {
     try {
@@ -100,7 +100,7 @@ export default function ShareCardDialog({ open, onClose, data }: ShareCardDialog
       onClick={onClose}
       sx={{
         zIndex: theme => theme.zIndex.modal + 8,
-        background: 'rgba(5, 10, 20, 0.75)',
+        background: 'rgba(5, 10, 20, 0.78)',
         backdropFilter: 'blur(6px)',
       }}
     >
@@ -108,7 +108,8 @@ export default function ShareCardDialog({ open, onClose, data }: ShareCardDialog
         onClick={e => e.stopPropagation()}
         elevation={24}
         sx={{
-          width: 'min(92vw, 560px)',
+          // Landscape preview needs more width — cap at 760 so it doesn't dominate small screens.
+          width: 'min(94vw, 760px)',
           maxHeight: '92vh',
           overflow: 'auto',
           p: 3,
@@ -117,24 +118,25 @@ export default function ShareCardDialog({ open, onClose, data }: ShareCardDialog
           position: 'relative',
         }}
       >
+        {/* Header */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
           <Box>
             <Stack direction="row" spacing={1} alignItems="center">
               <Icon icon="mdi:share-variant" width={20} style={{ color: '#FF6B35' }} />
               <Typography sx={{ fontWeight: 800, fontSize: '1.05rem' }}>
-                Share {data.username}&apos;s card
+                Share this analysis
               </Typography>
             </Stack>
             <Typography variant="caption" color="text.secondary">
-              Football-sticker export · PNG, Twitter, Reddit
+              Board + coach explanation · PNG, social, copy link
             </Typography>
           </Box>
-          <IconButton size="small" onClick={onClose}>
+          <IconButton size="small" onClick={onClose} aria-label="Close share dialog">
             <Icon icon="mdi:close" width={18} />
           </IconButton>
         </Stack>
 
-        {/* Preview */}
+        {/* Card preview (landscape — keep the 1200/675 = 16/9 aspect) */}
         <Box
           sx={{
             display: 'flex',
@@ -148,8 +150,8 @@ export default function ShareCardDialog({ open, onClose, data }: ShareCardDialog
           <Box
             sx={{
               width: '100%',
-              maxWidth: 320,
-              aspectRatio: '720 / 1024',
+              maxWidth: 680,
+              aspectRatio: '1200 / 675',
               boxShadow: '0 12px 36px rgba(15,23,42,0.25)',
               borderRadius: 2,
               overflow: 'hidden',
@@ -159,7 +161,7 @@ export default function ShareCardDialog({ open, onClose, data }: ShareCardDialog
           />
         </Box>
 
-        {/* Action buttons */}
+        {/* Primary action row — Download / Copy image */}
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
           <Button
             fullWidth
@@ -182,7 +184,7 @@ export default function ShareCardDialog({ open, onClose, data }: ShareCardDialog
             fullWidth
             variant="outlined"
             startIcon={<Icon icon="mdi:content-copy" />}
-            onClick={handleCopy}
+            onClick={handleCopyImage}
             disabled={copying}
             sx={{ textTransform: 'none', fontWeight: 700 }}
           >
@@ -190,7 +192,7 @@ export default function ShareCardDialog({ open, onClose, data }: ShareCardDialog
           </Button>
         </Stack>
 
-        {/* Share-to-network row: three prominent brand-colored buttons */}
+        {/* Social row */}
         <Typography
           variant="caption"
           sx={{

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
 import {
   Alert,
   Box,
@@ -50,6 +51,7 @@ import TwinBotGame from '@/components/scout/TwinBotGame';
 import NoveltyPanel from '@/components/scout/NoveltyPanel';
 import CollisionPanel from '@/components/scout/CollisionPanel';
 import ShareCardDialog from '@/components/scout/ShareCardDialog';
+import { parsePlatformCode } from '@/lib/shareCard';
 import { buildOpeningTree } from '@/lib/scoutService';
 import { computeCollisions } from '@/lib/collisionAnalysis';
 import type { Collisions } from '@/types/scout';
@@ -584,6 +586,36 @@ export default function ScoutPage() {
       searchInFlightRef.current = false;
     }
   }, [username, platform, months, colorFilter, minGames, runBuild]);
+
+  // ── Auto-scout from share-link query params (?u=...&p=chesscom|lichess) ──
+  // Two-step: (1) seed state from the URL, (2) once `username`/`platform`
+  // state reflects the URL, call handleSearch. Splitting prevents the closure
+  // bug where calling handleSearch right after setState reads stale values.
+  const router = useRouter();
+  const autoScoutPendingRef = useRef(false);
+  const autoScoutDoneRef = useRef(false);
+  useEffect(() => {
+    if (!router.isReady || autoScoutPendingRef.current || autoScoutDoneRef.current) return;
+    const qu = router.query.u;
+    const qp = router.query.p;
+    const sharedUsername = Array.isArray(qu) ? qu[0] : qu;
+    const sharedPlatformCode = Array.isArray(qp) ? qp[0] : qp;
+    if (!sharedUsername) return;
+    const parsedPlatform = parsePlatformCode(sharedPlatformCode);
+    if (!parsedPlatform) return;
+    autoScoutPendingRef.current = true;
+    setUsername(sharedUsername);
+    setPlatform(parsedPlatform);
+  }, [router.isReady, router.query.u, router.query.p]);
+  useEffect(() => {
+    if (!autoScoutPendingRef.current || autoScoutDoneRef.current) return;
+    const qu = router.query.u;
+    const expected = Array.isArray(qu) ? qu[0] : qu;
+    if (!expected || username !== expected) return;
+    autoScoutDoneRef.current = true;
+    autoScoutPendingRef.current = false;
+    handleSearch();
+  }, [username, platform, handleSearch, router.query.u]);
 
   // Collisions: fetch YOUR games (debounced) & compute vs target.
   useEffect(() => {

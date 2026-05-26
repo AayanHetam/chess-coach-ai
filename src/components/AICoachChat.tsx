@@ -18,6 +18,8 @@ import ThumbUpOutlinedIcon from "@mui/icons-material/ThumbUpOutlined";
 import ThumbDownOutlinedIcon from "@mui/icons-material/ThumbDownOutlined";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import ThumbDownIcon from "@mui/icons-material/ThumbDown";
+import ShareIcon from "@mui/icons-material/IosShare";
+import Tooltip from "@mui/material/Tooltip";
 import { styled } from "@mui/material/styles";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -62,10 +64,18 @@ import {
   type ChatGameRef,
 } from "@/lib/firestoreChats";
 import { FlagButton } from "@/components/intern/FlagButton";
+import AnalysisSnippetDialog from "@/components/AnalysisSnippetDialog";
+import type { AnalysisSnippetData } from "@/lib/analysisSnippet";
 
 interface Message {
   role: "user" | "assistant" | "system";
   content: string;
+  // FEN of the board position this message refers to. Captured at message-
+  // creation time for assistant messages so the "Share Insight" card shows the
+  // exact position Claude was discussing — not whatever the user has navigated
+  // to since. Optional because legacy messages (hydrated from Firestore) and
+  // user-authored messages don't carry one.
+  fen?: string;
 }
 
 interface AICoachChatProps {
@@ -1697,6 +1707,18 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   // Board navigation (for insight card move-click)
   const { goToMove } = useChessActions(boardAtom);
 
+  // Live board subscription — used to stamp each new assistant message with
+  // the FEN at the moment it was created (for "Share Insight" cards).
+  const board = useAtomValue(boardAtom);
+  const boardFenRef = useRef<string>(board.fen());
+  useEffect(() => {
+    boardFenRef.current = board.fen();
+  }, [board]);
+
+  // Share-insight dialog state. Holds the snippet payload (fen + explanation)
+  // while open; null means dialog is closed.
+  const [snippetDialog, setSnippetDialog] = useState<AnalysisSnippetData | null>(null);
+
   // Practice state setters
   const setPracticePuzzles = useSetAtom(practicePuzzlesAtom);
   const setCurrentPuzzleIndex = useSetAtom(currentPuzzleIndexAtom);
@@ -2388,7 +2410,11 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
           if (isStream && response.body) {
             // Push an empty assistant message we'll fill in as text arrives.
-            setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+            // Stamp it with the board FEN *now* — the position Claude is
+            // actually reasoning about — so a later "Share Insight" doesn't
+            // grab whatever the user navigates to.
+            const insightFen = boardFenRef.current;
+            setMessages((prev) => [...prev, { role: "assistant", content: "", fen: insightFen }]);
             setIsStreaming(true);
 
             const reader = response.body.getReader();
@@ -2424,7 +2450,8 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                         const next = [...prev];
                         const last = next[next.length - 1];
                         if (last && last.role === "assistant") {
-                          next[next.length - 1] = { role: "assistant", content: streamedText };
+                          // Spread `last` so we preserve the `fen` stamped at creation.
+                          next[next.length - 1] = { ...last, content: streamedText };
                         }
                         return next;
                       });
@@ -2455,7 +2482,8 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                 const next = [...prev];
                 const last = next[next.length - 1];
                 if (last && last.role === "assistant") {
-                  next[next.length - 1] = { role: "assistant", content: streamedText };
+                  // Spread `last` so we preserve the `fen` stamped at creation.
+                  next[next.length - 1] = { ...last, content: streamedText };
                 }
                 return next;
               });
@@ -2506,7 +2534,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
           setMessages((prev) => [
             ...prev,
-            { role: "assistant", content: assistantContent },
+            { role: "assistant", content: assistantContent, fen: boardFenRef.current },
           ]);
           void persistTurn("assistant", assistantContent);
         }
@@ -2872,6 +2900,26 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                     chatHistory={visibleMessages}
                     contextId={analysisContextIdRef.current ?? null}
                   />
+                  {/* Share Insight — only for messages with a captured FEN and
+                      enough content to be worth sharing. Short canned replies
+                      (off-topic, decline, errors) don't qualify. */}
+                  {message.fen && message.content.trim().length > 100 && (
+                    <Tooltip title="Share Insight" arrow placement="top">
+                      <IconButton
+                        size="small"
+                        aria-label="Share insight"
+                        onClick={() =>
+                          setSnippetDialog({
+                            fen: message.fen as string,
+                            explanation: message.content,
+                          })
+                        }
+                        sx={{ padding: "2px", color: "inherit" }}
+                      >
+                        <ShareIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </Box>
               )}
             </MessageBubble>
@@ -2943,6 +2991,15 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
           {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
         </IconButton>
       </Box>
+
+      {/* Share Insight dialog — board snapshot + Claude's explanation as PNG */}
+      {snippetDialog && (
+        <AnalysisSnippetDialog
+          open
+          onClose={() => setSnippetDialog(null)}
+          data={snippetDialog}
+        />
+      )}
     </ChatContainer>
   );
 };

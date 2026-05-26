@@ -266,7 +266,7 @@ export function buildAnalysisSnippetSvg(
     <text x="${rightX + 28}" y="${CARD_H - 64}"
           font-family="system-ui,-apple-system,sans-serif"
           font-size="14" font-weight="600" fill="#94a3b8">
-      chessmasti.com &middot; free AI chess coach
+      chessmasti.com · free AI chess coach
     </text>
   </g>
 </svg>`;

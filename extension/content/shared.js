@@ -124,37 +124,62 @@
     return true;
   }
 
-  // SPA navigation watcher. Caller passes a try-injection callback that
-  // returns true on success. After timeoutMs of failures, the floating-button
-  // fallback fires (if a getPgn is provided as the second arg) so the user
-  // always has SOMETHING to click — even when sidebar selectors break.
-  function watchForPanel(tryInject, fallbackGetPgn) {
-    if (tryInject()) return;
-    console.log(
-      "[Chess Masti] first inject attempt missed; starting MutationObserver + fallback timer"
-    );
-    let observed = false;
+  // SPA navigation watcher. Two reliability problems we're solving here:
+  //
+  // 1. Lichess (and chess.com) are SPAs that re-render their sidebar after
+  //    initial page load — when analysis data arrives, when the user
+  //    navigates, etc. A button injected once gets wiped. Solution: keep
+  //    the MutationObserver alive permanently and re-inject whenever the
+  //    button goes missing.
+  //
+  // 2. Sidebar selectors are fragile — they match what looks like a panel
+  //    but might be a hidden tool bar, or get removed on re-render. For
+  //    now we DEFAULT to the floating button (always works, always
+  //    visible) and skip sidebar integration. Once the end-to-end click
+  //    flow is verified working, we'll polish back to sidebar integration
+  //    with better selectors.
+  //
+  // tryInject is kept as an argument for forward compat but is currently
+  // not called — fallbackGetPgn drives the floating button.
+  function watchForPanel(_tryInject, fallbackGetPgn) {
+    if (!fallbackGetPgn) {
+      console.error("[Chess Masti] watchForPanel: no fallback getPgn — bailing");
+      return;
+    }
+    function ensure() {
+      if (document.getElementById(BUTTON_ID)) return;
+      injectFloatingButton(fallbackGetPgn);
+    }
+    // Initial inject as soon as document.body is available.
+    if (document.body) {
+      ensure();
+    } else {
+      window.addEventListener("DOMContentLoaded", ensure, { once: true });
+    }
+    // Permanent observer — re-injects if the host site's SPA wipes the
+    // button on re-render. Throttled via a short cooldown so we don't
+    // hammer on every minor mutation.
+    let cooldown = false;
     const observer = new MutationObserver(() => {
-      if (tryInject()) {
-        observed = true;
-        observer.disconnect();
-      }
+      if (cooldown) return;
+      if (document.getElementById(BUTTON_ID)) return;
+      cooldown = true;
+      setTimeout(() => {
+        cooldown = false;
+      }, 250);
+      ensure();
     });
-    observer.observe(document.body, { childList: true, subtree: true });
-    // After FALLBACK_INJECTION_DELAY_MS, if still not injected, use the
-    // floating button. The MutationObserver keeps running for the full
-    // 30s in case the host site catches up — but we don't make the user wait.
-    setTimeout(() => {
-      if (!observed && !document.getElementById(BUTTON_ID) && fallbackGetPgn) {
-        console.warn(
-          "[Chess Masti] no sidebar selector matched after",
-          FALLBACK_INJECTION_DELAY_MS,
-          "ms — using floating fallback"
-        );
-        injectFloatingButton(fallbackGetPgn);
-      }
-    }, FALLBACK_INJECTION_DELAY_MS);
-    setTimeout(() => observer.disconnect(), 30000);
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+      window.addEventListener("DOMContentLoaded", () => {
+        observer.observe(document.body, { childList: true, subtree: true });
+      }, { once: true });
+    }
+    // Disconnect after 5 minutes — sanity cap so a long-lived tab doesn't
+    // hold the observer forever. The button will already be re-injecting
+    // itself successfully by then or the page is idle.
+    setTimeout(() => observer.disconnect(), 5 * 60 * 1000);
   }
 
   window.__chessMasti = {

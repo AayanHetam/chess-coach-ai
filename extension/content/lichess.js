@@ -37,57 +37,42 @@
     return text;
   }
 
-  // Sidebar selectors — multiple candidates in case Lichess restyles. First
-  // match wins. The MutationObserver in shared.js re-tries on DOM changes,
-  // and after 6s of no match the floating-button fallback fires.
-  const SIDEBAR_SELECTORS = [
-    // Analysis page (game review with engine eval) — most likely for the
-    // canonical /<gameId> URL after the game finishes
-    ".analyse__tools",
-    ".analyse__side",
-    ".analyse__panels",
-    ".analyse__moves",
-    // Older / live-game container names
-    ".round__app__table",
-    ".analyse-side",
-    // Last-ditch generic fallback within the main column
-    "main aside",
-    "aside.lichess-rail",
+  // Lichess top-nav insertion specs.
+  //
+  // The DONATE button on the right side of Lichess's nav links to /patron
+  // (the donation page). The magnifying-glass search button has historically
+  // been a button or anchor inside the same actions cluster (.site-buttons
+  // or similar). We try multiple combos because Lichess restyles
+  // periodically, with floating as the ultimate fallback.
+  const TOPNAV_SPECS = [
+    // Slot ourselves immediately after the DONATE link
+    { anchor: 'a[href="/patron"]', position: "afterend" },
+    { anchor: 'a[href*="/patron"]', position: "afterend" },
+    // Slot ourselves immediately before the search button
+    { anchor: '#topnav-search, .site-search-button, .site-search', position: "beforebegin" },
+    { anchor: 'button[data-icon="?"]', position: "beforebegin" }, // Lichess uses icon-font glyphs
+    // Last-ditch: just append to whatever right-side actions cluster we can find
+    { anchor: ".site-buttons", position: "beforeend" },
   ];
 
-  function tryInject() {
-    const gameId = getGameIdFromPath();
-    if (!gameId) {
-      console.log("[Chess Masti] no Lichess game ID in path, not injecting");
-      return false;
-    }
-    for (const selector of SIDEBAR_SELECTORS) {
-      const ok = cm.injectButton(selector, () => fetchPgn(gameId));
-      if (ok) return true;
-    }
-    return false;
-  }
-
-  // Fallback PGN getter for the floating button — uses the current path's
-  // gameId at click time, so if the user navigates between games without a
-  // full reload, the floating button still fetches the right PGN.
-  function fallbackGetPgn() {
+  // PGN getter — uses the current path's gameId at click time, so if the
+  // user navigates between games without a full reload, the button still
+  // fetches the right PGN.
+  function getPgnForCurrentGame() {
     const gameId = getGameIdFromPath();
     if (!gameId) throw new Error("Not on a Lichess game URL");
     return fetchPgn(gameId);
   }
 
-  // Initial attempt + watcher + floating fallback if all selectors miss.
-  cm.watchForPanel(tryInject, fallbackGetPgn);
+  // Only inject if we're on a game URL. watchForPanel handles the rest:
+  // topnav first, floating fallback, permanent re-inject observer.
+  if (getGameIdFromPath()) {
+    cm.watchForPanel(TOPNAV_SPECS, getPgnForCurrentGame);
+  } else {
+    console.log("[Chess Masti] not on a Lichess game URL, idle");
+  }
 
-  // Lichess uses pushState for navigation; listen so we re-inject when
-  // the user clicks between games.
-  const origPushState = history.pushState;
-  history.pushState = function () {
-    origPushState.apply(this, arguments);
-    const stale = document.getElementById(cm.BUTTON_ID);
-    if (stale && !document.contains(stale)) stale.remove();
-    setTimeout(tryInject, 250);
-  };
-  window.addEventListener("popstate", () => setTimeout(tryInject, 250));
+  // SPA navigation between Lichess games re-renders the nav, which the
+  // permanent MutationObserver in shared.js catches and re-injects against.
+  // No explicit pushState/popstate hooks needed.
 })();

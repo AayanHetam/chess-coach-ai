@@ -18,8 +18,11 @@
   const FALLBACK_INJECTION_DELAY_MS = 6000;
 
   function buildAnalysisUrl(pgn) {
-    if (!pgn || !pgn.trim()) return `${CHESSMASTI_BASE}/analysis`;
-    return `${CHESSMASTI_BASE}/analysis?pgn=${encodeURIComponent(pgn)}`;
+    if (!pgn || !pgn.trim()) return `${CHESSMASTI_BASE}/analysis?autoAnalyze=1`;
+    // autoAnalyze=1 tells chessmasti.com to kick off the Stockfish analysis
+    // immediately and then auto-send "analyze my game" to the coach once
+    // analysis completes — so the extension-driven flow feels like one click.
+    return `${CHESSMASTI_BASE}/analysis?pgn=${encodeURIComponent(pgn)}&autoAnalyze=1`;
   }
 
   function openAnalysis(pgn) {
@@ -28,10 +31,12 @@
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
-  // Build the branded button. We keep two styling modes:
+  // Build the branded button. Three styling modes:
+  //   - topnav: small inline pill, sized to slot into the host site's top
+  //     navigation bar (between Donate and Search on Lichess, etc.)
   //   - sidebar: full-width, looks like it belongs in the host site's panel
   //   - floating: fixed top-right of the page, always visible — used as a
-  //     guaranteed fallback when no sidebar selector matches
+  //     guaranteed fallback when no topnav/sidebar slot can be found
   function makeButton(getPgn, mode) {
     const btn = document.createElement("button");
     btn.id = BUTTON_ID;
@@ -46,28 +51,43 @@
       background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
       color: "#ffffff",
       fontWeight: "700",
-      fontSize: "13px",
       letterSpacing: "0.2px",
       cursor: "pointer",
-      boxShadow: "0 4px 12px rgba(255, 107, 53, 0.32)",
       transition: "transform 0.12s ease, box-shadow 0.12s ease",
       fontFamily:
         "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      borderRadius: "8px",
     };
-    if (mode === "floating") {
+    if (mode === "topnav") {
+      Object.assign(btn.style, baseStyle, {
+        padding: "6px 12px",
+        fontSize: "12px",
+        borderRadius: "6px",
+        margin: "0 6px",
+        boxShadow: "0 2px 6px rgba(255, 107, 53, 0.28)",
+        verticalAlign: "middle",
+        lineHeight: "1.4",
+        // Match Lichess/chess.com nav height so we don't blow out the row.
+        height: "28px",
+      });
+    } else if (mode === "floating") {
       Object.assign(btn.style, baseStyle, {
         position: "fixed",
         top: "16px",
         right: "16px",
         zIndex: "2147483647", // max — sit above any host site overlay
         padding: "10px 16px",
+        fontSize: "13px",
+        borderRadius: "8px",
+        boxShadow: "0 4px 12px rgba(255, 107, 53, 0.32)",
       });
     } else {
       Object.assign(btn.style, baseStyle, {
         padding: "8px 14px",
         margin: "6px 0",
         width: "100%",
+        fontSize: "13px",
+        borderRadius: "8px",
+        boxShadow: "0 4px 12px rgba(255, 107, 53, 0.32)",
       });
     }
     btn.addEventListener("mouseenter", () => {
@@ -115,8 +135,7 @@
   }
 
   // Floating-button fallback: always works, ignores host site DOM completely.
-  // Triggered after N seconds of no sidebar selector matching, so the user
-  // always gets the button even if Lichess/Chess.com restructures their markup.
+  // Triggered when no topnav/sidebar slot can be found.
   function injectFloatingButton(getPgn) {
     if (document.getElementById(BUTTON_ID)) return true;
     document.body.appendChild(makeButton(getPgn, "floating"));
@@ -124,41 +143,86 @@
     return true;
   }
 
-  // SPA navigation watcher. Two reliability problems we're solving here:
+  // Top-nav injection. Caller supplies an array of "insertion specs" — each
+  // spec describes how to find the right slot in the host site's nav bar
+  // and where to put the button relative to that slot. First successful
+  // insertion wins.
   //
-  // 1. Lichess (and chess.com) are SPAs that re-render their sidebar after
-  //    initial page load — when analysis data arrives, when the user
-  //    navigates, etc. A button injected once gets wiped. Solution: keep
-  //    the MutationObserver alive permanently and re-inject whenever the
-  //    button goes missing.
+  // Spec shape:
+  //   {
+  //     anchor:    'a[href*="patron"]',  // CSS selector for the reference element
+  //     position:  'afterend',           // 'beforebegin' | 'afterend'
+  //     parentSel: '.site-buttons',       // optional: anchor must be inside this
+  //   }
+  function injectTopnavButton(specs, getPgn) {
+    if (document.getElementById(BUTTON_ID)) {
+      console.log("[Chess Masti] topnav button already present, skipping");
+      return true;
+    }
+    for (const spec of specs) {
+      try {
+        const anchor = document.querySelector(spec.anchor);
+        if (!anchor) {
+          console.log("[Chess Masti] topnav anchor", JSON.stringify(spec.anchor), "✗ no match");
+          continue;
+        }
+        if (spec.parentSel && !anchor.closest(spec.parentSel)) {
+          console.log(
+            "[Chess Masti] topnav anchor",
+            JSON.stringify(spec.anchor),
+            "matched but not inside",
+            spec.parentSel
+          );
+          continue;
+        }
+        const btn = makeButton(getPgn, "topnav");
+        anchor.insertAdjacentElement(spec.position, btn);
+        console.log(
+          "[Chess Masti] topnav button inserted",
+          spec.position,
+          JSON.stringify(spec.anchor)
+        );
+        return true;
+      } catch (err) {
+        console.warn("[Chess Masti] topnav spec failed:", spec, err);
+      }
+    }
+    return false;
+  }
+
+  // SPA navigation watcher. Three reliability problems we're solving here:
   //
-  // 2. Sidebar selectors are fragile — they match what looks like a panel
-  //    but might be a hidden tool bar, or get removed on re-render. For
-  //    now we DEFAULT to the floating button (always works, always
-  //    visible) and skip sidebar integration. Once the end-to-end click
-  //    flow is verified working, we'll polish back to sidebar integration
-  //    with better selectors.
+  // 1. Lichess (and chess.com) are SPAs that re-render their nav and sidebar
+  //    after initial page load. A button injected once gets wiped. Solution:
+  //    keep the MutationObserver alive permanently and re-inject whenever
+  //    the button goes missing.
   //
-  // tryInject is kept as an argument for forward compat but is currently
-  // not called — fallbackGetPgn drives the floating button.
-  function watchForPanel(_tryInject, fallbackGetPgn) {
+  // 2. Selectors are fragile — they might match a hidden element or get
+  //    restructured. We try topnav first (visible, native-feeling), then
+  //    fall back to floating (uglier but always works).
+  //
+  // 3. Throttle to 250ms so we don't hammer the DOM on every minor mutation.
+  //
+  // topnavSpecs is the array of insertion-spec objects (see injectTopnavButton).
+  // fallbackGetPgn is the click handler if we have to fall back to floating.
+  function watchForPanel(topnavSpecs, fallbackGetPgn) {
     if (!fallbackGetPgn) {
       console.error("[Chess Masti] watchForPanel: no fallback getPgn — bailing");
       return;
     }
     function ensure() {
       if (document.getElementById(BUTTON_ID)) return;
+      // Try topnav first, fall back to floating if no slot matches.
+      if (topnavSpecs && topnavSpecs.length > 0) {
+        if (injectTopnavButton(topnavSpecs, fallbackGetPgn)) return;
+      }
       injectFloatingButton(fallbackGetPgn);
     }
-    // Initial inject as soon as document.body is available.
     if (document.body) {
       ensure();
     } else {
       window.addEventListener("DOMContentLoaded", ensure, { once: true });
     }
-    // Permanent observer — re-injects if the host site's SPA wipes the
-    // button on re-render. Throttled via a short cooldown so we don't
-    // hammer on every minor mutation.
     let cooldown = false;
     const observer = new MutationObserver(() => {
       if (cooldown) return;
@@ -176,9 +240,7 @@
         observer.observe(document.body, { childList: true, subtree: true });
       }, { once: true });
     }
-    // Disconnect after 5 minutes — sanity cap so a long-lived tab doesn't
-    // hold the observer forever. The button will already be re-injecting
-    // itself successfully by then or the page is idle.
+    // Sanity cap so long-lived tabs don't hold the observer forever.
     setTimeout(() => observer.disconnect(), 5 * 60 * 1000);
   }
 

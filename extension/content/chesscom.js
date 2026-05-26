@@ -70,34 +70,31 @@
     return pgn;
   }
 
-  const SIDEBAR_SELECTORS = [
-    ".board-layout-sidebar",
-    ".sidebar-component",
-    ".game-controls-component",
-    ".analysis-controls-component",
-    "aside",
+  // Chess.com top-nav insertion specs.
+  //
+  // Chess.com's header has a row of icons on the right (notifications,
+  // messages, friend requests) and the user avatar at the far right. We
+  // try to slot ourselves into that cluster — first by inserting before
+  // the search/notification cluster, then by falling back to whatever
+  // header-right container we can find. Floating fallback if none match.
+  const TOPNAV_SPECS = [
+    // Chess.com common header right-side cluster selectors (one of these
+    // likely matches current markup)
+    { anchor: ".header-component-right", position: "afterbegin" },
+    { anchor: ".header-component-actions", position: "afterbegin" },
+    { anchor: 'header [class*="nav-action"]', position: "beforebegin" },
+    // Fallback to first <header>'s last child
+    { anchor: "header > nav", position: "beforeend" },
+    { anchor: "header", position: "beforeend" },
   ];
 
-  function tryInject() {
-    if (!isGameLikePath()) {
-      console.log("[Chess Masti] not on a chess.com game-like path, not injecting");
-      return false;
-    }
-    for (const selector of SIDEBAR_SELECTORS) {
-      const ok = cm.injectButton(selector, getPgn);
-      if (ok) return true;
-    }
-    return false;
+  // Only inject on chess.com game-like URLs.
+  if (isGameLikePath()) {
+    cm.watchForPanel(TOPNAV_SPECS, getPgn);
+  } else {
+    console.log("[Chess Masti] not on a chess.com game-like path, idle");
   }
 
-  cm.watchForPanel(tryInject, getPgn);
-
-  const origPushState = history.pushState;
-  history.pushState = function () {
-    origPushState.apply(this, arguments);
-    const stale = document.getElementById(cm.BUTTON_ID);
-    if (stale && !document.contains(stale)) stale.remove();
-    setTimeout(tryInject, 250);
-  };
-  window.addEventListener("popstate", () => setTimeout(tryInject, 250));
+  // SPA navigation between chess.com games re-renders the page, which the
+  // permanent MutationObserver in shared.js catches and re-injects against.
 })();

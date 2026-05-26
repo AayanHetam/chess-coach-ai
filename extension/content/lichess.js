@@ -3,13 +3,19 @@
 //
 // Detects we're on a game page (8-char gameId in path), fetches the PGN
 // from Lichess's public game-export endpoint, and injects the
-// "Analyze with Chess Masti" button into the side panel.
+// "Analyze with Chess Masti" button into the side panel — falling back
+// to a floating top-right button if no sidebar selector matches.
 // ─────────────────────────────────────────────────────────────────────────────
 
 (function () {
-  const { injectButton, watchForPanel } = window.__chessMasti;
+  const cm = window.__chessMasti;
+  if (!cm) {
+    console.error("[Chess Masti] lichess.js: shared.js not loaded — bailing");
+    return;
+  }
+  console.log("[Chess Masti] lichess.js init, path:", location.pathname);
 
-  // Lichess game URLs: /<8chars> or /<8chars>/{white,black} or /<12chars>
+  // Lichess game URLs: /<8chars> or /<8chars>/{white,black}, and /<12chars>
   // (the 12-char full ID is occasionally surfaced; the first 8 chars are the
   // public game ID and work with the export endpoint).
   function getGameIdFromPath() {
@@ -17,54 +23,69 @@
     return m ? m[1] : null;
   }
 
-  // Fetch PGN from Lichess's public export endpoint. No auth needed for
-  // public games. We strip clock annotations and evaluation tags Lichess
-  // sometimes adds (?clocks=false, ?evals=false) so the PGN that lands in
-  // chessmasti.com is clean.
   async function fetchPgn(gameId) {
     const url = `https://lichess.org/game/export/${gameId}?clocks=false&evals=false&literate=false`;
+    console.log("[Chess Masti] fetching PGN:", url);
     const res = await fetch(url, {
       headers: { Accept: "application/x-chess-pgn" },
     });
     if (!res.ok) {
       throw new Error(`Lichess export returned ${res.status}`);
     }
-    return res.text();
+    const text = await res.text();
+    console.log("[Chess Masti] PGN fetched, length:", text.length);
+    return text;
   }
 
-  // The Lichess analysis/study sidebar has class .analyse__tools (engine on a
-  // game review) or .analyse-cm (the action buttons row). For plain game
-  // pages, the side panel is .round__app__table. We try multiple selectors
-  // to be resilient to Lichess UI changes — first match wins.
+  // Sidebar selectors — multiple candidates in case Lichess restyles. First
+  // match wins. The MutationObserver in shared.js re-tries on DOM changes,
+  // and after 6s of no match the floating-button fallback fires.
   const SIDEBAR_SELECTORS = [
+    // Analysis page (game review with engine eval) — most likely for the
+    // canonical /<gameId> URL after the game finishes
     ".analyse__tools",
-    ".round__app__table",
     ".analyse__side",
+    ".analyse__panels",
+    ".analyse__moves",
+    // Older / live-game container names
+    ".round__app__table",
     ".analyse-side",
+    // Last-ditch generic fallback within the main column
     "main aside",
+    "aside.lichess-rail",
   ];
 
   function tryInject() {
     const gameId = getGameIdFromPath();
-    if (!gameId) return false;
+    if (!gameId) {
+      console.log("[Chess Masti] no Lichess game ID in path, not injecting");
+      return false;
+    }
     for (const selector of SIDEBAR_SELECTORS) {
-      const ok = injectButton(selector, () => fetchPgn(gameId));
+      const ok = cm.injectButton(selector, () => fetchPgn(gameId));
       if (ok) return true;
     }
     return false;
   }
 
-  // Initial attempt + SPA navigation watcher.
-  watchForPanel(tryInject);
+  // Fallback PGN getter for the floating button — uses the current path's
+  // gameId at click time, so if the user navigates between games without a
+  // full reload, the floating button still fetches the right PGN.
+  function fallbackGetPgn() {
+    const gameId = getGameIdFromPath();
+    if (!gameId) throw new Error("Not on a Lichess game URL");
+    return fetchPgn(gameId);
+  }
 
-  // Lichess uses pushState for navigation; listen for it so we re-inject when
+  // Initial attempt + watcher + floating fallback if all selectors miss.
+  cm.watchForPanel(tryInject, fallbackGetPgn);
+
+  // Lichess uses pushState for navigation; listen so we re-inject when
   // the user clicks between games.
   const origPushState = history.pushState;
   history.pushState = function () {
     origPushState.apply(this, arguments);
-    // Remove any stale button (might be attached to a previous game's panel
-    // that just got swapped out).
-    const stale = document.getElementById(window.__chessMasti.BUTTON_ID);
+    const stale = document.getElementById(cm.BUTTON_ID);
     if (stale && !document.contains(stale)) stale.remove();
     setTimeout(tryInject, 250);
   };

@@ -16,8 +16,11 @@ export interface AnalysisSnippetData {
   moveLabel?: string;   // optional caption, e.g. "After 12.Nf3"
 }
 
-const CARD_W = 1200;
-const CARD_H = 675;
+// Exported so the rasterizer below (and any external caller) uses the
+// snippet's actual dimensions. shareCard.ts's renderSvgToPng hardcodes
+// the Stalker card's 720×1024 and is unsuitable for this landscape card.
+export const CARD_W = 1200;
+export const CARD_H = 675;
 const TRUNCATE_CHARS = 240;
 const WRAP_CHARS_PER_LINE = 42;
 const MAX_WRAP_LINES = 6;
@@ -296,4 +299,48 @@ export function buildSnippetLinkedInShareUrl(data: AnalysisSnippetData): string 
 export function buildSnippetRedditShareUrl(data: AnalysisSnippetData): string {
   const title = `Chess Masti's AI coach broke down this position for me — free, engine-grounded, no hallucinations`;
   return `https://www.reddit.com/r/chess/submit?title=${encodeURIComponent(title)}&url=${encodeURIComponent(buildSnippetUrl(data.fen))}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Snippet-specific SVG → PNG rasterizer.
+//
+// Parallel to renderSvgToPng in shareCard.ts but parameterized with the
+// snippet's 1200×675 dimensions instead of the Stalker card's 720×1024.
+// Reusing the Stalker rasterizer would squash this card into the wrong
+// aspect ratio at render time.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function renderSnippetSvgToPng(svg: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = CARD_W * 2; // @2x for crispness
+      canvas.height = CARD_H * 2;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        reject(new Error('Canvas not supported'));
+        return;
+      }
+      ctx.scale(2, 2);
+      ctx.drawImage(img, 0, 0, CARD_W, CARD_H);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(
+        b => {
+          if (b) resolve(b);
+          else reject(new Error('Canvas toBlob returned null'));
+        },
+        'image/png',
+        0.95
+      );
+    };
+    img.onerror = err => {
+      URL.revokeObjectURL(url);
+      reject(err);
+    };
+    img.src = url;
+  });
 }

@@ -35,17 +35,28 @@ const PIECE_SET = 'cburnett';
 
 let _loadPromise: Promise<PieceAssetMap> | null = null;
 
+// Extract viewBox + inner content from raw SVG text using regex.
+// We avoid DOMParser + .innerHTML because that round-trip re-serializes
+// SVG markup in browser-specific ways (attribute reordering, self-closing
+// vs explicit close, namespace handling) that have historically broken
+// when the composite SVG is later loaded via <img src=blob:> — Chrome's
+// strict "secure static SVG" parser rejects the re-serialized output.
+// Reading the source bytes verbatim sidesteps the entire failure class.
+const VIEWBOX_RE = /viewBox\s*=\s*"([^"]+)"/i;
+const SVG_INNER_RE = /<svg[^>]*>([\s\S]*?)<\/svg>\s*$/i;
+
 async function fetchPieceAsset(code: PieceCode): Promise<[PieceCode, PieceAsset]> {
   const res = await fetch(`/piece/${PIECE_SET}/${code}.svg`);
   if (!res.ok) {
     throw new Error(`Failed to load /piece/${PIECE_SET}/${code}.svg: ${res.status}`);
   }
   const text = await res.text();
-  const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
-  const svgEl = doc.documentElement;
-  // Defensive fallbacks: cburnett pieces use viewBox 0 0 45 45 by convention.
-  const viewBox = svgEl.getAttribute('viewBox') || '0 0 45 45';
-  const inner = svgEl.innerHTML;
+  // Defensive fallback: cburnett pieces use viewBox 0 0 45 45 by convention.
+  const viewBox = text.match(VIEWBOX_RE)?.[1] ?? '0 0 45 45';
+  const inner = text.match(SVG_INNER_RE)?.[1] ?? '';
+  if (!inner) {
+    throw new Error(`Could not extract SVG inner content for ${code}`);
+  }
   return [code, { viewBox, inner }];
 }
 

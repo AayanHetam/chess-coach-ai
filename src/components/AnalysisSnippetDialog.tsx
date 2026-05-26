@@ -19,10 +19,13 @@ import {
   buildSnippetRedditShareUrl,
   buildSnippetTwitterShareUrl,
   buildSnippetUrl,
+  renderSnippetSvgToPng,
 } from '@/lib/analysisSnippet';
 import { loadPieceAssets, PieceAssetMap } from '@/lib/chessPieceAssets';
-// Reuse PNG/canvas helpers — they're generic, not Stalker-card-specific.
-import { copyPngToClipboard, renderSvgToPng, triggerDownload } from '@/lib/shareCard';
+// Reuse clipboard + download helpers; they're generic. The rasterizer
+// from shareCard is hardcoded to 720×1024 and unsuitable here — we use
+// renderSnippetSvgToPng from analysisSnippet instead.
+import { copyPngToClipboard, triggerDownload } from '@/lib/shareCard';
 
 export interface AnalysisSnippetDialogProps {
   open: boolean;
@@ -88,13 +91,14 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
   const handleDownload = async () => {
     try {
       setDownloading(true);
-      const blob = await renderSvgToPng(svg);
+      const blob = await renderSnippetSvgToPng(svg);
       // Filename: short FEN slug so users can tell their downloads apart.
       const slug = data.fen.split(' ')[0]?.replace(/[^a-zA-Z0-9]/g, '').slice(0, 24) || 'position';
       triggerDownload(blob, `chessmasti-analysis-${slug}.png`);
       setToast({ kind: 'ok', msg: 'PNG downloaded.' });
     } catch (e) {
       console.error('Snippet PNG download failed:', e);
+      console.log('SVG that failed to render:\n', svg);
       setToast({ kind: 'err', msg: `Download failed: ${errMsg(e)}` });
     } finally {
       setDownloading(false);
@@ -104,7 +108,7 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
   const handleCopyImage = async () => {
     try {
       setCopying(true);
-      const blob = await renderSvgToPng(svg);
+      const blob = await renderSnippetSvgToPng(svg);
       const ok = await copyPngToClipboard(blob);
       setToast(
         ok
@@ -113,6 +117,7 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
       );
     } catch (e) {
       console.error('Snippet image copy failed:', e);
+      console.log('SVG that failed to render:\n', svg);
       setToast({ kind: 'err', msg: `Copy failed: ${errMsg(e)}` });
     } finally {
       setCopying(false);

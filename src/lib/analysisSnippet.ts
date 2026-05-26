@@ -127,26 +127,28 @@ export function buildAnalysisSnippetSvg(
     }
   }
 
-  // <symbol> definitions for each piece type referenced from the board.
-  // SVG <use href="#piece-XX"> scales the symbol's viewBox into the use's
-  // width/height — no manual optical-centering offset needed.
-  const pieceSymbols: string[] = [];
-  for (const [code, asset] of Object.entries(pieceAssets)) {
-    pieceSymbols.push(
-      `<symbol id="piece-${code}" viewBox="${asset.viewBox}">${asset.inner}</symbol>`
-    );
-  }
-
+  // Inline each piece body directly at its square. We tried <symbol>+<use>
+  // first, but Chrome's "secure static SVG" mode (which is what runs when an
+  // SVG is loaded via <img src=blob:>, the path used by renderSvgToPng) does
+  // not reliably resolve <use href> references to internal <symbol> defs —
+  // the preview rendered fine but the canvas pipeline failed silently.
+  // Direct inlining via <g transform> eliminates the indirection entirely.
   const pieces: string[] = [];
   for (let rank = 0; rank < 8; rank++) {
     for (let file = 0; file < 8; file++) {
       const letter = grid[rank][file];
       const code = fenLetterToPieceCode(letter);
       if (!code) continue;
+      const asset = pieceAssets[code];
       const x = BOARD_X + file * SQUARE;
       const y = BOARD_Y + rank * SQUARE;
+      // Piece viewBox is "0 0 W H"; scale uniformly to fit SQUARE.
+      const vb = asset.viewBox.trim().split(/\s+/);
+      const vbW = parseFloat(vb[2] ?? '45');
+      const vbH = parseFloat(vb[3] ?? '45');
+      const scale = SQUARE / Math.max(vbW, vbH);
       pieces.push(
-        `<use href="#piece-${code}" x="${x}" y="${y}" width="${SQUARE}" height="${SQUARE}"/>`
+        `<g transform="translate(${x}, ${y}) scale(${scale})">${asset.inner}</g>`
       );
     }
   }
@@ -186,7 +188,7 @@ export function buildAnalysisSnippetSvg(
     .join('\n        ');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0b1120"/>
@@ -202,7 +204,6 @@ export function buildAnalysisSnippetSvg(
       <feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
       <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    ${pieceSymbols.join('\n    ')}
   </defs>
 
   <rect width="${CARD_W}" height="${CARD_H}" fill="url(#bg)"/>

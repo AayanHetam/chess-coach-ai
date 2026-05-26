@@ -73,6 +73,18 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
   const redditUrl = buildSnippetRedditShareUrl(data);
   const deepLink = buildSnippetUrl(data.fen);
 
+  // Extract a useful diagnostic message from anything the rasterizer might
+  // reject with. Image.onerror passes an Event, not an Error, which is why
+  // the old `(e as Error).message` produced "Download failed: undefined".
+  const errMsg = (e: unknown): string => {
+    if (e instanceof Error) return e.message;
+    if (typeof e === 'string') return e;
+    if (e && typeof e === 'object' && 'type' in e) {
+      return `Image load error: ${(e as { type: string }).type}`;
+    }
+    return 'unknown (check console)';
+  };
+
   const handleDownload = async () => {
     try {
       setDownloading(true);
@@ -82,7 +94,8 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
       triggerDownload(blob, `chessmasti-analysis-${slug}.png`);
       setToast({ kind: 'ok', msg: 'PNG downloaded.' });
     } catch (e) {
-      setToast({ kind: 'err', msg: `Download failed: ${(e as Error).message}` });
+      console.error('Snippet PNG download failed:', e);
+      setToast({ kind: 'err', msg: `Download failed: ${errMsg(e)}` });
     } finally {
       setDownloading(false);
     }
@@ -99,7 +112,8 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
           : { kind: 'err', msg: 'Clipboard image copy not supported in this browser.' }
       );
     } catch (e) {
-      setToast({ kind: 'err', msg: `Copy failed: ${(e as Error).message}` });
+      console.error('Snippet image copy failed:', e);
+      setToast({ kind: 'err', msg: `Copy failed: ${errMsg(e)}` });
     } finally {
       setCopying(false);
     }

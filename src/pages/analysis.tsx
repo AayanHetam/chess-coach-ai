@@ -41,7 +41,7 @@ export default function GameAnalysis() {
     return () => window.removeEventListener("resize", updateBoardRight);
   }, [updateBoardRight]);
 
-  const { reset: resetBoard } = useChessActions(boardAtom);
+  const { reset: resetBoard, setPgn: setBoardPgn } = useChessActions(boardAtom);
   const { reset: resetGame, setPgn: setGamePgn } = useChessActions(gameAtom);
   const [gameEval, setGameEval] = useAtom(gameEvalAtom);
   const setBoardOrientation = useSetAtom(boardOrientationAtom);
@@ -57,8 +57,12 @@ export default function GameAnalysis() {
     const reviewPgn = localStorage.getItem('lichess-review-pgn');
     if (!reviewPgn) return;
     localStorage.removeItem('lichess-review-pgn');
+    // Load PGN into BOTH atoms — mirrors what the "Load PGN" button in
+    // loadGame.tsx does. setGamePgn alone leaves the board cursor at the
+    // starting position; setBoardPgn navigates it to the end of the PGN
+    // so the user lands on the latest position.
     setGamePgn(reviewPgn);
-    resetBoard();
+    setBoardPgn(reviewPgn);
     setGameEval(undefined);
     setBoardOrientation(true);
     // Remove the query param so refreshing doesn't re-trigger.
@@ -77,8 +81,14 @@ export default function GameAnalysis() {
     pgnLoadedRef.current = pgn;
     try {
       const decoded = decodeURIComponent(pgn);
+      // Load PGN into BOTH atoms — see the lichessReview comment above for
+      // why setGamePgn alone isn't enough. Without setBoardPgn, the board
+      // cursor stays at the starting position and any move the user makes
+      // is treated as the second ply of an empty game, not the next move
+      // after the loaded PGN's tail. This was the "board doesn't navigate
+      // to end of game" bug reported against the extension's deep link.
       setGamePgn(decoded);
-      resetBoard();
+      setBoardPgn(decoded);
       setGameEval(undefined);
       setBoardOrientation(true);
     } catch {

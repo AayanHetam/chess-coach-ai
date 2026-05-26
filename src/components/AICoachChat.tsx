@@ -31,6 +31,7 @@ import { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import { useChessActions } from "@/hooks/useChessActions";
 import {
   boardAtom,
+  evaluationProgressAtom,
   gameAtom,
   gameEvalAtom,
   moveAnalysisRequestAtom,
@@ -1694,6 +1695,11 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   const router = useRouter();
   // Get real Stockfish evaluation data
   const gameEval = useAtomValue(gameEvalAtom);
+  // Engine analysis progress (1..99 = running, 0 = idle/done). Used to block
+  // chat sends while the Stockfish/coach analysis is mid-flight so the user
+  // can't fire LLM calls against an incomplete eval.
+  const evaluationProgress = useAtomValue(evaluationProgressAtom);
+  const isAnalyzingGame = evaluationProgress > 0 && evaluationProgress < 100;
   // Get user player info (username and color)
   const userPlayerInfo = useAtomValue(userPlayerInfoAtom);
 
@@ -1792,6 +1798,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Synchronous guard against double-sends. setIsLoading is async, so two
+  // clicks/Enters in the same tick both see isLoading=false and fire duplicate
+  // /api/classify-intent + /api/enhanced-analysis calls — doubling API cost.
+  const inFlightRef = useRef(false);
   const analysisContextIdRef = useRef<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -2079,6 +2089,23 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
       const textToSend = messageText || input.trim();
       if (!textToSend) return;
 
+      // Gate sends behind game analysis completion. While Stockfish is still
+      // evaluating, the coach can't ground its response in the eval data and
+      // the user would be paying for an LLM call against incomplete context.
+      if (isAnalyzingGame) return;
+
+      // Block duplicate sends while a request is in flight. Must be a sync ref
+      // — isLoading is set later (after the classify-intent fetch) and React
+      // state updates are async, so without this a fast second click would
+      // slip through and fire a second round trip.
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+
+      // Disable UI immediately, before any await, so the Send button reflects
+      // the in-flight state on the very next render.
+      setIsLoading(true);
+      if (!messageText) setInput("");
+
       // Cancel any ongoing request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -2167,7 +2194,8 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         ]);
         void persistTurn("user", textToSend);
         void persistTurn("assistant", offTopicReply);
-        if (!messageText) setInput("");
+        setIsLoading(false);
+        inFlightRef.current = false;
         return;
       }
 
@@ -2182,7 +2210,8 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         ]);
         void persistTurn("user", textToSend);
         void persistTurn("assistant", declineReply);
-        if (!messageText) setInput("");
+        setIsLoading(false);
+        inFlightRef.current = false;
         return;
       }
 
@@ -2267,9 +2296,8 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             void persistTurn("assistant", errReply);
           }
           
-          if (!messageText) {
-            setInput("");
-          }
+          setIsLoading(false);
+          inFlightRef.current = false;
           return; // Don't make API call for practice acceptance
         }
       }
@@ -2280,10 +2308,6 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
       setMessages((prev) => [...prev, userMessage]);
       void persistTurn("user", textToSend);
-      if (!messageText) {
-        setInput("");
-      }
-      setIsLoading(true);
 
       // Create a new abort controller for this request
       abortControllerRef.current = new AbortController();
@@ -2559,9 +2583,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         setIsLoading(false);
         setIsStreaming(false);
         abortControllerRef.current = null;
+        inFlightRef.current = false;
       }
     },
-    [messages, game, position, boardOrientation, gameEval, input, router, puzzleSolvedStatus, setPracticePuzzles, setCurrentPuzzleIndex, setPracticeTheme, userProfile]
+    [messages, game, position, boardOrientation, gameEval, input, router, puzzleSolvedStatus, setPracticePuzzles, setCurrentPuzzleIndex, setPracticeTheme, userProfile, isAnalyzingGame]
   );
 
   // Handle move analysis requests from moves panel
@@ -2689,6 +2714,17 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      // Drop the keypress if a send is already in flight, the input is empty,
+      // or the engine is still analyzing the game. The button's disabled state
+      // is async, but a held-down Enter fires synchronously.
+      if (
+        isLoading ||
+        inFlightRef.current ||
+        isAnalyzingGame ||
+        !input.trim()
+      ) {
+        return;
+      }
       handleSend();
     }
   };
@@ -2941,14 +2977,18 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Ask specific questions about moves or positions..."
-          disabled={isLoading}
+          placeholder={
+            isAnalyzingGame
+              ? `Analyzing your game... ${evaluationProgress}%`
+              : "Ask specific questions about moves or positions..."
+          }
+          disabled={isLoading || isAnalyzingGame}
         />
 
         {/* Quick Analysis Button */}
         <IconButton
           onClick={() => {
-            if (!isLoading && !input.trim()) {
+            if (!isLoading && !isAnalyzingGame && !input.trim()) {
               setInput("analyze my game");
               // Use the existing handleSend function to ensure proper state management
               setTimeout(() => {
@@ -2956,7 +2996,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
               }, 50);
             }
           }}
-          disabled={isLoading}
+          disabled={isLoading || isAnalyzingGame}
           sx={{
             background: "linear-gradient(135deg, #FF8C42 0%, #FF6B42 100%)",
             color: "white",
@@ -2986,7 +3026,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         <IconButton
           color="primary"
           onClick={handleSend}
-          disabled={isLoading || !input.trim()}
+          disabled={isLoading || isAnalyzingGame || !input.trim()}
         >
           {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
         </IconButton>

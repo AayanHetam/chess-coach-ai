@@ -46,15 +46,15 @@ export default function GameAnalysis() {
   const setBoardOrientation = useSetAtom(boardOrientationAtom);
 
   const router = useRouter();
-  const { gameId, fen, lichessReview } = router.query;
+  const { gameId, fen, lichessReview, pgn } = router.query;
 
   // Pick up a Lichess game PGN stored by the "Analyze with Coach" button.
   useEffect(() => {
     if (lichessReview !== '1') return;
-    const pgn = localStorage.getItem('lichess-review-pgn');
-    if (!pgn) return;
+    const reviewPgn = localStorage.getItem('lichess-review-pgn');
+    if (!reviewPgn) return;
     localStorage.removeItem('lichess-review-pgn');
-    setGamePgn(pgn);
+    setGamePgn(reviewPgn);
     resetBoard();
     setGameEval(undefined);
     setBoardOrientation(true);
@@ -63,8 +63,30 @@ export default function GameAnalysis() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lichessReview]);
 
+  // Load a PGN from a query param — used by the Chess Masti browser extension
+  // (Analyze with Chess Masti button on Lichess / Chess.com) and any
+  // hand-shared URL. Unlike lichessReview, we keep the param in the URL so
+  // the link is sharable; a ref dedupes re-loads on innocuous re-renders.
+  const pgnLoadedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof pgn !== 'string' || !pgn.trim()) return;
+    if (pgnLoadedRef.current === pgn) return;
+    pgnLoadedRef.current = pgn;
+    try {
+      const decoded = decodeURIComponent(pgn);
+      setGamePgn(decoded);
+      resetBoard();
+      setGameEval(undefined);
+      setBoardOrientation(true);
+    } catch {
+      // Malformed URI escape — leave board untouched.
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pgn]);
+
   useEffect(() => {
     if (lichessReview === '1') return; // handled above
+    if (typeof pgn === 'string' && pgn.trim()) return; // handled above
     if (typeof fen === "string" && fen.trim()) {
       const decodedFen = decodeURIComponent(fen);
       resetBoard({ fen: decodedFen });
@@ -78,7 +100,7 @@ export default function GameAnalysis() {
       setBoardOrientation(true);
       resetGame({ noHeaders: true });
     }
-  }, [gameId, fen, lichessReview, setGameEval, setBoardOrientation, resetBoard, resetGame]);
+  }, [gameId, fen, lichessReview, pgn, setGameEval, setBoardOrientation, resetBoard, resetGame]);
 
   return (
     <Grid

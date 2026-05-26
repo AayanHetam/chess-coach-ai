@@ -72,3 +72,22 @@ export const preloadedInsightAtom = atom<{
   kind: "single" | "transcript";
   transcript: Array<{ role: "user" | "assistant"; content: string; fen?: string }> | null;
 } | null>(null);
+
+// State machine for the autoAnalyze flow — triggered when /analysis loads
+// with ?autoAnalyze=1 (set by the Chess Masti browser extension).
+//
+//   idle:                    normal usage, no auto-flow active
+//   pending:                 URL flag detected, waiting for Stockfish analysis to complete
+//   sent-awaiting-insights:  auto-message has been sent, waiting for coach reply with [INSIGHT:...] tags
+//   done:                    insights received OR auto-flow skipped (e.g. refresh with existing chat)
+//
+// AICoachChat reads this to gate the input field and auto-send "analyze my
+// game" at the right moment. The chat input is disabled while state is
+// 'pending' or 'sent-awaiting-insights'.
+export type AutoAnalyzeState =
+  | "idle"
+  | "pending"
+  | "sent-awaiting-insights"
+  | "done";
+
+export const autoAnalyzeStateAtom = atom<AutoAnalyzeState>("idle");

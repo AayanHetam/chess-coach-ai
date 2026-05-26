@@ -5,6 +5,7 @@ import TopBar from "@/sections/analysis/panelToolbar/topBar";
 import UnifiedSections from "@/sections/analysis/panelBody/unifiedSections";
 import CoachTab from "@/sections/analysis/panelBody/coachTab";
 import {
+  autoAnalyzeStateAtom,
   boardAtom,
   boardOrientationAtom,
   gameAtom,
@@ -47,9 +48,35 @@ export default function GameAnalysis() {
   const setBoardOrientation = useSetAtom(boardOrientationAtom);
 
   const setPreloadedInsight = useSetAtom(preloadedInsightAtom);
+  const setAutoAnalyzeState = useSetAtom(autoAnalyzeStateAtom);
 
   const router = useRouter();
-  const { gameId, fen, lichessReview, pgn, insightId } = router.query;
+  const { gameId, fen, lichessReview, pgn, insightId, autoAnalyze } = router.query;
+
+  // ── autoAnalyze=1 trigger ───────────────────────────────────────────────
+  // When the Chess Masti browser extension opens chessmasti.com, it appends
+  // ?autoAnalyze=1 alongside ?pgn=. We set the state machine to 'pending'
+  // so AICoachChat knows to auto-send "analyze my game" once Stockfish
+  // finishes analyzing the loaded PGN, and to lock the chat input until
+  // the coach's first reply contains [INSIGHT:...] tags. The Stockfish
+  // analysis itself starts automatically — see analyzeButton.tsx — so we
+  // don't need to trigger it here.
+  const autoAnalyzeFiredRef = useRef(false);
+  useEffect(() => {
+    if (autoAnalyze !== '1') return;
+    if (autoAnalyzeFiredRef.current) return;
+    autoAnalyzeFiredRef.current = true;
+    setAutoAnalyzeState('pending');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAnalyze]);
+
+  // Reset on unmount so a later visit without the flag starts fresh.
+  useEffect(() => {
+    return () => {
+      setAutoAnalyzeState('idle');
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Pick up a Lichess game PGN stored by the "Analyze with Coach" button.
   useEffect(() => {

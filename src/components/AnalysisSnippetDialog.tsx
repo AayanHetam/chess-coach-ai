@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Backdrop,
   Box,
   Button,
+  CircularProgress,
+  Dialog,
+  DialogContent,
   IconButton,
-  Paper,
   Snackbar,
   Stack,
   Typography,
@@ -19,6 +20,7 @@ import {
   buildSnippetTwitterShareUrl,
   buildSnippetUrl,
 } from '@/lib/analysisSnippet';
+import { loadPieceAssets, PieceAssetMap } from '@/lib/chessPieceAssets';
 // Reuse PNG/canvas helpers — they're generic, not Stalker-card-specific.
 import { copyPngToClipboard, renderSvgToPng, triggerDownload } from '@/lib/shareCard';
 
@@ -29,10 +31,29 @@ export interface AnalysisSnippetDialogProps {
 }
 
 export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisSnippetDialogProps) {
-  const svg = useMemo(() => buildAnalysisSnippetSvg(data), [data]);
+  const [pieceAssets, setPieceAssets] = useState<PieceAssetMap | null>(null);
   const [copying, setCopying] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
+  // Load real piece SVGs on first open. Module-level cache in chessPieceAssets
+  // means subsequent opens resolve synchronously from cache.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    loadPieceAssets()
+      .then(assets => {
+        if (!cancelled) setPieceAssets(assets);
+      })
+      .catch(err => {
+        if (!cancelled) {
+          setToast({ kind: 'err', msg: `Failed to load piece assets: ${(err as Error).message}` });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -42,7 +63,10 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
     }
   }, [open]);
 
-  if (!open) return null;
+  const svg = useMemo(
+    () => (pieceAssets ? buildAnalysisSnippetSvg(data, pieceAssets) : ''),
+    [data, pieceAssets]
+  );
 
   const twitterUrl = buildSnippetTwitterShareUrl(data);
   const linkedInUrl = buildSnippetLinkedInShareUrl(data);
@@ -95,29 +119,30 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
   };
 
   return (
-    <Backdrop
-      open
-      onClick={onClose}
-      sx={{
-        zIndex: theme => theme.zIndex.modal + 8,
-        background: 'rgba(5, 10, 20, 0.78)',
-        backdropFilter: 'blur(6px)',
-      }}
-    >
-      <Paper
-        onClick={e => e.stopPropagation()}
-        elevation={24}
-        sx={{
-          // Landscape preview needs more width — cap at 760 so it doesn't dominate small screens.
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth={false}
+      // Backdrop's aria-hidden was swallowing clicks on focused descendants;
+      // Dialog handles focus trap, aria, and event propagation correctly.
+      PaperProps={{
+        sx: {
           width: 'min(94vw, 760px)',
           maxHeight: '92vh',
-          overflow: 'auto',
-          p: 3,
           borderRadius: 3,
           background: 'linear-gradient(180deg, #ffffff 0%, #fafbfc 100%)',
-          position: 'relative',
-        }}
-      >
+        },
+      }}
+      slotProps={{
+        backdrop: {
+          sx: {
+            background: 'rgba(5, 10, 20, 0.78)',
+            backdropFilter: 'blur(6px)',
+          },
+        },
+      }}
+    >
+      <DialogContent sx={{ p: 3 }}>
         {/* Header */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
           <Box>
@@ -136,7 +161,9 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
           </IconButton>
         </Stack>
 
-        {/* Card preview (landscape — keep the 1200/675 = 16/9 aspect) */}
+        {/* Card preview (landscape — keep the 1200/675 = 16/9 aspect).
+            Until piece assets resolve, show a centered spinner at the same
+            aspect ratio so the dialog doesn't jump when the SVG lands. */}
         <Box
           sx={{
             display: 'flex',
@@ -147,28 +174,50 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
             mb: 2.5,
           }}
         >
-          <Box
-            sx={{
-              width: '100%',
-              maxWidth: 680,
-              aspectRatio: '1200 / 675',
-              boxShadow: '0 12px 36px rgba(15,23,42,0.25)',
-              borderRadius: 2,
-              overflow: 'hidden',
-              bgcolor: '#0b1120',
-            }}
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
+          {pieceAssets ? (
+            <Box
+              sx={{
+                width: '100%',
+                maxWidth: 680,
+                aspectRatio: '1200 / 675',
+                boxShadow: '0 12px 36px rgba(15,23,42,0.25)',
+                borderRadius: 2,
+                overflow: 'hidden',
+                bgcolor: '#0b1120',
+                // Force inline SVG to fill the box. Without this, the SVG's
+                // intrinsic 1200×675 attrs render at full size and overflow:
+                // hidden clips the right/lower portions.
+                '& svg': { width: '100%', height: '100%', display: 'block' },
+              }}
+              dangerouslySetInnerHTML={{ __html: svg }}
+            />
+          ) : (
+            <Box
+              sx={{
+                width: '100%',
+                maxWidth: 680,
+                aspectRatio: '1200 / 675',
+                borderRadius: 2,
+                bgcolor: '#0b1120',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <CircularProgress size={28} sx={{ color: '#FF6B35' }} />
+            </Box>
+          )}
         </Box>
 
-        {/* Primary action row — Download / Copy image */}
+        {/* Primary action row — Download / Copy image.
+            Both gated on pieceAssets so the user can't render an empty SVG. */}
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
           <Button
             fullWidth
             variant="contained"
             startIcon={<Icon icon="mdi:download" />}
             onClick={handleDownload}
-            disabled={downloading}
+            disabled={downloading || !pieceAssets}
             sx={{
               textTransform: 'none',
               fontWeight: 700,
@@ -185,7 +234,7 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
             variant="outlined"
             startIcon={<Icon icon="mdi:content-copy" />}
             onClick={handleCopyImage}
-            disabled={copying}
+            disabled={copying || !pieceAssets}
             sx={{ textTransform: 'none', fontWeight: 700 }}
           >
             {copying ? 'Copying…' : 'Copy image'}
@@ -314,7 +363,7 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
             </Alert>
           ) : undefined}
         </Snackbar>
-      </Paper>
-    </Backdrop>
+      </DialogContent>
+    </Dialog>
   );
 }

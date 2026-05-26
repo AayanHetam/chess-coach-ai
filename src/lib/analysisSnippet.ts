@@ -1,11 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Analysis snippet — shareable PNG of a board position + Claude's explanation.
 //
-// Built as an inline SVG (no external assets) so we can render it to canvas
-// and export as PNG without CORS/async-load issues. Mirrors the approach in
-// shareCard.ts but with a landscape (1200×675) layout — Twitter-card aspect
-// ratio renders cleanly on every social platform preview.
+// Built as an inline SVG so we can rasterize it to PNG via an offscreen canvas
+// without CORS/async-load issues. Piece glyphs are inlined as <symbol> + <use>
+// references — the raw piece SVG bodies are fetched once per session by
+// chessPieceAssets.ts and passed in to the builder. Landscape 1200×675 matches
+// the Twitter card aspect ratio for clean previews across every platform.
 // ─────────────────────────────────────────────────────────────────────────────
+
+import { fenLetterToPieceCode, PieceAssetMap } from '@/lib/chessPieceAssets';
 
 export interface AnalysisSnippetData {
   fen: string;          // FEN of the position the message is about
@@ -59,24 +62,6 @@ function parseFenBoard(fen: string): string[][] {
   return grid.slice(0, 8);
 }
 
-// Unicode chess glyphs. We use the SOLID set for both colors and rely on
-// fill+stroke to distinguish white from black — this gives a heavier, more
-// "premium" look than hollow vs. solid glyphs would.
-const GLYPHS: Record<string, string> = {
-  K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟',
-};
-
-function glyphFor(piece: string): { ch: string; fill: string; stroke: string } | null {
-  if (!piece) return null;
-  const upper = piece.toUpperCase();
-  const ch = GLYPHS[upper];
-  if (!ch) return null;
-  const isWhite = piece === upper;
-  return isWhite
-    ? { ch, fill: '#f8fafc', stroke: '#0f172a' }
-    : { ch, fill: '#0f172a', stroke: '#f8fafc' };
-}
-
 // Greedy word-wrap into at most `maxLines` lines of `maxChars`. If the
 // remaining text doesn't fit, the last line gets an ellipsis.
 function wrapText(text: string, maxChars: number, maxLines: number): string[] {
@@ -119,7 +104,10 @@ function truncateForCard(text: string): string {
   return lastStop > TRUNCATE_CHARS * 0.6 ? cut.slice(0, lastStop + 1) : cut + '…';
 }
 
-export function buildAnalysisSnippetSvg(data: AnalysisSnippetData): string {
+export function buildAnalysisSnippetSvg(
+  data: AnalysisSnippetData,
+  pieceAssets: PieceAssetMap
+): string {
   const grid = parseFenBoard(data.fen);
   const truncated = truncateForCard(data.explanation);
   const wrapped = wrapText(truncated, WRAP_CHARS_PER_LINE, MAX_WRAP_LINES);
@@ -139,20 +127,26 @@ export function buildAnalysisSnippetSvg(data: AnalysisSnippetData): string {
     }
   }
 
+  // <symbol> definitions for each piece type referenced from the board.
+  // SVG <use href="#piece-XX"> scales the symbol's viewBox into the use's
+  // width/height — no manual optical-centering offset needed.
+  const pieceSymbols: string[] = [];
+  for (const [code, asset] of Object.entries(pieceAssets)) {
+    pieceSymbols.push(
+      `<symbol id="piece-${code}" viewBox="${asset.viewBox}">${asset.inner}</symbol>`
+    );
+  }
+
   const pieces: string[] = [];
   for (let rank = 0; rank < 8; rank++) {
     for (let file = 0; file < 8; file++) {
-      const code = grid[rank][file];
-      const g = glyphFor(code);
-      if (!g) continue;
-      const cx = BOARD_X + file * SQUARE + SQUARE / 2;
-      const cy = BOARD_Y + rank * SQUARE + SQUARE / 2 + 14; // optical centering
+      const letter = grid[rank][file];
+      const code = fenLetterToPieceCode(letter);
+      if (!code) continue;
+      const x = BOARD_X + file * SQUARE;
+      const y = BOARD_Y + rank * SQUARE;
       pieces.push(
-        `<text x="${cx}" y="${cy}" text-anchor="middle"
-          font-family="'Apple Symbols','Segoe UI Symbol','Arial Unicode MS',sans-serif"
-          font-size="46" font-weight="900"
-          fill="${g.fill}" stroke="${g.stroke}" stroke-width="0.8"
-          paint-order="stroke">${g.ch}</text>`
+        `<use href="#piece-${code}" x="${x}" y="${y}" width="${SQUARE}" height="${SQUARE}"/>`
       );
     }
   }
@@ -208,6 +202,7 @@ export function buildAnalysisSnippetSvg(data: AnalysisSnippetData): string {
       <feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
       <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
+    ${pieceSymbols.join('\n    ')}
   </defs>
 
   <rect width="${CARD_W}" height="${CARD_H}" fill="url(#bg)"/>

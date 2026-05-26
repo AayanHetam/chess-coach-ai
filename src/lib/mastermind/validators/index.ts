@@ -112,58 +112,73 @@ export interface PipelineOpts {
  */
 export async function runValidationPipeline(opts: PipelineOpts): Promise<RegenerateResult> {
   const validate = async (response: string): Promise<ValidatorResult> => {
-    const evalResult = await validateEvalClaim({
-      llmResponse: response,
-      stockfishEval: opts.stockfishEval,
-      playerPerspective: opts.playerPerspective,
-      fen: opts.fen,
-      moveSan: opts.moveSan,
-      correlationId: opts.correlationId,
-      parseCall: opts.parseCall,
-      signal: opts.signal,
-    });
-    const citationResult = await validateFeatureDeltaCitations({
-      llmResponse: response,
-      featureDelta: opts.featureDelta,
-      pieceRoleDiff: opts.pieceRoleDiff,
-      threatTree: opts.threatTree,
-      playerPerspective: opts.playerPerspective,
-      fen: opts.fen,
-      moveSan: opts.moveSan,
-      correlationId: opts.correlationId,
-      parseCall: opts.parseCall,
-      signal: opts.signal,
-    });
+    // Validators run in parallel (2026-05-26 parallel-validator-pipeline):
+    // each is independent — reads its own slice of opts (stockfishEval,
+    // featureDelta, dataSources.scout, dataSources.userHistory) and emits
+    // its own ValidatorResult. Sequential awaits added 12-32s of latency
+    // (3-8s × 4 parser calls) on top of the flagship coach call, pushing
+    // pipeline total past Vercel's 60s maxDuration on heavy game_review
+    // queries. Parallel dispatch cuts validator-chain latency to the
+    // slowest single call (~3-8s).
+    //
+    // Output order is fixed (eval → feature → scout → userHistory) by
+    // concatenating in source order regardless of completion order, so
+    // the preservation contract (pipeline.test.ts:199-232) holds.
+    //
+    // Conditional validators (scout, userHistory) resolve to null when
+    // their dataSource isn't present — same shape the sequential path
+    // produced — so the concat logic below is unchanged.
+    const scoutPromise: Promise<ValidatorResult | null> = opts.dataSources?.scout
+      ? validateScoutCitation({
+          llmResponse: response,
+          scout: opts.dataSources.scout.scout,
+          collisions: opts.dataSources.scout.collisions,
+          opponentUsername: opts.dataSources.scout.opponentUsername,
+          primaryTimeClass: opts.dataSources.scout.primaryTimeClass,
+          correlationId: opts.correlationId,
+          parseCall: opts.parseCall,
+          signal: opts.signal,
+        })
+      : Promise.resolve(null);
 
-    // Stage A.9 conditional dispatch — order matters for telemetry sequence.
-    // scout runs before user-history per the established ScoutCitation →
-    // UserHistoryCitation order. Sequential await per Stage A.9 T1 default.
-    let scoutResult: ValidatorResult | null = null;
-    if (opts.dataSources?.scout) {
-      scoutResult = await validateScoutCitation({
+    const userHistoryPromise: Promise<ValidatorResult | null> = opts.dataSources?.userHistory
+      ? validateUserHistoryCitation({
+          llmResponse: response,
+          games: opts.dataSources.userHistory.games,
+          userName: opts.dataSources.userHistory.userName,
+          nowMs: opts.dataSources.userHistory.nowMs,
+          correlationId: opts.correlationId,
+          parseCall: opts.parseCall,
+          signal: opts.signal,
+        })
+      : Promise.resolve(null);
+
+    const [evalResult, citationResult, scoutResult, userHistoryResult] = await Promise.all([
+      validateEvalClaim({
         llmResponse: response,
-        scout: opts.dataSources.scout.scout,
-        collisions: opts.dataSources.scout.collisions,
-        opponentUsername: opts.dataSources.scout.opponentUsername,
-        primaryTimeClass: opts.dataSources.scout.primaryTimeClass,
+        stockfishEval: opts.stockfishEval,
+        playerPerspective: opts.playerPerspective,
+        fen: opts.fen,
+        moveSan: opts.moveSan,
         correlationId: opts.correlationId,
         parseCall: opts.parseCall,
         signal: opts.signal,
-      });
-    }
-
-    let userHistoryResult: ValidatorResult | null = null;
-    if (opts.dataSources?.userHistory) {
-      userHistoryResult = await validateUserHistoryCitation({
+      }),
+      validateFeatureDeltaCitations({
         llmResponse: response,
-        games: opts.dataSources.userHistory.games,
-        userName: opts.dataSources.userHistory.userName,
-        nowMs: opts.dataSources.userHistory.nowMs,
+        featureDelta: opts.featureDelta,
+        pieceRoleDiff: opts.pieceRoleDiff,
+        threatTree: opts.threatTree,
+        playerPerspective: opts.playerPerspective,
+        fen: opts.fen,
+        moveSan: opts.moveSan,
         correlationId: opts.correlationId,
         parseCall: opts.parseCall,
         signal: opts.signal,
-      });
-    }
+      }),
+      scoutPromise,
+      userHistoryPromise,
+    ]);
 
     const issues = [
       ...evalResult.issues,

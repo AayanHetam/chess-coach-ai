@@ -523,3 +523,177 @@ describe("runValidationPipeline: parallel validator dispatch (2026-05-26)", () =
     expect(r.cumulativeIssues).toHaveLength(0);
   });
 });
+
+describe("runValidationPipeline: position-anchored validator scope (2026-05-26)", () => {
+  // Production rollback (2026-05-26): on a 46-move "analyze my game" query,
+  // the eval + featureDelta validators rejected Sonnet/Haiku coach prose
+  // because the LLM naturally discussed multiple historical positions
+  // ("after move 23 you were winning, by move 35 it was equal"). Both
+  // validators interpreted every claim as referring to the current
+  // computed position → systematic false-positive rejections → regenerate
+  // exhausted → buildFallbackResponse template substituted for real
+  // coach prose. See MASTERMIND_CONTEXT/cleanup_followups.md.
+  //
+  // Fix: when category is provided AND not in
+  // POSITION_ANCHORED_VALIDATOR_CATEGORIES, the eval + featureDelta
+  // validators short-circuit (no parser call, no LLM cost, one skip event
+  // each). Scout + userHistory still run — they don't depend on current
+  // position state.
+  it("game_review skips eval + featureDelta validators (no parser calls)", async () => {
+    let parserCalls = 0;
+    const spyParser: ParserCall = async () => {
+      parserCalls++;
+      return { raw: "[]", costUsd: 0.001 };
+    };
+    const r = await runValidationPipeline({
+      initialRequest,
+      stockfishEval: { cp: 50 },
+      featureDelta: emptyDelta(),
+      pieceRoleDiff: [],
+      playerPerspective: "white",
+      correlationId: "game-review-skip",
+      parseCall: spyParser,
+      callLLM: llmReturning(["coaching response with historical claims"]),
+      category: "game_review",
+    });
+    expect(parserCalls).toBe(0); // both position validators skipped
+    expect(r.finalOutcome).toBe("passed_initial");
+    // Skip telemetry events emitted for both validators.
+    const skipEvents = r.telemetry.filter(
+      (e) => e.fire_reason === "skip_non_anchored_category",
+    );
+    expect(skipEvents).toHaveLength(2);
+    expect(skipEvents.map((e) => e.check_name).sort()).toEqual([
+      "eval_claim",
+      "feature_citation",
+    ]);
+  });
+
+  it("position_analysis runs eval + featureDelta validators (anchored category)", async () => {
+    let parserCalls = 0;
+    const spyParser: ParserCall = async () => {
+      parserCalls++;
+      return { raw: "[]", costUsd: 0.001 };
+    };
+    const r = await runValidationPipeline({
+      initialRequest,
+      stockfishEval: { cp: 50 },
+      featureDelta: emptyDelta(),
+      pieceRoleDiff: [],
+      playerPerspective: "white",
+      correlationId: "position-analysis-run",
+      parseCall: spyParser,
+      callLLM: llmReturning(["analyze this specific position"]),
+      category: "position_analysis",
+    });
+    // Both eval and featureDelta validators run → 2 parser calls.
+    expect(parserCalls).toBe(2);
+    expect(r.finalOutcome).toBe("passed_initial");
+  });
+
+  it("category undefined runs all validators (preserves byte-identical pre-2026-05-26 behavior)", async () => {
+    let parserCalls = 0;
+    const spyParser: ParserCall = async () => {
+      parserCalls++;
+      return { raw: "[]", costUsd: 0.001 };
+    };
+    const r = await runValidationPipeline({
+      initialRequest,
+      stockfishEval: { cp: 50 },
+      featureDelta: emptyDelta(),
+      pieceRoleDiff: [],
+      playerPerspective: "white",
+      correlationId: "no-category",
+      parseCall: spyParser,
+      callLLM: llmReturning(["coaching response"]),
+      // category omitted → backward-compat: run all validators
+    });
+    expect(parserCalls).toBe(2);
+    expect(r.finalOutcome).toBe("passed_initial");
+  });
+
+  it("game_review still runs scout + userHistory validators (these don't depend on current position)", async () => {
+    let evalFeatureParserCalls = 0;
+    let scoutUserHistoryParserCalls = 0;
+    const segmentingParser: ParserCall = async ({ system }) => {
+      // Discriminate by the parser system prompt prefix. eval and feature
+      // share the eval prompt path; scout + userHistory have their own
+      // prompts. (Test only checks they fire vs not fire — exact content
+      // isn't important here.)
+      if (
+        system.startsWith("You extract opponent-scouting claims") ||
+        system.startsWith("You extract user-history")
+      ) {
+        scoutUserHistoryParserCalls++;
+      } else {
+        evalFeatureParserCalls++;
+      }
+      return { raw: "[]", costUsd: 0.001 };
+    };
+    await runValidationPipeline({
+      initialRequest,
+      stockfishEval: { cp: 50 },
+      featureDelta: emptyDelta(),
+      pieceRoleDiff: [],
+      playerPerspective: "white",
+      correlationId: "game-review-scout-userhistory",
+      parseCall: segmentingParser,
+      callLLM: llmReturning(["coaching response"]),
+      category: "game_review",
+      dataSources: {
+        scout: { scout: emptyScoutAnalytics(), opponentUsername: "opp" },
+        userHistory: { games: [], userName: "user" },
+      },
+    });
+    // eval + feature skipped → 0 parser calls for those.
+    expect(evalFeatureParserCalls).toBe(0);
+    // scout + userHistory still run → 2 parser calls.
+    expect(scoutUserHistoryParserCalls).toBe(2);
+  });
+
+  it("game_review with failing eval-like response does NOT trigger regenerate (validators skipped)", async () => {
+    // Before this fix: parser returns claims, eval validator fires
+    // qualitative_band_flip on a multi-position prose → regenerate →
+    // retry → fires again → buildFallback template. After this fix:
+    // eval skipped, no fires, passes initial.
+    const fireingParser: ParserCall = async () => ({
+      raw: JSON.stringify([
+        {
+          stated_band: "winning",
+          stated_cp: null,
+          supporting_spans: ["Black was winning by move 30"],
+          confidence: 0.95,
+          claim_class: "evaluative",
+          perspective: "black",
+        },
+      ]),
+      costUsd: 0.001,
+    });
+    let llmCalls = 0;
+    const spyLlm = async () => {
+      llmCalls++;
+      return {
+        content: "Black was winning by move 30, but you let it slip.",
+        provider: "anthropic" as const,
+        model: "claude-sonnet-4-test",
+        inputTokens: 100,
+        outputTokens: 50,
+      };
+    };
+    const r = await runValidationPipeline({
+      initialRequest,
+      stockfishEval: { cp: 50 }, // current is "slightly_better" white, not "winning"
+      featureDelta: emptyDelta(),
+      pieceRoleDiff: [],
+      playerPerspective: "black",
+      correlationId: "game-review-no-retry",
+      parseCall: fireingParser,
+      callLLM: spyLlm,
+      category: "game_review",
+    });
+    // Validators skipped → no fires → first attempt passes → no retry.
+    expect(llmCalls).toBe(1);
+    expect(r.finalOutcome).toBe("passed_initial");
+    expect(r.cumulativeIssues).toHaveLength(0);
+  });
+});

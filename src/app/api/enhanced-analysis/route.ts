@@ -1400,6 +1400,7 @@ export async function POST(request: NextRequest) {
                   fen: validationFen,
                   moveSan: prep.moveCtx.moveSan,
                   correlationId: requestId,
+                  category: prep.category,
                   dataSources: {
                     scout: streamingDataSources.scout,
                     userHistory: streamingDataSources.userHistory,
@@ -1722,6 +1723,7 @@ export async function POST(request: NextRequest) {
                 fen: prep.moveCtx.fenAfter,
                 moveSan: prep.moveCtx.moveSan,
                 correlationId: requestId,
+                category: prep.category,
                 dataSources: {
                   scout: nonStreamingDataSources.scout,
                   userHistory: nonStreamingDataSources.userHistory,

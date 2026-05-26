@@ -169,6 +169,7 @@ export async function POST(request: NextRequest) {
                   fen: prep.moveCtx.fenAfter,
                   moveSan: prep.moveCtx.moveSan,
                   correlationId: requestId,
+                  category: prep.category,
                   // §10.4 + §3.4: chat retry budget is tighter than
                   // enhanced-analysis (1 retry max) to keep follow-up
                   // latency in chat tolerance.

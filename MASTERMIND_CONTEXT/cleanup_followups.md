@@ -6,6 +6,45 @@ Non-blocking cleanups that are surfaced during Mastermind PR work but kept out o
 
 ---
 
+## 2026-05-26 — Validator pipeline parallelization + position-anchored scope (mid-flight fixes)
+
+**Status:** PR #38 merged (parallelization). Follow-on branch `mastermind/skip-validators-game-review` queued for merge (position-anchored validator scope + chess.js disclaimer skip + default timeout bump + buildFallback grammar polish).
+
+**Timeline:**
+- **Phase 1 (PR #38, merged afa5d0a):** parallelized the four validator parser calls (eval, featureDelta, scout, userHistory) via `Promise.all` in `runValidationPipeline.validate`. Sequential awaits added 12-32s; parallel cuts to ~3-8s (max of the four). Required to bring pipeline total under Vercel's 60s `maxDuration` on heavy `game_review` queries where Sonnet flagship alone is 30-40s.
+- **Production verification post-PR-#38:** flag re-flipped with `PIPELINE_TIMEOUT_MS=45000`. Manual chat-turn test on a 46-move game surfaced two new failure modes:
+  - Turn 1 (enhanced-analysis flagship): timed out at 45s — Sonnet 36s + serial validators ~10-20s still too tight (this was pre-merge of PR #38; Sonnet 36s alone exceeded the prior 30s timeout). Already mitigated by PR #38.
+  - Turn 2 (chat route via stored contextId): completed but returned `buildFallbackResponse` deterministic template ("White holds a significant advantage...") rather than Haiku coach prose. Root cause: the eval and featureDelta validators are anchored to a SINGLE position (current move's stockfishEval + delta) but the LLM's `game_review` response naturally cites MULTIPLE historical positions. Every historical claim trips `eval_mismatch_qualitative` (band claim vs current eval) or `feature_citation_unsupported` (citation vs current delta). Two rejections → maxRetries exhausted (chat has maxRetries=1) → buildFallback.
+- **Phase 2 (`mastermind/skip-validators-game-review`, 4 commits, not pushed):**
+  1. `70c22f6` — added `POSITION_ANCHORED_VALIDATOR_CATEGORIES` set + `category?` field in `PipelineOpts`. When category provided AND not in the set ({position_analysis} currently), eval + featureDelta validators skip (no parser call, no LLM cost, one `skip_non_anchored_category` telemetry event each). Routes pass `prep.category`. game_review now gets clean LLM prose; scout + userHistory still run because they don't depend on current position state.
+  2. `e834106` — extended the same architectural principle to the chess.js `validateAIResponse` "may be inaccurate" disclaimer at the route level. For non-position-anchored categories, the validator still runs (issues logged for observability) but the user-visible prose annotation is suppressed. Production tells: on Aayan's Turn 2 the disclaimer fired on a `buildFallbackResponse` template — demonstrably false on ground-truth-derived prose.
+  3. `098bbc5` — raised `DEFAULT_PIPELINE_TIMEOUT_MS` from 30s to 45s. Sized to fit Sonnet flagship + parallel validators under Vercel 60s maxDuration with 15s buffer for post-pipeline work. Production env var was already set to 45000ms explicitly; code default now matches so Preview / local dev / future prod deploys without override get the same protection.
+  4. `ce6e640` — pluralize "point/points" in buildFallbackResponse material-loss prose ("1 points" → "1 point").
+
+**Net behavior after both PRs:**
+
+| Category | eval + featureDelta validators | scout + userHistory validators | chess.js disclaimer |
+|---|---|---|---|
+| `position_analysis` | run (single-position aligned) | run if data present | shown on issues |
+| `game_review` | **skip** (multi-position prose) | run if data present | **suppressed** |
+| `concept_explanation` | **skip** | run if data present | **suppressed** |
+| `opponent_prep` | skip (NON_MOVE_FOCUS, already) | run if data present | **suppressed** |
+| `improvement_strategy` | skip (NON_MOVE_FOCUS, already) | run if data present | **suppressed** |
+| `meta_motivational` | skip (NON_MOVE_FOCUS, already) | run if data present | **suppressed** |
+| flag-off / pre-Mastermind | (validators disabled) | (validators disabled) | shown on issues |
+
+**Open follow-up — per-claim position anchoring for game_review eval validation.** The short-term fix above gives up validation for game_review's eval claims entirely. The proper long-term fix: extend the eval parser prompt to extract a `claimed_move_number?: number | null` per claim (e.g., "by move 23 you were winning" → claimed_move_number: 23). The eval validator then looks up `gameEval.positions[claimed_move_number]` for ground truth, only validating claims that name a specific move. Claims without an identifiable move reference would either skip or use current eval.
+
+Scope sketch: ~50 LOC parser prompt change + ~30 LOC eval validator update + ~20 LOC pipeline plumbing to thread `gameEval.positions` + ~80 LOC of test work covering multi-position scenarios + decision on whether to also restore featureDelta validation (much harder — featureDelta is computed per-move from fenBefore→fenAfter, would need to compute deltas at each cited move). Estimated 2-4 hours of focused work; needs real LLM-output samples from production game_review queries to validate the parser-prompt change empirically.
+
+**Open follow-up — chat route's maxRetries=1 may be too tight when validators legitimately fire.** With eval+featureDelta skipped for game_review, the only validators that can fire on chat are scout + userHistory. Those rarely false-positive. maxRetries=1 likely remains appropriate. Revisit if scout/userHistory show high false-positive rates post-CMIP rollout.
+
+**Open follow-up — Vercel runtime log intermittency (Finding 2 from the 2026-05-25 first rollback).** Persists. Validator telemetry events emit through `forwardTelemetry` → `log.error|warn|info`, but Vercel runtime logs drop many of them. Suspected: log buffer loss on certain return paths. Worth investigating before CMIP relies on telemetry-driven dashboards.
+
+**Open follow-up — preview smoke harness for production-realistic queries.** Synthetic-tester payloads are short-prompt; they don't reproduce the `moveCount=92, hasEval=true, advanced` shape that caused both production rollbacks. Future safe flag-flips need a Preview smoke that mirrors real authenticated session shape (long conversation history, real games, full gameEval array). Substantial harness work.
+
+---
+
 ## 2026-05-25 — Flag flip rolled back after first production test
 
 **Timeline:**

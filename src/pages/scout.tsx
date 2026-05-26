@@ -409,6 +409,10 @@ export default function ScoutPage() {
 
   // Share card dialog
   const [shareOpen, setShareOpen] = useState(false);
+  // Set by handleShareClick after POST /api/scouts resolves. While null,
+  // share URLs in the dialog fall back to ?u=&p= (still works, just doesn't
+  // carry the point-in-time snapshot).
+  const [scoutSnapshotId, setScoutSnapshotId] = useState<string | null>(null);
 
   // You-vs-them comparison
   const [collisions, setCollisions] = useState<Collisions | null>(null);
@@ -616,6 +620,83 @@ export default function ScoutPage() {
     autoScoutPendingRef.current = false;
     handleSearch();
   }, [username, platform, handleSearch, router.query.u]);
+
+  // ── Snapshot permalink loader (?scoutId=) ────────────────────────────────
+  // Takes precedence over the ?u=&p= auto-scout. Fetches the saved snapshot
+  // and hydrates all the page state directly — skips the worker rebuild and
+  // the chess.com / Lichess refetch entirely. Recipients see the exact
+  // point-in-time view the sharer saw.
+  const snapshotLoadedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!router.isReady) return;
+    const qsid = router.query.scoutId;
+    const sid = Array.isArray(qsid) ? qsid[0] : qsid;
+    if (!sid || typeof sid !== 'string') return;
+    if (snapshotLoadedRef.current === sid) return;
+    snapshotLoadedRef.current = sid;
+    // Mark the legacy auto-scout as "done" so it doesn't also fire.
+    autoScoutDoneRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/scouts/${encodeURIComponent(sid)}`);
+        if (!res.ok) return; // 404 / 500 — fall through to bare /scout page
+        const snap = await res.json();
+        if (cancelled) return;
+        setUsername(String(snap.username ?? ''));
+        setPlatform(snap.platform === 'lichess' ? 'lichess' : 'chess.com');
+        setMonths(typeof snap.months === 'number' ? snap.months : 12);
+        if (snap.yourUsername) setYourUsername(String(snap.yourUsername));
+        if (snap.scoutResult) setScoutResult(snap.scoutResult);
+        if (snap.tree) setTree(snap.tree);
+        if (snap.analytics) setAnalytics(snap.analytics);
+        if (snap.collisions !== undefined) setCollisions(snap.collisions);
+      } catch (err) {
+        console.error('Failed to load scout snapshot:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, router.query.scoutId]);
+
+  // ── Share-click handler: POST snapshot, open dialog, swap URLs ──────────
+  // We open the dialog immediately for UX, then POST in parallel; the
+  // snapshotId state propagates into ShareCardDialog as a prop and upgrades
+  // the share URLs once the POST resolves. If POST fails, dialog still
+  // works — URLs fall back to ?u=&p=.
+  const handleShareClick = useCallback(() => {
+    setScoutSnapshotId(null);
+    setShareOpen(true);
+    if (!scoutResult || !analytics || !tree) return;
+    (async () => {
+      try {
+        const res = await fetch('/api/scouts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: scoutResult.username,
+            platform: scoutResult.platform,
+            months,
+            yourUsername: yourUsername.trim() || null,
+            scoutResult,
+            analytics,
+            tree,
+            collisions,
+          }),
+          credentials: 'same-origin',
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (typeof json?.id === 'string') {
+          setScoutSnapshotId(json.id);
+        }
+      } catch (err) {
+        console.warn('Scout snapshot POST failed; share URL falls back to ?u=&p=:', err);
+      }
+    })();
+  }, [scoutResult, analytics, tree, months, yourUsername, collisions]);
 
   // Collisions: fetch YOUR games (debounced) & compute vs target.
   useEffect(() => {
@@ -906,7 +987,7 @@ export default function ScoutPage() {
                 username={scoutResult.username}
                 platform={scoutResult.platform}
                 profile={analytics.profile}
-                onShare={() => setShareOpen(true)}
+                onShare={handleShareClick}
               />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
@@ -1158,6 +1239,7 @@ export default function ScoutPage() {
             stalker: analytics.stalker,
             topOpening: topOpeningFor(analytics),
           }}
+          snapshotId={scoutSnapshotId}
         />
       )}
     </Box>

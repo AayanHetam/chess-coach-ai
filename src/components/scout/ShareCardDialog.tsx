@@ -27,9 +27,14 @@ export interface ShareCardDialogProps {
   open: boolean;
   onClose: () => void;
   data: ShareCardData;
+  // Minted by the parent (scout page) when the share button is clicked.
+  // When present, share URLs use ?scoutId= (loads the point-in-time snapshot
+  // without re-fetching games). When null/undefined, URLs fall back to
+  // ?u=&p= which re-runs the scout on the recipient's machine.
+  snapshotId?: string | null;
 }
 
-export default function ShareCardDialog({ open, onClose, data }: ShareCardDialogProps) {
+export default function ShareCardDialog({ open, onClose, data, snapshotId }: ShareCardDialogProps) {
   const svg = useMemo(() => buildShareCardSvg(data), [data]);
   const [copying, setCopying] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -76,10 +81,10 @@ export default function ShareCardDialog({ open, onClose, data }: ShareCardDialog
     }
   };
 
-  const twitterUrl = buildTwitterShareUrl(data);
-  const linkedInUrl = buildLinkedInShareUrl(data);
-  const redditUrl = buildRedditShareUrl(data);
-  const deepLink = buildShareUrl(data.username, data.platform);
+  const twitterUrl = buildTwitterShareUrl(data, snapshotId);
+  const linkedInUrl = buildLinkedInShareUrl(data, snapshotId);
+  const redditUrl = buildRedditShareUrl(data, snapshotId);
+  const deepLink = buildShareUrl(data.username, data.platform, snapshotId);
 
   const handleCopyLink = async () => {
     try {

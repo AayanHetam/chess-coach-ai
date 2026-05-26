@@ -309,32 +309,43 @@ export function parsePlatformCode(code: string | undefined | null): ShareCardDat
   return null;
 }
 
-export function buildShareUrl(username: string, platform: ShareCardData['platform']): string {
+// Prefer the snapshotId path when available — loads the saved point-in-time
+// scout report instead of re-fetching from Chess.com / Lichess. Falls back
+// to the bare ?u=&p= URL when no snapshot has been minted (POST in flight
+// or failed).
+export function buildShareUrl(
+  username: string,
+  platform: ShareCardData['platform'],
+  snapshotId?: string | null
+): string {
+  if (snapshotId) {
+    return `${SITE_URL}/scout?scoutId=${encodeURIComponent(snapshotId)}`;
+  }
   const u = encodeURIComponent(username);
   const p = platformCode(platform);
   return `${SITE_URL}/scout?u=${u}&p=${p}`;
 }
 
-export function buildShareText(data: ShareCardData): string {
-  const url = buildShareUrl(data.username, data.platform);
+export function buildShareText(data: ShareCardData, snapshotId?: string | null): string {
+  const url = buildShareUrl(data.username, data.platform, snapshotId);
   return `Just scouted @${data.username} on Chess Masti and crushed them — the free AI coach gave me perfect opening prep against this specific player. Like having a real coach. Try yours: ${url} #ChessMasti #Chess #AI`;
 }
 
-export function buildTwitterShareUrl(data: ShareCardData): string {
-  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildShareText(data))}`;
+export function buildTwitterShareUrl(data: ShareCardData, snapshotId?: string | null): string {
+  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildShareText(data, snapshotId))}`;
 }
 
-export function buildLinkedInShareUrl(data: ShareCardData): string {
+export function buildLinkedInShareUrl(data: ShareCardData, snapshotId?: string | null): string {
   // LinkedIn's share-offsite endpoint only accepts a `url` param — pre-filled
   // text isn't supported, so users will write their own caption around the link.
   return `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
-    buildShareUrl(data.username, data.platform)
+    buildShareUrl(data.username, data.platform, snapshotId)
   )}`;
 }
 
-export function buildRedditShareUrl(data: ShareCardData): string {
+export function buildRedditShareUrl(data: ShareCardData, snapshotId?: string | null): string {
   const title = `Scouted my opponent on Chess Masti — got a custom opening prep deck against them, free`;
   return `https://www.reddit.com/r/chess/submit?title=${encodeURIComponent(title)}&url=${encodeURIComponent(
-    buildShareUrl(data.username, data.platform)
+    buildShareUrl(data.username, data.platform, snapshotId)
   )}`;
 }

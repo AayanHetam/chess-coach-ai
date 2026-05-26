@@ -35,6 +35,7 @@ import {
   gameAtom,
   gameEvalAtom,
   moveAnalysisRequestAtom,
+  preloadedInsightAtom,
   userPlayerInfoAtom,
 } from "@/sections/analysis/states";
 import { useAtomValue, useSetAtom } from "jotai";
@@ -1784,12 +1785,23 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   // Phase 2: the system prompt is now built server-side by
   // getCoachChatSystemPrompt() — see /api/enhanced-analysis. The client only
   // tracks the visible conversation (user + assistant turns).
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: personality.greeting,
-    },
-  ]);
+  // If the page loaded from an insight permalink, seed the chat with the
+  // saved coach response as the first assistant turn so the recipient sees
+  // the original explanation without a fresh LLM call.
+  const preloadedInsight = useAtomValue(preloadedInsightAtom);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (preloadedInsight) {
+      return [
+        { role: "assistant", content: personality.greeting },
+        {
+          role: "assistant",
+          content: preloadedInsight.coachContent,
+          fen: preloadedInsight.fen,
+        },
+      ];
+    }
+    return [{ role: "assistant", content: personality.greeting }];
+  });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);

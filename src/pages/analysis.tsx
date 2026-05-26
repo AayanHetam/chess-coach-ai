@@ -10,6 +10,7 @@ import {
   gameAtom,
   gameEvalAtom,
   panelExpandedAtom,
+  preloadedInsightAtom,
 } from "@/sections/analysis/states";
 import { Box, Divider, Grid, useMediaQuery, useTheme } from "@mui/material";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -45,8 +46,10 @@ export default function GameAnalysis() {
   const [gameEval, setGameEval] = useAtom(gameEvalAtom);
   const setBoardOrientation = useSetAtom(boardOrientationAtom);
 
+  const setPreloadedInsight = useSetAtom(preloadedInsightAtom);
+
   const router = useRouter();
-  const { gameId, fen, lichessReview, pgn } = router.query;
+  const { gameId, fen, lichessReview, pgn, insightId } = router.query;
 
   // Pick up a Lichess game PGN stored by the "Analyze with Coach" button.
   useEffect(() => {
@@ -84,9 +87,60 @@ export default function GameAnalysis() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pgn]);
 
+  // Load a persisted insight permalink (?insightId=). Fetches the saved coach
+  // response so the recipient sees the original explanation without a fresh
+  // LLM call. Drops into preloadedInsightAtom which AICoachChat reads on mount.
+  const insightLoadedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof insightId !== 'string' || !insightId.trim()) return;
+    if (insightLoadedRef.current === insightId) return;
+    insightLoadedRef.current = insightId;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/insights/${encodeURIComponent(insightId)}`);
+        if (!res.ok) {
+          // 404 / 500 — fall through to bare-FEN-style load if we have one.
+          return;
+        }
+        const insight = await res.json();
+        if (cancelled) return;
+        if (typeof insight.fen === 'string' && insight.fen.trim()) {
+          resetBoard({ fen: insight.fen });
+          resetGame({ fen: insight.fen, noHeaders: true });
+          setGameEval(undefined);
+          setBoardOrientation(!insight.fen.includes(' b '));
+        }
+        if (typeof insight.coachContent === 'string' && insight.coachContent.trim()) {
+          setPreloadedInsight({
+            fen: insight.fen,
+            coachContent: insight.coachContent,
+            createdAt: insight.createdAt ?? Date.now(),
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load insight permalink:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insightId]);
+
+  // Clear preloaded insight on page unmount so a later visit without
+  // ?insightId= starts fresh.
+  useEffect(() => {
+    return () => {
+      setPreloadedInsight(null);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (lichessReview === '1') return; // handled above
     if (typeof pgn === 'string' && pgn.trim()) return; // handled above
+    if (typeof insightId === 'string' && insightId.trim()) return; // handled above
     if (typeof fen === "string" && fen.trim()) {
       const decodedFen = decodeURIComponent(fen);
       resetBoard({ fen: decodedFen });
@@ -100,7 +154,7 @@ export default function GameAnalysis() {
       setBoardOrientation(true);
       resetGame({ noHeaders: true });
     }
-  }, [gameId, fen, lichessReview, pgn, setGameEval, setBoardOrientation, resetBoard, resetGame]);
+  }, [gameId, fen, lichessReview, pgn, insightId, setGameEval, setBoardOrientation, resetBoard, resetGame]);
 
   return (
     <Grid

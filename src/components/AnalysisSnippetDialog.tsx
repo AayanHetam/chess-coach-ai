@@ -39,6 +39,12 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
   const [downloading, setDownloading] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
+  // Insight ID minted by POST /api/insights when the dialog opens. While null,
+  // share URLs fall back to ?fen= (still works, just doesn't carry the saved
+  // coach message). Network failures here are non-fatal — the share still
+  // works in degraded form.
+  const [insightId, setInsightId] = useState<string | null>(null);
+
   // Load real piece SVGs on first open. Module-level cache in chessPieceAssets
   // means subsequent opens resolve synchronously from cache.
   useEffect(() => {
@@ -58,11 +64,44 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
     };
   }, [open]);
 
+  // POST the insight to /api/insights on open. The returned ID upgrades the
+  // share URLs from ?fen= (lossy) to ?insightId= (carries the coach message).
+  // We don't block the dialog on this — the SVG preview renders immediately,
+  // and the share URLs become richer when the POST resolves a moment later.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fen: data.fen,
+            coachContent: data.explanation,
+          }),
+          credentials: 'same-origin',
+        });
+        if (!res.ok) return; // graceful degradation — keep ?fen= fallback
+        const json = await res.json();
+        if (!cancelled && typeof json?.id === 'string') {
+          setInsightId(json.id);
+        }
+      } catch (err) {
+        console.warn('Insight POST failed; falling back to ?fen= share link:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, data.fen, data.explanation]);
+
   useEffect(() => {
     if (!open) {
       setToast(null);
       setCopying(false);
       setDownloading(false);
+      setInsightId(null);
     }
   }, [open]);
 
@@ -71,10 +110,10 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
     [data, pieceAssets]
   );
 
-  const twitterUrl = buildSnippetTwitterShareUrl(data);
-  const linkedInUrl = buildSnippetLinkedInShareUrl(data);
-  const redditUrl = buildSnippetRedditShareUrl(data);
-  const deepLink = buildSnippetUrl(data.fen);
+  const twitterUrl = buildSnippetTwitterShareUrl(data, insightId);
+  const linkedInUrl = buildSnippetLinkedInShareUrl(data, insightId);
+  const redditUrl = buildSnippetRedditShareUrl(data, insightId);
+  const deepLink = buildSnippetUrl(data.fen, insightId);
 
   // Extract a useful diagnostic message from anything the rasterizer might
   // reject with. Image.onerror passes an Event, not an Error, which is why

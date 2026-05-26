@@ -278,27 +278,52 @@ export function buildAnalysisSnippetSvg(
 
 const SITE_URL = 'https://chessmasti.com';
 
-export function buildSnippetUrl(fen: string): string {
+// Prefer the insightId path when available — that URL loads the saved coach
+// response on the receiving end without burning a fresh LLM call. Falls back
+// to the bare ?fen= URL when no insight ID has been minted yet (e.g. while
+// the insight POST is still in flight, or if it failed).
+export function buildSnippetUrl(fen: string, insightId?: string | null): string {
+  if (insightId) {
+    return `${SITE_URL}/analysis?insightId=${encodeURIComponent(insightId)}`;
+  }
   return `${SITE_URL}/analysis?fen=${encodeURIComponent(fen)}`;
 }
 
-export function buildSnippetShareText(data: AnalysisSnippetData): string {
-  const url = buildSnippetUrl(data.fen);
+export function buildSnippetShareText(
+  data: AnalysisSnippetData,
+  insightId?: string | null
+): string {
+  const url = buildSnippetUrl(data.fen, insightId);
   return `Chess Masti just broke this position down for me — free AI coach that explains every move like a real coach, no hallucinations. See for yourself: ${url} #ChessMasti #Chess #AI`;
 }
 
-export function buildSnippetTwitterShareUrl(data: AnalysisSnippetData): string {
-  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildSnippetShareText(data))}`;
+export function buildSnippetTwitterShareUrl(
+  data: AnalysisSnippetData,
+  insightId?: string | null
+): string {
+  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+    buildSnippetShareText(data, insightId)
+  )}`;
 }
 
-export function buildSnippetLinkedInShareUrl(data: AnalysisSnippetData): string {
+export function buildSnippetLinkedInShareUrl(
+  data: AnalysisSnippetData,
+  insightId?: string | null
+): string {
   // LinkedIn's share-offsite only accepts a `url` — user writes their own caption.
-  return `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(buildSnippetUrl(data.fen))}`;
+  return `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
+    buildSnippetUrl(data.fen, insightId)
+  )}`;
 }
 
-export function buildSnippetRedditShareUrl(data: AnalysisSnippetData): string {
+export function buildSnippetRedditShareUrl(
+  data: AnalysisSnippetData,
+  insightId?: string | null
+): string {
   const title = `Chess Masti's AI coach broke down this position for me — free, engine-grounded, no hallucinations`;
-  return `https://www.reddit.com/r/chess/submit?title=${encodeURIComponent(title)}&url=${encodeURIComponent(buildSnippetUrl(data.fen))}`;
+  return `https://www.reddit.com/r/chess/submit?title=${encodeURIComponent(
+    title
+  )}&url=${encodeURIComponent(buildSnippetUrl(data.fen, insightId))}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

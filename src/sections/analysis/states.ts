@@ -57,3 +57,13 @@ export const userPlayerInfoAtom = atom<{
   username: null,
   playerColor: null,
 });
+
+// Set by /analysis when it loads an insight permalink (?insightId=). The AI
+// Coach reads this on mount and seeds its first assistant message with the
+// saved coach response, so the recipient sees the exact original
+// explanation without paying for a fresh LLM call.
+export const preloadedInsightAtom = atom<{
+  fen: string;
+  coachContent: string;
+  createdAt: number;
+} | null>(null);

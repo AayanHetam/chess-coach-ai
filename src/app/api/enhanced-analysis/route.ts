@@ -29,6 +29,7 @@ import {
   runValidationPipeline,
   countScoutOpportunities,
   countUserHistoryOpportunities,
+  POSITION_ANCHORED_VALIDATOR_CATEGORIES,
 } from "@/lib/mastermind/validators";
 import { fetchDataSources, type FetchedDataSources } from "@/lib/mastermind/wireValidators";
 import { computeCitationRate } from "@/lib/mastermind/citationRate";
@@ -1312,9 +1313,18 @@ export async function POST(request: NextRequest) {
               log.warn("AI response validation issues (flagoff-fallback)", {
                 issueCount: validation.issues.length,
                 score: validation.score,
+                category: prep.category,
               });
             }
-            const analysisContent = validation.isValid ? rawAnalysis : validation.correctedResponse;
+            // Same chess.js disclaimer skip as the successful-pipeline
+            // branch: suppress for non-position-anchored categories where
+            // historical-citation false positives are systematic.
+            const usePositionAnchoredAnnotationFD =
+              POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
+            const analysisContent =
+              usePositionAnchoredAnnotationFD && !validation.isValid
+                ? validation.correctedResponse
+                : rawAnalysis;
             setCachedResponse(cacheKey, analysisContent, validation.score);
             const contextId = generateContextId(moveHistory, fen, playerColor || "w");
             const compactGameContext = buildCompactGameContext(
@@ -1361,7 +1371,7 @@ export async function POST(request: NextRequest) {
                 validationIssues: validation.issues.length,
                 contextId,
                 puzzleRecommendations,
-                corrected: !validation.isValid,
+                corrected: usePositionAnchoredAnnotationFD && !validation.isValid,
                 pipeline: { fallbackReason: "fd_failed" },
               },
             });
@@ -1400,6 +1410,7 @@ export async function POST(request: NextRequest) {
                   fen: validationFen,
                   moveSan: prep.moveCtx.moveSan,
                   correlationId: requestId,
+                  category: prep.category,
                   dataSources: {
                     scout: streamingDataSources.scout,
                     userHistory: streamingDataSources.userHistory,
@@ -1441,16 +1452,34 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Post-pipeline: footnote-append still applies per §8 (no cutover).
+          // Post-pipeline: chess.js validator still runs for observability,
+          // but the "may be inaccurate" disclaimer annotation is suppressed
+          // for non-position-anchored categories (2026-05-26
+          // fix-game-review-false-positives, complement of the eval +
+          // featureDelta validator skip in PipelineOpts.category). The
+          // chess.js piece-on-square check resolves against a SINGLE FEN
+          // (validationFen = current position) but the LLM's prose for
+          // game_review queries naturally cites historical positions
+          // ("bishop on c5 was strong earlier"). False-positive disclaimer
+          // appears on legitimate historical citations. Suppress for these
+          // categories; keep for position_analysis where validator + query
+          // align.
           const validation = validateAIResponse(finalText, validationFen, moveHistory);
           if (validation.issues.length > 0) {
             log.warn("AI response validation issues (post-pipeline)", {
               issueCount: validation.issues.length,
               score: validation.score,
               issues: validation.issues.map((i) => ({ severity: i.severity, type: i.type, detail: i.detail })),
+              category: prep.category,
+              positionAnchored: POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category),
             });
           }
-          const analysisContent = validation.isValid ? finalText : validation.correctedResponse;
+          const usePositionAnchoredAnnotation =
+            POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
+          const analysisContent =
+            usePositionAnchoredAnnotation && !validation.isValid
+              ? validation.correctedResponse
+              : finalText;
 
           setCachedResponse(cacheKey, analysisContent, validation.score);
           const contextId = generateContextId(moveHistory, fen, playerColor || "w");
@@ -1511,7 +1540,10 @@ export async function POST(request: NextRequest) {
               validationIssues: validation.issues.length,
               contextId,
               puzzleRecommendations,
-              corrected: !validation.isValid,
+              // `corrected` signals the client to replace the streamedText
+              // with metadata.analysis. We only do so when the disclaimer
+              // is actually applied (position-anchored category + invalid).
+              corrected: usePositionAnchoredAnnotation && !validation.isValid,
               pipeline: {
                 finalOutcome: pipelineResult.finalOutcome,
                 retryCount: pipelineResult.retryCount,
@@ -1722,6 +1754,7 @@ export async function POST(request: NextRequest) {
                 fen: prep.moveCtx.fenAfter,
                 moveSan: prep.moveCtx.moveSan,
                 correlationId: requestId,
+                category: prep.category,
                 dataSources: {
                   scout: nonStreamingDataSources.scout,
                   userHistory: nonStreamingDataSources.userHistory,
@@ -1835,11 +1868,24 @@ export async function POST(request: NextRequest) {
         issueCount: validation.issues.length,
         score: validation.score,
         issues: validation.issues.map(i => ({ severity: i.severity, type: i.type, detail: i.detail })),
+        category: mastermindPrepForTelemetry?.category,
       });
     }
 
-    // Use the validated (potentially annotated) response
-    const analysisContent = validation.isValid ? rawAnalysis : validation.correctedResponse;
+    // 2026-05-26 fix-game-review-false-positives: chess.js "may be
+    // inaccurate" disclaimer is suppressed for non-position-anchored
+    // categories (game_review et al.) because the validator's
+    // current-FEN-only check produces false positives on legitimate
+    // historical citations. Disclaimer kept for position_analysis and
+    // for the legacy flag-off path (no category info, preserve prior
+    // behavior).
+    const usePositionAnchoredAnnotation = mastermindPrepForTelemetry
+      ? POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(mastermindPrepForTelemetry.category)
+      : true; // flag-off / pre-Mastermind path: keep historical behavior
+    const analysisContent =
+      usePositionAnchoredAnnotation && !validation.isValid
+        ? validation.correctedResponse
+        : rawAnalysis;
 
     // Cache the validated response for future identical queries
     setCachedResponse(cacheKey, analysisContent, validation.score);

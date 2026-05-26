@@ -324,12 +324,13 @@ describe("chat route: flag-on edge cases", () => {
 
   it("flag on, pipeline times out → graceful response with pipeline.timedOut=true", async () => {
     enableFlag();
-    // Mock pipeline to never resolve; rely on withPipelineTimeout's 30s
-    // (but we use fake timers to skip the wait).
+    // Mock pipeline to never resolve; rely on withPipelineTimeout's
+    // default (45s per 2026-05-26 update from 30s). We use fake timers
+    // to skip the wait.
     vi.useFakeTimers();
     mockRunValidationPipeline.mockImplementation(() => new Promise(() => {}));
     const resPromise = POST(makeRequest(fastPathBody()));
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(45_000);
     const res = await resPromise;
     vi.useRealTimers();
 

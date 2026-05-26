@@ -17,7 +17,8 @@ export type FireReason =
   | "regenerate_invoked"
   | "fallback_used"
   | "passed"
-  | "no_stockfish_eval";
+  | "no_stockfish_eval"
+  | "skip_non_anchored_category";
 
 export type FinalOutcome =
   | "passed_initial"

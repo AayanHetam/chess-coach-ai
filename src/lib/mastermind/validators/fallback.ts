@@ -99,10 +99,12 @@ function deltaPhrasesFromFeatureDelta(delta: PositionFeatureDelta): DeltaPhrase[
 
   if (delta.materialDelta.white !== 0 || delta.materialDelta.black !== 0) {
     if (delta.materialDelta.white < 0) {
-      out.push({ text: `White lost material (${Math.abs(delta.materialDelta.white)} points).`, importance: 9 });
+      const pts = Math.abs(delta.materialDelta.white);
+      out.push({ text: `White lost material (${pts} point${pts === 1 ? "" : "s"}).`, importance: 9 });
     }
     if (delta.materialDelta.black < 0) {
-      out.push({ text: `Black lost material (${Math.abs(delta.materialDelta.black)} points).`, importance: 9 });
+      const pts = Math.abs(delta.materialDelta.black);
+      out.push({ text: `Black lost material (${pts} point${pts === 1 ? "" : "s"}).`, importance: 9 });
     }
   }
 

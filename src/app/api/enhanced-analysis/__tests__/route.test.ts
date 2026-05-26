@@ -411,8 +411,21 @@ describe("enhanced-analysis route: §3.2 failure matrix", () => {
 // ─────────────────────────────────────────────────────────────────────
 
 describe("enhanced-analysis route: cross-feature interactions", () => {
-  it("flag on, footnote-append fails post-pipeline → analysisContent uses correctedResponse", async () => {
+  it("flag on, position_analysis category, footnote-append fails post-pipeline → analysisContent uses correctedResponse", async () => {
     enableFlag();
+    // 2026-05-26 fix-game-review-false-positives: the chess.js
+    // "may be inaccurate" disclaimer is now category-conditional.
+    // It applies ONLY for position-anchored categories
+    // (position_analysis). For non-anchored categories (game_review,
+    // opponent_prep, etc.) the disclaimer is suppressed because the
+    // validator's single-FEN check produces systematic false positives
+    // on multi-position prose. This test exercises the path where
+    // disclaimer SHOULD apply — explicitly setting position_analysis.
+    mockClassifyQuestion.mockResolvedValue({
+      category: "position_analysis",
+      confidence: 0.9,
+      rationale: "test",
+    });
     mockValidateAIResponse.mockReturnValue({
       isValid: false,
       score: 0.5,
@@ -422,6 +435,27 @@ describe("enhanced-analysis route: cross-feature interactions", () => {
     const res = await POST(makeRequest());
     const json = await res.json();
     expect(json.gameAnalysis.analysis).toContain("CORRECTED");
+    expect(json.gameAnalysis.validationIssues).toBeGreaterThan(0);
+  });
+
+  it("flag on, non-position-anchored category, footnote-append SUPPRESSED → analysisContent uses rawAnalysis", async () => {
+    // Companion to the above: prove that for non-anchored categories
+    // (default opponent_prep) the chess.js disclaimer does NOT apply.
+    // analysisContent should be the raw LLM prose unmodified, even
+    // when validator reports issues.
+    enableFlag();
+    // Default mock returns "opponent_prep" — non-anchored.
+    mockValidateAIResponse.mockReturnValue({
+      isValid: false,
+      score: 0.5,
+      issues: [{ severity: "warn", type: "test", detail: "test detail" }],
+      correctedResponse: "CORRECTED " + HAPPY_RESPONSE,
+    });
+    const res = await POST(makeRequest());
+    const json = await res.json();
+    expect(json.gameAnalysis.analysis).not.toContain("CORRECTED");
+    expect(json.gameAnalysis.analysis).toBe(HAPPY_RESPONSE);
+    // Validator still ran — issues count is still surfaced for observability.
     expect(json.gameAnalysis.validationIssues).toBeGreaterThan(0);
   });
 

@@ -8,9 +8,11 @@ import { validateScoutCitation } from "./scoutCitation";
 import { validateUserHistoryCitation } from "./userHistoryCitation";
 import { regenerateUntilValid, RegenerateResult } from "./regenerate";
 import { buildFallbackResponse, CoachTone } from "./fallback";
+import { createTelemetryEvent } from "./telemetry";
 import { ValidatorResult, TelemetryEvent, ScoutTimeClass } from "./types";
 import type { ScoutAnalytics, Collisions } from "@/types/scout";
 import type { UserHistoryGame } from "../userHistoryAggregates";
+import type { QuestionCategory } from "../categorization/categoryClassifier";
 
 export { validateEvalClaim } from "./evalClaim";
 export type { EvalClaimOpts, ParserCall } from "./evalClaim";
@@ -66,6 +68,40 @@ export interface ValidatorDataSources {
   jhamtani?: unknown;
 }
 
+/**
+ * Categories where the eval-claim and feature-citation validators apply
+ * meaningfully (2026-05-26 position-anchored validator scope). These
+ * validators check claims against a SINGLE computed position (current
+ * stockfishEval + featureDelta between the move-before / move-after FENs).
+ *
+ * `position_analysis` is the only category where that single-position
+ * frame matches the LLM's expected prose shape ("analyze this position").
+ *
+ * For other move-focus categories — notably `game_review` — the LLM
+ * naturally discusses MULTIPLE historical positions ("after move 23 you
+ * were winning, by move 35 it was equal"). The eval validator interprets
+ * every band claim as referring to the current position, so historical
+ * claims produce systematic false-positive eval_mismatch_qualitative
+ * fires. Likewise feature_citation_unsupported fires when the LLM cites
+ * a feature change from move 23 against the move-46 computed delta.
+ *
+ * Production rollback (2026-05-26): on a 46-move "analyze my game" query,
+ * the eval + feature validators fired twice in succession, hitting
+ * regenerate's maxRetries and substituting the deterministic
+ * buildFallbackResponse template for real LLM prose. See
+ * MASTERMIND_CONTEXT/cleanup_followups.md.
+ *
+ * Long-term fix: per-claim position anchoring (parser extracts move-number
+ * tags per claim → validator only checks claims about the current move).
+ * Tracked as a follow-up; this constant is the short-term safety scope.
+ *
+ * Scout + userHistory validators continue to run for ALL categories —
+ * they check claims against opponent/player history data, not position
+ * state, so multi-position prose doesn't break them.
+ */
+export const POSITION_ANCHORED_VALIDATOR_CATEGORIES: ReadonlySet<QuestionCategory> =
+  new Set<QuestionCategory>(["position_analysis"]);
+
 export interface PipelineOpts {
   initialRequest: CallLLMOptions;
   llmResponse?: string;
@@ -94,6 +130,16 @@ export interface PipelineOpts {
    * so route callsites can pass it without tsc errors.
    */
   signal?: AbortSignal;
+  /**
+   * Optional question category from the classifier (2026-05-26
+   * position-anchored validator scope). When provided and NOT in
+   * POSITION_ANCHORED_VALIDATOR_CATEGORIES, the eval-claim and
+   * feature-citation validators skip (emitting a single skip telemetry
+   * event each). When undefined, both validators run unconditionally —
+   * preserves byte-identical behavior for all existing callers + tests
+   * that pre-date this field.
+   */
+  category?: QuestionCategory;
 }
 
 /**
@@ -128,6 +174,82 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
     // Conditional validators (scout, userHistory) resolve to null when
     // their dataSource isn't present — same shape the sequential path
     // produced — so the concat logic below is unchanged.
+    //
+    // Position-anchored validator scope (2026-05-26 fix-game-review-
+    // false-positives): when a category is supplied AND it's not in
+    // POSITION_ANCHORED_VALIDATOR_CATEGORIES, the eval and featureDelta
+    // validators short-circuit with a single "skip_non_anchored_category"
+    // telemetry event each and no issues. The parser calls aren't made
+    // (cost = 0, latency = 0). This prevents systematic false-positive
+    // rejections on multi-position discussion (game_review) and on
+    // no-position-focus prose (concept_explanation, opponent_prep,
+    // improvement_strategy, meta_motivational). When category is
+    // undefined, both validators run unconditionally — preserves
+    // byte-identical behavior for existing callers and tests pre-dating
+    // this field.
+    const runPositionValidators =
+      opts.category === undefined ||
+      POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(opts.category);
+
+    const skipContext = {
+      fen: opts.fen,
+      move_san: opts.moveSan,
+      player_perspective: opts.playerPerspective,
+      correlation_id: opts.correlationId,
+    } as const;
+
+    const evalPromise: Promise<ValidatorResult> = runPositionValidators
+      ? validateEvalClaim({
+          llmResponse: response,
+          stockfishEval: opts.stockfishEval,
+          playerPerspective: opts.playerPerspective,
+          fen: opts.fen,
+          moveSan: opts.moveSan,
+          correlationId: opts.correlationId,
+          parseCall: opts.parseCall,
+          signal: opts.signal,
+        })
+      : Promise.resolve({
+          issues: [],
+          passed: true,
+          telemetry: [
+            createTelemetryEvent({
+              check_name: "eval_claim",
+              fire_reason: "skip_non_anchored_category",
+              expected: { category: opts.category },
+              context: skipContext,
+            }),
+          ],
+          costUsd: 0,
+        });
+
+    const citationPromise: Promise<ValidatorResult> = runPositionValidators
+      ? validateFeatureDeltaCitations({
+          llmResponse: response,
+          featureDelta: opts.featureDelta,
+          pieceRoleDiff: opts.pieceRoleDiff,
+          threatTree: opts.threatTree,
+          playerPerspective: opts.playerPerspective,
+          fen: opts.fen,
+          moveSan: opts.moveSan,
+          correlationId: opts.correlationId,
+          parseCall: opts.parseCall,
+          signal: opts.signal,
+        })
+      : Promise.resolve({
+          issues: [],
+          passed: true,
+          telemetry: [
+            createTelemetryEvent({
+              check_name: "feature_citation",
+              fire_reason: "skip_non_anchored_category",
+              expected: { category: opts.category },
+              context: skipContext,
+            }),
+          ],
+          costUsd: 0,
+        });
+
     const scoutPromise: Promise<ValidatorResult | null> = opts.dataSources?.scout
       ? validateScoutCitation({
           llmResponse: response,
@@ -154,28 +276,8 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       : Promise.resolve(null);
 
     const [evalResult, citationResult, scoutResult, userHistoryResult] = await Promise.all([
-      validateEvalClaim({
-        llmResponse: response,
-        stockfishEval: opts.stockfishEval,
-        playerPerspective: opts.playerPerspective,
-        fen: opts.fen,
-        moveSan: opts.moveSan,
-        correlationId: opts.correlationId,
-        parseCall: opts.parseCall,
-        signal: opts.signal,
-      }),
-      validateFeatureDeltaCitations({
-        llmResponse: response,
-        featureDelta: opts.featureDelta,
-        pieceRoleDiff: opts.pieceRoleDiff,
-        threatTree: opts.threatTree,
-        playerPerspective: opts.playerPerspective,
-        fen: opts.fen,
-        moveSan: opts.moveSan,
-        correlationId: opts.correlationId,
-        parseCall: opts.parseCall,
-        signal: opts.signal,
-      }),
+      evalPromise,
+      citationPromise,
       scoutPromise,
       userHistoryPromise,
     ]);

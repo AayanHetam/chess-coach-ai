@@ -7,52 +7,89 @@
 
 (function () {
   // Avoid double-init if Chrome re-injects (SPA navigation, etc.)
-  if (window.__chessMasti) return;
+  if (window.__chessMasti) {
+    console.log("[Chess Masti] shared.js already initialized, skipping");
+    return;
+  }
+  console.log("[Chess Masti] shared.js loaded on", location.href);
 
   const CHESSMASTI_BASE = "https://chessmasti.com";
   const BUTTON_ID = "chess-masti-analyze-btn";
+  const FALLBACK_INJECTION_DELAY_MS = 6000;
 
   function buildAnalysisUrl(pgn) {
-    if (!pgn || !pgn.trim()) return `${CHESSMASTI_BASE}/analysis`;
-    return `${CHESSMASTI_BASE}/analysis?pgn=${encodeURIComponent(pgn)}`;
+    if (!pgn || !pgn.trim()) return `${CHESSMASTI_BASE}/analysis?autoAnalyze=1`;
+    // autoAnalyze=1 tells chessmasti.com to kick off the Stockfish analysis
+    // immediately and then auto-send "analyze my game" to the coach once
+    // analysis completes — so the extension-driven flow feels like one click.
+    return `${CHESSMASTI_BASE}/analysis?pgn=${encodeURIComponent(pgn)}&autoAnalyze=1`;
   }
 
-  // Open chessmasti.com in a new tab. Use window.open over location.href so
-  // the user keeps their game tab as a reference.
   function openAnalysis(pgn) {
     const url = buildAnalysisUrl(pgn);
+    console.log("[Chess Masti] opening analysis URL:", url.slice(0, 100) + (url.length > 100 ? "…" : ""));
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
-  // Build the branded button as an inline-styled element so we don't have to
-  // ship CSS or fight the host site's stylesheet. Brand orange #FF6B35 from
-  // the chessmasti.com design system.
-  function makeButton(getPgn) {
+  // Build the branded button. Three styling modes:
+  //   - topnav: small inline pill, sized to slot into the host site's top
+  //     navigation bar (between Donate and Search on Lichess, etc.)
+  //   - sidebar: full-width, looks like it belongs in the host site's panel
+  //   - floating: fixed top-right of the page, always visible — used as a
+  //     guaranteed fallback when no topnav/sidebar slot can be found
+  function makeButton(getPgn, mode) {
     const btn = document.createElement("button");
     btn.id = BUTTON_ID;
     btn.type = "button";
     btn.textContent = "♟ Analyze with Chess Masti";
-    Object.assign(btn.style, {
+    const baseStyle = {
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
       gap: "6px",
-      padding: "8px 14px",
-      margin: "6px 0",
-      width: "100%",
-      borderRadius: "8px",
       border: "none",
       background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
       color: "#ffffff",
       fontWeight: "700",
-      fontSize: "13px",
       letterSpacing: "0.2px",
       cursor: "pointer",
-      boxShadow: "0 4px 12px rgba(255, 107, 53, 0.32)",
       transition: "transform 0.12s ease, box-shadow 0.12s ease",
       fontFamily:
         "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    });
+    };
+    if (mode === "topnav") {
+      Object.assign(btn.style, baseStyle, {
+        padding: "6px 12px",
+        fontSize: "12px",
+        borderRadius: "6px",
+        margin: "0 6px",
+        boxShadow: "0 2px 6px rgba(255, 107, 53, 0.28)",
+        verticalAlign: "middle",
+        lineHeight: "1.4",
+        // Match Lichess/chess.com nav height so we don't blow out the row.
+        height: "28px",
+      });
+    } else if (mode === "floating") {
+      Object.assign(btn.style, baseStyle, {
+        position: "fixed",
+        top: "16px",
+        right: "16px",
+        zIndex: "2147483647", // max — sit above any host site overlay
+        padding: "10px 16px",
+        fontSize: "13px",
+        borderRadius: "8px",
+        boxShadow: "0 4px 12px rgba(255, 107, 53, 0.32)",
+      });
+    } else {
+      Object.assign(btn.style, baseStyle, {
+        padding: "8px 14px",
+        margin: "6px 0",
+        width: "100%",
+        fontSize: "13px",
+        borderRadius: "8px",
+        boxShadow: "0 4px 12px rgba(255, 107, 53, 0.32)",
+      });
+    }
     btn.addEventListener("mouseenter", () => {
       btn.style.transform = "translateY(-1px)";
       btn.style.boxShadow = "0 6px 16px rgba(255, 107, 53, 0.42)";
@@ -71,8 +108,6 @@
         openAnalysis(pgn);
       } catch (err) {
         console.error("[Chess Masti] PGN extraction failed:", err);
-        // Graceful fallback — open analysis page without PGN so the user can
-        // paste manually rather than getting stuck.
         openAnalysis(null);
       } finally {
         btn.disabled = false;
@@ -82,26 +117,151 @@
     return btn;
   }
 
-  // Idempotent injection: if a button is already in the DOM, do nothing.
   function injectButton(targetSelector, getPgn) {
-    if (document.getElementById(BUTTON_ID)) return true;
+    if (document.getElementById(BUTTON_ID)) {
+      console.log("[Chess Masti] button already in DOM, skipping");
+      return true;
+    }
     const target = document.querySelector(targetSelector);
+    console.log(
+      "[Chess Masti] selector",
+      JSON.stringify(targetSelector),
+      target ? "✓ matched" : "✗ no match"
+    );
     if (!target) return false;
-    target.appendChild(makeButton(getPgn));
+    target.appendChild(makeButton(getPgn, "sidebar"));
+    console.log("[Chess Masti] sidebar button injected into", targetSelector);
     return true;
   }
 
-  // SPA navigation watcher. Both Lichess and Chess.com are SPAs and re-render
-  // the panel without a full page load. We re-attempt injection on DOM
-  // mutations until the panel exists. Caller passes a try-injection callback
-  // that returns true on success.
-  function watchForPanel(tryInject, { timeoutMs = 30000 } = {}) {
-    if (tryInject()) return;
+  // Floating-button fallback: always works, ignores host site DOM completely.
+  // Triggered when no topnav/sidebar slot can be found.
+  function injectFloatingButton(getPgn) {
+    if (document.getElementById(BUTTON_ID)) return true;
+    document.body.appendChild(makeButton(getPgn, "floating"));
+    console.log("[Chess Masti] floating fallback button injected");
+    return true;
+  }
+
+  // Find the first VISIBLE element matching a selector. Lichess (and many
+  // sites) keep hidden duplicate copies of nav links for mobile menus,
+  // accessibility, etc. document.querySelector returns the first DOM match
+  // regardless of visibility, which can dump our button into a hidden
+  // drawer — the user sees nothing. We check getBoundingClientRect()
+  // dimensions to filter for elements actually rendered in the viewport.
+  function findVisibleElement(selector) {
+    const candidates = document.querySelectorAll(selector);
+    for (const el of candidates) {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) return el;
+    }
+    return null;
+  }
+
+  // Top-nav injection. Caller supplies an array of "insertion specs" — each
+  // spec describes how to find the right slot in the host site's nav bar
+  // and where to put the button relative to that slot. First successful
+  // insertion wins.
+  //
+  // Spec shape:
+  //   {
+  //     anchor:    'a[href*="patron"]',  // CSS selector for the reference element
+  //     position:  'afterend',           // 'beforebegin' | 'afterend'
+  //     parentSel: '.site-buttons',       // optional: anchor must be inside this
+  //   }
+  function injectTopnavButton(specs, getPgn) {
+    if (document.getElementById(BUTTON_ID)) {
+      console.log("[Chess Masti] topnav button already present, skipping");
+      return true;
+    }
+    for (const spec of specs) {
+      try {
+        // Use findVisibleElement instead of querySelector to skip hidden
+        // duplicates (mobile menu copies, etc.) — see comment above.
+        const anchor = findVisibleElement(spec.anchor);
+        if (!anchor) {
+          console.log("[Chess Masti] topnav anchor", JSON.stringify(spec.anchor), "✗ no visible match");
+          continue;
+        }
+        if (spec.parentSel && !anchor.closest(spec.parentSel)) {
+          console.log(
+            "[Chess Masti] topnav anchor",
+            JSON.stringify(spec.anchor),
+            "matched but not inside",
+            spec.parentSel
+          );
+          continue;
+        }
+        const btn = makeButton(getPgn, "topnav");
+        anchor.insertAdjacentElement(spec.position, btn);
+        console.log(
+          "[Chess Masti] topnav button inserted",
+          spec.position,
+          JSON.stringify(spec.anchor),
+          "(parent:",
+          anchor.parentElement?.className || anchor.parentElement?.tagName,
+          ")"
+        );
+        return true;
+      } catch (err) {
+        console.warn("[Chess Masti] topnav spec failed:", spec, err);
+      }
+    }
+    return false;
+  }
+
+  // SPA navigation watcher. Three reliability problems we're solving here:
+  //
+  // 1. Lichess (and chess.com) are SPAs that re-render their nav and sidebar
+  //    after initial page load. A button injected once gets wiped. Solution:
+  //    keep the MutationObserver alive permanently and re-inject whenever
+  //    the button goes missing.
+  //
+  // 2. Selectors are fragile — they might match a hidden element or get
+  //    restructured. We try topnav first (visible, native-feeling), then
+  //    fall back to floating (uglier but always works).
+  //
+  // 3. Throttle to 250ms so we don't hammer the DOM on every minor mutation.
+  //
+  // topnavSpecs is the array of insertion-spec objects (see injectTopnavButton).
+  // fallbackGetPgn is the click handler if we have to fall back to floating.
+  function watchForPanel(topnavSpecs, fallbackGetPgn) {
+    if (!fallbackGetPgn) {
+      console.error("[Chess Masti] watchForPanel: no fallback getPgn — bailing");
+      return;
+    }
+    function ensure() {
+      if (document.getElementById(BUTTON_ID)) return;
+      // Try topnav first, fall back to floating if no slot matches.
+      if (topnavSpecs && topnavSpecs.length > 0) {
+        if (injectTopnavButton(topnavSpecs, fallbackGetPgn)) return;
+      }
+      injectFloatingButton(fallbackGetPgn);
+    }
+    if (document.body) {
+      ensure();
+    } else {
+      window.addEventListener("DOMContentLoaded", ensure, { once: true });
+    }
+    let cooldown = false;
     const observer = new MutationObserver(() => {
-      if (tryInject()) observer.disconnect();
+      if (cooldown) return;
+      if (document.getElementById(BUTTON_ID)) return;
+      cooldown = true;
+      setTimeout(() => {
+        cooldown = false;
+      }, 250);
+      ensure();
     });
-    observer.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => observer.disconnect(), timeoutMs);
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+      window.addEventListener("DOMContentLoaded", () => {
+        observer.observe(document.body, { childList: true, subtree: true });
+      }, { once: true });
+    }
+    // Sanity cap so long-lived tabs don't hold the observer forever.
+    setTimeout(() => observer.disconnect(), 5 * 60 * 1000);
   }
 
   window.__chessMasti = {
@@ -109,7 +269,9 @@
     openAnalysis,
     makeButton,
     injectButton,
+    injectFloatingButton,
     watchForPanel,
     BUTTON_ID,
   };
+  console.log("[Chess Masti] shared.js init complete");
 })();

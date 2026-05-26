@@ -37,13 +37,31 @@ import type {
 
 const log = logger.child({ module: "mastermind-pipeline-timeout" });
 
-export const DEFAULT_PIPELINE_TIMEOUT_MS = 30_000;
+/**
+ * Default pipeline timeout (2026-05-26 update from 30s → 45s).
+ *
+ * Sized to fit under Vercel's 60s `maxDuration` (vercel.json) with a
+ * 15s buffer for post-pipeline route work: synthetic chunk emission,
+ * chess.js `validateAIResponse`, `setCachedResponse` +
+ * `storeAnalysisContext`, `generatePuzzleRecommendations` (per-mistake
+ * internal fetches, 2-8s), `forwardPipelineTelemetryForRoute`, then
+ * `done` event + SSE close. The prior 30s default caused timeout
+ * fallbacks on heavy game_review queries where the Sonnet flagship
+ * coach call alone takes 30-40s.
+ *
+ * Production currently sets PIPELINE_TIMEOUT_MS=45000 explicitly; this
+ * default makes the code match the chosen safe value so Preview /
+ * local dev / future prod deploys without an explicit env var get the
+ * same protection.
+ */
+export const DEFAULT_PIPELINE_TIMEOUT_MS = 45_000;
 
 /**
- * Read `PIPELINE_TIMEOUT_MS` env var if set; fall back to the 30s default.
+ * Read `PIPELINE_TIMEOUT_MS` env var if set; fall back to the default.
  * Debug-only env var — primarily for engineered timeout reproduction on
- * Preview deploys. Default preserves current production behavior. Removable
- * post-verification if not useful as a permanent debug tool.
+ * Preview deploys (e.g., setting to 100 to force the timeout path).
+ * Production can also use it to override the code default if a different
+ * value is desired.
  */
 export function readPipelineTimeoutMs(): number {
   const raw = process.env.PIPELINE_TIMEOUT_MS;

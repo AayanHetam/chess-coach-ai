@@ -169,7 +169,26 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const signInWithGoogle = useCallback(async () => {
     // Server-routed OAuth: full-page redirect through chessmasti.com so
     // we never hit the *.firebaseapp.com handler that school WiFi blocks.
-    window.location.href = "/api/auth/google/start";
+    //
+    // Pass returnTo so the OAuth callback lands the user back on the page
+    // they were on (with all query params intact) — important for shared
+    // permalinks like /analysis?insightId=X where signing in without
+    // returnTo would dump them on / and lose the deep link entirely.
+    // Caller is always client-side (button click handler), but we use
+    // globalThis to keep TypeScript happy under SSR-aware narrowing.
+    const w =
+      typeof globalThis !== "undefined" && "location" in globalThis
+        ? (globalThis as { location: Location }).location
+        : null;
+    if (!w) {
+      // Should not happen in practice; defensive only.
+      return;
+    }
+    const here = w.pathname + w.search + w.hash;
+    // Only pass same-origin paths. Server-side `sanitizeReturnTo` rejects
+    // anything else, but we keep client-side hygiene tight too.
+    const returnTo = here.startsWith("/") ? here : "/";
+    w.href = `/api/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`;
   }, []);
 
   const signOut = useCallback(async () => {

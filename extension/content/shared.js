@@ -143,6 +143,21 @@
     return true;
   }
 
+  // Find the first VISIBLE element matching a selector. Lichess (and many
+  // sites) keep hidden duplicate copies of nav links for mobile menus,
+  // accessibility, etc. document.querySelector returns the first DOM match
+  // regardless of visibility, which can dump our button into a hidden
+  // drawer — the user sees nothing. We check getBoundingClientRect()
+  // dimensions to filter for elements actually rendered in the viewport.
+  function findVisibleElement(selector) {
+    const candidates = document.querySelectorAll(selector);
+    for (const el of candidates) {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) return el;
+    }
+    return null;
+  }
+
   // Top-nav injection. Caller supplies an array of "insertion specs" — each
   // spec describes how to find the right slot in the host site's nav bar
   // and where to put the button relative to that slot. First successful
@@ -161,9 +176,11 @@
     }
     for (const spec of specs) {
       try {
-        const anchor = document.querySelector(spec.anchor);
+        // Use findVisibleElement instead of querySelector to skip hidden
+        // duplicates (mobile menu copies, etc.) — see comment above.
+        const anchor = findVisibleElement(spec.anchor);
         if (!anchor) {
-          console.log("[Chess Masti] topnav anchor", JSON.stringify(spec.anchor), "✗ no match");
+          console.log("[Chess Masti] topnav anchor", JSON.stringify(spec.anchor), "✗ no visible match");
           continue;
         }
         if (spec.parentSel && !anchor.closest(spec.parentSel)) {
@@ -180,7 +197,10 @@
         console.log(
           "[Chess Masti] topnav button inserted",
           spec.position,
-          JSON.stringify(spec.anchor)
+          JSON.stringify(spec.anchor),
+          "(parent:",
+          anchor.parentElement?.className || anchor.parentElement?.tagName,
+          ")"
         );
         return true;
       } catch (err) {

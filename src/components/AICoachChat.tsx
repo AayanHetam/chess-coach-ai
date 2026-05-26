@@ -30,6 +30,7 @@ import { Chess } from "chess.js";
 import { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import { useChessActions } from "@/hooks/useChessActions";
 import {
+  autoAnalyzeStateAtom,
   boardAtom,
   evaluationProgressAtom,
   gameAtom,
@@ -1701,6 +1702,16 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   // can't fire LLM calls against an incomplete eval.
   const evaluationProgress = useAtomValue(evaluationProgressAtom);
   const isAnalyzingGame = evaluationProgress > 0 && evaluationProgress < 100;
+
+  // autoAnalyze state machine — set by /analysis when ?autoAnalyze=1 is
+  // detected (browser extension flow). When 'pending' or
+  // 'sent-awaiting-insights', the chat input is locked (user can't type
+  // until the coach replies with [INSIGHT:...] cards).
+  const autoAnalyzeState = useAtomValue(autoAnalyzeStateAtom);
+  const setAutoAnalyzeState = useSetAtom(autoAnalyzeStateAtom);
+  const lockedByAutoAnalyze =
+    autoAnalyzeState === "pending" || autoAnalyzeState === "sent-awaiting-insights";
+
   // Get user player info (username and color)
   const userPlayerInfo = useAtomValue(userPlayerInfoAtom);
 
@@ -1992,6 +2003,54 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // ── autoAnalyze auto-send ──────────────────────────────────────────────
+  // When the browser extension's URL flag fired and Stockfish finishes
+  // analyzing the loaded PGN, auto-send "analyze my game" to the coach so
+  // the user doesn't have to type anything. Fires exactly once per
+  // page load (refs + atom-state-machine both guard).
+  const autoSendFiredRef = useRef(false);
+  useEffect(() => {
+    if (autoAnalyzeState !== "pending") return;
+    if (!gameEval) return; // wait for Stockfish to finish
+    if (autoSendFiredRef.current) return;
+    // Skip if the conversation already has a user message — handles the
+    // refresh-with-persisted-chat case where the prior auto-send already
+    // landed. Better to under-fire than to spam duplicate prompts.
+    const hasUserMsg = messages.some((m) => m.role === "user");
+    if (hasUserMsg) {
+      autoSendFiredRef.current = true;
+      setAutoAnalyzeState("done");
+      return;
+    }
+    autoSendFiredRef.current = true;
+    setAutoAnalyzeState("sent-awaiting-insights");
+    // Small delay so the state transition commits before we kick off the
+    // send. Belt-and-suspenders against React state-batching edge cases.
+    setTimeout(() => {
+      handleSendMessage("analyze my game");
+    }, 100);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAnalyzeState, gameEval]);
+
+  // ── autoAnalyze insight-detection lock release ─────────────────────────
+  // Watch for the coach's reply to contain [INSIGHT:...] tags (the format
+  // that drives the InsightsCarousel rendering). When detected, release
+  // the input lock so the user can resume typing.
+  useEffect(() => {
+    if (autoAnalyzeState !== "sent-awaiting-insights") return;
+    // Find the most recent assistant message and check for insight tags.
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role !== "assistant") continue;
+      if (m.content.includes("[INSIGHT:")) {
+        setAutoAnalyzeState("done");
+        return;
+      }
+      break; // only check the LATEST assistant message — older ones don't matter
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAnalyzeState, messages]);
 
   // Helper function to detect if message is a greeting
   const isGreeting = (text: string): boolean => {
@@ -2740,12 +2799,14 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       // Drop the keypress if a send is already in flight, the input is empty,
-      // or the engine is still analyzing the game. The button's disabled state
-      // is async, but a held-down Enter fires synchronously.
+      // the engine is still analyzing the game, or the autoAnalyze flow has
+      // the input locked. The button's disabled state is async, but a
+      // held-down Enter fires synchronously.
       if (
         isLoading ||
         inFlightRef.current ||
         isAnalyzingGame ||
+        lockedByAutoAnalyze ||
         !input.trim()
       ) {
         return;
@@ -3020,17 +3081,21 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder={
-            isAnalyzingGame
+            autoAnalyzeState === "pending"
+              ? `Analyzing your game... ${evaluationProgress}%`
+              : autoAnalyzeState === "sent-awaiting-insights"
+              ? "Coach is reviewing your game…"
+              : isAnalyzingGame
               ? `Analyzing your game... ${evaluationProgress}%`
               : "Ask specific questions about moves or positions..."
           }
-          disabled={isLoading || isAnalyzingGame}
+          disabled={isLoading || isAnalyzingGame || lockedByAutoAnalyze}
         />
 
         {/* Quick Analysis Button */}
         <IconButton
           onClick={() => {
-            if (!isLoading && !isAnalyzingGame && !input.trim()) {
+            if (!isLoading && !isAnalyzingGame && !lockedByAutoAnalyze && !input.trim()) {
               setInput("analyze my game");
               // Use the existing handleSend function to ensure proper state management
               setTimeout(() => {
@@ -3038,7 +3103,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
               }, 50);
             }
           }}
-          disabled={isLoading || isAnalyzingGame}
+          disabled={isLoading || isAnalyzingGame || lockedByAutoAnalyze}
           sx={{
             background: "linear-gradient(135deg, #FF8C42 0%, #FF6B42 100%)",
             color: "white",
@@ -3068,7 +3133,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         <IconButton
           color="primary"
           onClick={handleSend}
-          disabled={isLoading || isAnalyzingGame || !input.trim()}
+          disabled={isLoading || isAnalyzingGame || lockedByAutoAnalyze || !input.trim()}
         >
           {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
         </IconButton>

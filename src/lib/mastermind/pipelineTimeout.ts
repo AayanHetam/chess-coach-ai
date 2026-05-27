@@ -38,23 +38,23 @@ import type {
 const log = logger.child({ module: "mastermind-pipeline-timeout" });
 
 /**
- * Default pipeline timeout (2026-05-26 update from 30s → 45s).
+ * Default pipeline timeout (2026-05-26 update from 30s → 45s → 55s).
  *
  * Sized to fit under Vercel's 60s `maxDuration` (vercel.json) with a
- * 15s buffer for post-pipeline route work: synthetic chunk emission,
- * chess.js `validateAIResponse`, `setCachedResponse` +
+ * tight ~5s buffer for post-pipeline route work: synthetic chunk
+ * emission, chess.js `validateAIResponse`, `setCachedResponse` +
  * `storeAnalysisContext`, `generatePuzzleRecommendations` (per-mistake
  * internal fetches, 2-8s), `forwardPipelineTelemetryForRoute`, then
- * `done` event + SSE close. The prior 30s default caused timeout
- * fallbacks on heavy game_review queries where the Sonnet flagship
- * coach call alone takes 30-40s.
+ * `done` event + SSE close. The prior 45s default still left long
+ * game_review queries (60+ move games where Sonnet flagship alone
+ * takes 40-55s) hitting the timeout fallback.
  *
- * Production currently sets PIPELINE_TIMEOUT_MS=45000 explicitly; this
- * default makes the code match the chosen safe value so Preview /
- * local dev / future prod deploys without an explicit env var get the
- * same protection.
+ * Interim until the real-streaming refactor lands — once
+ * /api/enhanced-analysis forwards Anthropic chunks directly via
+ * callLLMStream, the user sees text within ~1s and this timeout
+ * matters less.
  */
-export const DEFAULT_PIPELINE_TIMEOUT_MS = 45_000;
+export const DEFAULT_PIPELINE_TIMEOUT_MS = 55_000;
 
 /**
  * Read `PIPELINE_TIMEOUT_MS` env var if set; fall back to the default.

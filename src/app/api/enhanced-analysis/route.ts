@@ -1268,8 +1268,25 @@ export async function POST(request: NextRequest) {
           });
 
           // §3.2 contract: FD throws → fall back to flag-off path.
-          if (!prep.dataSources) {
-            send({ type: "validating", phase: "fallback-to-flagoff" });
+          //
+          // Plus (2026-05-26 game-review-realtime-stream): game_review queries
+          // also take this path. Why: on a 100-move game, the Sonnet flagship
+          // call alone is 50-60s. The blocking heavy-pipeline path below
+          // synthetic-re-streams its result AFTER the call completes, so the
+          // user sees nothing until ~60s in (or hits the timeout fallback).
+          //
+          // For game_review, eval-claim + feature-citation validators ALREADY
+          // skip (POSITION_ANCHORED_VALIDATOR_CATEGORIES = position_analysis
+          // only). The remaining Mastermind validators (scout, userHistory)
+          // add 3-8s for marginal value on multi-position analysis prose.
+          // Routing through the streaming path here trades them for ~1s
+          // time-to-first-token. The chess.js validateAIResponse downstream
+          // still runs as the lightweight hallucination check.
+          if (!prep.dataSources || prep.category === "game_review") {
+            send({
+              type: "validating",
+              phase: !prep.dataSources ? "fallback-to-flagoff" : "realtime-stream",
+            });
             // Reuse the live-stream loop from the flag-off path inline.
             let fullText = "";
             let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
@@ -1372,7 +1389,11 @@ export async function POST(request: NextRequest) {
                 contextId,
                 puzzleRecommendations,
                 corrected: usePositionAnchoredAnnotationFD && !validation.isValid,
-                pipeline: { fallbackReason: "fd_failed" },
+                pipeline: {
+                  fallbackReason: !prep.dataSources
+                    ? "fd_failed"
+                    : "game_review_realtime_stream",
+                },
               },
             });
             controller.close();

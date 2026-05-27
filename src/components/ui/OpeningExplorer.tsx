@@ -1,8 +1,8 @@
 "use client";
 
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Button, Stack, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, TrendingUp } from "lucide-react";
+import { ArrowLeftRight, BookOpen, TrendingUp } from "lucide-react";
 
 interface OpeningMove {
   uci: string;
@@ -23,10 +23,21 @@ interface OpeningExplorerData {
 
 interface OpeningExplorerProps {
   fen: string;
+  /** Shown when the API hasn't (or can't) returned an opening name. */
+  fallbackOpeningName?: string;
+  fallbackEco?: string;
   onMoveClick?: (uci: string) => void;
+  /** If provided, renders a "Takeover" button in the header. */
+  onTakeover?: () => void;
 }
 
-export function OpeningExplorer({ fen, onMoveClick }: OpeningExplorerProps) {
+export function OpeningExplorer({
+  fen,
+  fallbackOpeningName,
+  fallbackEco,
+  onMoveClick,
+  onTakeover,
+}: OpeningExplorerProps) {
   const [data, setData] = useState<OpeningExplorerData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -42,7 +53,9 @@ export function OpeningExplorer({ fen, onMoveClick }: OpeningExplorerProps) {
       setLoading(true);
       setError(false);
       try {
-        const url = `https://explorer.lichess.ovh/masters?fen=${encodeURIComponent(fen)}&moves=6`;
+        // Same-origin proxy — see src/app/api/opening-explorer/route.ts.
+        // Bypasses client-side network filters that block explorer.lichess.ovh.
+        const url = `/api/opening-explorer?fen=${encodeURIComponent(fen)}&moves=6`;
         const res = await fetch(url, { signal: ctrl.signal });
         if (!res.ok) throw new Error(String(res.status));
         const json = (await res.json()) as OpeningExplorerData;
@@ -62,6 +75,8 @@ export function OpeningExplorer({ fen, onMoveClick }: OpeningExplorerProps) {
 
   const total = data ? data.white + data.draws + data.black : 0;
   const hasMoves = data && data.moves.length > 0;
+  const displayName = data?.opening?.name ?? fallbackOpeningName;
+  const displayEco = data?.opening?.eco ?? fallbackEco;
 
   return (
     <Box
@@ -88,7 +103,7 @@ export function OpeningExplorer({ fen, onMoveClick }: OpeningExplorerProps) {
         >
           Master games
         </Typography>
-        {data?.opening && (
+        {displayName && (
           <Typography
             sx={{
               fontSize: "0.78rem",
@@ -96,18 +111,20 @@ export function OpeningExplorer({ fen, onMoveClick }: OpeningExplorerProps) {
               fontWeight: 500,
             }}
           >
-            · {data.opening.name}
-            <Box
-              component="span"
-              sx={{
-                ml: 1,
-                fontSize: "0.7rem",
-                color: "rgba(255,255,255,0.4)",
-                fontFamily: "Monaco, Menlo, monospace",
-              }}
-            >
-              {data.opening.eco}
-            </Box>
+            · {displayName}
+            {displayEco && (
+              <Box
+                component="span"
+                sx={{
+                  ml: 1,
+                  fontSize: "0.7rem",
+                  color: "rgba(255,255,255,0.4)",
+                  fontFamily: "Monaco, Menlo, monospace",
+                }}
+              >
+                {displayEco}
+              </Box>
+            )}
           </Typography>
         )}
         <Box sx={{ flex: 1 }} />
@@ -121,6 +138,34 @@ export function OpeningExplorer({ fen, onMoveClick }: OpeningExplorerProps) {
           >
             {total.toLocaleString()} games
           </Typography>
+        )}
+        {onTakeover && (
+          <Button
+            onClick={onTakeover}
+            startIcon={<ArrowLeftRight size={13} />}
+            size="small"
+            sx={{
+              bgcolor: "rgba(34,197,94,0.14)",
+              color: "#86efac",
+              fontWeight: 700,
+              fontSize: "0.72rem",
+              letterSpacing: "0.08em",
+              px: 1.5,
+              py: 0.4,
+              borderRadius: "999px",
+              border: "1px solid rgba(34,197,94,0.32)",
+              minWidth: 0,
+              transition: "all 180ms ease",
+              "&:hover": {
+                bgcolor: "rgba(34,197,94,0.22)",
+                borderColor: "rgba(34,197,94,0.5)",
+                color: "#bbf7d0",
+                transform: "translateY(-1px)",
+              },
+            }}
+          >
+            Takeover
+          </Button>
         )}
       </Stack>
 
@@ -140,9 +185,40 @@ export function OpeningExplorer({ fen, onMoveClick }: OpeningExplorerProps) {
       )}
 
       {error && (
-        <Typography sx={{ fontSize: "0.82rem", color: "rgba(239,68,68,0.7)", py: 1 }}>
-          Couldn't reach Lichess explorer (network or rate limit).
-        </Typography>
+        <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ py: 1 }}>
+          <Box
+            sx={{
+              mt: 0.4,
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.25)",
+              flexShrink: 0,
+            }}
+          />
+          <Box>
+            <Typography
+              sx={{
+                fontSize: "0.82rem",
+                color: "rgba(255,255,255,0.62)",
+                lineHeight: 1.5,
+              }}
+            >
+              Master-game stats unavailable on this network.
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: "0.72rem",
+                color: "rgba(255,255,255,0.35)",
+                mt: 0.5,
+                lineHeight: 1.5,
+              }}
+            >
+              Live in production · ranks top moves by win rate from 2M+
+              over-the-board master games.
+            </Typography>
+          </Box>
+        </Stack>
       )}
 
       {hasMoves && (

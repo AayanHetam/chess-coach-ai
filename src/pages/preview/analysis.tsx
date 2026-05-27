@@ -12,6 +12,8 @@ import {
 } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
+import { MasterGamesTakeover } from "@/components/ui/MasterGamesTakeover";
+import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import Head from "next/head";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -489,11 +491,13 @@ function BoardArea({
   lastMove,
   boardOrientation,
   isInCheck,
+  shapes,
 }: {
   fen: string;
   lastMove: Move | null;
   boardOrientation: "white" | "black";
   isInCheck: boolean;
+  shapes?: DrawShape[];
 }) {
   const lastMoveTuple = useMemo<[string, string] | undefined>(
     () => (lastMove ? [lastMove.from, lastMove.to] : undefined),
@@ -529,6 +533,7 @@ function BoardArea({
           lastMove={lastMoveTuple}
           check={isInCheck}
           viewOnly={true}
+          shapes={shapes}
         />
       </Box>
     </Box>
@@ -832,8 +837,9 @@ function CoachPanel({
     <Box
       sx={{
         position: "relative",
-        height: { xs: "auto", lg: "clamp(560px, calc(100vh - 240px), 880px)" },
-        minHeight: { xs: 600, lg: 0 },
+        // Height now controlled by the parent wrapper so swaps inherit it.
+        height: "100%",
+        width: "100%",
         borderRadius: "1.5rem",
         background: "rgba(20,22,28,0.6)",
         backdropFilter: "blur(16px) saturate(150%)",
@@ -1491,10 +1497,97 @@ export default function AnalysisPage() {
   // Command palette state
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  // Coach chat state
+  // Coach chat state (persists across takeover toggle — chat history intact)
   const [messages, setMessages] = useState<CoachMessage[]>(SEED_MESSAGES);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
+
+  // Takeover mode (Master games panel replaces Coach panel)
+  const [takeoverMode, setTakeoverMode] = useState(false);
+  // Optional previewed move while in takeover — replays from currentFen
+  const [takeoverPreview, setTakeoverPreview] = useState<{
+    fen: string;
+    from: string;
+    to: string;
+    san: string;
+  } | null>(null);
+
+  // Board FEN + last move switch when previewing in takeover mode
+  const displayFen = takeoverPreview?.fen ?? currentFen;
+  const displayLastMove = useMemo<Move | null>(() => {
+    if (takeoverPreview) {
+      // Construct a Move-shaped object for the highlight
+      return {
+        from: takeoverPreview.from,
+        to: takeoverPreview.to,
+        san: takeoverPreview.san,
+      } as Move;
+    }
+    return lastMove;
+  }, [takeoverPreview, lastMove]);
+  const displayShapes = useMemo<DrawShape[]>(() => {
+    if (takeoverPreview) {
+      return [
+        {
+          orig: takeoverPreview.from,
+          dest: takeoverPreview.to,
+          brush: "green",
+        },
+      ];
+    }
+    return [];
+  }, [takeoverPreview]);
+
+  const handleTakeoverEnter = useCallback(() => {
+    setTakeoverMode(true);
+    setTakeoverPreview(null);
+  }, []);
+  const handleTakeoverRevert = useCallback(() => {
+    setTakeoverMode(false);
+    setTakeoverPreview(null);
+  }, []);
+  const handleTakeoverPreviewMove = useCallback(
+    (uci: string, san: string) => {
+      // Play the move on a fresh chess from currentFen
+      const g = new Chess(currentFen);
+      const from = uci.slice(0, 2);
+      const to = uci.slice(2, 4);
+      const result = g.move({ from, to, promotion: "q" });
+      if (result) {
+        setTakeoverPreview({ fen: g.fen(), from, to, san });
+      }
+    },
+    [currentFen]
+  );
+  const handleTakeoverSendToCoach = useCallback(
+    (message: string) => {
+      // Push a user message into chat as if typed
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: message, ply: currentPly },
+      ]);
+      setIsThinking(true);
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "coach",
+            content:
+              "Pulling that line from the master database now — once a real model is wired in, you'll get a deep walkthrough of the typical plans, strategic motifs, and key games here.",
+            ply: currentPly,
+          },
+        ]);
+        setIsThinking(false);
+      }, 1100);
+    },
+    [currentPly]
+  );
+
+  // Played SAN at this ply (for highlighting in the takeover list)
+  const playedSanAtPly = useMemo<string | undefined>(() => {
+    if (currentPly === 0) return undefined;
+    return allMoves[currentPly - 1]?.san;
+  }, [allMoves, currentPly]);
 
   const handleSend = useCallback(() => {
     const text = input.trim();
@@ -1712,10 +1805,11 @@ export default function AnalysisPage() {
               }}
             >
               <BoardArea
-                fen={currentFen}
-                lastMove={lastMove}
+                fen={displayFen}
+                lastMove={displayLastMove}
                 boardOrientation={boardOrientation}
                 isInCheck={isInCheck}
+                shapes={displayShapes}
               />
               <EvalSparkline
                 series={evalSeries}
@@ -1732,17 +1826,52 @@ export default function AnalysisPage() {
                 fen={currentFen}
                 fallbackOpeningName={headers.Opening ?? undefined}
                 fallbackEco={headers.ECO ?? undefined}
+                onTakeover={!takeoverMode ? handleTakeoverEnter : undefined}
               />
             </Box>
 
-            <CoachPanel
-              messages={messages}
-              input={input}
-              onChangeInput={setInput}
-              onSend={handleSend}
-              onSuggestion={handleSuggestion}
-              isThinking={isThinking}
-            />
+            {/* Right column: Coach panel ↔ Master Games takeover swap */}
+            <Box
+              sx={{
+                position: "relative",
+                height: { xs: "auto", lg: "clamp(560px, calc(100vh - 240px), 880px)" },
+                minHeight: { xs: 600, lg: 0 },
+              }}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {takeoverMode ? (
+                  <MasterGamesTakeover
+                    key="takeover"
+                    currentPly={currentPly}
+                    playedSan={playedSanAtPly}
+                    onPreviewMove={handleTakeoverPreviewMove}
+                    onSendToCoach={handleTakeoverSendToCoach}
+                    onRevert={handleTakeoverRevert}
+                  />
+                ) : (
+                  <motion.div
+                    key="coach"
+                    initial={{ opacity: 0, x: -60, scale: 0.96 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: -60, scale: 0.96 }}
+                    transition={{
+                      duration: 0.42,
+                      ease: [0.22, 0.61, 0.36, 1],
+                    }}
+                    style={{ height: "100%", width: "100%" }}
+                  >
+                    <CoachPanel
+                      messages={messages}
+                      input={input}
+                      onChangeInput={setInput}
+                      onSend={handleSend}
+                      onSuggestion={handleSuggestion}
+                      isThinking={isThinking}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Box>
           </Box>
 
           <MoveNavigator

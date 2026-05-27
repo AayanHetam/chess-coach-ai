@@ -23,6 +23,12 @@ interface ChessgroundBoardProps {
   viewOnly?: boolean;
   shapes?: DrawShape[];
   check?: boolean;
+  /** "white" | "black" | "both" — which side can move pieces. Ignored if viewOnly. */
+  movableColor?: "white" | "black" | "both";
+  /** Map of source square → array of legal destination squares. */
+  dests?: Map<string, string[]>;
+  /** Fired when the user makes a move on the board (drag or click-click). */
+  onMove?: (orig: string, dest: string) => void;
 }
 
 export function ChessgroundBoard({
@@ -32,11 +38,20 @@ export function ChessgroundBoard({
   viewOnly = true,
   shapes,
   check = false,
+  movableColor,
+  dests,
+  onMove,
 }: ChessgroundBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
+  // Keep the latest onMove in a ref so chessground always sees the current
+  // closure without us having to re-init the board on every parent render.
+  const onMoveRef = useRef<typeof onMove>(onMove);
+  useEffect(() => {
+    onMoveRef.current = onMove;
+  }, [onMove]);
 
-  // Mount: create chessground once
+  // Mount once
   useEffect(() => {
     if (!containerRef.current) return;
     const config: Config = {
@@ -47,6 +62,18 @@ export function ChessgroundBoard({
       coordinates: true,
       check,
       animation: { enabled: true, duration: 220 },
+      movable: {
+        color: viewOnly ? undefined : movableColor,
+        dests: dests as Map<Key, Key[]> | undefined,
+        free: false,
+        showDests: true,
+        events: {
+          after: (orig: Key, dest: Key) => {
+            onMoveRef.current?.(orig as string, dest as string);
+          },
+        },
+      },
+      highlight: { lastMove: true, check: true },
       drawable: {
         enabled: !viewOnly,
         visible: true,
@@ -81,6 +108,20 @@ export function ChessgroundBoard({
     });
   }, [fen, orientation, lastMove, check]);
 
+  // Sync movable (when puzzles change available moves)
+  useEffect(() => {
+    if (!apiRef.current) return;
+    apiRef.current.set({
+      viewOnly,
+      movable: {
+        color: viewOnly ? undefined : movableColor,
+        dests: dests as Map<Key, Key[]> | undefined,
+        free: false,
+        showDests: true,
+      },
+    });
+  }, [viewOnly, movableColor, dests]);
+
   // Sync drawn shapes (arrows/circles)
   useEffect(() => {
     if (!apiRef.current) return;
@@ -92,17 +133,13 @@ export function ChessgroundBoard({
       style={{
         width: "100%",
         position: "relative",
-        // Aspect-ratio square — chessground fills the box
         aspectRatio: "1 / 1",
       }}
     >
       <div
         ref={containerRef}
         className="cg-wrap"
-        style={{
-          width: "100%",
-          height: "100%",
-        }}
+        style={{ width: "100%", height: "100%" }}
       />
     </div>
   );

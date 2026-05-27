@@ -24,18 +24,24 @@ Both sites are SPAs; the script handles pushState navigation so the button persi
 extension/
 ├── manifest.json          # Manifest v3
 ├── README.md              # this file
+├── STORE_LISTING.md       # Chrome Web Store submission copy + checklist
 ├── icons/
 │   ├── 16.png             # toolbar icon
-│   └── 32.png             # extension management page
+│   ├── 32.png             # extension management page
+│   ├── 48.png             # extension management page (HiDPI)
+│   └── 128.png            # store listing icon
 └── content/
     ├── shared.js          # button injection helper, URL builder
     ├── lichess.js         # Lichess-specific detection + PGN fetch
     └── chesscom.js        # Chess.com-specific detection + DOM scraping
 ```
 
-## Limitations (MVP)
+## Chrome Web Store submission
 
-- **No Chrome Web Store listing yet** — load unpacked is the only install path.
+See [STORE_LISTING.md](STORE_LISTING.md) for the listing copy, permission justifications, privacy practice declarations, and submission preflight checklist. Privacy policy lives at [chessmasti.com/privacy](https://chessmasti.com/privacy).
+
+## Limitations
+
 - **Chess.com PGN extraction is DOM-based** and may need adjustment if Chess.com restyles their moves panel.
 - **No Firefox support** — manifest v3 differs across browsers; Firefox port is a follow-up.
 - **No game-over auto-detection** — the button is always visible on game pages, user clicks when ready.

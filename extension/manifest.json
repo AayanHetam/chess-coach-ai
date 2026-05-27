@@ -1,11 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Analyze with Chess Masti",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Add an 'Analyze with Chess Masti' button to Lichess and Chess.com game pages. One click opens chessmasti.com with the game loaded for AI coaching.",
   "icons": {
     "16": "icons/16.png",
-    "32": "icons/32.png"
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
   },
   "content_scripts": [
     {

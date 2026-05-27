@@ -71,10 +71,12 @@ export default function Layout({ children }: PropsWithChildren) {
   );
 
   const router = useRouter();
-  const isLandingPage = router.pathname === "/";
+  // Landing page and any /preview/* route get a full-bleed shell (no NavBar)
+  // so they can render their own dark-mode chrome without clashing.
+  const isBareLayout =
+    router.pathname === "/" || router.pathname.startsWith("/preview");
 
-  // Landing page: skip NavBar and app chrome for a full-bleed look
-  if (isLandingPage) {
+  if (isBareLayout) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />

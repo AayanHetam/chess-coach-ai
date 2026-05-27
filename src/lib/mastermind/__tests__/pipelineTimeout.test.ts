@@ -119,11 +119,11 @@ describe("withPipelineTimeout: timer fires first", () => {
     });
   });
 
-  it("default timeout is 45s (raised from 30s on 2026-05-26 to fit Sonnet flagship + parallel validators under Vercel 60s maxDuration)", () => {
-    expect(DEFAULT_PIPELINE_TIMEOUT_MS).toBe(45_000);
+  it("default timeout is 55s (raised from 45s on 2026-05-26 to fit long game_review queries under Vercel 60s maxDuration)", () => {
+    expect(DEFAULT_PIPELINE_TIMEOUT_MS).toBe(55_000);
   });
 
-  it("uses default 45s when timeoutMs not provided", async () => {
+  it("uses default 55s when timeoutMs not provided", async () => {
     const factory = (_signal: AbortSignal) =>
       new Promise<RegenerateResult>(() => {});
     const racePromise = withPipelineTimeout(factory, {
@@ -131,8 +131,8 @@ describe("withPipelineTimeout: timer fires first", () => {
       fallbackResponse: "fb",
     });
 
-    // Advance 44s — not yet expired
-    vi.advanceTimersByTime(44_000);
+    // Advance 54s — not yet expired
+    vi.advanceTimersByTime(54_000);
     // Race not yet resolved; need to advance the remaining second.
     vi.advanceTimersByTime(1_000);
     const result = await racePromise;
@@ -265,10 +265,10 @@ describe("withPipelineTimeout: signal cancellation (fix-orphan-pipeline-cancella
 });
 
 describe("readPipelineTimeoutMs: env var override", () => {
-  it("defaults to DEFAULT_PIPELINE_TIMEOUT_MS (45000ms) when PIPELINE_TIMEOUT_MS is unset", () => {
+  it("defaults to DEFAULT_PIPELINE_TIMEOUT_MS (55000ms) when PIPELINE_TIMEOUT_MS is unset", () => {
     vi.stubEnv("PIPELINE_TIMEOUT_MS", "");
     expect(readPipelineTimeoutMs()).toBe(DEFAULT_PIPELINE_TIMEOUT_MS);
-    expect(readPipelineTimeoutMs()).toBe(45_000);
+    expect(readPipelineTimeoutMs()).toBe(55_000);
   });
 
   it("respects PIPELINE_TIMEOUT_MS when set to a positive integer", () => {

@@ -3,7 +3,8 @@
 import { Box, IconButton, Stack, Typography } from "@mui/material";
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, Sparkles, Zap } from "lucide-react";
+import { motion } from "framer-motion";
+import { Menu, Sparkles } from "lucide-react";
 import { AppDrawer, type NavId } from "./AppDrawer";
 
 interface NavPillProps {
@@ -11,8 +12,23 @@ interface NavPillProps {
   badge?: { label: string };
 }
 
-export function NavPill({ active, badge }: NavPillProps) {
+// Five primary nav links across all preview pages. Order tells the user
+// flow: play your game → analyze it → practice your weakness → learn
+// theory → scout your next opponent.
+const NAV_LINKS: { id: NavId; label: string; href: string }[] = [
+  { id: "play", label: "Play", href: "/preview/play" },
+  { id: "analysis", label: "Analyze", href: "/preview/analysis" },
+  { id: "practice", label: "Practice", href: "/preview/practice" },
+  { id: "openings", label: "Learn", href: "/preview/openings" },
+  { id: "scout", label: "Scout", href: "/preview/scout" },
+];
+
+export function NavPill({ active }: NavPillProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Hover state lets the indicator preview-slide to the hovered item;
+  // snaps back to the truly active item on mouse-leave.
+  const [hovered, setHovered] = useState<NavId | null>(null);
+  const indicatorTarget = hovered ?? active;
 
   return (
     <>
@@ -24,8 +40,8 @@ export function NavPill({ active, badge }: NavPillProps) {
           zIndex: 50,
           mx: "auto",
           maxWidth: 1680,
-          px: { xs: 2, md: 3 },
-          py: 1.25,
+          px: { xs: 1.5, md: 2 },
+          py: 1,
           mb: 3,
           borderRadius: "999px",
           background: "rgba(12,14,20,0.6)",
@@ -70,6 +86,7 @@ export function NavPill({ active, badge }: NavPillProps) {
             letterSpacing: "-0.02em",
             textDecoration: "none",
             fontSize: "1rem",
+            pr: { xs: 0, md: 1 },
           }}
         >
           <Box
@@ -82,73 +99,80 @@ export function NavPill({ active, badge }: NavPillProps) {
               alignItems: "center",
               justifyContent: "center",
               boxShadow: "0 0 16px rgba(249,115,22,0.4)",
+              flexShrink: 0,
             }}
           >
             <Sparkles size={14} color="#0A0A0A" />
           </Box>
-          Chess Masti
+          <Box sx={{ display: { xs: "none", sm: "block" } }}>Chess Masti</Box>
         </Box>
 
         <Box sx={{ flex: 1 }} />
 
-        <Stack
-          direction="row"
-          spacing={3}
-          sx={{ display: { xs: "none", md: "flex" } }}
+        {/* Animated 5-link nav with sliding indicator */}
+        <Box
+          sx={{
+            display: { xs: "none", md: "flex" },
+            position: "relative",
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: "999px",
+            p: 0.5,
+          }}
+          onMouseLeave={() => setHovered(null)}
         >
-          {[
-            { id: "play" as NavId, label: "Play", href: "/preview/play" },
-            { id: "practice" as NavId, label: "Practice", href: "/preview/practice" },
-            { id: "scout" as NavId, label: "Scout", href: "/preview/scout" },
-          ].map((item) => (
-            <Typography
-              key={item.id}
-              component={Link}
-              href={item.href}
-              sx={{
-                fontSize: "0.88rem",
-                fontWeight: active === item.id ? 700 : 500,
-                color:
-                  active === item.id
+          {NAV_LINKS.map((item) => {
+            const isIndicated = indicatorTarget === item.id;
+            const isActive = active === item.id;
+            return (
+              <Box
+                key={item.id}
+                component={Link}
+                href={item.href}
+                onMouseEnter={() => setHovered(item.id)}
+                sx={{
+                  position: "relative",
+                  px: 2.25,
+                  py: 0.85,
+                  fontSize: "0.85rem",
+                  fontWeight: isActive ? 700 : 500,
+                  color: isActive
                     ? "#FB923C"
-                    : "rgba(255,255,255,0.7)",
-                textDecoration: "none",
-                transition: "color 180ms ease",
-                "&:hover": { color: "rgba(255,255,255,1)" },
-              }}
-            >
-              {item.label}
-            </Typography>
-          ))}
-        </Stack>
-
-        {badge && (
-          <Box
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 0.75,
-              px: 1.5,
-              py: 0.5,
-              borderRadius: "999px",
-              background: "rgba(249,115,22,0.12)",
-              border: "1px solid rgba(249,115,22,0.3)",
-            }}
-          >
-            <Zap size={12} color="#F97316" />
-            <Typography
-              sx={{
-                fontSize: "0.7rem",
-                fontWeight: 700,
-                letterSpacing: "0.14em",
-                color: "#FB923C",
-                textTransform: "uppercase",
-              }}
-            >
-              {badge.label}
-            </Typography>
-          </Box>
-        )}
+                    : "rgba(255,255,255,0.72)",
+                  textDecoration: "none",
+                  transition: "color 220ms ease",
+                  borderRadius: "999px",
+                  zIndex: 1,
+                  "&:hover": { color: "#FB923C" },
+                }}
+              >
+                {isIndicated && (
+                  <motion.div
+                    layoutId="navIndicator"
+                    transition={{
+                      type: "spring",
+                      stiffness: 380,
+                      damping: 32,
+                      mass: 0.8,
+                    }}
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      borderRadius: "999px",
+                      background:
+                        "linear-gradient(135deg, rgba(249,115,22,0.2), rgba(234,88,12,0.12))",
+                      border: "1px solid rgba(249,115,22,0.4)",
+                      boxShadow:
+                        "0 0 16px rgba(249,115,22,0.18), inset 0 1px 0 rgba(255,255,255,0.06)",
+                      zIndex: -1,
+                    }}
+                  />
+                )}
+                {item.label}
+              </Box>
+            );
+          })}
+        </Box>
       </Box>
 
       <AppDrawer

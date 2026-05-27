@@ -692,11 +692,7 @@ export default function PreviewPracticePage() {
           >
             <Box>100,000+ puzzles · spaced repetition · concept-tagged</Box>
             <Stack direction="row" spacing={2.5} alignItems="center">
-              <Box>Powered by</Box>
-              <Box sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                Claude
-              </Box>
-              <Box>×</Box>
+              <Box>Engine-grounded by</Box>
               <Box sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
                 Stockfish 17
               </Box>

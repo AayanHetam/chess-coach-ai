@@ -417,7 +417,7 @@ function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
         >
-          <EyebrowBadge>10,000+ PLAYERS · FREE FOREVER</EyebrowBadge>
+          <EyebrowBadge>DEMOCRATIZING HIGH-QUALITY CHESS EDUCATION</EyebrowBadge>
         </motion.div>
 
         <motion.div
@@ -437,18 +437,18 @@ function Hero() {
               color: "rgba(255,255,255,0.96)",
             }}
           >
-            $100/hour chess coaching,{" "}
+            Chess coaching,{" "}
             <Box
               component="span"
               sx={{
                 background:
-                  "linear-gradient(135deg, #F97316 0%, #FB923C 50%, #A855F7 100%)",
+                  "linear-gradient(135deg, #F97316 0%, #FB923C 50%, #FBBF24 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
               }}
             >
-              free.
+              for everyone.
             </Box>
           </Typography>
         </motion.div>
@@ -471,14 +471,15 @@ function Hero() {
               maxWidth: 560,
             }}
           >
-            High-quality chess coaching used to cost $100/hour and live behind
-            a Grandmaster's calendar. Stockfish 17 + Claude + a hallucination
-            validator deliver the same caliber of analysis — to{" "}
+            World-class chess coaching used to cost $100 an hour and live
+            behind a Grandmaster's calendar — out of reach for almost every
+            player who could benefit. We're changing that. Stockfish 17 + a
+            smart AI coach + a hallucination validator deliver{" "}
             <Box
               component="span"
               sx={{ color: "rgba(255,255,255,0.92)", fontWeight: 600 }}
             >
-              everyone, for $0.
+              the same caliber, free for everyone.
             </Box>
           </Typography>
         </motion.div>
@@ -533,7 +534,7 @@ function Hero() {
 function MarqueeStrip() {
   const items = [
     "Stockfish 17",
-    "Claude Sonnet 4",
+    "Engine-grounded AI coach",
     "Hallucination validator",
     "100,000+ Lichess puzzles",
     "Maia-2 humanlike opponent",
@@ -600,8 +601,8 @@ function HowItWorks() {
       iconColor: "#A855F7",
       iconBg: "rgba(168,85,247,0.12)",
       iconBorder: "rgba(168,85,247,0.3)",
-      title: "Engine + Claude analyze.",
-      body: "Stockfish 17 evaluates every move. Claude turns the numbers into a plain-English lesson. A validator checks every claim before you see it.",
+      title: "Engine + AI analyze.",
+      body: "Stockfish 17 evaluates every move. Our AI coach turns the numbers into a plain-English lesson. A validator checks every claim before you see it.",
     },
     {
       number: "03",
@@ -2307,11 +2308,7 @@ function Footer() {
         alignItems="center"
         sx={{ color: "rgba(255,255,255,0.42)", fontSize: "0.78rem" }}
       >
-        <Box>Powered by</Box>
-        <Box sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-          Claude
-        </Box>
-        <Box>×</Box>
+        <Box>Engine-grounded by</Box>
         <Box sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
           Stockfish 17
         </Box>
@@ -2324,10 +2321,10 @@ export default function LaunchPage() {
   return (
     <ThemeProvider theme={launchTheme}>
       <Head>
-        <title>Chess Masti — $100/hour chess coaching, free for everyone</title>
+        <title>Chess Masti — Democratizing high-quality chess education</title>
         <meta
           name="description"
-          content="Replace a $100/hour GM coach. Stockfish 17 + Claude + a hallucination validator. Free, used by 10,000+ players every month."
+          content="World-class chess coaching used to cost $100/hour. We're making it free for everyone. Stockfish 17 + AI coach + hallucination validator. 10,000+ players."
         />
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content="#08090C" />

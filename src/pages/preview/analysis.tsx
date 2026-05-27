@@ -196,11 +196,17 @@ const LAST_MOVE_TO = "rgba(249, 115, 22, 0.48)";
 // Helpers
 // ───────────────────────────────────────────────────────────────────────────────
 
-const plyToMoveLabel = (ply: number): string => {
-  if (ply === 0) return "Start";
+interface MoveDisplay {
+  moveNum: number;
+  color: "white" | "black" | null; // null = start of game
+  label: string;
+}
+
+const plyToMoveDisplay = (ply: number): MoveDisplay => {
+  if (ply === 0) return { moveNum: 0, color: null, label: "Start" };
   const moveNum = Math.ceil(ply / 2);
-  const color = ply % 2 === 1 ? "" : "...";
-  return `${moveNum}${color}`;
+  const color: "white" | "black" = ply % 2 === 1 ? "white" : "black";
+  return { moveNum, color, label: String(moveNum) };
 };
 
 const formatEval = (cp: number): string => {
@@ -898,7 +904,7 @@ function CoachPanel({
                 fontFamily: "Monaco, Menlo, monospace",
               }}
             >
-              Stockfish-grounded · Claude Sonnet 4
+              Stockfish-grounded · Engine-validated
             </Typography>
           </Stack>
         </Box>
@@ -1322,17 +1328,57 @@ function MoveNavigator({
           textAlign: "center",
         }}
       >
-        <Typography
-          sx={{
-            fontSize: "0.82rem",
-            fontWeight: 700,
-            color: "#FB923C",
-            fontFamily: "Monaco, Menlo, monospace",
-            lineHeight: 1,
-          }}
-        >
-          {plyToMoveLabel(currentPly)}
-        </Typography>
+        {(() => {
+          const disp = plyToMoveDisplay(currentPly);
+          return disp.color === null ? (
+            <Typography
+              sx={{
+                fontSize: "0.82rem",
+                fontWeight: 700,
+                color: "#FB923C",
+                fontFamily: "Monaco, Menlo, monospace",
+                lineHeight: 1,
+              }}
+            >
+              Start
+            </Typography>
+          ) : (
+            <Stack
+              direction="row"
+              spacing={0.75}
+              alignItems="center"
+              justifyContent="center"
+              sx={{ lineHeight: 1 }}
+            >
+              <Typography
+                sx={{
+                  fontSize: "0.92rem",
+                  fontWeight: 700,
+                  color: "#FB923C",
+                  fontFamily: "Monaco, Menlo, monospace",
+                  lineHeight: 1,
+                }}
+              >
+                {disp.moveNum}
+              </Typography>
+              <Box
+                sx={{
+                  width: 9,
+                  height: 9,
+                  borderRadius: "50%",
+                  background:
+                    disp.color === "white" ? "#F0D9B5" : "#1A1814",
+                  border: "1px solid rgba(255,255,255,0.3)",
+                  boxShadow:
+                    disp.color === "white"
+                      ? "0 0 6px rgba(240,217,181,0.4)"
+                      : "inset 0 1px 0 rgba(255,255,255,0.1)",
+                  flexShrink: 0,
+                }}
+              />
+            </Stack>
+          );
+        })()}
         <Typography
           sx={{
             fontSize: "0.65rem",
@@ -1600,7 +1646,7 @@ export default function AnalysisPage() {
         <title>Chess Masti — Analyze your game</title>
         <meta
           name="description"
-          content="Stockfish 17 evaluates, Claude explains, a validator checks every claim. Engine-grounded chess coaching, free."
+          content="Stockfish 17 evaluates, an AI coach explains, a validator checks every claim. Engine-grounded chess coaching, free for everyone."
         />
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content="#08090C" />
@@ -1771,11 +1817,7 @@ export default function AnalysisPage() {
               </Stack>
             </Stack>
             <Stack direction="row" spacing={2.5} alignItems="center">
-              <Box>Powered by</Box>
-              <Box sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                Claude
-              </Box>
-              <Box>×</Box>
+              <Box>Engine-grounded by</Box>
               <Box sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
                 Stockfish 17
               </Box>

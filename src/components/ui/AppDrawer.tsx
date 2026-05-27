@@ -43,7 +43,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "practice", label: "Practice", icon: Puzzle, preview: "/preview/practice", production: "/practice" },
   { id: "scout", label: "Scout", icon: Crosshair, preview: "/preview/scout", production: "/scout" },
   { id: "profile", label: "Profile", icon: User, preview: "/preview/profile", production: "/profile" },
-  { id: "openings", label: "Openings", icon: BookOpen, preview: "/preview/openings", production: "/openings", comingSoon: true },
+  { id: "openings", label: "Learn", icon: BookOpen, preview: "/preview/openings", production: "/openings" },
 ];
 
 interface AppDrawerProps {

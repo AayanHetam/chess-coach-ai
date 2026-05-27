@@ -40,6 +40,7 @@ const InteractiveChessboard = dynamic(
 import { BentoCard } from "@/components/ui/BentoCard";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
+import { NavPill } from "@/components/ui/NavPill";
 import { NumberTicker } from "@/components/ui/NumberTicker";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 
@@ -2349,7 +2350,7 @@ export default function LaunchPage() {
           px: { xs: 2, md: 4 },
         }}
       >
-        <TopBar />
+        <NavPill active="launch" badge={{ label: "Launch" }} />
         <Box sx={{ maxWidth: 1200, mx: "auto" }}>
           <Hero />
           <MarqueeStrip />

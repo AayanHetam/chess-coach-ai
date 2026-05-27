@@ -36,6 +36,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
+import { NavPill as SharedNavPill } from "@/components/ui/NavPill";
 import { OpeningExplorer } from "@/components/ui/OpeningExplorer";
 import {
   CommandPalette,
@@ -183,10 +184,13 @@ const SUGGESTION_PILLS = [
 // Board square styling
 // ───────────────────────────────────────────────────────────────────────────────
 
-const DARK_SQUARE = "#1A1814";
-const LIGHT_SQUARE = "#3D362E";
-const LAST_MOVE_FROM = "rgba(249, 115, 22, 0.22)";
-const LAST_MOVE_TO = "rgba(249, 115, 22, 0.38)";
+// Warm wood-tone squares — calibrated for readability against the
+// near-black page background while staying in the orange/black family.
+// Contrast ratio between light & dark ≈ 5.5:1.
+const DARK_SQUARE = "#5C4630";
+const LIGHT_SQUARE = "#F0D9B5";
+const LAST_MOVE_FROM = "rgba(249, 115, 22, 0.32)";
+const LAST_MOVE_TO = "rgba(249, 115, 22, 0.48)";
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -535,22 +539,23 @@ function ChessgroundDarkSquareOverride() {
       .cg-wrap cg-board square.light { background-color: ${LIGHT_SQUARE} !important; }
       .cg-wrap cg-board square.dark { background-color: ${DARK_SQUARE} !important; }
       .cg-wrap cg-board square.last-move {
-        background-color: rgba(249, 115, 22, 0.32) !important;
+        background-color: rgba(249, 115, 22, 0.42) !important;
+        box-shadow: inset 0 0 0 2px rgba(249, 115, 22, 0.35);
       }
       .cg-wrap cg-board square.selected {
-        background-color: rgba(249, 115, 22, 0.45) !important;
+        background-color: rgba(249, 115, 22, 0.5) !important;
       }
       .cg-wrap cg-board square.check {
         background: radial-gradient(circle, rgba(239,68,68,0.85) 10%, rgba(239,68,68,0.4) 50%, transparent 80%) !important;
       }
-      .cg-wrap coords {
-        color: rgba(255, 255, 255, 0.42) !important;
-        font-weight: 600;
-        font-size: 0.7rem;
+      .cg-wrap coords,
+      .cg-wrap coords coord {
+        color: #FFFFFF !important;
+        font-weight: 700;
+        font-size: 0.72rem;
         letter-spacing: 0.05em;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.6);
       }
-      .cg-wrap coords.ranks { text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
-      .cg-wrap coords.files { text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
     `}</style>
   );
 }
@@ -1627,7 +1632,7 @@ export default function AnalysisPage() {
           px: { xs: 2, md: 3 },
         }}
       >
-        <NavPill />
+        <SharedNavPill active="analysis" badge={{ label: "Analysis" }} />
 
         <Box sx={{ maxWidth: 1680, mx: "auto" }}>
           <GameHeader
@@ -1677,7 +1682,11 @@ export default function AnalysisPage() {
                 currentPly={currentPly}
                 onJumpTo={setCurrentPly}
               />
-              <OpeningExplorer fen={currentFen} />
+              <OpeningExplorer
+                fen={currentFen}
+                fallbackOpeningName={headers.Opening ?? undefined}
+                fallbackEco={headers.ECO ?? undefined}
+              />
             </Box>
 
             <CoachPanel

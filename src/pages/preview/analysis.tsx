@@ -36,9 +36,16 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
+import { OpeningExplorer } from "@/components/ui/OpeningExplorer";
+import {
+  CommandPalette,
+  CommandIcons,
+  type CommandGroup,
+} from "@/components/ui/CommandPalette";
 
-const Chessboard = dynamic(
-  () => import("react-chessboard").then((m) => m.Chessboard),
+const ChessgroundBoard = dynamic(
+  () =>
+    import("@/components/ui/ChessgroundBoard").then((m) => m.ChessgroundBoard),
   { ssr: false }
 );
 
@@ -471,18 +478,17 @@ function BoardArea({
   fen,
   lastMove,
   boardOrientation,
+  isInCheck,
 }: {
   fen: string;
   lastMove: Move | null;
   boardOrientation: "white" | "black";
+  isInCheck: boolean;
 }) {
-  const squareStyles = useMemo(() => {
-    if (!lastMove) return {};
-    return {
-      [lastMove.from]: { background: LAST_MOVE_FROM },
-      [lastMove.to]: { background: LAST_MOVE_TO },
-    };
-  }, [lastMove]);
+  const lastMoveTuple = useMemo<[string, string] | undefined>(
+    () => (lastMove ? [lastMove.from, lastMove.to] : undefined),
+    [lastMove]
+  );
 
   return (
     <Box
@@ -507,17 +513,45 @@ function BoardArea({
             "0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
         }}
       >
-        <Chessboard
-          position={fen}
-          boardOrientation={boardOrientation}
-          arePiecesDraggable={false}
-          customDarkSquareStyle={{ backgroundColor: DARK_SQUARE }}
-          customLightSquareStyle={{ backgroundColor: LIGHT_SQUARE }}
-          customBoardStyle={{ borderRadius: "14px" }}
-          customSquareStyles={squareStyles}
+        <ChessgroundBoard
+          fen={fen}
+          orientation={boardOrientation}
+          lastMove={lastMoveTuple}
+          check={isInCheck}
+          viewOnly={true}
         />
       </Box>
     </Box>
+  );
+}
+
+// Dark warm square colors — applied as a global style override below
+// because chessground's brown theme is the closest base we ship with.
+function ChessgroundDarkSquareOverride() {
+  return (
+    <style>{`
+      .cg-wrap { background: ${DARK_SQUARE} !important; }
+      .cg-wrap cg-board { background-color: ${DARK_SQUARE} !important; }
+      .cg-wrap cg-board square.light { background-color: ${LIGHT_SQUARE} !important; }
+      .cg-wrap cg-board square.dark { background-color: ${DARK_SQUARE} !important; }
+      .cg-wrap cg-board square.last-move {
+        background-color: rgba(249, 115, 22, 0.32) !important;
+      }
+      .cg-wrap cg-board square.selected {
+        background-color: rgba(249, 115, 22, 0.45) !important;
+      }
+      .cg-wrap cg-board square.check {
+        background: radial-gradient(circle, rgba(239,68,68,0.85) 10%, rgba(239,68,68,0.4) 50%, transparent 80%) !important;
+      }
+      .cg-wrap coords {
+        color: rgba(255, 255, 255, 0.42) !important;
+        font-weight: 600;
+        font-size: 0.7rem;
+        letter-spacing: 0.05em;
+      }
+      .cg-wrap coords.ranks { text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
+      .cg-wrap coords.files { text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
+    `}</style>
   );
 }
 
@@ -787,7 +821,7 @@ function CoachPanel({
     <Box
       sx={{
         position: "relative",
-        height: { xs: "auto", lg: "100%" },
+        height: { xs: "auto", lg: "clamp(560px, calc(100vh - 240px), 880px)" },
         minHeight: { xs: 600, lg: 0 },
         borderRadius: "1.5rem",
         background: "rgba(20,22,28,0.6)",
@@ -1388,16 +1422,23 @@ export default function AnalysisPage() {
     "white"
   );
 
-  // Derived: current FEN by replaying moves up to currentPly
-  const { currentFen, lastMove } = useMemo(() => {
+  // Derived: current FEN + last move + check by replaying moves up to currentPly
+  const { currentFen, lastMove, isInCheck } = useMemo(() => {
     const g = new Chess();
     let last: Move | null = null;
     for (let i = 0; i < currentPly; i++) {
       const result = g.move(allMoves[i]);
       if (result) last = result;
     }
-    return { currentFen: g.fen(), lastMove: last };
+    return {
+      currentFen: g.fen(),
+      lastMove: last,
+      isInCheck: g.inCheck(),
+    };
   }, [allMoves, currentPly]);
+
+  // Command palette state
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   // Coach chat state
   const [messages, setMessages] = useState<CoachMessage[]>(SEED_MESSAGES);
@@ -1454,6 +1495,100 @@ export default function AnalysisPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [allMoves.length]);
 
+  // Command palette groups — recomputed when ply/moments change
+  const commandGroups: CommandGroup[] = useMemo(
+    () => [
+      {
+        heading: "Navigation",
+        items: [
+          {
+            id: "start",
+            label: "Go to start",
+            hint: "Move 0",
+            icon: CommandIcons.Start,
+            shortcut: ["Home"],
+            onSelect: () => setCurrentPly(0),
+          },
+          {
+            id: "prev",
+            label: "Previous move",
+            icon: CommandIcons.Prev,
+            shortcut: ["←"],
+            onSelect: () =>
+              setCurrentPly((p) => Math.max(0, p - 1)),
+          },
+          {
+            id: "next",
+            label: "Next move",
+            icon: CommandIcons.Next,
+            shortcut: ["→"],
+            onSelect: () =>
+              setCurrentPly((p) => Math.min(allMoves.length, p + 1)),
+          },
+          {
+            id: "end",
+            label: "Go to end",
+            hint: `Move ${allMoves.length}`,
+            icon: CommandIcons.End,
+            shortcut: ["End"],
+            onSelect: () => setCurrentPly(allMoves.length),
+          },
+        ],
+      },
+      {
+        heading: "Key moments",
+        items: KEY_MOMENTS.map((m) => ({
+          id: `moment-${m.ply}`,
+          label: `Jump to ${m.label}`,
+          hint: `Move ${Math.ceil(m.ply / 2)}`,
+          icon: m.kind === "brilliant" ? CommandIcons.Brilliant : CommandIcons.Moment,
+          onSelect: () => setCurrentPly(m.ply),
+        })),
+      },
+      {
+        heading: "View",
+        items: [
+          {
+            id: "flip",
+            label: "Flip board",
+            icon: CommandIcons.Flip,
+            shortcut: ["F"],
+            onSelect: () =>
+              setBoardOrientation((o) => (o === "white" ? "black" : "white")),
+          },
+          {
+            id: "reset",
+            label: "Reset to start",
+            icon: CommandIcons.Reset,
+            onSelect: () => setCurrentPly(0),
+          },
+        ],
+      },
+      {
+        heading: "Coach",
+        items: SUGGESTION_PILLS.map((s, i) => ({
+          id: `ask-${i}`,
+          label: s,
+          hint: "Ask the coach",
+          icon: CommandIcons.Coach,
+          onSelect: () => {
+            setInput(s);
+            // tiny delay so input visibly populates before send fires
+            setTimeout(() => {
+              const ev = new Event("submit");
+              ev.preventDefault?.();
+              // We can't call handleSend directly (stale closure) — set the
+              // input and let the user press Enter, OR autosubmit via state.
+              // Auto-submit pattern: store the suggestion to a separate state
+              // is overkill; just leave input populated.
+            }, 0);
+          },
+        })),
+      },
+    ],
+    [allMoves.length]
+  );
+
   return (
     <ThemeProvider theme={analysisTheme}>
       <Head>
@@ -1474,6 +1609,13 @@ export default function AnalysisPage() {
       </Head>
 
       <GradientBackdrop />
+      <ChessgroundDarkSquareOverride />
+
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        groups={commandGroups}
+      />
 
       <Box
         sx={{
@@ -1502,16 +1644,27 @@ export default function AnalysisPage() {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", lg: "1.15fr 1fr" },
+              gridTemplateColumns: {
+                xs: "1fr",
+                lg: "minmax(420px, 680px) minmax(380px, 1fr)",
+              },
               gap: { xs: 3, lg: 3 },
-              alignItems: "stretch",
+              alignItems: "start",
             }}
           >
-            <Box sx={{ display: "flex", flexDirection: "column" }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                minWidth: 0,
+                maxWidth: { xs: "100%", lg: 680 },
+              }}
+            >
               <BoardArea
                 fen={currentFen}
                 lastMove={lastMove}
                 boardOrientation={boardOrientation}
+                isInCheck={isInCheck}
               />
               <EvalSparkline
                 series={evalSeries}
@@ -1524,6 +1677,7 @@ export default function AnalysisPage() {
                 currentPly={currentPly}
                 onJumpTo={setCurrentPly}
               />
+              <OpeningExplorer fen={currentFen} />
             </Box>
 
             <CoachPanel
@@ -1577,7 +1731,35 @@ export default function AnalysisPage() {
                 Back to launch
               </Box>
               <Box>·</Box>
-              <Box>← → to navigate · F to flip · Click sparkline to scrub</Box>
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexWrap: "wrap" }}>
+                <Box>← → navigate · F flip · scrub the sparkline ·</Box>
+                <Box
+                  onClick={() => setPaletteOpen(true)}
+                  sx={{
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    px: 0.85,
+                    py: 0.25,
+                    borderRadius: "5px",
+                    background: "rgba(249,115,22,0.1)",
+                    border: "1px solid rgba(249,115,22,0.25)",
+                    color: "#FB923C",
+                    fontFamily: "Monaco, Menlo, monospace",
+                    fontWeight: 600,
+                    fontSize: "0.72rem",
+                    transition: "all 180ms ease",
+                    "&:hover": {
+                      background: "rgba(249,115,22,0.18)",
+                      borderColor: "rgba(249,115,22,0.4)",
+                    },
+                  }}
+                >
+                  ⌘K
+                </Box>
+                <Box>for commands</Box>
+              </Stack>
             </Stack>
             <Stack direction="row" spacing={2.5} alignItems="center">
               <Box>Powered by</Box>

@@ -31,12 +31,18 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 
-const InteractiveChessboard = dynamic(
-  () => import("react-chessboard").then((m) => m.Chessboard),
+const ChessgroundBoard = dynamic(
+  () =>
+    import("@/components/ui/ChessgroundBoard").then((m) => m.ChessgroundBoard),
   { ssr: false }
 );
+
+// Board square colors for puzzle demo (matches analysis page)
+const PUZZLE_DARK = "#5C4630";
+const PUZZLE_LIGHT = "#F0D9B5";
 import { BentoCard } from "@/components/ui/BentoCard";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
@@ -1122,22 +1128,44 @@ function DailyPuzzleSection() {
   const [tries, setTries] = useState(0);
   const [hintShown, setHintShown] = useState(false);
 
-  const handleDrop = (from: string, to: string): boolean => {
-    if (status === "solved") return false;
+  // Compute legal destinations for chessground to highlight on click
+  const dests = useMemo(() => {
+    if (status === "solved") return new Map<string, string[]>();
+    const c = new Chess(position);
+    const map = new Map<string, string[]>();
+    c.moves({ verbose: true }).forEach((m) => {
+      const arr = map.get(m.from) ?? [];
+      arr.push(m.to);
+      map.set(m.from, arr);
+    });
+    return map;
+  }, [position, status]);
+
+  // Green arrow hint (revealed when "Hint" clicked) + red flash on wrong
+  const shapes = useMemo<DrawShape[]>(() => {
+    const out: DrawShape[] = [];
+    if (hintShown && status !== "solved") {
+      out.push({ orig: solution.from, brush: "paleGreen" });
+    }
+    return out;
+  }, [hintShown, status]);
+
+  const handleMove = (from: string, to: string) => {
+    if (status === "solved") return;
     if (from === solution.from && to === solution.to) {
       const g = new Chess(initialFen);
       g.move({ from: solution.from, to: solution.to });
       setPosition(g.fen());
       setStatus("solved");
-      return true;
+      return;
     }
+    // Wrong move — flash board, revert position
     setStatus("wrong");
     setTries((t) => t + 1);
-    setTimeout(
-      () => setStatus((s) => (s === "wrong" ? "playing" : s)),
-      650
-    );
-    return false;
+    setTimeout(() => {
+      setPosition(initialFen);
+      setStatus((s) => (s === "wrong" ? "playing" : s));
+    }, 650);
   };
 
   const handleReset = () => {
@@ -1147,12 +1175,9 @@ function DailyPuzzleSection() {
     setHintShown(false);
   };
 
-  const wrongTint =
-    status === "wrong"
-      ? {
-          d5: { boxShadow: "inset 0 0 0 3px rgba(239,68,68,0.6)" },
-        }
-      : {};
+  // Build the "Open in /analysis" link with the puzzle FEN encoded
+  const analysisLink = `/preview/analysis?puzzleFen=${encodeURIComponent(initialFen)}&solution=${encodeURIComponent(`${solution.from}-${solution.to}`)}`;
+  const askCoachLink = `/preview/analysis?puzzleFen=${encodeURIComponent(initialFen)}&solution=${encodeURIComponent(`${solution.from}-${solution.to}`)}&prompt=${encodeURIComponent("Help me understand why Nc7+ wins here.")}`;
 
   return (
     <Box sx={{ py: { xs: 6, md: 10 } }}>
@@ -1361,7 +1386,7 @@ function DailyPuzzleSection() {
               </Box>
             )}
 
-            <Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap" }}>
+            <Stack direction="row" spacing={1.25} sx={{ flexWrap: "wrap" }}>
               {status === "solved" ? (
                 <>
                   <Button
@@ -1372,8 +1397,8 @@ function DailyPuzzleSection() {
                       color: "rgba(255,255,255,0.92)",
                       borderColor: "rgba(255,255,255,0.18)",
                       fontWeight: 600,
-                      px: 2.5,
-                      py: 1.25,
+                      px: 2.25,
+                      py: 1.2,
                       borderRadius: "999px",
                       background: "rgba(255,255,255,0.03)",
                       "&:hover": {
@@ -1384,7 +1409,48 @@ function DailyPuzzleSection() {
                   >
                     Try again
                   </Button>
-                  <PrimaryCTA href="/practice">More puzzles</PrimaryCTA>
+                  <PrimaryCTA href="/preview/practice">More puzzles</PrimaryCTA>
+                  <Button
+                    component={Link}
+                    href={askCoachLink}
+                    variant="outlined"
+                    startIcon={<Sparkles size={16} />}
+                    sx={{
+                      color: "#FB923C",
+                      borderColor: "rgba(249,115,22,0.32)",
+                      fontWeight: 600,
+                      px: 2.25,
+                      py: 1.2,
+                      borderRadius: "999px",
+                      background: "rgba(249,115,22,0.08)",
+                      "&:hover": {
+                        borderColor: "rgba(249,115,22,0.5)",
+                        background: "rgba(249,115,22,0.14)",
+                      },
+                    }}
+                  >
+                    Ask the coach
+                  </Button>
+                  <Button
+                    component={Link}
+                    href={analysisLink}
+                    variant="outlined"
+                    sx={{
+                      color: "rgba(255,255,255,0.78)",
+                      borderColor: "rgba(255,255,255,0.12)",
+                      fontWeight: 600,
+                      px: 2.25,
+                      py: 1.2,
+                      borderRadius: "999px",
+                      background: "rgba(255,255,255,0.02)",
+                      "&:hover": {
+                        borderColor: "rgba(255,255,255,0.28)",
+                        background: "rgba(255,255,255,0.05)",
+                      },
+                    }}
+                  >
+                    Open in /analysis
+                  </Button>
                 </>
               ) : (
                 <>
@@ -1411,9 +1477,30 @@ function DailyPuzzleSection() {
                       },
                     }}
                   >
-                    {hintShown ? "Hint shown" : "Hint"}
+                    {hintShown ? "Hint shown" : "Show hint"}
                   </Button>
-                  <GhostCTA href="/practice">Skip to full deck</GhostCTA>
+                  <Button
+                    component={Link}
+                    href={askCoachLink}
+                    variant="outlined"
+                    startIcon={<Sparkles size={16} />}
+                    sx={{
+                      color: "#FB923C",
+                      borderColor: "rgba(249,115,22,0.3)",
+                      fontWeight: 600,
+                      px: 2.5,
+                      py: 1.25,
+                      borderRadius: "999px",
+                      background: "rgba(249,115,22,0.06)",
+                      "&:hover": {
+                        borderColor: "rgba(249,115,22,0.5)",
+                        background: "rgba(249,115,22,0.12)",
+                      },
+                    }}
+                  >
+                    Ask the coach
+                  </Button>
+                  <GhostCTA href="/preview/practice">Skip to full deck</GhostCTA>
                 </>
               )}
             </Stack>
@@ -1461,16 +1548,13 @@ function DailyPuzzleSection() {
                 transition: "box-shadow 240ms cubic-bezier(0.22, 0.61, 0.36, 1)",
               }}
             >
-              <InteractiveChessboard
-                position={position}
-                onPieceDrop={handleDrop}
-                arePiecesDraggable={status !== "solved"}
-                customBoardStyle={{
-                  borderRadius: "16px",
-                }}
-                customDarkSquareStyle={{ backgroundColor: "#2a2c34" }}
-                customLightSquareStyle={{ backgroundColor: "#3d3f48" }}
-                customSquareStyles={wrongTint}
+              <ChessgroundBoard
+                fen={position}
+                viewOnly={status === "solved"}
+                movableColor="white"
+                dests={dests}
+                onMove={handleMove}
+                shapes={shapes}
               />
             </Box>
           </Box>
@@ -2334,6 +2418,26 @@ export default function LaunchPage() {
           ::-webkit-scrollbar-track { background: #08090C; }
           ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 6px; }
           ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+          /* Chessground puzzle board — warm wood theme, white coords */
+          .cg-wrap cg-board square.light { background-color: ${PUZZLE_LIGHT} !important; }
+          .cg-wrap cg-board square.dark { background-color: ${PUZZLE_DARK} !important; }
+          .cg-wrap cg-board square.last-move {
+            background-color: rgba(249, 115, 22, 0.42) !important;
+          }
+          .cg-wrap cg-board square.move-dest {
+            background: radial-gradient(circle, rgba(34,197,94,0.55) 22%, transparent 24%) !important;
+          }
+          .cg-wrap cg-board square.oc.move-dest {
+            background: radial-gradient(circle, transparent 55%, rgba(34,197,94,0.55) 60%, rgba(34,197,94,0.4) 70%, transparent 71%) !important;
+          }
+          .cg-wrap cg-board square.selected {
+            background-color: rgba(249, 115, 22, 0.5) !important;
+          }
+          .cg-wrap coords, .cg-wrap coords coord {
+            color: #FFFFFF !important;
+            font-weight: 700;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.6);
+          }
         `}</style>
       </Head>
       <GradientBackdrop />

@@ -16,6 +16,7 @@ import { MasterGamesTakeover } from "@/components/ui/MasterGamesTakeover";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
 import {
   ArrowLeft,
@@ -1457,10 +1458,24 @@ function MoveNavigator({
 // ───────────────────────────────────────────────────────────────────────────────
 
 export default function AnalysisPage() {
-  // Load demo game once
+  // Read puzzle-mode params from URL. When ?puzzleFen= is present, we drop
+  // the Kasparov demo and load the puzzle as a single-position study.
+  const router = useRouter();
+  const puzzleFen =
+    typeof router.query.puzzleFen === "string" ? router.query.puzzleFen : null;
+  const solutionParam =
+    typeof router.query.solution === "string" ? router.query.solution : null;
+  const promptParam =
+    typeof router.query.prompt === "string" ? router.query.prompt : null;
+
+  // Load demo game once (or build a stub for puzzle mode)
   const [demoGame] = useState(() => {
     const g = new Chess();
-    g.loadPgn(DEMO_PGN);
+    if (puzzleFen) {
+      g.loadPgn(`[FEN "${decodeURIComponent(puzzleFen)}"]\n[SetUp "1"]\n*`);
+    } else {
+      g.loadPgn(DEMO_PGN);
+    }
     return g;
   });
 
@@ -1478,6 +1493,9 @@ export default function AnalysisPage() {
   const [boardOrientation, setBoardOrientation] = useState<"white" | "black">(
     "white"
   );
+
+  // In puzzle mode, prepopulate the coach with a contextual seed message
+  const isPuzzleMode = Boolean(puzzleFen);
 
   // Derived: current FEN + last move + check by replaying moves up to currentPly
   const { currentFen, lastMove, isInCheck } = useMemo(() => {
@@ -1498,8 +1516,22 @@ export default function AnalysisPage() {
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   // Coach chat state (persists across takeover toggle — chat history intact)
-  const [messages, setMessages] = useState<CoachMessage[]>(SEED_MESSAGES);
-  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<CoachMessage[]>(
+    isPuzzleMode
+      ? [
+          {
+            role: "coach",
+            content: solutionParam
+              ? `Loaded a puzzle position. Solution: **${solutionParam.replace("-", " → ")}**. Ask me anything about the tactical idea, or try alternatives on the board.`
+              : `Loaded a puzzle position. Ask me to walk through the tactical idea.`,
+            ply: 0,
+          },
+        ]
+      : SEED_MESSAGES
+  );
+  const [input, setInput] = useState(
+    promptParam ? decodeURIComponent(promptParam) : ""
+  );
   const [isThinking, setIsThinking] = useState(false);
 
   // Takeover mode (Master games panel replaces Coach panel)

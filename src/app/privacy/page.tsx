@@ -81,22 +81,65 @@ export default function PrivacyPage() {
               <li>
                 <strong>Anthropic Claude</strong> receives the position (FEN), the
                 relevant PGN snippet, and your coaching query so the coach can
-                respond. We do not send your name, email, or account ID along with
-                it.
+                respond. If you have named an opponent (e.g. their Lichess or
+                Chess.com username) the coach is also told that username so it
+                can tailor its advice. We do not send your own name, email, or
+                account ID along with the request.
               </li>
               <li>
-                <strong>Lichess</strong> receives an OAuth token request if and
-                only if you choose to connect your Lichess account to play live
-                games.
+                <strong>The Maia-2 microservice</strong> receives the current
+                position (FEN) and the two ratings (yours and the bot&apos;s) when
+                you play against the Twin Bot opponent, so it can return a
+                humanlike move. It receives nothing else.
+              </li>
+              <li>
+                <strong>Public Lichess and Chess.com APIs</strong> are queried
+                from our server when you scout an opponent, import a game, or
+                ask the coach about a named opponent — we fetch their publicly
+                listed game history (the same data anyone can see on those
+                sites). We never use private or authenticated endpoints unless
+                you opt in via OAuth.
+              </li>
+              <li>
+                <strong>Lichess OAuth</strong> is used only if you choose to
+                connect your Lichess account to play live games through us.
               </li>
               <li>
                 <strong>Resend</strong> sends the password-reset email when you
                 request one.
               </li>
               <li>
-                <strong>Google Firebase Analytics</strong> records anonymous page
-                views and events so we can see which features are used. No
-                content of your games or coaching chats is sent.
+                <strong>Google Firebase Analytics</strong> and{" "}
+                <strong>Vercel Analytics</strong> record anonymous page views
+                and feature usage so we can see what is being used. No content
+                of your games or coaching chats is sent to either.
+              </li>
+              <li>
+                <strong>Sentry</strong> receives the details of any error that
+                happens in your browser (stack trace, the URL you were on, your
+                browser type and hardware metadata such as CPU core count and
+                RAM tier). It does not receive PGNs, chat messages, or account
+                data. Used only for crash diagnosis.
+              </li>
+            </ul>
+
+            <h3>Where data lives</h3>
+            <ul>
+              <li>
+                <strong>On our servers (Google Firestore)</strong> via the
+                Firebase Admin SDK: account, saved games, preferences. Server-
+                side only — your browser never connects to Firestore directly.
+              </li>
+              <li>
+                <strong>On your device (IndexedDB)</strong>: puzzle progress and
+                spaced-repetition state. Stored locally in your browser and never
+                sent to us.
+              </li>
+              <li>
+                <strong>On Supabase</strong>: data from the internal feedback
+                portal used by our intern programme. Regular users do not
+                interact with this; if you have been added to the intern
+                allowlist we store the feedback and quality flags you submit.
               </li>
             </ul>
 
@@ -104,7 +147,7 @@ export default function PrivacyPage() {
             <ul>
               <li>We do not sell your data. There is no advertising business model.</li>
               <li>We do not share PGNs or chats with anyone outside the third parties listed above.</li>
-              <li>We do not run Stockfish on our servers — engine analysis happens in your browser as WebAssembly. Positions you analyse never have to leave your machine for the engine to evaluate them.</li>
+              <li>We do not run Stockfish on our servers — engine analysis happens in your browser as WebAssembly. Positions you analyse stay on your machine for engine evaluation; they only leave it when you choose to ask the AI coach about them.</li>
             </ul>
 
             <h3>Deleting your data</h3>
@@ -129,9 +172,14 @@ export default function PrivacyPage() {
             <h3>What it accesses</h3>
             <ul>
               <li>
-                <strong>The DOM of game pages</strong> on lichess.org and chess.com,
-                only when one is open in your active tab. Used to detect that
-                you&apos;re on a game page and to read the PGN.
+                <strong>The DOM of pages on lichess.org and chess.com.</strong>{" "}
+                Per Chrome&apos;s extension model the content script has read
+                access to every page on those two domains while the extension is
+                installed. In practice it does nothing on pages that aren&apos;t
+                a game-like URL — the button only appears, and the PGN is only
+                read, on paths such as <code>/game/</code>, <code>/analysis/</code>,
+                <code>/play/</code>, <code>/live/</code>, and{" "}
+                <code>/daily/</code>, and on the Lichess game-ID URLs.
               </li>
               <li>
                 <strong>The public Lichess game-export endpoint</strong>{" "}

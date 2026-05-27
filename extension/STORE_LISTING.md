@@ -11,9 +11,9 @@ Copy + assets + checklist for the submission flow. Paste these straight into the
 Analyze with Chess Masti
 ```
 
-**Short description** (132 char max — currently 130)
+**Short description** (132 char max — currently 124)
 ```
-One-click AI chess coaching for your Lichess and Chess.com games. Adds an Analyze button — opens chessmasti.com with the PGN.
+Adds a one-click Analyze button to Lichess + Chess.com games. Opens chessmasti.com with the PGN auto-loaded for AI coaching.
 ```
 
 **Category**

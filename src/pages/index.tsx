@@ -6,6 +6,7 @@ import LandingHero from "@/components/landing/LandingHero";
 import LandingFeatures from "@/components/landing/LandingFeatures";
 import DailyPuzzle from "@/components/landing/DailyPuzzle";
 import LandingHowItWorks from "@/components/landing/LandingHowItWorks";
+import LandingExtensionCallout from "@/components/landing/LandingExtensionCallout";
 import LandingComparison from "@/components/landing/LandingComparison";
 import LandingTestimonials from "@/components/landing/LandingTestimonials";
 import LandingAbout from "@/components/landing/LandingAbout";
@@ -127,6 +128,7 @@ export default function LandingPage() {
       <LandingFeatures />
       <DailyPuzzle />
       <LandingHowItWorks />
+      <LandingExtensionCallout />
       <LandingComparison />
       <LandingTestimonials />
       <LandingAbout />

@@ -187,6 +187,73 @@ describe("regenerateUntilValid", () => {
     });
     expect(r.totalCostUsd).toBeGreaterThan(0);
   });
+
+  // Regression for the cost-calc bug fixed alongside this test: prior
+  // formula was inputUncached = (inputTokens - cacheRead), which goes
+  // negative when cache_read_input_tokens > input_tokens (the normal
+  // case for a cache-warm system prompt). Per Anthropic's docs,
+  // input_tokens is ALREADY the uncached portion (tokens after the
+  // last cache breakpoint); subtracting cacheRead double-counts.
+  // https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+  it("totalCostUsd stays positive when cache_read_input_tokens > input_tokens", async () => {
+    let i = 0;
+    const cachedLlm = async (): Promise<LLMResult> => {
+      const r: LLMResult = {
+        content: ["bad", "good"][Math.min(i, 1)],
+        provider: "anthropic",
+        model: "claude-sonnet-4-test",
+        inputTokens: 50, // post-breakpoint
+        outputTokens: 200,
+        cacheReadTokens: 7000, // cache hit — much larger than inputTokens
+        elapsedMs: 100,
+      };
+      i++;
+      return r;
+    };
+    const r = await regenerateUntilValid({
+      initialRequest,
+      validate: alternatingValidator(1),
+      buildFallback: async () => "fallback",
+      correlationId: "rg-cost-cacheread",
+      callLLM: cachedLlm,
+    });
+    expect(r.totalCostUsd).toBeGreaterThan(0);
+    // Hand-calc for ONE Sonnet call: 50/1M*$3 + 7000/1M*$0.30 + 200/1M*$15
+    //   = $0.00015 + $0.00210 + $0.00300 = $0.00525.
+    // Two LLM calls (initial bad + retry good) plus 2× validator costUsd ($0.001
+    // each per alternatingValidator) → at minimum ~$0.0125. Use a loose lower
+    // bound to allow for telemetry-cost evolution.
+    expect(r.totalCostUsd).toBeGreaterThan(0.005);
+  });
+
+  // Regression: cache_creation_input_tokens was previously ignored entirely
+  // (zero contribution to cost). Cache writes are billed at 1.25× base input
+  // for the default 5-minute TTL per Anthropic's pricing page.
+  it("totalCostUsd accounts for cache_creation_input_tokens at 1.25x base input", async () => {
+    const writeLlm = async (): Promise<LLMResult> => ({
+      content: "good",
+      provider: "anthropic",
+      model: "claude-sonnet-4-test",
+      inputTokens: 50,
+      outputTokens: 100,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 6000, // first call, cache-write happening
+      elapsedMs: 100,
+    });
+    const r = await regenerateUntilValid({
+      initialRequest,
+      validate: passingValidator(),
+      buildFallback: async () => "fallback",
+      correlationId: "rg-cost-cachewrite",
+      callLLM: writeLlm,
+    });
+    // Hand-calc: 50/1M*$3 + 6000/1M*$3.75 + 100/1M*$15 + $0.001 validator
+    //   = $0.00015 + $0.0225 + $0.0015 + $0.001 = $0.02515.
+    // Without the cache-write term the LLM portion would be only
+    //   50/1M*$3 + 100/1M*$15 = $0.00165 → total $0.00265. A bound between
+    // these two values isolates the cache-write contribution.
+    expect(r.totalCostUsd).toBeGreaterThan(0.015);
+  });
 });
 
 describe("regenerateUntilValid: signal cancellation (fix-orphan-pipeline-cancellation)", () => {

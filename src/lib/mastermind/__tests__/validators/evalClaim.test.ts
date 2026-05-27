@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { validateEvalClaim, ParserCall } from "../../validators/evalClaim";
+import {
+  validateEvalClaim,
+  ParserCall,
+  estimateHaikuCost,
+} from "../../validators/evalClaim";
+import type { LLMResult } from "@/lib/llmProvider";
 import { ParsedEvalClaim } from "../../validators/types";
 
 function mockParser(claims: ParsedEvalClaim[]): ParserCall {
@@ -363,5 +368,54 @@ describe("validateEvalClaim — no-stockfish-eval skip path", () => {
       ]),
     });
     expect(r.telemetry.some((e) => e.fire_reason === "no_stockfish_eval")).toBe(false);
+  });
+});
+
+// Regression for the cost-calc bug fixed alongside this test: prior
+// formula was inputUncached = (inputTokens - cacheRead), which goes
+// negative when cache_read_input_tokens > input_tokens (the normal
+// case for the cache-warm parser system prompt). Per Anthropic's docs,
+// input_tokens is ALREADY the uncached portion; subtracting cacheRead
+// double-counts. Also: cache_creation_input_tokens was previously
+// ignored entirely.
+// https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+describe("estimateHaikuCost — cost-calc regression", () => {
+  function llmResult(overrides: Partial<LLMResult> = {}): LLMResult {
+    return {
+      content: "x",
+      provider: "anthropic",
+      model: "claude-haiku-4-5-20251001",
+      inputTokens: 50,
+      outputTokens: 200,
+      elapsedMs: 100,
+      ...overrides,
+    };
+  }
+
+  it("returns positive cost when cache_read_input_tokens > input_tokens", () => {
+    const cost = estimateHaikuCost(llmResult({
+      inputTokens: 50,
+      outputTokens: 200,
+      cacheReadTokens: 7000,
+    }));
+    // Hand-calc: 50/1M*$1 + 7000/1M*$0.10 + 200/1M*$5
+    //   = $0.00005 + $0.00070 + $0.00100 = $0.00175
+    expect(cost).toBeGreaterThan(0);
+    expect(cost).toBeCloseTo(0.00175, 6);
+  });
+
+  it("accounts for cache_creation_input_tokens at 1.25x base input", () => {
+    const cost = estimateHaikuCost(llmResult({
+      inputTokens: 50,
+      outputTokens: 200,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 6000,
+    }));
+    // Hand-calc: 50/1M*$1 + 6000/1M*$1.25 + 200/1M*$5
+    //   = $0.00005 + $0.00750 + $0.00100 = $0.00855
+    expect(cost).toBeCloseTo(0.00855, 6);
+    // Without the cache-write term, cost would be only $0.00105.
+    // The 8× gap isolates the cache-write contribution.
+    expect(cost).toBeGreaterThan(0.005);
   });
 });

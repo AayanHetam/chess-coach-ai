@@ -109,7 +109,7 @@ export default function PrivacyPage() {
 
             <h3>Deleting your data</h3>
             <p>
-              Email <a href="mailto:aayan@chessmasti.com">aayan@chessmasti.com</a> and
+              Email <a href="mailto:aayanhetamsaria4@gmail.com">aayanhetamsaria4@gmail.com</a> and
               we'll delete your account and saved games within seven days.
             </p>
           </section>
@@ -169,7 +169,7 @@ export default function PrivacyPage() {
             <h2>Contact</h2>
             <p>
               Questions, deletion requests, or anything else:{" "}
-              <a href="mailto:aayan@chessmasti.com">aayan@chessmasti.com</a>.
+              <a href="mailto:aayanhetamsaria4@gmail.com">aayanhetamsaria4@gmail.com</a>.
             </p>
           </section>
 

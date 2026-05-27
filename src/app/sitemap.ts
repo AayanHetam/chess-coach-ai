@@ -23,6 +23,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/courses", changeFrequency: "weekly", priority: 0.5 },
     { path: "/repetit-training", changeFrequency: "weekly", priority: 0.5 },
     { path: "/internship", changeFrequency: "monthly", priority: 0.4 },
+    { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
     // /feedback, /profile, /reset-password, /site-stats intentionally excluded
     // — auth-gated, internal-tooling, or not for indexing.
   ];

@@ -22,7 +22,11 @@ jobs:
         run: npm ci
 
       - name: Type check
+        # GitHub runners default to a 2 GB heap; tsc OOMs on this repo
+        # (analysis.tsx ~5k lines + 1k+ files). 4 GB is plenty of headroom.
         run: npx tsc --noEmit
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Unit tests
         run: npm test

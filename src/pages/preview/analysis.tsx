@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   IconButton,
+  Modal,
   Stack,
   TextField,
   Tooltip,
@@ -74,6 +75,7 @@ import { getEvaluateGameParams } from "@/lib/chess";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { setContext as setSentryContext } from "@sentry/react";
 
 const ChessgroundBoard = dynamic(
   () =>
@@ -823,6 +825,10 @@ function GameHeader({
   currentPly,
   totalPlies,
   onLoadGameClick,
+  engineDepth,
+  onEngineDepthChange,
+  engineName,
+  onEngineNameChange,
 }: {
   whiteName: string;
   blackName: string;
@@ -833,7 +839,13 @@ function GameHeader({
   currentPly: number;
   totalPlies: number;
   onLoadGameClick?: () => void;
+  engineDepth?: number;
+  onEngineDepthChange?: (d: number) => void;
+  engineName?: EngineName;
+  onEngineNameChange?: (n: EngineName) => void;
 }) {
+  const [enginePopoverAnchor, setEnginePopoverAnchor] =
+    useState<HTMLElement | null>(null);
   const evalPositive = currentEval >= 0;
   return (
     <Box
@@ -965,6 +977,32 @@ function GameHeader({
           </Typography>
         </Box>
 
+        {engineDepth !== undefined && (
+          <Tooltip title="Stockfish engine settings — depth and variant">
+            <Button
+              onClick={(e) => setEnginePopoverAnchor(e.currentTarget)}
+              startIcon={<Activity size={13} />}
+              sx={{
+                px: 1.5,
+                py: 0.75,
+                borderRadius: "10px",
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                fontFamily: "Monaco, Menlo, monospace",
+                textTransform: "none",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "rgba(255,255,255,0.78)",
+                "&:hover": {
+                  background: "rgba(255,255,255,0.08)",
+                  borderColor: "rgba(255,255,255,0.2)",
+                },
+              }}
+            >
+              d{engineDepth}
+            </Button>
+          </Tooltip>
+        )}
         {onLoadGameClick && (
           <Tooltip title="Load a new PGN, FEN, or import from Lichess/Chess.com">
             <Button
@@ -993,7 +1031,225 @@ function GameHeader({
           </Tooltip>
         )}
       </Stack>
+      <EngineSettingsPopover
+        anchorEl={enginePopoverAnchor}
+        onClose={() => setEnginePopoverAnchor(null)}
+        depth={engineDepth ?? 12}
+        onDepthChange={onEngineDepthChange}
+        engineName={engineName ?? EngineName.Stockfish17Lite}
+        onEngineNameChange={onEngineNameChange}
+      />
     </Box>
+  );
+}
+
+function EngineSettingsPopover({
+  anchorEl,
+  onClose,
+  depth,
+  onDepthChange,
+  engineName,
+  onEngineNameChange,
+}: {
+  anchorEl: HTMLElement | null;
+  onClose: () => void;
+  depth: number;
+  onDepthChange?: (d: number) => void;
+  engineName: EngineName;
+  onEngineNameChange?: (n: EngineName) => void;
+}) {
+  if (!anchorEl) return null;
+  return (
+    <Modal
+      open={Boolean(anchorEl)}
+      onClose={onClose}
+      slotProps={{
+        backdrop: {
+          sx: {
+            backgroundColor: "rgba(8,9,12,0.55)",
+            backdropFilter: "blur(4px)",
+          },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 360,
+          maxWidth: "92vw",
+          p: 2.5,
+          borderRadius: "1.25rem",
+          background:
+            "linear-gradient(180deg, rgba(20,22,28,0.94), rgba(12,14,20,0.94))",
+          backdropFilter: "blur(20px) saturate(150%)",
+          WebkitBackdropFilter: "blur(20px) saturate(150%)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
+          outline: "none",
+        }}
+      >
+        <Stack spacing={2}>
+          <Box>
+            <Typography
+              sx={{
+                fontSize: "0.7rem",
+                fontWeight: 700,
+                letterSpacing: "0.14em",
+                color: "rgba(255,255,255,0.55)",
+                textTransform: "uppercase",
+                mb: 0.75,
+              }}
+            >
+              Engine
+            </Typography>
+            <Stack direction="row" spacing={0.85}>
+              {[
+                {
+                  id: EngineName.Stockfish17Lite,
+                  label: "17 Lite",
+                  sub: "fast · single-thread",
+                },
+                {
+                  id: EngineName.Stockfish17,
+                  label: "17 Full",
+                  sub: "slower · NNUE",
+                },
+              ].map((opt) => {
+                const isActive = engineName === opt.id;
+                return (
+                  <Box
+                    key={opt.id}
+                    onClick={() => onEngineNameChange?.(opt.id)}
+                    sx={{
+                      flex: 1,
+                      px: 1.5,
+                      py: 1,
+                      borderRadius: "10px",
+                      cursor: onEngineNameChange ? "pointer" : "default",
+                      background: isActive
+                        ? "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(251,146,60,0.12))"
+                        : "rgba(255,255,255,0.03)",
+                      border: isActive
+                        ? "1px solid rgba(249,115,22,0.4)"
+                        : "1px solid rgba(255,255,255,0.08)",
+                      transition: "all 160ms ease",
+                      "&:hover": {
+                        background: isActive
+                          ? "linear-gradient(135deg, rgba(249,115,22,0.24), rgba(251,146,60,0.16))"
+                          : "rgba(255,255,255,0.06)",
+                      },
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "0.86rem",
+                        fontWeight: 700,
+                        color: isActive ? "#FB923C" : "rgba(255,255,255,0.92)",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {opt.label}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        mt: 0.25,
+                        fontSize: "0.7rem",
+                        color: "rgba(255,255,255,0.45)",
+                        fontFamily: "Monaco, Menlo, monospace",
+                      }}
+                    >
+                      {opt.sub}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Stack>
+          </Box>
+
+          <Box>
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              sx={{ mb: 0.75 }}
+            >
+              <Typography
+                sx={{
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
+                  color: "rgba(255,255,255,0.55)",
+                  textTransform: "uppercase",
+                }}
+              >
+                Depth
+              </Typography>
+              <Box sx={{ flex: 1 }} />
+              <Typography
+                sx={{
+                  fontSize: "0.74rem",
+                  color: "#FB923C",
+                  fontFamily: "Monaco, Menlo, monospace",
+                  fontWeight: 700,
+                }}
+              >
+                d{depth}
+              </Typography>
+            </Stack>
+            <Stack direction="row" spacing={0.5}>
+              {[10, 12, 14, 16].map((d) => {
+                const isActive = depth === d;
+                return (
+                  <Box
+                    key={d}
+                    onClick={() => onDepthChange?.(d)}
+                    sx={{
+                      flex: 1,
+                      py: 0.85,
+                      textAlign: "center",
+                      borderRadius: "8px",
+                      cursor: onDepthChange ? "pointer" : "default",
+                      background: isActive
+                        ? "linear-gradient(135deg, #F97316, #FB923C)"
+                        : "rgba(255,255,255,0.03)",
+                      border: isActive
+                        ? "1px solid rgba(249,115,22,0.5)"
+                        : "1px solid rgba(255,255,255,0.08)",
+                      color: isActive ? "#0A0A0A" : "rgba(255,255,255,0.78)",
+                      fontSize: "0.82rem",
+                      fontWeight: 700,
+                      fontFamily: "Monaco, Menlo, monospace",
+                      transition: "all 160ms ease",
+                      "&:hover": {
+                        background: isActive
+                          ? "linear-gradient(135deg, #FB923C, #FCD34D)"
+                          : "rgba(255,255,255,0.06)",
+                      },
+                    }}
+                  >
+                    {d}
+                  </Box>
+                );
+              })}
+            </Stack>
+            <Typography
+              sx={{
+                mt: 0.85,
+                fontSize: "0.72rem",
+                color: "rgba(255,255,255,0.45)",
+                lineHeight: 1.4,
+              }}
+            >
+              Higher depth = better tactics, slower analysis. Changing this
+              re-runs Stockfish on the loaded game.
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
+    </Modal>
   );
 }
 
@@ -3358,24 +3614,28 @@ export default function AnalysisPage() {
   // ───── Real Stockfish evaluation ─────
   // Stockfish17Lite is single-threaded — works on networks that block
   // SharedArrayBuffer (school WiFi) and has the fastest cold start.
-  // Depth 12 is plenty for surfacing the eval-curve shape; we don't need
-  // grandmaster-grade analysis to draw the sparkline.
-  const engine = useEngine(EngineName.Stockfish17Lite);
+  // Depth 12 is plenty for surfacing the eval-curve shape; depth 16
+  // matches production /analysis default and gives sharper tactics.
+  const [engineSettings, setEngineSettings] = useState<{
+    depth: number;
+    engineName: EngineName;
+  }>({ depth: 12, engineName: EngineName.Stockfish17Lite });
+  const engine = useEngine(engineSettings.engineName);
   const [enginePositions, setEnginePositions] = useState<PositionEval[] | null>(
     null
   );
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
-  // Whenever the loaded game changes, clear the analysis cache so Stockfish
-  // re-runs against the new positions. allMoves derives from loadedGame so
+  // Whenever the loaded game OR engine settings change, clear the analysis
+  // cache so Stockfish re-runs. allMoves derives from loadedGame so
   // depending on .length alone misses the case where a different game of
   // the same length is loaded.
   useEffect(() => {
     setEnginePositions(null);
     setAnalysisProgress(0);
     setAnalysisError(null);
-  }, [loadedGame]);
+  }, [loadedGame, engineSettings.depth, engineSettings.engineName]);
   const mockEvalSeries = useMemo(
     () => buildMockEval(allMoves.length + 1),
     [allMoves.length]
@@ -3402,7 +3662,7 @@ export default function AnalysisPage() {
     engine
       .evaluateGame({
         ...params,
-        depth: 12,
+        depth: engineSettings.depth,
         multiPv: 1,
         workersNb: 1,
         setEvaluationProgress: (v) => {
@@ -3423,7 +3683,14 @@ export default function AnalysisPage() {
     return () => {
       cancelled = true;
     };
-  }, [engine, loadedGame, allMoves.length, enginePositions, analysisError]);
+  }, [
+    engine,
+    loadedGame,
+    allMoves.length,
+    enginePositions,
+    analysisError,
+    engineSettings.depth,
+  ]);
 
   const [currentPly, setCurrentPly] = useState(0);
   const [boardOrientation, setBoardOrientation] = useState<"white" | "black">(
@@ -3480,6 +3747,21 @@ export default function AnalysisPage() {
       setLoadedGame(game);
       setIsDemoGame(false);
       setCurrentPly(0);
+      // Sentry breadcrumb so debugging "the page broke on my Lichess game"
+      // has the actual PGN at hand without us having to ask.
+      try {
+        const hdr = game.header();
+        setSentryContext("loadedGame", {
+          pgn: game.pgn().slice(0, 4096),
+          white: hdr.White,
+          black: hdr.Black,
+          event: hdr.Event,
+          date: hdr.Date,
+          moves: game.history().length,
+        });
+      } catch {
+        /* sentry failures are never user-facing */
+      }
       if (!opts?.keepChat) {
         const newHeaders = game.header();
         const greeting =
@@ -4588,6 +4870,14 @@ export default function AnalysisPage() {
             currentPly={currentPly}
             totalPlies={allMoves.length}
             onLoadGameClick={() => setLoadGameOpen(true)}
+            engineDepth={engineSettings.depth}
+            onEngineDepthChange={(d) =>
+              setEngineSettings((s) => ({ ...s, depth: d }))
+            }
+            engineName={engineSettings.engineName}
+            onEngineNameChange={(n) =>
+              setEngineSettings((s) => ({ ...s, engineName: n }))
+            }
           />
 
           <Box

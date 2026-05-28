@@ -51,6 +51,13 @@ export function ChessgroundBoard({
     onMoveRef.current = onMove;
   }, [onMove]);
 
+  // Effective interactivity: not viewOnly AND a color is movable.
+  // chessground v9.2.1 has a bug where toggling `viewOnly` via .set() after
+  // mount doesn't rebind drag event listeners. Workaround: always mount
+  // with viewOnly=false and gate interaction through draggable.enabled +
+  // movable.color instead. Pieces are static when both are off.
+  const interactive = !viewOnly && Boolean(movableColor);
+
   // Mount once
   useEffect(() => {
     if (!containerRef.current) return;
@@ -58,19 +65,19 @@ export function ChessgroundBoard({
       fen,
       orientation,
       lastMove: lastMove as Key[] | undefined,
-      viewOnly,
+      viewOnly: false,
       coordinates: true,
       check,
       animation: { enabled: true, duration: 220 },
       draggable: {
-        enabled: !viewOnly,
+        enabled: interactive,
         showGhost: true,
         deleteOnDropOff: false,
       },
-      selectable: { enabled: !viewOnly },
+      selectable: { enabled: interactive },
       movable: {
-        color: viewOnly ? undefined : movableColor,
-        dests: dests as Map<Key, Key[]> | undefined,
+        color: interactive ? movableColor : undefined,
+        dests: interactive ? (dests as Map<Key, Key[]> | undefined) : undefined,
         free: false,
         showDests: true,
         events: {
@@ -117,19 +124,18 @@ export function ChessgroundBoard({
     });
   }, [fen, orientation, lastMove, check]);
 
-  // Sync movable (when puzzles or takeover change available moves).
-  // CRITICAL: re-set `events.after` here too — chessground's .set() replaces
-  // the movable block wholesale, so omitting `events` silently wipes the
-  // onMove callback and the board appears "dead" to interaction.
+  // Sync interactivity (movable color / dests / drag / events).
+  // Always re-set events.after so the onMove callback is never wiped.
+  // Never pass viewOnly here — it's pinned to false at the chessground
+  // layer to avoid the v9.2.1 toggle-after-mount bug.
   useEffect(() => {
     if (!apiRef.current) return;
     apiRef.current.set({
-      viewOnly,
-      draggable: { enabled: !viewOnly, showGhost: true },
-      selectable: { enabled: !viewOnly },
+      draggable: { enabled: interactive, showGhost: true },
+      selectable: { enabled: interactive },
       movable: {
-        color: viewOnly ? undefined : movableColor,
-        dests: dests as Map<Key, Key[]> | undefined,
+        color: interactive ? movableColor : undefined,
+        dests: interactive ? (dests as Map<Key, Key[]> | undefined) : undefined,
         free: false,
         showDests: true,
         events: {
@@ -139,7 +145,7 @@ export function ChessgroundBoard({
         },
       },
     });
-  }, [viewOnly, movableColor, dests]);
+  }, [interactive, movableColor, dests]);
 
   // Sync drawn shapes (arrows/circles)
   useEffect(() => {

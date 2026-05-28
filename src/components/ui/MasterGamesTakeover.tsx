@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Button, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import { Chess } from "chess.js";
 import { motion } from "framer-motion";
 import {
   ArrowLeftRight,
@@ -86,6 +87,12 @@ export interface MasterCandidate {
   whiteWins?: number;
   blackWins?: number;
   draws?: number;
+  /** Engine eval in centipawns (positive = white better) — from chessdb. */
+  eval?: number;
+  /** chessdb rank: 0=poor, 1=neutral, 2=good, 3=best */
+  rank?: number;
+  /** White's expected score (0..100) from chessdb's engine analysis. */
+  winrate?: number;
 }
 
 // Hardcoded fallback for the Pirc/Kasparov demo when the Lichess API is
@@ -127,16 +134,20 @@ export function getMasterCandidates(ply: number): MasterCandidate[] {
 // API response parsing (Lichess masters via our /api/opening-explorer proxy)
 // ───────────────────────────────────────────────────────────────────────────
 
-interface LichessMove {
+interface ApiMove {
   uci: string;
-  san: string;
+  san?: string;
   white: number;
   draws: number;
   black: number;
   averageRating?: number;
+  eval?: number;
+  rank?: number;
+  winrate?: number;
+  popularity?: number;
 }
 
-interface LichessTopGame {
+interface ApiTopGame {
   uci: string;
   white?: { name?: string; rating?: number };
   black?: { name?: string; rating?: number };
@@ -144,27 +155,56 @@ interface LichessTopGame {
   winner?: "white" | "black" | "draws";
 }
 
-interface LichessExplorerData {
+interface ApiData {
   white: number;
   draws: number;
   black: number;
-  moves: LichessMove[];
-  topGames?: LichessTopGame[];
+  moves: ApiMove[];
+  topGames?: ApiTopGame[];
   opening?: { eco: string; name: string };
+  source?: "chessdb" | "lichess";
 }
 
-function buildCandidatesFromApi(data: LichessExplorerData): MasterCandidate[] {
-  const topByUci = new Map<string, LichessTopGame[]>();
+function buildCandidatesFromApi(
+  data: ApiData,
+  fen: string
+): MasterCandidate[] {
+  const topByUci = new Map<string, ApiTopGame[]>();
   (data.topGames ?? []).forEach((g) => {
     const arr = topByUci.get(g.uci) ?? [];
     arr.push(g);
     topByUci.set(g.uci, arr);
   });
 
-  return data.moves.map((m) => {
+  return data.moves.map((m): MasterCandidate => {
+    // chessdb doesn't return SAN — compute from FEN + UCI on the fly.
+    let san = m.san ?? "";
+    if (!san) {
+      try {
+        const c = new Chess(fen);
+        const promo = m.uci.length > 4 ? m.uci[4] : undefined;
+        const result = c.move({
+          from: m.uci.slice(0, 2),
+          to: m.uci.slice(2, 4),
+          promotion: promo,
+        });
+        san = result?.san ?? m.uci;
+      } catch {
+        san = m.uci;
+      }
+    }
+
+    // Synthesize total count (chessdb has no real counts; Lichess does).
+    // Lower popularity tier = MORE common. Tier 1 ≈ 40M games, tier 14 ≈ 300.
     const total = m.white + m.draws + m.black;
+    const synthFromPop =
+      m.popularity && m.popularity > 0 && m.popularity <= 20
+        ? Math.round(10 ** (8 - m.popularity * 0.4))
+        : 0;
+    const count = total > 1000 ? total : synthFromPop || total;
+
+    // Top player attribution from Lichess topGames if present
     const games = topByUci.get(m.uci) ?? [];
-    // Pick the highest-ranked recognized player across all top games at this move
     let topPlayer: TopPlayer | undefined;
     for (const g of games) {
       const w = findPlayerFromName(g.white?.name);
@@ -174,14 +214,18 @@ function buildCandidatesFromApi(data: LichessExplorerData): MasterCandidate[] {
         topPlayer = here;
       }
     }
+
     return {
-      san: m.san,
+      san,
       uci: m.uci,
-      count: total,
+      count,
       topPlayer,
       whiteWins: m.white,
       draws: m.draws,
       blackWins: m.black,
+      eval: m.eval,
+      rank: m.rank,
+      winrate: m.winrate,
     };
   });
 }
@@ -265,7 +309,7 @@ export function MasterGamesTakeover({
   onSendToCoach,
   onRevert,
 }: MasterGamesTakeoverProps) {
-  const [apiData, setApiData] = useState<LichessExplorerData | null>(null);
+  const [apiData, setApiData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -291,7 +335,7 @@ export function MasterGamesTakeover({
         const url = `/api/opening-explorer?fen=${encodeURIComponent(fen)}&moves=10`;
         const res = await fetch(url, { signal: ctrl.signal });
         if (!res.ok) throw new Error(String(res.status));
-        const data = (await res.json()) as LichessExplorerData;
+        const data = (await res.json()) as ApiData;
         if (!ctrl.signal.aborted) setApiData(data);
       } catch (e) {
         if ((e as Error).name !== "AbortError") {
@@ -312,9 +356,9 @@ export function MasterGamesTakeover({
   // Build the candidate list. Use API data if available, fall back to
   // hardcoded for the Pirc demo positions, otherwise empty (out of book).
   const candidates = useMemo<MasterCandidate[]>(() => {
-    if (apiData) return buildCandidatesFromApi(apiData);
+    if (apiData) return buildCandidatesFromApi(apiData, fen);
     return HARDCODED_FALLBACK_BY_PLY[ply] ?? [];
-  }, [apiData, ply]);
+  }, [apiData, fen, ply]);
 
   // Highest-ranked player present at this position
   const featuredPlayer = useMemo(() => {
@@ -741,7 +785,9 @@ export function MasterGamesTakeover({
               {apiError
                 ? "Offline · fallback only"
                 : apiData
-                ? "Lichess masters · 2.5M+ games"
+                ? apiData.source === "chessdb"
+                  ? "chessdb.cn · 7B+ positions"
+                  : "Lichess masters · 2.5M+ games"
                 : "Loading…"}
             </Box>
           </Box>

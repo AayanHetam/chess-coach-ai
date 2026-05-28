@@ -98,8 +98,12 @@ export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: "javascript-nextjs",
   widenClientFileUpload: true,
+  // reactComponentAnnotation chokes on the (now ~5k-line) preview
+  // analysis page and hangs Vercel builds indefinitely. Disabling for
+  // the cutover; can revisit once analysis.tsx is split into smaller
+  // pieces in a follow-up PR.
   reactComponentAnnotation: {
-    enabled: true,
+    enabled: false,
   },
   hideSourceMaps: true,
   disableLogger: true,

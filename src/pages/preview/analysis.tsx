@@ -2322,16 +2322,16 @@ export default function AnalysisPage() {
                       sx={{
                         display: "flex",
                         flexDirection: "column",
-                        gap: 2,
+                        gap: 1.5,
                       }}
                     >
-                      {/* Coach matches the board's height on the left —
-                          ~chat-bubble territory, like before the split. */}
+                      {/* Coach extends down to nearly touch Master Games —
+                          the right column reads as one tight stack. */}
                       <Box
                         sx={{
                           height: {
                             xs: 600,
-                            lg: "clamp(440px, 56vh, 620px)",
+                            lg: "clamp(520px, 70vh, 800px)",
                           },
                         }}
                       >
@@ -2344,11 +2344,6 @@ export default function AnalysisPage() {
                           isThinking={isThinking}
                         />
                       </Box>
-                      {/* Spacer to vertically align Master Games with the
-                          eval graph + key moments row on the left column. */}
-                      <Box
-                        sx={{ height: { xs: 0, lg: 92 }, flexShrink: 0 }}
-                      />
                       <Box sx={{ flexShrink: 0 }}>
                         <OpeningExplorer
                           fen={currentFen}

@@ -893,10 +893,12 @@ function DrillBanner({
   state,
   onExit,
   onRestart,
+  onSkip,
 }: {
   state: DrillState;
   onExit: () => void;
   onRestart: () => void;
+  onSkip: () => void;
 }) {
   const total = state.puzzles.length;
   const puzzle = state.puzzles[state.currentIndex];
@@ -1047,7 +1049,7 @@ function DrillBanner({
                   fontStyle: "italic",
                 }}
               >
-                Stuck? Use the coach on the right.
+                Stuck? Skip ahead, or ask the coach on the right.
               </Typography>
             )}
         </Box>
@@ -1058,6 +1060,27 @@ function DrillBanner({
           alignItems="center"
           sx={{ flexShrink: 0 }}
         >
+          {!isComplete && state.wrongAttempts >= 2 && (
+            <Button
+              size="small"
+              onClick={onSkip}
+              sx={{
+                px: 1.25,
+                py: 0.5,
+                borderRadius: "0.6rem",
+                fontSize: "0.74rem",
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.6)",
+                textTransform: "none",
+                "&:hover": {
+                  background: "rgba(255,255,255,0.05)",
+                  color: "rgba(255,255,255,0.85)",
+                },
+              }}
+            >
+              Skip
+            </Button>
+          )}
           {isComplete && (
             <Button
               size="small"
@@ -1123,6 +1146,7 @@ function BoardArea({
   movableColor,
   dests,
   onMove,
+  syncTick,
 }: {
   fen: string;
   lastMove: Move | null;
@@ -1133,6 +1157,8 @@ function BoardArea({
   movableColor?: "white" | "black" | "both";
   dests?: Map<string, string[]>;
   onMove?: (from: string, to: string) => void;
+  /** Bump to force chessground to re-sync to `fen` (rejected drag, etc.). */
+  syncTick?: number;
 }) {
   const lastMoveTuple = useMemo<[string, string] | undefined>(
     () => (lastMove ? [lastMove.from, lastMove.to] : undefined),
@@ -1172,6 +1198,7 @@ function BoardArea({
           movableColor={movableColor}
           dests={dests}
           onMove={onMove}
+          syncTick={syncTick}
         />
       </Box>
     </Box>
@@ -2526,6 +2553,12 @@ export default function AnalysisPage() {
   // survives the round-trip automatically.
   const [drillState, setDrillState] = useState<DrillState | null>(null);
   const drillActive = drillState !== null && drillState.status !== "complete";
+  // Bumped to force the board to re-sync to React-state FEN. Chessground
+  // commits a drag visually before the move event fires, so a rejected
+  // move (wrong puzzle solution) leaves the piece on the wrong square
+  // until we explicitly re-set the position. Same for puzzle transitions.
+  const [boardSyncTick, setBoardSyncTick] = useState(0);
+  const bumpBoardSync = useCallback(() => setBoardSyncTick((t) => t + 1), []);
 
   // Board FEN + last move switch when previewing in takeover mode or
   // when a puzzle has been promoted to the main board (drill mode).
@@ -2785,11 +2818,15 @@ export default function AnalysisPage() {
   // Promote a puzzle from a coach pack onto the main board. Saves the game
   // ply + orientation so "Return to game" restores them. Snaps the board
   // orientation to the side-to-move so the user always plays from the bottom.
+  // ─── Drill timing constants (mirrored from src/components/InlinePuzzleSet.tsx) ───
+  const OPP_REPLY_DELAY_MS = 400;
+  const WRONG_FLASH_MS = 1200;
+  const SOLVED_ADVANCE_MS = 700;
+
   const handlePromoteToBoard = useCallback(
     (puzzles: DrillPuzzle[], startIndex: number) => {
       const puzzle = puzzles[startIndex];
       if (!puzzle) return;
-      // Bail out of takeover if active — the board can only be in one mode.
       if (takeoverMode) {
         setTakeoverMode(false);
         setTakeoverPreview(null);
@@ -2809,12 +2846,11 @@ export default function AnalysisPage() {
         savedPly: currentPly,
         savedOrientation: boardOrientation,
       });
+      bumpBoardSync();
     },
-    [boardOrientation, currentPly, takeoverMode]
+    [boardOrientation, currentPly, takeoverMode, bumpBoardSync]
   );
 
-  // Exit the drill — restore the canonical game ply and orientation.
-  // Chat history (messages) is never mutated so it survives the round-trip.
   const exitDrill = useCallback(() => {
     setDrillState((prev) => {
       if (!prev) return prev;
@@ -2822,11 +2858,9 @@ export default function AnalysisPage() {
       setBoardOrientation(prev.savedOrientation);
       return null;
     });
-  }, []);
+    bumpBoardSync();
+  }, [bumpBoardSync]);
 
-  // Restart the same 3-puzzle pack from the top. In production this would
-  // refetch from /api/similar-puzzles using the current themes + excludeIds;
-  // for the preview we cycle the same demo pack.
   const restartDrill = useCallback(() => {
     setDrillState((prev) => {
       if (!prev) return prev;
@@ -2844,9 +2878,9 @@ export default function AnalysisPage() {
         lastMove: null,
       };
     });
-  }, []);
+    bumpBoardSync();
+  }, [bumpBoardSync]);
 
-  // Advance to the next puzzle, or surface the "complete" banner.
   const advanceDrill = useCallback(() => {
     setDrillState((prev) => {
       if (!prev) return prev;
@@ -2868,11 +2902,13 @@ export default function AnalysisPage() {
         lastMove: null,
       };
     });
-  }, []);
+    bumpBoardSync();
+  }, [bumpBoardSync]);
 
   // User moves a piece while a drill is in flight. Validate against the
   // puzzle solution: correct → auto-play opponent's reply (if any) then
-  // advance state; wrong → flash red, keep position, increment attempts.
+  // advance state; wrong → flash red, REVERT the visual board (chessground
+  // commits the drag before this fires, so we must explicitly re-sync).
   const handleDrillMove = useCallback(
     (orig: string, dest: string) => {
       if (!drillState || drillState.status !== "solving") return;
@@ -2885,7 +2921,8 @@ export default function AnalysisPage() {
       const expPromo = expected.length >= 5 ? expected[4] : undefined;
 
       if (orig !== expFrom || dest !== expTo) {
-        // Wrong move — flash red, reset to solving after a brief delay
+        // Wrong move — revert the board visually, flash red, then resume
+        bumpBoardSync(); // chessground locally moved the piece; force re-sync
         setDrillState((prev) =>
           prev
             ? {
@@ -2901,11 +2938,11 @@ export default function AnalysisPage() {
               ? { ...prev, status: "solving" }
               : prev
           );
-        }, 900);
+        }, WRONG_FLASH_MS);
         return;
       }
 
-      // Apply the correct move
+      // Correct move — apply it
       const game = new Chess(drillState.currentFen);
       const userMove = game.move({
         from: orig,
@@ -2914,13 +2951,14 @@ export default function AnalysisPage() {
       });
       if (!userMove) {
         console.warn("[drill] expected move was illegal:", expected);
+        bumpBoardSync();
         return;
       }
       const afterUserFen = game.fen();
       const newIdx = drillState.currentMoveIndex + 1;
 
       if (newIdx >= puzzle.solution.length) {
-        // Puzzle solved — flash green, then advance
+        // Puzzle solved with user's move (no opp reply needed)
         setDrillState((prev) =>
           prev
             ? {
@@ -2932,58 +2970,61 @@ export default function AnalysisPage() {
               }
             : prev
         );
-        setTimeout(() => {
-          advanceDrill();
-        }, 900);
+        setTimeout(() => advanceDrill(), SOLVED_ADVANCE_MS);
         return;
       }
 
-      // Auto-play opponent's reply
-      const oppUci = puzzle.solution[newIdx];
-      const oppFrom = oppUci.slice(0, 2);
-      const oppTo = oppUci.slice(2, 4);
-      const oppPromo = oppUci.length >= 5 ? oppUci[4] : undefined;
-      const oppMove = game.move({
-        from: oppFrom,
-        to: oppTo,
-        promotion: oppPromo ?? "q",
-      });
-      if (!oppMove) {
-        console.warn("[drill] opponent reply illegal:", oppUci);
-        return;
-      }
-      const finalIdx = newIdx + 1;
-      const finalFen = game.fen();
-      if (finalIdx >= puzzle.solution.length) {
-        setDrillState((prev) =>
-          prev
-            ? {
-                ...prev,
-                currentFen: finalFen,
-                currentMoveIndex: finalIdx,
-                status: "solved",
-                lastMove: { from: oppFrom, to: oppTo },
-              }
-            : prev
-        );
-        setTimeout(() => {
-          advanceDrill();
-        }, 900);
-      } else {
-        setDrillState((prev) =>
-          prev
-            ? {
-                ...prev,
-                currentFen: finalFen,
-                currentMoveIndex: finalIdx,
-                status: "solving",
-                lastMove: { from: oppFrom, to: oppTo },
-              }
-            : prev
-        );
-      }
+      // User move applied — show it on the board, then schedule opponent reply
+      setDrillState((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentFen: afterUserFen,
+              currentMoveIndex: newIdx,
+              status: "solving",
+              lastMove: { from: orig, to: dest },
+            }
+          : prev
+      );
+
+      // Opponent reply on a delay so the user actually sees their own move
+      setTimeout(() => {
+        setDrillState((prev) => {
+          if (!prev || prev.status !== "solving") return prev;
+          if (prev.currentIndex !== drillState.currentIndex) return prev;
+          const p = prev.puzzles[prev.currentIndex];
+          if (!p) return prev;
+          const oppUci = p.solution[prev.currentMoveIndex];
+          if (!oppUci) return prev;
+          const oppFrom = oppUci.slice(0, 2);
+          const oppTo = oppUci.slice(2, 4);
+          const oppPromo = oppUci.length >= 5 ? oppUci[4] : undefined;
+          const g = new Chess(prev.currentFen);
+          const oppMove = g.move({
+            from: oppFrom,
+            to: oppTo,
+            promotion: oppPromo ?? "q",
+          });
+          if (!oppMove) {
+            console.warn("[drill] opponent reply illegal:", oppUci);
+            return prev;
+          }
+          const newMoveIdx = prev.currentMoveIndex + 1;
+          const oppSolved = newMoveIdx >= p.solution.length;
+          if (oppSolved) {
+            setTimeout(() => advanceDrill(), SOLVED_ADVANCE_MS);
+          }
+          return {
+            ...prev,
+            currentFen: g.fen(),
+            currentMoveIndex: newMoveIdx,
+            status: oppSolved ? "solved" : "solving",
+            lastMove: { from: oppFrom, to: oppTo },
+          };
+        });
+      }, OPP_REPLY_DELAY_MS);
     },
-    [drillState, advanceDrill]
+    [drillState, advanceDrill, bumpBoardSync]
   );
 
   // Shared puzzle-pack fetch + attach. msgIdx is the index of the coach
@@ -3396,6 +3437,7 @@ export default function AnalysisPage() {
                   state={drillState}
                   onExit={exitDrill}
                   onRestart={restartDrill}
+                  onSkip={advanceDrill}
                 />
               )}
               <BoardArea
@@ -3426,6 +3468,7 @@ export default function AnalysisPage() {
                     ? handleBoardMove
                     : undefined
                 }
+                syncTick={boardSyncTick}
               />
               <BoardArrowToggles
                 state={arrowToggles}

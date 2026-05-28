@@ -29,6 +29,13 @@ interface ChessgroundBoardProps {
   dests?: Map<string, string[]>;
   /** Fired when the user makes a move on the board (drag or click-click). */
   onMove?: (orig: string, dest: string) => void;
+  /**
+   * Bump to force a re-sync of the board to `fen` even when the string
+   * didn't change. Needed because chessground commits a drag visually
+   * before fielding the move event, so rejected moves need an explicit
+   * revert. Parents bump this counter to undo a stale visual position.
+   */
+  syncTick?: number;
 }
 
 export function ChessgroundBoard({
@@ -41,6 +48,7 @@ export function ChessgroundBoard({
   movableColor,
   dests,
   onMove,
+  syncTick = 0,
 }: ChessgroundBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
@@ -114,7 +122,9 @@ export function ChessgroundBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync FEN / orientation / lastMove / check
+  // Sync FEN / orientation / lastMove / check. `syncTick` lets the parent
+  // force a re-sync (e.g. to revert a rejected drag) even when `fen` itself
+  // didn't change between renders.
   useEffect(() => {
     apiRef.current?.set({
       fen,
@@ -122,7 +132,7 @@ export function ChessgroundBoard({
       lastMove: lastMove as Key[] | undefined,
       check,
     });
-  }, [fen, orientation, lastMove, check]);
+  }, [fen, orientation, lastMove, check, syncTick]);
 
   // Sync interactivity (movable color / dests / drag / events).
   // Always re-set events.after so the onMove callback is never wiped.

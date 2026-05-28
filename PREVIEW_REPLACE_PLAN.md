@@ -1,6 +1,11 @@
 # Plan: Replace `/analysis` with `/preview/analysis`
 
-Branch baseline: `feat/design-motion-foundation` @ `16239dc`
+**STATUS — CUTOVER COMPLETE** as of `b99a827` on `feat/design-motion-foundation`.
+- `/analysis` now serves the dark-glass redesign.
+- `/preview/analysis` still serves the same content (alias during rollout).
+- `/legacy/analysis` parks the old Jotai + react-chessboard page as the escape hatch.
+
+Branch baseline: `feat/design-motion-foundation` @ `b99a827`
 Goal: production cutover where `chessmasti.com/analysis` serves the redesign with **zero functional regression** versus today's page.
 
 ---

@@ -97,11 +97,12 @@ export default withSentryConfig(nextConfig, {
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
   org: process.env.SENTRY_ORG,
   project: "javascript-nextjs",
-  widenClientFileUpload: true,
-  // reactComponentAnnotation chokes on the (now ~5k-line) preview
-  // analysis page and hangs Vercel builds indefinitely. Disabling for
-  // the cutover; can revisit once analysis.tsx is split into smaller
-  // pieces in a follow-up PR.
+  // widenClientFileUpload makes Sentry's webpack plugin walk every file
+  // under src/pages for source-map upload. With analysis.tsx at ~5k
+  // lines + heavy MUI/framer imports the walk hangs Vercel indefinitely
+  // (45-min timeout). Default narrower scope still covers app/ + API.
+  widenClientFileUpload: false,
+  // reactComponentAnnotation chokes on the same file. Off for cutover.
   reactComponentAnnotation: {
     enabled: false,
   },

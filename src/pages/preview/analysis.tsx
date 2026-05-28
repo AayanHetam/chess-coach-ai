@@ -2327,14 +2327,14 @@ export default function AnalysisPage() {
                     >
                       {/* Coach extends down to nearly touch Master Games —
                           the right column reads as one tight stack. */}
+                      {/* Coach absorbs what was the spacer — chat reaches
+                          all the way down to Master Games, no wasted gap.
+                          Master Games still ends at the key-moments line. */}
                       <Box
                         sx={{
                           height: {
                             xs: 600,
-                            // Sized so Coach + 20px spacer + Master Games
-                            // bottom edge lines up with the eval-arc bottom
-                            // on the left column (board + arrows + eval).
-                            lg: "clamp(520px, 68vh, 720px)",
+                            lg: "clamp(650px, 80vh, 850px)",
                           },
                         }}
                       >
@@ -2347,11 +2347,6 @@ export default function AnalysisPage() {
                           isThinking={isThinking}
                         />
                       </Box>
-                      {/* Spacer pushes Master Games down to align its bottom
-                          (g3 row) with the Key Moments row on the left. */}
-                      <Box
-                        sx={{ height: { xs: 0, lg: 130 }, flexShrink: 0 }}
-                      />
                       <Box sx={{ flexShrink: 0 }}>
                         <OpeningExplorer
                           fen={currentFen}

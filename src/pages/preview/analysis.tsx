@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   MasterGamesTakeover,
   getMasterCandidates,
+  type MasterCandidate,
 } from "@/components/ui/MasterGamesTakeover";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import {
@@ -1634,6 +1635,12 @@ export default function AnalysisPage() {
     DEFAULT_ARROW_TOGGLES
   );
 
+  // Live candidate list from the takeover panel (master DB) — used to
+  // overlay top-3 candidate arrows on the board while takeover is active.
+  const [takeoverCandidates, setTakeoverCandidates] = useState<
+    MasterCandidate[]
+  >([]);
+
   // Board FEN + last move switch when previewing in takeover mode
   const displayFen = takeoverPreview?.fen ?? currentFen;
   const displayLastMove = useMemo<Move | null>(() => {
@@ -1665,11 +1672,27 @@ export default function AnalysisPage() {
     return m;
   }, [displayFen]);
 
-  // Computed arrow shapes from toggles + takeover preview
+  // Computed arrow shapes from toggles + takeover state
   const displayShapes = useMemo<DrawShape[]>(() => {
     const shapes: DrawShape[] = [];
 
-    // Takeover preview always wins visibility — gold arrow
+    // In takeover (no specific candidate selected yet): show the top 3 master
+    // moves as fan-out arrows. Brightest for the most-played, dimmer for the
+    // alternatives. Gives an instant visual of "what masters do here."
+    if (takeoverMode && !takeoverPreview && takeoverCandidates.length > 0) {
+      const topThree = takeoverCandidates.slice(0, 3);
+      topThree.forEach((c, i) => {
+        if (!c.uci || c.uci.length < 4) return;
+        shapes.push({
+          orig: c.uci.slice(0, 2),
+          dest: c.uci.slice(2, 4),
+          brush: i === 0 ? "green" : "paleGreen",
+        });
+      });
+    }
+
+    // Takeover preview always wins visibility — gold arrow (overlays the
+    // top-3 fan-out so the user sees their selection clearly)
     if (takeoverPreview) {
       shapes.push({
         orig: takeoverPreview.from,
@@ -1711,7 +1734,9 @@ export default function AnalysisPage() {
 
     return shapes;
   }, [
+    takeoverMode,
     takeoverPreview,
+    takeoverCandidates,
     arrowToggles,
     currentPly,
     allMoves,
@@ -1724,6 +1749,7 @@ export default function AnalysisPage() {
   const handleTakeoverRevert = useCallback(() => {
     setTakeoverMode(false);
     setTakeoverPreview(null);
+    setTakeoverCandidates([]);
   }, []);
   const handleTakeoverPreviewMove = useCallback(
     (uci: string, san: string) => {
@@ -1757,7 +1783,7 @@ export default function AnalysisPage() {
     [displayFen]
   );
   const handleTakeoverSendToCoach = useCallback(
-    (message: string) => {
+    (message: string, candidate?: MasterCandidate) => {
       // Push a user message into chat as if typed
       setMessages((prev) => [
         ...prev,
@@ -1765,13 +1791,49 @@ export default function AnalysisPage() {
       ]);
       setIsThinking(true);
       setTimeout(() => {
+        // Build a rich insight card when we have structured candidate data
+        const insight = candidate
+          ? {
+              tag: `${candidate.san} — Master line`,
+              eval:
+                typeof candidate.eval === "number"
+                  ? `${candidate.eval >= 0 ? "+" : ""}${(candidate.eval / 100).toFixed(2)}`
+                  : candidate.count > 0
+                  ? `${(candidate.count / 1_000_000).toFixed(1)}M games`
+                  : undefined,
+              classification:
+                candidate.rank === 2
+                  ? "Best move (engine)"
+                  : candidate.rank === 1
+                  ? "Sound continuation"
+                  : candidate.rank === 0
+                  ? "Neutral"
+                  : candidate.topPlayer
+                  ? `Played by ${candidate.topPlayer.name}`
+                  : undefined,
+            }
+          : undefined;
+
+        const evalLine = candidate?.eval
+          ? ` Engine reads **${candidate.eval >= 0 ? "+" : ""}${(candidate.eval / 100).toFixed(2)}**.`
+          : "";
+        const winrateLine = candidate?.winrate
+          ? ` White scores **${candidate.winrate.toFixed(0)}%** from this position.`
+          : "";
+        const playerLine = candidate?.topPlayer
+          ? ` ${candidate.topPlayer.name} has played this line.`
+          : "";
+        const setupContent = candidate
+          ? `Looking at **${candidate.san}** from this position.${evalLine}${winrateLine}${playerLine} Want me to walk through the typical plans, or jump deeper into the line?`
+          : "Pulling that line from the master database now — once a real model is wired in, you'll get a deep walkthrough of the typical plans, strategic motifs, and key games here.";
+
         setMessages((prev) => [
           ...prev,
           {
             role: "coach",
-            content:
-              "Pulling that line from the master database now — once a real model is wired in, you'll get a deep walkthrough of the typical plans, strategic motifs, and key games here.",
+            content: setupContent,
             ply: currentPly,
+            insight,
           },
         ]);
         setIsThinking(false);
@@ -2092,6 +2154,7 @@ export default function AnalysisPage() {
                     onPreviewMove={handleTakeoverPreviewMove}
                     onSendToCoach={handleTakeoverSendToCoach}
                     onRevert={handleTakeoverRevert}
+                    onCandidatesUpdate={setTakeoverCandidates}
                   />
                 ) : (
                   <motion.div

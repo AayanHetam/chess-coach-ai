@@ -293,10 +293,16 @@ interface MasterGamesTakeoverProps {
   playedSan?: string;
   /** When a candidate is clicked, parent updates the board to that line. */
   onPreviewMove: (uci: string, san: string) => void;
-  /** When user wants to send a candidate/idea to the coach chat. */
-  onSendToCoach: (message: string) => void;
+  /**
+   * When user wants to send a candidate/idea to the coach chat.
+   * Receives the candidate so the parent can build a rich insight card.
+   */
+  onSendToCoach: (message: string, candidate?: MasterCandidate) => void;
   /** Exit takeover, restore coach panel + canonical board position. */
   onRevert: () => void;
+  /** Fires whenever the visible candidate list changes — parent uses it
+   *  to overlay top-N moves as soft arrows on the board. */
+  onCandidatesUpdate?: (candidates: MasterCandidate[]) => void;
 }
 
 export function MasterGamesTakeover({
@@ -306,6 +312,7 @@ export function MasterGamesTakeover({
   onPreviewMove,
   onSendToCoach,
   onRevert,
+  onCandidatesUpdate,
 }: MasterGamesTakeoverProps) {
   const [apiData, setApiData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -357,6 +364,11 @@ export function MasterGamesTakeover({
     if (apiData) return buildCandidatesFromApi(apiData, fen);
     return HARDCODED_FALLBACK_BY_PLY[ply] ?? [];
   }, [apiData, fen, ply]);
+
+  // Surface candidates to the parent so it can overlay arrows on the board
+  useEffect(() => {
+    onCandidatesUpdate?.(candidates);
+  }, [candidates, onCandidatesUpdate]);
 
   // Highest-ranked player present at this position
   const featuredPlayer = useMemo(() => {
@@ -806,8 +818,15 @@ export function MasterGamesTakeover({
                         <IconButton
                           onClick={(e) => {
                             e.stopPropagation();
+                            const ctxBit =
+                              c.count > 0
+                                ? ` — ${formatCount(c.count)} master games went this way`
+                                : typeof c.eval === "number"
+                                ? ` — engine eval ${c.eval >= 0 ? "+" : ""}${(c.eval / 100).toFixed(2)}`
+                                : "";
                             onSendToCoach(
-                              `Tell me about ${c.san} from this position — ${formatCount(c.count)} master games went this way${c.topPlayer ? `, including ${c.topPlayer.name}` : ""}.`
+                              `Tell me about ${c.san} from this position${ctxBit}${c.topPlayer ? `, including ${c.topPlayer.name}` : ""}.`,
+                              c
                             );
                           }}
                           size="small"

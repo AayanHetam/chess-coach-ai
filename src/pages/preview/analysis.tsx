@@ -226,6 +226,47 @@ function uciToShape(uci: string, brush: string): DrawShape {
 // Real coach wiring — POST to /api/chat with conversation + position context
 // ───────────────────────────────────────────────────────────────────────────────
 
+// Fetch up to N Neo4j-backed puzzles for a given tactical theme from the
+// current board position. Returns drill-ready puzzles (opp setup move
+// pre-applied, solution sliced) — or null if the endpoint is unavailable
+// (no Neo4j) / returns no matches.
+async function fetchPuzzlesForTheme(
+  fen: string,
+  theme: string,
+  userRating = 1500,
+  limit = 3
+): Promise<DrillPuzzle[] | null> {
+  const themes = [theme]; // future: accept multi-theme conjunctions
+  const res = await fetch("/api/similar-puzzles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fen,
+      themes,
+      userRating,
+      limit,
+      candidatePoolSize: Math.max(limit * 5, 20),
+    }),
+  });
+  if (!res.ok) {
+    const code = res.status;
+    throw new Error(
+      code === 503
+        ? "puzzle store offline (Neo4j unconfigured)"
+        : `puzzle store returned HTTP ${code}`
+    );
+  }
+  const data = (await res.json()) as { puzzles?: LichessPuzzleResponse[] };
+  const raw = data.puzzles ?? [];
+  const mapped: DrillPuzzle[] = [];
+  for (const p of raw) {
+    const d = lichessToDrillPuzzle(p);
+    if (d && d.solution.length > 0) mapped.push(d);
+    if (mapped.length >= limit) break;
+  }
+  return mapped.length > 0 ? mapped : null;
+}
+
 class CoachAuthError extends Error {}
 class CoachApiError extends Error {
   constructor(public status: number) {
@@ -374,6 +415,112 @@ interface PuzzlePack {
   theme: string;
   displayTheme: string;
   puzzles: DrillPuzzle[];
+  /** undefined = hand-curated/synchronous; otherwise reflects fetch state */
+  status?: "loading" | "ready" | "error";
+  error?: string;
+}
+
+// Lichess puzzle shape returned by `/api/similar-puzzles`
+interface LichessPuzzleResponse {
+  puzzleId: string;
+  fen: string;
+  moves: string; // space-separated UCI
+  rating: number;
+  themes: string[];
+}
+
+// Lichess convention: moves[0] is the opponent's setup move (auto-played
+// to reach the actual puzzle starting position); user solves moves[1..N].
+function lichessToDrillPuzzle(p: LichessPuzzleResponse): DrillPuzzle | null {
+  const movesArr = p.moves.split(/\s+/).filter(Boolean);
+  if (movesArr.length < 1) return null;
+  try {
+    const g = new Chess(p.fen);
+    if (movesArr.length >= 2) {
+      const setup = movesArr[0];
+      const res = g.move({
+        from: setup.slice(0, 2),
+        to: setup.slice(2, 4),
+        promotion: setup[4] ?? "q",
+      });
+      if (!res) return null;
+    }
+    const solution = movesArr.length >= 2 ? movesArr.slice(1) : movesArr;
+    const theme = p.themes[0] ?? "tactics";
+    return {
+      id: p.puzzleId,
+      title: titleFromThemes(p.themes),
+      hint: hintFromThemes(p.themes, p.rating),
+      fen: g.fen(),
+      solution,
+      rating: p.rating,
+      themes: p.themes,
+    };
+  } catch {
+    return null;
+  }
+}
+
+const THEME_TITLES: Record<string, string> = {
+  fork: "Find the fork",
+  pin: "Find the pin",
+  skewer: "Find the skewer",
+  "discovered-attack": "Discovered attack",
+  "discoveredAttack": "Discovered attack",
+  "double-attack": "Double attack",
+  "back-rank": "Back-rank pressure",
+  backRankMate: "Back-rank mate",
+  smotheredMate: "Smothered mate",
+  "knight-fork": "Knight fork",
+  "queen-knight-fork": "Queen-and-knight fork",
+  deflection: "Deflection",
+  decoy: "Decoy the defender",
+  sacrifice: "Sacrifice for tempo",
+  trappedPiece: "Trap the piece",
+  mateIn1: "Mate in 1",
+  mateIn2: "Mate in 2",
+  mateIn3: "Mate in 3",
+};
+
+function titleFromThemes(themes: string[]): string {
+  for (const t of themes) {
+    if (THEME_TITLES[t]) return THEME_TITLES[t];
+  }
+  // Title-case the first theme as a fallback
+  const first = themes[0] ?? "Tactic";
+  return first
+    .replace(/-/g, " ")
+    .replace(/([A-Z])/g, " $1")
+    .trim()
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
+function hintFromThemes(themes: string[], rating: number): string {
+  const motif = themes.find((t) => THEME_TITLES[t]) ?? themes[0] ?? "tactic";
+  return `Rated ${rating} · ${motif.replace(/-/g, " ")}`;
+}
+
+// Parse [PRACTICE:theme:displayName] markers from coach content. Mirrors the
+// production pattern (`/\[PRACTICE:([^:\]]+):([^\]]+)\]/g`). Returns the
+// stripped content + the matched tags so the bubble can render clean text
+// while the analysis layer triggers a real /api/similar-puzzles fetch.
+const PRACTICE_TAG_RE = /\[PRACTICE:([^:\]]+):([^\]]+)\]/g;
+
+interface PracticeTag {
+  theme: string;
+  displayTheme: string;
+}
+
+function extractPracticeTags(content: string): {
+  stripped: string;
+  tags: PracticeTag[];
+} {
+  const tags: PracticeTag[] = [];
+  const stripped = content.replace(PRACTICE_TAG_RE, (_, theme, display) => {
+    tags.push({ theme: String(theme), displayTheme: String(display) });
+    return "";
+  });
+  return { stripped: stripped.trim(), tags };
 }
 
 interface DrillState {
@@ -1708,9 +1855,55 @@ function CoachPuzzleCard({
             fontFamily: "Monaco, Menlo, monospace",
           }}
         >
-          {pack.puzzles.length} puzzle{pack.puzzles.length === 1 ? "" : "s"}
+          {pack.status === "loading"
+            ? "loading…"
+            : pack.status === "error"
+            ? "unavailable"
+            : `${pack.puzzles.length} puzzle${pack.puzzles.length === 1 ? "" : "s"}`}
         </Typography>
       </Stack>
+      {pack.status === "loading" && pack.puzzles.length === 0 && (
+        <Stack spacing={0.85}>
+          {[0, 1, 2].map((i) => (
+            <Box
+              key={i}
+              sx={{
+                height: 48,
+                borderRadius: "0.6rem",
+                background:
+                  "linear-gradient(90deg, rgba(168,85,247,0.05) 0%, rgba(168,85,247,0.12) 50%, rgba(168,85,247,0.05) 100%)",
+                backgroundSize: "200% 100%",
+                animation: "shimmer 1.6s ease-in-out infinite",
+                "@keyframes shimmer": {
+                  "0%": { backgroundPosition: "200% 0" },
+                  "100%": { backgroundPosition: "-200% 0" },
+                },
+              }}
+            />
+          ))}
+        </Stack>
+      )}
+      {pack.status === "error" && (
+        <Box
+          sx={{
+            px: 1.5,
+            py: 1.5,
+            borderRadius: "0.6rem",
+            background: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.2)",
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: "0.8rem",
+              color: "#fca5a5",
+              lineHeight: 1.4,
+            }}
+          >
+            Couldn't reach the puzzle store{pack.error ? ` — ${pack.error}` : ""}.
+          </Typography>
+        </Box>
+      )}
       <Stack spacing={0.85}>
         {pack.puzzles.map((p, i) => (
           <Box
@@ -1859,7 +2052,7 @@ function CoachBubble({
             : "0 2px 8px rgba(0,0,0,0.2)",
         }}
       >
-        {renderInline(msg.content)}
+        {renderInline(extractPracticeTags(msg.content).stripped)}
       </Box>
       {msg.insight && !isUser && (
         <Box
@@ -2793,6 +2986,68 @@ export default function AnalysisPage() {
     [drillState, advanceDrill]
   );
 
+  // Shared puzzle-pack fetch + attach. msgIdx is the index of the coach
+  // message to mutate when the response lands. Returns nothing — purely a
+  // side-effect coordinator. Reuses fetchPuzzlesForTheme.
+  const triggerPuzzleFetch = useCallback(
+    (msgIdx: number, theme: string, displayTheme: string, fen: string) => {
+      setMessages((prev) => {
+        const next = [...prev];
+        const m = next[msgIdx];
+        if (!m || m.role !== "coach") return prev;
+        next[msgIdx] = {
+          ...m,
+          puzzlePack: {
+            theme,
+            displayTheme,
+            puzzles: [],
+            status: "loading",
+          },
+        };
+        return next;
+      });
+      fetchPuzzlesForTheme(fen, theme)
+        .then((puzzles) => {
+          setMessages((prev) => {
+            const next = [...prev];
+            const m = next[msgIdx];
+            if (!m || m.role !== "coach" || !m.puzzlePack) return prev;
+            next[msgIdx] = {
+              ...m,
+              puzzlePack:
+                puzzles && puzzles.length > 0
+                  ? { ...m.puzzlePack, puzzles, status: "ready" as const }
+                  : {
+                      ...m.puzzlePack,
+                      puzzles: [],
+                      status: "error" as const,
+                      error: "no matches in current rating band",
+                    },
+            };
+            return next;
+          });
+        })
+        .catch((err: unknown) => {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          setMessages((prev) => {
+            const next = [...prev];
+            const m = next[msgIdx];
+            if (!m || m.role !== "coach" || !m.puzzlePack) return prev;
+            next[msgIdx] = {
+              ...m,
+              puzzlePack: {
+                ...m.puzzlePack,
+                status: "error" as const,
+                error: errMsg,
+              },
+            };
+            return next;
+          });
+        });
+    },
+    []
+  );
+
   const handleSend = useCallback(async () => {
     const text = input.trim();
     if (!text || isThinking) return;
@@ -2828,6 +3083,24 @@ export default function AnalysisPage() {
           });
         },
       });
+      // After stream completes, scan for [PRACTICE:...] tags and trigger
+      // a real /api/similar-puzzles fetch per tag. The coach's tag persists
+      // in the message content but CoachBubble strips it from display.
+      const tags = extractPracticeTags(accumulated).tags;
+      if (tags.length > 0) {
+        const coachMsgIdx = prevForApi.length + 1; // user, then coach
+        const first = tags[0]; // multi-tag pack support is a follow-up
+        setTimeout(
+          () =>
+            triggerPuzzleFetch(
+              coachMsgIdx,
+              first.theme,
+              first.displayTheme,
+              displayFen
+            ),
+          0
+        );
+      }
     } catch (err) {
       const errorText =
         err instanceof CoachAuthError
@@ -2844,11 +3117,56 @@ export default function AnalysisPage() {
     } finally {
       setIsThinking(false);
     }
-  }, [input, isThinking, messages, currentPly, displayFen, allMoves]);
+  }, [
+    input,
+    isThinking,
+    messages,
+    currentPly,
+    displayFen,
+    allMoves,
+    triggerPuzzleFetch,
+  ]);
 
-  const handleSuggestion = useCallback((s: string) => {
-    setInput(s);
-  }, []);
+  const handleSuggestion = useCallback(
+    (s: string) => {
+      // Intercept the puzzle-finding pill — fetch real Neo4j puzzles from
+      // /api/similar-puzzles for the current position and surface them as
+      // a coach-attached pack. Other pills fall through to the normal
+      // "populate input → user presses Enter" flow.
+      if (/find me puzzles/i.test(s)) {
+        // Map the pill phrasing to a theme. Coach-emitted [PRACTICE:...]
+        // tags will go through the same fetch path in production.
+        const theme = /rook/i.test(s)
+          ? "sacrifice"
+          : /knight/i.test(s)
+          ? "knight-fork"
+          : /mate/i.test(s)
+          ? "mateIn2"
+          : "fork";
+        const displayTheme = /rook/i.test(s)
+          ? "Rook sacrifices"
+          : "Tactical patterns";
+        const msgIdx = messages.length + 1; // index of the coach msg we push
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", content: s, ply: currentPly },
+          {
+            role: "coach",
+            content: `Pulled three positions in the same family from the master puzzle index — solve them inline, or move any one onto the big board.`,
+            ply: currentPly,
+          },
+        ]);
+        // Defer one tick so the message lands in state before the fetch trigger
+        setTimeout(
+          () => triggerPuzzleFetch(msgIdx, theme, displayTheme, displayFen),
+          0
+        );
+        return;
+      }
+      setInput(s);
+    },
+    [messages, currentPly, displayFen, triggerPuzzleFetch]
+  );
 
   // Keyboard navigation
   useEffect(() => {

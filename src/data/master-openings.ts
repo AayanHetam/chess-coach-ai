@@ -20,6 +20,7 @@
  */
 
 import { Chess } from "chess.js";
+import masterTreeData from "./master-tree.json";
 
 export interface CuratedMove {
   san: string;
@@ -888,13 +889,46 @@ export function normalizeFen(fen: string): string {
   return fen.split(" ").slice(0, 4).join(" ");
 }
 
+// Processed Lichess Elite tree — 59K+ positions from real games via the
+// scripts/process-master-pgn.mjs pipeline. Generated from Nikonoel's
+// Lichess Elite 2025-11 dump (~280K games, 2300+ Elo Lichess Elite).
+// Real game counts, real player attribution, normalized-FEN keys.
+// Cast via unknown — the JSON has topPlayer: null for unattributed moves,
+// which TS won't accept without coercion. We tolerate null at runtime.
+const PROCESSED_TREE = masterTreeData as unknown as Record<
+  string,
+  { moves: IndexedEntry["moves"] }
+>;
+const PROCESSED_TREE_SIZE = Object.keys(PROCESSED_TREE).length;
+
 export function lookupCuratedPosition(fen: string): IndexedEntry | null {
+  const norm = normalizeFen(fen);
+
+  // 1. Hand-curated TS module FIRST — 78 famous positions with big real
+  //    Lichess Masters numbers (8.4M for 1.e4, etc.). These look great
+  //    on the demo because the counts represent the full historical
+  //    master-games database, not just one month of Lichess Elite.
   if (!cachedIndex) cachedIndex = buildIndex();
-  return cachedIndex.get(normalizeFen(fen)) ?? null;
+  const fromHandCurated = cachedIndex.get(norm);
+  if (fromHandCurated) return fromHandCurated;
+
+  // 2. Processed tree — 59K+ positions from 280K Lichess Elite games
+  //    (Nikonoel's 2300+ Elo dump). Smaller per-position counts (one
+  //    month of online play) but covers vastly more positions, so
+  //    deeper-than-theory positions still show real data.
+  const fromProcessed = PROCESSED_TREE[norm];
+  if (fromProcessed) return fromProcessed;
+
+  return null;
 }
 
 /** Count of indexed positions — exported for observability / footer label. */
 export function curatedPositionCount(): number {
   if (!cachedIndex) cachedIndex = buildIndex();
-  return cachedIndex.size;
+  // Union of processed + hand-curated (overlap counted once)
+  let unique = PROCESSED_TREE_SIZE;
+  cachedIndex.forEach((_, key) => {
+    if (!PROCESSED_TREE[key]) unique++;
+  });
+  return unique;
 }

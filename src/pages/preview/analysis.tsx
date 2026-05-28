@@ -317,12 +317,88 @@ async function streamCoachReply(params: {
   }
 }
 
+// ───────────────────────────────────────────────────────────────────────────────
+// Drill puzzles — Neo4j-backed in production, hand-curated for the preview demo.
+// Each puzzle solves in 1 move from the given FEN. The drill flow promotes the
+// puzzle onto the main board, validates the user's move via chess.js, and after
+// 3 puzzles surfaces "More puzzles" / "Return to game" while preserving chat.
+// ───────────────────────────────────────────────────────────────────────────────
+
+interface DrillPuzzle {
+  id: string;
+  title: string;
+  hint: string;
+  fen: string;
+  // UCI move list — solution[0] is the user's first move. For mate-in-1
+  // puzzles this is a single entry; multi-move puzzles alternate user/opp.
+  solution: string[];
+  rating: number;
+  themes: string[];
+}
+
+const DEMO_PUZZLES: DrillPuzzle[] = [
+  {
+    id: "demo-back-rank",
+    title: "Back-rank breakthrough",
+    hint: "Two rooks lock the eighth rank. The pawns trap the king.",
+    fen: "R5k1/5ppp/8/8/8/8/8/4R1K1 w - - 0 1",
+    solution: ["e1e8"],
+    rating: 1200,
+    themes: ["backRankMate", "mateIn1"],
+  },
+  {
+    id: "demo-queen-mate",
+    title: "Queen-and-king finish",
+    hint: "The white king already covers the escape. Bring the queen home.",
+    fen: "7k/8/5P1K/8/8/8/8/3Q4 w - - 0 1",
+    solution: ["d1d8"],
+    rating: 1100,
+    themes: ["queenMate", "mateIn1"],
+  },
+  {
+    id: "demo-rook-corner",
+    title: "Lift the rook",
+    hint: "King opposition is already there. Deliver the back-rank check.",
+    fen: "7k/8/7K/8/8/8/8/R7 w - - 0 1",
+    solution: ["a1a8"],
+    rating: 1000,
+    themes: ["rookMate", "mateIn1"],
+  },
+];
+
+interface PuzzlePack {
+  theme: string;
+  displayTheme: string;
+  puzzles: DrillPuzzle[];
+}
+
+interface DrillState {
+  puzzles: DrillPuzzle[];
+  currentIndex: number;
+  currentMoveIndex: number;
+  currentFen: string;
+  status: "solving" | "wrong" | "solved" | "complete";
+  wrongAttempts: number;
+  lastMove: { from: string; to: string } | null;
+  savedPly: number;
+  savedOrientation: "white" | "black";
+}
+
+const DEMO_PUZZLE_PACK: PuzzlePack = {
+  theme: "mating-patterns",
+  displayTheme: "Mating patterns",
+  puzzles: DEMO_PUZZLES,
+};
+
 // Pre-loaded coach exchange — what an excellent first interaction looks like
 interface CoachMessage {
   role: "user" | "coach";
   content: string;
   ply?: number; // links message to a board position
   insight?: { tag: string; eval?: string; classification?: string };
+  // When set, a puzzle pack card renders below the bubble with a
+  // "Move to big board" CTA per puzzle.
+  puzzlePack?: PuzzlePack;
 }
 
 const SEED_MESSAGES: CoachMessage[] = [
@@ -340,13 +416,14 @@ const SEED_MESSAGES: CoachMessage[] = [
   {
     role: "coach",
     content:
-      "Stockfish 17 sees it as the only winning move — eval jumps from +2.4 to +4.7 after **24.Rxd4 cxd4 25.Re7+!** The rook is *lost* but the second rook delivers check, and after **25...Kb6 26.Qxd4+** the black king walks into a mating net on a4 with no defenders. Kasparov calculated 15+ ply to see this would work. Want to see the forced line?",
+      "Stockfish 17 sees it as the only winning move — eval jumps from +2.4 to +4.7 after **24.Rxd4 cxd4 25.Re7+!** The rook is *lost* but the second rook delivers check, and after **25...Kb6 26.Qxd4+** the black king walks into a mating net on a4 with no defenders. Kasparov calculated 15+ ply to see this would work.\n\nWant to drill the underlying patterns? I picked three mating-net positions in the same family — you can solve them right here, or move any one onto the big board.",
     ply: 47,
     insight: {
       tag: "24.Rxd4 — brilliancy",
       eval: "+4.7",
       classification: "Best move (only win)",
     },
+    puzzlePack: DEMO_PUZZLE_PACK,
   },
 ];
 
@@ -658,6 +735,230 @@ function GameHeader({
         </Box>
       </Stack>
     </Box>
+  );
+}
+
+function DrillBanner({
+  state,
+  onExit,
+  onRestart,
+}: {
+  state: DrillState;
+  onExit: () => void;
+  onRestart: () => void;
+}) {
+  const total = state.puzzles.length;
+  const puzzle = state.puzzles[state.currentIndex];
+  const isComplete = state.status === "complete";
+  const isWrong = state.status === "wrong";
+  const isSolved = state.status === "solved";
+
+  // Accent color shifts with status — purple = drill, green = solved, red = wrong
+  const accent = isComplete
+    ? "#22c55e"
+    : isSolved
+    ? "#22c55e"
+    : isWrong
+    ? "#ef4444"
+    : "#A855F7";
+  const accentSoft = isComplete
+    ? "rgba(34,197,94,0.12)"
+    : isSolved
+    ? "rgba(34,197,94,0.12)"
+    : isWrong
+    ? "rgba(239,68,68,0.12)"
+    : "rgba(168,85,247,0.12)";
+  const accentBorder = isComplete
+    ? "rgba(34,197,94,0.35)"
+    : isSolved
+    ? "rgba(34,197,94,0.35)"
+    : isWrong
+    ? "rgba(239,68,68,0.4)"
+    : "rgba(168,85,247,0.35)";
+
+  return (
+    <motion.div
+      key="drill-banner"
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
+      style={{ marginBottom: 12 }}
+    >
+      <Box
+        sx={{
+          px: 2,
+          py: 1.5,
+          borderRadius: "1rem",
+          background: `linear-gradient(135deg, ${accentSoft}, rgba(20,22,28,0.6))`,
+          backdropFilter: "blur(12px) saturate(150%)",
+          WebkitBackdropFilter: "blur(12px) saturate(150%)",
+          border: `1px solid ${accentBorder}`,
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          flexWrap: { xs: "wrap", md: "nowrap" },
+        }}
+      >
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            flexShrink: 0,
+            borderRadius: "10px",
+            background: accentSoft,
+            border: `1px solid ${accentBorder}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {isComplete ? (
+            <Flame size={16} color={accent} />
+          ) : (
+            <Lightbulb size={16} color={accent} />
+          )}
+        </Box>
+
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography
+              sx={{
+                fontSize: "0.7rem",
+                fontWeight: 700,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: accent,
+                lineHeight: 1,
+              }}
+            >
+              {isComplete
+                ? "Drill complete"
+                : `Drill · puzzle ${state.currentIndex + 1} of ${total}`}
+            </Typography>
+            {!isComplete && (
+              <Stack direction="row" spacing={0.5}>
+                {state.puzzles.map((_, i) => (
+                  <Box
+                    key={i}
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background:
+                        i < state.currentIndex
+                          ? "#22c55e"
+                          : i === state.currentIndex
+                          ? accent
+                          : "rgba(255,255,255,0.18)",
+                    }}
+                  />
+                ))}
+              </Stack>
+            )}
+          </Stack>
+          <Typography
+            sx={{
+              mt: 0.5,
+              fontSize: "0.88rem",
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.92)",
+              lineHeight: 1.2,
+            }}
+          >
+            {isComplete
+              ? "Three for three — nice work."
+              : isSolved
+              ? `${puzzle?.title ?? "Puzzle"} — solved`
+              : isWrong
+              ? "Not the move — try again."
+              : puzzle?.title ?? "Puzzle"}
+          </Typography>
+          {!isComplete && puzzle && state.status === "solving" && (
+            <Typography
+              sx={{
+                mt: 0.25,
+                fontSize: "0.74rem",
+                color: "rgba(255,255,255,0.55)",
+                lineHeight: 1.35,
+              }}
+            >
+              {puzzle.hint}
+            </Typography>
+          )}
+          {!isComplete &&
+            state.status === "solving" &&
+            state.wrongAttempts >= 2 && (
+              <Typography
+                sx={{
+                  mt: 0.25,
+                  fontSize: "0.72rem",
+                  color: "rgba(239,68,68,0.85)",
+                  fontStyle: "italic",
+                }}
+              >
+                Stuck? Use the coach on the right.
+              </Typography>
+            )}
+        </Box>
+
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ flexShrink: 0 }}
+        >
+          {isComplete && (
+            <Button
+              size="small"
+              startIcon={<RotateCw size={14} />}
+              onClick={onRestart}
+              sx={{
+                px: 1.5,
+                py: 0.5,
+                borderRadius: "0.6rem",
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                background: "rgba(168,85,247,0.18)",
+                border: "1px solid rgba(168,85,247,0.4)",
+                color: "#E9D5FF",
+                "&:hover": {
+                  background: "rgba(168,85,247,0.3)",
+                  borderColor: "rgba(168,85,247,0.6)",
+                },
+              }}
+            >
+              More puzzles
+            </Button>
+          )}
+          <Button
+            size="small"
+            startIcon={<ArrowLeft size={14} />}
+            onClick={onExit}
+            sx={{
+              px: 1.5,
+              py: 0.5,
+              borderRadius: "0.6rem",
+              fontSize: "0.78rem",
+              fontWeight: 700,
+              background: isComplete
+                ? "linear-gradient(135deg, #F97316, #FB923C)"
+                : "rgba(255,255,255,0.05)",
+              border: isComplete
+                ? "1px solid rgba(249,115,22,0.4)"
+                : "1px solid rgba(255,255,255,0.12)",
+              color: isComplete ? "#0A0A0A" : "rgba(255,255,255,0.92)",
+              "&:hover": {
+                background: isComplete
+                  ? "linear-gradient(135deg, #FB923C, #FCD34D)"
+                  : "rgba(255,255,255,0.08)",
+              },
+            }}
+          >
+            Return to game
+          </Button>
+        </Stack>
+      </Box>
+    </motion.div>
   );
 }
 
@@ -1003,6 +1304,7 @@ function CoachPanel({
   onSend,
   onSuggestion,
   isThinking,
+  onPromoteToBoard,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -1010,6 +1312,7 @@ function CoachPanel({
   onSend: () => void;
   onSuggestion: (s: string) => void;
   isThinking: boolean;
+  onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -1152,7 +1455,7 @@ function CoachPanel({
                   marginLeft: msg.role === "user" ? "auto" : 0,
                 }}
               >
-                <CoachBubble msg={msg} />
+                <CoachBubble msg={msg} onPromoteToBoard={onPromoteToBoard} />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -1286,7 +1589,153 @@ function CoachPanel({
   );
 }
 
-function CoachBubble({ msg }: { msg: CoachMessage }) {
+function CoachPuzzleCard({
+  pack,
+  onPromote,
+}: {
+  pack: PuzzlePack;
+  onPromote: (puzzles: DrillPuzzle[], startIndex: number) => void;
+}) {
+  return (
+    <Box
+      sx={{
+        mt: 1,
+        p: 1.5,
+        borderRadius: "0.85rem",
+        background:
+          "linear-gradient(135deg, rgba(168,85,247,0.08), rgba(168,85,247,0.02))",
+        border: "1px solid rgba(168,85,247,0.25)",
+      }}
+    >
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1}
+        sx={{ mb: 1.25 }}
+      >
+        <Lightbulb size={14} color="#C084FC" />
+        <Typography
+          sx={{
+            fontSize: "0.76rem",
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            color: "#E9D5FF",
+            textTransform: "uppercase",
+          }}
+        >
+          {pack.displayTheme}
+        </Typography>
+        <Box sx={{ flex: 1 }} />
+        <Typography
+          sx={{
+            fontSize: "0.7rem",
+            color: "rgba(255,255,255,0.45)",
+            fontFamily: "Monaco, Menlo, monospace",
+          }}
+        >
+          {pack.puzzles.length} puzzle{pack.puzzles.length === 1 ? "" : "s"}
+        </Typography>
+      </Stack>
+      <Stack spacing={0.85}>
+        {pack.puzzles.map((p, i) => (
+          <Box
+            key={p.id}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.25,
+              px: 1.25,
+              py: 1,
+              borderRadius: "0.6rem",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.05)",
+              transition: "all 160ms ease",
+              "&:hover": {
+                background: "rgba(168,85,247,0.06)",
+                borderColor: "rgba(168,85,247,0.25)",
+              },
+            }}
+          >
+            <Box
+              sx={{
+                width: 24,
+                height: 24,
+                flexShrink: 0,
+                borderRadius: "50%",
+                background: "rgba(168,85,247,0.15)",
+                border: "1px solid rgba(168,85,247,0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                color: "#C084FC",
+                fontFamily: "Monaco, Menlo, monospace",
+              }}
+            >
+              {i + 1}
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                sx={{
+                  fontSize: "0.84rem",
+                  fontWeight: 600,
+                  color: "rgba(255,255,255,0.92)",
+                  lineHeight: 1.2,
+                }}
+              >
+                {p.title}
+              </Typography>
+              <Typography
+                sx={{
+                  mt: 0.25,
+                  fontSize: "0.72rem",
+                  color: "rgba(255,255,255,0.5)",
+                  lineHeight: 1.35,
+                }}
+              >
+                {p.hint}
+              </Typography>
+            </Box>
+            <Tooltip title="Load this position onto the main board">
+              <Button
+                size="small"
+                onClick={() => onPromote(pack.puzzles, i)}
+                sx={{
+                  flexShrink: 0,
+                  minWidth: 0,
+                  px: 1.25,
+                  py: 0.5,
+                  borderRadius: "0.55rem",
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.02em",
+                  background: "rgba(168,85,247,0.15)",
+                  border: "1px solid rgba(168,85,247,0.35)",
+                  color: "#E9D5FF",
+                  "&:hover": {
+                    background: "rgba(168,85,247,0.28)",
+                    borderColor: "rgba(168,85,247,0.6)",
+                  },
+                }}
+              >
+                Move to big board
+              </Button>
+            </Tooltip>
+          </Box>
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
+function CoachBubble({
+  msg,
+  onPromoteToBoard,
+}: {
+  msg: CoachMessage;
+  onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
+}) {
   const isUser = msg.role === "user";
 
   // Simple markdown — bold via **...**
@@ -1370,6 +1819,12 @@ function CoachBubble({ msg }: { msg: CoachMessage }) {
             </Stack>
           </Box>
         </Box>
+      )}
+      {msg.puzzlePack && !isUser && onPromoteToBoard && (
+        <CoachPuzzleCard
+          pack={msg.puzzlePack}
+          onPromote={onPromoteToBoard}
+        />
       )}
     </Box>
   );
@@ -1740,9 +2195,30 @@ export default function AnalysisPage() {
     MasterCandidate[]
   >([]);
 
-  // Board FEN + last move switch when previewing in takeover mode
-  const displayFen = takeoverPreview?.fen ?? currentFen;
+  // Drill mode — puzzle promoted onto the main board. Coach chat persists
+  // alongside the drill so the user can chat with the coach about the
+  // puzzle while solving. "Return to game" restores `currentPly` from the
+  // saved snapshot; the message log is never mutated, so chat history
+  // survives the round-trip automatically.
+  const [drillState, setDrillState] = useState<DrillState | null>(null);
+  const drillActive = drillState !== null && drillState.status !== "complete";
+
+  // Board FEN + last move switch when previewing in takeover mode or
+  // when a puzzle has been promoted to the main board (drill mode).
+  // Drill wins over takeover wins over the canonical game position.
+  const displayFen = drillState
+    ? drillState.currentFen
+    : takeoverPreview?.fen ?? currentFen;
   const displayLastMove = useMemo<Move | null>(() => {
+    if (drillState) {
+      return drillState.lastMove
+        ? ({
+            from: drillState.lastMove.from,
+            to: drillState.lastMove.to,
+            san: "",
+          } as Move)
+        : null;
+    }
     if (takeoverPreview) {
       return {
         from: takeoverPreview.from,
@@ -1751,7 +2227,15 @@ export default function AnalysisPage() {
       } as Move;
     }
     return lastMove;
-  }, [takeoverPreview, lastMove]);
+  }, [drillState, takeoverPreview, lastMove]);
+
+  // In-check indicator must reflect the displayed position, not the canonical
+  // game position (otherwise a puzzle FEN with check won't show the red glow).
+  const displayInCheck = useMemo(() => {
+    if (drillState) return new Chess(drillState.currentFen).inCheck();
+    if (takeoverPreview) return new Chess(takeoverPreview.fen).inCheck();
+    return isInCheck;
+  }, [drillState, takeoverPreview, isInCheck]);
 
   // Color to move on the displayed position (for interactive board in takeover)
   const turnToMove = useMemo<"white" | "black">(() => {
@@ -1972,6 +2456,211 @@ export default function AnalysisPage() {
     if (takeoverPreview) return undefined;
     return allMoves[currentPly]?.san;
   }, [allMoves, currentPly, takeoverPreview]);
+
+  // ───── Drill handlers ─────
+  // Promote a puzzle from a coach pack onto the main board. Saves the game
+  // ply + orientation so "Return to game" restores them. Snaps the board
+  // orientation to the side-to-move so the user always plays from the bottom.
+  const handlePromoteToBoard = useCallback(
+    (puzzles: DrillPuzzle[], startIndex: number) => {
+      const puzzle = puzzles[startIndex];
+      if (!puzzle) return;
+      // Bail out of takeover if active — the board can only be in one mode.
+      if (takeoverMode) {
+        setTakeoverMode(false);
+        setTakeoverPreview(null);
+        setTakeoverCandidates([]);
+      }
+      const orient: "white" | "black" =
+        new Chess(puzzle.fen).turn() === "w" ? "white" : "black";
+      setBoardOrientation(orient);
+      setDrillState({
+        puzzles,
+        currentIndex: startIndex,
+        currentMoveIndex: 0,
+        currentFen: puzzle.fen,
+        status: "solving",
+        wrongAttempts: 0,
+        lastMove: null,
+        savedPly: currentPly,
+        savedOrientation: boardOrientation,
+      });
+    },
+    [boardOrientation, currentPly, takeoverMode]
+  );
+
+  // Exit the drill — restore the canonical game ply and orientation.
+  // Chat history (messages) is never mutated so it survives the round-trip.
+  const exitDrill = useCallback(() => {
+    setDrillState((prev) => {
+      if (!prev) return prev;
+      setCurrentPly(prev.savedPly);
+      setBoardOrientation(prev.savedOrientation);
+      return null;
+    });
+  }, []);
+
+  // Restart the same 3-puzzle pack from the top. In production this would
+  // refetch from /api/similar-puzzles using the current themes + excludeIds;
+  // for the preview we cycle the same demo pack.
+  const restartDrill = useCallback(() => {
+    setDrillState((prev) => {
+      if (!prev) return prev;
+      const first = prev.puzzles[0];
+      const orient: "white" | "black" =
+        new Chess(first.fen).turn() === "w" ? "white" : "black";
+      setBoardOrientation(orient);
+      return {
+        ...prev,
+        currentIndex: 0,
+        currentMoveIndex: 0,
+        currentFen: first.fen,
+        status: "solving",
+        wrongAttempts: 0,
+        lastMove: null,
+      };
+    });
+  }, []);
+
+  // Advance to the next puzzle, or surface the "complete" banner.
+  const advanceDrill = useCallback(() => {
+    setDrillState((prev) => {
+      if (!prev) return prev;
+      const nextIndex = prev.currentIndex + 1;
+      if (nextIndex >= prev.puzzles.length) {
+        return { ...prev, status: "complete" };
+      }
+      const next = prev.puzzles[nextIndex];
+      const orient: "white" | "black" =
+        new Chess(next.fen).turn() === "w" ? "white" : "black";
+      setBoardOrientation(orient);
+      return {
+        ...prev,
+        currentIndex: nextIndex,
+        currentMoveIndex: 0,
+        currentFen: next.fen,
+        status: "solving",
+        wrongAttempts: 0,
+        lastMove: null,
+      };
+    });
+  }, []);
+
+  // User moves a piece while a drill is in flight. Validate against the
+  // puzzle solution: correct → auto-play opponent's reply (if any) then
+  // advance state; wrong → flash red, keep position, increment attempts.
+  const handleDrillMove = useCallback(
+    (orig: string, dest: string) => {
+      if (!drillState || drillState.status !== "solving") return;
+      const puzzle = drillState.puzzles[drillState.currentIndex];
+      if (!puzzle) return;
+      const expected = puzzle.solution[drillState.currentMoveIndex];
+      if (!expected) return;
+      const expFrom = expected.slice(0, 2);
+      const expTo = expected.slice(2, 4);
+      const expPromo = expected.length >= 5 ? expected[4] : undefined;
+
+      if (orig !== expFrom || dest !== expTo) {
+        // Wrong move — flash red, reset to solving after a brief delay
+        setDrillState((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: "wrong",
+                wrongAttempts: prev.wrongAttempts + 1,
+              }
+            : prev
+        );
+        setTimeout(() => {
+          setDrillState((prev) =>
+            prev && prev.status === "wrong"
+              ? { ...prev, status: "solving" }
+              : prev
+          );
+        }, 900);
+        return;
+      }
+
+      // Apply the correct move
+      const game = new Chess(drillState.currentFen);
+      const userMove = game.move({
+        from: orig,
+        to: dest,
+        promotion: expPromo ?? "q",
+      });
+      if (!userMove) {
+        console.warn("[drill] expected move was illegal:", expected);
+        return;
+      }
+      const afterUserFen = game.fen();
+      const newIdx = drillState.currentMoveIndex + 1;
+
+      if (newIdx >= puzzle.solution.length) {
+        // Puzzle solved — flash green, then advance
+        setDrillState((prev) =>
+          prev
+            ? {
+                ...prev,
+                currentFen: afterUserFen,
+                currentMoveIndex: newIdx,
+                status: "solved",
+                lastMove: { from: orig, to: dest },
+              }
+            : prev
+        );
+        setTimeout(() => {
+          advanceDrill();
+        }, 900);
+        return;
+      }
+
+      // Auto-play opponent's reply
+      const oppUci = puzzle.solution[newIdx];
+      const oppFrom = oppUci.slice(0, 2);
+      const oppTo = oppUci.slice(2, 4);
+      const oppPromo = oppUci.length >= 5 ? oppUci[4] : undefined;
+      const oppMove = game.move({
+        from: oppFrom,
+        to: oppTo,
+        promotion: oppPromo ?? "q",
+      });
+      if (!oppMove) {
+        console.warn("[drill] opponent reply illegal:", oppUci);
+        return;
+      }
+      const finalIdx = newIdx + 1;
+      const finalFen = game.fen();
+      if (finalIdx >= puzzle.solution.length) {
+        setDrillState((prev) =>
+          prev
+            ? {
+                ...prev,
+                currentFen: finalFen,
+                currentMoveIndex: finalIdx,
+                status: "solved",
+                lastMove: { from: oppFrom, to: oppTo },
+              }
+            : prev
+        );
+        setTimeout(() => {
+          advanceDrill();
+        }, 900);
+      } else {
+        setDrillState((prev) =>
+          prev
+            ? {
+                ...prev,
+                currentFen: finalFen,
+                currentMoveIndex: finalIdx,
+                status: "solving",
+                lastMove: { from: oppFrom, to: oppTo },
+              }
+            : prev
+        );
+      }
+    },
+    [drillState, advanceDrill]
+  );
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -2253,16 +2942,41 @@ export default function AnalysisPage() {
                 maxWidth: { xs: "100%", lg: 680 },
               }}
             >
+              {drillState && (
+                <DrillBanner
+                  state={drillState}
+                  onExit={exitDrill}
+                  onRestart={restartDrill}
+                />
+              )}
               <BoardArea
                 fen={displayFen}
                 lastMove={displayLastMove}
                 boardOrientation={boardOrientation}
-                isInCheck={isInCheck}
+                isInCheck={displayInCheck}
                 shapes={displayShapes}
-                interactive={takeoverMode}
-                movableColor={takeoverMode ? turnToMove : undefined}
-                dests={takeoverMode ? displayDests : undefined}
-                onMove={takeoverMode ? handleBoardMove : undefined}
+                interactive={takeoverMode || drillActive}
+                movableColor={
+                  drillActive
+                    ? turnToMove
+                    : takeoverMode
+                    ? turnToMove
+                    : undefined
+                }
+                dests={
+                  drillActive
+                    ? displayDests
+                    : takeoverMode
+                    ? displayDests
+                    : undefined
+                }
+                onMove={
+                  drillActive
+                    ? handleDrillMove
+                    : takeoverMode
+                    ? handleBoardMove
+                    : undefined
+                }
               />
               <BoardArrowToggles
                 state={arrowToggles}
@@ -2345,6 +3059,7 @@ export default function AnalysisPage() {
                           onSend={handleSend}
                           onSuggestion={handleSuggestion}
                           isThinking={isThinking}
+                          onPromoteToBoard={handlePromoteToBoard}
                         />
                       </Box>
                       <Box sx={{ flexShrink: 0 }}>
@@ -2352,7 +3067,9 @@ export default function AnalysisPage() {
                           fen={currentFen}
                           fallbackOpeningName={headers.Opening ?? undefined}
                           fallbackEco={headers.ECO ?? undefined}
-                          onTakeover={handleTakeoverEnter}
+                          onTakeover={
+                            drillActive ? undefined : handleTakeoverEnter
+                          }
                         />
                       </Box>
                     </Box>

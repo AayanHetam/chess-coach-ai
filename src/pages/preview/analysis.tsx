@@ -2331,7 +2331,7 @@ export default function AnalysisPage() {
                         sx={{
                           height: {
                             xs: 600,
-                            lg: "clamp(520px, 70vh, 800px)",
+                            lg: "clamp(540px, 72vh, 820px)",
                           },
                         }}
                       >
@@ -2344,6 +2344,10 @@ export default function AnalysisPage() {
                           isThinking={isThinking}
                         />
                       </Box>
+                      {/* 20px shift between Coach and Master Games */}
+                      <Box
+                        sx={{ height: { xs: 0, lg: 20 }, flexShrink: 0 }}
+                      />
                       <Box sx={{ flexShrink: 0 }}>
                         <OpeningExplorer
                           fen={currentFen}

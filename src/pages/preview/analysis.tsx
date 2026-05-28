@@ -2347,9 +2347,10 @@ export default function AnalysisPage() {
                           isThinking={isThinking}
                         />
                       </Box>
-                      {/* 20px shift between Coach and Master Games */}
+                      {/* Spacer pushes Master Games down to align its bottom
+                          (g3 row) with the Key Moments row on the left. */}
                       <Box
-                        sx={{ height: { xs: 0, lg: 20 }, flexShrink: 0 }}
+                        sx={{ height: { xs: 0, lg: 180 }, flexShrink: 0 }}
                       />
                       <Box sx={{ flexShrink: 0 }}>
                         <OpeningExplorer

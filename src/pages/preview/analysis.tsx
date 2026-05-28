@@ -72,6 +72,8 @@ import { EngineName } from "@/types/enums";
 import type { PositionEval } from "@/types/eval";
 import { getEvaluateGameParams } from "@/lib/chess";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
+import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const ChessgroundBoard = dynamic(
   () =>
@@ -820,6 +822,7 @@ function GameHeader({
   currentEval,
   currentPly,
   totalPlies,
+  onLoadGameClick,
 }: {
   whiteName: string;
   blackName: string;
@@ -829,6 +832,7 @@ function GameHeader({
   currentEval: number;
   currentPly: number;
   totalPlies: number;
+  onLoadGameClick?: () => void;
 }) {
   const evalPositive = currentEval >= 0;
   return (
@@ -913,7 +917,7 @@ function GameHeader({
         </Box>
       </Stack>
 
-      <Stack direction="row" spacing={2.5} alignItems="center">
+      <Stack direction="row" spacing={2} alignItems="center">
         <Stack direction="row" alignItems="baseline" spacing={0.5}>
           <Typography
             sx={{
@@ -960,6 +964,34 @@ function GameHeader({
             {formatEval(currentEval)}
           </Typography>
         </Box>
+
+        {onLoadGameClick && (
+          <Tooltip title="Load a new PGN, FEN, or import from Lichess/Chess.com">
+            <Button
+              onClick={onLoadGameClick}
+              startIcon={<RefreshCw size={13} />}
+              sx={{
+                px: 1.5,
+                py: 0.75,
+                borderRadius: "10px",
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                textTransform: "none",
+                background:
+                  "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(251,146,60,0.12))",
+                border: "1px solid rgba(249,115,22,0.35)",
+                color: "#FB923C",
+                "&:hover": {
+                  background:
+                    "linear-gradient(135deg, rgba(249,115,22,0.28), rgba(251,146,60,0.18))",
+                  borderColor: "rgba(249,115,22,0.55)",
+                },
+              }}
+            >
+              Load game
+            </Button>
+          </Tooltip>
+        )}
       </Stack>
     </Box>
   );
@@ -3299,8 +3331,11 @@ export default function AnalysisPage() {
   const promptParam =
     typeof router.query.prompt === "string" ? router.query.prompt : null;
 
-  // Load demo game once (or build a stub for puzzle mode)
-  const [demoGame] = useState(() => {
+  // Loaded game — either the Kasparov demo (cold start), a puzzle stub
+  // (?puzzleFen=...), or whatever the user just imported via URL param /
+  // LoadGameDialog. Mutable because we hot-swap the game when the user
+  // pastes a new PGN.
+  const [loadedGame, setLoadedGame] = useState<Chess>(() => {
     const g = new Chess();
     if (puzzleFen) {
       g.loadPgn(`[FEN "${decodeURIComponent(puzzleFen)}"]\n[SetUp "1"]\n*`);
@@ -3309,12 +3344,16 @@ export default function AnalysisPage() {
     }
     return g;
   });
+  // True when we're showing the hand-curated demo (puzzle pack is fair game).
+  // Flips false the moment a real game is loaded so we don't pretend the demo
+  // narrative applies to a user's PGN.
+  const [isDemoGame, setIsDemoGame] = useState(true);
 
   const allMoves = useMemo(
-    () => demoGame.history({ verbose: true }) as Move[],
-    [demoGame]
+    () => loadedGame.history({ verbose: true }) as Move[],
+    [loadedGame]
   );
-  const headers = useMemo(() => demoGame.header(), [demoGame]);
+  const headers = useMemo(() => loadedGame.header(), [loadedGame]);
 
   // ───── Real Stockfish evaluation ─────
   // Stockfish17Lite is single-threaded — works on networks that block
@@ -3327,6 +3366,16 @@ export default function AnalysisPage() {
   );
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  // Whenever the loaded game changes, clear the analysis cache so Stockfish
+  // re-runs against the new positions. allMoves derives from loadedGame so
+  // depending on .length alone misses the case where a different game of
+  // the same length is loaded.
+  useEffect(() => {
+    setEnginePositions(null);
+    setAnalysisProgress(0);
+    setAnalysisError(null);
+  }, [loadedGame]);
   const mockEvalSeries = useMemo(
     () => buildMockEval(allMoves.length + 1),
     [allMoves.length]
@@ -3348,7 +3397,7 @@ export default function AnalysisPage() {
     if (!engine || enginePositions || analysisError) return;
     if (!allMoves.length) return;
     let cancelled = false;
-    const params = getEvaluateGameParams(demoGame);
+    const params = getEvaluateGameParams(loadedGame);
     setAnalysisProgress(1);
     engine
       .evaluateGame({
@@ -3374,7 +3423,7 @@ export default function AnalysisPage() {
     return () => {
       cancelled = true;
     };
-  }, [engine, demoGame, allMoves.length, enginePositions, analysisError]);
+  }, [engine, loadedGame, allMoves.length, enginePositions, analysisError]);
 
   const [currentPly, setCurrentPly] = useState(0);
   const [boardOrientation, setBoardOrientation] = useState<"white" | "black">(
@@ -3401,6 +3450,7 @@ export default function AnalysisPage() {
 
   // Command palette state
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [loadGameOpen, setLoadGameOpen] = useState(false);
 
   // Coach chat state (persists across takeover toggle — chat history intact)
   const [messages, setMessages] = useState<CoachMessage[]>(
@@ -3420,6 +3470,140 @@ export default function AnalysisPage() {
     promptParam ? decodeURIComponent(promptParam) : ""
   );
   const [isThinking, setIsThinking] = useState(false);
+
+  // Replace the loaded game from a fresh Chess instance (e.g. user pasted
+  // a PGN, or a URL param brought one in). Resets cursor + seed chat +
+  // analysis cache via the useEffect on [loadedGame]. Pass keepChat=true
+  // to preserve existing message history (e.g. on insight permalinks).
+  const loadNewGame = useCallback(
+    (game: Chess, opts?: { keepChat?: boolean; greeting?: string }) => {
+      setLoadedGame(game);
+      setIsDemoGame(false);
+      setCurrentPly(0);
+      if (!opts?.keepChat) {
+        const newHeaders = game.header();
+        const greeting =
+          opts?.greeting ??
+          (newHeaders.White && newHeaders.Black
+            ? `Loaded **${newHeaders.White} vs ${newHeaders.Black}**${
+                newHeaders.Date ? ` (${newHeaders.Date.split(".")[0]})` : ""
+              }. Stockfish is running in the background; once it's done the Moves tab will light up with classifications. Ask me about any move.`
+            : `Loaded a new game. Stockfish is running in the background. Ask me anything about the position or a specific move.`);
+        setMessages([{ role: "coach", content: greeting, ply: 0 }]);
+      }
+    },
+    []
+  );
+
+  // ───── URL-param + localStorage ingestion (mirrors production /analysis) ─────
+  // Each handler dedupes via a ref so navigation back/forward (or React's
+  // double-render in strict mode) doesn't re-load the same game.
+  const pgnLoadedRef = useRef(false);
+  const fenLoadedRef = useRef(false);
+  const lichessReviewLoadedRef = useRef(false);
+  const insightLoadedRef = useRef(false);
+
+  // ?pgn=<url-encoded PGN>
+  useEffect(() => {
+    if (!router.isReady || pgnLoadedRef.current) return;
+    const raw = router.query.pgn;
+    if (typeof raw !== "string" || !raw) return;
+    try {
+      const decoded = decodeURIComponent(raw);
+      const g = new Chess();
+      g.loadPgn(decoded);
+      pgnLoadedRef.current = true;
+      loadNewGame(g);
+    } catch (err) {
+      console.warn("[preview/analysis] malformed ?pgn= param:", err);
+    }
+  }, [router.isReady, router.query.pgn, loadNewGame]);
+
+  // ?fen=<url-encoded FEN> — load a single position, no PGN history
+  useEffect(() => {
+    if (!router.isReady || fenLoadedRef.current) return;
+    if (router.query.pgn) return; // pgn wins
+    const raw = router.query.fen;
+    if (typeof raw !== "string" || !raw) return;
+    try {
+      const decoded = decodeURIComponent(raw);
+      const g = new Chess(decoded); // throws on invalid
+      fenLoadedRef.current = true;
+      loadNewGame(g, {
+        greeting: `Loaded a custom position (\`${decoded.split(" ")[1] === "w" ? "White" : "Black"}\` to move). Stockfish is running. Ask me anything about the position.`,
+      });
+      setBoardOrientation(decoded.split(" ")[1] === "w" ? "white" : "black");
+    } catch (err) {
+      console.warn("[preview/analysis] malformed ?fen= param:", err);
+    }
+  }, [router.isReady, router.query.fen, router.query.pgn, loadNewGame]);
+
+  // ?lichessReview=1 + localStorage('lichess-review-pgn')
+  useEffect(() => {
+    if (!router.isReady || lichessReviewLoadedRef.current) return;
+    if (router.query.lichessReview !== "1") return;
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("lichess-review-pgn");
+    if (!stored) return;
+    try {
+      window.localStorage.removeItem("lichess-review-pgn");
+      const g = new Chess();
+      g.loadPgn(stored);
+      lichessReviewLoadedRef.current = true;
+      loadNewGame(g);
+      // Clean up the URL after ingest so refreshes don't try to re-load
+      router.replace("/preview/analysis", undefined, { shallow: true });
+    } catch (err) {
+      console.warn("[preview/analysis] malformed lichess-review payload:", err);
+    }
+  }, [router.isReady, router.query.lichessReview, loadNewGame, router]);
+
+  // ?insightId=<id> — permalink to a saved coach insight. Fetches
+  // /api/insights/{id} and hydrates the chat with the saved transcript.
+  useEffect(() => {
+    if (!router.isReady || insightLoadedRef.current) return;
+    const id = router.query.insightId;
+    if (typeof id !== "string" || !id) return;
+    insightLoadedRef.current = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/insights/${encodeURIComponent(id)}`);
+        if (!res.ok) throw new Error(`insight fetch HTTP ${res.status}`);
+        const data = await res.json();
+        // Hydrate game state. The insight may carry pgn or just fen.
+        if (typeof data.pgn === "string" && data.pgn.length > 0) {
+          const g = new Chess();
+          g.loadPgn(data.pgn);
+          loadNewGame(g, { keepChat: true });
+        } else if (typeof data.fen === "string" && data.fen.length >= 10) {
+          const g = new Chess(data.fen);
+          loadNewGame(g, { keepChat: true });
+          setBoardOrientation(data.fen.split(" ")[1] === "w" ? "white" : "black");
+        }
+        // Hydrate chat transcript or single message
+        if (data.kind === "transcript" && Array.isArray(data.transcript)) {
+          const transcriptMessages: CoachMessage[] = data.transcript.map(
+            (m: { role: string; content: string }) => ({
+              role: m.role === "user" ? "user" : "coach",
+              content: m.content,
+              ply: 0,
+            })
+          );
+          setMessages(transcriptMessages);
+        } else if (data.kind === "single" && typeof data.coachContent === "string") {
+          setMessages([
+            {
+              role: "coach",
+              content: data.coachContent,
+              ply: 0,
+            },
+          ]);
+        }
+      } catch (err) {
+        console.warn("[preview/analysis] insight fetch failed:", err);
+      }
+    })();
+  }, [router.isReady, router.query.insightId, loadNewGame]);
 
   // Right-column tab selection. Masters tab makes the main board interactive
   // for exploration (same behavior the old modal "takeover" provided). The
@@ -4336,6 +4520,12 @@ export default function AnalysisPage() {
         groups={commandGroups}
       />
 
+      <LoadGameDialog
+        open={loadGameOpen}
+        onClose={() => setLoadGameOpen(false)}
+        onLoad={(g) => loadNewGame(g)}
+      />
+
       <OnboardingHelp
         storageKey="cm-tour-analysis-v1"
         title="Welcome to the Analyze surface"
@@ -4397,6 +4587,7 @@ export default function AnalysisPage() {
             currentEval={evalSeries[currentPly] ?? 0}
             currentPly={currentPly}
             totalPlies={allMoves.length}
+            onLoadGameClick={() => setLoadGameOpen(true)}
           />
 
           <Box
@@ -4426,36 +4617,38 @@ export default function AnalysisPage() {
                   onSkip={advanceDrill}
                 />
               )}
-              <BoardArea
-                fen={displayFen}
-                lastMove={displayLastMove}
-                boardOrientation={boardOrientation}
-                isInCheck={displayInCheck}
-                shapes={displayShapes}
-                interactive={takeoverMode || drillActive}
-                movableColor={
-                  drillActive
-                    ? turnToMove
-                    : takeoverMode
-                    ? turnToMove
-                    : undefined
-                }
-                dests={
-                  drillActive
-                    ? displayDests
-                    : takeoverMode
-                    ? displayDests
-                    : undefined
-                }
-                onMove={
-                  drillActive
-                    ? handleDrillMove
-                    : takeoverMode
-                    ? handleBoardMove
-                    : undefined
-                }
-                syncTick={boardSyncTick}
-              />
+              <ErrorBoundary name="preview-analysis-board">
+                <BoardArea
+                  fen={displayFen}
+                  lastMove={displayLastMove}
+                  boardOrientation={boardOrientation}
+                  isInCheck={displayInCheck}
+                  shapes={displayShapes}
+                  interactive={takeoverMode || drillActive}
+                  movableColor={
+                    drillActive
+                      ? turnToMove
+                      : takeoverMode
+                      ? turnToMove
+                      : undefined
+                  }
+                  dests={
+                    drillActive
+                      ? displayDests
+                      : takeoverMode
+                      ? displayDests
+                      : undefined
+                  }
+                  onMove={
+                    drillActive
+                      ? handleDrillMove
+                      : takeoverMode
+                      ? handleBoardMove
+                      : undefined
+                  }
+                  syncTick={boardSyncTick}
+                />
+              </ErrorBoundary>
               <BoardArrowToggles
                 state={arrowToggles}
                 onChange={setArrowToggles}
@@ -4479,6 +4672,7 @@ export default function AnalysisPage() {
             {/* Right column: tabbed surface — Coach / Masters / Moves.
                 The Masters tab makes the main board interactive for
                 exploration (same role the old "Takeover" modal had). */}
+            <ErrorBoundary name="preview-analysis-tabs">
             <Box sx={{ position: "relative" }}>
               <TabStrip
                 active={rightTab}
@@ -4570,6 +4764,7 @@ export default function AnalysisPage() {
                 </AnimatePresence>
               </Box>
             </Box>
+            </ErrorBoundary>
           </Box>
 
           <MoveNavigator

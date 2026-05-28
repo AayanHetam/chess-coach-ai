@@ -10,6 +10,13 @@ const nextConfig = (phase: string): NextConfig => ({
   images: {
     unoptimized: true,
   },
+  // CI (.github/workflows/ci.yml) runs `tsc --noEmit` + ESLint as
+  // required checks before merge. Repeating them inside `next build`
+  // doubled the Vercel runtime (hung at "Linting and checking validity
+  // of types" past 20 min on PR #53). Build-only flags — the quality
+  // gate still fires on every PR.
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
   headers: async () => [
           {
             source: "/((?!_next/static|_next/image|favicon.*|apple-touch-icon.*|android-chrome.*).*)",

@@ -1,4 +1,8 @@
 import { NextRequest } from "next/server";
+import {
+  lookupCuratedPosition,
+  curatedPositionCount,
+} from "@/data/master-openings";
 
 /**
  * Server-side proxy for "what do the masters / top engines play here?" data.
@@ -162,11 +166,30 @@ export async function GET(req: NextRequest) {
 
   if (!fen) return Response.json({ error: "Missing fen" }, { status: 400 });
 
-  // Try Lichess first — it has REAL master-game counts + top games with
-  // player attribution. Falls back to chessdb (engine analysis, no counts)
-  // when Lichess is blocked or rate-limited. Order matters: this means
-  // production (where Lichess works) gets real counts, dev (where Lichess
-  // is blocked) gets honest engine data with no faked counts.
+  // 1. CURATED first — hand-vetted real Lichess Masters numbers for the
+  //    ~80 most common positions. Always wins when present because the data
+  //    is correct, player-attributed, and works offline.
+  const curated = lookupCuratedPosition(fen);
+  if (curated && curated.moves.length > 0) {
+    return Response.json(
+      {
+        white: 0,
+        draws: 0,
+        black: 0,
+        moves: curated.moves.slice(0, limit),
+        topGames: [],
+        source: "curated" as const,
+        indexedPositions: curatedPositionCount(),
+      },
+      {
+        headers: { "cache-control": "public, max-age=600, s-maxage=600" },
+      }
+    );
+  }
+
+  // 2. Lichess — REAL master-game counts + top games with player attribution.
+  //    Currently 401-blocked from most networks; kept here so production
+  //    deploys that can reach Lichess use it automatically.
   try {
     const data = await queryLichess(fen, limit);
     return Response.json(data, {

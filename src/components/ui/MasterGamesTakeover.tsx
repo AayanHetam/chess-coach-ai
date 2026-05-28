@@ -145,6 +145,8 @@ interface ApiMove {
   rank?: number;
   winrate?: number;
   popularity?: number;
+  /** Curated data carries the player key directly (e.g. "carlsen"). */
+  topPlayer?: string;
 }
 
 interface ApiTopGame {
@@ -162,7 +164,8 @@ interface ApiData {
   moves: ApiMove[];
   topGames?: ApiTopGame[];
   opening?: { eco: string; name: string };
-  source?: "chessdb" | "lichess";
+  source?: "chessdb" | "lichess" | "curated";
+  indexedPositions?: number;
 }
 
 function buildCandidatesFromApi(
@@ -201,15 +204,22 @@ function buildCandidatesFromApi(
     const isFromLichess = total > 1000; // Lichess returns thousands+ at minimum
     const count = isFromLichess ? total : 0;
 
-    // Top player attribution from Lichess topGames if present
-    const games = topByUci.get(m.uci) ?? [];
+    // Top player attribution:
+    // - Curated data carries the key directly (e.g. "carlsen") — fastest path
+    // - Lichess attaches player names inside topGames — regex-match those
     let topPlayer: TopPlayer | undefined;
-    for (const g of games) {
-      const w = findPlayerFromName(g.white?.name);
-      const b = findPlayerFromName(g.black?.name);
-      const here = w && b ? (w.rank < b.rank ? w : b) : (w ?? b);
-      if (here && (!topPlayer || here.rank < topPlayer.rank)) {
-        topPlayer = here;
+    if (m.topPlayer && (TOP_PLAYERS as Record<string, TopPlayer>)[m.topPlayer]) {
+      topPlayer = (TOP_PLAYERS as Record<string, TopPlayer>)[m.topPlayer];
+    } else {
+      const games = topByUci.get(m.uci) ?? [];
+      for (const g of games) {
+        const w = findPlayerFromName(g.white?.name);
+        const b = findPlayerFromName(g.black?.name);
+        const here =
+          w && b ? (w.rank < b.rank ? w : b) : (w ?? b);
+        if (here && (!topPlayer || here.rank < topPlayer.rank)) {
+          topPlayer = here;
+        }
       }
     }
 
@@ -885,9 +895,11 @@ export function MasterGamesTakeover({
               {apiError
                 ? "Offline · fallback only"
                 : apiData
-                ? apiData.source === "chessdb"
+                ? apiData.source === "curated"
+                  ? `Lichess Masters · curated index (${apiData.indexedPositions ?? "?"} positions)`
+                  : apiData.source === "chessdb"
                   ? "chessdb.cn · 7B+ positions"
-                  : "Lichess masters · 2.5M+ games"
+                  : "Lichess masters · 2.5M+ games (live)"
                 : "Loading…"}
             </Box>
           </Box>

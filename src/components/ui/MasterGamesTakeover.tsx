@@ -117,8 +117,13 @@ export function formatCount(n: number): string {
   return String(n);
 }
 
-function getCandidates(ply: number): MasterCandidate[] {
+export function getMasterCandidates(ply: number): MasterCandidate[] {
   return PIRC_CANDIDATES[ply] ?? [];
+}
+
+// Internal alias kept for the panel itself
+function getCandidates(ply: number): MasterCandidate[] {
+  return getMasterCandidates(ply);
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -420,11 +425,13 @@ export function MasterGamesTakeover({
                 return (
                   <Box
                     key={c.san}
+                    onClick={() => onPreviewMove(c.uci, c.san)}
                     sx={{
                       position: "relative",
                       px: 1.5,
                       py: 1.25,
                       borderRadius: "10px",
+                      cursor: "pointer",
                       background: isPlayed
                         ? "linear-gradient(90deg, rgba(249,115,22,0.1), rgba(20,22,28,0.4))"
                         : "rgba(255,255,255,0.025)",
@@ -433,8 +440,9 @@ export function MasterGamesTakeover({
                         : "1px solid rgba(255,255,255,0.05)",
                       transition: "all 180ms ease",
                       "&:hover": {
-                        background: "rgba(255,255,255,0.05)",
-                        borderColor: "rgba(34,197,94,0.3)",
+                        background: "rgba(34,197,94,0.06)",
+                        borderColor: "rgba(34,197,94,0.32)",
+                        transform: "translateX(2px)",
                       },
                     }}
                   >
@@ -459,9 +467,7 @@ export function MasterGamesTakeover({
                       sx={{ position: "relative" }}
                     >
                       <Box
-                        onClick={() => onPreviewMove(c.uci, c.san)}
                         sx={{
-                          cursor: "pointer",
                           minWidth: 60,
                           flexShrink: 0,
                         }}
@@ -496,18 +502,25 @@ export function MasterGamesTakeover({
                       <Box sx={{ flex: 1 }} />
 
                       {c.topPlayer && (
-                        <PlayerAvatar
-                          player={c.topPlayer}
-                          size={22}
-                          active={filterPlayer?.name === c.topPlayer.name}
-                          onClick={() =>
-                            setFilterPlayer((p) =>
-                              p?.name === c.topPlayer!.name
-                                ? null
-                                : c.topPlayer!
-                            )
-                          }
-                        />
+                        <Box
+                          onClick={(e) => {
+                            // Don't trigger the row's onClick — avatar filters instead
+                            e.stopPropagation();
+                          }}
+                        >
+                          <PlayerAvatar
+                            player={c.topPlayer}
+                            size={22}
+                            active={filterPlayer?.name === c.topPlayer.name}
+                            onClick={() =>
+                              setFilterPlayer((p) =>
+                                p?.name === c.topPlayer!.name
+                                  ? null
+                                  : c.topPlayer!
+                              )
+                            }
+                          />
+                        </Box>
                       )}
 
                       <Box
@@ -536,11 +549,12 @@ export function MasterGamesTakeover({
 
                       <Tooltip title="Send this line to the coach" arrow>
                         <IconButton
-                          onClick={() =>
+                          onClick={(e) => {
+                            e.stopPropagation();
                             onSendToCoach(
                               `Tell me about ${c.san} at move ${Math.ceil(currentPly / 2) || 1} — ${formatCount(c.count)} master games went this way${c.topPlayer ? `, including ${c.topPlayer.name}` : ""}.`
-                            )
-                          }
+                            );
+                          }}
                           size="small"
                           sx={{
                             width: 28,

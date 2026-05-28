@@ -12,8 +12,17 @@ import {
 } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
-import { MasterGamesTakeover } from "@/components/ui/MasterGamesTakeover";
+import {
+  MasterGamesTakeover,
+  getMasterCandidates,
+} from "@/components/ui/MasterGamesTakeover";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
+import {
+  BoardArrowToggles,
+  DEFAULT_ARROW_TOGGLES,
+  ARROW_PALETTE,
+  type ArrowToggleState,
+} from "@/components/ui/BoardArrowToggles";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -142,6 +151,65 @@ const KEY_MOMENTS: KeyMoment[] = [
   { ply: 67, label: "34.Qa1+ — net closes", kind: "winning" },
   { ply: 87, label: "44.Qa7 1-0", kind: "winning" },
 ];
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Mock arrow data per ply — Engine best + Maia at various ELO ranges.
+// Plies are 0-indexed from the start of the game (ply 0 = before any moves).
+// uci format = "fromsq + tosq" e.g. "e2e4".
+// Real wiring would source these from Stockfish + the Maia microservice.
+// ───────────────────────────────────────────────────────────────────────────────
+
+const ENGINE_BEST: Record<number, string> = {
+  0: "e2e4",
+  1: "c7c5",
+  2: "g1f3",
+  3: "d7d6",
+  4: "d2d4",
+  5: "g7g6",
+  6: "c1e3",
+  7: "f8g7",
+  8: "d1d2",
+  9: "c7c6",
+  10: "f2f3",
+  11: "b7b5",
+  12: "g1e2",
+  13: "b8d7",
+  14: "e3h6",
+};
+
+const MAIA_MOVES: Record<number, Record<number, string>> = {
+  0: { 1100: "e2e4", 1500: "e2e4", 1800: "d2d4", 2200: "g1f3" },
+  1: { 1100: "e7e5", 1500: "e7e5", 1800: "c7c5", 2200: "d7d6" },
+  2: { 1100: "f1c4", 1500: "g1f3", 1800: "d2d4", 2200: "g1f3" },
+  3: { 1100: "g7g6", 1500: "g8f6", 1800: "g8f6", 2200: "g8f6" },
+  4: { 1100: "f1c4", 1500: "b1c3", 1800: "b1c3", 2200: "b1c3" },
+  5: { 1100: "f8g7", 1500: "g7g6", 1800: "g7g6", 2200: "g7g6" },
+  6: { 1100: "f2f4", 1500: "f2f4", 1800: "c1e3", 2200: "c1e3" },
+  7: { 1100: "e8g8", 1500: "f8g7", 1800: "f8g7", 2200: "f8g7" },
+  8: { 1100: "g1f3", 1500: "d1d2", 1800: "d1d2", 2200: "d1d2" },
+  9: { 1100: "e8g8", 1500: "c7c6", 1800: "c7c6", 2200: "c7c6" },
+  10: { 1100: "g1f3", 1500: "h2h3", 1800: "f2f3", 2200: "f2f3" },
+};
+
+function findMaiaMove(ply: number, elo: number): string | undefined {
+  const map = MAIA_MOVES[ply];
+  if (!map) return undefined;
+  const elos = Object.keys(map).map(Number).sort((a, b) => a - b);
+  let closest = elos[0];
+  let minDiff = Math.abs(elo - elos[0]);
+  for (const e of elos) {
+    const diff = Math.abs(elo - e);
+    if (diff < minDiff) {
+      closest = e;
+      minDiff = diff;
+    }
+  }
+  return map[closest];
+}
+
+function uciToShape(uci: string, brush: string): DrawShape {
+  return { orig: uci.slice(0, 2), dest: uci.slice(2, 4), brush };
+}
 
 // Pre-loaded coach exchange — what an excellent first interaction looks like
 interface CoachMessage {
@@ -493,12 +561,20 @@ function BoardArea({
   boardOrientation,
   isInCheck,
   shapes,
+  interactive = false,
+  movableColor,
+  dests,
+  onMove,
 }: {
   fen: string;
   lastMove: Move | null;
   boardOrientation: "white" | "black";
   isInCheck: boolean;
   shapes?: DrawShape[];
+  interactive?: boolean;
+  movableColor?: "white" | "black" | "both";
+  dests?: Map<string, string[]>;
+  onMove?: (from: string, to: string) => void;
 }) {
   const lastMoveTuple = useMemo<[string, string] | undefined>(
     () => (lastMove ? [lastMove.from, lastMove.to] : undefined),
@@ -533,8 +609,11 @@ function BoardArea({
           orientation={boardOrientation}
           lastMove={lastMoveTuple}
           check={isInCheck}
-          viewOnly={true}
+          viewOnly={!interactive}
           shapes={shapes}
+          movableColor={movableColor}
+          dests={dests}
+          onMove={onMove}
         />
       </Box>
     </Box>
@@ -1544,11 +1623,15 @@ export default function AnalysisPage() {
     san: string;
   } | null>(null);
 
+  // Arrow toggle state (Engine best / Most common / Game played / Maia)
+  const [arrowToggles, setArrowToggles] = useState<ArrowToggleState>(
+    DEFAULT_ARROW_TOGGLES
+  );
+
   // Board FEN + last move switch when previewing in takeover mode
   const displayFen = takeoverPreview?.fen ?? currentFen;
   const displayLastMove = useMemo<Move | null>(() => {
     if (takeoverPreview) {
-      // Construct a Move-shaped object for the highlight
       return {
         from: takeoverPreview.from,
         to: takeoverPreview.to,
@@ -1557,18 +1640,76 @@ export default function AnalysisPage() {
     }
     return lastMove;
   }, [takeoverPreview, lastMove]);
+
+  // Color to move on the displayed position (for interactive board in takeover)
+  const turnToMove = useMemo<"white" | "black">(() => {
+    const c = new Chess(displayFen);
+    return c.turn() === "w" ? "white" : "black";
+  }, [displayFen]);
+
+  // Legal destinations from the current displayed position
+  const displayDests = useMemo<Map<string, string[]>>(() => {
+    const c = new Chess(displayFen);
+    const m = new Map<string, string[]>();
+    c.moves({ verbose: true }).forEach((mv) => {
+      const arr = m.get(mv.from) ?? [];
+      arr.push(mv.to);
+      m.set(mv.from, arr);
+    });
+    return m;
+  }, [displayFen]);
+
+  // Computed arrow shapes from toggles + takeover preview
   const displayShapes = useMemo<DrawShape[]>(() => {
+    const shapes: DrawShape[] = [];
+
+    // Takeover preview always wins visibility — gold arrow
     if (takeoverPreview) {
-      return [
-        {
-          orig: takeoverPreview.from,
-          dest: takeoverPreview.to,
-          brush: "green",
-        },
-      ];
+      shapes.push({
+        orig: takeoverPreview.from,
+        dest: takeoverPreview.to,
+        brush: "gold",
+      });
     }
-    return [];
-  }, [takeoverPreview]);
+
+    // Engine best (green)
+    if (arrowToggles.best) {
+      const best = ENGINE_BEST[currentPly];
+      if (best) shapes.push(uciToShape(best, ARROW_PALETTE.best.brush));
+    }
+
+    // Most common from master DB (blue)
+    if (arrowToggles.common) {
+      const cands = getMasterCandidates(currentPly);
+      const top = cands[0];
+      if (top) shapes.push(uciToShape(top.uci, ARROW_PALETTE.common.brush));
+    }
+
+    // Game played — the move that was actually played at currentPly+1
+    if (arrowToggles.game) {
+      const nextMove = allMoves[currentPly];
+      if (nextMove) {
+        shapes.push({
+          orig: nextMove.from,
+          dest: nextMove.to,
+          brush: ARROW_PALETTE.game.brush,
+        });
+      }
+    }
+
+    // Maia at the selected ELO (purple)
+    if (arrowToggles.maia) {
+      const maia = findMaiaMove(currentPly, arrowToggles.maiaElo);
+      if (maia) shapes.push(uciToShape(maia, ARROW_PALETTE.maia.brush));
+    }
+
+    return shapes;
+  }, [
+    takeoverPreview,
+    arrowToggles,
+    currentPly,
+    allMoves,
+  ]);
 
   const handleTakeoverEnter = useCallback(() => {
     setTakeoverMode(true);
@@ -1590,6 +1731,24 @@ export default function AnalysisPage() {
       }
     },
     [currentFen]
+  );
+
+  // User makes a move on the board directly (interactive in takeover mode)
+  const handleBoardMove = useCallback(
+    (orig: string, dest: string) => {
+      // Replay from the currently displayed position (preview or canonical)
+      const g = new Chess(displayFen);
+      const result = g.move({ from: orig, to: dest, promotion: "q" });
+      if (result) {
+        setTakeoverPreview({
+          fen: g.fen(),
+          from: orig,
+          to: dest,
+          san: result.san,
+        });
+      }
+    },
+    [displayFen]
   );
   const handleTakeoverSendToCoach = useCallback(
     (message: string) => {
@@ -1842,6 +2001,14 @@ export default function AnalysisPage() {
                 boardOrientation={boardOrientation}
                 isInCheck={isInCheck}
                 shapes={displayShapes}
+                interactive={takeoverMode}
+                movableColor={takeoverMode ? turnToMove : undefined}
+                dests={takeoverMode ? displayDests : undefined}
+                onMove={takeoverMode ? handleBoardMove : undefined}
+              />
+              <BoardArrowToggles
+                state={arrowToggles}
+                onChange={setArrowToggles}
               />
               <EvalSparkline
                 series={evalSeries}

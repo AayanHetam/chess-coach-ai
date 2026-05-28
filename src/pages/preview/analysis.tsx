@@ -23,19 +23,25 @@ import {
   ARROW_PALETTE,
   type ArrowToggleState,
 } from "@/components/ui/BoardArrowToggles";
+import { OnboardingHelp } from "@/components/ui/OnboardingHelp";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
 import {
+  Activity,
   ArrowLeft,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Command,
   Crown,
+  Eye,
   Flame,
   Lightbulb,
+  MousePointerClick,
   RefreshCw,
   RotateCw,
   Send,
@@ -1954,6 +1960,45 @@ export default function AnalysisPage() {
         groups={commandGroups}
       />
 
+      <OnboardingHelp
+        storageKey="cm-tour-analysis-v1"
+        title="Welcome to the Analyze surface"
+        subtitle="A few things power users discover late"
+        tips={[
+          {
+            icon: Command,
+            iconColor: "#F97316",
+            title: "Command palette",
+            shortcut: "⌘K",
+            body: "Jump to any move, flip the board, or fire a question to the coach without taking your hands off the keyboard.",
+          },
+          {
+            icon: BookOpen,
+            iconColor: "#22c55e",
+            title: "Takeover the master database",
+            body: "Click the green Takeover button under the eval arc. The right panel swaps to a live browser of millions of master-game positions — filter by player, click any move to preview on the board.",
+          },
+          {
+            icon: MousePointerClick,
+            iconColor: "#A855F7",
+            title: "Drag pieces freely in Takeover",
+            body: "Once in Takeover, the board becomes interactive. Drag any piece to explore variations — the master-DB panel re-queries the new position automatically.",
+          },
+          {
+            icon: Activity,
+            iconColor: "#FB923C",
+            title: "Toggle 4 arrow overlays",
+            body: "Above the eval sparkline: Engine best · Most common · Game played · Maia (with ELO slider). Mix and match to see what humans, masters, and engines disagree about.",
+          },
+          {
+            icon: Eye,
+            iconColor: "#FBBF24",
+            title: "Scrub the evaluation arc",
+            body: "Click anywhere on the sparkline below the board to jump to that ply. The dots are key moments — click for instant navigation.",
+          },
+        ]}
+      />
+
       <Box
         sx={{
           minHeight: "100vh",
@@ -2023,19 +2068,17 @@ export default function AnalysisPage() {
                 currentPly={currentPly}
                 onJumpTo={setCurrentPly}
               />
-              <OpeningExplorer
-                fen={currentFen}
-                fallbackOpeningName={headers.Opening ?? undefined}
-                fallbackEco={headers.ECO ?? undefined}
-                onTakeover={!takeoverMode ? handleTakeoverEnter : undefined}
-              />
             </Box>
 
-            {/* Right column: Coach panel ↔ Master Games takeover swap */}
+            {/* Right column: Coach (top) + Master Games (bottom),
+                or full-height Takeover panel when active. */}
             <Box
               sx={{
                 position: "relative",
-                height: { xs: "auto", lg: "clamp(560px, calc(100vh - 240px), 880px)" },
+                height: {
+                  xs: "auto",
+                  lg: "clamp(560px, calc(100vh - 240px), 880px)",
+                },
                 minHeight: { xs: 600, lg: 0 },
               }}
             >
@@ -2062,14 +2105,33 @@ export default function AnalysisPage() {
                     }}
                     style={{ height: "100%", width: "100%" }}
                   >
-                    <CoachPanel
-                      messages={messages}
-                      input={input}
-                      onChangeInput={setInput}
-                      onSend={handleSend}
-                      onSuggestion={handleSuggestion}
-                      isThinking={isThinking}
-                    />
+                    <Box
+                      sx={{
+                        height: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                      }}
+                    >
+                      <Box sx={{ flex: 1, minHeight: 0 }}>
+                        <CoachPanel
+                          messages={messages}
+                          input={input}
+                          onChangeInput={setInput}
+                          onSend={handleSend}
+                          onSuggestion={handleSuggestion}
+                          isThinking={isThinking}
+                        />
+                      </Box>
+                      <Box sx={{ flexShrink: 0 }}>
+                        <OpeningExplorer
+                          fen={currentFen}
+                          fallbackOpeningName={headers.Opening ?? undefined}
+                          fallbackEco={headers.ECO ?? undefined}
+                          onTakeover={handleTakeoverEnter}
+                        />
+                      </Box>
+                    </Box>
                   </motion.div>
                 )}
               </AnimatePresence>

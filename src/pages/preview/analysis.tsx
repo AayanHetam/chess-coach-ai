@@ -2350,7 +2350,7 @@ export default function AnalysisPage() {
                       {/* Spacer pushes Master Games down to align its bottom
                           (g3 row) with the Key Moments row on the left. */}
                       <Box
-                        sx={{ height: { xs: 0, lg: 140 }, flexShrink: 0 }}
+                        sx={{ height: { xs: 0, lg: 130 }, flexShrink: 0 }}
                       />
                       <Box sx={{ flexShrink: 0 }}>
                         <OpeningExplorer

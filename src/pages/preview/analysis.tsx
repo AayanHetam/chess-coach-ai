@@ -2334,7 +2334,7 @@ export default function AnalysisPage() {
                             // Sized so Coach + 20px spacer + Master Games
                             // bottom edge lines up with the eval-arc bottom
                             // on the left column (board + arrows + eval).
-                            lg: "clamp(460px, 62vh, 660px)",
+                            lg: "clamp(520px, 68vh, 720px)",
                           },
                         }}
                       >

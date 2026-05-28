@@ -1774,11 +1774,13 @@ export default function AnalysisPage() {
     [currentPly]
   );
 
-  // Played SAN at this ply (for highlighting in the takeover list)
+  // Played SAN — what was played at the CURRENT canonical position (for the
+  // "PLAYED" badge in the takeover list). Only highlights when the user is
+  // still on the canonical position (no exploration / preview).
   const playedSanAtPly = useMemo<string | undefined>(() => {
-    if (currentPly === 0) return undefined;
-    return allMoves[currentPly - 1]?.san;
-  }, [allMoves, currentPly]);
+    if (takeoverPreview) return undefined;
+    return allMoves[currentPly]?.san;
+  }, [allMoves, currentPly, takeoverPreview]);
 
   const handleSend = useCallback(() => {
     const text = input.trim();
@@ -2041,7 +2043,8 @@ export default function AnalysisPage() {
                 {takeoverMode ? (
                   <MasterGamesTakeover
                     key="takeover"
-                    currentPly={currentPly}
+                    fen={displayFen}
+                    ply={currentPly}
                     playedSan={playedSanAtPly}
                     onPreviewMove={handleTakeoverPreviewMove}
                     onSendToCoach={handleTakeoverSendToCoach}

@@ -62,6 +62,12 @@ export function ChessgroundBoard({
       coordinates: true,
       check,
       animation: { enabled: true, duration: 220 },
+      draggable: {
+        enabled: !viewOnly,
+        showGhost: true,
+        deleteOnDropOff: false,
+      },
+      selectable: { enabled: !viewOnly },
       movable: {
         color: viewOnly ? undefined : movableColor,
         dests: dests as Map<Key, Key[]> | undefined,
@@ -111,16 +117,26 @@ export function ChessgroundBoard({
     });
   }, [fen, orientation, lastMove, check]);
 
-  // Sync movable (when puzzles change available moves)
+  // Sync movable (when puzzles or takeover change available moves).
+  // CRITICAL: re-set `events.after` here too — chessground's .set() replaces
+  // the movable block wholesale, so omitting `events` silently wipes the
+  // onMove callback and the board appears "dead" to interaction.
   useEffect(() => {
     if (!apiRef.current) return;
     apiRef.current.set({
       viewOnly,
+      draggable: { enabled: !viewOnly, showGhost: true },
+      selectable: { enabled: !viewOnly },
       movable: {
         color: viewOnly ? undefined : movableColor,
         dests: dests as Map<Key, Key[]> | undefined,
         free: false,
         showDests: true,
+        events: {
+          after: (orig: Key, dest: Key) => {
+            onMoveRef.current?.(orig as string, dest as string);
+          },
+        },
       },
     });
   }, [viewOnly, movableColor, dests]);

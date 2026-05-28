@@ -6,49 +6,91 @@ import {
   ArrowLeftRight,
   BookOpen,
   Filter,
+  Loader2,
   MessageSquare,
   Search,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // ───────────────────────────────────────────────────────────────────────────
-// Top players (mock — highest-ranked present at the position takes the icon)
+// Top players — colored avatars for highest-rated player at a position.
+// Names from the Lichess masters API are matched against the regex list.
 // ───────────────────────────────────────────────────────────────────────────
 
 export interface TopPlayer {
   name: string;
   initials: string;
   color: string;
-  rank: number; // 1 = world #1
+  rank: number;
 }
 
-const TOP_PLAYERS: Record<string, TopPlayer> = {
+const TOP_PLAYERS = {
   carlsen: { name: "Magnus Carlsen", initials: "MC", color: "#FCD34D", rank: 1 },
   caruana: { name: "Fabiano Caruana", initials: "FC", color: "#60A5FA", rank: 2 },
   nakamura: { name: "Hikaru Nakamura", initials: "HN", color: "#A78BFA", rank: 3 },
   nepo: { name: "Ian Nepomniachtchi", initials: "IN", color: "#34D399", rank: 4 },
   giri: { name: "Anish Giri", initials: "AG", color: "#F472B6", rank: 5 },
   ding: { name: "Ding Liren", initials: "DL", color: "#FB923C", rank: 6 },
-  kasparov: { name: "Garry Kasparov", initials: "GK", color: "#F87171", rank: 99 },
-  topalov: { name: "Veselin Topalov", initials: "VT", color: "#C084FC", rank: 99 },
-  kramnik: { name: "Vladimir Kramnik", initials: "VK", color: "#FB7185", rank: 99 },
-  anand: { name: "Viswanathan Anand", initials: "VA", color: "#FACC15", rank: 99 },
-};
+  firouzja: { name: "Alireza Firouzja", initials: "AF", color: "#22D3EE", rank: 7 },
+  so: { name: "Wesley So", initials: "WS", color: "#A3E635", rank: 8 },
+  aronian: { name: "Levon Aronian", initials: "LA", color: "#FB7185", rank: 9 },
+  rapport: { name: "Richard Rapport", initials: "RR", color: "#E879F9", rank: 10 },
+  // Legends — high rank number so they're "lower priority" than active top players
+  kasparov: { name: "Garry Kasparov", initials: "GK", color: "#F87171", rank: 50 },
+  topalov: { name: "Veselin Topalov", initials: "VT", color: "#C084FC", rank: 51 },
+  kramnik: { name: "Vladimir Kramnik", initials: "VK", color: "#FB7185", rank: 52 },
+  anand: { name: "Viswanathan Anand", initials: "VA", color: "#FACC15", rank: 53 },
+  karpov: { name: "Anatoly Karpov", initials: "AK", color: "#FDA4AF", rank: 54 },
+  fischer: { name: "Robert Fischer", initials: "BF", color: "#7DD3FC", rank: 55 },
+} as const;
+
+// Match strategies for player names returned by the Lichess masters API.
+// The API uses last-name-first formats like "Carlsen, M" — handle both.
+const PLAYER_MATCHERS: { regex: RegExp; player: TopPlayer }[] = [
+  { regex: /\bcarlsen\b.*\b[mM]\b|magnus carlsen/i, player: TOP_PLAYERS.carlsen },
+  { regex: /\bcaruana\b.*\b[fF]\b|fabiano caruana/i, player: TOP_PLAYERS.caruana },
+  { regex: /\bnakamura\b.*\b[hH]\b|hikaru nakamura/i, player: TOP_PLAYERS.nakamura },
+  { regex: /\bnepomniachtchi\b|nepomniashchy|ian nepom/i, player: TOP_PLAYERS.nepo },
+  { regex: /\bgiri\b.*\b[aA]\b|anish giri/i, player: TOP_PLAYERS.giri },
+  { regex: /\bding\b.*\b[lL]\b|ding liren/i, player: TOP_PLAYERS.ding },
+  { regex: /\bfirouzja\b|alireza/i, player: TOP_PLAYERS.firouzja },
+  { regex: /\bso\b.*\b[wW]\b|wesley so/i, player: TOP_PLAYERS.so },
+  { regex: /\baronian\b.*\b[lL]\b|levon aronian/i, player: TOP_PLAYERS.aronian },
+  { regex: /\brapport\b.*\b[rR]\b|richard rapport/i, player: TOP_PLAYERS.rapport },
+  { regex: /\bkasparov\b.*\b[gG]\b|garry kasparov/i, player: TOP_PLAYERS.kasparov },
+  { regex: /\btopalov\b.*\b[vV]\b|veselin topalov/i, player: TOP_PLAYERS.topalov },
+  { regex: /\bkramnik\b.*\b[vV]\b|vladimir kramnik/i, player: TOP_PLAYERS.kramnik },
+  { regex: /\banand\b.*\b[vV]\b|viswanathan anand/i, player: TOP_PLAYERS.anand },
+  { regex: /\bkarpov\b.*\b[aA]\b|anatoly karpov/i, player: TOP_PLAYERS.karpov },
+  { regex: /\bfischer\b.*\b[rR]\b|robert fischer|bobby fischer/i, player: TOP_PLAYERS.fischer },
+];
+
+function findPlayerFromName(name: string | undefined): TopPlayer | undefined {
+  if (!name) return undefined;
+  for (const m of PLAYER_MATCHERS) {
+    if (m.regex.test(name)) return m.player;
+  }
+  return undefined;
+}
 
 // ───────────────────────────────────────────────────────────────────────────
-// Mock candidate moves at each ply of the Kasparov–Topalov game
+// Candidate model
 // ───────────────────────────────────────────────────────────────────────────
 
 export interface MasterCandidate {
   san: string;
   uci: string;
   count: number;
-  /** Highest-ranked top-100 player who has been at this position */
   topPlayer?: TopPlayer;
+  whiteWins?: number;
+  blackWins?: number;
+  draws?: number;
 }
 
-const PIRC_CANDIDATES: Record<number, MasterCandidate[]> = {
+// Hardcoded fallback for the Pirc/Kasparov demo when the Lichess API is
+// unreachable. Keyed by ply so we can still demo offline.
+const HARDCODED_FALLBACK_BY_PLY: Record<number, MasterCandidate[]> = {
   0: [
     { san: "e4", uci: "e2e4", count: 8400000, topPlayer: TOP_PLAYERS.carlsen },
     { san: "d4", uci: "d2d4", count: 6100000, topPlayer: TOP_PLAYERS.caruana },
@@ -63,53 +105,11 @@ const PIRC_CANDIDATES: Record<number, MasterCandidate[]> = {
     { san: "c6", uci: "c7c6", count: 540000 },
     { san: "d6", uci: "d7d6", count: 420000, topPlayer: TOP_PLAYERS.topalov },
   ],
-  2: [
-    { san: "d4", uci: "d2d4", count: 380000, topPlayer: TOP_PLAYERS.kasparov },
-    { san: "Nf3", uci: "g1f3", count: 24000 },
-    { san: "f4", uci: "f2f4", count: 12000 },
-  ],
-  3: [
-    { san: "Nf6", uci: "g8f6", count: 260000, topPlayer: TOP_PLAYERS.topalov },
-    { san: "g6", uci: "g7g6", count: 92000 },
-    { san: "Nd7", uci: "b8d7", count: 11000 },
-  ],
-  4: [
-    { san: "Nc3", uci: "b1c3", count: 220000, topPlayer: TOP_PLAYERS.kasparov },
-    { san: "Nf3", uci: "g1f3", count: 31000 },
-    { san: "f3", uci: "f2f3", count: 5800 },
-  ],
-  5: [
-    { san: "g6", uci: "g7g6", count: 170000, topPlayer: TOP_PLAYERS.topalov },
-    { san: "c6", uci: "c7c6", count: 38000 },
-    { san: "e5", uci: "e7e5", count: 7200 },
-  ],
-  6: [
-    { san: "Be3", uci: "c1e3", count: 38000, topPlayer: TOP_PLAYERS.kasparov },
-    { san: "f4", uci: "f2f4", count: 81000, topPlayer: TOP_PLAYERS.anand },
-    { san: "f3", uci: "f2f3", count: 28000 },
-    { san: "Nf3", uci: "g1f3", count: 11000 },
-    { san: "h3", uci: "h2h3", count: 2400 },
-  ],
-  7: [
-    { san: "Bg7", uci: "f8g7", count: 35000, topPlayer: TOP_PLAYERS.topalov },
-    { san: "c6", uci: "c7c6", count: 1800 },
-  ],
-  8: [
-    { san: "Qd2", uci: "d1d2", count: 22000, topPlayer: TOP_PLAYERS.kasparov },
-    { san: "f3", uci: "f2f3", count: 7400 },
-    { san: "Nf3", uci: "g1f3", count: 3100 },
-  ],
-  9: [
-    { san: "c6", uci: "c7c6", count: 12000, topPlayer: TOP_PLAYERS.topalov },
-    { san: "O-O", uci: "e8g8", count: 4800 },
-    { san: "Nc6", uci: "b8c6", count: 1200 },
-  ],
-  10: [
-    { san: "f3", uci: "f2f3", count: 8900, topPlayer: TOP_PLAYERS.kasparov },
-    { san: "Bh6", uci: "e3h6", count: 2300 },
-    { san: "Nf3", uci: "g1f3", count: 1100 },
-  ],
 };
+
+// ───────────────────────────────────────────────────────────────────────────
+// Helpers
+// ───────────────────────────────────────────────────────────────────────────
 
 export function formatCount(n: number): string {
   if (n >= 1_000_000) return `${Math.round(n / 1_000_000)}M`;
@@ -117,13 +117,73 @@ export function formatCount(n: number): string {
   return String(n);
 }
 
+// Public helper still used by analysis.tsx's "Most common arrow" toggle.
+// Best-effort: returns the highest-count hardcoded candidate when available.
 export function getMasterCandidates(ply: number): MasterCandidate[] {
-  return PIRC_CANDIDATES[ply] ?? [];
+  return HARDCODED_FALLBACK_BY_PLY[ply] ?? [];
 }
 
-// Internal alias kept for the panel itself
-function getCandidates(ply: number): MasterCandidate[] {
-  return getMasterCandidates(ply);
+// ───────────────────────────────────────────────────────────────────────────
+// API response parsing (Lichess masters via our /api/opening-explorer proxy)
+// ───────────────────────────────────────────────────────────────────────────
+
+interface LichessMove {
+  uci: string;
+  san: string;
+  white: number;
+  draws: number;
+  black: number;
+  averageRating?: number;
+}
+
+interface LichessTopGame {
+  uci: string;
+  white?: { name?: string; rating?: number };
+  black?: { name?: string; rating?: number };
+  year?: number;
+  winner?: "white" | "black" | "draws";
+}
+
+interface LichessExplorerData {
+  white: number;
+  draws: number;
+  black: number;
+  moves: LichessMove[];
+  topGames?: LichessTopGame[];
+  opening?: { eco: string; name: string };
+}
+
+function buildCandidatesFromApi(data: LichessExplorerData): MasterCandidate[] {
+  const topByUci = new Map<string, LichessTopGame[]>();
+  (data.topGames ?? []).forEach((g) => {
+    const arr = topByUci.get(g.uci) ?? [];
+    arr.push(g);
+    topByUci.set(g.uci, arr);
+  });
+
+  return data.moves.map((m) => {
+    const total = m.white + m.draws + m.black;
+    const games = topByUci.get(m.uci) ?? [];
+    // Pick the highest-ranked recognized player across all top games at this move
+    let topPlayer: TopPlayer | undefined;
+    for (const g of games) {
+      const w = findPlayerFromName(g.white?.name);
+      const b = findPlayerFromName(g.black?.name);
+      const here = w && b ? (w.rank < b.rank ? w : b) : (w ?? b);
+      if (here && (!topPlayer || here.rank < topPlayer.rank)) {
+        topPlayer = here;
+      }
+    }
+    return {
+      san: m.san,
+      uci: m.uci,
+      count: total,
+      topPlayer,
+      whiteWins: m.white,
+      draws: m.draws,
+      blackWins: m.black,
+    };
+  });
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -183,7 +243,10 @@ function PlayerAvatar({
 // ───────────────────────────────────────────────────────────────────────────
 
 interface MasterGamesTakeoverProps {
-  currentPly: number;
+  /** Current board position to look up in master DB. */
+  fen: string;
+  /** Canonical ply (for hardcoded fallback + offline mode). */
+  ply: number;
   /** Move played in the canonical game at this ply (for highlighting). */
   playedSan?: string;
   /** When a candidate is clicked, parent updates the board to that line. */
@@ -195,16 +258,65 @@ interface MasterGamesTakeoverProps {
 }
 
 export function MasterGamesTakeover({
-  currentPly,
+  fen,
+  ply,
   playedSan,
   onPreviewMove,
   onSendToCoach,
   onRevert,
 }: MasterGamesTakeoverProps) {
-  const candidates = useMemo(() => getCandidates(currentPly), [currentPly]);
+  const [apiData, setApiData] = useState<LichessExplorerData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
   const [filterPlayer, setFilterPlayer] = useState<TopPlayer | null>(null);
 
-  // Highest-ranked player present at this position (lowest rank number)
+  // Reset player filter when position changes (different position, different
+  // candidates — filter from prior position is no longer relevant).
+  useEffect(() => {
+    setFilterPlayer(null);
+  }, [fen]);
+
+  // Fetch candidates from Lichess masters via /api/opening-explorer proxy
+  useEffect(() => {
+    if (!fen) return;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    const handle = setTimeout(async () => {
+      setLoading(true);
+      setApiError(false);
+      try {
+        const url = `/api/opening-explorer?fen=${encodeURIComponent(fen)}&moves=10`;
+        const res = await fetch(url, { signal: ctrl.signal });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = (await res.json()) as LichessExplorerData;
+        if (!ctrl.signal.aborted) setApiData(data);
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") {
+          setApiError(true);
+          setApiData(null);
+        }
+      } finally {
+        if (!ctrl.signal.aborted) setLoading(false);
+      }
+    }, 200);
+
+    return () => {
+      clearTimeout(handle);
+      ctrl.abort();
+    };
+  }, [fen]);
+
+  // Build the candidate list. Use API data if available, fall back to
+  // hardcoded for the Pirc demo positions, otherwise empty (out of book).
+  const candidates = useMemo<MasterCandidate[]>(() => {
+    if (apiData) return buildCandidatesFromApi(apiData);
+    return HARDCODED_FALLBACK_BY_PLY[ply] ?? [];
+  }, [apiData, ply]);
+
+  // Highest-ranked player present at this position
   const featuredPlayer = useMemo(() => {
     const all = candidates
       .map((c) => c.topPlayer)
@@ -213,7 +325,6 @@ export function MasterGamesTakeover({
     return all[0] ?? null;
   }, [candidates]);
 
-  // Filtered candidate list — if a player is selected, only show their moves
   const displayed = useMemo(() => {
     if (!filterPlayer) return candidates;
     return candidates.filter(
@@ -222,6 +333,8 @@ export function MasterGamesTakeover({
   }, [candidates, filterPlayer]);
 
   const totalGames = candidates.reduce((acc, c) => acc + c.count, 0);
+  const openingName = apiData?.opening?.name;
+  const openingEco = apiData?.opening?.eco;
 
   return (
     <motion.div
@@ -229,10 +342,7 @@ export function MasterGamesTakeover({
       initial={{ opacity: 0, x: 60, scale: 0.96 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 60, scale: 0.96 }}
-      transition={{
-        duration: 0.42,
-        ease: [0.22, 0.61, 0.36, 1],
-      }}
+      transition={{ duration: 0.42, ease: [0.22, 0.61, 0.36, 1] }}
       style={{
         position: "relative",
         height: "100%",
@@ -282,7 +392,16 @@ export function MasterGamesTakeover({
               justifyContent: "center",
             }}
           >
-            <BookOpen size={16} color="#22c55e" />
+            {loading ? (
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+              >
+                <Loader2 size={16} color="#22c55e" />
+              </motion.div>
+            ) : (
+              <BookOpen size={16} color="#22c55e" />
+            )}
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
@@ -293,25 +412,38 @@ export function MasterGamesTakeover({
                 lineHeight: 1.1,
               }}
             >
-              Takeover · Master Games
+              Master Games · Lichess DB
             </Typography>
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              sx={{ mt: 0.5 }}
+            <Typography
+              sx={{
+                fontSize: "0.72rem",
+                color: "rgba(255,255,255,0.5)",
+                fontFamily: "Monaco, Menlo, monospace",
+                mt: 0.5,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
             >
-              <Typography
-                sx={{
-                  fontSize: "0.72rem",
-                  color: "rgba(255,255,255,0.5)",
-                  fontFamily: "Monaco, Menlo, monospace",
-                }}
-              >
-                Move {Math.ceil(currentPly / 2) || 1} ·{" "}
-                {formatCount(totalGames)} games at this position
-              </Typography>
-            </Stack>
+              {openingName ? (
+                <>
+                  {openingName}{" "}
+                  {openingEco && (
+                    <Box
+                      component="span"
+                      sx={{ color: "rgba(255,255,255,0.35)" }}
+                    >
+                      {openingEco}
+                    </Box>
+                  )}{" "}
+                  · {formatCount(totalGames)} games
+                </>
+              ) : totalGames > 0 ? (
+                <>{formatCount(totalGames)} games at this position</>
+              ) : (
+                <>Move {Math.ceil(ply / 2) || 1}</>
+              )}
+            </Typography>
           </Box>
 
           {featuredPlayer && (
@@ -351,7 +483,7 @@ export function MasterGamesTakeover({
           </Button>
         </Box>
 
-        {/* Filter indicator (when a player filter is active) */}
+        {/* Filter indicator */}
         {filterPlayer && (
           <Box
             sx={{
@@ -414,6 +546,10 @@ export function MasterGamesTakeover({
               >
                 {filterPlayer
                   ? `${filterPlayer.name} hasn't reached this exact position in our database.`
+                  : apiError
+                  ? "Master DB unavailable on this network — falls back to live data in production."
+                  : loading
+                  ? "Querying master database…"
                   : "Out of master-game book — you're in original territory."}
               </Typography>
             </Box>
@@ -421,7 +557,8 @@ export function MasterGamesTakeover({
             <Stack spacing={0.75}>
               {displayed.map((c) => {
                 const isPlayed = c.san === playedSan;
-                const percentage = totalGames > 0 ? (c.count / totalGames) * 100 : 0;
+                const percentage =
+                  totalGames > 0 ? (c.count / totalGames) * 100 : 0;
                 return (
                   <Box
                     key={c.san}
@@ -446,7 +583,6 @@ export function MasterGamesTakeover({
                       },
                     }}
                   >
-                    {/* Background bar showing share of games */}
                     <Box
                       sx={{
                         position: "absolute",
@@ -466,12 +602,7 @@ export function MasterGamesTakeover({
                       spacing={1.5}
                       sx={{ position: "relative" }}
                     >
-                      <Box
-                        sx={{
-                          minWidth: 60,
-                          flexShrink: 0,
-                        }}
-                      >
+                      <Box sx={{ minWidth: 60, flexShrink: 0 }}>
                         <Typography
                           sx={{
                             fontSize: "0.98rem",
@@ -504,7 +635,6 @@ export function MasterGamesTakeover({
                       {c.topPlayer && (
                         <Box
                           onClick={(e) => {
-                            // Don't trigger the row's onClick — avatar filters instead
                             e.stopPropagation();
                           }}
                         >
@@ -552,7 +682,7 @@ export function MasterGamesTakeover({
                           onClick={(e) => {
                             e.stopPropagation();
                             onSendToCoach(
-                              `Tell me about ${c.san} at move ${Math.ceil(currentPly / 2) || 1} — ${formatCount(c.count)} master games went this way${c.topPlayer ? `, including ${c.topPlayer.name}` : ""}.`
+                              `Tell me about ${c.san} from this position — ${formatCount(c.count)} master games went this way${c.topPlayer ? `, including ${c.topPlayer.name}` : ""}.`
                             );
                           }}
                           size="small"
@@ -601,14 +731,22 @@ export function MasterGamesTakeover({
                 width: 7,
                 height: 7,
                 borderRadius: "50%",
-                background: "#22c55e",
-                boxShadow: "0 0 6px rgba(34,197,94,0.6)",
+                background: apiError ? "#EF4444" : "#22c55e",
+                boxShadow: apiError
+                  ? "0 0 6px rgba(239,68,68,0.5)"
+                  : "0 0 6px rgba(34,197,94,0.6)",
               }}
             />
-            <Box>Sorted most → least played</Box>
+            <Box>
+              {apiError
+                ? "Offline · fallback only"
+                : apiData
+                ? "Lichess masters · 2.5M+ games"
+                : "Loading…"}
+            </Box>
           </Box>
           <Box sx={{ flex: 1 }} />
-          <Box>Click a move to preview on board</Box>
+          <Box>Drag pieces to explore</Box>
         </Box>
       </Box>
     </motion.div>

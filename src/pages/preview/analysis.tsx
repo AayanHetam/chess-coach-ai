@@ -3872,7 +3872,9 @@ export default function AnalysisPage() {
       .evaluateGame({
         ...params,
         depth: engineSettings.depth,
-        multiPv: 1,
+        // UciEngine guards multiPv into [2, 10] (`Invalid MultiPV value`).
+        // We only consume the top line for the eval-curve anyway.
+        multiPv: 2,
         workersNb: 1,
         setEvaluationProgress: (v) => {
           if (!cancelled) setAnalysisProgress(v);

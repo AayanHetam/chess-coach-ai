@@ -33,6 +33,11 @@ import {
   Activity,
   ArrowLeft,
   BookOpen,
+  Check,
+  ChevronDown,
+  List as ListIcon,
+  MessageCircle,
+  MessageSquare,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -66,6 +71,7 @@ import { useEngine } from "@/hooks/useEngine";
 import { EngineName } from "@/types/enums";
 import type { PositionEval } from "@/types/eval";
 import { getEvaluateGameParams } from "@/lib/chess";
+import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 
 const ChessgroundBoard = dynamic(
   () =>
@@ -162,6 +168,76 @@ const KEY_MOMENTS: KeyMoment[] = [
   { ply: 67, label: "34.Qa1+ — net closes", kind: "winning" },
   { ply: 87, label: "44.Qa7 1-0", kind: "winning" },
 ];
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Move classification — chess.com-style win% delta thresholds, computed from
+// Stockfish positions[]. Production uses src/lib/engine/helpers/moveClassification
+// with the same scale; we replicate the cheap, deterministic version here
+// (no brilliancy heuristics, no Lichess-style accuracy curve — just the four
+// tiers users actually care about for navigation).
+// ───────────────────────────────────────────────────────────────────────────────
+
+type MoveLabel = "best" | "good" | "inaccuracy" | "mistake" | "blunder";
+
+const CLASSIFICATION_COLORS: Record<MoveLabel, string> = {
+  best: "#22c55e",
+  good: "#86efac",
+  inaccuracy: "#FBBF24",
+  mistake: "#FB923C",
+  blunder: "#ef4444",
+};
+const CLASSIFICATION_GLYPHS: Record<MoveLabel, string> = {
+  best: "!",
+  good: "✓",
+  inaccuracy: "?!",
+  mistake: "?",
+  blunder: "??",
+};
+const CLASSIFICATION_LABELS: Record<MoveLabel, string> = {
+  best: "Best",
+  good: "Good",
+  inaccuracy: "Inaccuracy",
+  mistake: "Mistake",
+  blunder: "Blunder",
+};
+
+/**
+ * Classify a single move by comparing the win% of the position before vs
+ * after the move from the mover's perspective. Returns null if either
+ * position lacks a usable eval (e.g., still loading).
+ *
+ * Indexing: positions[i] is the eval at the position BEFORE moveIdx=i is
+ * played. positions[i+1] is the eval AFTER. The mover at moveIdx i is
+ * white when i is even, black when i is odd.
+ */
+function classifyMove(
+  positions: PositionEval[] | null,
+  moveIdx: number
+): MoveLabel | null {
+  if (!positions) return null;
+  const before = positions[moveIdx];
+  const after = positions[moveIdx + 1];
+  if (!before || !after) return null;
+  if (!before.lines?.[0] || !after.lines?.[0]) return null;
+  let winBefore: number;
+  let winAfter: number;
+  try {
+    winBefore = getPositionWinPercentage(before);
+    winAfter = getPositionWinPercentage(after);
+  } catch {
+    return null;
+  }
+  const isWhiteMove = moveIdx % 2 === 0;
+  // win% is from White's perspective. The mover wants their win% to go up
+  // (white) or down (black). "Loss" is how far the mover fell short.
+  const loss = isWhiteMove ? winBefore - winAfter : winAfter - winBefore;
+  if (loss <= 0) return "best";
+  if (loss <= 2) return "best";
+  if (loss <= 5) return "good";
+  if (loss <= 10) return "inaccuracy";
+  if (loss <= 20) return "mistake";
+  return "blunder";
+}
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Mock arrow data per ply — Engine best + Maia at various ELO ranges.
@@ -1546,6 +1622,490 @@ function KeyMomentsRow({
   );
 }
 
+// ───────────────────────────────────────────────────────────────────────────────
+// Right-column tabs — Coach / Masters / Moves
+// ───────────────────────────────────────────────────────────────────────────────
+
+type RightTab = "coach" | "masters" | "moves";
+
+function TabStrip({
+  active,
+  onChange,
+  movesBadge,
+  mastersBadge,
+}: {
+  active: RightTab;
+  onChange: (t: RightTab) => void;
+  movesBadge?: string;
+  mastersBadge?: string;
+}) {
+  const tabs: {
+    id: RightTab;
+    label: string;
+    icon: typeof MessageCircle;
+    badge?: string;
+  }[] = [
+    { id: "coach", label: "Coach", icon: MessageCircle },
+    { id: "masters", label: "Masters", icon: BookOpen, badge: mastersBadge },
+    { id: "moves", label: "Moves", icon: ListIcon, badge: movesBadge },
+  ];
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 0.5,
+        p: 0.5,
+        borderRadius: "1rem",
+        background: "rgba(20,22,28,0.6)",
+        backdropFilter: "blur(16px) saturate(150%)",
+        WebkitBackdropFilter: "blur(16px) saturate(150%)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        mb: 1.25,
+      }}
+    >
+      {tabs.map((t) => {
+        const isActive = active === t.id;
+        const Icon = t.icon;
+        return (
+          <Box
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            sx={{
+              position: "relative",
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 0.85,
+              px: 1.5,
+              py: 1,
+              borderRadius: "0.65rem",
+              cursor: "pointer",
+              color: isActive ? "#0A0A0A" : "rgba(255,255,255,0.62)",
+              fontSize: "0.84rem",
+              fontWeight: 700,
+              letterSpacing: "0.01em",
+              transition:
+                "color 180ms ease, background 180ms ease",
+              "&:hover": {
+                color: isActive ? "#0A0A0A" : "rgba(255,255,255,0.92)",
+              },
+            }}
+          >
+            {isActive && (
+              <motion.div
+                layoutId="rightTabIndicator"
+                transition={{
+                  type: "spring",
+                  stiffness: 420,
+                  damping: 34,
+                }}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  borderRadius: "0.65rem",
+                  background:
+                    "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
+                  boxShadow: "0 4px 16px rgba(249,115,22,0.35)",
+                }}
+              />
+            )}
+            <Box
+              sx={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                gap: 0.85,
+                zIndex: 1,
+              }}
+            >
+              <Icon size={14} />
+              <Box component="span">{t.label}</Box>
+              {t.badge && (
+                <Box
+                  component="span"
+                  sx={{
+                    px: 0.7,
+                    py: 0.1,
+                    borderRadius: "999px",
+                    background: isActive
+                      ? "rgba(10,10,10,0.18)"
+                      : "rgba(255,255,255,0.08)",
+                    fontSize: "0.66rem",
+                    fontFamily: "Monaco, Menlo, monospace",
+                    fontWeight: 700,
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {t.badge}
+                </Box>
+              )}
+            </Box>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
+
+function MovesListPanel({
+  moves,
+  currentPly,
+  positions,
+  onJumpTo,
+  onAskCoach,
+}: {
+  moves: Move[];
+  currentPly: number;
+  positions: PositionEval[] | null;
+  onJumpTo: (ply: number) => void;
+  onAskCoach: (ply: number, san: string) => void;
+}) {
+  // Group moves into pairs (white, black) for two-column layout
+  type Row = {
+    moveNumber: number;
+    white: { san: string; ply: number; classification: MoveLabel | null } | null;
+    black: { san: string; ply: number; classification: MoveLabel | null } | null;
+  };
+  const rows = useMemo<Row[]>(() => {
+    const out: Row[] = [];
+    for (let i = 0; i < moves.length; i += 2) {
+      const moveNumber = Math.floor(i / 2) + 1;
+      const w = moves[i];
+      const b = moves[i + 1];
+      out.push({
+        moveNumber,
+        white: w
+          ? {
+              san: w.san,
+              ply: i + 1,
+              classification: classifyMove(positions, i),
+            }
+          : null,
+        black: b
+          ? {
+              san: b.san,
+              ply: i + 2,
+              classification: classifyMove(positions, i + 1),
+            }
+          : null,
+      });
+    }
+    return out;
+  }, [moves, positions]);
+
+  const Cell = ({
+    move,
+    isCurrent,
+  }: {
+    move: { san: string; ply: number; classification: MoveLabel | null } | null;
+    isCurrent: boolean;
+  }) => {
+    if (!move)
+      return (
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            color: "rgba(255,255,255,0.18)",
+            px: 0.85,
+            py: 0.75,
+            fontSize: "0.84rem",
+            fontFamily: "Monaco, Menlo, monospace",
+          }}
+        >
+          —
+        </Box>
+      );
+    const color = move.classification
+      ? CLASSIFICATION_COLORS[move.classification]
+      : "rgba(255,255,255,0.92)";
+    const glyph = move.classification
+      ? CLASSIFICATION_GLYPHS[move.classification]
+      : "";
+    return (
+      <Tooltip
+        title={
+          move.classification
+            ? `${CLASSIFICATION_LABELS[move.classification]} · ${move.san}`
+            : move.san
+        }
+        placement="top"
+      >
+        <Box
+          onClick={() => onJumpTo(move.ply)}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            px: 0.85,
+            py: 0.75,
+            borderRadius: "0.45rem",
+            cursor: "pointer",
+            background: isCurrent
+              ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(251,146,60,0.12))"
+              : "transparent",
+            border: isCurrent
+              ? "1px solid rgba(249,115,22,0.45)"
+              : "1px solid transparent",
+            color,
+            fontSize: "0.86rem",
+            fontWeight: 600,
+            fontFamily: "Monaco, Menlo, monospace",
+            transition: "all 150ms ease",
+            position: "relative",
+            "&:hover": {
+              background: isCurrent
+                ? "linear-gradient(135deg, rgba(249,115,22,0.3), rgba(251,146,60,0.18))"
+                : "rgba(255,255,255,0.04)",
+              "& .ask-coach-btn": { opacity: 1 },
+            },
+          }}
+        >
+          <Box component="span" sx={{ flex: 1, minWidth: 0 }}>
+            {move.san}
+            {glyph && (
+              <Box
+                component="span"
+                sx={{
+                  ml: 0.4,
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.02em",
+                }}
+              >
+                {glyph}
+              </Box>
+            )}
+          </Box>
+          <Tooltip title="Ask the coach about this move">
+            <IconButton
+              className="ask-coach-btn"
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAskCoach(move.ply, move.san);
+              }}
+              sx={{
+                opacity: isCurrent ? 0.8 : 0,
+                width: 22,
+                height: 22,
+                p: 0,
+                color: "rgba(255,255,255,0.75)",
+                background: "rgba(255,255,255,0.06)",
+                transition: "opacity 160ms ease, background 160ms ease",
+                "&:hover": {
+                  color: "#FB923C",
+                  background: "rgba(249,115,22,0.18)",
+                },
+              }}
+            >
+              <MessageSquare size={11} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Tooltip>
+    );
+  };
+
+  // Scroll active row into view when ply changes (without jank)
+  const activeRowRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    activeRowRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
+  }, [currentPly]);
+
+  const activeRowIdx = Math.max(0, Math.ceil(currentPly / 2) - 1);
+  const hasClassifications = positions !== null;
+
+  return (
+    <Box
+      sx={{
+        height: "100%",
+        width: "100%",
+        borderRadius: "1.5rem",
+        background: "rgba(20,22,28,0.6)",
+        backdropFilter: "blur(16px) saturate(150%)",
+        WebkitBackdropFilter: "blur(16px) saturate(150%)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        boxShadow:
+          "0 16px 48px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1.5}
+        sx={{
+          px: 3,
+          py: 2,
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            borderRadius: "10px",
+            background:
+              "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(251,146,60,0.18))",
+            border: "1px solid rgba(249,115,22,0.32)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <ListIcon size={14} color="#FB923C" />
+        </Box>
+        <Box sx={{ flex: 1 }}>
+          <Typography
+            sx={{
+              fontSize: "0.95rem",
+              fontWeight: 700,
+              color: "rgba(255,255,255,0.94)",
+              lineHeight: 1.1,
+            }}
+          >
+            Move list
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: "0.72rem",
+              color: "rgba(255,255,255,0.5)",
+              fontFamily: "Monaco, Menlo, monospace",
+              mt: 0.4,
+            }}
+          >
+            {moves.length} plies ·{" "}
+            {hasClassifications ? "engine-classified" : "awaiting Stockfish…"}
+          </Typography>
+        </Box>
+      </Stack>
+
+      <Box
+        sx={{
+          flex: 1,
+          overflowY: "auto",
+          px: 1.25,
+          py: 1.25,
+          "&::-webkit-scrollbar": { width: 6 },
+          "&::-webkit-scrollbar-thumb": {
+            background: "rgba(249,115,22,0.2)",
+            borderRadius: "3px",
+          },
+        }}
+      >
+        <Stack spacing={0.25}>
+          {rows.map((row, idx) => {
+            const isActiveRow = idx === activeRowIdx;
+            return (
+              <Box
+                key={row.moveNumber}
+                ref={isActiveRow ? activeRowRef : undefined}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  px: 0.5,
+                  py: 0.15,
+                  borderRadius: "0.5rem",
+                  background: isActiveRow
+                    ? "rgba(255,255,255,0.02)"
+                    : "transparent",
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 32,
+                    flexShrink: 0,
+                    textAlign: "right",
+                    pr: 0.75,
+                    color: "rgba(255,255,255,0.4)",
+                    fontSize: "0.78rem",
+                    fontFamily: "Monaco, Menlo, monospace",
+                  }}
+                >
+                  {row.moveNumber}.
+                </Box>
+                <Cell
+                  move={row.white}
+                  isCurrent={row.white?.ply === currentPly}
+                />
+                <Cell
+                  move={row.black}
+                  isCurrent={row.black?.ply === currentPly}
+                />
+              </Box>
+            );
+          })}
+          {rows.length === 0 && (
+            <Box
+              sx={{
+                px: 2,
+                py: 4,
+                textAlign: "center",
+                color: "rgba(255,255,255,0.4)",
+                fontSize: "0.85rem",
+              }}
+            >
+              No moves loaded yet.
+            </Box>
+          )}
+        </Stack>
+      </Box>
+
+      <Box
+        sx={{
+          px: 3,
+          py: 1.5,
+          borderTop: "1px solid rgba(255,255,255,0.05)",
+        }}
+      >
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1.5}
+          sx={{
+            fontSize: "0.7rem",
+            color: "rgba(255,255,255,0.5)",
+            fontFamily: "Monaco, Menlo, monospace",
+            flexWrap: "wrap",
+          }}
+        >
+          {(["best", "good", "inaccuracy", "mistake", "blunder"] as MoveLabel[]).map(
+            (k) => (
+              <Stack
+                key={k}
+                direction="row"
+                alignItems="center"
+                spacing={0.5}
+              >
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: CLASSIFICATION_COLORS[k],
+                  }}
+                />
+                <Box component="span">{CLASSIFICATION_LABELS[k]}</Box>
+              </Stack>
+            )
+          )}
+        </Stack>
+      </Box>
+    </Box>
+  );
+}
+
 function CoachPanel({
   messages,
   input,
@@ -1838,6 +2398,256 @@ function CoachPanel({
   );
 }
 
+// ───────────────────────────────────────────────────────────────────────────────
+// InlinePuzzleSolver — mini ChessgroundBoard that solves a single DrillPuzzle
+// inline (inside a coach bubble). Mirrors src/components/InlinePuzzleSet.tsx
+// patterns (opponent setup auto-play, wrong/right flashes, skip-after-2) but
+// uses chessground via our ChessgroundBoard wrapper, with `syncTick` to
+// revert rejected moves the way react-chessboard's onPieceDrop=false would.
+// ───────────────────────────────────────────────────────────────────────────────
+
+type InlineStatus = "solving" | "wrong" | "solved";
+
+function InlinePuzzleSolver({
+  puzzle,
+  onSolved,
+  onPromote,
+}: {
+  puzzle: DrillPuzzle;
+  onSolved: () => void;
+  onPromote: () => void;
+}) {
+  const [game, setGame] = useState<Chess>(() => new Chess(puzzle.fen));
+  const [moveIdx, setMoveIdx] = useState(0);
+  const [status, setStatus] = useState<InlineStatus>("solving");
+  const [wrongCount, setWrongCount] = useState(0);
+  const [lastMove, setLastMove] = useState<Move | null>(null);
+  const [syncTick, setSyncTick] = useState(0);
+  const [flash, setFlash] = useState<"idle" | "green" | "red">("idle");
+  const puzzleIdRef = useRef(puzzle.id);
+
+  // Reset when puzzle prop changes (defensive; usually we mount fresh)
+  useEffect(() => {
+    puzzleIdRef.current = puzzle.id;
+    setGame(new Chess(puzzle.fen));
+    setMoveIdx(0);
+    setStatus("solving");
+    setWrongCount(0);
+    setLastMove(null);
+    setFlash("idle");
+    setSyncTick((t) => t + 1);
+  }, [puzzle.id, puzzle.fen]);
+
+  const fen = useMemo(() => game.fen(), [game]);
+  const turn = useMemo<"white" | "black">(
+    () => (new Chess(fen).turn() === "w" ? "white" : "black"),
+    [fen]
+  );
+  const orientation = useMemo<"white" | "black">(() => {
+    // Side-to-move at puzzle start sits at the bottom
+    return new Chess(puzzle.fen).turn() === "w" ? "white" : "black";
+  }, [puzzle.fen]);
+
+  const dests = useMemo<Map<string, string[]>>(() => {
+    const c = new Chess(fen);
+    const m = new Map<string, string[]>();
+    c.moves({ verbose: true }).forEach((mv) => {
+      const arr = m.get(mv.from) ?? [];
+      arr.push(mv.to);
+      m.set(mv.from, arr);
+    });
+    return m;
+  }, [fen]);
+
+  const handleMove = useCallback(
+    (orig: string, dest: string) => {
+      if (status !== "solving") return;
+      const expected = puzzle.solution[moveIdx];
+      if (!expected) return;
+      const expFrom = expected.slice(0, 2);
+      const expTo = expected.slice(2, 4);
+      const expPromo = expected.length >= 5 ? expected[4] : undefined;
+
+      if (orig !== expFrom || dest !== expTo) {
+        setSyncTick((t) => t + 1); // revert the chessground drag
+        setStatus("wrong");
+        setWrongCount((n) => n + 1);
+        setFlash("red");
+        setTimeout(() => {
+          if (puzzleIdRef.current !== puzzle.id) return;
+          setStatus("solving");
+          setFlash("idle");
+        }, 900);
+        return;
+      }
+
+      const g = new Chess(fen);
+      const userMove = g.move({
+        from: orig,
+        to: dest,
+        promotion: expPromo ?? "q",
+      });
+      if (!userMove) {
+        setSyncTick((t) => t + 1);
+        return;
+      }
+      setGame(g);
+      setLastMove(userMove);
+      const next = moveIdx + 1;
+      setMoveIdx(next);
+
+      if (next >= puzzle.solution.length) {
+        setStatus("solved");
+        setFlash("green");
+        setTimeout(() => {
+          if (puzzleIdRef.current === puzzle.id) onSolved();
+        }, 700);
+        return;
+      }
+
+      // Schedule opponent reply
+      setTimeout(() => {
+        if (puzzleIdRef.current !== puzzle.id) return;
+        const oppUci = puzzle.solution[next];
+        if (!oppUci) return;
+        const g2 = new Chess(g.fen());
+        const oppMove = g2.move({
+          from: oppUci.slice(0, 2),
+          to: oppUci.slice(2, 4),
+          promotion: oppUci.length >= 5 ? oppUci[4] : "q",
+        });
+        if (!oppMove) return;
+        setGame(g2);
+        setLastMove(oppMove);
+        const nextAfter = next + 1;
+        setMoveIdx(nextAfter);
+        if (nextAfter >= puzzle.solution.length) {
+          setStatus("solved");
+          setFlash("green");
+          setTimeout(() => {
+            if (puzzleIdRef.current === puzzle.id) onSolved();
+          }, 700);
+        }
+      }, 400);
+    },
+    [status, moveIdx, puzzle, fen, onSolved]
+  );
+
+  const statusLabel =
+    status === "wrong"
+      ? "Not the move — try again."
+      : status === "solved"
+      ? "Solved!"
+      : turn === "white"
+      ? "White to move"
+      : "Black to move";
+  const statusColor =
+    status === "wrong"
+      ? "#fca5a5"
+      : status === "solved"
+      ? "#86efac"
+      : "rgba(255,255,255,0.7)";
+
+  const flashShadow =
+    flash === "green"
+      ? "0 0 0 4px rgba(34,197,94,0.55)"
+      : flash === "red"
+      ? "0 0 0 4px rgba(239,68,68,0.55)"
+      : "0 0 0 0 rgba(0,0,0,0)";
+
+  return (
+    <Box
+      sx={{
+        mt: 1,
+        px: 1.25,
+        py: 1.25,
+        borderRadius: "0.6rem",
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(168,85,247,0.18)",
+      }}
+    >
+      <Box
+        sx={{
+          width: "100%",
+          maxWidth: 280,
+          mx: "auto",
+          borderRadius: "10px",
+          boxShadow: flashShadow,
+          transition: "box-shadow 400ms ease",
+          overflow: "hidden",
+        }}
+      >
+        <ChessgroundBoard
+          fen={fen}
+          orientation={orientation}
+          lastMove={lastMove ? [lastMove.from, lastMove.to] : undefined}
+          movableColor={status === "solving" ? turn : undefined}
+          dests={status === "solving" ? dests : undefined}
+          onMove={status === "solving" ? handleMove : undefined}
+          syncTick={syncTick}
+          viewOnly={false}
+        />
+      </Box>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1}
+        sx={{ mt: 1.25 }}
+      >
+        <Typography
+          sx={{
+            fontSize: "0.78rem",
+            fontWeight: 600,
+            color: statusColor,
+            flex: 1,
+          }}
+        >
+          {statusLabel}
+        </Typography>
+        {status === "solving" && wrongCount >= 2 && (
+          <Button
+            size="small"
+            onClick={onSolved}
+            sx={{
+              px: 1,
+              py: 0.4,
+              fontSize: "0.72rem",
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.6)",
+              textTransform: "none",
+              "&:hover": { color: "rgba(255,255,255,0.9)" },
+            }}
+          >
+            Skip
+          </Button>
+        )}
+        <Tooltip title="Load this position onto the main board">
+          <Button
+            size="small"
+            onClick={onPromote}
+            sx={{
+              px: 1.25,
+              py: 0.45,
+              borderRadius: "0.5rem",
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              background: "rgba(168,85,247,0.15)",
+              border: "1px solid rgba(168,85,247,0.32)",
+              color: "#E9D5FF",
+              "&:hover": {
+                background: "rgba(168,85,247,0.28)",
+                borderColor: "rgba(168,85,247,0.55)",
+              },
+            }}
+          >
+            Big board
+          </Button>
+        </Tooltip>
+      </Stack>
+    </Box>
+  );
+}
+
 function CoachPuzzleCard({
   pack,
   onPromote,
@@ -1845,6 +2655,37 @@ function CoachPuzzleCard({
   pack: PuzzlePack;
   onPromote: (puzzles: DrillPuzzle[], startIndex: number) => void;
 }) {
+  // Which puzzle is currently expanded inline. Default to the first ready
+  // puzzle so the user lands on a solvable board the moment the pack loads.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [solvedIds, setSolvedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (expandedId !== null) return;
+    if (pack.status === "ready" || pack.status === undefined) {
+      const first = pack.puzzles[0];
+      if (first) setExpandedId(first.id);
+    }
+  }, [pack.status, pack.puzzles, expandedId]);
+
+  const markSolved = useCallback(
+    (id: string) => {
+      setSolvedIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      // Auto-advance to next unsolved puzzle
+      const idx = pack.puzzles.findIndex((p) => p.id === id);
+      const nextUnsolved = pack.puzzles.find(
+        (p, i) => i > idx && !solvedIds.has(p.id)
+      );
+      if (nextUnsolved) setExpandedId(nextUnsolved.id);
+      else setExpandedId(null); // pack complete
+    },
+    [pack.puzzles, solvedIds]
+  );
+
   return (
     <Box
       sx={{
@@ -1932,93 +2773,148 @@ function CoachPuzzleCard({
         </Box>
       )}
       <Stack spacing={0.85}>
-        {pack.puzzles.map((p, i) => (
-          <Box
-            key={p.id}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1.25,
-              px: 1.25,
-              py: 1,
-              borderRadius: "0.6rem",
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.05)",
-              transition: "all 160ms ease",
-              "&:hover": {
-                background: "rgba(168,85,247,0.06)",
-                borderColor: "rgba(168,85,247,0.25)",
-              },
-            }}
-          >
-            <Box
-              sx={{
-                width: 24,
-                height: 24,
-                flexShrink: 0,
-                borderRadius: "50%",
-                background: "rgba(168,85,247,0.15)",
-                border: "1px solid rgba(168,85,247,0.3)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                color: "#C084FC",
-                fontFamily: "Monaco, Menlo, monospace",
-              }}
-            >
-              {i + 1}
-            </Box>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography
+        {pack.puzzles.map((p, i) => {
+          const isExpanded = expandedId === p.id;
+          const isSolved = solvedIds.has(p.id);
+          return (
+            <Box key={p.id}>
+              <Box
+                onClick={() =>
+                  setExpandedId((cur) => (cur === p.id ? null : p.id))
+                }
                 sx={{
-                  fontSize: "0.84rem",
-                  fontWeight: 600,
-                  color: "rgba(255,255,255,0.92)",
-                  lineHeight: 1.2,
-                }}
-              >
-                {p.title}
-              </Typography>
-              <Typography
-                sx={{
-                  mt: 0.25,
-                  fontSize: "0.72rem",
-                  color: "rgba(255,255,255,0.5)",
-                  lineHeight: 1.35,
-                }}
-              >
-                {p.hint}
-              </Typography>
-            </Box>
-            <Tooltip title="Load this position onto the main board">
-              <Button
-                size="small"
-                onClick={() => onPromote(pack.puzzles, i)}
-                sx={{
-                  flexShrink: 0,
-                  minWidth: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.25,
                   px: 1.25,
-                  py: 0.5,
-                  borderRadius: "0.55rem",
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.02em",
-                  background: "rgba(168,85,247,0.15)",
-                  border: "1px solid rgba(168,85,247,0.35)",
-                  color: "#E9D5FF",
+                  py: 1,
+                  borderRadius: isExpanded
+                    ? "0.6rem 0.6rem 0 0"
+                    : "0.6rem",
+                  background: isExpanded
+                    ? "rgba(168,85,247,0.08)"
+                    : "rgba(255,255,255,0.03)",
+                  border: isExpanded
+                    ? "1px solid rgba(168,85,247,0.32)"
+                    : "1px solid rgba(255,255,255,0.05)",
+                  borderBottom: isExpanded
+                    ? "none"
+                    : "1px solid rgba(255,255,255,0.05)",
+                  cursor: "pointer",
+                  transition: "all 160ms ease",
                   "&:hover": {
-                    background: "rgba(168,85,247,0.28)",
-                    borderColor: "rgba(168,85,247,0.6)",
+                    background: isExpanded
+                      ? "rgba(168,85,247,0.1)"
+                      : "rgba(168,85,247,0.06)",
+                    borderColor: "rgba(168,85,247,0.25)",
                   },
                 }}
               >
-                Move to big board
-              </Button>
-            </Tooltip>
-          </Box>
-        ))}
+                <Box
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    flexShrink: 0,
+                    borderRadius: "50%",
+                    background: isSolved
+                      ? "rgba(34,197,94,0.18)"
+                      : "rgba(168,85,247,0.15)",
+                    border: isSolved
+                      ? "1px solid rgba(34,197,94,0.4)"
+                      : "1px solid rgba(168,85,247,0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.72rem",
+                    fontWeight: 700,
+                    color: isSolved ? "#86efac" : "#C084FC",
+                    fontFamily: "Monaco, Menlo, monospace",
+                  }}
+                >
+                  {isSolved ? <Check size={12} /> : i + 1}
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    sx={{
+                      fontSize: "0.84rem",
+                      fontWeight: 600,
+                      color: "rgba(255,255,255,0.92)",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {p.title}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.25,
+                      fontSize: "0.72rem",
+                      color: "rgba(255,255,255,0.5)",
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {p.hint}
+                  </Typography>
+                </Box>
+                <Tooltip title="Load this position onto the main board">
+                  <Button
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onPromote(pack.puzzles, i);
+                    }}
+                    sx={{
+                      flexShrink: 0,
+                      minWidth: 0,
+                      px: 1.25,
+                      py: 0.5,
+                      borderRadius: "0.55rem",
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.02em",
+                      background: "rgba(168,85,247,0.15)",
+                      border: "1px solid rgba(168,85,247,0.35)",
+                      color: "#E9D5FF",
+                      "&:hover": {
+                        background: "rgba(168,85,247,0.28)",
+                        borderColor: "rgba(168,85,247,0.6)",
+                      },
+                    }}
+                  >
+                    Big board
+                  </Button>
+                </Tooltip>
+                <Box
+                  sx={{
+                    flexShrink: 0,
+                    color: "rgba(255,255,255,0.5)",
+                    transition: "transform 200ms ease",
+                    transform: isExpanded ? "rotate(180deg)" : "none",
+                  }}
+                >
+                  <ChevronDown size={16} />
+                </Box>
+              </Box>
+              {isExpanded && (
+                <Box
+                  sx={{
+                    border: "1px solid rgba(168,85,247,0.32)",
+                    borderTop: "none",
+                    borderRadius: "0 0 0.6rem 0.6rem",
+                    background: "rgba(168,85,247,0.04)",
+                    p: 0.5,
+                  }}
+                >
+                  <InlinePuzzleSolver
+                    key={p.id}
+                    puzzle={p}
+                    onSolved={() => markSolved(p.id)}
+                    onPromote={() => onPromote(pack.puzzles, i)}
+                  />
+                </Box>
+              )}
+            </Box>
+          );
+        })}
       </Stack>
     </Box>
   );
@@ -2525,9 +3421,13 @@ export default function AnalysisPage() {
   );
   const [isThinking, setIsThinking] = useState(false);
 
-  // Takeover mode (Master games panel replaces Coach panel)
-  const [takeoverMode, setTakeoverMode] = useState(false);
-  // Optional previewed move while in takeover — replays from currentFen
+  // Right-column tab selection. Masters tab makes the main board interactive
+  // for exploration (same behavior the old modal "takeover" provided). The
+  // tab swap replaces the previous Coach↔Masters modal animation.
+  const [rightTab, setRightTab] = useState<RightTab>("coach");
+  const takeoverMode = rightTab === "masters"; // legacy alias kept for board props
+  // Optional previewed move while exploring with Masters tab open — replays
+  // from currentFen so the live candidate list updates on the new position.
   const [takeoverPreview, setTakeoverPreview] = useState<{
     fen: string;
     from: string;
@@ -2682,15 +3582,17 @@ export default function AnalysisPage() {
     allMoves,
   ]);
 
-  const handleTakeoverEnter = useCallback(() => {
-    setTakeoverMode(true);
-    setTakeoverPreview(null);
-  }, []);
-  const handleTakeoverRevert = useCallback(() => {
-    setTakeoverMode(false);
-    setTakeoverPreview(null);
-    setTakeoverCandidates([]);
-  }, []);
+  const handleTabChange = useCallback(
+    (next: RightTab) => {
+      setRightTab(next);
+      if (next !== "masters") {
+        // Leaving the Masters tab → clear exploration preview + candidates
+        setTakeoverPreview(null);
+        setTakeoverCandidates([]);
+      }
+    },
+    []
+  );
   const handleTakeoverPreviewMove = useCallback(
     (uci: string, san: string) => {
       // Play the move on a fresh chess from currentFen
@@ -2828,7 +3730,7 @@ export default function AnalysisPage() {
       const puzzle = puzzles[startIndex];
       if (!puzzle) return;
       if (takeoverMode) {
-        setTakeoverMode(false);
+        setRightTab("coach");
         setTakeoverPreview(null);
         setTakeoverCandidates([]);
       }
@@ -3087,6 +3989,90 @@ export default function AnalysisPage() {
         });
     },
     []
+  );
+
+  // Used by the Moves tab — each move has an "Ask coach" affordance.
+  // Switches focus to the Coach tab, jumps the board to the move, then
+  // streams a coach explanation about that specific move.
+  const handleAskCoachAboutMove = useCallback(
+    async (ply: number, san: string) => {
+      setRightTab("coach");
+      setCurrentPly(ply);
+      if (isThinking) return;
+
+      const moveNumber = Math.ceil(ply / 2);
+      const sideLabel = ply % 2 === 1 ? "White" : "Black";
+      const text = `Walk me through ${moveNumber}.${
+        ply % 2 === 1 ? "" : ".."
+      }${san}. What's the idea behind ${sideLabel}'s move, what were the alternatives, and what does it change about the position?`;
+
+      const prevForApi = messages;
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: text, ply },
+        { role: "coach", content: "", ply },
+      ]);
+      setIsThinking(true);
+
+      // Compute the FEN AT this ply (not at the current display position)
+      const g = new Chess();
+      for (let i = 0; i < ply && i < allMoves.length; i++) g.move(allMoves[i]);
+      const fenAtPly = g.fen();
+
+      let accumulated = "";
+      try {
+        await streamCoachReply({
+          prevMessages: prevForApi,
+          userText: text,
+          fen: fenAtPly,
+          currentPly: ply,
+          allMoves,
+          onDelta: (chunk) => {
+            accumulated += chunk;
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [
+                ...prev.slice(0, -1),
+                { ...last, content: accumulated },
+              ];
+            });
+          },
+        });
+        const tags = extractPracticeTags(accumulated).tags;
+        if (tags.length > 0) {
+          const coachMsgIdx = prevForApi.length + 1;
+          const first = tags[0];
+          setTimeout(
+            () =>
+              triggerPuzzleFetch(
+                coachMsgIdx,
+                first.theme,
+                first.displayTheme,
+                fenAtPly
+              ),
+            0
+          );
+        }
+      } catch (err) {
+        const errorText =
+          err instanceof CoachAuthError
+            ? "**Sign-in required** — the coach endpoint is auth-gated."
+            : err instanceof CoachApiError
+            ? `**Coach is offline** (HTTP ${err.status}).`
+            : "**Network error** reaching the coach.";
+        setMessages((prev) => {
+          if (prev.length === 0) return prev;
+          const last = prev[prev.length - 1];
+          if (last.role !== "coach") return prev;
+          return [...prev.slice(0, -1), { ...last, content: errorText }];
+        });
+      } finally {
+        setIsThinking(false);
+      }
+    },
+    [allMoves, isThinking, messages, triggerPuzzleFetch]
   );
 
   const handleSend = useCallback(async () => {
@@ -3490,87 +4476,99 @@ export default function AnalysisPage() {
               />
             </Box>
 
-            {/* Right column: Coach (sized like the board) + Master Games
-                (lined up with the eval graph below), or full-height
-                Takeover panel when active. */}
+            {/* Right column: tabbed surface — Coach / Masters / Moves.
+                The Masters tab makes the main board interactive for
+                exploration (same role the old "Takeover" modal had). */}
             <Box sx={{ position: "relative" }}>
-              <AnimatePresence mode="wait" initial={false}>
-                {takeoverMode ? (
-                  <Box
-                    sx={{
-                      height: {
-                        xs: "auto",
-                        lg: "clamp(560px, calc(100vh - 240px), 880px)",
-                      },
-                      minHeight: { xs: 600, lg: 0 },
-                    }}
-                  >
-                    <MasterGamesTakeover
-                      key="takeover"
-                      fen={displayFen}
-                      ply={currentPly}
-                      playedSan={playedSanAtPly}
-                      onPreviewMove={handleTakeoverPreviewMove}
-                      onSendToCoach={handleTakeoverSendToCoach}
-                      onRevert={handleTakeoverRevert}
-                      onCandidatesUpdate={setTakeoverCandidates}
-                    />
-                  </Box>
-                ) : (
-                  <motion.div
-                    key="coach"
-                    initial={{ opacity: 0, x: -60, scale: 0.96 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: -60, scale: 0.96 }}
-                    transition={{
-                      duration: 0.42,
-                      ease: [0.22, 0.61, 0.36, 1],
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 1.5,
+              <TabStrip
+                active={rightTab}
+                onChange={handleTabChange}
+                movesBadge={`${currentPly}/${allMoves.length}`}
+                mastersBadge={
+                  rightTab === "masters" && takeoverCandidates.length > 0
+                    ? String(takeoverCandidates.length)
+                    : undefined
+                }
+              />
+              <Box
+                sx={{
+                  position: "relative",
+                  height: {
+                    xs: 600,
+                    lg: "clamp(720px, 86vh, 920px)",
+                  },
+                }}
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  {rightTab === "coach" && (
+                    <motion.div
+                      key="coach"
+                      initial={{ opacity: 0, x: -32, scale: 0.98 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -32, scale: 0.98 }}
+                      transition={{
+                        duration: 0.32,
+                        ease: [0.22, 0.61, 0.36, 1],
                       }}
+                      style={{ position: "absolute", inset: 0 }}
                     >
-                      {/* Coach extends down to nearly touch Master Games —
-                          the right column reads as one tight stack. */}
-                      {/* Coach absorbs what was the spacer — chat reaches
-                          all the way down to Master Games, no wasted gap.
-                          Master Games still ends at the key-moments line. */}
-                      <Box
-                        sx={{
-                          height: {
-                            xs: 600,
-                            lg: "clamp(650px, 80vh, 850px)",
-                          },
-                        }}
-                      >
-                        <CoachPanel
-                          messages={messages}
-                          input={input}
-                          onChangeInput={setInput}
-                          onSend={handleSend}
-                          onSuggestion={handleSuggestion}
-                          isThinking={isThinking}
-                          onPromoteToBoard={handlePromoteToBoard}
-                        />
-                      </Box>
-                      <Box sx={{ flexShrink: 0 }}>
-                        <OpeningExplorer
-                          fen={currentFen}
-                          fallbackOpeningName={headers.Opening ?? undefined}
-                          fallbackEco={headers.ECO ?? undefined}
-                          onTakeover={
-                            drillActive ? undefined : handleTakeoverEnter
-                          }
-                        />
-                      </Box>
-                    </Box>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      <CoachPanel
+                        messages={messages}
+                        input={input}
+                        onChangeInput={setInput}
+                        onSend={handleSend}
+                        onSuggestion={handleSuggestion}
+                        isThinking={isThinking}
+                        onPromoteToBoard={handlePromoteToBoard}
+                      />
+                    </motion.div>
+                  )}
+                  {rightTab === "masters" && (
+                    <motion.div
+                      key="masters"
+                      initial={{ opacity: 0, x: 32, scale: 0.98 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: 32, scale: 0.98 }}
+                      transition={{
+                        duration: 0.32,
+                        ease: [0.22, 0.61, 0.36, 1],
+                      }}
+                      style={{ position: "absolute", inset: 0 }}
+                    >
+                      <MasterGamesTakeover
+                        fen={displayFen}
+                        ply={currentPly}
+                        playedSan={playedSanAtPly}
+                        onPreviewMove={handleTakeoverPreviewMove}
+                        onSendToCoach={handleTakeoverSendToCoach}
+                        onRevert={() => handleTabChange("coach")}
+                        onCandidatesUpdate={setTakeoverCandidates}
+                      />
+                    </motion.div>
+                  )}
+                  {rightTab === "moves" && (
+                    <motion.div
+                      key="moves"
+                      initial={{ opacity: 0, x: 32, scale: 0.98 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: 32, scale: 0.98 }}
+                      transition={{
+                        duration: 0.32,
+                        ease: [0.22, 0.61, 0.36, 1],
+                      }}
+                      style={{ position: "absolute", inset: 0 }}
+                    >
+                      <MovesListPanel
+                        moves={allMoves}
+                        currentPly={currentPly}
+                        positions={enginePositions}
+                        onJumpTo={setCurrentPly}
+                        onAskCoach={handleAskCoachAboutMove}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Box>
             </Box>
           </Box>
 

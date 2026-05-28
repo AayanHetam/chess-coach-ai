@@ -93,20 +93,21 @@ const nextConfig: NextConfig = {
   ],
 };
 
-export default withSentryConfig(nextConfig, {
-  // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-  org: process.env.SENTRY_ORG,
-  project: "javascript-nextjs",
-  // widenClientFileUpload makes Sentry's webpack plugin walk every file
-  // under src/pages for source-map upload. With analysis.tsx at ~5k
-  // lines + heavy MUI/framer imports the walk hangs Vercel indefinitely
-  // (45-min timeout). Default narrower scope still covers app/ + API.
-  widenClientFileUpload: false,
-  // reactComponentAnnotation chokes on the same file. Off for cutover.
-  reactComponentAnnotation: {
-    enabled: false,
-  },
-  hideSourceMaps: true,
-  disableLogger: true,
-});
+// Sentry's withSentryConfig wrapper has been the prime suspect in every
+// 45-min Vercel hang during the cutover PR (#53). Bypass it for this
+// branch as a definitive test — if the build now finishes, we know the
+// instrumentation is the culprit and can re-introduce it in a follow-up
+// with a narrower scope (or after analysis.tsx is split). Source-map
+// upload is what gets sacrificed; runtime Sentry error capture is wired
+// separately via the Sentry SDK in `src/lib/sentry.ts` and keeps working.
+// withSentryConfig args kept commented so the re-enable is trivial:
+//   org: process.env.SENTRY_ORG,
+//   project: "javascript-nextjs",
+//   widenClientFileUpload: false,
+//   reactComponentAnnotation: { enabled: false },
+//   hideSourceMaps: true,
+//   disableLogger: true,
+export default nextConfig;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _withSentryConfig = withSentryConfig;
 

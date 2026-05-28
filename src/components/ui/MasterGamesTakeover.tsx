@@ -194,14 +194,12 @@ function buildCandidatesFromApi(
       }
     }
 
-    // Synthesize total count (chessdb has no real counts; Lichess does).
-    // Lower popularity tier = MORE common. Tier 1 ≈ 40M games, tier 14 ≈ 300.
+    // Real game count from Lichess (sum of white/draws/black). chessdb's
+    // numbers are color-split synthesizers, not game counts — leave count
+    // at 0 in that case and the UI shows engine data instead.
     const total = m.white + m.draws + m.black;
-    const synthFromPop =
-      m.popularity && m.popularity > 0 && m.popularity <= 20
-        ? Math.round(10 ** (8 - m.popularity * 0.4))
-        : 0;
-    const count = total > 1000 ? total : synthFromPop || total;
+    const isFromLichess = total > 1000; // Lichess returns thousands+ at minimum
+    const count = isFromLichess ? total : 0;
 
     // Top player attribution from Lichess topGames if present
     const games = topByUci.get(m.uci) ?? [];
@@ -377,6 +375,7 @@ export function MasterGamesTakeover({
   }, [candidates, filterPlayer]);
 
   const totalGames = candidates.reduce((acc, c) => acc + c.count, 0);
+  const hasRealCounts = totalGames > 0;
   const openingName = apiData?.opening?.name;
   const openingEco = apiData?.opening?.eco;
 
@@ -479,11 +478,13 @@ export function MasterGamesTakeover({
                     >
                       {openingEco}
                     </Box>
-                  )}{" "}
-                  · {formatCount(totalGames)} games
+                  )}
+                  {hasRealCounts && <> · {formatCount(totalGames)} games</>}
                 </>
-              ) : totalGames > 0 ? (
+              ) : hasRealCounts ? (
                 <>{formatCount(totalGames)} games at this position</>
+              ) : apiData?.source === "chessdb" ? (
+                <>Engine analysis · Move {Math.ceil(ply / 2) || 1}</>
               ) : (
                 <>Move {Math.ceil(ply / 2) || 1}</>
               )}
@@ -627,19 +628,21 @@ export function MasterGamesTakeover({
                       },
                     }}
                   >
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
-                        width: `${percentage}%`,
-                        background:
-                          "linear-gradient(90deg, rgba(34,197,94,0.05), transparent)",
-                        borderRadius: "10px",
-                        pointerEvents: "none",
-                      }}
-                    />
+                    {hasRealCounts && (
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: `${percentage}%`,
+                          background:
+                            "linear-gradient(90deg, rgba(34,197,94,0.05), transparent)",
+                          borderRadius: "10px",
+                          pointerEvents: "none",
+                        }}
+                      />
+                    )}
                     <Stack
                       direction="row"
                       alignItems="center"
@@ -697,29 +700,107 @@ export function MasterGamesTakeover({
                         </Box>
                       )}
 
-                      <Box
-                        sx={{
-                          px: 1.5,
-                          py: 0.4,
-                          borderRadius: "8px",
-                          background: "rgba(255,255,255,0.04)",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                          minWidth: 56,
-                          textAlign: "center",
-                        }}
-                      >
-                        <Typography
-                          sx={{
-                            fontSize: "0.84rem",
-                            fontWeight: 700,
-                            color: "rgba(255,255,255,0.9)",
-                            fontFamily: "Monaco, Menlo, monospace",
-                            lineHeight: 1,
-                          }}
+                      {c.count > 0 ? (
+                        // Real game count from Lichess masters
+                        <Tooltip title="Master games at this position" arrow>
+                          <Box
+                            sx={{
+                              px: 1.5,
+                              py: 0.4,
+                              borderRadius: "8px",
+                              background: "rgba(255,255,255,0.04)",
+                              border: "1px solid rgba(255,255,255,0.08)",
+                              minWidth: 56,
+                              textAlign: "center",
+                            }}
+                          >
+                            <Typography
+                              sx={{
+                                fontSize: "0.84rem",
+                                fontWeight: 700,
+                                color: "rgba(255,255,255,0.9)",
+                                fontFamily: "Monaco, Menlo, monospace",
+                                lineHeight: 1,
+                              }}
+                            >
+                              {formatCount(c.count)}
+                            </Typography>
+                          </Box>
+                        </Tooltip>
+                      ) : (
+                        // No game counts — show engine analysis instead
+                        <Stack
+                          direction="row"
+                          spacing={0.75}
+                          alignItems="center"
+                          sx={{ minWidth: 130, justifyContent: "flex-end" }}
                         >
-                          {formatCount(c.count)}
-                        </Typography>
-                      </Box>
+                          {typeof c.winrate === "number" && (
+                            <Tooltip
+                              title="White's expected score (engine analysis)"
+                              arrow
+                            >
+                              <Box
+                                sx={{
+                                  px: 1,
+                                  py: 0.4,
+                                  borderRadius: "6px",
+                                  background: "rgba(255,255,255,0.04)",
+                                  border: "1px solid rgba(255,255,255,0.08)",
+                                  fontFamily: "Monaco, Menlo, monospace",
+                                  fontSize: "0.74rem",
+                                  fontWeight: 700,
+                                  color: "rgba(255,255,255,0.78)",
+                                  lineHeight: 1,
+                                }}
+                              >
+                                {c.winrate.toFixed(0)}%
+                              </Box>
+                            </Tooltip>
+                          )}
+                          {typeof c.eval === "number" && (
+                            <Tooltip
+                              title="Engine eval (centipawns, white POV)"
+                              arrow
+                            >
+                              <Box
+                                sx={{
+                                  px: 1,
+                                  py: 0.4,
+                                  borderRadius: "6px",
+                                  background:
+                                    c.eval >= 25
+                                      ? "rgba(34,197,94,0.12)"
+                                      : c.eval <= -25
+                                      ? "rgba(239,68,68,0.12)"
+                                      : "rgba(255,255,255,0.04)",
+                                  border:
+                                    c.eval >= 25
+                                      ? "1px solid rgba(34,197,94,0.32)"
+                                      : c.eval <= -25
+                                      ? "1px solid rgba(239,68,68,0.32)"
+                                      : "1px solid rgba(255,255,255,0.08)",
+                                  fontFamily: "Monaco, Menlo, monospace",
+                                  fontSize: "0.74rem",
+                                  fontWeight: 700,
+                                  color:
+                                    c.eval >= 25
+                                      ? "#86efac"
+                                      : c.eval <= -25
+                                      ? "#fca5a5"
+                                      : "rgba(255,255,255,0.78)",
+                                  lineHeight: 1,
+                                  minWidth: 38,
+                                  textAlign: "center",
+                                }}
+                              >
+                                {c.eval > 0 ? "+" : ""}
+                                {(c.eval / 100).toFixed(2)}
+                              </Box>
+                            </Tooltip>
+                          )}
+                        </Stack>
+                      )}
 
                       <Tooltip title="Send this line to the coach" arrow>
                         <IconButton

@@ -111,11 +111,12 @@ async function queryChessdb(fen: string, limit: number) {
   const top = parsed.slice(0, limit);
 
   // chessdb has no SAN — client computes via chess.js. We pass UCI only.
+  // No synthesized game counts — the client uses eval/rank/winrate instead.
   const moves = top.map((m) => {
     const { white, draws, black } = uciToColors(m.winrate);
     return {
       uci: m.uci,
-      san: "", // client computes from FEN + UCI
+      san: "",
       white,
       draws,
       black,
@@ -126,9 +127,6 @@ async function queryChessdb(fen: string, limit: number) {
     };
   });
 
-  // Aggregate top-level color split from the first move (since chessdb is
-  // engine-analysis, not game-counted)
-  const total = top.reduce((acc, m) => acc + synthCount(m.popularity), 0);
   return {
     white: 0,
     draws: 0,
@@ -136,7 +134,6 @@ async function queryChessdb(fen: string, limit: number) {
     moves,
     topGames: [] as unknown[],
     source: "chessdb" as const,
-    totalSynthCount: total,
   };
 }
 
@@ -165,28 +162,33 @@ export async function GET(req: NextRequest) {
 
   if (!fen) return Response.json({ error: "Missing fen" }, { status: 400 });
 
+  // Try Lichess first — it has REAL master-game counts + top games with
+  // player attribution. Falls back to chessdb (engine analysis, no counts)
+  // when Lichess is blocked or rate-limited. Order matters: this means
+  // production (where Lichess works) gets real counts, dev (where Lichess
+  // is blocked) gets honest engine data with no faked counts.
+  try {
+    const data = await queryLichess(fen, limit);
+    return Response.json(data, {
+      headers: { "cache-control": "public, max-age=300, s-maxage=300" },
+    });
+  } catch (err) {
+    // fall through to chessdb
+  }
+
   try {
     const data = await queryChessdb(fen, limit);
     if (data) {
       return Response.json(data, {
-        headers: {
-          "cache-control": "public, max-age=300, s-maxage=300",
-        },
+        headers: { "cache-control": "public, max-age=300, s-maxage=300" },
       });
     }
   } catch (err) {
-    // fall through to Lichess
+    // both failed
   }
 
-  try {
-    const data = await queryLichess(fen, limit);
-    return Response.json(data, {
-      headers: {
-        "cache-control": "public, max-age=300, s-maxage=300",
-      },
-    });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "All upstream sources failed";
-    return Response.json({ error: msg }, { status: 502 });
-  }
+  return Response.json(
+    { error: "All upstream master-DB sources unavailable" },
+    { status: 502 }
+  );
 }

@@ -2331,7 +2331,10 @@ export default function AnalysisPage() {
                         sx={{
                           height: {
                             xs: 600,
-                            lg: "clamp(540px, 72vh, 820px)",
+                            // Sized so Coach + 20px spacer + Master Games
+                            // bottom edge lines up with the eval-arc bottom
+                            // on the left column (board + arrows + eval).
+                            lg: "clamp(460px, 62vh, 660px)",
                           },
                         }}
                       >

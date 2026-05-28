@@ -2237,30 +2237,32 @@ export default function AnalysisPage() {
               />
             </Box>
 
-            {/* Right column: Coach (top) + Master Games (bottom),
-                or full-height Takeover panel when active. */}
-            <Box
-              sx={{
-                position: "relative",
-                height: {
-                  xs: "auto",
-                  lg: "clamp(560px, calc(100vh - 240px), 880px)",
-                },
-                minHeight: { xs: 600, lg: 0 },
-              }}
-            >
+            {/* Right column: Coach (sized like the board) + Master Games
+                (lined up with the eval graph below), or full-height
+                Takeover panel when active. */}
+            <Box sx={{ position: "relative" }}>
               <AnimatePresence mode="wait" initial={false}>
                 {takeoverMode ? (
-                  <MasterGamesTakeover
-                    key="takeover"
-                    fen={displayFen}
-                    ply={currentPly}
-                    playedSan={playedSanAtPly}
-                    onPreviewMove={handleTakeoverPreviewMove}
-                    onSendToCoach={handleTakeoverSendToCoach}
-                    onRevert={handleTakeoverRevert}
-                    onCandidatesUpdate={setTakeoverCandidates}
-                  />
+                  <Box
+                    sx={{
+                      height: {
+                        xs: "auto",
+                        lg: "clamp(560px, calc(100vh - 240px), 880px)",
+                      },
+                      minHeight: { xs: 600, lg: 0 },
+                    }}
+                  >
+                    <MasterGamesTakeover
+                      key="takeover"
+                      fen={displayFen}
+                      ply={currentPly}
+                      playedSan={playedSanAtPly}
+                      onPreviewMove={handleTakeoverPreviewMove}
+                      onSendToCoach={handleTakeoverSendToCoach}
+                      onRevert={handleTakeoverRevert}
+                      onCandidatesUpdate={setTakeoverCandidates}
+                    />
+                  </Box>
                 ) : (
                   <motion.div
                     key="coach"
@@ -2271,17 +2273,24 @@ export default function AnalysisPage() {
                       duration: 0.42,
                       ease: [0.22, 0.61, 0.36, 1],
                     }}
-                    style={{ height: "100%", width: "100%" }}
                   >
                     <Box
                       sx={{
-                        height: "100%",
                         display: "flex",
                         flexDirection: "column",
                         gap: 2,
                       }}
                     >
-                      <Box sx={{ flex: 1, minHeight: 0 }}>
+                      {/* Coach matches the board's height on the left —
+                          ~chat-bubble territory, like before the split. */}
+                      <Box
+                        sx={{
+                          height: {
+                            xs: 600,
+                            lg: "clamp(440px, 56vh, 620px)",
+                          },
+                        }}
+                      >
                         <CoachPanel
                           messages={messages}
                           input={input}
@@ -2291,6 +2300,11 @@ export default function AnalysisPage() {
                           isThinking={isThinking}
                         />
                       </Box>
+                      {/* Spacer to vertically align Master Games with the
+                          eval graph + key moments row on the left column. */}
+                      <Box
+                        sx={{ height: { xs: 0, lg: 92 }, flexShrink: 0 }}
+                      />
                       <Box sx={{ flexShrink: 0 }}>
                         <OpeningExplorer
                           fen={currentFen}

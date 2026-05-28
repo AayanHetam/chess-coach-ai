@@ -71,10 +71,15 @@ export default function Layout({ children }: PropsWithChildren) {
   );
 
   const router = useRouter();
-  // Landing page and any /preview/* route get a full-bleed shell (no NavBar)
-  // so they can render their own dark-mode chrome without clashing.
+  // Landing page, the redesigned /analysis (dark-glass, brings its own
+  // chrome), the legacy /analysis parking lot, and any /preview/* route all
+  // get a full-bleed shell (no NavBar) so they can render their own
+  // dark-mode chrome without clashing.
   const isBareLayout =
-    router.pathname === "/" || router.pathname.startsWith("/preview");
+    router.pathname === "/" ||
+    router.pathname === "/analysis" ||
+    router.pathname.startsWith("/legacy") ||
+    router.pathname.startsWith("/preview");
 
   if (isBareLayout) {
     return (

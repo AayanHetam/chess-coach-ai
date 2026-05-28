@@ -352,7 +352,11 @@ export default function TopBar() {
         open={openLoadDialog}
         onClose={() => setOpenLoadDialog(false)}
         setGame={async (loadedGame) => {
-          await router.push("/analysis");
+          // Stay within /legacy/analysis when loading from inside the
+          // legacy page — clicking from /analysis routes here unchanged.
+          const target =
+            router.pathname.startsWith("/legacy") ? "/legacy/analysis" : "/analysis";
+          await router.push(target);
           resetAndSetGamePgn(loadedGame.pgn());
         }}
       />

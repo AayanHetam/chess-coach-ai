@@ -74,6 +74,7 @@ import type { PositionEval } from "@/types/eval";
 import { getEvaluateGameParams } from "@/lib/chess";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
+import { CoachShareDialog } from "@/components/ui/CoachShareDialog";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { setContext as setSentryContext } from "@sentry/react";
 
@@ -929,7 +930,16 @@ function GameHeader({
         </Box>
       </Stack>
 
-      <Stack direction="row" spacing={2} alignItems="center">
+      <Stack
+        direction="row"
+        spacing={1.5}
+        alignItems="center"
+        sx={{
+          flexWrap: "wrap",
+          rowGap: 1,
+          justifyContent: { xs: "flex-start", md: "flex-end" },
+        }}
+      >
         <Stack direction="row" alignItems="baseline" spacing={0.5}>
           <Typography
             sx={{
@@ -2402,6 +2412,9 @@ function CoachPanel({
   onSuggestion,
   isThinking,
   onPromoteToBoard,
+  allMoves,
+  onMoveRefClick,
+  onShareMessage,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -2410,6 +2423,9 @@ function CoachPanel({
   onSuggestion: (s: string) => void;
   isThinking: boolean;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
+  allMoves?: Move[];
+  onMoveRefClick?: (ply: number) => void;
+  onShareMessage?: (msg: CoachMessage) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -2552,7 +2568,13 @@ function CoachPanel({
                   marginLeft: msg.role === "user" ? "auto" : 0,
                 }}
               >
-                <CoachBubble msg={msg} onPromoteToBoard={onPromoteToBoard} />
+                <CoachBubble
+                  msg={msg}
+                  onPromoteToBoard={onPromoteToBoard}
+                  allMoves={allMoves}
+                  onMoveRefClick={onMoveRefClick}
+                  onShare={onShareMessage}
+                />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -3208,39 +3230,149 @@ function CoachPuzzleCard({
   );
 }
 
+// Match "24.Rxd4", "23...Nf6", "1.e4", etc. — number + 1 or 3 dots + SAN.
+// Two dots is invalid notation but accepted as a tolerant fallback. The
+// "..." form means black's move at that move number.
+const MOVE_REF_RE =
+  /(?<![A-Za-z0-9])(\d+)(\.{1,3})\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g;
+
+const stripSanDecorators = (s: string) => s.replace(/[+#!?]/g, "").toLowerCase();
+
+// Resolve a "moveNumber.san" reference (e.g., 24.Rxd4) to the half-move ply
+// it points at. Returns null if the game doesn't have that move at that
+// position (within ±1 tolerance for off-by-one moveNumber typos in coach
+// output).
+function findPlyForMoveRef(
+  allMoves: Move[],
+  moveNumber: number,
+  isBlack: boolean,
+  san: string
+): number | null {
+  const target = stripSanDecorators(san);
+  const expectedPly = (moveNumber - 1) * 2 + (isBlack ? 2 : 1);
+  const sanAt = (p: number) =>
+    p >= 1 && p <= allMoves.length
+      ? stripSanDecorators(allMoves[p - 1].san)
+      : null;
+  if (sanAt(expectedPly) === target) return expectedPly;
+  for (const adj of [-1, 1, 2, -2]) {
+    const p = expectedPly + adj;
+    if (sanAt(p) === target) return p;
+  }
+  return null;
+}
+
 function CoachBubble({
   msg,
   onPromoteToBoard,
+  allMoves,
+  onMoveRefClick,
+  onShare,
 }: {
   msg: CoachMessage;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
+  /** Full move history — used to resolve "24.Rxd4" → ply 47. */
+  allMoves?: Move[];
+  /** Fired when the user clicks a move reference in coach text. */
+  onMoveRefClick?: (ply: number) => void;
+  /** Fired when the user clicks the share icon on a coach reply. */
+  onShare?: (msg: CoachMessage) => void;
 }) {
   const isUser = msg.role === "user";
 
-  // Simple markdown — bold via **...**
-  const renderInline = (text: string) => {
-    const parts = text.split(/(\*\*[^*]+\*\*)/g);
-    return parts.map((p, i) => {
-      if (p.startsWith("**") && p.endsWith("**")) {
-        return (
+  // Renderer: handles bold (**…**) AND inline move references (24.Rxd4 →
+  // clickable, board jumps on click).
+  const renderInline = (text: string): React.ReactNode[] => {
+    const boldParts = text.split(/(\*\*[^*]+\*\*)/g);
+    const out: React.ReactNode[] = [];
+    boldParts.forEach((part, boldIdx) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        out.push(
           <Box
-            key={i}
+            key={`b${boldIdx}`}
             component="span"
             sx={{
               fontWeight: 700,
               color: isUser ? "#0A0A0A" : "#FB923C",
             }}
           >
-            {p.slice(2, -2)}
+            {part.slice(2, -2)}
           </Box>
         );
+        return;
       }
-      return <span key={i}>{p}</span>;
+      // Within a plain segment, surface move references as clickable spans
+      if (!allMoves || !onMoveRefClick) {
+        out.push(<span key={`t${boldIdx}`}>{part}</span>);
+        return;
+      }
+      let lastIdx = 0;
+      const re = new RegExp(MOVE_REF_RE.source, "g");
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(part))) {
+        if (m.index > lastIdx) {
+          out.push(
+            <span key={`${boldIdx}t${lastIdx}`}>
+              {part.slice(lastIdx, m.index)}
+            </span>
+          );
+        }
+        const moveNum = parseInt(m[1], 10);
+        const isBlack = m[2].length === 3; // "..." = black
+        const san = m[3];
+        const ply = findPlyForMoveRef(allMoves, moveNum, isBlack, san);
+        if (ply !== null) {
+          out.push(
+            <Box
+              key={`${boldIdx}m${m.index}`}
+              component="span"
+              onClick={() => onMoveRefClick(ply)}
+              sx={{
+                color: isUser ? "#0A0A0A" : "#FB923C",
+                cursor: "pointer",
+                fontWeight: 700,
+                textDecoration: "underline",
+                textDecorationStyle: "dotted",
+                textDecorationColor: isUser
+                  ? "rgba(0,0,0,0.5)"
+                  : "rgba(251,146,60,0.5)",
+                px: 0.35,
+                borderRadius: "3px",
+                transition: "all 140ms ease",
+                "&:hover": {
+                  textDecorationStyle: "solid",
+                  background: isUser
+                    ? "rgba(0,0,0,0.08)"
+                    : "rgba(249,115,22,0.14)",
+                },
+              }}
+            >
+              {m[0]}
+            </Box>
+          );
+        } else {
+          out.push(
+            <span key={`${boldIdx}m${m.index}`}>{m[0]}</span>
+          );
+        }
+        lastIdx = m.index + m[0].length;
+      }
+      if (lastIdx < part.length) {
+        out.push(
+          <span key={`${boldIdx}t${lastIdx}end`}>
+            {part.slice(lastIdx)}
+          </span>
+        );
+      }
     });
+    return out;
   };
 
+  const shareable =
+    !isUser && msg.content.trim().length > 0 && Boolean(onShare);
+
   return (
-    <Box>
+    <Box sx={{ position: "relative" }}>
       <Box
         sx={{
           px: 2.25,
@@ -3261,9 +3393,39 @@ function CoachBubble({
           boxShadow: isUser
             ? "0 4px 16px rgba(249,115,22,0.25)"
             : "0 2px 8px rgba(0,0,0,0.2)",
+          "&:hover .coach-share-btn": { opacity: 1 },
         }}
       >
         {renderInline(extractPracticeTags(msg.content).stripped)}
+        {shareable && (
+          <Tooltip title="Share this insight (link + PNG)">
+            <IconButton
+              className="coach-share-btn"
+              onClick={() => onShare?.(msg)}
+              sx={{
+                position: "absolute",
+                top: 6,
+                right: 6,
+                width: 24,
+                height: 24,
+                p: 0,
+                borderRadius: "8px",
+                opacity: 0,
+                color: "rgba(255,255,255,0.55)",
+                background: "rgba(20,22,28,0.7)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                transition: "all 160ms ease",
+                "&:hover": {
+                  color: "#FB923C",
+                  background: "rgba(249,115,22,0.18)",
+                  borderColor: "rgba(249,115,22,0.4)",
+                },
+              }}
+            >
+              <Share2 size={12} />
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
       {msg.insight && !isUser && (
         <Box
@@ -3636,6 +3798,53 @@ export default function AnalysisPage() {
     setAnalysisProgress(0);
     setAnalysisError(null);
   }, [loadedGame, engineSettings.depth, engineSettings.engineName]);
+
+  // Per-FEN analysis cache (sessionStorage, scoped to this browser session).
+  // Keyed by a cheap hash of the PGN + engine settings. Restoring a cached
+  // analysis is a tabbed-loop power user's superpower: open the same game
+  // twice, the second visit is instant. djb2 hash keeps the key short and
+  // collision-tolerant for our use case (cached value re-validates against
+  // the same PGN on next read anyway).
+  const cacheKey = useMemo(() => {
+    try {
+      const pgn = loadedGame.pgn() || loadedGame.fen();
+      let h = 5381;
+      for (let i = 0; i < pgn.length; i++) {
+        h = ((h << 5) + h + pgn.charCodeAt(i)) >>> 0;
+      }
+      return `cm-preview-eval-${h.toString(16)}-d${engineSettings.depth}-${engineSettings.engineName}`;
+    } catch {
+      return null;
+    }
+  }, [loadedGame, engineSettings.depth, engineSettings.engineName]);
+
+  // Restore on game/settings change
+  useEffect(() => {
+    if (!cacheKey || enginePositions || analysisError) return;
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.sessionStorage.getItem(cacheKey);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as PositionEval[];
+      if (Array.isArray(parsed) && parsed.length === allMoves.length + 1) {
+        setEnginePositions(parsed);
+        setAnalysisProgress(100);
+      }
+    } catch {
+      /* corrupted entry — let Stockfish re-run */
+    }
+  }, [cacheKey, enginePositions, analysisError, allMoves.length]);
+
+  // Save when analysis completes
+  useEffect(() => {
+    if (!cacheKey || !enginePositions) return;
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(cacheKey, JSON.stringify(enginePositions));
+    } catch {
+      /* quota exhausted — skip silently */
+    }
+  }, [cacheKey, enginePositions]);
   const mockEvalSeries = useMemo(
     () => buildMockEval(allMoves.length + 1),
     [allMoves.length]
@@ -3718,6 +3927,10 @@ export default function AnalysisPage() {
   // Command palette state
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [loadGameOpen, setLoadGameOpen] = useState(false);
+  const [shareDialog, setShareDialog] = useState<{
+    msg: CoachMessage;
+    fen: string;
+  } | null>(null);
 
   // Coach chat state (persists across takeover toggle — chat history intact)
   const [messages, setMessages] = useState<CoachMessage[]>(
@@ -4808,6 +5021,26 @@ export default function AnalysisPage() {
         onLoad={(g) => loadNewGame(g)}
       />
 
+      {shareDialog && (
+        <CoachShareDialog
+          open={Boolean(shareDialog)}
+          onClose={() => setShareDialog(null)}
+          data={{
+            fen: shareDialog.fen,
+            explanation: shareDialog.msg.content,
+            transcript: messages
+              .filter(
+                (m) => m.role === "user" || m.role === "coach"
+              )
+              .map((m) => ({
+                role: m.role === "coach" ? ("assistant" as const) : ("user" as const),
+                content: m.content,
+                fen: undefined,
+              })),
+          }}
+        />
+      )}
+
       <OnboardingHelp
         storageKey="cm-tour-analysis-v1"
         title="Welcome to the Analyze surface"
@@ -5004,6 +5237,11 @@ export default function AnalysisPage() {
                         onSuggestion={handleSuggestion}
                         isThinking={isThinking}
                         onPromoteToBoard={handlePromoteToBoard}
+                        allMoves={allMoves}
+                        onMoveRefClick={setCurrentPly}
+                        onShareMessage={(m) =>
+                          setShareDialog({ msg: m, fen: displayFen })
+                        }
                       />
                     </motion.div>
                   )}

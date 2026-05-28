@@ -118,7 +118,11 @@ export default function LoadGame() {
       label={isGameLoaded ? "Load another game" : "Load game"}
       size="small"
       setGame={async (game) => {
-        await router.push("/analysis");
+        // Stay within /legacy/analysis when loading from inside the
+        // legacy page; route to /analysis (new page) otherwise.
+        const target =
+          router.pathname.startsWith("/legacy") ? "/legacy/analysis" : "/analysis";
+        await router.push(target);
         resetAndSetGamePgn(game.pgn());
       }}
     />

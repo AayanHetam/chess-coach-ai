@@ -69,6 +69,7 @@ import {
 import { FlagButton } from "@/components/intern/FlagButton";
 import AnalysisSnippetDialog from "@/components/AnalysisSnippetDialog";
 import type { AnalysisSnippetData } from "@/lib/analysisSnippet";
+import { FadeIn } from "@/components/ui/FadeIn";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -2937,7 +2938,8 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             const renderRich = (t: string) => renderTextWithClickableMoves(t, game ?? undefined);
 
             return (
-            <MessageBubble key={index} isUser={message.role === "user"}>
+            <FadeIn key={index}>
+            <MessageBubble isUser={message.role === "user"}>
               {parsed.insights.length > 0 ? (
                 <>
                   {parsed.prefix && renderMarkdown(parsed.prefix)}
@@ -3062,6 +3064,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                 </Box>
               )}
             </MessageBubble>
+            </FadeIn>
             );
           });
         })()}

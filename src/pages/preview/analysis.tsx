@@ -62,6 +62,10 @@ import {
   CommandIcons,
   type CommandGroup,
 } from "@/components/ui/CommandPalette";
+import { useEngine } from "@/hooks/useEngine";
+import { EngineName } from "@/types/enums";
+import type { PositionEval } from "@/types/eval";
+import { getEvaluateGameParams } from "@/lib/chess";
 
 const ChessgroundBoard = dynamic(
   () =>
@@ -1063,11 +1067,19 @@ function EvalSparkline({
   currentPly,
   onJumpTo,
   keyMoments,
+  analyzing = false,
+  progress = 0,
+  errored = false,
 }: {
   series: number[];
   currentPly: number;
   onJumpTo: (ply: number) => void;
   keyMoments: KeyMoment[];
+  /** True while Stockfish is still computing — shows progress + dotted line. */
+  analyzing?: boolean;
+  progress?: number;
+  /** True if the engine failed to start; sparkline falls back to mock data. */
+  errored?: boolean;
 }) {
   const width = 800;
   const height = 76;
@@ -1122,6 +1134,63 @@ function EvalSparkline({
         >
           Evaluation arc
         </Typography>
+        {analyzing && (
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={0.75}
+            sx={{
+              px: 1,
+              py: 0.25,
+              borderRadius: "999px",
+              background: "rgba(249,115,22,0.12)",
+              border: "1px solid rgba(249,115,22,0.3)",
+            }}
+          >
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#F97316",
+                animation: "pulse 1.4s ease-in-out infinite",
+                "@keyframes pulse": {
+                  "0%, 100%": { opacity: 0.4, transform: "scale(0.85)" },
+                  "50%": { opacity: 1, transform: "scale(1)" },
+                },
+              }}
+            />
+            <Typography
+              sx={{
+                fontSize: "0.66rem",
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                color: "#FB923C",
+                fontFamily: "Monaco, Menlo, monospace",
+              }}
+            >
+              Stockfish · {Math.round(progress)}%
+            </Typography>
+          </Stack>
+        )}
+        {errored && (
+          <Typography
+            sx={{
+              px: 1,
+              py: 0.25,
+              borderRadius: "999px",
+              background: "rgba(239,68,68,0.1)",
+              border: "1px solid rgba(239,68,68,0.25)",
+              fontSize: "0.66rem",
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              color: "#fca5a5",
+              fontFamily: "Monaco, Menlo, monospace",
+            }}
+          >
+            Engine offline — preview curve
+          </Typography>
+        )}
         <Box sx={{ flex: 1 }} />
         <Typography
           sx={{
@@ -1164,8 +1233,12 @@ function EvalSparkline({
             strokeWidth={1}
           />
           {/* Area fill */}
-          <path d={areaPath} fill="url(#evalGrad)" />
-          {/* Line stroke */}
+          <path
+            d={areaPath}
+            fill="url(#evalGrad)"
+            opacity={analyzing ? 0.55 : 1}
+          />
+          {/* Line stroke — dashed while engine is still computing */}
           <path
             d={linePath}
             fill="none"
@@ -1173,6 +1246,8 @@ function EvalSparkline({
             strokeWidth={1.5}
             strokeLinejoin="round"
             strokeLinecap="round"
+            strokeDasharray={analyzing ? "3 4" : undefined}
+            opacity={analyzing ? 0.7 : 1}
           />
           {/* Key moment markers */}
           {keyMoments.map((m) => (
@@ -2124,10 +2199,66 @@ export default function AnalysisPage() {
     [demoGame]
   );
   const headers = useMemo(() => demoGame.header(), [demoGame]);
-  const evalSeries = useMemo(
+
+  // ───── Real Stockfish evaluation ─────
+  // Stockfish17Lite is single-threaded — works on networks that block
+  // SharedArrayBuffer (school WiFi) and has the fastest cold start.
+  // Depth 12 is plenty for surfacing the eval-curve shape; we don't need
+  // grandmaster-grade analysis to draw the sparkline.
+  const engine = useEngine(EngineName.Stockfish17Lite);
+  const [enginePositions, setEnginePositions] = useState<PositionEval[] | null>(
+    null
+  );
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const mockEvalSeries = useMemo(
     () => buildMockEval(allMoves.length + 1),
     [allMoves.length]
   );
+  const evalSeries = useMemo<number[]>(() => {
+    if (!enginePositions) return mockEvalSeries;
+    return enginePositions.map((p) => {
+      const line = p.lines?.[0];
+      if (!line) return 0;
+      if (typeof line.mate === "number") return line.mate > 0 ? 10 : -10;
+      if (typeof line.cp === "number")
+        return Math.max(-12, Math.min(12, line.cp / 100));
+      return 0;
+    });
+  }, [enginePositions, mockEvalSeries]);
+  const analysisActive = engine !== null && enginePositions === null && analysisError === null;
+
+  useEffect(() => {
+    if (!engine || enginePositions || analysisError) return;
+    if (!allMoves.length) return;
+    let cancelled = false;
+    const params = getEvaluateGameParams(demoGame);
+    setAnalysisProgress(1);
+    engine
+      .evaluateGame({
+        ...params,
+        depth: 12,
+        multiPv: 1,
+        workersNb: 1,
+        setEvaluationProgress: (v) => {
+          if (!cancelled) setAnalysisProgress(v);
+        },
+      })
+      .then((result) => {
+        if (cancelled) return;
+        setEnginePositions(result.positions);
+        setAnalysisProgress(100);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn("[preview/analysis] Stockfish failed:", msg);
+        setAnalysisError(msg);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [engine, demoGame, allMoves.length, enginePositions, analysisError]);
 
   const [currentPly, setCurrentPly] = useState(0);
   const [boardOrientation, setBoardOrientation] = useState<"white" | "black">(
@@ -2987,6 +3118,9 @@ export default function AnalysisPage() {
                 currentPly={currentPly}
                 onJumpTo={setCurrentPly}
                 keyMoments={KEY_MOMENTS}
+                analyzing={analysisActive}
+                progress={analysisProgress}
+                errored={analysisError !== null}
               />
               <KeyMomentsRow
                 moments={KEY_MOMENTS}

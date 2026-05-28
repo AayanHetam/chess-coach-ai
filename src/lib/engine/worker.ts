@@ -2,9 +2,15 @@ import { EngineWorker } from "@/types/engine";
 import { isIosDevice, isMobileDevice } from "./shared";
 
 export const getEngineWorker = (enginePath: string): EngineWorker => {
-  console.log(`Creating worker from ${enginePath}`);
+  // Force absolute resolution against the origin so nested routes
+  // (/preview/analysis, /play/<id>, …) don't 404 on the worker JS.
+  const resolved =
+    enginePath.startsWith("/") || /^https?:/.test(enginePath)
+      ? enginePath
+      : `/${enginePath}`;
+  console.log(`Creating worker from ${resolved}`);
 
-  const worker = new window.Worker(enginePath);
+  const worker = new window.Worker(resolved);
 
   const engineWorker: EngineWorker = {
     isReady: false,

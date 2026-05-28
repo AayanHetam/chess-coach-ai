@@ -218,6 +218,82 @@ function uciToShape(uci: string, brush: string): DrawShape {
   return { orig: uci.slice(0, 2), dest: uci.slice(2, 4), brush };
 }
 
+// ───────────────────────────────────────────────────────────────────────────────
+// Real coach wiring — POST to /api/chat with conversation + position context
+// ───────────────────────────────────────────────────────────────────────────────
+
+class CoachAuthError extends Error {}
+class CoachApiError extends Error {
+  constructor(public status: number) {
+    super(`Coach API returned ${status}`);
+  }
+}
+
+/** Build a one-line position context blurb to embed in the user's message.
+ *  The /api/chat schema doesn't allow `role: "system"` from clients
+ *  (Phase 1.4 hardening) — so we inline the FEN + recent moves into the
+ *  user turn instead. Server sees: "[Position: ...]\n\n<user question>" */
+function buildContextBlurb(
+  fen: string,
+  currentPly: number,
+  allMoves: Move[]
+): string {
+  const turnColor = fen.includes(" w ") ? "White" : "Black";
+  const recent =
+    currentPly > 0
+      ? allMoves
+          .slice(Math.max(0, currentPly - 6), currentPly)
+          .map((m) => m.san)
+          .join(" ")
+      : "(starting position)";
+  return `[Position FEN: ${fen}\nRecent moves: ${recent}\nTo move: ${turnColor}]`;
+}
+
+async function fetchCoachReply(params: {
+  prevMessages: CoachMessage[];
+  userText: string;
+  fen: string;
+  currentPly: number;
+  allMoves: Move[];
+  signal?: AbortSignal;
+}): Promise<string> {
+  const { prevMessages, userText, fen, currentPly, allMoves, signal } = params;
+  const blurb = buildContextBlurb(fen, currentPly, allMoves);
+  const userWithContext = `${blurb}\n\n${userText}`;
+
+  // Schema allows only user/assistant. Map our "coach" role → "assistant".
+  const history = prevMessages
+    .filter((m) => m.role === "user" || m.role === "coach")
+    .map((m) => ({
+      role: m.role === "coach" ? ("assistant" as const) : ("user" as const),
+      content: m.content,
+    }));
+
+  const apiMessages = [
+    ...history,
+    { role: "user" as const, content: userWithContext },
+  ];
+
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ messages: apiMessages, temperature: 0.7 }),
+    signal,
+  });
+
+  if (res.status === 401) throw new CoachAuthError();
+  if (!res.ok) throw new CoachApiError(res.status);
+
+  const data = await res.json();
+  const content =
+    data.choices?.[0]?.message?.content ??
+    data.gameAnalysis?.analysis ??
+    "";
+  if (!content) throw new CoachApiError(res.status);
+  return content;
+}
+
 // Pre-loaded coach exchange — what an excellent first interaction looks like
 interface CoachMessage {
   role: "user" | "coach";
@@ -1783,63 +1859,76 @@ export default function AnalysisPage() {
     [displayFen]
   );
   const handleTakeoverSendToCoach = useCallback(
-    (message: string, candidate?: MasterCandidate) => {
-      // Push a user message into chat as if typed
+    async (message: string, candidate?: MasterCandidate) => {
+      const prevForApi = messages;
       setMessages((prev) => [
         ...prev,
         { role: "user", content: message, ply: currentPly },
       ]);
       setIsThinking(true);
-      setTimeout(() => {
-        // Build a rich insight card when we have structured candidate data
-        const insight = candidate
-          ? {
-              tag: `${candidate.san} — Master line`,
-              eval:
-                typeof candidate.eval === "number"
-                  ? `${candidate.eval >= 0 ? "+" : ""}${(candidate.eval / 100).toFixed(2)}`
-                  : candidate.count > 0
-                  ? `${(candidate.count / 1_000_000).toFixed(1)}M games`
-                  : undefined,
-              classification:
-                candidate.rank === 2
-                  ? "Best move (engine)"
-                  : candidate.rank === 1
-                  ? "Sound continuation"
-                  : candidate.rank === 0
-                  ? "Neutral"
-                  : candidate.topPlayer
-                  ? `Played by ${candidate.topPlayer.name}`
-                  : undefined,
-            }
-          : undefined;
 
-        const evalLine = candidate?.eval
-          ? ` Engine reads **${candidate.eval >= 0 ? "+" : ""}${(candidate.eval / 100).toFixed(2)}**.`
-          : "";
-        const winrateLine = candidate?.winrate
-          ? ` White scores **${candidate.winrate.toFixed(0)}%** from this position.`
-          : "";
-        const playerLine = candidate?.topPlayer
-          ? ` ${candidate.topPlayer.name} has played this line.`
-          : "";
-        const setupContent = candidate
-          ? `Looking at **${candidate.san}** from this position.${evalLine}${winrateLine}${playerLine} Want me to walk through the typical plans, or jump deeper into the line?`
-          : "Pulling that line from the master database now — once a real model is wired in, you'll get a deep walkthrough of the typical plans, strategic motifs, and key games here.";
+      // Build a rich insight card we'll attach to the coach's response —
+      // structured data the LLM doesn't have direct access to.
+      const insight = candidate
+        ? {
+            tag: `${candidate.san} — Master line`,
+            eval:
+              typeof candidate.eval === "number"
+                ? `${candidate.eval >= 0 ? "+" : ""}${(candidate.eval / 100).toFixed(2)}`
+                : candidate.count > 0
+                ? `${(candidate.count / 1_000_000).toFixed(1)}M games`
+                : undefined,
+            classification:
+              candidate.rank === 2
+                ? "Best move (engine)"
+                : candidate.rank === 1
+                ? "Sound continuation"
+                : candidate.rank === 0
+                ? "Neutral"
+                : candidate.topPlayer
+                ? `Played by ${candidate.topPlayer.name}`
+                : undefined,
+          }
+        : undefined;
 
+      try {
+        const reply = await fetchCoachReply({
+          prevMessages: prevForApi,
+          userText: message,
+          fen: displayFen,
+          currentPly,
+          allMoves,
+        });
         setMessages((prev) => [
           ...prev,
           {
             role: "coach",
-            content: setupContent,
+            content: reply,
             ply: currentPly,
             insight,
           },
         ]);
+      } catch (err) {
+        const errorText =
+          err instanceof CoachAuthError
+            ? "**Sign-in required** — the coach endpoint is auth-gated."
+            : err instanceof CoachApiError
+            ? `**Coach is offline** (HTTP ${err.status}).`
+            : "**Network error** reaching the coach.";
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "coach",
+            content: errorText,
+            ply: currentPly,
+            insight,
+          },
+        ]);
+      } finally {
         setIsThinking(false);
-      }, 1100);
+      }
     },
-    [currentPly]
+    [messages, currentPly, displayFen, allMoves]
   );
 
   // Played SAN — what was played at the CURRENT canonical position (for the
@@ -1850,32 +1939,48 @@ export default function AnalysisPage() {
     return allMoves[currentPly]?.san;
   }, [allMoves, currentPly, takeoverPreview]);
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const text = input.trim();
     if (!text || isThinking) return;
+    // Snapshot the messages we'll send (pre-user-add) so the API gets the
+    // right history, and append the user turn to local state immediately.
+    const prevForApi = messages;
     setMessages((prev) => [
       ...prev,
       { role: "user", content: text, ply: currentPly },
     ]);
     setInput("");
     setIsThinking(true);
-    // Mock coach response. In production this calls /api/chat with the
-    // current FEN + analysis context + history.
-    setTimeout(() => {
-      const mockResponse: CoachMessage = {
-        role: "coach",
-        content:
-          "Let me look at the current position with Stockfish 17... \n\nAt **move " +
-          Math.ceil(currentPly / 2) +
-          "**, the engine reads eval **" +
-          formatEval(evalSeries[currentPly] ?? 0) +
-          "**. The key idea here is to keep pressure on the dark squares around the enemy king — Kasparov's whole plan revolves around this. Want me to walk through the candidate moves?",
-        ply: currentPly,
-      };
-      setMessages((prev) => [...prev, mockResponse]);
+
+    try {
+      const reply = await fetchCoachReply({
+        prevMessages: prevForApi,
+        userText: text,
+        fen: displayFen,
+        currentPly,
+        allMoves,
+      });
+      setMessages((prev) => [
+        ...prev,
+        { role: "coach", content: reply, ply: currentPly },
+      ]);
+    } catch (err) {
+      // Surface auth/LLM/network failures inline as a coach message — keeps
+      // the UI honest about the integration state and lets the user retry.
+      const errorText =
+        err instanceof CoachAuthError
+          ? "**Sign-in required** — the coach endpoint is auth-gated. Sign in on chessmasti.com and refresh."
+          : err instanceof CoachApiError
+          ? `**Coach is offline** (HTTP ${err.status}). The LLM provider returned an error — try again in a moment.`
+          : "**Network error** reaching the coach. Try again?";
+      setMessages((prev) => [
+        ...prev,
+        { role: "coach", content: errorText, ply: currentPly },
+      ]);
+    } finally {
       setIsThinking(false);
-    }, 1400);
-  }, [input, isThinking, currentPly, evalSeries]);
+    }
+  }, [input, isThinking, messages, currentPly, displayFen, allMoves]);
 
   const handleSuggestion = useCallback((s: string) => {
     setInput(s);

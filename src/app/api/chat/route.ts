@@ -5,7 +5,12 @@ import {
 } from "@/lib/analysisContextCache";
 import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { chatSchema, validateRequest } from "@/lib/validation/schemas";
-import { callLLM, LLMError, type LLMMessage } from "@/lib/llmProvider";
+import {
+  callLLM,
+  callLLMStream,
+  LLMError,
+  type LLMMessage,
+} from "@/lib/llmProvider";
 import { requireSession } from "@/lib/auth/session";
 import { logger, extractRequestId } from "@/lib/logging";
 // ── Stage B (PR 1.C) Mastermind validator pipeline imports ──────────
@@ -312,18 +317,64 @@ export async function POST(request: NextRequest) {
         content: m.content,
       }));
 
+    // Opt-in SSE streaming. When ?stream=1 is set on the URL, the fallback
+    // path streams text deltas from Anthropic (or falls back to OpenAI as a
+    // single-chunk pseudo-stream). Existing JSON callers unaffected.
+    const wantsStream =
+      request.nextUrl.searchParams.get("stream") === "1";
+
+    const fbCallOptions = {
+      tier: "fast" as const,
+      system: fallbackSystem || "You are a helpful chess coach.",
+      messages:
+        fallbackMessages.length > 0
+          ? fallbackMessages
+          : ([{ role: "user", content: "Hello" }] as LLMMessage[]),
+      temperature: parsed.data.temperature ?? 0.7,
+      maxTokens: parsed.data.max_tokens ?? 3000,
+    };
+
+    if (wantsStream) {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const ev of callLLMStream(fbCallOptions)) {
+              const payload =
+                ev.type === "text"
+                  ? { type: "text", delta: ev.delta }
+                  : { type: "done" };
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify(payload)}\n\n`)
+              );
+            }
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error("LLM stream call failed:", msg);
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: "error", error: msg })}\n\n`
+              )
+            );
+          } finally {
+            controller.close();
+          }
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
+
     let fbResult;
     try {
-      fbResult = await callLLM({
-        tier: "fast",
-        system: fallbackSystem || "You are a helpful chess coach.",
-        messages:
-          fallbackMessages.length > 0
-            ? fallbackMessages
-            : [{ role: "user", content: "Hello" }],
-        temperature: parsed.data.temperature ?? 0.7,
-        maxTokens: parsed.data.max_tokens ?? 3000,
-      });
+      fbResult = await callLLM(fbCallOptions);
     } catch (err) {
       const e = err instanceof LLMError ? err : new Error(String(err));
       console.error("LLM fallback call failed:", e.message);

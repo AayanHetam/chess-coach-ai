@@ -249,19 +249,20 @@ function buildContextBlurb(
   return `[Position FEN: ${fen}\nRecent moves: ${recent}\nTo move: ${turnColor}]`;
 }
 
-async function fetchCoachReply(params: {
+async function streamCoachReply(params: {
   prevMessages: CoachMessage[];
   userText: string;
   fen: string;
   currentPly: number;
   allMoves: Move[];
+  onDelta: (chunk: string) => void;
   signal?: AbortSignal;
-}): Promise<string> {
-  const { prevMessages, userText, fen, currentPly, allMoves, signal } = params;
+}): Promise<void> {
+  const { prevMessages, userText, fen, currentPly, allMoves, onDelta, signal } =
+    params;
   const blurb = buildContextBlurb(fen, currentPly, allMoves);
   const userWithContext = `${blurb}\n\n${userText}`;
 
-  // Schema allows only user/assistant. Map our "coach" role → "assistant".
   const history = prevMessages
     .filter((m) => m.role === "user" || m.role === "coach")
     .map((m) => ({
@@ -274,9 +275,9 @@ async function fetchCoachReply(params: {
     { role: "user" as const, content: userWithContext },
   ];
 
-  const res = await fetch("/api/chat", {
+  const res = await fetch("/api/chat?stream=1", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
     credentials: "include",
     body: JSON.stringify({ messages: apiMessages, temperature: 0.7 }),
     signal,
@@ -284,14 +285,36 @@ async function fetchCoachReply(params: {
 
   if (res.status === 401) throw new CoachAuthError();
   if (!res.ok) throw new CoachApiError(res.status);
+  if (!res.body) throw new CoachApiError(res.status);
 
-  const data = await res.json();
-  const content =
-    data.choices?.[0]?.message?.content ??
-    data.gameAnalysis?.analysis ??
-    "";
-  if (!content) throw new CoachApiError(res.status);
-  return content;
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    // Process complete SSE events (delimited by \n\n)
+    const events = buffer.split("\n\n");
+    buffer = events.pop() ?? "";
+    for (const ev of events) {
+      const line = ev.trim();
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (payload === "[DONE]") return;
+      try {
+        const parsed = JSON.parse(payload);
+        if (parsed.type === "text" && typeof parsed.delta === "string") {
+          onDelta(parsed.delta);
+        } else if (parsed.type === "error") {
+          throw new CoachApiError(502);
+        }
+      } catch (e) {
+        if (e instanceof CoachApiError) throw e;
+        // ignore malformed lines
+      }
+    }
+  }
 }
 
 // Pre-loaded coach exchange — what an excellent first interaction looks like
@@ -1891,23 +1914,34 @@ export default function AnalysisPage() {
           }
         : undefined;
 
+      // Add placeholder coach message (with insight already attached) that
+      // streamCoachReply will fill in delta-by-delta.
+      setMessages((prev) => [
+        ...prev,
+        { role: "coach", content: "", ply: currentPly, insight },
+      ]);
+
+      let accumulated = "";
       try {
-        const reply = await fetchCoachReply({
+        await streamCoachReply({
           prevMessages: prevForApi,
           userText: message,
           fen: displayFen,
           currentPly,
           allMoves,
-        });
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "coach",
-            content: reply,
-            ply: currentPly,
-            insight,
+          onDelta: (chunk) => {
+            accumulated += chunk;
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [
+                ...prev.slice(0, -1),
+                { ...last, content: accumulated },
+              ];
+            });
           },
-        ]);
+        });
       } catch (err) {
         const errorText =
           err instanceof CoachAuthError
@@ -1915,15 +1949,15 @@ export default function AnalysisPage() {
             : err instanceof CoachApiError
             ? `**Coach is offline** (HTTP ${err.status}).`
             : "**Network error** reaching the coach.";
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "coach",
-            content: errorText,
-            ply: currentPly,
-            insight,
-          },
-        ]);
+        setMessages((prev) => {
+          if (prev.length === 0) return prev;
+          const last = prev[prev.length - 1];
+          if (last.role !== "coach") return prev;
+          return [
+            ...prev.slice(0, -1),
+            { ...last, content: errorText },
+          ];
+        });
       } finally {
         setIsThinking(false);
       }
@@ -1942,41 +1976,51 @@ export default function AnalysisPage() {
   const handleSend = useCallback(async () => {
     const text = input.trim();
     if (!text || isThinking) return;
-    // Snapshot the messages we'll send (pre-user-add) so the API gets the
-    // right history, and append the user turn to local state immediately.
     const prevForApi = messages;
     setMessages((prev) => [
       ...prev,
       { role: "user", content: text, ply: currentPly },
+      // Empty coach message we'll fill in as deltas arrive
+      { role: "coach", content: "", ply: currentPly },
     ]);
     setInput("");
     setIsThinking(true);
 
+    let accumulated = "";
     try {
-      const reply = await fetchCoachReply({
+      await streamCoachReply({
         prevMessages: prevForApi,
         userText: text,
         fen: displayFen,
         currentPly,
         allMoves,
+        onDelta: (chunk) => {
+          accumulated += chunk;
+          // Update the last coach message in-place
+          setMessages((prev) => {
+            if (prev.length === 0) return prev;
+            const last = prev[prev.length - 1];
+            if (last.role !== "coach") return prev;
+            return [
+              ...prev.slice(0, -1),
+              { ...last, content: accumulated },
+            ];
+          });
+        },
       });
-      setMessages((prev) => [
-        ...prev,
-        { role: "coach", content: reply, ply: currentPly },
-      ]);
     } catch (err) {
-      // Surface auth/LLM/network failures inline as a coach message — keeps
-      // the UI honest about the integration state and lets the user retry.
       const errorText =
         err instanceof CoachAuthError
           ? "**Sign-in required** — the coach endpoint is auth-gated. Sign in on chessmasti.com and refresh."
           : err instanceof CoachApiError
           ? `**Coach is offline** (HTTP ${err.status}). The LLM provider returned an error — try again in a moment.`
           : "**Network error** reaching the coach. Try again?";
-      setMessages((prev) => [
-        ...prev,
-        { role: "coach", content: errorText, ply: currentPly },
-      ]);
+      setMessages((prev) => {
+        if (prev.length === 0) return prev;
+        const last = prev[prev.length - 1];
+        if (last.role !== "coach") return prev;
+        return [...prev.slice(0, -1), { ...last, content: errorText }];
+      });
     } finally {
       setIsThinking(false);
     }

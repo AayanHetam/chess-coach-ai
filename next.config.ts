@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
   // gate still fires on every PR.
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
+  // Default 60s per page during "Collecting page data" is too tight for
+  // analysis.tsx on Vercel's 2-core runner. Local takes 1.5s; Vercel
+  // appears to spin longer. Bump to 6 min so we get a real failure
+  // signal instead of a 45-min total-build timeout that masks the cause.
+  staticPageGenerationTimeout: 360,
   headers: async () => [
     {
       source:

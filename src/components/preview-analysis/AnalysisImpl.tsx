@@ -6585,7 +6585,13 @@ export default function AnalysisPage() {
   }, [autoAnalyzeState, enginePositions, isThinking, allMoves.length]);
 
   const handleSend = useCallback(async (overrideText?: string) => {
-    const text = (overrideText ?? input).trim();
+    // Defensive: onSend is wired straight onto the Send IconButton's
+    // onClick prop, which would otherwise hand a React MouseEvent down
+    // as `overrideText`. Only honour string overrides; anything else
+    // (events, undefined) falls back to the input box.
+    const override =
+      typeof overrideText === "string" ? overrideText : undefined;
+    const text = (override ?? input).trim();
     if (!text || isThinking) return;
     // Mirror production AICoachChat:2180 — don't fire deep-coach requests
     // while Stockfish is still computing. gameEval would be undefined,

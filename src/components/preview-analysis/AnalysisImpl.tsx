@@ -2856,6 +2856,7 @@ function CoachPanel({
   userRating,
   coachContextIdProp,
   onPuzzleSolved,
+  analysisActive,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -2868,6 +2869,10 @@ function CoachPanel({
   onMoveRefClick?: (ply: number) => void;
   onShareMessage?: (msg: CoachMessage) => void;
   onPuzzleSolved?: (puzzle: DrillPuzzle, timeSpentSeconds: number) => void;
+  /** True while Stockfish is still computing positions. Mirrors production's
+   * `isAnalyzingGame` gate (AICoachChat:1705) — when set, the input is
+   * disabled so the user can't fire deep-coach requests with no gameEval. */
+  analysisActive?: boolean;
   /**
    * Production-parity mistake context — when set, mounts inline
    * ContextualPuzzleRecommendations above the message stream. Recomputed
@@ -3125,10 +3130,16 @@ function CoachPanel({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
+                if (analysisActive || isThinking) return;
                 onSend();
               }
             }}
-            placeholder="Ask anything about this position..."
+            placeholder={
+              analysisActive
+                ? "Analyzing your game… coach unlocks when Stockfish finishes."
+                : "Ask anything about this position..."
+            }
+            disabled={analysisActive}
             fullWidth
             multiline
             maxRows={3}
@@ -3155,7 +3166,7 @@ function CoachPanel({
           />
           <IconButton
             onClick={onSend}
-            disabled={!input.trim() || isThinking}
+            disabled={!input.trim() || isThinking || analysisActive}
             sx={{
               width: 44,
               height: 44,
@@ -5829,6 +5840,11 @@ export default function AnalysisPage() {
   const handleSend = useCallback(async (overrideText?: string) => {
     const text = (overrideText ?? input).trim();
     if (!text || isThinking) return;
+    // Mirror production AICoachChat:2180 — don't fire deep-coach requests
+    // while Stockfish is still computing. gameEval would be undefined,
+    // landing the user in the route's no-eval branch where the LLM
+    // produces a conversational reply with no grounded mistake insights.
+    if (analysisActive) return;
     const prevForApi = messages;
     setMessages((prev) => [
       ...prev,
@@ -5919,6 +5935,7 @@ export default function AnalysisPage() {
     autoAnalyzeState,
     loadedGame,
     enginePositions,
+    analysisActive,
   ]);
 
   // Keep the auto-fire ref pointed at the latest handleSend so the
@@ -6333,6 +6350,7 @@ export default function AnalysisPage() {
                         onSend={handleSend}
                         onSuggestion={handleSuggestion}
                         isThinking={isThinking}
+                        analysisActive={analysisActive}
                         onPromoteToBoard={handlePromoteToBoard}
                         allMoves={allMoves}
                         onMoveRefClick={setCurrentPly}

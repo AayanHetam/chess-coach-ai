@@ -4500,17 +4500,32 @@ export default function AnalysisPage() {
   // UCI strings (for legal-move replay) and the canonical FEN sequence.
   const classifiedPositions = useMemo<PositionEval[] | null>(() => {
     if (!enginePositions) return null;
+    let params: { fens: string[]; uciMoves: string[] };
     try {
-      const params = getEvaluateGameParams(loadedGame);
+      params = getEvaluateGameParams(loadedGame);
+    } catch {
+      // Empty history (start position) → getEvaluateGameParams throws on
+      // history[-1]. Nothing to classify.
+      return enginePositions;
+    }
+    // The classifier replays uciMoves[0..index-1] for each non-zero index.
+    // Bail out when enginePositions is longer than the current game's move
+    // list — that happens transiently when loadedGame just changed but the
+    // enginePositions-reset effect hasn't fired yet, or when a stale cache
+    // entry got restored. Falling through would throw chess.js's
+    // "Invalid move: undefined" inside the classifier's inner try/catch,
+    // which Next.js 15 dev surfaces as a runtime overlay even though the
+    // page renders fine.
+    if (enginePositions.length !== params.uciMoves.length + 1) {
+      return enginePositions;
+    }
+    try {
       return getMovesClassification(
         enginePositions,
         params.uciMoves,
         params.fens
       );
     } catch (err) {
-      // Defensive: if anything in the classifier throws (off-by-one,
-      // missing eval line), fall back to the raw positions so the
-      // sparkline + Moves tab still render.
       console.warn("[preview/analysis] classification failed:", err);
       return enginePositions;
     }

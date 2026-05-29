@@ -538,7 +538,14 @@ async function streamCoachReply(params: {
   }
 
   // ─── DEEP PATH: /api/enhanced-analysis (SSE) ───
-  const moveHistory = allMoves.slice(0, currentPly).map((m) => m.san);
+  // moveHistory is the FULL game (matches production /api/enhanced-analysis
+  // callers in src/components/AICoachChat.tsx:2483 — game.history()). fen
+  // is the cursor position so the server can ground "what's happening here"
+  // questions. Previously sliced to currentPly, which made "analyze my
+  // game" land on the server with zero moves when the user was sitting at
+  // ply 0 — the coach would helpfully respond "I see we're starting from
+  // the initial position".
+  const moveHistory = allMoves.map((m) => m.san);
   const requestBody: Record<string, unknown> = {
     userMessage: userText,
     moveHistory,

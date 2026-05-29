@@ -1,11 +1,21 @@
 "use client";
 
-import { Box, IconButton, Stack, Typography } from "@mui/material";
+import {
+  Avatar,
+  Box,
+  IconButton,
+  Menu,
+  MenuItem,
+  Stack,
+  Typography,
+} from "@mui/material";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, MouseEvent } from "react";
 import { motion } from "framer-motion";
-import { Menu, Sparkles } from "lucide-react";
+import { Menu as MenuIcon, Sparkles, LogOut, User } from "lucide-react";
 import { AppDrawer, type NavId } from "./AppDrawer";
+import { useAuth } from "@/contexts/AuthContext";
+import AuthDialog from "@/components/auth/AuthDialog";
 
 interface NavPillProps {
   active?: NavId;
@@ -29,6 +39,27 @@ export function NavPill({ active }: NavPillProps) {
   // snaps back to the truly active item on mouse-leave.
   const [hovered, setHovered] = useState<NavId | null>(null);
   const indicatorTarget = hovered ?? active;
+
+  // ─── Account affordance ───
+  // The legacy NavBar (src/sections/layout/NavBar.tsx) used to provide
+  // the only sign-in surface on the site. Now that preview routes drop
+  // the legacy chrome, we mount a compact account control here: "Sign in"
+  // pill when signed out, avatar dropdown when signed in.
+  const { user, signOut, loading } = useAuth();
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const handleAvatarClick = (e: MouseEvent<HTMLElement>) =>
+    setMenuAnchor(e.currentTarget);
+  const handleMenuClose = () => setMenuAnchor(null);
+  const handleSignOut = async () => {
+    handleMenuClose();
+    try {
+      await signOut();
+    } catch (err) {
+      console.error("Sign-out failed:", err);
+    }
+  };
+  const avatarLetter = (user?.displayName?.[0] ?? user?.email?.[0] ?? "?").toUpperCase();
 
   return (
     <>
@@ -71,7 +102,7 @@ export function NavPill({ active }: NavPillProps) {
             },
           }}
         >
-          <Menu size={16} />
+          <MenuIcon size={16} />
         </IconButton>
 
         <Box
@@ -173,12 +204,158 @@ export function NavPill({ active }: NavPillProps) {
             );
           })}
         </Box>
+
+        {/* Account: signed-out → Sign in pill, signed-in → avatar menu.
+            Hidden during the auth-resolving flash to avoid the UI flicker
+            between Sign-in → Avatar that useAuth() always does on hard
+            reload. */}
+        {!loading && (
+          <Box sx={{ ml: 1.25 }}>
+            {user ? (
+              <>
+                <IconButton
+                  onClick={handleAvatarClick}
+                  aria-label="Account menu"
+                  sx={{
+                    p: 0,
+                    border: "1px solid rgba(249,115,22,0.45)",
+                    boxShadow: "0 0 12px rgba(249,115,22,0.25)",
+                    "&:hover": {
+                      borderColor: "rgba(249,115,22,0.75)",
+                    },
+                  }}
+                >
+                  <Avatar
+                    src={user.photoURL ?? undefined}
+                    sx={{
+                      width: 34,
+                      height: 34,
+                      bgcolor:
+                        "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
+                      background:
+                        "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
+                      color: "#0A0A0A",
+                      fontSize: "0.85rem",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {avatarLetter}
+                  </Avatar>
+                </IconButton>
+                <Menu
+                  anchorEl={menuAnchor}
+                  open={Boolean(menuAnchor)}
+                  onClose={handleMenuClose}
+                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                  transformOrigin={{ vertical: "top", horizontal: "right" }}
+                  slotProps={{
+                    paper: {
+                      sx: {
+                        mt: 1,
+                        background: "rgba(20,22,28,0.92)",
+                        backdropFilter: "blur(16px) saturate(160%)",
+                        WebkitBackdropFilter: "blur(16px) saturate(160%)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: "12px",
+                        minWidth: 220,
+                      },
+                    },
+                  }}
+                  MenuListProps={{ sx: { py: 0.5 } }}
+                >
+                  <Box
+                    sx={{
+                      px: 2,
+                      py: 1,
+                      borderBottom: "1px solid rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        color: "rgba(255,255,255,0.94)",
+                        fontWeight: 600,
+                        fontSize: "0.88rem",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {user.displayName ?? "Signed in"}
+                    </Typography>
+                    {user.email && (
+                      <Typography
+                        sx={{
+                          color: "rgba(255,255,255,0.55)",
+                          fontSize: "0.74rem",
+                          mt: 0.25,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          maxWidth: 200,
+                        }}
+                      >
+                        {user.email}
+                      </Typography>
+                    )}
+                  </Box>
+                  <MenuItem
+                    onClick={handleSignOut}
+                    sx={{
+                      px: 2,
+                      py: 1.25,
+                      gap: 1.25,
+                      color: "rgba(255,255,255,0.85)",
+                      fontSize: "0.86rem",
+                      "&:hover": {
+                        background: "rgba(249,115,22,0.1)",
+                        color: "#FB923C",
+                      },
+                    }}
+                  >
+                    <LogOut size={15} />
+                    Sign out
+                  </MenuItem>
+                </Menu>
+              </>
+            ) : (
+              <Stack
+                onClick={() => setAuthDialogOpen(true)}
+                direction="row"
+                spacing={0.75}
+                alignItems="center"
+                sx={{
+                  cursor: "pointer",
+                  px: 1.75,
+                  py: 0.85,
+                  borderRadius: "999px",
+                  background:
+                    "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
+                  color: "#0A0A0A",
+                  fontWeight: 700,
+                  fontSize: "0.84rem",
+                  letterSpacing: "0.01em",
+                  boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
+                  transition: "transform 180ms ease, box-shadow 180ms ease",
+                  "&:hover": {
+                    transform: "translateY(-1px)",
+                    boxShadow: "0 6px 18px rgba(249,115,22,0.42)",
+                  },
+                }}
+              >
+                <User size={14} />
+                <Box>Sign in</Box>
+              </Stack>
+            )}
+          </Box>
+        )}
       </Box>
 
       <AppDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         activeId={active}
+      />
+      <AuthDialog
+        open={authDialogOpen}
+        onClose={() => setAuthDialogOpen(false)}
       />
     </>
   );

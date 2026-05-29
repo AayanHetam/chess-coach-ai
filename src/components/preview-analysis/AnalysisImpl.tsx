@@ -3479,11 +3479,97 @@ function CoachPuzzleCard({
   );
 }
 
-// Match "24.Rxd4", "23...Nf6", "1.e4", etc. — number + 1 or 3 dots + SAN.
-// Two dots is invalid notation but accepted as a tolerant fallback. The
-// "..." form means black's move at that move number.
-const MOVE_REF_RE =
-  /(?<![A-Za-z0-9])(\d+)(\.{1,3})\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g;
+// G7: production-parity 4-tier move-reference parser. Mirrors
+// AICoachChat.tsx:1323-1353. Patterns ordered by specificity (longer +
+// more anchored first) so overlapping matches are resolved in favor of
+// the more specific one.
+const MOVE_REF_PATTERNS: Array<{
+  re: RegExp;
+  // Slot in match[] that holds (moveNumber, color?, san)
+  numIdx: number;
+  colorIdx?: number;
+  sanIdx: number;
+}> = [
+  // Priority 1: AI parenthesized — "Move 3 (Nxd4)"
+  {
+    re: /Move\s+(\d+)\s*\([^)]*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\)/gi,
+    numIdx: 1,
+    sanIdx: 2,
+  },
+  // Priority 2: "Move 3: Nxd4"
+  {
+    re: /Move\s+(\d+):\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
+    numIdx: 1,
+    sanIdx: 2,
+  },
+  // Priority 3: Standard "24.Rxd4" / "23...Nf6"
+  {
+    re: /(?<![A-Za-z0-9])(\d+)(\.{1,3})\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g,
+    numIdx: 1,
+    colorIdx: 2, // 1-dot = white, 3-dot = black
+    sanIdx: 3,
+  },
+  // Priority 4: "move 3 (w|b): Nxd4"
+  {
+    re: /move\s+(\d+)([wb])?:\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
+    numIdx: 1,
+    colorIdx: 2,
+    sanIdx: 3,
+  },
+];
+
+// "best was, should have played, instead of, better was, recommended,
+// correct move, improvement" — production's recommended-move detector.
+const RECOMMENDED_CONTEXT_RE =
+  /best\s*(was|move|is)|should\s*have\s*(played|been)|instead\s*(of|,|:)|better\s*(was|move|is|alternative)|recommended|correct\s*move|improvement/;
+
+interface MoveRefMatch {
+  start: number;
+  end: number;
+  full: string;
+  moveNumber: number;
+  isBlack: boolean;
+  san: string;
+  recommended: boolean;
+}
+
+function findAllMoveRefs(text: string): MoveRefMatch[] {
+  const matches: MoveRefMatch[] = [];
+  for (const pat of MOVE_REF_PATTERNS) {
+    const re = new RegExp(pat.re.source, pat.re.flags);
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text))) {
+      const moveNumber = parseInt(m[pat.numIdx], 10);
+      let isBlack = false;
+      if (pat.colorIdx !== undefined) {
+        const c = m[pat.colorIdx];
+        // For priority 3 the slot holds dots ("." | ".." | "..."), so
+        // length >= 3 means black. For priority 4 it's an explicit w|b.
+        isBlack = c?.length === 3 || c === "b";
+      }
+      const san = m[pat.sanIdx];
+      // Skip if a higher-priority match already covered this range.
+      const overlaps = matches.some(
+        (existing) => m!.index < existing.end && m!.index + m![0].length > existing.start
+      );
+      if (overlaps) continue;
+      const contextBefore = text
+        .slice(Math.max(0, m.index - 60), m.index)
+        .toLowerCase();
+      matches.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        full: m[0],
+        moveNumber,
+        isBlack,
+        san,
+        recommended: RECOMMENDED_CONTEXT_RE.test(contextBefore),
+      });
+    }
+  }
+  matches.sort((a, b) => a.start - b.start);
+  return matches;
+}
 
 const stripSanDecorators = (s: string) => s.replace(/[+#!?]/g, "").toLowerCase();
 
@@ -3550,39 +3636,57 @@ function CoachBubble({
         );
         return;
       }
-      // Within a plain segment, surface move references as clickable spans
+      // G7: production-parity 4-tier move-reference parser. Each match is
+      // styled either as "recommended" (green, click → explore the
+      // alternative) or "navigate" (orange, click → jump to that ply).
       if (!allMoves || !onMoveRefClick) {
         out.push(<span key={`t${boldIdx}`}>{part}</span>);
         return;
       }
+      const refs = findAllMoveRefs(part);
+      if (refs.length === 0) {
+        out.push(<span key={`t${boldIdx}`}>{part}</span>);
+        return;
+      }
       let lastIdx = 0;
-      const re = new RegExp(MOVE_REF_RE.source, "g");
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(part))) {
-        if (m.index > lastIdx) {
+      for (const ref of refs) {
+        if (ref.start > lastIdx) {
           out.push(
             <span key={`${boldIdx}t${lastIdx}`}>
-              {part.slice(lastIdx, m.index)}
+              {part.slice(lastIdx, ref.start)}
             </span>
           );
         }
-        const moveNum = parseInt(m[1], 10);
-        const isBlack = m[2].length === 3; // "..." = black
-        const san = m[3];
-        const ply = findPlyForMoveRef(allMoves, moveNum, isBlack, san);
+        const ply = findPlyForMoveRef(
+          allMoves,
+          ref.moveNumber,
+          ref.isBlack,
+          ref.san
+        );
         if (ply !== null) {
+          const recColor = "#86efac"; // light green for recommended
+          const navColor = isUser ? "#0A0A0A" : "#FB923C";
           out.push(
             <Box
-              key={`${boldIdx}m${m.index}`}
+              key={`${boldIdx}m${ref.start}`}
               component="span"
               onClick={() => onMoveRefClick(ply)}
+              title={
+                ref.recommended
+                  ? `Recommended alternative: ${ref.san}`
+                  : `Jump to ${ref.moveNumber}${
+                      ref.isBlack ? "..." : "."
+                    } ${ref.san}`
+              }
               sx={{
-                color: isUser ? "#0A0A0A" : "#FB923C",
+                color: ref.recommended ? recColor : navColor,
                 cursor: "pointer",
                 fontWeight: 700,
                 textDecoration: "underline",
                 textDecorationStyle: "dotted",
-                textDecorationColor: isUser
+                textDecorationColor: ref.recommended
+                  ? "rgba(134,239,172,0.5)"
+                  : isUser
                   ? "rgba(0,0,0,0.5)"
                   : "rgba(251,146,60,0.5)",
                 px: 0.35,
@@ -3590,21 +3694,22 @@ function CoachBubble({
                 transition: "all 140ms ease",
                 "&:hover": {
                   textDecorationStyle: "solid",
-                  background: isUser
+                  background: ref.recommended
+                    ? "rgba(34,197,94,0.16)"
+                    : isUser
                     ? "rgba(0,0,0,0.08)"
                     : "rgba(249,115,22,0.14)",
                 },
               }}
             >
-              {m[0]}
+              {ref.recommended ? "🔍 " : ""}
+              {ref.full}
             </Box>
           );
         } else {
-          out.push(
-            <span key={`${boldIdx}m${m.index}`}>{m[0]}</span>
-          );
+          out.push(<span key={`${boldIdx}m${ref.start}`}>{ref.full}</span>);
         }
-        lastIdx = m.index + m[0].length;
+        lastIdx = ref.end;
       }
       if (lastIdx < part.length) {
         out.push(

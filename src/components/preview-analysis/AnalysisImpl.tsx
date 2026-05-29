@@ -2860,6 +2860,7 @@ function CoachPanel({
   userRating,
   coachContextIdProp,
   onPuzzleSolved,
+  onPracticeConcept,
   analysisActive,
 }: {
   messages: CoachMessage[];
@@ -2873,6 +2874,11 @@ function CoachPanel({
   onMoveRefClick?: (ply: number) => void;
   onShareMessage?: (msg: CoachMessage) => void;
   onPuzzleSolved?: (puzzle: DrillPuzzle, timeSpentSeconds: number) => void;
+  onPracticeConcept?: (
+    theme: string,
+    displayName: string,
+    messageIndex: number
+  ) => void;
   /** True while Stockfish is still computing positions. Mirrors production's
    * `isAnalyzingGame` gate (AICoachChat:1705) — when set, the input is
    * disabled so the user can't fire deep-coach requests with no gameEval. */
@@ -3061,6 +3067,7 @@ function CoachPanel({
                   messageIndex={i}
                   contextId={coachContextIdProp}
                   onPuzzleSolved={onPuzzleSolved}
+                  onPracticeConcept={onPracticeConcept}
                 />
               </motion.div>
             ))}
@@ -4067,10 +4074,14 @@ function DarkInsightCard({
   insight,
   renderInline,
   onMoveClick,
+  onPracticeConcept,
 }: {
   insight: InsightData;
   renderInline: (text: string) => React.ReactNode[];
   onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
+  /** Fires when the user clicks "Practice this concept" — invokes the
+   * parent's triggerPuzzleFetch to attach a real Neo4j-backed pack. */
+  onPracticeConcept?: (theme: string, displayName: string) => void;
 }) {
   const [showWhy, setShowWhy] = useState(false);
   const [showThreats, setShowThreats] = useState(false);
@@ -4344,11 +4355,52 @@ function DarkInsightCard({
         />
       )}
       {showConcept && (insight.conceptBody || insight.conceptName) && (
-        <Reveal
-          title={insight.conceptName ?? "Concept"}
-          body={insight.conceptBody ?? ""}
-          onClose={() => setShowConcept(false)}
-        />
+        <Box>
+          <Reveal
+            title={insight.conceptName ?? "Concept"}
+            body={insight.conceptBody ?? ""}
+            onClose={() => setShowConcept(false)}
+          />
+          {/* Practice CTA — same pattern production uses inside its
+              Concept reveal (AICoachInsights.tsx:393-399), only here we
+              fire triggerPuzzleFetch directly via callback instead of
+              emitting a [PRACTICE:...] marker for renderRich to catch. */}
+          {insight.conceptKey && insight.conceptName && onPracticeConcept && (
+            <Box
+              onClick={() =>
+                onPracticeConcept(
+                  insight.conceptKey!,
+                  insight.conceptName!
+                )
+              }
+              sx={{
+                mt: 0.75,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.6,
+                px: 1.5,
+                py: 0.75,
+                borderRadius: "999px",
+                background:
+                  "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
+                color: "#0A0A0A",
+                fontWeight: 700,
+                fontSize: "0.78rem",
+                letterSpacing: "0.02em",
+                boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
+                transition: "transform 180ms ease, box-shadow 180ms ease",
+                "&:hover": {
+                  transform: "translateY(-1px)",
+                  boxShadow: "0 6px 18px rgba(249,115,22,0.42)",
+                },
+              }}
+            >
+              <Sparkles size={13} />
+              Practice this concept
+            </Box>
+          )}
+        </Box>
       )}
     </Box>
   );
@@ -4369,10 +4421,12 @@ function DarkInsightCarousel({
   insights,
   renderInline,
   onMoveClick,
+  onPracticeConcept,
 }: {
   insights: InsightData[];
   renderInline: (text: string) => React.ReactNode[];
   onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
+  onPracticeConcept?: (theme: string, displayName: string) => void;
 }) {
   const [[idx, dir], setState] = useState<[number, 1 | -1]>([0, 1]);
   const total = insights.length;
@@ -4571,6 +4625,7 @@ function DarkInsightCarousel({
               insight={current}
               renderInline={renderInline}
               onMoveClick={onMoveClick}
+              onPracticeConcept={onPracticeConcept}
             />
           </motion.div>
         </AnimatePresence>
@@ -4629,6 +4684,7 @@ function CoachBubble({
   messageIndex,
   contextId,
   onPuzzleSolved,
+  onPracticeConcept,
 }: {
   msg: CoachMessage;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
@@ -4646,6 +4702,12 @@ function CoachBubble({
   contextId?: string | null;
   /** G11: fires when an inline puzzle is solved so we can persist + exclude. */
   onPuzzleSolved?: (puzzle: DrillPuzzle, timeSpentSeconds: number) => void;
+  /** Fired when a concept practice CTA is clicked inside an insight card. */
+  onPracticeConcept?: (
+    theme: string,
+    displayName: string,
+    messageIndex: number
+  ) => void;
 }) {
   const isUser = msg.role === "user";
 
@@ -4809,6 +4871,12 @@ function CoachBubble({
                     onMoveRefClick?.(ply);
                   }
                 }}
+                onPracticeConcept={
+                  onPracticeConcept && messageIndex !== undefined
+                    ? (theme, name) =>
+                        onPracticeConcept(theme, name, messageIndex)
+                    : undefined
+                }
               />
               {suffix.trim() && renderInline(suffix)}
             </>
@@ -7118,6 +7186,14 @@ export default function AnalysisPage() {
                             puzzle.id,
                             secs,
                             puzzle.solution
+                          )
+                        }
+                        onPracticeConcept={(theme, name, msgIdx) =>
+                          triggerPuzzleFetch(
+                            msgIdx,
+                            theme,
+                            name,
+                            displayFen
                           )
                         }
                       />

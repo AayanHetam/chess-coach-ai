@@ -287,6 +287,10 @@ const ENGINE_BEST: Record<number, string> = {
   14: "e3h6",
 };
 
+// G8: real Maia is wired via /api/maia-predict. The hand-curated
+// MAIA_MOVES table below is the cold-start fallback for the Kasparov
+// demo (so the arrow shows immediately while the API request is in
+// flight, and stays useful if MAIA_API_URL is unconfigured at runtime).
 const MAIA_MOVES: Record<number, Record<number, string>> = {
   0: { 1100: "e2e4", 1500: "e2e4", 1800: "d2d4", 2200: "g1f3" },
   1: { 1100: "e7e5", 1500: "e7e5", 1800: "c7c5", 2200: "d7d6" },
@@ -301,7 +305,7 @@ const MAIA_MOVES: Record<number, Record<number, string>> = {
   10: { 1100: "g1f3", 1500: "h2h3", 1800: "f2f3", 2200: "f2f3" },
 };
 
-function findMaiaMove(ply: number, elo: number): string | undefined {
+function findMaiaMoveFromTable(ply: number, elo: number): string | undefined {
   const map = MAIA_MOVES[ply];
   if (!map) return undefined;
   const elos = Object.keys(map).map(Number).sort((a, b) => a - b);
@@ -4096,6 +4100,13 @@ export default function AnalysisPage() {
   // Save flow (G4) can persist a complete eval to Firestore/IndexedDB
   // instead of synthesising one. Populated alongside enginePositions.
   const [gameEvalFull, setGameEvalFull] = useState<GameEval | null>(null);
+
+  // G8: real Maia predictions via /api/maia-predict, keyed by
+  // `${fen}|${elo}`. Hand-table is the synchronous cold-start fallback.
+  // Fetches are auth-gated; on 401/503 we silently keep the table value
+  // so the arrow still surfaces something rather than nothing.
+  const [maiaCache, setMaiaCache] = useState<Record<string, string>>({});
+  const maiaInFlightRef = useRef<Set<string>>(new Set());
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
@@ -4645,9 +4656,14 @@ export default function AnalysisPage() {
       }
     }
 
-    // Maia at the selected ELO (purple)
+    // Maia at the selected ELO (purple). Prefer the live /api/maia-predict
+    // result for the current FEN+ELO; fall back to the hand-table for the
+    // Kasparov demo so the arrow shows during the in-flight fetch and stays
+    // useful when MAIA_API_URL is unconfigured.
     if (arrowToggles.maia) {
-      const maia = findMaiaMove(currentPly, arrowToggles.maiaElo);
+      const cacheKey = `${currentFen}|${arrowToggles.maiaElo}`;
+      const live = maiaCache[cacheKey];
+      const maia = live ?? findMaiaMoveFromTable(currentPly, arrowToggles.maiaElo);
       if (maia) shapes.push(uciToShape(maia, ARROW_PALETTE.maia.brush));
     }
 
@@ -4659,7 +4675,42 @@ export default function AnalysisPage() {
     arrowToggles,
     currentPly,
     allMoves,
+    currentFen,
+    maiaCache,
   ]);
+
+  // G8 fetch effect: when the Maia toggle is on and the (fen, elo) pair
+  // isn't cached, hit /api/maia-predict. Silent on 401/503/network errors
+  // — the displayShapes memo falls back to the cold-start table.
+  useEffect(() => {
+    if (!arrowToggles.maia) return;
+    const cacheKey = `${currentFen}|${arrowToggles.maiaElo}`;
+    if (maiaCache[cacheKey]) return;
+    if (maiaInFlightRef.current.has(cacheKey)) return;
+    maiaInFlightRef.current.add(cacheKey);
+    fetch("/api/maia-predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        fen: currentFen,
+        rating: arrowToggles.maiaElo,
+        opponent_rating: arrowToggles.maiaElo,
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { humanLikeMove?: string } | null) => {
+        if (data?.humanLikeMove) {
+          setMaiaCache((m) => ({ ...m, [cacheKey]: data.humanLikeMove! }));
+        }
+      })
+      .catch(() => {
+        /* silent — fallback table covers it */
+      })
+      .finally(() => {
+        maiaInFlightRef.current.delete(cacheKey);
+      });
+  }, [currentFen, arrowToggles.maia, arrowToggles.maiaElo, maiaCache]);
 
   const handleTabChange = useCallback(
     (next: RightTab) => {

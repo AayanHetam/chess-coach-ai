@@ -84,6 +84,10 @@ import {
 import { useSetAtom } from "jotai";
 import { savedEvalsAtom } from "@/sections/analysis/states";
 import type { SavedEvals } from "@/types/eval";
+import {
+  extractImportedGameInfo,
+  detectUserColor,
+} from "@/lib/smartColorDetection";
 import { getEvaluateGameParams } from "@/lib/chess";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
@@ -4263,6 +4267,11 @@ export default function AnalysisPage() {
       ? router.query.autoAnalyze
       : null;
 
+  // Signed-in user — hoisted to the top so downstream loaders (loadNewGame
+  // G13, triggerPuzzleFetch G14, recordSolved G11) can read user.uid /
+  // user.displayName without violating the "declared before use" rule.
+  const { user } = useViewer();
+
   // G6: auto-analyze state machine. Mirrors production's autoAnalyzeStateAtom
   // (src/sections/analysis/states.ts:87-93). Triggered by ?autoAnalyze=1
   // (the Chess Masti browser extension sets this). The chat input is
@@ -4645,6 +4654,38 @@ export default function AnalysisPage() {
       setLoadedGame(game);
       setIsDemoGame(false);
       setCurrentPly(0);
+      // G13: smart color detection on imports. If the PGN headers point at
+      // chess.com or lichess.org AND we have a known username (stashed in
+      // localStorage by the LichessInput / ChessComInput loaders, or from
+      // the signed-in profile), flip the board so the user is at the
+      // bottom. Falls through silently otherwise.
+      try {
+        if (typeof window !== "undefined") {
+          const headerSite = (game.header().Site ?? "").toLowerCase();
+          let source: "chesscom" | "lichess" | undefined;
+          if (headerSite.includes("chess.com")) source = "chesscom";
+          else if (headerSite.includes("lichess.org")) source = "lichess";
+          if (source) {
+            const stored =
+              source === "lichess"
+                ? window.localStorage.getItem("lichess-username")
+                : window.localStorage.getItem("chesscom-username");
+            const cleanStored = stored ? stored.replace(/^"|"$/g, "") : null;
+            const username =
+              cleanStored ||
+              user?.displayName ||
+              user?.email?.split("@")[0] ||
+              undefined;
+            const info = extractImportedGameInfo(game, source, username);
+            const detection = detectUserColor(game, info);
+            if (detection.method === "username_match") {
+              setBoardOrientation(detection.userColor);
+            }
+          }
+        }
+      } catch {
+        /* defensive — color detection should never block a game load */
+      }
       // Sentry breadcrumb so debugging "the page broke on my Lichess game"
       // has the actual PGN at hand without us having to ask.
       try {
@@ -5336,9 +5377,9 @@ export default function AnalysisPage() {
     [drillState, advanceDrill, bumpBoardSync]
   );
 
-  // ─── G4: Firestore game persistence (hoisted above triggerPuzzleFetch
-  // so that the G14 adaptive-puzzles fork can read user.uid). ───
-  const { user } = useViewer();
+  // ─── G4: Firestore game persistence (user is hoisted to the top of
+  // AnalysisPage so loadNewGame G13 + triggerPuzzleFetch G14 can read it
+  // too). ───
   const { addGame, setGameEval } = useGameDatabase();
   const [savedGameId, setSavedGameId] = useState<number | null>(null);
   const [saveState, setSaveState] = useState<

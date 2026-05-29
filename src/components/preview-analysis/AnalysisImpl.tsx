@@ -76,6 +76,7 @@ import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRe
 import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useViewer } from "@/hooks/useViewer";
 import type { GameEval } from "@/types/eval";
+import { FlagButton } from "@/components/intern/FlagButton";
 import { getEvaluateGameParams } from "@/lib/chess";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
@@ -2635,6 +2636,7 @@ function CoachPanel({
   onShareMessage,
   mistakeContext,
   userRating,
+  coachContextIdProp,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -2661,6 +2663,9 @@ function CoachPanel({
     tacticalMotifs: string[];
   } | null;
   userRating?: number;
+  /** G12: current analysis contextId so FlagButton can attach it to the
+   *  flagged-message POST. Null when no deep analysis has run yet. */
+  coachContextIdProp?: string | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -2823,6 +2828,9 @@ function CoachPanel({
                   allMoves={allMoves}
                   onMoveRefClick={onMoveRefClick}
                   onShare={onShareMessage}
+                  allMessages={messages}
+                  messageIndex={i}
+                  contextId={coachContextIdProp}
                 />
               </motion.div>
             ))}
@@ -3603,6 +3611,9 @@ function CoachBubble({
   allMoves,
   onMoveRefClick,
   onShare,
+  allMessages,
+  messageIndex,
+  contextId,
 }: {
   msg: CoachMessage;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
@@ -3612,6 +3623,12 @@ function CoachBubble({
   onMoveRefClick?: (ply: number) => void;
   /** Fired when the user clicks the share icon on a coach reply. */
   onShare?: (msg: CoachMessage) => void;
+  /** Full chat history — required for G12 FlagButton context. */
+  allMessages?: CoachMessage[];
+  /** Index of this message in allMessages — for FlagButton. */
+  messageIndex?: number;
+  /** Current analysis contextId — for FlagButton. Null if no deep analysis run yet. */
+  contextId?: string | null;
 }) {
   const isUser = msg.role === "user";
 
@@ -3868,6 +3885,28 @@ function CoachBubble({
           onPromote={onPromoteToBoard}
         />
       )}
+      {/* G12: FlagButton self-gates on useViewer().isIntern — renders
+          nothing for non-intern viewers. We just need to mount it on
+          every assistant message with the required context. */}
+      {!isUser &&
+        msg.content.trim().length > 0 &&
+        allMessages &&
+        messageIndex !== undefined && (
+          <Box sx={{ mt: 0.75 }}>
+            <FlagButton
+              message={{ role: "assistant", content: msg.content }}
+              messageIndex={messageIndex}
+              chatHistory={allMessages.map((m) => ({
+                role:
+                  m.role === "coach"
+                    ? ("assistant" as const)
+                    : ("user" as const),
+                content: m.content,
+              }))}
+              contextId={contextId ?? null}
+            />
+          </Box>
+        )}
     </Box>
   );
 }
@@ -5887,6 +5926,7 @@ export default function AnalysisPage() {
                         }
                         mistakeContext={mistakeContext}
                         userRating={1500}
+                        coachContextIdProp={coachContextIdRef.current}
                       />
                     </motion.div>
                   )}

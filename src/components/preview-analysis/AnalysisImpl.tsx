@@ -3858,6 +3858,196 @@ function findPlyForMoveRef(
   return null;
 }
 
+// ─── InsightBodyText ─────────────────────────────────────────────────────
+// Beautifies the prose inside Why/Threats/Roles/Concept panels.
+//   1. Drops `[CONTINUATION:X:c]` and `[MAIA_CONTINUATION:X:c]` markers —
+//      production renders these as live engine + Maia line pulls, but
+//      mounting EngineContinuation/MaiaContinuation requires the engine
+//      atom which AnalysisImpl uses a local hook for. Surface them as
+//      compact pills instead of raw tag soup; the user can hit the
+//      Lines tab (G16) for the actual PV.
+//   2. Recognises "Label: rest" lines (Idea / Problem / Solution /
+//      Outcome are the canonical four the coach emits inside WHY) and
+//      renders the label as an uppercase letter-spaced eyebrow above
+//      the body — far more readable than the raw inline form.
+//   3. Lists of "- foo" bullets get rendered as a real list.
+const INSIGHT_LABEL_RE = /^(Idea|Problem|Solution|Outcome|Continuation)\s*:\s*(.+)$/i;
+const CONTINUATION_TAG_RE =
+  /\[(CONTINUATION|MAIA_CONTINUATION):(\d+):(w|b)\]/g;
+
+function ContinuationPill({
+  kind,
+}: {
+  kind: "CONTINUATION" | "MAIA_CONTINUATION";
+}) {
+  const isMaia = kind === "MAIA_CONTINUATION";
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 0.4,
+        px: 0.85,
+        py: 0.25,
+        mx: 0.4,
+        borderRadius: "999px",
+        fontSize: "0.68rem",
+        fontWeight: 700,
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+        color: isMaia ? "#C4B5FD" : "#FB923C",
+        background: isMaia
+          ? "rgba(196,181,253,0.08)"
+          : "rgba(251,146,60,0.08)",
+        border: isMaia
+          ? "1px solid rgba(196,181,253,0.28)"
+          : "1px solid rgba(251,146,60,0.28)",
+      }}
+    >
+      {isMaia ? "Maia line" : "Engine line"}
+    </Box>
+  );
+}
+
+function InsightBodyText({
+  text,
+  renderInline,
+}: {
+  text: string;
+  renderInline: (text: string) => React.ReactNode[];
+}) {
+  // Drop continuation tags from prose body — they'd otherwise render as
+  // `[CONTINUATION:7:w]` literal text. We don't try to materialise live
+  // PVs here; the user has the dedicated Lines tab for that.
+  const cleanedText = text.replace(CONTINUATION_TAG_RE, "").trim();
+
+  // Split into logical chunks. The coach emits each section on its own
+  // line; we honour that as a paragraph boundary.
+  const lines = cleanedText
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  // Also detect whether ANY continuation tags existed — if so, render a
+  // tiny footer telling the user where to find the real engine PV.
+  const hasContinuation = CONTINUATION_TAG_RE.test(text);
+  CONTINUATION_TAG_RE.lastIndex = 0;
+  const hasMaia = / \[MAIA_CONTINUATION:/i.test(text);
+
+  // Group consecutive bullet lines together so they render as one <ul>.
+  const blocks: Array<
+    | { kind: "label"; label: string; body: string }
+    | { kind: "bullets"; items: string[] }
+    | { kind: "para"; body: string }
+  > = [];
+  let bulletBuf: string[] = [];
+  const flushBullets = () => {
+    if (bulletBuf.length > 0) {
+      blocks.push({ kind: "bullets", items: bulletBuf });
+      bulletBuf = [];
+    }
+  };
+  for (const line of lines) {
+    const labelM = INSIGHT_LABEL_RE.exec(line);
+    if (labelM) {
+      flushBullets();
+      blocks.push({ kind: "label", label: labelM[1], body: labelM[2] });
+      continue;
+    }
+    if (/^[-•]\s+/.test(line)) {
+      bulletBuf.push(line.replace(/^[-•]\s+/, ""));
+      continue;
+    }
+    flushBullets();
+    blocks.push({ kind: "para", body: line });
+  }
+  flushBullets();
+
+  return (
+    <Box sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.55 }}>
+      {blocks.map((b, i) => {
+        if (b.kind === "label") {
+          return (
+            <Box
+              key={i}
+              sx={{
+                mt: i === 0 ? 0 : 0.85,
+                display: "grid",
+                gridTemplateColumns: "auto 1fr",
+                columnGap: 1.25,
+                rowGap: 0.25,
+                alignItems: "baseline",
+              }}
+            >
+              <Box
+                sx={{
+                  fontSize: "0.62rem",
+                  fontWeight: 800,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "#FB923C",
+                  whiteSpace: "nowrap",
+                  pt: 0.15,
+                }}
+              >
+                {b.label}
+              </Box>
+              <Box sx={{ color: "rgba(255,255,255,0.92)" }}>
+                {renderInline(b.body)}
+              </Box>
+            </Box>
+          );
+        }
+        if (b.kind === "bullets") {
+          return (
+            <Box
+              key={i}
+              component="ul"
+              sx={{
+                pl: 2.5,
+                my: 0.75,
+                "& li": { mb: 0.3, color: "rgba(255,255,255,0.86)" },
+                "& li::marker": { color: "rgba(251,146,60,0.65)" },
+              }}
+            >
+              {b.items.map((it, j) => (
+                <Box component="li" key={j}>
+                  {renderInline(it)}
+                </Box>
+              ))}
+            </Box>
+          );
+        }
+        return (
+          <Box key={i} sx={{ mt: i === 0 ? 0 : 0.6 }}>
+            {renderInline(b.body)}
+          </Box>
+        );
+      })}
+      {(hasContinuation || hasMaia) && (
+        <Box
+          sx={{
+            mt: 1.25,
+            pt: 1,
+            borderTop: "1px dashed rgba(255,255,255,0.08)",
+            display: "flex",
+            gap: 0.5,
+            alignItems: "center",
+            flexWrap: "wrap",
+            fontSize: "0.72rem",
+            color: "rgba(255,255,255,0.55)",
+          }}
+        >
+          {hasContinuation && <ContinuationPill kind="CONTINUATION" />}
+          {hasMaia && <ContinuationPill kind="MAIA_CONTINUATION" />}
+          <Box sx={{ ml: 0.35 }}>· open the Lines tab for the full PV</Box>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 // ─── DarkInsightCard ─────────────────────────────────────────────────────
 // Dark-themed counterpart to production's InsightCard
 // (src/components/AICoachInsights.tsx). Same parsed InsightData shape via
@@ -3996,16 +4186,7 @@ function DarkInsightCard({
           ×
         </Box>
       </Box>
-      <Box
-        sx={{
-          fontSize: "0.85rem",
-          color: "rgba(255,255,255,0.88)",
-          lineHeight: 1.5,
-          whiteSpace: "pre-wrap",
-        }}
-      >
-        {renderInline(body)}
-      </Box>
+      <InsightBodyText text={body} renderInline={renderInline} />
     </Box>
   );
 
@@ -4168,6 +4349,271 @@ function DarkInsightCard({
           body={insight.conceptBody ?? ""}
           onClose={() => setShowConcept(false)}
         />
+      )}
+    </Box>
+  );
+}
+
+// ─── DarkInsightCarousel ────────────────────────────────────────────────
+// Paginated wrapper around DarkInsightCard. Renders one insight at a time
+// with prev/next arrows + counter + progress bar — mirrors production's
+// InsightsCarousel UX (src/components/AICoachInsights.tsx:487) but on
+// our dark glass surface.
+//
+// Animations:
+//   - Card content slides horizontally on direction change (framer-motion)
+//   - Indexed dots double as click targets so the user can jump to any
+//     insight directly
+//   - Keyboard: ← / → arrow keys advance when the carousel has focus
+function DarkInsightCarousel({
+  insights,
+  renderInline,
+  onMoveClick,
+}: {
+  insights: InsightData[];
+  renderInline: (text: string) => React.ReactNode[];
+  onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
+}) {
+  const [[idx, dir], setState] = useState<[number, 1 | -1]>([0, 1]);
+  const total = insights.length;
+  const clamp = useCallback(
+    (n: number) => ((n % total) + total) % total,
+    [total]
+  );
+  const current = insights[clamp(idx)];
+  const go = useCallback(
+    (delta: 1 | -1) => setState(([prev]) => [clamp(prev + delta), delta]),
+    [clamp]
+  );
+  const jump = useCallback(
+    (target: number) =>
+      setState(([prev]) => [target, (target > prev ? 1 : -1) as 1 | -1]),
+    []
+  );
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      go(-1);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      go(1);
+    }
+  };
+
+  if (total === 0) return null;
+
+  return (
+    <Box
+      tabIndex={0}
+      onKeyDown={handleKey}
+      sx={{
+        mt: 1.5,
+        borderRadius: "1rem",
+        background:
+          "linear-gradient(180deg, rgba(20,22,28,0.6) 0%, rgba(20,22,28,0.4) 100%)",
+        backdropFilter: "blur(18px) saturate(160%)",
+        WebkitBackdropFilter: "blur(18px) saturate(160%)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        overflow: "hidden",
+        outline: "none",
+        "&:focus-visible": {
+          borderColor: "rgba(249,115,22,0.5)",
+          boxShadow: "0 0 0 2px rgba(249,115,22,0.18)",
+        },
+      }}
+    >
+      {/* Eyebrow + nav */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          px: 1.5,
+          py: 1,
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.85,
+          }}
+        >
+          <Flame size={12} color="#FB923C" />
+          <Box
+            sx={{
+              fontSize: "0.66rem",
+              fontWeight: 800,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.62)",
+            }}
+          >
+            Key moments
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+          }}
+        >
+          <Box
+            onClick={() => go(-1)}
+            aria-label="Previous insight"
+            sx={{
+              cursor: total > 1 ? "pointer" : "default",
+              opacity: total > 1 ? 1 : 0.3,
+              width: 24,
+              height: 24,
+              borderRadius: "999px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "rgba(255,255,255,0.7)",
+              transition: "all 180ms ease",
+              "&:hover":
+                total > 1
+                  ? {
+                      background: "rgba(249,115,22,0.12)",
+                      color: "#FB923C",
+                    }
+                  : {},
+            }}
+          >
+            <ChevronLeft size={14} />
+          </Box>
+          <Box
+            sx={{
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              color: "rgba(255,255,255,0.85)",
+              fontVariantNumeric: "tabular-nums",
+              minWidth: 32,
+              textAlign: "center",
+              letterSpacing: "0.02em",
+            }}
+          >
+            {clamp(idx) + 1} / {total}
+          </Box>
+          <Box
+            onClick={() => go(1)}
+            aria-label="Next insight"
+            sx={{
+              cursor: total > 1 ? "pointer" : "default",
+              opacity: total > 1 ? 1 : 0.3,
+              width: 24,
+              height: 24,
+              borderRadius: "999px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "rgba(255,255,255,0.7)",
+              transition: "all 180ms ease",
+              "&:hover":
+                total > 1
+                  ? {
+                      background: "rgba(249,115,22,0.12)",
+                      color: "#FB923C",
+                    }
+                  : {},
+            }}
+          >
+            <ChevronRight size={14} />
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Progress bar */}
+      <Box sx={{ position: "relative", height: 2 }}>
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(255,255,255,0.04)",
+          }}
+        />
+        <motion.div
+          layout
+          animate={{
+            width: `${((clamp(idx) + 1) / total) * 100}%`,
+          }}
+          transition={{ duration: 0.32, ease: [0.22, 0.61, 0.36, 1] }}
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            background:
+              "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
+            boxShadow: "0 0 12px rgba(249,115,22,0.45)",
+          }}
+        />
+      </Box>
+
+      {/* Slide-animated card body */}
+      <Box sx={{ position: "relative", p: 1.5 }}>
+        <AnimatePresence mode="wait" custom={dir} initial={false}>
+          <motion.div
+            key={clamp(idx)}
+            custom={dir}
+            initial={{ opacity: 0, x: dir * 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: dir * -24 }}
+            transition={{
+              duration: 0.22,
+              ease: [0.22, 0.61, 0.36, 1],
+            }}
+          >
+            <DarkInsightCard
+              insight={current}
+              renderInline={renderInline}
+              onMoveClick={onMoveClick}
+            />
+          </motion.div>
+        </AnimatePresence>
+      </Box>
+
+      {/* Indexed dots (jump-to) */}
+      {total > 1 && (
+        <Box
+          sx={{
+            display: "flex",
+            gap: 0.5,
+            justifyContent: "center",
+            pb: 1.25,
+            pt: 0.25,
+          }}
+        >
+          {insights.map((_, i) => {
+            const active = i === clamp(idx);
+            return (
+              <Box
+                key={i}
+                onClick={() => jump(i)}
+                aria-label={`Go to insight ${i + 1}`}
+                sx={{
+                  cursor: "pointer",
+                  width: active ? 18 : 6,
+                  height: 6,
+                  borderRadius: "999px",
+                  background: active
+                    ? "linear-gradient(135deg,#F97316,#EA580C)"
+                    : "rgba(255,255,255,0.18)",
+                  boxShadow: active
+                    ? "0 0 10px rgba(249,115,22,0.45)"
+                    : "none",
+                  transition: "all 220ms ease",
+                  "&:hover": active
+                    ? {}
+                    : { background: "rgba(255,255,255,0.32)" },
+                }}
+              />
+            );
+          })}
+        </Box>
       )}
     </Box>
   );
@@ -4353,22 +4799,17 @@ function CoachBubble({
           return (
             <>
               {prefix.trim() && renderInline(prefix)}
-              {insights.map((ins, i) => (
-                <DarkInsightCard
-                  key={i}
-                  insight={ins}
-                  renderInline={renderInline}
-                  onMoveClick={(moveNum, isBlack) => {
-                    if (!allMoves) return;
-                    const ply = isBlack
-                      ? moveNum * 2
-                      : moveNum * 2 - 1;
-                    if (ply >= 0 && ply <= allMoves.length) {
-                      onMoveRefClick?.(ply);
-                    }
-                  }}
-                />
-              ))}
+              <DarkInsightCarousel
+                insights={insights}
+                renderInline={renderInline}
+                onMoveClick={(moveNum, isBlack) => {
+                  if (!allMoves) return;
+                  const ply = isBlack ? moveNum * 2 : moveNum * 2 - 1;
+                  if (ply >= 0 && ply <= allMoves.length) {
+                    onMoveRefClick?.(ply);
+                  }
+                }}
+              />
               {suffix.trim() && renderInline(suffix)}
             </>
           );

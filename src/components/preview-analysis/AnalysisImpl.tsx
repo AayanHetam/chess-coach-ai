@@ -79,6 +79,10 @@ import { useViewer } from "@/hooks/useViewer";
 import type { GameEval } from "@/types/eval";
 import { FlagButton } from "@/components/intern/FlagButton";
 import {
+  parseInsights,
+  type InsightData,
+} from "@/components/AICoachInsights";
+import {
   recordPuzzleAttempt,
   getAllAttempts,
 } from "@/lib/repetitTraining";
@@ -3854,6 +3858,321 @@ function findPlyForMoveRef(
   return null;
 }
 
+// ─── DarkInsightCard ─────────────────────────────────────────────────────
+// Dark-themed counterpart to production's InsightCard
+// (src/components/AICoachInsights.tsx). Same parsed InsightData shape via
+// shared parseInsights — we just render it on a glass surface instead of
+// the light Material card the legacy chat uses.
+//
+// Layout:
+//   ┌─────────────────────────────────────────────────────────┐
+//   │ 16. Bf5   [Blunder ??]   −0.57 → M−1                    │
+//   │ Bringing the second rook into play seemed logical…      │
+//   │ [Show why ▾] [Threats] [Roles] [Concept]                │
+//   │ ╭─ Why ───────────────────────────────────────────────╮  │
+//   │ │ Idea / Problem / Solution / Outcome                 │  │
+//   │ ╰─────────────────────────────────────────────────────╯  │
+//   └─────────────────────────────────────────────────────────┘
+function DarkInsightCard({
+  insight,
+  renderInline,
+  onMoveClick,
+}: {
+  insight: InsightData;
+  renderInline: (text: string) => React.ReactNode[];
+  onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
+}) {
+  const [showWhy, setShowWhy] = useState(false);
+  const [showThreats, setShowThreats] = useState(false);
+  const [showRoles, setShowRoles] = useState(false);
+  const [showConcept, setShowConcept] = useState(false);
+
+  const cls = (insight.classification ?? "").toLowerCase() as MoveLabel;
+  const color = CLASSIFICATION_COLORS[cls] ?? "rgba(255,255,255,0.4)";
+  const label = CLASSIFICATION_LABELS[cls] ?? insight.classification ?? "";
+  const glyph = CLASSIFICATION_GLYPHS[cls] ?? "";
+  const isNegative =
+    cls === MoveClassification.Blunder ||
+    cls === MoveClassification.Mistake ||
+    cls === MoveClassification.Inaccuracy ||
+    cls === MoveClassification.Miss;
+
+  const evalLine =
+    insight.evalBefore || insight.evalAfter
+      ? `${insight.evalBefore ?? "?"} → ${insight.evalAfter ?? "?"}`
+      : null;
+
+  const moveText = insight.playedMove
+    ? `${insight.moveLabel} ${insight.playedMove}`
+    : insight.moveLabel;
+
+  const Pill = ({
+    label,
+    active,
+    onClick,
+  }: {
+    label: string;
+    active: boolean;
+    onClick: () => void;
+  }) => (
+    <Box
+      onClick={onClick}
+      sx={{
+        cursor: "pointer",
+        px: 1.25,
+        py: 0.45,
+        borderRadius: "999px",
+        fontSize: "0.72rem",
+        fontWeight: 600,
+        letterSpacing: "0.02em",
+        color: active ? "#0A0A0A" : "rgba(255,255,255,0.78)",
+        background: active
+          ? "linear-gradient(135deg,#F97316 0%,#EA580C 100%)"
+          : "rgba(255,255,255,0.05)",
+        border: active
+          ? "1px solid rgba(249,115,22,0.6)"
+          : "1px solid rgba(255,255,255,0.08)",
+        transition: "all 180ms ease",
+        "&:hover": active
+          ? {}
+          : {
+              background: "rgba(249,115,22,0.1)",
+              borderColor: "rgba(249,115,22,0.35)",
+              color: "#FB923C",
+            },
+      }}
+    >
+      {label}
+    </Box>
+  );
+
+  const Reveal = ({
+    title,
+    body,
+    onClose,
+  }: {
+    title: string;
+    body: string;
+    onClose: () => void;
+  }) => (
+    <Box
+      sx={{
+        mt: 1,
+        p: 1.25,
+        borderRadius: "0.55rem",
+        background: "rgba(0,0,0,0.3)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        position: "relative",
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 0.5,
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: "0.7rem",
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.55)",
+          }}
+        >
+          {title}
+        </Typography>
+        <Box
+          onClick={onClose}
+          sx={{
+            cursor: "pointer",
+            color: "rgba(255,255,255,0.4)",
+            fontSize: "0.7rem",
+            "&:hover": { color: "#FB923C" },
+          }}
+        >
+          ×
+        </Box>
+      </Box>
+      <Box
+        sx={{
+          fontSize: "0.85rem",
+          color: "rgba(255,255,255,0.88)",
+          lineHeight: 1.5,
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        {renderInline(body)}
+      </Box>
+    </Box>
+  );
+
+  return (
+    <Box
+      sx={{
+        mt: 1.25,
+        p: 1.5,
+        borderRadius: "0.75rem",
+        background: "rgba(20,22,28,0.55)",
+        backdropFilter: "blur(14px) saturate(150%)",
+        WebkitBackdropFilter: "blur(14px) saturate(150%)",
+        border: `1px solid ${color}33`,
+        boxShadow: `0 4px 16px ${color}1f`,
+      }}
+    >
+      {/* Header: move ref + classification chip + eval delta */}
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        sx={{ flexWrap: "wrap", gap: 0.75 }}
+      >
+        <Box
+          onClick={() =>
+            onMoveClick?.(insight.moveNumber, insight.color === "b")
+          }
+          sx={{
+            cursor: "pointer",
+            fontWeight: 700,
+            fontSize: "0.95rem",
+            color: "#FB923C",
+            textDecoration: "underline",
+            textDecorationColor: "rgba(251,146,60,0.4)",
+            textUnderlineOffset: "3px",
+            "&:hover": {
+              color: "#FDBA74",
+              textDecorationColor: "#FDBA74",
+            },
+          }}
+        >
+          {moveText}
+        </Box>
+        <Box
+          sx={{
+            px: 0.85,
+            py: 0.25,
+            borderRadius: "999px",
+            background: `${color}22`,
+            border: `1px solid ${color}55`,
+            color,
+            fontSize: "0.72rem",
+            fontWeight: 700,
+            letterSpacing: "0.02em",
+            display: "flex",
+            gap: 0.4,
+            alignItems: "center",
+          }}
+        >
+          {glyph && <Box component="span">{glyph}</Box>}
+          {label}
+        </Box>
+        {evalLine && (
+          <Typography
+            sx={{
+              fontSize: "0.74rem",
+              color: "rgba(255,255,255,0.5)",
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+            }}
+          >
+            {evalLine}
+          </Typography>
+        )}
+      </Stack>
+
+      {/* Non-spoiler lede */}
+      {insight.headline && (
+        <Typography
+          sx={{
+            mt: 1,
+            fontSize: "0.88rem",
+            color: "rgba(255,255,255,0.92)",
+            lineHeight: 1.45,
+          }}
+        >
+          {renderInline(insight.headline)}
+        </Typography>
+      )}
+
+      {/* Reveal pills */}
+      <Stack
+        direction="row"
+        spacing={0.75}
+        sx={{ mt: 1.25, flexWrap: "wrap", gap: 0.6 }}
+      >
+        {insight.why && (
+          <Pill
+            label={
+              showWhy
+                ? "Hide"
+                : isNegative
+                ? "Show what was missed"
+                : "Show why this works"
+            }
+            active={showWhy}
+            onClick={() => setShowWhy((v) => !v)}
+          />
+        )}
+        {insight.threats && (
+          <Pill
+            label="Threats"
+            active={showThreats}
+            onClick={() => setShowThreats((v) => !v)}
+          />
+        )}
+        {insight.roles && (
+          <Pill
+            label="Piece roles"
+            active={showRoles}
+            onClick={() => setShowRoles((v) => !v)}
+          />
+        )}
+        {(insight.conceptBody || insight.conceptName) && (
+          <Pill
+            label={insight.conceptName ?? "Concept"}
+            active={showConcept}
+            onClick={() => setShowConcept((v) => !v)}
+          />
+        )}
+      </Stack>
+
+      {showWhy && insight.why && (
+        <Reveal
+          title={
+            insight.bestMove
+              ? `Best move: ${insight.bestMove}`
+              : "Explanation"
+          }
+          body={insight.why}
+          onClose={() => setShowWhy(false)}
+        />
+      )}
+      {showThreats && insight.threats && (
+        <Reveal
+          title="Threats"
+          body={insight.threats}
+          onClose={() => setShowThreats(false)}
+        />
+      )}
+      {showRoles && insight.roles && (
+        <Reveal
+          title="Piece roles"
+          body={insight.roles}
+          onClose={() => setShowRoles(false)}
+        />
+      )}
+      {showConcept && (insight.conceptBody || insight.conceptName) && (
+        <Reveal
+          title={insight.conceptName ?? "Concept"}
+          body={insight.conceptBody ?? ""}
+          onClose={() => setShowConcept(false)}
+        />
+      )}
+    </Box>
+  );
+}
+
 function CoachBubble({
   msg,
   onPromoteToBoard,
@@ -4019,52 +4338,39 @@ function CoachBubble({
           "&:hover .coach-share-btn": { opacity: 1 },
         }}
       >
-        {renderInline(
-          extractInsightTags(extractPracticeTags(msg.content).stripped)
-            .stripped
-        )}
         {(() => {
-          const ins = extractInsightTags(msg.content).insights;
-          if (isUser || ins.length === 0) return null;
+          // Strip PRACTICE tags first (they're for puzzle attach), then
+          // parse INSIGHT/WHY/THREATS/ROLES/CONCEPT blocks via production's
+          // shared parseInsights. When present we render prefix prose +
+          // DarkInsightCard per insight + suffix prose. When absent we
+          // fall back to the original raw-text inline rendering.
+          if (isUser) return renderInline(msg.content);
+          const practiceStripped = extractPracticeTags(msg.content).stripped;
+          const { prefix, insights, suffix } = parseInsights(practiceStripped);
+          if (insights.length === 0) {
+            return renderInline(practiceStripped);
+          }
           return (
-            <Box
-              sx={{
-                mt: 1,
-                p: 1.25,
-                borderRadius: "0.7rem",
-                background:
-                  "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(34,197,94,0.04))",
-                border: "1px solid rgba(34,197,94,0.32)",
-                display: "flex",
-                gap: 1,
-                alignItems: "flex-start",
-              }}
-            >
-              <Flame size={14} color="#86efac" style={{ marginTop: 2 }} />
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography
-                  sx={{
-                    fontSize: "0.68rem",
-                    fontWeight: 700,
-                    letterSpacing: "0.12em",
-                    color: "#86efac",
-                    textTransform: "uppercase",
-                    mb: 0.25,
+            <>
+              {prefix.trim() && renderInline(prefix)}
+              {insights.map((ins, i) => (
+                <DarkInsightCard
+                  key={i}
+                  insight={ins}
+                  renderInline={renderInline}
+                  onMoveClick={(moveNum, isBlack) => {
+                    if (!allMoves) return;
+                    const ply = isBlack
+                      ? moveNum * 2
+                      : moveNum * 2 - 1;
+                    if (ply >= 0 && ply <= allMoves.length) {
+                      onMoveRefClick?.(ply);
+                    }
                   }}
-                >
-                  Coach insight
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "0.82rem",
-                    color: "rgba(255,255,255,0.92)",
-                    lineHeight: 1.35,
-                  }}
-                >
-                  {ins.join(" · ")}
-                </Typography>
-              </Box>
-            </Box>
+                />
+              ))}
+              {suffix.trim() && renderInline(suffix)}
+            </>
           );
         })()}
         {shareable && (

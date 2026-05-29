@@ -4276,6 +4276,41 @@ export default function AnalysisPage() {
     }
   }, [enginePositions, loadedGame]);
 
+  // G9: derive real key moments from classification. Production's
+  // SurpriseAnalyzer is a separate Stockfish pass that adds a lot of
+  // build-time cost; instead we use the classification we already have
+  // and lift Brilliant + Great into "brilliant" markers, Blunder + Miss
+  // into "mistake" markers. Falls back to the hand-curated Kasparov
+  // KEY_MOMENTS constant when classification isn't ready or the demo is
+  // still the seed game (isDemoGame), so the demo experience is
+  // unchanged.
+  const liveKeyMoments = useMemo<KeyMoment[]>(() => {
+    if (!classifiedPositions || isDemoGame) return KEY_MOMENTS;
+    const moments: KeyMoment[] = [];
+    for (let ply = 1; ply < classifiedPositions.length; ply++) {
+      const cls = classifiedPositions[ply]?.moveClassification;
+      if (!cls) continue;
+      const move = loadedGame.history({ verbose: true })[ply - 1];
+      if (!move) continue;
+      const num = Math.ceil(ply / 2);
+      const dots = ply % 2 === 1 ? "." : "...";
+      const label = `${num}${dots}${move.san}`;
+      if (
+        cls === MoveClassification.Brilliant ||
+        cls === MoveClassification.Great
+      ) {
+        moments.push({ ply, label, kind: "brilliant" });
+      } else if (
+        cls === MoveClassification.Mistake ||
+        cls === MoveClassification.Blunder ||
+        cls === MoveClassification.Miss
+      ) {
+        moments.push({ ply, label, kind: "mistake" });
+      }
+    }
+    return moments;
+  }, [classifiedPositions, isDemoGame, loadedGame]);
+
   // Whenever the loaded game OR engine settings change, clear the analysis
   // cache so Stockfish re-runs. allMoves derives from loadedGame so
   // depending on .length alone misses the case where a different game of
@@ -5615,7 +5650,7 @@ export default function AnalysisPage() {
       },
       {
         heading: "Key moments",
-        items: KEY_MOMENTS.map((m) => ({
+        items: liveKeyMoments.map((m) => ({
           id: `moment-${m.ply}`,
           label: `Jump to ${m.label}`,
           hint: `Move ${Math.ceil(m.ply / 2)}`,
@@ -5664,7 +5699,7 @@ export default function AnalysisPage() {
         })),
       },
     ],
-    [allMoves.length]
+    [allMoves.length, liveKeyMoments]
   );
 
   return (
@@ -5862,13 +5897,13 @@ export default function AnalysisPage() {
                 series={evalSeries}
                 currentPly={currentPly}
                 onJumpTo={setCurrentPly}
-                keyMoments={KEY_MOMENTS}
+                keyMoments={liveKeyMoments}
                 analyzing={analysisActive}
                 progress={analysisProgress}
                 errored={analysisError !== null}
               />
               <KeyMomentsRow
-                moments={KEY_MOMENTS}
+                moments={liveKeyMoments}
                 currentPly={currentPly}
                 onJumpTo={setCurrentPly}
               />

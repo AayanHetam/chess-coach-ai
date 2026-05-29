@@ -727,6 +727,25 @@ function extractPracticeTags(content: string): {
   return { stripped: stripped.trim(), tags };
 }
 
+// G5: [INSIGHT:...] tags. Production AICoachChat.tsx:2038-2047 looks
+// for these in coach replies — the payload is the headline for the
+// shareable SVG card, and the presence of any tag is the signal that
+// gates the autoAnalyzeState machine (G6) from
+// "sent-awaiting-insights" → "done".
+const INSIGHT_TAG_RE = /\[INSIGHT:([^\]]+)\]/g;
+
+function extractInsightTags(content: string): {
+  stripped: string;
+  insights: string[];
+} {
+  const insights: string[] = [];
+  const stripped = content.replace(INSIGHT_TAG_RE, (_, payload) => {
+    insights.push(String(payload));
+    return "";
+  });
+  return { stripped: stripped.trim(), insights };
+}
+
 interface DrillState {
   puzzles: DrillPuzzle[];
   currentIndex: number;
@@ -3622,7 +3641,54 @@ function CoachBubble({
           "&:hover .coach-share-btn": { opacity: 1 },
         }}
       >
-        {renderInline(extractPracticeTags(msg.content).stripped)}
+        {renderInline(
+          extractInsightTags(extractPracticeTags(msg.content).stripped)
+            .stripped
+        )}
+        {(() => {
+          const ins = extractInsightTags(msg.content).insights;
+          if (isUser || ins.length === 0) return null;
+          return (
+            <Box
+              sx={{
+                mt: 1,
+                p: 1.25,
+                borderRadius: "0.7rem",
+                background:
+                  "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(34,197,94,0.04))",
+                border: "1px solid rgba(34,197,94,0.32)",
+                display: "flex",
+                gap: 1,
+                alignItems: "flex-start",
+              }}
+            >
+              <Flame size={14} color="#86efac" style={{ marginTop: 2 }} />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography
+                  sx={{
+                    fontSize: "0.68rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.12em",
+                    color: "#86efac",
+                    textTransform: "uppercase",
+                    mb: 0.25,
+                  }}
+                >
+                  Coach insight
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.82rem",
+                    color: "rgba(255,255,255,0.92)",
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {ins.join(" · ")}
+                </Typography>
+              </Box>
+            </Box>
+          );
+        })()}
         {shareable && (
           <Tooltip title="Share this insight (link + PNG)">
             <IconButton
@@ -3974,6 +4040,20 @@ export default function AnalysisPage() {
     typeof router.query.solution === "string" ? router.query.solution : null;
   const promptParam =
     typeof router.query.prompt === "string" ? router.query.prompt : null;
+  const autoAnalyzeParam =
+    typeof router.query.autoAnalyze === "string"
+      ? router.query.autoAnalyze
+      : null;
+
+  // G6: auto-analyze state machine. Mirrors production's autoAnalyzeStateAtom
+  // (src/sections/analysis/states.ts:87-93). Triggered by ?autoAnalyze=1
+  // (the Chess Masti browser extension sets this). The chat input is
+  // locked while in "pending" or "sent-awaiting-insights" so the user
+  // can't queue requests on top of a long deep-analysis pass.
+  const [autoAnalyzeState, setAutoAnalyzeState] = useState<
+    "idle" | "pending" | "sent-awaiting-insights" | "done"
+  >(autoAnalyzeParam === "1" ? "pending" : "idle");
+  const autoAnalyzeFiredRef = useRef(false);
 
   // Loaded game — either the Kasparov demo (cold start), a puzzle stub
   // (?puzzleFen=...), or whatever the user just imported via URL param /
@@ -5118,8 +5198,26 @@ export default function AnalysisPage() {
     [allMoves, isThinking, messages, triggerPuzzleFetch]
   );
 
-  const handleSend = useCallback(async () => {
-    const text = input.trim();
+  // G6 auto-fire infrastructure: a ref to the latest handleSend so we can
+  // dispatch the "Analyze my game" message without a stale closure.
+  // useEffect/setState handlers see this ref's `.current` lazily.
+  const handleSendRef = useRef<((overrideText?: string) => void) | null>(null);
+
+  // G6 auto-fire: when ?autoAnalyze=1 brought us in AND Stockfish has
+  // finished AND we haven't fired yet, dispatch "Analyze my game" and
+  // transition to sent-awaiting-insights. Unlocks on first INSIGHT tag.
+  useEffect(() => {
+    if (autoAnalyzeFiredRef.current) return;
+    if (autoAnalyzeState !== "pending") return;
+    if (!enginePositions || isThinking) return;
+    if (allMoves.length === 0) return;
+    autoAnalyzeFiredRef.current = true;
+    setAutoAnalyzeState("sent-awaiting-insights");
+    handleSendRef.current?.("Analyze my game.");
+  }, [autoAnalyzeState, enginePositions, isThinking, allMoves.length]);
+
+  const handleSend = useCallback(async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim();
     if (!text || isThinking) return;
     const prevForApi = messages;
     setMessages((prev) => [
@@ -5174,6 +5272,16 @@ export default function AnalysisPage() {
           0
         );
       }
+      // G6: autoAnalyze completion gate. When the reply contains any
+      // [INSIGHT:...] tag, transition the state machine to "done" so
+      // the input unlocks. Mirrors AICoachChat.tsx:2038-2047.
+      if (
+        (autoAnalyzeState === "pending" ||
+          autoAnalyzeState === "sent-awaiting-insights") &&
+        extractInsightTags(accumulated).insights.length > 0
+      ) {
+        setAutoAnalyzeState("done");
+      }
     } catch (err) {
       const errorText =
         err instanceof CoachAuthError
@@ -5198,7 +5306,17 @@ export default function AnalysisPage() {
     displayFen,
     allMoves,
     triggerPuzzleFetch,
+    autoAnalyzeState,
+    loadedGame,
+    enginePositions,
   ]);
+
+  // Keep the auto-fire ref pointed at the latest handleSend so the
+  // useEffect above can dispatch the synthetic prompt without a stale
+  // closure on input/messages.
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  }, [handleSend]);
 
   const handleSuggestion = useCallback(
     (s: string) => {

@@ -77,6 +77,10 @@ import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useViewer } from "@/hooks/useViewer";
 import type { GameEval } from "@/types/eval";
 import { FlagButton } from "@/components/intern/FlagButton";
+import {
+  recordPuzzleAttempt,
+  getAllAttempts,
+} from "@/lib/repetitTraining";
 import { getEvaluateGameParams } from "@/lib/chess";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
@@ -338,7 +342,8 @@ async function fetchPuzzlesForTheme(
   fen: string,
   theme: string,
   userRating = 1500,
-  limit = 3
+  limit = 3,
+  excludeIds: string[] = []
 ): Promise<DrillPuzzle[] | null> {
   const themes = [theme]; // future: accept multi-theme conjunctions
   const res = await fetch("/api/similar-puzzles", {
@@ -350,6 +355,7 @@ async function fetchPuzzlesForTheme(
       userRating,
       limit,
       candidatePoolSize: Math.max(limit * 5, 20),
+      excludeIds,
     }),
   });
   if (!res.ok) {
@@ -369,6 +375,43 @@ async function fetchPuzzlesForTheme(
     if (mapped.length >= limit) break;
   }
   return mapped.length > 0 ? mapped : null;
+}
+
+// G14: try the adaptive-puzzles endpoint when we have a signed-in user.
+// Returns null if Neo4j is unconfigured (503), the user has no struggled-
+// theme history yet, or the request fails for any reason — callers fall
+// back to fetchPuzzlesForTheme (similar-puzzles).
+async function fetchAdaptivePuzzles(
+  userId: string,
+  theme: string,
+  limit = 3,
+  excludeIds: string[] = []
+): Promise<DrillPuzzle[] | null> {
+  try {
+    const res = await fetch("/api/adaptive-puzzles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        themes: [theme],
+        limit,
+        excludePuzzleIds: excludeIds,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { puzzles?: LichessPuzzleResponse[] };
+    const raw = data.puzzles ?? [];
+    if (raw.length === 0) return null;
+    const mapped: DrillPuzzle[] = [];
+    for (const p of raw) {
+      const d = lichessToDrillPuzzle(p);
+      if (d && d.solution.length > 0) mapped.push(d);
+      if (mapped.length >= limit) break;
+    }
+    return mapped.length > 0 ? mapped : null;
+  } catch {
+    return null;
+  }
 }
 
 class CoachAuthError extends Error {}
@@ -2637,6 +2680,7 @@ function CoachPanel({
   mistakeContext,
   userRating,
   coachContextIdProp,
+  onPuzzleSolved,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -2648,6 +2692,7 @@ function CoachPanel({
   allMoves?: Move[];
   onMoveRefClick?: (ply: number) => void;
   onShareMessage?: (msg: CoachMessage) => void;
+  onPuzzleSolved?: (puzzle: DrillPuzzle, timeSpentSeconds: number) => void;
   /**
    * Production-parity mistake context — when set, mounts inline
    * ContextualPuzzleRecommendations above the message stream. Recomputed
@@ -2831,6 +2876,7 @@ function CoachPanel({
                   allMessages={messages}
                   messageIndex={i}
                   contextId={coachContextIdProp}
+                  onPuzzleSolved={onPuzzleSolved}
                 />
               </motion.div>
             ))}
@@ -3218,14 +3264,17 @@ function InlinePuzzleSolver({
 function CoachPuzzleCard({
   pack,
   onPromote,
+  onSolved,
 }: {
   pack: PuzzlePack;
   onPromote: (puzzles: DrillPuzzle[], startIndex: number) => void;
+  onSolved?: (puzzle: DrillPuzzle, timeSpentSeconds: number) => void;
 }) {
   // Which puzzle is currently expanded inline. Default to the first ready
   // puzzle so the user lands on a solvable board the moment the pack loads.
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [solvedIds, setSolvedIds] = useState<Set<string>>(new Set());
+  const startTimesRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     if (expandedId !== null) return;
@@ -3235,6 +3284,15 @@ function CoachPuzzleCard({
     }
   }, [pack.status, pack.puzzles, expandedId]);
 
+  // Stamp a start time when a puzzle becomes the expanded one so we can
+  // pass realistic timeSpentSeconds up to recordPuzzleAttempt.
+  useEffect(() => {
+    if (!expandedId) return;
+    if (!startTimesRef.current[expandedId]) {
+      startTimesRef.current[expandedId] = Date.now();
+    }
+  }, [expandedId]);
+
   const markSolved = useCallback(
     (id: string) => {
       setSolvedIds((prev) => {
@@ -3242,6 +3300,11 @@ function CoachPuzzleCard({
         next.add(id);
         return next;
       });
+      const puzzle = pack.puzzles.find((p) => p.id === id);
+      if (puzzle && onSolved) {
+        const startedAt = startTimesRef.current[id] ?? Date.now();
+        onSolved(puzzle, (Date.now() - startedAt) / 1000);
+      }
       // Auto-advance to next unsolved puzzle
       const idx = pack.puzzles.findIndex((p) => p.id === id);
       const nextUnsolved = pack.puzzles.find(
@@ -3250,7 +3313,7 @@ function CoachPuzzleCard({
       if (nextUnsolved) setExpandedId(nextUnsolved.id);
       else setExpandedId(null); // pack complete
     },
-    [pack.puzzles, solvedIds]
+    [pack.puzzles, solvedIds, onSolved]
   );
 
   return (
@@ -3614,6 +3677,7 @@ function CoachBubble({
   allMessages,
   messageIndex,
   contextId,
+  onPuzzleSolved,
 }: {
   msg: CoachMessage;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
@@ -3629,6 +3693,8 @@ function CoachBubble({
   messageIndex?: number;
   /** Current analysis contextId — for FlagButton. Null if no deep analysis run yet. */
   contextId?: string | null;
+  /** G11: fires when an inline puzzle is solved so we can persist + exclude. */
+  onPuzzleSolved?: (puzzle: DrillPuzzle, timeSpentSeconds: number) => void;
 }) {
   const isUser = msg.role === "user";
 
@@ -3883,6 +3949,7 @@ function CoachBubble({
         <CoachPuzzleCard
           pack={msg.puzzlePack}
           onPromote={onPromoteToBoard}
+          onSolved={onPuzzleSolved}
         />
       )}
       {/* G12: FlagButton self-gates on useViewer().isIntern — renders
@@ -5241,6 +5308,58 @@ export default function AnalysisPage() {
     [drillState, advanceDrill, bumpBoardSync]
   );
 
+  // ─── G4: Firestore game persistence (hoisted above triggerPuzzleFetch
+  // so that the G14 adaptive-puzzles fork can read user.uid). ───
+  const { user } = useViewer();
+  const { addGame, setGameEval } = useGameDatabase();
+  const [savedGameId, setSavedGameId] = useState<number | null>(null);
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+
+  // ─── G11: Spaced repetition. We persist every solve via
+  // recordPuzzleAttempt (production helper, localStorage-backed) and pass
+  // the de-duped solved-id set as excludeIds to every puzzle fetch so the
+  // user never re-solves the same one. Ref is the source of truth for
+  // fast read; counter forces fresh memo reads after a solve. ───
+  const solvedPuzzleIdsRef = useRef<Set<string>>(new Set());
+  const [solvedBump, setSolvedBump] = useState(0);
+  void solvedBump;
+
+  useEffect(() => {
+    try {
+      const attempts = getAllAttempts();
+      const next = new Set<string>();
+      for (const a of attempts) {
+        if (a.success) next.add(a.puzzleId);
+      }
+      solvedPuzzleIdsRef.current = next;
+    } catch {
+      // localStorage unavailable; treat as empty.
+    }
+  }, []);
+
+  const recordSolved = useCallback(
+    (puzzleId: string, timeSpentSeconds: number, movesPlayed: string[]) => {
+      const next = new Set(solvedPuzzleIdsRef.current);
+      next.add(puzzleId);
+      solvedPuzzleIdsRef.current = next;
+      setSolvedBump((b) => b + 1);
+      try {
+        recordPuzzleAttempt({
+          puzzleId,
+          userId: user?.uid ?? "anon",
+          success: true,
+          movesPlayed,
+          timeSpentSeconds,
+        });
+      } catch {
+        // Persist is best-effort; the in-memory ref still rules this session.
+      }
+    },
+    [user?.uid]
+  );
+
   // Shared puzzle-pack fetch + attach. msgIdx is the index of the coach
   // message to mutate when the response lands. Returns nothing — purely a
   // side-effect coordinator. Reuses fetchPuzzlesForTheme.
@@ -5261,7 +5380,23 @@ export default function AnalysisPage() {
         };
         return next;
       });
-      fetchPuzzlesForTheme(fen, theme)
+      (async () => {
+        const excludeIds = Array.from(solvedPuzzleIdsRef.current);
+        // G14: signed-in users go through /api/adaptive-puzzles first.
+        // The endpoint picks themes the user has personally struggled
+        // with; if it returns nothing or fails we fall through to the
+        // generic similar-puzzles path.
+        if (user?.uid) {
+          const adaptive = await fetchAdaptivePuzzles(
+            user.uid,
+            theme,
+            3,
+            excludeIds
+          );
+          if (adaptive && adaptive.length > 0) return adaptive;
+        }
+        return fetchPuzzlesForTheme(fen, theme, 1500, 3, excludeIds);
+      })()
         .then((puzzles) => {
           setMessages((prev) => {
             const next = [...prev];
@@ -5306,13 +5441,6 @@ export default function AnalysisPage() {
   // Used by the Moves tab — each move has an "Ask coach" affordance.
   // Switches focus to the Coach tab, jumps the board to the move, then
   // streams a coach explanation about that specific move.
-  // ─── G4: Firestore game persistence ───
-  const { user } = useViewer();
-  const { addGame, setGameEval } = useGameDatabase();
-  const [savedGameId, setSavedGameId] = useState<number | null>(null);
-  const [saveState, setSaveState] = useState<
-    "idle" | "saving" | "saved" | "error"
-  >("idle");
 
   // Reset save state on game change.
   useEffect(() => {
@@ -5962,6 +6090,13 @@ export default function AnalysisPage() {
                         mistakeContext={mistakeContext}
                         userRating={1500}
                         coachContextIdProp={coachContextIdRef.current}
+                        onPuzzleSolved={(puzzle, secs) =>
+                          recordSolved(
+                            puzzle.id,
+                            secs,
+                            puzzle.solution
+                          )
+                        }
                       />
                     </motion.div>
                   )}

@@ -81,6 +81,9 @@ import {
   recordPuzzleAttempt,
   getAllAttempts,
 } from "@/lib/repetitTraining";
+import { useSetAtom } from "jotai";
+import { savedEvalsAtom } from "@/sections/analysis/states";
+import type { SavedEvals } from "@/types/eval";
 import { getEvaluateGameParams } from "@/lib/chess";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
@@ -4435,6 +4438,31 @@ export default function AnalysisPage() {
       /* quota exhausted — skip silently */
     }
   }, [cacheKey, enginePositions]);
+
+  // G15: also push every position eval into the production savedEvalsAtom
+  // so the rest of the site (production /analysis, /play eval-bar, etc.)
+  // can hydrate from the same analysis without re-running Stockfish.
+  // Keyed by FEN per production convention (panelHeader/analyzeButton.tsx).
+  const setSavedEvals = useSetAtom(savedEvalsAtom);
+  useEffect(() => {
+    if (!enginePositions) return;
+    let fens: string[] = [];
+    try {
+      fens = getEvaluateGameParams(loadedGame).fens;
+    } catch {
+      return;
+    }
+    if (fens.length !== enginePositions.length) return;
+    const gameSavedEvals = fens.reduce<SavedEvals>((acc, fen, idx) => {
+      acc[fen] = {
+        ...enginePositions[idx],
+        engine: engineSettings.engineName,
+      };
+      return acc;
+    }, {} as SavedEvals);
+    setSavedEvals((prev) => ({ ...prev, ...gameSavedEvals }));
+  }, [enginePositions, loadedGame, engineSettings.engineName, setSavedEvals]);
+
   const mockEvalSeries = useMemo(
     () => buildMockEval(allMoves.length + 1),
     [allMoves.length]

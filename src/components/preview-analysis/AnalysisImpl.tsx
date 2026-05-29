@@ -73,6 +73,9 @@ import { EngineName, MoveClassification } from "@/types/enums";
 import type { PositionEval } from "@/types/eval";
 import { getMovesClassification } from "@/lib/engine/helpers/moveClassification";
 import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
+import { useGameDatabase } from "@/hooks/useGameDatabase";
+import { useViewer } from "@/hooks/useViewer";
+import type { GameEval } from "@/types/eval";
 import { getEvaluateGameParams } from "@/lib/chess";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
@@ -950,6 +953,8 @@ function GameHeader({
   onEngineDepthChange,
   engineName,
   onEngineNameChange,
+  onSaveGameClick,
+  saveState,
 }: {
   whiteName: string;
   blackName: string;
@@ -964,6 +969,13 @@ function GameHeader({
   onEngineDepthChange?: (d: number) => void;
   engineName?: EngineName;
   onEngineNameChange?: (n: EngineName) => void;
+  /**
+   * G4: surface a Save button when the user is signed in. Click → calls
+   * useGameDatabase().addGame upstream. Undefined = button hidden (guest
+   * mode); defined = button visible with the current state badge.
+   */
+  onSaveGameClick?: () => void;
+  saveState?: "idle" | "saving" | "saved" | "error";
 }) {
   const [enginePopoverAnchor, setEnginePopoverAnchor] =
     useState<HTMLElement | null>(null);
@@ -1158,6 +1170,62 @@ function GameHeader({
             >
               Load game
             </Button>
+          </Tooltip>
+        )}
+        {onSaveGameClick && (
+          <Tooltip
+            title={
+              saveState === "saved"
+                ? "Saved to your library"
+                : saveState === "saving"
+                ? "Saving…"
+                : saveState === "error"
+                ? "Save failed — check sign-in"
+                : "Save this game to your library"
+            }
+          >
+            <span>
+              <Button
+                onClick={onSaveGameClick}
+                disabled={saveState === "saving" || saveState === "saved"}
+                sx={{
+                  px: 1.5,
+                  py: 0.75,
+                  borderRadius: "10px",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  textTransform: "none",
+                  background:
+                    saveState === "saved"
+                      ? "rgba(34,197,94,0.18)"
+                      : "rgba(255,255,255,0.06)",
+                  border:
+                    saveState === "saved"
+                      ? "1px solid rgba(34,197,94,0.35)"
+                      : "1px solid rgba(255,255,255,0.12)",
+                  color:
+                    saveState === "saved" ? "#86efac" : "rgba(255,255,255,0.78)",
+                  "&:hover": {
+                    background:
+                      saveState === "saved"
+                        ? "rgba(34,197,94,0.24)"
+                        : "rgba(255,255,255,0.1)",
+                  },
+                  "&.Mui-disabled": {
+                    color:
+                      saveState === "saved"
+                        ? "#86efac"
+                        : "rgba(255,255,255,0.4)",
+                  },
+                }}
+              >
+                {saveState === "saved"
+                  ? "✓ Saved"
+                  : saveState === "saving"
+                  ? "Saving…"
+                  : "Save game"}
+              </Button>
+            </span>
           </Tooltip>
         )}
       </Stack>
@@ -3944,6 +4012,10 @@ export default function AnalysisPage() {
   const [enginePositions, setEnginePositions] = useState<PositionEval[] | null>(
     null
   );
+  // Full GameEval (positions + accuracy + estimatedElo + settings) so the
+  // Save flow (G4) can persist a complete eval to Firestore/IndexedDB
+  // instead of synthesising one. Populated alongside enginePositions.
+  const [gameEvalFull, setGameEvalFull] = useState<GameEval | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
@@ -3975,6 +4047,7 @@ export default function AnalysisPage() {
   // the same length is loaded.
   useEffect(() => {
     setEnginePositions(null);
+    setGameEvalFull(null);
     setAnalysisProgress(0);
     setAnalysisError(null);
   }, [loadedGame, engineSettings.depth, engineSettings.engineName]);
@@ -4063,6 +4136,7 @@ export default function AnalysisPage() {
       .then((result) => {
         if (cancelled) return;
         setEnginePositions(result.positions);
+        setGameEvalFull(result);
         setAnalysisProgress(100);
       })
       .catch((err) => {
@@ -4922,6 +4996,44 @@ export default function AnalysisPage() {
   // Used by the Moves tab — each move has an "Ask coach" affordance.
   // Switches focus to the Coach tab, jumps the board to the move, then
   // streams a coach explanation about that specific move.
+  // ─── G4: Firestore game persistence ───
+  const { user } = useViewer();
+  const { addGame, setGameEval } = useGameDatabase();
+  const [savedGameId, setSavedGameId] = useState<number | null>(null);
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+
+  // Reset save state on game change.
+  useEffect(() => {
+    setSavedGameId(null);
+    setSaveState("idle");
+  }, [loadedGame]);
+
+  // When Stockfish completes after a save, push the eval up to cloud.
+  useEffect(() => {
+    if (!savedGameId || !gameEvalFull) return;
+    setGameEval(savedGameId, gameEvalFull).catch((err) => {
+      console.warn("[preview/analysis] cloud eval sync failed:", err);
+    });
+  }, [savedGameId, gameEvalFull, setGameEval]);
+
+  const handleSaveGame = useCallback(async () => {
+    if (saveState === "saving" || saveState === "saved") return;
+    setSaveState("saving");
+    try {
+      const gid = await addGame(loadedGame);
+      setSavedGameId(gid);
+      if (gameEvalFull) {
+        await setGameEval(gid, gameEvalFull);
+      }
+      setSaveState("saved");
+    } catch (err) {
+      console.warn("[preview/analysis] save game failed:", err);
+      setSaveState("error");
+    }
+  }, [addGame, gameEvalFull, loadedGame, saveState, setGameEval]);
+
   const handleAskCoachAboutMove = useCallback(
     async (ply: number, san: string) => {
       setRightTab("coach");
@@ -5366,6 +5478,8 @@ export default function AnalysisPage() {
             onEngineNameChange={(n) =>
               setEngineSettings((s) => ({ ...s, engineName: n }))
             }
+            onSaveGameClick={user ? handleSaveGame : undefined}
+            saveState={saveState}
           />
 
           <Box

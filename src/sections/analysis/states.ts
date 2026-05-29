@@ -24,7 +24,10 @@ export const engineWorkersNbAtom = atomWithStorage(
 );
 export const evaluationProgressAtom = atom(0);
 
-export const savedEvalsAtom = atom<SavedEvals>({});
+export const savedEvalsAtom = atomWithStorage<SavedEvals>(
+  "cm-saved-evals",
+  {}
+);
 
 // Atom for triggering move-specific analysis in AI coach
 export const moveAnalysisRequestAtom = atom<{

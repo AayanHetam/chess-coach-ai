@@ -69,8 +69,9 @@ import {
   type CommandGroup,
 } from "@/components/ui/CommandPalette";
 import { useEngine } from "@/hooks/useEngine";
-import { EngineName } from "@/types/enums";
+import { EngineName, MoveClassification } from "@/types/enums";
 import type { PositionEval } from "@/types/eval";
+import { getMovesClassification } from "@/lib/engine/helpers/moveClassification";
 import { getEvaluateGameParams } from "@/lib/chess";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
@@ -182,67 +183,80 @@ const KEY_MOMENTS: KeyMoment[] = [
 // tiers users actually care about for navigation).
 // ───────────────────────────────────────────────────────────────────────────────
 
-type MoveLabel = "best" | "good" | "inaccuracy" | "mistake" | "blunder";
+// Re-export of the production enum so the rest of this file (and the
+// callers downstream of MovesListPanel) can refer to MoveLabel exactly
+// the way the existing UI does, without having to chase
+// MoveClassification through every prop type. Identity rebrand —
+// MoveLabel is MoveClassification.
+type MoveLabel = MoveClassification;
 
 const CLASSIFICATION_COLORS: Record<MoveLabel, string> = {
-  best: "#22c55e",
-  good: "#86efac",
-  inaccuracy: "#FBBF24",
-  mistake: "#FB923C",
-  blunder: "#ef4444",
+  [MoveClassification.Brilliant]: "#14B8A6", // teal
+  [MoveClassification.Great]: "#22c55e", // green
+  [MoveClassification.Best]: "#86efac", // light green
+  [MoveClassification.Excellent]: "#A3E635", // lime
+  [MoveClassification.Good]: "#FACC15", // yellow
+  [MoveClassification.Okay]: "rgba(255,255,255,0.6)",
+  [MoveClassification.Forced]: "rgba(255,255,255,0.45)",
+  [MoveClassification.Opening]: "#60A5FA", // blue
+  [MoveClassification.Inaccuracy]: "#FBBF24", // amber
+  [MoveClassification.Mistake]: "#FB923C", // orange
+  [MoveClassification.Miss]: "#F87171", // light red
+  [MoveClassification.Blunder]: "#ef4444", // red
 };
 const CLASSIFICATION_GLYPHS: Record<MoveLabel, string> = {
-  best: "!",
-  good: "✓",
-  inaccuracy: "?!",
-  mistake: "?",
-  blunder: "??",
+  [MoveClassification.Brilliant]: "‼",
+  [MoveClassification.Great]: "!",
+  [MoveClassification.Best]: "✓",
+  [MoveClassification.Excellent]: "✓",
+  [MoveClassification.Good]: "",
+  [MoveClassification.Okay]: "",
+  [MoveClassification.Forced]: "□",
+  [MoveClassification.Opening]: "▸",
+  [MoveClassification.Inaccuracy]: "?!",
+  [MoveClassification.Mistake]: "?",
+  [MoveClassification.Miss]: "✕",
+  [MoveClassification.Blunder]: "??",
 };
 const CLASSIFICATION_LABELS: Record<MoveLabel, string> = {
-  best: "Best",
-  good: "Good",
-  inaccuracy: "Inaccuracy",
-  mistake: "Mistake",
-  blunder: "Blunder",
+  [MoveClassification.Brilliant]: "Brilliant",
+  [MoveClassification.Great]: "Great",
+  [MoveClassification.Best]: "Best",
+  [MoveClassification.Excellent]: "Excellent",
+  [MoveClassification.Good]: "Good",
+  [MoveClassification.Okay]: "Okay",
+  [MoveClassification.Forced]: "Forced",
+  [MoveClassification.Opening]: "Opening",
+  [MoveClassification.Inaccuracy]: "Inaccuracy",
+  [MoveClassification.Mistake]: "Mistake",
+  [MoveClassification.Miss]: "Missed opportunity",
+  [MoveClassification.Blunder]: "Blunder",
 };
 
 /**
- * Classify a single move by comparing the win% of the position before vs
- * after the move from the mover's perspective. Returns null if either
- * position lacks a usable eval (e.g., still loading).
+ * Look up a move's classification from a classified positions array.
+ * The array must have been produced by `getMovesClassification(...)`
+ * upstream — see `classifiedPositions` useMemo in AnalysisPage. The
+ * production classifier produces 11 classes (Brilliant/Great/Best/
+ * Excellent/Good/Okay/Forced/Opening/Inaccuracy/Mistake/Miss/Blunder)
+ * vs the simplified 5-class version we shipped at /preview launch.
  *
- * Indexing: positions[i] is the eval at the position BEFORE moveIdx=i is
- * played. positions[i+1] is the eval AFTER. The mover at moveIdx i is
- * white when i is even, black when i is odd.
+ * Indexing: positions[i+1].moveClassification is the classification of
+ * the move at moveIdx i (the move that transformed positions[i] into
+ * positions[i+1]).
  */
 function classifyMove(
   positions: PositionEval[] | null,
   moveIdx: number
 ): MoveLabel | null {
   if (!positions) return null;
-  const before = positions[moveIdx];
-  const after = positions[moveIdx + 1];
-  if (!before || !after) return null;
-  if (!before.lines?.[0] || !after.lines?.[0]) return null;
-  let winBefore: number;
-  let winAfter: number;
-  try {
-    winBefore = getPositionWinPercentage(before);
-    winAfter = getPositionWinPercentage(after);
-  } catch {
-    return null;
-  }
-  const isWhiteMove = moveIdx % 2 === 0;
-  // win% is from White's perspective. The mover wants their win% to go up
-  // (white) or down (black). "Loss" is how far the mover fell short.
-  const loss = isWhiteMove ? winBefore - winAfter : winAfter - winBefore;
-  if (loss <= 0) return "best";
-  if (loss <= 2) return "best";
-  if (loss <= 5) return "good";
-  if (loss <= 10) return "inaccuracy";
-  if (loss <= 20) return "mistake";
-  return "blunder";
+  return positions[moveIdx + 1]?.moveClassification ?? null;
 }
+
+// Keep the win-% helper reachable so future inline classification logic
+// (e.g. a heatmap overlay) doesn't have to re-import. Calling it has no
+// side effects so this is just a soft tree-shake hint.
+void getPositionWinPercentage;
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Mock arrow data per ply — Engine best + Maia at various ELO ranges.
@@ -2483,7 +2497,14 @@ function MovesListPanel({
             flexWrap: "wrap",
           }}
         >
-          {(["best", "good", "inaccuracy", "mistake", "blunder"] as MoveLabel[]).map(
+          {([
+            MoveClassification.Brilliant,
+            MoveClassification.Great,
+            MoveClassification.Best,
+            MoveClassification.Inaccuracy,
+            MoveClassification.Mistake,
+            MoveClassification.Blunder,
+          ] as MoveLabel[]).map(
             (k) => (
               <Stack
                 key={k}
@@ -3893,6 +3914,28 @@ export default function AnalysisPage() {
   );
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  // Production-parity classified positions — Brilliant / Great / Best /
+  // Excellent / Good / Okay / Forced / Opening / Inaccuracy / Mistake /
+  // Miss / Blunder via getMovesClassification. The classifier needs both
+  // UCI strings (for legal-move replay) and the canonical FEN sequence.
+  const classifiedPositions = useMemo<PositionEval[] | null>(() => {
+    if (!enginePositions) return null;
+    try {
+      const params = getEvaluateGameParams(loadedGame);
+      return getMovesClassification(
+        enginePositions,
+        params.uciMoves,
+        params.fens
+      );
+    } catch (err) {
+      // Defensive: if anything in the classifier throws (off-by-one,
+      // missing eval line), fall back to the raw positions so the
+      // sparkline + Moves tab still render.
+      console.warn("[preview/analysis] classification failed:", err);
+      return enginePositions;
+    }
+  }, [enginePositions, loadedGame]);
 
   // Whenever the loaded game OR engine settings change, clear the analysis
   // cache so Stockfish re-runs. allMoves derives from loadedGame so
@@ -5407,7 +5450,7 @@ export default function AnalysisPage() {
                       <MovesListPanel
                         moves={allMoves}
                         currentPly={currentPly}
-                        positions={enginePositions}
+                        positions={classifiedPositions}
                         onJumpTo={setCurrentPly}
                         onAskCoach={handleAskCoachAboutMove}
                       />

@@ -72,6 +72,7 @@ import { useEngine } from "@/hooks/useEngine";
 import { EngineName, MoveClassification } from "@/types/enums";
 import type { PositionEval } from "@/types/eval";
 import { getMovesClassification } from "@/lib/engine/helpers/moveClassification";
+import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
 import { getEvaluateGameParams } from "@/lib/chess";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
@@ -2541,6 +2542,8 @@ function CoachPanel({
   allMoves,
   onMoveRefClick,
   onShareMessage,
+  mistakeContext,
+  userRating,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -2552,6 +2555,21 @@ function CoachPanel({
   allMoves?: Move[];
   onMoveRefClick?: (ply: number) => void;
   onShareMessage?: (msg: CoachMessage) => void;
+  /**
+   * Production-parity mistake context — when set, mounts inline
+   * ContextualPuzzleRecommendations above the message stream. Recomputed
+   * by the parent on ply change. Null when the current ply isn't a
+   * Mistake/Blunder/Miss.
+   */
+  mistakeContext?: {
+    fen: string;
+    movePlayed: string;
+    correctMove: string;
+    evalBefore: number;
+    evalAfter: number;
+    tacticalMotifs: string[];
+  } | null;
+  userRating?: number;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -2681,6 +2699,20 @@ function CoachPanel({
         }}
       >
         <Stack spacing={2}>
+          {mistakeContext && (
+            <Box sx={{ alignSelf: "stretch" }}>
+              <ContextualPuzzleRecommendations
+                key={`${mistakeContext.fen}|${mistakeContext.movePlayed}`}
+                fen={mistakeContext.fen}
+                movePlayed={mistakeContext.movePlayed}
+                correctMove={mistakeContext.correctMove}
+                evalBefore={mistakeContext.evalBefore}
+                evalAfter={mistakeContext.evalAfter}
+                tacticalMotifs={mistakeContext.tacticalMotifs}
+                userRating={userRating}
+              />
+            </Box>
+          )}
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
               <motion.div
@@ -4059,6 +4091,62 @@ export default function AnalysisPage() {
   // In puzzle mode, prepopulate the coach with a contextual seed message
   const isPuzzleMode = Boolean(puzzleFen);
 
+  // Production's killer "you blundered, here are puzzles for that exact
+  // pattern" UX — surfaces when the current ply is a Mistake / Blunder /
+  // Miss. Drives the inline ContextualPuzzleRecommendations mount inside
+  // the Coach tab. Heavy lifting (mistake → puzzles via /api/mistake-puzzles)
+  // is delegated to the production component; we just compute the input.
+  const mistakeContext = useMemo<{
+    fen: string;
+    movePlayed: string;
+    correctMove: string;
+    evalBefore: number;
+    evalAfter: number;
+    tacticalMotifs: string[];
+  } | null>(() => {
+    if (!classifiedPositions || currentPly < 1) return null;
+    const played = classifiedPositions[currentPly];
+    const cls = played?.moveClassification;
+    if (
+      cls !== MoveClassification.Mistake &&
+      cls !== MoveClassification.Blunder &&
+      cls !== MoveClassification.Miss
+    )
+      return null;
+
+    const prev = classifiedPositions[currentPly - 1];
+    if (!prev?.lines?.[0]) return null;
+
+    const move = allMoves[currentPly - 1];
+    if (!move) return null;
+
+    const bestUci = prev.lines[0].pv?.[0] ?? "";
+    const correctMove =
+      bestUci.length >= 4 ? bestUci.slice(0, 2) + bestUci.slice(2, 4) : "";
+
+    // FEN at the position BEFORE the mistake.
+    const g = new Chess();
+    for (let i = 0; i < currentPly - 1 && i < allMoves.length; i++) {
+      g.move(allMoves[i]);
+    }
+    const fenAtMistake = g.fen();
+
+    const evalBefore = prev.lines[0].cp ?? 0;
+    const evalAfter = played?.lines?.[0]?.cp ?? 0;
+
+    return {
+      fen: fenAtMistake,
+      movePlayed: move.san,
+      correctMove,
+      evalBefore,
+      evalAfter,
+      // tacticalMotifs left empty for now — /api/mistake-puzzles handles
+      // the empty case via rating-band fallback. G14 wires real motif
+      // extraction.
+      tacticalMotifs: [],
+    };
+  }, [classifiedPositions, currentPly, allMoves]);
+
   // Derived: current FEN + last move + check by replaying moves up to currentPly
   const { currentFen, lastMove, isInCheck } = useMemo(() => {
     const g = new Chess();
@@ -5409,6 +5497,8 @@ export default function AnalysisPage() {
                         onShareMessage={(m) =>
                           setShareDialog({ msg: m, fen: displayFen })
                         }
+                        mistakeContext={mistakeContext}
+                        userRating={1500}
                       />
                     </motion.div>
                   )}

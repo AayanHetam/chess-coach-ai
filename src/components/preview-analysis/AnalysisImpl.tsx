@@ -4276,8 +4276,10 @@ export default function AnalysisPage() {
   );
   const handleTakeoverPreviewMove = useCallback(
     (uci: string, san: string) => {
-      // Play the move on a fresh chess from currentFen
-      const g = new Chess(currentFen);
+      // Play on top of the currently displayed position so chained clicks
+      // walk the opening tree (engine state must follow the preview cursor,
+      // not stay pinned to the canonical game's FEN).
+      const g = new Chess(displayFen);
       const from = uci.slice(0, 2);
       const to = uci.slice(2, 4);
       const result = g.move({ from, to, promotion: "q" });
@@ -4285,7 +4287,7 @@ export default function AnalysisPage() {
         setTakeoverPreview({ fen: g.fen(), from, to, san });
       }
     },
-    [currentFen]
+    [displayFen]
   );
 
   // User makes a move on the board directly (interactive in takeover mode)

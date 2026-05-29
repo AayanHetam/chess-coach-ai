@@ -10,6 +10,14 @@ const nextConfig = (phase: string): NextConfig => ({
   images: {
     unoptimized: true,
   },
+  // master-tree.json (17.6 MB) is loaded via fs.readFileSync in
+  // src/data/master-openings.ts to keep webpack from bundling it into
+  // every server output (the static import was hanging Vercel builds
+  // indefinitely). This config tells Next.js's file tracer to still
+  // ship the JSON alongside the routes that need it at runtime.
+  outputFileTracingIncludes: {
+    "/api/opening-explorer": ["./src/data/master-tree.json"],
+  },
   headers: async () => [
           {
             source: "/((?!_next/static|_next/image|favicon.*|apple-touch-icon.*|android-chrome.*).*)",

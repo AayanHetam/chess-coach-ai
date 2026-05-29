@@ -20,7 +20,35 @@
  */
 
 import { Chess } from "chess.js";
-import masterTreeData from "./master-tree.json";
+import fs from "fs";
+import path from "path";
+
+// 17.6 MB JSON — webpack used to bundle it into every server output
+// (master-tree.json was a static `import`), which hung Vercel builds
+// indefinitely on the 2-core runner. Loading at module-init via fs
+// keeps webpack from touching it; next.config.ts's
+// `outputFileTracingIncludes` ensures the file ships with the API
+// bundle so the read works at runtime.
+const masterTreeData = (() => {
+  try {
+    const filePath = path.join(
+      process.cwd(),
+      "src",
+      "data",
+      "master-tree.json"
+    );
+    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  } catch (err) {
+    // SSR pre-pass (e.g. on a route that never actually calls into the
+    // explorer) may run with a different cwd or without the file. Fall
+    // back to empty so the build doesn't hard-fail; the API route will
+    // log a clear "no processed tree" line at request time.
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[master-openings] processed tree unavailable:", err);
+    }
+    return {};
+  }
+})();
 
 export interface CuratedMove {
   san: string;

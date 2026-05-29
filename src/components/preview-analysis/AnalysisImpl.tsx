@@ -478,8 +478,29 @@ async function streamCoachReply(params: {
   allMoves: Move[];
   loadedGame: Chess;
   enginePositions: PositionEval[] | null;
+  /** Full GameEval (accuracy + estimatedElo + settings + positions) captured
+   *  from engine.evaluateGame. When present, this is what the server actually
+   *  uses to compose the overview section of the system prompt
+   *  (route.ts:362-363 → `Accuracy: …`, `Estimated Elo: …`). Without it the
+   *  LLM is blind to the user's skill level and the reply quality drops to
+   *  generic. */
+  gameEvalFull?: GameEval | null;
   contextIdRef: { current: string | null };
   userRating?: number;
+  /** "w" | "b" — production's playerColor field, lifted into the system
+   *  prompt as "You're coaching <White|Black>". Derived from board
+   *  orientation when no explicit picker exists. */
+  playerColor?: "w" | "b";
+  /** Explicit display string for the player's color. Server uses this for
+   *  prompt-side address rather than re-deriving from playerColor. */
+  playerColorName?: "white" | "black";
+  /** Bottom-of-board side as seen by the user. Production also threads this
+   *  in so personality prompts can phrase from the right perspective. */
+  boardOrientation?: "white" | "black";
+  /** Display name / chess username for personalization. */
+  username?: string;
+  chesscomUsername?: string;
+  lichessUsername?: string;
   onDelta: (chunk: string) => void;
   signal?: AbortSignal;
 }): Promise<string> {
@@ -491,8 +512,15 @@ async function streamCoachReply(params: {
     allMoves,
     loadedGame,
     enginePositions,
+    gameEvalFull,
     contextIdRef,
     userRating,
+    playerColor,
+    playerColorName,
+    boardOrientation,
+    username,
+    chesscomUsername,
+    lichessUsername,
     onDelta,
     signal,
   } = params;
@@ -550,13 +578,30 @@ async function streamCoachReply(params: {
   // ply 0 — the coach would helpfully respond "I see we're starting from
   // the initial position".
   const moveHistory = allMoves.map((m) => m.san);
+  // Prefer the full GameEval (with accuracy + estimatedElo + settings) when
+  // available — that's what production sends and what the route's overview
+  // composer expects. Fall back to the bare-positions wrap only when the
+  // user is asking before Stockfish finished (analysisActive should already
+  // block this path now, but defensive nonetheless).
+  const gameEvalPayload =
+    gameEvalFull ??
+    (enginePositions ? { positions: enginePositions } : undefined);
   const requestBody: Record<string, unknown> = {
     userMessage: userText,
     moveHistory,
     fen,
-    gameEval: enginePositions ? { positions: enginePositions } : undefined,
+    gameEval: gameEvalPayload,
     conversationHistory,
     userRating: userRating ?? 1500,
+    // Production-parity personalization fields (AICoachChat:2459-2487).
+    // All are optional server-side and round-trip via the enhanced-analysis
+    // zod schema; the LLM's system prompt only gets richer with each one.
+    playerColor,
+    playerColorName,
+    boardOrientation,
+    username,
+    chesscomUsername,
+    lichessUsername,
     stream: true,
   };
   // Personality / username left undefined — server falls back gracefully
@@ -5545,6 +5590,44 @@ export default function AnalysisPage() {
     "white"
   );
 
+  // ─── Production-parity personalization extras for the deep coach path ───
+  // Production's AICoachChat (line 2459-2487) threads playerColor +
+  // playerColorName + boardOrientation + username + chess-platform handles
+  // into every /api/enhanced-analysis request. The server uses these to
+  // compose the system prompt (perspective, addressing, accuracy/Elo
+  // overview). Without them the LLM drops to a generic reply tone — visibly
+  // less specific than the prod surface. Recompute once per relevant input
+  // change so the three streamCoachReply call sites can spread it.
+  const coachExtras = useMemo(() => {
+    const playerColor: "w" | "b" =
+      boardOrientation === "white" ? "w" : "b";
+    let chesscomUsername: string | undefined;
+    let lichessUsername: string | undefined;
+    if (typeof window !== "undefined") {
+      try {
+        chesscomUsername =
+          window.localStorage
+            .getItem("chesscom-username")
+            ?.replace(/^"|"$/g, "") || undefined;
+        lichessUsername =
+          window.localStorage
+            .getItem("lichess-username")
+            ?.replace(/^"|"$/g, "") || undefined;
+      } catch {
+        /* localStorage unavailable */
+      }
+    }
+    return {
+      playerColor,
+      playerColorName: boardOrientation,
+      boardOrientation,
+      username:
+        user?.displayName ?? user?.email?.split("@")[0] ?? undefined,
+      chesscomUsername,
+      lichessUsername,
+    };
+  }, [boardOrientation, user?.displayName, user?.email]);
+
   // In puzzle mode, prepopulate the coach with a contextual seed message
   const isPuzzleMode = Boolean(puzzleFen);
 
@@ -6128,7 +6211,9 @@ export default function AnalysisPage() {
           allMoves,
           loadedGame,
           enginePositions,
+          gameEvalFull,
           contextIdRef: coachContextIdRef,
+          ...coachExtras,
           onDelta: (chunk) => {
             accumulated += chunk;
             setMessages((prev) => {
@@ -6585,7 +6670,9 @@ export default function AnalysisPage() {
           allMoves,
           loadedGame,
           enginePositions,
+          gameEvalFull,
           contextIdRef: coachContextIdRef,
+          ...coachExtras,
           onDelta: (chunk) => {
             accumulated += chunk;
             setMessages((prev) => {
@@ -6686,7 +6773,9 @@ export default function AnalysisPage() {
         allMoves,
         loadedGame,
         enginePositions,
+        gameEvalFull,
         contextIdRef: coachContextIdRef,
+        ...coachExtras,
         onDelta: (chunk) => {
           accumulated += chunk;
           // Update the last coach message in-place

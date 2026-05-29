@@ -47,6 +47,7 @@ import {
   Crown,
   Eye,
   Flame,
+  GitBranch,
   Lightbulb,
   MousePointerClick,
   RefreshCw,
@@ -70,7 +71,7 @@ import {
 } from "@/components/ui/CommandPalette";
 import { useEngine } from "@/hooks/useEngine";
 import { EngineName, MoveClassification } from "@/types/enums";
-import type { PositionEval } from "@/types/eval";
+import type { PositionEval, LineEval } from "@/types/eval";
 import { getMovesClassification } from "@/lib/engine/helpers/moveClassification";
 import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
@@ -2186,7 +2187,7 @@ function KeyMomentsRow({
 // Right-column tabs — Coach / Masters / Moves
 // ───────────────────────────────────────────────────────────────────────────────
 
-type RightTab = "coach" | "masters" | "moves";
+type RightTab = "coach" | "masters" | "moves" | "lines";
 
 function TabStrip({
   active,
@@ -2208,6 +2209,7 @@ function TabStrip({
     { id: "coach", label: "Coach", icon: MessageCircle },
     { id: "masters", label: "Masters", icon: BookOpen, badge: mastersBadge },
     { id: "moves", label: "Moves", icon: ListIcon, badge: movesBadge },
+    { id: "lines", label: "Lines", icon: GitBranch },
   ];
   return (
     <Box
@@ -2669,6 +2671,165 @@ function MovesListPanel({
           )}
         </Stack>
       </Box>
+    </Box>
+  );
+}
+
+// G16: Engine Lines panel — shows the top PV lines for the current
+// position. Each line is the engine's best continuation from this point;
+// rendered as evaluation + the first few SAN moves of the principal
+// variation. Empty state when analysis hasn't reached this ply yet.
+function EngineLinesPanel({
+  position,
+  fen,
+  engineName,
+}: {
+  position: PositionEval | null;
+  fen: string;
+  engineName: EngineName;
+}) {
+  const lines = position?.lines ?? [];
+  const sanLines = useMemo(() => {
+    return lines.slice(0, 3).map((line) => {
+      try {
+        const g = new Chess(fen);
+        const sans: string[] = [];
+        for (const uci of line.pv.slice(0, 8)) {
+          const mv = g.move({
+            from: uci.slice(0, 2),
+            to: uci.slice(2, 4),
+            promotion: uci.length >= 5 ? uci[4] : "q",
+          });
+          if (!mv) break;
+          sans.push(mv.san);
+        }
+        return { line, sans };
+      } catch {
+        return { line, sans: line.pv.slice(0, 8) };
+      }
+    });
+  }, [lines, fen]);
+
+  const formatEval = (line: LineEval): string => {
+    if (typeof line.mate === "number") {
+      return `#${Math.abs(line.mate)}${line.mate > 0 ? "" : "−"}`;
+    }
+    if (typeof line.cp === "number") {
+      const cp = line.cp / 100;
+      return `${cp > 0 ? "+" : ""}${cp.toFixed(2)}`;
+    }
+    return "—";
+  };
+
+  return (
+    <Box
+      sx={{
+        height: "100%",
+        overflowY: "auto",
+        background: "rgba(20,22,28,0.55)",
+        backdropFilter: "blur(16px) saturate(150%)",
+        WebkitBackdropFilter: "blur(16px) saturate(150%)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: "1rem",
+        p: 2,
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 1.5,
+        }}
+      >
+        <Box
+          sx={{
+            color: "rgba(255,255,255,0.9)",
+            fontSize: "0.92rem",
+            fontWeight: 700,
+            letterSpacing: "0.01em",
+          }}
+        >
+          Engine lines
+        </Box>
+        <Box
+          sx={{
+            color: "rgba(255,255,255,0.42)",
+            fontSize: "0.72rem",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+          }}
+        >
+          {engineName}
+        </Box>
+      </Box>
+      {sanLines.length === 0 ? (
+        <Box
+          sx={{
+            color: "rgba(255,255,255,0.42)",
+            fontSize: "0.84rem",
+            py: 3,
+            textAlign: "center",
+          }}
+        >
+          Stockfish hasn't reached this position yet.
+        </Box>
+      ) : (
+        <Stack spacing={1.25}>
+          {sanLines.map(({ line, sans }, i) => (
+            <Box
+              key={i}
+              sx={{
+                p: 1.25,
+                borderRadius: "0.6rem",
+                background: "rgba(0,0,0,0.25)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                display: "flex",
+                gap: 1.25,
+                alignItems: "baseline",
+              }}
+            >
+              <Box
+                sx={{
+                  flexShrink: 0,
+                  width: 56,
+                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                  fontWeight: 700,
+                  color:
+                    typeof line.mate === "number"
+                      ? "#FB923C"
+                      : (line.cp ?? 0) >= 0
+                      ? "#E2E8F0"
+                      : "rgba(255,255,255,0.62)",
+                  fontSize: "0.92rem",
+                }}
+              >
+                {formatEval(line)}
+              </Box>
+              <Box
+                sx={{
+                  flex: 1,
+                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                  color: "rgba(255,255,255,0.78)",
+                  fontSize: "0.86rem",
+                  lineHeight: 1.5,
+                }}
+              >
+                {sans.join(" ")}
+              </Box>
+              <Box
+                sx={{
+                  flexShrink: 0,
+                  color: "rgba(255,255,255,0.36)",
+                  fontSize: "0.7rem",
+                }}
+              >
+                d{line.depth}
+              </Box>
+            </Box>
+          ))}
+        </Stack>
+      )}
     </Box>
   );
 }
@@ -6210,6 +6371,27 @@ export default function AnalysisPage() {
                         positions={classifiedPositions}
                         onJumpTo={setCurrentPly}
                         onAskCoach={handleAskCoachAboutMove}
+                      />
+                    </motion.div>
+                  )}
+                  {rightTab === "lines" && (
+                    <motion.div
+                      key="lines"
+                      initial={{ opacity: 0, x: 32, scale: 0.98 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: 32, scale: 0.98 }}
+                      transition={{
+                        duration: 0.32,
+                        ease: [0.22, 0.61, 0.36, 1],
+                      }}
+                      style={{ position: "absolute", inset: 0 }}
+                    >
+                      <EngineLinesPanel
+                        position={
+                          enginePositions?.[currentPly] ?? null
+                        }
+                        fen={displayFen}
+                        engineName={engineSettings.engineName}
                       />
                     </motion.div>
                   )}

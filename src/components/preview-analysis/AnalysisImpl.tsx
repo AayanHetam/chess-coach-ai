@@ -375,37 +375,116 @@ function buildContextBlurb(
   return `[Position FEN: ${fen}\nRecent moves: ${recent}\nTo move: ${turnColor}]`;
 }
 
+/**
+ * Production-parity two-tier coach call (mirrors AICoachChat.tsx:2421+):
+ *
+ * - **Deep path** — `/api/enhanced-analysis` (SSE). Fires on the very
+ *   first message of a session (or after the contextId cache expires).
+ *   Builds the rich Stage-B analysis context that the LLM grounds
+ *   subsequent answers against. Returns a contextId in the final SSE
+ *   metadata event.
+ * - **Fast path** — `/api/chat` (non-SSE). Fires on every follow-up
+ *   message that has a live contextId. Cheap and quick because the
+ *   server reuses the cached deep context.
+ *
+ * The caller passes a `contextIdRef` so we can read/update across calls
+ * without retriggering React renders. Returns the final accumulated
+ * content (the caller doesn't need it — onDelta drives the UI — but
+ * we use it to look for [INSIGHT:...] tags in G5).
+ */
 async function streamCoachReply(params: {
   prevMessages: CoachMessage[];
   userText: string;
   fen: string;
   currentPly: number;
   allMoves: Move[];
+  loadedGame: Chess;
+  enginePositions: PositionEval[] | null;
+  contextIdRef: { current: string | null };
+  userRating?: number;
   onDelta: (chunk: string) => void;
   signal?: AbortSignal;
-}): Promise<void> {
-  const { prevMessages, userText, fen, currentPly, allMoves, onDelta, signal } =
-    params;
-  const blurb = buildContextBlurb(fen, currentPly, allMoves);
-  const userWithContext = `${blurb}\n\n${userText}`;
+}): Promise<string> {
+  const {
+    prevMessages,
+    userText,
+    fen,
+    currentPly,
+    allMoves,
+    loadedGame,
+    enginePositions,
+    contextIdRef,
+    userRating,
+    onDelta,
+    signal,
+  } = params;
 
-  const history = prevMessages
+  const conversationHistory = prevMessages
     .filter((m) => m.role === "user" || m.role === "coach")
     .map((m) => ({
       role: m.role === "coach" ? ("assistant" as const) : ("user" as const),
       content: m.content,
     }));
 
-  const apiMessages = [
-    ...history,
-    { role: "user" as const, content: userWithContext },
-  ];
+  const hasContext =
+    contextIdRef.current !== null &&
+    conversationHistory.some((m) => m.role === "assistant");
 
-  const res = await fetch("/api/chat?stream=1", {
+  // ─── FAST PATH: follow-up via /api/chat (cached deep context) ───
+  if (hasContext) {
+    const chatRes = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        contextId: contextIdRef.current,
+        userMessage: userText,
+        conversationHistory,
+      }),
+      signal,
+    });
+    if (chatRes.status === 404) {
+      // contextId expired — fall through to deep path
+      contextIdRef.current = null;
+    } else if (chatRes.status === 401) {
+      throw new CoachAuthError();
+    } else if (!chatRes.ok) {
+      throw new CoachApiError(chatRes.status);
+    } else {
+      const data = await chatRes.json();
+      const text: string =
+        data.message ??
+        data.response ??
+        data.gameAnalysis?.analysis ??
+        "";
+      // Emit as a single chunk so the UI animates the same way
+      onDelta(text);
+      return text;
+    }
+  }
+
+  // ─── DEEP PATH: /api/enhanced-analysis (SSE) ───
+  const moveHistory = allMoves.slice(0, currentPly).map((m) => m.san);
+  const requestBody: Record<string, unknown> = {
+    userMessage: userText,
+    moveHistory,
+    fen,
+    gameEval: enginePositions ? { positions: enginePositions } : undefined,
+    conversationHistory,
+    userRating: userRating ?? 1500,
+    stream: true,
+  };
+  // Personality / username left undefined — server falls back gracefully
+  // and the new page hasn't surfaced the personality picker yet.
+
+  const res = await fetch("/api/enhanced-analysis", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+    },
     credentials: "include",
-    body: JSON.stringify({ messages: apiMessages, temperature: 0.7 }),
+    body: JSON.stringify(requestBody),
     signal,
   });
 
@@ -413,25 +492,47 @@ async function streamCoachReply(params: {
   if (!res.ok) throw new CoachApiError(res.status);
   if (!res.body) throw new CoachApiError(res.status);
 
+  // The route emits either SSE or JSON depending on whether `stream:true`
+  // was honored. Detect from content-type.
+  const isStream = res.headers
+    .get("content-type")
+    ?.includes("text/event-stream");
+
+  if (!isStream) {
+    const data = await res.json();
+    if (data.gameAnalysis?.contextId) {
+      contextIdRef.current = data.gameAnalysis.contextId;
+    }
+    const text: string = data.gameAnalysis?.analysis ?? data.message ?? "";
+    onDelta(text);
+    return text;
+  }
+
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let accumulated = "";
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
-    // Process complete SSE events (delimited by \n\n)
     const events = buffer.split("\n\n");
     buffer = events.pop() ?? "";
     for (const ev of events) {
       const line = ev.trim();
       if (!line.startsWith("data:")) continue;
       const payload = line.slice(5).trim();
-      if (payload === "[DONE]") return;
+      if (payload === "[DONE]") return accumulated;
       try {
         const parsed = JSON.parse(payload);
         if (parsed.type === "text" && typeof parsed.delta === "string") {
+          accumulated += parsed.delta;
           onDelta(parsed.delta);
+        } else if (parsed.type === "done" || parsed.type === "metadata") {
+          // Final event carries contextId + validation + puzzle recs
+          if (parsed.contextId) contextIdRef.current = parsed.contextId;
+          if (parsed.metadata?.contextId)
+            contextIdRef.current = parsed.metadata.contextId;
         } else if (parsed.type === "error") {
           throw new CoachApiError(502);
         }
@@ -441,7 +542,11 @@ async function streamCoachReply(params: {
       }
     }
   }
+  return accumulated;
 }
+
+// Silence the unused-warning until other deep-context callers consume it.
+void buildContextBlurb;
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Drill puzzles — Neo4j-backed in production, hand-curated for the preview demo.
@@ -3953,6 +4058,14 @@ export default function AnalysisPage() {
   );
   const [isThinking, setIsThinking] = useState(false);
 
+  // Coach context cache — minted by the first /api/enhanced-analysis call,
+  // reused on every follow-up /api/chat call. Reset on game change so the
+  // server doesn't return analysis grounded in the previous game.
+  const coachContextIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    coachContextIdRef.current = null;
+  }, [loadedGame]);
+
   // Replace the loaded game from a fresh Chess instance (e.g. user pasted
   // a PGN, or a URL param brought one in). Resets cursor + seed chat +
   // analysis cache via the useEffect on [loadedGame]. Pass keepChat=true
@@ -4353,6 +4466,9 @@ export default function AnalysisPage() {
           fen: displayFen,
           currentPly,
           allMoves,
+          loadedGame,
+          enginePositions,
+          contextIdRef: coachContextIdRef,
           onDelta: (chunk) => {
             accumulated += chunk;
             setMessages((prev) => {
@@ -4708,6 +4824,9 @@ export default function AnalysisPage() {
           fen: fenAtPly,
           currentPly: ply,
           allMoves,
+          loadedGame,
+          enginePositions,
+          contextIdRef: coachContextIdRef,
           onDelta: (chunk) => {
             accumulated += chunk;
             setMessages((prev) => {
@@ -4777,6 +4896,9 @@ export default function AnalysisPage() {
         fen: displayFen,
         currentPly,
         allMoves,
+        loadedGame,
+        enginePositions,
+        contextIdRef: coachContextIdRef,
         onDelta: (chunk) => {
           accumulated += chunk;
           // Update the last coach message in-place

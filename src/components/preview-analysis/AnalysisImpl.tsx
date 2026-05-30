@@ -3832,10 +3832,13 @@ const MOVE_REF_PATTERNS: Array<{
   },
 ];
 
-// "best was, should have played, instead of, better was, recommended,
-// correct move, improvement" — production's recommended-move detector.
+// Recommended-move detector. Case-insensitive so "BEST MOVE:" uppercase
+// headings (which the coach emits inside structured cards) match too.
+// Expanded beyond production's set to cover the phrasings Aayan's smoke
+// tests surfaced on 2026-05-29: "only winning move", "winning continuation",
+// "best move:" with colon-anchored headings, etc.
 const RECOMMENDED_CONTEXT_RE =
-  /best\s*(was|move|is)|should\s*have\s*(played|been)|instead\s*(of|,|:)|better\s*(was|move|is|alternative)|recommended|correct\s*move|improvement/;
+  /best\s*(was|move|is|continuation|move\s*:)|should\s*have\s*(played|been)|instead\s*(of|,|:)|better\s*(was|move|is|alternative)|recommended|correct\s*move|improvement|only\s+(winning|good|playable|sensible)\s+move|winning\s+(move|continuation|line)|key\s+move/i;
 
 interface MoveRefMatch {
   start: number;
@@ -3847,7 +3850,10 @@ interface MoveRefMatch {
   recommended: boolean;
 }
 
-function findAllMoveRefs(text: string): MoveRefMatch[] {
+function findAllMoveRefs(
+  text: string,
+  forceRecommended = false
+): MoveRefMatch[] {
   const matches: MoveRefMatch[] = [];
   for (const pat of MOVE_REF_PATTERNS) {
     const re = new RegExp(pat.re.source, pat.re.flags);
@@ -3877,7 +3883,8 @@ function findAllMoveRefs(text: string): MoveRefMatch[] {
         moveNumber,
         isBlack,
         san,
-        recommended: RECOMMENDED_CONTEXT_RE.test(contextBefore),
+        recommended:
+          forceRecommended || RECOMMENDED_CONTEXT_RE.test(contextBefore),
       });
     }
   }
@@ -3968,7 +3975,7 @@ function InsightBodyText({
   renderInline,
 }: {
   text: string;
-  renderInline: (text: string) => React.ReactNode[];
+  renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
 }) {
   // Drop continuation tags from prose body — they'd otherwise render as
   // `[CONTINUATION:7:w]` literal text. We don't try to materialise live
@@ -4047,7 +4054,18 @@ function InsightBodyText({
                 {b.label}
               </Box>
               <Box sx={{ color: "rgba(255,255,255,0.92)" }}>
-                {renderInline(b.body)}
+                {/* G7 fix: SOLUTION / OUTCOME / CONTINUATION are the
+                    labels under which the coach quotes its recommended
+                    moves. Force-mark them so any move ref inside renders
+                    green 🔍 instead of orange, even though the body
+                    string itself doesn't carry a "best was" / "should
+                    have" lookback context. IDEA + PROBLEM stay
+                    unforced — those labels frame the played move, not
+                    the recommended one. */}
+                {renderInline(
+                  b.body,
+                  /^(Solution|Outcome|Continuation)$/i.test(b.label)
+                )}
               </Box>
             </Box>
           );
@@ -4123,7 +4141,7 @@ function DarkInsightCard({
   onPracticeConcept,
 }: {
   insight: InsightData;
-  renderInline: (text: string) => React.ReactNode[];
+  renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
   onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
   /** Fires when the user clicks "Practice this concept" — invokes the
    * parent's triggerPuzzleFetch to attach a real Neo4j-backed pack. */
@@ -4470,7 +4488,7 @@ function DarkInsightCarousel({
   onPracticeConcept,
 }: {
   insights: InsightData[];
-  renderInline: (text: string) => React.ReactNode[];
+  renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
   onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
   onPracticeConcept?: (theme: string, displayName: string) => void;
 }) {
@@ -4758,8 +4776,17 @@ function CoachBubble({
   const isUser = msg.role === "user";
 
   // Renderer: handles bold (**…**) AND inline move references (24.Rxd4 →
-  // clickable, board jumps on click).
-  const renderInline = (text: string): React.ReactNode[] => {
+  // clickable, board jumps on click). `forceRecommended` lets a caller
+  // (e.g. InsightBodyText rendering a SOLUTION/OUTCOME-labeled body row)
+  // pre-mark every move ref as recommended, bypassing the contextBefore
+  // regex check. Necessary because the round-2 smoke test surfaced that
+  // structured-card content like `SOLUTION: 7. dxe5 wins the pawn` never
+  // had "best was" / "should have" in its lookback window, so the green
+  // 🔍 tag never fired even when the move clearly was the recommended one.
+  const renderInline = (
+    text: string,
+    forceRecommended = false
+  ): React.ReactNode[] => {
     const boldParts = text.split(/(\*\*[^*]+\*\*)/g);
     const out: React.ReactNode[] = [];
     boldParts.forEach((part, boldIdx) => {
@@ -4785,7 +4812,7 @@ function CoachBubble({
         out.push(<span key={`t${boldIdx}`}>{part}</span>);
         return;
       }
-      const refs = findAllMoveRefs(part);
+      const refs = findAllMoveRefs(part, forceRecommended);
       if (refs.length === 0) {
         out.push(<span key={`t${boldIdx}`}>{part}</span>);
         return;

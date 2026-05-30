@@ -63,6 +63,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill as SharedNavPill } from "@/components/ui/NavPill";
+import { Lc0DownloadBanner } from "@/components/Lc0DownloadBanner";
 import { OpeningExplorer } from "@/components/ui/OpeningExplorer";
 import {
   CommandPalette,
@@ -7113,6 +7114,16 @@ export default function AnalysisPage() {
         }}
       >
         <SharedNavPill active="analysis" badge={{ label: "Analysis" }} />
+
+        {/* Lc0DownloadBanner — was previously injected by the legacy
+            chrome (sections/layout/index.tsx) which the cutover dropped
+            on /preview/* routes. Re-mounted here so the Maia/Lc0
+            availability nudge still surfaces when the microservice is
+            down. Self-gates on maia-status; renders nothing in the
+            common case where Maia is up. */}
+        <Box sx={{ maxWidth: 1680, mx: "auto", px: { xs: 1, sm: 2 }, mb: 2 }}>
+          <Lc0DownloadBanner />
+        </Box>
 
         <Box sx={{ maxWidth: 1680, mx: "auto" }}>
           <GameHeader

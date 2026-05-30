@@ -6374,6 +6374,7 @@ export default function AnalysisPage() {
   // double-render in strict mode) doesn't re-load the same game.
   const pgnLoadedRef = useRef(false);
   const fenLoadedRef = useRef(false);
+  const puzzleFenLoadedRef = useRef(false);
   const lichessReviewLoadedRef = useRef(false);
   const insightLoadedRef = useRef(false);
 
@@ -6411,6 +6412,36 @@ export default function AnalysisPage() {
       console.warn("[preview/analysis] malformed ?fen= param:", err);
     }
   }, [router.isReady, router.query.fen, router.query.pgn, loadNewGame]);
+
+  // ?puzzleFen=<url-encoded FEN> — single-position puzzle entry from the
+  // /preview/launch teaser links. Same shape as ?fen= but signals puzzle
+  // mode so the Coach Tab can show solution-reveal affordances. The lazy
+  // useState initializer above can't read router.query (it runs before
+  // router.isReady fires on a next/dynamic ssr:false page), so we hydrate
+  // here once the query is populated.
+  useEffect(() => {
+    if (!router.isReady || puzzleFenLoadedRef.current) return;
+    if (router.query.pgn || router.query.fen) return; // pgn / fen win
+    const raw = router.query.puzzleFen;
+    if (typeof raw !== "string" || !raw) return;
+    try {
+      const decoded = decodeURIComponent(raw);
+      const g = new Chess(decoded); // throws on invalid
+      puzzleFenLoadedRef.current = true;
+      loadNewGame(g, {
+        greeting: `Loaded a puzzle — ${decoded.split(" ")[1] === "w" ? "White" : "Black"} to move. Try the solution on the board, or ask me how it works.`,
+      });
+      setBoardOrientation(decoded.split(" ")[1] === "w" ? "white" : "black");
+    } catch (err) {
+      console.warn("[preview/analysis] malformed ?puzzleFen= param:", err);
+    }
+  }, [
+    router.isReady,
+    router.query.puzzleFen,
+    router.query.pgn,
+    router.query.fen,
+    loadNewGame,
+  ]);
 
   // ?lichessReview=1 + localStorage('lichess-review-pgn')
   useEffect(() => {

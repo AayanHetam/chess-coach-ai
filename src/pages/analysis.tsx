@@ -1,4 +1,5 @@
 import { useChessActions } from "@/hooks/useChessActions";
+import { useGameDatabase } from "@/hooks/useGameDatabase";
 import Board from "@/sections/analysis/board";
 import PanelToolBar from "@/sections/analysis/panelToolbar";
 import TopBar from "@/sections/analysis/panelToolbar/topBar";
@@ -52,6 +53,13 @@ export default function GameAnalysis() {
 
   const router = useRouter();
   const { gameId, fen, lichessReview, pgn, insightId, autoAnalyze } = router.query;
+
+  // Force-enable the games-database cloud sync for /analysis. Without this,
+  // a signed-in user landing on /analysis?gameId=N from a different device
+  // hits a stale local IndexedDB and the game never loads — useGameDatabase
+  // only pulls from Firestore when fetchGames is true, and the analysis
+  // subcomponents historically all called the hook with no argument.
+  useGameDatabase(true);
 
   // ── autoAnalyze=1 trigger ───────────────────────────────────────────────
   // When the Chess Masti browser extension opens chessmasti.com, it appends

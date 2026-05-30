@@ -23,15 +23,17 @@ interface NavPillProps {
   badge?: { label: string };
 }
 
-// Five primary nav links across all preview pages. Order tells the user
-// flow: play your game → analyze it → practice your weakness → learn
-// theory → scout your next opponent.
+// Five primary nav links across the production surfaces. Order tells the
+// user flow: play your game → analyze it → practice your weakness → learn
+// theory → scout your next opponent. /preview/analysis already redirects
+// to /analysis; the other /preview/* routes still exist as separate UI
+// drafts but the navbar points at the canonical production routes.
 const NAV_LINKS: { id: NavId; label: string; href: string }[] = [
-  { id: "play", label: "Play", href: "/preview/play" },
-  { id: "analysis", label: "Analyze", href: "/preview/analysis" },
-  { id: "practice", label: "Practice", href: "/preview/practice" },
-  { id: "openings", label: "Learn", href: "/preview/openings" },
-  { id: "scout", label: "Scout", href: "/preview/scout" },
+  { id: "play", label: "Play", href: "/play" },
+  { id: "analysis", label: "Analyze", href: "/analysis" },
+  { id: "practice", label: "Practice", href: "/practice" },
+  { id: "openings", label: "Learn", href: "/openings" },
+  { id: "scout", label: "Scout", href: "/scout" },
 ];
 
 export function NavPill({ active }: NavPillProps) {

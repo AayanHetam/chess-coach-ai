@@ -12,20 +12,21 @@ Every server-side LLM call funnels through [`callLLM()`](src/lib/llmProvider.ts)
 
 Callers use a `tier` (`"flagship" | "fast"`) — never a model name. Keep it that way.
 
-Callsites (as of 2026-04-23):
-- [src/app/api/enhanced-analysis/route.ts](src/app/api/enhanced-analysis/route.ts) — main deep analysis (`flagship`). 1082 lines; do not refactor lightly.
-- [src/app/api/chat/route.ts](src/app/api/chat/route.ts) — follow-up chat (`fast`). Uses a server-cached context keyed by `contextId` from the prior analysis call.
-- [src/app/api/classify-intent/route.ts](src/app/api/classify-intent/route.ts)
+Callsites (as of 2026-05-30):
+- [src/app/api/enhanced-analysis/route.ts](src/app/api/enhanced-analysis/route.ts) — main deep analysis (`flagship`). ~2031 lines; do not refactor lightly. Embeds the Mastermind validator pipeline (`runValidationPipeline`) behind the `MASTERMIND_VALIDATORS_ENABLED` env flag.
+- [src/app/api/chat/route.ts](src/app/api/chat/route.ts) — follow-up chat (`fast` → Haiku 4.5). Uses a server-cached context keyed by `contextId` from the prior analysis call. Note: this path serves most user turns after move 1 with Haiku + a cached system prompt + a `buildCompactGameContext()` summary, so quality differs materially from the flagship turn-1 path.
+- [src/app/api/classify-intent/route.ts](src/app/api/classify-intent/route.ts) — exists but not currently wired into AnalysisImpl.
 - [src/app/api/health/llm/route.ts](src/app/api/health/llm/route.ts) — 1-token probe, both providers.
 - [src/lib/concept/conceptLLMTagger.ts](src/lib/concept/conceptLLMTagger.ts) — server-side concept classification.
+- [src/lib/mastermind/categorization/categoryClassifier.ts](src/lib/mastermind/categorization/categoryClassifier.ts) — Haiku-tier intent classifier that picks the per-category timeout + retry budget for the validator pipeline.
 
-**The legacy path still exists.** [src/lib/enhancedOpenAIService.ts](src/lib/enhancedOpenAIService.ts) (989 lines) is an older AI service class, instantiated **client-side** in [src/hooks/useEnhancedFenTracker.ts:88](src/hooks/useEnhancedFenTracker.ts#L88) and referenced by [src/components/EnhancedAnalysisPanel.tsx](src/components/EnhancedAnalysisPanel.tsx). It's parallel to, not replaced by, `callLLM()`. Be aware of which path you're modifying.
+**The legacy client-side AI service path is gone.** `src/lib/enhancedOpenAIService.ts` (989 lines), `src/hooks/useEnhancedFenTracker.ts` (337 lines), and `src/components/EnhancedAnalysisPanel.tsx` (294 lines) were all deleted in commit ca75f92 on 2026-04-25 ("Phase 0 of the coach-prompt restoration"). There is now only one AI path: `callLLM()`. If you see references to those files in older notes, treat them as stale.
 
-System prompt body: [src/lib/chessPrinciples.ts:172](src/lib/chessPrinciples.ts#L172) exports `SYSTEM_PROMPT_TEMPLATE` (one grandmaster-coach prompt) and `getSystemPrompt(analysisType)` at :234 which composes it with per-type instructions. Re-exported from [src/lib/prompts/](src/lib/prompts/). **Prompt version at [src/lib/prompts/systemPrompts.ts:22](src/lib/prompts/systemPrompts.ts#L22) (`PROMPT_VERSION = "2.0"`) — log it with every coaching call so before/after evals can be compared. Adding this logging is on the audit backlog if you see it missing.**
+System prompt body: [src/lib/prompts/coachChatPrompt.ts](src/lib/prompts/coachChatPrompt.ts) exports `getCoachChatSystemPrompt({ personalityId, userRating, username, playerColorName, coachingPrefs, ... })` — a ~455-line typed builder that composes the base coach manifesto with per-personality (`coachPersonalities.ts`) and per-prefs (`renderCoachingPrefs`) overrides. **Prompt version at [src/lib/prompts/coachChatPrompt.ts:22](src/lib/prompts/coachChatPrompt.ts#L22) is `"3.0"` (bumped from the deleted `"2.0"` template). Per-`analysisType` branching (`game_review` / `opening_analysis` / `endgame_analysis` etc.) is gone in 3.0; classification happens in the route via `categoryClassifier`, not in the prompt.**
 
 ## Rules that bit us in the audit
 
-1. **`npm run build` and `npm run lint` are not quality gates.** [next.config.ts](next.config.ts) sets `typescript.ignoreBuildErrors: true` and `eslint.ignoreDuringBuilds: true`; [.eslintrc.json](.eslintrc.json) has `"ignorePatterns": ["**/*"]` so `next lint` lints zero files. **Use `npx tsc --noEmit` as the pre-commit check.** Today it runs clean (0 errors) — keep it that way.
+1. **CI now gates PRs on tsc + vitest.** [.github/workflows/ci.yml](.github/workflows/ci.yml) runs `npm ci → npx tsc --noEmit → npm test` on every PR and on push to main / audit/*. The Vitest suite is 36 files / 652 tests (predominantly Mastermind validators, categorization, prompt builders, and llmProvider). `next.config.ts` no longer suppresses type errors, and [.eslintrc.json](.eslintrc.json)'s `ignorePatterns` is selective (only `node_modules`, `.next`, `Chesskit`, etc.) so `next lint` is now real too. **Keep `npx tsc --noEmit` clean** — there are still 32 `as any` / `@ts-ignore` escapes scattered through `src/`, so the type checker is the last line of defense against a lot of brittle code paths.
 2. **Two `next.config` files exist.** `next.config.ts` wins, `next.config.js` is silently dead. The `.js` file contains worker-loader / `asyncWebAssembly` / stockfish.js babel-loader config — none of it is needed (Next 15 + default webpack handle WASM fine; `/engines/stockfish-16/*.wasm` serves as `application/wasm` at 200). Delete `next.config.js` when you're tidying.
 3. **Never accept a client-supplied system prompt or `role: "system"` message.** There was a P0 prompt-injection hole on `/api/enhanced-analysis` and `/api/chat` — Phase 1.4 of the audit stripped it. The proper Phase 3 fix (auth + rate-limit + server-side prompt allowlist) lands with a regression test. See the `AUDIT-PHASE-1.4` comments in [src/lib/validation/schemas.ts](src/lib/validation/schemas.ts) and [src/app/api/enhanced-analysis/route.ts](src/app/api/enhanced-analysis/route.ts).
 4. **`Chesskit/` is out of scope.** Vendored nested git repo, currently dirty, quarantined in `.claude/settings.json`. Do not read, edit, or clean it.
@@ -66,7 +67,7 @@ System prompt body: [src/lib/chessPrinciples.ts:172](src/lib/chessPrinciples.ts#
 
 Before hitting an endpoint that depends on a service listed as ❌ or ⚠️, sanity-check via `/api/health/llm` or `/api/maia-status` rather than assuming.
 
-**Known bug in diagnostics:** [src/app/api/health/anthropic/route.ts:71](src/app/api/health/anthropic/route.ts#L71) hardcodes `claude-haiku-4-20250514`, which is not a real model ID. Endpoint returns 502 permanently. Not used for live traffic; fix is a one-line rename to `claude-haiku-4-5-20251001`.
+**Health probe coverage:** [`/api/health/llm`](src/app/api/health/llm/route.ts) probes Anthropic + OpenAI (1-token call, both providers). [`/api/health/anthropic`](src/app/api/health/anthropic/route.ts) is the Anthropic-only probe — historically returned 502 because of a stale model ID; the fix to use the canonical `claude-haiku-4-5-20251001` is in flight on `fix/health-anthropic-model-id`. There is no uptime monitor polling either endpoint yet, so silent provider outages won't page anyone.
 
 ## Persistence layers (four of them, know which one you're touching)
 
@@ -85,4 +86,10 @@ Before hitting an endpoint that depends on a service listed as ❌ or ⚠️, sa
 
 ## Tests & CI
 
-**There is no test harness and no CI** as of 2026-04-23. The 30+ `test-*.js` files at the repo root are ad-hoc scripts, not a suite. Phase 3 of the audit adds Vitest + Playwright Test + a GitHub Actions workflow running `tsc --noEmit` and the new suites. Until then, regressions are on the eyeball.
+**Vitest is wired and enforced by CI as of 2026-05-28.** `npm test` runs 36 files / 652 tests in ~3s. [.github/workflows/ci.yml](.github/workflows/ci.yml) runs `tsc --noEmit` + the suite on every PR and on push to `main` / `audit/*`. Playwright is in `devDependencies` but no `playwright.config` exists yet — e2e is still on the eyeball.
+
+Coverage is uneven on purpose: Mastermind validators, the category classifier, `getCoachChatSystemPrompt` (snapshotted per personality), and `llmProvider` fallback have deep tests; insight parsing, Firestore CRUD, the opening-explorer 3-tier fallback, the Maia integration, and SSE stream consumption have **none**. If you're touching one of the uncovered areas, write the test alongside the change — `chessmasti.com` is now small enough that "the next PR" is also the regression you'll have to debug.
+
+The 30+ `test-*.js` files at the repo root are pre-vitest ad-hoc scripts. They aren't wired to `npm test` and don't run in CI. Treat them as dead code unless someone explicitly references one.
+
+The synthetic-tester / eval harness lives in [scripts/synthetic-tester/](scripts/synthetic-tester/) with the Agent A baseline frozen at [audit/findings/agent-a-eval/](audit/findings/agent-a-eval/) (5 fixtures, 20% hallucination rate on Haiku 4.5). It does not run in CI; run it manually before shipping prompt changes.

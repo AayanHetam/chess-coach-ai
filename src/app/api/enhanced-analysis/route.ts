@@ -12,7 +12,7 @@ import { enhancedAnalysisSchema, validateRequest } from "@/lib/validation/schema
 import { logger, withRequestContext, extractRequestId } from "@/lib/logging";
 import { callLLM, callLLMStream, LLMError } from "@/lib/llmProvider";
 import {
-  getCoachChatSystemPrompt,
+  getCoachChatSystemPromptParts,
   PROMPT_VERSION,
 } from "@/lib/prompts/coachChatPrompt";
 import { getReinforcements } from "@/lib/concept/conceptRetrieval";
@@ -1119,7 +1119,17 @@ export async function POST(request: NextRequest) {
     // from structured params in the validated body (see AUDIT-PHASE-1.4
     // hardening note above). personalityId is resolved against a server-side
     // allowlist via getPersonalityById; unknown ids fall back to the default.
-    const claudeSystemPrompt = getCoachChatSystemPrompt({
+    //
+    // The prompt comes back split into two parts so the LLM call can put
+    // the stable prefix under an ephemeral cache marker and stream the
+    // per-user tail uncached. Two users sharing the same personalityId hit
+    // the prompt cache even with different username / rating / coaching
+    // prefs — that was the ~4x cost overrun the audit flagged.
+    //
+    // `claudeSystemPrompt` (the concatenated string) is still used by
+    // storeAnalysisContext so /api/chat's contextId lookup keeps returning
+    // a single self-contained prompt blob.
+    const claudeSystemParts = getCoachChatSystemPromptParts({
       personalityId: personalityId ?? "friendly",
       userRating: userRating ?? 1500,
       username,
@@ -1128,6 +1138,7 @@ export async function POST(request: NextRequest) {
       lichessUsername,
       coachingPrefs,
     });
+    const claudeSystemPrompt = `${claudeSystemParts.stable}\n\n${claudeSystemParts.perUser}`;
 
     // Build the messages for Claude (user/assistant turns only — system is separate)
     const claudeMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
@@ -1294,7 +1305,8 @@ export async function POST(request: NextRequest) {
             try {
               for await (const evt of callLLMStream({
                 tier: "flagship",
-                system: claudeSystemPrompt,
+                system: claudeSystemParts.stable,
+                systemSuffix: claudeSystemParts.perUser,
                 messages: claudeMessages,
                 temperature: 0.7,
                 maxTokens: 3000,
@@ -1418,7 +1430,8 @@ export async function POST(request: NextRequest) {
                 runValidationPipeline({
                   initialRequest: {
                     tier: "flagship",
-                    system: claudeSystemPrompt,
+                    system: claudeSystemParts.stable,
+                    systemSuffix: claudeSystemParts.perUser,
                     messages: claudeMessages,
                     temperature: 0.7,
                     maxTokens: 3000,
@@ -1639,7 +1652,8 @@ export async function POST(request: NextRequest) {
           try {
             for await (const evt of callLLMStream({
               tier: "flagship",
-              system: claudeSystemPrompt,
+              system: claudeSystemParts.stable,
+              systemSuffix: claudeSystemParts.perUser,
               messages: claudeMessages,
               temperature: 0.7,
               maxTokens: 3000,
@@ -1780,7 +1794,8 @@ export async function POST(request: NextRequest) {
               runValidationPipeline({
                 initialRequest: {
                   tier: "flagship",
-                  system: claudeSystemPrompt,
+                  system: claudeSystemParts.stable,
+                  systemSuffix: claudeSystemParts.perUser,
                   messages: claudeMessages,
                   temperature: 0.7,
                   maxTokens: 3000,
@@ -1837,7 +1852,8 @@ export async function POST(request: NextRequest) {
         try {
           llmResult = await callLLM({
             tier: "flagship",
-            system: claudeSystemPrompt,
+            system: claudeSystemParts.stable,
+            systemSuffix: claudeSystemParts.perUser,
             messages: claudeMessages,
             temperature: 0.7,
             maxTokens: 3000,
@@ -1865,7 +1881,8 @@ export async function POST(request: NextRequest) {
       try {
         llmResult = await callLLM({
           tier: "flagship",
-          system: claudeSystemPrompt,
+          system: claudeSystemParts.stable,
+          systemSuffix: claudeSystemParts.perUser,
           messages: claudeMessages,
           temperature: 0.7,
           maxTokens: 3000,

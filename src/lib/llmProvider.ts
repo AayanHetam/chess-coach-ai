@@ -62,6 +62,17 @@ export interface CallLLMOptions {
    */
   cacheSystem?: boolean;
   /**
+   * Optional uncached tail appended after `system`. When set together with
+   * `cacheSystem: true`, the Anthropic call emits two system blocks: the
+   * first carries the ephemeral cache marker, the second does not. That
+   * keeps per-user personalization out of the cached prefix so two callers
+   * sharing the same stable persona still hit the prompt cache even when
+   * their `username` / `userRating` / prefs differ. For OpenAI the suffix
+   * is just concatenated onto the system message (OpenAI has no prompt
+   * cache concept), so quality stays identical.
+   */
+  systemSuffix?: string;
+  /**
    * Optional AbortSignal (2026-05-25 fix-orphan-pipeline-cancellation).
    * When provided, propagated to the underlying fetch() call so the
    * provider can abort cleanly on timeout. When the signal aborts, the
@@ -100,6 +111,30 @@ const MODELS = {
   },
 } as const;
 
+/**
+ * Build the Anthropic `system` payload from a CallLLMOptions. Returns either
+ * a plain string (no cache, no suffix) or an array of content blocks. When
+ * `systemSuffix` is set, the suffix lands in its own uncached block so the
+ * preceding cached prefix can still be reused across callers with different
+ * per-user tails (username / rating / coaching prefs). When `cacheSystem` is
+ * also true, only the first block gets the ephemeral cache marker.
+ */
+function buildAnthropicSystemPayload(opts: CallLLMOptions): unknown {
+  if (!opts.system) return opts.system;
+  const hasSuffix = !!opts.systemSuffix;
+  const wantsCache = !!opts.cacheSystem;
+  if (!hasSuffix && !wantsCache) return opts.system;
+  const blocks: Array<Record<string, unknown>> = [
+    wantsCache
+      ? { type: "text", text: opts.system, cache_control: { type: "ephemeral" } }
+      : { type: "text", text: opts.system },
+  ];
+  if (hasSuffix) {
+    blocks.push({ type: "text", text: opts.systemSuffix });
+  }
+  return blocks;
+}
+
 // ── Anthropic call ──────────────────────────────────────────────────────────
 async function callAnthropic(
   tier: LLMTier,
@@ -112,14 +147,7 @@ async function callAnthropic(
   const model = MODELS.anthropic[tier];
   const startedAt = Date.now();
 
-  // When cacheSystem is on, we send the system as a single content block
-  // with an ephemeral cache marker. The API silently skips the cache when
-  // the block is below the model's minimum cacheable size, so this is safe
-  // even for short prompts.
-  const systemPayload: unknown =
-    opts.cacheSystem && opts.system
-      ? [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }]
-      : opts.system;
+  const systemPayload = buildAnthropicSystemPayload(opts);
 
   const response = await fetch(`${ANTHROPIC_BASE_URL}/v1/messages`, {
     method: "POST",
@@ -176,9 +204,15 @@ async function callOpenAI(
   const startedAt = Date.now();
 
   // OpenAI takes system as a message in the array, not a separate field.
+  // There's no prompt-cache concept on OpenAI's side, so we just concatenate
+  // the optional uncached suffix onto the system message. Output quality is
+  // identical to what callAnthropic would produce.
   const openaiMessages: Array<{ role: string; content: string }> = [];
   if (opts.system) {
-    openaiMessages.push({ role: "system", content: opts.system });
+    const systemContent = opts.systemSuffix
+      ? `${opts.system}\n\n${opts.systemSuffix}`
+      : opts.system;
+    openaiMessages.push({ role: "system", content: systemContent });
   }
   for (const m of opts.messages) {
     openaiMessages.push({ role: m.role, content: m.content });
@@ -243,10 +277,7 @@ async function* callAnthropicStream(
   const model = MODELS.anthropic[tier];
   const startedAt = Date.now();
 
-  const systemPayload: unknown =
-    opts.cacheSystem && opts.system
-      ? [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }]
-      : opts.system;
+  const systemPayload = buildAnthropicSystemPayload(opts);
 
   const response = await fetch(`${ANTHROPIC_BASE_URL}/v1/messages`, {
     method: "POST",

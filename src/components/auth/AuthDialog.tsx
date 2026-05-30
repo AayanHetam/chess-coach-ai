@@ -1,19 +1,26 @@
-import { useState, FormEvent } from "react";
+"use client";
+
+import React, { useState, FormEvent } from "react";
+
+// MUI Modal calls cloneElement(child, { ref }) on its direct child.
+// AnimatePresence is fragment-shaped — no DOM node for the ref to land on
+// — so React warns "Invalid prop `children` supplied to ForwardRef(Modal).
+// Expected an element that can hold a ref." This forwardRef'd div is a
+// neutral container Modal can attach to. Same fix in LoadGameDialog.
+const ModalChild = React.forwardRef<HTMLDivElement, { children: React.ReactNode }>(
+  function ModalChild({ children }, ref) {
+    return <div ref={ref}>{children}</div>;
+  }
+);
 import {
-  Dialog,
-  DialogContent,
   Box,
-  Button,
+  Modal,
+  Stack,
   TextField,
   Typography,
-  IconButton,
-  Avatar,
-  Divider,
-  Alert,
-  Tabs,
-  Tab,
-  Link as MuiLink,
 } from "@mui/material";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, X, ArrowLeft, AlertTriangle, Check } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -25,9 +32,23 @@ interface AuthDialogProps {
 type Mode = "signin" | "signup" | "forgot";
 type Step = "auth" | "usernames";
 
+// Dark-glass redesign of the legacy AuthDialog. Same exterior API
+// (open / onClose), same auth logic, completely rebuilt visuals to
+// match the design OS used by /preview/* surfaces: glass-blurred
+// rgba dark fill, 1px white-alpha edge, orange as accent (not fill),
+// pill tabs with sliding indicator. Layout uses Modal + flex column
+// + body min-height:0 so the submit button stays inside the viewport
+// even on short laptop screens (the bug we just fixed in
+// LoadGameDialog).
 export default function AuthDialog({ open, onClose }: AuthDialogProps) {
-  const { signInWithGoogle, signInWithEmail, signUp, forgotPassword, updateProfile, user } =
-    useAuth();
+  const {
+    signInWithGoogle,
+    signInWithEmail,
+    signUp,
+    forgotPassword,
+    updateProfile,
+    user,
+  } = useAuth();
 
   const [mode, setMode] = useState<Mode>("signin");
   const [step, setStep] = useState<Step>("auth");
@@ -126,328 +147,739 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
 
   const headerSubtitle =
     step === "usernames"
-      ? "Link your chess accounts for personalized coaching"
+      ? "Link your chess accounts for personalised coaching."
       : mode === "signup"
-      ? "Sign up to sync your games across devices"
+      ? "Sync your games + coaching across devices."
       : mode === "forgot"
-      ? "We'll email you a link to choose a new password"
-      : "Sign in to continue";
+      ? "We'll email you a link to choose a new password."
+      : "Sign in to keep your games and progress.";
+
+  // Shared input styling — applied to every TextField. Dark glass fill,
+  // orange focus, white-92 text.
+  const inputSx = {
+    "& .MuiOutlinedInput-root": {
+      backgroundColor: "rgba(255,255,255,0.03)",
+      borderRadius: "12px",
+      fontSize: "0.92rem",
+      color: "rgba(255,255,255,0.94)",
+      "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
+      "&:hover fieldset": { borderColor: "rgba(255,255,255,0.2)" },
+      "&.Mui-focused fieldset": {
+        borderColor: "rgba(249,115,22,0.55)",
+        borderWidth: "1px",
+      },
+    },
+    "& .MuiInputLabel-root": {
+      color: "rgba(255,255,255,0.55)",
+      "&.Mui-focused": { color: "#FB923C" },
+    },
+    "& .MuiFormHelperText-root": {
+      color: "rgba(255,255,255,0.42)",
+      fontSize: "0.72rem",
+    },
+    "& .MuiOutlinedInput-input::placeholder": {
+      color: "rgba(255,255,255,0.3)",
+      opacity: 1,
+    },
+  } as const;
+
+  const orangeGradient = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
+  const orangeHover = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
 
   return (
-    <Dialog
+    <Modal
       open={open}
       onClose={handleClose}
-      maxWidth="xs"
-      fullWidth
-      PaperProps={{ sx: { borderRadius: 4, overflow: "hidden" } }}
+      closeAfterTransition
+      slotProps={{
+        backdrop: {
+          sx: {
+            backgroundColor: "rgba(8,9,12,0.72)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+          },
+        },
+      }}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        outline: "none",
+      }}
     >
-      <Box
-        sx={{
-          background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
-          py: step === "usernames" ? 3 : 4,
-          px: 3,
-          textAlign: "center",
-          position: "relative",
-        }}
-      >
-        <IconButton
-          onClick={handleClose}
-          sx={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            color: "rgba(255,255,255,0.7)",
-            "&:hover": { color: "#fff" },
-          }}
-        >
-          <Icon icon="mdi:close" />
-        </IconButton>
-
-        <Avatar
-          src={step === "usernames" ? user?.photoURL || undefined : undefined}
-          sx={{
-            width: step === "usernames" ? 56 : 64,
-            height: step === "usernames" ? 56 : 64,
-            mx: "auto",
-            mb: step === "usernames" ? 1.5 : 2,
-            backgroundColor: "rgba(255,255,255,0.2)",
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          {step === "usernames" ? (
-            user?.displayName?.[0] || "U"
-          ) : (
-            <img
-              src="/android-chrome-192x192.png"
-              width={40}
-              height={40}
-              alt="Chess Coach AI"
-              style={{ borderRadius: 8 }}
-            />
-          )}
-        </Avatar>
-        <Typography variant="h6" sx={{ fontWeight: 800, color: "#fff", mb: 0.5 }}>
-          {headerTitle}
-        </Typography>
-        <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.85)" }}>
-          {headerSubtitle}
-        </Typography>
-      </Box>
-
-      <DialogContent sx={{ py: 3, px: 3 }}>
-        {step === "auth" ? (
-          <>
-            {mode !== "forgot" && (
-              <Tabs
-                value={mode}
-                onChange={(_e, v: Mode) => {
-                  setMode(v);
-                  setError(null);
-                  setInfo(null);
-                }}
-                variant="fullWidth"
-                sx={{ mb: 3 }}
-              >
-                <Tab label="Sign In" value="signin" sx={{ textTransform: "none", fontWeight: 600 }} />
-                <Tab label="Sign Up" value="signup" sx={{ textTransform: "none", fontWeight: 600 }} />
-              </Tabs>
-            )}
-
-            <Box component="form" onSubmit={handleEmailSubmit}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                required
-                sx={{ mb: 2 }}
-              />
-
-              {mode !== "forgot" && (
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                  required
-                  sx={{ mb: mode === "signup" ? 2 : 1 }}
-                  helperText={mode === "signup" ? "At least 10 characters with a number or symbol." : undefined}
-                />
-              )}
-
-              {mode === "signup" && (
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Display name (optional)"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  sx={{ mb: 2 }}
-                />
-              )}
-
-              {mode === "signin" && (
-                <Box sx={{ textAlign: "right", mb: 2 }}>
-                  <MuiLink
-                    component="button"
-                    type="button"
-                    underline="hover"
-                    onClick={() => {
-                      setMode("forgot");
-                      setError(null);
-                      setInfo(null);
-                    }}
-                    sx={{ fontSize: "0.85rem", color: "#FF6B35" }}
-                  >
-                    Forgot password?
-                  </MuiLink>
-                </Box>
-              )}
-
-              {error && (
-                <Alert severity="error" sx={{ mb: 2, fontSize: "0.85rem" }}>
-                  {error}
-                </Alert>
-              )}
-              {info && (
-                <Alert severity="success" sx={{ mb: 2, fontSize: "0.85rem" }}>
-                  {info}
-                </Alert>
-              )}
-
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                disabled={submitting}
+      <ModalChild>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.98 }}
+            transition={{
+              duration: 0.28,
+              ease: [0.22, 0.61, 0.36, 1],
+            }}
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              outline: "none",
+            }}
+          >
+            <Box
+              role="dialog"
+              aria-modal="true"
+              aria-label={headerTitle}
+              sx={{
+                width: { xs: "92vw", sm: 440 },
+                maxWidth: "92vw",
+                maxHeight: "84vh",
+                display: "flex",
+                flexDirection: "column",
+                borderRadius: "1.5rem",
+                background:
+                  "linear-gradient(180deg, rgba(20,22,28,0.92), rgba(12,14,20,0.92))",
+                backdropFilter: "blur(20px) saturate(150%)",
+                WebkitBackdropFilter: "blur(20px) saturate(150%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow:
+                  "0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)",
+                color: "rgba(255,255,255,0.94)",
+                overflow: "hidden",
+              }}
+            >
+              {/* Header — glass card with ember-glow Sparkles, NOT a big
+                  orange fill. Orange reserved as accent per design OS. */}
+              <Box
                 sx={{
-                  py: 1.25,
-                  borderRadius: 2.5,
-                  fontWeight: 700,
-                  textTransform: "none",
-                  background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
-                  "&:hover": {
-                    background: "linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)",
-                  },
+                  position: "relative",
+                  px: 3,
+                  pt: 3,
+                  pb: 2.25,
+                  borderBottom: "1px solid rgba(255,255,255,0.06)",
                 }}
               >
-                {submitting
-                  ? "Working…"
-                  : mode === "signin"
-                  ? "Sign in"
-                  : mode === "signup"
-                  ? "Create account"
-                  : "Send reset link"}
-              </Button>
-
-              {mode === "forgot" && (
-                <Button
-                  fullWidth
-                  variant="text"
-                  onClick={() => {
-                    setMode("signin");
-                    setError(null);
-                    setInfo(null);
-                  }}
-                  sx={{ mt: 1, textTransform: "none", fontWeight: 500, color: "#666" }}
-                >
-                  ← Back to sign in
-                </Button>
-              )}
-            </Box>
-
-            {mode !== "forgot" && (
-              <>
-                <Divider sx={{ my: 2.5 }}>
-                  <Typography variant="caption" sx={{ color: "#999" }}>
-                    or
-                  </Typography>
-                </Divider>
-
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  onClick={handleGoogle}
-                  startIcon={<Icon icon="flat-color-icons:google" width={20} />}
+                <Box
+                  onClick={handleClose}
+                  aria-label="Close"
                   sx={{
-                    py: 1.25,
-                    borderRadius: 2.5,
-                    textTransform: "none",
-                    fontWeight: 600,
-                    borderColor: "#ddd",
-                    color: "#333",
+                    position: "absolute",
+                    top: 16,
+                    right: 16,
+                    cursor: "pointer",
+                    width: 28,
+                    height: 28,
+                    borderRadius: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "rgba(255,255,255,0.55)",
+                    transition: "all 180ms ease",
                     "&:hover": {
-                      borderColor: "#FF6B35",
-                      backgroundColor: "rgba(255,107,53,0.04)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "rgba(255,255,255,0.92)",
                     },
                   }}
                 >
-                  Continue with Google
-                </Button>
-              </>
-            )}
+                  <X size={16} />
+                </Box>
 
-            <Typography
-              variant="caption"
-              sx={{ display: "block", textAlign: "center", mt: 2, color: "#999" }}
-            >
-              Your data is encrypted and never shared with third parties.
-            </Typography>
-          </>
-        ) : (
-          /* Step 2: optional username collection (post-signup) */
-          <>
-            <Typography variant="body2" sx={{ mb: 2.5, color: "#666" }}>
-              Optionally link your chess accounts so our AI coach can assess your skill
-              level and import your games. You can always add these later in Profile
-              Settings.
-            </Typography>
+                {/* Brand mark — small glass disc with ember-glow Sparkles */}
+                <Box
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "12px",
+                    background: orangeGradient,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow:
+                      "0 0 24px rgba(249,115,22,0.45), inset 0 1px 0 rgba(255,255,255,0.18)",
+                    mb: 1.5,
+                  }}
+                >
+                  <Sparkles size={20} color="#0A0A0A" />
+                </Box>
 
-            <Box sx={{ mb: 2.5 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-                <img
-                  src="https://www.chess.com/favicon.ico"
-                  width={18}
-                  height={18}
-                  alt="Chess.com"
-                />
-                <Typography variant="body2" sx={{ fontWeight: 600, color: "#333" }}>
-                  Chess.com Username
+                <Typography
+                  sx={{
+                    fontSize: "1.15rem",
+                    fontWeight: 800,
+                    letterSpacing: "-0.02em",
+                    lineHeight: 1.2,
+                    color: "rgba(255,255,255,0.96)",
+                  }}
+                >
+                  {headerTitle}
                 </Typography>
-                <Typography variant="caption" sx={{ color: "#aaa" }}>
-                  (optional)
-                </Typography>
-              </Box>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="e.g., magnuscarlsen"
-                value={chesscomUsername}
-                onChange={(e) => setChesscomUsername(e.target.value)}
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-              />
-            </Box>
-
-            <Box sx={{ mb: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-                <img
-                  src="https://lichess.org/favicon.ico"
-                  width={18}
-                  height={18}
-                  alt="Lichess"
-                />
-                <Typography variant="body2" sx={{ fontWeight: 600, color: "#333" }}>
-                  Lichess Username
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#aaa" }}>
-                  (optional)
+                <Typography
+                  sx={{
+                    mt: 0.4,
+                    fontSize: "0.82rem",
+                    color: "rgba(255,255,255,0.55)",
+                  }}
+                >
+                  {headerSubtitle}
                 </Typography>
               </Box>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="e.g., drnykterstein"
-                value={lichessUsername}
-                onChange={(e) => setLichessUsername(e.target.value)}
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-              />
-            </Box>
 
-            <Box sx={{ display: "flex", gap: 1.5, justifyContent: "flex-end" }}>
-              <Button
-                onClick={handleClose}
-                variant="text"
-                sx={{ textTransform: "none", fontWeight: 600, color: "#888" }}
-              >
-                Skip for now
-              </Button>
-              <Button
-                onClick={handleSaveUsernames}
-                variant="contained"
-                disabled={submitting}
+              {/* Mode tabs — pill style with sliding indicator. Only shown
+                  in the auth step when not in forgot mode. */}
+              {step === "auth" && mode !== "forgot" && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: 0.5,
+                    p: 0.5,
+                    mx: 3,
+                    mt: 2,
+                    borderRadius: "999px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                  }}
+                >
+                  {(
+                    [
+                      { id: "signin", label: "Sign in" },
+                      { id: "signup", label: "Sign up" },
+                    ] as { id: Mode; label: string }[]
+                  ).map(({ id, label }) => {
+                    const isActive = mode === id;
+                    return (
+                      <Box
+                        key={id}
+                        onClick={() => {
+                          setMode(id);
+                          setError(null);
+                          setInfo(null);
+                        }}
+                        sx={{
+                          position: "relative",
+                          flex: 1,
+                          textAlign: "center",
+                          py: 0.85,
+                          borderRadius: "999px",
+                          cursor: "pointer",
+                          fontSize: "0.86rem",
+                          fontWeight: 700,
+                          color: isActive
+                            ? "#0A0A0A"
+                            : "rgba(255,255,255,0.62)",
+                          transition: "color 180ms ease",
+                          "&:hover": {
+                            color: isActive
+                              ? "#0A0A0A"
+                              : "rgba(255,255,255,0.92)",
+                          },
+                        }}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="authDialogTabIndicator"
+                            transition={{
+                              type: "spring",
+                              stiffness: 420,
+                              damping: 34,
+                            }}
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              borderRadius: "999px",
+                              background: orangeGradient,
+                              boxShadow:
+                                "0 4px 14px rgba(249,115,22,0.32)",
+                            }}
+                          />
+                        )}
+                        <Box
+                          component="span"
+                          sx={{ position: "relative", zIndex: 1 }}
+                        >
+                          {label}
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              )}
+
+              {/* Scrollable body — min-height:0 + overflowY:auto so the
+                  submit button stays in viewport regardless of content
+                  length. Same fix as G13. */}
+              <Box
                 sx={{
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: "auto",
                   px: 3,
-                  borderRadius: 2.5,
-                  fontWeight: 700,
-                  textTransform: "none",
-                  background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
-                  "&:hover": {
-                    background: "linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)",
+                  py: 2.5,
+                  "&::-webkit-scrollbar": { width: 6 },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: "rgba(249,115,22,0.2)",
+                    borderRadius: "3px",
                   },
                 }}
               >
-                {submitting ? "Saving..." : "Save & Continue"}
-              </Button>
+                {step === "auth" ? (
+                  <>
+                    <Box component="form" onSubmit={handleEmailSubmit}>
+                      <Stack spacing={1.75}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Email"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          autoComplete="email"
+                          required
+                          sx={inputSx}
+                        />
+
+                        {mode !== "forgot" && (
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Password"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            autoComplete={
+                              mode === "signup"
+                                ? "new-password"
+                                : "current-password"
+                            }
+                            required
+                            helperText={
+                              mode === "signup"
+                                ? "At least 10 characters with a number or symbol."
+                                : undefined
+                            }
+                            sx={inputSx}
+                          />
+                        )}
+
+                        {mode === "signup" && (
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Display name (optional)"
+                            value={displayName}
+                            onChange={(e) => setDisplayName(e.target.value)}
+                            sx={inputSx}
+                          />
+                        )}
+
+                        {mode === "signin" && (
+                          <Box sx={{ textAlign: "right" }}>
+                            <Box
+                              component="button"
+                              type="button"
+                              onClick={() => {
+                                setMode("forgot");
+                                setError(null);
+                                setInfo(null);
+                              }}
+                              sx={{
+                                background: "transparent",
+                                border: "none",
+                                cursor: "pointer",
+                                fontSize: "0.78rem",
+                                color: "#FB923C",
+                                padding: 0,
+                                "&:hover": { color: "#FDBA74" },
+                              }}
+                            >
+                              Forgot password?
+                            </Box>
+                          </Box>
+                        )}
+
+                        {error && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 1,
+                              p: 1.25,
+                              borderRadius: "10px",
+                              background: "rgba(239,68,68,0.08)",
+                              border: "1px solid rgba(239,68,68,0.25)",
+                            }}
+                          >
+                            <AlertTriangle
+                              size={14}
+                              color="#fca5a5"
+                              style={{ marginTop: 2, flexShrink: 0 }}
+                            />
+                            <Typography
+                              sx={{
+                                fontSize: "0.82rem",
+                                color: "#fca5a5",
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {error}
+                            </Typography>
+                          </Box>
+                        )}
+                        {info && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 1,
+                              p: 1.25,
+                              borderRadius: "10px",
+                              background: "rgba(34,197,94,0.08)",
+                              border: "1px solid rgba(34,197,94,0.25)",
+                            }}
+                          >
+                            <Check
+                              size={14}
+                              color="#86efac"
+                              style={{ marginTop: 2, flexShrink: 0 }}
+                            />
+                            <Typography
+                              sx={{
+                                fontSize: "0.82rem",
+                                color: "#86efac",
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {info}
+                            </Typography>
+                          </Box>
+                        )}
+
+                        <Box
+                          component="button"
+                          type="submit"
+                          disabled={submitting}
+                          sx={{
+                            width: "100%",
+                            cursor: submitting ? "not-allowed" : "pointer",
+                            opacity: submitting ? 0.7 : 1,
+                            border: "none",
+                            outline: "none",
+                            py: 1.25,
+                            borderRadius: "12px",
+                            fontWeight: 700,
+                            fontSize: "0.92rem",
+                            letterSpacing: "0.01em",
+                            color: "#0A0A0A",
+                            background: orangeGradient,
+                            boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
+                            transition: "all 180ms ease",
+                            "&:hover": submitting
+                              ? {}
+                              : {
+                                  background: orangeHover,
+                                  transform: "translateY(-1px)",
+                                  boxShadow:
+                                    "0 8px 22px rgba(249,115,22,0.42)",
+                                },
+                          }}
+                        >
+                          {submitting
+                            ? "Working…"
+                            : mode === "signin"
+                            ? "Sign in"
+                            : mode === "signup"
+                            ? "Create account"
+                            : "Send reset link"}
+                        </Box>
+
+                        {mode === "forgot" && (
+                          <Box
+                            component="button"
+                            type="button"
+                            onClick={() => {
+                              setMode("signin");
+                              setError(null);
+                              setInfo(null);
+                            }}
+                            sx={{
+                              background: "transparent",
+                              border: "none",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 0.5,
+                              py: 0.75,
+                              fontSize: "0.84rem",
+                              color: "rgba(255,255,255,0.62)",
+                              "&:hover": { color: "rgba(255,255,255,0.92)" },
+                            }}
+                          >
+                            <ArrowLeft size={14} />
+                            Back to sign in
+                          </Box>
+                        )}
+                      </Stack>
+                    </Box>
+
+                    {mode !== "forgot" && (
+                      <>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.5,
+                            my: 2.5,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              flex: 1,
+                              height: 1,
+                              background: "rgba(255,255,255,0.08)",
+                            }}
+                          />
+                          <Typography
+                            sx={{
+                              fontSize: "0.7rem",
+                              fontWeight: 700,
+                              letterSpacing: "0.14em",
+                              textTransform: "uppercase",
+                              color: "rgba(255,255,255,0.4)",
+                            }}
+                          >
+                            or
+                          </Typography>
+                          <Box
+                            sx={{
+                              flex: 1,
+                              height: 1,
+                              background: "rgba(255,255,255,0.08)",
+                            }}
+                          />
+                        </Box>
+
+                        <Box
+                          component="button"
+                          type="button"
+                          onClick={handleGoogle}
+                          sx={{
+                            width: "100%",
+                            cursor: "pointer",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            outline: "none",
+                            py: 1.1,
+                            borderRadius: "12px",
+                            fontWeight: 700,
+                            fontSize: "0.88rem",
+                            color: "rgba(255,255,255,0.92)",
+                            background: "rgba(255,255,255,0.04)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 1,
+                            transition: "all 180ms ease",
+                            "&:hover": {
+                              background: "rgba(249,115,22,0.08)",
+                              borderColor: "rgba(249,115,22,0.4)",
+                            },
+                          }}
+                        >
+                          <Icon
+                            icon="flat-color-icons:google"
+                            width={18}
+                          />
+                          Continue with Google
+                        </Box>
+                      </>
+                    )}
+
+                    <Typography
+                      sx={{
+                        display: "block",
+                        textAlign: "center",
+                        mt: 2.5,
+                        fontSize: "0.7rem",
+                        color: "rgba(255,255,255,0.4)",
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      Your data is encrypted and never shared with third
+                      parties.
+                    </Typography>
+                  </>
+                ) : (
+                  /* Step 2: optional username collection (post-signup) */
+                  <>
+                    <Typography
+                      sx={{
+                        mb: 2.5,
+                        fontSize: "0.86rem",
+                        color: "rgba(255,255,255,0.7)",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      Link your chess accounts so the coach can ground
+                      analysis in your actual play history. You can also add
+                      these later in Profile Settings.
+                    </Typography>
+
+                    <Stack spacing={2}>
+                      <Box>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          spacing={0.85}
+                          sx={{ mb: 0.7 }}
+                        >
+                          <img
+                            src="https://www.chess.com/favicon.ico"
+                            width={16}
+                            height={16}
+                            alt="Chess.com"
+                          />
+                          <Typography
+                            sx={{
+                              fontSize: "0.82rem",
+                              fontWeight: 700,
+                              color: "rgba(255,255,255,0.88)",
+                            }}
+                          >
+                            Chess.com username
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontSize: "0.72rem",
+                              color: "rgba(255,255,255,0.4)",
+                            }}
+                          >
+                            (optional)
+                          </Typography>
+                        </Stack>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          placeholder="e.g., magnuscarlsen"
+                          value={chesscomUsername}
+                          onChange={(e) =>
+                            setChesscomUsername(e.target.value)
+                          }
+                          sx={inputSx}
+                        />
+                      </Box>
+
+                      <Box>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          spacing={0.85}
+                          sx={{ mb: 0.7 }}
+                        >
+                          <img
+                            src="https://lichess.org/favicon.ico"
+                            width={16}
+                            height={16}
+                            alt="Lichess"
+                          />
+                          <Typography
+                            sx={{
+                              fontSize: "0.82rem",
+                              fontWeight: 700,
+                              color: "rgba(255,255,255,0.88)",
+                            }}
+                          >
+                            Lichess username
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontSize: "0.72rem",
+                              color: "rgba(255,255,255,0.4)",
+                            }}
+                          >
+                            (optional)
+                          </Typography>
+                        </Stack>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          placeholder="e.g., drnykterstein"
+                          value={lichessUsername}
+                          onChange={(e) =>
+                            setLichessUsername(e.target.value)
+                          }
+                          sx={inputSx}
+                        />
+                      </Box>
+                    </Stack>
+
+                    <Box
+                      sx={{
+                        display: "flex",
+                        gap: 1,
+                        justifyContent: "flex-end",
+                        mt: 3,
+                      }}
+                    >
+                      <Box
+                        component="button"
+                        type="button"
+                        onClick={handleClose}
+                        sx={{
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: "0.84rem",
+                          fontWeight: 700,
+                          color: "rgba(255,255,255,0.55)",
+                          px: 2,
+                          py: 1,
+                          borderRadius: "10px",
+                          transition: "all 180ms ease",
+                          "&:hover": {
+                            color: "rgba(255,255,255,0.92)",
+                            background: "rgba(255,255,255,0.04)",
+                          },
+                        }}
+                      >
+                        Skip for now
+                      </Box>
+                      <Box
+                        component="button"
+                        type="button"
+                        onClick={handleSaveUsernames}
+                        disabled={submitting}
+                        sx={{
+                          cursor: submitting ? "not-allowed" : "pointer",
+                          opacity: submitting ? 0.7 : 1,
+                          border: "none",
+                          outline: "none",
+                          px: 2.5,
+                          py: 1,
+                          borderRadius: "10px",
+                          fontWeight: 700,
+                          fontSize: "0.84rem",
+                          color: "#0A0A0A",
+                          background: orangeGradient,
+                          boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
+                          transition: "all 180ms ease",
+                          "&:hover": submitting
+                            ? {}
+                            : {
+                                background: orangeHover,
+                                transform: "translateY(-1px)",
+                              },
+                        }}
+                      >
+                        {submitting ? "Saving…" : "Save & continue"}
+                      </Box>
+                    </Box>
+                  </>
+                )}
+              </Box>
             </Box>
-          </>
+          </motion.div>
         )}
-      </DialogContent>
-    </Dialog>
+      </AnimatePresence>
+      </ModalChild>
+    </Modal>
   );
 }

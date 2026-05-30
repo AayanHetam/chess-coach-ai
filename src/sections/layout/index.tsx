@@ -72,9 +72,17 @@ export default function Layout({ children }: PropsWithChildren) {
 
   const router = useRouter();
   const isLandingPage = router.pathname === "/";
+  // Preview routes (the new design system that's replacing the legacy
+  // /play, /analysis, etc.) ship their own SharedNavPill chrome. Mounting
+  // the legacy NavBar on top of it would double-stack headers AND every
+  // legacy link would deep-link the user back into the prod surface,
+  // breaking the cutover. Treat preview/* like the landing page —
+  // full-bleed, no legacy chrome.
+  const isPreviewRoute = router.pathname.startsWith("/preview");
 
-  // Landing page: skip NavBar and app chrome for a full-bleed look
-  if (isLandingPage) {
+  // Landing page or preview route: skip NavBar and app chrome for a
+  // full-bleed look.
+  if (isLandingPage || isPreviewRoute) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />

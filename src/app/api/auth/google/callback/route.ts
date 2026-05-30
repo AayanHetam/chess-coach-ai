@@ -21,8 +21,31 @@ export const runtime = "nodejs";
 
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 
-function errorRedirect(baseUrl: string, code: string): NextResponse {
-  const url = new URL(baseUrl);
+/**
+ * Build an error redirect that **preserves the user's original page**
+ * (returnTo from the state cookie when available) instead of always
+ * dumping them on the landing page. Previously every OAuth failure
+ * dropped users on `/?oauth_error=...` regardless of where they
+ * initiated sign-in from — confusing and forced them to re-navigate.
+ *
+ * `safeReturnTo` here mirrors `sanitizeReturnTo` in start/route.ts:
+ * only accept same-origin paths, reject protocol-relative or absolute
+ * URLs that could redirect off-host.
+ */
+function safeReturnTo(raw: string | undefined): string {
+  if (!raw) return "/";
+  if (!raw.startsWith("/")) return "/";
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return "/";
+  if (raw.length > 2048) return "/";
+  return raw;
+}
+
+function errorRedirect(
+  baseUrl: string,
+  code: string,
+  returnTo?: string
+): NextResponse {
+  const url = new URL(safeReturnTo(returnTo), baseUrl);
   url.searchParams.set("oauth_error", code);
   return NextResponse.redirect(url);
 }
@@ -42,23 +65,28 @@ export async function GET(request: Request) {
   const stateParam = url.searchParams.get("state");
   const userDeniedError = url.searchParams.get("error");
 
+  // Read the state cookie eagerly so error paths can preserve returnTo.
+  // The cookie payload is JWT-verified inside readOAuthStateFromRequest —
+  // a null result here means missing or tampered, not an exploit hole.
+  const stateCookie = await readOAuthStateFromRequest(request);
+  const returnTo = stateCookie?.returnTo;
+
   // User clicked "cancel" on Google's consent screen.
   if (userDeniedError) {
-    const response = errorRedirect(env.appBaseUrl, userDeniedError);
+    const response = errorRedirect(env.appBaseUrl, userDeniedError, returnTo);
     clearOAuthStateCookie(response);
     return response;
   }
 
   if (!code || !stateParam) {
-    const response = errorRedirect(env.appBaseUrl, "missing_params");
+    const response = errorRedirect(env.appBaseUrl, "missing_params", returnTo);
     clearOAuthStateCookie(response);
     return response;
   }
 
-  const stateCookie = await readOAuthStateFromRequest(request);
   if (!stateCookie || stateCookie.state !== stateParam) {
     console.warn("[auth/google/callback] state mismatch");
-    const response = errorRedirect(env.appBaseUrl, "state_mismatch");
+    const response = errorRedirect(env.appBaseUrl, "state_mismatch", returnTo);
     clearOAuthStateCookie(response);
     return response;
   }
@@ -80,20 +108,20 @@ export async function GET(request: Request) {
     });
     if (!tokenRes.ok) {
       console.error("[auth/google/callback] token exchange failed", await tokenRes.text());
-      const response = errorRedirect(env.appBaseUrl, "token_exchange_failed");
+      const response = errorRedirect(env.appBaseUrl, "token_exchange_failed", returnTo);
       clearOAuthStateCookie(response);
       return response;
     }
     const tokens = (await tokenRes.json()) as { id_token?: string };
     if (!tokens.id_token) {
-      const response = errorRedirect(env.appBaseUrl, "no_id_token");
+      const response = errorRedirect(env.appBaseUrl, "no_id_token", returnTo);
       clearOAuthStateCookie(response);
       return response;
     }
     idToken = tokens.id_token;
   } catch (err) {
     console.error("[auth/google/callback] token exchange threw", err);
-    const response = errorRedirect(env.appBaseUrl, "token_exchange_failed");
+    const response = errorRedirect(env.appBaseUrl, "token_exchange_failed", returnTo);
     clearOAuthStateCookie(response);
     return response;
   }
@@ -109,20 +137,20 @@ export async function GET(request: Request) {
     payload = ticket.getPayload();
   } catch (err) {
     console.error("[auth/google/callback] verifyIdToken failed", err);
-    const response = errorRedirect(env.appBaseUrl, "verify_failed");
+    const response = errorRedirect(env.appBaseUrl, "verify_failed", returnTo);
     clearOAuthStateCookie(response);
     return response;
   }
 
   if (!payload || !payload.sub || !payload.email) {
-    const response = errorRedirect(env.appBaseUrl, "missing_claims");
+    const response = errorRedirect(env.appBaseUrl, "missing_claims", returnTo);
     clearOAuthStateCookie(response);
     return response;
   }
 
   // Refuse unverified-email logins to prevent account-takeover via shadow accounts.
   if (payload.email_verified === false) {
-    const response = errorRedirect(env.appBaseUrl, "email_unverified");
+    const response = errorRedirect(env.appBaseUrl, "email_unverified", returnTo);
     clearOAuthStateCookie(response);
     return response;
   }
@@ -182,12 +210,12 @@ export async function GET(request: Request) {
   } catch (err) {
     if (err instanceof AdminConfigError) {
       console.error("[auth/google/callback]", err);
-      const response = errorRedirect(env.appBaseUrl, "admin_unavailable");
+      const response = errorRedirect(env.appBaseUrl, "admin_unavailable", returnTo);
       clearOAuthStateCookie(response);
       return response;
     }
     console.error("[auth/google/callback] unexpected", err);
-    const response = errorRedirect(env.appBaseUrl, "unknown");
+    const response = errorRedirect(env.appBaseUrl, "unknown", returnTo);
     clearOAuthStateCookie(response);
     return response;
   }

@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   IconButton,
+  Menu,
   Modal,
   Stack,
   TextField,
@@ -47,6 +48,7 @@ import {
   Crown,
   Eye,
   Flame,
+  GitBranch,
   Lightbulb,
   MousePointerClick,
   RefreshCw,
@@ -62,6 +64,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill as SharedNavPill } from "@/components/ui/NavPill";
+import { Lc0DownloadBanner } from "@/components/Lc0DownloadBanner";
 import { OpeningExplorer } from "@/components/ui/OpeningExplorer";
 import {
   CommandPalette,
@@ -69,8 +72,35 @@ import {
   type CommandGroup,
 } from "@/components/ui/CommandPalette";
 import { useEngine } from "@/hooks/useEngine";
-import { EngineName } from "@/types/enums";
-import type { PositionEval } from "@/types/eval";
+import { EngineName, MoveClassification } from "@/types/enums";
+import type { PositionEval, LineEval } from "@/types/eval";
+import { getMovesClassification } from "@/lib/engine/helpers/moveClassification";
+import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
+import { useGameDatabase } from "@/hooks/useGameDatabase";
+import { useViewer } from "@/hooks/useViewer";
+import type { GameEval } from "@/types/eval";
+import { FlagButton } from "@/components/intern/FlagButton";
+import {
+  coachPersonalities,
+  defaultPersonalityId,
+  getPersonalityById,
+} from "@/config/coachPersonalities";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import {
+  parseInsights,
+  type InsightData,
+} from "@/components/AICoachInsights";
+import {
+  recordPuzzleAttempt,
+  getAllAttempts,
+} from "@/lib/repetitTraining";
+import { useSetAtom } from "jotai";
+import { savedEvalsAtom } from "@/sections/analysis/states";
+import type { SavedEvals } from "@/types/eval";
+import {
+  extractImportedGameInfo,
+  detectUserColor,
+} from "@/lib/smartColorDetection";
 import { getEvaluateGameParams } from "@/lib/chess";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
@@ -182,67 +212,80 @@ const KEY_MOMENTS: KeyMoment[] = [
 // tiers users actually care about for navigation).
 // ───────────────────────────────────────────────────────────────────────────────
 
-type MoveLabel = "best" | "good" | "inaccuracy" | "mistake" | "blunder";
+// Re-export of the production enum so the rest of this file (and the
+// callers downstream of MovesListPanel) can refer to MoveLabel exactly
+// the way the existing UI does, without having to chase
+// MoveClassification through every prop type. Identity rebrand —
+// MoveLabel is MoveClassification.
+type MoveLabel = MoveClassification;
 
 const CLASSIFICATION_COLORS: Record<MoveLabel, string> = {
-  best: "#22c55e",
-  good: "#86efac",
-  inaccuracy: "#FBBF24",
-  mistake: "#FB923C",
-  blunder: "#ef4444",
+  [MoveClassification.Brilliant]: "#14B8A6", // teal
+  [MoveClassification.Great]: "#22c55e", // green
+  [MoveClassification.Best]: "#86efac", // light green
+  [MoveClassification.Excellent]: "#A3E635", // lime
+  [MoveClassification.Good]: "#FACC15", // yellow
+  [MoveClassification.Okay]: "rgba(255,255,255,0.6)",
+  [MoveClassification.Forced]: "rgba(255,255,255,0.45)",
+  [MoveClassification.Opening]: "#60A5FA", // blue
+  [MoveClassification.Inaccuracy]: "#FBBF24", // amber
+  [MoveClassification.Mistake]: "#FB923C", // orange
+  [MoveClassification.Miss]: "#F87171", // light red
+  [MoveClassification.Blunder]: "#ef4444", // red
 };
 const CLASSIFICATION_GLYPHS: Record<MoveLabel, string> = {
-  best: "!",
-  good: "✓",
-  inaccuracy: "?!",
-  mistake: "?",
-  blunder: "??",
+  [MoveClassification.Brilliant]: "‼",
+  [MoveClassification.Great]: "!",
+  [MoveClassification.Best]: "✓",
+  [MoveClassification.Excellent]: "✓",
+  [MoveClassification.Good]: "",
+  [MoveClassification.Okay]: "",
+  [MoveClassification.Forced]: "□",
+  [MoveClassification.Opening]: "▸",
+  [MoveClassification.Inaccuracy]: "?!",
+  [MoveClassification.Mistake]: "?",
+  [MoveClassification.Miss]: "✕",
+  [MoveClassification.Blunder]: "??",
 };
 const CLASSIFICATION_LABELS: Record<MoveLabel, string> = {
-  best: "Best",
-  good: "Good",
-  inaccuracy: "Inaccuracy",
-  mistake: "Mistake",
-  blunder: "Blunder",
+  [MoveClassification.Brilliant]: "Brilliant",
+  [MoveClassification.Great]: "Great",
+  [MoveClassification.Best]: "Best",
+  [MoveClassification.Excellent]: "Excellent",
+  [MoveClassification.Good]: "Good",
+  [MoveClassification.Okay]: "Okay",
+  [MoveClassification.Forced]: "Forced",
+  [MoveClassification.Opening]: "Opening",
+  [MoveClassification.Inaccuracy]: "Inaccuracy",
+  [MoveClassification.Mistake]: "Mistake",
+  [MoveClassification.Miss]: "Missed opportunity",
+  [MoveClassification.Blunder]: "Blunder",
 };
 
 /**
- * Classify a single move by comparing the win% of the position before vs
- * after the move from the mover's perspective. Returns null if either
- * position lacks a usable eval (e.g., still loading).
+ * Look up a move's classification from a classified positions array.
+ * The array must have been produced by `getMovesClassification(...)`
+ * upstream — see `classifiedPositions` useMemo in AnalysisPage. The
+ * production classifier produces 11 classes (Brilliant/Great/Best/
+ * Excellent/Good/Okay/Forced/Opening/Inaccuracy/Mistake/Miss/Blunder)
+ * vs the simplified 5-class version we shipped at /preview launch.
  *
- * Indexing: positions[i] is the eval at the position BEFORE moveIdx=i is
- * played. positions[i+1] is the eval AFTER. The mover at moveIdx i is
- * white when i is even, black when i is odd.
+ * Indexing: positions[i+1].moveClassification is the classification of
+ * the move at moveIdx i (the move that transformed positions[i] into
+ * positions[i+1]).
  */
 function classifyMove(
   positions: PositionEval[] | null,
   moveIdx: number
 ): MoveLabel | null {
   if (!positions) return null;
-  const before = positions[moveIdx];
-  const after = positions[moveIdx + 1];
-  if (!before || !after) return null;
-  if (!before.lines?.[0] || !after.lines?.[0]) return null;
-  let winBefore: number;
-  let winAfter: number;
-  try {
-    winBefore = getPositionWinPercentage(before);
-    winAfter = getPositionWinPercentage(after);
-  } catch {
-    return null;
-  }
-  const isWhiteMove = moveIdx % 2 === 0;
-  // win% is from White's perspective. The mover wants their win% to go up
-  // (white) or down (black). "Loss" is how far the mover fell short.
-  const loss = isWhiteMove ? winBefore - winAfter : winAfter - winBefore;
-  if (loss <= 0) return "best";
-  if (loss <= 2) return "best";
-  if (loss <= 5) return "good";
-  if (loss <= 10) return "inaccuracy";
-  if (loss <= 20) return "mistake";
-  return "blunder";
+  return positions[moveIdx + 1]?.moveClassification ?? null;
 }
+
+// Keep the win-% helper reachable so future inline classification logic
+// (e.g. a heatmap overlay) doesn't have to re-import. Calling it has no
+// side effects so this is just a soft tree-shake hint.
+void getPositionWinPercentage;
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Mock arrow data per ply — Engine best + Maia at various ELO ranges.
@@ -269,6 +312,10 @@ const ENGINE_BEST: Record<number, string> = {
   14: "e3h6",
 };
 
+// G8: real Maia is wired via /api/maia-predict. The hand-curated
+// MAIA_MOVES table below is the cold-start fallback for the Kasparov
+// demo (so the arrow shows immediately while the API request is in
+// flight, and stays useful if MAIA_API_URL is unconfigured at runtime).
 const MAIA_MOVES: Record<number, Record<number, string>> = {
   0: { 1100: "e2e4", 1500: "e2e4", 1800: "d2d4", 2200: "g1f3" },
   1: { 1100: "e7e5", 1500: "e7e5", 1800: "c7c5", 2200: "d7d6" },
@@ -283,7 +330,7 @@ const MAIA_MOVES: Record<number, Record<number, string>> = {
   10: { 1100: "g1f3", 1500: "h2h3", 1800: "f2f3", 2200: "f2f3" },
 };
 
-function findMaiaMove(ply: number, elo: number): string | undefined {
+function findMaiaMoveFromTable(ply: number, elo: number): string | undefined {
   const map = MAIA_MOVES[ply];
   if (!map) return undefined;
   const elos = Object.keys(map).map(Number).sort((a, b) => a - b);
@@ -315,7 +362,8 @@ async function fetchPuzzlesForTheme(
   fen: string,
   theme: string,
   userRating = 1500,
-  limit = 3
+  limit = 3,
+  excludeIds: string[] = []
 ): Promise<DrillPuzzle[] | null> {
   const themes = [theme]; // future: accept multi-theme conjunctions
   const res = await fetch("/api/similar-puzzles", {
@@ -327,6 +375,7 @@ async function fetchPuzzlesForTheme(
       userRating,
       limit,
       candidatePoolSize: Math.max(limit * 5, 20),
+      excludeIds,
     }),
   });
   if (!res.ok) {
@@ -346,6 +395,43 @@ async function fetchPuzzlesForTheme(
     if (mapped.length >= limit) break;
   }
   return mapped.length > 0 ? mapped : null;
+}
+
+// G14: try the adaptive-puzzles endpoint when we have a signed-in user.
+// Returns null if Neo4j is unconfigured (503), the user has no struggled-
+// theme history yet, or the request fails for any reason — callers fall
+// back to fetchPuzzlesForTheme (similar-puzzles).
+async function fetchAdaptivePuzzles(
+  userId: string,
+  theme: string,
+  limit = 3,
+  excludeIds: string[] = []
+): Promise<DrillPuzzle[] | null> {
+  try {
+    const res = await fetch("/api/adaptive-puzzles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        themes: [theme],
+        limit,
+        excludePuzzleIds: excludeIds,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { puzzles?: LichessPuzzleResponse[] };
+    const raw = data.puzzles ?? [];
+    if (raw.length === 0) return null;
+    const mapped: DrillPuzzle[] = [];
+    for (const p of raw) {
+      const d = lichessToDrillPuzzle(p);
+      if (d && d.solution.length > 0) mapped.push(d);
+      if (mapped.length >= limit) break;
+    }
+    return mapped.length > 0 ? mapped : null;
+  } catch {
+    return null;
+  }
 }
 
 class CoachAuthError extends Error {}
@@ -375,37 +461,174 @@ function buildContextBlurb(
   return `[Position FEN: ${fen}\nRecent moves: ${recent}\nTo move: ${turnColor}]`;
 }
 
+/**
+ * Production-parity two-tier coach call (mirrors AICoachChat.tsx:2421+):
+ *
+ * - **Deep path** — `/api/enhanced-analysis` (SSE). Fires on the very
+ *   first message of a session (or after the contextId cache expires).
+ *   Builds the rich Stage-B analysis context that the LLM grounds
+ *   subsequent answers against. Returns a contextId in the final SSE
+ *   metadata event.
+ * - **Fast path** — `/api/chat` (non-SSE). Fires on every follow-up
+ *   message that has a live contextId. Cheap and quick because the
+ *   server reuses the cached deep context.
+ *
+ * The caller passes a `contextIdRef` so we can read/update across calls
+ * without retriggering React renders. Returns the final accumulated
+ * content (the caller doesn't need it — onDelta drives the UI — but
+ * we use it to look for [INSIGHT:...] tags in G5).
+ */
 async function streamCoachReply(params: {
   prevMessages: CoachMessage[];
   userText: string;
   fen: string;
   currentPly: number;
   allMoves: Move[];
+  loadedGame: Chess;
+  enginePositions: PositionEval[] | null;
+  /** Full GameEval (accuracy + estimatedElo + settings + positions) captured
+   *  from engine.evaluateGame. When present, this is what the server actually
+   *  uses to compose the overview section of the system prompt
+   *  (route.ts:362-363 → `Accuracy: …`, `Estimated Elo: …`). Without it the
+   *  LLM is blind to the user's skill level and the reply quality drops to
+   *  generic. */
+  gameEvalFull?: GameEval | null;
+  contextIdRef: { current: string | null };
+  userRating?: number;
+  /** "w" | "b" — production's playerColor field, lifted into the system
+   *  prompt as "You're coaching <White|Black>". Derived from board
+   *  orientation when no explicit picker exists. */
+  playerColor?: "w" | "b";
+  /** Explicit display string for the player's color. Server uses this for
+   *  prompt-side address rather than re-deriving from playerColor. */
+  playerColorName?: "white" | "black";
+  /** Bottom-of-board side as seen by the user. Production also threads this
+   *  in so personality prompts can phrase from the right perspective. */
+  boardOrientation?: "white" | "black";
+  /** Display name / chess username for personalization. */
+  username?: string;
+  chesscomUsername?: string;
+  lichessUsername?: string;
+  /** Coach persona id ("friendly", "grandmaster", etc.). Server's
+   *  getCoachChatSystemPrompt() looks this up via getPersonalityById
+   *  and merges the persona's tone-and-style block into the prompt. */
+  personalityId?: string;
   onDelta: (chunk: string) => void;
   signal?: AbortSignal;
-}): Promise<void> {
-  const { prevMessages, userText, fen, currentPly, allMoves, onDelta, signal } =
-    params;
-  const blurb = buildContextBlurb(fen, currentPly, allMoves);
-  const userWithContext = `${blurb}\n\n${userText}`;
+}): Promise<string> {
+  const {
+    prevMessages,
+    userText,
+    fen,
+    currentPly,
+    allMoves,
+    loadedGame,
+    enginePositions,
+    gameEvalFull,
+    contextIdRef,
+    userRating,
+    playerColor,
+    playerColorName,
+    boardOrientation,
+    username,
+    chesscomUsername,
+    lichessUsername,
+    personalityId,
+    onDelta,
+    signal,
+  } = params;
 
-  const history = prevMessages
+  const conversationHistory = prevMessages
     .filter((m) => m.role === "user" || m.role === "coach")
     .map((m) => ({
       role: m.role === "coach" ? ("assistant" as const) : ("user" as const),
       content: m.content,
     }));
 
-  const apiMessages = [
-    ...history,
-    { role: "user" as const, content: userWithContext },
-  ];
+  const hasContext =
+    contextIdRef.current !== null &&
+    conversationHistory.some((m) => m.role === "assistant");
 
-  const res = await fetch("/api/chat?stream=1", {
+  // ─── FAST PATH: follow-up via /api/chat (cached deep context) ───
+  if (hasContext) {
+    const chatRes = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        contextId: contextIdRef.current,
+        userMessage: userText,
+        conversationHistory,
+      }),
+      signal,
+    });
+    if (chatRes.status === 404) {
+      // contextId expired — fall through to deep path
+      contextIdRef.current = null;
+    } else if (chatRes.status === 401) {
+      throw new CoachAuthError();
+    } else if (!chatRes.ok) {
+      throw new CoachApiError(chatRes.status);
+    } else {
+      const data = await chatRes.json();
+      const text: string =
+        data.message ??
+        data.response ??
+        data.gameAnalysis?.analysis ??
+        "";
+      // Emit as a single chunk so the UI animates the same way
+      onDelta(text);
+      return text;
+    }
+  }
+
+  // ─── DEEP PATH: /api/enhanced-analysis (SSE) ───
+  // moveHistory is the FULL game (matches production /api/enhanced-analysis
+  // callers in src/components/AICoachChat.tsx:2483 — game.history()). fen
+  // is the cursor position so the server can ground "what's happening here"
+  // questions. Previously sliced to currentPly, which made "analyze my
+  // game" land on the server with zero moves when the user was sitting at
+  // ply 0 — the coach would helpfully respond "I see we're starting from
+  // the initial position".
+  const moveHistory = allMoves.map((m) => m.san);
+  // Prefer the full GameEval (with accuracy + estimatedElo + settings) when
+  // available — that's what production sends and what the route's overview
+  // composer expects. Fall back to the bare-positions wrap only when the
+  // user is asking before Stockfish finished (analysisActive should already
+  // block this path now, but defensive nonetheless).
+  const gameEvalPayload =
+    gameEvalFull ??
+    (enginePositions ? { positions: enginePositions } : undefined);
+  const requestBody: Record<string, unknown> = {
+    userMessage: userText,
+    moveHistory,
+    fen,
+    gameEval: gameEvalPayload,
+    conversationHistory,
+    userRating: userRating ?? 1500,
+    // Production-parity personalization fields (AICoachChat:2459-2487).
+    // All are optional server-side and round-trip via the enhanced-analysis
+    // zod schema; the LLM's system prompt only gets richer with each one.
+    playerColor,
+    playerColorName,
+    boardOrientation,
+    username,
+    chesscomUsername,
+    lichessUsername,
+    personalityId,
+    stream: true,
+  };
+  // Personality / username left undefined — server falls back gracefully
+  // and the new page hasn't surfaced the personality picker yet.
+
+  const res = await fetch("/api/enhanced-analysis", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+    },
     credentials: "include",
-    body: JSON.stringify({ messages: apiMessages, temperature: 0.7 }),
+    body: JSON.stringify(requestBody),
     signal,
   });
 
@@ -413,25 +636,47 @@ async function streamCoachReply(params: {
   if (!res.ok) throw new CoachApiError(res.status);
   if (!res.body) throw new CoachApiError(res.status);
 
+  // The route emits either SSE or JSON depending on whether `stream:true`
+  // was honored. Detect from content-type.
+  const isStream = res.headers
+    .get("content-type")
+    ?.includes("text/event-stream");
+
+  if (!isStream) {
+    const data = await res.json();
+    if (data.gameAnalysis?.contextId) {
+      contextIdRef.current = data.gameAnalysis.contextId;
+    }
+    const text: string = data.gameAnalysis?.analysis ?? data.message ?? "";
+    onDelta(text);
+    return text;
+  }
+
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let accumulated = "";
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
-    // Process complete SSE events (delimited by \n\n)
     const events = buffer.split("\n\n");
     buffer = events.pop() ?? "";
     for (const ev of events) {
       const line = ev.trim();
       if (!line.startsWith("data:")) continue;
       const payload = line.slice(5).trim();
-      if (payload === "[DONE]") return;
+      if (payload === "[DONE]") return accumulated;
       try {
         const parsed = JSON.parse(payload);
         if (parsed.type === "text" && typeof parsed.delta === "string") {
+          accumulated += parsed.delta;
           onDelta(parsed.delta);
+        } else if (parsed.type === "done" || parsed.type === "metadata") {
+          // Final event carries contextId + validation + puzzle recs
+          if (parsed.contextId) contextIdRef.current = parsed.contextId;
+          if (parsed.metadata?.contextId)
+            contextIdRef.current = parsed.metadata.contextId;
         } else if (parsed.type === "error") {
           throw new CoachApiError(502);
         }
@@ -441,7 +686,11 @@ async function streamCoachReply(params: {
       }
     }
   }
+  return accumulated;
 }
+
+// Silence the unused-warning until other deep-context callers consume it.
+void buildContextBlurb;
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Drill puzzles — Neo4j-backed in production, hand-curated for the preview demo.
@@ -602,6 +851,25 @@ function extractPracticeTags(content: string): {
     return "";
   });
   return { stripped: stripped.trim(), tags };
+}
+
+// G5: [INSIGHT:...] tags. Production AICoachChat.tsx:2038-2047 looks
+// for these in coach replies — the payload is the headline for the
+// shareable SVG card, and the presence of any tag is the signal that
+// gates the autoAnalyzeState machine (G6) from
+// "sent-awaiting-insights" → "done".
+const INSIGHT_TAG_RE = /\[INSIGHT:([^\]]+)\]/g;
+
+function extractInsightTags(content: string): {
+  stripped: string;
+  insights: string[];
+} {
+  const insights: string[] = [];
+  const stripped = content.replace(INSIGHT_TAG_RE, (_, payload) => {
+    insights.push(String(payload));
+    return "";
+  });
+  return { stripped: stripped.trim(), insights };
 }
 
 interface DrillState {
@@ -830,6 +1098,8 @@ function GameHeader({
   onEngineDepthChange,
   engineName,
   onEngineNameChange,
+  onSaveGameClick,
+  saveState,
 }: {
   whiteName: string;
   blackName: string;
@@ -844,6 +1114,13 @@ function GameHeader({
   onEngineDepthChange?: (d: number) => void;
   engineName?: EngineName;
   onEngineNameChange?: (n: EngineName) => void;
+  /**
+   * G4: surface a Save button when the user is signed in. Click → calls
+   * useGameDatabase().addGame upstream. Undefined = button hidden (guest
+   * mode); defined = button visible with the current state badge.
+   */
+  onSaveGameClick?: () => void;
+  saveState?: "idle" | "saving" | "saved" | "error";
 }) {
   const [enginePopoverAnchor, setEnginePopoverAnchor] =
     useState<HTMLElement | null>(null);
@@ -1038,6 +1315,62 @@ function GameHeader({
             >
               Load game
             </Button>
+          </Tooltip>
+        )}
+        {onSaveGameClick && (
+          <Tooltip
+            title={
+              saveState === "saved"
+                ? "Saved to your library"
+                : saveState === "saving"
+                ? "Saving…"
+                : saveState === "error"
+                ? "Save failed — check sign-in"
+                : "Save this game to your library"
+            }
+          >
+            <span>
+              <Button
+                onClick={onSaveGameClick}
+                disabled={saveState === "saving" || saveState === "saved"}
+                sx={{
+                  px: 1.5,
+                  py: 0.75,
+                  borderRadius: "10px",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  textTransform: "none",
+                  background:
+                    saveState === "saved"
+                      ? "rgba(34,197,94,0.18)"
+                      : "rgba(255,255,255,0.06)",
+                  border:
+                    saveState === "saved"
+                      ? "1px solid rgba(34,197,94,0.35)"
+                      : "1px solid rgba(255,255,255,0.12)",
+                  color:
+                    saveState === "saved" ? "#86efac" : "rgba(255,255,255,0.78)",
+                  "&:hover": {
+                    background:
+                      saveState === "saved"
+                        ? "rgba(34,197,94,0.24)"
+                        : "rgba(255,255,255,0.1)",
+                  },
+                  "&.Mui-disabled": {
+                    color:
+                      saveState === "saved"
+                        ? "#86efac"
+                        : "rgba(255,255,255,0.4)",
+                  },
+                }}
+              >
+                {saveState === "saved"
+                  ? "✓ Saved"
+                  : saveState === "saving"
+                  ? "Saving…"
+                  : "Save game"}
+              </Button>
+            </span>
           </Tooltip>
         )}
       </Stack>
@@ -1924,7 +2257,7 @@ function KeyMomentsRow({
 // Right-column tabs — Coach / Masters / Moves
 // ───────────────────────────────────────────────────────────────────────────────
 
-type RightTab = "coach" | "masters" | "moves";
+type RightTab = "coach" | "masters" | "moves" | "lines";
 
 function TabStrip({
   active,
@@ -1946,6 +2279,7 @@ function TabStrip({
     { id: "coach", label: "Coach", icon: MessageCircle },
     { id: "masters", label: "Masters", icon: BookOpen, badge: mastersBadge },
     { id: "moves", label: "Moves", icon: ListIcon, badge: movesBadge },
+    { id: "lines", label: "Lines", icon: GitBranch },
   ];
   return (
     <Box
@@ -2378,7 +2712,14 @@ function MovesListPanel({
             flexWrap: "wrap",
           }}
         >
-          {(["best", "good", "inaccuracy", "mistake", "blunder"] as MoveLabel[]).map(
+          {([
+            MoveClassification.Brilliant,
+            MoveClassification.Great,
+            MoveClassification.Best,
+            MoveClassification.Inaccuracy,
+            MoveClassification.Mistake,
+            MoveClassification.Blunder,
+          ] as MoveLabel[]).map(
             (k) => (
               <Stack
                 key={k}
@@ -2404,6 +2745,165 @@ function MovesListPanel({
   );
 }
 
+// G16: Engine Lines panel — shows the top PV lines for the current
+// position. Each line is the engine's best continuation from this point;
+// rendered as evaluation + the first few SAN moves of the principal
+// variation. Empty state when analysis hasn't reached this ply yet.
+function EngineLinesPanel({
+  position,
+  fen,
+  engineName,
+}: {
+  position: PositionEval | null;
+  fen: string;
+  engineName: EngineName;
+}) {
+  const lines = position?.lines ?? [];
+  const sanLines = useMemo(() => {
+    return lines.slice(0, 3).map((line) => {
+      try {
+        const g = new Chess(fen);
+        const sans: string[] = [];
+        for (const uci of line.pv.slice(0, 8)) {
+          const mv = g.move({
+            from: uci.slice(0, 2),
+            to: uci.slice(2, 4),
+            promotion: uci.length >= 5 ? uci[4] : "q",
+          });
+          if (!mv) break;
+          sans.push(mv.san);
+        }
+        return { line, sans };
+      } catch {
+        return { line, sans: line.pv.slice(0, 8) };
+      }
+    });
+  }, [lines, fen]);
+
+  const formatEval = (line: LineEval): string => {
+    if (typeof line.mate === "number") {
+      return `#${Math.abs(line.mate)}${line.mate > 0 ? "" : "−"}`;
+    }
+    if (typeof line.cp === "number") {
+      const cp = line.cp / 100;
+      return `${cp > 0 ? "+" : ""}${cp.toFixed(2)}`;
+    }
+    return "—";
+  };
+
+  return (
+    <Box
+      sx={{
+        height: "100%",
+        overflowY: "auto",
+        background: "rgba(20,22,28,0.55)",
+        backdropFilter: "blur(16px) saturate(150%)",
+        WebkitBackdropFilter: "blur(16px) saturate(150%)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: "1rem",
+        p: 2,
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 1.5,
+        }}
+      >
+        <Box
+          sx={{
+            color: "rgba(255,255,255,0.9)",
+            fontSize: "0.92rem",
+            fontWeight: 700,
+            letterSpacing: "0.01em",
+          }}
+        >
+          Engine lines
+        </Box>
+        <Box
+          sx={{
+            color: "rgba(255,255,255,0.42)",
+            fontSize: "0.72rem",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+          }}
+        >
+          {engineName}
+        </Box>
+      </Box>
+      {sanLines.length === 0 ? (
+        <Box
+          sx={{
+            color: "rgba(255,255,255,0.42)",
+            fontSize: "0.84rem",
+            py: 3,
+            textAlign: "center",
+          }}
+        >
+          Stockfish hasn't reached this position yet.
+        </Box>
+      ) : (
+        <Stack spacing={1.25}>
+          {sanLines.map(({ line, sans }, i) => (
+            <Box
+              key={i}
+              sx={{
+                p: 1.25,
+                borderRadius: "0.6rem",
+                background: "rgba(0,0,0,0.25)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                display: "flex",
+                gap: 1.25,
+                alignItems: "baseline",
+              }}
+            >
+              <Box
+                sx={{
+                  flexShrink: 0,
+                  width: 56,
+                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                  fontWeight: 700,
+                  color:
+                    typeof line.mate === "number"
+                      ? "#FB923C"
+                      : (line.cp ?? 0) >= 0
+                      ? "#E2E8F0"
+                      : "rgba(255,255,255,0.62)",
+                  fontSize: "0.92rem",
+                }}
+              >
+                {formatEval(line)}
+              </Box>
+              <Box
+                sx={{
+                  flex: 1,
+                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                  color: "rgba(255,255,255,0.78)",
+                  fontSize: "0.86rem",
+                  lineHeight: 1.5,
+                }}
+              >
+                {sans.join(" ")}
+              </Box>
+              <Box
+                sx={{
+                  flexShrink: 0,
+                  color: "rgba(255,255,255,0.36)",
+                  fontSize: "0.7rem",
+                }}
+              >
+                d{line.depth}
+              </Box>
+            </Box>
+          ))}
+        </Stack>
+      )}
+    </Box>
+  );
+}
+
 function CoachPanel({
   messages,
   input,
@@ -2415,6 +2915,16 @@ function CoachPanel({
   allMoves,
   onMoveRefClick,
   onShareMessage,
+  mistakeContext,
+  userRating,
+  coachContextIdProp,
+  onPuzzleSolved,
+  onPracticeConcept,
+  analysisActive,
+  enginePositions,
+  loadedGame,
+  personalityId,
+  onChangePersonality,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -2426,8 +2936,53 @@ function CoachPanel({
   allMoves?: Move[];
   onMoveRefClick?: (ply: number) => void;
   onShareMessage?: (msg: CoachMessage) => void;
+  onPuzzleSolved?: (puzzle: DrillPuzzle, timeSpentSeconds: number) => void;
+  onPracticeConcept?: (
+    theme: string,
+    displayName: string,
+    messageIndex: number
+  ) => void;
+  /** Engine data for inline continuation widgets inside insight cards. */
+  enginePositions?: PositionEval[] | null;
+  loadedGame?: Chess;
+  /** Current coach persona id + setter — drives the picker chip in the
+   *  CoachPanel header and is threaded into the enhanced-analysis
+   *  request body via the parent's coachExtras memo. */
+  personalityId?: string;
+  onChangePersonality?: (id: string) => void;
+  /** True while Stockfish is still computing positions. Mirrors production's
+   * `isAnalyzingGame` gate (AICoachChat:1705) — when set, the input is
+   * disabled so the user can't fire deep-coach requests with no gameEval. */
+  analysisActive?: boolean;
+  /**
+   * Production-parity mistake context — when set, mounts inline
+   * ContextualPuzzleRecommendations above the message stream. Recomputed
+   * by the parent on ply change. Null when the current ply isn't a
+   * Mistake/Blunder/Miss.
+   */
+  mistakeContext?: {
+    fen: string;
+    movePlayed: string;
+    correctMove: string;
+    evalBefore: number;
+    evalAfter: number;
+    tacticalMotifs: string[];
+  } | null;
+  userRating?: number;
+  /** G12: current analysis contextId so FlagButton can attach it to the
+   *  flagged-message POST. Null when no deep analysis has run yet. */
+  coachContextIdProp?: string | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Personality picker UI state — kept local to the panel; the actual
+  // selection bubbles up via onChangePersonality.
+  const personality = useMemo(
+    () => getPersonalityById(personalityId ?? defaultPersonalityId),
+    [personalityId]
+  );
+  const [personalityMenuOpen, setPersonalityMenuOpen] = useState(false);
+  const personalityChipRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -2516,6 +3071,176 @@ function CoachPanel({
             </Typography>
           </Stack>
         </Box>
+        {/* Personality picker chip — clicking opens a glass popover with
+            the 6 coach voices. Closes the `personalityId` parity gap
+            with /api/enhanced-analysis (final field). */}
+        {onChangePersonality && (
+          <Tooltip title={`Coach voice: ${personality.title}`}>
+            <Box
+              ref={personalityChipRef}
+              onClick={() => setPersonalityMenuOpen((v) => !v)}
+              sx={{
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 1,
+                py: 0.4,
+                borderRadius: "999px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                transition: "all 180ms ease",
+                "&:hover": {
+                  background: "rgba(249,115,22,0.08)",
+                  borderColor: "rgba(249,115,22,0.32)",
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  fontSize: "0.92rem",
+                  lineHeight: 1,
+                  filter:
+                    "drop-shadow(0 0 4px rgba(249,115,22,0.32))",
+                }}
+              >
+                {personality.avatar}
+              </Box>
+              <Typography
+                sx={{
+                  fontSize: "0.68rem",
+                  fontWeight: 700,
+                  color: "rgba(255,255,255,0.78)",
+                  maxWidth: 90,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {personality.name}
+              </Typography>
+              <ChevronDown
+                size={11}
+                color="rgba(255,255,255,0.55)"
+              />
+            </Box>
+          </Tooltip>
+        )}
+        <Menu
+          anchorEl={personalityChipRef.current}
+          open={personalityMenuOpen}
+          onClose={() => setPersonalityMenuOpen(false)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+          slotProps={{
+            paper: {
+              sx: {
+                mt: 1,
+                background: "rgba(20,22,28,0.92)",
+                backdropFilter: "blur(16px) saturate(150%)",
+                WebkitBackdropFilter: "blur(16px) saturate(150%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "12px",
+                minWidth: 280,
+                maxWidth: 320,
+                boxShadow:
+                  "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+              },
+            },
+          }}
+          MenuListProps={{ sx: { py: 0.5 } }}
+        >
+          <Box
+            sx={{
+              px: 1.75,
+              pt: 1,
+              pb: 0.5,
+              fontSize: "0.62rem",
+              fontWeight: 800,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.42)",
+            }}
+          >
+            Coach voice
+          </Box>
+          {coachPersonalities.map((p) => {
+            const isActive = p.id === personality.id;
+            return (
+              <Box
+                key={p.id}
+                onClick={() => {
+                  onChangePersonality?.(p.id);
+                  setPersonalityMenuOpen(false);
+                }}
+                sx={{
+                  cursor: "pointer",
+                  px: 1.75,
+                  py: 1,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 1.25,
+                  transition: "background 160ms ease",
+                  background: isActive
+                    ? "rgba(249,115,22,0.08)"
+                    : "transparent",
+                  borderLeft: isActive
+                    ? "2px solid #FB923C"
+                    : "2px solid transparent",
+                  "&:hover": {
+                    background: "rgba(249,115,22,0.12)",
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    fontSize: "1.4rem",
+                    lineHeight: 1,
+                    pt: 0.15,
+                    filter: isActive
+                      ? "drop-shadow(0 0 6px rgba(249,115,22,0.45))"
+                      : "none",
+                  }}
+                >
+                  {p.avatar}
+                </Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography
+                    sx={{
+                      fontSize: "0.84rem",
+                      fontWeight: 700,
+                      color: isActive ? "#FB923C" : "rgba(255,255,255,0.92)",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {p.name}
+                    <Box
+                      component="span"
+                      sx={{
+                        ml: 0.6,
+                        fontSize: "0.7rem",
+                        fontWeight: 600,
+                        color: "rgba(255,255,255,0.42)",
+                      }}
+                    >
+                      {p.title}
+                    </Box>
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.74rem",
+                      color: "rgba(255,255,255,0.58)",
+                      lineHeight: 1.4,
+                      mt: 0.25,
+                    }}
+                  >
+                    {p.description}
+                  </Typography>
+                </Box>
+              </Box>
+            );
+          })}
+        </Menu>
         <Tooltip title="Every claim validated against the engine">
           <Box
             sx={{
@@ -2555,6 +3280,20 @@ function CoachPanel({
         }}
       >
         <Stack spacing={2}>
+          {mistakeContext && (
+            <Box sx={{ alignSelf: "stretch" }}>
+              <ContextualPuzzleRecommendations
+                key={`${mistakeContext.fen}|${mistakeContext.movePlayed}`}
+                fen={mistakeContext.fen}
+                movePlayed={mistakeContext.movePlayed}
+                correctMove={mistakeContext.correctMove}
+                evalBefore={mistakeContext.evalBefore}
+                evalAfter={mistakeContext.evalAfter}
+                tacticalMotifs={mistakeContext.tacticalMotifs}
+                userRating={userRating}
+              />
+            </Box>
+          )}
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
               <motion.div
@@ -2574,6 +3313,13 @@ function CoachPanel({
                   allMoves={allMoves}
                   onMoveRefClick={onMoveRefClick}
                   onShare={onShareMessage}
+                  allMessages={messages}
+                  messageIndex={i}
+                  contextId={coachContextIdProp}
+                  onPuzzleSolved={onPuzzleSolved}
+                  onPracticeConcept={onPracticeConcept}
+                  enginePositions={enginePositions}
+                  loadedGame={loadedGame}
                 />
               </motion.div>
             ))}
@@ -2647,10 +3393,16 @@ function CoachPanel({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
+                if (analysisActive || isThinking) return;
                 onSend();
               }
             }}
-            placeholder="Ask anything about this position..."
+            placeholder={
+              analysisActive
+                ? "Analyzing your game… coach unlocks when Stockfish finishes."
+                : "Ask anything about this position..."
+            }
+            disabled={analysisActive}
             fullWidth
             multiline
             maxRows={3}
@@ -2677,7 +3429,7 @@ function CoachPanel({
           />
           <IconButton
             onClick={onSend}
-            disabled={!input.trim() || isThinking}
+            disabled={!input.trim() || isThinking || analysisActive}
             sx={{
               width: 44,
               height: 44,
@@ -2961,14 +3713,17 @@ function InlinePuzzleSolver({
 function CoachPuzzleCard({
   pack,
   onPromote,
+  onSolved,
 }: {
   pack: PuzzlePack;
   onPromote: (puzzles: DrillPuzzle[], startIndex: number) => void;
+  onSolved?: (puzzle: DrillPuzzle, timeSpentSeconds: number) => void;
 }) {
   // Which puzzle is currently expanded inline. Default to the first ready
   // puzzle so the user lands on a solvable board the moment the pack loads.
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [solvedIds, setSolvedIds] = useState<Set<string>>(new Set());
+  const startTimesRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     if (expandedId !== null) return;
@@ -2978,6 +3733,15 @@ function CoachPuzzleCard({
     }
   }, [pack.status, pack.puzzles, expandedId]);
 
+  // Stamp a start time when a puzzle becomes the expanded one so we can
+  // pass realistic timeSpentSeconds up to recordPuzzleAttempt.
+  useEffect(() => {
+    if (!expandedId) return;
+    if (!startTimesRef.current[expandedId]) {
+      startTimesRef.current[expandedId] = Date.now();
+    }
+  }, [expandedId]);
+
   const markSolved = useCallback(
     (id: string) => {
       setSolvedIds((prev) => {
@@ -2985,6 +3749,11 @@ function CoachPuzzleCard({
         next.add(id);
         return next;
       });
+      const puzzle = pack.puzzles.find((p) => p.id === id);
+      if (puzzle && onSolved) {
+        const startedAt = startTimesRef.current[id] ?? Date.now();
+        onSolved(puzzle, (Date.now() - startedAt) / 1000);
+      }
       // Auto-advance to next unsolved puzzle
       const idx = pack.puzzles.findIndex((p) => p.id === id);
       const nextUnsolved = pack.puzzles.find(
@@ -2993,7 +3762,7 @@ function CoachPuzzleCard({
       if (nextUnsolved) setExpandedId(nextUnsolved.id);
       else setExpandedId(null); // pack complete
     },
-    [pack.puzzles, solvedIds]
+    [pack.puzzles, solvedIds, onSolved]
   );
 
   return (
@@ -3230,11 +3999,104 @@ function CoachPuzzleCard({
   );
 }
 
-// Match "24.Rxd4", "23...Nf6", "1.e4", etc. — number + 1 or 3 dots + SAN.
-// Two dots is invalid notation but accepted as a tolerant fallback. The
-// "..." form means black's move at that move number.
-const MOVE_REF_RE =
-  /(?<![A-Za-z0-9])(\d+)(\.{1,3})\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g;
+// G7: production-parity 4-tier move-reference parser. Mirrors
+// AICoachChat.tsx:1323-1353. Patterns ordered by specificity (longer +
+// more anchored first) so overlapping matches are resolved in favor of
+// the more specific one.
+const MOVE_REF_PATTERNS: Array<{
+  re: RegExp;
+  // Slot in match[] that holds (moveNumber, color?, san)
+  numIdx: number;
+  colorIdx?: number;
+  sanIdx: number;
+}> = [
+  // Priority 1: AI parenthesized — "Move 3 (Nxd4)"
+  {
+    re: /Move\s+(\d+)\s*\([^)]*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\)/gi,
+    numIdx: 1,
+    sanIdx: 2,
+  },
+  // Priority 2: "Move 3: Nxd4"
+  {
+    re: /Move\s+(\d+):\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
+    numIdx: 1,
+    sanIdx: 2,
+  },
+  // Priority 3: Standard "24.Rxd4" / "23...Nf6"
+  {
+    re: /(?<![A-Za-z0-9])(\d+)(\.{1,3})\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g,
+    numIdx: 1,
+    colorIdx: 2, // 1-dot = white, 3-dot = black
+    sanIdx: 3,
+  },
+  // Priority 4: "move 3 (w|b): Nxd4"
+  {
+    re: /move\s+(\d+)([wb])?:\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
+    numIdx: 1,
+    colorIdx: 2,
+    sanIdx: 3,
+  },
+];
+
+// Recommended-move detector. Case-insensitive so "BEST MOVE:" uppercase
+// headings (which the coach emits inside structured cards) match too.
+// Expanded beyond production's set to cover the phrasings Aayan's smoke
+// tests surfaced on 2026-05-29: "only winning move", "winning continuation",
+// "best move:" with colon-anchored headings, etc.
+const RECOMMENDED_CONTEXT_RE =
+  /best\s*(was|move|is|continuation|move\s*:)|should\s*have\s*(played|been)|instead\s*(of|,|:)|better\s*(was|move|is|alternative)|recommended|correct\s*move|improvement|only\s+(winning|good|playable|sensible)\s+move|winning\s+(move|continuation|line)|key\s+move/i;
+
+interface MoveRefMatch {
+  start: number;
+  end: number;
+  full: string;
+  moveNumber: number;
+  isBlack: boolean;
+  san: string;
+  recommended: boolean;
+}
+
+function findAllMoveRefs(
+  text: string,
+  forceRecommended = false
+): MoveRefMatch[] {
+  const matches: MoveRefMatch[] = [];
+  for (const pat of MOVE_REF_PATTERNS) {
+    const re = new RegExp(pat.re.source, pat.re.flags);
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text))) {
+      const moveNumber = parseInt(m[pat.numIdx], 10);
+      let isBlack = false;
+      if (pat.colorIdx !== undefined) {
+        const c = m[pat.colorIdx];
+        // For priority 3 the slot holds dots ("." | ".." | "..."), so
+        // length >= 3 means black. For priority 4 it's an explicit w|b.
+        isBlack = c?.length === 3 || c === "b";
+      }
+      const san = m[pat.sanIdx];
+      // Skip if a higher-priority match already covered this range.
+      const overlaps = matches.some(
+        (existing) => m!.index < existing.end && m!.index + m![0].length > existing.start
+      );
+      if (overlaps) continue;
+      const contextBefore = text
+        .slice(Math.max(0, m.index - 60), m.index)
+        .toLowerCase();
+      matches.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        full: m[0],
+        moveNumber,
+        isBlack,
+        san,
+        recommended:
+          forceRecommended || RECOMMENDED_CONTEXT_RE.test(contextBefore),
+      });
+    }
+  }
+  matches.sort((a, b) => a.start - b.start);
+  return matches;
+}
 
 const stripSanDecorators = (s: string) => s.replace(/[+#!?]/g, "").toLowerCase();
 
@@ -3262,12 +4124,1115 @@ function findPlyForMoveRef(
   return null;
 }
 
+// ─── InsightBodyText ─────────────────────────────────────────────────────
+// Beautifies the prose inside Why/Threats/Roles/Concept panels.
+//   1. Drops `[CONTINUATION:X:c]` and `[MAIA_CONTINUATION:X:c]` markers —
+//      production renders these as live engine + Maia line pulls, but
+//      mounting EngineContinuation/MaiaContinuation requires the engine
+//      atom which AnalysisImpl uses a local hook for. Surface them as
+//      compact pills instead of raw tag soup; the user can hit the
+//      Lines tab (G16) for the actual PV.
+//   2. Recognises "Label: rest" lines (Idea / Problem / Solution /
+//      Outcome are the canonical four the coach emits inside WHY) and
+//      renders the label as an uppercase letter-spaced eyebrow above
+//      the body — far more readable than the raw inline form.
+//   3. Lists of "- foo" bullets get rendered as a real list.
+const INSIGHT_LABEL_RE = /^(Idea|Problem|Solution|Outcome|Continuation)\s*:\s*(.+)$/i;
+const CONTINUATION_TAG_RE =
+  /\[(CONTINUATION|MAIA_CONTINUATION):(\d+):(w|b)\]/g;
+
+function ContinuationPill({
+  kind,
+}: {
+  kind: "CONTINUATION" | "MAIA_CONTINUATION";
+}) {
+  const isMaia = kind === "MAIA_CONTINUATION";
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 0.4,
+        px: 0.85,
+        py: 0.25,
+        mx: 0.4,
+        borderRadius: "999px",
+        fontSize: "0.68rem",
+        fontWeight: 700,
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+        color: isMaia ? "#C4B5FD" : "#FB923C",
+        background: isMaia
+          ? "rgba(196,181,253,0.08)"
+          : "rgba(251,146,60,0.08)",
+        border: isMaia
+          ? "1px solid rgba(196,181,253,0.28)"
+          : "1px solid rgba(251,146,60,0.28)",
+      }}
+    >
+      {isMaia ? "Maia line" : "Engine line"}
+    </Box>
+  );
+}
+
+// Dark-themed counterpart to production's EngineContinuation
+// (AICoachChat.tsx:716) and MaiaContinuation (:822). Reads PV directly
+// from the local enginePositions[] (no atoms — the new surface uses
+// component state). Falls back to the lightweight ContinuationPill +
+// "open the Lines tab" footer when data isn't available.
+function InsightContinuationInline({
+  kind,
+  moveNum,
+  color,
+  enginePositions,
+  loadedGame,
+  onJumpToPly,
+  renderInline,
+}: {
+  kind: "CONTINUATION" | "MAIA_CONTINUATION";
+  moveNum: number;
+  color: "w" | "b";
+  enginePositions: PositionEval[] | null;
+  loadedGame: Chess;
+  onJumpToPly?: (ply: number) => void;
+  /** When provided, the PV's SAN moves get run through renderInline with
+   *  forceRecommended=true so each "N. san" turns into a green 🔍
+   *  clickable Box (same styling as recommended-move refs in prose).
+   *  Caller passes CoachBubble's renderInline closure. */
+  renderInline?: (text: string, forceRecommended?: boolean) => React.ReactNode[];
+}) {
+  // Half-move index inside enginePositions / loadedGame.history():
+  // - white move N lands at ply 2N-1 (1-indexed) → index 2(N-1)
+  // - black move N lands at ply 2N        (1-indexed) → index 2N-1
+  const halfMoveIdx =
+    color === "b" ? moveNum * 2 - 1 : (moveNum - 1) * 2;
+
+  const isMaia = kind === "MAIA_CONTINUATION";
+  const accent = isMaia ? "#C4B5FD" : "#FB923C";
+  const bg = isMaia ? "rgba(196,181,253,0.08)" : "rgba(251,146,60,0.08)";
+  const border = isMaia
+    ? "rgba(196,181,253,0.28)"
+    : "rgba(251,146,60,0.28)";
+  const label = isMaia ? "Maia line" : "Engine line";
+
+  const data = useMemo(() => {
+    if (!enginePositions || halfMoveIdx < 0) return null;
+    // The PV at index `halfMoveIdx` is the engine's best continuation
+    // FROM that position. We want the line AT this move, which means
+    // looking at the position BEFORE the move (halfMoveIdx itself).
+    const posEval = enginePositions[halfMoveIdx];
+    const pv = posEval?.lines?.[0];
+    if (!pv?.pv || pv.pv.length === 0) return null;
+
+    // Get FEN before this move by replaying loadedGame's history.
+    let fenBefore: string | null = null;
+    try {
+      const tempGame = new Chess();
+      const history = loadedGame.history();
+      for (let i = 0; i < halfMoveIdx && i < history.length; i++) {
+        tempGame.move(history[i]);
+      }
+      fenBefore = tempGame.fen();
+    } catch {
+      return null;
+    }
+
+    // Convert UCI PV → SAN. Bail at the first failure (corrupt UCI).
+    const sans: string[] = [];
+    try {
+      const replay = new Chess(fenBefore);
+      for (const uci of pv.pv.slice(0, 8)) {
+        const mv = replay.move({
+          from: uci.slice(0, 2),
+          to: uci.slice(2, 4),
+          promotion: uci.length >= 5 ? uci[4] : "q",
+        });
+        if (!mv) break;
+        sans.push(mv.san);
+      }
+    } catch {
+      /* SAN conversion partial — render what we got */
+    }
+    if (sans.length === 0) return null;
+
+    const evalStr =
+      typeof pv.mate === "number"
+        ? `M${pv.mate > 0 ? "+" : ""}${pv.mate}`
+        : typeof pv.cp === "number"
+        ? `${pv.cp >= 0 ? "+" : ""}${(pv.cp / 100).toFixed(2)}`
+        : "";
+
+    // Render as "14. e4 c5 15. Nf3 d6 16. d4 …" — chess.com-style
+    // move-number-prefixed display, beginning at the right move number.
+    const display: string[] = [];
+    let m = moveNum;
+    let isWhiteMove = color === "w";
+    for (const san of sans) {
+      if (isWhiteMove) display.push(`${m}.`);
+      display.push(san);
+      if (!isWhiteMove) m += 1;
+      isWhiteMove = !isWhiteMove;
+    }
+    return { evalStr, displayText: display.join(" "), depth: pv.depth };
+  }, [enginePositions, halfMoveIdx, color, moveNum, loadedGame]);
+
+  if (!data) {
+    // Engine data not ready or PV unavailable — fall back to the small
+    // pill marker so the user still knows the coach referenced a line.
+    return <ContinuationPill kind={kind} />;
+  }
+
+  return (
+    <Box
+      onClick={() => onJumpToPly?.(halfMoveIdx)}
+      sx={{
+        mt: 1,
+        mb: 0.5,
+        cursor: onJumpToPly ? "pointer" : "default",
+        background: bg,
+        border: `1px solid ${border}`,
+        borderRadius: "0.6rem",
+        px: 1.25,
+        py: 0.85,
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.4,
+        transition: "all 180ms ease",
+        "&:hover": onJumpToPly
+          ? {
+              background: isMaia
+                ? "rgba(196,181,253,0.12)"
+                : "rgba(251,146,60,0.12)",
+              borderColor: accent,
+            }
+          : {},
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 0.75,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.6,
+            fontSize: "0.66rem",
+            fontWeight: 800,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: accent,
+          }}
+        >
+          {label}
+          {data.evalStr && (
+            <Box
+              component="span"
+              sx={{
+                color: "rgba(255,255,255,0.55)",
+                fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                letterSpacing: "0.02em",
+                textTransform: "none",
+              }}
+            >
+              {data.evalStr}
+            </Box>
+          )}
+        </Box>
+        {typeof data.depth === "number" && (
+          <Box
+            sx={{
+              fontSize: "0.62rem",
+              color: "rgba(255,255,255,0.35)",
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+            }}
+          >
+            d{data.depth}
+          </Box>
+        )}
+      </Box>
+      <Box
+        sx={{
+          fontFamily: "ui-monospace, SFMono-Regular, monospace",
+          fontSize: "0.84rem",
+          color: "rgba(255,255,255,0.86)",
+          lineHeight: 1.4,
+        }}
+      >
+        {renderInline
+          ? renderInline(data.displayText, !isMaia)
+          : data.displayText}
+      </Box>
+    </Box>
+  );
+}
+
+function InsightBodyText({
+  text,
+  renderInline,
+  enginePositions,
+  loadedGame,
+  onJumpToPly,
+}: {
+  text: string;
+  renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
+  /** Optional engine data — when present, [CONTINUATION:X:c] tokens
+   *  render as inline PV widgets instead of being stripped + footer. */
+  enginePositions?: PositionEval[] | null;
+  loadedGame?: Chess;
+  onJumpToPly?: (ply: number) => void;
+}) {
+  // Walk raw lines once. Each line becomes either:
+  //   - a continuation block (line is *just* [CONTINUATION:N:c] / [MAIA_CONTINUATION:N:c] AND we have engine data to materialise it)
+  //   - a labeled row (matches INSIGHT_LABEL_RE)
+  //   - a bullet (joined with adjacent bullets)
+  //   - a paragraph
+  // Lines that aren't continuations still get their inline [CONTINUATION:…]
+  // tags stripped so the literal token never leaks into prose.
+  const canInline = !!enginePositions && !!loadedGame;
+  const standaloneContinuationRe =
+    /^\[(CONTINUATION|MAIA_CONTINUATION):(\d+):([wb])\]\s*$/i;
+  type Continuation = {
+    kind: "continuation";
+    tagKind: "CONTINUATION" | "MAIA_CONTINUATION";
+    moveNum: number;
+    color: "w" | "b";
+  };
+
+  const rawLines = text.split(/\r?\n/).map((l) => l.trim());
+  const blocks: Array<
+    | { kind: "label"; label: string; body: string }
+    | { kind: "bullets"; items: string[] }
+    | { kind: "para"; body: string }
+    | Continuation
+  > = [];
+  let bulletBuf: string[] = [];
+  const flushBullets = () => {
+    if (bulletBuf.length > 0) {
+      blocks.push({ kind: "bullets", items: bulletBuf });
+      bulletBuf = [];
+    }
+  };
+
+  // Track whether any non-inlined continuation tags remained — drives the
+  // footer pill fallback for when engine data isn't ready.
+  let unInlinedContinuation = false;
+  let unInlinedMaia = false;
+
+  for (const rawLine of rawLines) {
+    if (!rawLine) continue;
+    const contM = standaloneContinuationRe.exec(rawLine);
+    if (contM) {
+      const tagKind = contM[1].toUpperCase() as Continuation["tagKind"];
+      if (canInline) {
+        flushBullets();
+        blocks.push({
+          kind: "continuation",
+          tagKind,
+          moveNum: parseInt(contM[2], 10),
+          color: contM[3].toLowerCase() as "w" | "b",
+        });
+      } else {
+        if (tagKind === "MAIA_CONTINUATION") unInlinedMaia = true;
+        else unInlinedContinuation = true;
+      }
+      continue;
+    }
+    // Non-continuation line — strip any inline continuation tags so the
+    // literal `[CONTINUATION:…]` text never reaches the renderer.
+    let cleanedLine = rawLine.replace(CONTINUATION_TAG_RE, "").trim();
+    if (!cleanedLine) continue;
+    CONTINUATION_TAG_RE.lastIndex = 0;
+    const labelM = INSIGHT_LABEL_RE.exec(cleanedLine);
+    if (labelM) {
+      flushBullets();
+      blocks.push({ kind: "label", label: labelM[1], body: labelM[2] });
+      continue;
+    }
+    if (/^[-•]\s+/.test(cleanedLine)) {
+      bulletBuf.push(cleanedLine.replace(/^[-•]\s+/, ""));
+      continue;
+    }
+    flushBullets();
+    blocks.push({ kind: "para", body: cleanedLine });
+  }
+  flushBullets();
+
+  // Backward-compat for the original footer-pill behaviour: only fires
+  // when engine data wasn't ready at render time AND the coach actually
+  // referenced a line. Keeps the name `hasContinuation`/`hasMaia` so the
+  // existing footer JSX below works unchanged.
+  const hasContinuation = unInlinedContinuation;
+  const hasMaia = unInlinedMaia;
+
+  return (
+    <Box sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.55 }}>
+      {blocks.map((b, i) => {
+        if (b.kind === "label") {
+          return (
+            <Box
+              key={i}
+              sx={{
+                mt: i === 0 ? 0 : 0.85,
+                display: "grid",
+                gridTemplateColumns: "auto 1fr",
+                columnGap: 1.25,
+                rowGap: 0.25,
+                alignItems: "baseline",
+              }}
+            >
+              <Box
+                sx={{
+                  fontSize: "0.62rem",
+                  fontWeight: 800,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "#FB923C",
+                  whiteSpace: "nowrap",
+                  pt: 0.15,
+                }}
+              >
+                {b.label}
+              </Box>
+              <Box sx={{ color: "rgba(255,255,255,0.92)" }}>
+                {/* G7 fix: SOLUTION / OUTCOME / CONTINUATION are the
+                    labels under which the coach quotes its recommended
+                    moves. Force-mark them so any move ref inside renders
+                    green 🔍 instead of orange, even though the body
+                    string itself doesn't carry a "best was" / "should
+                    have" lookback context. IDEA + PROBLEM stay
+                    unforced — those labels frame the played move, not
+                    the recommended one. */}
+                {renderInline(
+                  b.body,
+                  /^(Solution|Outcome|Continuation)$/i.test(b.label)
+                )}
+              </Box>
+            </Box>
+          );
+        }
+        if (b.kind === "bullets") {
+          return (
+            <Box
+              key={i}
+              component="ul"
+              sx={{
+                pl: 2.5,
+                my: 0.75,
+                "& li": { mb: 0.3, color: "rgba(255,255,255,0.86)" },
+                "& li::marker": { color: "rgba(251,146,60,0.65)" },
+              }}
+            >
+              {b.items.map((it, j) => (
+                <Box component="li" key={j}>
+                  {renderInline(it)}
+                </Box>
+              ))}
+            </Box>
+          );
+        }
+        if (b.kind === "continuation") {
+          if (!enginePositions || !loadedGame) return null;
+          return (
+            <InsightContinuationInline
+              key={i}
+              kind={b.tagKind}
+              moveNum={b.moveNum}
+              color={b.color}
+              enginePositions={enginePositions}
+              loadedGame={loadedGame}
+              onJumpToPly={onJumpToPly}
+              renderInline={renderInline}
+            />
+          );
+        }
+        return (
+          <Box key={i} sx={{ mt: i === 0 ? 0 : 0.6 }}>
+            {renderInline(b.body)}
+          </Box>
+        );
+      })}
+      {(hasContinuation || hasMaia) && (
+        <Box
+          sx={{
+            mt: 1.25,
+            pt: 1,
+            borderTop: "1px dashed rgba(255,255,255,0.08)",
+            display: "flex",
+            gap: 0.5,
+            alignItems: "center",
+            flexWrap: "wrap",
+            fontSize: "0.72rem",
+            color: "rgba(255,255,255,0.55)",
+          }}
+        >
+          {hasContinuation && <ContinuationPill kind="CONTINUATION" />}
+          {hasMaia && <ContinuationPill kind="MAIA_CONTINUATION" />}
+          <Box sx={{ ml: 0.35 }}>· open the Lines tab for the full PV</Box>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+// ─── DarkInsightCard ─────────────────────────────────────────────────────
+// Dark-themed counterpart to production's InsightCard
+// (src/components/AICoachInsights.tsx). Same parsed InsightData shape via
+// shared parseInsights — we just render it on a glass surface instead of
+// the light Material card the legacy chat uses.
+//
+// Layout:
+//   ┌─────────────────────────────────────────────────────────┐
+//   │ 16. Bf5   [Blunder ??]   −0.57 → M−1                    │
+//   │ Bringing the second rook into play seemed logical…      │
+//   │ [Show why ▾] [Threats] [Roles] [Concept]                │
+//   │ ╭─ Why ───────────────────────────────────────────────╮  │
+//   │ │ Idea / Problem / Solution / Outcome                 │  │
+//   │ ╰─────────────────────────────────────────────────────╯  │
+//   └─────────────────────────────────────────────────────────┘
+function DarkInsightCard({
+  insight,
+  renderInline,
+  onMoveClick,
+  onPracticeConcept,
+  enginePositions,
+  loadedGame,
+  onJumpToPly,
+}: {
+  insight: InsightData;
+  renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
+  onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
+  /** Fires when the user clicks "Practice this concept" — invokes the
+   * parent's triggerPuzzleFetch to attach a real Neo4j-backed pack. */
+  onPracticeConcept?: (theme: string, displayName: string) => void;
+  /** Optional engine data — passed through to InsightBodyText so it can
+   * materialise `[CONTINUATION:N:c]` / `[MAIA_CONTINUATION:N:c]` tokens
+   * as live PV widgets. Falls back to the small pill marker if absent. */
+  enginePositions?: PositionEval[] | null;
+  loadedGame?: Chess;
+  onJumpToPly?: (ply: number) => void;
+}) {
+  const [showWhy, setShowWhy] = useState(false);
+  const [showThreats, setShowThreats] = useState(false);
+  const [showRoles, setShowRoles] = useState(false);
+  const [showConcept, setShowConcept] = useState(false);
+
+  const cls = (insight.classification ?? "").toLowerCase() as MoveLabel;
+  const color = CLASSIFICATION_COLORS[cls] ?? "rgba(255,255,255,0.4)";
+  const label = CLASSIFICATION_LABELS[cls] ?? insight.classification ?? "";
+  const glyph = CLASSIFICATION_GLYPHS[cls] ?? "";
+  const isNegative =
+    cls === MoveClassification.Blunder ||
+    cls === MoveClassification.Mistake ||
+    cls === MoveClassification.Inaccuracy ||
+    cls === MoveClassification.Miss;
+
+  const evalLine =
+    insight.evalBefore || insight.evalAfter
+      ? `${insight.evalBefore ?? "?"} → ${insight.evalAfter ?? "?"}`
+      : null;
+
+  const moveText = insight.playedMove
+    ? `${insight.moveLabel} ${insight.playedMove}`
+    : insight.moveLabel;
+
+  const Pill = ({
+    label,
+    active,
+    onClick,
+  }: {
+    label: string;
+    active: boolean;
+    onClick: () => void;
+  }) => (
+    <Box
+      onClick={onClick}
+      sx={{
+        cursor: "pointer",
+        px: 1.25,
+        py: 0.45,
+        borderRadius: "999px",
+        fontSize: "0.72rem",
+        fontWeight: 600,
+        letterSpacing: "0.02em",
+        color: active ? "#0A0A0A" : "rgba(255,255,255,0.78)",
+        background: active
+          ? "linear-gradient(135deg,#F97316 0%,#EA580C 100%)"
+          : "rgba(255,255,255,0.05)",
+        border: active
+          ? "1px solid rgba(249,115,22,0.6)"
+          : "1px solid rgba(255,255,255,0.08)",
+        transition: "all 180ms ease",
+        "&:hover": active
+          ? {}
+          : {
+              background: "rgba(249,115,22,0.1)",
+              borderColor: "rgba(249,115,22,0.35)",
+              color: "#FB923C",
+            },
+      }}
+    >
+      {label}
+    </Box>
+  );
+
+  const Reveal = ({
+    title,
+    body,
+    onClose,
+  }: {
+    title: string;
+    body: string;
+    onClose: () => void;
+  }) => (
+    <Box
+      sx={{
+        mt: 1,
+        p: 1.25,
+        borderRadius: "0.55rem",
+        background: "rgba(0,0,0,0.3)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        position: "relative",
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 0.5,
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: "0.7rem",
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.55)",
+          }}
+        >
+          {title}
+        </Typography>
+        <Box
+          onClick={onClose}
+          sx={{
+            cursor: "pointer",
+            color: "rgba(255,255,255,0.4)",
+            fontSize: "0.7rem",
+            "&:hover": { color: "#FB923C" },
+          }}
+        >
+          ×
+        </Box>
+      </Box>
+      <InsightBodyText
+        text={body}
+        renderInline={renderInline}
+        enginePositions={enginePositions}
+        loadedGame={loadedGame}
+        onJumpToPly={onJumpToPly}
+      />
+    </Box>
+  );
+
+  return (
+    <Box
+      sx={{
+        mt: 1.25,
+        p: 1.5,
+        borderRadius: "0.75rem",
+        background: "rgba(20,22,28,0.55)",
+        backdropFilter: "blur(14px) saturate(150%)",
+        WebkitBackdropFilter: "blur(14px) saturate(150%)",
+        border: `1px solid ${color}33`,
+        boxShadow: `0 4px 16px ${color}1f`,
+      }}
+    >
+      {/* Header: move ref + classification chip + eval delta */}
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        sx={{ flexWrap: "wrap", gap: 0.75 }}
+      >
+        <Box
+          onClick={() =>
+            onMoveClick?.(insight.moveNumber, insight.color === "b")
+          }
+          sx={{
+            cursor: "pointer",
+            fontWeight: 700,
+            fontSize: "0.95rem",
+            color: "#FB923C",
+            textDecoration: "underline",
+            textDecorationColor: "rgba(251,146,60,0.4)",
+            textUnderlineOffset: "3px",
+            "&:hover": {
+              color: "#FDBA74",
+              textDecorationColor: "#FDBA74",
+            },
+          }}
+        >
+          {moveText}
+        </Box>
+        <Box
+          sx={{
+            px: 0.85,
+            py: 0.25,
+            borderRadius: "999px",
+            background: `${color}22`,
+            border: `1px solid ${color}55`,
+            color,
+            fontSize: "0.72rem",
+            fontWeight: 700,
+            letterSpacing: "0.02em",
+            display: "flex",
+            gap: 0.4,
+            alignItems: "center",
+          }}
+        >
+          {glyph && <Box component="span">{glyph}</Box>}
+          {label}
+        </Box>
+        {evalLine && (
+          <Typography
+            sx={{
+              fontSize: "0.74rem",
+              color: "rgba(255,255,255,0.5)",
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+            }}
+          >
+            {evalLine}
+          </Typography>
+        )}
+      </Stack>
+
+      {/* Non-spoiler lede */}
+      {insight.headline && (
+        <Typography
+          sx={{
+            mt: 1,
+            fontSize: "0.88rem",
+            color: "rgba(255,255,255,0.92)",
+            lineHeight: 1.45,
+          }}
+        >
+          {renderInline(insight.headline)}
+        </Typography>
+      )}
+
+      {/* Reveal pills */}
+      <Stack
+        direction="row"
+        spacing={0.75}
+        sx={{ mt: 1.25, flexWrap: "wrap", gap: 0.6 }}
+      >
+        {insight.why && (
+          <Pill
+            label={
+              showWhy
+                ? "Hide"
+                : isNegative
+                ? "Show what was missed"
+                : "Show why this works"
+            }
+            active={showWhy}
+            onClick={() => setShowWhy((v) => !v)}
+          />
+        )}
+        {insight.threats && (
+          <Pill
+            label="Threats"
+            active={showThreats}
+            onClick={() => setShowThreats((v) => !v)}
+          />
+        )}
+        {insight.roles && (
+          <Pill
+            label="Piece roles"
+            active={showRoles}
+            onClick={() => setShowRoles((v) => !v)}
+          />
+        )}
+        {(insight.conceptBody || insight.conceptName) && (
+          <Pill
+            label={insight.conceptName ?? "Concept"}
+            active={showConcept}
+            onClick={() => setShowConcept((v) => !v)}
+          />
+        )}
+      </Stack>
+
+      {/* G11 fix: "Practice this concept" used to live INSIDE the
+          Concept reveal panel — users who clicked Threats or Roles
+          first never saw it. Lifted to a top-level primary CTA below
+          the reveal-pill row so any insight with a conceptKey surfaces
+          it inline. Distinct gradient + spark icon flags it as the
+          one action that leaves the card. */}
+      {insight.conceptKey && insight.conceptName && onPracticeConcept && (
+        <Box
+          onClick={() =>
+            onPracticeConcept(insight.conceptKey!, insight.conceptName!)
+          }
+          sx={{
+            mt: 1,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.65,
+            px: 1.6,
+            py: 0.7,
+            borderRadius: "999px",
+            background: "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
+            color: "#0A0A0A",
+            fontWeight: 700,
+            fontSize: "0.78rem",
+            letterSpacing: "0.02em",
+            boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
+            transition: "transform 180ms ease, box-shadow 180ms ease",
+            "&:hover": {
+              transform: "translateY(-1px)",
+              boxShadow: "0 6px 18px rgba(249,115,22,0.42)",
+            },
+          }}
+        >
+          <Sparkles size={13} />
+          Practice {insight.conceptName.toLowerCase()}
+        </Box>
+      )}
+
+      {showWhy && insight.why && (
+        <Reveal
+          title={
+            insight.bestMove
+              ? `Best move: ${insight.bestMove}`
+              : "Explanation"
+          }
+          body={insight.why}
+          onClose={() => setShowWhy(false)}
+        />
+      )}
+      {showThreats && insight.threats && (
+        <Reveal
+          title="Threats"
+          body={insight.threats}
+          onClose={() => setShowThreats(false)}
+        />
+      )}
+      {showRoles && insight.roles && (
+        <Reveal
+          title="Piece roles"
+          body={insight.roles}
+          onClose={() => setShowRoles(false)}
+        />
+      )}
+      {showConcept && (insight.conceptBody || insight.conceptName) && (
+        <Reveal
+          title={insight.conceptName ?? "Concept"}
+          body={insight.conceptBody ?? ""}
+          onClose={() => setShowConcept(false)}
+        />
+      )}
+    </Box>
+  );
+}
+
+// ─── DarkInsightCarousel ────────────────────────────────────────────────
+// Paginated wrapper around DarkInsightCard. Renders one insight at a time
+// with prev/next arrows + counter + progress bar — mirrors production's
+// InsightsCarousel UX (src/components/AICoachInsights.tsx:487) but on
+// our dark glass surface.
+//
+// Animations:
+//   - Card content slides horizontally on direction change (framer-motion)
+//   - Indexed dots double as click targets so the user can jump to any
+//     insight directly
+//   - Keyboard: ← / → arrow keys advance when the carousel has focus
+function DarkInsightCarousel({
+  insights,
+  renderInline,
+  onMoveClick,
+  onPracticeConcept,
+  enginePositions,
+  loadedGame,
+  onJumpToPly,
+}: {
+  insights: InsightData[];
+  renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
+  onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
+  onPracticeConcept?: (theme: string, displayName: string) => void;
+  enginePositions?: PositionEval[] | null;
+  loadedGame?: Chess;
+  onJumpToPly?: (ply: number) => void;
+}) {
+  const [[idx, dir], setState] = useState<[number, 1 | -1]>([0, 1]);
+  const total = insights.length;
+  const clamp = useCallback(
+    (n: number) => ((n % total) + total) % total,
+    [total]
+  );
+  const current = insights[clamp(idx)];
+  const go = useCallback(
+    (delta: 1 | -1) => setState(([prev]) => [clamp(prev + delta), delta]),
+    [clamp]
+  );
+  const jump = useCallback(
+    (target: number) =>
+      setState(([prev]) => [target, (target > prev ? 1 : -1) as 1 | -1]),
+    []
+  );
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      go(-1);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      go(1);
+    }
+  };
+
+  if (total === 0) return null;
+
+  return (
+    <Box
+      tabIndex={0}
+      onKeyDown={handleKey}
+      sx={{
+        mt: 1.5,
+        borderRadius: "1rem",
+        background:
+          "linear-gradient(180deg, rgba(20,22,28,0.6) 0%, rgba(20,22,28,0.4) 100%)",
+        backdropFilter: "blur(18px) saturate(160%)",
+        WebkitBackdropFilter: "blur(18px) saturate(160%)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        overflow: "hidden",
+        outline: "none",
+        "&:focus-visible": {
+          borderColor: "rgba(249,115,22,0.5)",
+          boxShadow: "0 0 0 2px rgba(249,115,22,0.18)",
+        },
+      }}
+    >
+      {/* Eyebrow + nav */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          px: 1.5,
+          py: 1,
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.85,
+          }}
+        >
+          <Flame size={12} color="#FB923C" />
+          <Box
+            sx={{
+              fontSize: "0.66rem",
+              fontWeight: 800,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.62)",
+            }}
+          >
+            Key moments
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+          }}
+        >
+          <Box
+            onClick={() => go(-1)}
+            aria-label="Previous insight"
+            sx={{
+              cursor: total > 1 ? "pointer" : "default",
+              opacity: total > 1 ? 1 : 0.3,
+              width: 24,
+              height: 24,
+              borderRadius: "999px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "rgba(255,255,255,0.7)",
+              transition: "all 180ms ease",
+              "&:hover":
+                total > 1
+                  ? {
+                      background: "rgba(249,115,22,0.12)",
+                      color: "#FB923C",
+                    }
+                  : {},
+            }}
+          >
+            <ChevronLeft size={14} />
+          </Box>
+          <Box
+            sx={{
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              color: "rgba(255,255,255,0.85)",
+              fontVariantNumeric: "tabular-nums",
+              minWidth: 32,
+              textAlign: "center",
+              letterSpacing: "0.02em",
+            }}
+          >
+            {clamp(idx) + 1} / {total}
+          </Box>
+          <Box
+            onClick={() => go(1)}
+            aria-label="Next insight"
+            sx={{
+              cursor: total > 1 ? "pointer" : "default",
+              opacity: total > 1 ? 1 : 0.3,
+              width: 24,
+              height: 24,
+              borderRadius: "999px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "rgba(255,255,255,0.7)",
+              transition: "all 180ms ease",
+              "&:hover":
+                total > 1
+                  ? {
+                      background: "rgba(249,115,22,0.12)",
+                      color: "#FB923C",
+                    }
+                  : {},
+            }}
+          >
+            <ChevronRight size={14} />
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Progress bar */}
+      <Box sx={{ position: "relative", height: 2 }}>
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(255,255,255,0.04)",
+          }}
+        />
+        <motion.div
+          layout
+          animate={{
+            width: `${((clamp(idx) + 1) / total) * 100}%`,
+          }}
+          transition={{ duration: 0.32, ease: [0.22, 0.61, 0.36, 1] }}
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            background:
+              "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
+            boxShadow: "0 0 12px rgba(249,115,22,0.45)",
+          }}
+        />
+      </Box>
+
+      {/* Slide-animated card body */}
+      <Box sx={{ position: "relative", p: 1.5 }}>
+        <AnimatePresence mode="wait" custom={dir} initial={false}>
+          <motion.div
+            key={clamp(idx)}
+            custom={dir}
+            initial={{ opacity: 0, x: dir * 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: dir * -24 }}
+            transition={{
+              duration: 0.22,
+              ease: [0.22, 0.61, 0.36, 1],
+            }}
+          >
+            <DarkInsightCard
+              insight={current}
+              renderInline={renderInline}
+              onMoveClick={onMoveClick}
+              onPracticeConcept={onPracticeConcept}
+              enginePositions={enginePositions}
+              loadedGame={loadedGame}
+              onJumpToPly={onJumpToPly}
+            />
+          </motion.div>
+        </AnimatePresence>
+      </Box>
+
+      {/* Indexed dots (jump-to) */}
+      {total > 1 && (
+        <Box
+          sx={{
+            display: "flex",
+            gap: 0.5,
+            justifyContent: "center",
+            pb: 1.25,
+            pt: 0.25,
+          }}
+        >
+          {insights.map((_, i) => {
+            const active = i === clamp(idx);
+            return (
+              <Box
+                key={i}
+                onClick={() => jump(i)}
+                aria-label={`Go to insight ${i + 1}`}
+                sx={{
+                  cursor: "pointer",
+                  width: active ? 18 : 6,
+                  height: 6,
+                  borderRadius: "999px",
+                  background: active
+                    ? "linear-gradient(135deg,#F97316,#EA580C)"
+                    : "rgba(255,255,255,0.18)",
+                  boxShadow: active
+                    ? "0 0 10px rgba(249,115,22,0.45)"
+                    : "none",
+                  transition: "all 220ms ease",
+                  "&:hover": active
+                    ? {}
+                    : { background: "rgba(255,255,255,0.32)" },
+                }}
+              />
+            );
+          })}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 function CoachBubble({
   msg,
   onPromoteToBoard,
   allMoves,
   onMoveRefClick,
   onShare,
+  allMessages,
+  messageIndex,
+  contextId,
+  onPuzzleSolved,
+  onPracticeConcept,
+  enginePositions,
+  loadedGame,
 }: {
   msg: CoachMessage;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
@@ -3277,12 +5242,39 @@ function CoachBubble({
   onMoveRefClick?: (ply: number) => void;
   /** Fired when the user clicks the share icon on a coach reply. */
   onShare?: (msg: CoachMessage) => void;
+  /** Full chat history — required for G12 FlagButton context. */
+  allMessages?: CoachMessage[];
+  /** Index of this message in allMessages — for FlagButton. */
+  messageIndex?: number;
+  /** Current analysis contextId — for FlagButton. Null if no deep analysis run yet. */
+  contextId?: string | null;
+  /** G11: fires when an inline puzzle is solved so we can persist + exclude. */
+  onPuzzleSolved?: (puzzle: DrillPuzzle, timeSpentSeconds: number) => void;
+  /** Fired when a concept practice CTA is clicked inside an insight card. */
+  onPracticeConcept?: (
+    theme: string,
+    displayName: string,
+    messageIndex: number
+  ) => void;
+  /** Engine data passed through to insight cards so `[CONTINUATION:N:c]`
+   *  / `[MAIA_CONTINUATION:N:c]` tokens can materialise inline PVs. */
+  enginePositions?: PositionEval[] | null;
+  loadedGame?: Chess;
 }) {
   const isUser = msg.role === "user";
 
   // Renderer: handles bold (**…**) AND inline move references (24.Rxd4 →
-  // clickable, board jumps on click).
-  const renderInline = (text: string): React.ReactNode[] => {
+  // clickable, board jumps on click). `forceRecommended` lets a caller
+  // (e.g. InsightBodyText rendering a SOLUTION/OUTCOME-labeled body row)
+  // pre-mark every move ref as recommended, bypassing the contextBefore
+  // regex check. Necessary because the round-2 smoke test surfaced that
+  // structured-card content like `SOLUTION: 7. dxe5 wins the pawn` never
+  // had "best was" / "should have" in its lookback window, so the green
+  // 🔍 tag never fired even when the move clearly was the recommended one.
+  const renderInline = (
+    text: string,
+    forceRecommended = false
+  ): React.ReactNode[] => {
     const boldParts = text.split(/(\*\*[^*]+\*\*)/g);
     const out: React.ReactNode[] = [];
     boldParts.forEach((part, boldIdx) => {
@@ -3301,39 +5293,74 @@ function CoachBubble({
         );
         return;
       }
-      // Within a plain segment, surface move references as clickable spans
+      // G7: production-parity 4-tier move-reference parser. Each match is
+      // styled either as "recommended" (green, click → explore the
+      // alternative) or "navigate" (orange, click → jump to that ply).
       if (!allMoves || !onMoveRefClick) {
         out.push(<span key={`t${boldIdx}`}>{part}</span>);
         return;
       }
+      const refs = findAllMoveRefs(part, forceRecommended);
+      if (refs.length === 0) {
+        out.push(<span key={`t${boldIdx}`}>{part}</span>);
+        return;
+      }
       let lastIdx = 0;
-      const re = new RegExp(MOVE_REF_RE.source, "g");
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(part))) {
-        if (m.index > lastIdx) {
+      for (const ref of refs) {
+        if (ref.start > lastIdx) {
           out.push(
             <span key={`${boldIdx}t${lastIdx}`}>
-              {part.slice(lastIdx, m.index)}
+              {part.slice(lastIdx, ref.start)}
             </span>
           );
         }
-        const moveNum = parseInt(m[1], 10);
-        const isBlack = m[2].length === 3; // "..." = black
-        const san = m[3];
-        const ply = findPlyForMoveRef(allMoves, moveNum, isBlack, san);
+        const matchedPly = findPlyForMoveRef(
+          allMoves,
+          ref.moveNumber,
+          ref.isBlack,
+          ref.san
+        );
+        // RECOMMENDED moves are by definition NOT what the player actually
+        // played, so findPlyForMoveRef will return null for them — the SAN
+        // at that ply won't match the recommended SAN. We still want them
+        // clickable (jumps to the position FROM which the recommended move
+        // would be played, so the user lands in exploration mode). Same
+        // ply derivation as findPlyForMoveRef's expectedPly, then -1 to
+        // sit BEFORE the move. Round-2 + Round-3 smoke caught this:
+        // "11. g4" in a SOLUTION row rendered as a plain <span> with no
+        // click handler because findPlyForMoveRef returned null.
+        const recommendedTargetPly =
+          ref.recommended && matchedPly === null
+            ? Math.max(
+                0,
+                (ref.moveNumber - 1) * 2 + (ref.isBlack ? 1 : 0)
+              )
+            : null;
+        const ply = matchedPly ?? recommendedTargetPly;
         if (ply !== null) {
+          const recColor = "#86efac"; // light green for recommended
+          const navColor = isUser ? "#0A0A0A" : "#FB923C";
           out.push(
             <Box
-              key={`${boldIdx}m${m.index}`}
+              key={`${boldIdx}m${ref.start}`}
               component="span"
               onClick={() => onMoveRefClick(ply)}
+              title={
+                ref.recommended
+                  ? `Recommended alternative: ${ref.san}`
+                  : `Jump to ${ref.moveNumber}${
+                      ref.isBlack ? "..." : "."
+                    } ${ref.san}`
+              }
               sx={{
-                color: isUser ? "#0A0A0A" : "#FB923C",
+                color: ref.recommended ? recColor : navColor,
                 cursor: "pointer",
                 fontWeight: 700,
                 textDecoration: "underline",
                 textDecorationStyle: "dotted",
-                textDecorationColor: isUser
+                textDecorationColor: ref.recommended
+                  ? "rgba(134,239,172,0.5)"
+                  : isUser
                   ? "rgba(0,0,0,0.5)"
                   : "rgba(251,146,60,0.5)",
                 px: 0.35,
@@ -3341,21 +5368,22 @@ function CoachBubble({
                 transition: "all 140ms ease",
                 "&:hover": {
                   textDecorationStyle: "solid",
-                  background: isUser
+                  background: ref.recommended
+                    ? "rgba(34,197,94,0.16)"
+                    : isUser
                     ? "rgba(0,0,0,0.08)"
                     : "rgba(249,115,22,0.14)",
                 },
               }}
             >
-              {m[0]}
+              {ref.recommended ? "🔍 " : ""}
+              {ref.full}
             </Box>
           );
         } else {
-          out.push(
-            <span key={`${boldIdx}m${m.index}`}>{m[0]}</span>
-          );
+          out.push(<span key={`${boldIdx}m${ref.start}`}>{ref.full}</span>);
         }
-        lastIdx = m.index + m[0].length;
+        lastIdx = ref.end;
       }
       if (lastIdx < part.length) {
         out.push(
@@ -3396,7 +5424,45 @@ function CoachBubble({
           "&:hover .coach-share-btn": { opacity: 1 },
         }}
       >
-        {renderInline(extractPracticeTags(msg.content).stripped)}
+        {(() => {
+          // Strip PRACTICE tags first (they're for puzzle attach), then
+          // parse INSIGHT/WHY/THREATS/ROLES/CONCEPT blocks via production's
+          // shared parseInsights. When present we render prefix prose +
+          // DarkInsightCard per insight + suffix prose. When absent we
+          // fall back to the original raw-text inline rendering.
+          if (isUser) return renderInline(msg.content);
+          const practiceStripped = extractPracticeTags(msg.content).stripped;
+          const { prefix, insights, suffix } = parseInsights(practiceStripped);
+          if (insights.length === 0) {
+            return renderInline(practiceStripped);
+          }
+          return (
+            <>
+              {prefix.trim() && renderInline(prefix)}
+              <DarkInsightCarousel
+                insights={insights}
+                renderInline={renderInline}
+                onMoveClick={(moveNum, isBlack) => {
+                  if (!allMoves) return;
+                  const ply = isBlack ? moveNum * 2 : moveNum * 2 - 1;
+                  if (ply >= 0 && ply <= allMoves.length) {
+                    onMoveRefClick?.(ply);
+                  }
+                }}
+                onPracticeConcept={
+                  onPracticeConcept && messageIndex !== undefined
+                    ? (theme, name) =>
+                        onPracticeConcept(theme, name, messageIndex)
+                    : undefined
+                }
+                enginePositions={enginePositions}
+                loadedGame={loadedGame}
+                onJumpToPly={onMoveRefClick}
+              />
+              {suffix.trim() && renderInline(suffix)}
+            </>
+          );
+        })()}
         {shareable && (
           <Tooltip title="Share this insight (link + PNG)">
             <IconButton
@@ -3465,8 +5531,31 @@ function CoachBubble({
         <CoachPuzzleCard
           pack={msg.puzzlePack}
           onPromote={onPromoteToBoard}
+          onSolved={onPuzzleSolved}
         />
       )}
+      {/* G12: FlagButton self-gates on useViewer().isIntern — renders
+          nothing for non-intern viewers. We just need to mount it on
+          every assistant message with the required context. */}
+      {!isUser &&
+        msg.content.trim().length > 0 &&
+        allMessages &&
+        messageIndex !== undefined && (
+          <Box sx={{ mt: 0.75 }}>
+            <FlagButton
+              message={{ role: "assistant", content: msg.content }}
+              messageIndex={messageIndex}
+              chatHistory={allMessages.map((m) => ({
+                role:
+                  m.role === "coach"
+                    ? ("assistant" as const)
+                    : ("user" as const),
+                content: m.content,
+              }))}
+              contextId={contextId ?? null}
+            />
+          </Box>
+        )}
     </Box>
   );
 }
@@ -3748,6 +5837,25 @@ export default function AnalysisPage() {
     typeof router.query.solution === "string" ? router.query.solution : null;
   const promptParam =
     typeof router.query.prompt === "string" ? router.query.prompt : null;
+  const autoAnalyzeParam =
+    typeof router.query.autoAnalyze === "string"
+      ? router.query.autoAnalyze
+      : null;
+
+  // Signed-in user — hoisted to the top so downstream loaders (loadNewGame
+  // G13, triggerPuzzleFetch G14, recordSolved G11) can read user.uid /
+  // user.displayName without violating the "declared before use" rule.
+  const { user } = useViewer();
+
+  // G6: auto-analyze state machine. Mirrors production's autoAnalyzeStateAtom
+  // (src/sections/analysis/states.ts:87-93). Triggered by ?autoAnalyze=1
+  // (the Chess Masti browser extension sets this). The chat input is
+  // locked while in "pending" or "sent-awaiting-insights" so the user
+  // can't queue requests on top of a long deep-analysis pass.
+  const [autoAnalyzeState, setAutoAnalyzeState] = useState<
+    "idle" | "pending" | "sent-awaiting-insights" | "done"
+  >(autoAnalyzeParam === "1" ? "pending" : "idle");
+  const autoAnalyzeFiredRef = useRef(false);
 
   // Loaded game — either the Kasparov demo (cold start), a puzzle stub
   // (?puzzleFen=...), or whatever the user just imported via URL param /
@@ -3786,8 +5894,91 @@ export default function AnalysisPage() {
   const [enginePositions, setEnginePositions] = useState<PositionEval[] | null>(
     null
   );
+  // Full GameEval (positions + accuracy + estimatedElo + settings) so the
+  // Save flow (G4) can persist a complete eval to Firestore/IndexedDB
+  // instead of synthesising one. Populated alongside enginePositions.
+  const [gameEvalFull, setGameEvalFull] = useState<GameEval | null>(null);
+
+  // G8: real Maia predictions via /api/maia-predict, keyed by
+  // `${fen}|${elo}`. Hand-table is the synchronous cold-start fallback.
+  // Fetches are auth-gated; on 401/503 we silently keep the table value
+  // so the arrow still surfaces something rather than nothing.
+  const [maiaCache, setMaiaCache] = useState<Record<string, string>>({});
+  const maiaInFlightRef = useRef<Set<string>>(new Set());
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  // Production-parity classified positions — Brilliant / Great / Best /
+  // Excellent / Good / Okay / Forced / Opening / Inaccuracy / Mistake /
+  // Miss / Blunder via getMovesClassification. The classifier needs both
+  // UCI strings (for legal-move replay) and the canonical FEN sequence.
+  const classifiedPositions = useMemo<PositionEval[] | null>(() => {
+    if (!enginePositions) return null;
+    let params: { fens: string[]; uciMoves: string[] };
+    try {
+      params = getEvaluateGameParams(loadedGame);
+    } catch {
+      // Empty history (start position) → getEvaluateGameParams throws on
+      // history[-1]. Nothing to classify.
+      return enginePositions;
+    }
+    // The classifier replays uciMoves[0..index-1] for each non-zero index.
+    // Bail out when enginePositions is longer than the current game's move
+    // list — that happens transiently when loadedGame just changed but the
+    // enginePositions-reset effect hasn't fired yet, or when a stale cache
+    // entry got restored. Falling through would throw chess.js's
+    // "Invalid move: undefined" inside the classifier's inner try/catch,
+    // which Next.js 15 dev surfaces as a runtime overlay even though the
+    // page renders fine.
+    if (enginePositions.length !== params.uciMoves.length + 1) {
+      return enginePositions;
+    }
+    try {
+      return getMovesClassification(
+        enginePositions,
+        params.uciMoves,
+        params.fens
+      );
+    } catch (err) {
+      console.warn("[preview/analysis] classification failed:", err);
+      return enginePositions;
+    }
+  }, [enginePositions, loadedGame]);
+
+  // G9: derive real key moments from classification. Production's
+  // SurpriseAnalyzer is a separate Stockfish pass that adds a lot of
+  // build-time cost; instead we use the classification we already have
+  // and lift Brilliant + Great into "brilliant" markers, Blunder + Miss
+  // into "mistake" markers. Falls back to the hand-curated Kasparov
+  // KEY_MOMENTS constant when classification isn't ready or the demo is
+  // still the seed game (isDemoGame), so the demo experience is
+  // unchanged.
+  const liveKeyMoments = useMemo<KeyMoment[]>(() => {
+    if (!classifiedPositions || isDemoGame) return KEY_MOMENTS;
+    const moments: KeyMoment[] = [];
+    for (let ply = 1; ply < classifiedPositions.length; ply++) {
+      const cls = classifiedPositions[ply]?.moveClassification;
+      if (!cls) continue;
+      const move = loadedGame.history({ verbose: true })[ply - 1];
+      if (!move) continue;
+      const num = Math.ceil(ply / 2);
+      const dots = ply % 2 === 1 ? "." : "...";
+      const label = `${num}${dots}${move.san}`;
+      if (
+        cls === MoveClassification.Brilliant ||
+        cls === MoveClassification.Great
+      ) {
+        moments.push({ ply, label, kind: "brilliant" });
+      } else if (
+        cls === MoveClassification.Mistake ||
+        cls === MoveClassification.Blunder ||
+        cls === MoveClassification.Miss
+      ) {
+        moments.push({ ply, label, kind: "mistake" });
+      }
+    }
+    return moments;
+  }, [classifiedPositions, isDemoGame, loadedGame]);
 
   // Whenever the loaded game OR engine settings change, clear the analysis
   // cache so Stockfish re-runs. allMoves derives from loadedGame so
@@ -3795,6 +5986,7 @@ export default function AnalysisPage() {
   // the same length is loaded.
   useEffect(() => {
     setEnginePositions(null);
+    setGameEvalFull(null);
     setAnalysisProgress(0);
     setAnalysisError(null);
   }, [loadedGame, engineSettings.depth, engineSettings.engineName]);
@@ -3845,6 +6037,31 @@ export default function AnalysisPage() {
       /* quota exhausted — skip silently */
     }
   }, [cacheKey, enginePositions]);
+
+  // G15: also push every position eval into the production savedEvalsAtom
+  // so the rest of the site (production /analysis, /play eval-bar, etc.)
+  // can hydrate from the same analysis without re-running Stockfish.
+  // Keyed by FEN per production convention (panelHeader/analyzeButton.tsx).
+  const setSavedEvals = useSetAtom(savedEvalsAtom);
+  useEffect(() => {
+    if (!enginePositions) return;
+    let fens: string[] = [];
+    try {
+      fens = getEvaluateGameParams(loadedGame).fens;
+    } catch {
+      return;
+    }
+    if (fens.length !== enginePositions.length) return;
+    const gameSavedEvals = fens.reduce<SavedEvals>((acc, fen, idx) => {
+      acc[fen] = {
+        ...enginePositions[idx],
+        engine: engineSettings.engineName,
+      };
+      return acc;
+    }, {} as SavedEvals);
+    setSavedEvals((prev) => ({ ...prev, ...gameSavedEvals }));
+  }, [enginePositions, loadedGame, engineSettings.engineName, setSavedEvals]);
+
   const mockEvalSeries = useMemo(
     () => buildMockEval(allMoves.length + 1),
     [allMoves.length]
@@ -3883,6 +6100,7 @@ export default function AnalysisPage() {
       .then((result) => {
         if (cancelled) return;
         setEnginePositions(result.positions);
+        setGameEvalFull(result);
         setAnalysisProgress(100);
       })
       .catch((err) => {
@@ -3908,8 +6126,122 @@ export default function AnalysisPage() {
     "white"
   );
 
+  // ─── Production-parity personalization extras for the deep coach path ───
+  // Production's AICoachChat (line 2459-2487) threads playerColor +
+  // playerColorName + boardOrientation + username + chess-platform handles
+  // into every /api/enhanced-analysis request. The server uses these to
+  // compose the system prompt (perspective, addressing, accuracy/Elo
+  // overview). Without them the LLM drops to a generic reply tone — visibly
+  // less specific than the prod surface. Recompute once per relevant input
+  // change so the three streamCoachReply call sites can spread it.
+  // Coach personality — final enhanced-analysis parity field. Persisted
+  // across sessions via localStorage so the user's chosen voice sticks.
+  // The picker UI sits in CoachPanel's header chip; this is the source
+  // of truth that flows into coachExtras → request body.
+  const [selectedPersonalityId, setSelectedPersonalityId] =
+    useLocalStorage<string>(
+      "cm-preview-personality",
+      defaultPersonalityId
+    );
+  const personality = useMemo(
+    () => getPersonalityById(selectedPersonalityId ?? defaultPersonalityId),
+    [selectedPersonalityId]
+  );
+
+  const coachExtras = useMemo(() => {
+    const playerColor: "w" | "b" =
+      boardOrientation === "white" ? "w" : "b";
+    let chesscomUsername: string | undefined;
+    let lichessUsername: string | undefined;
+    if (typeof window !== "undefined") {
+      try {
+        chesscomUsername =
+          window.localStorage
+            .getItem("chesscom-username")
+            ?.replace(/^"|"$/g, "") || undefined;
+        lichessUsername =
+          window.localStorage
+            .getItem("lichess-username")
+            ?.replace(/^"|"$/g, "") || undefined;
+      } catch {
+        /* localStorage unavailable */
+      }
+    }
+    return {
+      playerColor,
+      playerColorName: boardOrientation,
+      boardOrientation,
+      username:
+        user?.displayName ?? user?.email?.split("@")[0] ?? undefined,
+      chesscomUsername,
+      lichessUsername,
+      personalityId: personality.id,
+    };
+  }, [
+    boardOrientation,
+    user?.displayName,
+    user?.email,
+    personality.id,
+  ]);
+
   // In puzzle mode, prepopulate the coach with a contextual seed message
   const isPuzzleMode = Boolean(puzzleFen);
+
+  // Production's killer "you blundered, here are puzzles for that exact
+  // pattern" UX — surfaces when the current ply is a Mistake / Blunder /
+  // Miss. Drives the inline ContextualPuzzleRecommendations mount inside
+  // the Coach tab. Heavy lifting (mistake → puzzles via /api/mistake-puzzles)
+  // is delegated to the production component; we just compute the input.
+  const mistakeContext = useMemo<{
+    fen: string;
+    movePlayed: string;
+    correctMove: string;
+    evalBefore: number;
+    evalAfter: number;
+    tacticalMotifs: string[];
+  } | null>(() => {
+    if (!classifiedPositions || currentPly < 1) return null;
+    const played = classifiedPositions[currentPly];
+    const cls = played?.moveClassification;
+    if (
+      cls !== MoveClassification.Mistake &&
+      cls !== MoveClassification.Blunder &&
+      cls !== MoveClassification.Miss
+    )
+      return null;
+
+    const prev = classifiedPositions[currentPly - 1];
+    if (!prev?.lines?.[0]) return null;
+
+    const move = allMoves[currentPly - 1];
+    if (!move) return null;
+
+    const bestUci = prev.lines[0].pv?.[0] ?? "";
+    const correctMove =
+      bestUci.length >= 4 ? bestUci.slice(0, 2) + bestUci.slice(2, 4) : "";
+
+    // FEN at the position BEFORE the mistake.
+    const g = new Chess();
+    for (let i = 0; i < currentPly - 1 && i < allMoves.length; i++) {
+      g.move(allMoves[i]);
+    }
+    const fenAtMistake = g.fen();
+
+    const evalBefore = prev.lines[0].cp ?? 0;
+    const evalAfter = played?.lines?.[0]?.cp ?? 0;
+
+    return {
+      fen: fenAtMistake,
+      movePlayed: move.san,
+      correctMove,
+      evalBefore,
+      evalAfter,
+      // tacticalMotifs left empty for now — /api/mistake-puzzles handles
+      // the empty case via rating-band fallback. G14 wires real motif
+      // extraction.
+      tacticalMotifs: [],
+    };
+  }, [classifiedPositions, currentPly, allMoves]);
 
   // Derived: current FEN + last move + check by replaying moves up to currentPly
   const { currentFen, lastMove, isInCheck } = useMemo(() => {
@@ -3953,6 +6285,19 @@ export default function AnalysisPage() {
   );
   const [isThinking, setIsThinking] = useState(false);
 
+  // Coach context cache — minted by the first /api/enhanced-analysis call,
+  // reused on every follow-up /api/chat call. Reset on game change so the
+  // server doesn't return analysis grounded in the previous game. Also
+  // reset on personality change — the fast path (/api/chat) only sends
+  // contextId+userMessage+conversationHistory, so it'd silently keep the
+  // OLD personality's cached prompt until the user switched games. By
+  // dropping the contextId we force the next message back through the
+  // deep path, which re-mints context under the new persona.
+  const coachContextIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    coachContextIdRef.current = null;
+  }, [loadedGame, selectedPersonalityId]);
+
   // Replace the loaded game from a fresh Chess instance (e.g. user pasted
   // a PGN, or a URL param brought one in). Resets cursor + seed chat +
   // analysis cache via the useEffect on [loadedGame]. Pass keepChat=true
@@ -3962,6 +6307,38 @@ export default function AnalysisPage() {
       setLoadedGame(game);
       setIsDemoGame(false);
       setCurrentPly(0);
+      // G13: smart color detection on imports. If the PGN headers point at
+      // chess.com or lichess.org AND we have a known username (stashed in
+      // localStorage by the LichessInput / ChessComInput loaders, or from
+      // the signed-in profile), flip the board so the user is at the
+      // bottom. Falls through silently otherwise.
+      try {
+        if (typeof window !== "undefined") {
+          const headerSite = (game.header().Site ?? "").toLowerCase();
+          let source: "chesscom" | "lichess" | undefined;
+          if (headerSite.includes("chess.com")) source = "chesscom";
+          else if (headerSite.includes("lichess.org")) source = "lichess";
+          if (source) {
+            const stored =
+              source === "lichess"
+                ? window.localStorage.getItem("lichess-username")
+                : window.localStorage.getItem("chesscom-username");
+            const cleanStored = stored ? stored.replace(/^"|"$/g, "") : null;
+            const username =
+              cleanStored ||
+              user?.displayName ||
+              user?.email?.split("@")[0] ||
+              undefined;
+            const info = extractImportedGameInfo(game, source, username);
+            const detection = detectUserColor(game, info);
+            if (detection.method === "username_match") {
+              setBoardOrientation(detection.userColor);
+            }
+          }
+        }
+      } catch {
+        /* defensive — color detection should never block a game load */
+      }
       // Sentry breadcrumb so debugging "the page broke on my Lichess game"
       // has the actual PGN at hand without us having to ask.
       try {
@@ -4247,9 +6624,14 @@ export default function AnalysisPage() {
       }
     }
 
-    // Maia at the selected ELO (purple)
+    // Maia at the selected ELO (purple). Prefer the live /api/maia-predict
+    // result for the current FEN+ELO; fall back to the hand-table for the
+    // Kasparov demo so the arrow shows during the in-flight fetch and stays
+    // useful when MAIA_API_URL is unconfigured.
     if (arrowToggles.maia) {
-      const maia = findMaiaMove(currentPly, arrowToggles.maiaElo);
+      const cacheKey = `${currentFen}|${arrowToggles.maiaElo}`;
+      const live = maiaCache[cacheKey];
+      const maia = live ?? findMaiaMoveFromTable(currentPly, arrowToggles.maiaElo);
       if (maia) shapes.push(uciToShape(maia, ARROW_PALETTE.maia.brush));
     }
 
@@ -4261,7 +6643,42 @@ export default function AnalysisPage() {
     arrowToggles,
     currentPly,
     allMoves,
+    currentFen,
+    maiaCache,
   ]);
+
+  // G8 fetch effect: when the Maia toggle is on and the (fen, elo) pair
+  // isn't cached, hit /api/maia-predict. Silent on 401/503/network errors
+  // — the displayShapes memo falls back to the cold-start table.
+  useEffect(() => {
+    if (!arrowToggles.maia) return;
+    const cacheKey = `${currentFen}|${arrowToggles.maiaElo}`;
+    if (maiaCache[cacheKey]) return;
+    if (maiaInFlightRef.current.has(cacheKey)) return;
+    maiaInFlightRef.current.add(cacheKey);
+    fetch("/api/maia-predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        fen: currentFen,
+        rating: arrowToggles.maiaElo,
+        opponent_rating: arrowToggles.maiaElo,
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { humanLikeMove?: string } | null) => {
+        if (data?.humanLikeMove) {
+          setMaiaCache((m) => ({ ...m, [cacheKey]: data.humanLikeMove! }));
+        }
+      })
+      .catch(() => {
+        /* silent — fallback table covers it */
+      })
+      .finally(() => {
+        maiaInFlightRef.current.delete(cacheKey);
+      });
+  }, [currentFen, arrowToggles.maia, arrowToggles.maiaElo, maiaCache]);
 
   const handleTabChange = useCallback(
     (next: RightTab) => {
@@ -4355,6 +6772,11 @@ export default function AnalysisPage() {
           fen: displayFen,
           currentPly,
           allMoves,
+          loadedGame,
+          enginePositions,
+          gameEvalFull,
+          contextIdRef: coachContextIdRef,
+          ...coachExtras,
           onDelta: (chunk) => {
             accumulated += chunk;
             setMessages((prev) => {
@@ -4612,6 +7034,58 @@ export default function AnalysisPage() {
     [drillState, advanceDrill, bumpBoardSync]
   );
 
+  // ─── G4: Firestore game persistence (user is hoisted to the top of
+  // AnalysisPage so loadNewGame G13 + triggerPuzzleFetch G14 can read it
+  // too). ───
+  const { addGame, setGameEval } = useGameDatabase();
+  const [savedGameId, setSavedGameId] = useState<number | null>(null);
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+
+  // ─── G11: Spaced repetition. We persist every solve via
+  // recordPuzzleAttempt (production helper, localStorage-backed) and pass
+  // the de-duped solved-id set as excludeIds to every puzzle fetch so the
+  // user never re-solves the same one. Ref is the source of truth for
+  // fast read; counter forces fresh memo reads after a solve. ───
+  const solvedPuzzleIdsRef = useRef<Set<string>>(new Set());
+  const [solvedBump, setSolvedBump] = useState(0);
+  void solvedBump;
+
+  useEffect(() => {
+    try {
+      const attempts = getAllAttempts();
+      const next = new Set<string>();
+      for (const a of attempts) {
+        if (a.success) next.add(a.puzzleId);
+      }
+      solvedPuzzleIdsRef.current = next;
+    } catch {
+      // localStorage unavailable; treat as empty.
+    }
+  }, []);
+
+  const recordSolved = useCallback(
+    (puzzleId: string, timeSpentSeconds: number, movesPlayed: string[]) => {
+      const next = new Set(solvedPuzzleIdsRef.current);
+      next.add(puzzleId);
+      solvedPuzzleIdsRef.current = next;
+      setSolvedBump((b) => b + 1);
+      try {
+        recordPuzzleAttempt({
+          puzzleId,
+          userId: user?.uid ?? "anon",
+          success: true,
+          movesPlayed,
+          timeSpentSeconds,
+        });
+      } catch {
+        // Persist is best-effort; the in-memory ref still rules this session.
+      }
+    },
+    [user?.uid]
+  );
+
   // Shared puzzle-pack fetch + attach. msgIdx is the index of the coach
   // message to mutate when the response lands. Returns nothing — purely a
   // side-effect coordinator. Reuses fetchPuzzlesForTheme.
@@ -4632,7 +7106,23 @@ export default function AnalysisPage() {
         };
         return next;
       });
-      fetchPuzzlesForTheme(fen, theme)
+      (async () => {
+        const excludeIds = Array.from(solvedPuzzleIdsRef.current);
+        // G14: signed-in users go through /api/adaptive-puzzles first.
+        // The endpoint picks themes the user has personally struggled
+        // with; if it returns nothing or fails we fall through to the
+        // generic similar-puzzles path.
+        if (user?.uid) {
+          const adaptive = await fetchAdaptivePuzzles(
+            user.uid,
+            theme,
+            3,
+            excludeIds
+          );
+          if (adaptive && adaptive.length > 0) return adaptive;
+        }
+        return fetchPuzzlesForTheme(fen, theme, 1500, 3, excludeIds);
+      })()
         .then((puzzles) => {
           setMessages((prev) => {
             const next = [...prev];
@@ -4677,6 +7167,37 @@ export default function AnalysisPage() {
   // Used by the Moves tab — each move has an "Ask coach" affordance.
   // Switches focus to the Coach tab, jumps the board to the move, then
   // streams a coach explanation about that specific move.
+
+  // Reset save state on game change.
+  useEffect(() => {
+    setSavedGameId(null);
+    setSaveState("idle");
+  }, [loadedGame]);
+
+  // When Stockfish completes after a save, push the eval up to cloud.
+  useEffect(() => {
+    if (!savedGameId || !gameEvalFull) return;
+    setGameEval(savedGameId, gameEvalFull).catch((err) => {
+      console.warn("[preview/analysis] cloud eval sync failed:", err);
+    });
+  }, [savedGameId, gameEvalFull, setGameEval]);
+
+  const handleSaveGame = useCallback(async () => {
+    if (saveState === "saving" || saveState === "saved") return;
+    setSaveState("saving");
+    try {
+      const gid = await addGame(loadedGame);
+      setSavedGameId(gid);
+      if (gameEvalFull) {
+        await setGameEval(gid, gameEvalFull);
+      }
+      setSaveState("saved");
+    } catch (err) {
+      console.warn("[preview/analysis] save game failed:", err);
+      setSaveState("error");
+    }
+  }, [addGame, gameEvalFull, loadedGame, saveState, setGameEval]);
+
   const handleAskCoachAboutMove = useCallback(
     async (ply: number, san: string) => {
       setRightTab("coach");
@@ -4710,6 +7231,11 @@ export default function AnalysisPage() {
           fen: fenAtPly,
           currentPly: ply,
           allMoves,
+          loadedGame,
+          enginePositions,
+          gameEvalFull,
+          contextIdRef: coachContextIdRef,
+          ...coachExtras,
           onDelta: (chunk) => {
             accumulated += chunk;
             setMessages((prev) => {
@@ -4758,9 +7284,38 @@ export default function AnalysisPage() {
     [allMoves, isThinking, messages, triggerPuzzleFetch]
   );
 
-  const handleSend = useCallback(async () => {
-    const text = input.trim();
+  // G6 auto-fire infrastructure: a ref to the latest handleSend so we can
+  // dispatch the "Analyze my game" message without a stale closure.
+  // useEffect/setState handlers see this ref's `.current` lazily.
+  const handleSendRef = useRef<((overrideText?: string) => void) | null>(null);
+
+  // G6 auto-fire: when ?autoAnalyze=1 brought us in AND Stockfish has
+  // finished AND we haven't fired yet, dispatch "Analyze my game" and
+  // transition to sent-awaiting-insights. Unlocks on first INSIGHT tag.
+  useEffect(() => {
+    if (autoAnalyzeFiredRef.current) return;
+    if (autoAnalyzeState !== "pending") return;
+    if (!enginePositions || isThinking) return;
+    if (allMoves.length === 0) return;
+    autoAnalyzeFiredRef.current = true;
+    setAutoAnalyzeState("sent-awaiting-insights");
+    handleSendRef.current?.("Analyze my game.");
+  }, [autoAnalyzeState, enginePositions, isThinking, allMoves.length]);
+
+  const handleSend = useCallback(async (overrideText?: string) => {
+    // Defensive: onSend is wired straight onto the Send IconButton's
+    // onClick prop, which would otherwise hand a React MouseEvent down
+    // as `overrideText`. Only honour string overrides; anything else
+    // (events, undefined) falls back to the input box.
+    const override =
+      typeof overrideText === "string" ? overrideText : undefined;
+    const text = (override ?? input).trim();
     if (!text || isThinking) return;
+    // Mirror production AICoachChat:2180 — don't fire deep-coach requests
+    // while Stockfish is still computing. gameEval would be undefined,
+    // landing the user in the route's no-eval branch where the LLM
+    // produces a conversational reply with no grounded mistake insights.
+    if (analysisActive) return;
     const prevForApi = messages;
     setMessages((prev) => [
       ...prev,
@@ -4779,6 +7334,11 @@ export default function AnalysisPage() {
         fen: displayFen,
         currentPly,
         allMoves,
+        loadedGame,
+        enginePositions,
+        gameEvalFull,
+        contextIdRef: coachContextIdRef,
+        ...coachExtras,
         onDelta: (chunk) => {
           accumulated += chunk;
           // Update the last coach message in-place
@@ -4811,6 +7371,16 @@ export default function AnalysisPage() {
           0
         );
       }
+      // G6: autoAnalyze completion gate. When the reply contains any
+      // [INSIGHT:...] tag, transition the state machine to "done" so
+      // the input unlocks. Mirrors AICoachChat.tsx:2038-2047.
+      if (
+        (autoAnalyzeState === "pending" ||
+          autoAnalyzeState === "sent-awaiting-insights") &&
+        extractInsightTags(accumulated).insights.length > 0
+      ) {
+        setAutoAnalyzeState("done");
+      }
     } catch (err) {
       const errorText =
         err instanceof CoachAuthError
@@ -4835,7 +7405,18 @@ export default function AnalysisPage() {
     displayFen,
     allMoves,
     triggerPuzzleFetch,
+    autoAnalyzeState,
+    loadedGame,
+    enginePositions,
+    analysisActive,
   ]);
+
+  // Keep the auto-fire ref pointed at the latest handleSend so the
+  // useEffect above can dispatch the synthetic prompt without a stale
+  // closure on input/messages.
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  }, [handleSend]);
 
   const handleSuggestion = useCallback(
     (s: string) => {
@@ -4939,7 +7520,7 @@ export default function AnalysisPage() {
       },
       {
         heading: "Key moments",
-        items: KEY_MOMENTS.map((m) => ({
+        items: liveKeyMoments.map((m) => ({
           id: `moment-${m.ply}`,
           label: `Jump to ${m.label}`,
           hint: `Move ${Math.ceil(m.ply / 2)}`,
@@ -4988,7 +7569,7 @@ export default function AnalysisPage() {
         })),
       },
     ],
-    [allMoves.length]
+    [allMoves.length, liveKeyMoments]
   );
 
   return (
@@ -5096,6 +7677,16 @@ export default function AnalysisPage() {
       >
         <SharedNavPill active="analysis" badge={{ label: "Analysis" }} />
 
+        {/* Lc0DownloadBanner — was previously injected by the legacy
+            chrome (sections/layout/index.tsx) which the cutover dropped
+            on /preview/* routes. Re-mounted here so the Maia/Lc0
+            availability nudge still surfaces when the microservice is
+            down. Self-gates on maia-status; renders nothing in the
+            common case where Maia is up. */}
+        <Box sx={{ maxWidth: 1680, mx: "auto", px: { xs: 1, sm: 2 }, mb: 2 }}>
+          <Lc0DownloadBanner />
+        </Box>
+
         <Box sx={{ maxWidth: 1680, mx: "auto" }}>
           <GameHeader
             whiteName={headers.White || "White"}
@@ -5115,6 +7706,8 @@ export default function AnalysisPage() {
             onEngineNameChange={(n) =>
               setEngineSettings((s) => ({ ...s, engineName: n }))
             }
+            onSaveGameClick={user ? handleSaveGame : undefined}
+            saveState={saveState}
           />
 
           <Box
@@ -5184,13 +7777,13 @@ export default function AnalysisPage() {
                 series={evalSeries}
                 currentPly={currentPly}
                 onJumpTo={setCurrentPly}
-                keyMoments={KEY_MOMENTS}
+                keyMoments={liveKeyMoments}
                 analyzing={analysisActive}
                 progress={analysisProgress}
                 errored={analysisError !== null}
               />
               <KeyMomentsRow
-                moments={KEY_MOMENTS}
+                moments={liveKeyMoments}
                 currentPly={currentPly}
                 onJumpTo={setCurrentPly}
               />
@@ -5240,11 +7833,36 @@ export default function AnalysisPage() {
                         onSend={handleSend}
                         onSuggestion={handleSuggestion}
                         isThinking={isThinking}
+                        analysisActive={analysisActive}
                         onPromoteToBoard={handlePromoteToBoard}
                         allMoves={allMoves}
                         onMoveRefClick={setCurrentPly}
                         onShareMessage={(m) =>
                           setShareDialog({ msg: m, fen: displayFen })
+                        }
+                        mistakeContext={mistakeContext}
+                        userRating={1500}
+                        coachContextIdProp={coachContextIdRef.current}
+                        enginePositions={enginePositions}
+                        loadedGame={loadedGame}
+                        personalityId={personality.id}
+                        onChangePersonality={(id) =>
+                          setSelectedPersonalityId(id)
+                        }
+                        onPuzzleSolved={(puzzle, secs) =>
+                          recordSolved(
+                            puzzle.id,
+                            secs,
+                            puzzle.solution
+                          )
+                        }
+                        onPracticeConcept={(theme, name, msgIdx) =>
+                          triggerPuzzleFetch(
+                            msgIdx,
+                            theme,
+                            name,
+                            displayFen
+                          )
                         }
                       />
                     </motion.div>
@@ -5287,9 +7905,30 @@ export default function AnalysisPage() {
                       <MovesListPanel
                         moves={allMoves}
                         currentPly={currentPly}
-                        positions={enginePositions}
+                        positions={classifiedPositions}
                         onJumpTo={setCurrentPly}
                         onAskCoach={handleAskCoachAboutMove}
+                      />
+                    </motion.div>
+                  )}
+                  {rightTab === "lines" && (
+                    <motion.div
+                      key="lines"
+                      initial={{ opacity: 0, x: 32, scale: 0.98 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: 32, scale: 0.98 }}
+                      transition={{
+                        duration: 0.32,
+                        ease: [0.22, 0.61, 0.36, 1],
+                      }}
+                      style={{ position: "absolute", inset: 0 }}
+                    >
+                      <EngineLinesPanel
+                        position={
+                          enginePositions?.[currentPly] ?? null
+                        }
+                        fen={displayFen}
+                        engineName={engineSettings.engineName}
                       />
                     </motion.div>
                   )}

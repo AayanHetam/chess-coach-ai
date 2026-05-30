@@ -12,6 +12,7 @@ import {
   UserProfile,
   UserProfileUpdates,
 } from "@/lib/firestoreUsers";
+import OAuthErrorSnackbar from "@/components/auth/OAuthErrorSnackbar";
 
 /**
  * Auth runs entirely against chessmasti.com /api/auth/*. The browser
@@ -232,6 +233,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }}
     >
       {children}
+      <OAuthErrorSnackbar />
     </AuthContext.Provider>
   );
 }

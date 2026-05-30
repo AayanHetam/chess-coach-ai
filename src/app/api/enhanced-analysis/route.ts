@@ -340,6 +340,24 @@ function describeMoveChange(fenBefore: string, moveSan: string): string {
 }
 
 /**
+ * Optional PGN-header metadata threaded from the client. Mirrors the chess.js
+ * `game.header()` shape but typed loose since users import games from
+ * everywhere (lichess, chess.com, raw pastes) and the headers vary.
+ */
+type GameHeadersInput = {
+  white?: string;
+  black?: string;
+  whiteElo?: string;
+  blackElo?: string;
+  event?: string;
+  date?: string;
+  result?: string;
+  eco?: string;
+  opening?: string;
+  timeControl?: string;
+};
+
+/**
  * Build a rich move-by-move game context string from the move history + Stockfish evals.
  * This gives the LLM everything it needs to analyze the game.
  */
@@ -348,7 +366,8 @@ function buildGameContext(
   gameEval: GameEvalInput | undefined,
   playerColor: string,
   username?: string,
-  userRating?: number
+  userRating?: number,
+  gameHeaders?: GameHeadersInput
 ): string {
   const sections: string[] = [];
 
@@ -367,6 +386,23 @@ function buildGameContext(
   if (userRating) overview += `- Player rating: ${userRating}\n`;
   if (gameEval?.accuracy) overview += `- Accuracy: White ${gameEval.accuracy.white.toFixed(1)}%, Black ${gameEval.accuracy.black.toFixed(1)}%\n`;
   if (gameEval?.estimatedElo) overview += `- Estimated Elo: White ~${gameEval.estimatedElo.white}, Black ~${gameEval.estimatedElo.black}\n`;
+  // PGN headers — only emit lines for fields actually present. Chess.com /
+  // lichess imports populate most of these; raw FEN-loaded games populate
+  // none. The coach uses them to ground references like "your opponent's
+  // rapid rating" or "this Najdorf was played in last year's Tata Steel".
+  if (gameHeaders) {
+    const h = gameHeaders;
+    if (h.white) overview += `- White: ${h.white}${h.whiteElo ? ` (${h.whiteElo})` : ""}\n`;
+    if (h.black) overview += `- Black: ${h.black}${h.blackElo ? ` (${h.blackElo})` : ""}\n`;
+    if (h.event) overview += `- Event: ${h.event}\n`;
+    if (h.date) overview += `- Date: ${h.date}\n`;
+    if (h.timeControl) overview += `- Time control: ${h.timeControl}\n`;
+    if (h.opening || h.eco) {
+      const parts = [h.opening, h.eco ? `ECO ${h.eco}` : null].filter(Boolean);
+      overview += `- Opening: ${parts.join(", ")}\n`;
+    }
+    if (h.result && h.result !== "*") overview += `- PGN result tag: ${h.result}\n`;
+  }
   sections.push(overview);
 
   // --- PGN ---
@@ -1082,6 +1118,7 @@ export async function POST(request: NextRequest) {
       lichessUsername,
       opponentUsername,
       opponentPlatform,
+      gameHeaders,
       stream: streamRequested,
     } = parsed.data;
     const messageText = userMessage || message || "";
@@ -1109,7 +1146,8 @@ export async function POST(request: NextRequest) {
         gameEval,
         playerColor || (boardOrientation ? "w" : "b"),
         username,
-        userRating
+        userRating,
+        gameHeaders
       );
     } else if (fen || position) {
       // Position-only analysis

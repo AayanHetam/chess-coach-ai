@@ -74,10 +74,23 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
             }}
           >
             <Box
+              role="dialog"
+              aria-modal="true"
+              aria-label="Load game"
               sx={{
                 width: { xs: "92vw", sm: 560 },
                 maxWidth: "92vw",
-                maxHeight: "84vh",
+                // Round-2 smoke (2026-05-29): submit button rendered at
+                // y=771 in a 724px viewport. Root cause was that the body
+                // flex child couldn't shrink below its intrinsic
+                // content-min-height (TextField multiline minRows=8 has a
+                // hefty min-content), so the dialog overflowed
+                // maxHeight:84vh even with overflow:hidden on the outer.
+                // Drop to 80vh and let the body section's min-height:0
+                // (below) let flex shrink work correctly. Net: dialog
+                // never extends past the viewport; if the body content
+                // is too tall, it scrolls internally.
+                maxHeight: "80vh",
                 display: "flex",
                 flexDirection: "column",
                 borderRadius: "1.5rem",
@@ -227,6 +240,13 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
               <Box
                 sx={{
                   flex: 1,
+                  // CRITICAL flexbox gotcha: without min-height: 0 the
+                  // body can't shrink below its content's min-content
+                  // height, so overflowY:auto becomes a no-op and the
+                  // whole dialog overflows the viewport. The submit
+                  // button at the bottom of the body then renders at
+                  // y > viewport-height and clicks miss.
+                  minHeight: 0,
                   overflowY: "auto",
                   p: 3,
                   "&::-webkit-scrollbar": { width: 6 },
@@ -313,7 +333,7 @@ function PastePgnTab({ onLoad }: { onLoad: (game: Chess) => void }) {
         }}
         placeholder={`[Event "Casual game"]\n[White "You"]\n[Black "Opponent"]\n\n1. e4 e5 2. Nf3 Nc6 ...`}
         multiline
-        minRows={8}
+        minRows={6}
         maxRows={14}
         fullWidth
         sx={{

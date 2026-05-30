@@ -2456,20 +2456,20 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
         // === DEEP PATH: Full analysis via /api/enhanced-analysis (first message or context expired) ===
         if (!data) {
+          // The fields the server actually consumes per
+          // src/lib/validation/schemas.ts:enhancedAnalysisSchema. The Zod
+          // body silently strips unknown keys (AUDIT-PHASE-1.4 hardening
+          // contract), so legacy hints like analysisType, model,
+          // includeAIAnalysis, and responseLength were always dead weight
+          // on the wire — removing them keeps the request body honest and
+          // smaller. Server-side prompt composition lives entirely in
+          // getCoachChatSystemPromptParts using the structured fields below.
           const requestData: any = {
-            analysisType: "game_review",
-            model: "gpt-4o",
-            includeAIAnalysis: true,
             playerColor: userColor,
             userMessage: textToSend,
             conversationHistory: conversationHistory,
-            responseLength: "comprehensive",
             boardOrientation: boardOrientation,
             gameEval: gameEval,
-            // Phase 2: structured fields the server uses to compose the
-            // system prompt via getCoachChatSystemPrompt(). Replaces the
-            // client-side systemPrompt string that AUDIT-PHASE-1.4
-            // hardening was silently stripping.
             personalityId: selectedCoachId,
             username: userPlayerInfo.username || undefined,
             playerColorName: userPlayerInfo.playerColor || undefined,

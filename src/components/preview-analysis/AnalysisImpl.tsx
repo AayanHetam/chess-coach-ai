@@ -2908,6 +2908,8 @@ function CoachPanel({
   onPuzzleSolved,
   onPracticeConcept,
   analysisActive,
+  enginePositions,
+  loadedGame,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -2925,6 +2927,9 @@ function CoachPanel({
     displayName: string,
     messageIndex: number
   ) => void;
+  /** Engine data for inline continuation widgets inside insight cards. */
+  enginePositions?: PositionEval[] | null;
+  loadedGame?: Chess;
   /** True while Stockfish is still computing positions. Mirrors production's
    * `isAnalyzingGame` gate (AICoachChat:1705) — when set, the input is
    * disabled so the user can't fire deep-coach requests with no gameEval. */
@@ -3114,6 +3119,8 @@ function CoachPanel({
                   contextId={coachContextIdProp}
                   onPuzzleSolved={onPuzzleSolved}
                   onPracticeConcept={onPracticeConcept}
+                  enginePositions={enginePositions}
+                  loadedGame={loadedGame}
                 />
               </motion.div>
             ))}
@@ -3970,36 +3977,232 @@ function ContinuationPill({
   );
 }
 
+// Dark-themed counterpart to production's EngineContinuation
+// (AICoachChat.tsx:716) and MaiaContinuation (:822). Reads PV directly
+// from the local enginePositions[] (no atoms — the new surface uses
+// component state). Falls back to the lightweight ContinuationPill +
+// "open the Lines tab" footer when data isn't available.
+function InsightContinuationInline({
+  kind,
+  moveNum,
+  color,
+  enginePositions,
+  loadedGame,
+  onJumpToPly,
+}: {
+  kind: "CONTINUATION" | "MAIA_CONTINUATION";
+  moveNum: number;
+  color: "w" | "b";
+  enginePositions: PositionEval[] | null;
+  loadedGame: Chess;
+  onJumpToPly?: (ply: number) => void;
+}) {
+  // Half-move index inside enginePositions / loadedGame.history():
+  // - white move N lands at ply 2N-1 (1-indexed) → index 2(N-1)
+  // - black move N lands at ply 2N        (1-indexed) → index 2N-1
+  const halfMoveIdx =
+    color === "b" ? moveNum * 2 - 1 : (moveNum - 1) * 2;
+
+  const isMaia = kind === "MAIA_CONTINUATION";
+  const accent = isMaia ? "#C4B5FD" : "#FB923C";
+  const bg = isMaia ? "rgba(196,181,253,0.08)" : "rgba(251,146,60,0.08)";
+  const border = isMaia
+    ? "rgba(196,181,253,0.28)"
+    : "rgba(251,146,60,0.28)";
+  const label = isMaia ? "Maia line" : "Engine line";
+
+  const data = useMemo(() => {
+    if (!enginePositions || halfMoveIdx < 0) return null;
+    // The PV at index `halfMoveIdx` is the engine's best continuation
+    // FROM that position. We want the line AT this move, which means
+    // looking at the position BEFORE the move (halfMoveIdx itself).
+    const posEval = enginePositions[halfMoveIdx];
+    const pv = posEval?.lines?.[0];
+    if (!pv?.pv || pv.pv.length === 0) return null;
+
+    // Get FEN before this move by replaying loadedGame's history.
+    let fenBefore: string | null = null;
+    try {
+      const tempGame = new Chess();
+      const history = loadedGame.history();
+      for (let i = 0; i < halfMoveIdx && i < history.length; i++) {
+        tempGame.move(history[i]);
+      }
+      fenBefore = tempGame.fen();
+    } catch {
+      return null;
+    }
+
+    // Convert UCI PV → SAN. Bail at the first failure (corrupt UCI).
+    const sans: string[] = [];
+    try {
+      const replay = new Chess(fenBefore);
+      for (const uci of pv.pv.slice(0, 8)) {
+        const mv = replay.move({
+          from: uci.slice(0, 2),
+          to: uci.slice(2, 4),
+          promotion: uci.length >= 5 ? uci[4] : "q",
+        });
+        if (!mv) break;
+        sans.push(mv.san);
+      }
+    } catch {
+      /* SAN conversion partial — render what we got */
+    }
+    if (sans.length === 0) return null;
+
+    const evalStr =
+      typeof pv.mate === "number"
+        ? `M${pv.mate > 0 ? "+" : ""}${pv.mate}`
+        : typeof pv.cp === "number"
+        ? `${pv.cp >= 0 ? "+" : ""}${(pv.cp / 100).toFixed(2)}`
+        : "";
+
+    // Render as "14. e4 c5 15. Nf3 d6 16. d4 …" — chess.com-style
+    // move-number-prefixed display, beginning at the right move number.
+    const display: string[] = [];
+    let m = moveNum;
+    let isWhiteMove = color === "w";
+    for (const san of sans) {
+      if (isWhiteMove) display.push(`${m}.`);
+      display.push(san);
+      if (!isWhiteMove) m += 1;
+      isWhiteMove = !isWhiteMove;
+    }
+    return { evalStr, displayText: display.join(" "), depth: pv.depth };
+  }, [enginePositions, halfMoveIdx, color, moveNum, loadedGame]);
+
+  if (!data) {
+    // Engine data not ready or PV unavailable — fall back to the small
+    // pill marker so the user still knows the coach referenced a line.
+    return <ContinuationPill kind={kind} />;
+  }
+
+  return (
+    <Box
+      onClick={() => onJumpToPly?.(halfMoveIdx)}
+      sx={{
+        mt: 1,
+        mb: 0.5,
+        cursor: onJumpToPly ? "pointer" : "default",
+        background: bg,
+        border: `1px solid ${border}`,
+        borderRadius: "0.6rem",
+        px: 1.25,
+        py: 0.85,
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.4,
+        transition: "all 180ms ease",
+        "&:hover": onJumpToPly
+          ? {
+              background: isMaia
+                ? "rgba(196,181,253,0.12)"
+                : "rgba(251,146,60,0.12)",
+              borderColor: accent,
+            }
+          : {},
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 0.75,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.6,
+            fontSize: "0.66rem",
+            fontWeight: 800,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: accent,
+          }}
+        >
+          {label}
+          {data.evalStr && (
+            <Box
+              component="span"
+              sx={{
+                color: "rgba(255,255,255,0.55)",
+                fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                letterSpacing: "0.02em",
+                textTransform: "none",
+              }}
+            >
+              {data.evalStr}
+            </Box>
+          )}
+        </Box>
+        {typeof data.depth === "number" && (
+          <Box
+            sx={{
+              fontSize: "0.62rem",
+              color: "rgba(255,255,255,0.35)",
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+            }}
+          >
+            d{data.depth}
+          </Box>
+        )}
+      </Box>
+      <Box
+        sx={{
+          fontFamily: "ui-monospace, SFMono-Regular, monospace",
+          fontSize: "0.84rem",
+          color: "rgba(255,255,255,0.86)",
+          lineHeight: 1.4,
+        }}
+      >
+        {data.displayText}
+      </Box>
+    </Box>
+  );
+}
+
 function InsightBodyText({
   text,
   renderInline,
+  enginePositions,
+  loadedGame,
+  onJumpToPly,
 }: {
   text: string;
   renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
+  /** Optional engine data — when present, [CONTINUATION:X:c] tokens
+   *  render as inline PV widgets instead of being stripped + footer. */
+  enginePositions?: PositionEval[] | null;
+  loadedGame?: Chess;
+  onJumpToPly?: (ply: number) => void;
 }) {
-  // Drop continuation tags from prose body — they'd otherwise render as
-  // `[CONTINUATION:7:w]` literal text. We don't try to materialise live
-  // PVs here; the user has the dedicated Lines tab for that.
-  const cleanedText = text.replace(CONTINUATION_TAG_RE, "").trim();
+  // Walk raw lines once. Each line becomes either:
+  //   - a continuation block (line is *just* [CONTINUATION:N:c] / [MAIA_CONTINUATION:N:c] AND we have engine data to materialise it)
+  //   - a labeled row (matches INSIGHT_LABEL_RE)
+  //   - a bullet (joined with adjacent bullets)
+  //   - a paragraph
+  // Lines that aren't continuations still get their inline [CONTINUATION:…]
+  // tags stripped so the literal token never leaks into prose.
+  const canInline = !!enginePositions && !!loadedGame;
+  const standaloneContinuationRe =
+    /^\[(CONTINUATION|MAIA_CONTINUATION):(\d+):([wb])\]\s*$/i;
+  type Continuation = {
+    kind: "continuation";
+    tagKind: "CONTINUATION" | "MAIA_CONTINUATION";
+    moveNum: number;
+    color: "w" | "b";
+  };
 
-  // Split into logical chunks. The coach emits each section on its own
-  // line; we honour that as a paragraph boundary.
-  const lines = cleanedText
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-
-  // Also detect whether ANY continuation tags existed — if so, render a
-  // tiny footer telling the user where to find the real engine PV.
-  const hasContinuation = CONTINUATION_TAG_RE.test(text);
-  CONTINUATION_TAG_RE.lastIndex = 0;
-  const hasMaia = / \[MAIA_CONTINUATION:/i.test(text);
-
-  // Group consecutive bullet lines together so they render as one <ul>.
+  const rawLines = text.split(/\r?\n/).map((l) => l.trim());
   const blocks: Array<
     | { kind: "label"; label: string; body: string }
     | { kind: "bullets"; items: string[] }
     | { kind: "para"; body: string }
+    | Continuation
   > = [];
   let bulletBuf: string[] = [];
   const flushBullets = () => {
@@ -4008,21 +4211,57 @@ function InsightBodyText({
       bulletBuf = [];
     }
   };
-  for (const line of lines) {
-    const labelM = INSIGHT_LABEL_RE.exec(line);
+
+  // Track whether any non-inlined continuation tags remained — drives the
+  // footer pill fallback for when engine data isn't ready.
+  let unInlinedContinuation = false;
+  let unInlinedMaia = false;
+
+  for (const rawLine of rawLines) {
+    if (!rawLine) continue;
+    const contM = standaloneContinuationRe.exec(rawLine);
+    if (contM) {
+      const tagKind = contM[1].toUpperCase() as Continuation["tagKind"];
+      if (canInline) {
+        flushBullets();
+        blocks.push({
+          kind: "continuation",
+          tagKind,
+          moveNum: parseInt(contM[2], 10),
+          color: contM[3].toLowerCase() as "w" | "b",
+        });
+      } else {
+        if (tagKind === "MAIA_CONTINUATION") unInlinedMaia = true;
+        else unInlinedContinuation = true;
+      }
+      continue;
+    }
+    // Non-continuation line — strip any inline continuation tags so the
+    // literal `[CONTINUATION:…]` text never reaches the renderer.
+    let cleanedLine = rawLine.replace(CONTINUATION_TAG_RE, "").trim();
+    if (!cleanedLine) continue;
+    CONTINUATION_TAG_RE.lastIndex = 0;
+    const labelM = INSIGHT_LABEL_RE.exec(cleanedLine);
     if (labelM) {
       flushBullets();
       blocks.push({ kind: "label", label: labelM[1], body: labelM[2] });
       continue;
     }
-    if (/^[-•]\s+/.test(line)) {
-      bulletBuf.push(line.replace(/^[-•]\s+/, ""));
+    if (/^[-•]\s+/.test(cleanedLine)) {
+      bulletBuf.push(cleanedLine.replace(/^[-•]\s+/, ""));
       continue;
     }
     flushBullets();
-    blocks.push({ kind: "para", body: line });
+    blocks.push({ kind: "para", body: cleanedLine });
   }
   flushBullets();
+
+  // Backward-compat for the original footer-pill behaviour: only fires
+  // when engine data wasn't ready at render time AND the coach actually
+  // referenced a line. Keeps the name `hasContinuation`/`hasMaia` so the
+  // existing footer JSX below works unchanged.
+  const hasContinuation = unInlinedContinuation;
+  const hasMaia = unInlinedMaia;
 
   return (
     <Box sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.55 }}>
@@ -4090,6 +4329,20 @@ function InsightBodyText({
             </Box>
           );
         }
+        if (b.kind === "continuation") {
+          if (!enginePositions || !loadedGame) return null;
+          return (
+            <InsightContinuationInline
+              key={i}
+              kind={b.tagKind}
+              moveNum={b.moveNum}
+              color={b.color}
+              enginePositions={enginePositions}
+              loadedGame={loadedGame}
+              onJumpToPly={onJumpToPly}
+            />
+          );
+        }
         return (
           <Box key={i} sx={{ mt: i === 0 ? 0 : 0.6 }}>
             {renderInline(b.body)}
@@ -4139,6 +4392,9 @@ function DarkInsightCard({
   renderInline,
   onMoveClick,
   onPracticeConcept,
+  enginePositions,
+  loadedGame,
+  onJumpToPly,
 }: {
   insight: InsightData;
   renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
@@ -4146,6 +4402,12 @@ function DarkInsightCard({
   /** Fires when the user clicks "Practice this concept" — invokes the
    * parent's triggerPuzzleFetch to attach a real Neo4j-backed pack. */
   onPracticeConcept?: (theme: string, displayName: string) => void;
+  /** Optional engine data — passed through to InsightBodyText so it can
+   * materialise `[CONTINUATION:N:c]` / `[MAIA_CONTINUATION:N:c]` tokens
+   * as live PV widgets. Falls back to the small pill marker if absent. */
+  enginePositions?: PositionEval[] | null;
+  loadedGame?: Chess;
+  onJumpToPly?: (ply: number) => void;
 }) {
   const [showWhy, setShowWhy] = useState(false);
   const [showThreats, setShowThreats] = useState(false);
@@ -4261,7 +4523,13 @@ function DarkInsightCard({
           ×
         </Box>
       </Box>
-      <InsightBodyText text={body} renderInline={renderInline} />
+      <InsightBodyText
+        text={body}
+        renderInline={renderInline}
+        enginePositions={enginePositions}
+        loadedGame={loadedGame}
+        onJumpToPly={onJumpToPly}
+      />
     </Box>
   );
 
@@ -4483,11 +4751,17 @@ function DarkInsightCarousel({
   renderInline,
   onMoveClick,
   onPracticeConcept,
+  enginePositions,
+  loadedGame,
+  onJumpToPly,
 }: {
   insights: InsightData[];
   renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
   onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
   onPracticeConcept?: (theme: string, displayName: string) => void;
+  enginePositions?: PositionEval[] | null;
+  loadedGame?: Chess;
+  onJumpToPly?: (ply: number) => void;
 }) {
   const [[idx, dir], setState] = useState<[number, 1 | -1]>([0, 1]);
   const total = insights.length;
@@ -4687,6 +4961,9 @@ function DarkInsightCarousel({
               renderInline={renderInline}
               onMoveClick={onMoveClick}
               onPracticeConcept={onPracticeConcept}
+              enginePositions={enginePositions}
+              loadedGame={loadedGame}
+              onJumpToPly={onJumpToPly}
             />
           </motion.div>
         </AnimatePresence>
@@ -4746,6 +5023,8 @@ function CoachBubble({
   contextId,
   onPuzzleSolved,
   onPracticeConcept,
+  enginePositions,
+  loadedGame,
 }: {
   msg: CoachMessage;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
@@ -4769,6 +5048,10 @@ function CoachBubble({
     displayName: string,
     messageIndex: number
   ) => void;
+  /** Engine data passed through to insight cards so `[CONTINUATION:N:c]`
+   *  / `[MAIA_CONTINUATION:N:c]` tokens can materialise inline PVs. */
+  enginePositions?: PositionEval[] | null;
+  loadedGame?: Chess;
 }) {
   const isUser = msg.role === "user";
 
@@ -4947,6 +5230,9 @@ function CoachBubble({
                         onPracticeConcept(theme, name, messageIndex)
                     : undefined
                 }
+                enginePositions={enginePositions}
+                loadedGame={loadedGame}
+                onJumpToPly={onMoveRefClick}
               />
               {suffix.trim() && renderInline(suffix)}
             </>
@@ -7305,6 +7591,8 @@ export default function AnalysisPage() {
                         mistakeContext={mistakeContext}
                         userRating={1500}
                         coachContextIdProp={coachContextIdRef.current}
+                        enginePositions={enginePositions}
+                        loadedGame={loadedGame}
                         onPuzzleSolved={(puzzle, secs) =>
                           recordSolved(
                             puzzle.id,

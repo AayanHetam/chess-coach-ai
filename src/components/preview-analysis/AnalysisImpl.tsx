@@ -4630,7 +4630,17 @@ function DarkInsightCard({
   loadedGame?: Chess;
   onJumpToPly?: (ply: number) => void;
 }) {
-  const [showWhy, setShowWhy] = useState(false);
+  // showWhy is open by default so the card's actual analysis is visible
+  // immediately. The headline alone is a non-spoiler one-liner and was
+  // never enough on its own to demonstrate value — users had to click
+  // four reveals per card (Why / Threats / Roles / Concept) to read a
+  // single insight, and at five-card carousels that's 20+ clicks. The
+  // spoiler-avoidance design assumed users wanted to think about the
+  // position first; in practice with no progressive-reveal UI elsewhere
+  // on the page the convention isn't legible. The three secondary
+  // reveals (Threats / Roles / Concept) stay closed by default — they
+  // are supplementary context and the user can opt in if they want it.
+  const [showWhy, setShowWhy] = useState(true);
   const [showThreats, setShowThreats] = useState(false);
   const [showRoles, setShowRoles] = useState(false);
   const [showConcept, setShowConcept] = useState(false);

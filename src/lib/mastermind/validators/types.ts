@@ -18,7 +18,14 @@ export type FireReason =
   | "fallback_used"
   | "passed"
   | "no_stockfish_eval"
-  | "skip_non_anchored_category";
+  | "skip_non_anchored_category"
+  // 2026-05-30 fix-historical-claims: parser identified a claim about
+  // a PAST position state (claim_class === "historical" for evalClaim,
+  // factual_delta_claim with temporal markers for featureCitation, etc.).
+  // The validator can't time-travel to verify; skipping avoids false
+  // positives on legitimate game-review prose ("White was winning at
+  // move 24"). Emitted at info-level for observability.
+  | "skip_historical_claim";
 
 export type FinalOutcome =
   | "passed_initial"
@@ -64,7 +71,11 @@ export interface ParsedEvalClaim {
   stated_cp: number | null;
   supporting_spans: string[];
   confidence: number;
-  claim_class: "evaluative" | "metaphorical" | "conditional";
+  // 2026-05-30 fix-historical-claims: "historical" added so the parser
+  // can signal past-position-state claims (game-review prose recap).
+  // Validators skip historical claims via skip_historical_claim
+  // telemetry; see evalClaim.ts and FireReason in this file.
+  claim_class: "evaluative" | "historical" | "metaphorical" | "conditional";
   perspective: "white" | "black" | "side_to_move" | "ambiguous";
 }
 
@@ -101,7 +112,14 @@ export interface ParsedFeatureClaim {
     role?: string;
     direction?: "increase" | "decrease";
   };
-  claim_class: "factual_delta_claim" | "qualitative_commentary" | "conditional_speculation";
+  // 2026-05-30 fix-historical-claims: parser flags claims about a PRIOR
+  // position state as "historical_state_claim" so the validator can skip
+  // verification (the computed featureDelta is for THIS move only —
+  // historical-state claims about earlier positions can't be verified
+  // against it). Without this class, game-review recap prose ("you had
+  // the bishop pair until move 18") false-positives as
+  // feature_citation_unsupported.
+  claim_class: "factual_delta_claim" | "historical_state_claim" | "qualitative_commentary" | "conditional_speculation";
   confidence: number;
 }
 

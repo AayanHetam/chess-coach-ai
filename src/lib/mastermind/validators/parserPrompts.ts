@@ -17,7 +17,7 @@ OUTPUT: a JSON array. Each element is one distinct evaluation claim found in the
     "stated_cp": number | null,
     "supporting_spans": [verbatim quotes from input that support this claim],
     "confidence": number in [0, 1],
-    "claim_class": "evaluative" | "metaphorical" | "conditional",
+    "claim_class": "evaluative" | "historical" | "metaphorical" | "conditional",
     "perspective": "white" | "black" | "side_to_move" | "ambiguous"
   }
 
@@ -33,8 +33,11 @@ BAND DEFINITIONS (from the named perspective; pawns × 100 = cp):
 - "losing"           — decisive disadvantage (≤ −3 pawns)
 
 CLASSIFICATION RULES:
-- "evaluative" — the prose stakes a position on the actual evaluation.
+- "evaluative" — the prose stakes a position on the CURRENT evaluation.
   Examples: "Black is winning", "White has a slight edge", "+1.2", "roughly equal", "Black has a winning advantage", "White is much better here".
+- "historical" — the prose makes an evaluation claim about a PAST position state, not the position-being-validated. The key signal is past-tense verbs ("was", "had been", "looked"), explicit reference to earlier moves ("on move 12", "before this", "earlier in the game"), or counterfactual framing ("would have been"). The validator can't time-travel to verify these; skipping them prevents false positives on game-review prose that legitimately recaps prior positions.
+  Examples: "Black was winning until move 24", "White had a slight edge in the middlegame", "the position was equal after the opening", "by move 30 you were much worse", "this would have been winning for White if you'd played Rb1".
+  Discriminator: tense + temporal reference. "Black IS winning" → evaluative (current). "Black WAS winning" → historical. When both tenses appear in one sentence ("Black was winning but now equal"), extract TWO claims with different classes.
 - "metaphorical" — descriptive language that sounds dramatic but does not commit to an evaluation band. The discriminator is whether the prose names a band (or a numeric evaluation). If it only describes piece behavior, atmosphere, threats, or aesthetics, it is metaphorical.
   Examples: "the queen looks impressive", "the rook lift looms over the position", "Black's pieces are dancing around the kingside", "the knight is screaming at h7", "White's pieces coordinate beautifully", "an interesting position", "a sharp battle".
   Strong descriptive verbs ("dancing", "looming", "screaming", "dominating") do NOT make a claim evaluative on their own. Only band-naming or numeric-citation does.
@@ -86,20 +89,28 @@ OUTPUT: a JSON array. Each element is one feature-change claim found in the pass
       "role"?: one of ["attacker","defender","pinned","pinning","overworked","outpost","bad-bishop"],
       "direction"?: "increase" | "decrease"
     },
-    "claim_class": "factual_delta_claim" | "qualitative_commentary" | "conditional_speculation",
+    "claim_class": "factual_delta_claim" | "historical_state_claim" | "qualitative_commentary" | "conditional_speculation",
     "confidence": number in [0, 1]
   }
 
 Return ONLY the JSON array. No prose. If no factual claims are present, return [].
 
 CLASSIFICATION RULES:
-- "factual_delta_claim" — asserts a SPECIFIC change between two positions (before vs after a move, or before vs after a variation).
+- "factual_delta_claim" — asserts a SPECIFIC change between THIS MOVE's before-position and after-position. Use present tense ("you lost", "Black gained", "the d-file opened up") or simple past as a direct consequence of the move just made.
   Examples:
   - "You lost the bishop pair"               → lost_bishop_pair
   - "Black gained a passed pawn on b5"       → new_passed_pawn, expected_in_delta: {side: "black", square: "b5"}
   - "Your king became less safe"             → king_safety_change, expected_in_delta: {side: "you" (mapped by caller), direction: "decrease"}
   - "Your knight became overworked"          → role_gained, expected_in_delta: {piece: "n", role: "overworked"}
   - "Black's d-file opened up"               → new_open_file, expected_in_delta: {square: "d"}
+- "historical_state_claim" — asserts a feature about a PRIOR position state (not the position-being-validated). Key signal: explicit reference to earlier moves ("on move 12", "earlier", "before this", "in the middlegame", "in the opening") or past-perfect tense ("had been", "would have been"). Game-review prose recapping prior positions falls here. The validator can't time-travel to verify these; classifying historical prevents false positives on legitimate recap.
+  Examples:
+  - "You had the bishop pair until move 18"          → historical_state_claim
+  - "Earlier, your knight on f5 was an outpost"      → historical_state_claim
+  - "In the middlegame the d-file was open"          → historical_state_claim
+  - "Before this move, Black's king was safer"       → historical_state_claim
+  - "Your knight on g6 had been pinned for 3 moves"  → historical_state_claim
+  Discriminator: temporal reference (named earlier move, "earlier", "before this", "in the middlegame/opening") OR past-perfect tense. Plain past tense as direct consequence of this move is still factual_delta_claim ("you lost the bishop pair" describes what just happened; "you had the bishop pair earlier" describes a prior state).
 - "qualitative_commentary" — describes a state without claiming it changed.
   Examples: "the bishop on c4 controls the long diagonal", "Black's queen looks impressive", "the position is unclear", "White's pieces coordinate beautifully".
   Strong descriptive verbs ("dominating", "controlling", "looming") describe state, not change. NOT a factual_delta_claim.

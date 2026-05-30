@@ -275,6 +275,25 @@ export async function validateFeatureDeltaCitations(opts: FeatureCitationOpts): 
   }
 
   for (const c of claims) {
+    // 2026-05-30 fix-historical-claims: parser may classify a claim as
+    // "historical_state_claim" — game-review prose recapping past
+    // position state ("you had the bishop pair until move 18"). The
+    // featureDelta describes only the just-made move's before/after;
+    // claims about earlier positions can't be verified against it. Emit
+    // a skip event for telemetry visibility instead of silently dropping.
+    if (c.claim_class === "historical_state_claim") {
+      telemetry.push(
+        createTelemetryEvent({
+          check_name: "feature_citation",
+          fire_reason: "skip_historical_claim",
+          llm_span: c.claim_text,
+          expected: "this-move delta claim",
+          actual: "historical (past-position) state claim",
+          context: baseContext,
+        })
+      );
+      continue;
+    }
     if (c.claim_class !== "factual_delta_claim") continue;
 
     if (c.confidence < confidenceThreshold) {

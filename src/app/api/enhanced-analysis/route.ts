@@ -40,6 +40,7 @@ import {
 import {
   withPipelineTimeout,
   readPipelineTimeoutMs,
+  readMaxRetries,
   type PipelineResultWithTimeout,
 } from "@/lib/mastermind/pipelineTimeout";
 import {
@@ -1432,6 +1433,11 @@ export async function POST(request: NextRequest) {
                   moveSan: prep.moveCtx.moveSan,
                   correlationId: requestId,
                   category: prep.category,
+                  // 2026-05-30 fix-per-category-retries: game_review gets
+                  // 0 retries (Sonnet flagship is too expensive to retry
+                  // within Vercel's 60s wall); other categories scale
+                  // down from the legacy default of 2.
+                  maxRetries: readMaxRetries(prep.category),
                   dataSources: {
                     scout: streamingDataSources.scout,
                     userHistory: streamingDataSources.userHistory,
@@ -1440,7 +1446,7 @@ export async function POST(request: NextRequest) {
                 }),
               {
                 correlationId: requestId,
-                timeoutMs: readPipelineTimeoutMs(),
+                timeoutMs: readPipelineTimeoutMs(prep.category),
                 fallbackResponse:
                   "Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase.",
               },
@@ -1485,6 +1491,17 @@ export async function POST(request: NextRequest) {
           // appears on legitimate historical citations. Suppress for these
           // categories; keep for position_analysis where validator + query
           // align.
+          // 2026-05-30 fix-fallback-prose-disclaimer: when the Mastermind
+          // pipeline used buildFallbackResponse, the resulting prose is
+          // deterministic + ground-truth-derived from featureDelta /
+          // roleChangePhrases. Those phrases cite the PRE-MOVE position
+          // ("bishop on d6 lost its role") while the chess.js validator
+          // resolves against the POST-MOVE FEN — guaranteed false-positive
+          // "may be inaccurate" disclaimer on top of correct content.
+          // Detect fallback_used and gate the annotation off accordingly.
+          // Validator still runs for observability + log signal.
+          const isFallbackUsed =
+            pipelineResult.finalOutcome === "fallback_used";
           const validation = validateAIResponse(finalText, validationFen, moveHistory);
           if (validation.issues.length > 0) {
             log.warn("AI response validation issues (post-pipeline)", {
@@ -1493,9 +1510,11 @@ export async function POST(request: NextRequest) {
               issues: validation.issues.map((i) => ({ severity: i.severity, type: i.type, detail: i.detail })),
               category: prep.category,
               positionAnchored: POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category),
+              fallbackUsed: isFallbackUsed,
             });
           }
           const usePositionAnchoredAnnotation =
+            !isFallbackUsed &&
             POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
           const analysisContent =
             usePositionAnchoredAnnotation && !validation.isValid
@@ -1776,6 +1795,9 @@ export async function POST(request: NextRequest) {
                 moveSan: prep.moveCtx.moveSan,
                 correlationId: requestId,
                 category: prep.category,
+                // 2026-05-30 fix-per-category-retries: same as the
+                // realtime-stream branch above.
+                maxRetries: readMaxRetries(prep.category),
                 dataSources: {
                   scout: nonStreamingDataSources.scout,
                   userHistory: nonStreamingDataSources.userHistory,
@@ -1784,7 +1806,7 @@ export async function POST(request: NextRequest) {
               }),
             {
               correlationId: requestId,
-              timeoutMs: readPipelineTimeoutMs(),
+              timeoutMs: readPipelineTimeoutMs(prep.category),
               fallbackResponse:
                 "Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase.",
             },

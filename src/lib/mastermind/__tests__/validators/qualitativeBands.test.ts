@@ -77,9 +77,27 @@ describe("isWithinTolerance", () => {
     expect(isWithinTolerance(70, "slightly_better", "equal")).toBe(true);
   });
 
-  it("adjacent band NOT tolerated when stockfish is >20 cp from boundary", () => {
+  it("adjacent band NOT tolerated when stockfish is >40 cp from boundary", () => {
+    // Updated 2026-05-30 — ADJACENT_BAND_TOLERANCE_CP widened 20 → 40 to
+    // forgive colloquial coach prose (e.g. +200 cp cited as "winning"
+    // — adjacent to much_better at 300 cp boundary, 100 cp out of band).
+    // Cases here remain out-of-tolerance even at the new wider threshold:
+    //   |100 - 50| = 50 > 40  → still fires
+    //   |15 - 50|  = 35 < 40  → NOW within tolerance (would have fired
+    //                             at 20 cp threshold; intentional widening)
     expect(isWithinTolerance(100, "equal", "slightly_better")).toBe(false);
-    expect(isWithinTolerance(15, "slightly_better", "equal")).toBe(false);
+    expect(isWithinTolerance(95, "equal", "slightly_better")).toBe(false);
+  });
+
+  it("adjacent band tolerated when stockfish is ≤40 cp from boundary (post-2026-05-30 widening)", () => {
+    // The colloquial-coach-prose cases the widening was sized to forgive:
+    //   stockfish +200 (much_better, 100 cp deep into band), coach says
+    //     "winning" — |200 - 300| = 100 > 40 → still fires (genuinely
+    //     out-of-band; coach is overreaching)
+    //   stockfish +15 (equal, 35 cp from slightly_better boundary at 50),
+    //     coach says "slightly_better" — |15 - 50| = 35 ≤ 40 → forgive
+    expect(isWithinTolerance(15, "slightly_better", "equal")).toBe(true);
+    expect(isWithinTolerance(85, "equal", "slightly_better")).toBe(true);
   });
 
   it("non-adjacent bands never tolerated", () => {

@@ -12,10 +12,11 @@ import {
 import Link from "next/link";
 import { useState, MouseEvent } from "react";
 import { motion } from "framer-motion";
-import { Menu as MenuIcon, Sparkles, LogOut, User } from "lucide-react";
+import { Menu as MenuIcon, Sparkles, LogOut, User, Settings } from "lucide-react";
 import { AppDrawer, type NavId } from "./AppDrawer";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthDialog from "@/components/auth/AuthDialog";
+import ProfileDialog from "@/components/auth/ProfileDialog";
 
 interface NavPillProps {
   active?: NavId;
@@ -47,6 +48,7 @@ export function NavPill({ active }: NavPillProps) {
   // pill when signed out, avatar dropdown when signed in.
   const { user, signOut, loading } = useAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const handleAvatarClick = (e: MouseEvent<HTMLElement>) =>
     setMenuAnchor(e.currentTarget);
@@ -297,6 +299,26 @@ export function NavPill({ active }: NavPillProps) {
                     )}
                   </Box>
                   <MenuItem
+                    onClick={() => {
+                      handleMenuClose();
+                      setProfileDialogOpen(true);
+                    }}
+                    sx={{
+                      px: 2,
+                      py: 1.25,
+                      gap: 1.25,
+                      color: "rgba(255,255,255,0.85)",
+                      fontSize: "0.86rem",
+                      "&:hover": {
+                        background: "rgba(249,115,22,0.1)",
+                        color: "#FB923C",
+                      },
+                    }}
+                  >
+                    <Settings size={15} />
+                    Settings
+                  </MenuItem>
+                  <MenuItem
                     onClick={handleSignOut}
                     sx={{
                       px: 2,
@@ -356,6 +378,10 @@ export function NavPill({ active }: NavPillProps) {
       <AuthDialog
         open={authDialogOpen}
         onClose={() => setAuthDialogOpen(false)}
+      />
+      <ProfileDialog
+        open={profileDialogOpen}
+        onClose={() => setProfileDialogOpen(false)}
       />
     </>
   );

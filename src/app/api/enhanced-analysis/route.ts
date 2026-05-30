@@ -9,7 +9,12 @@ import {
   storeAnalysisContext,
 } from "@/lib/analysisContextCache";
 import { enhancedAnalysisSchema, validateRequest } from "@/lib/validation/schemas";
-import { logger, withRequestContext, extractRequestId } from "@/lib/logging";
+import {
+  logger,
+  logErrorToSentry,
+  withRequestContext,
+  extractRequestId,
+} from "@/lib/logging";
 import { callLLM, callLLMStream, LLMError } from "@/lib/llmProvider";
 import {
   getCoachChatSystemPrompt,
@@ -1030,6 +1035,27 @@ export async function POST(request: NextRequest) {
   const requestId = extractRequestId(request.headers);
 
   return withRequestContext(requestId, async () => {
+  // Local helper so each fatal catch block can fire one structured Sentry
+  // event without re-deriving the abort-vs-real-error guard or rebuilding
+  // the {route, requestId, phase} envelope at every site. AbortError fires
+  // when the client closes the connection mid-stream — that's the user, not
+  // a bug, so we filter it out. Everything else (LLMError, FD/pipeline
+  // failures, validation explosions) goes to Sentry so the team gets paged
+  // instead of finding the failure in next month's Vercel log search.
+  const reportFatal = (
+    err: unknown,
+    phase: string,
+    extra?: Record<string, unknown>
+  ) => {
+    const e = err instanceof Error ? err : new Error(String(err));
+    if (e.name === "AbortError") return;
+    logErrorToSentry(err, {
+      route: "/api/enhanced-analysis",
+      requestId,
+      phase,
+      ...extra,
+    });
+  };
   const guard = await requireSession();
   if ("response" in guard) return guard.response;
   const session = guard.session;
@@ -1310,6 +1336,11 @@ export async function POST(request: NextRequest) {
             } catch (err) {
               const e = err instanceof LLMError ? err : new Error(String(err));
               log.error("LLM streaming failed (flagoff-fallback inside flag-on stream)", { message: e.message });
+              reportFatal(err, "stream:flagoff-fallback-inside-flag-on", {
+                category: prep.category,
+                provider: e instanceof LLMError ? e.provider : undefined,
+                status: e instanceof LLMError ? e.status : undefined,
+              });
               send({ type: "error", error: e.message });
               controller.close();
               return;
@@ -1454,6 +1485,9 @@ export async function POST(request: NextRequest) {
           } catch (err) {
             const e = err instanceof LLMError ? err : new Error(String(err));
             log.error("Mastermind pipeline failed in stream", { message: e.message });
+            reportFatal(err, "stream:mastermind-pipeline", {
+              category: prep.category,
+            });
             send({ type: "error", error: e.message });
             controller.close();
             return;
@@ -1655,6 +1689,10 @@ export async function POST(request: NextRequest) {
           } catch (err) {
             const e = err instanceof LLMError ? err : new Error(String(err));
             log.error("LLM streaming failed for enhanced-analysis", { message: e.message });
+            reportFatal(err, "stream:flag-off", {
+              provider: e instanceof LLMError ? e.provider : undefined,
+              status: e instanceof LLMError ? e.status : undefined,
+            });
             send({ type: "error", error: e.message });
             controller.close();
             return;
@@ -1826,6 +1864,9 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           const e = err instanceof LLMError ? err : new Error(String(err));
           log.error("Mastermind pipeline failed for enhanced-analysis", { message: e.message });
+          reportFatal(err, "non-stream:mastermind-pipeline", {
+            category: prep.category,
+          });
           return NextResponse.json(
             { error: "Pipeline request failed", details: e.message },
             { status: 502 },
@@ -1846,6 +1887,10 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           const e = err instanceof LLMError ? err : new Error(String(err));
           log.error("LLM provider failed (flag-on fallback after FD failure)", { message: e.message });
+          reportFatal(err, "non-stream:fd-fallback", {
+            provider: e instanceof LLMError ? e.provider : undefined,
+            status: e instanceof LLMError ? e.status : undefined,
+          });
           return NextResponse.json(
             { error: "LLM request failed", details: e.message },
             { status: 502 },
@@ -1875,6 +1920,10 @@ export async function POST(request: NextRequest) {
         const e = err instanceof LLMError ? err : new Error(String(err));
         log.error("LLM provider failed for enhanced-analysis", {
           message: e.message,
+        });
+        reportFatal(err, "non-stream:flag-off", {
+          provider: e instanceof LLMError ? e.provider : undefined,
+          status: e instanceof LLMError ? e.status : undefined,
         });
         return NextResponse.json(
           {
@@ -2019,6 +2068,7 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : undefined,
     });
+    reportFatal(error, "non-stream:uncaught");
     return NextResponse.json(
       {
         error: "Analysis failed",

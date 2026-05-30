@@ -12,7 +12,11 @@ import {
   type LLMMessage,
 } from "@/lib/llmProvider";
 import { requireSession } from "@/lib/auth/session";
-import { logger, extractRequestId } from "@/lib/logging";
+import {
+  logger,
+  logErrorToSentry,
+  extractRequestId,
+} from "@/lib/logging";
 // ── Stage B (PR 1.C) Mastermind validator pipeline imports ──────────
 // All flag-gated by getMastermindEnv().validatorsEnabled. Flag-off path
 // remains byte-identical to today.
@@ -46,6 +50,25 @@ const log = logger.child({ module: "chat" });
 export async function POST(request: NextRequest) {
   const guard = await requireSession();
   if ("response" in guard) return guard.response;
+  // Same `reportFatal` helper as /api/enhanced-analysis: fire a structured
+  // Sentry event from each fatal catch block without re-deriving the
+  // abort-vs-real-error guard at every site. AbortError is the user
+  // closing the connection mid-stream — filter it; everything else
+  // (LLMError, FD failures, validator pipeline blowups) gets paged.
+  const reportFatal = (
+    err: unknown,
+    phase: string,
+    extra?: Record<string, unknown>
+  ) => {
+    const e = err instanceof Error ? err : new Error(String(err));
+    if (e.name === "AbortError") return;
+    logErrorToSentry(err, {
+      route: "/api/chat",
+      requestId: extractRequestId(request.headers),
+      phase,
+      ...extra,
+    });
+  };
   try {
     const body = await request.json();
 
@@ -198,6 +221,7 @@ export async function POST(request: NextRequest) {
           } catch (err) {
             const e = err instanceof LLMError ? err : new Error(String(err));
             log.error("Mastermind pipeline failed for chat", { message: e.message });
+            reportFatal(err, "non-stream:mastermind-pipeline");
             return NextResponse.json(
               { error: `LLM API error: ${e.message}` },
               { status: 502 },
@@ -285,6 +309,10 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         const e = err instanceof LLMError ? err : new Error(String(err));
         console.error("LLM chat call failed:", e.message);
+        reportFatal(err, "non-stream:fast-path", {
+          provider: e instanceof LLMError ? e.provider : undefined,
+          status: e instanceof LLMError ? e.status : undefined,
+        });
         return NextResponse.json(
           { error: `LLM API error: ${e.message}` },
           { status: 502 }
@@ -361,6 +389,7 @@ export async function POST(request: NextRequest) {
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             console.error("LLM stream call failed:", msg);
+            reportFatal(err, "stream:fallback");
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({ type: "error", error: msg })}\n\n`
@@ -387,6 +416,10 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       const e = err instanceof LLMError ? err : new Error(String(err));
       console.error("LLM fallback call failed:", e.message);
+      reportFatal(err, "non-stream:fallback", {
+        provider: e instanceof LLMError ? e.provider : undefined,
+        status: e instanceof LLMError ? e.status : undefined,
+      });
       return NextResponse.json(
         { error: `LLM API error: ${e.message}` },
         { status: 502 }
@@ -401,6 +434,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Chat API error:", error);
+    reportFatal(error, "non-stream:uncaught");
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

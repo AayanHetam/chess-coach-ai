@@ -6261,11 +6261,16 @@ export default function AnalysisPage() {
 
   // Coach context cache — minted by the first /api/enhanced-analysis call,
   // reused on every follow-up /api/chat call. Reset on game change so the
-  // server doesn't return analysis grounded in the previous game.
+  // server doesn't return analysis grounded in the previous game. Also
+  // reset on personality change — the fast path (/api/chat) only sends
+  // contextId+userMessage+conversationHistory, so it'd silently keep the
+  // OLD personality's cached prompt until the user switched games. By
+  // dropping the contextId we force the next message back through the
+  // deep path, which re-mints context under the new persona.
   const coachContextIdRef = useRef<string | null>(null);
   useEffect(() => {
     coachContextIdRef.current = null;
-  }, [loadedGame]);
+  }, [loadedGame, selectedPersonalityId]);
 
   // Replace the loaded game from a fresh Chess instance (e.g. user pasted
   // a PGN, or a URL param brought one in). Resets cursor + seed chat +

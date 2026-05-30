@@ -1226,6 +1226,25 @@ export async function POST(request: NextRequest) {
     });
     const claudeSystemPrompt = `${claudeSystemParts.stable}\n\n${claudeSystemParts.perUser}`;
 
+    // Per-request LLM telemetry. Captured at whichever branch ends up
+    // serving the response (flag-on pipeline, flag-off direct call, or
+    // FD-fallback) so the non-streaming JSON response can surface token
+    // counts + cache hits to the client. With this in the payload the
+    // cost-per-request claims for the prompt-cache restructure
+    // (PRs #70 + #77) are demonstrable to a reviewer without grepping
+    // Vercel logs.
+    let llmTelemetry:
+      | {
+          provider?: string;
+          model?: string;
+          inputTokens?: number;
+          outputTokens?: number;
+          cacheCreationTokens?: number;
+          cacheReadTokens?: number;
+          elapsedMs?: number;
+        }
+      | undefined;
+
     // Build the messages for Claude (user/assistant turns only — system is separate)
     const claudeMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
 
@@ -2002,6 +2021,15 @@ export async function POST(request: NextRequest) {
           promptVersion: PROMPT_VERSION,
           flagOnFallback: true,
         });
+        llmTelemetry = {
+          provider: llmResult.provider,
+          model: llmResult.model,
+          inputTokens: llmResult.inputTokens,
+          outputTokens: llmResult.outputTokens,
+          cacheCreationTokens: llmResult.cacheCreationTokens,
+          cacheReadTokens: llmResult.cacheReadTokens,
+          elapsedMs: llmResult.elapsedMs,
+        };
         rawAnalysis = llmResult.content || "No analysis generated.";
       }
     } else {
@@ -2039,6 +2067,15 @@ export async function POST(request: NextRequest) {
         output: llmResult.outputTokens,
         promptVersion: PROMPT_VERSION,
       });
+      llmTelemetry = {
+        provider: llmResult.provider,
+        model: llmResult.model,
+        inputTokens: llmResult.inputTokens,
+        outputTokens: llmResult.outputTokens,
+        cacheCreationTokens: llmResult.cacheCreationTokens,
+        cacheReadTokens: llmResult.cacheReadTokens,
+        elapsedMs: llmResult.elapsedMs,
+      };
       rawAnalysis = llmResult.content || "No analysis generated.";
     }
 
@@ -2140,6 +2177,12 @@ export async function POST(request: NextRequest) {
         validationIssues: validation.issues.length,
         contextId,
         puzzleRecommendations, // NEW: Targeted puzzles for each mistake
+        // Per-request token + cache stats from the LLM provider. Lets
+        // callers (the synthetic-tester, demo screenshots, an eventual
+        // cost dashboard) see exactly how many input tokens were served
+        // from the prompt cache vs charged at full rate, without having
+        // to grep Vercel Log Drain for "coach.tokens" lines.
+        ...(llmTelemetry ? { llm: llmTelemetry } : {}),
         ...(pipelineResultForTelemetry && mastermindPrepForTelemetry
           ? {
               pipeline: {

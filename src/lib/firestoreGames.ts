@@ -7,7 +7,7 @@
  * from the session cookie. Kept for backward compat and ignored.
  */
 
-import { Game } from "@/types/game";
+import { Game, SavedCoachMessage } from "@/types/game";
 import { GameEval } from "@/types/eval";
 
 export interface CloudGame extends Omit<Game, "id"> {
@@ -58,6 +58,27 @@ export async function updateCloudGameEval(
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ eval: evaluation }),
+  });
+  await asJson(res);
+}
+
+/**
+ * Replace the coach transcript on a cloud game record. The route handler
+ * for /api/games/[id] does a `ref.update({ ...body })` so a PATCH with the
+ * transcript field merges into the Firestore doc, preserving the eval and
+ * everything else.
+ */
+export async function updateCloudGameTranscript(
+  _userId: string,
+  firestoreId: string,
+  coachTranscript: SavedCoachMessage[]
+): Promise<void> {
+  void _userId;
+  const res = await fetch(`/api/games/${encodeURIComponent(firestoreId)}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ coachTranscript }),
   });
   await asJson(res);
 }

@@ -1,6 +1,6 @@
 import { formatGameToDatabase } from "@/lib/chess";
 import { GameEval } from "@/types/eval";
-import { Game } from "@/types/game";
+import { Game, SavedCoachMessage } from "@/types/game";
 import { Chess } from "chess.js";
 import { openDB, DBSchema, IDBPDatabase } from "idb";
 import { atom, useAtom } from "jotai";
@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   addCloudGame,
+  updateCloudGameTranscript,
   deleteCloudGame,
   getCloudGames,
   updateCloudGameEval,
@@ -159,6 +160,40 @@ export const useGameDatabase = (shouldFetchGames?: boolean) => {
     [db, loadGames, user]
   );
 
+  /**
+   * Persist the coach conversation to the saved game record. Mirrors the
+   * setGameEval pattern: write to IndexedDB first, then best-effort PATCH the
+   * cloud copy when the user is signed in. Failures are swallowed so a
+   * Firestore hiccup never breaks the chat UX — the local copy is still
+   * correct and the next successful write replaces what's in the cloud.
+   */
+  const setGameTranscript = useCallback(
+    async (gameId: number, coachTranscript: SavedCoachMessage[]) => {
+      if (!db) return;
+
+      const game = await db.get("games", gameId);
+      if (!game) return;
+
+      await db.put("games", { ...game, coachTranscript });
+
+      const gameWithFirestore = game as Game & { firestoreId?: string };
+      if (user && gameWithFirestore.firestoreId) {
+        try {
+          await updateCloudGameTranscript(
+            user.uid,
+            gameWithFirestore.firestoreId,
+            coachTranscript
+          );
+        } catch (error) {
+          console.error("Cloud transcript sync failed:", error);
+        }
+      }
+
+      loadGames();
+    },
+    [db, loadGames, user]
+  );
+
   const getGame = useCallback(
     async (gameId: number) => {
       if (!db) return undefined;
@@ -212,6 +247,7 @@ export const useGameDatabase = (shouldFetchGames?: boolean) => {
   return {
     addGame,
     setGameEval,
+    setGameTranscript,
     getGame,
     deleteGame,
     games,

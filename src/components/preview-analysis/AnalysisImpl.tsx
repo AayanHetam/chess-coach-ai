@@ -7330,7 +7330,8 @@ export default function AnalysisPage() {
   // ─── G4: Firestore game persistence (user is hoisted to the top of
   // AnalysisPage so loadNewGame G13 + triggerPuzzleFetch G14 can read it
   // too). ───
-  const { addGame, setGameEval } = useGameDatabase();
+  const { addGame, setGameEval, setGameTranscript, gameFromUrl } =
+    useGameDatabase();
   const [savedGameId, setSavedGameId] = useState<number | null>(null);
   const [saveState, setSaveState] = useState<
     "idle" | "saving" | "saved" | "error"
@@ -7490,6 +7491,74 @@ export default function AnalysisPage() {
       setSaveState("error");
     }
   }, [addGame, gameEvalFull, loadedGame, saveState, setGameEval]);
+
+  // Persist the coach transcript whenever it changes AND the user has
+  // explicitly saved the game (so opt-in only — anonymous / unsaved games
+  // never write to IndexedDB or Firestore). Debounced so streaming token
+  // updates don't trigger one write per chunk; in practice setGameTranscript
+  // fires ~1s after the last message edit. SEED_MESSAGES are filtered out so
+  // the demo intro never overwrites a real conversation that the user is
+  // mid-replay-loading.
+  useEffect(() => {
+    if (savedGameId === null) return;
+    if (isDemoGame) return;
+    if (messages.length === 0) return;
+    const slim = messages
+      .filter(
+        (m) => !(m.role === "coach" && m.content === SEED_MESSAGES[0]?.content),
+      )
+      .map((m) => ({
+        role: m.role,
+        content: m.content,
+        ...(m.ply !== undefined ? { ply: m.ply } : {}),
+        ts: Date.now(),
+      }));
+    if (slim.length === 0) return;
+    const handle = setTimeout(() => {
+      setGameTranscript(savedGameId, slim).catch((err) => {
+        console.warn("[preview/analysis] transcript sync failed:", err);
+      });
+    }, 1000);
+    return () => clearTimeout(handle);
+  }, [messages, savedGameId, isDemoGame, setGameTranscript]);
+
+  // Hydrate transcript from a saved game opened via ?gameId=N. We load the
+  // PGN into a fresh Chess via loadNewGame with keepChat:true, then seed
+  // the messages array from coachTranscript so the user lands on /analysis
+  // mid-conversation instead of staring at the demo greeting. Tracks a ref
+  // to avoid re-hydrating on every render once the load happened.
+  const hydratedGameIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!gameFromUrl) return;
+    if (hydratedGameIdRef.current === gameFromUrl.id) return;
+    hydratedGameIdRef.current = gameFromUrl.id;
+    try {
+      const restored = new Chess();
+      restored.loadPgn(gameFromUrl.pgn);
+      setSavedGameId(gameFromUrl.id);
+      setSaveState("saved");
+      // keepChat:true so loadNewGame doesn't reset messages to SEED_MESSAGES
+      // before our setMessages below replaces them with the saved transcript.
+      loadNewGame(restored, { keepChat: true });
+      if (
+        gameFromUrl.coachTranscript &&
+        gameFromUrl.coachTranscript.length > 0
+      ) {
+        setMessages(
+          gameFromUrl.coachTranscript.map((m) => ({
+            role: m.role,
+            content: m.content,
+            ...(m.ply !== undefined ? { ply: m.ply } : {}),
+          })),
+        );
+      }
+    } catch (err) {
+      console.warn(
+        "[preview/analysis] failed to hydrate saved game:",
+        err,
+      );
+    }
+  }, [gameFromUrl, loadNewGame]);
 
   const handleAskCoachAboutMove = useCallback(
     async (ply: number, san: string) => {

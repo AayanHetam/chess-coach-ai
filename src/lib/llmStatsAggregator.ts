@@ -42,6 +42,15 @@ export interface LLMModelTotals extends LLMProviderTotals {
   provider: string;
 }
 
+/** Snapshot of the last fallback that fired — most-recent-wins. */
+export interface FallbackEvent {
+  primaryProvider: string;
+  status?: number;
+  message: string;
+  /** Wall-clock time of the fallback in ms since epoch. */
+  at: number;
+}
+
 export interface LLMStatsSnapshot {
   /** Process start time (wall clock). Useful to ground "since X" copy. */
   startedAt: number;
@@ -63,10 +72,21 @@ export interface LLMStatsSnapshot {
    * Anthropic calls have hit the cacheable-prefix threshold yet).
    */
   cacheHitRate: number | null;
+  /**
+   * Count of calls served via the OpenAI fallback because the primary
+   * (Anthropic) failed. Sustained fallbacks are a paging signal — Sentry
+   * is wired for hard failures (PR #71) but silent fallbacks were
+   * previously only inferrable from cache_read=0.
+   */
+  fallbackCount: number;
+  /** Detail on the most recent fallback. undefined if none. */
+  lastFallback?: FallbackEvent;
 }
 
 const startedAt = Date.now();
 let lastCallAt: number | undefined;
+let fallbackCount = 0;
+let lastFallback: FallbackEvent | undefined;
 
 const byProvider: Record<string, LLMProviderTotals> = {};
 const byModel: Record<string, LLMModelTotals> = {};
@@ -113,6 +133,12 @@ export function recordLLMCall(stats: {
   cacheCreationTokens?: number;
   cacheReadTokens?: number;
   elapsedMs?: number;
+  /**
+   * Populated when the primary provider failed and we fell back. Counted
+   * here so a sustained fallback condition surfaces on the dashboard
+   * without anyone having to scrape Vercel logs.
+   */
+  primaryError?: { provider: string; status?: number; message: string };
 }): void {
   const p = ensureProvider(stats.provider);
   p.callCount += 1;
@@ -129,6 +155,17 @@ export function recordLLMCall(stats: {
     m.cacheCreationTokens += stats.cacheCreationTokens ?? 0;
     m.cacheReadTokens += stats.cacheReadTokens ?? 0;
     m.elapsedMsSum += stats.elapsedMs ?? 0;
+  }
+  if (stats.primaryError) {
+    fallbackCount += 1;
+    lastFallback = {
+      primaryProvider: stats.primaryError.provider,
+      status: stats.primaryError.status,
+      // Cap stored message length so a runaway provider error doesn't
+      // bloat the in-memory snapshot.
+      message: stats.primaryError.message.slice(0, 300),
+      at: Date.now(),
+    };
   }
   lastCallAt = Date.now();
 }
@@ -186,6 +223,8 @@ export function getLLMStats(): LLMStatsSnapshot {
     byModel: byModelCopy,
     totals,
     cacheHitRate,
+    fallbackCount,
+    lastFallback: lastFallback ? { ...lastFallback } : undefined,
   };
 }
 
@@ -201,4 +240,6 @@ export function resetLLMStats(): void {
     delete byModel[key];
   }
   lastCallAt = undefined;
+  fallbackCount = 0;
+  lastFallback = undefined;
 }

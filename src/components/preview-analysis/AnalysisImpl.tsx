@@ -4393,6 +4393,44 @@ function DarkInsightCard({
         )}
       </Stack>
 
+      {/* G11 fix: "Practice this concept" used to live INSIDE the
+          Concept reveal panel — users who clicked Threats or Roles
+          first never saw it. Lifted to a top-level primary CTA below
+          the reveal-pill row so any insight with a conceptKey surfaces
+          it inline. Distinct gradient + spark icon flags it as the
+          one action that leaves the card. */}
+      {insight.conceptKey && insight.conceptName && onPracticeConcept && (
+        <Box
+          onClick={() =>
+            onPracticeConcept(insight.conceptKey!, insight.conceptName!)
+          }
+          sx={{
+            mt: 1,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.65,
+            px: 1.6,
+            py: 0.7,
+            borderRadius: "999px",
+            background: "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
+            color: "#0A0A0A",
+            fontWeight: 700,
+            fontSize: "0.78rem",
+            letterSpacing: "0.02em",
+            boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
+            transition: "transform 180ms ease, box-shadow 180ms ease",
+            "&:hover": {
+              transform: "translateY(-1px)",
+              boxShadow: "0 6px 18px rgba(249,115,22,0.42)",
+            },
+          }}
+        >
+          <Sparkles size={13} />
+          Practice {insight.conceptName.toLowerCase()}
+        </Box>
+      )}
+
       {showWhy && insight.why && (
         <Reveal
           title={
@@ -4419,52 +4457,11 @@ function DarkInsightCard({
         />
       )}
       {showConcept && (insight.conceptBody || insight.conceptName) && (
-        <Box>
-          <Reveal
-            title={insight.conceptName ?? "Concept"}
-            body={insight.conceptBody ?? ""}
-            onClose={() => setShowConcept(false)}
-          />
-          {/* Practice CTA — same pattern production uses inside its
-              Concept reveal (AICoachInsights.tsx:393-399), only here we
-              fire triggerPuzzleFetch directly via callback instead of
-              emitting a [PRACTICE:...] marker for renderRich to catch. */}
-          {insight.conceptKey && insight.conceptName && onPracticeConcept && (
-            <Box
-              onClick={() =>
-                onPracticeConcept(
-                  insight.conceptKey!,
-                  insight.conceptName!
-                )
-              }
-              sx={{
-                mt: 0.75,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.6,
-                px: 1.5,
-                py: 0.75,
-                borderRadius: "999px",
-                background:
-                  "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
-                color: "#0A0A0A",
-                fontWeight: 700,
-                fontSize: "0.78rem",
-                letterSpacing: "0.02em",
-                boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
-                transition: "transform 180ms ease, box-shadow 180ms ease",
-                "&:hover": {
-                  transform: "translateY(-1px)",
-                  boxShadow: "0 6px 18px rgba(249,115,22,0.42)",
-                },
-              }}
-            >
-              <Sparkles size={13} />
-              Practice this concept
-            </Box>
-          )}
-        </Box>
+        <Reveal
+          title={insight.conceptName ?? "Concept"}
+          body={insight.conceptBody ?? ""}
+          onClose={() => setShowConcept(false)}
+        />
       )}
     </Box>
   );

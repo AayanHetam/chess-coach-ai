@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminFirestore } from "./firebaseAdmin";
+import { withFirestoreTimeout } from "./withFirestoreTimeout";
 
 const COLLECTION = "users";
 const BCRYPT_COST = 12;
@@ -69,7 +70,10 @@ export function normalizeEmail(email: string): string {
 
 export async function getUserById(uid: string): Promise<StoredUser | null> {
   const db = await getAdminFirestore();
-  const snap = await db.collection(COLLECTION).doc(uid).get();
+  const snap = await withFirestoreTimeout(
+    db.collection(COLLECTION).doc(uid).get(),
+    `users.getUserById(${uid})`,
+  );
   if (!snap.exists) return null;
   return { uid: snap.id, ...(snap.data() as Omit<StoredUser, "uid">) };
 }

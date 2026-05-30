@@ -101,7 +101,20 @@ function deriveSkillTier(rating: number): SkillTier {
   return "advanced";
 }
 
-export function getCoachChatSystemPrompt(input: CoachChatPromptInput): string {
+/**
+ * Build the coach system prompt as two parts:
+ *   - `stable`: identical across users who share the same `personalityId`.
+ *     Safe to send as the Anthropic prompt-cache prefix.
+ *   - `perUser`: USER CONTEXT + PERSONALIZATION lines (username, rating,
+ *     coaching prefs). Sent uncached so prompt-cache hits don't require an
+ *     exact prefs match.
+ *
+ * `getCoachChatSystemPrompt` (below) joins them for callers that still want
+ * a single string (storeAnalysisContext, /api/chat fast path).
+ */
+export function getCoachChatSystemPromptParts(
+  input: CoachChatPromptInput
+): { stable: string; perUser: string } {
   const personality = getPersonalityById(input.personalityId);
   const tier = deriveSkillTier(input.userRating);
   const tierUpper = tier.toUpperCase();
@@ -454,5 +467,16 @@ IMPORTANT GUIDELINES:
 - Provide actionable advice that users can apply in similar positions
 - Explain WHERE pieces should be, HOW to get them there, and WHY the best move is best`;
 
-  return `${body}\n\n${userContext}`;
+  return { stable: body, perUser: userContext };
+}
+
+/**
+ * Concatenated form. Use the structured form `getCoachChatSystemPromptParts`
+ * when calling Anthropic via callLLM so the stable prefix can be sent under
+ * an ephemeral cache marker without dragging per-user fields into the
+ * cached bytes.
+ */
+export function getCoachChatSystemPrompt(input: CoachChatPromptInput): string {
+  const { stable, perUser } = getCoachChatSystemPromptParts(input);
+  return `${stable}\n\n${perUser}`;
 }

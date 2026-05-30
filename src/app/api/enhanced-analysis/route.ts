@@ -4,6 +4,7 @@ import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { annotatePosition, annotationToPromptContext } from "@/lib/positionAnnotator";
 import { selectExamples, formatExamplesForPrompt } from "@/data/goldStandardExamples";
 import { generateCacheKey, getCachedResponse, setCachedResponse } from "@/lib/responseCache";
+import { recordLLMCall } from "@/lib/llmStatsAggregator";
 import {
   generateContextId,
   storeAnalysisContext,
@@ -1464,6 +1465,7 @@ export async function POST(request: NextRequest) {
                 streamed: true,
                 flagOnFallback: true,
               });
+              recordLLMCall(llmDone);
             }
             const rawAnalysis = fullText || "No analysis generated.";
             const validation = validateAIResponse(rawAnalysis, validationFen, moveHistory);
@@ -1822,6 +1824,7 @@ export async function POST(request: NextRequest) {
               promptVersion: PROMPT_VERSION,
               streamed: true,
             });
+            recordLLMCall(llmDone);
           }
 
           // Post-stream: validate, cache, store context, build puzzle recs.
@@ -2030,6 +2033,7 @@ export async function POST(request: NextRequest) {
           cacheReadTokens: llmResult.cacheReadTokens,
           elapsedMs: llmResult.elapsedMs,
         };
+        recordLLMCall(llmResult);
         rawAnalysis = llmResult.content || "No analysis generated.";
       }
     } else {
@@ -2076,6 +2080,7 @@ export async function POST(request: NextRequest) {
         cacheReadTokens: llmResult.cacheReadTokens,
         elapsedMs: llmResult.elapsedMs,
       };
+      recordLLMCall(llmResult);
       rawAnalysis = llmResult.content || "No analysis generated.";
     }
 

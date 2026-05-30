@@ -11,6 +11,7 @@ import {
   LLMError,
   type LLMMessage,
 } from "@/lib/llmProvider";
+import { recordLLMCall } from "@/lib/llmStatsAggregator";
 import { requireSession } from "@/lib/auth/session";
 import {
   logger,
@@ -323,6 +324,7 @@ export async function POST(request: NextRequest) {
           { status: 502 }
         );
       }
+      recordLLMCall(llmResult);
       const rawContent = llmResult.content || "I couldn't generate a response.";
 
       // Light validation against the cached FEN
@@ -431,6 +433,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    recordLLMCall(fbResult);
     // Return in OpenAI-compatible format so the client doesn't need changes
     return NextResponse.json({
       choices: [

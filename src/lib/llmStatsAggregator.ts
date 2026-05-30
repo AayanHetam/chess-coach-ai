@@ -37,6 +37,11 @@ export interface LLMProviderTotals {
   elapsedMsSum: number;
 }
 
+/** Per-model breakout — same shape as provider totals plus a `provider` tag. */
+export interface LLMModelTotals extends LLMProviderTotals {
+  provider: string;
+}
+
 export interface LLMStatsSnapshot {
   /** Process start time (wall clock). Useful to ground "since X" copy. */
   startedAt: number;
@@ -44,6 +49,12 @@ export interface LLMStatsSnapshot {
   lastCallAt?: number;
   /** Per-provider running totals. */
   byProvider: Record<string, LLMProviderTotals>;
+  /**
+   * Per-model running totals. Keyed by the exact model ID the provider
+   * returned (e.g. "claude-sonnet-4-20250514"). Lets the cost dashboard
+   * apply per-model pricing instead of a blended provider rate.
+   */
+  byModel: Record<string, LLMModelTotals>;
   /** Convenience aggregates rolled up across all providers. */
   totals: LLMProviderTotals;
   /**
@@ -58,6 +69,7 @@ const startedAt = Date.now();
 let lastCallAt: number | undefined;
 
 const byProvider: Record<string, LLMProviderTotals> = {};
+const byModel: Record<string, LLMModelTotals> = {};
 
 function ensureProvider(provider: string): LLMProviderTotals {
   if (!byProvider[provider]) {
@@ -71,6 +83,21 @@ function ensureProvider(provider: string): LLMProviderTotals {
     };
   }
   return byProvider[provider];
+}
+
+function ensureModel(model: string, provider: string): LLMModelTotals {
+  if (!byModel[model]) {
+    byModel[model] = {
+      provider,
+      callCount: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheCreationTokens: 0,
+      cacheReadTokens: 0,
+      elapsedMsSum: 0,
+    };
+  }
+  return byModel[model];
 }
 
 /**
@@ -94,8 +121,16 @@ export function recordLLMCall(stats: {
   p.cacheCreationTokens += stats.cacheCreationTokens ?? 0;
   p.cacheReadTokens += stats.cacheReadTokens ?? 0;
   p.elapsedMsSum += stats.elapsedMs ?? 0;
+  if (stats.model) {
+    const m = ensureModel(stats.model, stats.provider);
+    m.callCount += 1;
+    m.inputTokens += stats.inputTokens ?? 0;
+    m.outputTokens += stats.outputTokens ?? 0;
+    m.cacheCreationTokens += stats.cacheCreationTokens ?? 0;
+    m.cacheReadTokens += stats.cacheReadTokens ?? 0;
+    m.elapsedMsSum += stats.elapsedMs ?? 0;
+  }
   lastCallAt = Date.now();
-  void stats.model; // currently unused; reserved for per-model breakouts later
 }
 
 function rollup(): LLMProviderTotals {
@@ -130,6 +165,10 @@ export function getLLMStats(): LLMStatsSnapshot {
   for (const [name, p] of Object.entries(byProvider)) {
     byProviderCopy[name] = { ...p };
   }
+  const byModelCopy: Record<string, LLMModelTotals> = {};
+  for (const [name, m] of Object.entries(byModel)) {
+    byModelCopy[name] = { ...m };
+  }
   // Cache hit rate against Anthropic input. Denominator = cached input
   // we COULD have served from the cache (read + creation). Numerator =
   // what we actually served from cache.
@@ -144,6 +183,7 @@ export function getLLMStats(): LLMStatsSnapshot {
     startedAt,
     lastCallAt,
     byProvider: byProviderCopy,
+    byModel: byModelCopy,
     totals,
     cacheHitRate,
   };
@@ -156,6 +196,9 @@ export function getLLMStats(): LLMStatsSnapshot {
 export function resetLLMStats(): void {
   for (const key of Object.keys(byProvider)) {
     delete byProvider[key];
+  }
+  for (const key of Object.keys(byModel)) {
+    delete byModel[key];
   }
   lastCallAt = undefined;
 }

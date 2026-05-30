@@ -130,6 +130,15 @@ export default function AdminInternData() {
             <Typography variant="caption" sx={{ letterSpacing: "0.04em", color: "text.secondary" }}>
               CHESS MASTI · INTERNAL
             </Typography>
+            <Box sx={{ flexGrow: 1 }} />
+            <Button
+              component={Link}
+              href="/admin/cost"
+              size="small"
+              sx={{ textTransform: "none" }}
+            >
+              LLM cost &amp; cache →
+            </Button>
           </Stack>
 
           <Box>

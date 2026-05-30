@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
                 }),
               {
                 correlationId: requestId,
-                timeoutMs: readPipelineTimeoutMs(),
+                timeoutMs: readPipelineTimeoutMs(prep.category),
                 fallbackResponse:
                   "Still thinking — the deep-validation pass took longer than expected. Try asking again.",
               },
@@ -224,7 +224,16 @@ export async function POST(request: NextRequest) {
           // object); we just don't annotate user-visible prose with the
           // generic "may be inaccurate" footnote when false positives
           // are systematic.
+          //
+          // 2026-05-30 fix-fallback-prose-disclaimer: extend the gate to
+          // also suppress on `pipelineResult.finalOutcome === "fallback_used"`.
+          // buildFallbackResponse prose cites pre-move position state by
+          // design (role changes from featureDelta), while validateAIResponse
+          // checks against post-move FEN → systematic false positive.
+          const isFallbackUsed =
+            pipelineResult.finalOutcome === "fallback_used";
           const usePositionAnchoredAnnotation =
+            !isFallbackUsed &&
             POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
           return NextResponse.json({
             gameAnalysis: {

@@ -9,7 +9,9 @@ import {
 import {
   withPipelineTimeout,
   readPipelineTimeoutMs,
+  readMaxRetries,
   DEFAULT_PIPELINE_TIMEOUT_MS,
+  DEFAULT_MAX_RETRIES,
 } from "@/lib/mastermind/pipelineTimeout";
 import type { RegenerateResult } from "@/lib/mastermind/validators";
 
@@ -286,5 +288,86 @@ describe("readPipelineTimeoutMs: env var override", () => {
     expect(readPipelineTimeoutMs()).toBe(DEFAULT_PIPELINE_TIMEOUT_MS);
     vi.stubEnv("PIPELINE_TIMEOUT_MS", "-100");
     expect(readPipelineTimeoutMs()).toBe(DEFAULT_PIPELINE_TIMEOUT_MS);
+  });
+});
+
+describe("readPipelineTimeoutMs: per-category budget", () => {
+  // 2026-05-30 fix-per-category-timeouts: heavier intents get longer
+  // pipeline budgets while lighter intents are tightened so a stalled
+  // pipeline doesn't burn the full 55s default.
+  it("returns the category-specific budget when category is provided and env is unset", () => {
+    vi.stubEnv("PIPELINE_TIMEOUT_MS", "");
+    expect(readPipelineTimeoutMs("game_review")).toBe(50_000);
+    expect(readPipelineTimeoutMs("opponent_prep")).toBe(40_000);
+    expect(readPipelineTimeoutMs("improvement_strategy")).toBe(40_000);
+    expect(readPipelineTimeoutMs("position_analysis")).toBe(30_000);
+    expect(readPipelineTimeoutMs("concept_explanation")).toBe(25_000);
+    expect(readPipelineTimeoutMs("meta_motivational")).toBe(20_000);
+  });
+
+  it("env-var override still wins when set (debug/global lockdown)", () => {
+    vi.stubEnv("PIPELINE_TIMEOUT_MS", "12345");
+    expect(readPipelineTimeoutMs("game_review")).toBe(12_345);
+    expect(readPipelineTimeoutMs("meta_motivational")).toBe(12_345);
+  });
+
+  it("falls back to DEFAULT when category is undefined and env is unset", () => {
+    vi.stubEnv("PIPELINE_TIMEOUT_MS", "");
+    expect(readPipelineTimeoutMs(undefined)).toBe(DEFAULT_PIPELINE_TIMEOUT_MS);
+    expect(readPipelineTimeoutMs()).toBe(DEFAULT_PIPELINE_TIMEOUT_MS);
+  });
+
+  it("all 6 categories fit under Vercel 60s maxDuration with ≥10s headroom", () => {
+    // Sized so total wall-time (pipeline + post-pipeline route work
+    // including synthetic chunks + chess.js validate + puzzle recs +
+    // SSE close) stays comfortably under the 60s function ceiling.
+    vi.stubEnv("PIPELINE_TIMEOUT_MS", "");
+    const HEADROOM_MS = 10_000;
+    const VERCEL_MAX_MS = 60_000;
+    for (const cat of [
+      "game_review",
+      "opponent_prep",
+      "improvement_strategy",
+      "position_analysis",
+      "concept_explanation",
+      "meta_motivational",
+    ] as const) {
+      expect(readPipelineTimeoutMs(cat)).toBeLessThanOrEqual(
+        VERCEL_MAX_MS - HEADROOM_MS,
+      );
+    }
+  });
+});
+
+describe("readMaxRetries: per-category retry budget", () => {
+  // 2026-05-30 fix-per-category-retries: heavy intents (game_review)
+  // can't afford retries within Vercel's 60s wall — Sonnet flagship is
+  // ~30-40s/call so even 1 retry = 60-80s. Single shot then buildFallback.
+  it("returns 0 for game_review (one shot — no retry budget)", () => {
+    expect(readMaxRetries("game_review")).toBe(0);
+  });
+
+  it("returns 1 for medium-weight intents (opponent_prep, improvement_strategy)", () => {
+    expect(readMaxRetries("opponent_prep")).toBe(1);
+    expect(readMaxRetries("improvement_strategy")).toBe(1);
+  });
+
+  it("returns 2 for lighter intents (position_analysis, concept_explanation, meta_motivational)", () => {
+    expect(readMaxRetries("position_analysis")).toBe(2);
+    expect(readMaxRetries("concept_explanation")).toBe(2);
+    expect(readMaxRetries("meta_motivational")).toBe(2);
+  });
+
+  it("returns the legacy default (2) when category is undefined", () => {
+    expect(readMaxRetries(undefined)).toBe(DEFAULT_MAX_RETRIES);
+    expect(readMaxRetries()).toBe(2);
+  });
+
+  it("worst-case wall-time stays under 60s for game_review (0 retries × 50s budget)", () => {
+    // Per-category timeout × (retries + 1) is the upper bound on LLM
+    // attempts. For game_review: 50_000 × (0 + 1) = 50_000 ≤ 60_000 ✓
+    const retries = readMaxRetries("game_review");
+    const timeout = readPipelineTimeoutMs("game_review");
+    expect(timeout * (retries + 1)).toBeLessThanOrEqual(60_000);
   });
 });

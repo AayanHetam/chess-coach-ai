@@ -34,6 +34,7 @@ import type {
   RegenerateResult,
   TelemetryEvent,
 } from "@/lib/mastermind/validators";
+import type { QuestionCategory } from "@/lib/mastermind/categorization/categoryClassifier";
 
 const log = logger.child({ module: "mastermind-pipeline-timeout" });
 
@@ -57,18 +58,114 @@ const log = logger.child({ module: "mastermind-pipeline-timeout" });
 export const DEFAULT_PIPELINE_TIMEOUT_MS = 55_000;
 
 /**
- * Read `PIPELINE_TIMEOUT_MS` env var if set; fall back to the default.
- * Debug-only env var — primarily for engineered timeout reproduction on
- * Preview deploys (e.g., setting to 100 to force the timeout path).
- * Production can also use it to override the code default if a different
- * value is desired.
+ * Per-category timeout budget (2026-05-30 fix-per-category-timeouts).
+ *
+ * Sized from observed prod latency profiles, leaving 5-10s headroom
+ * under Vercel's 60s `maxDuration` for post-pipeline route work
+ * (synthetic chunk emission, chess.js validate, puzzle recs, done
+ * event). Heavier intents get more budget; lighter intents are
+ * tightened so a stalled pipeline doesn't burn the full 55s default.
+ *
+ * Specific calibration:
+ *   - game_review: 50s — Sonnet flagship on 40+ move games is 30-40s
+ *     alone, plus parallel validators 5-8s. Single biggest payload.
+ *   - opponent_prep: 40s — adds scout fetch but lighter base coach
+ *   - improvement_strategy: 40s — multi-position prose, no eval
+ *   - position_analysis: 30s — single FEN focus, fast coach call
+ *   - concept_explanation: 25s — short explanatory prompts
+ *   - meta_motivational: 20s — chat-like, lowest citation floor
  */
-export function readPipelineTimeoutMs(): number {
+export const PIPELINE_TIMEOUT_BY_CATEGORY: Record<QuestionCategory, number> = {
+  game_review: 50_000,
+  opponent_prep: 40_000,
+  improvement_strategy: 40_000,
+  position_analysis: 30_000,
+  concept_explanation: 25_000,
+  meta_motivational: 20_000,
+};
+
+/**
+ * Resolve the pipeline timeout for a given category. Precedence:
+ *   1. `PIPELINE_TIMEOUT_MS` env var (debug/global lockdown override —
+ *      e.g. setting to 100 on Preview to force the timeout path)
+ *   2. `PIPELINE_TIMEOUT_BY_CATEGORY[category]` (per-intent default)
+ *   3. `DEFAULT_PIPELINE_TIMEOUT_MS` (55_000, conservative fallback)
+ *
+ * Pass `category` whenever it's known at call time (prep.category from
+ * Mastermind context, or the route's intent label). Omit when calling
+ * from a context without classification — falls through to the env or
+ * global default.
+ *
+ * Env-var override is preserved so an operator can still force a
+ * global floor without code changes (e.g. emergency lockdown to 30s
+ * across all categories).
+ */
+export function readPipelineTimeoutMs(category?: QuestionCategory): number {
   const raw = process.env.PIPELINE_TIMEOUT_MS;
-  if (!raw) return DEFAULT_PIPELINE_TIMEOUT_MS;
-  const parsed = parseInt(raw, 10);
-  if (Number.isNaN(parsed) || parsed <= 0) return DEFAULT_PIPELINE_TIMEOUT_MS;
-  return parsed;
+  if (raw) {
+    const parsed = parseInt(raw, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+  if (category && PIPELINE_TIMEOUT_BY_CATEGORY[category]) {
+    return PIPELINE_TIMEOUT_BY_CATEGORY[category];
+  }
+  return DEFAULT_PIPELINE_TIMEOUT_MS;
+}
+
+/**
+ * Per-category retry budget (2026-05-30 fix-per-category-retries).
+ *
+ * Default validator pipeline `maxRetries` is 2 (regenerate.ts:111). For
+ * heavy intents this means up to 3 × Sonnet flagship calls (~36s each
+ * on 40+ move game_review) → 108s of LLM time alone, guaranteed to
+ * blow past Vercel's 60s function ceiling regardless of how generous
+ * the pipeline timeout is.
+ *
+ * The right per-intent budget falls out of the latency profile:
+ *
+ *   - game_review: 0 — Sonnet flagship is too expensive to retry under
+ *     60s wall. Single shot; validator-rejection → buildFallback.
+ *     Trade-off: lose the recovery benefit of retries, gain bounded
+ *     latency + no timeout-empty-bubble.
+ *   - opponent_prep: 1 — coach ~15-25s leaves room for one retry under
+ *     40s budget.
+ *   - improvement_strategy: 1 — similar profile to opponent_prep.
+ *   - position_analysis: 2 — coach ~10-15s, full retry budget fits.
+ *   - concept_explanation: 2 — light prompts.
+ *   - meta_motivational: 2 — shortest coach calls.
+ */
+export const MAX_RETRIES_BY_CATEGORY: Record<QuestionCategory, number> = {
+  game_review: 0,
+  opponent_prep: 1,
+  improvement_strategy: 1,
+  position_analysis: 2,
+  concept_explanation: 2,
+  meta_motivational: 2,
+};
+
+/**
+ * Default `maxRetries` when no category is provided (or category isn't
+ * in the map). Matches regenerate.ts's historical default — preserves
+ * pre-2026-05-30 behavior for any caller that hasn't migrated to
+ * passing category.
+ */
+export const DEFAULT_MAX_RETRIES = 2;
+
+/**
+ * Resolve the validator-pipeline `maxRetries` for a given category.
+ * Pass `category` whenever it's known at call time. Omit to get the
+ * legacy default (2).
+ *
+ * No env-var override here — retries are a per-intent product
+ * decision, not an operator debug knob. To globally disable retries
+ * in an emergency, set the runValidationPipeline maxRetries directly
+ * at the route's call site.
+ */
+export function readMaxRetries(category?: QuestionCategory): number {
+  if (category && MAX_RETRIES_BY_CATEGORY[category] !== undefined) {
+    return MAX_RETRIES_BY_CATEGORY[category];
+  }
+  return DEFAULT_MAX_RETRIES;
 }
 
 /**

@@ -199,6 +199,48 @@ describe("validateEvalClaim — non-evaluative or hedged prose", () => {
     expect(r.passed).toBe(true);
     expect(r.telemetry.some((e) => e.fire_reason === "parser_low_confidence")).toBe(true);
   });
+
+  // 2026-05-30 fix-historical-claims: game-review prose routinely cites
+  // past-position evaluations ("Black was winning at move 24"). Parser
+  // tags those claim_class: "historical"; validator skips with explicit
+  // skip_historical_claim telemetry instead of silently dropping.
+  it("Parser returns historical claim → skipped with skip_historical_claim telemetry", async () => {
+    const r = await validateEvalClaim({
+      llmResponse: "Black was winning at move 24, but the position is roughly equal now.",
+      stockfishEval: { cp: 20 }, // current position: equal
+      playerPerspective: "white",
+      correlationId: "test-historical",
+      // Parser returns two claims — one historical (about move 24),
+      // one current (about now). Validator should skip the historical
+      // and validate only the current.
+      parseCall: mockParser([
+        claim({
+          stated_band: "winning",
+          perspective: "black",
+          confidence: 0.9,
+          claim_class: "historical",
+          supporting_spans: ["Black was winning at move 24"],
+        }),
+        claim({
+          stated_band: "equal",
+          perspective: "white",
+          confidence: 0.9,
+          claim_class: "evaluative",
+          supporting_spans: ["roughly equal now"],
+        }),
+      ]),
+    });
+    // The historical claim "Black was winning" would have fired (Black
+    // winning vs equal is non-adjacent → no tolerance). With the skip,
+    // no fires; only telemetry.
+    expect(r.passed).toBe(true);
+    expect(r.issues).toEqual([]);
+    expect(
+      r.telemetry.some((e) => e.fire_reason === "skip_historical_claim"),
+    ).toBe(true);
+    // The current-position claim ("equal" vs +20 cp = equal) passes.
+    expect(r.telemetry.some((e) => e.fire_reason === "passed")).toBe(true);
+  });
 });
 
 describe("validateEvalClaim — adversarial metaphorical prose (§11.1)", () => {

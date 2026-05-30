@@ -284,3 +284,82 @@ describe("validateFeatureDeltaCitations — multi-citation", () => {
     expect(r.issues[0].llm_span).toContain("bishop pair");
   });
 });
+
+describe("validateFeatureDeltaCitations — historical-claim skip (2026-05-30 fix)", () => {
+  // Game-review prose recapping prior positions ("you had the bishop pair
+  // until move 18", "earlier your knight was an outpost") would
+  // false-positive against the just-made-move featureDelta. Parser now
+  // tags these "historical_state_claim"; validator emits a skip event
+  // for telemetry visibility and moves on.
+  it("'historical_state_claim' parsed → skip telemetry, no fire", async () => {
+    const delta = emptyDelta({
+      fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      resolutionFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      materialDelta: { white: 0, black: 0 },
+      isEmptyDelta: true,
+    });
+    const r = await validateFeatureDeltaCitations({
+      llmResponse: "You had the bishop pair until move 18, but lost it then.",
+      featureDelta: delta,
+      pieceRoleDiff: [],
+      playerPerspective: "white",
+      correlationId: "test-feature-historical",
+      parseCall: mockParser([
+        claim({
+          claim_text: "You had the bishop pair until move 18",
+          claim_type: "lost_bishop_pair",
+          // Without the historical class, this would fire feature_citation_unsupported
+          // (no actual bishop-pair loss in this move's delta — material_delta white=0).
+          claim_class: "historical_state_claim",
+          expected_in_delta: { side: "white" },
+        }),
+      ]),
+    });
+    expect(r.passed).toBe(true);
+    expect(r.issues).toEqual([]);
+    expect(
+      r.telemetry.some((e) => e.fire_reason === "skip_historical_claim"),
+    ).toBe(true);
+  });
+
+  it("mixed historical + factual: skip historical, evaluate factual", async () => {
+    // Real game-review prose mixes the two. Validator should skip the
+    // historical and evaluate the factual exactly as before.
+    const delta = emptyDelta({
+      fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      resolutionFen: "rn1qkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1",
+      // Real loss-of-bishop just happened on this move
+      materialDelta: { white: 0, black: -3 },
+      isEmptyDelta: false,
+    });
+    const r = await validateFeatureDeltaCitations({
+      llmResponse:
+        "Earlier you had two bishops; now you've lost the bishop pair.",
+      featureDelta: delta,
+      pieceRoleDiff: [],
+      playerPerspective: "white",
+      correlationId: "test-feature-mixed",
+      parseCall: mockParser([
+        claim({
+          claim_text: "Earlier you had two bishops",
+          claim_type: "lost_bishop_pair",
+          claim_class: "historical_state_claim",
+          expected_in_delta: { side: "white" },
+        }),
+        claim({
+          claim_text: "now you've lost the bishop pair",
+          claim_type: "lost_bishop_pair",
+          claim_class: "factual_delta_claim",
+          expected_in_delta: { side: "black" },
+        }),
+      ]),
+    });
+    expect(r.passed).toBe(true);
+    expect(r.issues).toEqual([]);
+    // Both signals present in telemetry: historical skip + factual pass
+    expect(
+      r.telemetry.some((e) => e.fire_reason === "skip_historical_claim"),
+    ).toBe(true);
+    expect(r.telemetry.some((e) => e.fire_reason === "passed")).toBe(true);
+  });
+});

@@ -215,6 +215,26 @@ export async function validateEvalClaim(opts: EvalClaimOpts): Promise<ValidatorR
   }
 
   for (const rawClaim of claims) {
+    // 2026-05-30 fix-historical-claims: parser may classify a claim as
+    // "historical" (claim about a past position) — game-review prose
+    // routinely cites prior positions ("Black was winning at move 24",
+    // "you had the bishop pair earlier"). The validator can't verify
+    // those against the current FEN; emit a skip event for telemetry
+    // visibility, then continue to the next claim. Without this signal
+    // we have no observability into how often parser tags historical.
+    if (rawClaim.claim_class === "historical") {
+      telemetry.push(
+        createTelemetryEvent({
+          check_name: "eval_claim",
+          fire_reason: "skip_historical_claim",
+          llm_span: rawClaim.supporting_spans.join(" | "),
+          expected: "current-position claim",
+          actual: "historical (past-position) claim",
+          context: baseContext,
+        })
+      );
+      continue;
+    }
     if (rawClaim.claim_class !== "evaluative") continue;
 
     if (rawClaim.confidence < confidenceThreshold) {

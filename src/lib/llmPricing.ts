@@ -97,3 +97,32 @@ export function estimateCostUSD(args: {
       : 0;
   return inputCost + outputCost + cacheWriteCost + cacheReadCost;
 }
+
+/**
+ * Counterfactual cost: what the same token bundle would have cost if
+ * the Anthropic prompt cache wasn't in play — i.e. cache_read +
+ * cache_creation tokens billed at the full input rate. Returns null
+ * for unknown models, or 0 for OpenAI (which has no cache line item
+ * so the baseline equals the actual). Subtracting `estimateCostUSD`
+ * from this gives the cache-savings figure for the cost dashboard.
+ */
+export function estimateBaselineCostUSD(args: {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens?: number;
+  cacheReadTokens?: number;
+}): number | null {
+  const price = getPricing(args.model);
+  if (!price) return null;
+  // If the model has no cache rates (OpenAI), baseline === actual.
+  if (price.cacheReadPerMillion === undefined) {
+    return estimateCostUSD(args);
+  }
+  const cacheReads = args.cacheReadTokens ?? 0;
+  const cacheWrites = args.cacheCreationTokens ?? 0;
+  const counterfactualInput = args.inputTokens + cacheReads + cacheWrites;
+  const inputCost = (counterfactualInput / 1_000_000) * price.inputPerMillion;
+  const outputCost = (args.outputTokens / 1_000_000) * price.outputPerMillion;
+  return inputCost + outputCost;
+}

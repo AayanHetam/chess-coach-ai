@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -8,12 +8,19 @@ import {
   Divider,
   LinearProgress,
   Button,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import { useAtomValue } from "jotai";
 import { PageTitle } from "@/components/pageTitle";
 import { puzzleStatsAtom, getSolveRate, formatTime } from "@/lib/puzzleRating";
 import { gameRecordsAtom, buildProfile, generateRecommendations } from "@/lib/playerProfile";
 import { drillProgressAtom } from "@/lib/spacedRepetition";
+import { useGameDatabase } from "@/hooks/useGameDatabase";
+import { useAuth } from "@/contexts/AuthContext";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import {
   ResponsiveContainer,
   LineChart,
@@ -41,6 +48,51 @@ export default function Profile() {
   const puzzleStats = useAtomValue(puzzleStatsAtom);
   const gameRecords = useAtomValue(gameRecordsAtom);
   const drillProgress = useAtomValue(drillProgressAtom);
+  // Saved games + their (optional) coach transcripts. Pass true so the
+  // hook actually triggers the cloud sync + atom population — without it
+  // `games` stays empty and the tile section renders empty for signed-in
+  // users who have games waiting in Firestore.
+  const { games: savedGames, deleteGame } = useGameDatabase(true);
+  const { user, loading: authLoading } = useAuth();
+
+  const handleOpenSavedGame = useCallback(
+    (gameId: number) => {
+      router.push(`/analysis?gameId=${gameId}`);
+    },
+    [router],
+  );
+  const handleDeleteSavedGame = useCallback(
+    async (gameId: number) => {
+      // Hard-delete with a confirm — saved games include the coach
+      // transcript, which the user might not realise dies with them.
+      if (
+        typeof window !== "undefined" &&
+        !window.confirm(
+          "Delete this saved game and its coach conversation? This can't be undone.",
+        )
+      ) {
+        return;
+      }
+      try {
+        await deleteGame(gameId);
+      } catch (err) {
+        console.warn("[profile] delete saved game failed:", err);
+      }
+    },
+    [deleteGame],
+  );
+  const sortedSavedGames = useMemo(
+    () =>
+      [...(savedGames ?? [])].sort((a, b) => {
+        // Most recently-played first. Some imports leave date undefined;
+        // fall back to id (autoincrement = chronological in IndexedDB).
+        const da = (a.date ?? "").replace(/\./g, "-");
+        const db = (b.date ?? "").replace(/\./g, "-");
+        if (da && db && da !== db) return db.localeCompare(da);
+        return (b.id ?? 0) - (a.id ?? 0);
+      }),
+    [savedGames],
+  );
 
   const profile = useMemo(() => buildProfile(gameRecords), [gameRecords]);
   const recommendations = useMemo(() => generateRecommendations(profile), [profile]);
@@ -323,6 +375,189 @@ export default function Profile() {
                     );
                   })}
               </Box>
+            </Paper>
+          )}
+
+          {/* Saved Games — click-to-reopen with coach transcript hydration
+              per feat/coach-transcript-persistence (#76). Hidden for guests
+              since the underlying useGameDatabase + cloud sync require
+              auth. */}
+          {user && (
+            <Paper sx={{ p: 2.5, bgcolor: "grey.900", borderRadius: 2, mb: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100" }}>
+                  Saved Games
+                  {sortedSavedGames.length > 0 && (
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      sx={{ ml: 1, color: "grey.500", fontWeight: 500 }}
+                    >
+                      ({sortedSavedGames.length})
+                    </Typography>
+                  )}
+                </Typography>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => router.push("/analysis")}
+                  sx={{ textTransform: "none", color: "primary.light" }}
+                >
+                  Analyse a new game →
+                </Button>
+              </Box>
+              {sortedSavedGames.length === 0 ? (
+                <Box
+                  sx={{
+                    p: 3,
+                    textAlign: "center",
+                    borderRadius: 1.5,
+                    border: "1px dashed rgba(255,255,255,0.12)",
+                    color: "grey.500",
+                  }}
+                >
+                  <Typography variant="body2" sx={{ mb: 0.5 }}>
+                    No games saved yet.
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: "grey.600" }}>
+                    Save a game on /analysis and it'll show up here with the coach conversation intact.
+                  </Typography>
+                </Box>
+              ) : (
+                <Grid container spacing={1.5}>
+                  {sortedSavedGames.map((g) => {
+                    const whiteName = g.white?.name || "White";
+                    const blackName = g.black?.name || "Black";
+                    const whiteElo = g.white?.rating;
+                    const blackElo = g.black?.rating;
+                    const transcript = (g as typeof g & {
+                      coachTranscript?: Array<{ role: string; content: string }>;
+                    }).coachTranscript;
+                    const transcriptCount = transcript?.length ?? 0;
+                    return (
+                      <Grid size={{ xs: 12, sm: 6 }} key={g.id}>
+                        <Box
+                          sx={{
+                            p: 1.75,
+                            borderRadius: 1.5,
+                            border: "1px solid rgba(255,255,255,0.08)",
+                            bgcolor: "rgba(255,255,255,0.02)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 1,
+                            transition: "border-color 160ms ease, background 160ms ease",
+                            "&:hover": {
+                              borderColor: "rgba(249,115,22,0.4)",
+                              bgcolor: "rgba(249,115,22,0.04)",
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 600, color: "grey.100", lineHeight: 1.35 }}
+                            >
+                              {whiteName}
+                              {whiteElo ? (
+                                <Typography component="span" variant="caption" sx={{ color: "grey.500", ml: 0.5 }}>
+                                  ({whiteElo})
+                                </Typography>
+                              ) : null}
+                              <Typography component="span" sx={{ color: "grey.600", mx: 0.5 }}>
+                                vs
+                              </Typography>
+                              {blackName}
+                              {blackElo ? (
+                                <Typography component="span" variant="caption" sx={{ color: "grey.500", ml: 0.5 }}>
+                                  ({blackElo})
+                                </Typography>
+                              ) : null}
+                            </Typography>
+                            {g.result && g.result !== "*" && (
+                              <Chip
+                                label={g.result}
+                                size="small"
+                                sx={{
+                                  height: 18,
+                                  fontSize: "0.65rem",
+                                  bgcolor: "rgba(255,255,255,0.06)",
+                                  color: "grey.300",
+                                }}
+                              />
+                            )}
+                          </Box>
+                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, alignItems: "center" }}>
+                            {g.event && (
+                              <Typography variant="caption" sx={{ color: "grey.500" }}>
+                                {g.event}
+                              </Typography>
+                            )}
+                            {g.date && (
+                              <Typography variant="caption" sx={{ color: "grey.600" }}>
+                                · {g.date.replace(/\./g, "-")}
+                              </Typography>
+                            )}
+                            {transcriptCount > 0 && (
+                              <Tooltip title={`${transcriptCount} coach message${transcriptCount === 1 ? "" : "s"} saved`}>
+                                <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.4, ml: "auto" }}>
+                                  <ForumOutlinedIcon sx={{ fontSize: 14, color: "primary.light" }} />
+                                  <Typography variant="caption" sx={{ color: "primary.light", fontWeight: 600 }}>
+                                    {transcriptCount}
+                                  </Typography>
+                                </Box>
+                              </Tooltip>
+                            )}
+                          </Box>
+                          <Box sx={{ display: "flex", gap: 0.75, mt: 0.5 }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<PlayArrowIcon sx={{ fontSize: 16 }} />}
+                              onClick={() => handleOpenSavedGame(g.id)}
+                              sx={{
+                                textTransform: "none",
+                                fontSize: "0.78rem",
+                                py: 0.4,
+                              }}
+                            >
+                              Open
+                            </Button>
+                            <IconButton
+                              size="small"
+                              aria-label="Delete saved game"
+                              onClick={() => handleDeleteSavedGame(g.id)}
+                              sx={{
+                                color: "grey.500",
+                                "&:hover": { color: "error.light", bgcolor: "rgba(239,68,68,0.08)" },
+                              }}
+                            >
+                              <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+                            </IconButton>
+                          </Box>
+                        </Box>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              )}
+            </Paper>
+          )}
+          {!user && !authLoading && (
+            <Paper
+              sx={{
+                p: 2.5,
+                bgcolor: "grey.900",
+                borderRadius: 2,
+                mb: 3,
+                textAlign: "center",
+              }}
+            >
+              <Typography variant="body2" sx={{ color: "grey.300", mb: 1 }}>
+                Sign in to save analyzed games and their coach conversations.
+              </Typography>
+              <Typography variant="caption" sx={{ color: "grey.500" }}>
+                Each save persists the PGN, Stockfish eval, and the full chat — so you can pick up where you left off on any device.
+              </Typography>
             </Paper>
           )}
 

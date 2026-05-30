@@ -6311,8 +6311,15 @@ export default function AnalysisPage() {
         ...params,
         depth: engineSettings.depth,
         // UciEngine guards multiPv into [2, 10] (`Invalid MultiPV value`).
-        // We only consume the top line for the eval-curve anyway.
-        multiPv: 2,
+        // We render only the top line in the eval curve, but the coach
+        // prompt's "TOP MISTAKES" section in /api/enhanced-analysis emits
+        // up to three candidate lines per mistake (see route.ts where it
+        // walks evalBefore.lines[0..2]). multiPv: 2 silently truncated
+        // that to two candidates and made computeCandidateGap blind to
+        // the user's actual move whenever it was line #3 or worse. 3 is
+        // the sweet spot for analysis quality without a meaningful
+        // latency hit on Stockfish17Lite.
+        multiPv: 3,
         workersNb: 1,
         setEvaluationProgress: (v) => {
           if (!cancelled) setAnalysisProgress(v);

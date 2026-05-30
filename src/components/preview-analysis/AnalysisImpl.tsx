@@ -1800,7 +1800,24 @@ function DrillBanner({
                   fontStyle: "italic",
                 }}
               >
-                Stuck? Skip ahead, or ask the coach on the right.
+                Stuck? Skip ahead, or ask the coach
+                {/* "on the right" only reads right on viewports where the
+                    right-column tabs actually sit to the right of the
+                    board. On xs the page stacks vertically so the coach
+                    is below, not next to, the drill banner. */}
+                <Box
+                  component="span"
+                  sx={{ display: { xs: "inline", lg: "none" } }}
+                >
+                  {" "}below
+                </Box>
+                <Box
+                  component="span"
+                  sx={{ display: { xs: "none", lg: "inline" } }}
+                >
+                  {" "}on the right
+                </Box>
+                .
               </Typography>
             )}
         </Box>

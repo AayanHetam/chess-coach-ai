@@ -22,15 +22,35 @@ const cache = new Map<string, CacheEntry>();
 
 /**
  * Generate a cache key from the query parameters.
- * Combines FEN, skill level, and a hash of the user message.
+ * Combines FEN, skill level, a hash of the user message, and a hash of the
+ * caller's coach-persona signature (personality + coachTone + playingStyle
+ * + studyGoals + favoriteOpenings).
+ *
+ * The persona hash is the load-bearing addition. Without it, two users on
+ * the same FEN asking the same question would share a cached response
+ * authored under whichever persona warmed the cache first — meaning a
+ * "strict masti" user could receive a reply authored under "friendly
+ * positional," and the responses sometimes quote the requesting user's
+ * username, so this also had a thin cross-user privacy edge.
+ *
+ * `personaSignature` is optional so this function stays a drop-in for any
+ * caller that hasn't migrated yet; an undefined value collapses to the
+ * empty-string bucket, which means legacy/anonymous callers still share a
+ * single cache bucket per (fen, skillLevel, message).
  */
 export function generateCacheKey(
   fen: string,
   skillLevel: string,
-  userMessage: string
+  userMessage: string,
+  personaSignature?: string
 ): string {
   const messageHash = createHash("md5")
     .update(userMessage.toLowerCase().trim())
+    .digest("hex")
+    .slice(0, 12);
+
+  const personaHash = createHash("md5")
+    .update(personaSignature ?? "")
     .digest("hex")
     .slice(0, 12);
 
@@ -42,7 +62,7 @@ export function generateCacheKey(
   // Prefix with PROMPT_VERSION so a prompt revision (Phase 2 = "3.0") makes
   // older cache entries unreachable instead of serving stale stub-prompt
   // analyses to clients on the new prompt.
-  return `v${PROMPT_VERSION}|${normalizedFen}|${skillLevel}|${messageHash}`;
+  return `v${PROMPT_VERSION}|${normalizedFen}|${skillLevel}|${messageHash}|p${personaHash}`;
 }
 
 /**

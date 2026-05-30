@@ -1166,7 +1166,25 @@ export async function POST(request: NextRequest) {
     const currentFen = fen || (moveHistory && moveHistory.length > 0
       ? getFenAtHalfMove(moveHistory, moveHistory.length)
       : "startpos");
-    const cacheKey = generateCacheKey(currentFen, skillLevel, messageText || "analyze");
+    // Persona signature scopes the cache to this caller's coaching prefs +
+    // personality. Without it two users on the same FEN with the same
+    // question would share the same cached response, which leaks the first
+    // user's persona/tone (and occasionally their username) to the second.
+    // userRating is intentionally NOT in this signature — skillLevel is
+    // already derived from it and is part of the cache key separately.
+    const personaSignature = [
+      personalityId ?? "friendly",
+      coachingPrefs?.coachTone ?? "",
+      coachingPrefs?.playingStyle ?? "",
+      (coachingPrefs?.studyGoals ?? []).slice().sort().join(","),
+      (coachingPrefs?.favoriteOpenings ?? []).slice().sort().join(","),
+    ].join("|");
+    const cacheKey = generateCacheKey(
+      currentFen,
+      skillLevel,
+      messageText || "analyze",
+      personaSignature
+    );
     const cachedResponse = getCachedResponse(cacheKey);
 
     if (cachedResponse) {

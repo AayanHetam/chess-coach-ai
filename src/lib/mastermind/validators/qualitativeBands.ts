@@ -17,7 +17,26 @@ export const BAND_ORDER: readonly QualitativeBand[] = [
   "winning",
 ];
 
-export const ADJACENT_BAND_TOLERANCE_CP = 20;
+// 2026-05-30 widening from 20 → 40 cp:
+//
+// Original Aayan-ratified value (2026-05-11) was 20 cp — tight enough to
+// catch genuine band mismatches but too tight for colloquial coach prose.
+// Common false-positive pattern surfaced in the prod incident: stockfish
+// = +200 cp (much_better, 50 cp into the band), coach says "winning"
+// (adjacent band, boundary 300). |200 - 300| = 100 > 20 → fired.
+// Coaches routinely use "winning" for solid +2 pawn advantages without
+// strict band discipline.
+//
+// 40 cp forgives boundary-near cases up to ~½ band depth on either side,
+// which matches observed coach colloquialism without bleeding into
+// genuine 2-band-off errors (e.g. stockfish equal vs coach saying winning).
+// Non-adjacent mismatches still fire — that signal is preserved.
+//
+// Calibration sketch (cp → band):
+//   -350 losing      |  -300  |  -250 much_worse  |  -150  |  -100 slightly_worse  |  -50  |  ...
+// At 40 cp tolerance, an LLM "losing" claim is forgiven when stockfish is
+// in [-340, -260] (boundary -300 ± 40). At 20 cp it was [-320, -280].
+export const ADJACENT_BAND_TOLERANCE_CP = 40;
 
 const BAND_INDEX: Record<QualitativeBand, number> = {
   losing: 0,

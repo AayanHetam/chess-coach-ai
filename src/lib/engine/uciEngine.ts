@@ -16,6 +16,9 @@ import { getMovesClassification } from "./helpers/moveClassification";
 import { computeEstimatedElo } from "./helpers/estimateElo";
 import { EngineWorker, WorkerJob } from "@/types/engine";
 import { getEngineWorker, sendCommandsToWorker } from "./worker";
+import { withTimeout } from "./helpers/withTimeout";
+
+const DEFAULT_PER_POSITION_TIMEOUT_MS = 30_000;
 
 export class UciEngine {
   public readonly name: EngineName;
@@ -250,6 +253,7 @@ export class UciEngine {
     playersRatings,
     workersNb = 1,
     useLichessEval = false, // Changed to false for deterministic analysis
+    perPositionTimeoutMs = DEFAULT_PER_POSITION_TIMEOUT_MS,
   }: EvaluateGameParams): Promise<GameEval> {
     this.throwErrorIfNotReady();
     this.isReady = false;
@@ -303,12 +307,37 @@ export class UciEngine {
         continue;
       }
 
-      const result = await this.evaluatePosition(
-        fen,
-        depth,
-        workersNb,
-        useLichessEval
+      // Per-position timeout-and-retry. Without this, a single stalled
+      // Stockfish position can park the whole sweep — UI sits at 50%
+      // progress forever. On timeout we abort the engine and retry once
+      // at a shallower depth; if THAT also times out (very unlikely) we
+      // record a sentinel eval so the sweep can finish.
+      let result = await withTimeout(
+        this.evaluatePosition(fen, depth, workersNb, useLichessEval),
+        perPositionTimeoutMs
       );
+
+      if (result === null) {
+        const retryDepth = Math.max(8, depth - 4);
+        console.warn(
+          `[uciEngine] position ${i + 1}/${fens.length} exceeded ${perPositionTimeoutMs}ms at depth=${depth}; aborting and retrying at depth=${retryDepth}`
+        );
+        await this.stopAllCurrentJobs();
+        result = await withTimeout(
+          this.evaluatePosition(fen, retryDepth, workersNb, useLichessEval),
+          perPositionTimeoutMs * 2
+        );
+        if (result === null) {
+          console.error(
+            `[uciEngine] position ${i + 1}/${fens.length} stalled even at retry depth=${retryDepth}; recording sentinel and moving on`
+          );
+          await this.stopAllCurrentJobs();
+          result = {
+            lines: [{ pv: [], depth: 0, multiPv: 1, cp: 0 }],
+          };
+        }
+      }
+
       updateEval(i, result);
     }
 

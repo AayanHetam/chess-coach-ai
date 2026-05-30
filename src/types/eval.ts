@@ -64,6 +64,14 @@ export interface EvaluateGameParams {
   playersRatings?: { white?: number; black?: number };
   workersNb?: number;
   useLichessEval?: boolean;
+  /**
+   * Per-position deadline. When a single position takes longer than this
+   * to evaluate, the engine emits `stop` and the sweep retries the
+   * position at a shallower depth. Defaults to 30s — generous since at
+   * depth 16 most positions finish in 1-3s, but tight enough that a
+   * stalled worker doesn't park the whole sweep indefinitely.
+   */
+  perPositionTimeoutMs?: number;
 }
 
 export interface SavedEval {

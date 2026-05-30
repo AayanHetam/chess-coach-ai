@@ -14,18 +14,21 @@ import {
 import { Chess } from "chess.js";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  Bookmark,
   ClipboardPaste,
   Globe,
   Search,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LichessGame } from "@/types/lichess";
 import type { ChessComGame } from "@/types/chessCom";
 import { getLichessUserRecentGames } from "@/lib/lichess";
 import { getChessComUserRecentGames } from "@/lib/chessCom";
+import { useGameDatabase } from "@/hooks/useGameDatabase";
+import type { Game } from "@/types/game";
 
-type Tab = "paste" | "lichess" | "chesscom";
+type Tab = "paste" | "saved" | "lichess" | "chesscom";
 
 interface LoadGameDialogProps {
   open: boolean;
@@ -170,6 +173,7 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
                 {(
                   [
                     { id: "paste", label: "Paste PGN", icon: ClipboardPaste },
+                    { id: "saved", label: "Saved", icon: Bookmark },
                     { id: "lichess", label: "Lichess", icon: Globe },
                     { id: "chesscom", label: "Chess.com", icon: Globe },
                   ] as { id: Tab; label: string; icon: typeof Globe }[]
@@ -258,6 +262,14 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
               >
                 {tab === "paste" && (
                   <PastePgnTab
+                    onLoad={(g) => {
+                      onLoad(g);
+                      onClose();
+                    }}
+                  />
+                )}
+                {tab === "saved" && (
+                  <SavedGamesTab
                     onLoad={(g) => {
                       onLoad(g);
                       onClose();
@@ -392,6 +404,184 @@ function PastePgnTab({ onLoad }: { onLoad: (game: Chess) => void }) {
           Analyze
         </Button>
       </Stack>
+    </Stack>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Saved games tab — Firestore/IndexedDB-backed via useGameDatabase. Surfaces
+// every game the user has saved via the GameHeader "Save game" button (G4
+// in the cutover-gaps PR). Smoke test on 2026-05-29 found the data path
+// worked but no UI consumed it; this tab is the missing surface.
+// ───────────────────────────────────────────────────────────────────────────────
+
+function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
+  // shouldFetchGames=true asks the hook to actually populate `games` from
+  // the IndexedDB store + cloud-sync on mount.
+  const { games } = useGameDatabase(true);
+
+  // Sort newest-first when a date header is present; otherwise preserve
+  // IndexedDB insertion order so saves stay grouped sensibly.
+  const sortedGames = useMemo<Game[]>(() => {
+    if (!games) return [];
+    return [...games].sort((a, b) => {
+      const aDate = a.date ?? "";
+      const bDate = b.date ?? "";
+      if (aDate && bDate) return bDate.localeCompare(aDate);
+      // Fallback: higher IndexedDB id = saved later
+      return (b.id ?? 0) - (a.id ?? 0);
+    });
+  }, [games]);
+
+  if (!games) {
+    return (
+      <Stack alignItems="center" spacing={1.5} sx={{ py: 4 }}>
+        <CircularProgress size={20} sx={{ color: "#FB923C" }} />
+        <Typography
+          sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.5)" }}
+        >
+          Loading your saved games…
+        </Typography>
+      </Stack>
+    );
+  }
+
+  if (sortedGames.length === 0) {
+    return (
+      <Stack alignItems="center" spacing={1.5} sx={{ py: 5, px: 2 }}>
+        <Box
+          sx={{
+            width: 56,
+            height: 56,
+            borderRadius: "999px",
+            background: "rgba(249,115,22,0.08)",
+            border: "1px solid rgba(249,115,22,0.24)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Bookmark size={22} color="#FB923C" />
+        </Box>
+        <Typography
+          sx={{
+            fontSize: "0.92rem",
+            fontWeight: 700,
+            color: "rgba(255,255,255,0.88)",
+          }}
+        >
+          No saved games yet
+        </Typography>
+        <Typography
+          sx={{
+            fontSize: "0.82rem",
+            color: "rgba(255,255,255,0.5)",
+            textAlign: "center",
+            maxWidth: 320,
+          }}
+        >
+          Hit{" "}
+          <Box
+            component="span"
+            sx={{ color: "#FB923C", fontWeight: 700 }}
+          >
+            Save game
+          </Box>{" "}
+          in the analysis header — Kasparov-Topalov 1999 is loaded by
+          default if you just want to try it.
+        </Typography>
+      </Stack>
+    );
+  }
+
+  return (
+    <Stack spacing={0.85}>
+      <Typography
+        sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.6)", mb: 0.5 }}
+      >
+        {sortedGames.length} saved game{sortedGames.length === 1 ? "" : "s"} —
+        click any row to load.
+      </Typography>
+      {sortedGames.map((g) => (
+        <Box
+          key={g.id}
+          onClick={() => {
+            try {
+              const chess = new Chess();
+              chess.loadPgn(g.pgn);
+              onLoad(chess);
+            } catch (err) {
+              console.warn("[saved games] PGN load failed:", err);
+            }
+          }}
+          sx={{
+            cursor: "pointer",
+            p: 1.5,
+            borderRadius: "0.7rem",
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            transition: "all 180ms ease",
+            "&:hover": {
+              background: "rgba(249,115,22,0.08)",
+              borderColor: "rgba(249,115,22,0.32)",
+              transform: "translateY(-1px)",
+            },
+          }}
+        >
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={1}
+          >
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography
+                sx={{
+                  fontSize: "0.92rem",
+                  fontWeight: 700,
+                  color: "rgba(255,255,255,0.94)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {g.white.name} vs {g.black.name}
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: "0.74rem",
+                  color: "rgba(255,255,255,0.45)",
+                  mt: 0.15,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {[g.event, g.date].filter(Boolean).join(" · ") || "—"}
+              </Typography>
+            </Box>
+            {g.result && (
+              <Box
+                sx={{
+                  flexShrink: 0,
+                  px: 1,
+                  py: 0.25,
+                  borderRadius: "999px",
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  color: "rgba(255,255,255,0.7)",
+                  fontFamily:
+                    "ui-monospace, SFMono-Regular, monospace",
+                }}
+              >
+                {g.result}
+              </Box>
+            )}
+          </Stack>
+        </Box>
+      ))}
     </Stack>
   );
 }

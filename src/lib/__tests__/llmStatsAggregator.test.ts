@@ -124,4 +124,64 @@ describe("llmStatsAggregator", () => {
     expect(fresh.byProvider.anthropic.inputTokens).toBe(100);
     expect(fresh.totals.inputTokens).toBe(100);
   });
+
+  it("accumulates per-model totals when a model id is passed", () => {
+    recordLLMCall({
+      provider: "anthropic",
+      model: "claude-sonnet-4-20250514",
+      inputTokens: 100,
+      outputTokens: 50,
+      cacheCreationTokens: 80,
+      elapsedMs: 1200,
+    });
+    recordLLMCall({
+      provider: "anthropic",
+      model: "claude-haiku-4-5-20251001",
+      inputTokens: 50,
+      outputTokens: 30,
+      cacheReadTokens: 200,
+      elapsedMs: 300,
+    });
+    recordLLMCall({
+      provider: "anthropic",
+      model: "claude-sonnet-4-20250514",
+      inputTokens: 60,
+      outputTokens: 40,
+      cacheReadTokens: 80,
+      elapsedMs: 800,
+    });
+    const s = getLLMStats();
+    const sonnet = s.byModel["claude-sonnet-4-20250514"];
+    const haiku = s.byModel["claude-haiku-4-5-20251001"];
+    expect(sonnet.provider).toBe("anthropic");
+    expect(sonnet.callCount).toBe(2);
+    expect(sonnet.inputTokens).toBe(160);
+    expect(sonnet.outputTokens).toBe(90);
+    expect(sonnet.cacheCreationTokens).toBe(80);
+    expect(sonnet.cacheReadTokens).toBe(80);
+    expect(sonnet.elapsedMsSum).toBe(2000);
+    expect(haiku.callCount).toBe(1);
+    expect(haiku.cacheReadTokens).toBe(200);
+    // Provider rollups still aggregate across models.
+    expect(s.byProvider.anthropic.callCount).toBe(3);
+    expect(s.byProvider.anthropic.inputTokens).toBe(210);
+  });
+
+  it("skips per-model bucket when no model id is passed (legacy callers)", () => {
+    recordLLMCall({ provider: "anthropic", inputTokens: 100 });
+    const s = getLLMStats();
+    expect(s.byModel).toEqual({});
+    expect(s.byProvider.anthropic.callCount).toBe(1);
+  });
+
+  it("resetLLMStats clears per-model totals", () => {
+    recordLLMCall({
+      provider: "anthropic",
+      model: "claude-sonnet-4-20250514",
+      inputTokens: 100,
+    });
+    expect(Object.keys(getLLMStats().byModel)).toHaveLength(1);
+    resetLLMStats();
+    expect(getLLMStats().byModel).toEqual({});
+  });
 });

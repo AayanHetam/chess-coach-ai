@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   IconButton,
+  Menu,
   Modal,
   Stack,
   TextField,
@@ -79,6 +80,12 @@ import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useViewer } from "@/hooks/useViewer";
 import type { GameEval } from "@/types/eval";
 import { FlagButton } from "@/components/intern/FlagButton";
+import {
+  coachPersonalities,
+  defaultPersonalityId,
+  getPersonalityById,
+} from "@/config/coachPersonalities";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import {
   parseInsights,
   type InsightData,
@@ -502,6 +509,10 @@ async function streamCoachReply(params: {
   username?: string;
   chesscomUsername?: string;
   lichessUsername?: string;
+  /** Coach persona id ("friendly", "grandmaster", etc.). Server's
+   *  getCoachChatSystemPrompt() looks this up via getPersonalityById
+   *  and merges the persona's tone-and-style block into the prompt. */
+  personalityId?: string;
   onDelta: (chunk: string) => void;
   signal?: AbortSignal;
 }): Promise<string> {
@@ -522,6 +533,7 @@ async function streamCoachReply(params: {
     username,
     chesscomUsername,
     lichessUsername,
+    personalityId,
     onDelta,
     signal,
   } = params;
@@ -603,6 +615,7 @@ async function streamCoachReply(params: {
     username,
     chesscomUsername,
     lichessUsername,
+    personalityId,
     stream: true,
   };
   // Personality / username left undefined — server falls back gracefully
@@ -2910,6 +2923,8 @@ function CoachPanel({
   analysisActive,
   enginePositions,
   loadedGame,
+  personalityId,
+  onChangePersonality,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -2930,6 +2945,11 @@ function CoachPanel({
   /** Engine data for inline continuation widgets inside insight cards. */
   enginePositions?: PositionEval[] | null;
   loadedGame?: Chess;
+  /** Current coach persona id + setter — drives the picker chip in the
+   *  CoachPanel header and is threaded into the enhanced-analysis
+   *  request body via the parent's coachExtras memo. */
+  personalityId?: string;
+  onChangePersonality?: (id: string) => void;
   /** True while Stockfish is still computing positions. Mirrors production's
    * `isAnalyzingGame` gate (AICoachChat:1705) — when set, the input is
    * disabled so the user can't fire deep-coach requests with no gameEval. */
@@ -2954,6 +2974,15 @@ function CoachPanel({
   coachContextIdProp?: string | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Personality picker UI state — kept local to the panel; the actual
+  // selection bubbles up via onChangePersonality.
+  const personality = useMemo(
+    () => getPersonalityById(personalityId ?? defaultPersonalityId),
+    [personalityId]
+  );
+  const [personalityMenuOpen, setPersonalityMenuOpen] = useState(false);
+  const personalityChipRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -3042,6 +3071,176 @@ function CoachPanel({
             </Typography>
           </Stack>
         </Box>
+        {/* Personality picker chip — clicking opens a glass popover with
+            the 6 coach voices. Closes the `personalityId` parity gap
+            with /api/enhanced-analysis (final field). */}
+        {onChangePersonality && (
+          <Tooltip title={`Coach voice: ${personality.title}`}>
+            <Box
+              ref={personalityChipRef}
+              onClick={() => setPersonalityMenuOpen((v) => !v)}
+              sx={{
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 1,
+                py: 0.4,
+                borderRadius: "999px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                transition: "all 180ms ease",
+                "&:hover": {
+                  background: "rgba(249,115,22,0.08)",
+                  borderColor: "rgba(249,115,22,0.32)",
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  fontSize: "0.92rem",
+                  lineHeight: 1,
+                  filter:
+                    "drop-shadow(0 0 4px rgba(249,115,22,0.32))",
+                }}
+              >
+                {personality.avatar}
+              </Box>
+              <Typography
+                sx={{
+                  fontSize: "0.68rem",
+                  fontWeight: 700,
+                  color: "rgba(255,255,255,0.78)",
+                  maxWidth: 90,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {personality.name}
+              </Typography>
+              <ChevronDown
+                size={11}
+                color="rgba(255,255,255,0.55)"
+              />
+            </Box>
+          </Tooltip>
+        )}
+        <Menu
+          anchorEl={personalityChipRef.current}
+          open={personalityMenuOpen}
+          onClose={() => setPersonalityMenuOpen(false)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+          slotProps={{
+            paper: {
+              sx: {
+                mt: 1,
+                background: "rgba(20,22,28,0.92)",
+                backdropFilter: "blur(16px) saturate(150%)",
+                WebkitBackdropFilter: "blur(16px) saturate(150%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "12px",
+                minWidth: 280,
+                maxWidth: 320,
+                boxShadow:
+                  "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+              },
+            },
+          }}
+          MenuListProps={{ sx: { py: 0.5 } }}
+        >
+          <Box
+            sx={{
+              px: 1.75,
+              pt: 1,
+              pb: 0.5,
+              fontSize: "0.62rem",
+              fontWeight: 800,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.42)",
+            }}
+          >
+            Coach voice
+          </Box>
+          {coachPersonalities.map((p) => {
+            const isActive = p.id === personality.id;
+            return (
+              <Box
+                key={p.id}
+                onClick={() => {
+                  onChangePersonality?.(p.id);
+                  setPersonalityMenuOpen(false);
+                }}
+                sx={{
+                  cursor: "pointer",
+                  px: 1.75,
+                  py: 1,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 1.25,
+                  transition: "background 160ms ease",
+                  background: isActive
+                    ? "rgba(249,115,22,0.08)"
+                    : "transparent",
+                  borderLeft: isActive
+                    ? "2px solid #FB923C"
+                    : "2px solid transparent",
+                  "&:hover": {
+                    background: "rgba(249,115,22,0.12)",
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    fontSize: "1.4rem",
+                    lineHeight: 1,
+                    pt: 0.15,
+                    filter: isActive
+                      ? "drop-shadow(0 0 6px rgba(249,115,22,0.45))"
+                      : "none",
+                  }}
+                >
+                  {p.avatar}
+                </Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography
+                    sx={{
+                      fontSize: "0.84rem",
+                      fontWeight: 700,
+                      color: isActive ? "#FB923C" : "rgba(255,255,255,0.92)",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {p.name}
+                    <Box
+                      component="span"
+                      sx={{
+                        ml: 0.6,
+                        fontSize: "0.7rem",
+                        fontWeight: 600,
+                        color: "rgba(255,255,255,0.42)",
+                      }}
+                    >
+                      {p.title}
+                    </Box>
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.74rem",
+                      color: "rgba(255,255,255,0.58)",
+                      lineHeight: 1.4,
+                      mt: 0.25,
+                    }}
+                  >
+                    {p.description}
+                  </Typography>
+                </Box>
+              </Box>
+            );
+          })}
+        </Menu>
         <Tooltip title="Every claim validated against the engine">
           <Box
             sx={{
@@ -5909,6 +6108,20 @@ export default function AnalysisPage() {
   // overview). Without them the LLM drops to a generic reply tone — visibly
   // less specific than the prod surface. Recompute once per relevant input
   // change so the three streamCoachReply call sites can spread it.
+  // Coach personality — final enhanced-analysis parity field. Persisted
+  // across sessions via localStorage so the user's chosen voice sticks.
+  // The picker UI sits in CoachPanel's header chip; this is the source
+  // of truth that flows into coachExtras → request body.
+  const [selectedPersonalityId, setSelectedPersonalityId] =
+    useLocalStorage<string>(
+      "cm-preview-personality",
+      defaultPersonalityId
+    );
+  const personality = useMemo(
+    () => getPersonalityById(selectedPersonalityId ?? defaultPersonalityId),
+    [selectedPersonalityId]
+  );
+
   const coachExtras = useMemo(() => {
     const playerColor: "w" | "b" =
       boardOrientation === "white" ? "w" : "b";
@@ -5936,8 +6149,14 @@ export default function AnalysisPage() {
         user?.displayName ?? user?.email?.split("@")[0] ?? undefined,
       chesscomUsername,
       lichessUsername,
+      personalityId: personality.id,
     };
-  }, [boardOrientation, user?.displayName, user?.email]);
+  }, [
+    boardOrientation,
+    user?.displayName,
+    user?.email,
+    personality.id,
+  ]);
 
   // In puzzle mode, prepopulate the coach with a contextual seed message
   const isPuzzleMode = Boolean(puzzleFen);
@@ -7593,6 +7812,10 @@ export default function AnalysisPage() {
                         coachContextIdProp={coachContextIdRef.current}
                         enginePositions={enginePositions}
                         loadedGame={loadedGame}
+                        personalityId={personality.id}
+                        onChangePersonality={(id) =>
+                          setSelectedPersonalityId(id)
+                        }
                         onPuzzleSolved={(puzzle, secs) =>
                           recordSolved(
                             puzzle.id,

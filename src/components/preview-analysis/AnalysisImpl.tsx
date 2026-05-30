@@ -626,6 +626,16 @@ async function streamCoachReply(params: {
     if (!trimmed || trimmed === "?" || trimmed === "-") return undefined;
     return trimmed;
   };
+  // PGN-supplied opening + ECO are preferred when present (chess.com /
+  // lichess labels are usually more specific than the local trie can
+  // produce). Otherwise fall back to detectOpening() — same source the
+  // board banner uses since PR #73 — so the LLM never has to infer the
+  // opening from raw move tokens just because the PGN was a paste with no
+  // Opening tag.
+  const pgnOpening = pickHeader("Opening");
+  const pgnEco = pickHeader("ECO");
+  const fallbackOpening =
+    !pgnOpening && !pgnEco ? detectOpening(loadedGame) : null;
   const gameHeaders = {
     white: pickHeader("White"),
     black: pickHeader("Black"),
@@ -634,8 +644,12 @@ async function streamCoachReply(params: {
     event: pickHeader("Event"),
     date: pickHeader("Date") ?? pickHeader("UTCDate"),
     result: pickHeader("Result"),
-    eco: pickHeader("ECO"),
-    opening: pickHeader("Opening"),
+    eco: pgnEco ?? fallbackOpening?.eco,
+    opening:
+      pgnOpening ??
+      (fallbackOpening && fallbackOpening.name !== "Opening"
+        ? fallbackOpening.name
+        : undefined),
     timeControl: pickHeader("TimeControl"),
   };
   const hasAnyHeader = Object.values(gameHeaders).some(

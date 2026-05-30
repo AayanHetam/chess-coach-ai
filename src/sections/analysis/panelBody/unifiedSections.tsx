@@ -1,9 +1,19 @@
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Skeleton, Stack, Typography } from "@mui/material";
 import { useAtomValue } from "jotai";
+import dynamic from "next/dynamic";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { gameAtom, gameEvalAtom, visibleSectionsAtom } from "../states";
 import SectionCard from "./sectionCard";
-import GraphTab from "./graphTab";
+// GraphTab pulls in recharts (~100 kB). The graph section only renders
+// once analysis has run AND the user has the "graph" section visible,
+// so the static import was paying for recharts on every /analysis
+// visit whether or not it was used. Lazy-load it.
+const GraphTab = dynamic(() => import("./graphTab"), {
+  ssr: false,
+  loading: () => (
+    <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 1 }} />
+  ),
+});
 import EngineLines from "./analysisTab/engineLines";
 import PlayersMetric from "./analysisTab/playersMetric";
 import MovesClassificationsRecap from "./classificationTab/movesClassificationsRecap";

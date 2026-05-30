@@ -171,6 +171,26 @@ export const enhancedAnalysisSchema = z.object({
       })
     )
     .optional(),
+  // Optional PGN headers extracted from the loaded game so the coach has
+  // structured player + event metadata to ground its analysis ("your opponent
+  // is a 2050 in this Lichess blitz" reads very differently from "you played
+  // a Najdorf"). Each field is permissively capped — chess.com PGN events
+  // include long tournament names, so 200 chars per field is the sweet spot.
+  gameHeaders: z
+    .object({
+      white: z.string().max(200).optional(),
+      black: z.string().max(200).optional(),
+      whiteElo: z.string().max(20).optional(),
+      blackElo: z.string().max(20).optional(),
+      event: z.string().max(200).optional(),
+      date: z.string().max(40).optional(),
+      result: z.string().max(20).optional(),
+      eco: z.string().max(10).optional(),
+      opening: z.string().max(200).optional(),
+      timeControl: z.string().max(40).optional(),
+    })
+    .strict()
+    .optional(),
   stream: z.boolean().optional(),
 });
 

@@ -612,6 +612,36 @@ async function streamCoachReply(params: {
   const gameEvalPayload =
     gameEvalFull ??
     (enginePositions ? { positions: enginePositions } : undefined);
+  // Extract PGN headers from the loaded game so the server can thread
+  // player + event metadata into the LLM overview. chess.js's header() is
+  // a plain object keyed by the canonical PGN tag names; we filter to the
+  // structured field set the server's zod schema accepts, lower-casing the
+  // keys to match. Empty headers (a freshly loaded FEN with no history)
+  // come back as `{}` and we just send undefined.
+  const rawHeaders = loadedGame.header();
+  const pickHeader = (key: string): string | undefined => {
+    const v = rawHeaders[key];
+    if (typeof v !== "string") return undefined;
+    const trimmed = v.trim();
+    if (!trimmed || trimmed === "?" || trimmed === "-") return undefined;
+    return trimmed;
+  };
+  const gameHeaders = {
+    white: pickHeader("White"),
+    black: pickHeader("Black"),
+    whiteElo: pickHeader("WhiteElo"),
+    blackElo: pickHeader("BlackElo"),
+    event: pickHeader("Event"),
+    date: pickHeader("Date") ?? pickHeader("UTCDate"),
+    result: pickHeader("Result"),
+    eco: pickHeader("ECO"),
+    opening: pickHeader("Opening"),
+    timeControl: pickHeader("TimeControl"),
+  };
+  const hasAnyHeader = Object.values(gameHeaders).some(
+    (v) => v !== undefined
+  );
+
   const requestBody: Record<string, unknown> = {
     userMessage: userText,
     moveHistory,
@@ -629,6 +659,7 @@ async function streamCoachReply(params: {
     chesscomUsername,
     lichessUsername,
     personalityId,
+    ...(hasAnyHeader ? { gameHeaders } : {}),
     stream: true,
   };
   // Personality / username left undefined — server falls back gracefully

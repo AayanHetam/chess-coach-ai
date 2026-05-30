@@ -1,6 +1,14 @@
 import { withSentryConfig } from "@sentry/nextjs";
+import withBundleAnalyzerInit from "@next/bundle-analyzer";
 import { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
+
+// Wraps the config when ANALYZE=true is set. No-op otherwise.
+// Generates a `.next/analyze/` HTML report after `npm run analyze`.
+const withBundleAnalyzer = withBundleAnalyzerInit({
+  enabled: process.env.ANALYZE === "true",
+  openAnalyzer: false,
+});
 
 const nextConfig = (phase: string): NextConfig => ({
   // Removed static export to enable API routes on Vercel
@@ -109,7 +117,12 @@ const nextConfig = (phase: string): NextConfig => ({
         ],
 });
 
-export default withSentryConfig(nextConfig, {
+// withBundleAnalyzer wraps a NextConfig — apply it before withSentryConfig
+// so the analyzer sees the final (post-Sentry) webpack config.
+const wrappedConfig = (phase: string): NextConfig =>
+  withBundleAnalyzer(nextConfig(phase));
+
+export default withSentryConfig(wrappedConfig, {
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
   org: process.env.SENTRY_ORG,
   project: "javascript-nextjs",

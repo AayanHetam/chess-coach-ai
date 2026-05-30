@@ -29,6 +29,7 @@
     "dev": "next dev --turbo -H 127.0.0.1",
     "dev:lan": "next dev --turbo",
     "build": "SKIP_ENV_VALIDATION=true next build",
+    "analyze": "ANALYZE=true SKIP_ENV_VALIDATION=true next build",
     "start": "next start",
     "lint": "next lint && tsc --noEmit",
     "test": "vitest run",
@@ -78,6 +79,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.2",
+    "@next/bundle-analyzer": "^16.2.6",
     "@playwright/test": "^1.59.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/chess.js": "^0.10.1",

@@ -366,7 +366,7 @@ export default function PreviewOpeningsPage() {
               >
                 <Button
                   component={Link}
-                  href="/preview/analysis"
+                  href="/analysis"
                   variant="contained"
                   endIcon={<ArrowRight size={18} />}
                   sx={{

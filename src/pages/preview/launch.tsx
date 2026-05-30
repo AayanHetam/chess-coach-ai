@@ -1176,8 +1176,8 @@ function DailyPuzzleSection() {
   };
 
   // Build the "Open in /analysis" link with the puzzle FEN encoded
-  const analysisLink = `/preview/analysis?puzzleFen=${encodeURIComponent(initialFen)}&solution=${encodeURIComponent(`${solution.from}-${solution.to}`)}`;
-  const askCoachLink = `/preview/analysis?puzzleFen=${encodeURIComponent(initialFen)}&solution=${encodeURIComponent(`${solution.from}-${solution.to}`)}&prompt=${encodeURIComponent("Help me understand why Nc7+ wins here.")}`;
+  const analysisLink = `/analysis?puzzleFen=${encodeURIComponent(initialFen)}&solution=${encodeURIComponent(`${solution.from}-${solution.to}`)}`;
+  const askCoachLink = `/analysis?puzzleFen=${encodeURIComponent(initialFen)}&solution=${encodeURIComponent(`${solution.from}-${solution.to}`)}&prompt=${encodeURIComponent("Help me understand why Nc7+ wins here.")}`;
 
   return (
     <Box sx={{ py: { xs: 6, md: 10 } }}>

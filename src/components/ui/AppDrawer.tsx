@@ -38,7 +38,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: "launch", label: "Home", icon: Home, preview: "/preview/launch", production: "/" },
-  { id: "analysis", label: "Analyze", icon: Zap, preview: "/preview/analysis", production: "/analysis" },
+  { id: "analysis", label: "Analyze", icon: Zap, preview: "/analysis", production: "/analysis" },
   { id: "play", label: "Play", icon: Crown, preview: "/preview/play", production: "/play" },
   { id: "practice", label: "Practice", icon: Puzzle, preview: "/preview/practice", production: "/practice" },
   { id: "scout", label: "Scout", icon: Crosshair, preview: "/preview/scout", production: "/scout" },

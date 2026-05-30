@@ -28,7 +28,7 @@ interface NavPillProps {
 // theory → scout your next opponent.
 const NAV_LINKS: { id: NavId; label: string; href: string }[] = [
   { id: "play", label: "Play", href: "/preview/play" },
-  { id: "analysis", label: "Analyze", href: "/preview/analysis" },
+  { id: "analysis", label: "Analyze", href: "/analysis" },
   { id: "practice", label: "Practice", href: "/preview/practice" },
   { id: "openings", label: "Learn", href: "/preview/openings" },
   { id: "scout", label: "Scout", href: "/preview/scout" },

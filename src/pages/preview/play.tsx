@@ -626,7 +626,7 @@ export default function PreviewPlayPage() {
                 <Box sx={{ flex: 1 }} />
                 <Typography
                   component={Link}
-                  href="/preview/analysis"
+                  href="/analysis"
                   sx={{
                     fontSize: "0.82rem",
                     color: "rgba(255,255,255,0.55)",

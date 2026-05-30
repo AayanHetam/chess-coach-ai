@@ -40,19 +40,6 @@ export default function GraphTab(props: GridProps) {
     [gameEval]
   );
 
-  console.log("GraphTab Debug:", {
-    gameEval: !!gameEval,
-    positions: gameEval?.positions?.length,
-    chartData: chartData.length,
-    gameEvalData: gameEval,
-    positionsData: gameEval?.positions?.map((pos, idx) => ({
-      index: idx,
-      hasLines: pos.lines?.length > 0,
-      linesLength: pos.lines?.length,
-      firstLine: pos.lines?.[0],
-    })),
-  });
-
   const bestDotIndices = useMemo(() => {
     const bestItems = chartData.filter(
       (item) => item.moveClassification === MoveClassification.Best
@@ -98,10 +85,6 @@ export default function GraphTab(props: GridProps) {
   );
 
   if (!gameEval || chartData.length === 0) {
-    console.log("GraphTab: No gameEval data or no chart data available", {
-      gameEval: !!gameEval,
-      chartDataLength: chartData.length,
-    });
     return (
       <Box
         width="100%"
@@ -196,10 +179,7 @@ const formatEvalToChartData = (
   position: PositionEval,
   index: number
 ): ChartItemData => {
-  console.log(`Formatting position ${index}:`, position);
-
   if (!position.lines || position.lines.length === 0) {
-    console.warn(`Position ${index} has no lines`);
     return {
       moveNb: index,
       value: 10,
@@ -210,7 +190,6 @@ const formatEvalToChartData = (
   }
 
   const line = position.lines[0];
-  console.log(`Position ${index} first line:`, line);
 
   const chartItem: ChartItemData = {
     moveNb: index,

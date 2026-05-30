@@ -62,16 +62,6 @@ export default function CoachTab(props: GridProps) {
     }
   }, [board, game]);
 
-  console.log("🔍 Coach Tab Data:", {
-    boardMoves: board.history().length,
-    gameMoves: game.history().length,
-    dataSource: unifiedGameData.dataSource,
-    reason: unifiedGameData.reason,
-    isSynced: isSynced,
-    position: unifiedGameData.position,
-    pgn: unifiedGameData.game.pgn(),
-  });
-
   return (
     <Grid
       container

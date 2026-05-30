@@ -5845,7 +5845,13 @@ export default function AnalysisPage() {
   // Signed-in user — hoisted to the top so downstream loaders (loadNewGame
   // G13, triggerPuzzleFetch G14, recordSolved G11) can read user.uid /
   // user.displayName without violating the "declared before use" rule.
-  const { user } = useViewer();
+  //
+  // `profile` carries the Firestore-stored coaching prefs (selfReportedRating,
+  // coachTone, etc.). We thread the rating into the CoachPanel mount below so
+  // the LLM skill-tier calibration (beginner/intermediate/advanced derivation
+  // at coachChatPrompt.ts:98-102) is keyed to the user's actual strength
+  // instead of a constant 1500.
+  const { user, profile } = useViewer();
 
   // G6: auto-analyze state machine. Mirrors production's autoAnalyzeStateAtom
   // (src/sections/analysis/states.ts:87-93). Triggered by ?autoAnalyze=1
@@ -7841,7 +7847,7 @@ export default function AnalysisPage() {
                           setShareDialog({ msg: m, fen: displayFen })
                         }
                         mistakeContext={mistakeContext}
-                        userRating={1500}
+                        userRating={profile?.selfReportedRating ?? 1500}
                         coachContextIdProp={coachContextIdRef.current}
                         enginePositions={enginePositions}
                         loadedGame={loadedGame}

@@ -1109,7 +1109,13 @@ export async function POST(request: NextRequest) {
       gameEval,
       playerColor,
       username,
-      userRating,
+      // Rename on destructure so we can override with the Firestore-stored
+      // selfReportedRating after the profile read below. AnalysisImpl already
+      // sends profile.selfReportedRating in the body (PR #64), but the
+      // legacy AICoachChat callers and future surfaces may not — when they
+      // don't, the value the LLM sees should still be the user's true rating
+      // instead of silently defaulting to 1500.
+      userRating: userRatingFromBody,
       boardOrientation,
       conversationHistory,
       personalityId,
@@ -1126,6 +1132,39 @@ export async function POST(request: NextRequest) {
     // Stage B insertion point A (§3.7.9): single env read. No branching cost
     // when off; flag-off path remains byte-identical to today.
     const { validatorsEnabled } = getMastermindEnv();
+
+    // Look up the signed-in user's coaching prefs + stored rating from
+    // Firestore so the system prompt, skill calibration, and puzzle
+    // recommendations can all be personalized. Server-side only — never
+    // trust prefs from the client body. Best-effort: if Firestore is
+    // down we proceed without personalization rather than fail the
+    // request.
+    //
+    // userRating resolves request-body-first, Firestore-second. AnalysisImpl
+    // wires profile.selfReportedRating into the body via PR #64; the
+    // Firestore fallback covers the legacy AICoachChat path, the browser
+    // extension, and any future caller that forgets to send the rating.
+    let coachingPrefs:
+      | import("@/lib/prompts/coachChatPrompt").CoachingPrefs
+      | undefined;
+    let profileRating: number | undefined;
+    try {
+      const profile = await getUserById(session.uid);
+      if (profile) {
+        coachingPrefs = {
+          coachTone: profile.coachTone,
+          playingStyle: profile.playingStyle,
+          studyGoals: profile.studyGoals,
+          favoriteOpenings: profile.favoriteOpenings,
+        };
+        profileRating = profile.selfReportedRating;
+      }
+    } catch (err) {
+      log.warn("could not load coaching prefs", {
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+    const userRating = userRatingFromBody ?? profileRating;
 
     log.info("Enhanced analysis started", {
       hasMessage: !!messageText,
@@ -1158,26 +1197,9 @@ export async function POST(request: NextRequest) {
       gameContext = "No game data or position provided. The user may be asking a general chess question.";
     }
 
-    // Look up the signed-in user's coaching prefs from Firestore so the
-    // system prompt can be personalized. Server-side only — never trust
-    // prefs from the client body.
-    let coachingPrefs: import("@/lib/prompts/coachChatPrompt").CoachingPrefs | undefined;
-    try {
-      const profile = await getUserById(session.uid);
-      if (profile) {
-        coachingPrefs = {
-          coachTone: profile.coachTone,
-          playingStyle: profile.playingStyle,
-          studyGoals: profile.studyGoals,
-          favoriteOpenings: profile.favoriteOpenings,
-        };
-      }
-    } catch (err) {
-      // Personalization is best-effort — never fail the request over it.
-      log.warn("could not load coaching prefs", {
-        err: err instanceof Error ? err.message : String(err),
-      });
-    }
+    // (moved up) — coaching prefs + rating are now resolved earlier in the
+    // function so downstream telemetry, buildGameContext and prompt
+    // composition all see the Firestore fallback automatically.
 
     // Build the system prompt for Claude. Server-controlled only — composed
     // from structured params in the validated body (see AUDIT-PHASE-1.4

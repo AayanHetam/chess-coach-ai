@@ -1,4 +1,5 @@
 import { getRequestId } from "./requestContext";
+import { addLogBreadcrumb } from "./sentryIntegration";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -96,13 +97,30 @@ class Logger {
         ? " " + JSON.stringify(context)
         : "";
       const prefix = `${color}${level.toUpperCase().padEnd(5)}${RESET}${moduleTag}${reqTag}`;
-      
+
       if (level === "error") {
         console.error(`${prefix} ${message}${contextStr}`);
       } else if (level === "warn") {
         console.warn(`${prefix} ${message}${contextStr}`);
       } else {
         console.log(`${prefix} ${message}${contextStr}`);
+      }
+    }
+
+    // Mirror non-error log entries into Sentry as breadcrumbs so the error
+    // detail page shows the trail of events that led to the eventual
+    // logErrorToSentry() call. We exclude "error" level here because errors
+    // are captured as their own Sentry events with full context, not
+    // breadcrumbs. Defensive try/catch: a Sentry init issue must never
+    // break the calling code's logger.info() call.
+    if (level !== "error") {
+      try {
+        const breadcrumbData = this.module
+          ? { ...context, module: this.module }
+          : context;
+        addLogBreadcrumb(level, message, breadcrumbData);
+      } catch {
+        // Swallowed by design.
       }
     }
   }

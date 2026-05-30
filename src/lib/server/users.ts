@@ -80,11 +80,14 @@ export async function getUserById(uid: string): Promise<StoredUser | null> {
 
 export async function getUserByEmail(email: string): Promise<StoredUser | null> {
   const db = await getAdminFirestore();
-  const snap = await db
-    .collection(COLLECTION)
-    .where("email", "==", normalizeEmail(email))
-    .limit(1)
-    .get();
+  const snap = await withFirestoreTimeout(
+    db
+      .collection(COLLECTION)
+      .where("email", "==", normalizeEmail(email))
+      .limit(1)
+      .get(),
+    `users.getUserByEmail(${normalizeEmail(email)})`,
+  );
   if (snap.empty) return null;
   const doc = snap.docs[0];
   return { uid: doc.id, ...(doc.data() as Omit<StoredUser, "uid">) };
@@ -92,11 +95,14 @@ export async function getUserByEmail(email: string): Promise<StoredUser | null> 
 
 export async function getUserByGoogleId(googleId: string): Promise<StoredUser | null> {
   const db = await getAdminFirestore();
-  const snap = await db
-    .collection(COLLECTION)
-    .where("googleId", "==", googleId)
-    .limit(1)
-    .get();
+  const snap = await withFirestoreTimeout(
+    db
+      .collection(COLLECTION)
+      .where("googleId", "==", googleId)
+      .limit(1)
+      .get(),
+    `users.getUserByGoogleId(${googleId})`,
+  );
   if (snap.empty) return null;
   const doc = snap.docs[0];
   return { uid: doc.id, ...(doc.data() as Omit<StoredUser, "uid">) };
@@ -104,11 +110,15 @@ export async function getUserByGoogleId(googleId: string): Promise<StoredUser | 
 
 export async function getUserByPasswordResetHash(hash: string): Promise<StoredUser | null> {
   const db = await getAdminFirestore();
-  const snap = await db
-    .collection(COLLECTION)
-    .where("passwordResetHash", "==", hash)
-    .limit(1)
-    .get();
+  const snap = await withFirestoreTimeout(
+    db
+      .collection(COLLECTION)
+      .where("passwordResetHash", "==", hash)
+      .limit(1)
+      .get(),
+    // Don't include the hash itself in the op label — it's a secret.
+    "users.getUserByPasswordResetHash",
+  );
   if (snap.empty) return null;
   const doc = snap.docs[0];
   return { uid: doc.id, ...(doc.data() as Omit<StoredUser, "uid">) };

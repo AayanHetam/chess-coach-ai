@@ -4188,6 +4188,7 @@ function InsightContinuationInline({
   enginePositions,
   loadedGame,
   onJumpToPly,
+  renderInline,
 }: {
   kind: "CONTINUATION" | "MAIA_CONTINUATION";
   moveNum: number;
@@ -4195,6 +4196,11 @@ function InsightContinuationInline({
   enginePositions: PositionEval[] | null;
   loadedGame: Chess;
   onJumpToPly?: (ply: number) => void;
+  /** When provided, the PV's SAN moves get run through renderInline with
+   *  forceRecommended=true so each "N. san" turns into a green 🔍
+   *  clickable Box (same styling as recommended-move refs in prose).
+   *  Caller passes CoachBubble's renderInline closure. */
+  renderInline?: (text: string, forceRecommended?: boolean) => React.ReactNode[];
 }) {
   // Half-move index inside enginePositions / loadedGame.history():
   // - white move N lands at ply 2N-1 (1-indexed) → index 2(N-1)
@@ -4358,7 +4364,9 @@ function InsightContinuationInline({
           lineHeight: 1.4,
         }}
       >
-        {data.displayText}
+        {renderInline
+          ? renderInline(data.displayText, !isMaia)
+          : data.displayText}
       </Box>
     </Box>
   );
@@ -4539,6 +4547,7 @@ function InsightBodyText({
               enginePositions={enginePositions}
               loadedGame={loadedGame}
               onJumpToPly={onJumpToPly}
+              renderInline={renderInline}
             />
           );
         }
@@ -5305,12 +5314,29 @@ function CoachBubble({
             </span>
           );
         }
-        const ply = findPlyForMoveRef(
+        const matchedPly = findPlyForMoveRef(
           allMoves,
           ref.moveNumber,
           ref.isBlack,
           ref.san
         );
+        // RECOMMENDED moves are by definition NOT what the player actually
+        // played, so findPlyForMoveRef will return null for them — the SAN
+        // at that ply won't match the recommended SAN. We still want them
+        // clickable (jumps to the position FROM which the recommended move
+        // would be played, so the user lands in exploration mode). Same
+        // ply derivation as findPlyForMoveRef's expectedPly, then -1 to
+        // sit BEFORE the move. Round-2 + Round-3 smoke caught this:
+        // "11. g4" in a SOLUTION row rendered as a plain <span> with no
+        // click handler because findPlyForMoveRef returned null.
+        const recommendedTargetPly =
+          ref.recommended && matchedPly === null
+            ? Math.max(
+                0,
+                (ref.moveNumber - 1) * 2 + (ref.isBlack ? 1 : 0)
+              )
+            : null;
+        const ply = matchedPly ?? recommendedTargetPly;
         if (ply !== null) {
           const recColor = "#86efac"; // light green for recommended
           const navColor = isUser ? "#0A0A0A" : "#FB923C";

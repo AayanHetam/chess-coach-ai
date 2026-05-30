@@ -184,4 +184,59 @@ describe("llmStatsAggregator", () => {
     resetLLMStats();
     expect(getLLMStats().byModel).toEqual({});
   });
+
+  it("starts with fallbackCount=0 and undefined lastFallback", () => {
+    const s = getLLMStats();
+    expect(s.fallbackCount).toBe(0);
+    expect(s.lastFallback).toBeUndefined();
+  });
+
+  it("increments fallbackCount and stamps lastFallback when primaryError is set", () => {
+    recordLLMCall({
+      provider: "openai",
+      model: "gpt-4o",
+      inputTokens: 100,
+      outputTokens: 50,
+      elapsedMs: 800,
+      primaryError: {
+        provider: "anthropic",
+        status: 503,
+        message: "Anthropic API: 503 service unavailable",
+      },
+    });
+    const s = getLLMStats();
+    expect(s.fallbackCount).toBe(1);
+    expect(s.lastFallback?.primaryProvider).toBe("anthropic");
+    expect(s.lastFallback?.status).toBe(503);
+    expect(s.lastFallback?.message).toContain("503");
+    expect(s.lastFallback?.at).toBeGreaterThan(0);
+  });
+
+  it("does NOT increment fallbackCount when primaryError is absent (normal path)", () => {
+    recordLLMCall({ provider: "anthropic", inputTokens: 100 });
+    recordLLMCall({ provider: "anthropic", inputTokens: 100 });
+    expect(getLLMStats().fallbackCount).toBe(0);
+  });
+
+  it("caps stored primaryError.message at 300 chars to bound snapshot size", () => {
+    const huge = "x".repeat(5_000);
+    recordLLMCall({
+      provider: "openai",
+      primaryError: { provider: "anthropic", message: huge },
+    });
+    const s = getLLMStats();
+    expect(s.lastFallback?.message.length).toBe(300);
+  });
+
+  it("resetLLMStats clears fallback counters", () => {
+    recordLLMCall({
+      provider: "openai",
+      primaryError: { provider: "anthropic", status: 500, message: "fail" },
+    });
+    expect(getLLMStats().fallbackCount).toBe(1);
+    resetLLMStats();
+    const s = getLLMStats();
+    expect(s.fallbackCount).toBe(0);
+    expect(s.lastFallback).toBeUndefined();
+  });
 });

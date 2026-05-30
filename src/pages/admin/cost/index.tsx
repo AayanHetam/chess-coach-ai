@@ -379,6 +379,22 @@ export default function AdminCost() {
                       : "Need ≥1m of uptime and ≥1 priced call"
                   }
                 />
+                <StatTile
+                  label="Fallbacks (Anthropic→OpenAI)"
+                  value={
+                    snapshot.fallbackCount > 0
+                      ? formatNumber(snapshot.fallbackCount)
+                      : "0"
+                  }
+                  caption={
+                    snapshot.lastFallback
+                      ? `Last: ${relativeTime(snapshot.lastFallback.at)} · status ${snapshot.lastFallback.status ?? "?"}`
+                      : "No fallbacks this instance"
+                  }
+                  accent={
+                    snapshot.fallbackCount > 0 ? "#C62828" : undefined
+                  }
+                />
               </Stack>
 
               {/* Per-model breakdown */}

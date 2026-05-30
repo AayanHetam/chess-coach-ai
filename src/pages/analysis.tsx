@@ -1,3 +1,4 @@
+import type { GetServerSideProps } from "next";
 import { useChessActions } from "@/hooks/useChessActions";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
 import Board from "@/sections/analysis/board";
@@ -22,8 +23,25 @@ import EngineSettingsButton from "@/sections/engineSettings/engineSettingsButton
 
 import { PageTitle } from "@/components/pageTitle";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { getInsight } from "@/lib/insights";
+import { excerptCoachContent } from "@/lib/og/excerptCoachContent";
 
-export default function GameAnalysis() {
+interface AnalysisPageProps {
+  // Populated only when ?insightId=N is in the URL — drives the
+  // social-share unfurl on Twitter / LinkedIn / Discord / Slack.
+  // Null on the no-insight case so the page falls back to default brand
+  // meta (handled by <PageTitle> defaults).
+  insightOg: {
+    title: string;
+    description: string;
+    image: string;
+    url: string;
+  } | null;
+}
+
+const SITE_URL = "https://chessmasti.com";
+
+export default function GameAnalysis({ insightOg }: AnalysisPageProps) {
   const theme = useTheme();
   const isLgOrGreater = useMediaQuery(theme.breakpoints.up("lg"));
   const [panelExpanded, setPanelExpanded] = useAtom(panelExpandedAtom);
@@ -216,7 +234,12 @@ export default function GameAnalysis() {
       direction={{ xs: "column", lg: "row" }}
       sx={{ width: "100%", maxWidth: "100vw" }}
     >
-      <PageTitle title="Chess Masti AI - Game Analysis" />
+      <PageTitle
+        title={insightOg?.title ?? "Chess Masti AI - Game Analysis"}
+        description={insightOg?.description}
+        url={insightOg?.url}
+        image={insightOg?.image}
+      />
 
       <Grid
         ref={boardContainerRef}
@@ -341,3 +364,38 @@ export default function GameAnalysis() {
     </Grid>
   );
 }
+
+// Server-side: only do work when ?insightId= is present, so the no-insight
+// path stays as cheap as a CSR page. When present, fetch the insight and
+// emit per-share OG meta tags so unfurls show the coach excerpt + the
+// dynamic /api/og/insight/[id] card instead of the generic brand image.
+export const getServerSideProps: GetServerSideProps<AnalysisPageProps> = async (
+  ctx,
+) => {
+  const raw = ctx.query.insightId;
+  const insightId = Array.isArray(raw) ? raw[0] : raw;
+  if (!insightId || typeof insightId !== "string" || insightId.length > 64) {
+    return { props: { insightOg: null } };
+  }
+  try {
+    const insight = await getInsight(insightId);
+    if (!insight) return { props: { insightOg: null } };
+    const excerpt =
+      excerptCoachContent(insight.coachContent, 200) ||
+      "An AI chess coach explanation, grounded in Stockfish.";
+    const url = `${SITE_URL}/analysis?insightId=${encodeURIComponent(insightId)}`;
+    return {
+      props: {
+        insightOg: {
+          title: "Chess Masti — coach insight",
+          description: excerpt,
+          image: `${SITE_URL}/api/og/insight/${encodeURIComponent(insightId)}`,
+          url,
+        },
+      },
+    };
+  } catch (err) {
+    console.error("[analysis getServerSideProps] insight fetch failed", err);
+    return { props: { insightOg: null } };
+  }
+};

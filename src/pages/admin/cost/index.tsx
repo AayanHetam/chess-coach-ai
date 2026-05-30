@@ -21,12 +21,20 @@ import {
   Divider,
   LinearProgress,
   Tooltip,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useViewer } from "@/hooks/useViewer";
 import { INTERN_THEME_COLOR_DARK } from "@/constants";
 import type { LLMStatsSnapshot, LLMModelTotals } from "@/lib/llmStatsAggregator";
-import { estimateCostUSD, getPricing } from "@/lib/llmPricing";
+import {
+  estimateBaselineCostUSD,
+  estimateCostUSD,
+  getPricing,
+} from "@/lib/llmPricing";
+
+const AUTO_REFRESH_INTERVAL_MS = 10_000;
 
 interface StatsResponse {
   snapshot: LLMStatsSnapshot;
@@ -39,6 +47,7 @@ interface ModelRow {
   provider: string;
   totals: LLMModelTotals;
   costUSD: number | null;
+  baselineCostUSD: number | null;
 }
 
 function formatNumber(n: number): string {
@@ -86,6 +95,18 @@ export default function AdminCost() {
   const [data, setData] = useState<StatsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+
+  // Auto-refresh poll. Only runs when the toggle is on. Battery- and
+  // bandwidth-friendly by default — admins opt in when they're actively
+  // watching the dashboard (e.g. during a load test or a demo).
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      setRefreshTick((t) => t + 1);
+    }, AUTO_REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
 
   useEffect(() => {
     if (viewerLoading) return;
@@ -136,6 +157,13 @@ export default function AdminCost() {
             cacheCreationTokens: totals.cacheCreationTokens,
             cacheReadTokens: totals.cacheReadTokens,
           }),
+          baselineCostUSD: estimateBaselineCostUSD({
+            model,
+            inputTokens: totals.inputTokens,
+            outputTokens: totals.outputTokens,
+            cacheCreationTokens: totals.cacheCreationTokens,
+            cacheReadTokens: totals.cacheReadTokens,
+          }),
         };
       },
     );
@@ -145,6 +173,18 @@ export default function AdminCost() {
   const totalCostUSD = useMemo(() => {
     return modelRows.reduce((sum, r) => sum + (r.costUSD ?? 0), 0);
   }, [modelRows]);
+
+  // Counterfactual: what the same workload would have cost if the
+  // Anthropic prompt-cache split (PRs #70 + #77) wasn't in place —
+  // all cache-read + cache-write tokens billed at the full input rate.
+  // Surfaces the cost-discipline story directly on the dashboard.
+  const totalBaselineCostUSD = useMemo(() => {
+    return modelRows.reduce((sum, r) => sum + (r.baselineCostUSD ?? 0), 0);
+  }, [modelRows]);
+
+  const cacheSavingsUSD = Math.max(0, totalBaselineCostUSD - totalCostUSD);
+  const cacheSavingsPct =
+    totalBaselineCostUSD > 0 ? cacheSavingsUSD / totalBaselineCostUSD : 0;
 
   const hasUnpricedModel = useMemo(
     () => modelRows.some((r) => r.costUSD === null),
@@ -163,6 +203,15 @@ export default function AdminCost() {
   const snapshot = data?.snapshot;
   const cacheHitPct = snapshot?.cacheHitRate;
   const uptimeMs = snapshot ? Date.now() - snapshot.startedAt : 0;
+
+  // Hourly burn rate — extrapolate from the elapsed wall-clock and
+  // total cost. Honest about what's measured (one process instance,
+  // current load), not a "monthly projection" that pretends to know
+  // sustained traffic.
+  const burnPerHourUSD =
+    uptimeMs >= 60_000 && totalCostUSD > 0
+      ? (totalCostUSD / uptimeMs) * 3_600_000
+      : 0;
 
   return (
     <>
@@ -196,6 +245,21 @@ export default function AdminCost() {
             >
               ← Intern data
             </Button>
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={autoRefresh}
+                  onChange={(e) => setAutoRefresh(e.target.checked)}
+                />
+              }
+              label={
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  Auto-refresh ({AUTO_REFRESH_INTERVAL_MS / 1000}s)
+                </Typography>
+              }
+              sx={{ ml: 0, mr: 0 }}
+            />
             <Button
               size="small"
               startIcon={<RefreshIcon />}
@@ -282,6 +346,38 @@ export default function AdminCost() {
                   label="Uptime"
                   value={snapshot.totals.callCount > 0 ? formatDuration(uptimeMs) : "—"}
                   caption={`Last call ${relativeTime(snapshot.lastCallAt)}`}
+                />
+              </Stack>
+
+              {/* Second row — cost-discipline story */}
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={2}
+                sx={{ "& > *": { flex: 1 } }}
+              >
+                <StatTile
+                  label="Cache savings (est.)"
+                  value={
+                    totalBaselineCostUSD > 0
+                      ? `${formatUSD(cacheSavingsUSD)} (${(cacheSavingsPct * 100).toFixed(0)}%)`
+                      : "—"
+                  }
+                  caption={
+                    totalBaselineCostUSD > 0
+                      ? `Counterfactual without cache: ${formatUSD(totalBaselineCostUSD)}`
+                      : "No cache-eligible calls yet"
+                  }
+                  accent={cacheSavingsUSD > 0 ? "#2E7D32" : undefined}
+                  progress={cacheSavingsPct > 0 ? cacheSavingsPct : undefined}
+                />
+                <StatTile
+                  label="Hourly burn @ this rate"
+                  value={burnPerHourUSD > 0 ? `${formatUSD(burnPerHourUSD)}/hr` : "—"}
+                  caption={
+                    burnPerHourUSD > 0
+                      ? `~${formatUSD(burnPerHourUSD * 24)}/day if traffic holds`
+                      : "Need ≥1m of uptime and ≥1 priced call"
+                  }
                 />
               </Stack>
 

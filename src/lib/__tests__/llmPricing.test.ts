@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { estimateCostUSD, getPricing, MODEL_PRICING } from "../llmPricing";
+import {
+  estimateBaselineCostUSD,
+  estimateCostUSD,
+  getPricing,
+  MODEL_PRICING,
+} from "../llmPricing";
 
 describe("llmPricing", () => {
   it("returns null for unknown model", () => {
@@ -56,6 +61,67 @@ describe("llmPricing", () => {
       outputTokens: 0,
     });
     expect(cost).toBe(0);
+  });
+
+  it("estimateBaselineCostUSD prices cache reads/writes at full input rate", () => {
+    // Sonnet 4 baseline: pretend all cache tokens were just normal input.
+    // 100k cache_read + 100k cache_write → counterfactual input 200k.
+    // 200k × $3/M + 0 output = $0.60.
+    const baseline = estimateBaselineCostUSD({
+      model: "claude-sonnet-4-20250514",
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 100_000,
+      cacheCreationTokens: 100_000,
+    });
+    expect(baseline).toBeCloseTo(0.6, 6);
+  });
+
+  it("estimateBaselineCostUSD adds counterfactual to actual input", () => {
+    // 50k actual input + 100k cache_read + 50k cache_write → counter 200k.
+    const baseline = estimateBaselineCostUSD({
+      model: "claude-haiku-4-5-20251001",
+      inputTokens: 50_000,
+      outputTokens: 0,
+      cacheReadTokens: 100_000,
+      cacheCreationTokens: 50_000,
+    });
+    // Haiku $1/M input: 200k × $1/M = $0.20.
+    expect(baseline).toBeCloseTo(0.2, 6);
+  });
+
+  it("estimateBaselineCostUSD equals actual cost for OpenAI (no cache rates)", () => {
+    const args = {
+      model: "gpt-4o",
+      inputTokens: 1_000_000,
+      outputTokens: 500_000,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+    };
+    expect(estimateBaselineCostUSD(args)).toBe(estimateCostUSD(args));
+  });
+
+  it("estimateBaselineCostUSD returns null for unknown model", () => {
+    expect(
+      estimateBaselineCostUSD({
+        model: "claude-future-99",
+        inputTokens: 100,
+        outputTokens: 100,
+      }),
+    ).toBeNull();
+  });
+
+  it("savings (baseline − actual) is positive when cache is exercised", () => {
+    const args = {
+      model: "claude-sonnet-4-20250514",
+      inputTokens: 1_000,
+      outputTokens: 1_000,
+      cacheReadTokens: 100_000,
+      cacheCreationTokens: 10_000,
+    };
+    const baseline = estimateBaselineCostUSD(args)!;
+    const actual = estimateCostUSD(args)!;
+    expect(baseline - actual).toBeGreaterThan(0);
   });
 
   it("every entry in MODEL_PRICING has a sane provider and rate", () => {

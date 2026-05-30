@@ -60,7 +60,17 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  cloneElement,
+  Fragment,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill as SharedNavPill } from "@/components/ui/NavPill";
@@ -86,6 +96,8 @@ import {
   getPersonalityById,
 } from "@/config/coachPersonalities";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   parseInsights,
   type InsightData,
@@ -5396,6 +5408,209 @@ function CoachBubble({
     return out;
   };
 
+  // ─── Markdown prose renderer ────────────────────────────────────────────
+  // The coach prompt does not currently forbid markdown, the few-shot
+  // examples (goldStandardExamples.ts) use **bold** + bullet lists + the
+  // occasional [label](url), and the model emits markdown by training
+  // default. Before this PR the renderer collapsed all of that to plain
+  // text — bare `**bold**` and literal `[label](url)` survived as raw
+  // characters in the bubble.
+  //
+  // We run prose between INSIGHT cards through react-markdown + GFM, but
+  // every text node still goes through renderInline so the move-reference
+  // tokenizer + the recommended-move green-tag logic keep working.
+  // `renderInline` already handles `**bold**`, so we leave bold to it
+  // rather than relying on react-markdown's `<strong>` to avoid double-
+  // bolding when both layers fire on the same span.
+  const processChildren = (node: ReactNode): ReactNode => {
+    if (typeof node === "string") {
+      return <>{renderInline(node)}</>;
+    }
+    if (Array.isArray(node)) {
+      return node.map((child, idx) => (
+        <Fragment key={idx}>{processChildren(child)}</Fragment>
+      ));
+    }
+    if (
+      isValidElement<{ children?: ReactNode }>(node) &&
+      node.props != null &&
+      "children" in node.props
+    ) {
+      return cloneElement(node, {
+        children: processChildren(node.props.children),
+      });
+    }
+    return node;
+  };
+
+  // Markdown links: only http/https survive. javascript: / data: / file:
+  // URLs from a hallucinated coach reply get silently rendered as plain
+  // text.
+  const isSafeHref = (href: string | undefined): href is string => {
+    if (!href) return false;
+    try {
+      const u = new URL(href, "https://chessmasti.com");
+      return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+
+  const markdownComponents = {
+    a: ({ href, children, ...rest }: any) => {
+      if (!isSafeHref(href)) return <>{processChildren(children)}</>;
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: isUser ? "#0A0A0A" : "#FB923C",
+            textDecoration: "underline",
+            fontWeight: 600,
+          }}
+          {...rest}
+        >
+          {processChildren(children)}
+        </a>
+      );
+    },
+    p: ({ children }: any) => (
+      <Box component="p" sx={{ m: 0, mb: 0.75, "&:last-child": { mb: 0 } }}>
+        {processChildren(children)}
+      </Box>
+    ),
+    ul: ({ children }: any) => (
+      <Box component="ul" sx={{ m: 0, mb: 0.75, pl: 2.5 }}>
+        {processChildren(children)}
+      </Box>
+    ),
+    ol: ({ children }: any) => (
+      <Box component="ol" sx={{ m: 0, mb: 0.75, pl: 2.5 }}>
+        {processChildren(children)}
+      </Box>
+    ),
+    li: ({ children }: any) => (
+      <Box component="li" sx={{ mb: 0.25 }}>
+        {processChildren(children)}
+      </Box>
+    ),
+    blockquote: ({ children }: any) => (
+      <Box
+        component="blockquote"
+        sx={{
+          m: 0,
+          mb: 0.75,
+          pl: 1.25,
+          borderLeft: isUser
+            ? "3px solid rgba(0,0,0,0.25)"
+            : "3px solid rgba(251,146,60,0.5)",
+          color: "inherit",
+          opacity: 0.85,
+        }}
+      >
+        {processChildren(children)}
+      </Box>
+    ),
+    h1: ({ children }: any) => (
+      <Box component="div" sx={{ fontWeight: 700, fontSize: "1.05em", mb: 0.5 }}>
+        {processChildren(children)}
+      </Box>
+    ),
+    h2: ({ children }: any) => (
+      <Box component="div" sx={{ fontWeight: 700, fontSize: "1.02em", mb: 0.5 }}>
+        {processChildren(children)}
+      </Box>
+    ),
+    h3: ({ children }: any) => (
+      <Box component="div" sx={{ fontWeight: 700, fontSize: "1em", mb: 0.5 }}>
+        {processChildren(children)}
+      </Box>
+    ),
+    h4: ({ children }: any) => (
+      <Box component="div" sx={{ fontWeight: 700, fontSize: "0.96em", mb: 0.5 }}>
+        {processChildren(children)}
+      </Box>
+    ),
+    em: ({ children }: any) => (
+      <em>{processChildren(children)}</em>
+    ),
+    // We intentionally do NOT remap <strong>: renderInline already turns
+    // `**bold**` into a styled span, and remark-gfm's `<strong>` rendering
+    // would double-bold the same content. Leaving `strong` off this map
+    // means react-markdown emits the default <strong>, but the bold text
+    // never reaches react-markdown because renderInline consumed the
+    // `**…**` syntax first.
+    code: ({ inline, children, ...rest }: any) => {
+      // react-markdown 10 still passes `inline` for compatibility; default
+      // to "inline" when in doubt — coach output rarely contains real
+      // code blocks, and falling back to inline keeps the layout sane.
+      const isInline = inline ?? true;
+      if (isInline) {
+        return (
+          <Box
+            component="code"
+            sx={{
+              fontFamily:
+                "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+              fontSize: "0.9em",
+              px: 0.45,
+              py: 0.05,
+              borderRadius: "4px",
+              background: isUser
+                ? "rgba(0,0,0,0.12)"
+                : "rgba(255,255,255,0.08)",
+            }}
+            {...rest}
+          >
+            {children}
+          </Box>
+        );
+      }
+      return (
+        <Box
+          component="pre"
+          sx={{
+            m: 0,
+            mb: 0.75,
+            p: 1,
+            borderRadius: "8px",
+            background: "rgba(0,0,0,0.3)",
+            overflowX: "auto",
+            fontSize: "0.85em",
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+          }}
+          {...rest}
+        >
+          <code>{children}</code>
+        </Box>
+      );
+    },
+    hr: () => (
+      <Box
+        component="hr"
+        sx={{
+          border: 0,
+          borderTop: "1px solid rgba(255,255,255,0.1)",
+          my: 1,
+        }}
+      />
+    ),
+  };
+
+  // Wraps a chunk of prose in react-markdown but lets renderInline keep
+  // owning the bold + move-ref tokenization. Returns a JSX element rather
+  // than ReactNode[] so callers can drop it into JSX with `{}`.
+  const renderMarkdownProse = (text: string): React.ReactNode => (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={markdownComponents}
+    >
+      {text}
+    </ReactMarkdown>
+  );
+
   const shareable =
     !isUser && msg.content.trim().length > 0 && Boolean(onShare);
 
@@ -5434,11 +5649,11 @@ function CoachBubble({
           const practiceStripped = extractPracticeTags(msg.content).stripped;
           const { prefix, insights, suffix } = parseInsights(practiceStripped);
           if (insights.length === 0) {
-            return renderInline(practiceStripped);
+            return renderMarkdownProse(practiceStripped);
           }
           return (
             <>
-              {prefix.trim() && renderInline(prefix)}
+              {prefix.trim() && renderMarkdownProse(prefix)}
               <DarkInsightCarousel
                 insights={insights}
                 renderInline={renderInline}
@@ -5459,7 +5674,7 @@ function CoachBubble({
                 loadedGame={loadedGame}
                 onJumpToPly={onMoveRefClick}
               />
-              {suffix.trim() && renderInline(suffix)}
+              {suffix.trim() && renderMarkdownProse(suffix)}
             </>
           );
         })()}

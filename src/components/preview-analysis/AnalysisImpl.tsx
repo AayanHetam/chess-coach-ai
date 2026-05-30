@@ -114,6 +114,7 @@ import {
   detectUserColor,
 } from "@/lib/smartColorDetection";
 import { getEvaluateGameParams } from "@/lib/chess";
+import { detectOpening } from "@/lib/unifiedOpeningDetector";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
 import { CoachShareDialog } from "@/components/ui/CoachShareDialog";
@@ -6101,6 +6102,29 @@ export default function AnalysisPage() {
     [loadedGame]
   );
   const headers = useMemo(() => loadedGame.header(), [loadedGame]);
+  // Live opening detection — falls back to the PGN-supplied header. Most
+  // imported games have an Opening tag (chess.com fills it, lichess fills
+  // it on long games), but PGN pastes, FEN loads, and the demo game ship
+  // without one. detectOpening() walks the move list against the openings
+  // trie and returns the longest matching name + ECO. Memoised on
+  // loadedGame so a click-through navigation doesn't trie-walk per render.
+  const detectedOpening = useMemo(
+    () => detectOpening(loadedGame),
+    [loadedGame],
+  );
+  const openingLabel = useMemo(() => {
+    const pgnOpening = headers.Opening?.trim();
+    if (pgnOpening) {
+      // Prefer the PGN header — it's chess.com / lichess's verbatim label,
+      // including specific variation names ("Sicilian Defense: Najdorf,
+      // English Attack") that the local trie won't always reach.
+      return headers.ECO ? `${pgnOpening} (${headers.ECO})` : pgnOpening;
+    }
+    if (!detectedOpening || detectedOpening.name === "Opening") return "—";
+    return detectedOpening.eco
+      ? `${detectedOpening.name} (${detectedOpening.eco})`
+      : detectedOpening.name;
+  }, [headers.Opening, headers.ECO, detectedOpening]);
 
   // ───── Real Stockfish evaluation ─────
   // Stockfish17Lite is single-threaded — works on networks that block
@@ -7914,7 +7938,7 @@ export default function AnalysisPage() {
             blackName={headers.Black || "Black"}
             event={headers.Event || "—"}
             year={headers.Date?.split(".")[0] || ""}
-            opening={headers.Opening || "—"}
+            opening={openingLabel}
             currentEval={evalSeries[currentPly] ?? 0}
             currentPly={currentPly}
             totalPlies={allMoves.length}

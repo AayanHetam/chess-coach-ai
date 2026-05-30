@@ -17,7 +17,26 @@ export interface AnalysisContext {
   gameContext: string;        // Full pre-built game context string (used for the initial deep analysis only)
   compactGameContext: string; // Trimmed move list + per-move evals + mistakes — re-sent on every chat follow-up
   playedMoves: string[];      // SAN move history; lets follow-up code answer "did I play X?" without re-deriving
-  systemPrompt: string;       // System prompt with player info + weakness profile
+  systemPrompt: string;       // Joined system prompt (stable + perUser). Kept
+                              //   for backward compat with legacy cache entries
+                              //   and as the fallback when the split below is
+                              //   absent.
+  /**
+   * Persona-stable prefix of the system prompt. Identical across users who
+   * share the same personalityId; safe to ship as the Anthropic ephemeral
+   * prompt-cache prefix on /api/chat follow-ups so two users in the same
+   * persona share the cache instead of each warming their own. Optional —
+   * legacy cache entries created before the split landed have this undefined
+   * and the chat route falls back to using `systemPrompt` as the whole block.
+   */
+  systemPromptStable?: string;
+  /**
+   * Per-user / per-conversation tail. Username, rating, coaching prefs and
+   * anything else that varies across callers of the same persona. Sent
+   * uncached on /api/chat so a username difference between two callers
+   * doesn't bust the cached prefix above.
+   */
+  systemPromptSuffix?: string;
   fewShotExamples: string;    // Pre-selected few-shot examples
   fen: string;                // Current/final FEN
   skillLevel: "beginner" | "intermediate" | "advanced";

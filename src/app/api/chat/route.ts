@@ -90,28 +90,35 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Build lightweight message array
-      const chatMessages: Array<{ role: string; content: string }> = [];
+      // System prompt split:
+      //   - cached prefix:  context.systemPromptStable (persona-stable across
+      //     users who share a personalityId). Falls back to the full joined
+      //     systemPrompt for legacy cache entries created before the split
+      //     landed.
+      //   - uncached suffix: context.systemPromptSuffix (the per-user tail —
+      //     username, rating, coaching prefs) + the per-turn condensed game
+      //     context. Both vary per call so they ride uncached.
+      // When the new fields are absent (legacy contextId) we send everything
+      // as the cacheable block — the worst case is just that two users with
+      // different names share a cache miss, same behaviour as before.
+      const cachedSystemPrompt = context.systemPromptStable ?? context.systemPrompt;
+      const condensedContext = buildCondensedContext(context);
+      const uncachedSuffix = context.systemPromptStable
+        ? `${context.systemPromptSuffix ?? ""}\n\n${condensedContext}`.trim()
+        : condensedContext;
 
-      // System prompt (cached from initial analysis, includes player info + personality)
-      chatMessages.push({ role: "system", content: context.systemPrompt });
+      const nonSystemMessages: LLMMessage[] = [];
 
-      // Condensed game context as a system message (instead of 10K tokens of move-by-move)
-      chatMessages.push({
-        role: "system",
-        content: buildCondensedContext(context),
-      });
-
-      // The initial deep analysis as the first assistant message
-      // This gives the LLM full continuity without re-sending the raw game data
-      chatMessages.push({
+      // The initial deep analysis as the first assistant message — gives the
+      // LLM full continuity without re-sending the raw game data.
+      nonSystemMessages.push({
         role: "assistant",
         content: context.initialAnalysis,
       });
 
-      // Prior conversation turns (excluding the initial analysis which is already above)
+      // Prior conversation turns (excluding the initial analysis which is
+      // already injected above).
       if (conversationHistory && Array.isArray(conversationHistory)) {
-        // Skip the first assistant message (it's the initial analysis, already injected above)
         let skippedFirst = false;
         for (const msg of conversationHistory) {
           if (msg.role === "assistant" && !skippedFirst) {
@@ -119,22 +126,18 @@ export async function POST(request: NextRequest) {
             continue;
           }
           if (msg.role && msg.content) {
-            chatMessages.push({ role: msg.role, content: msg.content });
+            nonSystemMessages.push({
+              role: msg.role as "user" | "assistant",
+              content: msg.content,
+            });
           }
         }
       }
 
       // Current user message
-      chatMessages.push({ role: "user", content: userMessage });
+      nonSystemMessages.push({ role: "user", content: userMessage });
 
-      // Extract system messages and user/assistant messages for the unified provider
-      const systemText = chatMessages
-        .filter((m) => m.role === "system")
-        .map((m) => m.content)
-        .join("\n\n");
-      const nonSystemMessages: LLMMessage[] = chatMessages
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+      const systemText = cachedSystemPrompt;
 
       // Stage B insertion (§3.7.9 chat-equivalent of A): single env read.
       const { validatorsEnabled } = getMastermindEnv();
@@ -187,6 +190,7 @@ export async function POST(request: NextRequest) {
                   initialRequest: {
                     tier: "fast",
                     system: systemText,
+                    systemSuffix: uncachedSuffix,
                     messages: nonSystemMessages,
                     temperature: 0.7,
                     maxTokens: 3000,
@@ -301,6 +305,7 @@ export async function POST(request: NextRequest) {
         llmResult = await callLLM({
           tier: "fast",
           system: systemText,
+          systemSuffix: uncachedSuffix,
           messages: nonSystemMessages,
           temperature: 0.7,
           maxTokens: 3000,

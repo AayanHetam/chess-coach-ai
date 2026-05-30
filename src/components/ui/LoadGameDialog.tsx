@@ -20,7 +20,21 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+// MUI Modal does cloneElement(child, { ref }) on its direct child. When
+// that child is <AnimatePresence> (a fragment-shaped framer-motion
+// container), there's no DOM node to attach the ref to and React fires
+// `Warning: Failed prop type: Invalid prop \`children\` supplied to
+// \`ForwardRef(Modal)\`. Expected an element that can hold a ref.`
+// Wrapping AnimatePresence in a forwardRef'd div absorbs the ref
+// cleanly. No visual change — the div is a positioning-neutral
+// container Modal already accounts for.
+const ModalChild = React.forwardRef<HTMLDivElement, { children: React.ReactNode }>(
+  function ModalChild({ children }, ref) {
+    return <div ref={ref}>{children}</div>;
+  }
+);
 import type { LichessGame } from "@/types/lichess";
 import type { ChessComGame } from "@/types/chessCom";
 import { getLichessUserRecentGames } from "@/lib/lichess";
@@ -58,6 +72,7 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
         },
       }}
     >
+      <ModalChild>
       <AnimatePresence>
         {open && (
           <motion.div
@@ -297,6 +312,7 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      </ModalChild>
     </Modal>
   );
 }

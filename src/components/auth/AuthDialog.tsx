@@ -1,6 +1,17 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import React, { useState, FormEvent } from "react";
+
+// MUI Modal calls cloneElement(child, { ref }) on its direct child.
+// AnimatePresence is fragment-shaped — no DOM node for the ref to land on
+// — so React warns "Invalid prop `children` supplied to ForwardRef(Modal).
+// Expected an element that can hold a ref." This forwardRef'd div is a
+// neutral container Modal can attach to. Same fix in LoadGameDialog.
+const ModalChild = React.forwardRef<HTMLDivElement, { children: React.ReactNode }>(
+  function ModalChild({ children }, ref) {
+    return <div ref={ref}>{children}</div>;
+  }
+);
 import {
   Box,
   Modal,
@@ -196,6 +207,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
         outline: "none",
       }}
     >
+      <ModalChild>
       <AnimatePresence>
         {open && (
           <motion.div
@@ -867,6 +879,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      </ModalChild>
     </Modal>
   );
 }

@@ -985,12 +985,15 @@ const SEED_MESSAGES: CoachMessage[] = [
   },
 ];
 
-const SUGGESTION_PILLS = [
-  "Show the forced mate line",
-  "What was Black's best defense?",
-  "Find me puzzles with rook sacrifices",
-  "Why did Kasparov sac on move 24?",
-];
+// Replaced with the per-game generator in `./generateSuggestions`.
+// The CoachPanel receives a fresh `suggestions` array (pinned "Analyze
+// my game" in ember + up to 3 rule-derived) computed in AnalysisPage
+// based on the current game's blunders / brilliancies / opening /
+// endgame state / active mistake context.
+import {
+  generateSuggestions,
+  type Suggestion,
+} from "./generateSuggestions";
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Board square styling
@@ -3000,6 +3003,7 @@ function CoachPanel({
   loadedGame,
   personalityId,
   onChangePersonality,
+  suggestions,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -3047,6 +3051,11 @@ function CoachPanel({
   /** G12: current analysis contextId so FlagButton can attach it to the
    *  flagged-message POST. Null when no deep analysis has run yet. */
   coachContextIdProp?: string | null;
+  /** Per-game suggestion pills — first entry is the pinned "Analyze my
+   *  game" rendered in ember; the rest are rule-derived neutral pills.
+   *  Computed by the parent (AnalysisPage) so the command palette can
+   *  share the same list. */
+  suggestions: Suggestion[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -3423,29 +3432,39 @@ function CoachPanel({
         }}
       >
         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
-          {SUGGESTION_PILLS.map((s) => (
+          {suggestions.map((s) => (
             <Box
-              key={s}
-              onClick={() => onSuggestion(s)}
+              key={s.text}
+              onClick={() => onSuggestion(s.text)}
               sx={{
                 cursor: "pointer",
                 px: 1.5,
                 py: 0.6,
                 borderRadius: "999px",
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
+                // Pinned suggestions (just "Analyze my game" today) get
+                // the ember accent always-on so they read as a primary
+                // CTA among the rule-derived neutral pills.
+                background: s.pinned
+                  ? "rgba(249,115,22,0.14)"
+                  : "rgba(255,255,255,0.04)",
+                border: s.pinned
+                  ? "1px solid rgba(249,115,22,0.45)"
+                  : "1px solid rgba(255,255,255,0.08)",
                 fontSize: "0.78rem",
-                color: "rgba(255,255,255,0.78)",
+                color: s.pinned ? "#FB923C" : "rgba(255,255,255,0.78)",
+                fontWeight: s.pinned ? 600 : 400,
                 transition: "all 180ms ease",
                 "&:hover": {
-                  background: "rgba(249,115,22,0.12)",
-                  borderColor: "rgba(249,115,22,0.3)",
+                  background: s.pinned
+                    ? "rgba(249,115,22,0.22)"
+                    : "rgba(249,115,22,0.12)",
+                  borderColor: "rgba(249,115,22,0.45)",
                   color: "#FB923C",
                   transform: "translateY(-1px)",
                 },
               }}
             >
-              {s}
+              {s.text}
             </Box>
           ))}
         </Stack>
@@ -6567,6 +6586,36 @@ export default function AnalysisPage() {
     };
   }, [classifiedPositions, currentPly, allMoves]);
 
+  // Per-game suggestion pills shown above the coach input + in the
+  // command palette's "Coach" section. Replaces the old static
+  // SUGGESTION_PILLS constant. Pinned "Analyze my game" + up to 3 rule-
+  // derived suggestions based on the actual game's classifications,
+  // opening, and current cursor position. See generateSuggestions.ts.
+  const coachSuggestions = useMemo(
+    () =>
+      generateSuggestions({
+        loadedGame,
+        enginePositions: classifiedPositions,
+        mistakeContext: mistakeContext
+          ? {
+              movePlayed: mistakeContext.movePlayed,
+              classification:
+                classifiedPositions?.[currentPly]?.moveClassification,
+            }
+          : null,
+        openingName:
+          headers.Opening?.trim() || detectedOpening?.name || null,
+      }),
+    [
+      loadedGame,
+      classifiedPositions,
+      mistakeContext,
+      currentPly,
+      headers.Opening,
+      detectedOpening,
+    ],
+  );
+
   // Derived: current FEN + last move + check by replaying moves up to currentPly
   const { currentFen, lastMove, isInCheck } = useMemo(() => {
     const g = new Chess();
@@ -7942,13 +7991,16 @@ export default function AnalysisPage() {
       },
       {
         heading: "Coach",
-        items: SUGGESTION_PILLS.map((s, i) => ({
+        // Same dynamic list rendered as pills above the chat input.
+        // Pinned "Analyze my game" comes through verbatim so the
+        // command palette and the pill row stay in sync.
+        items: coachSuggestions.map((s, i) => ({
           id: `ask-${i}`,
-          label: s,
-          hint: "Ask the coach",
+          label: s.text,
+          hint: s.pinned ? "Pinned · ask the coach" : "Ask the coach",
           icon: CommandIcons.Coach,
           onSelect: () => {
-            setInput(s);
+            setInput(s.text);
             // tiny delay so input visibly populates before send fires
             setTimeout(() => {
               const ev = new Event("submit");
@@ -7962,7 +8014,7 @@ export default function AnalysisPage() {
         })),
       },
     ],
-    [allMoves.length, liveKeyMoments]
+    [allMoves.length, liveKeyMoments, coachSuggestions]
   );
 
   return (
@@ -8238,6 +8290,7 @@ export default function AnalysisPage() {
                         coachContextIdProp={coachContextIdRef.current}
                         enginePositions={enginePositions}
                         loadedGame={loadedGame}
+                        suggestions={coachSuggestions}
                         personalityId={personality.id}
                         onChangePersonality={(id) =>
                           setSelectedPersonalityId(id)

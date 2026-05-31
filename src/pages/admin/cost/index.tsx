@@ -96,6 +96,30 @@ export default function AdminCost() {
   const [error, setError] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  // Wipe the in-memory aggregator on this Vercel instance — useful before
+  // a credit-application screenshot or load test so the numbers start
+  // from a known t=0 instead of "since last cold start hours ago."
+  const handleReset = async () => {
+    const confirmed = window.confirm(
+      "Reset LLM stats? This wipes the in-memory counters on this Vercel instance. Process-scoped: only this instance is cleared.",
+    );
+    if (!confirmed) return;
+    setResetting(true);
+    try {
+      const res = await fetch("/api/admin/llm-stats", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`Reset failed (${res.status})`);
+      setRefreshTick((t) => t + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setResetting(false);
+    }
+  };
 
   // Auto-refresh poll. Only runs when the toggle is on. Battery- and
   // bandwidth-friendly by default — admins opt in when they're actively
@@ -267,6 +291,15 @@ export default function AdminCost() {
               sx={{ textTransform: "none" }}
             >
               Refresh
+            </Button>
+            <Button
+              size="small"
+              color="error"
+              onClick={handleReset}
+              disabled={resetting}
+              sx={{ textTransform: "none" }}
+            >
+              {resetting ? "Resetting…" : "Reset stats"}
             </Button>
           </Stack>
 

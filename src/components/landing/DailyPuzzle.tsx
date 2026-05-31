@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Typography,
@@ -8,7 +8,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { Chessboard } from "react-chessboard";
-import { Chess, Square } from "chess.js";
+import { Square } from "chess.js";
 import { useRouter } from "next/router";
 import { useAtomValue, useSetAtom } from "jotai";
 import { pieceSetAtom } from "@/components/board/states";
@@ -20,7 +20,8 @@ import {
   puzzleStatsAtom,
   updatePuzzleStats,
 } from "@/lib/puzzleRating";
-import { parseSolutionMoves as parseSolution } from "@/lib/puzzleSolution";
+import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
+import { FlashOverlay } from "@/components/puzzle/FlashOverlay";
 
 const PIECE_CODES: Piece[] = [
   "wP", "wB", "wN", "wR", "wQ", "wK",
@@ -36,12 +37,14 @@ interface DailyPuzzleData {
   solution: string[];
 }
 
-// parseSolutionMoves now lives in @/lib/puzzleSolution — shared across
-// all five puzzle surfaces (InlinePuzzleSet, PracticeChessBoard, this,
-// PuzzleRush, PatternTraining). The inline copies that used to exist
-// silently truncated on the first move chess.js couldn't apply, which
-// broke any puzzle with more than ~2 plies and tricky data formatting.
+const BOARD_SIZE = 360;
 
+/**
+ * Daily puzzle widget on the landing page (mounted at `/`).
+ * State + behavior delegated to the shared usePuzzleBoardState hook;
+ * this file owns the surrounding card chrome, "already solved today"
+ * banner, localStorage persistence, and the "More puzzles →" CTA.
+ */
 export default function DailyPuzzle() {
   const router = useRouter();
   const pieceSet = useAtomValue(pieceSetAtom);
@@ -49,42 +52,28 @@ export default function DailyPuzzle() {
 
   const [puzzle, setPuzzle] = useState<DailyPuzzleData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [game, setGame] = useState<Chess>(new Chess());
-  const [moveIndex, setMoveIndex] = useState(0);
-  const [boardOrientation, setBoardOrientation] = useState<"white" | "black">("white");
-  const [status, setStatus] = useState<"loading" | "playing" | "wrong" | "solved">("loading");
-  const [lastMoveSquares, setLastMoveSquares] = useState<{ from: Square; to: Square } | null>(null);
-  const [wrongSquare, setWrongSquare] = useState<Square | null>(null);
-  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
-  const [legalMoveSquares, setLegalMoveSquares] = useState<Square[]>([]);
   const [dailyDate, setDailyDate] = useState<string>("");
-
-  const puzzleIdRef = useRef<string | null>(null);
-  const startTimeRef = useRef<number>(Date.now());
-
-  // Check localStorage to see if already solved today
   const [alreadySolvedToday, setAlreadySolvedToday] = useState(false);
 
-  const solutionParseResult = useMemo(() => {
-    if (!puzzle) return { parsed: [], error: null as string | null };
-    return parseSolution(puzzle.fen, puzzle.solution || puzzle.moves);
-    // Depend on the stable puzzle.id, not the puzzle object — avoids
-    // recomputing every render of the parent. Mirror of PR #109's
-    // InlinePuzzleSet fix.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puzzle?.id]);
-  const solutionMoves = solutionParseResult.parsed;
-  const solutionParseError = solutionParseResult.error;
-  const [puzzleError, setPuzzleError] = useState<string | null>(null);
+  // Click-to-move UI state — local to this surface; hook doesn't know
+  // about clicks.
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [legalMoveSquares, setLegalMoveSquares] = useState<Square[]>([]);
 
-  // Fetch daily puzzle
+  // Reset selection when puzzle changes (only fires on initial load
+  // since DailyPuzzle is a single puzzle per page mount).
+  useEffect(() => {
+    setSelectedSquare(null);
+    setLegalMoveSquares([]);
+  }, [puzzle?.id]);
+
+  // Fetch the daily puzzle.
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     const solvedKey = `dailyPuzzleSolved_${today}`;
     if (typeof window !== "undefined" && localStorage.getItem(solvedKey) === "true") {
       setAlreadySolvedToday(true);
     }
-
     (async () => {
       try {
         const res = await fetch("/api/chess-puzzles-dataset", {
@@ -104,58 +93,6 @@ export default function DailyPuzzle() {
           };
           setPuzzle(p);
           setDailyDate(data.date || today);
-
-          // Initialize board
-          puzzleIdRef.current = p.id;
-          const newGame = new Chess(p.fen);
-          const opponentColor = newGame.turn();
-          setBoardOrientation(opponentColor === "w" ? "black" : "white");
-          setGame(newGame);
-          setMoveIndex(0);
-          setStatus("loading");
-          startTimeRef.current = Date.now();
-
-          // Use the robust parser up-front so the init move benefits
-          // from the trim / SAN fallback / uppercase-promotion fixes.
-          // Mirrors the React-state path (solutionParseResult above)
-          // for the imperative init below — they need to agree, and
-          // the inline raw-slicing here would silently differ.
-          const initParse = parseSolution(p.fen, p.solution || p.moves);
-          if (initParse.error) {
-            console.warn("[DailyPuzzle] parse error on load:", initParse.error);
-            setPuzzleError(initParse.error);
-          }
-
-          // Auto-play opponent's first move
-          setTimeout(() => {
-            if (puzzleIdRef.current !== p.id) return;
-            const firstMove = initParse.parsed[0];
-            if (!firstMove) {
-              // Empty or malformed solution — give the user an explicit
-              // signal instead of a dead board.
-              setPuzzleError(
-                initParse.error ?? "Puzzle has no playable moves.",
-              );
-              setStatus("playing"); // re-enable UI even though there's no puzzle
-              return;
-            }
-            try {
-              const g = new Chess(newGame.fen());
-              g.move({
-                from: firstMove.from,
-                to: firstMove.to,
-                promotion: firstMove.promotion,
-              });
-              setGame(g);
-              setMoveIndex(1);
-              setLastMoveSquares({ from: firstMove.from, to: firstMove.to });
-              setStatus("playing");
-            } catch (err) {
-              console.warn("[DailyPuzzle] opponent setup move failed", err);
-              setPuzzleError("Opponent setup move couldn't be applied.");
-              setStatus("playing");
-            }
-          }, 600);
         }
       } catch (err) {
         console.error("Failed to fetch daily puzzle:", err);
@@ -165,128 +102,51 @@ export default function DailyPuzzle() {
     })();
   }, []);
 
-  // Play opponent move
-  const playOpponentMove = useCallback(
-    (currentGame: Chess, nextMoveIdx: number) => {
-      if (nextMoveIdx >= solutionMoves.length) return;
-      const pid = puzzleIdRef.current;
-      setTimeout(() => {
-        if (puzzleIdRef.current !== pid) return;
-        const move = solutionMoves[nextMoveIdx];
-        if (!move) {
-          // Parser truncated the solution before this index — long
-          // puzzle silently failed in the up-front parse. Was previously
-          // a crash: accessing move.from on undefined throws TypeError
-          // which the outer catch swallowed. Surface visibly instead.
-          const msg = `Puzzle data ends at move ${nextMoveIdx} — cannot continue.`;
-          console.warn("[DailyPuzzle] opponent move missing:", msg);
-          setPuzzleError(msg);
-          return;
-        }
-        try {
-          const g = new Chess(currentGame.fen());
-          g.move({ from: move.from, to: move.to, promotion: move.promotion });
-          setGame(g);
-          setMoveIndex(nextMoveIdx + 1);
-          setLastMoveSquares({ from: move.from, to: move.to });
-          if (nextMoveIdx + 1 >= solutionMoves.length) {
-            setStatus("solved");
-            // Mark today as solved
-            const today = new Date().toISOString().slice(0, 10);
-            localStorage.setItem(`dailyPuzzleSolved_${today}`, "true");
-            setAlreadySolvedToday(true);
-            // Record to stats
-            if (puzzle) {
-              setGlobalStats((prev) =>
-                updatePuzzleStats(prev, {
-                  puzzleId: puzzle.id,
-                  puzzleRating: puzzle.rating,
-                  solved: true,
-                  timeMs: Date.now() - startTimeRef.current,
-                  theme: puzzle.themes?.[0] || "daily",
-                  timestamp: Date.now(),
-                })
-              );
-            }
-          }
-        } catch (err) {
-          // Was previously silent — board frozen with no opponent reply.
-          // Now logged + surfaced so the user knows something's wrong.
-          const msg = `Opponent move ${nextMoveIdx + 1} (${move.from}-${move.to}) failed to apply.`;
-          console.warn("[DailyPuzzle]", msg, err);
-          setPuzzleError(msg);
-        }
-      }, 400);
-    },
-    [solutionMoves, puzzle, setGlobalStats]
-  );
-
-  // Handle piece drop
-  const onPieceDrop = useCallback(
-    (sourceSquare: string, targetSquare: string): boolean => {
-      if (status !== "playing") return false;
-      if (moveIndex >= solutionMoves.length) return false;
-      const expected = solutionMoves[moveIndex];
-      const from = sourceSquare as Square;
-      const to = targetSquare as Square;
-
-      if (from === expected.from && to === expected.to) {
-        try {
-          const g = new Chess(game.fen());
-          g.move({ from, to, promotion: expected.promotion });
-          setGame(g);
-          setLastMoveSquares({ from, to });
-          setWrongSquare(null);
-          setSelectedSquare(null);
-          setLegalMoveSquares([]);
-          const nextIdx = moveIndex + 1;
-          setMoveIndex(nextIdx);
-          if (nextIdx >= solutionMoves.length) {
-            setStatus("solved");
-            const today = new Date().toISOString().slice(0, 10);
-            localStorage.setItem(`dailyPuzzleSolved_${today}`, "true");
-            setAlreadySolvedToday(true);
-            if (puzzle) {
-              setGlobalStats((prev) =>
-                updatePuzzleStats(prev, {
-                  puzzleId: puzzle.id,
-                  puzzleRating: puzzle.rating,
-                  solved: true,
-                  timeMs: Date.now() - startTimeRef.current,
-                  theme: puzzle.themes?.[0] || "daily",
-                  timestamp: Date.now(),
-                })
-              );
-            }
-          } else {
-            playOpponentMove(g, nextIdx);
-          }
-          return true;
-        } catch {
-          return false;
-        }
-      } else {
-        setStatus("wrong");
-        setWrongSquare(to);
-        setTimeout(() => {
-          setStatus("playing");
-          setWrongSquare(null);
-        }, 1200);
-        return false;
+  // onSolved: persist solved-today flag + record stats.
+  const startedAtRef = useState(() => ({ at: Date.now() }))[0];
+  const handleSolved = useCallback(
+    (puzzleId: string) => {
+      const today = new Date().toISOString().slice(0, 10);
+      localStorage.setItem(`dailyPuzzleSolved_${today}`, "true");
+      setAlreadySolvedToday(true);
+      if (puzzle && puzzle.id === puzzleId) {
+        setGlobalStats((prev) =>
+          updatePuzzleStats(prev, {
+            puzzleId: puzzle.id,
+            puzzleRating: puzzle.rating,
+            solved: true,
+            timeMs: Date.now() - startedAtRef.at,
+            theme: puzzle.themes?.[0] || "daily",
+            timestamp: Date.now(),
+          }),
+        );
       }
     },
-    [game, status, moveIndex, solutionMoves, puzzle, setGlobalStats, playOpponentMove]
+    [puzzle, setGlobalStats, startedAtRef],
   );
 
-  // Click-to-move
+  const board = usePuzzleBoardState({
+    puzzle: puzzle
+      ? {
+          id: puzzle.id,
+          fen: puzzle.fen,
+          solution: puzzle.solution,
+          moves: puzzle.moves,
+        }
+      : null,
+    onSolved: handleSolved,
+  });
+
+  // Click-to-move handler — routes through hook's onPieceDrop, with the
+  // same playing-or-wrong allowance the hook itself uses for drags.
   const onSquareClick = useCallback(
     (square: Square) => {
-      if (status !== "playing") return;
+      if (board.status !== "playing" && board.status !== "wrong") return;
       if (!selectedSquare) {
-        const piece = game.get(square);
-        if (piece && piece.color === game.turn()) {
+        const piece = board.game.get(square);
+        if (piece && piece.color === board.game.turn()) {
           setSelectedSquare(square);
-          const moves = game.moves({ square, verbose: true });
+          const moves = board.game.moves({ square, verbose: true });
           setLegalMoveSquares(moves.map((m) => m.to as Square));
         }
         return;
@@ -296,19 +156,21 @@ export default function DailyPuzzle() {
         setLegalMoveSquares([]);
         return;
       }
-      const piece = game.get(square);
-      if (piece && piece.color === game.turn()) {
+      const piece = board.game.get(square);
+      if (piece && piece.color === board.game.turn()) {
         setSelectedSquare(square);
-        const moves = game.moves({ square, verbose: true });
+        const moves = board.game.moves({ square, verbose: true });
         setLegalMoveSquares(moves.map((m) => m.to as Square));
         return;
       }
-      onPieceDrop(selectedSquare, square);
+      board.onPieceDrop(selectedSquare, square, "");
+      setSelectedSquare(null);
+      setLegalMoveSquares([]);
     },
-    [game, status, selectedSquare, onPieceDrop]
+    [board, selectedSquare],
   );
 
-  // Custom pieces
+  // Custom pieces (no blind mode on landing surface).
   const customPieces = useMemo(
     () =>
       PIECE_CODES.reduce<CustomPieces>((acc, piece) => {
@@ -324,16 +186,15 @@ export default function DailyPuzzle() {
         );
         return acc;
       }, {}),
-    [pieceSet]
+    [pieceSet],
   );
 
-  // Square styles
+  // Compose hook's square styles with the local click-to-move
+  // highlights.
   const customSquareStyles = useMemo(() => {
-    const styles: Record<string, React.CSSProperties> = {};
-    if (lastMoveSquares) {
-      styles[lastMoveSquares.from] = { backgroundColor: "rgba(255, 170, 0, 0.4)" };
-      styles[lastMoveSquares.to] = { backgroundColor: "rgba(255, 170, 0, 0.5)" };
-    }
+    const styles: Record<string, React.CSSProperties> = {
+      ...board.customSquareStyles,
+    };
     if (selectedSquare) {
       styles[selectedSquare] = { backgroundColor: "rgba(20, 85, 180, 0.5)" };
     }
@@ -344,13 +205,8 @@ export default function DailyPuzzle() {
         background: `${existing.backgroundColor || ""} radial-gradient(circle, rgba(0,0,0,0.15) 25%, transparent 25%)`.trim(),
       };
     }
-    if (wrongSquare) {
-      styles[wrongSquare] = { backgroundColor: "rgba(220, 50, 50, 0.6)" };
-    }
     return styles;
-  }, [lastMoveSquares, selectedSquare, legalMoveSquares, wrongSquare]);
-
-  const BOARD_SIZE = 360;
+  }, [board.customSquareStyles, selectedSquare, legalMoveSquares]);
 
   if (loading) {
     return (
@@ -421,77 +277,83 @@ export default function DailyPuzzle() {
                 px: 1.5,
                 py: 0.75,
                 borderRadius: 1,
-                bgcolor:
-                  puzzleError
-                    ? "rgba(237,108,2,0.22)"
-                    : status === "solved"
+                bgcolor: board.puzzleError
+                  ? "rgba(237,108,2,0.22)"
+                  : board.status === "solved"
                     ? "rgba(76,175,80,0.2)"
-                    : status === "wrong"
-                    ? "rgba(244,67,54,0.2)"
-                    : "rgba(255,255,255,0.05)",
+                    : board.status === "wrong"
+                      ? "rgba(244,67,54,0.2)"
+                      : "rgba(255,255,255,0.05)",
                 display: "flex",
                 alignItems: "center",
                 gap: 1,
               }}
             >
-              {status === "playing" && !puzzleError && (
+              {board.status === "playing" && !board.puzzleError && (
                 <Box
                   sx={{
                     width: 14,
                     height: 14,
                     borderRadius: "50%",
-                    bgcolor: game.turn() === "w" ? "#fff" : "#333",
+                    bgcolor: board.game.turn() === "w" ? "#fff" : "#333",
                     border: "2px solid rgba(255,255,255,0.3)",
                     flexShrink: 0,
                   }}
                 />
               )}
-              {status === "solved" && !puzzleError && (
+              {board.status === "solved" && !board.puzzleError && (
                 <EmojiEventsIcon sx={{ color: "#66bb6a", fontSize: 20 }} />
               )}
               <Typography
                 variant="body2"
                 sx={{
                   fontWeight: 600,
-                  color: puzzleError
+                  color: board.puzzleError
                     ? "#ffb84d"
-                    : status === "solved"
+                    : board.status === "solved"
                       ? "#66bb6a"
-                      : status === "wrong"
+                      : board.status === "wrong"
                         ? "#ef5350"
                         : "rgba(255,255,255,0.7)",
                 }}
               >
-                {puzzleError
-                  ? `Puzzle data error — ${puzzleError}`
-                  : status === "loading"
+                {board.puzzleError
+                  ? `Puzzle data error — ${board.puzzleError}`
+                  : board.status === "loading"
                     ? "Loading..."
-                    : status === "solved"
+                    : board.status === "solved"
                       ? "Puzzle Solved!"
-                      : status === "wrong"
+                      : board.status === "wrong"
                         ? "Not quite — try again!"
-                        : game.turn() === "w"
+                        : board.game.turn() === "w"
                           ? "White to move"
                           : "Black to move"}
               </Typography>
             </Box>
 
-            <Box sx={{ borderRadius: "8px", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+            <Box
+              sx={{
+                position: "relative",
+                borderRadius: "8px",
+                overflow: "hidden",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+              }}
+            >
+              <FlashOverlay
+                key={`flash-${board.flashKey}`}
+                flash={board.flash}
+              />
               <Chessboard
                 id="DailyPuzzleBoard"
-                position={game.fen()}
-                onPieceDrop={onPieceDrop}
+                position={board.game.fen()}
+                onPieceDrop={board.onPieceDrop}
                 onSquareClick={onSquareClick}
-                boardOrientation={boardOrientation}
+                boardOrientation={board.boardOrientation}
                 boardWidth={BOARD_SIZE}
                 customBoardStyle={{ borderRadius: "8px" }}
                 customSquareStyles={customSquareStyles}
                 customPieces={customPieces}
-                isDraggablePiece={({ piece }) => {
-                  if (status !== "playing") return false;
-                  const color = piece[0] === "w" ? "w" : "b";
-                  return color === game.turn();
-                }}
+                isDraggablePiece={board.isDraggablePiece}
                 animationDuration={200}
               />
             </Box>
@@ -531,7 +393,7 @@ export default function DailyPuzzle() {
               </Box>
             )}
 
-            {status === "solved" && (
+            {board.status === "solved" && (
               <Box
                 sx={{
                   p: 2,
@@ -549,7 +411,7 @@ export default function DailyPuzzle() {
               </Box>
             )}
 
-            {alreadySolvedToday && status !== "solved" && (
+            {alreadySolvedToday && board.status !== "solved" && (
               <Box sx={{ p: 1.5, mb: 2, borderRadius: 1, bgcolor: "rgba(76,175,80,0.08)" }}>
                 <Typography variant="caption" sx={{ color: "#66bb6a" }}>
                   You already solved today&apos;s puzzle!

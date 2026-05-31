@@ -15,7 +15,7 @@ import {
   DialogActions,
 } from "@mui/material";
 import { Chessboard } from "react-chessboard";
-import { Chess, Square } from "chess.js";
+import { Square } from "chess.js";
 import { useAtomValue, useSetAtom } from "jotai";
 import { puzzleSolvedStatusAtom } from "./states";
 import { useScreenSize } from "@/hooks/useScreenSize";
@@ -33,7 +33,8 @@ import {
   updatePuzzleStats,
   type PuzzleRushScores,
 } from "@/lib/puzzleRating";
-import { parseSolutionMoves as parseSolution } from "@/lib/puzzleSolution";
+import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
+import { FlashOverlay } from "@/components/puzzle/FlashOverlay";
 
 const PIECE_CODES: Piece[] = [
   "wP", "wB", "wN", "wR", "wQ", "wK",
@@ -48,10 +49,13 @@ const RUSH_MODES: { value: RushMode; label: string; description: string; timeSec
   { value: "survival", label: "Survival", description: "3 lives — one wrong answer costs a life", timeSeconds: Infinity, lives: 3 },
 ];
 
-// parseSolutionMoves is now imported from @/lib/puzzleSolution as
-// parseSolution — shared with the other four puzzle surfaces. The
-// inline copies all had the same silent-truncation bug on long puzzles
-// (broke on the first move chess.js couldn't apply, no error to caller).
+// Delay before auto-advancing after solved/wrong, so the user gets a
+// brief moment of feedback (green pulse on solved, red on wrong) before
+// the next puzzle loads.
+const ADVANCE_DELAY_AFTER_SOLVED_MS = 500;
+const ADVANCE_DELAY_AFTER_WRONG_MS = 800;
+// Delay before showing the finish dialog after life-loss in survival.
+const FINISH_DELAY_AFTER_LIVES_OUT_MS = 600;
 
 interface PuzzleRushProps {
   onBack: () => void;
@@ -70,15 +74,12 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
   const [difficulty, setDifficulty] = useState<DifficultyBand | "all">("all");
   const [phase, setPhase] = useState<"setup" | "playing" | "finished">("setup");
 
-  // Game state
+  // Game state (the puzzle queue + index; per-puzzle board state comes
+  // from usePuzzleBoardState).
   const [puzzles, setPuzzles] = useState<ChessPuzzle[]>([]);
   const [puzzleIndex, setPuzzleIndex] = useState(0);
-  const [game, setGame] = useState<Chess>(new Chess());
-  const [moveIndex, setMoveIndex] = useState(0);
-  const [boardOrientation, setBoardOrientation] = useState<"white" | "black">("white");
-  const [lastMoveSquares, setLastMoveSquares] = useState<{ from: Square; to: Square } | null>(null);
-  const [wrongSquare, setWrongSquare] = useState<Square | null>(null);
-  const [status, setStatus] = useState<"loading" | "playing" | "wrong" | "solved">("loading");
+
+  // Click-to-move local state
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [legalMoveSquares, setLegalMoveSquares] = useState<Square[]>([]);
 
@@ -91,32 +92,13 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
   const puzzleStartTimeRef = useRef<number>(Date.now());
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const puzzleIdRef = useRef<string | null>(null);
+  // Dedup ref so multiple rapid wrong/solved fires don't queue multiple
+  // advance timeouts for the same puzzle. Cleared on puzzleIndex change.
+  const advanceScheduledRef = useRef(false);
 
   const modeConfig = RUSH_MODES.find((m) => m.value === mode)!;
-
   const currentPuzzle = puzzles[puzzleIndex] || null;
-
-  const solutionParseResult = useMemo(() => {
-    if (!currentPuzzle) return { parsed: [], error: null as string | null };
-    const moves = currentPuzzle.solution || currentPuzzle.moves || [];
-    return parseSolution(currentPuzzle.fen, moves);
-    // Stable-id dep — see PR #109. Avoids recomputing on every parent
-    // re-render which could blow away state mid-puzzle.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPuzzle?.id]);
-  const solutionMoves = solutionParseResult.parsed;
-  // PuzzleRush already auto-advances on success/fail (it's a timed
-  // mode) so a malformed puzzle just gets skipped. We log it for
-  // diagnostics; no visible error UI is needed at the per-puzzle level.
-  useEffect(() => {
-    if (solutionParseResult.error) {
-      console.warn(
-        "[PuzzleRush] puzzle parse error, will auto-skip on first opponent miss:",
-        solutionParseResult.error,
-      );
-    }
-  }, [solutionParseResult.error]);
+  const solvedStatus = useAtomValue(puzzleSolvedStatusAtom);
 
   const boardSize = useMemo(() => {
     const width = screenSize.width;
@@ -127,8 +109,6 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
     }
     return Math.max(Math.min(width - 520, height * 0.72, 560), 320);
   }, [screenSize]);
-
-  const solvedStatus = useAtomValue(puzzleSolvedStatusAtom);
 
   // Fetch puzzles for the rush
   const fetchPuzzles = useCallback(async () => {
@@ -165,47 +145,103 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
     return [];
   }, [difficulty, solvedStatus]);
 
-  // Load a specific puzzle onto the board
-  const loadPuzzle = useCallback(
-    (puzzle: ChessPuzzle) => {
-      puzzleIdRef.current = puzzle.id;
-      const newGame = new Chess(puzzle.fen);
-      const opponentColor = newGame.turn();
-      const userColor = opponentColor === "w" ? "black" : "white";
-      setBoardOrientation(userColor);
-      setGame(newGame);
-      setMoveIndex(0);
-      setStatus("loading");
-      setLastMoveSquares(null);
-      setWrongSquare(null);
-      setSelectedSquare(null);
-      setLegalMoveSquares([]);
+  // Advance to next puzzle (or fetch more if we've exhausted the queue).
+  const advanceToNext = useCallback(() => {
+    advanceScheduledRef.current = false;
+    setSelectedSquare(null);
+    setLegalMoveSquares([]);
+    const nextIdx = puzzleIndex + 1;
+    if (nextIdx < puzzles.length) {
+      setPuzzleIndex(nextIdx);
       puzzleStartTimeRef.current = Date.now();
-
-      // Auto-play opponent's first move
-      setTimeout(() => {
-        if (puzzleIdRef.current !== puzzle.id) return;
-        const moves = puzzle.solution || puzzle.moves || [];
-        if (moves.length === 0) return;
-        const firstMove = moves[0];
-        const from = firstMove.slice(0, 2) as Square;
-        const to = firstMove.slice(2, 4) as Square;
-        const promotion = firstMove.length > 4 ? firstMove[4] : undefined;
-        try {
-          const g = new Chess(newGame.fen());
-          g.move({ from, to, promotion });
-          setGame(g);
-          setMoveIndex(1);
-          setLastMoveSquares({ from, to });
-          setStatus("playing");
-        } catch {
-          setStatus("playing");
-          setMoveIndex(0);
+    } else {
+      fetchPuzzles().then((fetched) => {
+        if (fetched.length > 0) {
+          setPuzzles(fetched);
+          setPuzzleIndex(0);
+          puzzleStartTimeRef.current = Date.now();
+        } else {
+          setPhase("finished");
         }
-      }, 400);
+      });
+    }
+  }, [puzzleIndex, puzzles, fetchPuzzles]);
+
+  // Reset puzzle start-time + advance dedup on puzzle change.
+  useEffect(() => {
+    puzzleStartTimeRef.current = Date.now();
+    advanceScheduledRef.current = false;
+  }, [currentPuzzle?.id]);
+
+  const recordSolve = useCallback(
+    (puzzleId: string, solved: boolean) => {
+      if (!currentPuzzle || currentPuzzle.id !== puzzleId) return;
+      const timeMs = Date.now() - puzzleStartTimeRef.current;
+      setGlobalStats((prev) =>
+        updatePuzzleStats(prev, {
+          puzzleId: currentPuzzle.id,
+          puzzleRating: currentPuzzle.rating,
+          solved,
+          timeMs,
+          theme: currentPuzzle.themes?.[0] || "unknown",
+          timestamp: Date.now(),
+        }),
+      );
     },
-    []
+    [currentPuzzle, setGlobalStats],
   );
+
+  const handleSolved = useCallback(
+    (puzzleId: string) => {
+      setScore((prev) => prev + 1);
+      recordSolve(puzzleId, true);
+      if (!advanceScheduledRef.current) {
+        advanceScheduledRef.current = true;
+        setTimeout(advanceToNext, ADVANCE_DELAY_AFTER_SOLVED_MS);
+      }
+    },
+    [recordSolve, advanceToNext],
+  );
+
+  const handleWrong = useCallback(
+    (puzzleId: string, _attemptedSan: string | null) => {
+      void _attemptedSan;
+      recordSolve(puzzleId, false);
+      if (mode === "survival") {
+        setLives((prev) => {
+          const newLives = prev - 1;
+          if (newLives <= 0) {
+            setTimeout(() => setPhase("finished"), FINISH_DELAY_AFTER_LIVES_OUT_MS);
+          }
+          return newLives;
+        });
+      }
+      if (!advanceScheduledRef.current) {
+        advanceScheduledRef.current = true;
+        setTimeout(() => {
+          if (phase === "playing") advanceToNext();
+        }, ADVANCE_DELAY_AFTER_WRONG_MS);
+      }
+    },
+    [mode, recordSolve, advanceToNext, phase],
+  );
+
+  // Pass the puzzle to the hook only while we're in the playing phase.
+  // Setting `puzzle: null` during finish/setup tears down board state
+  // cleanly without firing extra effects.
+  const board = usePuzzleBoardState({
+    puzzle:
+      phase === "playing" && currentPuzzle
+        ? {
+            id: currentPuzzle.id,
+            fen: currentPuzzle.fen,
+            solution: currentPuzzle.solution,
+            moves: currentPuzzle.moves,
+          }
+        : null,
+    onSolved: handleSolved,
+    onWrong: handleWrong,
+  });
 
   // Start the rush
   const handleStart = useCallback(async () => {
@@ -219,18 +255,17 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
     setPhase("playing");
     setShowFinishDialog(false);
     setIsNewHighScore(false);
-    loadPuzzle(fetched[0]);
-  }, [fetchPuzzles, modeConfig, loadPuzzle]);
+    puzzleStartTimeRef.current = Date.now();
+  }, [fetchPuzzles, modeConfig]);
 
-  // Timer
+  // Countdown timer (timed modes)
   useEffect(() => {
     if (phase !== "playing") return;
     if (modeConfig.timeSeconds === Infinity) return; // survival has no timer
-
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          clearInterval(timerRef.current!);
+          if (timerRef.current) clearInterval(timerRef.current);
           setPhase("finished");
           setShowFinishDialog(true);
           return 0;
@@ -238,27 +273,24 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
         return prev - 1;
       });
     }, 1000);
-
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [phase, modeConfig.timeSeconds]);
 
-  // Survival timer (count up)
+  // Count-up timer (survival)
   useEffect(() => {
     if (phase !== "playing") return;
     if (modeConfig.timeSeconds !== Infinity) return;
-
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => prev + 1);
     }, 1000);
-
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [phase, modeConfig.timeSeconds]);
 
-  // Check high score on finish
+  // High-score check on finish
   useEffect(() => {
     if (phase !== "finished") return;
     let newHigh = false;
@@ -272,164 +304,17 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
     setShowFinishDialog(true);
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Advance to next puzzle
-  const advanceToNext = useCallback(() => {
-    const nextIdx = puzzleIndex + 1;
-    if (nextIdx < puzzles.length) {
-      setPuzzleIndex(nextIdx);
-      loadPuzzle(puzzles[nextIdx]);
-    } else {
-      // Ran out of puzzles, fetch more
-      fetchPuzzles().then((fetched) => {
-        if (fetched.length > 0) {
-          setPuzzles(fetched);
-          setPuzzleIndex(0);
-          loadPuzzle(fetched[0]);
-        } else {
-          setPhase("finished");
-        }
-      });
-    }
-  }, [puzzleIndex, puzzles, loadPuzzle, fetchPuzzles]);
-
-  // Record solve to global stats
-  const recordSolve = useCallback(
-    (solved: boolean) => {
-      if (!currentPuzzle) return;
-      const timeMs = Date.now() - puzzleStartTimeRef.current;
-      const record = {
-        puzzleId: currentPuzzle.id,
-        puzzleRating: currentPuzzle.rating,
-        solved,
-        timeMs,
-        theme: currentPuzzle.themes?.[0] || "unknown",
-        timestamp: Date.now(),
-      };
-      setGlobalStats((prev) => updatePuzzleStats(prev, record));
-    },
-    [currentPuzzle, setGlobalStats]
-  );
-
-  // Play opponent's response after correct move
-  const playOpponentMove = useCallback(
-    (currentGame: Chess, nextMoveIdx: number) => {
-      if (nextMoveIdx >= solutionMoves.length) return;
-      const puzzleId = puzzleIdRef.current;
-      setTimeout(() => {
-        if (puzzleIdRef.current !== puzzleId) return;
-        const move = solutionMoves[nextMoveIdx];
-        if (!move) {
-          // Parser truncated — long puzzle's data ran out mid-sequence.
-          // In rush mode, just skip this puzzle and move on. Was
-          // previously a crash (TypeError on undefined .from).
-          console.warn(
-            "[PuzzleRush] opponent move missing at index",
-            nextMoveIdx,
-            "of",
-            solutionMoves.length,
-          );
-          advanceToNext();
-          return;
-        }
-        try {
-          const g = new Chess(currentGame.fen());
-          g.move({ from: move.from, to: move.to, promotion: move.promotion });
-          setGame(g);
-          setMoveIndex(nextMoveIdx + 1);
-          setLastMoveSquares({ from: move.from, to: move.to });
-          if (nextMoveIdx + 1 >= solutionMoves.length) {
-            // Puzzle solved!
-            setStatus("solved");
-            setScore((prev) => prev + 1);
-            recordSolve(true);
-            setTimeout(() => advanceToNext(), 500);
-          }
-        } catch (err) {
-          // chess.js rejected the opponent move — log and skip.
-          // Previously silent → user saw a frozen board mid-puzzle.
-          console.warn(
-            "[PuzzleRush] opponent move failed; skipping puzzle:",
-            err,
-          );
-          advanceToNext();
-        }
-      }, 300);
-    },
-    [solutionMoves, recordSolve, advanceToNext]
-  );
-
-  // Handle piece drop
-  const onPieceDrop = useCallback(
-    (sourceSquare: string, targetSquare: string): boolean => {
-      if (status !== "playing" || phase !== "playing") return false;
-      if (moveIndex >= solutionMoves.length) return false;
-
-      const expectedMove = solutionMoves[moveIndex];
-      const from = sourceSquare as Square;
-      const to = targetSquare as Square;
-
-      if (from === expectedMove.from && to === expectedMove.to) {
-        try {
-          const g = new Chess(game.fen());
-          g.move({ from, to, promotion: expectedMove.promotion });
-          setGame(g);
-          setLastMoveSquares({ from, to });
-          setWrongSquare(null);
-          setSelectedSquare(null);
-          setLegalMoveSquares([]);
-          const nextIdx = moveIndex + 1;
-          setMoveIndex(nextIdx);
-          if (nextIdx >= solutionMoves.length) {
-            setStatus("solved");
-            setScore((prev) => prev + 1);
-            recordSolve(true);
-            setTimeout(() => advanceToNext(), 500);
-          } else {
-            playOpponentMove(g, nextIdx);
-          }
-          return true;
-        } catch { return false; }
-      } else {
-        // Wrong move
-        setStatus("wrong");
-        setWrongSquare(to);
-        recordSolve(false);
-
-        if (mode === "survival") {
-          setLives((prev) => {
-            const newLives = prev - 1;
-            if (newLives <= 0) {
-              setTimeout(() => {
-                setPhase("finished");
-              }, 600);
-            }
-            return newLives;
-          });
-        }
-
-        // Skip to next puzzle after wrong move in rush mode
-        setTimeout(() => {
-          if (phase === "playing") {
-            setStatus("playing");
-            setWrongSquare(null);
-            advanceToNext();
-          }
-        }, 800);
-        return false;
-      }
-    },
-    [game, status, phase, moveIndex, solutionMoves, mode, recordSolve, advanceToNext, playOpponentMove]
-  );
-
-  // Click-to-move
+  // Click-to-move handler — routes through the hook's onPieceDrop. Gate
+  // on phase too so clicks during the finish dialog do nothing.
   const onSquareClick = useCallback(
     (square: Square) => {
-      if (status !== "playing" || phase !== "playing") return;
+      if (phase !== "playing") return;
+      if (board.status !== "playing" && board.status !== "wrong") return;
       if (!selectedSquare) {
-        const piece = game.get(square);
-        if (piece && piece.color === game.turn()) {
+        const piece = board.game.get(square);
+        if (piece && piece.color === board.game.turn()) {
           setSelectedSquare(square);
-          const moves = game.moves({ square, verbose: true });
+          const moves = board.game.moves({ square, verbose: true });
           setLegalMoveSquares(moves.map((m) => m.to as Square));
         }
         return;
@@ -439,19 +324,20 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
         setLegalMoveSquares([]);
         return;
       }
-      const piece = game.get(square);
-      if (piece && piece.color === game.turn()) {
+      const piece = board.game.get(square);
+      if (piece && piece.color === board.game.turn()) {
         setSelectedSquare(square);
-        const moves = game.moves({ square, verbose: true });
+        const moves = board.game.moves({ square, verbose: true });
         setLegalMoveSquares(moves.map((m) => m.to as Square));
         return;
       }
-      onPieceDrop(selectedSquare, square);
+      board.onPieceDrop(selectedSquare, square, "");
+      setSelectedSquare(null);
+      setLegalMoveSquares([]);
     },
-    [game, status, phase, selectedSquare, onPieceDrop]
+    [phase, board, selectedSquare],
   );
 
-  // Custom pieces
   const customPieces = useMemo(
     () =>
       PIECE_CODES.reduce<CustomPieces>((acc, piece) => {
@@ -467,16 +353,13 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
         );
         return acc;
       }, {}),
-    [pieceSet]
+    [pieceSet],
   );
 
-  // Square styles
   const customSquareStyles = useMemo(() => {
-    const styles: Record<string, React.CSSProperties> = {};
-    if (lastMoveSquares) {
-      styles[lastMoveSquares.from] = { backgroundColor: "rgba(255, 170, 0, 0.4)" };
-      styles[lastMoveSquares.to] = { backgroundColor: "rgba(255, 170, 0, 0.5)" };
-    }
+    const styles: Record<string, React.CSSProperties> = {
+      ...board.customSquareStyles,
+    };
     if (selectedSquare) {
       styles[selectedSquare] = { backgroundColor: "rgba(20, 85, 180, 0.5)" };
     }
@@ -487,11 +370,8 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
         background: `${existing.backgroundColor || ""} radial-gradient(circle, rgba(0,0,0,0.15) 25%, transparent 25%)`.trim(),
       };
     }
-    if (wrongSquare) {
-      styles[wrongSquare] = { backgroundColor: "rgba(220, 50, 50, 0.6)" };
-    }
     return styles;
-  }, [lastMoveSquares, selectedSquare, legalMoveSquares, wrongSquare]);
+  }, [board.customSquareStyles, selectedSquare, legalMoveSquares]);
 
   // Format seconds to mm:ss
   const formatTimer = (seconds: number) => {
@@ -499,9 +379,6 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
-
-  const highScoreKey: keyof PuzzleRushScores =
-    mode === "three" ? "threeMin" : mode === "five" ? "fiveMin" : "survivalBest";
 
   // ---- SETUP SCREEN ----
   if (phase === "setup") {
@@ -713,19 +590,25 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               px: 1.5,
               py: 0.75,
               borderRadius: 1,
-              bgcolor: status === "solved" ? "success.dark" : status === "wrong" ? "error.dark" : "grey.800",
+              bgcolor: board.puzzleError
+                ? "warning.dark"
+                : board.status === "solved"
+                  ? "success.dark"
+                  : board.status === "wrong"
+                    ? "error.dark"
+                    : "grey.800",
               display: "flex",
               alignItems: "center",
               gap: 1,
             }}
           >
-            {status === "playing" && (
+            {board.status === "playing" && !board.puzzleError && (
               <Box
                 sx={{
                   width: 14,
                   height: 14,
                   borderRadius: "50%",
-                  bgcolor: game.turn() === "w" ? "#fff" : "#333",
+                  bgcolor: board.game.turn() === "w" ? "#fff" : "#333",
                   border: "2px solid",
                   borderColor: "grey.500",
                   flexShrink: 0,
@@ -736,24 +619,40 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               variant="body2"
               sx={{
                 fontWeight: 600,
-                color: status === "solved" || status === "wrong" ? "#fff" : "grey.300",
+                color:
+                  board.status === "solved" ||
+                  board.status === "wrong" ||
+                  board.puzzleError
+                    ? "#fff"
+                    : "grey.300",
               }}
             >
-              {status === "loading" ? "Loading..." :
-               status === "solved" ? "Correct! Next puzzle..." :
-               status === "wrong" ? "Wrong! Skipping..." :
-               game.turn() === "w" ? "White to move" : "Black to move"}
+              {board.puzzleError
+                ? "Bad puzzle data — skipping…"
+                : board.status === "loading"
+                  ? "Loading..."
+                  : board.status === "solved"
+                    ? "Correct! Next puzzle..."
+                    : board.status === "wrong"
+                      ? "Wrong! Skipping..."
+                      : board.game.turn() === "w"
+                        ? "White to move"
+                        : "Black to move"}
             </Typography>
           </Box>
 
           {/* Chessboard */}
-          <Box sx={{ width: boardSize }}>
+          <Box sx={{ position: "relative", width: boardSize }}>
+            <FlashOverlay
+              key={`flash-${board.flashKey}`}
+              flash={board.flash}
+            />
             <Chessboard
               id="PuzzleRushBoard"
-              position={game.fen()}
-              onPieceDrop={onPieceDrop}
+              position={board.game.fen()}
+              onPieceDrop={board.onPieceDrop}
               onSquareClick={onSquareClick}
-              boardOrientation={boardOrientation}
+              boardOrientation={board.boardOrientation}
               boardWidth={boardSize}
               customBoardStyle={{
                 borderRadius: "4px",
@@ -762,9 +661,10 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               customSquareStyles={customSquareStyles}
               customPieces={customPieces}
               isDraggablePiece={({ piece }) => {
-                if (status !== "playing" || phase !== "playing") return false;
-                const color = piece[0] === "w" ? "w" : "b";
-                return color === game.turn();
+                // Phase gate added on top of the hook's playing/wrong
+                // allowance so drags during the finish dialog do nothing.
+                if (phase !== "playing") return false;
+                return board.isDraggablePiece({ piece });
               }}
               animationDuration={150}
             />

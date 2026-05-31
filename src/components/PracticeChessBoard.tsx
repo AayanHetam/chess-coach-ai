@@ -21,6 +21,7 @@ import { useScreenSize } from "@/hooks/useScreenSize";
 import { pieceSetAtom } from "@/components/board/states";
 import { Piece, CustomPieces } from "react-chessboard/dist/chessboard/types";
 import { recordPuzzleAttempt } from "@/lib/repetitTraining";
+import { parseSolutionMoves as parseSolution } from "@/lib/puzzleSolution";
 
 const PIECE_CODES: Piece[] = [
   "wP", "wB", "wN", "wR", "wQ", "wK",
@@ -64,37 +65,11 @@ const FlashOverlay = styled(Box, {
 
 export type PuzzleStatus = "loading" | "playing" | "wrong" | "solved";
 
-/**
- * Parse solution moves array (UCI format like "e2e4") into {from, to, promotion} objects.
- */
-function parseSolutionMoves(
-  fen: string,
-  moves: string[]
-): { from: Square; to: Square; promotion?: string }[] {
-  const parsed: { from: Square; to: Square; promotion?: string }[] = [];
-  const g = new Chess(fen);
-
-  for (const m of moves) {
-    // Moves are in UCI format: e2e4, e7e8q etc.
-    const from = m.slice(0, 2) as Square;
-    const to = m.slice(2, 4) as Square;
-    const promotion = m.length > 4 ? m[4] : undefined;
-
-    // Validate the move is legal
-    try {
-      const result = g.move({ from, to, promotion });
-      if (result) {
-        parsed.push({ from, to, promotion });
-      } else {
-        break;
-      }
-    } catch {
-      break;
-    }
-  }
-
-  return parsed;
-}
+// parseSolutionMoves lives in @/lib/puzzleSolution — shared with
+// InlinePuzzleSet. Robust against trim, uppercase promotion, mixed
+// UCI/SAN format, and returns {parsed, error} so we can surface
+// silent-truncation cases visibly instead of letting the board freeze
+// mid-sequence on long puzzles.
 
 export default function PracticeChessBoard() {
   const router = useRouter();
@@ -129,16 +104,26 @@ export default function PracticeChessBoard() {
   // trigger so the FlashOverlay remounts and the CSS animation restarts.
   const [flash, setFlash] = useState<"idle" | "green" | "red">("idle");
   const [flashKey, setFlashKey] = useState(0);
+  // Visible "puzzle data couldn't be played" surface — set by either
+  // the up-front parse (truncated/illegal sequence) or the opponent-
+  // move catch. Was previously silent; long puzzles froze mid-sequence
+  // because the parser returned a truncated array and downstream code
+  // did `if (!m) return;` with no UI feedback.
+  const [puzzleError, setPuzzleError] = useState<string | null>(null);
 
   // Ref to track puzzle ID to avoid stale closures
   const puzzleIdRef = useRef<string | null>(null);
 
-  // Parsed solution moves
-  const solutionMoves = useMemo(() => {
-    if (!currentPuzzle) return [];
+  // Parsed solution moves — stable id dep so parent re-renders that
+  // pass a fresh currentPuzzle object reference don't recompute.
+  const solutionParseResult = useMemo(() => {
+    if (!currentPuzzle) return { parsed: [], error: null as string | null };
     const moves = currentPuzzle.solution || currentPuzzle.moves || [];
-    return parseSolutionMoves(currentPuzzle.fen, moves);
-  }, [currentPuzzle]);
+    return parseSolution(currentPuzzle.fen, moves);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPuzzle?.id]);
+  const solutionMoves = solutionParseResult.parsed;
+  const solutionParseError = solutionParseResult.error;
 
   // Board size calculation
   const boardSize = useMemo(() => {
@@ -178,6 +163,9 @@ export default function PracticeChessBoard() {
     setLegalMoveSquares([]);
     setFlash("idle");
     setFlashKey(0);
+    // Hydrate any up-front parse error so the UI can surface it before
+    // the user wastes effort on a malformed puzzle.
+    setPuzzleError(solutionParseError);
     puzzleStartTimeRef.current = Date.now();
 
     // Auto-play opponent's first move after a short delay
@@ -211,6 +199,11 @@ export default function PracticeChessBoard() {
   // Play opponent's response after user makes a correct move
   const playOpponentMove = useCallback(
     (currentGame: Chess, nextMoveIdx: number) => {
+      // Reached the end of the parsed solution — could be a normal
+      // puzzle finish, OR (the bad case) a long puzzle whose parser
+      // truncated halfway. Surface visibly if we expected more moves
+      // than the parser produced; the legitimate-finish case is gated
+      // by the >= length check below, which the caller already does.
       if (nextMoveIdx >= solutionMoves.length) return;
 
       const puzzleId = puzzleIdRef.current;
@@ -219,6 +212,14 @@ export default function PracticeChessBoard() {
         if (puzzleIdRef.current !== puzzleId) return;
 
         const move = solutionMoves[nextMoveIdx];
+        if (!move) {
+          // Truncated solution — long puzzle silently failed in the
+          // up-front parser. Was previously a silent freeze.
+          const msg = `Puzzle data ends at move ${nextMoveIdx} — cannot continue.`;
+          console.warn("[PracticeChessBoard] opponent move missing:", msg);
+          setPuzzleError(msg);
+          return;
+        }
         try {
           const g = new Chess(currentGame.fen());
           g.move({ from: move.from, to: move.to, promotion: move.promotion });
@@ -259,8 +260,12 @@ export default function PracticeChessBoard() {
               });
             }
           }
-        } catch {
-          // Move failed
+        } catch (err) {
+          // Was previously silent — user saw the board freeze with no
+          // opponent reply. Now logged + surfaced so they can skip.
+          const msg = `Opponent move ${nextMoveIdx + 1} (${move.from}-${move.to}) failed to apply.`;
+          console.warn("[PracticeChessBoard]", msg, err);
+          setPuzzleError(msg);
         }
       }, 400);
     },
@@ -482,6 +487,7 @@ export default function PracticeChessBoard() {
 
   // Status indicator text
   const statusText = useMemo(() => {
+    if (puzzleError) return `Puzzle data error — ${puzzleError}`;
     if (status === "loading") return "Loading puzzle...";
     if (status === "solved") return "Puzzle solved!";
     if (status === "wrong") return "That's not right — try again.";
@@ -489,7 +495,7 @@ export default function PracticeChessBoard() {
     // Determine whose turn it is
     const turn = game.turn();
     return turn === "w" ? "White to move" : "Black to move";
-  }, [status, game]);
+  }, [status, game, puzzleError]);
 
   const statusColor = useMemo(() => {
     if (status === "solved") return "success.main";
@@ -526,7 +532,13 @@ export default function PracticeChessBoard() {
           px: 1.5,
           py: 0.75,
           borderRadius: 1,
-          bgcolor: status === "solved" ? "success.dark" : status === "wrong" ? "error.dark" : "grey.800",
+          bgcolor: puzzleError
+            ? "warning.dark"
+            : status === "solved"
+              ? "success.dark"
+              : status === "wrong"
+                ? "error.dark"
+                : "grey.800",
           display: "flex",
           alignItems: "center",
           gap: 1,

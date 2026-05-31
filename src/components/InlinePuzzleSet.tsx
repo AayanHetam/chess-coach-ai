@@ -128,7 +128,13 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
     if (!currentPuzzle) return [];
     const moves = currentPuzzle.solution || currentPuzzle.moves || [];
     return parseSolutionMoves(currentPuzzle.fen, moves);
-  }, [currentPuzzle]);
+    // Depend on the stable puzzle ID (string) instead of the puzzle
+    // object reference. Parent re-renders that pass a new array would
+    // otherwise produce a fresh `currentPuzzle` object on every tick,
+    // causing the solutionMoves array (and downstream effects) to
+    // recompute and reset board state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPuzzle?.id]);
 
   // Init / re-init on puzzle change
   useEffect(() => {
@@ -175,7 +181,17 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
     }, OPPONENT_SETUP_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [currentPuzzle]);
+    // ⚠️ Depend on currentPuzzle.id (stable string), not currentPuzzle
+    // (object ref). If the parent passes a new puzzles array on every
+    // render — which our chat-bubble layout does via ResizeObserver
+    // feedback + coach-card mount/unmount — depending on the object
+    // ref re-fires this effect on every tick, resetting status back to
+    // "loading" before the 600ms setup timer can flip it to "playing".
+    // The user-visible symptom is a board that won't accept moves
+    // after the first wrong attempt because it's permanently stuck in
+    // loading. Stable-id dep breaks the loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPuzzle?.id]);
 
   const advanceToNext = useCallback(() => {
     setCurrentIndex((i) => i + 1);

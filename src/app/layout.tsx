@@ -13,8 +13,9 @@ const GA_MEASUREMENT_ID =
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID;
 
 export const metadata: Metadata = {
-  title: "Chess Coach AI",
-  description: "An AI-powered chess coach that helps you improve your game",
+  title: "Chess Masti AI — Free AI Chess Coach",
+  description:
+    "Free engine-first AI chess coach: Stockfish analysis, Claude explanations, validated chess claims, mistake-based puzzles, and opponent scouting.",
 };
 
 export default function RootLayout({

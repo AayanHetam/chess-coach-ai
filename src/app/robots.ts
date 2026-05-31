@@ -19,6 +19,7 @@ export default function robots(): MetadataRoute.Robots {
 
       // AI-assistant retrieval crawlers — explicit allow
       rule("GPTBot"),
+      rule("OAI-SearchBot"),
       rule("ClaudeBot"),
       rule("PerplexityBot"),
       rule("Google-Extended"),

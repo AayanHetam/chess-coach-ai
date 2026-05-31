@@ -1,6 +1,11 @@
 import { ImageResponse } from "next/og";
 import { getInsight } from "@/lib/insights";
 import { excerptCoachContent } from "@/lib/og/excerptCoachContent";
+import {
+  parseFenToBoard,
+  sideToMoveFromFen,
+  type BoardSquare,
+} from "@/lib/og/parseFen";
 
 export const runtime = "nodejs";
 
@@ -9,11 +14,24 @@ export const runtime = "nodejs";
 const CARD_W = 1200;
 const CARD_H = 630;
 
-const BG = "#0B0F19";          // Obsidian Glass background
-const FG = "#F1F5F9";          // primary text
-const MUTED = "#94A3B8";       // secondary text
-const EMBER = "#F97316";       // brand accent (Ember Core)
+// Board sizing — 480px lets us comfortably fit on the left half of a
+// 1200×630 card with breathing room. 60px squares are large enough that
+// the Latin piece letters render legibly even at 1× preview density.
+const BOARD_SIZE = 480;
+const CELL = BOARD_SIZE / 8; // 60
+
+const BG = "#0B0F19"; // Obsidian Glass background
+const FG = "#F1F5F9"; // primary text
+const MUTED = "#94A3B8"; // secondary text
+const EMBER = "#F97316"; // brand accent (Ember Core)
 const EDGE = "rgba(255,255,255,0.08)";
+// Board square colors — chosen to read on the dark card background.
+// Light = warm parchment; dark = deep slate. Higher contrast than
+// classic tournament wood since the surrounding card is already dark.
+const LIGHT_SQUARE = "#E8DCC4";
+const DARK_SQUARE = "#7E8FA3";
+const WHITE_PIECE = "#FFFFFF";
+const BLACK_PIECE = "#1A1A1A";
 
 /**
  * Server-rendered OG image for a saved coach insight. Linked from the
@@ -21,10 +39,11 @@ const EDGE = "rgba(255,255,255,0.08)";
  * (Twitter, Discord, Slack, LinkedIn, …) fetches THIS endpoint as the
  * og:image and the card below is what appears in the preview.
  *
- * v1 is typography-forward: no chess board render. Rendering an actual
- * board through Satori requires shipping piece SVGs + a fen→layout
- * pipeline, which is a bigger project. The text-card approach still
- * looks polished and conveys the insight, which is the point.
+ * v2 (this revision): real chess board rendered from the insight's FEN
+ * alongside the coach excerpt. Pieces are drawn with Latin notation
+ * (K/Q/R/B/N/P uppercase = white, lowercase = black) — same convention
+ * printed chess books use. Avoids needing to ship a font with chess
+ * glyph coverage, which Satori would otherwise demand.
  */
 export async function GET(
   _request: Request,
@@ -32,31 +51,29 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  // Default card for "not found / malformed" — still returns a 200
-  // (crawlers cache 4xx responses harshly and we'd rather show a brand
-  // card than an empty unfurl if the insight expired).
   let coachExcerpt =
     "An AI chess coach that explains every move like a real coach — no hallucinations.";
-  let fenLabel = "chessmasti.com";
+  let fen = "";
+  let sideLabel = "chessmasti.com";
 
   if (id && typeof id === "string" && id.length <= 64) {
     try {
       const insight = await getInsight(id);
       if (insight) {
-        coachExcerpt = excerptCoachContent(insight.coachContent, 220) ||
-          coachExcerpt;
-        // Just show the move-side indicator from the FEN; the full FEN
-        // is noisy and we're not rendering a board.
-        const fenParts = insight.fen?.trim().split(" ") ?? [];
-        const sideToMove = fenParts[1] === "b" ? "Black to move" : "White to move";
-        const fullMove = fenParts[5] ? `, move ${fenParts[5]}` : "";
-        fenLabel = `${sideToMove}${fullMove}`;
+        coachExcerpt =
+          excerptCoachContent(insight.coachContent, 200) || coachExcerpt;
+        fen = insight.fen || "";
+        const fenParts = fen.trim().split(/\s+/);
+        const side = sideToMoveFromFen(fen);
+        const fullMove = fenParts[5];
+        sideLabel = `${side === "b" ? "Black" : "White"} to move${fullMove ? `, move ${fullMove}` : ""}`;
       }
     } catch (err) {
-      // Brand-card fallback on any read failure (Firestore down, etc.).
       console.error("[og/insight] insight read failed for", id, err);
     }
   }
+
+  const board = parseFenToBoard(fen);
 
   return new ImageResponse(
     (
@@ -68,48 +85,44 @@ export async function GET(
           flexDirection: "column",
           backgroundColor: BG,
           backgroundImage: `radial-gradient(circle at 85% 15%, rgba(249,115,22,0.22) 0%, rgba(249,115,22,0) 55%), radial-gradient(circle at 12% 85%, rgba(56,189,248,0.10) 0%, rgba(56,189,248,0) 50%)`,
-          padding: 64,
+          padding: 48,
           color: FG,
           fontFamily: "system-ui, sans-serif",
         }}
       >
-        {/* Header row: brand mark + small badge */}
+        {/* Header */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 36,
+            marginBottom: 24,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div
               style={{
-                width: 44,
-                height: 44,
+                width: 40,
+                height: 40,
                 borderRadius: 10,
                 backgroundColor: EMBER,
                 color: BG,
-                fontSize: 28,
+                fontSize: 24,
                 fontWeight: 800,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              ♞
+              CM
             </div>
             <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                lineHeight: 1.1,
-              }}
+              style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}
             >
-              <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: -0.4 }}>
+              <span style={{ fontSize: 24, fontWeight: 700, letterSpacing: -0.4 }}>
                 Chess Masti
               </span>
-              <span style={{ fontSize: 14, color: MUTED, letterSpacing: 1.5 }}>
+              <span style={{ fontSize: 13, color: MUTED, letterSpacing: 1.4 }}>
                 COACH INSIGHT
               </span>
             </div>
@@ -117,66 +130,92 @@ export async function GET(
           <div
             style={{
               display: "flex",
-              padding: "8px 14px",
+              padding: "6px 14px",
               borderRadius: 999,
               border: `1px solid ${EDGE}`,
               color: MUTED,
-              fontSize: 16,
+              fontSize: 15,
               backgroundColor: "rgba(255,255,255,0.04)",
             }}
           >
-            {fenLabel}
+            {sideLabel}
           </div>
         </div>
 
-        {/* Quote — the meat of the card */}
+        {/* Main row: board left, quote right */}
         <div
           style={{
-            flex: 1,
             display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
+            flex: 1,
+            alignItems: "center",
+            gap: 36,
           }}
         >
+          {/* Board column */}
           <div
             style={{
-              fontSize: 16,
-              color: EMBER,
-              letterSpacing: 2,
-              fontWeight: 700,
-              marginBottom: 18,
-            }}
-          >
-            COACH SAID —
-          </div>
-          <div
-            style={{
-              fontSize: 42,
-              lineHeight: 1.25,
-              fontWeight: 600,
-              letterSpacing: -0.5,
-              color: FG,
-              // Cap height to keep tall excerpts from overflowing the card.
-              maxHeight: 360,
-              overflow: "hidden",
               display: "flex",
+              flexShrink: 0,
+              width: BOARD_SIZE,
+              height: BOARD_SIZE,
+              borderRadius: 8,
+              overflow: "hidden",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
+              border: `1px solid ${EDGE}`,
             }}
           >
-            “{coachExcerpt}”
+            <Board board={board} />
+          </div>
+
+          {/* Quote column */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 14,
+                color: EMBER,
+                letterSpacing: 2,
+                fontWeight: 700,
+                marginBottom: 14,
+              }}
+            >
+              COACH SAID —
+            </div>
+            <div
+              style={{
+                fontSize: 30,
+                lineHeight: 1.3,
+                fontWeight: 600,
+                letterSpacing: -0.3,
+                color: FG,
+                // Cap height to keep tall excerpts from overflowing the card.
+                maxHeight: 360,
+                overflow: "hidden",
+                display: "flex",
+              }}
+            >
+              “{coachExcerpt}”
+            </div>
           </div>
         </div>
 
-        {/* Footer row */}
+        {/* Footer */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginTop: 28,
-            paddingTop: 24,
+            marginTop: 20,
+            paddingTop: 18,
             borderTop: `1px solid ${EDGE}`,
             color: MUTED,
-            fontSize: 18,
+            fontSize: 16,
           }}
         >
           <span>Open this position in the AI coach →</span>
@@ -187,12 +226,74 @@ export async function GET(
     {
       width: CARD_W,
       height: CARD_H,
-      // Cache for 1h at the edge; insight content is immutable so even
-      // longer would be safe. Browsers / unfurl clients usually cache
-      // their own copy anyway.
       headers: {
         "Cache-Control": "public, max-age=3600, s-maxage=3600",
       },
     },
+  );
+}
+
+/**
+ * 8×8 board rendered as a column of 8 rows, each row a flex row of
+ * 8 squares. Satori demands display:flex on any node with multiple
+ * children — that's why every container below is flex.
+ */
+function Board({ board }: { board: BoardSquare[][] }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        height: "100%",
+      }}
+    >
+      {board.map((row, rIdx) => (
+        <div
+          key={rIdx}
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            width: "100%",
+            height: CELL,
+          }}
+        >
+          {row.map((square, fIdx) => {
+            // Standard chess color rule: a1 is dark. a1 = (rank 0 from
+            // bottom, file 0). With our top-left = a8 convention, the
+            // top-left is light. Light when (rank + file) is even.
+            const isLight = (rIdx + fIdx) % 2 === 0;
+            return (
+              <div
+                key={fIdx}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: CELL,
+                  height: CELL,
+                  backgroundColor: isLight ? LIGHT_SQUARE : DARK_SQUARE,
+                  color: square && square === square.toUpperCase()
+                    ? WHITE_PIECE
+                    : BLACK_PIECE,
+                  fontSize: 34,
+                  fontWeight: 800,
+                  fontFamily: "ui-serif, Georgia, serif",
+                  // Drop-shadow gives the pieces a touch of separation
+                  // from the squares without needing real piece glyphs.
+                  textShadow: square
+                    ? square === square.toUpperCase()
+                      ? "0 1px 2px rgba(0,0,0,0.45)"
+                      : "0 1px 1px rgba(255,255,255,0.35)"
+                    : "none",
+                }}
+              >
+                {square ?? ""}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
   );
 }

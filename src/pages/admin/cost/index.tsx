@@ -41,6 +41,25 @@ interface StatsResponse {
   notes: { scope: string; generatedAt: string };
 }
 
+// Subset of /api/health/llm's response we actually render. Loose typing
+// because that endpoint isn't versioned and we'd rather degrade
+// gracefully than blow up on a future field rename.
+interface ProviderHealth {
+  ok: boolean;
+  provider: string;
+  model?: string;
+  elapsedMs?: number;
+  error?: string;
+  status?: number;
+}
+interface HealthResult {
+  ok: boolean;
+  livePath: string;
+  anthropic: ProviderHealth;
+  openai: ProviderHealth;
+  fetchedAt: number;
+}
+
 interface ModelRow {
   model: string;
   displayName: string;
@@ -97,6 +116,26 @@ export default function AdminCost() {
   const [refreshTick, setRefreshTick] = useState(0);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<HealthResult | null>(null);
+
+  // Probe both providers via /api/health/llm. Each test fires a 1-token
+  // Haiku call (~$0.0001) so the cost is negligible, but it's still real
+  // money — only fired when an admin clicks the button, never on render
+  // or auto-refresh. Result renders inline beneath the header.
+  const handleTestProviders = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/health/llm", { credentials: "include" });
+      const body = (await res.json()) as Omit<HealthResult, "fetchedAt">;
+      setTestResult({ ...body, fetchedAt: Date.now() });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setTesting(false);
+    }
+  };
 
   // Wipe the in-memory aggregator on this Vercel instance — useful before
   // a credit-application screenshot or load test so the numbers start
@@ -294,6 +333,14 @@ export default function AdminCost() {
             </Button>
             <Button
               size="small"
+              onClick={handleTestProviders}
+              disabled={testing}
+              sx={{ textTransform: "none" }}
+            >
+              {testing ? "Testing…" : "Test providers"}
+            </Button>
+            <Button
+              size="small"
               color="error"
               onClick={handleReset}
               disabled={resetting}
@@ -321,6 +368,32 @@ export default function AdminCost() {
               <Typography variant="body2" color="error">
                 Couldn&apos;t load stats: {error}
               </Typography>
+            </Paper>
+          )}
+
+          {testResult && (
+            <Paper
+              variant="outlined"
+              sx={{ p: 2, borderRadius: 2, backgroundColor: "action.hover" }}
+            >
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={2}
+                alignItems={{ xs: "flex-start", sm: "center" }}
+                justifyContent="space-between"
+              >
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={{ xs: 1, sm: 3 }}
+                >
+                  <ProviderHealthBadge label="Anthropic" health={testResult.anthropic} />
+                  <ProviderHealthBadge label="OpenAI" health={testResult.openai} />
+                </Stack>
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  Live path: <strong>{testResult.livePath}</strong> ·{" "}
+                  {new Date(testResult.fetchedAt).toLocaleTimeString()}
+                </Typography>
+              </Stack>
             </Paper>
           )}
 
@@ -605,5 +678,63 @@ function StatTile({
         {caption}
       </Typography>
     </Paper>
+  );
+}
+
+function ProviderHealthBadge({
+  label,
+  health,
+}: {
+  label: string;
+  health: ProviderHealth;
+}) {
+  const color = health.ok ? "#2E7D32" : "#C62828";
+  const icon = health.ok ? "✓" : "✗";
+  return (
+    <Stack direction="row" spacing={1} alignItems="center">
+      <Box
+        sx={{
+          width: 22,
+          height: 22,
+          borderRadius: "50%",
+          backgroundColor: color,
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 13,
+          fontWeight: 700,
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
+      <Stack spacing={0} sx={{ minWidth: 0 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          {label}
+          {health.ok && health.elapsedMs !== undefined && (
+            <Typography
+              component="span"
+              variant="caption"
+              sx={{ ml: 1, color: "text.secondary" }}
+            >
+              {health.elapsedMs}ms
+            </Typography>
+          )}
+        </Typography>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            fontFamily: "monospace",
+            fontSize: "0.7rem",
+          }}
+        >
+          {health.ok
+            ? health.model ?? "ok"
+            : `${health.status ?? "?"} · ${(health.error ?? "").slice(0, 60)}`}
+        </Typography>
+      </Stack>
+    </Stack>
   );
 }

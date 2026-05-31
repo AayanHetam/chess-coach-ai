@@ -20,6 +20,7 @@ import {
   puzzleStatsAtom,
   updatePuzzleStats,
 } from "@/lib/puzzleRating";
+import { parseSolutionMoves as parseSolution } from "@/lib/puzzleSolution";
 
 const PIECE_CODES: Piece[] = [
   "wP", "wB", "wN", "wR", "wQ", "wK",
@@ -35,26 +36,11 @@ interface DailyPuzzleData {
   solution: string[];
 }
 
-function parseSolutionMoves(
-  fen: string,
-  moves: string[]
-): { from: Square; to: Square; promotion?: string }[] {
-  const parsed: { from: Square; to: Square; promotion?: string }[] = [];
-  const g = new Chess(fen);
-  for (const m of moves) {
-    const from = m.slice(0, 2) as Square;
-    const to = m.slice(2, 4) as Square;
-    const promotion = m.length > 4 ? m[4] : undefined;
-    try {
-      const result = g.move({ from, to, promotion });
-      if (result) parsed.push({ from, to, promotion });
-      else break;
-    } catch {
-      break;
-    }
-  }
-  return parsed;
-}
+// parseSolutionMoves now lives in @/lib/puzzleSolution — shared across
+// all five puzzle surfaces (InlinePuzzleSet, PracticeChessBoard, this,
+// PuzzleRush, PatternTraining). The inline copies that used to exist
+// silently truncated on the first move chess.js couldn't apply, which
+// broke any puzzle with more than ~2 plies and tricky data formatting.
 
 export default function DailyPuzzle() {
   const router = useRouter();
@@ -79,10 +65,17 @@ export default function DailyPuzzle() {
   // Check localStorage to see if already solved today
   const [alreadySolvedToday, setAlreadySolvedToday] = useState(false);
 
-  const solutionMoves = useMemo(() => {
-    if (!puzzle) return [];
-    return parseSolutionMoves(puzzle.fen, puzzle.solution || puzzle.moves);
-  }, [puzzle]);
+  const solutionParseResult = useMemo(() => {
+    if (!puzzle) return { parsed: [], error: null as string | null };
+    return parseSolution(puzzle.fen, puzzle.solution || puzzle.moves);
+    // Depend on the stable puzzle.id, not the puzzle object — avoids
+    // recomputing every render of the parent. Mirror of PR #109's
+    // InlinePuzzleSet fix.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle?.id]);
+  const solutionMoves = solutionParseResult.parsed;
+  const solutionParseError = solutionParseResult.error;
+  const [puzzleError, setPuzzleError] = useState<string | null>(null);
 
   // Fetch daily puzzle
   useEffect(() => {
@@ -122,23 +115,44 @@ export default function DailyPuzzle() {
           setStatus("loading");
           startTimeRef.current = Date.now();
 
+          // Use the robust parser up-front so the init move benefits
+          // from the trim / SAN fallback / uppercase-promotion fixes.
+          // Mirrors the React-state path (solutionParseResult above)
+          // for the imperative init below — they need to agree, and
+          // the inline raw-slicing here would silently differ.
+          const initParse = parseSolution(p.fen, p.solution || p.moves);
+          if (initParse.error) {
+            console.warn("[DailyPuzzle] parse error on load:", initParse.error);
+            setPuzzleError(initParse.error);
+          }
+
           // Auto-play opponent's first move
           setTimeout(() => {
             if (puzzleIdRef.current !== p.id) return;
-            const moves = p.solution || p.moves;
-            if (moves.length === 0) return;
-            const fm = moves[0];
-            const from = fm.slice(0, 2) as Square;
-            const to = fm.slice(2, 4) as Square;
-            const promo = fm.length > 4 ? fm[4] : undefined;
+            const firstMove = initParse.parsed[0];
+            if (!firstMove) {
+              // Empty or malformed solution — give the user an explicit
+              // signal instead of a dead board.
+              setPuzzleError(
+                initParse.error ?? "Puzzle has no playable moves.",
+              );
+              setStatus("playing"); // re-enable UI even though there's no puzzle
+              return;
+            }
             try {
               const g = new Chess(newGame.fen());
-              g.move({ from, to, promotion: promo });
+              g.move({
+                from: firstMove.from,
+                to: firstMove.to,
+                promotion: firstMove.promotion,
+              });
               setGame(g);
               setMoveIndex(1);
-              setLastMoveSquares({ from, to });
+              setLastMoveSquares({ from: firstMove.from, to: firstMove.to });
               setStatus("playing");
-            } catch {
+            } catch (err) {
+              console.warn("[DailyPuzzle] opponent setup move failed", err);
+              setPuzzleError("Opponent setup move couldn't be applied.");
               setStatus("playing");
             }
           }, 600);
@@ -159,6 +173,16 @@ export default function DailyPuzzle() {
       setTimeout(() => {
         if (puzzleIdRef.current !== pid) return;
         const move = solutionMoves[nextMoveIdx];
+        if (!move) {
+          // Parser truncated the solution before this index — long
+          // puzzle silently failed in the up-front parse. Was previously
+          // a crash: accessing move.from on undefined throws TypeError
+          // which the outer catch swallowed. Surface visibly instead.
+          const msg = `Puzzle data ends at move ${nextMoveIdx} — cannot continue.`;
+          console.warn("[DailyPuzzle] opponent move missing:", msg);
+          setPuzzleError(msg);
+          return;
+        }
         try {
           const g = new Chess(currentGame.fen());
           g.move({ from: move.from, to: move.to, promotion: move.promotion });
@@ -185,7 +209,13 @@ export default function DailyPuzzle() {
               );
             }
           }
-        } catch { /* chess.js move() can throw on invalid SAN — keep current state */ }
+        } catch (err) {
+          // Was previously silent — board frozen with no opponent reply.
+          // Now logged + surfaced so the user knows something's wrong.
+          const msg = `Opponent move ${nextMoveIdx + 1} (${move.from}-${move.to}) failed to apply.`;
+          console.warn("[DailyPuzzle]", msg, err);
+          setPuzzleError(msg);
+        }
       }, 400);
     },
     [solutionMoves, puzzle, setGlobalStats]
@@ -392,7 +422,9 @@ export default function DailyPuzzle() {
                 py: 0.75,
                 borderRadius: 1,
                 bgcolor:
-                  status === "solved"
+                  puzzleError
+                    ? "rgba(237,108,2,0.22)"
+                    : status === "solved"
                     ? "rgba(76,175,80,0.2)"
                     : status === "wrong"
                     ? "rgba(244,67,54,0.2)"
@@ -402,7 +434,7 @@ export default function DailyPuzzle() {
                 gap: 1,
               }}
             >
-              {status === "playing" && (
+              {status === "playing" && !puzzleError && (
                 <Box
                   sx={{
                     width: 14,
@@ -414,28 +446,33 @@ export default function DailyPuzzle() {
                   }}
                 />
               )}
-              {status === "solved" && <EmojiEventsIcon sx={{ color: "#66bb6a", fontSize: 20 }} />}
+              {status === "solved" && !puzzleError && (
+                <EmojiEventsIcon sx={{ color: "#66bb6a", fontSize: 20 }} />
+              )}
               <Typography
                 variant="body2"
                 sx={{
                   fontWeight: 600,
-                  color:
-                    status === "solved"
+                  color: puzzleError
+                    ? "#ffb84d"
+                    : status === "solved"
                       ? "#66bb6a"
                       : status === "wrong"
-                      ? "#ef5350"
-                      : "rgba(255,255,255,0.7)",
+                        ? "#ef5350"
+                        : "rgba(255,255,255,0.7)",
                 }}
               >
-                {status === "loading"
-                  ? "Loading..."
-                  : status === "solved"
-                  ? "Puzzle Solved!"
-                  : status === "wrong"
-                  ? "Not quite — try again!"
-                  : game.turn() === "w"
-                  ? "White to move"
-                  : "Black to move"}
+                {puzzleError
+                  ? `Puzzle data error — ${puzzleError}`
+                  : status === "loading"
+                    ? "Loading..."
+                    : status === "solved"
+                      ? "Puzzle Solved!"
+                      : status === "wrong"
+                        ? "Not quite — try again!"
+                        : game.turn() === "w"
+                          ? "White to move"
+                          : "Black to move"}
               </Typography>
             </Box>
 

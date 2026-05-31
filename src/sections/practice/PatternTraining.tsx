@@ -26,6 +26,7 @@ import TimerIcon from "@mui/icons-material/Timer";
 import type { DifficultyBand } from "@/types/puzzles";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import { puzzleSolvedStatusAtom } from "./states";
+import { parseSolutionMoves as parseSolution } from "@/lib/puzzleSolution";
 
 const PIECE_CODES: Piece[] = [
   "wP", "wB", "wN", "wR", "wQ", "wK",
@@ -38,24 +39,9 @@ interface PatternTrainingProps {
   onBack: () => void;
 }
 
-function parseSolutionMoves(
-  fen: string,
-  moves: string[]
-): { from: Square; to: Square; promotion?: string }[] {
-  const parsed: { from: Square; to: Square; promotion?: string }[] = [];
-  const g = new Chess(fen);
-  for (const m of moves) {
-    const from = m.slice(0, 2) as Square;
-    const to = m.slice(2, 4) as Square;
-    const promotion = m.length > 4 ? m[4] : undefined;
-    try {
-      const result = g.move({ from, to, promotion });
-      if (result) parsed.push({ from, to, promotion });
-      else break;
-    } catch { break; }
-  }
-  return parsed;
-}
+// parseSolutionMoves moved to @/lib/puzzleSolution (imported as
+// parseSolution above). The five puzzle surfaces previously each had
+// their own copy with the same silent-truncation bug on long puzzles.
 
 export default function PatternTraining({ onBack }: PatternTrainingProps) {
   const screenSize = useScreenSize();
@@ -85,10 +71,23 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
 
   const currentPuzzle = puzzles[puzzleIndex] || null;
 
-  const solutionMoves = useMemo(() => {
-    if (!currentPuzzle) return [];
-    return parseSolutionMoves(currentPuzzle.fen, currentPuzzle.solution || currentPuzzle.moves || []);
-  }, [currentPuzzle]);
+  const solutionParseResult = useMemo(() => {
+    if (!currentPuzzle) return { parsed: [], error: null as string | null };
+    return parseSolution(currentPuzzle.fen, currentPuzzle.solution || currentPuzzle.moves || []);
+    // Stable-id dep — see PR #109.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPuzzle?.id]);
+  const solutionMoves = solutionParseResult.parsed;
+  // PatternTraining is auto-advance like PuzzleRush — a malformed
+  // puzzle just gets skipped. Log for diagnostics, no visible UI.
+  useEffect(() => {
+    if (solutionParseResult.error) {
+      console.warn(
+        "[PatternTraining] puzzle parse error, will auto-skip:",
+        solutionParseResult.error,
+      );
+    }
+  }, [solutionParseResult.error]);
 
   const boardSize = useMemo(() => {
     const w = screenSize.width;
@@ -140,16 +139,28 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
       const opponentColor = newGame.turn();
       setBoardOrientation(opponentColor === "w" ? "black" : "white");
 
-      // Play opponent's first move
-      const moves = puzzle.solution || puzzle.moves || [];
-      if (moves.length > 0) {
-        const fm = moves[0];
-        const from = fm.slice(0, 2) as Square;
-        const to = fm.slice(2, 4) as Square;
-        const promo = fm.length > 4 ? fm[4] : undefined;
+      // Play opponent's first move using the robust shared parser so
+      // the init move benefits from the trim / SAN fallback /
+      // uppercase-promotion fixes. The raw-slice version below was
+      // diverged from the React-state path (parseSolution above) and
+      // would silently fail on edge-case formats.
+      const initParse = parseSolution(
+        puzzle.fen,
+        puzzle.solution || puzzle.moves || [],
+      );
+      const firstMove = initParse.parsed[0];
+      if (firstMove) {
         try {
-          newGame.move({ from, to, promotion: promo });
-        } catch { /* chess.js move() can throw on invalid SAN — keep current state */ }
+          newGame.move({
+            from: firstMove.from,
+            to: firstMove.to,
+            promotion: firstMove.promotion,
+          });
+        } catch (err) {
+          console.warn("[PatternTraining] init move failed:", err);
+        }
+      } else if (initParse.error) {
+        console.warn("[PatternTraining] init parse error:", initParse.error);
       }
 
       setGame(newGame);
@@ -219,13 +230,15 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
         setShowPieces(true);
         setPhase("result");
 
-        // Show the correct move briefly, then advance
+        // Show the correct move briefly, then advance.
         try {
           const g = new Chess(game.fen());
           g.move({ from, to, promotion: expected.promotion });
           setGame(g);
           setLastMoveSquares({ from, to });
-        } catch { /* chess.js move() can throw on invalid SAN — keep current state */ }
+        } catch (err) {
+          console.warn("[PatternTraining] correct-move apply failed:", err);
+        }
 
         setTimeout(() => advanceToNext(), 1200);
         return true;

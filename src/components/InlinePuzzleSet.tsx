@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box, Paper, Typography, Chip, Link } from "@mui/material";
+import { Box, Button, Paper, Stack, Typography, Chip, Link } from "@mui/material";
 import { styled, keyframes } from "@mui/material/styles";
 import { Chessboard } from "react-chessboard";
 import { Chess, Square } from "chess.js";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
+import InlinePuzzleCoach from "./InlinePuzzleCoach";
 
 /**
  * InlinePuzzleSet — 3 puzzles solved inside the chat bubble (no /practice nav).
@@ -64,8 +65,11 @@ const PAPER_HORIZONTAL_PADDING = 32; // 2 * theme.spacing(2)
 const OPPONENT_SETUP_DELAY_MS = 600;
 const OPPONENT_RESPONSE_DELAY_MS = 400;
 const WRONG_FLASH_MS = 1200;
-const SOLVED_ADVANCE_DELAY_MS = 700;
 const WRONG_ATTEMPTS_BEFORE_SKIP = 2;
+// After the user solves OR fails out of a puzzle, we wait for an explicit
+// "Next puzzle →" click instead of auto-advancing. Earlier behavior was a
+// 700ms timer to advance, which erased the success moment and gave zero
+// time for the coach explanation to do its job.
 
 type Status = "loading" | "playing" | "wrong" | "solved";
 
@@ -112,6 +116,9 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
   const [wrongSquare, setWrongSquare] = useState<Square | null>(null);
   const [flash, setFlash] = useState<"idle" | "green" | "red">("idle");
   const [wrongAttempts, setWrongAttempts] = useState(0);
+  // SAN of the user's most recent wrong attempt — threaded into the
+  // InlinePuzzleCoach so the explanation can address "you played X."
+  const [lastWrongMoveSan, setLastWrongMoveSan] = useState<string | null>(null);
   const puzzleIdRef = useRef<string | null>(null);
 
   const currentPuzzle = trimmed[currentIndex];
@@ -141,6 +148,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
     setWrongSquare(null);
     setFlash("idle");
     setWrongAttempts(0);
+    setLastWrongMoveSan(null);
 
     const timer = setTimeout(() => {
       if (puzzleIdRef.current !== puzzleId) return;
@@ -206,16 +214,15 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
           if (nextIdx + 1 >= solutionMoves.length) {
             setStatus("solved");
             setFlash("green");
-            setTimeout(() => {
-              if (puzzleIdRef.current === puzzleId) advanceToNext();
-            }, SOLVED_ADVANCE_DELAY_MS);
+            // No auto-advance — user clicks "Next puzzle →" when ready,
+            // giving the coach explanation a moment to land.
           }
         } catch {
           /* opponent move failed — leave puzzle in current state */
         }
       }, OPPONENT_RESPONSE_DELAY_MS);
     },
-    [solutionMoves, advanceToNext]
+    [solutionMoves]
   );
 
   const onPieceDrop = useCallback(
@@ -230,6 +237,20 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
 
       const isMatch = from === expected.from && to === expected.to;
       if (!isMatch) {
+        // Capture the user's actual try in SAN so the coach explanation
+        // can reference it ("you played Bxh7+ — here's why it doesn't
+        // work…"). Wrapped in try/catch because the attempted move may
+        // be illegal in the current position; in that case we just skip
+        // the SAN.
+        let attemptedSan: string | null = null;
+        try {
+          const probe = new Chess(game.fen());
+          const result = probe.move({ from, to, promotion: piece?.[1]?.toLowerCase() === "p" ? "q" : undefined });
+          if (result) attemptedSan = result.san;
+        } catch {
+          /* illegal attempt — leave attemptedSan null */
+        }
+        if (attemptedSan) setLastWrongMoveSan(attemptedSan);
         setStatus("wrong");
         setWrongSquare(to);
         setWrongAttempts((n) => n + 1);
@@ -258,10 +279,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
         if (nextIdx >= solutionMoves.length) {
           setStatus("solved");
           setFlash("green");
-          const puzzleId = currentPuzzle.id;
-          setTimeout(() => {
-            if (puzzleIdRef.current === puzzleId) advanceToNext();
-          }, SOLVED_ADVANCE_DELAY_MS);
+          // No auto-advance — user clicks "Next puzzle →" when ready.
         } else {
           playOpponentResponse(g, nextIdx, currentPuzzle.id);
         }
@@ -277,7 +295,6 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
       game,
       currentPuzzle,
       playOpponentResponse,
-      advanceToNext,
     ]
   );
 
@@ -330,6 +347,14 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
     wrongAttempts >= WRONG_ATTEMPTS_BEFORE_SKIP &&
     status !== "solved" &&
     !done;
+  // The coach card appears once the user has either solved the puzzle
+  // or made at least one wrong attempt. Solved: "why this works."
+  // Wrong: "what to look for" — and the user's actual tried move is
+  // threaded into the prompt for direct, personal feedback.
+  const showCoach =
+    !!currentPuzzle && (status === "solved" || wrongAttempts > 0);
+  const coachOutcome: "solved" | "wrong" =
+    status === "solved" ? "solved" : "wrong";
 
   return (
     <StyledPaper ref={containerRef} elevation={2}>
@@ -388,8 +413,42 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
         />
       </BoardWrap>
 
-      {showSkip && (
-        <Box sx={{ mt: 1, textAlign: "center" }}>
+      {showCoach && currentPuzzle && (
+        <InlinePuzzleCoach
+          key={`${currentPuzzle.id}-${coachOutcome}`}
+          puzzle={currentPuzzle}
+          outcome={coachOutcome}
+          userAttemptedMoveSan={lastWrongMoveSan}
+        />
+      )}
+
+      {/* Footer actions — Next on solved, Skip after N wrong attempts.
+          The two never both apply: solved hides Skip already. */}
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ mt: 1.5, alignItems: "center", justifyContent: "space-between" }}
+      >
+        {status === "solved" ? (
+          <Button
+            variant="contained"
+            size="small"
+            onClick={advanceToNext}
+            sx={{
+              bgcolor: "#4CAF50",
+              textTransform: "none",
+              fontWeight: 700,
+              "&:hover": { bgcolor: "#43A047" },
+            }}
+          >
+            {currentIndex + 1 < trimmed.length
+              ? "Next puzzle →"
+              : "Finish set →"}
+          </Button>
+        ) : (
+          <Box />
+        )}
+        {showSkip && (
           <Link
             component="button"
             type="button"
@@ -399,8 +458,8 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
           >
             Skip this one →
           </Link>
-        </Box>
-      )}
+        )}
+      </Stack>
     </StyledPaper>
   );
 };

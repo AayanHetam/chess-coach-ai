@@ -26,20 +26,44 @@ export const getEngineWorker = (enginePath: string): EngineWorker => {
   return engineWorker;
 };
 
+/**
+ * Error subclass thrown when a sendCommandsToWorker promise is rejected
+ * because a newer call superseded it. Keyed off `.name` so callers can
+ * recognize and choose to swallow it without misreading every error.
+ */
+export class WorkerSupersededError extends Error {
+  constructor(message = "sendCommandsToWorker call superseded by a newer request") {
+    super(message);
+    this.name = "WorkerSupersededError";
+  }
+}
+
 export const sendCommandsToWorker = (
   worker: EngineWorker,
   commands: string[],
   finalMessage: string,
   onNewMessage?: (messages: string[]) => void
 ): Promise<string[]> => {
-  return new Promise((resolve) => {
+  // Reject any prior in-flight promise. Without this, replacing
+  // worker.listen below would orphan the previous caller — its promise
+  // would never resolve because no listener is installed to catch its
+  // finalMessage. Surface the supersession as an explicit error so the
+  // caller can decide (catch + ignore, or retry).
+  worker.rejectActive?.(new WorkerSupersededError());
+
+  return new Promise((resolve, reject) => {
     const messages: string[] = [];
+
+    // Stash the reject so the NEXT sendCommandsToWorker can surface our
+    // supersession to whoever's awaiting this promise.
+    worker.rejectActive = reject;
 
     worker.listen = (data) => {
       messages.push(data);
       onNewMessage?.(messages);
 
       if (data.startsWith(finalMessage)) {
+        worker.rejectActive = undefined;
         resolve(messages);
       }
     };

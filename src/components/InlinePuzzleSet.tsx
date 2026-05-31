@@ -6,6 +6,7 @@ import { styled, keyframes } from "@mui/material/styles";
 import { Chessboard } from "react-chessboard";
 import { Chess, Square } from "chess.js";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
+import { parseSolutionMoves as parseSolution } from "@/lib/puzzleSolution";
 import InlinePuzzleCoach from "./InlinePuzzleCoach";
 
 /**
@@ -90,27 +91,6 @@ const WRONG_ATTEMPTS_BEFORE_SKIP = 2;
 
 type Status = "loading" | "playing" | "wrong" | "solved";
 
-function parseSolutionMoves(
-  fen: string,
-  moves: string[]
-): { from: Square; to: Square; promotion?: string }[] {
-  const parsed: { from: Square; to: Square; promotion?: string }[] = [];
-  const g = new Chess(fen);
-  for (const m of moves) {
-    const from = m.slice(0, 2) as Square;
-    const to = m.slice(2, 4) as Square;
-    const promotion = m.length > 4 ? m[4] : undefined;
-    try {
-      const result = g.move({ from, to, promotion });
-      if (result) parsed.push({ from, to, promotion });
-      else break;
-    } catch {
-      break;
-    }
-  }
-  return parsed;
-}
-
 interface InlinePuzzleSetProps {
   puzzles: ChessPuzzle[];
   displayTheme?: string;
@@ -141,22 +121,27 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
   // wrong attempts produce the same emotion class for flash="red" and
   // the browser doesn't reliably retrigger the keyframes.
   const [flashKey, setFlashKey] = useState(0);
+  // Visible error surface for "puzzle data couldn't be played" failures
+  // — fires either from the up-front parse (truncated/illegal sequence)
+  // or from the opponent-response setTimeout (chess.js threw on what
+  // was supposedly a valid move). Was previously a SILENT catch that
+  // froze the board mid-sequence on long puzzles.
+  const [puzzleError, setPuzzleError] = useState<string | null>(null);
   const puzzleIdRef = useRef<string | null>(null);
 
   const currentPuzzle = trimmed[currentIndex];
   const done = currentIndex >= trimmed.length;
 
-  const solutionMoves = useMemo(() => {
-    if (!currentPuzzle) return [];
+  const solutionParseResult = useMemo(() => {
+    if (!currentPuzzle) return { parsed: [], error: null as string | null };
     const moves = currentPuzzle.solution || currentPuzzle.moves || [];
-    return parseSolutionMoves(currentPuzzle.fen, moves);
-    // Depend on the stable puzzle ID (string) instead of the puzzle
-    // object reference. Parent re-renders that pass a new array would
-    // otherwise produce a fresh `currentPuzzle` object on every tick,
-    // causing the solutionMoves array (and downstream effects) to
-    // recompute and reset board state.
+    return parseSolution(currentPuzzle.fen, moves);
+    // Stable id dep — see PR #109. Avoid recomputing when parent passes
+    // a fresh puzzles array reference on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPuzzle?.id]);
+  const solutionMoves = solutionParseResult.parsed;
+  const solutionParseError = solutionParseResult.error;
 
   // Init / re-init on puzzle change
   useEffect(() => {
@@ -178,6 +163,11 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
     setWrongAttempts(0);
     setLastWrongMoveSan(null);
     setFlashKey(0);
+    // Hydrate the parse error up-front so the UI can surface it
+    // alongside the puzzle. If the parser truncated the solution, the
+    // user gets a "Puzzle data error — Skip" CTA instead of a frozen
+    // board several moves in.
+    setPuzzleError(solutionParseError);
 
     const timer = setTimeout(() => {
       if (puzzleIdRef.current !== puzzleId) return;
@@ -242,7 +232,16 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
       setTimeout(() => {
         if (puzzleIdRef.current !== puzzleId) return;
         const m = solutionMoves[nextIdx];
-        if (!m) return;
+        if (!m) {
+          // The parser truncated the solution before reaching this index —
+          // i.e. a long puzzle has malformed/illegal data partway through.
+          // Surface visibly so the user can skip; previously the puzzle
+          // silently froze with no opponent response and no error.
+          const msg = `Puzzle data ends at move ${nextIdx} of ${solutionMoves.length + 1}+ — cannot continue.`;
+          console.warn("[InlinePuzzleSet] opponent move missing:", msg);
+          setPuzzleError(msg);
+          return;
+        }
         try {
           const g2 = new Chess(g.fen());
           g2.move({ from: m.from, to: m.to, promotion: m.promotion });
@@ -257,8 +256,13 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
             // No auto-advance — user clicks "Next puzzle →" when ready,
             // giving the coach explanation a moment to land.
           }
-        } catch {
-          /* opponent move failed — leave puzzle in current state */
+        } catch (err) {
+          // chess.js rejected the opponent move. Was previously silent —
+          // the user would see the board frozen with no opponent reply.
+          // Now we log + surface so the user can skip.
+          const msg = `Opponent move ${nextIdx + 1} (${m.from}-${m.to}) failed to apply.`;
+          console.warn("[InlinePuzzleSet]", msg, err);
+          setPuzzleError(msg);
         }
       }, OPPONENT_RESPONSE_DELAY_MS);
     },
@@ -388,8 +392,12 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
       ? "White to move"
       : "Black to move";
 
+  // Show the skip link either after N wrong attempts OR immediately
+  // whenever a puzzleError surfaces (malformed data, opponent move
+  // failed mid-sequence) — the user shouldn't be stuck on a broken
+  // puzzle.
   const showSkip =
-    wrongAttempts >= WRONG_ATTEMPTS_BEFORE_SKIP &&
+    (wrongAttempts >= WRONG_ATTEMPTS_BEFORE_SKIP || !!puzzleError) &&
     status !== "solved" &&
     !done;
   // The coach card appears once the user has either solved the puzzle
@@ -419,13 +427,15 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
         </Typography>
         <Chip
           size="small"
-          label={statusText}
+          label={puzzleError ? "Puzzle data error" : statusText}
           color={
-            status === "solved"
-              ? "success"
-              : status === "wrong"
-              ? "error"
-              : "default"
+            puzzleError
+              ? "warning"
+              : status === "solved"
+                ? "success"
+                : status === "wrong"
+                  ? "error"
+                  : "default"
           }
           variant="outlined"
           // Force high-contrast text on the light-green StyledPaper background.
@@ -436,6 +446,25 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
           sx={{ "& .MuiChip-label": { color: "#1f2937" } }}
         />
       </Box>
+
+      {puzzleError && (
+        <Box
+          sx={{
+            mb: 1,
+            p: 1,
+            borderRadius: 1,
+            backgroundColor: "rgba(237, 108, 2, 0.10)",
+            border: "1px solid rgba(237, 108, 2, 0.35)",
+          }}
+        >
+          <Typography
+            variant="caption"
+            sx={{ color: "#7a3a00", display: "block" }}
+          >
+            {puzzleError} Use Skip to move on.
+          </Typography>
+        </Box>
+      )}
 
       <Box
         sx={{

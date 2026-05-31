@@ -43,7 +43,21 @@ export default function BoardContainer() {
       }
 
       const timePromise = sleep(1000);
-      const move = await engine.getEngineNextMove(gameFen, engineElo);
+      let move: string | undefined;
+      try {
+        move = await engine.getEngineNextMove(gameFen, engineElo);
+      } catch (err) {
+        // WorkerSupersededError fires when the user makes a new move
+        // mid-think and the cleanup useEffect calls stopAllCurrentJobs.
+        // Swallow that case; surface unexpected errors. Either way, skip
+        // playing a move on this tick — the next render will retry if
+        // the engine still needs to move.
+        if (err instanceof Error && err.name === "WorkerSupersededError") {
+          return;
+        }
+        console.warn("[play/board] engine getEngineNextMove failed:", err);
+        return;
+      }
       await timePromise;
 
       if (move) playMove(uciMoveParams(move));

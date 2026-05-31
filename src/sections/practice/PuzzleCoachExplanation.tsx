@@ -114,14 +114,19 @@ export default function PuzzleCoachExplanation({ puzzleStatus }: PuzzleCoachExpl
         solved: puzzleStatus === "solved" || isSolved,
       });
 
+      // /api/chat's Zod schema (chatSchema, AUDIT-PHASE-1.4) restricts
+      // role to "user" | "assistant" — sending role:"system" makes the
+      // schema parse fail with a 400, dropping us into the offline
+      // fallback every time. Concatenate the system prompt into the
+      // user message instead so the live coach actually fires. Mirrors
+      // the InlinePuzzleCoach shipped in PR #107.
+      const combined = `${PUZZLE_EXPLANATION_SYSTEM_PROMPT}\n\n${prompt}`;
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
         body: JSON.stringify({
-          messages: [
-            { role: "system", content: PUZZLE_EXPLANATION_SYSTEM_PROMPT },
-            { role: "user", content: prompt },
-          ],
+          messages: [{ role: "user", content: combined }],
           temperature: 0.7,
           max_tokens: 1000,
         }),

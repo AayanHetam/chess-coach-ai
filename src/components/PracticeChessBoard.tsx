@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess, Square } from "chess.js";
 import { Box, Typography } from "@mui/material";
+import { keyframes, styled } from "@mui/material/styles";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useRouter } from "next/router";
 import {
@@ -25,6 +26,41 @@ const PIECE_CODES: Piece[] = [
   "wP", "wB", "wN", "wR", "wQ", "wK",
   "bP", "bB", "bN", "bR", "bQ", "bK",
 ];
+
+// Flash overlay — copy of the InlinePuzzleSet pattern. Box-shadow pulse
+// animation ringing the board on solved (green) and wrong (red).
+// Positioned absolutely with pointer-events:none so it doesn't block
+// drags. Parent renders with a `key={flashKey}` that increments on every
+// flash trigger so the overlay remounts and the CSS animation restarts
+// cleanly — without the remount, repeat flashes (e.g. multiple wrong
+// attempts) don't reliably retrigger the same emotion class's animation.
+const flashGreen = keyframes`
+  0%   { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+  20%  { box-shadow: 0 0 0 8px rgba(76, 175, 80, 0.55); }
+  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+`;
+
+const flashRed = keyframes`
+  0%   { box-shadow: 0 0 0 0 rgba(220, 50, 50, 0); }
+  20%  { box-shadow: 0 0 0 8px rgba(220, 50, 50, 0.65); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 50, 50, 0); }
+`;
+
+const FlashOverlay = styled(Box, {
+  shouldForwardProp: (prop) => prop !== "flash",
+})<{ flash: "idle" | "green" | "red" }>(({ flash }) => ({
+  position: "absolute",
+  inset: 0,
+  pointerEvents: "none",
+  borderRadius: "8px",
+  zIndex: 2,
+  animation:
+    flash === "green"
+      ? `${flashGreen} 700ms ease-out`
+      : flash === "red"
+      ? `${flashRed} 700ms ease-out`
+      : "none",
+}));
 
 export type PuzzleStatus = "loading" | "playing" | "wrong" | "solved";
 
@@ -88,6 +124,11 @@ export default function PracticeChessBoard() {
   const [wrongSquare, setWrongSquare] = useState<Square | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [legalMoveSquares, setLegalMoveSquares] = useState<Square[]>([]);
+  // Flash state mirrors InlinePuzzleSet — pulse animation around the
+  // board on solved (green) and wrong (red). flashKey bumps on each
+  // trigger so the FlashOverlay remounts and the CSS animation restarts.
+  const [flash, setFlash] = useState<"idle" | "green" | "red">("idle");
+  const [flashKey, setFlashKey] = useState(0);
 
   // Ref to track puzzle ID to avoid stale closures
   const puzzleIdRef = useRef<string | null>(null);
@@ -135,6 +176,8 @@ export default function PracticeChessBoard() {
     setWrongSquare(null);
     setSelectedSquare(null);
     setLegalMoveSquares([]);
+    setFlash("idle");
+    setFlashKey(0);
     puzzleStartTimeRef.current = Date.now();
 
     // Auto-play opponent's first move after a short delay
@@ -186,6 +229,8 @@ export default function PracticeChessBoard() {
           // Check if puzzle is now fully solved (opponent played last move)
           if (nextMoveIdx + 1 >= solutionMoves.length) {
             setStatus("solved");
+            setFlash("green");
+            setFlashKey((k) => k + 1);
             if (currentPuzzle?.id) {
               setSolvedStatus((prev) => ({ ...prev, [currentPuzzle.id]: true }));
               setGlobalStats((prev) =>
@@ -225,7 +270,9 @@ export default function PracticeChessBoard() {
   // Handle user piece drop
   const onPieceDrop = useCallback(
     (sourceSquare: string, targetSquare: string, piece: string): boolean => {
-      if (status !== "playing") return false;
+      // Allow attempts during playing OR persistent wrong state — the
+      // user shouldn't have to wait for a timer between attempts.
+      if (status !== "playing" && status !== "wrong") return false;
       if (moveIndex >= solutionMoves.length) return false;
 
       const expectedMove = solutionMoves[moveIndex];
@@ -250,7 +297,9 @@ export default function PracticeChessBoard() {
           g.move({ from, to, promotion: expectedMove.promotion });
           setGame(g);
           setLastMoveSquares({ from, to });
+          // Correct move clears the persistent wrong-state memory.
           setWrongSquare(null);
+          setStatus("playing");
           setSelectedSquare(null);
           setLegalMoveSquares([]);
 
@@ -263,6 +312,8 @@ export default function PracticeChessBoard() {
           // Check if puzzle is solved
           if (nextIdx >= solutionMoves.length) {
             setStatus("solved");
+            setFlash("green");
+            setFlashKey((k) => k + 1);
             if (currentPuzzle?.id) {
               setSolvedStatus((prev) => ({ ...prev, [currentPuzzle.id]: true }));
               setGlobalStats((prev) =>
@@ -300,11 +351,19 @@ export default function PracticeChessBoard() {
           return false;
         }
       } else {
-        // Wrong move
+        // Wrong move — persistent. Status, wrongSquare and the red flash
+        // all stay set until the user makes another attempt (correct or
+        // wrong). The flashKey bump remounts FlashOverlay so the
+        // box-shadow keyframes restart cleanly on every repeat wrong.
+        // No auto-reset timer — old behavior briefly flashed red then
+        // returned to "playing," which made the negative reinforcement
+        // easy to miss and hard to reread.
         setStatus("wrong");
         setWrongSquare(to);
         setSelectedSquare(null);
         setLegalMoveSquares([]);
+        setFlash("red");
+        setFlashKey((k) => k + 1);
 
         // Record failed attempt to stats
         if (currentPuzzle?.id) {
@@ -320,14 +379,6 @@ export default function PracticeChessBoard() {
           );
         }
 
-        // Reset to playing after a delay
-        setTimeout(() => {
-          if (puzzleIdRef.current === currentPuzzle?.id) {
-            setStatus("playing");
-            setWrongSquare(null);
-          }
-        }, 1200);
-
         return false;
       }
     },
@@ -337,7 +388,9 @@ export default function PracticeChessBoard() {
   // Handle square click for click-to-move
   const onSquareClick = useCallback(
     (square: Square) => {
-      if (status !== "playing") return;
+      // Click-to-move accepts attempts in both playing and persistent
+      // wrong state, mirroring onPieceDrop's relaxation above.
+      if (status !== "playing" && status !== "wrong") return;
 
       // If no piece selected yet, select this square if it has a user piece
       if (!selectedSquare) {
@@ -506,6 +559,7 @@ export default function PracticeChessBoard() {
       {/* Chessboard */}
       <Box
         sx={{
+          position: "relative",
           width: boardSize,
           "& .board-container": {
             borderRadius: "4px",
@@ -513,6 +567,11 @@ export default function PracticeChessBoard() {
           },
         }}
       >
+        {/* key={flashKey} forces the overlay to remount on every flash
+            trigger so its CSS animation restarts cleanly. Sits
+            absolutely positioned over the board with pointer-events:
+            none — never blocks drag-and-drop or click-to-move. */}
+        <FlashOverlay key={`flash-${flashKey}`} flash={flash} />
         <Chessboard
           id="PracticeBoard"
           position={game.fen()}
@@ -527,7 +586,10 @@ export default function PracticeChessBoard() {
           customSquareStyles={customSquareStyles}
           customPieces={customPieces}
           isDraggablePiece={({ piece }) => {
-            if (status !== "playing") return false;
+            // Draggable in playing OR persistent wrong state — same
+            // relaxation as onPieceDrop / onSquareClick above so the
+            // user can immediately retry without waiting for a timer.
+            if (status !== "playing" && status !== "wrong") return false;
             const color = piece[0] === "w" ? "w" : "b";
             return color === game.turn();
           }}

@@ -45,12 +45,24 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
   boxShadow: "0 4px 12px rgba(76, 175, 80, 0.18)",
 }));
 
-const BoardWrap = styled(Box, {
+// Animation overlay — positioned absolutely over the board so the
+// box-shadow pulse rings the board edge without touching the Chessboard
+// node itself. pointer-events:none so drags pass through. Critical: the
+// PARENT renders this with a `key={flashKey}` that increments on every
+// flash trigger. That forces the overlay to remount, which the browser
+// treats as a fresh animation declaration and reliably restarts the
+// keyframes. CSS animations applied to the SAME element with the SAME
+// emotion class on repeat (the old BoardWrap pattern) often won't
+// retrigger — that was the root cause of "red feedback fades after a
+// couple attempts."
+const FlashOverlay = styled(Box, {
   shouldForwardProp: (prop) => prop !== "flash",
 })<{ flash: "idle" | "green" | "red" }>(({ flash }) => ({
+  position: "absolute",
+  inset: 0,
+  pointerEvents: "none",
   borderRadius: "8px",
-  margin: "0 auto",
-  width: "fit-content",
+  zIndex: 2,
   animation:
     flash === "green"
       ? `${flashGreen} 600ms ease-out`
@@ -64,12 +76,17 @@ const BOARD_MIN_WIDTH = 240;
 const PAPER_HORIZONTAL_PADDING = 32; // 2 * theme.spacing(2)
 const OPPONENT_SETUP_DELAY_MS = 600;
 const OPPONENT_RESPONSE_DELAY_MS = 400;
-const WRONG_FLASH_MS = 1200;
 const WRONG_ATTEMPTS_BEFORE_SKIP = 2;
 // After the user solves OR fails out of a puzzle, we wait for an explicit
 // "Next puzzle →" click instead of auto-advancing. Earlier behavior was a
 // 700ms timer to advance, which erased the success moment and gave zero
 // time for the coach explanation to do its job.
+//
+// Wrong-attempt handling: status STAYS "wrong" until the user makes a new
+// move attempt (correct or wrong). No auto-reset timer — the user can
+// keep trying, the red wrongSquare highlight stays visible as a memory
+// of "you tried this, it didn't work," and each new wrong attempt
+// re-flashes via the flashKey re-mount trick.
 
 type Status = "loading" | "playing" | "wrong" | "solved";
 
@@ -119,6 +136,11 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
   // SAN of the user's most recent wrong attempt — threaded into the
   // InlinePuzzleCoach so the explanation can address "you played X."
   const [lastWrongMoveSan, setLastWrongMoveSan] = useState<string | null>(null);
+  // Monotonic counter — bumped on every flash trigger so the FlashOverlay
+  // remounts and its CSS animation restarts. Without this, repeat
+  // wrong attempts produce the same emotion class for flash="red" and
+  // the browser doesn't reliably retrigger the keyframes.
+  const [flashKey, setFlashKey] = useState(0);
   const puzzleIdRef = useRef<string | null>(null);
 
   const currentPuzzle = trimmed[currentIndex];
@@ -155,6 +177,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
     setFlash("idle");
     setWrongAttempts(0);
     setLastWrongMoveSan(null);
+    setFlashKey(0);
 
     const timer = setTimeout(() => {
       if (puzzleIdRef.current !== puzzleId) return;
@@ -230,6 +253,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
           if (nextIdx + 1 >= solutionMoves.length) {
             setStatus("solved");
             setFlash("green");
+            setFlashKey((k) => k + 1);
             // No auto-advance — user clicks "Next puzzle →" when ready,
             // giving the coach explanation a moment to land.
           }
@@ -243,7 +267,11 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
 
   const onPieceDrop = useCallback(
     (sourceSquare: string, targetSquare: string, piece: string): boolean => {
-      if (status !== "playing") return false;
+      // Allow attempts while EITHER playing OR in the persistent wrong
+      // state — the latter means the user has tried something already
+      // and the red highlight is still showing as a memory; they can
+      // retry immediately without waiting for a timer.
+      if (status !== "playing" && status !== "wrong") return false;
       if (!currentPuzzle) return false;
       if (moveIndex >= solutionMoves.length) return false;
 
@@ -267,18 +295,16 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
           /* illegal attempt — leave attemptedSan null */
         }
         if (attemptedSan) setLastWrongMoveSan(attemptedSan);
+        // Persistent wrong state. status + wrongSquare + flash stay set
+        // until the user makes another attempt. The flashKey bump
+        // remounts the FlashOverlay so the box-shadow keyframes restart
+        // — without it, the same emotion class for flash="red" wouldn't
+        // re-trigger the animation on repeat attempts.
         setStatus("wrong");
         setWrongSquare(to);
         setWrongAttempts((n) => n + 1);
         setFlash("red");
-        const puzzleId = currentPuzzle.id;
-        setTimeout(() => {
-          if (puzzleIdRef.current === puzzleId) {
-            setStatus("playing");
-            setWrongSquare(null);
-            setFlash("idle");
-          }
-        }, WRONG_FLASH_MS);
+        setFlashKey((k) => k + 1);
         return false;
       }
 
@@ -287,7 +313,9 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
         g.move({ from, to, promotion: expected.promotion });
         setGame(g);
         setLastMoveSquares({ from, to });
+        // Correct move clears the wrong-state memory.
         setWrongSquare(null);
+        setStatus("playing");
 
         const nextIdx = moveIndex + 1;
         setMoveIndex(nextIdx);
@@ -295,6 +323,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
         if (nextIdx >= solutionMoves.length) {
           setStatus("solved");
           setFlash("green");
+          setFlashKey((k) => k + 1);
           // No auto-advance — user clicks "Next puzzle →" when ready.
         } else {
           playOpponentResponse(g, nextIdx, currentPuzzle.id);
@@ -408,7 +437,19 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
         />
       </Box>
 
-      <BoardWrap flash={flash}>
+      <Box
+        sx={{
+          position: "relative",
+          display: "inline-block",
+          margin: "0 auto",
+          borderRadius: "8px",
+        }}
+      >
+        {/* key={flashKey} forces the overlay to remount on every flash
+            trigger so its CSS animation restarts cleanly. The overlay
+            sits absolutely positioned over the board with
+            pointer-events:none, so it never blocks drag-and-drop. */}
+        <FlashOverlay key={`flash-${flashKey}`} flash={flash} />
         <Chessboard
           id={`InlinePuzzle-${currentPuzzle?.id ?? currentIndex}`}
           position={game.fen()}
@@ -421,13 +462,15 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
           }}
           customSquareStyles={customSquareStyles}
           isDraggablePiece={({ piece }) => {
-            if (status !== "playing") return false;
+            // Pieces draggable while playing OR in the persistent wrong
+            // state — user shouldn't have to wait for a timer to retry.
+            if (status !== "playing" && status !== "wrong") return false;
             const color = piece[0] === "w" ? "w" : "b";
             return color === game.turn();
           }}
           animationDuration={200}
         />
-      </BoardWrap>
+      </Box>
 
       {showCoach && currentPuzzle && (
         <InlinePuzzleCoach

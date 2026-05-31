@@ -1,39 +1,34 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box, Button, Paper, Stack, Typography, Chip, Link } from "@mui/material";
-import { styled, keyframes } from "@mui/material/styles";
+import {
+  Box,
+  Button,
+  Paper,
+  Stack,
+  Typography,
+  Chip,
+  Link,
+} from "@mui/material";
+import { styled } from "@mui/material/styles";
 import { Chessboard } from "react-chessboard";
-import { Chess, Square } from "chess.js";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
-import { parseSolutionMoves as parseSolution } from "@/lib/puzzleSolution";
+import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
+import { FlashOverlay } from "@/components/puzzle/FlashOverlay";
 import InlinePuzzleCoach from "./InlinePuzzleCoach";
 
 /**
  * InlinePuzzleSet — 3 puzzles solved inside the chat bubble (no /practice nav).
  *
- * Move-handler convention mirrored from src/components/PracticeChessBoard.tsx
- * `onPieceDrop` (lines 226–335):
- *   - The puzzle FEN's side-to-move is the OPPONENT, not the user.
- *   - solution[0] = opponent's setup move, auto-played 600ms after load.
- *   - solution[1] = expected user first move; alternating thereafter.
- *   - On wrong move, do NOT reset the position — clear the red highlight after
- *     1200ms and let the user retry from the same position (matches legacy).
+ * State + behavior delegated to the shared usePuzzleBoardState hook
+ * (parsing, opponent setup, opponent reply, flash, persistent wrong,
+ * error surfacing). This file owns the chat-bubble chrome only:
+ * StyledPaper, puzzle-pack progression, coach card integration, and
+ * the Next/Skip CTAs.
  *
- * Mod 1 (skip): after 2 wrong attempts on the same puzzle, show "Skip" link.
+ * Mod 1 (skip): after WRONG_ATTEMPTS_BEFORE_SKIP wrong attempts on the
+ * same puzzle OR any puzzle-data error, show "Skip" link.
  */
-
-const flashGreen = keyframes`
-  0%   { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
-  20%  { box-shadow: 0 0 0 6px rgba(76, 175, 80, 0.55); }
-  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
-`;
-
-const flashRed = keyframes`
-  0%   { box-shadow: 0 0 0 0 rgba(220, 50, 50, 0); }
-  20%  { box-shadow: 0 0 0 6px rgba(220, 50, 50, 0.65); }
-  100% { box-shadow: 0 0 0 0 rgba(220, 50, 50, 0); }
-`;
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -46,50 +41,10 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
   boxShadow: "0 4px 12px rgba(76, 175, 80, 0.18)",
 }));
 
-// Animation overlay — positioned absolutely over the board so the
-// box-shadow pulse rings the board edge without touching the Chessboard
-// node itself. pointer-events:none so drags pass through. Critical: the
-// PARENT renders this with a `key={flashKey}` that increments on every
-// flash trigger. That forces the overlay to remount, which the browser
-// treats as a fresh animation declaration and reliably restarts the
-// keyframes. CSS animations applied to the SAME element with the SAME
-// emotion class on repeat (the old BoardWrap pattern) often won't
-// retrigger — that was the root cause of "red feedback fades after a
-// couple attempts."
-const FlashOverlay = styled(Box, {
-  shouldForwardProp: (prop) => prop !== "flash",
-})<{ flash: "idle" | "green" | "red" }>(({ flash }) => ({
-  position: "absolute",
-  inset: 0,
-  pointerEvents: "none",
-  borderRadius: "8px",
-  zIndex: 2,
-  animation:
-    flash === "green"
-      ? `${flashGreen} 600ms ease-out`
-      : flash === "red"
-      ? `${flashRed} 600ms ease-out`
-      : "none",
-}));
-
 const BOARD_MAX_WIDTH = 360;
 const BOARD_MIN_WIDTH = 240;
 const PAPER_HORIZONTAL_PADDING = 32; // 2 * theme.spacing(2)
-const OPPONENT_SETUP_DELAY_MS = 600;
-const OPPONENT_RESPONSE_DELAY_MS = 400;
 const WRONG_ATTEMPTS_BEFORE_SKIP = 2;
-// After the user solves OR fails out of a puzzle, we wait for an explicit
-// "Next puzzle →" click instead of auto-advancing. Earlier behavior was a
-// 700ms timer to advance, which erased the success moment and gave zero
-// time for the coach explanation to do its job.
-//
-// Wrong-attempt handling: status STAYS "wrong" until the user makes a new
-// move attempt (correct or wrong). No auto-reset timer — the user can
-// keep trying, the red wrongSquare highlight stays visible as a memory
-// of "you tried this, it didn't work," and each new wrong attempt
-// re-flashes via the flashKey re-mount trick.
-
-type Status = "loading" | "playing" | "wrong" | "solved";
 
 interface InlinePuzzleSetProps {
   puzzles: ChessPuzzle[];
@@ -104,113 +59,21 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState<number>(BOARD_MAX_WIDTH);
-  const [game, setGame] = useState<Chess>(() => new Chess());
-  const [status, setStatus] = useState<Status>("loading");
-  const [moveIndex, setMoveIndex] = useState(0);
-  const [orientation, setOrientation] = useState<"white" | "black">("white");
-  const [lastMoveSquares, setLastMoveSquares] =
-    useState<{ from: Square; to: Square } | null>(null);
-  const [wrongSquare, setWrongSquare] = useState<Square | null>(null);
-  const [flash, setFlash] = useState<"idle" | "green" | "red">("idle");
-  const [wrongAttempts, setWrongAttempts] = useState(0);
-  // SAN of the user's most recent wrong attempt — threaded into the
-  // InlinePuzzleCoach so the explanation can address "you played X."
-  const [lastWrongMoveSan, setLastWrongMoveSan] = useState<string | null>(null);
-  // Monotonic counter — bumped on every flash trigger so the FlashOverlay
-  // remounts and its CSS animation restarts. Without this, repeat
-  // wrong attempts produce the same emotion class for flash="red" and
-  // the browser doesn't reliably retrigger the keyframes.
-  const [flashKey, setFlashKey] = useState(0);
-  // Visible error surface for "puzzle data couldn't be played" failures
-  // — fires either from the up-front parse (truncated/illegal sequence)
-  // or from the opponent-response setTimeout (chess.js threw on what
-  // was supposedly a valid move). Was previously a SILENT catch that
-  // froze the board mid-sequence on long puzzles.
-  const [puzzleError, setPuzzleError] = useState<string | null>(null);
-  const puzzleIdRef = useRef<string | null>(null);
 
   const currentPuzzle = trimmed[currentIndex];
   const done = currentIndex >= trimmed.length;
-
-  const solutionParseResult = useMemo(() => {
-    if (!currentPuzzle) return { parsed: [], error: null as string | null };
-    const moves = currentPuzzle.solution || currentPuzzle.moves || [];
-    return parseSolution(currentPuzzle.fen, moves);
-    // Stable id dep — see PR #109. Avoid recomputing when parent passes
-    // a fresh puzzles array reference on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPuzzle?.id]);
-  const solutionMoves = solutionParseResult.parsed;
-  const solutionParseError = solutionParseResult.error;
-
-  // Init / re-init on puzzle change
-  useEffect(() => {
-    if (!currentPuzzle) return;
-    const puzzleId = currentPuzzle.id;
-    puzzleIdRef.current = puzzleId;
-
-    const newGame = new Chess(currentPuzzle.fen);
-    const opponentColor = newGame.turn();
-    const userColor = opponentColor === "w" ? "black" : "white";
-
-    setOrientation(userColor);
-    setGame(newGame);
-    setMoveIndex(0);
-    setStatus("loading");
-    setLastMoveSquares(null);
-    setWrongSquare(null);
-    setFlash("idle");
-    setWrongAttempts(0);
-    setLastWrongMoveSan(null);
-    setFlashKey(0);
-    // Hydrate the parse error up-front so the UI can surface it
-    // alongside the puzzle. If the parser truncated the solution, the
-    // user gets a "Puzzle data error — Skip" CTA instead of a frozen
-    // board several moves in.
-    setPuzzleError(solutionParseError);
-
-    const timer = setTimeout(() => {
-      if (puzzleIdRef.current !== puzzleId) return;
-      const moves = currentPuzzle.solution || currentPuzzle.moves || [];
-      if (moves.length === 0) {
-        setStatus("playing");
-        return;
-      }
-      const m = moves[0];
-      const from = m.slice(0, 2) as Square;
-      const to = m.slice(2, 4) as Square;
-      const promotion = m.length > 4 ? m[4] : undefined;
-      try {
-        const g = new Chess(newGame.fen());
-        g.move({ from, to, promotion });
-        setGame(g);
-        setMoveIndex(1);
-        setLastMoveSquares({ from, to });
-        setStatus("playing");
-      } catch {
-        setStatus("playing");
-        setMoveIndex(0);
-      }
-    }, OPPONENT_SETUP_DELAY_MS);
-
-    return () => clearTimeout(timer);
-    // ⚠️ Depend on currentPuzzle.id (stable string), not currentPuzzle
-    // (object ref). If the parent passes a new puzzles array on every
-    // render — which our chat-bubble layout does via ResizeObserver
-    // feedback + coach-card mount/unmount — depending on the object
-    // ref re-fires this effect on every tick, resetting status back to
-    // "loading" before the 600ms setup timer can flip it to "playing".
-    // The user-visible symptom is a board that won't accept moves
-    // after the first wrong attempt because it's permanently stuck in
-    // loading. Stable-id dep breaks the loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPuzzle?.id]);
 
   const advanceToNext = useCallback(() => {
     setCurrentIndex((i) => i + 1);
   }, []);
 
-  // Responsive board sizing — clamp to container width so the board never
+  // Shared puzzle orchestration. Status, flash, wrong tracking, error
+  // surfacing, opponent reply — all owned by the hook.
+  const board = usePuzzleBoardState({
+    puzzle: currentPuzzle ?? null,
+  });
+
+  // Responsive board sizing — clamp to container so the board never
   // overflows a narrow chat bubble or gets squished by an ultra-wide one.
   useEffect(() => {
     const el = containerRef.current;
@@ -226,142 +89,6 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-
-  const playOpponentResponse = useCallback(
-    (g: Chess, nextIdx: number, puzzleId: string) => {
-      setTimeout(() => {
-        if (puzzleIdRef.current !== puzzleId) return;
-        const m = solutionMoves[nextIdx];
-        if (!m) {
-          // The parser truncated the solution before reaching this index —
-          // i.e. a long puzzle has malformed/illegal data partway through.
-          // Surface visibly so the user can skip; previously the puzzle
-          // silently froze with no opponent response and no error.
-          const msg = `Puzzle data ends at move ${nextIdx} of ${solutionMoves.length + 1}+ — cannot continue.`;
-          console.warn("[InlinePuzzleSet] opponent move missing:", msg);
-          setPuzzleError(msg);
-          return;
-        }
-        try {
-          const g2 = new Chess(g.fen());
-          g2.move({ from: m.from, to: m.to, promotion: m.promotion });
-          setGame(g2);
-          setMoveIndex(nextIdx + 1);
-          setLastMoveSquares({ from: m.from, to: m.to });
-
-          if (nextIdx + 1 >= solutionMoves.length) {
-            setStatus("solved");
-            setFlash("green");
-            setFlashKey((k) => k + 1);
-            // No auto-advance — user clicks "Next puzzle →" when ready,
-            // giving the coach explanation a moment to land.
-          }
-        } catch (err) {
-          // chess.js rejected the opponent move. Was previously silent —
-          // the user would see the board frozen with no opponent reply.
-          // Now we log + surface so the user can skip.
-          const msg = `Opponent move ${nextIdx + 1} (${m.from}-${m.to}) failed to apply.`;
-          console.warn("[InlinePuzzleSet]", msg, err);
-          setPuzzleError(msg);
-        }
-      }, OPPONENT_RESPONSE_DELAY_MS);
-    },
-    [solutionMoves]
-  );
-
-  const onPieceDrop = useCallback(
-    (sourceSquare: string, targetSquare: string, piece: string): boolean => {
-      // Allow attempts while EITHER playing OR in the persistent wrong
-      // state — the latter means the user has tried something already
-      // and the red highlight is still showing as a memory; they can
-      // retry immediately without waiting for a timer.
-      if (status !== "playing" && status !== "wrong") return false;
-      if (!currentPuzzle) return false;
-      if (moveIndex >= solutionMoves.length) return false;
-
-      const expected = solutionMoves[moveIndex];
-      const from = sourceSquare as Square;
-      const to = targetSquare as Square;
-
-      const isMatch = from === expected.from && to === expected.to;
-      if (!isMatch) {
-        // Capture the user's actual try in SAN so the coach explanation
-        // can reference it ("you played Bxh7+ — here's why it doesn't
-        // work…"). Wrapped in try/catch because the attempted move may
-        // be illegal in the current position; in that case we just skip
-        // the SAN.
-        let attemptedSan: string | null = null;
-        try {
-          const probe = new Chess(game.fen());
-          const result = probe.move({ from, to, promotion: piece?.[1]?.toLowerCase() === "p" ? "q" : undefined });
-          if (result) attemptedSan = result.san;
-        } catch {
-          /* illegal attempt — leave attemptedSan null */
-        }
-        if (attemptedSan) setLastWrongMoveSan(attemptedSan);
-        // Persistent wrong state. status + wrongSquare + flash stay set
-        // until the user makes another attempt. The flashKey bump
-        // remounts the FlashOverlay so the box-shadow keyframes restart
-        // — without it, the same emotion class for flash="red" wouldn't
-        // re-trigger the animation on repeat attempts.
-        setStatus("wrong");
-        setWrongSquare(to);
-        setWrongAttempts((n) => n + 1);
-        setFlash("red");
-        setFlashKey((k) => k + 1);
-        return false;
-      }
-
-      try {
-        const g = new Chess(game.fen());
-        g.move({ from, to, promotion: expected.promotion });
-        setGame(g);
-        setLastMoveSquares({ from, to });
-        // Correct move clears the wrong-state memory.
-        setWrongSquare(null);
-        setStatus("playing");
-
-        const nextIdx = moveIndex + 1;
-        setMoveIndex(nextIdx);
-
-        if (nextIdx >= solutionMoves.length) {
-          setStatus("solved");
-          setFlash("green");
-          setFlashKey((k) => k + 1);
-          // No auto-advance — user clicks "Next puzzle →" when ready.
-        } else {
-          playOpponentResponse(g, nextIdx, currentPuzzle.id);
-        }
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    [
-      status,
-      moveIndex,
-      solutionMoves,
-      game,
-      currentPuzzle,
-      playOpponentResponse,
-    ]
-  );
-
-  const customSquareStyles = useMemo(() => {
-    const styles: Record<string, React.CSSProperties> = {};
-    if (lastMoveSquares) {
-      styles[lastMoveSquares.from] = {
-        backgroundColor: "rgba(255, 170, 0, 0.4)",
-      };
-      styles[lastMoveSquares.to] = {
-        backgroundColor: "rgba(255, 170, 0, 0.5)",
-      };
-    }
-    if (wrongSquare) {
-      styles[wrongSquare] = { backgroundColor: "rgba(220, 50, 50, 0.6)" };
-    }
-    return styles;
-  }, [lastMoveSquares, wrongSquare]);
 
   if (trimmed.length === 0) return null;
 
@@ -380,34 +107,28 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
     );
   }
 
-  const turn = game.turn();
+  const turn = board.game.turn();
   const statusText =
-    status === "loading"
-      ? "Loading…"
-      : status === "wrong"
-      ? "Not quite — try again."
-      : status === "solved"
-      ? "Correct!"
-      : turn === "w"
-      ? "White to move"
-      : "Black to move";
+    board.puzzleError
+      ? "Puzzle data error"
+      : board.status === "loading"
+        ? "Loading…"
+        : board.status === "wrong"
+          ? "Not quite — try again."
+          : board.status === "solved"
+            ? "Correct!"
+            : turn === "w"
+              ? "White to move"
+              : "Black to move";
 
-  // Show the skip link either after N wrong attempts OR immediately
-  // whenever a puzzleError surfaces (malformed data, opponent move
-  // failed mid-sequence) — the user shouldn't be stuck on a broken
-  // puzzle.
   const showSkip =
-    (wrongAttempts >= WRONG_ATTEMPTS_BEFORE_SKIP || !!puzzleError) &&
-    status !== "solved" &&
+    (board.wrongAttempts >= WRONG_ATTEMPTS_BEFORE_SKIP || !!board.puzzleError) &&
+    board.status !== "solved" &&
     !done;
-  // The coach card appears once the user has either solved the puzzle
-  // or made at least one wrong attempt. Solved: "why this works."
-  // Wrong: "what to look for" — and the user's actual tried move is
-  // threaded into the prompt for direct, personal feedback.
   const showCoach =
-    !!currentPuzzle && (status === "solved" || wrongAttempts > 0);
+    !!currentPuzzle && (board.status === "solved" || board.wrongAttempts > 0);
   const coachOutcome: "solved" | "wrong" =
-    status === "solved" ? "solved" : "wrong";
+    board.status === "solved" ? "solved" : "wrong";
 
   return (
     <StyledPaper ref={containerRef} elevation={2}>
@@ -427,13 +148,13 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
         </Typography>
         <Chip
           size="small"
-          label={puzzleError ? "Puzzle data error" : statusText}
+          label={statusText}
           color={
-            puzzleError
+            board.puzzleError
               ? "warning"
-              : status === "solved"
+              : board.status === "solved"
                 ? "success"
-                : status === "wrong"
+                : board.status === "wrong"
                   ? "error"
                   : "default"
           }
@@ -447,7 +168,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
         />
       </Box>
 
-      {puzzleError && (
+      {board.puzzleError && (
         <Box
           sx={{
             mb: 1,
@@ -461,7 +182,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
             variant="caption"
             sx={{ color: "#7a3a00", display: "block" }}
           >
-            {puzzleError} Use Skip to move on.
+            {board.puzzleError} Use Skip to move on.
           </Typography>
         </Box>
       )}
@@ -474,29 +195,19 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
           borderRadius: "8px",
         }}
       >
-        {/* key={flashKey} forces the overlay to remount on every flash
-            trigger so its CSS animation restarts cleanly. The overlay
-            sits absolutely positioned over the board with
-            pointer-events:none, so it never blocks drag-and-drop. */}
-        <FlashOverlay key={`flash-${flashKey}`} flash={flash} />
+        <FlashOverlay key={`flash-${board.flashKey}`} flash={board.flash} />
         <Chessboard
           id={`InlinePuzzle-${currentPuzzle?.id ?? currentIndex}`}
-          position={game.fen()}
-          onPieceDrop={onPieceDrop}
-          boardOrientation={orientation}
+          position={board.game.fen()}
+          onPieceDrop={board.onPieceDrop}
+          boardOrientation={board.boardOrientation}
           boardWidth={boardWidth}
           customBoardStyle={{
             borderRadius: "4px",
             boxShadow: "0 2px 10px rgba(0,0,0,0.4)",
           }}
-          customSquareStyles={customSquareStyles}
-          isDraggablePiece={({ piece }) => {
-            // Pieces draggable while playing OR in the persistent wrong
-            // state — user shouldn't have to wait for a timer to retry.
-            if (status !== "playing" && status !== "wrong") return false;
-            const color = piece[0] === "w" ? "w" : "b";
-            return color === game.turn();
-          }}
+          customSquareStyles={board.customSquareStyles}
+          isDraggablePiece={board.isDraggablePiece}
           animationDuration={200}
         />
       </Box>
@@ -506,18 +217,16 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
           key={`${currentPuzzle.id}-${coachOutcome}`}
           puzzle={currentPuzzle}
           outcome={coachOutcome}
-          userAttemptedMoveSan={lastWrongMoveSan}
+          userAttemptedMoveSan={board.lastWrongMoveSan}
         />
       )}
 
-      {/* Footer actions — Next on solved, Skip after N wrong attempts.
-          The two never both apply: solved hides Skip already. */}
       <Stack
         direction="row"
         spacing={1}
         sx={{ mt: 1.5, alignItems: "center", justifyContent: "space-between" }}
       >
-        {status === "solved" ? (
+        {board.status === "solved" ? (
           <Button
             variant="contained"
             size="small"

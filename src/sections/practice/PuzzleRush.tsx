@@ -33,6 +33,7 @@ import {
   updatePuzzleStats,
   type PuzzleRushScores,
 } from "@/lib/puzzleRating";
+import { parseSolutionMoves as parseSolution } from "@/lib/puzzleSolution";
 
 const PIECE_CODES: Piece[] = [
   "wP", "wB", "wN", "wR", "wQ", "wK",
@@ -47,25 +48,10 @@ const RUSH_MODES: { value: RushMode; label: string; description: string; timeSec
   { value: "survival", label: "Survival", description: "3 lives — one wrong answer costs a life", timeSeconds: Infinity, lives: 3 },
 ];
 
-function parseSolutionMoves(
-  fen: string,
-  moves: string[]
-): { from: Square; to: Square; promotion?: string }[] {
-  const parsed: { from: Square; to: Square; promotion?: string }[] = [];
-  const g = new Chess(fen);
-  for (const m of moves) {
-    const from = m.slice(0, 2) as Square;
-    const to = m.slice(2, 4) as Square;
-    const promotion = m.length > 4 ? m[4] : undefined;
-    try {
-      const result = g.move({ from, to, promotion });
-      if (result) {
-        parsed.push({ from, to, promotion });
-      } else break;
-    } catch { break; }
-  }
-  return parsed;
-}
+// parseSolutionMoves is now imported from @/lib/puzzleSolution as
+// parseSolution — shared with the other four puzzle surfaces. The
+// inline copies all had the same silent-truncation bug on long puzzles
+// (broke on the first move chess.js couldn't apply, no error to caller).
 
 interface PuzzleRushProps {
   onBack: () => void;
@@ -111,11 +97,26 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
 
   const currentPuzzle = puzzles[puzzleIndex] || null;
 
-  const solutionMoves = useMemo(() => {
-    if (!currentPuzzle) return [];
+  const solutionParseResult = useMemo(() => {
+    if (!currentPuzzle) return { parsed: [], error: null as string | null };
     const moves = currentPuzzle.solution || currentPuzzle.moves || [];
-    return parseSolutionMoves(currentPuzzle.fen, moves);
-  }, [currentPuzzle]);
+    return parseSolution(currentPuzzle.fen, moves);
+    // Stable-id dep — see PR #109. Avoids recomputing on every parent
+    // re-render which could blow away state mid-puzzle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPuzzle?.id]);
+  const solutionMoves = solutionParseResult.parsed;
+  // PuzzleRush already auto-advances on success/fail (it's a timed
+  // mode) so a malformed puzzle just gets skipped. We log it for
+  // diagnostics; no visible error UI is needed at the per-puzzle level.
+  useEffect(() => {
+    if (solutionParseResult.error) {
+      console.warn(
+        "[PuzzleRush] puzzle parse error, will auto-skip on first opponent miss:",
+        solutionParseResult.error,
+      );
+    }
+  }, [solutionParseResult.error]);
 
   const boardSize = useMemo(() => {
     const width = screenSize.width;
@@ -317,6 +318,19 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
       setTimeout(() => {
         if (puzzleIdRef.current !== puzzleId) return;
         const move = solutionMoves[nextMoveIdx];
+        if (!move) {
+          // Parser truncated — long puzzle's data ran out mid-sequence.
+          // In rush mode, just skip this puzzle and move on. Was
+          // previously a crash (TypeError on undefined .from).
+          console.warn(
+            "[PuzzleRush] opponent move missing at index",
+            nextMoveIdx,
+            "of",
+            solutionMoves.length,
+          );
+          advanceToNext();
+          return;
+        }
         try {
           const g = new Chess(currentGame.fen());
           g.move({ from: move.from, to: move.to, promotion: move.promotion });
@@ -330,8 +344,14 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
             recordSolve(true);
             setTimeout(() => advanceToNext(), 500);
           }
-        } catch {
-          // Move failed
+        } catch (err) {
+          // chess.js rejected the opponent move — log and skip.
+          // Previously silent → user saw a frozen board mid-puzzle.
+          console.warn(
+            "[PuzzleRush] opponent move failed; skipping puzzle:",
+            err,
+          );
+          advanceToNext();
         }
       }, 300);
     },

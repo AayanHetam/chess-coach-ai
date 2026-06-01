@@ -10,6 +10,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: number;
   }[] = [
     { path: "/", changeFrequency: "weekly", priority: 1.0 },
+    // AEO cluster — exact-match and supporting pages
+    { path: "/free-ai-chess-coach", changeFrequency: "monthly", priority: 0.95 },
     { path: "/how-it-works", changeFrequency: "monthly", priority: 0.9 },
     { path: "/architecture", changeFrequency: "monthly", priority: 0.9 },
     { path: "/vs", changeFrequency: "monthly", priority: 0.8 },

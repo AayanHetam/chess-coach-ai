@@ -100,6 +100,19 @@ export default function LandingFooter() {
             </Typography>
             <Typography
               component="a"
+              href="/free-ai-chess-coach"
+              sx={{
+                color: "rgba(255,255,255,0.5)",
+                textDecoration: "none",
+                fontSize: "0.85rem",
+                "&:hover": { color: "#FF6B35" },
+                transition: "color 0.2s",
+              }}
+            >
+              Free AI chess coach
+            </Typography>
+            <Typography
+              component="a"
               href="/internship"
               sx={{
                 color: "rgba(255,255,255,0.5)",

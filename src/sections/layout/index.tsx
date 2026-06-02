@@ -124,6 +124,45 @@ export default function Layout({ children }: PropsWithChildren) {
             <Lc0DownloadBanner />
           </Box>
           {children}
+          <Box
+            component="footer"
+            sx={{
+              mt: 6,
+              pt: 2,
+              borderTop: "1px solid",
+              borderColor: "divider",
+              px: { xs: 1, sm: 2 },
+              pb: 2,
+              display: "flex",
+              gap: 2,
+              flexWrap: "wrap",
+              justifyContent: "center",
+            }}
+          >
+            {[
+              { href: "/free-ai-chess-coach", label: "Free AI chess coach" },
+              { href: "/analysis", label: "Game analysis" },
+              { href: "/practice", label: "Puzzle training" },
+              { href: "/scout", label: "Opponent scout" },
+              { href: "/openings", label: "Openings" },
+              { href: "/", label: "Home" },
+            ].map((link) => (
+              <Typography
+                key={link.href}
+                component="a"
+                href={link.href}
+                variant="caption"
+                sx={{
+                  color: "text.secondary",
+                  textDecoration: "none",
+                  "&:hover": { color: "primary.main" },
+                  transition: "color 0.2s",
+                }}
+              >
+                {link.label}
+              </Typography>
+            ))}
+          </Box>
         </main>
       </EmployeeChrome>
     </ThemeProvider>

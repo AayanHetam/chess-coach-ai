@@ -54,6 +54,14 @@ import {
   forwardPipelineTelemetryForRoute,
   type MastermindPrepResult,
 } from "@/lib/mastermind/routeHelpers";
+import { detectMotifs, motifsToPropmt } from "@/lib/tactics";
+import type { AnyMotif } from "@/lib/tactics";
+import { fetch_lichess_tablebase } from "@/lib/mastermind/lichessTablebase";
+import { validateMotifGrounding } from "@/lib/mastermind/validators/motifGrounding";
+import { queryChessdb } from "@/lib/grounding/chessdb";
+import { compileVoterResult } from "@/lib/grounding/voter";
+import { queryLc0, shouldCallLc0 } from "@/lib/grounding/lc0";
+import { queryMaiaAtRating, shouldCallMaia } from "@/lib/grounding/maia";
 
 const log = logger.child({ module: "enhanced-analysis" });
 
@@ -362,14 +370,14 @@ type GameHeadersInput = {
  * Build a rich move-by-move game context string from the move history + Stockfish evals.
  * This gives the LLM everything it needs to analyze the game.
  */
-function buildGameContext(
+async function buildGameContext(
   moveHistory: string[],
   gameEval: GameEvalInput | undefined,
   playerColor: string,
   username?: string,
   userRating?: number,
   gameHeaders?: GameHeadersInput
-): string {
+): Promise<string> {
   const sections: string[] = [];
 
   // --- Game overview ---
@@ -539,10 +547,41 @@ function buildGameContext(
     sections.push(`## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)\n${moveLines.join("\n")}`);
 
     // --- Top mistakes with full PV lines and candidate moves ---
-    if (mistakes.length > 0) {
-      mistakes.sort((a, b) => b.drop - a.drop);
-      const topMistakes = mistakes.slice(0, 10);
-      const mistakeLines = topMistakes.map((m) => {
+    // System prompt says ONLY analyse the player's mistakes. The mistakes
+    // array contains both colors, so filter to the user's color before
+    // ranking. Without this filter, opponent blunders leak into TOP
+    // MISTAKES and contradict the player-perspective rule.
+    const userColorName = playerColor === "w" ? "White" : "Black";
+    const userMistakes = mistakes.filter((m) => m.color === userColorName);
+    if (userMistakes.length > 0) {
+      userMistakes.sort((a, b) => b.drop - a.drop);
+      const topMistakes = userMistakes.slice(0, 10);
+
+      // Stage 6: pre-fetch chessdb results for all top mistakes in parallel
+      // Stage 7: pre-fetch Lc0 results in parallel (only when trigger fires)
+      // Stage 8: pre-fetch Maia per-rating visibility (only when userRating present)
+      const [mistakeChessdbResults, mistakeLc0Results, mistakeMaiaResults] = await Promise.all([
+        // Voter at compileVoterResult() below combines chessdb with motifs from
+        // m.fenBefore + stockfish eval from evalBefore. Query chessdb on the
+        // same pre-mistake FEN so all signals describe the same position.
+        Promise.all(topMistakes.map((m) => queryChessdb(m.fenBefore).catch(() => null))),
+        Promise.all(topMistakes.map((m) => {
+          const evalBefore = gameEval!.positions[m.halfMoveIdx];
+          const sfCp = evalBefore?.lines?.[0]?.cp ?? null;
+          return shouldCallLc0(sfCp, evalBefore?.lines ?? [])
+            ? queryLc0(m.fenBefore).catch(() => null)
+            : Promise.resolve(null);
+        })),
+        Promise.all(topMistakes.map((m) => {
+          const evalBefore = gameEval!.positions[m.halfMoveIdx];
+          const bestUci = evalBefore?.lines?.[0]?.pv?.[0] ?? null;
+          return shouldCallMaia(userRating, bestUci)
+            ? queryMaiaAtRating(m.fenBefore, userRating!, bestUci!).catch(() => null)
+            : Promise.resolve(null);
+        })),
+      ]);
+
+      const mistakeLines = topMistakes.map((m, mi) => {
         const severity = m.drop >= 300 ? "BLUNDER" : m.drop >= 150 ? "MISTAKE" : m.drop >= 50 ? "INACCURACY" : "MINOR";
         const evalBeforeStr = Math.abs(m.evalBefore) >= 9000 ? (m.evalBefore > 0 ? "M+" : "M-") : (m.evalBefore / 100).toFixed(2);
         const evalAfterStr = Math.abs(m.evalAfter) >= 9000 ? (m.evalAfter > 0 ? "M+" : "M-") : (m.evalAfter / 100).toFixed(2);
@@ -555,13 +594,20 @@ function buildGameContext(
         // Include ALL candidate moves with evals and full PV lines from the position BEFORE this move
         const evalBefore = gameEval!.positions[m.halfMoveIdx];
         if (evalBefore?.lines && evalBefore.lines.length > 0) {
-          // Detect verified tactical motifs for the best move
+          // Stage 6+7+8: multi-source voter with Lc0 neural eval + Maia visibility
           const bestPvLine = evalBefore.lines[0];
           const bestPvSan = bestPvLine?.pv ? convertPvToSan(m.fenBefore, bestPvLine.pv) : [];
-          const motifs = detectTacticalMotifs(m.fenBefore, bestPvSan[0] ?? m.bestMove, bestPvSan);
-          if (motifs.length > 0) {
-            line += `\n  VERIFIED TACTICAL MOTIFS: ${motifs.join(" | ")}`;
-          }
+          const structuredMotifs = m.moveSan ? detectMotifs(m.fenBefore, m.moveSan) : [];
+          const voterResult = compileVoterResult({
+            motifs: structuredMotifs,
+            chessdbResult: mistakeChessdbResults[mi],
+            lc0Result: mistakeLc0Results[mi],
+            maiaResult: mistakeMaiaResults[mi],
+            bestMoveSan: bestPvSan[0] ?? null,
+            stockfishEvalCp: evalBefore.lines[0]?.cp ?? null,
+            stockfishBestMoveMate: evalBefore.lines[0]?.mate ?? null,
+          });
+          line += `\n  ${voterResult.groundingContext}`;
 
           // Candidate ranking gap
           const gapAnalysis = computeCandidateGap(evalBefore.lines);
@@ -658,13 +704,33 @@ function buildGameContext(
         if (!evalBefore?.lines?.[0]) continue;
 
         const bestPvSan = convertPvToSan(m.fenBefore, evalBefore.lines[0].pv ?? []);
-        const motifs = detectTacticalMotifs(m.fenBefore, bestPvSan[0] ?? m.moveSan, bestPvSan);
+        const motifs = m.moveSan ? detectMotifs(m.fenBefore, m.moveSan) : [];
+        // Stage 6+7+8: all signals describe the same pre-mistake position.
+        // Trigger Lc0 when SF is uncertain; trigger Maia when we have a user rating.
+        const sfCpIntel = evalBefore.lines[0]?.cp ?? null;
+        const bestUciIntel = evalBefore.lines[0]?.pv?.[0] ?? null;
+        const [cdbResult, lc0IntelResult, maiaIntelResult] = await Promise.all([
+          queryChessdb(m.fenBefore).catch(() => null),
+          shouldCallLc0(sfCpIntel, evalBefore.lines) ? queryLc0(m.fenBefore).catch(() => null) : Promise.resolve(null),
+          shouldCallMaia(userRating, bestUciIntel)
+            ? queryMaiaAtRating(m.fenBefore, userRating!, bestUciIntel!).catch(() => null)
+            : Promise.resolve(null),
+        ]);
+        const voterIntel = compileVoterResult({
+          motifs,
+          chessdbResult: cdbResult,
+          lc0Result: lc0IntelResult,
+          maiaResult: maiaIntelResult,
+          bestMoveSan: bestPvSan[0] ?? null,
+          stockfishEvalCp: sfCpIntel,
+          stockfishBestMoveMate: evalBefore.lines[0]?.mate ?? null,
+        });
         const gapAnalysis = computeCandidateGap(evalBefore.lines);
         const explanationSeed = buildExplanationSeed(m.fenBefore, bestPvSan, m.moveNum, m.halfMoveIdx % 2 === 0);
         const severity = m.drop >= 300 ? "BLUNDER" : m.drop >= 150 ? "MISTAKE" : "INACCURACY";
 
         let block = `### CRITICAL POSITION: Move ${m.moveNum} (${m.color} — ${severity})\n`;
-        block += `VERIFIED MOTIFS: ${motifs.length > 0 ? motifs.join(" | ") : "None detected (positional)"}\n`;
+        block += `${voterIntel.groundingContext}\n`;
         block += `CANDIDATE RANKING: ${gapAnalysis}\n`;
 
         // Branch point between best and 2nd candidate
@@ -815,9 +881,13 @@ function buildCompactGameContext(
 
   sections.push(`## MOVE-BY-MOVE NARRATIVE\n(One sentence per half-move. Eval is in pawns from White's perspective. Quote these sentences directly when asked about specific moves — do not paraphrase or invent.)\n${evalSentences.join("\n")}`);
 
-  if (mistakes.length > 0) {
-    mistakes.sort((a, b) => b.drop - a.drop);
-    const top = mistakes.slice(0, 12);
+  // Mirror buildGameContext: filter to the user's color so opponent blunders
+  // don't leak into TOP MISTAKES and contradict the player-perspective rule.
+  const userColorName = playerColor === "w" ? "White" : "Black";
+  const userMistakes = mistakes.filter((m) => m.color === userColorName);
+  if (userMistakes.length > 0) {
+    userMistakes.sort((a, b) => b.drop - a.drop);
+    const top = userMistakes.slice(0, 12);
     const mistakeLines = top.map((m) => {
       const severity = m.drop >= 300 ? "BLUNDER" : m.drop >= 150 ? "MISTAKE" : "INACCURACY";
       const before = formatCp(m.cpBefore);
@@ -1181,7 +1251,7 @@ export async function POST(request: NextRequest) {
     // Build game context for the LLM
     let gameContext = "";
     if (moveHistory && moveHistory.length > 0) {
-      gameContext = buildGameContext(
+      gameContext = await buildGameContext(
         moveHistory,
         gameEval,
         playerColor || (boardOrientation ? "w" : "b"),
@@ -1194,6 +1264,22 @@ export async function POST(request: NextRequest) {
       const fenStr = fen || position;
       const game = new Chess(fenStr);
       gameContext = `## POSITION ANALYSIS\nFEN: ${fenStr}\nTurn: ${game.turn() === "w" ? "White" : "Black"}\nLegal moves: ${game.moves().length}\n${getMaterialBalance(game)}`;
+      // Stage 1: Syzygy endgame grounding via Lichess tablebase API
+      try {
+        const tbResult = fenStr ? await fetch_lichess_tablebase(fenStr) : null;
+        if (tbResult) {
+          let tbBlock = `\n\n## ENDGAME GROUND TRUTH (Syzygy tablebases — mathematically perfect for ≤7 pieces)\n`;
+          tbBlock += `Outcome for side to move: ${tbResult.category}\n`;
+          if (tbResult.dtm !== null) tbBlock += `Distance to mate: ${tbResult.dtm} moves\n`;
+          if (tbResult.dtz !== null) tbBlock += `Distance to zeroing: ${tbResult.dtz}\n`;
+          if (tbResult.moves.length > 0) {
+            const best = tbResult.moves[0];
+            tbBlock += `Best move: ${best.san ?? best.uci} (${best.category})\n`;
+          }
+          tbBlock += `RULE: Endgame outcome claims MUST match the Syzygy result above exactly. Do not assert "winning" if Syzygy says "draw" or "loss".\n`;
+          gameContext += tbBlock;
+        }
+      } catch { /* tablebase is non-critical */ }
     } else {
       gameContext = "No game data or position provided. The user may be asking a general chess question.";
     }
@@ -1476,6 +1562,28 @@ export async function POST(request: NextRequest) {
                 category: prep.category,
               });
             }
+            // Motif grounding parity with non-streaming flag-on branch
+            // (route.ts:2035-2054). Log-only in v1.
+            if (prep.moveCtx.moveSan && prep.moveCtx.fenBefore) {
+              try {
+                const moveMotifs: AnyMotif[] = detectMotifs(prep.moveCtx.fenBefore, prep.moveCtx.moveSan);
+                const groundingResult = validateMotifGrounding({
+                  llmResponse: rawAnalysis,
+                  detectedMotifs: moveMotifs,
+                  fen: prep.moveCtx.fenAfter,
+                  moveSan: prep.moveCtx.moveSan,
+                  correlationId: requestId,
+                });
+                if (!groundingResult.passed) {
+                  log.warn("motif_grounding_failed", {
+                    issues: groundingResult.issues.map(i => i.llm_span),
+                    motif_count: moveMotifs.length,
+                    correlationId: requestId,
+                    branch: "stream-flagon-fallback",
+                  });
+                }
+              } catch { /* non-critical */ }
+            }
             // Same chess.js disclaimer skip as the successful-pipeline
             // branch: suppress for non-position-anchored categories where
             // historical-citation false positives are systematic.
@@ -1661,6 +1769,28 @@ export async function POST(request: NextRequest) {
               fallbackUsed: isFallbackUsed,
             });
           }
+          // Motif grounding parity with non-streaming flag-on branch
+          // (route.ts:2035-2054). Log-only in v1.
+          if (prep.moveCtx.moveSan && prep.moveCtx.fenBefore) {
+            try {
+              const moveMotifs: AnyMotif[] = detectMotifs(prep.moveCtx.fenBefore, prep.moveCtx.moveSan);
+              const groundingResult = validateMotifGrounding({
+                llmResponse: finalText,
+                detectedMotifs: moveMotifs,
+                fen: prep.moveCtx.fenAfter,
+                moveSan: prep.moveCtx.moveSan,
+                correlationId: requestId,
+              });
+              if (!groundingResult.passed) {
+                log.warn("motif_grounding_failed", {
+                  issues: groundingResult.issues.map(i => i.llm_span),
+                  motif_count: moveMotifs.length,
+                  correlationId: requestId,
+                  branch: "stream-flagon-pipeline",
+                });
+              }
+            } catch { /* non-critical */ }
+          }
           const usePositionAnchoredAnnotation =
             !isFallbackUsed &&
             POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
@@ -1837,6 +1967,32 @@ export async function POST(request: NextRequest) {
               issues: validation.issues.map(i => ({ severity: i.severity, type: i.type, detail: i.detail })),
             });
           }
+          // Motif grounding parity with non-streaming flag-on branch
+          // (route.ts:2035-2054). Log-only in v1; ALL live user traffic
+          // streams, so without this the validator never fires in prod.
+          if (moveHistory && moveHistory.length > 0) {
+            try {
+              const lastIdx = moveHistory.length - 1;
+              const fenBeforeLast = getFenAtHalfMove(moveHistory, lastIdx);
+              const moveSanLast = moveHistory[lastIdx];
+              const moveMotifs: AnyMotif[] = detectMotifs(fenBeforeLast, moveSanLast);
+              const groundingResult = validateMotifGrounding({
+                llmResponse: rawAnalysis,
+                detectedMotifs: moveMotifs,
+                fen: validationFen,
+                moveSan: moveSanLast,
+                correlationId: requestId,
+              });
+              if (!groundingResult.passed) {
+                log.warn("motif_grounding_failed", {
+                  issues: groundingResult.issues.map(i => i.llm_span),
+                  motif_count: moveMotifs.length,
+                  correlationId: requestId,
+                  branch: "stream-flagoff",
+                });
+              }
+            } catch { /* non-critical */ }
+          }
           const analysisContent = validation.isValid ? rawAnalysis : validation.correctedResponse;
 
           setCachedResponse(cacheKey, analysisContent, validation.score);
@@ -1973,6 +2129,28 @@ export async function POST(request: NextRequest) {
           rawAnalysis = pipelineResult.finalResponse || "No analysis generated.";
           pipelineResultForTelemetry = pipelineResult;
           mastermindPrepForTelemetry = prep;
+
+          // Stage 5 post-LLM motif grounding check (log-only in v1; regeneration loop in Stage 6)
+          if (prep.moveCtx.moveSan && prep.moveCtx.fenBefore) {
+            try {
+              const moveMotifs: AnyMotif[] = detectMotifs(prep.moveCtx.fenBefore, prep.moveCtx.moveSan);
+              const groundingResult = validateMotifGrounding({
+                llmResponse: rawAnalysis,
+                detectedMotifs: moveMotifs,
+                fen: prep.moveCtx.fenAfter,
+                moveSan: prep.moveCtx.moveSan,
+                correlationId: requestId,
+              });
+              if (!groundingResult.passed) {
+                log.warn("motif_grounding_failed", {
+                  issues: groundingResult.issues.map(i => i.llm_span),
+                  motif_count: moveMotifs.length,
+                  correlationId: requestId,
+                });
+              }
+            } catch { /* non-critical */ }
+          }
+
           console.log("coach.tokens", {
             input: undefined,  // pipeline-managed; surfaced via pipelineResult.totalCostUsd
             output: undefined,

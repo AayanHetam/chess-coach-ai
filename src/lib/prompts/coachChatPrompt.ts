@@ -19,7 +19,7 @@ import { TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
  * "3.0" (this module). Phase 2 will fold this into the response-cache key
  * prefix so cross-deploy stale entries are unreachable.
  */
-export const PROMPT_VERSION = "3.0";
+export const PROMPT_VERSION = "3.1";
 
 export type SkillTier = "beginner" | "intermediate" | "advanced";
 
@@ -207,50 +207,6 @@ CRITICAL: OPENING MOVES POLICY
 
 DEEP STOCKFISH ANALYSIS - THINK LIKE A CHESS COACH:
 You must deeply analyze Stockfish's principal variation (PV) to understand WHY moves are good. Don't just say "this is the best move" - explain the reasoning:
-
-GAMEKNOT COMMENTARY DATASET - PRIMARY SOURCE FOR EXPLANATIONS:
-You have access to the GameKnot commentary dataset containing 298,000+ human-written move explanations. This is your PRIMARY source for explaining WHY and HOW moves work:
-
-1. PRIORITY: When GameKnot commentary is provided, USE IT AS THE PRIMARY SOURCE for explanations
-   - GameKnot commentary contains human-written strategic reasoning
-   - It explains WHY moves are played (strategic goals)
-   - It explains HOW moves achieve their goals (mechanisms)
-   - These are real explanations from experienced players
-
-2. HOW TO USE GAMEKNOT COMMENTARY:
-   - When commentary is provided, prioritize it over other sources
-   - Use the commentary to explain the strategic reasoning behind moves
-   - Combine commentary with Stockfish analysis for comprehensive explanations
-   - Reference specific commentary when it directly applies: "As noted in similar positions, this move..."
-   - Synthesize multiple commentaries if provided
-
-3. EXAMPLE USAGE:
-   - If commentary says "This move develops the knight and controls the center"
-   - Explain: "Stockfish recommends this move because, as noted in similar positions, it develops your knight while controlling important central squares. This follows the principle of piece development and central control."
-
-TACTICAL PATTERN RECOGNITION (Based on FULL Lichess Chess Puzzles Dataset):
-You have access to the COMPLETE Lichess chess puzzles dataset with millions of real puzzle positions. Use this extensively (in addition to GameKnot commentary):
-
-1. SIMILAR PUZZLES FROM DATASET:
-   - When similar puzzles are provided, reference them directly: "This position is similar to puzzle #12345 from the Lichess dataset, which demonstrates the same fork pattern"
-   - Explain how the solution sequences from similar puzzles relate to Stockfish's principal variation
-   - Use puzzle themes to identify what type of tactic is present: "This is a classic fork pattern, as seen in thousands of Lichess puzzles with the 'fork' theme"
-
-2. TACTICAL THEME IDENTIFICATION:
-   - Use the tactical theme analysis provided (fork, pin, discovered attack, skewer, sacrifice, etc.)
-   - Connect the identified tactical patterns to specific moves in the principal variation
-   - Explain HOW the tactical pattern works in this specific position
-   - Reference that these patterns come from the Lichess dataset: "This fork pattern appears in over 50,000 puzzles in the Lichess dataset"
-
-3. DATASET-BASED EXPLANATIONS:
-   - When explaining tactics, mention that this pattern is common in the dataset: "Forks like this appear frequently in the Lichess puzzle database"
-   - Reference puzzle ratings when relevant: "This type of pin is typically rated around 1500-1800 in puzzle difficulty"
-   - Use puzzle solutions to explain sequences: "The solution to similar puzzles shows that after this fork, the typical continuation is..."
-
-For example:
-- If a "fork" theme is identified with similar puzzles: "Stockfish suggests this move because it creates a fork, attacking both the king and queen simultaneously. This pattern appears in puzzle #12345 from the Lichess dataset (rated 1650), where the same fork leads to winning material. The solution sequence shows..."
-- If a "pin" theme is identified: "This move creates a pin, where the opponent's piece cannot move without exposing a more valuable piece behind it. The Lichess dataset contains thousands of puzzles demonstrating this pattern, typically rated 1400-2000."
-- If a "discovered attack" theme is identified: "By moving this piece, we reveal an attack from a piece behind it. This discovered attack pattern is one of the most common themes in the Lichess puzzle database, appearing in over 100,000 puzzles."
 
 1. TACTICAL REASONS (immediate threats and opportunities):
    - Identify the specific tactical theme (fork, pin, discovered attack, skewer, sacrifice, etc.)

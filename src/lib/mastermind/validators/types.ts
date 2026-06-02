@@ -6,7 +6,8 @@ export type CheckName =
   | "feature_citation_unsupported"
   | "scout_citation_unsupported"
   | "user_history_citation_unsupported"
-  | "parser_failure";
+  | "parser_failure"
+  | "motif_grounding_ungrounded";
 
 export type FireReason =
   | "numeric_diff_exceeds_threshold"
@@ -25,7 +26,8 @@ export type FireReason =
   // The validator can't time-travel to verify; skipping avoids false
   // positives on legitimate game-review prose ("White was winning at
   // move 24"). Emitted at info-level for observability.
-  | "skip_historical_claim";
+  | "skip_historical_claim"
+  | "tactical_claim_without_grounding";
 
 export type FinalOutcome =
   | "passed_initial"

@@ -7,7 +7,18 @@ export type CheckName =
   | "scout_citation_unsupported"
   | "user_history_citation_unsupported"
   | "parser_failure"
-  | "motif_grounding_ungrounded";
+  | "motif_grounding_ungrounded"
+  // ─────────────────────────────────────────────────────────────────────
+  // Stage 9 — claim-class validators (PR_STAGE9_VALIDATORS_PLAN.md)
+  // Enforce the suppression rules the voter already emits into the prompt.
+  // All four are pure string-scan validators (no parser LLM, costUsd = 0),
+  // modeled on motifGrounding.ts.
+  // ─────────────────────────────────────────────────────────────────────
+  | "user_visibility_overclaim"
+  | "positional_claim_unsupported"
+  | "mate_claim_unsupported"
+  | "mate_distance_incorrect"
+  | "material_win_unsupported";
 
 export type FireReason =
   | "numeric_diff_exceeds_threshold"
@@ -27,7 +38,17 @@ export type FireReason =
   // positives on legitimate game-review prose ("White was winning at
   // move 24"). Emitted at info-level for observability.
   | "skip_historical_claim"
-  | "tactical_claim_without_grounding";
+  | "tactical_claim_without_grounding"
+  // ─────────────────────────────────────────────────────────────────────
+  // Stage 9 — fire reasons for the four claim-class validators
+  // ─────────────────────────────────────────────────────────────────────
+  | "obviousness_claim_below_visibility_threshold"
+  | "positional_overclaim_without_voter_high"
+  | "positional_overclaim_against_lc0_veto"
+  | "mate_claim_without_syzygy_or_sf_mate"
+  | "mate_distance_off_by_more_than_one"
+  | "material_claim_without_voter_med_or_high"
+  | "material_claim_contradicts_stockfish";
 
 export type FinalOutcome =
   | "passed_initial"

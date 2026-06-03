@@ -188,10 +188,14 @@ export function PuzzleCoachPanel({
         const decoder = new TextDecoder();
         let buffer = "";
         let accumulated = "";
+        let streamDone = false;
 
-        while (true) {
+        while (!streamDone) {
           const { value, done } = await reader.read();
-          if (done) break;
+          if (done) {
+            streamDone = true;
+            break;
+          }
           if (activePuzzleIdRef.current !== capturedPuzzleId) {
             // Puzzle changed mid-stream — drop the rest.
             try { reader.cancel(); } catch { /* ignore */ }

@@ -174,7 +174,11 @@ export function squaresBetween(from: Square, to: Square): Square[] {
   const [tx, ty] = squareToCoord(to);
   const result: Square[] = [];
   let x = fx + dx, y = fy + dy;
-  while (true) {
+  // Bounded by board geometry: x/y diverge from tx/ty by at most 7 steps
+  // before coordToSquare returns null. The explicit 8-iteration cap is a
+  // belt-and-suspenders against any rayStep regression that would loop
+  // forever — also satisfies no-constant-condition.
+  for (let safety = 0; safety < 8; safety++) {
     const sq = coordToSquare(x, y);
     if (!sq || (x === tx && y === ty)) break;
     result.push(sq);

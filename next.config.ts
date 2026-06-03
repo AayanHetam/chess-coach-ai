@@ -25,13 +25,10 @@ const nextConfig = (phase: string): NextConfig => ({
   // ship the JSON alongside the routes that need it at runtime.
   outputFileTracingIncludes: {
     "/api/opening-explorer": ["./src/data/master-tree.json"],
-    // Static-CSV-backed puzzle feed: ship the 100k Lichess puzzle dump
-    // alongside the route. Same pattern as master-tree (fs.readFileSync,
-    // not static import) to avoid the >5MB Vercel build hang.
-    // CSV lives under src/data/ (mirrors master-tree.json placement) so
-    // outputFileTracingIncludes actually traces it into the serverless
-    // function — top-level data/ wasn't being picked up at runtime.
-    "/api/puzzle-feed": ["./src/data/lichess_puzzles_100k.csv"],
+    // Note: /api/puzzle-feed's CSV now lives at /public/data/ and is
+    // served by Vercel's static handler. The loader reads it via fs from
+    // public/ when colocated and falls back to HTTPS fetch from the
+    // deployment URL otherwise. No tracing include needed.
   },
   headers: async () => [
           {

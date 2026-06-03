@@ -53,6 +53,23 @@ const breadcrumbJsonLd = {
   ],
 };
 
+const webPageJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  name: "Chess Masti AI vs other AI chess coaches",
+  url: "https://chessmasti.com/vs",
+  description:
+    "Honest comparison of Chess Masti AI against Sensei Chess, Noctie, Chessvia, DecodeChess, and Chess.com Coach across ten capabilities.",
+  isPartOf: { "@id": "https://chessmasti.com/#website" },
+  about: { "@id": "https://chessmasti.com/#software-app" },
+  primaryImageOfPage: {
+    "@type": "ImageObject",
+    url: "https://chessmasti.com/social-networks-1200x630.png",
+    width: 1200,
+    height: 630,
+  },
+};
+
 const COMPARISON_ROWS = [
   ["Free, no paid tier", "Yes", "Freemium", "Freemium", "Freemium", "Paid", "Paid (Diamond)"],
   ["Engine evaluates before the LLM speaks", "Yes (Stockfish 17 WASM)", "Partial", "Engine-driven, no LLM coach", "LLM-led", "Yes (proprietary engine)", "Yes"],
@@ -70,6 +87,10 @@ export default function VsPage() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: contentPageStyles }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}

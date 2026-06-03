@@ -15,6 +15,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/ai-chess-coach", changeFrequency: "monthly", priority: 0.85 },
     { path: "/free-chess-analysis", changeFrequency: "monthly", priority: 0.85 },
     { path: "/stockfish-ai-chess-coach", changeFrequency: "monthly", priority: 0.85 },
+    { path: "/decodechess-alternative", changeFrequency: "monthly", priority: 0.8 },
+    { path: "/noctie-alternative", changeFrequency: "monthly", priority: 0.8 },
     { path: "/how-it-works", changeFrequency: "monthly", priority: 0.9 },
     { path: "/architecture", changeFrequency: "monthly", priority: 0.9 },
     { path: "/vs", changeFrequency: "monthly", priority: 0.8 },

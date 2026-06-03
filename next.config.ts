@@ -25,6 +25,10 @@ const nextConfig = (phase: string): NextConfig => ({
   // ship the JSON alongside the routes that need it at runtime.
   outputFileTracingIncludes: {
     "/api/opening-explorer": ["./src/data/master-tree.json"],
+    // Static-CSV-backed puzzle feed: ship the 100k Lichess puzzle dump
+    // alongside the route. Same pattern as master-tree (fs.readFileSync,
+    // not static import) to avoid the >5MB Vercel build hang.
+    "/api/puzzle-feed": ["./data/lichess_puzzles_100k.csv"],
   },
   headers: async () => [
           {

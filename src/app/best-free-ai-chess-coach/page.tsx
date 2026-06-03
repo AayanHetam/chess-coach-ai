@@ -97,6 +97,34 @@ export default function BestFreeAiChessCoachPage() {
         description: e.pitch,
       })),
     },
+    {
+      "@context": "https://schema.org",
+      "@type": "LearningResource",
+      name: "Best Free AI Chess Coach in 2026 | Honest Ranking",
+      url: URL,
+      description:
+        "An honest ranking of the free AI chess coaches available in 2026 with criteria, comparisons, and decision guidance for players choosing one.",
+      learningResourceType: "Comparison guide",
+      educationalLevel: "Beginner to Intermediate",
+      educationalUse: "Self-study",
+      teaches: [
+        "How to evaluate a free AI chess coach",
+        "When to use an engine-only tool vs an AI coach",
+        "Why a training loop matters more than explanation alone",
+      ],
+      audience: {
+        "@type": "EducationalAudience",
+        audienceType: "Chess players evaluating coaching tools",
+      },
+      about: {
+        "@type": "Thing",
+        name: "AI chess coaching",
+      },
+      inLanguage: "en",
+      isAccessibleForFree: true,
+      isPartOf: { "@id": "https://chessmasti.com/#website" },
+      provider: { "@id": "https://chessmasti.com/#organization" },
+    },
   ];
 
   return (

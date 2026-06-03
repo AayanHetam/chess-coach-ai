@@ -91,6 +91,10 @@ const QA: { q: string; a: string }[] = [
 const faqJsonLd = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
+  name: "Chess Masti AI — FAQ",
+  url: "https://chessmasti.com/faq",
+  isPartOf: { "@id": "https://chessmasti.com/#website" },
+  about: { "@id": "https://chessmasti.com/#software-app" },
   mainEntity: QA.map(({ q, a }) => ({
     "@type": "Question",
     name: q,
@@ -101,6 +105,25 @@ const faqJsonLd = {
   })),
 };
 
+const breadcrumbJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Home",
+      item: "https://chessmasti.com/",
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: "FAQ",
+      item: "https://chessmasti.com/faq",
+    },
+  ],
+};
+
 export default function FaqPage() {
   return (
     <>
@@ -108,6 +131,10 @@ export default function FaqPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <main className="cm-content">
         <nav className="cm-nav" aria-label="Site navigation">

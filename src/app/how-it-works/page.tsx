@@ -53,6 +53,45 @@ const breadcrumbJsonLd = {
   ],
 };
 
+const howToJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  name: "How Chess Masti AI coaches your chess game",
+  description:
+    "The engine-first pipeline: Stockfish 17 evaluates, Claude paraphrases, a chess.js validator checks every claim, then targeted puzzles drill the pattern you missed.",
+  totalTime: "PT30S",
+  step: [
+    {
+      "@type": "HowToStep",
+      position: 1,
+      name: "Stockfish 17 evaluates the position",
+      text: "When you load a game, Stockfish 17 runs in your browser as a WebAssembly worker — no server round-trip, no rate limit. For each move it produces an evaluation, the best continuation, the next-best alternatives, tactical motif detection, candidate-move gap analysis, and branch-point analysis. The LLM never sees the bare position; it sees the engine's structured verdict.",
+      url: "https://chessmasti.com/how-it-works#engine",
+    },
+    {
+      "@type": "HowToStep",
+      position: 2,
+      name: "Claude turns the verdict into language",
+      text: "Claude Sonnet handles deep multi-paragraph analysis given the engine output and your historical context. Claude Haiku handles follow-up chat with sub-5-second responses, using a server-side context cache so subsequent questions don't repay the full token cost. The system prompt is explicit: never invent a chess fact; if the engine didn't say it, don't write it.",
+      url: "https://chessmasti.com/how-it-works#claude",
+    },
+    {
+      "@type": "HowToStep",
+      position: 3,
+      name: "The hallucination validator checks every claim",
+      text: "Before any coaching response renders, a validator parses it for every reference to a piece, square, or move, and checks each one against the live chess.js board state. Claims that don't match the position are rewritten or dropped. This is the layer most AI coaches don't have.",
+      url: "https://chessmasti.com/how-it-works#validator",
+    },
+    {
+      "@type": "HowToStep",
+      position: 4,
+      name: "Targeted puzzles drill the pattern you missed",
+      text: "Three puzzles render directly inside the coaching message, pulled from a Neo4j graph of 100,000+ Lichess puzzles via graph traversal across your skill band × the relevant tactical theme, then re-ranked by 49-dimensional FEN cosine similarity to the position you just lost. You train on the geometry of your specific mistake.",
+      url: "https://chessmasti.com/how-it-works#puzzles",
+    },
+  ],
+};
+
 export default function HowItWorksPage() {
   return (
     <>
@@ -60,6 +99,10 @@ export default function HowItWorksPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }}
       />
       <main className="cm-content">
         <nav className="cm-nav" aria-label="Site navigation">
@@ -86,7 +129,7 @@ export default function HowItWorksPage() {
             </p>
           </header>
 
-          <section>
+          <section id="engine">
             <h2>1. The engine runs first</h2>
             <p>
               When you load a game,{" "}
@@ -119,7 +162,7 @@ export default function HowItWorksPage() {
             </p>
           </section>
 
-          <section>
+          <section id="claude">
             <h2>2. Claude turns the verdict into language</h2>
             <p>Two models, picked by latency budget:</p>
             <ul>
@@ -143,7 +186,7 @@ export default function HowItWorksPage() {
             </p>
           </section>
 
-          <section>
+          <section id="validator">
             <h2>3. The hallucination validator</h2>
             <p>
               LLMs still drift. So before any coaching response renders, a{" "}
@@ -166,7 +209,7 @@ export default function HowItWorksPage() {
             </p>
           </section>
 
-          <section>
+          <section id="puzzles">
             <h2>4. Targeted training, inline</h2>
             <p>
               A coaching response that just explains your mistake is half the

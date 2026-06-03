@@ -58,8 +58,10 @@ import { detectMotifs, motifsToPropmt } from "@/lib/tactics";
 import type { AnyMotif } from "@/lib/tactics";
 import { fetch_lichess_tablebase } from "@/lib/mastermind/lichessTablebase";
 import { validateMotifGrounding } from "@/lib/mastermind/validators/motifGrounding";
+import { runStreamingStage9Validators } from "@/lib/mastermind/validators/streamingStage9";
 import { queryChessdb } from "@/lib/grounding/chessdb";
 import { compileVoterResult } from "@/lib/grounding/voter";
+import { buildSyncVoterSnapshot } from "@/lib/grounding/voterSnapshot";
 import { queryLc0, shouldCallLc0 } from "@/lib/grounding/lc0";
 import { queryMaiaAtRating, shouldCallMaia } from "@/lib/grounding/maia";
 
@@ -1582,6 +1584,26 @@ export async function POST(request: NextRequest) {
                     branch: "stream-flagon-fallback",
                   });
                 }
+                // Stage 9: same log-only pattern for the four claim-class
+                // validators. Snapshot is sync (no async grounding) so it
+                // doesn't add latency to the stream-finalize path.
+                const stage9Snap = buildSyncVoterSnapshot({
+                  fenBefore: prep.moveCtx.fenBefore,
+                  moveSan: prep.moveCtx.moveSan,
+                  stockfishEvalCp: prep.moveCtx.stockfishEval.cp ?? null,
+                  stockfishBestMoveMate: prep.moveCtx.stockfishEval.mate ?? null,
+                  userRating: userRating ?? null,
+                });
+                runStreamingStage9Validators({
+                  llmResponse: rawAnalysis,
+                  voterSnapshot: stage9Snap,
+                  fen: prep.moveCtx.fenAfter,
+                  moveSan: prep.moveCtx.moveSan,
+                  playerPerspective,
+                  correlationId: requestId,
+                  branch: "stream-flagon-fallback",
+                  log,
+                });
               } catch { /* non-critical */ }
             }
             // Same chess.js disclaimer skip as the successful-pipeline
@@ -1663,6 +1685,22 @@ export async function POST(request: NextRequest) {
           // below preserves the non-null type (TS loses control-flow
           // narrowing across function boundaries).
           const streamingDataSources = prep.dataSources;
+          // Stage 9: build the per-position voter snapshot for the four
+          // claim-class validators (user_visibility / positional_claim /
+          // mate_in_n / material_win). Sync-only builder — no async
+          // grounding calls inside the pipeline timeout budget. Validators
+          // that need Maia/Lc0/Syzygy data gracefully no-op when those
+          // fields are null (see voterSnapshot.ts header).
+          const stage9Snapshot = prep.moveCtx.moveSan && prep.moveCtx.fenBefore
+            ? buildSyncVoterSnapshot({
+                fenBefore: prep.moveCtx.fenBefore,
+                moveSan: prep.moveCtx.moveSan,
+                stockfishEvalCp: prep.moveCtx.stockfishEval.cp ?? null,
+                stockfishBestMoveMate: prep.moveCtx.stockfishEval.mate ?? null,
+                userRating: userRating ?? null,
+              })
+            : undefined;
+
           let pipelineResult: PipelineResultWithTimeout;
           try {
             pipelineResult = await withPipelineTimeout(
@@ -1695,6 +1733,7 @@ export async function POST(request: NextRequest) {
                     scout: streamingDataSources.scout,
                     userHistory: streamingDataSources.userHistory,
                   },
+                  voterSnapshot: stage9Snapshot,
                   signal,
                 }),
               {
@@ -1789,6 +1828,24 @@ export async function POST(request: NextRequest) {
                   branch: "stream-flagon-pipeline",
                 });
               }
+              // Stage 9: parity with motifGrounding pattern above.
+              const stage9Snap = buildSyncVoterSnapshot({
+                fenBefore: prep.moveCtx.fenBefore,
+                moveSan: prep.moveCtx.moveSan,
+                stockfishEvalCp: prep.moveCtx.stockfishEval.cp ?? null,
+                stockfishBestMoveMate: prep.moveCtx.stockfishEval.mate ?? null,
+                userRating: userRating ?? null,
+              });
+              runStreamingStage9Validators({
+                llmResponse: finalText,
+                voterSnapshot: stage9Snap,
+                fen: prep.moveCtx.fenAfter,
+                moveSan: prep.moveCtx.moveSan,
+                playerPerspective,
+                correlationId: requestId,
+                branch: "stream-flagon-pipeline",
+                log,
+              });
             } catch { /* non-critical */ }
           }
           const usePositionAnchoredAnnotation =
@@ -1991,6 +2048,34 @@ export async function POST(request: NextRequest) {
                   branch: "stream-flagoff",
                 });
               }
+              // Stage 9: pull the same SF eval the voter would have seen
+              // for this move's pre-move position (gameEval.positions[lastIdx]).
+              // If gameEval is absent, stockfishEvalCp / Mate default to null
+              // and the validators degrade gracefully.
+              const evalBeforeLast = gameEval?.positions?.[lastIdx];
+              const sfCpLast = evalBeforeLast?.lines?.[0]?.cp ?? null;
+              const sfMateLast = evalBeforeLast?.lines?.[0]?.mate ?? null;
+              const stage9Snap = buildSyncVoterSnapshot({
+                fenBefore: fenBeforeLast,
+                moveSan: moveSanLast,
+                stockfishEvalCp: sfCpLast,
+                stockfishBestMoveMate: sfMateLast,
+                userRating: userRating ?? null,
+              });
+              // playerPerspective is computed inside the Mastermind branch
+              // but not in this flag-off scope — derive locally.
+              const ppLocal: "white" | "black" =
+                playerColor === "b" ? "black" : "white";
+              runStreamingStage9Validators({
+                llmResponse: rawAnalysis,
+                voterSnapshot: stage9Snap,
+                fen: validationFen,
+                moveSan: moveSanLast,
+                playerPerspective: ppLocal,
+                correlationId: requestId,
+                branch: "stream-flagoff",
+                log,
+              });
             } catch { /* non-critical */ }
           }
           const analysisContent = validation.isValid ? rawAnalysis : validation.correctedResponse;
@@ -2088,6 +2173,18 @@ export async function POST(request: NextRequest) {
         // below preserves the non-null type (TS loses control-flow
         // narrowing across function boundaries).
         const nonStreamingDataSources = prep.dataSources;
+        // Stage 9: voter snapshot for the four claim-class validators —
+        // same shape as the streaming-branch wiring above; sync-only so
+        // we don't block the pipeline timeout on async grounding.
+        const stage9SnapshotNonStream = prep.moveCtx.moveSan && prep.moveCtx.fenBefore
+          ? buildSyncVoterSnapshot({
+              fenBefore: prep.moveCtx.fenBefore,
+              moveSan: prep.moveCtx.moveSan,
+              stockfishEvalCp: prep.moveCtx.stockfishEval.cp ?? null,
+              stockfishBestMoveMate: prep.moveCtx.stockfishEval.mate ?? null,
+              userRating: userRating ?? null,
+            })
+          : undefined;
         try {
           const pipelineResult = await withPipelineTimeout(
             (signal) =>
@@ -2117,6 +2214,7 @@ export async function POST(request: NextRequest) {
                   scout: nonStreamingDataSources.scout,
                   userHistory: nonStreamingDataSources.userHistory,
                 },
+                voterSnapshot: stage9SnapshotNonStream,
                 signal,
               }),
             {
@@ -2148,6 +2246,27 @@ export async function POST(request: NextRequest) {
                   correlationId: requestId,
                 });
               }
+              // Stage 9: post-pipeline log-only check on the final response.
+              // Important for pipeline-fallback (timeout) cases where the
+              // returned text was deterministic template not validated by
+              // Stage 9 inside runValidationPipeline. Cheap CPU pass.
+              const stage9Snap = buildSyncVoterSnapshot({
+                fenBefore: prep.moveCtx.fenBefore,
+                moveSan: prep.moveCtx.moveSan,
+                stockfishEvalCp: prep.moveCtx.stockfishEval.cp ?? null,
+                stockfishBestMoveMate: prep.moveCtx.stockfishEval.mate ?? null,
+                userRating: userRating ?? null,
+              });
+              runStreamingStage9Validators({
+                llmResponse: rawAnalysis,
+                voterSnapshot: stage9Snap,
+                fen: prep.moveCtx.fenAfter,
+                moveSan: prep.moveCtx.moveSan,
+                playerPerspective,
+                correlationId: requestId,
+                branch: "non-streaming-flagon",
+                log,
+              });
             } catch { /* non-critical */ }
           }
 

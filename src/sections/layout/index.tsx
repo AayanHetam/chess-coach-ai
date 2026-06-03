@@ -1,4 +1,4 @@
-import { CssBaseline, ThemeProvider, createTheme, Box } from "@mui/material";
+import { CssBaseline, ThemeProvider, createTheme, Box, Typography } from "@mui/material";
 import { PropsWithChildren, useMemo } from "react";
 import NavBar from "./NavBar";
 import { red } from "@mui/material/colors";

@@ -17,6 +17,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/stockfish-ai-chess-coach", changeFrequency: "monthly", priority: 0.85 },
     { path: "/decodechess-alternative", changeFrequency: "monthly", priority: 0.8 },
     { path: "/noctie-alternative", changeFrequency: "monthly", priority: 0.8 },
+    // July content cluster — listicles, comparison guides, how-tos
+    { path: "/best-free-ai-chess-coach", changeFrequency: "monthly", priority: 0.85 },
+    { path: "/ai-chess-coach-vs-chess-engine", changeFrequency: "monthly", priority: 0.8 },
+    { path: "/how-to-analyze-lichess-game-with-ai", changeFrequency: "monthly", priority: 0.8 },
     { path: "/how-it-works", changeFrequency: "monthly", priority: 0.9 },
     { path: "/architecture", changeFrequency: "monthly", priority: 0.9 },
     { path: "/vs", changeFrequency: "monthly", priority: 0.8 },

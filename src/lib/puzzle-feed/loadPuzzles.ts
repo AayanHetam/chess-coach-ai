@@ -75,11 +75,18 @@ interface CorpusIndex {
 let CACHE: CorpusIndex | null = null;
 let LOAD_PROMISE: Promise<CorpusIndex> | null = null;
 
-/** Resolve the absolute path to the CSV bundled with the deploy. */
+/** Resolve the absolute path to the CSV bundled with the deploy.
+ *
+ * CSV is placed under src/data/ (not top-level data/) to mirror the
+ * master-tree.json precedent in src/data/master-openings.ts — that's the
+ * one path layout where outputFileTracingIncludes is empirically known
+ * to actually ship the file into the Vercel serverless function. A
+ * top-level data/ path was traced at build time but the file wasn't
+ * present at runtime, producing 503s on /api/puzzle-feed. */
 function resolveCsvPath(): string {
   // process.cwd() is the project root in Next.js serverless functions
   // (when outputFileTracingIncludes is set so the file ships).
-  return path.join(process.cwd(), "data", PUZZLE_CSV_FILENAME);
+  return path.join(process.cwd(), "src", "data", PUZZLE_CSV_FILENAME);
 }
 
 /**

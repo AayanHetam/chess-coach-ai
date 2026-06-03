@@ -28,7 +28,10 @@ const nextConfig = (phase: string): NextConfig => ({
     // Static-CSV-backed puzzle feed: ship the 100k Lichess puzzle dump
     // alongside the route. Same pattern as master-tree (fs.readFileSync,
     // not static import) to avoid the >5MB Vercel build hang.
-    "/api/puzzle-feed": ["./data/lichess_puzzles_100k.csv"],
+    // CSV lives under src/data/ (mirrors master-tree.json placement) so
+    // outputFileTracingIncludes actually traces it into the serverless
+    // function — top-level data/ wasn't being picked up at runtime.
+    "/api/puzzle-feed": ["./src/data/lichess_puzzles_100k.csv"],
   },
   headers: async () => [
           {

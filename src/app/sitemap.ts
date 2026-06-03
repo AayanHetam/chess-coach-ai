@@ -21,6 +21,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/best-free-ai-chess-coach", changeFrequency: "monthly", priority: 0.85 },
     { path: "/ai-chess-coach-vs-chess-engine", changeFrequency: "monthly", priority: 0.8 },
     { path: "/how-to-analyze-lichess-game-with-ai", changeFrequency: "monthly", priority: 0.8 },
+    { path: "/how-to-analyze-chess-com-game-with-ai", changeFrequency: "monthly", priority: 0.8 },
+    { path: "/why-llm-chess-coaches-hallucinate", changeFrequency: "monthly", priority: 0.75 },
     { path: "/how-it-works", changeFrequency: "monthly", priority: 0.9 },
     { path: "/architecture", changeFrequency: "monthly", priority: 0.9 },
     { path: "/vs", changeFrequency: "monthly", priority: 0.8 },

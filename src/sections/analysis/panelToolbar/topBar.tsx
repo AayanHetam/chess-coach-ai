@@ -42,6 +42,8 @@ import {
 import LoadGameDialog from "../../loadGame/loadGameDialog";
 import SectionToggleBar from "./sectionToggleBar";
 import { useCurrentPosition } from "../hooks/useCurrentPosition";
+import ShareGameDialog from "@/components/ShareGameDialog";
+import type { GameShareCreateRequest } from "@/types/gameShare";
 
 export default function TopBar() {
   const theme = useTheme();
@@ -74,6 +76,8 @@ export default function TopBar() {
   const [panelExpanded, setPanelExpanded] = useAtom(panelExpandedAtom);
 
   const [openLoadDialog, setOpenLoadDialog] = useState(false);
+  const [openShareDialog, setOpenShareDialog] = useState(false);
+  const [sharePayload, setSharePayload] = useState<GameShareCreateRequest | null>(null);
 
   const resetAndSetGamePgn = useCallback(
     (pgn: string) => {
@@ -233,6 +237,28 @@ export default function TopBar() {
 
   const handleLoadClick = () => setOpenLoadDialog(true);
 
+  const handleShareClick = useCallback(() => {
+    if (!isGameLoaded) return;
+    const headers = game.getHeaders();
+    const payload: GameShareCreateRequest = {
+      pgn: game.pgn(),
+      white: headers.White && headers.White !== "?" ? headers.White : (white?.name ?? null),
+      black: headers.Black && headers.Black !== "?" ? headers.Black : (black?.name ?? null),
+      result: headers.Result && headers.Result !== "*" ? headers.Result : null,
+      date: headers.Date && headers.Date !== "?" ? headers.Date : null,
+      event: headers.Event && headers.Event !== "?" ? headers.Event : null,
+      site: headers.Site && headers.Site !== "?" ? headers.Site : null,
+      timeControl: headers.TimeControl ?? null,
+      termination: headers.Termination ?? null,
+      evalData: gameEval ?? null,
+      coachTranscript: null, // Live transcript lives inside AICoachChat; integrating that is a follow-up.
+      note: null, // The dialog's note input handles this on POST.
+    };
+    setSharePayload(payload);
+    setOpenShareDialog(true);
+    logAnalyticsEvent("share_game_dialog_opened", { has_eval: !!gameEval });
+  }, [game, isGameLoaded, gameEval, white?.name, black?.name]);
+
   return (
     <Box
       width="100%"
@@ -312,6 +338,33 @@ export default function TopBar() {
             />
           </Box>
         )}
+
+        <Tooltip title={isGameLoaded ? "Share this game" : "Load a game to share"}>
+          <span>
+            <IconButton
+              size="small"
+              onClick={handleShareClick}
+              disabled={!isGameLoaded}
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: 1,
+                border: "1.5px solid",
+                borderColor: isGameLoaded ? "primary.main" : "divider",
+                color: isGameLoaded ? "primary.main" : "text.disabled",
+                "&:hover": isGameLoaded
+                  ? {
+                      backgroundColor: isDarkMode
+                        ? "rgba(255,107,53,0.12)"
+                        : "rgba(255,107,53,0.08)",
+                    }
+                  : undefined,
+              }}
+            >
+              <Icon icon="mdi:share-variant" height={18} />
+            </IconButton>
+          </span>
+        </Tooltip>
       </Stack>
 
       {/* Right: section toggles + expand */}
@@ -355,6 +408,12 @@ export default function TopBar() {
           await router.push("/analysis");
           resetAndSetGamePgn(loadedGame.pgn());
         }}
+      />
+
+      <ShareGameDialog
+        open={openShareDialog}
+        onClose={() => setOpenShareDialog(false)}
+        payload={sharePayload}
       />
     </Box>
   );

@@ -309,17 +309,20 @@ export function parsePlatformCode(code: string | undefined | null): ShareCardDat
   return null;
 }
 
-// Prefer the snapshotId path when available — loads the saved point-in-time
-// scout report instead of re-fetching from Chess.com / Lichess. Falls back
-// to the bare ?u=&p= URL when no snapshot has been minted (POST in flight
-// or failed).
+// Prefer the snapshotId path when available — points at the dedicated
+// public share page (/share/scout/[id]), which renders the saved
+// point-in-time scout report without re-fetching from Chess.com / Lichess
+// and ships a richer OG card (via /api/og/scout/[id]) than the legacy
+// /scout?scoutId= path. Falls back to the bare ?u=&p= URL when no snapshot
+// has been minted (POST in flight or failed), which still runs a fresh
+// scout on the recipient's machine.
 export function buildShareUrl(
   username: string,
   platform: ShareCardData['platform'],
   snapshotId?: string | null
 ): string {
   if (snapshotId) {
-    return `${SITE_URL}/scout?scoutId=${encodeURIComponent(snapshotId)}`;
+    return `${SITE_URL}/share/scout/${encodeURIComponent(snapshotId)}`;
   }
   const u = encodeURIComponent(username);
   const p = platformCode(platform);

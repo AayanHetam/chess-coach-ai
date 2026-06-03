@@ -12,6 +12,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/", changeFrequency: "weekly", priority: 1.0 },
     // AEO cluster — exact-match and supporting pages
     { path: "/free-ai-chess-coach", changeFrequency: "monthly", priority: 0.95 },
+    { path: "/ai-chess-coach", changeFrequency: "monthly", priority: 0.85 },
+    { path: "/free-chess-analysis", changeFrequency: "monthly", priority: 0.85 },
+    { path: "/stockfish-ai-chess-coach", changeFrequency: "monthly", priority: 0.85 },
     { path: "/how-it-works", changeFrequency: "monthly", priority: 0.9 },
     { path: "/architecture", changeFrequency: "monthly", priority: 0.9 },
     { path: "/vs", changeFrequency: "monthly", priority: 0.8 },

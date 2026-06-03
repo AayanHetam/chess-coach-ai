@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { contentPageStyles } from "../_seo/styles";
+import Script from "next/script";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import {
+  AEO_TOKENS,
+  AnswerBlock,
+  Breadcrumb,
+  CtaButton,
+  H1,
+  PageShell,
+  glassCard,
+} from "@/app/_seo/aeoUi";
 
 export const metadata: Metadata = {
   title: "Chess Masti AI — FAQ",
@@ -109,65 +119,76 @@ const breadcrumbJsonLd = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   itemListElement: [
-    {
-      "@type": "ListItem",
-      position: 1,
-      name: "Home",
-      item: "https://chessmasti.com/",
-    },
-    {
-      "@type": "ListItem",
-      position: 2,
-      name: "FAQ",
-      item: "https://chessmasti.com/faq",
-    },
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://chessmasti.com/" },
+    { "@type": "ListItem", position: 2, name: "FAQ", item: "https://chessmasti.com/faq" },
   ],
 };
 
 export default function FaqPage() {
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: contentPageStyles }} />
-      <script
+    <PageShell>
+      <Script
+        id="faq-ld"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
-      <script
+      <Script
+        id="breadcrumb-ld"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-      <main className="cm-content">
-        <nav className="cm-nav" aria-label="Site navigation">
-          <Link href="/">Chess Masti AI</Link>
-          <span className="cm-nav-sep">/</span>
-          <span>FAQ</span>
-        </nav>
 
-        <article>
-          <header>
-            <h1>Frequently asked questions</h1>
-            <p className="cm-lede">
-              Common questions about the engine-first pipeline, the validator,
-              Maia-2, the puzzle graph, and why this is free.
-            </p>
-          </header>
+      <Breadcrumb here="FAQ" />
 
-          <section>
-            {QA.map(({ q, a }) => (
-              <details key={q}>
-                <summary>{q}</summary>
-                <p>{a}</p>
-              </details>
-            ))}
-          </section>
+      <H1>Frequently asked questions</H1>
 
-          <nav className="cm-cross-links" aria-label="Related pages">
-            <Link href="/how-it-works">How the coaching pipeline works →</Link>
-            <Link href="/architecture">Technical architecture →</Link>
-            <Link href="/vs">Compare with other AI chess coaches →</Link>
-          </nav>
-        </article>
-      </main>
-    </>
+      <AnswerBlock>
+        Common questions about the engine-first pipeline, the validator, Maia-2, the puzzle graph,
+        and why this is free.
+      </AnswerBlock>
+
+      <Box component="section" sx={{ mb: 10 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          {QA.map((item) => (
+            <Box key={item.q} sx={glassCard}>
+              <Typography
+                component="h2"
+                sx={{ fontWeight: 700, color: "#fff", mb: 1, fontSize: "1rem" }}
+              >
+                {item.q}
+              </Typography>
+              <Typography
+                sx={{ color: "rgba(255,255,255,0.65)", fontSize: "0.9rem", lineHeight: 1.8 }}
+              >
+                {item.a}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+
+      <Box
+        sx={{
+          ...glassCard,
+          textAlign: "center",
+          borderColor: `${AEO_TOKENS.ember}22`,
+        }}
+      >
+        <Typography sx={{ fontWeight: 700, color: "#fff", fontSize: { xs: "1.25rem", md: "1.5rem" }, mb: 1 }}>
+          Related reading
+        </Typography>
+        <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 3 }}>
+          Deeper dives on the pipeline, the architecture, and the competitive landscape.
+        </Typography>
+        <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+          <CtaButton href="/how-it-works">How the pipeline works</CtaButton>
+          <CtaButton href="/architecture">Architecture</CtaButton>
+          <CtaButton href="/vs">vs other coaches</CtaButton>
+          <CtaButton href="/free-ai-chess-coach" primary>
+            Try the coach
+          </CtaButton>
+        </Box>
+      </Box>
+    </PageShell>
   );
 }

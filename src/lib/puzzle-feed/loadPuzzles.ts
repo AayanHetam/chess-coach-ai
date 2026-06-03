@@ -75,18 +75,62 @@ interface CorpusIndex {
 let CACHE: CorpusIndex | null = null;
 let LOAD_PROMISE: Promise<CorpusIndex> | null = null;
 
-/** Resolve the absolute path to the CSV bundled with the deploy.
- *
- * CSV is placed under src/data/ (not top-level data/) to mirror the
- * master-tree.json precedent in src/data/master-openings.ts — that's the
- * one path layout where outputFileTracingIncludes is empirically known
- * to actually ship the file into the Vercel serverless function. A
- * top-level data/ path was traced at build time but the file wasn't
- * present at runtime, producing 503s on /api/puzzle-feed. */
-function resolveCsvPath(): string {
-  // process.cwd() is the project root in Next.js serverless functions
-  // (when outputFileTracingIncludes is set so the file ships).
-  return path.join(process.cwd(), "src", "data", PUZZLE_CSV_FILENAME);
+/** Candidate paths the CSV might live at depending on runtime. */
+function candidateLocalPaths(): string[] {
+  const cwd = process.cwd();
+  return [
+    // Production layout: served by Vercel from /public/data/ at the
+    // deployment URL. In some serverless runtimes the file is also
+    // present at this fs path; try first to avoid an HTTP round-trip.
+    path.join(cwd, "public", "data", PUZZLE_CSV_FILENAME),
+    // Legacy / dev fallback paths in case the project layout shifts.
+    path.join(cwd, "src", "data", PUZZLE_CSV_FILENAME),
+    path.join(cwd, "data", PUZZLE_CSV_FILENAME),
+  ];
+}
+
+/** Build the absolute HTTP URL to the CSV in /public/. */
+function resolveHttpUrl(): string {
+  // VERCEL_URL is set on every Vercel deployment (preview + prod).
+  // Fall back to localhost for dev. NEXT_PUBLIC_BASE_URL lets callers
+  // override (useful for CI / custom infra).
+  const base =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+    "http://127.0.0.1:3000";
+  return `${base}/data/${PUZZLE_CSV_FILENAME}`;
+}
+
+/** Read the CSV text, trying local-fs first, then HTTP fetch from
+ *  /public as a robust prod fallback. The /public placement guarantees
+ *  Vercel's static handler serves it even when outputFileTracingIncludes
+ *  doesn't ship it into the serverless function bundle. */
+async function loadCsvText(): Promise<{ text: string; source: string }> {
+  const triedFs: string[] = [];
+  for (const p of candidateLocalPaths()) {
+    try {
+      const text = await fs.promises.readFile(p, "utf-8");
+      return { text, source: `fs:${p}` };
+    } catch (err) {
+      triedFs.push(`${p} (${err instanceof Error ? err.message : err})`);
+    }
+  }
+  const url = resolveHttpUrl();
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    }
+    const text = await res.text();
+    return { text, source: `http:${url}` };
+  } catch (fetchErr) {
+    throw new Error(
+      `Puzzle CSV unreachable. fs candidates tried: ${triedFs.join(" | ")}. ` +
+        `Fallback fetch from ${url} failed: ${
+          fetchErr instanceof Error ? fetchErr.message : fetchErr
+        }`,
+    );
+  }
 }
 
 /**
@@ -168,17 +212,13 @@ export async function getPuzzleCorpus(): Promise<CorpusIndex> {
   if (CACHE) return CACHE;
   if (LOAD_PROMISE) return LOAD_PROMISE;
   LOAD_PROMISE = (async () => {
-    const csvPath = resolveCsvPath();
     let text: string;
     try {
-      text = await fs.promises.readFile(csvPath, "utf-8");
+      const loaded = await loadCsvText();
+      text = loaded.text;
     } catch (err) {
       LOAD_PROMISE = null;
-      throw new Error(
-        `Puzzle CSV missing at ${csvPath} — check outputFileTracingIncludes in next.config. (${
-          err instanceof Error ? err.message : String(err)
-        })`,
-      );
+      throw err instanceof Error ? err : new Error(String(err));
     }
     const puzzles = parseLichessCsv(text);
     const index = buildIndex(puzzles);

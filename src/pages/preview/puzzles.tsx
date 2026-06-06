@@ -26,6 +26,11 @@ import {
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { PuzzleCoachPanel } from "@/components/puzzle/PuzzleCoachPanel";
+import {
+  DemoMoveDialog,
+  DEMO_SPEED_MS,
+  type DemoSpeedKey,
+} from "@/components/puzzle/DemoMoveDialog";
 import { parseSolutionMoves } from "@/lib/puzzleSolution";
 import { usePuzzleFeed } from "@/hooks/usePuzzleFeed";
 import type { PuzzleOutcome } from "@/lib/validation/puzzleChatSchemas";
@@ -34,6 +39,21 @@ const PuzzleBoard = dynamic(
   () => import("@/components/puzzle/PuzzleBoard").then((m) => m.PuzzleBoard),
   { ssr: false },
 );
+
+interface ActiveDemo {
+  /** SAN sequence the coach asked us to play. */
+  moves: string[];
+  /** Anchor FEN — positions[i] = startFen then apply moves[0..i]. */
+  startFen: string;
+  /** Where to return when the demo finishes / is cancelled. */
+  resumeFen: string;
+  /** Per-move dwell. */
+  speedMs: number;
+  /** How many moves have been applied to startFen so far. 0 = anchor. */
+  idx: number;
+  /** True once idx === moves.length — banner replaces the timer. */
+  finished: boolean;
+}
 
 /**
  * /preview/puzzles — dedicated puzzle-solving page with the interactive
@@ -182,6 +202,14 @@ export default function PreviewPuzzlesPage() {
   const [lastWrongSan, setLastWrongSan] = useState<string | null>(null);
   const [wrongAttempts, setWrongAttempts] = useState(0);
 
+  // Coach demo state — coach asks "show on board", user picks speed in
+  // the dialog, then `activeDemo` runs the moves on the main board while
+  // the user's puzzle attempt is paused. resumeFen flips it back when done.
+  const [pendingDemoMoves, setPendingDemoMoves] = useState<string[] | null>(
+    null,
+  );
+  const [activeDemo, setActiveDemo] = useState<ActiveDemo | null>(null);
+
   // Reset board state whenever the puzzle changes.
   useEffect(() => {
     if (!studentStartFen) return;
@@ -192,6 +220,8 @@ export default function PreviewPuzzlesPage() {
     setWrongSquare(null);
     setLastWrongSan(null);
     setWrongAttempts(0);
+    setPendingDemoMoves(null);
+    setActiveDemo(null);
   }, [studentStartFen]);
 
   // "wrong" status auto-reverts to "playing" so the user can retry without
@@ -217,6 +247,91 @@ export default function PreviewPuzzlesPage() {
       return "white";
     }
   }, [studentStartFen]);
+
+  // Coach asks to demo a line via [SHOW_MOVE:...]. Stash the moves so the
+  // dialog opens with confirmation + speed pick.
+  const handleCoachDemoRequest = useCallback((moves: string[]) => {
+    if (moves.length === 0) return;
+    setPendingDemoMoves(moves);
+  }, []);
+
+  // Confirmed in the dialog. Snapshot resumeFen now (where the user was
+  // mid-attempt) so we can restore it cleanly when the demo finishes.
+  const handleDemoConfirm = useCallback(
+    (speed: DemoSpeedKey) => {
+      const moves = pendingDemoMoves;
+      setPendingDemoMoves(null);
+      if (!moves || moves.length === 0) return;
+      setActiveDemo({
+        moves,
+        startFen: game.fen(),
+        resumeFen: game.fen(),
+        speedMs: DEMO_SPEED_MS[speed],
+        idx: 0,
+        finished: false,
+      });
+    },
+    [pendingDemoMoves, game],
+  );
+
+  const handleDemoCancel = useCallback(() => {
+    setPendingDemoMoves(null);
+  }, []);
+
+  const handleDemoEnd = useCallback(() => {
+    setActiveDemo(null);
+  }, []);
+
+  // Advance the demo by one move every speedMs until exhausted. Cleanup
+  // cancels the pending tick if the demo finishes / is cancelled / unmounts.
+  useEffect(() => {
+    if (!activeDemo) return;
+    if (activeDemo.idx >= activeDemo.moves.length) {
+      if (!activeDemo.finished) {
+        setActiveDemo((d) => (d ? { ...d, finished: true } : null));
+      }
+      return;
+    }
+    const t = setTimeout(() => {
+      setActiveDemo((d) => (d ? { ...d, idx: d.idx + 1 } : null));
+    }, activeDemo.speedMs);
+    return () => clearTimeout(t);
+  }, [activeDemo]);
+
+  // FEN the board renders. During an active demo, walks through the SAN
+  // sequence in real time (react-chessboard animates each transition).
+  // Outside of demo mode, this is just the user's attempt position.
+  const displayFen = useMemo(() => {
+    if (!activeDemo) return game.fen();
+    const g = new Chess(activeDemo.startFen);
+    for (let i = 0; i < activeDemo.idx; i++) {
+      try {
+        const r = g.move(activeDemo.moves[i]);
+        if (!r) break;
+      } catch {
+        break;
+      }
+    }
+    return g.fen();
+  }, [activeDemo, game]);
+
+  // Last-move highlight: during demo, the most recently played ply; outside,
+  // the user's last accepted move.
+  const displayLastMove = useMemo<[string, string] | null>(() => {
+    if (!activeDemo || activeDemo.idx === 0) return lastMove;
+    const g = new Chess(activeDemo.startFen);
+    let last: { from: string; to: string } | null = null;
+    for (let i = 0; i < activeDemo.idx; i++) {
+      try {
+        const r = g.move(activeDemo.moves[i]);
+        if (!r) break;
+        last = { from: r.from, to: r.to };
+      } catch {
+        break;
+      }
+    }
+    return last ? [last.from, last.to] : lastMove;
+  }, [activeDemo, lastMove]);
 
   const handleMove = useCallback(
     (orig: string, dest: string): boolean => {
@@ -309,8 +424,12 @@ export default function PreviewPuzzlesPage() {
     return "unattempted";
   }, [status, wrongAttempts]);
 
-  const interactive = status !== "solved" && !!puzzle;
-  const boardWrongSquare = wrongSquare && status === "wrong" ? wrongSquare : null;
+  // Demo locks out interaction — the coach is driving. The wrong-square
+  // flash is also suppressed during demo so red overlays don't bleed into
+  // a teaching moment.
+  const interactive = status !== "solved" && !!puzzle && !activeDemo;
+  const boardWrongSquare =
+    !activeDemo && wrongSquare && status === "wrong" ? wrongSquare : null;
 
   return (
     <ThemeProvider theme={puzzleTheme}>
@@ -492,13 +611,72 @@ export default function PreviewPuzzlesPage() {
                       }}
                     >
                       <PuzzleBoard
-                        fen={game.fen()}
+                        fen={displayFen}
                         orientation={orientation}
                         interactive={interactive}
-                        lastMove={lastMove}
+                        lastMove={displayLastMove}
                         wrongSquare={boardWrongSquare}
                         onMove={handleMove}
                       />
+                      {activeDemo && (
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            top: 12,
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            px: 1.5,
+                            py: 0.75,
+                            borderRadius: "999px",
+                            background: "rgba(22,18,14,0.92)",
+                            backdropFilter: "blur(10px)",
+                            border: "1px solid rgba(255,122,26,0.32)",
+                            boxShadow:
+                              "0 12px 32px -10px rgba(0,0,0,0.5)",
+                            zIndex: 5,
+                          }}
+                        >
+                          <Sparkles size={12} color="#FFD1A8" />
+                          <Typography
+                            sx={{
+                              fontSize: "0.74rem",
+                              fontWeight: 600,
+                              color: "rgba(255,240,224,0.92)",
+                            }}
+                          >
+                            {activeDemo.finished
+                              ? "Demo finished"
+                              : `Coach is showing • ${activeDemo.idx}/${activeDemo.moves.length}`}
+                          </Typography>
+                          <Button
+                            onClick={handleDemoEnd}
+                            size="small"
+                            sx={{
+                              ml: 0.5,
+                              px: 1.25,
+                              py: 0.2,
+                              minHeight: 0,
+                              fontSize: "0.72rem",
+                              fontWeight: 700,
+                              borderRadius: "999px",
+                              color: "#FFD1A8",
+                              background: "rgba(255,122,26,0.14)",
+                              border: "1px solid rgba(255,122,26,0.32)",
+                              textTransform: "none",
+                              "&:hover": {
+                                background: "rgba(255,122,26,0.22)",
+                              },
+                            }}
+                          >
+                            {activeDemo.finished
+                              ? "Back to your move"
+                              : "Stop"}
+                          </Button>
+                        </Box>
+                      )}
                     </Box>
 
                     {/* Status row */}
@@ -736,6 +914,7 @@ export default function PreviewPuzzlesPage() {
                   userAttemptSan={lastWrongSan}
                   onRequestMorePuzzles={handleNextPuzzle}
                   onResetPuzzle={handleReset}
+                  onCoachDemoRequest={handleCoachDemoRequest}
                 />
               ) : (
                 <Box
@@ -761,6 +940,14 @@ export default function PreviewPuzzlesPage() {
           </Box>
         </Box>
       </Box>
+
+      <DemoMoveDialog
+        open={pendingDemoMoves !== null}
+        moves={pendingDemoMoves ?? []}
+        resumeAfter={status !== "solved"}
+        onConfirm={handleDemoConfirm}
+        onCancel={handleDemoCancel}
+      />
     </ThemeProvider>
   );
 }

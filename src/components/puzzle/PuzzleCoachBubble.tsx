@@ -5,14 +5,18 @@ import { motion } from "framer-motion";
 import { Sparkles, User } from "lucide-react";
 import { PuzzleCoachMiniboard } from "./PuzzleCoachMiniboard";
 import { GlossifiedText } from "./ChessTermGlossary";
+import { DemoMoveCard } from "./DemoMoveCard";
 
 /**
  * Chat-style bubble for the Puzzle Coach. Two roles: "user" (right-aligned,
  * ember-tinted) and "coach" (left-aligned, glass).
  *
- * The coach role parses `[POSITION_AFTER:san1 san2 ...]` tags out of the
- * text and renders an inline mini-board for each. The tag is replaced
- * in-flow so prose around it reads naturally.
+ * The coach role parses two kinds of tags out of the prose:
+ *   - `[SHOW_MOVE: san1 san2 ...]` (canonical) — renders a DemoMoveCard
+ *     the user can tap to play the line on the main puzzle board.
+ *   - `[POSITION_AFTER: san1 san2 ...]` (legacy) — renders an inline
+ *     PuzzleCoachMiniboard. Kept for backwards compat with already-cached
+ *     coach replies; the prompt only emits SHOW_MOVE going forward.
  *
  * Design tokens mirror /preview/move-reveal (glass blur 12px, rgba(22,18,14,0.55)
  * fill, #FF7A1A accent, cubic-bezier(0.23, 1, 0.32, 1) easing).
@@ -20,30 +24,35 @@ import { GlossifiedText } from "./ChessTermGlossary";
 
 const EASE_OUT_STRONG: [number, number, number, number] = [0.23, 1, 0.32, 1];
 
-const POSITION_AFTER_TAG = /\[POSITION_AFTER:\s*([^\]]+)\]/g;
+// Match SHOW_MOVE first, then POSITION_AFTER — same alternation so a single
+// pass over `content` yields ordered tags without double-matching.
+const COACH_TAG_RE =
+  /\[(SHOW_MOVE|POSITION_AFTER):\s*([^\]]+)\]/g;
 
 interface PuzzleCoachBubbleProps {
   role: "user" | "coach";
   content: string;
-  /** The puzzle's "student starting position" FEN — the anchor for
-   *  [POSITION_AFTER:san] tags. The miniboard applies the SAN moves to
-   *  this FEN. */
+  /** The puzzle's "student starting position" FEN — the anchor for legacy
+   *  [POSITION_AFTER:...] miniboards. */
   startFen: string;
   /** Streaming state — when true, render with a soft pulse so the user
    *  knows tokens are still arriving. */
   streaming?: boolean;
+  /** Called when the user taps "Show on board" inside a DemoMoveCard.
+   *  Bubble passes the SAN sequence up; parent opens DemoMoveDialog. */
+  onCoachDemoRequest?: (moves: string[]) => void;
 }
 
-/** Render coach content with inline miniboards in place of tags. */
+/** Render coach content with inline miniboards / demo cards in place of tags. */
 function renderCoachContent(
   content: string,
   startFen: string,
+  onCoachDemoRequest?: (moves: string[]) => void,
 ): React.ReactNode[] {
   const out: React.ReactNode[] = [];
   let lastIdx = 0;
   let key = 0;
-  // Use exec loop to capture both the tag positions and the prose between.
-  const re = new RegExp(POSITION_AFTER_TAG);
+  const re = new RegExp(COACH_TAG_RE.source, COACH_TAG_RE.flags);
   let match: RegExpExecArray | null;
   while ((match = re.exec(content)) !== null) {
     if (match.index > lastIdx) {
@@ -51,18 +60,38 @@ function renderCoachContent(
       if (prose)
         out.push(<GlossifiedText key={`p${key++}`} text={prose} />);
     }
-    const sansRaw = match[1] || "";
+    const tagKind = match[1] as "SHOW_MOVE" | "POSITION_AFTER";
+    const sansRaw = match[2] || "";
     const sans = sansRaw
       .split(/\s+/)
       .map((s) => s.trim())
       .filter(Boolean);
-    out.push(
-      <PuzzleCoachMiniboard
-        key={`m${key++}`}
-        startFen={startFen}
-        moves={sans}
-      />,
-    );
+    if (tagKind === "SHOW_MOVE") {
+      // No callback wired (e.g. user-role bubble) → render as plain text so
+      // the line stays visible rather than vanishing.
+      if (onCoachDemoRequest) {
+        out.push(
+          <DemoMoveCard
+            key={`d${key++}`}
+            moves={sans}
+            onShow={onCoachDemoRequest}
+          />,
+        );
+      } else {
+        out.push(
+          <span key={`d${key++}`}>{sans.join(" ")}</span>,
+        );
+      }
+    } else {
+      // Legacy miniboard render.
+      out.push(
+        <PuzzleCoachMiniboard
+          key={`m${key++}`}
+          startFen={startFen}
+          moves={sans}
+        />,
+      );
+    }
     lastIdx = match.index + match[0].length;
   }
   if (lastIdx < content.length) {
@@ -79,6 +108,7 @@ export function PuzzleCoachBubble({
   content,
   startFen,
   streaming = false,
+  onCoachDemoRequest,
 }: PuzzleCoachBubbleProps) {
   const isUser = role === "user";
 
@@ -163,7 +193,9 @@ export function PuzzleCoachBubble({
             }),
           }}
         >
-          {isUser ? content : renderCoachContent(content, startFen)}
+          {isUser
+            ? content
+            : renderCoachContent(content, startFen, onCoachDemoRequest)}
         </Box>
       </Box>
     </motion.div>

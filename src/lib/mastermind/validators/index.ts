@@ -6,10 +6,15 @@ import { validateEvalClaim, ParserCall } from "./evalClaim";
 import { validateFeatureDeltaCitations } from "./featureDeltaCitation";
 import { validateScoutCitation } from "./scoutCitation";
 import { validateUserHistoryCitation } from "./userHistoryCitation";
+import { validateUserVisibility } from "./userVisibility";
+import { validatePositionalClaim } from "./positionalClaim";
+import { validateMateInN } from "./mateInN";
+import { validateMaterialWin } from "./materialWin";
 import { regenerateUntilValid, RegenerateResult } from "./regenerate";
 import { buildFallbackResponse, CoachTone } from "./fallback";
 import { createTelemetryEvent } from "./telemetry";
 import { ValidatorResult, TelemetryEvent, ScoutTimeClass } from "./types";
+import type { ConfidenceLevel } from "@/lib/grounding/voter";
 import type { ScoutAnalytics, Collisions } from "@/types/scout";
 import type { UserHistoryGame } from "../userHistoryAggregates";
 import type { QuestionCategory } from "../categorization/categoryClassifier";
@@ -28,6 +33,15 @@ export {
   USER_HISTORY_TOLERANCE,
 } from "./userHistoryCitation";
 export type { UserHistoryCitationOpts } from "./userHistoryCitation";
+// Stage 9 — claim-class validators (PR_STAGE9_VALIDATORS_PLAN.md)
+export { validateUserVisibility } from "./userVisibility";
+export type { UserVisibilityOpts } from "./userVisibility";
+export { validatePositionalClaim } from "./positionalClaim";
+export type { PositionalClaimOpts } from "./positionalClaim";
+export { validateMateInN } from "./mateInN";
+export type { MateInNOpts } from "./mateInN";
+export { validateMaterialWin } from "./materialWin";
+export type { MaterialWinOpts } from "./materialWin";
 export { regenerateUntilValid, buildRetryInstruction } from "./regenerate";
 export type { RegenerateOpts, RegenerateResult } from "./regenerate";
 export { buildFallbackResponse } from "./fallback";
@@ -140,6 +154,53 @@ export interface PipelineOpts {
    * that pre-date this field.
    */
   category?: QuestionCategory;
+  /**
+   * Stage 9 — per-position voter snapshot (PR_STAGE9_VALIDATORS_PLAN.md).
+   *
+   * The four claim-class validators (user_visibility, positional_claim,
+   * mate_in_n, material_win) consume this single snapshot. The route is
+   * responsible for picking the one snapshot that represents "the current
+   * position" — for `position_analysis` requests this is straightforward
+   * (the focused move's voter result); for `game_review` the route should
+   * pass `voterSnapshot: undefined` so the four validators no-op (a
+   * multi-position response can't be validated against a single snapshot
+   * without false positives — see plan §"Category gating").
+   *
+   * When undefined, all four Stage 9 validators short-circuit to null
+   * (no issues, no telemetry). Preserves byte-identical behavior for all
+   * callers that pre-date this field.
+   */
+  voterSnapshot?: VoterSnapshot;
+}
+
+/**
+ * Stage 9 — what the four claim-class validators need from the voter to
+ * enforce suppression rules against the LLM response.
+ *
+ * This is intentionally NOT the full VoterResult — it's the per-position
+ * subset the validators reference. The route composes this from the same
+ * inputs that built compileVoterResult upstream.
+ */
+export interface VoterSnapshot {
+  /** Voter confidence per claim class. Drives all four validator decisions. */
+  confidence: {
+    user_visibility: ConfidenceLevel;
+    positional_plan: ConfidenceLevel;
+    mate_in_n: ConfidenceLevel;
+    material_win: ConfidenceLevel;
+  };
+  /** maiaResult.prob_plays_best when Maia consulted; null otherwise. */
+  maiaProb: number | null;
+  /** User's rating for Maia threshold tuning; null when unknown. */
+  userRating: number | null;
+  /** Stockfish eval cp, White-positive. */
+  sfCp: number | null;
+  /** Stockfish forced-mate distance (positive = mate). */
+  sfMate: number | null;
+  /** Lc0 eval cp, same perspective as sfCp. null when not consulted. */
+  lc0Cp: number | null;
+  /** Syzygy distance-to-mate. null when not in tablebase range. */
+  syzygyDtm: number | null;
 }
 
 /**
@@ -275,11 +336,82 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
         })
       : Promise.resolve(null);
 
-    const [evalResult, citationResult, scoutResult, userHistoryResult] = await Promise.all([
+    // ─── Stage 9: claim-class validators ────────────────────────────────
+    // Four pure string-scan validators that enforce the suppression rules
+    // the voter emits into the prompt. All four run in parallel; each
+    // short-circuits to null when voterSnapshot is undefined (preservation
+    // contract: callers that pre-date Stage 9 see byte-identical output).
+    //
+    // Category gating: same scope as the existing eval-claim and
+    // feature-citation validators (POSITION_ANCHORED_VALIDATOR_CATEGORIES).
+    // A multi-position game_review response can't be validated against a
+    // single voter snapshot without systematic false positives — the route
+    // is expected to pass voterSnapshot: undefined for non-anchored
+    // categories, which the snapshot guard below honors implicitly.
+    const snap = opts.voterSnapshot;
+    const stage9Context = {
+      fen: opts.fen,
+      moveSan: opts.moveSan,
+      playerPerspective: opts.playerPerspective,
+      correlationId: opts.correlationId,
+    } as const;
+
+    const userVisibilityPromise: Promise<ValidatorResult | null> = snap
+      ? Promise.resolve(validateUserVisibility({
+          llmResponse: response,
+          maiaProb: snap.maiaProb,
+          userRating: snap.userRating,
+          ...stage9Context,
+        }))
+      : Promise.resolve(null);
+
+    const positionalClaimPromise: Promise<ValidatorResult | null> = snap
+      ? Promise.resolve(validatePositionalClaim({
+          llmResponse: response,
+          positional_plan: snap.confidence.positional_plan,
+          sfCp: snap.sfCp,
+          lc0Cp: snap.lc0Cp,
+          ...stage9Context,
+        }))
+      : Promise.resolve(null);
+
+    const mateInNPromise: Promise<ValidatorResult | null> = snap
+      ? Promise.resolve(validateMateInN({
+          llmResponse: response,
+          syzygyDtm: snap.syzygyDtm,
+          sfMate: snap.sfMate,
+          mate_in_n: snap.confidence.mate_in_n,
+          ...stage9Context,
+        }))
+      : Promise.resolve(null);
+
+    const materialWinPromise: Promise<ValidatorResult | null> = snap
+      ? Promise.resolve(validateMaterialWin({
+          llmResponse: response,
+          material_win: snap.confidence.material_win,
+          sfCp: snap.sfCp,
+          ...stage9Context,
+        }))
+      : Promise.resolve(null);
+
+    const [
+      evalResult,
+      citationResult,
+      scoutResult,
+      userHistoryResult,
+      userVisResult,
+      positionalResult,
+      mateResult,
+      materialResult,
+    ] = await Promise.all([
       evalPromise,
       citationPromise,
       scoutPromise,
       userHistoryPromise,
+      userVisibilityPromise,
+      positionalClaimPromise,
+      mateInNPromise,
+      materialWinPromise,
     ]);
 
     const issues = [
@@ -287,18 +419,30 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       ...citationResult.issues,
       ...(scoutResult?.issues ?? []),
       ...(userHistoryResult?.issues ?? []),
+      ...(userVisResult?.issues ?? []),
+      ...(positionalResult?.issues ?? []),
+      ...(mateResult?.issues ?? []),
+      ...(materialResult?.issues ?? []),
     ];
     const telemetry: TelemetryEvent[] = [
       ...evalResult.telemetry,
       ...citationResult.telemetry,
       ...(scoutResult?.telemetry ?? []),
       ...(userHistoryResult?.telemetry ?? []),
+      ...(userVisResult?.telemetry ?? []),
+      ...(positionalResult?.telemetry ?? []),
+      ...(mateResult?.telemetry ?? []),
+      ...(materialResult?.telemetry ?? []),
     ];
     const costUsd =
       evalResult.costUsd +
       citationResult.costUsd +
       (scoutResult?.costUsd ?? 0) +
-      (userHistoryResult?.costUsd ?? 0);
+      (userHistoryResult?.costUsd ?? 0) +
+      (userVisResult?.costUsd ?? 0) +
+      (positionalResult?.costUsd ?? 0) +
+      (mateResult?.costUsd ?? 0) +
+      (materialResult?.costUsd ?? 0);
     return {
       issues,
       passed: issues.length === 0,

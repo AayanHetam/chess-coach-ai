@@ -22,20 +22,32 @@ Do these in order. Steps 1–3 are GSC; steps 4–5 are the AI baseline. Without
 
 ### Step 2: Submit the sitemap (1 min)
 
-1. In GSC: **Sitemaps** → enter `sitemap.xml` → Submit.
-2. The sitemap already includes all 21 AEO pages plus core surfaces. After submission Google starts indexing them within days.
+**This is one entry, not many.** Steps 2 and 3 use different GSC tools — don't conflate them.
 
-### Step 3: Request priority indexing (3 min)
+1. In the GSC left sidebar: **Indexing → Sitemaps**.
+2. Under "Add a new sitemap" → type **exactly this** and click Submit:
+   ```
+   sitemap.xml
+   ```
+3. GSC prepends your property URL automatically. The result should be **one** sitemap entry with status "Success" and a Discovered pages count around 30.
 
-GSC will eventually crawl every URL but you can jump the queue for the canonical pages. Use **URL Inspection** at the top of GSC and paste each of these one at a time, clicking **Request Indexing**:
+> **⚠️ Common trap:** the Sitemaps field expects a sitemap file URL (e.g. `sitemap.xml`), not page URLs. Submitting `/free-ai-chess-coach` here will fail with "Sitemap is HTML" because GSC fetches the page, finds HTML markup, and rejects it. Individual page URLs go through URL Inspection (Step 3) instead.
 
-- `https://chessmasti.com/free-ai-chess-coach` ← top priority
-- `https://chessmasti.com/best-free-ai-chess-coach`
-- `https://chessmasti.com/how-to-analyze-lichess-game-with-ai`
-- `https://chessmasti.com/how-to-analyze-chess-com-game-with-ai`
-- `https://chessmasti.com/faq`
+### Step 3: Request priority indexing — different tool (3 min)
 
-The two how-to pages have HowTo schema and the FAQ has FAQPage schema — both are eligible for rich-result treatment and should be prioritized.
+The **URL Inspection** tool is **NOT under Sitemaps**. It's the long search bar at the very top of every GSC page that says "Inspect any URL in 'https://www.chessmasti.com/'".
+
+Paste each of these full URLs into that top search bar, one at a time. After GSC analyzes the URL, click **Request Indexing**:
+
+- `https://www.chessmasti.com/free-ai-chess-coach` ← top priority
+- `https://www.chessmasti.com/best-free-ai-chess-coach`
+- `https://www.chessmasti.com/how-to-analyze-lichess-game-with-ai`
+- `https://www.chessmasti.com/how-to-analyze-chess-com-game-with-ai`
+- `https://www.chessmasti.com/faq`
+
+The two how-to pages have HowTo schema and the FAQ has FAQPage schema — both are eligible for rich-result treatment, which is why they jump the queue. Each Request Indexing click takes about 10 seconds; the page enters Google's crawl queue at higher priority than waiting for the sitemap walk to reach it.
+
+> **Why two tools:** Sitemaps (Step 2) tells Google "here's everything I have." URL Inspection (Step 3) says "crawl this specific page now." The first is a one-shot list submission; the second is per-page priority pushing.
 
 ### Step 4: AI citation baseline (5 min)
 

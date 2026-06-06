@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import {
   AnswerBlock,
   Breadcrumb,
@@ -100,7 +99,7 @@ export default function HowToAnalyzeLichessGameWithAiPage() {
   return (
     <PageShell>
       {schemas.map((schema, i) => (
-        <Script
+        <script
           key={i}
           id={`ld-${i}`}
           type="application/ld+json"

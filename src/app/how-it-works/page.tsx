@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import {
@@ -148,17 +147,17 @@ function NumberBubble({ children }: { children: React.ReactNode }) {
 export default function HowItWorksPage() {
   return (
     <PageShell>
-      <Script
+      <script
         id="webpage-ld"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
       />
-      <Script
+      <script
         id="breadcrumb-ld"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-      <Script
+      <script
         id="howto-ld"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }}

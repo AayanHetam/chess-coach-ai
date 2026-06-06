@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import {
@@ -75,7 +74,7 @@ export default function MistakeBasedChessPuzzlesPage() {
   return (
     <PageShell>
       {schemas.map((schema, i) => (
-        <Script
+        <script
           key={i}
           id={`ld-${i}`}
           type="application/ld+json"

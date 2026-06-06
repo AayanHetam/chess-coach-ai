@@ -139,16 +139,12 @@ export function CoachShareDialog({
 
   const permalink = useMemo(() => {
     if (typeof window === "undefined") return "";
+    // Post-cutover (2026-06-04): /analysis IS the canonical surface (the
+    // former /preview/analysis dark-glass implementation). Always share
+    // the canonical URL; /preview/analysis 308-redirects to /analysis,
+    // but sharing the canonical avoids unfurl-cache churn.
     const path = buildSnippetUrl(data.fen, insightId);
-    // production buildSnippetUrl returns "/analysis?…" — when the user is
-    // still on the preview surface, point at the preview path for now. After
-    // cutover this is a no-op.
-    const previewPath =
-      typeof window !== "undefined" &&
-      window.location.pathname.startsWith("/preview/")
-        ? path.replace("/analysis", "/preview/analysis")
-        : path;
-    return `${window.location.origin}${previewPath}`;
+    return `${window.location.origin}${path}`;
   }, [data.fen, insightId]);
 
   const showToast = useCallback((text: string) => {

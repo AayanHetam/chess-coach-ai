@@ -30,9 +30,8 @@ import { parseSolutionMoves } from "@/lib/puzzleSolution";
 import { usePuzzleFeed } from "@/hooks/usePuzzleFeed";
 import type { PuzzleOutcome } from "@/lib/validation/puzzleChatSchemas";
 
-const ChessgroundBoard = dynamic(
-  () =>
-    import("@/components/ui/ChessgroundBoard").then((m) => m.ChessgroundBoard),
+const PuzzleBoard = dynamic(
+  () => import("@/components/puzzle/PuzzleBoard").then((m) => m.PuzzleBoard),
   { ssr: false },
 );
 
@@ -65,8 +64,6 @@ const puzzleTheme = createTheme({
   },
 });
 
-const DARK_SQUARE = "#5C4630";
-const LIGHT_SQUARE = "#F0D9B5";
 const EASE_OUT_STRONG: [number, number, number, number] = [0.23, 1, 0.32, 1];
 
 type AttemptStatus = "playing" | "wrong" | "solved";
@@ -184,7 +181,6 @@ export default function PreviewPuzzlesPage() {
   const [wrongSquare, setWrongSquare] = useState<string | null>(null);
   const [lastWrongSan, setLastWrongSan] = useState<string | null>(null);
   const [wrongAttempts, setWrongAttempts] = useState(0);
-  const [boardSyncTick, setBoardSyncTick] = useState(0);
 
   // Reset board state whenever the puzzle changes.
   useEffect(() => {
@@ -196,7 +192,6 @@ export default function PreviewPuzzlesPage() {
     setWrongSquare(null);
     setLastWrongSan(null);
     setWrongAttempts(0);
-    setBoardSyncTick((t) => t + 1);
   }, [studentStartFen]);
 
   const orientation = useMemo<"white" | "black">(() => {
@@ -208,25 +203,11 @@ export default function PreviewPuzzlesPage() {
     }
   }, [studentStartFen]);
 
-  const dests = useMemo<Map<string, string[]>>(() => {
-    const m = new Map<string, string[]>();
-    try {
-      for (const mv of game.moves({ verbose: true })) {
-        const arr = m.get(mv.from) ?? [];
-        arr.push(mv.to);
-        m.set(mv.from, arr);
-      }
-    } catch {
-      /* ignore */
-    }
-    return m;
-  }, [game]);
-
   const handleMove = useCallback(
-    (orig: string, dest: string) => {
-      if (status === "solved") return;
+    (orig: string, dest: string): boolean => {
+      if (status === "solved") return false;
       const expected = parsedMoves[moveIdx];
-      if (!expected) return;
+      if (!expected) return false;
       const isCorrect = orig === expected.from && dest === expected.to;
       if (!isCorrect) {
         let attemptedSan: string | null = null;
@@ -241,8 +222,8 @@ export default function PreviewPuzzlesPage() {
         setWrongSquare(dest);
         setWrongAttempts((n) => n + 1);
         setStatus("wrong");
-        setBoardSyncTick((t) => t + 1);
-        return;
+        // Return false → react-chessboard snaps the piece back to its origin.
+        return false;
       }
 
       const next = new Chess(game.fen());
@@ -251,7 +232,7 @@ export default function PreviewPuzzlesPage() {
         to: expected.to,
         promotion: expected.promotion,
       });
-      if (!userMove) return;
+      if (!userMove) return false;
       setGame(next);
       setLastMove([expected.from, expected.to]);
       setWrongSquare(null);
@@ -260,7 +241,7 @@ export default function PreviewPuzzlesPage() {
       if (nextIdx >= parsedMoves.length) {
         setMoveIdx(nextIdx);
         setStatus("solved");
-        return;
+        return true;
       }
 
       const opp = parsedMoves[nextIdx];
@@ -281,6 +262,7 @@ export default function PreviewPuzzlesPage() {
 
       setMoveIdx(nextIdx);
       setStatus("playing");
+      return true;
     },
     [game, moveIdx, parsedMoves, status],
   );
@@ -294,7 +276,6 @@ export default function PreviewPuzzlesPage() {
     setWrongSquare(null);
     setLastWrongSan(null);
     setWrongAttempts(0);
-    setBoardSyncTick((t) => t + 1);
   }, [studentStartFen]);
 
   const handleNextPuzzle = useCallback(() => {
@@ -307,20 +288,8 @@ export default function PreviewPuzzlesPage() {
     return "unattempted";
   }, [status, wrongAttempts]);
 
-  const customSquareStyles = useMemo<Array<{ orig: string; brush: string }>>(() => {
-    const out: Array<{ orig: string; brush: string }> = [];
-    if (wrongSquare && status === "wrong") {
-      out.push({ orig: wrongSquare, brush: "red" });
-    }
-    return out;
-  }, [wrongSquare, status]);
-
   const interactive = status !== "solved" && !!puzzle;
-  const movableColor = interactive
-    ? game.turn() === "w"
-      ? "white"
-      : "black"
-    : undefined;
+  const boardWrongSquare = wrongSquare && status === "wrong" ? wrongSquare : null;
 
   return (
     <ThemeProvider theme={puzzleTheme}>
@@ -335,14 +304,6 @@ export default function PreviewPuzzlesPage() {
           ::-webkit-scrollbar-thumb {
             background: rgba(255,122,26,0.18);
             border-radius: 4px;
-          }
-          .cg-wrap cg-board square.light { background-color: ${LIGHT_SQUARE} !important; }
-          .cg-wrap cg-board square.dark { background-color: ${DARK_SQUARE} !important; }
-          .cg-wrap cg-board square.last-move { background-color: rgba(255,122,26,0.42) !important; }
-          .cg-wrap coords, .cg-wrap coords coord {
-            color: #FFFFFF !important;
-            font-weight: 700;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
           }
         `}</style>
       </Head>
@@ -509,16 +470,13 @@ export default function PreviewPuzzlesPage() {
                         boxShadow: "0 0 0 1px rgba(255,255,255,0.06)",
                       }}
                     >
-                      <ChessgroundBoard
+                      <PuzzleBoard
                         fen={game.fen()}
                         orientation={orientation}
-                        lastMove={lastMove ?? undefined}
-                        movableColor={movableColor}
-                        dests={interactive ? dests : undefined}
-                        onMove={interactive ? handleMove : undefined}
-                        shapes={customSquareStyles}
-                        syncTick={boardSyncTick}
-                        viewOnly={false}
+                        interactive={interactive}
+                        lastMove={lastMove}
+                        wrongSquare={boardWrongSquare}
+                        onMove={handleMove}
                       />
                     </Box>
 

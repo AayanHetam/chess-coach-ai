@@ -11,6 +11,13 @@ venv_gameknot/
 *.pb
 *.pyc
 *.csv
+# Puzzle Coach feed needs the 100k Lichess puzzle CSV shipped as a
+# static asset. .vercelignore's *.csv glob was stripping it from every
+# deploy regardless of path (data/, src/data/, public/data/), causing
+# /api/puzzle-feed to 503 with "Couldn't load puzzles" on /preview/puzzles.
+# Negation re-includes the file. Other CSVs (training data dumps, etc.)
+# stay excluded.
+!public/data/lichess_puzzles_100k.csv
 *.log
 *.tar.gz
 __pycache__/

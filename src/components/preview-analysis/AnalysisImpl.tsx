@@ -8333,6 +8333,8 @@ export default function AnalysisPage() {
                         onSendToCoach={handleTakeoverSendToCoach}
                         onRevert={() => handleTabChange("coach")}
                         onCandidatesUpdate={setTakeoverCandidates}
+                        moves={allMoves}
+                        onJumpToPly={setCurrentPly}
                       />
                     </motion.div>
                   )}

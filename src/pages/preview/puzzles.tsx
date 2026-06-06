@@ -194,6 +194,21 @@ export default function PreviewPuzzlesPage() {
     setWrongAttempts(0);
   }, [studentStartFen]);
 
+  // "wrong" status auto-reverts to "playing" so the user can retry without
+  // any "reset" gesture. Re-keys on wrongAttempts so each new wrong move
+  // restarts the flash window. The board's wrongSquare highlight also
+  // clears when the flash ends. coachOutcome stays "wrong" via wrongAttempts
+  // — the coach should keep reacting to the wrong attempt even after the
+  // visual flash fades.
+  useEffect(() => {
+    if (status !== "wrong") return;
+    const t = setTimeout(() => {
+      setStatus("playing");
+      setWrongSquare(null);
+    }, 1400);
+    return () => clearTimeout(t);
+  }, [status, wrongAttempts]);
+
   const orientation = useMemo<"white" | "black">(() => {
     if (!studentStartFen) return "white";
     try {
@@ -221,8 +236,12 @@ export default function PreviewPuzzlesPage() {
         setLastWrongSan(attemptedSan);
         setWrongSquare(dest);
         setWrongAttempts((n) => n + 1);
+        // "wrong" is a transient flash, not a terminal lock — the auto-revert
+        // effect below flips status back to "playing" after ~1.4s so the user
+        // can retry as many times as they want. `coachOutcome` separately
+        // sticks to "wrong" via the wrongAttempts counter, so the coach still
+        // knows the user made a wrong attempt.
         setStatus("wrong");
-        // Return false → react-chessboard snaps the piece back to its origin.
         return false;
       }
 
@@ -284,7 +303,9 @@ export default function PreviewPuzzlesPage() {
 
   const coachOutcome: PuzzleOutcome = useMemo(() => {
     if (status === "solved") return "solved";
-    if (status === "wrong" && wrongAttempts > 0) return "wrong";
+    // Sticky on wrongAttempts (not on transient status === "wrong") so the
+    // coach keeps seeing "wrong" after the visual flash fades.
+    if (wrongAttempts > 0) return "wrong";
     return "unattempted";
   }, [status, wrongAttempts]);
 
@@ -426,11 +447,11 @@ export default function PreviewPuzzlesPage() {
               display: "grid",
               gridTemplateColumns: {
                 xs: "1fr",
-                lg: "minmax(0, 1fr) minmax(360px, 460px)",
+                lg: "minmax(0, 1fr) minmax(440px, 540px)",
               },
               gap: { xs: 3, lg: 3.5 },
               alignItems: "stretch",
-              minHeight: { lg: "clamp(620px, 78vh, 820px)" },
+              minHeight: { lg: "clamp(540px, 70vh, 740px)" },
             }}
           >
             {/* Board column */}
@@ -602,7 +623,7 @@ export default function PreviewPuzzlesPage() {
                           },
                         }}
                       >
-                        {status === "solved" ? "Next puzzle" : "Skip"}
+                        Next puzzle
                       </Button>
                     </Stack>
                   </>

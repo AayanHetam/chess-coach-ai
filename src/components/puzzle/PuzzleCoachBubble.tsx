@@ -4,6 +4,7 @@ import { Box, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import { Sparkles, User } from "lucide-react";
 import { PuzzleCoachMiniboard } from "./PuzzleCoachMiniboard";
+import { GlossifiedText } from "./ChessTermGlossary";
 
 /**
  * Chat-style bubble for the Puzzle Coach. Two roles: "user" (right-aligned,
@@ -47,7 +48,8 @@ function renderCoachContent(
   while ((match = re.exec(content)) !== null) {
     if (match.index > lastIdx) {
       const prose = content.slice(lastIdx, match.index);
-      if (prose) out.push(<span key={`p${key++}`}>{prose}</span>);
+      if (prose)
+        out.push(<GlossifiedText key={`p${key++}`} text={prose} />);
     }
     const sansRaw = match[1] || "";
     const sans = sansRaw
@@ -64,9 +66,11 @@ function renderCoachContent(
     lastIdx = match.index + match[0].length;
   }
   if (lastIdx < content.length) {
-    out.push(<span key={`p${key++}`}>{content.slice(lastIdx)}</span>);
+    out.push(
+      <GlossifiedText key={`p${key++}`} text={content.slice(lastIdx)} />,
+    );
   }
-  if (out.length === 0) out.push(<span key="empty">{content}</span>);
+  if (out.length === 0) out.push(<GlossifiedText key="empty" text={content} />);
   return out;
 }
 

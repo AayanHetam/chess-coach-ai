@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import {
@@ -105,12 +104,12 @@ const ulSx = {
 export default function VsPage() {
   return (
     <PageShell>
-      <Script
+      <script
         id="webpage-ld"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
       />
-      <Script
+      <script
         id="breadcrumb-ld"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}

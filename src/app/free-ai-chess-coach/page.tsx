@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Script from "next/script";
 import {
   AEO_TOKENS,
   AnswerBlock,
@@ -121,7 +120,7 @@ export default function FreeAiChessCoachPage() {
   return (
     <PageShell>
       {schemas.map((schema, i) => (
-        <Script
+        <script
           key={i}
           id={`ld-${i}`}
           type="application/ld+json"

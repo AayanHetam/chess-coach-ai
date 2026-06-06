@@ -78,15 +78,19 @@ export async function GET(_req: NextRequest) {
         {/* sub */}
         <div
           style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 12,
             fontSize: 28,
             color: "rgba(255,255,255,0.55)",
             lineHeight: 1.5,
             maxWidth: 800,
           }}
         >
-          Stockfish analysis.{"  "}
+          <span>Stockfish analysis.</span>
           <span style={{ color: "rgba(255,107,43,0.9)" }}>Claude explanations.</span>
-          {"  "}Mistake-based drills.{"  "}Free.
+          <span>Mistake-based drills.</span>
+          <span>Free.</span>
         </div>
       </div>
     ),

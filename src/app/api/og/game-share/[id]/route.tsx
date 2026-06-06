@@ -229,12 +229,13 @@ export async function GET(
             )}
             <div
               style={{
+                display: "flex",
                 marginTop: 18,
                 color: MUTED,
                 fontSize: 16,
               }}
             >
-              {side === "b" ? "Black" : "White"} to move (final position)
+              {`${side === "b" ? "Black" : "White"} to move (final position)`}
             </div>
           </div>
         </div>

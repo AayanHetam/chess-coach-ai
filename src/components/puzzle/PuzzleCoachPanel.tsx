@@ -72,6 +72,9 @@ interface PuzzleCoachPanelProps {
   onRequestMorePuzzles?: () => void;
   /** Fired when the user resets the puzzle. Panel clears history. */
   onResetPuzzle?: () => void;
+  /** Fired when the user taps "Show on board" inside a DemoMoveCard. Parent
+   *  opens the DemoMoveDialog and drives the demo on the main board. */
+  onCoachDemoRequest?: (moves: string[]) => void;
 }
 
 const SUGGESTED_FOLLOWUPS = [
@@ -88,6 +91,7 @@ export function PuzzleCoachPanel({
   userRating,
   onRequestMorePuzzles,
   onResetPuzzle,
+  onCoachDemoRequest,
 }: PuzzleCoachPanelProps) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
@@ -469,6 +473,7 @@ export function PuzzleCoachPanel({
             content={t.content || (t.streaming ? "" : "(empty)")}
             startFen={studentStartFen}
             streaming={!!t.streaming}
+            onCoachDemoRequest={onCoachDemoRequest}
           />
         ))}
 

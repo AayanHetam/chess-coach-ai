@@ -1,50 +1,62 @@
 # Chess Masti AEO — Weekly Scorecard
 
-Companion to [AEO_GROWTH_PLAN.md](AEO_GROWTH_PLAN.md). Fill in every Sunday. Aug 31 2026 is the pivot trigger.
+Companion to [AEO_GROWTH_PLAN.md](AEO_GROWTH_PLAN.md). Fill in every Sunday. **Aug 31 2026 is the pivot trigger.**
+
+> **Code surface status (2026-06-06):** All 21 AEO pages live in production with JSON-LD validated in SSR HTML. Sitemap, robots, OG cards green. The bottleneck is now measurement setup, not code.
 
 ---
 
-## One-Time Setup Checklist
+## One-Time Setup Runbook (15 min)
 
-Complete before PR 1 ships. These create the baselines. Without them you cannot answer "did the AEO work move the needle?"
+Do these in order. Steps 1–3 are GSC; steps 4–5 are the AI baseline. Without these, the Aug 31 pivot trigger is unreadable.
 
-### Google Search Console
+### Step 1: Verify chessmasti.com in Google Search Console (3 min)
 
-- [ ] Sign in at search.google.com/search-console
-- [ ] Add property: `https://chessmasti.com` (URL-prefix property)
-- [ ] Verify via one method:
-  - HTML file: download, upload to `/public/`, deploy, click Verify
-  - DNS TXT record: add `google-site-verification=...` to Vercel DNS (Settings → Domains → DNS)
-  - Google Analytics: GA4 is already wired (`NEXT_PUBLIC_GA_MEASUREMENT_ID`), pick this if GSC auto-detects it
-- [ ] Request indexing for `/` via the URL Inspection tool
-- [ ] Confirm sitemap submitted: Settings → Sitemaps → `https://chessmasti.com/sitemap.xml` → Submit
-- [ ] Pin the Performance report. Default date range: Last 28 days. Default filter: Web.
+1. Open **[search.google.com/search-console](https://search.google.com/search-console)** in a browser signed into the Google account that owns the Firebase project (the one that has the GA4 `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`).
+2. Click **Add property** → **URL prefix** → paste `https://chessmasti.com` → Continue.
+3. GSC offers verification methods. **Pick "Google Analytics" first** — it should one-click verify because GA4 is already wired in [layout.tsx](src/app/layout.tsx). If it doesn't show up, fall back to:
+   - **HTML file:** download the file (named like `google1234abc.html`), paste the filename into a fresh chat with Claude, who'll add it to `/public/` in a 30-second PR. After deploy click Verify.
+   - **DNS TXT record:** add the TXT record to Vercel DNS (Settings → Domains → DNS). Propagation can take 10–60 min before Verify works.
 
-### GA4 (already wired via Firebase)
+✅ Done when GSC shows your property as verified.
 
-- [ ] Confirm GA4 is receiving sessions: Realtime → open chessmasti.com → see active users
-- [ ] Create a custom audience or event filter for AEO pages (add as pages ship):
-  - `/free-ai-chess-coach`
-  - `/ai-chess-coach`
-  - `/free-chess-analysis`
-  - `/stockfish-ai-chess-coach`
-  - `/decodechess-alternative`
-  - `/noctie-alternative`
+### Step 2: Submit the sitemap (1 min)
 
-### Manual AI Citation Baseline
+1. In GSC: **Sitemaps** → enter `sitemap.xml` → Submit.
+2. The sitemap already includes all 21 AEO pages plus core surfaces. After submission Google starts indexing them within days.
 
-Run these prompts once now to capture the pre-PR baseline. Copy the exact first paragraph of each answer into the table below.
+### Step 3: Request priority indexing (3 min)
+
+GSC will eventually crawl every URL but you can jump the queue for the canonical pages. Use **URL Inspection** at the top of GSC and paste each of these one at a time, clicking **Request Indexing**:
+
+- `https://chessmasti.com/free-ai-chess-coach` ← top priority
+- `https://chessmasti.com/best-free-ai-chess-coach`
+- `https://chessmasti.com/how-to-analyze-lichess-game-with-ai`
+- `https://chessmasti.com/how-to-analyze-chess-com-game-with-ai`
+- `https://chessmasti.com/faq`
+
+The two how-to pages have HowTo schema and the FAQ has FAQPage schema — both are eligible for rich-result treatment and should be prioritized.
+
+### Step 4: AI citation baseline (5 min)
+
+Open each engine in a fresh tab (signed out / incognito if possible to avoid personalization bias). Run the exact prompt. Copy the first paragraph of the response into the table below. If Chess Masti **is** mentioned, paste the sentence; otherwise leave the snippet column "—".
+
+This snapshot is the "before." Re-run on the first Sunday of every month. When Chess Masti starts appearing, that's the AEO investment paying off.
 
 | Engine | Prompt | Date | Chess Masti mentioned? | Citation snippet |
 |---|---|---|---|---|
-| ChatGPT | "What is the best free AI chess coach?" | | No | — |
-| ChatGPT | "Free AI chess coach online" | | No | — |
-| Perplexity | "What is the best free AI chess coach?" | | No | — |
-| Perplexity | "Free alternative to DecodeChess" | | No | — |
-| Gemini | "Best free AI chess coach" | | No | — |
-| Bing Copilot | "Free AI chess coach" | | No | — |
+| ChatGPT | "What is the best free AI chess coach?" | 2026-06-06 | _fill in_ | _fill in_ |
+| ChatGPT | "Free AI chess coach online" | 2026-06-06 | _fill in_ | _fill in_ |
+| Perplexity | "What is the best free AI chess coach?" | 2026-06-06 | _fill in_ | _fill in_ |
+| Perplexity | "Free alternative to DecodeChess" | 2026-06-06 | _fill in_ | _fill in_ |
+| Gemini | "Best free AI chess coach" | 2026-06-06 | _fill in_ | _fill in_ |
+| Bing Copilot | "Free AI chess coach" | 2026-06-06 | _fill in_ | _fill in_ |
 
-Re-run this table once a month (first Sunday).
+### Step 5: GA4 sanity check (2 min)
+
+1. Open analytics.google.com → Chess Masti property → **Realtime**.
+2. Open chessmasti.com in another tab. You should appear as an active user within ~30 seconds.
+3. If not: GA4 isn't reporting and Step 1's GA-based GSC verification won't work either — verify via HTML file instead.
 
 ---
 

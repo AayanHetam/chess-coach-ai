@@ -76,6 +76,35 @@ describe("validatePositionalClaim — ungrounded claims (no Lc0 veto)", () => {
     expect(result.telemetry[0].fire_reason).toBe("positional_overclaim_without_voter_high");
   });
 
+  // 2026-06-06 live-test-feedback: stage9-live-test.ts found Sonnet uses
+  // "dominates" (verb form) on adversarial-prompt fx-02. v1 regex only had
+  // the gerund "dominating" and missed it. Patched to dominat(ing|es|ed);
+  // these tests lock in the new behaviour and document the live-test
+  // provenance for future readers.
+  it("fires on 'dominates' (verb form) when positional_plan is NONE", () => {
+    const result = validatePositionalClaim({
+      llmResponse: "White dominates this position.",
+      positional_plan: "NONE",
+      sfCp: 30,
+      lc0Cp: null,
+      correlationId: CORR,
+    });
+    expect(result.passed).toBe(false);
+    expect(result.issues[0].llm_span).toBe("dominates");
+  });
+
+  it("fires on 'dominated' (past tense) when positional_plan is NONE", () => {
+    const result = validatePositionalClaim({
+      llmResponse: "Black dominated the kingside throughout.",
+      positional_plan: "NONE",
+      sfCp: -30,
+      lc0Cp: null,
+      correlationId: CORR,
+    });
+    expect(result.passed).toBe(false);
+    expect(result.issues[0].llm_span).toBe("dominated");
+  });
+
   it("fires on 'strategically winning'", () => {
     const result = validatePositionalClaim({
       llmResponse: "White is strategically winning here.",

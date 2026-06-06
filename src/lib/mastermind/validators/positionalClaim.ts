@@ -45,7 +45,11 @@ export interface PositionalClaimOpts {
  *
  * Restricted token list — these are the canonically over-stated phrases:
  * - "strategically winning" / "strategically crushing"
- * - "dominating"
+ * - "dominating" / "dominates" / "dominated"   (live-test 2026-06-06 caught
+ *                                                  Sonnet using the verb form
+ *                                                  "White dominates this
+ *                                                  position" — v1 only had
+ *                                                  the gerund, slipped through)
  * - "completely winning" / "completely won" / "completely lost"
  * - "overwhelming advantage"
  * - "decisive advantage" / "decisive edge"
@@ -54,7 +58,7 @@ export interface PositionalClaimOpts {
  * "better position", "active pieces". Coach prose at MED confidence uses
  * these legitimately; firing on them would over-suppress.
  */
-const POSITIONAL_TOKEN_REGEX = /\b(?:strategically (?:winning|crushing)|dominating|completely (?:winning|won|lost)|overwhelming advantage|decisive (?:advantage|edge))\b/gi;
+const POSITIONAL_TOKEN_REGEX = /\b(?:strategically (?:winning|crushing)|dominat(?:ing|es|ed)|completely (?:winning|won|lost)|overwhelming advantage|decisive (?:advantage|edge))\b/gi;
 
 interface PositionalMatch {
   raw: string;

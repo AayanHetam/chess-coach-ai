@@ -28,6 +28,7 @@ import type {
   PuzzleOutcome,
 } from "@/lib/validation/puzzleChatSchemas";
 import type {
+  CoachHighlight,
   HintStage,
   PuzzleHintResponse,
   TermMention,
@@ -90,6 +91,10 @@ interface PuzzleCoachPanelProps {
   /** Fired when the user taps "Show on board" inside a DemoMoveCard. Parent
    *  opens the DemoMoveDialog and drives the demo on the main board. */
   onCoachDemoRequest?: (moves: string[]) => void;
+  /** Fired when the user taps "Show on board" inside a glossary-chip
+   *  popover. Parent paints the highlight on the puzzle board until the
+   *  user makes another move / clicks elsewhere. (PR-C.3) */
+  onShowCoachHighlight?: (highlight: CoachHighlight) => void;
 }
 
 const SUGGESTED_FOLLOWUPS = [
@@ -107,6 +112,7 @@ export function PuzzleCoachPanel({
   onRequestMorePuzzles,
   onResetPuzzle,
   onCoachDemoRequest,
+  onShowCoachHighlight,
 }: PuzzleCoachPanelProps) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
@@ -599,6 +605,8 @@ export function PuzzleCoachPanel({
             startFen={studentStartFen}
             streaming={!!t.streaming}
             onCoachDemoRequest={onCoachDemoRequest}
+            mentions={t.mentions}
+            onShowCoachHighlight={onShowCoachHighlight}
           />
         ))}
 

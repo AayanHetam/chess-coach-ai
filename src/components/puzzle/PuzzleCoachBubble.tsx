@@ -6,6 +6,10 @@ import { Sparkles, User } from "lucide-react";
 import { PuzzleCoachMiniboard } from "./PuzzleCoachMiniboard";
 import { GlossifiedText } from "./ChessTermGlossary";
 import { DemoMoveCard } from "./DemoMoveCard";
+import type {
+  CoachHighlight,
+  TermMention,
+} from "@/lib/validation/puzzleHintSchemas";
 
 /**
  * Chat-style bubble for the Puzzle Coach. Two roles: "user" (right-aligned,
@@ -41,13 +45,22 @@ interface PuzzleCoachBubbleProps {
   /** Called when the user taps "Show on board" inside a DemoMoveCard.
    *  Bubble passes the SAN sequence up; parent opens DemoMoveDialog. */
   onCoachDemoRequest?: (moves: string[]) => void;
+  /** Structured term highlights this turn (from /api/puzzle-hint). When a
+   *  glossary chip is tapped and the term has a matching mention, the
+   *  popover surfaces a "Show on board" button. (PR-C.3) */
+  mentions?: TermMention[];
+  onShowCoachHighlight?: (highlight: CoachHighlight) => void;
 }
 
 /** Render coach content with inline miniboards / demo cards in place of tags. */
 function renderCoachContent(
   content: string,
   startFen: string,
-  onCoachDemoRequest?: (moves: string[]) => void,
+  onCoachDemoRequest: ((moves: string[]) => void) | undefined,
+  mentions: TermMention[] | undefined,
+  onShowCoachHighlight:
+    | ((highlight: CoachHighlight) => void)
+    | undefined,
 ): React.ReactNode[] {
   const out: React.ReactNode[] = [];
   let lastIdx = 0;
@@ -58,7 +71,14 @@ function renderCoachContent(
     if (match.index > lastIdx) {
       const prose = content.slice(lastIdx, match.index);
       if (prose)
-        out.push(<GlossifiedText key={`p${key++}`} text={prose} />);
+        out.push(
+          <GlossifiedText
+            key={`p${key++}`}
+            text={prose}
+            mentions={mentions}
+            onShowOnBoard={onShowCoachHighlight}
+          />,
+        );
     }
     const tagKind = match[1] as "SHOW_MOVE" | "POSITION_AFTER";
     const sansRaw = match[2] || "";
@@ -96,10 +116,23 @@ function renderCoachContent(
   }
   if (lastIdx < content.length) {
     out.push(
-      <GlossifiedText key={`p${key++}`} text={content.slice(lastIdx)} />,
+      <GlossifiedText
+        key={`p${key++}`}
+        text={content.slice(lastIdx)}
+        mentions={mentions}
+        onShowOnBoard={onShowCoachHighlight}
+      />,
     );
   }
-  if (out.length === 0) out.push(<GlossifiedText key="empty" text={content} />);
+  if (out.length === 0)
+    out.push(
+      <GlossifiedText
+        key="empty"
+        text={content}
+        mentions={mentions}
+        onShowOnBoard={onShowCoachHighlight}
+      />,
+    );
   return out;
 }
 
@@ -109,6 +142,8 @@ export function PuzzleCoachBubble({
   startFen,
   streaming = false,
   onCoachDemoRequest,
+  mentions,
+  onShowCoachHighlight,
 }: PuzzleCoachBubbleProps) {
   const isUser = role === "user";
 
@@ -195,7 +230,13 @@ export function PuzzleCoachBubble({
         >
           {isUser
             ? content
-            : renderCoachContent(content, startFen, onCoachDemoRequest)}
+            : renderCoachContent(
+                content,
+                startFen,
+                onCoachDemoRequest,
+                mentions,
+                onShowCoachHighlight,
+              )}
         </Box>
       </Box>
     </motion.div>

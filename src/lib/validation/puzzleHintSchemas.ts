@@ -88,3 +88,16 @@ export const puzzleHintResponseSchema = z.object({
   }),
 });
 export type PuzzleHintResponse = z.infer<typeof puzzleHintResponseSchema>;
+
+/**
+ * Resolved highlight ready for the board to paint. Carries the squares
+ * + the color (mapped to CSS by PuzzleBoard's overlay table). Derived
+ * from a `TermMention` plus the chip-click event in PR-C.3.
+ */
+export interface CoachHighlight {
+  /** Squares to overlay (a1-h8). */
+  squares: string[];
+  color: MentionColor;
+  /** Term that produced this highlight — purely for telemetry / debug. */
+  term?: string;
+}

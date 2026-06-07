@@ -8,6 +8,10 @@ import type {
   Piece,
   Square,
 } from "react-chessboard/dist/chessboard/types";
+import type {
+  CoachHighlight,
+  MentionColor,
+} from "@/lib/validation/puzzleHintSchemas";
 
 /**
  * react-chessboard wrapper for the Puzzle Coach.
@@ -35,6 +39,9 @@ interface PuzzleBoardProps {
   lastMove?: [string, string] | null;
   /** Flashes red on the square the user just dropped on after a wrong move. */
   wrongSquare?: string | null;
+  /** Coach-triggered overlay (PR-C.3). Painted under any selection /
+   *  last-move highlight so it doesn't fight with user-driven cues. */
+  coachHighlights?: CoachHighlight | null;
   /**
    * Called when the user attempts a legal chess move. Return true to accept
    * (board keeps the visual position; the parent's `fen` change will sync on
@@ -53,12 +60,23 @@ const LEGAL_CAPTURE_SHADOW = "inset 0 0 0 3px rgba(255,255,255,0.45)";
 const LIGHT_SQUARE = "#F0D9B5";
 const DARK_SQUARE = "#5C4630";
 
+/** Per-color fill table for coach-triggered overlays. Translucent so the
+ *  piece glyph still reads on top. */
+const COACH_HIGHLIGHT_BG: Record<MentionColor, string> = {
+  red: "rgba(239, 68, 68, 0.45)",
+  blue: "rgba(59, 130, 246, 0.45)",
+  yellow: "rgba(251, 191, 36, 0.45)",
+  green: "rgba(34, 197, 94, 0.45)",
+  orange: "rgba(255, 122, 26, 0.45)",
+};
+
 export function PuzzleBoard({
   fen,
   orientation,
   interactive,
   lastMove,
   wrongSquare,
+  coachHighlights,
   onMove,
 }: PuzzleBoardProps) {
   const game = useMemo(() => {
@@ -105,6 +123,16 @@ export function PuzzleBoard({
     const set = (sq: Square, patch: React.CSSProperties) => {
       styles[sq] = { ...(styles[sq] ?? {}), ...patch };
     };
+    // Coach overlays paint first so user-driven cues (selection,
+    // last-move, wrong-flash, legal-target dots) overlay on top.
+    if (coachHighlights && coachHighlights.squares.length > 0) {
+      const fill = COACH_HIGHLIGHT_BG[coachHighlights.color];
+      for (const sq of coachHighlights.squares) {
+        if (/^[a-h][1-8]$/.test(sq)) {
+          set(sq as Square, { background: fill });
+        }
+      }
+    }
     if (lastMove) {
       set(lastMove[0] as Square, { background: LAST_MOVE_BG });
       set(lastMove[1] as Square, { background: LAST_MOVE_BG });
@@ -116,7 +144,7 @@ export function PuzzleBoard({
     for (const sq of captureSquares) set(sq, { boxShadow: LEGAL_CAPTURE_SHADOW });
     if (selected) set(selected, { background: SELECTED_BG });
     return styles as CustomSquareStyles;
-  }, [lastMove, wrongSquare, dotSquares, captureSquares, selected]);
+  }, [coachHighlights, lastMove, wrongSquare, dotSquares, captureSquares, selected]);
 
   // Validate legality, then delegate to parent. Returns the parent's verdict
   // so react-chessboard knows whether to keep the visual position or snap

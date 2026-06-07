@@ -1,8 +1,12 @@
 "use client";
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { Box, Popover, Typography } from "@mui/material";
-import { Info } from "lucide-react";
+import { Box, Button, Popover, Typography } from "@mui/material";
+import { Eye, Info } from "lucide-react";
+import type {
+  CoachHighlight,
+  TermMention,
+} from "@/lib/validation/puzzleHintSchemas";
 
 /**
  * Inline glossary for chess terms that appear in coach prose.
@@ -175,11 +179,20 @@ function aliasToKey(alias: string): string | undefined {
 
 export interface GlossifiedTextProps {
   text: string;
+  /** Structured term highlights provided by the coach. When the user taps
+   *  a term in the prose, the popover gains a "Show on board" button that
+   *  paints `squares` in `color` via onShowOnBoard. (PR-C.3) */
+  mentions?: TermMention[];
+  onShowOnBoard?: (highlight: CoachHighlight) => void;
 }
 
 /** Render a coach-prose string with the first occurrence of each known
  *  chess term swapped for a clickable info chip. */
-export function GlossifiedText({ text }: GlossifiedTextProps) {
+export function GlossifiedText({
+  text,
+  mentions,
+  onShowOnBoard,
+}: GlossifiedTextProps) {
   const segments = useMemo(() => {
     const out: Array<{ kind: "text" | "term"; value: string; key?: string }> =
       [];
@@ -206,11 +219,28 @@ export function GlossifiedText({ text }: GlossifiedTextProps) {
     return out;
   }, [text]);
 
+  // Index mentions by term key for O(1) lookup. The coach passes term
+  // names lowercased to match the glossary keys.
+  const mentionByTerm = useMemo<Map<string, TermMention>>(() => {
+    const map = new Map<string, TermMention>();
+    if (!mentions) return map;
+    for (const m of mentions) {
+      const key = m.term.toLowerCase();
+      if (!map.has(key)) map.set(key, m);
+    }
+    return map;
+  }, [mentions]);
+
   return (
     <>
       {segments.map((seg, i) =>
         seg.kind === "term" && seg.key ? (
-          <ChessTermInfo key={i} termKey={seg.key}>
+          <ChessTermInfo
+            key={i}
+            termKey={seg.key}
+            mention={mentionByTerm.get(seg.key)}
+            onShowOnBoard={onShowOnBoard}
+          >
             {seg.value}
           </ChessTermInfo>
         ) : (
@@ -224,15 +254,35 @@ export function GlossifiedText({ text }: GlossifiedTextProps) {
 interface ChessTermInfoProps {
   termKey: string;
   children: ReactNode;
+  /** When provided, the popover surfaces a "Show on board" CTA that
+   *  paints the mention's squares on the main board. */
+  mention?: TermMention;
+  onShowOnBoard?: (highlight: CoachHighlight) => void;
 }
 
 /** Clickable inline term that pops a definition card. */
-export function ChessTermInfo({ termKey, children }: ChessTermInfoProps) {
+export function ChessTermInfo({
+  termKey,
+  children,
+  mention,
+  onShowOnBoard,
+}: ChessTermInfoProps) {
   const entry = CHESS_TERM_GLOSSARY[termKey];
   const anchorRef = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
 
   if (!entry) return <span>{children}</span>;
+
+  const canShowOnBoard = !!(mention && onShowOnBoard && mention.squares.length > 0);
+  const handleShowOnBoard = () => {
+    if (!mention || !onShowOnBoard) return;
+    onShowOnBoard({
+      squares: mention.squares,
+      color: mention.color,
+      term: mention.term,
+    });
+    setOpen(false);
+  };
 
   return (
     <>
@@ -332,6 +382,32 @@ export function ChessTermInfo({ termKey, children }: ChessTermInfoProps) {
           >
             e.g. {entry.example}
           </Typography>
+        ) : null}
+
+        {canShowOnBoard ? (
+          <Button
+            onClick={handleShowOnBoard}
+            startIcon={<Eye size={13} />}
+            size="small"
+            sx={{
+              mt: 1.5,
+              px: 1.5,
+              py: 0.5,
+              borderRadius: "999px",
+              background: "linear-gradient(135deg, #FF7A1A, #FB923C)",
+              color: "#0A0907",
+              fontSize: "0.76rem",
+              fontWeight: 700,
+              textTransform: "none",
+              boxShadow: "none",
+              "&:hover": {
+                background: "linear-gradient(135deg, #FB923C, #FBBF24)",
+                boxShadow: "none",
+              },
+            }}
+          >
+            Show on board ({mention!.squares.length})
+          </Button>
         ) : null}
       </Popover>
     </>

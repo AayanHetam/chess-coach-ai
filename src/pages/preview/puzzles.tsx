@@ -26,6 +26,7 @@ import {
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { PuzzleCoachPanel } from "@/components/puzzle/PuzzleCoachPanel";
+import type { CoachHighlight } from "@/lib/validation/puzzleHintSchemas";
 import {
   DemoMoveDialog,
   DEMO_SPEED_MS,
@@ -210,6 +211,14 @@ export default function PreviewPuzzlesPage() {
   );
   const [activeDemo, setActiveDemo] = useState<ActiveDemo | null>(null);
 
+  // PR-C.3: coach-triggered square overlays. When the user taps a chess-
+  // term chip in a hint reply and the term carries a structured mention,
+  // we set this; the board renders translucent overlays. Cleared on next
+  // attempt / puzzle change / another highlight click.
+  const [coachHighlights, setCoachHighlights] = useState<CoachHighlight | null>(
+    null,
+  );
+
   // Reset board state whenever the puzzle changes.
   useEffect(() => {
     if (!studentStartFen) return;
@@ -222,6 +231,7 @@ export default function PreviewPuzzlesPage() {
     setWrongAttempts(0);
     setPendingDemoMoves(null);
     setActiveDemo(null);
+    setCoachHighlights(null);
   }, [studentStartFen]);
 
   // "wrong" status auto-reverts to "playing" so the user can retry without
@@ -250,6 +260,13 @@ export default function PreviewPuzzlesPage() {
 
   // Coach asks to demo a line via [SHOW_MOVE:...]. Stash the moves so the
   // dialog opens with confirmation + speed pick.
+  const handleShowCoachHighlight = useCallback(
+    (highlight: CoachHighlight) => {
+      setCoachHighlights(highlight);
+    },
+    [],
+  );
+
   const handleCoachDemoRequest = useCallback((moves: string[]) => {
     if (moves.length === 0) return;
     setPendingDemoMoves(moves);
@@ -336,6 +353,9 @@ export default function PreviewPuzzlesPage() {
   const handleMove = useCallback(
     (orig: string, dest: string): boolean => {
       if (status === "solved") return false;
+      // Any attempt clears the coach overlay — it was a hint for THIS
+      // move, not the next one.
+      setCoachHighlights(null);
       const expected = parsedMoves[moveIdx];
       if (!expected) return false;
       const isCorrect = orig === expected.from && dest === expected.to;
@@ -616,6 +636,7 @@ export default function PreviewPuzzlesPage() {
                         interactive={interactive}
                         lastMove={displayLastMove}
                         wrongSquare={boardWrongSquare}
+                        coachHighlights={activeDemo ? null : coachHighlights}
                         onMove={handleMove}
                       />
                       {activeDemo && (
@@ -915,6 +936,7 @@ export default function PreviewPuzzlesPage() {
                   onRequestMorePuzzles={handleNextPuzzle}
                   onResetPuzzle={handleReset}
                   onCoachDemoRequest={handleCoachDemoRequest}
+                  onShowCoachHighlight={handleShowCoachHighlight}
                 />
               ) : (
                 <Box

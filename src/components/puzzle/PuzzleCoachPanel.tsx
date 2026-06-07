@@ -22,10 +22,16 @@ import {
   PuzzleCoachBubble,
   PuzzleCoachThinkingBubble,
 } from "./PuzzleCoachBubble";
+import { HintStageRow } from "./HintStageRow";
 import type {
   PuzzleContext,
   PuzzleOutcome,
 } from "@/lib/validation/puzzleChatSchemas";
+import type {
+  HintStage,
+  PuzzleHintResponse,
+  TermMention,
+} from "@/lib/validation/puzzleHintSchemas";
 
 /**
  * Puzzle Coach Panel — the right-column chat surface on /preview/puzzles.
@@ -56,6 +62,15 @@ interface ChatTurn {
   role: "user" | "coach";
   content: string;
   streaming?: boolean;
+  /** When this turn was produced by the hint pipeline, the stage marker.
+   *  Drives where the HintStageRow renders (under the most-recent hint
+   *  turn) and helps PR-C.3 wire mentions back to the bubble that
+   *  produced them. */
+  hintStage?: HintStage;
+  /** Structured mentions[] from the hint response (PR-C.1). Stashed here
+   *  so PR-C.3 can paint board overlays when the user taps a glossary
+   *  chip in this turn's prose. */
+  mentions?: TermMention[];
 }
 
 interface PuzzleCoachPanelProps {
@@ -98,6 +113,15 @@ export function PuzzleCoachPanel({
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Staged-hint pipeline state (PR-C.2). `hintsFired` tracks which stages
+  // have already produced a turn this session — drives which buttons the
+  // HintStageRow surfaces and which auto-fires are safe. `hintLoading`
+  // marks the stage currently in flight so we can disable the row + show
+  // a spinner on the right button.
+  const [hintsFired, setHintsFired] = useState<HintStage[]>([]);
+  const [hintLoading, setHintLoading] = useState<HintStage | null>(null);
+  const hintsFiredRef = useRef<HintStage[]>([]);
+
   // Stable id ref so an in-flight stream aborts cleanly when the parent
   // swaps the puzzle. We compare current puzzle.id to the captured id on
   // each delta arrival; mismatch → drop the delta.
@@ -134,7 +158,17 @@ export function PuzzleCoachPanel({
     setInput("");
     setStreaming(false);
     setError(null);
+    setHintsFired([]);
+    setHintLoading(null);
+    hintsFiredRef.current = [];
   }, [puzzle.id]);
+
+  // Keep the ref in sync so the wrong-outcome auto-fire effect doesn't
+  // need `hintsFired` in its dep array (which would re-fire on every
+  // stage completion).
+  useEffect(() => {
+    hintsFiredRef.current = hintsFired;
+  }, [hintsFired]);
 
   // Stream-consumer factory shared by the auto-fired turn-0 explanation
   // and user-initiated follow-up turns. `turnIndex` is the server's
@@ -295,13 +329,104 @@ export function PuzzleCoachPanel({
     [puzzle, outcome, userAttemptSan, userRating, turns],
   );
 
-  // Auto-fire turn 0 the moment the puzzle reaches a terminal outcome
-  // (solved or wrong). Unattempted puzzles wait for the user to ask.
+  /** Staged-hint pipeline call (PR-C.1 API). Appends a thinking bubble,
+   *  POSTs to /api/puzzle-hint, then replaces the bubble with the
+   *  structured response. Records the stage in `hintsFired` so the row
+   *  can advance + records mentions[] on the turn for PR-C.3's overlays.
+   */
+  const fireHintStage = useCallback(
+    async (stage: HintStage) => {
+      if (hintLoading) return;
+      if (hintsFiredRef.current.includes(stage)) return;
+      const capturedPuzzleId = puzzle.id;
+      const ac = new AbortController();
+      abortRef.current?.abort();
+      abortRef.current = ac;
+      setHintLoading(stage);
+      setTurns((prev) => [
+        ...prev,
+        { role: "coach", content: "", streaming: true, hintStage: stage },
+      ]);
+      try {
+        const resp = await fetch("/api/puzzle-hint", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          signal: ac.signal,
+          body: JSON.stringify({
+            puzzle,
+            userAttemptSan: userAttemptSan ?? undefined,
+            stage,
+            userRating,
+          }),
+        });
+        if (!resp.ok) throw new Error(`puzzle-hint HTTP ${resp.status}`);
+        const data = (await resp.json()) as PuzzleHintResponse;
+        if (activePuzzleIdRef.current !== capturedPuzzleId) return;
+
+        // Splice SHOW_MOVE tag back into the rendered prose so the
+        // existing PuzzleCoachBubble parser (PR-B) renders the demo card
+        // inline. The server stripped the moves into showMoves[]; we
+        // re-emit the tag at the end of the prose.
+        let renderedProse = data.prose;
+        if (data.showMoves && data.showMoves.length > 0) {
+          renderedProse = `${data.prose}\n\n[SHOW_MOVE:${data.showMoves.join(" ")}]`;
+        }
+
+        setTurns((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last && last.role === "coach" && last.hintStage === stage) {
+            next[next.length - 1] = {
+              ...last,
+              content: renderedProse,
+              streaming: false,
+              mentions: data.mentions,
+            };
+          }
+          return next;
+        });
+        setHintsFired((prev) =>
+          prev.includes(stage) ? prev : [...prev, stage],
+        );
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        if (activePuzzleIdRef.current !== capturedPuzzleId) return;
+        setTurns((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last && last.role === "coach" && last.hintStage === stage) {
+            next[next.length - 1] = {
+              ...last,
+              content:
+                "Couldn't reach the coach. Try the button again in a moment.",
+              streaming: false,
+            };
+          }
+          return next;
+        });
+      } finally {
+        if (activePuzzleIdRef.current === capturedPuzzleId) {
+          setHintLoading(null);
+        }
+      }
+    },
+    [hintLoading, puzzle, userAttemptSan, userRating],
+  );
+
+  // Auto-fire on outcome change:
+  //   - "wrong" → puzzle-hint pipeline (why_wrong stage), structured
+  //   - "solved" → puzzle-chat (legacy conversational explanation)
+  //   - "unattempted" → wait for the user to ask
   useEffect(() => {
     if (outcome === "unattempted") return;
-    if (turns.length > 0) return; // already fired
-    if (streaming) return;
-    fireTurn(0);
+    if (turns.length > 0) return;
+    if (streaming || hintLoading) return;
+    if (outcome === "wrong") {
+      fireHintStage("why_wrong");
+    } else {
+      fireTurn(0);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outcome, puzzle.id]);
 
@@ -476,6 +601,17 @@ export function PuzzleCoachPanel({
             onCoachDemoRequest={onCoachDemoRequest}
           />
         ))}
+
+        {/* Staged-reveal button row (PR-C.2). Surfaces after `why_wrong`
+            has produced a turn — the row decides which next-stage buttons
+            to show based on what's already fired. */}
+        {hintsFired.length > 0 && (
+          <HintStageRow
+            stagesFired={hintsFired}
+            loading={hintLoading}
+            onFire={fireHintStage}
+          />
+        )}
 
         {/* Drill-more CTA — only after a successful solve and the coach has
             finished its first explanation. */}

@@ -1,6 +1,6 @@
 # PR_STAGE9_ASYNC_GROUNDING_PLAN.md
 
-**Status:** Draft, awaiting review
+**Status:** Accepted — implemented 2026-06-11 with recorded resolutions (see §Resolutions at bottom); deviations flagged for Aayan + tech-lead review on the implementation PR
 **Drafted:** 2026-06-06
 **Supersedes:** the "Sync-snapshot tradeoff (intentional)" deferral in PR #136
 **Estimated scope:** ~600 LOC src + ~400 LOC tests, 4-7 days
@@ -199,3 +199,62 @@ What if **all three** sources fail simultaneously (HuggingFace down + chessdb DD
 - Severity-aware retry gating (separate; see Followups)
 - Claim-class validator coverage expansion (e.g., new categories) — separate plan
 - Lc0 / Maia service uptime work — separate workstreams
+
+---
+
+## Resolutions (2026-06-11, recorded at implementation)
+
+The 7 open questions sat unanswered on PR #146 for 5 days; the implementing
+session adopted the plan's own recommendations as defaults, with the
+deviations below. Every decision here is reversible and called out in the
+implementation PR body for Aayan + tech-lead review.
+
+| Q | Resolution | Notes |
+|---|---|---|
+| Q1 latency ceiling | **Accepted ~8s ceiling** at the two pipeline sites (await before `withPipelineTimeout`, per plan §2). | Worst case is rare: Lc0/Maia not yet deployed, chessdb p50 ≪ timeout, tablebase only ≤7-piece. |
+| Q2 request-scoped cache | **Replaced with snapshot reuse** — the post-pipeline log-only re-checks (old sites 3/6) now reuse the pipeline snapshot instead of rebuilding. | A request-scoped Map could never get a hit the module TTL caches don't already cover: all same-FEN fetch pairs within one request are sequential. Adding a cache layer with no reachable hit path is dead code. |
+| Q3 ad-hoc TTFB | **Option A-lite at the streaming log-only sites**: grounding is kicked off *in parallel with* the LLM stream and awaited post-stream (~zero added latency, no streaming-rewrite). Pipeline sites block per plan (Option B). Fast tier untouched (Option C holds: `/api/chat` has no Stage 9 sites). | Strictly better than the plan's B-everywhere: the `done` event is not delayed in the common case. |
+| Q4 Lc0 gating for ad-hoc | **Kept current gating** (per recommendation), except the Q6 band widening below. | Revisit when the dashboard shows `lc0_status` skip rates. |
+| Q5 missing userRating | **Modified**: fallback is the request's own `gameHeaders.whiteElo/blackElo` (by player color, range-guarded 100–3500), NOT user_history aggregates. | The plan's premise was wrong: `UserHistoryGame` carries no rating fields (rating is only latent in raw PGN tags). The current game's header is cheaper and at least as accurate. Chain: body → profile `selfReportedRating` → header Elo. |
+| Q6 Stage 7 tension | **Widened `shouldCallLc0` to \|SF\| ≤ 200** (was ≤ 100). | Narrowing the upgrade threshold instead can never create overlap above 100cp (trigger ≤100 ∩ upgrade ≥X is empty for X > 100), and sub-100cp "HIGH" material confidence is chess-wrong. The [150, 200] band makes both MED→HIGH upgrades and positionalClaim's error escalation reachable. Top-2-within-30cp condition retained, so call volume stays bounded. |
+| Q7 full-outage policy | **A — silent degradation** (per recommendation). Helper never rejects; all-null snapshot ≡ sync snapshot; `stage9_async_grounding_fetched` telemetry carries per-source ok/fail/skipped for ops. | |
+
+### Additional decisions made during implementation
+
+- **Before-move eval contract fix.** The PR #136 call sites fed
+  `moveCtx.stockfishEval` (the *after*-move eval, `positions[lastIdx]`) into
+  a snapshot input documented as before-move (`SyncSnapshotInput`). Harmless
+  while `lc0Cp` was always null; the moment async grounding populates Lc0
+  (fetched for fenBefore), `lc0AgreesWithSf(sfCp, lc0Cp)` would compare two
+  different positions — the same mixed-position bug class PR #121 fixed for
+  chessdb in the game-review path. `MastermindMoveContext` now carries
+  `stockfishEvalBefore` + `stockfishLinesBefore` (`positions[lastIdx - 1]`,
+  pv included for Maia's bestMoveUci) and all Stage 9 sites use them. The
+  flag-off streaming site already did this correctly; flag-on sites now agree.
+- **No AbortSignal parameter.** The plan sketch had `signal?: AbortSignal`,
+  but none of the grounding clients accept one (each has its own internal
+  per-fetch timeout controller); the route never reads `request.signal`
+  either. Adding it would mean client signature changes for no current
+  caller — dropped.
+- **Syzygy wiring is new, not a swap.** No production code path populated
+  `syzygyDtm` before this PR (`fetch_lichess_tablebase`'s only call site fed
+  prompt text). `buildAsyncSnapshotForMove` now calls it for ≤7-piece
+  positions, arming mateInN's distance check (Fire B) for the first time.
+
+### ⚠️ Arming sequence — read before deploying Maia `/predict_at_rating`
+
+With this PR, the two *pipeline* sites enforce: any Stage 9 fire (all
+default severity `warn`) fails `passed: issues.length === 0` and triggers a
+flagship regenerate (fallback template on exhaustion). What that arms **today**:
+chessdb (live — mostly *raises* material_win confidence, i.e. fewer false
+fires) and Syzygy (rare, ≤7-piece). Lc0 and Maia are not deployed, so their
+validators stay dormant.
+
+**The day the Maia endpoint deploys, `userVisibility` becomes enforcing at
+the pipeline sites.** Its token list includes everyday words ("just",
+"easy"), it fires one issue per occurrence, and sub-1500 users on hard moves
+will frequently sit below the 0.15 visibility threshold. Expect a regenerate-
+rate jump. Before (or with) that deploy, resolve PR #136's Q1 severity
+policy — likely `passed = no error-severity issues` for Stage 9 warns, or a
+token-list tightening. Tracked in Followups below; do not let the Maia
+deploy ship without reading this section.

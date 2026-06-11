@@ -43,9 +43,16 @@ const log = logger.child({ module: "mastermind-route-helpers" });
  * gameEval inputs satisfy this; we don't depend on the route's full
  * GameEvalInput shape.
  */
+export interface MastermindEvalLine {
+  cp?: number;
+  mate?: number;
+  depth?: number;
+  pv?: string[];
+}
+
 export interface MastermindGameEval {
   positions?: Array<{
-    lines?: Array<{ cp?: number; mate?: number; depth?: number }>;
+    lines?: MastermindEvalLine[];
   }>;
 }
 
@@ -53,7 +60,24 @@ export interface MastermindMoveContext {
   fenBefore: string;
   fenAfter: string;
   moveSan?: string;
+  /** Eval of fenAfter (positions[lastIdx]) — what the eval-claim validator checks prose against. */
   stockfishEval: { cp?: number; mate?: number };
+  /**
+   * Eval of fenBefore (positions[lastIdx - 1]) — the position where moveSan
+   * was played. This is what the Stage 9 voter snapshot wants
+   * (SyncSnapshotInput contract: "eval for the position before the move"),
+   * and the position chessdb / Lc0 / Maia grounding is fetched for. Mixing
+   * the two (lc0Cp from fenBefore vs sfCp from fenAfter) would make
+   * lc0AgreesWithSf compare different positions — the bug class PR #121
+   * fixed in the game-review path. {} when unavailable.
+   */
+  stockfishEvalBefore: { cp?: number; mate?: number };
+  /**
+   * Full SF candidate lines for fenBefore. Drives shouldCallLc0 gating
+   * (top-2 closeness) and Maia's bestMoveUci (lines[0].pv[0]). [] when
+   * unavailable.
+   */
+  stockfishLinesBefore: MastermindEvalLine[];
 }
 
 export interface MastermindPrepResult {
@@ -126,6 +150,8 @@ export function deriveMastermindMoveContext(
       fenBefore: anchor,
       fenAfter: anchor,
       stockfishEval: {},
+      stockfishEvalBefore: {},
+      stockfishLinesBefore: [],
     };
   }
 
@@ -134,6 +160,7 @@ export function deriveMastermindMoveContext(
     const fenBefore = fenAtHalfMove(moveHistory, lastIdx - 1);
     const fenAfter = fenAtHalfMove(moveHistory, lastIdx);
     const evalAfter = gameEval?.positions?.[lastIdx];
+    const evalBefore = gameEval?.positions?.[lastIdx - 1];
     return {
       fenBefore,
       fenAfter,
@@ -142,9 +169,16 @@ export function deriveMastermindMoveContext(
         cp: evalAfter?.lines?.[0]?.cp,
         mate: evalAfter?.lines?.[0]?.mate,
       },
+      stockfishEvalBefore: {
+        cp: evalBefore?.lines?.[0]?.cp,
+        mate: evalBefore?.lines?.[0]?.mate,
+      },
+      stockfishLinesBefore: evalBefore?.lines ?? [],
     };
   }
   if (fen) {
+    // Position-only anchor: fenBefore === fenAfter === fen, so the
+    // before-eval IS the position's eval.
     const eval0 = gameEval?.positions?.[0];
     return {
       fenBefore: fen,
@@ -153,12 +187,19 @@ export function deriveMastermindMoveContext(
         cp: eval0?.lines?.[0]?.cp,
         mate: eval0?.lines?.[0]?.mate,
       },
+      stockfishEvalBefore: {
+        cp: eval0?.lines?.[0]?.cp,
+        mate: eval0?.lines?.[0]?.mate,
+      },
+      stockfishLinesBefore: eval0?.lines ?? [],
     };
   }
   return {
     fenBefore: STARTING_FEN,
     fenAfter: STARTING_FEN,
     stockfishEval: {},
+    stockfishEvalBefore: {},
+    stockfishLinesBefore: [],
   };
 }
 

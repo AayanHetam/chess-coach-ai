@@ -31,13 +31,20 @@
 
 import type { Chess } from "chess.js";
 import type { AnyMotif } from "@/lib/tactics/types";
-import type { TablebaseResult } from "@/lib/mastermind/lichessTablebase";
-import type { ChessdbResult } from "./chessdb";
-import type { Lc0Result } from "./lc0";
-import type { MaiaProbResult } from "./maia";
+import {
+  fetch_lichess_tablebase,
+  isTablebaseEligible,
+  type TablebaseResult,
+} from "@/lib/mastermind/lichessTablebase";
+import { queryChessdb, type ChessdbResult } from "./chessdb";
+import { queryLc0, shouldCallLc0, type Lc0Result } from "./lc0";
+import { queryMaiaAtRating, shouldCallMaia, type MaiaProbResult } from "./maia";
 import { compileVoterResult } from "./voter";
 import { detectMotifs } from "@/lib/tactics";
 import type { VoterSnapshot } from "@/lib/mastermind/validators";
+import { logger } from "@/lib/logging";
+
+const log = logger.child({ module: "stage9-grounding" });
 
 export interface SyncSnapshotInput {
   fenBefore: string;
@@ -151,6 +158,105 @@ export function buildAsyncVoterSnapshot(input: AsyncSnapshotInput): VoterSnapsho
     lc0Cp: input.lc0Result?.eval_cp ?? null,
     syzygyDtm: input.tablebaseResult?.dtm ?? null,
   };
+}
+
+export type GroundingFetchStatus = "ok" | "fail" | "skipped";
+
+export interface AsyncSnapshotForMoveInput {
+  fenBefore: string;
+  moveSan: string;
+  /**
+   * Stockfish eval for the position BEFORE the move (same contract as
+   * SyncSnapshotInput). All grounding sources are fetched for fenBefore, so
+   * mixing in an after-move eval here would make lc0AgreesWithSf compare
+   * evals of two different positions.
+   */
+  stockfishEvalCp: number | null;
+  stockfishBestMoveMate: number | null;
+  /**
+   * Full SF candidate lines for fenBefore. Drives shouldCallLc0 gating
+   * (top-2 closeness) and supplies Maia's bestMoveUci via lines[0].pv[0].
+   * Pass [] when unavailable — Lc0 and Maia are then skipped.
+   */
+  stockfishLines: Array<{ cp?: number | null; mate?: number | null; pv?: string[] }>;
+  userRating: number | null;
+  correlationId?: string;
+  /** Route-branch tag for the stage9_async_grounding_fetched telemetry line. */
+  branch?: string;
+}
+
+/**
+ * Fetch-orchestrating snapshot builder — Stage 9 v2 (async grounding).
+ *
+ * Fetches chessdb / Lc0 / Maia / Syzygy for fenBefore in parallel (each
+ * gated by its existing shouldCallX / eligibility check, each fail-open via
+ * `.catch(() => null)`), then packages the results through
+ * buildAsyncVoterSnapshot. Wall-clock ceiling is max of the per-client
+ * timeouts (~8s, Lc0), not the sum; module-level TTL caches in the client
+ * modules make repeat calls for the same FEN within a warm instance ~free.
+ *
+ * A single slow or down service degrades only its own field to null, which
+ * the downstream validators treat as "source not consulted" (see the
+ * null-gating notes on buildSyncVoterSnapshot). A full grounding outage
+ * yields a snapshot equivalent to the sync builder — silent degradation by
+ * design (plan Q7).
+ *
+ * Emits one `stage9_async_grounding_fetched` log line per call with
+ * per-source ok/fail/skipped status + total fetch ms, so dashboards can
+ * track how often each source is actually arming the validators.
+ *
+ * This function never rejects: fetch errors are caught per-source and
+ * detectMotifs errors are caught inside buildAsyncVoterSnapshot.
+ */
+export async function buildAsyncSnapshotForMove(
+  input: AsyncSnapshotForMoveInput,
+): Promise<VoterSnapshot> {
+  const t0 = Date.now();
+  const bestMoveUci = input.stockfishLines[0]?.pv?.[0] ?? null;
+
+  const lc0Gated = shouldCallLc0(input.stockfishEvalCp, input.stockfishLines);
+  const maiaGated = shouldCallMaia(input.userRating ?? undefined, bestMoveUci);
+  const tablebaseGated = isTablebaseEligible(input.fenBefore);
+
+  const [chessdbResult, lc0Result, maiaResult, tablebaseResult] = await Promise.all([
+    queryChessdb(input.fenBefore).catch(() => null),
+    lc0Gated ? queryLc0(input.fenBefore).catch(() => null) : Promise.resolve(null),
+    maiaGated
+      ? queryMaiaAtRating(input.fenBefore, input.userRating!, bestMoveUci!).catch(() => null)
+      : Promise.resolve(null),
+    tablebaseGated
+      ? fetch_lichess_tablebase(input.fenBefore).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+
+  const statusOf = (
+    gated: boolean,
+    result: unknown,
+  ): GroundingFetchStatus => (!gated ? "skipped" : result ? "ok" : "fail");
+
+  log.info("stage9_async_grounding_fetched", {
+    fen: input.fenBefore,
+    move_san: input.moveSan,
+    correlation_id: input.correlationId,
+    branch: input.branch,
+    chessdb_status: statusOf(true, chessdbResult),
+    lc0_status: statusOf(lc0Gated, lc0Result),
+    maia_status: statusOf(maiaGated, maiaResult),
+    tablebase_status: statusOf(tablebaseGated, tablebaseResult),
+    total_fetch_ms: Date.now() - t0,
+  });
+
+  return buildAsyncVoterSnapshot({
+    fenBefore: input.fenBefore,
+    moveSan: input.moveSan,
+    stockfishEvalCp: input.stockfishEvalCp,
+    stockfishBestMoveMate: input.stockfishBestMoveMate,
+    userRating: input.userRating,
+    chessdbResult,
+    lc0Result,
+    maiaResult,
+    tablebaseResult,
+  });
 }
 
 // Re-export Chess for callers that need it; some lower-level routes import

@@ -32,14 +32,26 @@ export function __clearLc0Cache(): void { resultCache.clear(); }
 export function __isLc0Configured(): boolean { return !!LC0_API_URL; }
 
 /**
- * Trigger condition: only call Lc0 when Stockfish is genuinely uncertain.
+ * Trigger condition: only call Lc0 when a second opinion is informative.
  *
  * Conditions (must satisfy BOTH):
- *   1. SF eval is in [-100, +100]cp — near-balanced, not a clear win/loss
+ *   1. SF eval is in [-200, +200]cp — excludes lopsided positions where a
+ *      second engine adds nothing
  *   2. ≥2 candidate lines exist AND the gap between #1 and #2 is ≤30cp
  *
- * This limits Lc0 calls to 1-3 positions per game (the critical junctions
- * where neural pattern recognition adds the most value over pure SF analysis).
+ * The eval band was [-100, +100] through Stage 7/8; that range mutually
+ * excluded the voter's MED→HIGH upgrade paths (lc0AgreesWithSf requires
+ * both evals ≥150 same-direction), so the upgrades — and positionalClaim's
+ * error escalation — were unreachable via this trigger (the Q6 design
+ * tension in PR_STAGE9_ASYNC_GROUNDING_PLAN.md / TACTICAL_GROUNDING_
+ * HANDOFF.md). Widened to ±200 so the [150, 200] band lets Lc0 confirm a
+ * moderate advantage; narrowing the upgrade threshold instead could never
+ * create overlap above 100cp and sub-100cp "HIGH" material confidence is
+ * chess-wrong. The top-2-lines-within-30cp condition still bounds call
+ * volume to genuinely contested positions.
+ *
+ * This keeps Lc0 calls to a handful of positions per game (the critical
+ * junctions where neural pattern recognition adds the most value).
  */
 export function shouldCallLc0(
   sfEvalCp: number | null,
@@ -49,8 +61,8 @@ export function shouldCallLc0(
   if (sfEvalCp === null) return false;
   if (typeof sfEvalCp !== "number") return false;
 
-  // Condition 1: SF eval near zero (uncertain region)
-  if (Math.abs(sfEvalCp) > 100) return false;
+  // Condition 1: SF eval inside the second-opinion band (see jsdoc)
+  if (Math.abs(sfEvalCp) > 200) return false;
 
   // Condition 2: ≥2 candidate lines within 30cp of each other
   if (lines.length < 2) return false;

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   shouldCallLc0,
   lc0AgreesWithSf,
@@ -16,6 +16,49 @@ describe("shouldCallLc0", () => {
   it("returns false when LC0_API_URL not configured", () => {
     // LC0_API_URL is unset in test env → all calls return false
     expect(shouldCallLc0(50, lines([50, 40]))).toBe(false);
+  });
+
+  describe("with LC0_API_URL configured (module reloaded)", () => {
+    // LC0_API_URL is captured at module load, so the band tests need a
+    // fresh module instance with the env stubbed first.
+    async function loadConfigured() {
+      vi.resetModules();
+      vi.stubEnv("LC0_API_URL", "http://lc0.test");
+      const mod = await import("../lc0");
+      return mod.shouldCallLc0;
+    }
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    });
+
+    it("fires inside the ±200cp second-opinion band when top-2 lines are close (Q6 widening)", async () => {
+      const gate = await loadConfigured();
+      expect(gate(50, lines([50, 40]))).toBe(true);
+      // [150, 200]: the band that makes the voter's MED→HIGH upgrades
+      // (lc0AgreesWithSf, both ≥150) reachable — the Q6 fix.
+      expect(gate(180, lines([180, 170]))).toBe(true);
+      expect(gate(-180, lines([-180, -170]))).toBe(true);
+      expect(gate(200, lines([200, 190]))).toBe(true);
+    });
+
+    it("does not fire beyond ±200cp (lopsided positions)", async () => {
+      const gate = await loadConfigured();
+      expect(gate(201, lines([201, 195]))).toBe(false);
+      expect(gate(-450, lines([-450, -440]))).toBe(false);
+    });
+
+    it("still requires top-2 lines within 30cp", async () => {
+      const gate = await loadConfigured();
+      expect(gate(180, lines([180, 120]))).toBe(false);
+      expect(gate(180, lines([180]))).toBe(false);
+    });
+
+    it("still refuses forced-mate lines", async () => {
+      const gate = await loadConfigured();
+      expect(gate(50, [{ cp: 50, mate: 3, pv: ["e2e4"] }, { cp: 40, pv: ["d2d4"] }])).toBe(false);
+    });
   });
 });
 

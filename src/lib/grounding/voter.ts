@@ -147,12 +147,13 @@ function computeConfidence(input: VoterInput): VoterConfidence {
   // "Meaningful" Lc0 = |eval| ≥ 50cp. Below that threshold Lc0 is treated as
   // neutral noise and ignored for the decision.
   //
-  // Design tension (documented in TACTICAL_GROUNDING_HANDOFF.md):
-  // per spec, `shouldCallLc0` only fires when |SF| ≤ 100, so the HIGH branch
-  // (requiring SF ≥ 150) is unreachable via the current route trigger.
-  // Reachable via direct voter calls (tests, future trigger relaxation).
-  // The active production effect is the veto path: in [50, 100]cp positions
-  // where SF is ambiguous, Lc0 can downgrade MED → NONE when it disagrees.
+  // Design tension RESOLVED (async-grounding plan Q6, 2026-06-11):
+  // `shouldCallLc0` originally fired only when |SF| ≤ 100, which mutually
+  // excluded this HIGH branch (requiring SF ≥ 150) — unreachable via the
+  // route trigger. The trigger band is now |SF| ≤ 200, so the [150, 200]
+  // overlap makes both the positional_plan HIGH branch and the material_win
+  // MED → HIGH upgrade reachable when Lc0 confirms. The veto path remains
+  // the dominant production effect in [50, 100]cp positions.
   const sfNum = sfCp ?? 0;
   const sfAbsCp = Math.abs(sfNum);
   const lc0Num = lc0Cp ?? 0;

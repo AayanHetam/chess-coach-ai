@@ -5,6 +5,7 @@ import Script from "next/script";
 import { Suspense } from "react";
 import ThemeRegistry from "@/components/ThemeRegistry";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
+import ConsentBanner from "@/components/consent/ConsentBanner";
 import { SiteJsonLd } from "@/app/_seo/JsonLd";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -80,6 +81,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <AnalyticsProvider />
         </Suspense>
+        <ConsentBanner />
       </body>
     </html>
   );

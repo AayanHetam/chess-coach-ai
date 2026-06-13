@@ -11,6 +11,8 @@
  * when tracking is off the endpoints just 204.
  */
 
+import { clientHasConsent } from "./consent";
+
 const TRACK_ENDPOINT = "/api/track";
 const PUZZLE_ENDPOINT = "/api/track/puzzle";
 const ANALYSIS_ENDPOINT = "/api/track/analysis-session";
@@ -76,6 +78,9 @@ function scheduleFlush(): void {
 /** POST a JSON payload that should survive unload. Beacon first, fetch fallback. */
 function sendPayload(url: string, payload: unknown, preferBeacon: boolean): void {
   if (!isBrowser()) return;
+  // Consent gate (TRK-6): don't even emit pre-consent / under GPC. The server
+  // enforces the same check, but skipping the beacon avoids needless requests.
+  if (!clientHasConsent()) return;
   const body = JSON.stringify(payload);
   try {
     if (preferBeacon && typeof navigator !== "undefined" && navigator.sendBeacon) {
@@ -109,6 +114,8 @@ export function track(
   surface?: string,
 ): void {
   if (!isBrowser()) return;
+  // Don't even queue pre-consent — those events should never be captured.
+  if (!clientHasConsent()) return;
   bindFlushListeners();
   queue.push({
     name,

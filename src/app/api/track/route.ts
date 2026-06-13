@@ -8,6 +8,7 @@ import {
   ANON_COOKIE_NAME,
   anonCookieOptions,
 } from "@/lib/tracking/anonId";
+import { hasTrackingConsent } from "@/lib/tracking/consent";
 
 /**
  * POST /api/track — client event ingestion (TRK-1).
@@ -48,6 +49,8 @@ export async function POST(request: Request) {
   const env = getTrackingEnv();
   // Inert when off: 204 so the beacon is satisfied, but nothing is written or set.
   if (!env.enabled) return new NextResponse(null, { status: 204 });
+  // Consent-gated (TRK-6): no consent / GPC signaled → no write, no anon cookie.
+  if (!hasTrackingConsent(request)) return new NextResponse(null, { status: 204 });
 
   let body: unknown;
   try {

@@ -156,8 +156,36 @@ export function buildAsyncVoterSnapshot(input: AsyncSnapshotInput): VoterSnapsho
     sfCp: input.stockfishEvalCp,
     sfMate: input.stockfishBestMoveMate,
     lc0Cp: input.lc0Result?.eval_cp ?? null,
-    syzygyDtm: input.tablebaseResult?.dtm ?? null,
+    syzygyDtm: normalizeSyzygyDtm(input.tablebaseResult),
   };
+}
+
+/**
+ * Normalize Lichess's raw `dtm` into the mateInN validator's contract.
+ *
+ * The validator (validators/mateInN.ts, Fire B) documents `syzygyDtm` as a
+ * POSITIVE distance in FULL MOVES, and only tolerates off-by-1. Lichess
+ * returns `dtm` raw: signed (negative when the side to move is losing) and in
+ * plies. Passing it through unmodified mis-arms Fire B two ways:
+ *   - sign: a losing position (dtm < 0) would be compared as if it were the
+ *     side-to-move's own mate distance, printing a nonsense "Syzygy DTM is -5".
+ *     Ungrounded mate claims in non-winning positions are already caught by
+ *     Fire A (mate_in_n confidence === NONE), so we null those out here.
+ *   - units: a true "mate in 3" is ~5-6 plies; off-by-1 wouldn't cover it,
+ *     producing false positives on CORRECT mate claims (worst failure mode).
+ *
+ * ceil(dtm/2) converts plies→moves and is robust to the units convention: if
+ * Lichess `dtm` were already in moves, ceil(n/2) lands within the validator's
+ * off-by-1 tolerance, so no convention produces a false positive on a correct
+ * claim while gross errors still fire.
+ *
+ * NOTE (chess-domain, flagged for review): confirm the exact Lichess `dtm`
+ * convention before tightening Fire B's tolerance below off-by-1.
+ */
+function normalizeSyzygyDtm(tb: TablebaseResult | null): number | null {
+  const raw = tb?.dtm;
+  if (raw == null || raw <= 0) return null;
+  return Math.ceil(raw / 2);
 }
 
 export type GroundingFetchStatus = "ok" | "fail" | "skipped";

@@ -136,9 +136,31 @@ describe("buildAsyncSnapshotForMove", () => {
     const snap = await buildAsyncSnapshotForMove(baseInput());
     expect(snap.maiaProb).toBe(0.42);
     expect(snap.lc0Cp).toBe(80);
-    expect(snap.syzygyDtm).toBe(12);
+    // Raw Lichess dtm (12 plies) is normalized to full moves: ceil(12/2) = 6.
+    expect(snap.syzygyDtm).toBe(6);
     expect(snap.sfCp).toBe(60);
     expect(snap.userRating).toBe(1500);
+  });
+
+  it("normalizes Syzygy dtm: positive plies → ceil(dtm/2) full moves", async () => {
+    mockFetchTablebase.mockResolvedValue({ dtm: 5 } as unknown as TablebaseResult);
+    const snap = await buildAsyncSnapshotForMove(baseInput());
+    // A true mate-in-3 is ~5 plies; normalized lands on 3, matching the
+    // validator's full-move contract (mateInN Fire B).
+    expect(snap.syzygyDtm).toBe(3);
+  });
+
+  it("nulls Syzygy dtm for non-winning positions (sign guard: dtm <= 0)", async () => {
+    // Negative dtm = side to move is being mated. Fire A (mate_in_n=NONE)
+    // owns ungrounded-claim detection there; Fire B must not compare an
+    // opponent/negative distance.
+    mockFetchTablebase.mockResolvedValue({ dtm: -8 } as unknown as TablebaseResult);
+    const snapLoss = await buildAsyncSnapshotForMove(baseInput());
+    expect(snapLoss.syzygyDtm).toBeNull();
+
+    mockFetchTablebase.mockResolvedValue({ dtm: 0 } as unknown as TablebaseResult);
+    const snapZero = await buildAsyncSnapshotForMove(baseInput());
+    expect(snapZero.syzygyDtm).toBeNull();
   });
 
   it("derives bestMoveUci from stockfishLines[0].pv[0] for the Maia gate and query", async () => {

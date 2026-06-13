@@ -11,6 +11,10 @@ import {
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const KRK_WIN = "8/8/8/8/8/4k3/8/R3K3 w - - 0 1";
 const KQVK = "8/8/8/8/8/4k3/8/3QK3 w - - 0 1";
+// 5 non-king pieces (7 men incl. both kings) — the Syzygy ceiling, eligible.
+const SEVEN_MAN = "4k3/8/8/8/8/8/2QRBNP1/4K3 w - - 0 1";
+// 6 non-king pieces (8 men) — past the 7-man tables, must be ineligible.
+const EIGHT_MAN = "4k3/8/8/8/8/8/1QRBNPP1/4K3 w - - 0 1";
 
 describe("countNonKingPieces", () => {
   it("counts 30 non-king pieces in the starting position", () => {
@@ -23,7 +27,7 @@ describe("countNonKingPieces", () => {
 });
 
 describe("isTablebaseEligible", () => {
-  it("rejects starting position (>7 non-king pieces)", () => {
+  it("rejects starting position (far more than 5 non-king pieces)", () => {
     expect(isTablebaseEligible(STARTING_FEN)).toBe(false);
   });
 
@@ -33,6 +37,18 @@ describe("isTablebaseEligible", () => {
 
   it("accepts KQ-vs-K", () => {
     expect(isTablebaseEligible(KQVK)).toBe(true);
+  });
+
+  it("accepts the 7-man boundary (5 non-king pieces)", () => {
+    expect(countNonKingPieces(SEVEN_MAN)).toBe(5); // confirms the FEN loaded
+    expect(isTablebaseEligible(SEVEN_MAN)).toBe(true);
+  });
+
+  it("rejects 8-man positions (6 non-king pieces) — past the 7-man tables", () => {
+    // Regression: the gate previously used a 7 non-king ceiling, admitting
+    // 8- and 9-man positions the Lichess endpoint can't answer.
+    expect(countNonKingPieces(EIGHT_MAN)).toBe(6); // confirms the FEN loaded
+    expect(isTablebaseEligible(EIGHT_MAN)).toBe(false);
   });
 
   it("rejects invalid fen", () => {

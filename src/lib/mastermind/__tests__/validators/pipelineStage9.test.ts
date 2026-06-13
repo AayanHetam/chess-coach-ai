@@ -125,6 +125,97 @@ describe("runValidationPipeline — Stage 9 preservation contract", () => {
   });
 });
 
+// ── (a2) Category-scope contract — non-anchored categories never enforce ─────
+
+describe("runValidationPipeline — Stage 9 category-scope contract", () => {
+  // Regression: concept_explanation is NOT in NON_MOVE_FOCUS_CATEGORIES, so the
+  // route builds a real per-move snapshot for it and (pre-fix) passed it to the
+  // pipeline, where the four Stage 9 validators — gated only on snapshot
+  // presence — would enforce against general teaching prose. The pipeline must
+  // scope them to POSITION_ANCHORED_VALIDATOR_CATEGORIES like eval/citation.
+  const responseWithEveryTrigger =
+    "White is completely winning. Mate in 5 is forced. " +
+    "Black is up a piece — obviously the best response was Nf6.";
+
+  const stage9CheckNames = new Set([
+    "user_visibility_overclaim",
+    "positional_claim_unsupported",
+    "mate_claim_unsupported",
+    "mate_distance_incorrect",
+    "material_win_unsupported",
+  ]);
+  const stage9Telemetry = new Set([
+    "user_visibility",
+    "positional_claim",
+    "mate_in_n",
+    "material_win",
+  ]);
+
+  // A snapshot engineered to fire ALL four validators on the response above.
+  function firingSnapshot(): VoterSnapshot {
+    return {
+      confidence: {
+        user_visibility: "NONE",
+        positional_plan: "NONE",
+        mate_in_n: "NONE",
+        material_win: "NONE",
+      },
+      maiaProb: 0.04,
+      userRating: 1500,
+      sfCp: 20,
+      sfMate: null,
+      lc0Cp: 20,
+      syzygyDtm: null,
+    };
+  }
+
+  it.each(["concept_explanation", "game_review", "opponent_prep"] as const)(
+    "does NOT fire the four Stage 9 validators for non-anchored category %s even when a snapshot is present",
+    async (category) => {
+      const r = await runValidationPipeline({
+        initialRequest,
+        stockfishEval: { cp: 20 },
+        featureDelta: emptyDelta(),
+        pieceRoleDiff: [],
+        playerPerspective: "white",
+        correlationId: `scope-${category}`,
+        parseCall: emptyJsonParser,
+        callLLM: llmReturning(responseWithEveryTrigger),
+        category,
+        voterSnapshot: firingSnapshot(),
+      });
+
+      const stage9Issues = r.cumulativeIssues.filter((i) =>
+        stage9CheckNames.has(i.check_name),
+      );
+      const stage9TelemetryEvents = r.telemetry.filter((t) =>
+        stage9Telemetry.has(t.check_name),
+      );
+      expect(stage9Issues).toEqual([]);
+      expect(stage9TelemetryEvents).toEqual([]);
+    },
+  );
+
+  it("DOES fire for position_analysis with the same snapshot (control)", async () => {
+    const r = await runValidationPipeline({
+      initialRequest,
+      stockfishEval: { cp: 20 },
+      featureDelta: emptyDelta(),
+      pieceRoleDiff: [],
+      playerPerspective: "white",
+      correlationId: "scope-control",
+      parseCall: emptyJsonParser,
+      callLLM: llmReturning(responseWithEveryTrigger),
+      category: "position_analysis",
+      voterSnapshot: firingSnapshot(),
+    });
+    const stage9Issues = r.cumulativeIssues.filter((i) =>
+      stage9CheckNames.has(i.check_name),
+    );
+    expect(stage9Issues.length).toBeGreaterThan(0);
+  });
+});
+
 // ── (b) Wiring contract — validators fire through the pipeline ───────────────
 
 describe("runValidationPipeline — Stage 9 wiring contract", () => {

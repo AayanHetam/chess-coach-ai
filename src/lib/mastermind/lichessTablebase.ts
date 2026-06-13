@@ -2,7 +2,12 @@ import { Chess } from "chess.js";
 
 const LICHESS_TABLEBASE_URL = "https://tablebase.lichess.ovh/standard";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const MAX_NON_KING_PIECES = 7;
+// Lichess "standard" endpoint serves the 7-man Syzygy tables, where the 7
+// counts BOTH kings. Eligibility is therefore ≤5 non-king pieces (5 + 2 kings
+// = 7 men). The previous value of 7 admitted 8- and 9-man positions, which the
+// endpoint can't answer — now hot per-move via buildAsyncSnapshotForMove, those
+// were guaranteed-failing fetches eating the per-source timeout every turn.
+const MAX_NON_KING_PIECES = 5;
 const FETCH_TIMEOUT_MS = 5000;
 
 export type TablebaseCategory =

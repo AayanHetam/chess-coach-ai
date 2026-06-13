@@ -31,13 +31,25 @@
 
 import type { Chess } from "chess.js";
 import type { AnyMotif } from "@/lib/tactics/types";
-import type { TablebaseResult } from "@/lib/mastermind/lichessTablebase";
-import type { ChessdbResult } from "./chessdb";
-import type { Lc0Result } from "./lc0";
-import type { MaiaProbResult } from "./maia";
+import {
+  fetch_lichess_tablebase,
+  isTablebaseEligible,
+  type TablebaseResult,
+} from "@/lib/mastermind/lichessTablebase";
+import { queryChessdb, type ChessdbResult } from "./chessdb";
+import { queryLc0, shouldCallLc0, type Lc0Result } from "./lc0";
+import { queryMaiaAtRating, shouldCallMaia, type MaiaProbResult } from "./maia";
 import { compileVoterResult } from "./voter";
 import { detectMotifs } from "@/lib/tactics";
 import type { VoterSnapshot } from "@/lib/mastermind/validators";
+import { logger } from "@/lib/logging";
+import {
+  isCircuitOpen,
+  recordSuccess,
+  recordFailure,
+} from "./circuitBreaker";
+
+const log = logger.child({ module: "stage9-grounding" });
 
 export interface SyncSnapshotInput {
   fenBefore: string;
@@ -149,8 +161,181 @@ export function buildAsyncVoterSnapshot(input: AsyncSnapshotInput): VoterSnapsho
     sfCp: input.stockfishEvalCp,
     sfMate: input.stockfishBestMoveMate,
     lc0Cp: input.lc0Result?.eval_cp ?? null,
-    syzygyDtm: input.tablebaseResult?.dtm ?? null,
+    syzygyDtm: normalizeSyzygyDtm(input.tablebaseResult),
   };
+}
+
+/**
+ * Normalize Lichess's raw `dtm` into the mateInN validator's contract.
+ *
+ * The validator (validators/mateInN.ts, Fire B) documents `syzygyDtm` as a
+ * POSITIVE distance in FULL MOVES, and only tolerates off-by-1. Lichess
+ * returns `dtm` raw: signed (negative when the side to move is losing) and in
+ * plies. Passing it through unmodified mis-arms Fire B two ways:
+ *   - sign: a losing position (dtm < 0) would be compared as if it were the
+ *     side-to-move's own mate distance, printing a nonsense "Syzygy DTM is -5".
+ *     Ungrounded mate claims in non-winning positions are already caught by
+ *     Fire A (mate_in_n confidence === NONE), so we null those out here.
+ *   - units: a true "mate in 3" is ~5-6 plies; off-by-1 wouldn't cover it,
+ *     producing false positives on CORRECT mate claims (worst failure mode).
+ *
+ * ceil(dtm/2) converts plies→moves. Confirmed empirically against
+ * tablebase.lichess.ovh: a KQ-vs-K win returns position dtm=3 with the best
+ * move dtm=-2 — i.e. dtm decrements by exactly 1 per ply (so the unit is
+ * plies, signed, side-to-move-relative), and 3 plies = mate in 2 moves =
+ * ceil(3/2). The winning side mates on an odd ply, so for dtm>0 the value is
+ * odd and (dtm+1)/2 = ceil(dtm/2) is the exact move count; the off-by-1
+ * tolerance in Fire B then only ever absorbs the player's own half-move
+ * counting, never a units error.
+ */
+function normalizeSyzygyDtm(tb: TablebaseResult | null): number | null {
+  const raw = tb?.dtm;
+  if (raw == null || raw <= 0) return null;
+  return Math.ceil(raw / 2);
+}
+
+export type GroundingFetchStatus =
+  | "ok" // responded with grounding data
+  | "fail" // gate passed but no grounding obtained (threw, OR resolved null)
+  | "skipped" // gated out (shouldCallX / eligibility was false)
+  | "circuit_open"; // breaker open after repeated throws — fetch not attempted
+
+interface FetchOutcome<T> {
+  value: T | null;
+  status: GroundingFetchStatus;
+  ms: number;
+}
+
+/**
+ * Run one gated, breaker-protected, timed grounding fetch. Never rejects.
+ *
+ * - not gated → { skipped, 0ms } (no fetch)
+ * - breaker open → { circuit_open, 0ms } (no fetch; field degrades to null)
+ * - fetch throws (timeout / network / 5xx) → recordFailure + { fail }
+ * - fetch resolves → recordSuccess + { ok if data else fail }
+ *
+ * Telemetry "fail" covers both a throw and a clean null (gate wanted grounding,
+ * none came back) — that's the existing dashboard semantic. The breaker, by
+ * contrast, only counts THROWS: a source that resolves null (unconfigured, or a
+ * genuine "no data for this FEN") is responding cheaply and must not be tripped
+ * out, only one that is actually eating its timeout should be.
+ */
+async function fetchWithBreaker<T>(
+  key: string,
+  gated: boolean,
+  nowMs: number,
+  fetchFn: () => Promise<T | null>,
+): Promise<FetchOutcome<T>> {
+  if (!gated) return { value: null, status: "skipped", ms: 0 };
+  if (isCircuitOpen(key, nowMs)) return { value: null, status: "circuit_open", ms: 0 };
+  const start = Date.now();
+  try {
+    const value = await fetchFn();
+    recordSuccess(key);
+    return { value, status: value == null ? "fail" : "ok", ms: Date.now() - start };
+  } catch {
+    recordFailure(key, nowMs);
+    return { value: null, status: "fail", ms: Date.now() - start };
+  }
+}
+
+export interface AsyncSnapshotForMoveInput {
+  fenBefore: string;
+  moveSan: string;
+  /**
+   * Stockfish eval for the position BEFORE the move (same contract as
+   * SyncSnapshotInput). All grounding sources are fetched for fenBefore, so
+   * mixing in an after-move eval here would make lc0AgreesWithSf compare
+   * evals of two different positions.
+   */
+  stockfishEvalCp: number | null;
+  stockfishBestMoveMate: number | null;
+  /**
+   * Full SF candidate lines for fenBefore. Drives shouldCallLc0 gating
+   * (top-2 closeness) and supplies Maia's bestMoveUci via lines[0].pv[0].
+   * Pass [] when unavailable — Lc0 and Maia are then skipped.
+   */
+  stockfishLines: Array<{ cp?: number | null; mate?: number | null; pv?: string[] }>;
+  userRating: number | null;
+  correlationId?: string;
+  /** Route-branch tag for the stage9_async_grounding_fetched telemetry line. */
+  branch?: string;
+}
+
+/**
+ * Fetch-orchestrating snapshot builder — Stage 9 v2 (async grounding).
+ *
+ * Fetches chessdb / Lc0 / Maia / Syzygy for fenBefore in parallel, each gated
+ * by its existing shouldCallX / eligibility check AND a per-source circuit
+ * breaker, each fail-open, then packages the results through
+ * buildAsyncVoterSnapshot. Wall-clock ceiling is max of the per-client
+ * timeouts (~8s, Lc0), not the sum; module-level TTL caches in the client
+ * modules make repeat calls for the same FEN within a warm instance ~free.
+ *
+ * A single slow or down service degrades only its own field to null, which
+ * the downstream validators treat as "source not consulted" (see the
+ * null-gating notes on buildSyncVoterSnapshot). A full grounding outage
+ * yields a snapshot equivalent to the sync builder — silent degradation by
+ * design (plan Q7). The circuit breaker (see circuitBreaker.ts) stops a warm
+ * instance from re-paying a dead source's full timeout on every turn during a
+ * sustained outage: after repeated failures the source is skipped outright.
+ *
+ * Emits one `stage9_async_grounding_fetched` log line per call with per-source
+ * status (ok/empty/fail/skipped/circuit_open) AND per-source latency ms + total
+ * fetch ms, so dashboards can track arm rates, source health, and where the
+ * latency goes.
+ *
+ * This function never rejects: fetch errors are caught per-source and
+ * detectMotifs errors are caught inside buildAsyncVoterSnapshot.
+ */
+export async function buildAsyncSnapshotForMove(
+  input: AsyncSnapshotForMoveInput,
+): Promise<VoterSnapshot> {
+  const now = Date.now();
+  const bestMoveUci = input.stockfishLines[0]?.pv?.[0] ?? null;
+
+  const lc0Gated = shouldCallLc0(input.stockfishEvalCp, input.stockfishLines);
+  const maiaGated = shouldCallMaia(input.userRating ?? undefined, bestMoveUci);
+  const tablebaseGated = isTablebaseEligible(input.fenBefore);
+
+  const [chessdb, lc0, maia, tablebase] = await Promise.all([
+    fetchWithBreaker("chessdb", true, now, () => queryChessdb(input.fenBefore)),
+    fetchWithBreaker("lc0", lc0Gated, now, () => queryLc0(input.fenBefore)),
+    fetchWithBreaker("maia", maiaGated, now, () =>
+      queryMaiaAtRating(input.fenBefore, input.userRating!, bestMoveUci!),
+    ),
+    fetchWithBreaker("tablebase", tablebaseGated, now, () =>
+      fetch_lichess_tablebase(input.fenBefore),
+    ),
+  ]);
+
+  log.info("stage9_async_grounding_fetched", {
+    fen: input.fenBefore,
+    move_san: input.moveSan,
+    correlation_id: input.correlationId,
+    branch: input.branch,
+    chessdb_status: chessdb.status,
+    chessdb_ms: chessdb.ms,
+    lc0_status: lc0.status,
+    lc0_ms: lc0.ms,
+    maia_status: maia.status,
+    maia_ms: maia.ms,
+    tablebase_status: tablebase.status,
+    tablebase_ms: tablebase.ms,
+    total_fetch_ms: Date.now() - now,
+  });
+
+  return buildAsyncVoterSnapshot({
+    fenBefore: input.fenBefore,
+    moveSan: input.moveSan,
+    stockfishEvalCp: input.stockfishEvalCp,
+    stockfishBestMoveMate: input.stockfishBestMoveMate,
+    userRating: input.userRating,
+    chessdbResult: chessdb.value,
+    lc0Result: lc0.value,
+    maiaResult: maia.value,
+    tablebaseResult: tablebase.value,
+  });
 }
 
 // Re-export Chess for callers that need it; some lower-level routes import

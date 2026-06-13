@@ -344,11 +344,20 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
     //
     // Category gating: same scope as the existing eval-claim and
     // feature-citation validators (POSITION_ANCHORED_VALIDATOR_CATEGORIES).
-    // A multi-position game_review response can't be validated against a
-    // single voter snapshot without systematic false positives — the route
-    // is expected to pass voterSnapshot: undefined for non-anchored
-    // categories, which the snapshot guard below honors implicitly.
-    const snap = opts.voterSnapshot;
+    // A non-position-focused response (game_review's multi-position prose,
+    // concept_explanation's general teaching prose) can't be validated against
+    // a single voter snapshot without systematic false positives.
+    //
+    // We gate on `runPositionValidators` here rather than relying solely on the
+    // route to pass voterSnapshot: undefined. The route's snapshot is built
+    // whenever a focused move exists (moveCtx.moveSan), which is true for
+    // category=concept_explanation too (it is NOT in NON_MOVE_FOCUS_CATEGORIES)
+    // — so a route-only contract would let the four Stage 9 validators enforce
+    // against concept_explanation. Folding the category scope into `snap`
+    // guarantees the documented "same scope as eval/citation" invariant for
+    // every current and future caller. (category===undefined keeps the snapshot
+    // — byte-identical for pre-Stage-9 callers/tests.)
+    const snap = runPositionValidators ? opts.voterSnapshot : undefined;
     const stage9Context = {
       fen: opts.fen,
       moveSan: opts.moveSan,

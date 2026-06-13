@@ -1,6 +1,12 @@
 # Coach Accuracy — Master Plan
 
-_Last updated: 2026-06-02. Branch: `feat/tactical-grounding-stage9-validators` (off `origin/main`). Worktree: `/tmp/feat-tg-stage9-validators/`._
+_Last updated: 2026-06-11. Originally written 2026-06-02 for the Stage 9 validator build; §§5–6 are kept as the historical spec — see the update log for what has shipped since._
+
+## Update log
+
+- **2026-06-06 — Stage 9 v1 SHIPPED.** PR #136 (commit `2b67cb7`) merged the four claim-class validators (`userVisibility`, `mateInN`, `materialWin`, `positionalClaim`) wired into `runValidationPipeline` + all streaming branches, per §§5–6 below. Same day: PR #148 (`7586efd`) added verb forms to the positional regex; `ce499fc` added the live-test harness (`scripts/eval/stage9-live-test.ts`, first baseline 18/20 pre-regex-fix, $0.018). Validators ran in **degraded sync-snapshot mode**: `maiaProb` / `lc0Cp` / `syzygyDtm` all null, so 3 of 4 were partially or fully no-op.
+- **2026-06-11 — Stage 9 v2 (async grounding) implemented** on `feat/stage9-async-grounding`: `buildAsyncSnapshotForMove` fetches chessdb / Lc0 / Maia / Syzygy per move and feeds every Stage 9 site; before-move eval threaded through `MastermindMoveContext`; Q6 resolved by widening `shouldCallLc0` to ±200cp; rating fallback from `gameHeaders` Elo. Full decision record: [PR_STAGE9_ASYNC_GROUNDING_PLAN.md](PR_STAGE9_ASYNC_GROUNDING_PLAN.md) §Resolutions — including the **arming-sequence warning** that must be read before deploying Maia `/predict_at_rating`.
+- **Still open** (now the real P1s): Lc0 service deploy, Maia `/predict_at_rating` redeploy, severity-aware retry policy (PR #136 Q1) before Maia arms, Stage 4 real benchmarks, `/api/chat` voter wiring, game-review per-claim anchoring.
 
 The strategic moat for chessmasti.com is **trust** in the AI coach (1M MAU target by June 2027, Aug 31 2026 pivot trigger). Every hallucinated citation or wrongly-confident "you missed a fork!" is one user who silently stops trusting it. This doc consolidates everything the receiving session needs: what's on `main`, what this session did, what's actually open, and the build plan for Stage 9 — the enforcement layer that makes the voter's suppression rules real instead of advisory.
 
@@ -117,14 +123,11 @@ The receiving session inherits a tangle. Here's what actually happened, in order
 
 ## 4. The open work (priority-ranked)
 
-### P0 — Stage 9 enforcement validators (THIS PR)
-Voter emits suppression rules. Nothing enforces them except `motifGrounding.ts` for Stage 5 motifs. Four claim classes — `user_visibility`, `positional_plan`, `mate_in_n`, `material_win` — have zero post-LLM checks. The LLM can ignore every rule and we have no detection. Detailed spec in §5; implementation plan in §6.
+### P0 — Stage 9 enforcement validators — ✅ SHIPPED (PR #136, 2026-06-06) + async grounding v2 (2026-06-11)
+v1 shipped the four validators per §§5–6 below, in degraded sync-snapshot mode. v2 (branch `feat/stage9-async-grounding`) armed them with real chessdb / Lc0 / Maia / Syzygy data per move. Remaining enforcement gap: severity policy for warn-fires once Maia deploys (see the arming-sequence warning in PR_STAGE9_ASYNC_GROUNDING_PLAN.md).
 
-### P1 — Stage 7 design tension resolution
-`shouldCallLc0` trigger range (`|SF| ≤ 100`) and `material_win` MED→HIGH upgrade threshold (both ≥ 150) mutually exclude. Pick one resolution:
-- (a) Widen `shouldCallLc0` to fire whenever Lc0 is configured (more Lc0 calls = more cost, more latency)
-- (b) Lower the upgrade threshold so "Lc0 ≥ 150 alone is enough to upgrade" (better matches the "Lc0 catches what SF misses" intent)
-Recommendation: (b). Needs Aayan + tech-lead confirmation. Memory: `project_stage7_lc0_design_tension.md`.
+### P1 — Stage 7 design tension — ✅ RESOLVED (2026-06-11, async-grounding PR)
+Resolved as a bounded version of (a): `shouldCallLc0` widened to `|SF| ≤ 200` (top-2-within-30cp retained). (b) was mathematically unable to create overlap above 100cp, and sub-100cp "HIGH" material confidence is chess-wrong. The [150, 200] band makes the MED→HIGH upgrades and positionalClaim's error escalation reachable. Memory `project_stage7_lc0_design_tension.md` should be updated/retired.
 
 ### P1 — Lc0 service deploy
 Push `lc0-service/` to HuggingFace Spaces. Set `LC0_API_URL`. Verify via `/api/lc0-status`. Until deployed, `positional_plan` always lands at MED-or-below (no Lc0 confirmation possible), and Stage 9's `positionalClaimValidator` will mostly fire on MED (positional_plan never reaches HIGH without Lc0 anyway).

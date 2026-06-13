@@ -85,21 +85,15 @@ describe("getCoachChatSystemPrompt — negative invariants (no unresolved interp
 });
 
 describe("PROMPT_VERSION", () => {
-  it("is bumped to 3.2", () => {
-    expect(PROMPT_VERSION).toBe("3.2");
+  it("is bumped to 3.3", () => {
+    expect(PROMPT_VERSION).toBe("3.3");
   });
 });
 
-describe("CH-1a — calibrated hedging in the system prompt", () => {
-  it("includes the CONFIDENCE & HEDGING block telling the coach to hedge unverifiable claims", () => {
+describe("CH-1a hedge reverted (3.2 -> 3.3)", () => {
+  it("no longer carries the CONFIDENCE & HEDGING block (no measurable benefit; GCC-Eval Track B)", () => {
     const p = getCoachChatSystemPrompt(baseInput);
-    expect(p).toContain("CONFIDENCE & HEDGING");
-    // The catch-all hedge for the ungroundable 80%.
-    expect(p).toMatch(/one idea is|frame it as a suggestion/i);
-    // Guards the named overclaim words.
-    expect(p).toMatch(/Do not use "winning", "decisive", "the only move", "must", or "forced"/);
-    // Must NOT tell the coach to drop the masti energy.
-    expect(p).toMatch(/never means hedging the masti/i);
+    expect(p).not.toContain("CONFIDENCE & HEDGING");
   });
 });
 

@@ -1,0 +1,323 @@
+{
+  "summary": {
+    "category": "semantic",
+    "n": 25,
+    "model": "claude-sonnet-4-20250514",
+    "engine_depth": 16,
+    "off_accuracy_pct": 84.0,
+    "on_accuracy_pct": 80.0,
+    "delta_pp": -4.0,
+    "tally": {
+      "off": {
+        "correct": 21,
+        "total": 25
+      },
+      "on": {
+        "correct": 20,
+        "total": 25
+      }
+    }
+  },
+  "results": [
+    {
+      "task_id": "semantic_easy_random_0000",
+      "correct_answer": "C",
+      "on": {
+        "extracted": "C",
+        "correct": true
+      },
+      "off": {
+        "extracted": "C",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0001",
+      "correct_answer": "D",
+      "off": {
+        "extracted": "D",
+        "correct": true
+      },
+      "on": {
+        "extracted": "D",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0002",
+      "correct_answer": "C",
+      "off": {
+        "extracted": "C",
+        "correct": true
+      },
+      "on": {
+        "extracted": "C",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0003",
+      "correct_answer": "C",
+      "off": {
+        "extracted": "C",
+        "correct": true
+      },
+      "on": {
+        "extracted": "D",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0004",
+      "correct_answer": "D",
+      "off": {
+        "extracted": "D",
+        "correct": true
+      },
+      "on": {
+        "extracted": "D",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0005",
+      "correct_answer": "B",
+      "off": {
+        "extracted": "B",
+        "correct": true
+      },
+      "on": {
+        "extracted": "B",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0006",
+      "correct_answer": "A",
+      "off": {
+        "extracted": "D",
+        "correct": false
+      },
+      "on": {
+        "extracted": "D",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0007",
+      "correct_answer": "B",
+      "on": {
+        "extracted": "C",
+        "correct": false
+      },
+      "off": {
+        "extracted": "C",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0008",
+      "correct_answer": "A",
+      "on": {
+        "extracted": "A",
+        "correct": true
+      },
+      "off": {
+        "extracted": "A",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0009",
+      "correct_answer": "D",
+      "off": {
+        "extracted": "D",
+        "correct": true
+      },
+      "on": {
+        "extracted": "D",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0010",
+      "correct_answer": "C",
+      "on": {
+        "extracted": "C",
+        "correct": true
+      },
+      "off": {
+        "extracted": "C",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0011",
+      "correct_answer": "C",
+      "off": {
+        "extracted": "C",
+        "correct": true
+      },
+      "on": {
+        "extracted": "C",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0012",
+      "correct_answer": "B",
+      "off": {
+        "extracted": "B",
+        "correct": true
+      },
+      "on": {
+        "extracted": "B",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0013",
+      "correct_answer": "C",
+      "off": {
+        "extracted": "C",
+        "correct": true
+      },
+      "on": {
+        "extracted": "C",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0014",
+      "correct_answer": "A",
+      "off": {
+        "extracted": "A",
+        "correct": true
+      },
+      "on": {
+        "extracted": "A",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0015",
+      "correct_answer": "D",
+      "off": {
+        "extracted": "C",
+        "correct": false
+      },
+      "on": {
+        "extracted": "C",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0016",
+      "correct_answer": "C",
+      "off": {
+        "extracted": "C",
+        "correct": true
+      },
+      "on": {
+        "extracted": "C",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0017",
+      "correct_answer": "C",
+      "off": {
+        "extracted": "C",
+        "correct": true
+      },
+      "on": {
+        "extracted": "C",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0018",
+      "correct_answer": "C",
+      "off": {
+        "extracted": "C",
+        "correct": true
+      },
+      "on": {
+        "extracted": "C",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0019",
+      "correct_answer": "A",
+      "on": {
+        "extracted": "A",
+        "correct": true
+      },
+      "off": {
+        "extracted": "A",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0020",
+      "correct_answer": "C",
+      "off": {
+        "extracted": "B",
+        "correct": false
+      },
+      "on": {
+        "extracted": "C",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0021",
+      "correct_answer": "D",
+      "off": {
+        "extracted": "D",
+        "correct": true
+      },
+      "on": {
+        "extracted": "D",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0022",
+      "correct_answer": "B",
+      "off": {
+        "extracted": "B",
+        "correct": true
+      },
+      "on": {
+        "extracted": "B",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0023",
+      "correct_answer": "A",
+      "off": {
+        "extracted": "A",
+        "correct": true
+      },
+      "on": {
+        "extracted": "D",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "semantic_easy_random_0024",
+      "correct_answer": "D",
+      "off": {
+        "extracted": "D",
+        "correct": true
+      },
+      "on": {
+        "extracted": "D",
+        "correct": true
+      }
+    }
+  ]
+}

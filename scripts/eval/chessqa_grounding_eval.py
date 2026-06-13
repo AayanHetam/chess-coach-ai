@@ -20,6 +20,7 @@ Scope: MASTERMIND_CONTEXT/ACCURACY_BENCHMARK_SCOPE.md (Track A).
 """
 import argparse, json, os, re, urllib.request
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import chess, chess.engine
 
 STOCKFISH = os.environ.get("STOCKFISH_BIN", "/opt/homebrew/bin/stockfish")
@@ -108,48 +109,57 @@ def main():
     ap.add_argument("--bench", default="/tmp/chessqa-benchmark/benchmark")
     ap.add_argument("--repo", default=str(Path.home() / "Downloads/Inspirit_project/chess-coach-ai"))
     ap.add_argument("--depth", type=int, default=18)
+    ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--output", default=None)
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
     api_key = None if args.dry_run else load_api_key(args.repo)
     items = [json.loads(l) for l in open(Path(args.bench) / f"{args.category}.jsonl")][: args.n]
-    engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH)
 
-    results = []
-    tally = {"off": {"correct": 0, "total": 0}, "on": {"correct": 0, "total": 0}}
-    for idx, task in enumerate(items):
-        ctx = stockfish_context(engine, task["input"], depth=args.depth)
-        row = {"task_id": task["task_id"], "correct_answer": task["correct_answer"]}
-        for mode, context in [("off", ""), ("on", ctx)]:
-            prompt = format_prompt(task, context)
-            if args.dry_run:
-                row[mode] = {"prompt_chars": len(prompt)}
-                continue
-            try:
-                resp, _ = call_claude(api_key, prompt)
-            except Exception as e:
-                resp = f"[ERROR {e}]"
-            ext, ok = extract_answer(resp)
-            corr = ok and is_correct(ext, task["correct_answer"], task.get("answer_type", "single"))
-            tally[mode]["total"] += 1
-            tally[mode]["correct"] += 1 if corr else 0
-            row[mode] = {"extracted": ext, "correct": corr}
-        results.append(row)
-        if args.dry_run:
-            print(f"[{idx+1}/{len(items)}] {task['task_id']} ctx_chars={len(ctx)} (dry)")
-        else:
-            print(f"[{idx+1}/{len(items)}] {task['task_id']}: off={'Y' if row['off']['correct'] else 'n'} "
-                  f"on={'Y' if row['on']['correct'] else 'n'} | ans={task['correct_answer']} "
-                  f"off='{row['off']['extracted'][:12]}' on='{row['on']['extracted'][:12]}'")
+    # Phase 1: Stockfish contexts (sequential, one engine — engine isn't shared
+    # across threads). This is the cheap part.
+    engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH)
+    contexts = {t["task_id"]: stockfish_context(engine, t["input"], depth=args.depth) for t in items}
     engine.quit()
 
     if args.dry_run:
-        print("\nDRY RUN ok — prompts + engine context built, no API calls.")
-        # show one ON prompt for eyeballing
+        print(f"DRY RUN ok — built {len(contexts)} engine contexts, no API calls.")
         print("\n----- sample ON prompt (item 1) -----")
-        print(format_prompt(items[0], stockfish_context(chess.engine.SimpleEngine.popen_uci(STOCKFISH), items[0]["input"], args.depth))[:1200])
+        print(format_prompt(items[0], contexts[items[0]["task_id"]])[:1200])
         return
+
+    # Phase 2: concurrent Claude calls over (item, mode). The LLM calls are the
+    # bottleneck (long chain-of-thought outputs); fan them out.
+    rows = {t["task_id"]: {"task_id": t["task_id"], "correct_answer": t["correct_answer"]} for t in items}
+    jobs = []
+    for t in items:
+        for mode, context in [("off", ""), ("on", contexts[t["task_id"]])]:
+            jobs.append((t, mode, context))
+
+    def run_job(job):
+        task, mode, context = job
+        prompt = format_prompt(task, context)
+        try:
+            resp, _ = call_claude(api_key, prompt)
+        except Exception as e:
+            resp = f"[ERROR {e}]"
+        ext, ok = extract_answer(resp)
+        corr = ok and is_correct(ext, task["correct_answer"], task.get("answer_type", "single"))
+        return task["task_id"], mode, ext, corr
+
+    tally = {"off": {"correct": 0, "total": 0}, "on": {"correct": 0, "total": 0}}
+    done = 0
+    with ThreadPoolExecutor(max_workers=args.workers) as ex:
+        futs = [ex.submit(run_job, j) for j in jobs]
+        for fut in as_completed(futs):
+            tid, mode, ext, corr = fut.result()
+            rows[tid][mode] = {"extracted": ext, "correct": corr}
+            tally[mode]["total"] += 1
+            tally[mode]["correct"] += 1 if corr else 0
+            done += 1
+            print(f"[{done}/{len(jobs)}] {tid} {mode}={'Y' if corr else 'n'}")
+    results = list(rows.values())
 
     def pct(m):
         return 100 * tally[m]["correct"] / max(1, tally[m]["total"])

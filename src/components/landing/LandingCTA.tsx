@@ -83,8 +83,8 @@ export default function LandingCTA() {
           <Button
             variant="contained"
             size="large"
-            onClick={() => user ? router.push("/analysis") : setAuthDialogOpen(true)}
-            startIcon={<Icon icon="mdi:magnify" />}
+            onClick={() => router.push("/onboarding")}
+            startIcon={<Icon icon="mdi:account-star-outline" />}
             sx={{
               px: 5,
               py: 1.8,
@@ -97,6 +97,30 @@ export default function LandingCTA() {
               "&:hover": {
                 background: "linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)",
                 boxShadow: "0 12px 40px rgba(255,107,53,0.5)",
+                transform: "translateY(-2px)",
+              },
+              transition: "all 0.3s ease",
+            }}
+          >
+            Get your chess profile
+          </Button>
+          <Button
+            variant="outlined"
+            size="large"
+            onClick={() => user ? router.push("/analysis") : setAuthDialogOpen(true)}
+            startIcon={<Icon icon="mdi:magnify" />}
+            sx={{
+              px: 5,
+              py: 1.8,
+              fontSize: "1.05rem",
+              fontWeight: 700,
+              borderRadius: 3,
+              color: "#FFFFFF",
+              borderColor: "rgba(255,255,255,0.3)",
+              textTransform: "none",
+              "&:hover": {
+                borderColor: "#FF6B35",
+                backgroundColor: "rgba(255,107,53,0.1)",
                 transform: "translateY(-2px)",
               },
               transition: "all 0.3s ease",

@@ -23,7 +23,18 @@ export interface PuzzleStats {
   currentStreak: number;
   bestStreak: number;
   ratingHistory: { rating: number; timestamp: number }[];
-  themeStats: Record<string, { attempts: number; solved: number; avgTimeMs: number }>;
+  themeStats: Record<
+    string,
+    {
+      attempts: number;
+      solved: number;
+      avgTimeMs: number;
+      // Ratings of the last ~10 puzzles attempted in this theme. Powers the
+      // curriculum mastery rule ("solving at/above your level"). Optional for
+      // back-compat with stats persisted before this field existed.
+      recentRatings?: number[];
+    }
+  >;
   recentSolves: PuzzleSolveRecord[];
 }
 
@@ -70,10 +81,12 @@ export function calculateNewRating(
   playerRating: number,
   puzzleRating: number,
   solved: boolean,
-  totalAttempts: number
+  totalAttempts: number,
+  k?: number
 ): number {
-  // K-factor: higher for new players, decreases as they play more
-  const K = totalAttempts < 20 ? 40 : totalAttempts < 50 ? 30 : 20;
+  // K-factor: explicit override (used by the placement test's fast-converging
+  // schedule) else higher for new players, decreasing as they play more.
+  const K = k ?? (totalAttempts < 20 ? 40 : totalAttempts < 50 ? 30 : 20);
 
   // Expected score (probability of solving)
   const expected = 1 / (1 + Math.pow(10, (puzzleRating - playerRating) / 400));
@@ -117,12 +130,15 @@ export function updatePuzzleStats(
   const themeStats = { ...stats.themeStats };
   const existing = themeStats[record.theme] || { attempts: 0, solved: 0, avgTimeMs: 0 };
   const newThemeAttempts = existing.attempts + 1;
+  // Keep the last 10 puzzle ratings attempted in this theme for the mastery rule.
+  const recentRatings = [...(existing.recentRatings ?? []), record.puzzleRating].slice(-10);
   themeStats[record.theme] = {
     attempts: newThemeAttempts,
     solved: existing.solved + (record.solved ? 1 : 0),
     avgTimeMs: Math.round(
       (existing.avgTimeMs * existing.attempts + record.timeMs) / newThemeAttempts
     ),
+    recentRatings,
   };
 
   // Keep last 100 rating history points

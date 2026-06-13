@@ -39,7 +39,21 @@ export async function POST(req: Request) {
     const body = await req.json();
     const parsed = validateRequest(puzzleDatasetSchema, body);
     if (!parsed.success) return parsed.response;
-    const { themes, limit, command, difficulty, excludeIds } = parsed.data;
+    const { themes, limit, command, difficulty, excludeIds, minRating, maxRating } =
+      parsed.data;
+
+    // Adaptive serving: N puzzles inside an explicit rating window, optionally
+    // narrowed to a theme. Backs the placement test + the daily-plan generator.
+    if (command === "by_rating") {
+      const puzzles = await queryPuzzles({
+        themes: themes && themes.length > 0 ? themes : undefined,
+        minRating,
+        maxRating,
+        limit,
+        excludeIds: excludeIds ?? [],
+      });
+      return NextResponse.json({ success: true, puzzles, count: puzzles.length });
+    }
 
     if (command === "find_similar" || command === "by_theme") {
       if (!themes || themes.length === 0) {

@@ -14,19 +14,27 @@ import type { DrillProgress } from "@/types/openings";
  *   0 = complete blackout
  */
 
-const DEFAULT_EASE_FACTOR = 2.5;
-const MIN_EASE_FACTOR = 1.3;
+export const DEFAULT_EASE_FACTOR = 2.5;
+export const MIN_EASE_FACTOR = 1.3;
 
-export function calculateNextReview(
-  progress: DrillProgress,
+/** SM-2 core, shared by opening-line drills (below) and per-theme puzzle SRS
+ *  (puzzleThemeSrs.ts). Pure arithmetic over the ease + interval; the caller
+ *  owns timestamps and any domain-specific fields. */
+export interface Sm2State {
+  easeFactor: number;
+  interval: number;
+  attempts: number;
+}
+export function applySm2(
+  state: Sm2State,
   quality: number
-): DrillProgress {
+): { easeFactor: number; interval: number } {
   const q = Math.max(0, Math.min(5, quality));
-  let { easeFactor, interval } = progress;
+  let { easeFactor, interval } = state;
 
   if (q >= 3) {
     // Correct response
-    if (progress.attempts === 0) {
+    if (state.attempts === 0) {
       interval = 1;
     } else if (interval <= 1) {
       interval = 6;
@@ -41,6 +49,19 @@ export function calculateNextReview(
   // Update ease factor
   easeFactor = easeFactor + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
   easeFactor = Math.max(MIN_EASE_FACTOR, easeFactor);
+
+  return { easeFactor, interval };
+}
+
+export function calculateNextReview(
+  progress: DrillProgress,
+  quality: number
+): DrillProgress {
+  const q = Math.max(0, Math.min(5, quality));
+  const { easeFactor, interval } = applySm2(
+    { easeFactor: progress.easeFactor, interval: progress.interval, attempts: progress.attempts },
+    quality
+  );
 
   const now = Date.now();
   const nextReview = now + interval * 24 * 60 * 60 * 1000;

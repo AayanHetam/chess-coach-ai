@@ -1240,7 +1240,12 @@ export async function POST(request: NextRequest) {
           studyGoals: profile.studyGoals,
           favoriteOpenings: profile.favoriteOpenings,
         };
-        profileRating = profile.selfReportedRating;
+        // Single-rating model: prefer the live mirror (tracks improvement),
+        // then the placement-measured rating, then the self-reported prior.
+        profileRating =
+          profile.liveRatingSnapshot ??
+          profile.measuredRating ??
+          profile.selfReportedRating;
       }
     } catch (err) {
       log.warn("could not load coaching prefs", {

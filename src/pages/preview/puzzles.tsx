@@ -139,30 +139,48 @@ const RATING_BANDS: RatingBand[] = [
 ];
 
 /**
- * Maps onboarding/placement focus-theme ids (kebab) to the feed's Lichess
- * theme vocabulary (camelCase) so the stream can be seeded from the user's
- * stated weaknesses. Only clean 1:1 motifs are mapped; broad ids
- * (king-safety, general) fall through to a rating-window-only seed.
+ * Maps onboarding/placement focus-theme ids — canonical kebab Neo4j `:Theme.id`
+ * values (see quizThemes.ts) — to the feed's Lichess theme vocabulary
+ * (camelCase) so the stream can be seeded from the user's stated weaknesses.
  */
 const FEED_THEME_BY_FOCUS: Record<string, string> = {
-  forks: "fork",
-  pins: "pin",
-  endgames: "endgame",
-  openings: "opening",
-  blunders: "hangingPiece",
+  "hanging-piece": "hangingPiece",
+  fork: "fork",
+  "double-attack": "fork",
+  pin: "pin",
+  skewer: "skewer",
+  "discovered-attack": "discoveredAttack",
+  "back-rank": "backRankMate",
+  "exposed-king": "kingsideAttack",
+  "mating-attack": "mate",
+  sacrifice: "sacrifice",
+  endgame: "endgame",
+  promotion: "promotion",
+  "advanced-pawn": "advancedPawn",
 };
 
 /**
- * Inverse of the clean mappings — used to record /puzzles solves under the
- * curriculum's kebab theme keys so per-theme mastery stays unified with the
- * placement test + SessionRunner.
+ * Inverse mapping — records /puzzles solves under the curriculum's kebab theme
+ * keys so per-theme mastery stays unified with the placement test +
+ * SessionRunner (both of which read themeStats by kebab `:Theme.id`).
  */
 const FEED_TO_CURRICULUM_THEME: Record<string, string> = {
-  fork: "forks",
-  pin: "pins",
-  endgame: "endgames",
-  opening: "openings",
-  hangingPiece: "blunders",
+  hangingPiece: "hanging-piece",
+  fork: "fork",
+  pin: "pin",
+  skewer: "skewer",
+  discoveredAttack: "discovered-attack",
+  backRankMate: "back-rank",
+  exposedKing: "exposed-king",
+  kingsideAttack: "exposed-king",
+  mate: "mating-attack",
+  mateIn1: "mating-attack",
+  mateIn2: "mating-attack",
+  mateIn3: "mating-attack",
+  sacrifice: "sacrifice",
+  endgame: "endgame",
+  promotion: "promotion",
+  advancedPawn: "advanced-pawn",
 };
 
 /** First focus theme that maps to a feed theme, or undefined. */

@@ -35,6 +35,7 @@ import type {
   TelemetryEvent,
 } from "@/lib/mastermind/validators";
 import type { QuestionCategory } from "@/lib/mastermind/categorization/categoryClassifier";
+import type { PositionConfidence } from "@/lib/grounding/positionConfidence";
 
 const log = logger.child({ module: "mastermind-pipeline-timeout" });
 
@@ -166,6 +167,40 @@ export function readMaxRetries(category?: QuestionCategory): number {
     return MAX_RETRIES_BY_CATEGORY[category];
   }
   return DEFAULT_MAX_RETRIES;
+}
+
+/**
+ * CH-2 — confidence-aware single-regen policy (Aayan's Q3).
+ *
+ * The overclaim validators (positionalClaim / materialWin) fire on ungrounded
+ * "winning" / "dominating" prose and trigger a regenerate. Q3 raised two
+ * problems with letting that use the full per-category retry budget:
+ *   1. Regenerating an INHERENTLY low-grounding position is a "shot in the
+ *      dark" — a retry can't add grounding that isn't there, so it just burns
+ *      flagship calls without improving accuracy.
+ *   2. Even a fixable overclaim should get at most ONE retry (hard stop), not
+ *      the category budget (position_analysis is 2).
+ *
+ * So, only on the position-anchored path where the overclaim validators
+ * actually enforce (`overclaimEnforced`), and using the focused position's
+ * verification level:
+ *   - strategic_read         → 0: accept the answer; CH-3 surfaces the low
+ *     confidence rather than chasing a better answer that doesn't exist.
+ *   - mixed / engine_verified → min(categoryBudget, 1): the overclaim is fixable
+ *     against real grounding — one hedge-retry, hard stop.
+ *
+ * When not enforcing, or no snapshot (non-anchored / no focused move), the
+ * category budget is returned unchanged — eval/citation/scout/userHistory
+ * regen on those paths is unrelated to chess-grounding confidence.
+ */
+export function resolveOverclaimRetries(
+  categoryBudget: number,
+  positionConfidence: PositionConfidence | undefined,
+  overclaimEnforced: boolean,
+): number {
+  if (!overclaimEnforced || !positionConfidence) return categoryBudget;
+  if (positionConfidence.level === "strategic_read") return 0;
+  return Math.min(categoryBudget, 1);
 }
 
 /**

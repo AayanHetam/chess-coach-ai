@@ -15,6 +15,7 @@ import { buildFallbackResponse, CoachTone } from "./fallback";
 import { createTelemetryEvent } from "./telemetry";
 import { ValidatorResult, TelemetryEvent, ScoutTimeClass } from "./types";
 import type { ConfidenceLevel } from "@/lib/grounding/voter";
+import type { PositionConfidence } from "@/lib/grounding/positionConfidence";
 import type { ScoutAnalytics, Collisions } from "@/types/scout";
 import type { UserHistoryGame } from "../userHistoryAggregates";
 import type { QuestionCategory } from "../categorization/categoryClassifier";
@@ -201,6 +202,13 @@ export interface VoterSnapshot {
   lc0Cp: number | null;
   /** Syzygy distance-to-mate. null when not in tablebase range. */
   syzygyDtm: number | null;
+  /**
+   * Verification-confidence for the position (engine-verified vs judgment).
+   * Optional for back-compat with pre-CH callers/test literals; the route's
+   * snapshot builders always populate it. Consumed by CH-2 (single-regen
+   * decision) and CH-3 (user-facing confidence spectrum).
+   */
+  positionConfidence?: PositionConfidence;
 }
 
 /**

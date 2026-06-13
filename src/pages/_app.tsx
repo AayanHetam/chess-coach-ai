@@ -11,6 +11,7 @@ import Head from "next/head";
 import { Analytics } from "@vercel/analytics/react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import QuizPersistenceFlush from "@/components/auth/QuizPersistenceFlush";
+import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,8 @@ export default function MyApp({ Component, pageProps }: AppProps) {
           name="viewport"
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
         />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#F97316" />
         <title>Chess Masti AI - Make Chess Fun with AI-Powered Coaching!</title>
       </Head>
       <QueryClientProvider client={queryClient}>
@@ -66,6 +69,8 @@ export default function MyApp({ Component, pageProps }: AppProps) {
           {/* Persists pre-auth onboarding-quiz answers once the user signs in,
               by either method (email in-page or Google full-page redirect). */}
           <QuizPersistenceFlush />
+          {/* Registers the push service worker (no-op where unsupported). */}
+          <ServiceWorkerRegistrar />
           <ErrorBoundary name="app">
             <Layout>
               <Component {...pageProps} />

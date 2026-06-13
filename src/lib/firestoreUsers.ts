@@ -59,6 +59,10 @@ export interface UserProfile {
     enabled: boolean;
     hour?: number;
   };
+  pushSubscriptions?: {
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+  }[];
 
   boardTheme?: BoardTheme;
   pieceSet?: PieceSet;

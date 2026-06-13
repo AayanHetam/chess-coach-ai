@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { getTrackingEnv } from "@/env";
 import { recordAnalysisSession } from "@/lib/tracking/domain";
 import { readAnonIdFromRequest } from "@/lib/tracking/anonId";
+import { hasTrackingConsent } from "@/lib/tracking/consent";
 
 /**
  * POST /api/track/analysis-session — record an ended game-analysis session (TRK-3).
@@ -27,6 +28,7 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   if (!getTrackingEnv().enabled) return new NextResponse(null, { status: 204 });
+  if (!hasTrackingConsent(request)) return new NextResponse(null, { status: 204 });
 
   let body: unknown;
   try {

@@ -38,7 +38,11 @@ async function send({ to, subject, html, text }: SendArgs): Promise<void> {
 
 const BRAND_GRADIENT = "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)";
 
-function wrapHtml(headline: string, body: string, ctaButton?: { url: string; label: string }): string {
+function wrapHtml(
+  headline: string,
+  body: string,
+  ctaButton?: { url: string; label: string }
+): string {
   const button = ctaButton
     ? `
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0">
@@ -93,13 +97,53 @@ export async function sendPasswordResetEmail(args: {
     { url: args.resetUrl, label: "Reset password" }
   );
   const text =
-    `Reset your Chess Masti password\n\n` +
+    "Reset your Chess Masti password\n\n" +
     `Someone asked to reset your password. Open this link in the next ${args.expiresInMinutes} minutes:\n\n` +
     `${args.resetUrl}\n\n` +
-    `If this wasn't you, ignore this email — your password is unchanged.\n`;
+    "If this wasn't you, ignore this email — your password is unchanged.\n";
   await send({
     to: args.to,
     subject: "Reset your Chess Masti password",
+    html,
+    text,
+  });
+}
+
+export async function sendDailyReminderEmail(args: {
+  to: string;
+  displayName?: string;
+  /** Current streak, if any, for "don't break your N-day streak" framing. */
+  streak?: number;
+  /** Link that turns reminders off (CAN-SPAM unsubscribe). */
+  unsubscribeUrl: string;
+}): Promise<void> {
+  const name = args.displayName ? `, ${args.displayName}` : "";
+  const streakLine =
+    args.streak && args.streak > 0
+      ? `<p>You're on a <strong>${args.streak}-day streak</strong> 🔥 — a few puzzles today keeps it alive.</p>`
+      : "<p>A few minutes of focused training today keeps your tactics sharp.</p>";
+  const html = wrapHtml(
+    `Your training is ready${name}`,
+    `${streakLine}
+      <p>Today's session is queued up — sized to the time you set. Jump in and we'll
+        pick up right where your plan left off.</p>`,
+    { url: "https://chessmasti.com/learn", label: "Start today's session" }
+  ).replace(
+    "</body>",
+    `<table role="presentation" width="100%"><tr><td align="center" style="padding:0 16px 24px;">
+       <a href="${args.unsubscribeUrl}" style="color:#aaa;font-size:12px;">Turn off these reminders</a>
+     </td></tr></table></body>`
+  );
+  const text =
+    `Your Chess Masti training is ready${name}.\n\n` +
+    (args.streak && args.streak > 0
+      ? `You're on a ${args.streak}-day streak — keep it alive.\n\n`
+      : "") +
+    "Start today's session: https://chessmasti.com/learn\n\n" +
+    `Turn off reminders: ${args.unsubscribeUrl}\n`;
+  await send({
+    to: args.to,
+    subject: "Your chess training is ready",
     html,
     text,
   });
@@ -109,7 +153,9 @@ export async function sendWelcomeEmail(args: {
   to: string;
   displayName?: string;
 }): Promise<void> {
-  const greeting = args.displayName ? `Welcome, ${args.displayName}!` : "Welcome to Chess Masti!";
+  const greeting = args.displayName
+    ? `Welcome, ${args.displayName}!`
+    : "Welcome to Chess Masti!";
   const html = wrapHtml(
     greeting,
     `<p>Your account is ready. Sign in any time at

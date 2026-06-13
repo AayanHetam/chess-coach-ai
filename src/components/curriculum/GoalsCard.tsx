@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  FormControlLabel,
+  Switch,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useAtomValue } from "jotai";
 import { useAuth } from "@/contexts/AuthContext";
 import { puzzleStatsAtom } from "@/lib/puzzleRating";
@@ -201,6 +208,34 @@ export default function GoalsCard() {
           Set a target rating to track your progress.
         </Typography>
       )}
+
+      <Box sx={{ mt: 2, pt: 2, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={!!profile?.reminderPrefs?.enabled}
+              onChange={(e) =>
+                void updateProfile({
+                  reminderPrefs: { enabled: e.target.checked },
+                }).catch(() => {})
+              }
+              sx={{
+                "& .MuiSwitch-switchBase.Mui-checked": { color: "#FB923C" },
+                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                  backgroundColor: "#F97316",
+                },
+              }}
+            />
+          }
+          label={
+            <Typography
+              sx={{ color: "rgba(255,255,255,0.8)", fontSize: "0.88rem" }}
+            >
+              Daily email reminders
+            </Typography>
+          }
+        />
+      </Box>
     </Box>
   );
 }

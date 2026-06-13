@@ -51,6 +51,15 @@ export interface UserProfile {
     masteryThemes?: string[];
   };
 
+  // Reminder + activity state (Phase 3; see StoredUser).
+  lastActiveAt?: number;
+  currentStreak?: number;
+  streakUpdatedAt?: number;
+  reminderPrefs?: {
+    enabled: boolean;
+    hour?: number;
+  };
+
   boardTheme?: BoardTheme;
   pieceSet?: PieceSet;
 

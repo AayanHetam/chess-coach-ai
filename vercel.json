@@ -18,8 +18,10 @@
     {
       "path": "/api/keep-maia-alive",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/send-reminders",
+      "schedule": "0 14 * * *"
     }
   ]
 }
-
-

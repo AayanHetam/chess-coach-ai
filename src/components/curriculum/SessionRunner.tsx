@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom } from "jotai";
 import { useAuth } from "@/contexts/AuthContext";
 import PlacementBoard from "@/components/placement/PlacementBoard";
 import QuizProgress from "@/components/onboarding/QuizProgress";
@@ -43,10 +43,10 @@ async function fetchOne(
 }
 
 export default function SessionRunner({ onExit }: { onExit: () => void }) {
-  const { profile } = useAuth();
+  const { profile, updateProfile } = useAuth();
   const [stats, setStats] = useAtom(puzzleStatsAtom);
   const [srs, setSrs] = useAtom(puzzleThemeSrsAtom);
-  const setStreak = useSetAtom(streakAtom);
+  const [streak, setStreak] = useAtom(streakAtom);
 
   // Snapshot the plan + queue ONCE so solving (which changes the live rating)
   // doesn't reshuffle the session mid-way.
@@ -172,10 +172,18 @@ export default function SessionRunner({ onExit }: { onExit: () => void }) {
         ),
       }));
 
-      // Streak: first completed item of the day.
+      // Streak: first completed item of the day. Also mirror streak +
+      // last-active to the profile so the reminder cron can read it server-side.
       if (!streakBumpedRef.current) {
         streakBumpedRef.current = true;
-        setStreak((prev) => bumpStreak(prev, dayKey(new Date())));
+        const newStreak = bumpStreak(streak, dayKey(new Date()));
+        setStreak(newStreak);
+        const at = Date.now();
+        void updateProfile({
+          lastActiveAt: at,
+          currentStreak: newStreak.current,
+          streakUpdatedAt: at,
+        }).catch(() => {});
       }
 
       if (firstTry) setSolvedCount((c) => c + 1);
@@ -183,7 +191,17 @@ export default function SessionRunner({ onExit }: { onExit: () => void }) {
 
       window.setTimeout(advance, solved ? 450 : 700);
     },
-    [puzzle, queue, idx, setStats, setSrs, setStreak, advance]
+    [
+      puzzle,
+      queue,
+      idx,
+      setStats,
+      setSrs,
+      setStreak,
+      streak,
+      updateProfile,
+      advance,
+    ]
   );
 
   if (done) {

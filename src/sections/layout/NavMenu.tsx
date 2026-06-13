@@ -16,7 +16,7 @@ import { useViewer } from "@/hooks/useViewer";
 
 const MenuOptions = [
   { text: "Home", icon: "mdi:home-outline", href: "/" },
-  { text: "Train", icon: "mdi:school-outline", href: "/learn" },
+  { text: "Train", icon: "mdi:school-outline", href: "/plan" },
   { text: "Play", icon: "streamline:chess-pawn", href: "/play" },
   { text: "Analysis", icon: "streamline:magnifying-glass-solid", href: "/analysis" },
   {

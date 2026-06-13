@@ -257,7 +257,7 @@ export default function PlacementTest() {
       <Panel>
         <PlacementResult
           result={result}
-          onContinue={() => router.push("/learn")}
+          onContinue={() => router.push("/plan")}
           onRetake={startFresh}
         />
       </Panel>

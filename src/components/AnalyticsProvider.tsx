@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 import { app } from "@/lib/firebase";
 import { recordVisit } from "@/lib/visitorTracker";
+import { track } from "@/lib/tracking/client";
 
 declare global {
   interface Window {
@@ -57,6 +58,9 @@ export default function AnalyticsProvider() {
 
     // 3. Record to custom Firestore visitor tracker
     recordVisit(url);
+
+    // 4. TRK-4: fire a page.view into the tracking warehouse (server-gated).
+    track("page.view", { path: url, title: document.title });
   }, [pathname, searchParams]);
 
   return null;

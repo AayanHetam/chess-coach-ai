@@ -1,5 +1,6 @@
 import { FirebaseOptions, initializeApp } from "firebase/app";
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
+import { track } from "@/lib/tracking/client";
 
 /**
  * Auth and Firestore have moved server-side. The browser only initializes
@@ -36,6 +37,12 @@ export const logAnalyticsEvent = async (
   eventName: string,
   eventParams?: Record<string, unknown>
 ) => {
+  // TRK-4: fan every custom analytics event into our own warehouse via the
+  // client SDK. track() is SSR-safe and fires on localhost too (unlike the
+  // GA path below, which early-returns on localhost). The server gates the
+  // actual write on TRACKING_ENABLED.
+  track(eventName, eventParams);
+
   if (typeof window === "undefined") return;
   if (window.location.hostname === "localhost") return;
 

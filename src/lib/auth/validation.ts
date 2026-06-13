@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { QUIZ_FOCUS_THEME_IDS, MAX_FOCUS_THEMES } from "@/components/onboarding/quizThemes";
+import {
+  QUIZ_FOCUS_THEME_IDS,
+  MAX_FOCUS_THEMES,
+} from "@/components/onboarding/quizThemes";
 
 /**
  * Auth payload schemas. Centralized so signup / signin / change-password
@@ -83,15 +86,22 @@ export const profilePatchSchema = z.object({
     .array(z.enum(["tactics", "endgames", "openings", "time-management"]))
     .max(4)
     .optional(),
-  favoriteOpenings: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+  favoriteOpenings: z
+    .array(z.string().trim().min(1).max(80))
+    .max(20)
+    .optional(),
 
   // Onboarding quiz output. `focusThemes` is enum-locked to the quiz's
   // canonical kebab theme ids (QUIZ_FOCUS_THEME_IDS) so a tampered PATCH can't
   // inject free-text or an uncovered taxonomy id; the recommender consumes
   // these verbatim. `dailyTimeCommitment` stands alone (NOT the same concept as
   // the studyGoals "time-management" clock-discipline value).
-  focusThemes: z.array(z.enum(QUIZ_FOCUS_THEME_IDS)).max(MAX_FOCUS_THEMES).optional(),
+  focusThemes: z
+    .array(z.enum(QUIZ_FOCUS_THEME_IDS))
+    .max(MAX_FOCUS_THEMES)
+    .optional(),
   dailyTimeCommitment: z.enum(["under-10", "10-30", "30-plus"]).optional(),
+  onboardingCompletedAt: z.number().int().min(0).optional(),
 
   // Single-rating model snapshots written by the placement test + live mirror.
   measuredRating: z.number().int().min(0).max(3500).optional(),
@@ -105,7 +115,10 @@ export const profilePatchSchema = z.object({
     .object({
       targetRating: z.number().int().min(0).max(3500).optional(),
       puzzlesPerDay: z.number().int().min(1).max(200).optional(),
-      masteryThemes: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+      masteryThemes: z
+        .array(z.string().trim().min(1).max(40))
+        .max(20)
+        .optional(),
     })
     .optional(),
 

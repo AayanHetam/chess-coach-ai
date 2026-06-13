@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { getSession, refreshSessionCookieOnResponse } from "@/lib/auth/session";
 import { getUserById, toSafe } from "@/lib/server/users";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
 
@@ -20,17 +20,27 @@ export async function GET() {
     // isIntern + isAdmin are stamped into the session JWT at sign-in time;
     // surface them alongside the user payload so `useViewer()` can read both
     // without a second roundtrip.
-    return NextResponse.json({
+    const response = NextResponse.json({
       user: toSafe(user),
       isIntern: !!session.isIntern,
       isAdmin: !!session.isAdmin,
     });
+    // Sliding-window refresh: every authenticated app load rolls the session
+    // forward so a returning user is silently kept signed in.
+    await refreshSessionCookieOnResponse(response, session);
+    return response;
   } catch (err) {
     if (err instanceof AdminConfigError) {
       console.error("[auth/me]", err);
-      return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 });
+      return NextResponse.json(
+        { error: "Authentication service unavailable" },
+        { status: 503 }
+      );
     }
     console.error("[auth/me] unexpected", err);
-    return NextResponse.json({ error: "Failed to load session." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load session." },
+      { status: 500 }
+    );
   }
 }

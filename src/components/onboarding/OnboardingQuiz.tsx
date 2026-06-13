@@ -42,11 +42,14 @@ interface OnboardingQuizProps {
   /** Called when the user unlocks from the result screen. */
   onUnlock: (answers: QuizAnswers) => void;
   submitting?: boolean;
+  /** True when the viewer is already signed in (mandatory-onboarding flow). */
+  authed?: boolean;
 }
 
 export default function OnboardingQuiz({
   onUnlock,
   submitting,
+  authed,
 }: OnboardingQuizProps) {
   const q = useOnboardingQuiz();
 
@@ -66,6 +69,7 @@ export default function OnboardingQuiz({
           onUnlock={() => onUnlock(q.answers)}
           onBack={q.back}
           submitting={submitting}
+          authed={authed}
         />
       );
     }
@@ -141,10 +145,7 @@ export default function OnboardingQuiz({
 
       case "goals":
         return (
-          <QuizStep
-            title="What do you want to improve?"
-            helper="Pick all that apply — we'll prioritize these."
-          >
+          <QuizStep title="What do you want to improve?" helper="Pick a few.">
             {QUIZ_GOAL_OPTIONS.map((o) => (
               <QuizOption
                 key={o.key}

@@ -39,6 +39,9 @@ export type StoredUser = {
   // recommender; `dailyTimeCommitment` is the self-reported practice budget.
   focusThemes?: string[];
   dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
+  // Set when the user finishes the onboarding quiz. Gates the mandatory-once
+  // questionnaire (OnboardingGate) so they're never asked twice.
+  onboardingCompletedAt?: number;
 
   // Single-rating model (see CURRICULUM plan). `selfReportedRating` above is the
   // cold-start prior. `measuredRating` is the immutable result of the most recent
@@ -114,13 +117,15 @@ export async function getUserById(uid: string): Promise<StoredUser | null> {
   const db = await getAdminFirestore();
   const snap = await withFirestoreTimeout(
     db.collection(COLLECTION).doc(uid).get(),
-    `users.getUserById(${uid})`,
+    `users.getUserById(${uid})`
   );
   if (!snap.exists) return null;
   return { uid: snap.id, ...(snap.data() as Omit<StoredUser, "uid">) };
 }
 
-export async function getUserByEmail(email: string): Promise<StoredUser | null> {
+export async function getUserByEmail(
+  email: string
+): Promise<StoredUser | null> {
   const db = await getAdminFirestore();
   const snap = await withFirestoreTimeout(
     db
@@ -128,29 +133,29 @@ export async function getUserByEmail(email: string): Promise<StoredUser | null> 
       .where("email", "==", normalizeEmail(email))
       .limit(1)
       .get(),
-    `users.getUserByEmail(${normalizeEmail(email)})`,
+    `users.getUserByEmail(${normalizeEmail(email)})`
   );
   if (snap.empty) return null;
   const doc = snap.docs[0];
   return { uid: doc.id, ...(doc.data() as Omit<StoredUser, "uid">) };
 }
 
-export async function getUserByGoogleId(googleId: string): Promise<StoredUser | null> {
+export async function getUserByGoogleId(
+  googleId: string
+): Promise<StoredUser | null> {
   const db = await getAdminFirestore();
   const snap = await withFirestoreTimeout(
-    db
-      .collection(COLLECTION)
-      .where("googleId", "==", googleId)
-      .limit(1)
-      .get(),
-    `users.getUserByGoogleId(${googleId})`,
+    db.collection(COLLECTION).where("googleId", "==", googleId).limit(1).get(),
+    `users.getUserByGoogleId(${googleId})`
   );
   if (snap.empty) return null;
   const doc = snap.docs[0];
   return { uid: doc.id, ...(doc.data() as Omit<StoredUser, "uid">) };
 }
 
-export async function getUserByPasswordResetHash(hash: string): Promise<StoredUser | null> {
+export async function getUserByPasswordResetHash(
+  hash: string
+): Promise<StoredUser | null> {
   const db = await getAdminFirestore();
   const snap = await withFirestoreTimeout(
     db
@@ -159,7 +164,7 @@ export async function getUserByPasswordResetHash(hash: string): Promise<StoredUs
       .limit(1)
       .get(),
     // Don't include the hash itself in the op label — it's a secret.
-    "users.getUserByPasswordResetHash",
+    "users.getUserByPasswordResetHash"
   );
   if (snap.empty) return null;
   const doc = snap.docs[0];
@@ -179,11 +184,16 @@ export async function createUser(input: CreateUserInput): Promise<StoredUser> {
   const email = normalizeEmail(input.email);
   const existing = await getUserByEmail(email);
   if (existing) {
-    throw new UserError("email_taken", "An account with this email already exists.");
+    throw new UserError(
+      "email_taken",
+      "An account with this email already exists."
+    );
   }
 
   const uid = randomUUID();
-  const passwordHash = input.password ? await bcrypt.hash(input.password, BCRYPT_COST) : undefined;
+  const passwordHash = input.password
+    ? await bcrypt.hash(input.password, BCRYPT_COST)
+    : undefined;
 
   const doc: Record<string, unknown> = {
     email,
@@ -212,7 +222,10 @@ export async function verifyPassword(
   const user = await getUserByEmail(email);
   // Constant-ish-time: still hash on miss so timing doesn't leak existence.
   if (!user || !user.passwordHash) {
-    await bcrypt.compare(password, "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalid");
+    await bcrypt.compare(
+      password,
+      "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalid"
+    );
     return null;
   }
   const ok = await bcrypt.compare(password, user.passwordHash);
@@ -235,6 +248,7 @@ export type UpdateUserPatch = Partial<
     | "favoriteOpenings"
     | "focusThemes"
     | "dailyTimeCommitment"
+    | "onboardingCompletedAt"
     | "measuredRating"
     | "measuredRatingConfidence"
     | "measuredAt"
@@ -254,9 +268,14 @@ export type UpdateUserPatch = Partial<
   >
 >;
 
-export async function updateUser(uid: string, patch: UpdateUserPatch): Promise<StoredUser> {
+export async function updateUser(
+  uid: string,
+  patch: UpdateUserPatch
+): Promise<StoredUser> {
   const db = await getAdminFirestore();
-  const cleaned: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+  const cleaned: Record<string, unknown> = {
+    updatedAt: FieldValue.serverTimestamp(),
+  };
   for (const [k, v] of Object.entries(patch)) {
     if (v === undefined) continue;
     cleaned[k] = v;
@@ -275,7 +294,10 @@ export async function updateLastLoginAt(uid: string): Promise<void> {
     .update({ lastLoginAt: FieldValue.serverTimestamp() });
 }
 
-export async function setPassword(uid: string, password: string): Promise<void> {
+export async function setPassword(
+  uid: string,
+  password: string
+): Promise<void> {
   const db = await getAdminFirestore();
   const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
   await db.collection(COLLECTION).doc(uid).update({
@@ -292,16 +314,23 @@ export async function setPasswordResetToken(
   expiresAt: Date
 ): Promise<void> {
   const db = await getAdminFirestore();
-  await db.collection(COLLECTION).doc(uid).update({
-    passwordResetHash: tokenHash,
-    passwordResetExpiresAt: Timestamp.fromDate(expiresAt),
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  await db
+    .collection(COLLECTION)
+    .doc(uid)
+    .update({
+      passwordResetHash: tokenHash,
+      passwordResetExpiresAt: Timestamp.fromDate(expiresAt),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 }
 
 export class UserError extends Error {
   constructor(
-    public code: "email_taken" | "not_found" | "invalid_credentials" | "weak_password",
+    public code:
+      | "email_taken"
+      | "not_found"
+      | "invalid_credentials"
+      | "weak_password",
     message: string
   ) {
     super(message);

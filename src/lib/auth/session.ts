@@ -3,7 +3,10 @@ import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 
 const COOKIE_NAME = "cm_session";
-const SESSION_DAYS = 30;
+// Long-lived, persistent session for an "it just remembers me" experience.
+// /api/auth/me re-issues the cookie on every authenticated load (sliding
+// window), so an active user effectively never has to sign in again.
+const SESSION_DAYS = 90;
 const SESSION_SECONDS = SESSION_DAYS * 24 * 60 * 60;
 
 export type SessionPayload = {
@@ -35,7 +38,9 @@ function getKey(): Uint8Array {
   return cachedKey;
 }
 
-export async function createSessionToken(payload: SessionPayload): Promise<string> {
+export async function createSessionToken(
+  payload: SessionPayload
+): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -43,15 +48,24 @@ export async function createSessionToken(payload: SessionPayload): Promise<strin
     .sign(getKey());
 }
 
-export async function verifySessionToken(token: string): Promise<SessionPayload | null> {
+export async function verifySessionToken(
+  token: string
+): Promise<SessionPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, getKey(), { algorithms: ["HS256"] });
-    if (typeof payload.uid !== "string" || typeof payload.email !== "string") return null;
+    const { payload } = await jwtVerify(token, getKey(), {
+      algorithms: ["HS256"],
+    });
+    if (typeof payload.uid !== "string" || typeof payload.email !== "string")
+      return null;
     return {
       uid: payload.uid,
       email: payload.email,
-      displayName: typeof payload.displayName === "string" ? payload.displayName : undefined,
-      avatarUrl: typeof payload.avatarUrl === "string" ? payload.avatarUrl : undefined,
+      displayName:
+        typeof payload.displayName === "string"
+          ? payload.displayName
+          : undefined,
+      avatarUrl:
+        typeof payload.avatarUrl === "string" ? payload.avatarUrl : undefined,
       isIntern: payload.isIntern === true ? true : undefined,
       isAdmin: payload.isAdmin === true ? true : undefined,
     };
@@ -80,6 +94,18 @@ export function clearSessionCookieOnResponse(response: NextResponse): void {
   response.cookies.set(COOKIE_NAME, "", cookieOptions(0));
 }
 
+/**
+ * Sliding refresh: re-issue the session cookie with a fresh full-length window
+ * using the already-verified payload. Called from /api/auth/me so an active
+ * user's session keeps rolling forward and they never silently get logged out.
+ */
+export async function refreshSessionCookieOnResponse(
+  response: NextResponse,
+  session: SessionPayload
+): Promise<void> {
+  await setSessionCookieOnResponse(response, session);
+}
+
 export async function setSessionCookie(payload: SessionPayload): Promise<void> {
   const token = await createSessionToken(payload);
   const store = await cookies();
@@ -98,10 +124,14 @@ export async function getSession(): Promise<SessionPayload | null> {
   return verifySessionToken(token);
 }
 
-export async function getSessionFromRequest(request: Request): Promise<SessionPayload | null> {
+export async function getSessionFromRequest(
+  request: Request
+): Promise<SessionPayload | null> {
   const cookieHeader = request.headers.get("cookie");
   if (!cookieHeader) return null;
-  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`));
+  const match = cookieHeader.match(
+    new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`)
+  );
   if (!match) return null;
   return verifySessionToken(decodeURIComponent(match[1]));
 }
@@ -115,8 +145,7 @@ export async function getSessionFromRequest(request: Request): Promise<SessionPa
  *   const session = guard.session;
  */
 export async function requireSession(): Promise<
-  | { session: SessionPayload }
-  | { response: import("next/server").NextResponse }
+  { session: SessionPayload } | { response: import("next/server").NextResponse }
 > {
   const session = await getSession();
   if (session) return { session };

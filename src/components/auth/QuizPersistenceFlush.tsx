@@ -40,7 +40,10 @@ export function useQuizPersistence(): void {
 
     (async () => {
       try {
-        await updateProfile(env.payload);
+        await updateProfile({
+          ...env.payload,
+          onboardingCompletedAt: Date.now(),
+        });
         clearAllQuizStorage();
       } catch (err) {
         // Leave the key in place and allow one retry on the next user tick.

@@ -38,7 +38,10 @@ export default function OnboardingPage() {
         // a null→non-null transition, which won't happen here.
         setSubmitting(true);
         try {
-          await updateProfile(payload);
+          await updateProfile({
+            ...payload,
+            onboardingCompletedAt: Date.now(),
+          });
         } catch (err) {
           console.error("Onboarding direct save failed:", err);
         } finally {
@@ -105,7 +108,11 @@ export default function OnboardingPage() {
             "radial-gradient(1200px 600px at 50% -10%, rgba(249,115,22,0.12), transparent 60%), linear-gradient(180deg, #0A0B0F 0%, #0E1016 100%)",
         }}
       >
-        <OnboardingQuiz onUnlock={handleUnlock} submitting={submitting} />
+        <OnboardingQuiz
+          onUnlock={handleUnlock}
+          submitting={submitting}
+          authed={!!user}
+        />
       </Box>
 
       <AuthDialog open={authOpen} onClose={handleAuthClose} />

@@ -36,6 +36,7 @@ export interface UserProfile {
   // through UserProfileUpdates automatically since they aren't in the Omit.
   focusThemes?: string[];
   dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
+  onboardingCompletedAt?: number;
 
   // Single-rating model (placement test + live mirror). See StoredUser.
   measuredRating?: number;
@@ -72,18 +73,25 @@ export interface UserProfile {
 }
 
 export type UserProfileUpdates = Partial<
-  Omit<UserProfile, "uid" | "email" | "rating" | "createdAt" | "updatedAt" | "photoURL">
+  Omit<
+    UserProfile,
+    "uid" | "email" | "rating" | "createdAt" | "updatedAt" | "photoURL"
+  >
 >;
 
 async function asJson(res: Response): Promise<unknown> {
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Request failed (${res.status}): ${text || res.statusText}`);
+    throw new Error(
+      `Request failed (${res.status}): ${text || res.statusText}`
+    );
   }
   return res.json();
 }
 
-export async function getUserProfile(_uid: string): Promise<UserProfile | null> {
+export async function getUserProfile(
+  _uid: string
+): Promise<UserProfile | null> {
   void _uid;
   const res = await fetch("/api/auth/me", { credentials: "include" });
   if (!res.ok) return null;

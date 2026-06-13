@@ -1,12 +1,14 @@
 "use client";
 
-import { Box, Button, Chip, Typography } from "@mui/material";
-import type { PlacementResult as PlacementResultData } from "@/lib/placement/placementTest";
+import { Box, Button, Typography } from "@mui/material";
+import { useRouter } from "next/router";
+import { ChevronRight } from "lucide-react";
+import type {
+  PlacementResult as PlacementResultData,
+  ThemeStrength,
+} from "@/lib/placement/placementTest";
 import { bandLabel } from "@/components/onboarding/quizConfig";
-import {
-  FOCUS_THEME_LABELS,
-  QuizFocusThemeId,
-} from "@/components/onboarding/quizThemes";
+import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 
 const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
 const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
@@ -16,6 +18,23 @@ const CONFIDENCE_COPY: Record<string, string> = {
   medium: "A solid estimate — it'll sharpen as you train.",
   low: "A rough first read — retake it anytime for a sharper number.",
 };
+
+/** kebab theme id → human label, with a title-case fallback. */
+function themeLabel(id: string): string {
+  const known = (FOCUS_THEME_LABELS as Record<string, string>)[id];
+  if (known) return known;
+  return id
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Bar colour by accuracy — orange-forward so it stays on-brand. */
+function scoreColor(score: number): string {
+  if (score >= 0.8) return "#34D399";
+  if (score >= 0.5) return "#FBBF24";
+  return "#FB7185";
+}
 
 interface PlacementResultProps {
   result: PlacementResultData;
@@ -28,10 +47,17 @@ export default function PlacementResult({
   onContinue,
   onRetake,
 }: PlacementResultProps) {
+  const router = useRouter();
   const band = bandLabel(result.finalRating);
-  const weakLabels = result.focusThemes
-    .map((id) => FOCUS_THEME_LABELS[id as QuizFocusThemeId])
-    .filter(Boolean);
+
+  // Per-theme strength, weakest first. Only themes we actually tested.
+  const strengths: Array<[string, ThemeStrength]> = Object.entries(
+    result.themeStrength,
+  )
+    .filter(([, s]) => s.seen > 0)
+    .sort((a, b) => a[1].score - b[1].score || b[1].seen - a[1].seen);
+
+  const weakSet = new Set(result.focusThemes);
 
   return (
     <Box sx={{ textAlign: "center" }}>
@@ -72,33 +98,111 @@ export default function PlacementResult({
           : ""}
       </Typography>
 
-      {weakLabels.length > 0 && (
-        <Box sx={{ mt: 3 }}>
+      {strengths.length > 0 && (
+        <Box sx={{ mt: 3.5, textAlign: "left" }}>
           <Typography
-            sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.8rem", mb: 1 }}
-          >
-            We&apos;ll start your training here:
-          </Typography>
-          <Box
             sx={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 1,
-              justifyContent: "center",
+              color: "rgba(255,255,255,0.55)",
+              fontSize: "0.8rem",
+              mb: 1.25,
+              textAlign: "center",
             }}
           >
-            {weakLabels.map((label) => (
-              <Chip
-                key={label}
-                label={label}
-                sx={{
-                  color: "rgba(255,255,255,0.92)",
-                  background: "rgba(249,115,22,0.14)",
-                  border: "1px solid rgba(249,115,22,0.4)",
-                  fontWeight: 600,
-                }}
-              />
-            ))}
+            Where you stand — tap a weak area to drill it now.
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.9 }}>
+            {strengths.map(([id, s]) => {
+              const isWeak = weakSet.has(id) || s.score < 1;
+              return (
+                <Box
+                  key={id}
+                  onClick={
+                    isWeak
+                      ? () =>
+                          router.push(
+                            `/puzzles?theme=${encodeURIComponent(id)}`,
+                          )
+                      : undefined
+                  }
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.25,
+                    px: 1.5,
+                    py: 1,
+                    borderRadius: "12px",
+                    cursor: isWeak ? "pointer" : "default",
+                    background: isWeak
+                      ? "rgba(249,115,22,0.08)"
+                      : "rgba(255,255,255,0.03)",
+                    border: isWeak
+                      ? "1px solid rgba(249,115,22,0.3)"
+                      : "1px solid rgba(255,255,255,0.06)",
+                    transition: "background 160ms ease, border-color 160ms ease",
+                    "&:hover": isWeak
+                      ? {
+                          background: "rgba(249,115,22,0.14)",
+                          borderColor: "rgba(249,115,22,0.5)",
+                        }
+                      : undefined,
+                  }}
+                >
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        mb: 0.5,
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          color: "#fff",
+                          fontWeight: 600,
+                          fontSize: "0.86rem",
+                        }}
+                      >
+                        {themeLabel(id)}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: isWeak ? "#FB923C" : "rgba(255,255,255,0.5)",
+                          fontWeight: 600,
+                          fontSize: "0.78rem",
+                        }}
+                      >
+                        {isWeak ? "Needs work" : `${s.solved}/${s.seen}`}
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{
+                        height: 6,
+                        borderRadius: 3,
+                        background: "rgba(255,255,255,0.08)",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: `${Math.round(s.score * 100)}%`,
+                          height: "100%",
+                          borderRadius: 3,
+                          background: scoreColor(s.score),
+                          transition: "width 600ms cubic-bezier(0.23,1,0.32,1)",
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                  {isWeak && (
+                    <ChevronRight
+                      size={16}
+                      color="#FB923C"
+                      style={{ flexShrink: 0 }}
+                    />
+                  )}
+                </Box>
+              );
+            })}
           </Box>
         </Box>
       )}

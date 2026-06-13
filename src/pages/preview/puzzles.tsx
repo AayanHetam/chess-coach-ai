@@ -15,6 +15,7 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import Head from "next/head";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/router";
 import {
   Check,
   ChevronRight,
@@ -212,6 +213,7 @@ function pickPrimaryTheme(themes: string[] | undefined): string {
 
 export default function PreviewPuzzlesPage() {
   const { profile, updateProfile, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useAtom(puzzleStatsAtom);
   const [resume, setResume] = useAtom(puzzleResumeAtom);
 
@@ -362,27 +364,34 @@ export default function PreviewPuzzlesPage() {
     startTimeRef.current = Date.now();
   }, [puzzle?.id]);
 
-  // Resume the last puzzle immediately (independent of auth) so we never flash
-  // a different puzzle first. Continues the stream in the saved filter context.
+  // Resume the last puzzle (independent of auth) so we never flash a different
+  // puzzle first — unless the URL carries an explicit ?theme= deep-link, which
+  // takes the user straight into that theme instead of their saved spot.
   useEffect(() => {
-    if (resumeAppliedRef.current) return;
+    if (resumeAppliedRef.current || !router.isReady) return;
     resumeAppliedRef.current = true;
+    if (router.query.theme) return;
     const saved = initialResumeRef.current;
     if (saved) {
       setResumeOverride(saved.puzzle);
       feed.setFilters(saved.filters);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router.isReady]);
 
-  // Seed the feed from the user's rating window + top focus theme once auth
-  // resolves — but only when there's no resumed puzzle driving the stream.
-  // One-shot so a later solve (rating change) can't reseed mid-session.
+  // Seed the feed once auth + router resolve: an explicit ?theme= wins, else
+  // the user's rating window + top focus theme (skipped when a resumed puzzle
+  // is driving the stream). One-shot so a later solve can't reseed mid-session.
   useEffect(() => {
-    if (focusSeededRef.current || authLoading) return;
+    if (focusSeededRef.current || authLoading || !router.isReady) return;
     focusSeededRef.current = true;
-    if (initialResumeRef.current) return;
-    const focusTheme = firstFeedThemeForFocus(profile?.focusThemes);
+    const queryTheme =
+      typeof router.query.theme === "string" ? router.query.theme : undefined;
+    // A saved resume drives the stream unless the user deep-linked a theme.
+    if (!queryTheme && initialResumeRef.current) return;
+    const focusTheme = queryTheme
+      ? FEED_THEME_BY_FOCUS[queryTheme] ?? queryTheme
+      : firstFeedThemeForFocus(profile?.focusThemes);
     feed.setFilters({
       themes: focusTheme ? [focusTheme] : undefined,
       ratingMin: Math.max(400, stats.rating - 150),
@@ -392,7 +401,7 @@ export default function PreviewPuzzlesPage() {
       setActiveTheme(focusTheme);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading]);
+  }, [authLoading, router.isReady]);
 
   // Grade the rating on solve (first-try only counts as solved, mirroring
   // SessionRunner so a wrong-then-solved is a miss). One grade per puzzle.

@@ -19,8 +19,8 @@ const PAGE_DESC =
 /**
  * Pre-auth onboarding quiz funnel. The quiz is completable without an account;
  * answers are held client-side and written to the profile once after signup
- * (see QuizPersistenceFlush). After auth, the user lands on /learn where the
- * quiz-seeded "Recommended for you" feed pays off.
+ * (see QuizPersistenceFlush). After auth, the user lands on /plan where the
+ * quiz-seeded calendar + placement step pay off.
  */
 export default function OnboardingPage() {
   const router = useRouter();
@@ -47,7 +47,7 @@ export default function OnboardingPage() {
         } finally {
           clearAllQuizStorage();
           setSubmitting(false);
-          router.push("/learn");
+          router.push("/plan");
         }
         return;
       }
@@ -65,7 +65,7 @@ export default function OnboardingPage() {
     // Email path: the dialog closes after signup completes, so `user` is set —
     // head to the payoff. If they closed without signing up, `user` is null and
     // we stay on the result screen.
-    if (user) router.replace("/learn");
+    if (user) router.replace("/plan");
   }, [user, router]);
 
   // Google path (and any post-signup landing): the OAuth redirect returns the
@@ -74,7 +74,7 @@ export default function OnboardingPage() {
   // from a long-ago abandoned quiz doesn't bounce a returning user.
   useEffect(() => {
     if (!user || authOpen) return;
-    if (hasFreshPendingFlush()) router.replace("/learn");
+    if (hasFreshPendingFlush()) router.replace("/plan");
   }, [user, authOpen, router]);
 
   return (

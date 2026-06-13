@@ -19,6 +19,10 @@ import { lc0AgreesWithSf, lc0ResultToContext } from "./lc0";
 import type { Lc0Result } from "./lc0";
 import { probToVisibility, maiaResultToContext } from "./maia";
 import type { MaiaProbResult } from "./maia";
+import {
+  computePositionConfidence,
+  type PositionConfidence,
+} from "./positionConfidence";
 
 export type ConfidenceLevel = "HIGH" | "MED" | "LOW" | "NONE";
 
@@ -66,6 +70,10 @@ export interface VoterConfidence {
 
 export interface VoterResult {
   confidence: VoterConfidence;
+  // Verification-confidence for the position (engine-verified vs judgment).
+  // Shared backbone for the prompt confidence ladder, the regen decision, and
+  // the user-facing confidence spectrum. See positionConfidence.ts.
+  positionConfidence: PositionConfidence;
   // Tactical keywords the LLM is permitted to use (backed by confirmed motifs)
   allowedTacticalKeywords: string[];
   // Pre-formatted grounding block for injection into the LLM prompt
@@ -202,6 +210,7 @@ function buildAllowedKeywords(confirmedMotifs: AnyMotif[]): string[] {
   return allowed;
 }
 
+
 function buildGroundingContext(input: VoterInput, confidence: VoterConfidence): string {
   const motifs = input.motifs ?? [];
   const confirmedMotifs = motifs.filter((m) => m.confirmed);
@@ -287,9 +296,15 @@ function buildGroundingContext(input: VoterInput, confidence: VoterConfidence): 
  */
 export function compileVoterResult(input: VoterInput): VoterResult {
   const confidence = computeConfidence(input);
+  const positionConfidence = computePositionConfidence(
+    confidence,
+    input.stockfishEvalCp ?? null,
+    input.stockfishBestMoveMate ?? null,
+  );
   const confirmedMotifs = (input.motifs ?? []).filter((m) => m.confirmed);
   return {
     confidence,
+    positionConfidence,
     allowedTacticalKeywords: buildAllowedKeywords(confirmedMotifs),
     groundingContext: buildGroundingContext(input, confidence),
   };

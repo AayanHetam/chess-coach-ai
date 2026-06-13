@@ -34,6 +34,31 @@ export type StoredUser = {
   studyGoals?: StudyGoal[];
   favoriteOpenings?: string[];
 
+  // Onboarding-quiz output. `focusThemes` holds canonical kebab Neo4j
+  // `:Theme.id` values seeded as cold-start weaknesses for the puzzle
+  // recommender; `dailyTimeCommitment` is the self-reported practice budget.
+  focusThemes?: string[];
+  dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
+
+  // Single-rating model (see CURRICULUM plan). `selfReportedRating` above is the
+  // cold-start prior. `measuredRating` is the immutable result of the most recent
+  // placement test; `liveRatingSnapshot` is the periodic mirror of the client's
+  // live puzzle Elo (the cross-device "current strength" the coach prompt reads).
+  measuredRating?: number;
+  measuredRatingConfidence?: "low" | "medium" | "high";
+  measuredAt?: number;
+  liveRatingSnapshot?: number;
+  liveRatingSnapshotAt?: number;
+
+  // User-set learning goals. `targetRating` is a self-chosen aspiration shown as
+  // honest current→target progress (NOT a system prediction). The others are
+  // effort/mastery goals that shape the daily regimen.
+  goals?: {
+    targetRating?: number;
+    puzzlesPerDay?: number;
+    masteryThemes?: string[];
+  };
+
   boardTheme?: BoardTheme;
   pieceSet?: PieceSet;
   timezone?: string;
@@ -191,6 +216,14 @@ export type UpdateUserPatch = Partial<
     | "playingStyle"
     | "studyGoals"
     | "favoriteOpenings"
+    | "focusThemes"
+    | "dailyTimeCommitment"
+    | "measuredRating"
+    | "measuredRatingConfidence"
+    | "measuredAt"
+    | "liveRatingSnapshot"
+    | "liveRatingSnapshotAt"
+    | "goals"
     | "boardTheme"
     | "pieceSet"
     | "timezone"

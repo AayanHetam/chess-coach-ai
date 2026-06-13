@@ -181,8 +181,8 @@ export default function LandingHero() {
               <Button
                 variant="contained"
                 size="large"
-                onClick={() => user ? router.push("/analysis") : setAuthDialogOpen(true)}
-                startIcon={<Icon icon="mdi:magnify" />}
+                onClick={() => router.push("/onboarding")}
+                startIcon={<Icon icon="mdi:account-star-outline" />}
                 sx={{
                   px: 4,
                   py: 1.6,
@@ -197,6 +197,30 @@ export default function LandingHero() {
                     background:
                       "linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)",
                     boxShadow: "0 12px 40px rgba(255,107,53,0.45)",
+                    transform: "translateY(-2px)",
+                  },
+                  transition: "all 0.3s ease",
+                }}
+              >
+                Get your chess profile
+              </Button>
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={() => user ? router.push("/analysis") : setAuthDialogOpen(true)}
+                startIcon={<Icon icon="mdi:magnify" />}
+                sx={{
+                  px: 4,
+                  py: 1.6,
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  borderRadius: 3,
+                  color: "#1a1a2e",
+                  borderColor: "rgba(26,26,46,0.2)",
+                  textTransform: "none",
+                  "&:hover": {
+                    borderColor: "#FF6B35",
+                    backgroundColor: "rgba(255,107,53,0.04)",
                     transform: "translateY(-2px)",
                   },
                   transition: "all 0.3s ease",

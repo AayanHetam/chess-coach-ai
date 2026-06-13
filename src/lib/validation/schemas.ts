@@ -56,7 +56,7 @@ export const chessPuzzlesSchema = z.object({
 /** POST /api/chess-puzzles-dataset */
 export const puzzleDatasetSchema = z.object({
   command: z
-    .enum(["find_similar", "by_theme", "random", "daily"])
+    .enum(["find_similar", "by_theme", "random", "daily", "by_rating"])
     .default("find_similar"),
   fen: z.string().optional(),
   themes: z.array(z.string().min(1)).optional(),
@@ -64,6 +64,9 @@ export const puzzleDatasetSchema = z.object({
   difficulty: z
     .union([difficultyBandSchema, z.array(difficultyBandSchema)])
     .optional(),
+  // Rating window for the `by_rating` command (adaptive placement / daily plan).
+  minRating: z.number().int().min(0).max(4000).optional(),
+  maxRating: z.number().int().min(0).max(4000).optional(),
   excludeIds: z.array(z.string()).optional(),
 });
 

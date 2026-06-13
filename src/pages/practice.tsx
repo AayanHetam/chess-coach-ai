@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Typography,
   Box,
@@ -41,6 +41,7 @@ import PatternTraining from "@/sections/practice/PatternTraining";
 import { blindModeAtom } from "@/sections/practice/states";
 import PsychologyIcon from "@mui/icons-material/Psychology";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useAuth } from "@/contexts/AuthContext";
 
 const THEME_CATEGORIES: Record<string, { label: string; themes: string[] }> = {
   tactics: {
@@ -166,6 +167,94 @@ export default function Practice() {
       setLoading(false);
     }
   }, [selectedTheme, selectedDifficulty, solvedStatus, setPuzzles, setCurrentIndex, setPracticeTheme]);
+
+  // ── Cold-start "Recommended for you" feed ─────────────────────────────────
+  // A signed-in user whose onboarding quiz set weakness themes (profile.
+  // focusThemes) gets an initial feed seeded from those themes via the existing
+  // /api/adaptive-puzzles endpoint — the same endpoint the coach drill uses.
+  // Runs once per mount, only when nothing else has claimed the board (no
+  // loaded puzzles, no explicit ?theme= deep link, no manual selection). Any
+  // failure (Neo4j 503 locally, empty result, or the endpoint's popular-puzzle
+  // fallback) silently leaves the normal theme picker in place.
+  const { user, profile } = useAuth();
+  const seededRef = useRef(false);
+
+  useEffect(() => {
+    if (seededRef.current) return;
+    if (!router.isReady) return;
+    if (!user?.uid) return;
+    const seeds = profile?.focusThemes;
+    if (!seeds || seeds.length === 0) return;
+    if (puzzles.length > 0) return;
+    if (router.query.theme || selectedTheme || loading) return;
+
+    seededRef.current = true; // attempt once, win or lose
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      try {
+        const solvedIds = Object.keys(solvedStatus).filter((id) => solvedStatus[id]);
+        const res = await fetch("/api/adaptive-puzzles", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.uid,
+            themes: seeds,
+            limit: 20,
+            excludePuzzleIds: solvedIds,
+          }),
+        });
+        if (!res.ok) return; // 503 when Neo4j unconfigured, etc.
+        const data = await res.json();
+        if (data.fallbackUsed) return; // popular puzzles, not our seeds — leave picker
+        const raw: Record<string, unknown>[] = Array.isArray(data.puzzles) ? data.puzzles : [];
+        const mapped: ChessPuzzle[] = raw
+          .map((p) => {
+            const mv = p.moves;
+            const movesArr =
+              typeof mv === "string"
+                ? mv.trim().split(/\s+/)
+                : Array.isArray(mv)
+                  ? (mv as string[])
+                  : [];
+            return {
+              id: (p.puzzleId as string) || (p.id as string) || String(Math.random()),
+              fen: p.fen as string,
+              moves: movesArr,
+              rating: (p.rating as number) || 1500,
+              themes: (p.themes as string[]) || [],
+              solution: movesArr,
+            };
+          })
+          .filter((pz) => pz.fen && pz.moves.length > 0);
+        if (cancelled || mapped.length === 0) return;
+        setPuzzles(mapped);
+        setCurrentIndex(0);
+        setPracticeTheme("Recommended for you");
+      } catch {
+        // network error — stay on the picker
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    router.isReady,
+    router.query.theme,
+    user,
+    profile,
+    puzzles.length,
+    selectedTheme,
+    loading,
+    solvedStatus,
+    setPuzzles,
+    setCurrentIndex,
+    setPracticeTheme,
+  ]);
 
   // If we already have puzzles loaded (e.g., from AI Coach redirect), show them
   const hasPuzzles = puzzles.length > 0;

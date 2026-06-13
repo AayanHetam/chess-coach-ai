@@ -32,6 +32,25 @@ export interface UserProfile {
   studyGoals?: StudyGoal[];
   favoriteOpenings?: string[];
 
+  // Onboarding-quiz output (see StoredUser in lib/server/users.ts). Both flow
+  // through UserProfileUpdates automatically since they aren't in the Omit.
+  focusThemes?: string[];
+  dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
+
+  // Single-rating model (placement test + live mirror). See StoredUser.
+  measuredRating?: number;
+  measuredRatingConfidence?: "low" | "medium" | "high";
+  measuredAt?: number;
+  liveRatingSnapshot?: number;
+  liveRatingSnapshotAt?: number;
+
+  // User-set learning goals (see StoredUser).
+  goals?: {
+    targetRating?: number;
+    puzzlesPerDay?: number;
+    masteryThemes?: string[];
+  };
+
   boardTheme?: BoardTheme;
   pieceSet?: PieceSet;
 

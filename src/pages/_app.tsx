@@ -10,6 +10,7 @@ import { Typography, Box, Container } from "@mui/material";
 import Head from "next/head";
 import { Analytics } from "@vercel/analytics/react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import QuizPersistenceFlush from "@/components/auth/QuizPersistenceFlush";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,9 @@ export default function MyApp({ Component, pageProps }: AppProps) {
       </Head>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
+          {/* Persists pre-auth onboarding-quiz answers once the user signs in,
+              by either method (email in-page or Google full-page redirect). */}
+          <QuizPersistenceFlush />
           <ErrorBoundary name="app">
             <Layout>
               <Component {...pageProps} />

@@ -56,6 +56,7 @@ import {
   forwardPipelineTelemetryForRoute,
   type MastermindPrepResult,
 } from "@/lib/mastermind/routeHelpers";
+import { buildCurrentPositionFacts } from "@/lib/mastermind/positionFacts";
 import { detectMotifs, motifsToPropmt } from "@/lib/tactics";
 import type { AnyMotif } from "@/lib/tactics";
 import { fetch_lichess_tablebase } from "@/lib/mastermind/lichessTablebase";
@@ -904,6 +905,13 @@ function buildCompactGameContext(
   }
 
   sections.push(`Player is ${playerColor === "w" ? "White" : "Black"}.`);
+
+  // Position-fact grounding (2026-06-13): prepend the CURRENT POSITION board so
+  // the fast (Haiku) follow-up tier reads the board instead of reconstructing it
+  // from the PGN — measured +1.5 factual accuracy. See positionFacts.ts /
+  // POSITION_FACT_GROUNDING_PLAN.md.
+  const positionFacts = buildCurrentPositionFacts(moveHistory, gameEval);
+  if (positionFacts) sections.unshift(positionFacts);
 
   return sections.join("\n\n");
 }

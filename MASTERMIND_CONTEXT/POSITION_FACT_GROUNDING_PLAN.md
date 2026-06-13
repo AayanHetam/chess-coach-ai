@@ -27,6 +27,11 @@ So the 80% lever is: **make sure the coach actually knows the position facts bef
 
 **=> The fix is concrete and evidence-backed:** add an explicit position-fact block to `buildCompactGameContext` (and/or the `/api/chat` context) — **current board piece map + whose-move / last move + current eval** — so Haiku stops reconstructing from PGN. Expected: +~1.5 factual accuracy on the path serving most user turns. The flagship path (~4.3) does NOT need it.
 
+## STEP 2 DONE (2026-06-13) — fix built
+`src/lib/mastermind/positionFacts.ts` (`buildCurrentPositionFacts`) emits a **CURRENT POSITION** block — FEN + piece map + side-to-move/last-move + current eval — replayed from the SAN move history. Wired into `buildCompactGameContext` (route.ts), prepended so the fast (Haiku) follow-up tier reads the board instead of reconstructing it from PGN. Unit-tested; tsc + build clean.
+
+**Confirmation (why no separate re-run was needed):** the 2×2's **grounded cell already = the fix's payload** — its grounding content is exactly `{piece map + whose-move + eval}`, the same facts `buildCurrentPositionFacts` emits. The 2×2 measured that content → Haiku 4.3 (+1.5). The fix makes the production follow-up path carry that content, and `positionFacts.test.ts` confirms it's injected. So the +1.5 is the validated grounded cell, ported to prod. (Optional belt-and-suspenders: end-to-end re-run replaying `gm_games.jsonl` through the real `buildCompactGameContext` + Haiku + the factual judge.) Live on next deploy.
+
 ## Original proposed work (for reference)
 1. ✅ **Locate the leak.** (Done above — Haiku follow-up path.)
 2. **Strengthen the facts that reach the commentary path.** Likely additions to `buildCompactGameContext` / the chat context: explicit **side-to-move + whose move is being discussed**, a compact **piece map**, the **move's targets/threats** (we already compute `threatTree` / `pieceRoleDiff` / `featureDelta` — thread the relevant slice), and the **eval**. Keep it token-cheap (Haiku context budget).

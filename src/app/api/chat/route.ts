@@ -311,6 +311,13 @@ export async function POST(request: NextRequest) {
           temperature: 0.7,
           maxTokens: 3000,
           cacheSystem: true,
+          capture: {
+            feature: "chat",
+            uid: guard.session.uid,
+            isIntern: guard.session.isIntern,
+            fen: context.fen,
+            props: { path: "fast", contextId: contextId ?? null },
+          },
         });
       } catch (err) {
         const e = err instanceof LLMError ? err : new Error(String(err));
@@ -376,6 +383,12 @@ export async function POST(request: NextRequest) {
           : ([{ role: "user", content: "Hello" }] as LLMMessage[]),
       temperature: parsed.data.temperature ?? 0.7,
       maxTokens: parsed.data.max_tokens ?? 3000,
+      capture: {
+        feature: "chat",
+        uid: guard.session.uid,
+        isIntern: guard.session.isIntern,
+        props: { path: "fallback" },
+      },
     };
 
     if (wantsStream) {

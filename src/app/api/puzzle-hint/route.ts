@@ -117,6 +117,13 @@ export async function POST(request: NextRequest) {
       temperature: stage === "deeper_dive" ? 0.6 : 0.5,
       maxTokens,
       cacheSystem: true,
+      capture: {
+        feature: "puzzle-hint",
+        requestId,
+        promptVersion: PUZZLE_HINT_PROMPT_VERSION,
+        fen: puzzle.fen,
+        props: { puzzleId: puzzle.id, stage, attempt: "first" },
+      },
     });
 
     let parsedResp = parseHintResponse(first.content);
@@ -147,6 +154,13 @@ export async function POST(request: NextRequest) {
         ],
         temperature: 0.4,
         maxTokens,
+        capture: {
+          feature: "puzzle-hint",
+          requestId,
+          promptVersion: PUZZLE_HINT_PROMPT_VERSION,
+          fen: puzzle.fen,
+          props: { puzzleId: puzzle.id, stage, attempt: "retry" },
+        },
       });
       const retryParsed = parseHintResponse(retry.content);
       if (detectSolutionLeak(retryParsed.prose, fingerprint)) {

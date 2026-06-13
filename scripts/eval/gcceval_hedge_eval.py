@@ -62,8 +62,19 @@ def build_prompts(prompt_32_path):
     return {"3.1": p31, "3.2": p32}
 
 
-def sf_eval(engine, fen, depth):
+def mover_color(fen):
+    """The side that makes the move = side-to-move in the given FEN."""
+    return "White" if chess.Board(fen.split("|", 1)[0].strip()).turn == chess.WHITE else "Black"
+
+
+def sf_eval_after(engine, fen, move_uci, depth):
+    """Stockfish eval of the position AFTER the move is played (the position the
+    commentary is about). Falls back to the pre-move eval if the move is illegal."""
     board = chess.Board(fen.split("|", 1)[0].strip())
+    try:
+        board.push_uci(move_uci)
+    except Exception:
+        pass
     info = engine.analyse(board, chess.engine.Limit(depth=depth))
     sc = info["score"].white()
     return f"mate in {sc.mate()}" if sc.is_mate() else f"{sc.score()} cp (White's perspective)"
@@ -87,6 +98,27 @@ def claude_score(api_key, system, user):
         return None
     m = re.search(r"[1-5]", txt)
     return float(m.group(0)) if m else None
+
+
+def openai_score(api_key, system, user):
+    """G-Eval logprob-weighted 1-5 score (the rigorous GCC-Eval method, GPT-4o)."""
+    body = json.dumps({"model": "gpt-4o", "messages": [
+        {"role": "system", "content": system}, {"role": "user", "content": user}],
+        "logprobs": True, "top_logprobs": 10, "max_tokens": 1, "temperature": 0}).encode()
+    req = urllib.request.Request("https://api.openai.com/v1/chat/completions", data=body, headers={
+        "authorization": f"Bearer {api_key}", "content-type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            d = json.load(r)
+        tlp = d["choices"][0]["logprobs"]["content"][0]["top_logprobs"]
+        probs = {t["token"].strip(): math.exp(t["logprob"]) for t in tlp}
+        nums = {k: v for k, v in probs.items() if k in ["1", "2", "3", "4", "5"]}
+        norm = sum(nums.values())
+        if norm == 0:
+            return None
+        return sum(int(k) * v / norm for k, v in nums.items())
+    except Exception:
+        return None
 
 
 CALIB_SYS = """You will be given a chess coaching comment and the Stockfish evaluation of the position after the move.
@@ -121,10 +153,15 @@ def main():
     ap.add_argument("--repo", default=str(Path.home() / "Downloads/Inspirit_project/chess-coach-ai"))
     ap.add_argument("--depth", type=int, default=16)
     ap.add_argument("--workers", type=int, default=6)
+    ap.add_argument("--judge", choices=["claude", "openai"], default="claude",
+                    help="openai = rigorous GPT-4o logprob-weighted (GCC-Eval method); needs OPENAI_API_KEY")
     ap.add_argument("--output", default=None)
     args = ap.parse_args()
 
     ak = load_key(args.repo, "ANTHROPIC_API_KEY")
+    jk = load_key(args.repo, "OPENAI_API_KEY") if args.judge == "openai" else ak
+    score_fn = (lambda s, u: openai_score(jk, s, u)) if args.judge == "openai" else (lambda s, u: claude_score(jk, s, u))
+    judge_name = "gpt-4o" if args.judge == "openai" else JUDGE_MODEL
     prompts = build_prompts(args.prompt32)
 
     raw = [json.loads(l) for l in open(args.bench)][: args.n]
@@ -137,15 +174,19 @@ def main():
     items = items[: args.n]
 
     engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH)
-    evals = {it["task_id"]: sf_eval(engine, it["fen"], args.depth) for it in items}
+    # Eval AFTER the move (the position the commentary is about), and resolve the
+    # mover's color from the FEN so the generator isn't guessing whose move it is.
+    evals = {it["task_id"]: sf_eval_after(engine, it["fen"], it["move"], args.depth) for it in items}
+    for it in items:
+        it["color"] = mover_color(it["fen"])
     engine.quit()
 
-    user_gen = ("You are coaching a player on their game. Position (FEN): {fen}\n"
-                "The move just played: {move}\n"
-                "Give a short (2-4 sentence) coaching comment on this position and move.")
+    user_gen = ("You are coaching the player with the {color} pieces. Position (FEN): {fen}\n"
+                "{color} just played the move: {move}\n"
+                "Give a short (2-4 sentence) coaching comment to this player about their move and position.")
 
     def gen(it, ver):
-        u = user_gen.format(fen=it["fen"], move=it["move"])
+        u = user_gen.format(color=it["color"], fen=it["fen"], move=it["move"])
         try:
             return ver, anthropic(ak, prompts[ver], u)
         except Exception as e:
@@ -167,7 +208,7 @@ def main():
         ev = evals[tid]
         cal_user = f"Stockfish evaluation after the move: {ev}\n\ntarget comment:\n\n{c}\n\nScore(1-5, score ONLY): "
         flu_user = f"target comment:\n\n{c}\n\nScore(1-5, score ONLY): "
-        return ver, claude_score(ak, CALIB_SYS, cal_user), claude_score(ak, FLUENCY_SYS, flu_user)
+        return ver, score_fn(CALIB_SYS, cal_user), score_fn(FLUENCY_SYS, flu_user)
 
     with ThreadPoolExecutor(max_workers=args.workers) as ex:
         futs = [ex.submit(judge, it["task_id"], ver) for it in items for ver in ("3.1", "3.2")]
@@ -180,7 +221,7 @@ def main():
 
     def mean(xs):
         return round(sum(xs) / len(xs), 3) if xs else None
-    summary = {"n": len(items), "gen_model": GEN_MODEL, "judge_model": JUDGE_MODEL,
+    summary = {"n": len(items), "gen_model": GEN_MODEL, "judge_model": judge_name,
                "3.1": {k: mean(v) for k, v in scores["3.1"].items()},
                "3.2": {k: mean(v) for k, v in scores["3.2"].items()}}
     summary["calibration_delta"] = round((summary["3.2"]["calibration"] or 0) - (summary["3.1"]["calibration"] or 0), 3)

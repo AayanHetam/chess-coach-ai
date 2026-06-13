@@ -16,8 +16,25 @@
  */
 
 import { logger } from "./logging";
+import type { LLMCaptureContext } from "@/lib/tracking/llmCapture";
+import { captureLLMCall } from "@/lib/tracking/llmCapture";
 
 const log = logger.child({ module: "llm-provider" });
+
+/**
+ * Fire full prompt/response capture (TRK-2) when the caller supplied a
+ * `capture` context. No-op otherwise. Never throws — captureLLMCall schedules
+ * the write via after() and swallows everything; it must not touch the hot path.
+ */
+function maybeCapture(
+  opts: CallLLMOptions,
+  result: LLMResult | null,
+  status: "ok" | "error",
+  errorMessage?: string,
+): void {
+  if (!opts.capture) return;
+  captureLLMCall({ ctx: opts.capture, opts, result, status, errorMessage });
+}
 
 // ── Env / config ────────────────────────────────────────────────────────────
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -81,6 +98,13 @@ export interface CallLLMOptions {
    * the orphan as an OpenAI request.
    */
   signal?: AbortSignal;
+  /**
+   * Full prompt/response capture context (TRK-2). When set, this call's system
+   * prompt, messages, and response are written to the tracking warehouse's
+   * llm_calls table (gated on TRACKING_ENABLED). Omit for diagnostic/health
+   * calls. The write is fire-and-forget and can never break this call.
+   */
+  capture?: LLMCaptureContext;
 }
 
 export interface LLMResult {
@@ -401,13 +425,19 @@ export async function* callLLMStream(
   if (opts.forceProvider === "openai") {
     const result = await callOpenAI(opts.tier, opts);
     if (result.content) yield { type: "text", delta: result.content };
+    maybeCapture(opts, result, "ok");
     yield { type: "done", result };
     return;
   }
 
   if (anthropicAvailable) {
     try {
-      yield* callAnthropicStream(opts.tier, opts);
+      // Manual forward (vs `yield*`) so we can capture the final result the
+      // stream carries in its `done` event without changing what's emitted.
+      for await (const ev of callAnthropicStream(opts.tier, opts)) {
+        if (ev.type === "done") maybeCapture(opts, ev.result, "ok");
+        yield ev;
+      }
       return;
     } catch (err) {
       const e = err instanceof LLMError ? err : new LLMError("anthropic", 0, String(err));
@@ -416,13 +446,17 @@ export async function* callLLMStream(
         status: e.status,
         detail: e.detail.slice(0, 200),
       });
-      if (!openaiAvailable) throw e;
+      if (!openaiAvailable) {
+        maybeCapture(opts, null, "error", e.detail);
+        throw e;
+      }
       // fall through to OpenAI fallback below
     }
   }
 
   const result = await callOpenAI(opts.tier, opts);
   if (result.content) yield { type: "text", delta: result.content };
+  maybeCapture(opts, result, "ok");
   yield { type: "done", result };
 }
 
@@ -484,6 +518,7 @@ export async function callLLM(opts: CallLLMOptions): Promise<LLMResult> {
         cacheReadTokens: result.cacheReadTokens,
         elapsedMs: result.elapsedMs,
       });
+      maybeCapture(opts, result, "ok");
       return result;
     } catch (err) {
       // Belt-and-suspenders abort check: if the caller's signal aborted
@@ -512,16 +547,19 @@ export async function callLLM(opts: CallLLMOptions): Promise<LLMResult> {
 
       try {
         const fallback = await callOpenAI(opts.tier, opts);
-        return {
+        const withPrimaryError: LLMResult = {
           ...fallback,
           primaryError: { provider: "anthropic", status: e.status, message: e.detail },
         };
+        maybeCapture(opts, withPrimaryError, "ok");
+        return withPrimaryError;
       } catch (err2) {
         const e2 = err2 instanceof LLMError ? err2 : new LLMError("openai", 0, String(err2));
         log.error("Both LLM providers failed", {
           anthropic: { status: e.status, detail: e.detail.slice(0, 100) },
           openai: { status: e2.status, detail: e2.detail.slice(0, 100) },
         });
+        maybeCapture(opts, null, "error", `anthropic: ${e.detail} | openai: ${e2.detail}`);
         throw e2;
       }
     }
@@ -536,6 +574,7 @@ export async function callLLM(opts: CallLLMOptions): Promise<LLMResult> {
     outputTokens: result.outputTokens,
     elapsedMs: result.elapsedMs,
   });
+  maybeCapture(opts, result, "ok");
   return result;
 }
 

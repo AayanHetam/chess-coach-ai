@@ -1566,6 +1566,14 @@ export async function POST(request: NextRequest) {
                 temperature: 0.7,
                 maxTokens: 3000,
                 cacheSystem: true,
+                capture: {
+                  feature: "enhanced-analysis",
+                  uid: session.uid,
+                  requestId,
+                  promptVersion: PROMPT_VERSION,
+                  fen,
+                  props: { branch: "stream-flagon-fallback" },
+                },
               })) {
                 if (evt.type === "text") {
                   fullText += evt.delta;
@@ -2062,6 +2070,14 @@ export async function POST(request: NextRequest) {
               temperature: 0.7,
               maxTokens: 3000,
               cacheSystem: true,
+              capture: {
+                feature: "enhanced-analysis",
+                uid: session.uid,
+                requestId,
+                promptVersion: PROMPT_VERSION,
+                fen,
+                props: { branch: "stream-flag-off" },
+              },
             })) {
               if (evt.type === "text") {
                 fullText += evt.delta;
@@ -2380,6 +2396,14 @@ export async function POST(request: NextRequest) {
             temperature: 0.7,
             maxTokens: 3000,
             cacheSystem: true,
+            capture: {
+              feature: "enhanced-analysis",
+              uid: session.uid,
+              requestId,
+              promptVersion: PROMPT_VERSION,
+              fen,
+              props: { branch: "nonstream-fd-fallback" },
+            },
           });
         } catch (err) {
           const e = err instanceof LLMError ? err : new Error(String(err));
@@ -2423,6 +2447,14 @@ export async function POST(request: NextRequest) {
           temperature: 0.7,
           maxTokens: 3000,
           cacheSystem: true,
+          capture: {
+            feature: "enhanced-analysis",
+            uid: session.uid,
+            requestId,
+            promptVersion: PROMPT_VERSION,
+            fen,
+            props: { branch: "nonstream-flag-off" },
+          },
         });
       } catch (err) {
         const e = err instanceof LLMError ? err : new Error(String(err));

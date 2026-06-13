@@ -125,6 +125,13 @@ export async function POST(request: NextRequest) {
           // explanation gets a bit more headroom; follow-ups are short.
           maxTokens: turnIndex === 0 ? 600 : 350,
           cacheSystem: true,
+          capture: {
+            feature: "puzzle-chat",
+            requestId,
+            promptVersion: PUZZLE_COACH_PROMPT_VERSION,
+            fen: puzzle.fen,
+            props: { puzzleId: puzzle.id, turnIndex, outcome },
+          },
         })) {
           if (ev.type === "text") {
             if (firstTokenAt === null) firstTokenAt = Date.now();

@@ -59,6 +59,18 @@ export type StoredUser = {
     masteryThemes?: string[];
   };
 
+  // Reminder + activity state (Phase 3). Mirrored from the client's local
+  // streak so the send-reminders cron can read it server-side. Reminders are
+  // strictly opt-in (reminderPrefs.enabled) — that opt-in is the consent.
+  lastActiveAt?: number;
+  currentStreak?: number;
+  streakUpdatedAt?: number;
+  reminderPrefs?: {
+    enabled: boolean;
+    /** Preferred local send hour 0–23 (future use; cron currently fixed). */
+    hour?: number;
+  };
+
   boardTheme?: BoardTheme;
   pieceSet?: PieceSet;
   timezone?: string;
@@ -224,6 +236,10 @@ export type UpdateUserPatch = Partial<
     | "liveRatingSnapshot"
     | "liveRatingSnapshotAt"
     | "goals"
+    | "lastActiveAt"
+    | "currentStreak"
+    | "streakUpdatedAt"
+    | "reminderPrefs"
     | "boardTheme"
     | "pieceSet"
     | "timezone"

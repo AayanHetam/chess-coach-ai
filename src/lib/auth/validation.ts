@@ -109,6 +109,17 @@ export const profilePatchSchema = z.object({
     })
     .optional(),
 
+  // Reminder + activity state (Phase 3).
+  lastActiveAt: z.number().int().min(0).optional(),
+  currentStreak: z.number().int().min(0).optional(),
+  streakUpdatedAt: z.number().int().min(0).optional(),
+  reminderPrefs: z
+    .object({
+      enabled: z.boolean(),
+      hour: z.number().int().min(0).max(23).optional(),
+    })
+    .optional(),
+
   // Appearance
   boardTheme: z.enum(["classic", "wood", "neon"]).optional(),
   pieceSet: z.enum(["default", "merida", "alpha"]).optional(),

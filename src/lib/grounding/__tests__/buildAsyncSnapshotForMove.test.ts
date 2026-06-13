@@ -66,6 +66,10 @@ vi.mock("@/lib/mastermind/lichessTablebase", async (importOriginal) => {
 });
 
 import { buildAsyncSnapshotForMove } from "@/lib/grounding/voterSnapshot";
+import {
+  __resetCircuitBreakers,
+  BREAKER_THRESHOLD,
+} from "@/lib/grounding/circuitBreaker";
 import type { MaiaProbResult } from "@/lib/grounding/maia";
 import type { Lc0Result } from "@/lib/grounding/lc0";
 import type { ChessdbResult } from "@/lib/grounding/chessdb";
@@ -122,6 +126,7 @@ function baseInput(overrides: Partial<Parameters<typeof buildAsyncSnapshotForMov
 
 beforeEach(() => {
   vi.clearAllMocks();
+  __resetCircuitBreakers();
   mockQueryChessdb.mockResolvedValue(CDB);
   mockQueryLc0.mockResolvedValue(LC0);
   mockShouldCallLc0.mockReturnValue(true);
@@ -273,6 +278,48 @@ describe("buildAsyncSnapshotForMove", () => {
     expect(mockLog.info).toHaveBeenCalledWith(
       "stage9_async_grounding_fetched",
       expect.objectContaining({ lc0_status: "fail" }),
+    );
+  });
+
+  it("logs per-source latency ms for each source", async () => {
+    await buildAsyncSnapshotForMove(baseInput());
+    expect(mockLog.info).toHaveBeenCalledWith(
+      "stage9_async_grounding_fetched",
+      expect.objectContaining({
+        chessdb_ms: expect.any(Number),
+        lc0_ms: expect.any(Number),
+        maia_ms: expect.any(Number),
+        tablebase_ms: expect.any(Number),
+        total_fetch_ms: expect.any(Number),
+      }),
+    );
+  });
+
+  it("a resolved-null (no data) does NOT trip the circuit breaker", async () => {
+    // Unconfigured/no-data sources resolve null cheaply — only thrown timeouts
+    // should open the breaker. Many null results must keep chessdb being tried.
+    mockQueryChessdb.mockResolvedValue(null);
+    for (let i = 0; i < BREAKER_THRESHOLD + 2; i++) {
+      await buildAsyncSnapshotForMove(baseInput());
+    }
+    expect(mockQueryChessdb).toHaveBeenCalledTimes(BREAKER_THRESHOLD + 2);
+  });
+
+  it("opens the breaker after repeated throws and skips the source (circuit_open)", async () => {
+    mockQueryChessdb.mockRejectedValue(new Error("chessdb.cn down"));
+    for (let i = 0; i < BREAKER_THRESHOLD; i++) {
+      await buildAsyncSnapshotForMove(baseInput());
+    }
+    expect(mockQueryChessdb).toHaveBeenCalledTimes(BREAKER_THRESHOLD);
+
+    // Breaker is now open: the next turn must NOT call chessdb at all.
+    mockLog.info.mockClear();
+    const snap = await buildAsyncSnapshotForMove(baseInput());
+    expect(mockQueryChessdb).toHaveBeenCalledTimes(BREAKER_THRESHOLD); // unchanged
+    expect(snap).toBeTruthy(); // still fail-open: snapshot built from the rest
+    expect(mockLog.info).toHaveBeenCalledWith(
+      "stage9_async_grounding_fetched",
+      expect.objectContaining({ chessdb_status: "circuit_open", chessdb_ms: 0 }),
     );
   });
 });

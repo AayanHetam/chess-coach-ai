@@ -40,15 +40,17 @@ export function __isLc0Configured(): boolean { return !!LC0_API_URL; }
  *   2. ≥2 candidate lines exist AND the gap between #1 and #2 is ≤30cp
  *
  * The eval band was [-100, +100] through Stage 7/8; that range mutually
- * excluded the voter's MED→HIGH upgrade paths (lc0AgreesWithSf requires
- * both evals ≥150 same-direction), so the upgrades — and positionalClaim's
- * error escalation — were unreachable via this trigger (the Q6 design
- * tension in PR_STAGE9_ASYNC_GROUNDING_PLAN.md / TACTICAL_GROUNDING_
- * HANDOFF.md). Widened to ±200 so the [150, 200] band lets Lc0 confirm a
- * moderate advantage; narrowing the upgrade threshold instead could never
- * create overlap above 100cp and sub-100cp "HIGH" material confidence is
- * chess-wrong. The top-2-lines-within-30cp condition still bounds call
- * volume to genuinely contested positions.
+ * excluded the voter's MED→HIGH upgrade paths only (material_win + positional_
+ * plan HIGH both require lc0AgreesWithSf, i.e. both evals ≥150 same-direction),
+ * so those upgrades were unreachable via this trigger (the Q6 design tension in
+ * PR_STAGE9_ASYNC_GROUNDING_PLAN.md / TACTICAL_GROUNDING_HANDOFF.md).
+ * positionalClaim's veto→error escalation was already reachable in the old band
+ * (it fires on an opposite-direction |lc0|≥50 in [50,100]cp), so this widening
+ * is specifically about the upgrade paths, not the veto. Widened to ±200 so the
+ * [150, 200] band lets Lc0 confirm a moderate advantage; narrowing the upgrade
+ * threshold instead could never create overlap above 100cp and sub-100cp "HIGH"
+ * material confidence is chess-wrong. The top-2-lines-within-30cp condition
+ * still bounds call volume to genuinely contested positions.
  *
  * This keeps Lc0 calls to a handful of positions per game (the critical
  * junctions where neural pattern recognition adds the most value).

@@ -43,6 +43,11 @@ import { compileVoterResult } from "./voter";
 import { detectMotifs } from "@/lib/tactics";
 import type { VoterSnapshot } from "@/lib/mastermind/validators";
 import { logger } from "@/lib/logging";
+import {
+  isCircuitOpen,
+  recordSuccess,
+  recordFailure,
+} from "./circuitBreaker";
 
 const log = logger.child({ module: "stage9-grounding" });
 
@@ -174,13 +179,14 @@ export function buildAsyncVoterSnapshot(input: AsyncSnapshotInput): VoterSnapsho
  *   - units: a true "mate in 3" is ~5-6 plies; off-by-1 wouldn't cover it,
  *     producing false positives on CORRECT mate claims (worst failure mode).
  *
- * ceil(dtm/2) converts plies→moves and is robust to the units convention: if
- * Lichess `dtm` were already in moves, ceil(n/2) lands within the validator's
- * off-by-1 tolerance, so no convention produces a false positive on a correct
- * claim while gross errors still fire.
- *
- * NOTE (chess-domain, flagged for review): confirm the exact Lichess `dtm`
- * convention before tightening Fire B's tolerance below off-by-1.
+ * ceil(dtm/2) converts plies→moves. Confirmed empirically against
+ * tablebase.lichess.ovh: a KQ-vs-K win returns position dtm=3 with the best
+ * move dtm=-2 — i.e. dtm decrements by exactly 1 per ply (so the unit is
+ * plies, signed, side-to-move-relative), and 3 plies = mate in 2 moves =
+ * ceil(3/2). The winning side mates on an odd ply, so for dtm>0 the value is
+ * odd and (dtm+1)/2 = ceil(dtm/2) is the exact move count; the off-by-1
+ * tolerance in Fire B then only ever absorbs the player's own half-move
+ * counting, never a units error.
  */
 function normalizeSyzygyDtm(tb: TablebaseResult | null): number | null {
   const raw = tb?.dtm;
@@ -188,7 +194,50 @@ function normalizeSyzygyDtm(tb: TablebaseResult | null): number | null {
   return Math.ceil(raw / 2);
 }
 
-export type GroundingFetchStatus = "ok" | "fail" | "skipped";
+export type GroundingFetchStatus =
+  | "ok" // responded with grounding data
+  | "fail" // gate passed but no grounding obtained (threw, OR resolved null)
+  | "skipped" // gated out (shouldCallX / eligibility was false)
+  | "circuit_open"; // breaker open after repeated throws — fetch not attempted
+
+interface FetchOutcome<T> {
+  value: T | null;
+  status: GroundingFetchStatus;
+  ms: number;
+}
+
+/**
+ * Run one gated, breaker-protected, timed grounding fetch. Never rejects.
+ *
+ * - not gated → { skipped, 0ms } (no fetch)
+ * - breaker open → { circuit_open, 0ms } (no fetch; field degrades to null)
+ * - fetch throws (timeout / network / 5xx) → recordFailure + { fail }
+ * - fetch resolves → recordSuccess + { ok if data else fail }
+ *
+ * Telemetry "fail" covers both a throw and a clean null (gate wanted grounding,
+ * none came back) — that's the existing dashboard semantic. The breaker, by
+ * contrast, only counts THROWS: a source that resolves null (unconfigured, or a
+ * genuine "no data for this FEN") is responding cheaply and must not be tripped
+ * out, only one that is actually eating its timeout should be.
+ */
+async function fetchWithBreaker<T>(
+  key: string,
+  gated: boolean,
+  nowMs: number,
+  fetchFn: () => Promise<T | null>,
+): Promise<FetchOutcome<T>> {
+  if (!gated) return { value: null, status: "skipped", ms: 0 };
+  if (isCircuitOpen(key, nowMs)) return { value: null, status: "circuit_open", ms: 0 };
+  const start = Date.now();
+  try {
+    const value = await fetchFn();
+    recordSuccess(key);
+    return { value, status: value == null ? "fail" : "ok", ms: Date.now() - start };
+  } catch {
+    recordFailure(key, nowMs);
+    return { value: null, status: "fail", ms: Date.now() - start };
+  }
+}
 
 export interface AsyncSnapshotForMoveInput {
   fenBefore: string;
@@ -216,9 +265,9 @@ export interface AsyncSnapshotForMoveInput {
 /**
  * Fetch-orchestrating snapshot builder — Stage 9 v2 (async grounding).
  *
- * Fetches chessdb / Lc0 / Maia / Syzygy for fenBefore in parallel (each
- * gated by its existing shouldCallX / eligibility check, each fail-open via
- * `.catch(() => null)`), then packages the results through
+ * Fetches chessdb / Lc0 / Maia / Syzygy for fenBefore in parallel, each gated
+ * by its existing shouldCallX / eligibility check AND a per-source circuit
+ * breaker, each fail-open, then packages the results through
  * buildAsyncVoterSnapshot. Wall-clock ceiling is max of the per-client
  * timeouts (~8s, Lc0), not the sum; module-level TTL caches in the client
  * modules make repeat calls for the same FEN within a warm instance ~free.
@@ -227,11 +276,14 @@ export interface AsyncSnapshotForMoveInput {
  * the downstream validators treat as "source not consulted" (see the
  * null-gating notes on buildSyncVoterSnapshot). A full grounding outage
  * yields a snapshot equivalent to the sync builder — silent degradation by
- * design (plan Q7).
+ * design (plan Q7). The circuit breaker (see circuitBreaker.ts) stops a warm
+ * instance from re-paying a dead source's full timeout on every turn during a
+ * sustained outage: after repeated failures the source is skipped outright.
  *
- * Emits one `stage9_async_grounding_fetched` log line per call with
- * per-source ok/fail/skipped status + total fetch ms, so dashboards can
- * track how often each source is actually arming the validators.
+ * Emits one `stage9_async_grounding_fetched` log line per call with per-source
+ * status (ok/empty/fail/skipped/circuit_open) AND per-source latency ms + total
+ * fetch ms, so dashboards can track arm rates, source health, and where the
+ * latency goes.
  *
  * This function never rejects: fetch errors are caught per-source and
  * detectMotifs errors are caught inside buildAsyncVoterSnapshot.
@@ -239,39 +291,38 @@ export interface AsyncSnapshotForMoveInput {
 export async function buildAsyncSnapshotForMove(
   input: AsyncSnapshotForMoveInput,
 ): Promise<VoterSnapshot> {
-  const t0 = Date.now();
+  const now = Date.now();
   const bestMoveUci = input.stockfishLines[0]?.pv?.[0] ?? null;
 
   const lc0Gated = shouldCallLc0(input.stockfishEvalCp, input.stockfishLines);
   const maiaGated = shouldCallMaia(input.userRating ?? undefined, bestMoveUci);
   const tablebaseGated = isTablebaseEligible(input.fenBefore);
 
-  const [chessdbResult, lc0Result, maiaResult, tablebaseResult] = await Promise.all([
-    queryChessdb(input.fenBefore).catch(() => null),
-    lc0Gated ? queryLc0(input.fenBefore).catch(() => null) : Promise.resolve(null),
-    maiaGated
-      ? queryMaiaAtRating(input.fenBefore, input.userRating!, bestMoveUci!).catch(() => null)
-      : Promise.resolve(null),
-    tablebaseGated
-      ? fetch_lichess_tablebase(input.fenBefore).catch(() => null)
-      : Promise.resolve(null),
+  const [chessdb, lc0, maia, tablebase] = await Promise.all([
+    fetchWithBreaker("chessdb", true, now, () => queryChessdb(input.fenBefore)),
+    fetchWithBreaker("lc0", lc0Gated, now, () => queryLc0(input.fenBefore)),
+    fetchWithBreaker("maia", maiaGated, now, () =>
+      queryMaiaAtRating(input.fenBefore, input.userRating!, bestMoveUci!),
+    ),
+    fetchWithBreaker("tablebase", tablebaseGated, now, () =>
+      fetch_lichess_tablebase(input.fenBefore),
+    ),
   ]);
-
-  const statusOf = (
-    gated: boolean,
-    result: unknown,
-  ): GroundingFetchStatus => (!gated ? "skipped" : result ? "ok" : "fail");
 
   log.info("stage9_async_grounding_fetched", {
     fen: input.fenBefore,
     move_san: input.moveSan,
     correlation_id: input.correlationId,
     branch: input.branch,
-    chessdb_status: statusOf(true, chessdbResult),
-    lc0_status: statusOf(lc0Gated, lc0Result),
-    maia_status: statusOf(maiaGated, maiaResult),
-    tablebase_status: statusOf(tablebaseGated, tablebaseResult),
-    total_fetch_ms: Date.now() - t0,
+    chessdb_status: chessdb.status,
+    chessdb_ms: chessdb.ms,
+    lc0_status: lc0.status,
+    lc0_ms: lc0.ms,
+    maia_status: maia.status,
+    maia_ms: maia.ms,
+    tablebase_status: tablebase.status,
+    tablebase_ms: tablebase.ms,
+    total_fetch_ms: Date.now() - now,
   });
 
   return buildAsyncVoterSnapshot({
@@ -280,10 +331,10 @@ export async function buildAsyncSnapshotForMove(
     stockfishEvalCp: input.stockfishEvalCp,
     stockfishBestMoveMate: input.stockfishBestMoveMate,
     userRating: input.userRating,
-    chessdbResult,
-    lc0Result,
-    maiaResult,
-    tablebaseResult,
+    chessdbResult: chessdb.value,
+    lc0Result: lc0.value,
+    maiaResult: maia.value,
+    tablebaseResult: tablebase.value,
   });
 }
 

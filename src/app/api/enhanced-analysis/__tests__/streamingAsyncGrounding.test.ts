@@ -368,6 +368,13 @@ describe("enhanced-analysis route: Stage 9 async-grounding wiring", () => {
         correlationId: "test-request-id",
       }),
     );
+    // M1 pin: the snapshot fetch is kicked off BEFORE the stream starts, so its
+    // grounding fetches overlap the LLM stream (Q3 "A-lite") — NOT awaited
+    // lazily at the post-stream consumption point, which would add its full
+    // latency to time-to-done. A regression flips this invocation order.
+    expect(mockBuildAsyncSnapshotForMove.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCallLLMStream.mock.invocationCallOrder[0],
+    );
     expect(mockRunStreamingStage9).toHaveBeenCalledTimes(1);
     expect(mockRunStreamingStage9).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -429,6 +436,11 @@ describe("enhanced-analysis route: Stage 9 async-grounding wiring", () => {
         stockfishEvalCp: BEFORE_CP,
         branch: "stream-flagon-fallback",
       }),
+    );
+    // M1 pin (game_review fallback): snapshot kicked off pre-stream, overlapping
+    // the LLM stream — invocation must precede the stream call.
+    expect(mockBuildAsyncSnapshotForMove.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCallLLMStream.mock.invocationCallOrder[0],
     );
     expect(mockRunStreamingStage9).toHaveBeenCalledTimes(1);
     expect(mockRunStreamingStage9).toHaveBeenCalledWith(

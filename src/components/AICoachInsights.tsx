@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Typography,
@@ -26,6 +26,12 @@ import { MoveClassification } from "@/types/enums";
 // working for `parseInsights` and the `InsightData` type.
 import { parseInsights, type InsightData } from "./AICoachInsights.parser";
 export { parseInsights };
+import { useAtom } from "jotai";
+import { puzzleThemeSrsAtom } from "@/lib/curriculum/puzzleThemeSrs";
+import {
+  conceptKeysToThemes,
+  enrollThemesIntoSrs,
+} from "@/lib/curriculum/playToLearn";
 export type { InsightData };
 
 // Shared dark-on-light override — every InsightsCarousel / InsightCard sits on
@@ -51,16 +57,66 @@ const CLASSIFICATION_STYLE: Record<
   string,
   { label: string; color: string; bg: string; emoji: string }
 > = {
-  [MoveClassification.Blunder]: { label: "Blunder", color: "#b71c1c", bg: "#ffebee", emoji: "??" },
-  [MoveClassification.Mistake]: { label: "Mistake", color: "#e65100", bg: "#fff3e0", emoji: "?" },
-  [MoveClassification.Miss]: { label: "Missed Win", color: "#6a1b9a", bg: "#f3e5f5", emoji: "?!" },
-  [MoveClassification.Inaccuracy]: { label: "Inaccuracy", color: "#f9a825", bg: "#fffde7", emoji: "?!" },
-  [MoveClassification.Brilliant]: { label: "Brilliant", color: "#00695c", bg: "#e0f2f1", emoji: "!!" },
-  [MoveClassification.Great]: { label: "Great Move", color: "#1565c0", bg: "#e3f2fd", emoji: "!" },
-  [MoveClassification.Best]: { label: "Best", color: "#2e7d32", bg: "#e8f5e9", emoji: "" },
-  [MoveClassification.Excellent]: { label: "Excellent", color: "#388e3c", bg: "#f1f8e9", emoji: "" },
-  [MoveClassification.Good]: { label: "Good", color: "#558b2f", bg: "#f9fbe7", emoji: "" },
-  [MoveClassification.Forced]: { label: "Forced", color: "#616161", bg: "#f5f5f5", emoji: "" },
+  [MoveClassification.Blunder]: {
+    label: "Blunder",
+    color: "#b71c1c",
+    bg: "#ffebee",
+    emoji: "??",
+  },
+  [MoveClassification.Mistake]: {
+    label: "Mistake",
+    color: "#e65100",
+    bg: "#fff3e0",
+    emoji: "?",
+  },
+  [MoveClassification.Miss]: {
+    label: "Missed Win",
+    color: "#6a1b9a",
+    bg: "#f3e5f5",
+    emoji: "?!",
+  },
+  [MoveClassification.Inaccuracy]: {
+    label: "Inaccuracy",
+    color: "#f9a825",
+    bg: "#fffde7",
+    emoji: "?!",
+  },
+  [MoveClassification.Brilliant]: {
+    label: "Brilliant",
+    color: "#00695c",
+    bg: "#e0f2f1",
+    emoji: "!!",
+  },
+  [MoveClassification.Great]: {
+    label: "Great Move",
+    color: "#1565c0",
+    bg: "#e3f2fd",
+    emoji: "!",
+  },
+  [MoveClassification.Best]: {
+    label: "Best",
+    color: "#2e7d32",
+    bg: "#e8f5e9",
+    emoji: "",
+  },
+  [MoveClassification.Excellent]: {
+    label: "Excellent",
+    color: "#388e3c",
+    bg: "#f1f8e9",
+    emoji: "",
+  },
+  [MoveClassification.Good]: {
+    label: "Good",
+    color: "#558b2f",
+    bg: "#f9fbe7",
+    emoji: "",
+  },
+  [MoveClassification.Forced]: {
+    label: "Forced",
+    color: "#616161",
+    bg: "#f5f5f5",
+    emoji: "",
+  },
 };
 
 const styleFor = (classification: string) => {
@@ -97,7 +153,11 @@ interface InsightCardProps {
   onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
 }
 
-const InsightCard: React.FC<InsightCardProps> = ({ insight, renderRich, onMoveClick }) => {
+const InsightCard: React.FC<InsightCardProps> = ({
+  insight,
+  renderRich,
+  onMoveClick,
+}) => {
   const s = styleFor(insight.classification);
   const [showWhy, setShowWhy] = useState(false);
   const [showThreats, setShowThreats] = useState(false);
@@ -137,7 +197,12 @@ const InsightCard: React.FC<InsightCardProps> = ({ insight, renderRich, onMoveCl
       }}
     >
       {/* Headline */}
-      <Stack direction="row" spacing={1} alignItems="baseline" sx={{ flexWrap: "wrap" }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="baseline"
+        sx={{ flexWrap: "wrap" }}
+      >
         {hasSAN ? (
           <Typography
             variant="subtitle1"
@@ -173,7 +238,10 @@ const InsightCard: React.FC<InsightCardProps> = ({ insight, renderRich, onMoveCl
           }}
         />
         {evalLine && (
-          <Typography variant="caption" sx={{ color: "rgba(0,0,0,0.55) !important" }}>
+          <Typography
+            variant="caption"
+            sx={{ color: "rgba(0,0,0,0.55) !important" }}
+          >
             {evalLine}
           </Typography>
         )}
@@ -215,7 +283,11 @@ const InsightCard: React.FC<InsightCardProps> = ({ insight, renderRich, onMoveCl
       )}
 
       {/* Secondary reveals */}
-      <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: "wrap", gap: 1 }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ mt: 1.5, flexWrap: "wrap", gap: 1 }}
+      >
         {insight.threats && (
           <RevealButton
             label="Threats"
@@ -248,16 +320,17 @@ const InsightCard: React.FC<InsightCardProps> = ({ insight, renderRich, onMoveCl
         </RevealSection>
       </Collapse>
       <Collapse in={showRoles && !!insight.roles} unmountOnExit>
-        <RevealSection title="Key piece roles" onClose={() => setShowRoles(false)}>
+        <RevealSection
+          title="Key piece roles"
+          onClose={() => setShowRoles(false)}
+        >
           {renderRich(insight.roles ?? "")}
         </RevealSection>
       </Collapse>
       <Collapse in={showConcept} unmountOnExit>
         <RevealSection
           title={
-            insight.conceptName
-              ? `Concept: ${insight.conceptName}`
-              : "Concept"
+            insight.conceptName ? `Concept: ${insight.conceptName}` : "Concept"
           }
           onClose={() => setShowConcept(false)}
         >
@@ -276,7 +349,14 @@ const InsightCard: React.FC<InsightCardProps> = ({ insight, renderRich, onMoveCl
       {insight.engineLine && (
         <Box sx={{ mt: 1.5 }}>
           <Divider sx={{ mb: 1 }} />
-          <Typography variant="caption" sx={{ color: "rgba(0,0,0,0.55) !important", display: "block", mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "rgba(0,0,0,0.55) !important",
+              display: "block",
+              mb: 0.5,
+            }}
+          >
             Engine continuation
           </Typography>
           <Box>{renderRich(insight.engineLine)}</Box>
@@ -338,7 +418,11 @@ const RevealSection: React.FC<{
       >
         {title}
       </Typography>
-      <IconButton size="small" onClick={onClose} sx={{ p: 0.25, color: "rgba(0,0,0,0.6)" }}>
+      <IconButton
+        size="small"
+        onClick={onClose}
+        sx={{ p: 0.25, color: "rgba(0,0,0,0.6)" }}
+      >
         <CloseIcon sx={{ fontSize: 14 }} />
       </IconButton>
     </Stack>
@@ -362,6 +446,25 @@ export const InsightsCarousel: React.FC<InsightsCarouselProps> = ({
   onMoveClick,
 }) => {
   const [idx, setIdx] = useState(0);
+
+  // Play-to-learn: enroll the themes the user MISSED in this game into the
+  // curriculum's spaced-repetition queue, so real-game mistakes become training.
+  const [, setSrsCards] = useAtom(puzzleThemeSrsAtom);
+  const enrolledRef = useRef<string>("");
+  useEffect(() => {
+    const NEGATIVE = new Set(["blunder", "mistake", "miss", "inaccuracy"]);
+    const keys = insights
+      .filter((i) => NEGATIVE.has(i.classification) && i.conceptKey)
+      .map((i) => i.conceptKey as string);
+    if (keys.length === 0) return;
+    const sig = keys.slice().sort().join(",");
+    if (enrolledRef.current === sig) return;
+    enrolledRef.current = sig;
+    const themes = conceptKeysToThemes(keys);
+    if (themes.length === 0) return;
+    setSrsCards((prev) => enrollThemesIntoSrs(themes, prev, Date.now()));
+  }, [insights, setSrsCards]);
+
   if (insights.length === 0) return null;
 
   const clamp = (n: number) =>
@@ -388,7 +491,10 @@ export const InsightsCarousel: React.FC<InsightsCarouselProps> = ({
         justifyContent="space-between"
         sx={{ px: 1.5, py: 0.75, borderBottom: "1px solid rgba(0,0,0,0.08)" }}
       >
-        <Typography variant="caption" sx={{ fontWeight: 700, color: "rgba(0,0,0,0.55) !important" }}>
+        <Typography
+          variant="caption"
+          sx={{ fontWeight: 700, color: "rgba(0,0,0,0.55) !important" }}
+        >
           Key moments
         </Typography>
         <Stack direction="row" alignItems="center" spacing={0.5}>
@@ -400,7 +506,14 @@ export const InsightsCarousel: React.FC<InsightsCarouselProps> = ({
           >
             <ArrowBackIosNewIcon sx={{ fontSize: 14 }} />
           </IconButton>
-          <Typography variant="caption" sx={{ minWidth: 42, textAlign: "center", color: "#1f1f1f !important" }}>
+          <Typography
+            variant="caption"
+            sx={{
+              minWidth: 42,
+              textAlign: "center",
+              color: "#1f1f1f !important",
+            }}
+          >
             Insight {clamp(idx) + 1} / {insights.length}
           </Typography>
           <IconButton
@@ -419,7 +532,11 @@ export const InsightsCarousel: React.FC<InsightsCarouselProps> = ({
         sx={{ height: 2 }}
       />
       <Box sx={{ p: 1.5 }}>
-        <InsightCard insight={current} renderRich={renderRich} onMoveClick={onMoveClick} />
+        <InsightCard
+          insight={current}
+          renderRich={renderRich}
+          onMoveClick={onMoveClick}
+        />
       </Box>
     </Box>
   );

@@ -15,6 +15,7 @@ import { bandLabel } from "@/components/onboarding/quizConfig";
 import SessionRunner from "@/components/curriculum/SessionRunner";
 import CurriculumMap from "@/components/curriculum/CurriculumMap";
 import GoalsCard from "@/components/curriculum/GoalsCard";
+import ConceptLessonCard from "@/components/curriculum/ConceptLessonCard";
 
 const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
 const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
@@ -271,6 +272,12 @@ export default function LearnPage() {
                   Start session
                 </Button>
               </GlassCard>
+
+              {hasPlacement && (
+                <GlassCard>
+                  <ConceptLessonCard />
+                </GlassCard>
+              )}
 
               <GlassCard>
                 <GoalsCard />

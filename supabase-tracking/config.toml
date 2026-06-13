@@ -1,0 +1,10 @@
+# Supabase config for the SEPARATE tracking / telemetry project (TRK-0).
+# Distinct from the CMIP intern-portal project configured in ../supabase/config.toml.
+# project_id is just a local label used by the Supabase CLI to namespace this
+# project's local state; it does not have to match the remote project ref.
+project_id = "chess-masti-tracking"
+
+[db]
+# Local dev DB port — offset from the CMIP project's 54322 so both can run
+# locally at once without colliding.
+port = 54422

@@ -121,6 +121,67 @@ export function __resetMastermindEnvCacheForTests(): void {
 }
 
 /**
+ * Generic boolean env parser. Truthy (case-insensitive, whitespace-trimmed):
+ * "true", "1", "yes". Everything else — including "", undefined, and the
+ * trailing "\n" Vercel's UI appends to multi-line saves — is false. The
+ * `.trim()` is load-bearing: a prod flag saved as `"true\n"` bit us on the
+ * Mastermind validators (see project memory).
+ */
+export function parseBoolEnv(raw: string | undefined): boolean {
+  if (!raw) return false;
+  const v = raw.trim().toLowerCase();
+  return v === "true" || v === "1" || v === "yes";
+}
+
+/**
+ * Tracking / telemetry env (TRK-0). All optional so unset = inert:
+ *  - TRACKING_ENABLED gates every write (default false; flip on per-env only
+ *    after the privacy policy + consent banner are live, per TRACKING_PLAN.md).
+ *  - Supabase creds point at a SEPARATE project from CMIP — distinct URL +
+ *    service-role key, so the firehose + minors' content never co-mingle with
+ *    intern eval data.
+ *  - TRACKING_IP_SALT salts the SHA-256 IP hash so raw IPs never reach the DB.
+ *
+ * Function-based reader (matches getAuthEnv); the `enabled` flag is memoized
+ * like getMastermindEnv since the var is stable across requests in a worker.
+ */
+let cachedTrackingEnabled: boolean | undefined;
+
+export function getTrackingEnv() {
+  if (cachedTrackingEnabled === undefined) {
+    cachedTrackingEnabled = parseBoolEnv(process.env.TRACKING_ENABLED);
+  }
+  return {
+    enabled: cachedTrackingEnabled,
+    supabase: {
+      url: process.env.TRACKING_SUPABASE_URL,
+      serviceRoleKey: process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY,
+    },
+    ipSalt: process.env.TRACKING_IP_SALT,
+  };
+}
+
+/** Test-only seam — clears the memoized TRACKING_ENABLED flag. */
+export function __resetTrackingEnvCacheForTests(): void {
+  cachedTrackingEnabled = undefined;
+}
+
+/**
+ * Throw early if the tracking Supabase secrets are missing. Call from the
+ * tracking client, NOT module-load, so a misconfigured deploy degrades to a
+ * swallowed warn (writes are fire-and-forget) rather than crashing boot.
+ */
+export function assertTrackingSecrets(): void {
+  const env = getTrackingEnv();
+  const missing: string[] = [];
+  if (!env.supabase.url) missing.push("TRACKING_SUPABASE_URL");
+  if (!env.supabase.serviceRoleKey) missing.push("TRACKING_SUPABASE_SERVICE_ROLE_KEY");
+  if (missing.length) {
+    throw new Error(`Missing required tracking env: ${missing.join(", ")}`);
+  }
+}
+
+/**
  * Throw early if required auth-migration secrets are missing.
  * Call from auth route handlers, NOT module-load. The route then 503s
  * with a loud server log instead of crashing the whole app.

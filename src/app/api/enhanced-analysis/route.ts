@@ -48,6 +48,7 @@ import {
   withPipelineTimeout,
   readPipelineTimeoutMs,
   readMaxRetries,
+  resolveOverclaimRetries,
   type PipelineResultWithTimeout,
 } from "@/lib/mastermind/pipelineTimeout";
 import {
@@ -1766,10 +1767,15 @@ export async function POST(request: NextRequest) {
                   correlationId: requestId,
                   category: prep.category,
                   // 2026-05-30 fix-per-category-retries: game_review gets
-                  // 0 retries (Sonnet flagship is too expensive to retry
-                  // within Vercel's 60s wall); other categories scale
-                  // down from the legacy default of 2.
-                  maxRetries: readMaxRetries(prep.category),
+                  // 0 retries; others scale down from the legacy default of 2.
+                  // CH-2 (Q3): on the anchored overclaim path, cap to a single
+                  // hedge-retry, and 0 on a strategic_read position (a retry
+                  // can't add grounding that isn't there).
+                  maxRetries: resolveOverclaimRetries(
+                    readMaxRetries(prep.category),
+                    stage9Snapshot?.positionConfidence,
+                    POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category),
+                  ),
                   dataSources: {
                     scout: streamingDataSources.scout,
                     userHistory: streamingDataSources.userHistory,
@@ -2269,9 +2275,14 @@ export async function POST(request: NextRequest) {
                 moveSan: prep.moveCtx.moveSan,
                 correlationId: requestId,
                 category: prep.category,
-                // 2026-05-30 fix-per-category-retries: same as the
-                // realtime-stream branch above.
-                maxRetries: readMaxRetries(prep.category),
+                // 2026-05-30 fix-per-category-retries + CH-2 (Q3)
+                // confidence-aware single-regen: same as the realtime-stream
+                // branch above.
+                maxRetries: resolveOverclaimRetries(
+                  readMaxRetries(prep.category),
+                  stage9SnapshotNonStream?.positionConfidence,
+                  POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category),
+                ),
                 dataSources: {
                   scout: nonStreamingDataSources.scout,
                   userHistory: nonStreamingDataSources.userHistory,

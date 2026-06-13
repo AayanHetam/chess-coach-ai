@@ -10,10 +10,43 @@ import {
   withPipelineTimeout,
   readPipelineTimeoutMs,
   readMaxRetries,
+  resolveOverclaimRetries,
   DEFAULT_PIPELINE_TIMEOUT_MS,
   DEFAULT_MAX_RETRIES,
 } from "@/lib/mastermind/pipelineTimeout";
 import type { RegenerateResult } from "@/lib/mastermind/validators";
+import type { PositionConfidence } from "@/lib/grounding/positionConfidence";
+
+const pc = (level: PositionConfidence["level"]): PositionConfidence => ({
+  level,
+  score: level === "engine_verified" ? 90 : level === "mixed" ? 50 : 10,
+  drivers: [],
+});
+
+describe("resolveOverclaimRetries — CH-2 confidence-aware single-regen", () => {
+  it("leaves the budget unchanged when overclaim is NOT enforced (non-anchored)", () => {
+    expect(resolveOverclaimRetries(2, pc("strategic_read"), false)).toBe(2);
+    expect(resolveOverclaimRetries(2, pc("engine_verified"), false)).toBe(2);
+  });
+
+  it("leaves the budget unchanged when there is no snapshot", () => {
+    expect(resolveOverclaimRetries(2, undefined, true)).toBe(2);
+  });
+
+  it("strategic_read → 0 retries (don't chase a shot in the dark)", () => {
+    expect(resolveOverclaimRetries(2, pc("strategic_read"), true)).toBe(0);
+  });
+
+  it("mixed / engine_verified → at most ONE hedge-retry (hard stop)", () => {
+    expect(resolveOverclaimRetries(2, pc("mixed"), true)).toBe(1);
+    expect(resolveOverclaimRetries(2, pc("engine_verified"), true)).toBe(1);
+  });
+
+  it("never raises the budget above the category cap (game_review 0 stays 0)", () => {
+    expect(resolveOverclaimRetries(0, pc("engine_verified"), true)).toBe(0);
+    expect(resolveOverclaimRetries(1, pc("mixed"), true)).toBe(1);
+  });
+});
 
 function happyResult(overrides: Partial<RegenerateResult> = {}): RegenerateResult {
   return {

@@ -19,6 +19,20 @@ Legend: 🔴 not started · 🟡 partial/scaffolded · ✅ done (kept here for t
 5. 🔴 **CH-4 — plan-certainty token group.** `the winning plan` / `the correct plan` / `you must` / `definitely should`. Only if CH-2 telemetry shows it clears the precision bar.
 6. 🔴 **Severity-aware retry gating.** Pipeline still uses `passed: issues.length === 0` (any warn → regen). The intended model is `passed: errors.length === 0` with warn→retry, error→fallback. Intersects the CH-2 regen policy; revisit together once Lc0/Maia make `error`-severity escalations actually fire.
 
+## Track B — GCC-Eval hedge measurement (FIRST RESULT, 2026-06-13)
+
+**Did CH-1a (the static hedge, PROMPT 3.1→3.2) actually improve the 80%? First measurement says: no detectable benefit, small fluency cost — but underpowered.**
+
+`scripts/eval/gcceval_hedge_eval.py`: generate coach commentary 3.1 (hedge block stripped) vs 3.2 (with hedge) on ChessQA semantic FEN+move positions (generator gets NO engine eval → judgment territory, where the hedge should matter most), then a Claude judge (GCC-Eval-style) scores **calibration** (engine-grounded: does the comment overclaim vs the Stockfish eval — the on-target metric) + **fluency** (GCC-Eval's verbatim prompt — quality guardrail).
+
+| metric (1-5) | 3.1 | 3.2 | Δ |
+|---|---|---|---|
+| calibration | 2.29 | 2.21 | **−0.08** (noise) |
+| fluency | 4.60 | 4.32 | **−0.28** |
+
+**Read it carefully — it's "unproven," not "proven useless":** N=25 + a coarse 1-5 **Haiku** judge (not GPT-4o logprob-weighted like real GCC-Eval) → low power; −0.08 is indistinguishable from zero. The fluency −0.28 (hedge adds tentative language) is the more consistent signal. Also: the generator got no grounding (artificial isolation); production always grounds. **This tests CH-1a only, not CH-2.** Takeaway: the static hedge we shipped on faith shows **no measurable calibration gain here** — a strong reason to (a) run the rigorous version (GPT-4o judge, N≥100, sharper overclaim metric) before trusting CH-1a, and (b) NOT build CH-1b/extensions until the measurement is solid AND positive. Both calibration scores are low (~2.2/5), i.e. both 3.1 and 3.2 commentary overclaim relative to the engine — the bigger problem than the 3.1-vs-3.2 gap.
+**TODO to make it rigorous:** GPT-4o judge (uncomment OPENAI_API_KEY) with logprob weighting; N≥100; a sharper claim-by-claim overclaim metric; test WITH grounding present (production-faithful); add relevance/completeness vs human references (our GM-games commentary data).
+
 ## Deferred — Measurement (the headline gap)
 7. 🟡 **ChessQA benchmark — first cross-category results (scaled 2026-06-13).** Scoped in `ACCURACY_BENCHMARK_SCOPE.md`. Runner `scripts/eval/chessqa_grounding_eval.py` (now concurrent, `--workers`; needs cloned CSSLab/chessqa-benchmark + python-chess venv + Stockfish). Claude Sonnet 4, OFF (bare) vs ON (Stockfish eval+PV injected):
 

@@ -70,6 +70,11 @@ export type StoredUser = {
     /** Preferred local send hour 0–23 (future use; cron currently fixed). */
     hour?: number;
   };
+  /** Web Push subscriptions (one per device). Pruned when they expire (410). */
+  pushSubscriptions?: {
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+  }[];
 
   boardTheme?: BoardTheme;
   pieceSet?: PieceSet;
@@ -240,6 +245,7 @@ export type UpdateUserPatch = Partial<
     | "currentStreak"
     | "streakUpdatedAt"
     | "reminderPrefs"
+    | "pushSubscriptions"
     | "boardTheme"
     | "pieceSet"
     | "timezone"

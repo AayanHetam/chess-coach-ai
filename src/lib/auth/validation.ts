@@ -119,6 +119,18 @@ export const profilePatchSchema = z.object({
       hour: z.number().int().min(0).max(23).optional(),
     })
     .optional(),
+  pushSubscriptions: z
+    .array(
+      z.object({
+        endpoint: z.string().url().max(2000),
+        keys: z.object({
+          p256dh: z.string().max(255),
+          auth: z.string().max(255),
+        }),
+      })
+    )
+    .max(10)
+    .optional(),
 
   // Appearance
   boardTheme: z.enum(["classic", "wood", "neon"]).optional(),

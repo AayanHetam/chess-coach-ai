@@ -12,6 +12,12 @@ import {
 import { useAtomValue } from "jotai";
 import { useAuth } from "@/contexts/AuthContext";
 import { puzzleStatsAtom } from "@/lib/puzzleRating";
+import {
+  pushConfigured,
+  subscribeToPush,
+  unsubscribeFromPush,
+  currentPushEndpoint,
+} from "@/lib/pushClient";
 
 const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
 
@@ -62,6 +68,38 @@ export default function GoalsCard() {
       : targetRating
         ? 1
         : 0;
+
+  const [pushBusy, setPushBusy] = useState(false);
+  const canPush = pushConfigured();
+  const pushOn = (profile?.pushSubscriptions?.length ?? 0) > 0;
+
+  const togglePush = async (enable: boolean) => {
+    setPushBusy(true);
+    try {
+      if (enable) {
+        const sub = await subscribeToPush();
+        if (sub) {
+          const existing = profile?.pushSubscriptions ?? [];
+          const deduped = [
+            sub,
+            ...existing.filter((s) => s.endpoint !== sub.endpoint),
+          ].slice(0, 10);
+          await updateProfile({ pushSubscriptions: deduped });
+        }
+      } else {
+        const ep = await currentPushEndpoint();
+        await unsubscribeFromPush();
+        const remaining = (profile?.pushSubscriptions ?? []).filter(
+          (s) => s.endpoint !== ep
+        );
+        await updateProfile({ pushSubscriptions: remaining });
+      }
+    } catch (e) {
+      console.error("Toggle push failed:", e);
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -235,6 +273,30 @@ export default function GoalsCard() {
             </Typography>
           }
         />
+        {canPush && (
+          <FormControlLabel
+            control={
+              <Switch
+                checked={pushOn}
+                disabled={pushBusy}
+                onChange={(e) => void togglePush(e.target.checked)}
+                sx={{
+                  "& .MuiSwitch-switchBase.Mui-checked": { color: "#FB923C" },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: "#F97316",
+                  },
+                }}
+              />
+            }
+            label={
+              <Typography
+                sx={{ color: "rgba(255,255,255,0.8)", fontSize: "0.88rem" }}
+              >
+                Push notifications
+              </Typography>
+            }
+          />
+        )}
       </Box>
     </Box>
   );

@@ -36,6 +36,50 @@ describe("computePositionConfidence", () => {
     expect(pc.level).toBe("engine_verified");
   });
 
+  it("a Stockfish forced mate is engine_verified even with cp=null (the critical fix)", () => {
+    // When SF reports a mate, cp is null; without the mate flag this scored as a
+    // quiet position and the coach was told to hedge a forced mate.
+    const pc = computePositionConfidence(conf({ mate_in_n: "LOW" }), null, 5);
+    expect(pc.level).toBe("engine_verified");
+    expect(pc.drivers.some((d) => d.includes("forced mate"))).toBe(true);
+  });
+
+  it("a forced mate against the side to move (negative) is also engine_verified", () => {
+    const pc = computePositionConfidence(conf(), null, -3);
+    expect(pc.level).toBe("engine_verified");
+  });
+
+  it("a two-engine positional consensus (positional_plan HIGH) reaches engine_verified", () => {
+    // positional_plan HIGH fires only when SF and Lc0 agree; under-claiming it
+    // as 'mixed' is the over-hedge failure mode.
+    const pc = computePositionConfidence(conf({ positional_plan: "HIGH" }), 180);
+    expect(pc.level).toBe("engine_verified");
+  });
+
+  // ── boundary pins (so a threshold drift can't silently over/under-hedge) ──
+  it("pins the engine_verified boundary at score01=0.7 (eval 280 vs 279)", () => {
+    expect(computePositionConfidence(conf(), 280).level).toBe("engine_verified");
+    expect(computePositionConfidence(conf(), 279).level).toBe("mixed");
+  });
+
+  it("pins the strategic_read boundary at score01=0.35 (eval 140 vs 139)", () => {
+    expect(computePositionConfidence(conf(), 140).level).toBe("mixed");
+    expect(computePositionConfidence(conf(), 139).level).toBe("strategic_read");
+  });
+
+  it("a clear material edge alone stays engine_verified (no over-hedge)", () => {
+    expect(computePositionConfidence(conf({ material_win: "HIGH" }), 50).level).toBe(
+      "engine_verified",
+    );
+  });
+
+  it("reports an eval driver (not 'quiet position') once the eval moves the level", () => {
+    const pc = computePositionConfidence(conf(), 150); // mixed, score ~0.38
+    expect(pc.level).toBe("mixed");
+    expect(pc.drivers.some((d) => d.startsWith("eval"))).toBe(true);
+    expect(pc.drivers.some((d) => d.includes("quiet position"))).toBe(false);
+  });
+
   it("a quiet, balanced position is a strategic_read (NOT low quality)", () => {
     const pc = computePositionConfidence(conf(), 25);
     expect(pc.level).toBe("strategic_read");
@@ -97,6 +141,10 @@ describe("confidenceDisclaimer", () => {
 
   it("never frames low verification as low quality", () => {
     const msg = confidenceDisclaimer(computePositionConfidence(conf(), 10));
-    expect(msg).not.toMatch(/wrong|bad|unreliable|low quality|might be incorrect/i);
+    // Broad: any quality-implying slur, regardless of subject noun.
+    expect(msg).not.toMatch(/\b(wrong|bad|unreliable|weak|low.?quality|poor|incorrect)\b/i);
+    // ...and it MUST positively frame it as judgment-vs-fact (load-bearing).
+    expect(msg).toMatch(/strategic|judgment/i);
+    expect(msg).toMatch(/than engine-verified fact/i);
   });
 });

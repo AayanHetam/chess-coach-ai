@@ -210,59 +210,8 @@ function buildAllowedKeywords(confirmedMotifs: AnyMotif[]): string[] {
   return allowed;
 }
 
-/**
- * How strongly the model may assert a claim class, given its confidence.
- * The catch-all (everything NOT engine-backed) lives in the ladder footer.
- */
-function assertionStrength(level: ConfidenceLevel): string {
-  switch (level) {
-    case "HIGH":
-      return "state plainly";
-    case "MED":
-      return "state with mild qualification";
-    case "LOW":
-    case "NONE":
-      return "hedge — do not assert as fact";
-  }
-}
 
-/**
- * CH-1: the prompt confidence ladder. Calibrates how strongly the coach may
- * assert each claim type for THIS position, and — critically for the 80% — tells
- * it to frame anything it cannot verify as a suggestion, not a fact. Derived
- * from the same voter confidence the validators use, so prompt and enforcement
- * never disagree. Kept terse (prompt tokens).
- */
-function buildConfidenceLadder(
-  confidence: VoterConfidence,
-  pc: PositionConfidence,
-): string {
-  const header =
-    pc.level === "strategic_read"
-      ? "VERIFICATION: low — this position is judgment-heavy. Lead with the few hard facts above; frame the rest as your read, not as fact."
-      : pc.level === "engine_verified"
-        ? "VERIFICATION: high — the facts above are engine-confirmed; you may state them plainly."
-        : "VERIFICATION: mixed — state confirmed facts plainly, hedge the rest.";
-
-  return (
-    `CONFIDENCE LADDER (assert each claim only as strongly as its grounding):\n` +
-    `${header}\n` +
-    `- Material / "winning" claims: ${assertionStrength(confidence.material_win)}. ` +
-    `Do not say "winning", "decisive", or "completely lost" unless a fact above backs it.\n` +
-    `- Positional plans: ${assertionStrength(confidence.positional_plan)}.\n` +
-    `- Tactics: governed by the TACTICAL FACTS block above — assert none beyond it.\n` +
-    `- Anything you cannot verify from the facts above (long-term plans, "the best plan is", ` +
-    `endgame technique, who stands better in a quiet position): state as a SUGGESTION ` +
-    `("one idea is…", "this tends to…"), never as certainty. Avoid "the only move", "must", "forced" ` +
-    `unless a fact above proves it.`
-  );
-}
-
-function buildGroundingContext(
-  input: VoterInput,
-  confidence: VoterConfidence,
-  positionConfidence: PositionConfidence,
-): string {
+function buildGroundingContext(input: VoterInput, confidence: VoterConfidence): string {
   const motifs = input.motifs ?? [];
   const confirmedMotifs = motifs.filter((m) => m.confirmed);
   const unconfirmedMotifs = motifs.filter((m) => !m.confirmed);
@@ -338,10 +287,6 @@ function buildGroundingContext(
     if (mctx) parts.push(mctx);
   }
 
-  // ── CH-1: confidence ladder (calibrated hedging) — always last so it frames
-  // how to USE all the facts above ────────────────────────────────────────────
-  parts.push(buildConfidenceLadder(confidence, positionConfidence));
-
   return parts.join("\n\n");
 }
 
@@ -354,13 +299,14 @@ export function compileVoterResult(input: VoterInput): VoterResult {
   const positionConfidence = computePositionConfidence(
     confidence,
     input.stockfishEvalCp ?? null,
+    input.stockfishBestMoveMate ?? null,
   );
   const confirmedMotifs = (input.motifs ?? []).filter((m) => m.confirmed);
   return {
     confidence,
     positionConfidence,
     allowedTacticalKeywords: buildAllowedKeywords(confirmedMotifs),
-    groundingContext: buildGroundingContext(input, confidence, positionConfidence),
+    groundingContext: buildGroundingContext(input, confidence),
   };
 }
 

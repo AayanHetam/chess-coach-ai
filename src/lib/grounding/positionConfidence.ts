@@ -30,7 +30,13 @@ export type VerificationLevel = "engine_verified" | "mixed" | "strategic_read";
 
 export interface PositionConfidence {
   level: VerificationLevel;
-  /** 0–100, for the UI spectrum. Strength of the single strongest verification. */
+  /**
+   * Verification COVERAGE, 0–100 — how much of the position the engines can
+   * confirm, NOT advantage size or analysis quality. A tablebase draw scores
+   * 100 (fully verified — it IS a known draw), a dead-equal quiet position
+   * scores ~0. CH-3 must render this as engine-verified-vs-judgment, never as a
+   * quality/advantage bar (a confirmed draw is not a "strong" position).
+   */
   score: number;
   /** Human-readable reasons that drove the score (for the UI + telemetry). */
   drivers: string[];
@@ -52,7 +58,11 @@ const CLAIM_WEIGHT: Partial<Record<keyof VoterConfidence, number>> = {
   mate_in_n: 0.95,
   tactical_motif: 0.9, // confirmed by the deterministic detector
   material_win: 0.75,
-  positional_plan: 0.6,
+  // 0.72 so a two-engine HIGH consensus (positional_plan HIGH fires only when
+  // SF AND Lc0 independently agree on direction, both ≥150cp — see voter.ts)
+  // clears ENGINE_VERIFIED_AT. Under-claiming that as "mixed/hedge" is the
+  // over-hedge failure mode; two independent engines agreeing IS hard signal.
+  positional_plan: 0.72,
 };
 
 /** Decisive eval (≈4 pawns) is itself strong verification of a "winning" claim. */
@@ -62,6 +72,14 @@ const ENGINE_VERIFIED_AT = 0.7;
 const STRATEGIC_READ_BELOW = 0.35;
 
 /**
+ * cp magnitude at/above which the eval is reported as a driver. Aligned with the
+ * level math: an eval contributes to a non-strategic_read score once
+ * evalClarity ≥ STRATEGIC_READ_BELOW, i.e. |sfCp| ≥ 0.35×400 = 140. Below this
+ * the eval genuinely didn't move the needle and the quiet-position driver fits.
+ */
+const EVAL_DRIVER_MIN_CP = STRATEGIC_READ_BELOW * EVAL_FULL_CLARITY_CP;
+
+/**
  * Compute the verification confidence for a position from the voter's
  * per-claim confidence + Stockfish eval magnitude. Pure, no side effects.
  *
@@ -69,10 +87,17 @@ const STRATEGIC_READ_BELOW = 0.35;
  * of value×authority), OR the eval clarity if a decisive eval alone backs a
  * winning claim — whichever is higher. We take the MAX, not a sum, because one
  * confirmed fork is high-confidence even if everything else is NONE.
+ *
+ * `sfMate` (Stockfish forced-mate distance, either sign) is decisive on its own:
+ * a forced mate is the single most verifiable thing in chess. It MUST be passed
+ * because when Stockfish reports a mate it sets `cp` to null (cp and mate are
+ * mutually exclusive on a line), so without this a real forced mate would score
+ * as a quiet position and the coach would be told to hedge it.
  */
 export function computePositionConfidence(
   confidence: VoterConfidence,
   sfCp: number | null,
+  sfMate: number | null = null,
 ): PositionConfidence {
   const drivers: string[] = [];
 
@@ -89,9 +114,17 @@ export function computePositionConfidence(
     }
   }
 
-  const evalClarity =
-    sfCp === null ? 0 : Math.min(Math.abs(sfCp) / EVAL_FULL_CLARITY_CP, 1);
-  if (sfCp !== null && Math.abs(sfCp) >= 200) {
+  // A forced mate is maximal verification regardless of how the voter graded
+  // mate_in_n (which is about mate-distance exactness, not existence).
+  const forcedMate = sfMate !== null && sfMate !== 0;
+  const evalClarity = forcedMate
+    ? 1
+    : sfCp === null
+      ? 0
+      : Math.min(Math.abs(sfCp) / EVAL_FULL_CLARITY_CP, 1);
+  if (forcedMate) {
+    drivers.push(`forced mate (M${Math.abs(sfMate as number)})`);
+  } else if (sfCp !== null && Math.abs(sfCp) >= EVAL_DRIVER_MIN_CP) {
     drivers.push(`eval ${sfCp > 0 ? "+" : ""}${(sfCp / 100).toFixed(1)}`);
   }
 

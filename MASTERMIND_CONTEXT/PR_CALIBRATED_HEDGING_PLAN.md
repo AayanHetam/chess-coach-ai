@@ -91,9 +91,22 @@ Not label-only, and not free regeneration. The decision:
 
 This makes a low score feel like *honesty about what's verifiable*, never like *"the coach isn't sure it's any good."* It also means we never flag a position as low-confidence merely because it's strategic — only the verification *coverage* drops, and we say so plainly.
 
+## CH-1 split after adversarial review (2026-06-12)
+
+The first CH-1 implementation put a *dynamic per-position* confidence ladder inside `buildGroundingContext`. An adversarial review caught that this:
+- **under-claimed verified facts** (a Stockfish forced mate scored 'strategic_read' → the coach was told to hedge a forced mate, because `cp` is null during a mate and the score never saw the mate flag; a two-engine positional consensus capped at 'mixed');
+- **contradicted itself** (header said "state plainly" while the body forbade "winning" on a decisive eval; an Lc0 RULE said assert-material while the ladder said hedge-material);
+- **duplicated 10–13×** per game_review prompt, each copy keyed on the *before-mistake* eval (so it hedged an engine-measured blunder).
+
+Resolution — split CH-1:
+- **CH-1a (SHIPPED):** the static catch-all hedge — a single CONFIDENCE & HEDGING block in the system prompt (`coachChatPrompt.ts`, PROMPT_VERSION 3.2). Position-independent, once per turn, no contradiction/duplication. This is the actual 80% win.
+- **CH-1b (DEFERRED):** the dynamic per-position calibration. Needs the score fixes (below, done) AND once-per-focused-position injection (reuse the focused snapshot, skip/genericize for game_review). Wire alongside CH-2, which needs the same focused snapshot.
+- **Score foundation fixes (DONE in `positionConfidence.ts`):** forced mate (sfMate threaded) → engine_verified regardless of cp=null; `positional_plan` weight 0.6→0.72 so a two-engine HIGH reaches engine_verified; `score` jsdoc clarified as verification COVERAGE not advantage/quality; eval-driver threshold aligned to the level math (≥140cp); boundary tests pin 0.7 and 0.35.
+
 ## Phasing
 
-- **PR-CH-1 (cheap win):** Channel 1 prompt ladder only. Ship, watch CMIP + telemetry. Likely 80% of the value.
+- **PR-CH-1a (SHIPPED):** static hedge in the system prompt + verification-confidence score foundation. Watch CMIP + telemetry. Likely 80% of the value.
+- **PR-CH-1b (deferred):** dynamic per-position calibration, wired once-per-focused-position (alongside CH-2).
 - **PR-CH-2:** Channel 2 overconfidence validator (advantage-certainty group first — cleanest, reuses `sfCp`), **precision test gating the merge**. Single-regen wiring (max 1, fixable-overclaim only).
 - **PR-CH-3 (the trust feature):** verification-confidence score + UI spectrum/indicator + low-grounding disclaimer, framed as engine-verified-vs-judgment (NOT a quality bar). Apply the design OS (glass/MUI, no Tailwind) per the UX norms. This is arguably the highest *perceived*-trust item even though it's last to build.
 - **PR-CH-4:** forcedness + plan token groups, only if PR-CH-2 telemetry shows they clear the precision bar.

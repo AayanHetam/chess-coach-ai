@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAtom } from "jotai";
 import { Chess } from "chess.js";
 import {
   Box,
@@ -34,7 +35,17 @@ import {
 } from "@/components/puzzle/DemoMoveDialog";
 import { parseSolutionMoves } from "@/lib/puzzleSolution";
 import { usePuzzleFeed } from "@/hooks/usePuzzleFeed";
-import type { PuzzleOutcome } from "@/lib/validation/puzzleChatSchemas";
+import type {
+  PuzzleOutcome,
+  PuzzleContext,
+} from "@/lib/validation/puzzleChatSchemas";
+import { useAuth } from "@/contexts/AuthContext";
+import { puzzleStatsAtom, updatePuzzleStats } from "@/lib/puzzleRating";
+import {
+  puzzleResumeAtom,
+  isResumeFresh,
+  type PuzzleResumeState,
+} from "@/lib/curriculum/resume";
 
 const PuzzleBoard = dynamic(
   () => import("@/components/puzzle/PuzzleBoard").then((m) => m.PuzzleBoard),
@@ -127,14 +138,119 @@ const RATING_BANDS: RatingBand[] = [
   { id: "expert", label: "2000+", min: 2000, max: 3000 },
 ];
 
+/**
+ * Maps onboarding/placement focus-theme ids — canonical kebab Neo4j `:Theme.id`
+ * values (see quizThemes.ts) — to the feed's Lichess theme vocabulary
+ * (camelCase) so the stream can be seeded from the user's stated weaknesses.
+ */
+const FEED_THEME_BY_FOCUS: Record<string, string> = {
+  "hanging-piece": "hangingPiece",
+  fork: "fork",
+  "double-attack": "fork",
+  pin: "pin",
+  skewer: "skewer",
+  "discovered-attack": "discoveredAttack",
+  "back-rank": "backRankMate",
+  "exposed-king": "kingsideAttack",
+  "mating-attack": "mate",
+  sacrifice: "sacrifice",
+  endgame: "endgame",
+  promotion: "promotion",
+  "advanced-pawn": "advancedPawn",
+};
+
+/**
+ * Inverse mapping — records /puzzles solves under the curriculum's kebab theme
+ * keys so per-theme mastery stays unified with the placement test +
+ * SessionRunner (both of which read themeStats by kebab `:Theme.id`).
+ */
+const FEED_TO_CURRICULUM_THEME: Record<string, string> = {
+  hangingPiece: "hanging-piece",
+  fork: "fork",
+  pin: "pin",
+  skewer: "skewer",
+  discoveredAttack: "discovered-attack",
+  backRankMate: "back-rank",
+  exposedKing: "exposed-king",
+  kingsideAttack: "exposed-king",
+  mate: "mating-attack",
+  mateIn1: "mating-attack",
+  mateIn2: "mating-attack",
+  mateIn3: "mating-attack",
+  sacrifice: "sacrifice",
+  endgame: "endgame",
+  promotion: "promotion",
+  advancedPawn: "advanced-pawn",
+};
+
+/** First focus theme that maps to a feed theme, or undefined. */
+function firstFeedThemeForFocus(
+  focus: string[] | undefined,
+): string | undefined {
+  if (!focus) return undefined;
+  for (const f of focus) {
+    const mapped = FEED_THEME_BY_FOCUS[f];
+    if (mapped) return mapped;
+  }
+  return undefined;
+}
+
+/**
+ * Picks the most pedagogically-meaningful theme from a feed puzzle's theme
+ * list for per-theme stat tracking. Prefers a curriculum-mapped motif, then a
+ * quick-filter theme, else the first listed (Lichess mixes in noise themes
+ * like "crushing"/"short").
+ */
+function pickPrimaryTheme(themes: string[] | undefined): string {
+  if (!themes || themes.length === 0) return "tactics";
+  const mapped = themes.find((t) => FEED_TO_CURRICULUM_THEME[t]);
+  if (mapped) return FEED_TO_CURRICULUM_THEME[mapped];
+  const quick = themes.find((t) => QUICK_THEMES.some((q) => q.id === t));
+  if (quick) return quick;
+  return themes[0];
+}
+
 export default function PreviewPuzzlesPage() {
+  const { profile, updateProfile, loading: authLoading } = useAuth();
+  const [stats, setStats] = useAtom(puzzleStatsAtom);
+  const [resume, setResume] = useAtom(puzzleResumeAtom);
+
   const [activeTheme, setActiveTheme] = useState<string | null>(null);
   const [activeBand, setActiveBand] = useState<string>("all");
 
+  // Snapshot any fresh "continue where you left off" entry at mount, before
+  // the persist effect below can overwrite it with the feed's first puzzle.
+  const initialResumeRef = useRef<PuzzleResumeState | null>(null);
+  const resumeReadRef = useRef(false);
+  if (!resumeReadRef.current) {
+    resumeReadRef.current = true;
+    initialResumeRef.current = isResumeFresh(resume, Date.now()) ? resume : null;
+  }
+
+  // The resumed puzzle takes precedence over the feed until the user moves on.
+  const [resumeOverride, setResumeOverride] = useState<PuzzleContext | null>(
+    null,
+  );
+  // One-shot guards: resume is applied synchronously on mount; the rating +
+  // focus-theme seed waits for auth to resolve.
+  const resumeAppliedRef = useRef(false);
+  const focusSeededRef = useRef(false);
+
+  // Grading bookkeeping (mirrors SessionRunner): one grade per puzzle id, and
+  // a per-puzzle start clock for solve time.
+  const gradedRef = useRef<string | null>(null);
+  const startTimeRef = useRef<number>(Date.now());
+  // Debounced live-rating → profile mirror.
+  const mirrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastMirroredRef = useRef<number | null>(null);
+
+  // Seed the feed from the user's live rating window (single-rating model).
+  // The seeding effect below refines this with focus themes / resume once auth
+  // resolves; reading stats here is best-effort (localStorage-hydrated).
   const feed = usePuzzleFeed({
     themes: undefined,
-    ratingMin: 400,
-    ratingMax: 3000,
+    ratingMin: Math.max(400, stats.rating - 150),
+    ratingMax: Math.min(3000, stats.rating + 150),
   });
 
   // Push filter changes into the feed hook.
@@ -152,6 +268,8 @@ export default function PreviewPuzzlesPage() {
 
   const handleThemeClick = useCallback(
     (id: string | null) => {
+      // A manual filter pick exits "resume" mode — the user wants a new stream.
+      setResumeOverride(null);
       setActiveTheme(id);
       applyFilters(id, activeBand);
     },
@@ -160,13 +278,17 @@ export default function PreviewPuzzlesPage() {
 
   const handleBandClick = useCallback(
     (bandId: string) => {
+      setResumeOverride(null);
       setActiveBand(bandId);
       applyFilters(activeTheme, bandId);
     },
     [activeTheme, applyFilters],
   );
 
-  const puzzle = feed.currentPuzzle;
+  // The resumed puzzle wins until cleared; otherwise the feed's current puzzle.
+  // The resume effect sets the override synchronously on mount, before the
+  // feed's first (async) batch resolves, so there's no wrong-puzzle flash.
+  const puzzle = resumeOverride ?? feed.currentPuzzle;
 
   // Apply the opponent's setup move (solution[0]) to get the student's
   // starting position. Board always renders from this FEN.
@@ -233,6 +355,89 @@ export default function PreviewPuzzlesPage() {
     setActiveDemo(null);
     setCoachHighlights(null);
   }, [studentStartFen]);
+
+  // Reset the grading clock + guard whenever a new puzzle is shown.
+  useEffect(() => {
+    gradedRef.current = null;
+    startTimeRef.current = Date.now();
+  }, [puzzle?.id]);
+
+  // Resume the last puzzle immediately (independent of auth) so we never flash
+  // a different puzzle first. Continues the stream in the saved filter context.
+  useEffect(() => {
+    if (resumeAppliedRef.current) return;
+    resumeAppliedRef.current = true;
+    const saved = initialResumeRef.current;
+    if (saved) {
+      setResumeOverride(saved.puzzle);
+      feed.setFilters(saved.filters);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Seed the feed from the user's rating window + top focus theme once auth
+  // resolves — but only when there's no resumed puzzle driving the stream.
+  // One-shot so a later solve (rating change) can't reseed mid-session.
+  useEffect(() => {
+    if (focusSeededRef.current || authLoading) return;
+    focusSeededRef.current = true;
+    if (initialResumeRef.current) return;
+    const focusTheme = firstFeedThemeForFocus(profile?.focusThemes);
+    feed.setFilters({
+      themes: focusTheme ? [focusTheme] : undefined,
+      ratingMin: Math.max(400, stats.rating - 150),
+      ratingMax: Math.min(3000, stats.rating + 150),
+    });
+    if (focusTheme && QUICK_THEMES.some((t) => t.id === focusTheme)) {
+      setActiveTheme(focusTheme);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
+
+  // Grade the rating on solve (first-try only counts as solved, mirroring
+  // SessionRunner so a wrong-then-solved is a miss). One grade per puzzle.
+  useEffect(() => {
+    if (status !== "solved" || !puzzle) return;
+    if (gradedRef.current === puzzle.id) return;
+    gradedRef.current = puzzle.id;
+    setStats((prev) =>
+      updatePuzzleStats(prev, {
+        puzzleId: puzzle.id,
+        // Feed puzzles always carry a rating; fall back to the player's own
+        // (neutral Elo) on the rare untagged puzzle.
+        puzzleRating: puzzle.rating ?? prev.rating,
+        solved: wrongAttempts === 0,
+        timeMs: Math.max(0, Date.now() - startTimeRef.current),
+        theme: pickPrimaryTheme(puzzle.themes),
+        timestamp: Date.now(),
+      }),
+    );
+  }, [status, puzzle, wrongAttempts, setStats]);
+
+  // Constant save: persist the active puzzle + filters so a returning user
+  // resumes exactly here.
+  useEffect(() => {
+    if (!puzzle) return;
+    setResume({ puzzle, filters: feed.filters, updatedAt: Date.now() });
+  }, [puzzle, feed.filters, setResume]);
+
+  // Mirror the live rating to the profile (cross-device + reminder copy),
+  // debounced so rapid solves coalesce into a single write.
+  useEffect(() => {
+    if (!profile) return;
+    if (lastMirroredRef.current === stats.rating) return;
+    if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
+    mirrorTimerRef.current = setTimeout(() => {
+      lastMirroredRef.current = stats.rating;
+      void updateProfile({
+        liveRatingSnapshot: stats.rating,
+        liveRatingSnapshotAt: Date.now(),
+      }).catch(() => {});
+    }, 4000);
+    return () => {
+      if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
+    };
+  }, [stats.rating, profile, updateProfile]);
 
   // "wrong" status auto-reverts to "playing" so the user can retry without
   // any "reset" gesture. Re-keys on wrongAttempts so each new wrong move
@@ -433,8 +638,29 @@ export default function PreviewPuzzlesPage() {
   }, [studentStartFen]);
 
   const handleNextPuzzle = useCallback(() => {
-    feed.advance();
-  }, [feed]);
+    // Every puzzle, solved or not, moves the rating: an unsolved skip counts as
+    // a miss (unless it was already graded by solving).
+    if (puzzle && gradedRef.current !== puzzle.id) {
+      gradedRef.current = puzzle.id;
+      setStats((prev) =>
+        updatePuzzleStats(prev, {
+          puzzleId: puzzle.id,
+          puzzleRating: puzzle.rating ?? prev.rating,
+          solved: false,
+          timeMs: Math.max(0, Date.now() - startTimeRef.current),
+          theme: pickPrimaryTheme(puzzle.themes),
+          timestamp: Date.now(),
+        }),
+      );
+    }
+    // Clearing the resume override reveals the feed's next puzzle; otherwise
+    // advance the feed itself.
+    if (resumeOverride) {
+      setResumeOverride(null);
+    } else {
+      feed.advance();
+    }
+  }, [puzzle, resumeOverride, setStats, feed]);
 
   const coachOutcome: PuzzleOutcome = useMemo(() => {
     if (status === "solved") return "solved";

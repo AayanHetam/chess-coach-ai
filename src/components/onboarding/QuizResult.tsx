@@ -32,6 +32,8 @@ interface QuizResultProps {
   onUnlock: () => void;
   onBack: () => void;
   submitting?: boolean;
+  /** Already signed in → skip the "create account" framing. */
+  authed?: boolean;
 }
 
 export default function QuizResult({
@@ -39,6 +41,7 @@ export default function QuizResult({
   onUnlock,
   onBack,
   submitting = false,
+  authed = false,
 }: QuizResultProps) {
   const rating = derivedRating(answers);
   const band = bandLabel(rating);
@@ -201,7 +204,9 @@ export default function QuizResult({
           },
         }}
       >
-        Unlock your full plan + first puzzles
+        {authed
+          ? "Start my training plan"
+          : "Unlock your full plan + first puzzles"}
       </Button>
       <Typography
         sx={{
@@ -211,7 +216,9 @@ export default function QuizResult({
           mt: 1.25,
         }}
       >
-        Create a free account to save your profile and start training.
+        {authed
+          ? "Saved to your profile — let's train."
+          : "Create a free account to save your profile and start training."}
       </Typography>
 
       <Box sx={{ textAlign: "center", mt: 1.5 }}>

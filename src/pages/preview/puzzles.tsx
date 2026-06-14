@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { Chess } from "chess.js";
 import {
   Box,
@@ -28,7 +28,11 @@ import {
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { PuzzleCoachPanel } from "@/components/puzzle/PuzzleCoachPanel";
-import type { CoachHighlight } from "@/lib/validation/puzzleHintSchemas";
+import type {
+  CoachHighlight,
+  MentionColor,
+} from "@/lib/validation/puzzleHintSchemas";
+import { pieceSetAtom } from "@/components/board/states";
 import {
   DemoMoveDialog,
   DEMO_SPEED_MS,
@@ -48,10 +52,24 @@ import {
   type PuzzleResumeState,
 } from "@/lib/curriculum/resume";
 
-const PuzzleBoard = dynamic(
-  () => import("@/components/puzzle/PuzzleBoard").then((m) => m.PuzzleBoard),
+const PuzzleBoardSurface = dynamic(
+  () =>
+    import("@/components/puzzle/PuzzleBoardSurface").then(
+      (m) => m.PuzzleBoardSurface,
+    ),
   { ssr: false },
 );
+
+/** Per-color fill for coach-triggered square overlays (was in PuzzleBoard.tsx).
+ *  Translucent so the piece glyph still reads on top. Painted on the shared
+ *  board via the generic `underlaySquareStyles` seam. */
+const COACH_HIGHLIGHT_BG: Record<MentionColor, string> = {
+  red: "rgba(239, 68, 68, 0.45)",
+  blue: "rgba(59, 130, 246, 0.45)",
+  yellow: "rgba(251, 191, 36, 0.45)",
+  green: "rgba(34, 197, 94, 0.45)",
+  orange: "rgba(255, 122, 26, 0.45)",
+};
 
 interface ActiveDemo {
   /** SAN sequence the coach asked us to play. */
@@ -216,6 +234,7 @@ export default function PreviewPuzzlesPage() {
   const router = useRouter();
   const [stats, setStats] = useAtom(puzzleStatsAtom);
   const [resume, setResume] = useAtom(puzzleResumeAtom);
+  const pieceSet = useAtomValue(pieceSetAtom);
 
   const [activeTheme, setActiveTheme] = useState<string | null>(null);
   const [activeBand, setActiveBand] = useState<string>("all");
@@ -686,6 +705,37 @@ export default function PreviewPuzzlesPage() {
   const boardWrongSquare =
     !activeDemo && wrongSquare && status === "wrong" ? wrongSquare : null;
 
+  // Convert coach-triggered highlights into the shared board's generic
+  // underlay-style seam (the board has no coach concept of its own).
+  const coachUnderlay = useMemo(() => {
+    if (activeDemo || !coachHighlights || coachHighlights.squares.length === 0) {
+      return undefined;
+    }
+    const fill = COACH_HIGHLIGHT_BG[coachHighlights.color];
+    const styles: Record<string, { background: string }> = {};
+    for (const sq of coachHighlights.squares) {
+      if (/^[a-h][1-8]$/.test(sq)) styles[sq] = { background: fill };
+    }
+    return styles;
+  }, [activeDemo, coachHighlights]);
+
+  // Board → page move sink. The shared board doesn't judge legality (each
+  // surface owns its own move semantics), so we replicate the legality probe
+  // PuzzleBoard.tsx used to do — illegal drags snap back silently rather than
+  // registering as a wrong attempt — then hand off to handleMove.
+  const onBoardMove = useCallback(
+    (from: string, to: string): boolean => {
+      try {
+        const probe = new Chess(game.fen());
+        if (!probe.move({ from, to, promotion: "q" })) return false;
+      } catch {
+        return false;
+      }
+      return handleMove(from, to);
+    },
+    [game, handleMove],
+  );
+
   return (
     <ThemeProvider theme={puzzleTheme}>
       <Head>
@@ -865,14 +915,23 @@ export default function PreviewPuzzlesPage() {
                         boxShadow: "0 0 0 1px rgba(255,255,255,0.06)",
                       }}
                     >
-                      <PuzzleBoard
+                      <PuzzleBoardSurface
+                        boardId="PuzzleBoard"
                         fen={displayFen}
                         orientation={orientation}
                         interactive={interactive}
-                        lastMove={displayLastMove}
+                        onPieceDrop={onBoardMove}
+                        lastMove={
+                          displayLastMove
+                            ? {
+                                from: displayLastMove[0],
+                                to: displayLastMove[1],
+                              }
+                            : null
+                        }
                         wrongSquare={boardWrongSquare}
-                        coachHighlights={activeDemo ? null : coachHighlights}
-                        onMove={handleMove}
+                        underlaySquareStyles={coachUnderlay}
+                        pieceSet={pieceSet}
                       />
                       {activeDemo && (
                         <Box

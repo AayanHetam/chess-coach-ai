@@ -11,10 +11,9 @@ import {
   Link,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
-import { Chessboard } from "react-chessboard";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
-import { FlashOverlay } from "@/components/puzzle/FlashOverlay";
+import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import InlinePuzzleCoach from "./InlinePuzzleCoach";
 
 /**
@@ -187,28 +186,22 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
         </Box>
       )}
 
-      <Box
-        sx={{
-          position: "relative",
-          display: "inline-block",
-          margin: "0 auto",
-          borderRadius: "8px",
-        }}
-      >
-        <FlashOverlay key={`flash-${board.flashKey}`} flash={board.flash} />
-        <Chessboard
-          id={`InlinePuzzle-${currentPuzzle?.id ?? currentIndex}`}
-          position={board.game.fen()}
+      <Box sx={{ display: "inline-block", margin: "0 auto" }}>
+        {/* Shared Puzzle Coach board (compact chat-bubble size). Keeps the
+            lightweight InlinePuzzleCoach below; the board itself never grades. */}
+        <PuzzleBoardSurface
+          boardId={`InlinePuzzle-${currentPuzzle?.id ?? currentIndex}`}
+          fen={board.game.fen()}
+          orientation={board.boardOrientation}
+          interactive={
+            board.status === "playing" || board.status === "wrong"
+          }
           onPieceDrop={board.onPieceDrop}
-          boardOrientation={board.boardOrientation}
+          lastMove={board.lastMoveSquares}
+          wrongSquare={board.wrongSquare}
+          flash={{ state: board.flash, flashKey: board.flashKey }}
           boardWidth={boardWidth}
-          customBoardStyle={{
-            borderRadius: "4px",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.4)",
-          }}
-          customSquareStyles={board.customSquareStyles}
-          isDraggablePiece={board.isDraggablePiece}
-          animationDuration={200}
+          animationMs={200}
         />
       </Box>
 

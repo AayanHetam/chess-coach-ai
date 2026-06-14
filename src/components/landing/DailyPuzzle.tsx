@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Box,
   Typography,
@@ -7,12 +7,9 @@ import {
   Chip,
   CircularProgress,
 } from "@mui/material";
-import { Chessboard } from "react-chessboard";
-import { Square } from "chess.js";
 import { useRouter } from "next/router";
 import { useAtomValue, useSetAtom } from "jotai";
 import { pieceSetAtom } from "@/components/board/states";
-import { Piece, CustomPieces } from "react-chessboard/dist/chessboard/types";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import ExtensionIcon from "@mui/icons-material/Extension";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -21,12 +18,7 @@ import {
   updatePuzzleStats,
 } from "@/lib/puzzleRating";
 import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
-import { FlashOverlay } from "@/components/puzzle/FlashOverlay";
-
-const PIECE_CODES: Piece[] = [
-  "wP", "wB", "wN", "wR", "wQ", "wK",
-  "bP", "bB", "bN", "bR", "bQ", "bK",
-];
+import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 
 interface DailyPuzzleData {
   id: string;
@@ -54,18 +46,6 @@ export default function DailyPuzzle() {
   const [loading, setLoading] = useState(true);
   const [dailyDate, setDailyDate] = useState<string>("");
   const [alreadySolvedToday, setAlreadySolvedToday] = useState(false);
-
-  // Click-to-move UI state — local to this surface; hook doesn't know
-  // about clicks.
-  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
-  const [legalMoveSquares, setLegalMoveSquares] = useState<Square[]>([]);
-
-  // Reset selection when puzzle changes (only fires on initial load
-  // since DailyPuzzle is a single puzzle per page mount).
-  useEffect(() => {
-    setSelectedSquare(null);
-    setLegalMoveSquares([]);
-  }, [puzzle?.id]);
 
   // Fetch the daily puzzle.
   useEffect(() => {
@@ -139,75 +119,6 @@ export default function DailyPuzzle() {
 
   // Click-to-move handler — routes through hook's onPieceDrop, with the
   // same playing-or-wrong allowance the hook itself uses for drags.
-  const onSquareClick = useCallback(
-    (square: Square) => {
-      if (board.status !== "playing" && board.status !== "wrong") return;
-      if (!selectedSquare) {
-        const piece = board.game.get(square);
-        if (piece && piece.color === board.game.turn()) {
-          setSelectedSquare(square);
-          const moves = board.game.moves({ square, verbose: true });
-          setLegalMoveSquares(moves.map((m) => m.to as Square));
-        }
-        return;
-      }
-      if (selectedSquare === square) {
-        setSelectedSquare(null);
-        setLegalMoveSquares([]);
-        return;
-      }
-      const piece = board.game.get(square);
-      if (piece && piece.color === board.game.turn()) {
-        setSelectedSquare(square);
-        const moves = board.game.moves({ square, verbose: true });
-        setLegalMoveSquares(moves.map((m) => m.to as Square));
-        return;
-      }
-      board.onPieceDrop(selectedSquare, square, "");
-      setSelectedSquare(null);
-      setLegalMoveSquares([]);
-    },
-    [board, selectedSquare],
-  );
-
-  // Custom pieces (no blind mode on landing surface).
-  const customPieces = useMemo(
-    () =>
-      PIECE_CODES.reduce<CustomPieces>((acc, piece) => {
-        acc[piece] = ({ squareWidth }: { squareWidth: number }) => (
-          <Box
-            width={squareWidth}
-            height={squareWidth}
-            sx={{
-              backgroundImage: `url(/piece/${pieceSet}/${piece}.svg)`,
-              backgroundSize: "contain",
-            }}
-          />
-        );
-        return acc;
-      }, {}),
-    [pieceSet],
-  );
-
-  // Compose hook's square styles with the local click-to-move
-  // highlights.
-  const customSquareStyles = useMemo(() => {
-    const styles: Record<string, React.CSSProperties> = {
-      ...board.customSquareStyles,
-    };
-    if (selectedSquare) {
-      styles[selectedSquare] = { backgroundColor: "rgba(20, 85, 180, 0.5)" };
-    }
-    for (const sq of legalMoveSquares) {
-      const existing = styles[sq] || {};
-      styles[sq] = {
-        ...existing,
-        background: `${existing.backgroundColor || ""} radial-gradient(circle, rgba(0,0,0,0.15) 25%, transparent 25%)`.trim(),
-      };
-    }
-    return styles;
-  }, [board.customSquareStyles, selectedSquare, legalMoveSquares]);
-
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
@@ -333,28 +244,26 @@ export default function DailyPuzzle() {
 
             <Box
               sx={{
-                position: "relative",
                 borderRadius: "8px",
                 overflow: "hidden",
                 boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
               }}
             >
-              <FlashOverlay
-                key={`flash-${board.flashKey}`}
-                flash={board.flash}
-              />
-              <Chessboard
-                id="DailyPuzzleBoard"
-                position={board.game.fen()}
+              {/* Shared Puzzle Coach board — landing surface, coach off. */}
+              <PuzzleBoardSurface
+                boardId="DailyPuzzleBoard"
+                fen={board.game.fen()}
+                orientation={board.boardOrientation}
+                interactive={
+                  board.status === "playing" || board.status === "wrong"
+                }
                 onPieceDrop={board.onPieceDrop}
-                onSquareClick={onSquareClick}
-                boardOrientation={board.boardOrientation}
+                lastMove={board.lastMoveSquares}
+                wrongSquare={board.wrongSquare}
+                flash={{ state: board.flash, flashKey: board.flashKey }}
                 boardWidth={BOARD_SIZE}
-                customBoardStyle={{ borderRadius: "8px" }}
-                customSquareStyles={customSquareStyles}
-                customPieces={customPieces}
-                isDraggablePiece={board.isDraggablePiece}
-                animationDuration={200}
+                pieceSet={pieceSet}
+                animationMs={200}
               />
             </Box>
           </Box>

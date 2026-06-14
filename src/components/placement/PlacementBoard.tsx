@@ -1,31 +1,13 @@
-import { useCallback, useMemo, useState } from "react";
-import { Chessboard } from "react-chessboard";
-import { Square } from "chess.js";
+import { useMemo } from "react";
 import { Box } from "@mui/material";
 import { useAtomValue } from "jotai";
 import { pieceSetAtom } from "@/components/board/states";
-import { Piece, CustomPieces } from "react-chessboard/dist/chessboard/types";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import {
   usePuzzleBoardState,
   type PuzzleInput,
 } from "@/hooks/usePuzzleBoardState";
-import { FlashOverlay } from "@/components/puzzle/FlashOverlay";
-
-const PIECE_CODES: Piece[] = [
-  "wP",
-  "wB",
-  "wN",
-  "wR",
-  "wQ",
-  "wK",
-  "bP",
-  "bB",
-  "bN",
-  "bR",
-  "bQ",
-  "bK",
-];
+import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 
 interface PlacementBoardProps {
   puzzle: PuzzleInput | null;
@@ -48,8 +30,6 @@ export default function PlacementBoard({
 }: PlacementBoardProps) {
   const pieceSet = useAtomValue(pieceSetAtom);
   const screen = useScreenSize();
-  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
-  const [legalMoveSquares, setLegalMoveSquares] = useState<Square[]>([]);
 
   const board = usePuzzleBoardState({ puzzle, onSolved, onWrong });
 
@@ -60,107 +40,26 @@ export default function PlacementBoard({
     return Math.max(Math.min(w - 48, h - 280, 520), 280);
   }, [screen]);
 
-  const onSquareClick = useCallback(
-    (square: Square) => {
-      if (board.status !== "playing" && board.status !== "wrong") return;
-      if (!selectedSquare) {
-        const piece = board.game.get(square);
-        if (piece && piece.color === board.game.turn()) {
-          setSelectedSquare(square);
-          setLegalMoveSquares(
-            board.game
-              .moves({ square, verbose: true })
-              .map((m) => m.to as Square)
-          );
-        }
-        return;
-      }
-      if (selectedSquare === square) {
-        setSelectedSquare(null);
-        setLegalMoveSquares([]);
-        return;
-      }
-      const piece = board.game.get(square);
-      if (piece && piece.color === board.game.turn()) {
-        setSelectedSquare(square);
-        setLegalMoveSquares(
-          board.game.moves({ square, verbose: true }).map((m) => m.to as Square)
-        );
-        return;
-      }
-      board.onPieceDrop(selectedSquare, square, "");
-      setSelectedSquare(null);
-      setLegalMoveSquares([]);
-    },
-    [board, selectedSquare]
-  );
-
-  const customPieces = useMemo(
-    () =>
-      PIECE_CODES.reduce<CustomPieces>((acc, piece) => {
-        acc[piece] = ({ squareWidth }: { squareWidth: number }) => (
-          <Box
-            width={squareWidth}
-            height={squareWidth}
-            sx={{
-              backgroundImage: `url(/piece/${pieceSet}/${piece}.svg)`,
-              backgroundSize: "contain",
-            }}
-          />
-        );
-        return acc;
-      }, {}),
-    [pieceSet]
-  );
-
-  const customSquareStyles = useMemo(() => {
-    const styles: Record<string, React.CSSProperties> = {
-      ...board.customSquareStyles,
-    };
-    if (selectedSquare) {
-      styles[selectedSquare] = { backgroundColor: "rgba(20, 85, 180, 0.5)" };
-    }
-    for (const sq of legalMoveSquares) {
-      const existing = styles[sq] || {};
-      styles[sq] = {
-        ...existing,
-        background:
-          `${existing.backgroundColor || ""} radial-gradient(circle, rgba(0,0,0,0.15) 25%, transparent 25%)`.trim(),
-      };
-    }
-    return styles;
-  }, [board.customSquareStyles, selectedSquare, legalMoveSquares]);
-
   if (!puzzle) {
     return <Box sx={{ width: boardSize, height: boardSize }} />;
   }
 
+  // Shared Puzzle Coach board. Deliberately NO coach overlay/underlay — the
+  // placement test is a measurement instrument, so there is no code path that
+  // can surface a hint here. (SessionRunner reuses this component; same rule.)
   return (
-    <Box
-      sx={{
-        position: "relative",
-        width: boardSize,
-        mx: "auto",
-        "& .board-container": { borderRadius: "6px" },
-      }}
-    >
-      <FlashOverlay key={`flash-${board.flashKey}`} flash={board.flash} />
-      <Chessboard
-        id="PlacementBoard"
-        position={board.game.fen()}
-        onPieceDrop={board.onPieceDrop}
-        onSquareClick={onSquareClick}
-        boardOrientation={board.boardOrientation}
-        boardWidth={boardSize}
-        customBoardStyle={{
-          borderRadius: "6px",
-          boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
-        }}
-        customSquareStyles={customSquareStyles}
-        customPieces={customPieces}
-        isDraggablePiece={board.isDraggablePiece}
-        animationDuration={200}
-      />
-    </Box>
+    <PuzzleBoardSurface
+      boardId="PlacementBoard"
+      fen={board.game.fen()}
+      orientation={board.boardOrientation}
+      interactive={board.status === "playing" || board.status === "wrong"}
+      onPieceDrop={board.onPieceDrop}
+      lastMove={board.lastMoveSquares}
+      wrongSquare={board.wrongSquare}
+      flash={{ state: board.flash, flashKey: board.flashKey }}
+      boardWidth={boardSize}
+      pieceSet={pieceSet}
+      animationMs={200}
+    />
   );
 }

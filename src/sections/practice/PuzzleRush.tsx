@@ -14,13 +14,10 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import { Chessboard } from "react-chessboard";
-import { Square } from "chess.js";
 import { useAtomValue, useSetAtom } from "jotai";
 import { puzzleSolvedStatusAtom } from "./states";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { pieceSetAtom } from "@/components/board/states";
-import { Piece, CustomPieces } from "react-chessboard/dist/chessboard/types";
 import TimerIcon from "@mui/icons-material/Timer";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import BoltIcon from "@mui/icons-material/Bolt";
@@ -34,12 +31,7 @@ import {
   type PuzzleRushScores,
 } from "@/lib/puzzleRating";
 import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
-import { FlashOverlay } from "@/components/puzzle/FlashOverlay";
-
-const PIECE_CODES: Piece[] = [
-  "wP", "wB", "wN", "wR", "wQ", "wK",
-  "bP", "bB", "bN", "bR", "bQ", "bK",
-];
+import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 
 type RushMode = "three" | "five" | "survival";
 
@@ -80,8 +72,6 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
   const [puzzleIndex, setPuzzleIndex] = useState(0);
 
   // Click-to-move local state
-  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
-  const [legalMoveSquares, setLegalMoveSquares] = useState<Square[]>([]);
 
   // Rush state
   const [score, setScore] = useState(0);
@@ -148,8 +138,6 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
   // Advance to next puzzle (or fetch more if we've exhausted the queue).
   const advanceToNext = useCallback(() => {
     advanceScheduledRef.current = false;
-    setSelectedSquare(null);
-    setLegalMoveSquares([]);
     const nextIdx = puzzleIndex + 1;
     if (nextIdx < puzzles.length) {
       setPuzzleIndex(nextIdx);
@@ -303,75 +291,6 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
     setIsNewHighScore(newHigh);
     setShowFinishDialog(true);
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Click-to-move handler — routes through the hook's onPieceDrop. Gate
-  // on phase too so clicks during the finish dialog do nothing.
-  const onSquareClick = useCallback(
-    (square: Square) => {
-      if (phase !== "playing") return;
-      if (board.status !== "playing" && board.status !== "wrong") return;
-      if (!selectedSquare) {
-        const piece = board.game.get(square);
-        if (piece && piece.color === board.game.turn()) {
-          setSelectedSquare(square);
-          const moves = board.game.moves({ square, verbose: true });
-          setLegalMoveSquares(moves.map((m) => m.to as Square));
-        }
-        return;
-      }
-      if (selectedSquare === square) {
-        setSelectedSquare(null);
-        setLegalMoveSquares([]);
-        return;
-      }
-      const piece = board.game.get(square);
-      if (piece && piece.color === board.game.turn()) {
-        setSelectedSquare(square);
-        const moves = board.game.moves({ square, verbose: true });
-        setLegalMoveSquares(moves.map((m) => m.to as Square));
-        return;
-      }
-      board.onPieceDrop(selectedSquare, square, "");
-      setSelectedSquare(null);
-      setLegalMoveSquares([]);
-    },
-    [phase, board, selectedSquare],
-  );
-
-  const customPieces = useMemo(
-    () =>
-      PIECE_CODES.reduce<CustomPieces>((acc, piece) => {
-        acc[piece] = ({ squareWidth }: { squareWidth: number }) => (
-          <Box
-            width={squareWidth}
-            height={squareWidth}
-            sx={{
-              backgroundImage: `url(/piece/${pieceSet}/${piece}.svg)`,
-              backgroundSize: "contain",
-            }}
-          />
-        );
-        return acc;
-      }, {}),
-    [pieceSet],
-  );
-
-  const customSquareStyles = useMemo(() => {
-    const styles: Record<string, React.CSSProperties> = {
-      ...board.customSquareStyles,
-    };
-    if (selectedSquare) {
-      styles[selectedSquare] = { backgroundColor: "rgba(20, 85, 180, 0.5)" };
-    }
-    for (const sq of legalMoveSquares) {
-      const existing = styles[sq] || {};
-      styles[sq] = {
-        ...existing,
-        background: `${existing.backgroundColor || ""} radial-gradient(circle, rgba(0,0,0,0.15) 25%, transparent 25%)`.trim(),
-      };
-    }
-    return styles;
-  }, [board.customSquareStyles, selectedSquare, legalMoveSquares]);
 
   // Format seconds to mm:ss
   const formatTimer = (seconds: number) => {
@@ -641,34 +560,25 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
             </Typography>
           </Box>
 
-          {/* Chessboard */}
-          <Box sx={{ position: "relative", width: boardSize }}>
-            <FlashOverlay
-              key={`flash-${board.flashKey}`}
-              flash={board.flash}
-            />
-            <Chessboard
-              id="PuzzleRushBoard"
-              position={board.game.fen()}
-              onPieceDrop={board.onPieceDrop}
-              onSquareClick={onSquareClick}
-              boardOrientation={board.boardOrientation}
-              boardWidth={boardSize}
-              customBoardStyle={{
-                borderRadius: "4px",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
-              }}
-              customSquareStyles={customSquareStyles}
-              customPieces={customPieces}
-              isDraggablePiece={({ piece }) => {
-                // Phase gate added on top of the hook's playing/wrong
-                // allowance so drags during the finish dialog do nothing.
-                if (phase !== "playing") return false;
-                return board.isDraggablePiece({ piece });
-              }}
-              animationDuration={150}
-            />
-          </Box>
+          {/* Chessboard — shared Puzzle Coach board (speed-tuned animation,
+              no coach). Phase gate folds into `interactive` so drags/clicks do
+              nothing during the finish dialog. */}
+          <PuzzleBoardSurface
+            boardId="PuzzleRushBoard"
+            fen={board.game.fen()}
+            orientation={board.boardOrientation}
+            interactive={
+              phase === "playing" &&
+              (board.status === "playing" || board.status === "wrong")
+            }
+            onPieceDrop={board.onPieceDrop}
+            lastMove={board.lastMoveSquares}
+            wrongSquare={board.wrongSquare}
+            flash={{ state: board.flash, flashKey: board.flashKey }}
+            boardWidth={boardSize}
+            pieceSet={pieceSet}
+            animationMs={150}
+          />
         </Box>
       </Box>
 

@@ -126,8 +126,7 @@ export interface LLMResult {
 // ── Model mapping ───────────────────────────────────────────────────────────
 const MODELS = {
   anthropic: {
-    // claude-sonnet-4-20250514 was retired by Anthropic on 2026-06-15.
-    // claude-sonnet-4-6 is the same-tier ($3/$15) drop-in replacement.
+    // claude-sonnet-4-20250514 was retired by Anthropic on 2026-06-15
     flagship: "claude-sonnet-4-6",
     fast: "claude-haiku-4-5-20251001",
   },
@@ -188,6 +187,10 @@ async function callAnthropic(
       messages: opts.messages,
       temperature: opts.temperature ?? 0.7,
       max_tokens: opts.maxTokens ?? 1500,
+      // Sonnet 4.6 defaults effort to "high" (more thinking → higher latency/cost).
+      // Pin it to "medium" for the balanced cost/quality point. Flagship-only:
+      // the fast tier (Haiku 4.5) returns 400 if sent `effort`.
+      ...(tier === "flagship" ? { output_config: { effort: "medium" } } : {}),
     }),
     signal: opts.signal,
   });
@@ -319,6 +322,9 @@ async function* callAnthropicStream(
       temperature: opts.temperature ?? 0.7,
       max_tokens: opts.maxTokens ?? 1500,
       stream: true,
+      // See callAnthropic: pin Sonnet 4.6 effort to "medium"; flagship-only
+      // (Haiku 4.5 on the fast tier returns 400 if sent `effort`).
+      ...(tier === "flagship" ? { output_config: { effort: "medium" } } : {}),
     }),
     signal: opts.signal,
   });

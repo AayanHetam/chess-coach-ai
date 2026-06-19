@@ -1,9 +1,9 @@
 /**
  * Per-1k-token rates in USD. TODO: update if Anthropic prices change.
- * Sources: anthropic.com/pricing as of 2026-04 (Sonnet 4 / Haiku 4.5).
+ * Sources: anthropic.com/pricing as of 2026-06 (Sonnet 4.6 / Haiku 4.5).
  */
 const RATES = {
-  "claude-sonnet-4-20250514": { input: 0.003, output: 0.015 },
+  "claude-sonnet-4-6": { input: 0.003, output: 0.015 },
   "claude-haiku-4-5-20251001": { input: 0.001, output: 0.005 },
 } as const;
 

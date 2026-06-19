@@ -1,0 +1,199 @@
+{
+  "id": "ungameable_queen_drop",
+  "note": "White at +9200 (mating) plays Qd5?? dropping the queen on the open d-file and throwing the forced mate; engine best Rh8+ (mate in 8). Frozen packet so the live test needs no engine.",
+  "packet": {
+    "fen": "3rk3/pp6/8/8/8/8/PP6/3QK2R w K - 0 1",
+    "fenAfter": "3rk3/pp6/8/3Q4/8/8/PP6/4K2R b K - 1 1",
+    "movePlayedSan": "Qd5",
+    "movePlayedUci": "d1d5",
+    "playerColor": "w",
+    "userRating": 1500,
+    "stockfish": {
+      "evalBeforeCp": 9200,
+      "evalAfterCp": 9000,
+      "evalDeltaCpMoverPov": -200,
+      "bestMoveUci": "h1h8",
+      "bestMoveSan": "Rh8+",
+      "multiPv": [
+        {
+          "rank": 1,
+          "san": "Rh8+",
+          "scoreCp": null,
+          "mate": 8
+        },
+        {
+          "rank": 2,
+          "san": "Qe2+",
+          "scoreCp": 981,
+          "mate": null
+        },
+        {
+          "rank": 3,
+          "san": "Qa4+",
+          "scoreCp": 974,
+          "mate": null
+        }
+      ],
+      "classification": "mistake"
+    },
+    "motifs": [
+      {
+        "motif": "hanging_piece",
+        "square": "b7",
+        "piece": "p",
+        "attackers": [
+          {
+            "square": "d5",
+            "piece": "q"
+          }
+        ],
+        "defenders": [],
+        "see_value_cp": 100,
+        "confirmed": true,
+        "refutation": null
+      }
+    ],
+    "motifTags": [
+      "hanging_piece"
+    ],
+    "conceptDelta": {
+      "materialDelta": {
+        "white": 0,
+        "black": 0
+      },
+      "pawnStructureDelta": {
+        "doubledPawnsChange": {
+          "white": 0,
+          "black": 0
+        },
+        "isolatedPawnsChange": {
+          "white": 0,
+          "black": 0
+        },
+        "passedPawnsGained": {
+          "white": [],
+          "black": []
+        },
+        "passedPawnsLost": {
+          "white": [],
+          "black": []
+        },
+        "openFilesGained": [],
+        "openFilesLost": [],
+        "semiOpenFilesGained": {
+          "white": [],
+          "black": []
+        },
+        "semiOpenFilesLost": {
+          "white": [],
+          "black": []
+        }
+      },
+      "kingSafetyDelta": {
+        "white": 0,
+        "black": 0
+      },
+      "pieceActivityDelta": {
+        "gainedActive": [
+          {
+            "piece": "rook",
+            "square": "d8",
+            "color": "black",
+            "activity": "active",
+            "reason": "6 legal moves available"
+          }
+        ],
+        "lostActive": [
+          {
+            "piece": "queen",
+            "square": "d1",
+            "color": "white",
+            "activity": "active",
+            "reason": "17 legal moves available"
+          },
+          {
+            "piece": "rook",
+            "square": "h1",
+            "color": "white",
+            "activity": "active",
+            "reason": "9 legal moves available"
+          }
+        ],
+        "newlyTrapped": [
+          {
+            "piece": "queen",
+            "square": "d5",
+            "color": "white",
+            "activity": "trapped",
+            "reason": "No legal moves available — piece is trapped or pinned"
+          },
+          {
+            "piece": "rook",
+            "square": "h1",
+            "color": "white",
+            "activity": "trapped",
+            "reason": "No legal moves available — piece is trapped or pinned"
+          }
+        ]
+      },
+      "hangingPiecesDelta": {
+        "newlyHanging": [],
+        "nowDefended": []
+      },
+      "threatsDelta": {
+        "newThreats": [
+          {
+            "side": "black",
+            "type": "capture",
+            "description": "Black can capture queen on d5",
+            "squares": [
+              "d8",
+              "d5"
+            ]
+          }
+        ],
+        "resolvedThreats": [
+          {
+            "side": "white",
+            "type": "capture",
+            "description": "White can capture rook on d8",
+            "squares": [
+              "d1",
+              "d8"
+            ]
+          }
+        ],
+        "carriedOverThreats": []
+      },
+      "isEmptyDelta": false,
+      "fenBefore": "3rk3/pp6/8/8/8/8/PP6/3QK2R w K - 0 1",
+      "fenAfter": "3rk3/pp6/8/3Q4/8/8/PP6/4K2R b K - 1 1",
+      "resolutionFen": "3rk3/pp6/8/3Q4/8/8/PP6/4K2R b K - 1 1",
+      "resolutionReason": "depth-limit"
+    },
+    "topConcepts": [
+      "new threats: capture",
+      "resolved threats: capture"
+    ]
+  },
+  "responses": {
+    "terse": "Bad move.",
+    "lineDump": "1.Rh8+ Kf7 2.Rxd8 Qxd8 3.Qe2+ Kg7 4.Qe5+ Kg8 5.Qb8 (engine line, mate in 8).",
+    "padded": "Moving the queen to d5 was not good here, and I really want to make sure you understand that the queen on d5 was not good. You should not have moved the queen to d5 because it simply was not good, and again, the queen on d5 was not a good move at all in this position. The queen on d5 is a problem, it was not a good square for the queen, and I cannot stress enough that the queen on d5 was just not good. Putting the queen on d5 was a mistake and not the right idea at all, because, as I keep saying, the queen on d5 was not good and you should never have put the queen on d5. The queen on d5 was bad, the queen on d5 was a mistake, the queen on d5 was not good, and the queen on d5 should be avoided in the future. In conclusion, the queen going to d5 was simply not good and you should avoid it, and to say it one more time, the queen on d5 was not good and putting the queen on d5 was a mistake. To reiterate, d5 for the queen was a poor choice and not good in this position, so remember that the queen on d5 was not good, the queen on d5 was a mistake, and the queen on d5 was bad. Once more for emphasis: the queen on d5 was not good, not good, and definitely not good at all in any way whatsoever.",
+    "rich": "Qd5 walks the queen onto an open d-file where the rook on d8 just takes it for free, and worse, you threw away the forced mate that was already on the board. Instead, play Rh8+ — it forces the king and crashes through to a quick mate. Whenever you're winning by a lot, slow down and look for the most forcing checks before grabbing space."
+  },
+  "expectedBands": {
+    "terse": {
+      "note": "dims 3,4,6 ~0; cappedTotal low"
+    },
+    "lineDump": {
+      "note": "dim6 ~0 (dumps the line as fiat)"
+    },
+    "padded": {
+      "note": "dim7 ~0 (repetition)"
+    },
+    "rich": {
+      "note": "dims 3,4,6 >=1.5; cappedTotal high (>=10)"
+    }
+  }
+}

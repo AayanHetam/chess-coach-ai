@@ -1,0 +1,9 @@
+{
+  "id": "run_06_padded",
+  "note": "Sound opening move 2.Nf3, but the coach pads a single thin idea across many repetitive sentences (should score 0 on dim 7 for redundancy).",
+  "fenBefore": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+  "movePlayedSan": "Nf3",
+  "playerColor": "w",
+  "userRating": 1000,
+  "coachText": "Nf3 is a developing move and developing moves are good, so Nf3 is good because it develops. Developing the knight to f3 develops a piece, and developing pieces is good, which makes developing the knight to f3 a good developing move. You want to develop your pieces, and Nf3 develops a piece, so by developing with Nf3 you are developing, which is good development. Remember that development is important and Nf3 is development, so keep developing because development with moves like Nf3 is good development that develops your development."
+}

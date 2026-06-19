@@ -1,0 +1,9 @@
+{
+  "id": "run_04_scandi_nc3",
+  "note": "Scandinavian: 3.Nc3 develops with tempo by attacking the black queen on d5. A terse vague response (should score ~0 on dims 3,4,6).",
+  "fenBefore": "rnb1kbnr/ppp1pppp/8/3q4/8/8/PPPP1PPP/RNBQKBNR w KQkq - 0 3",
+  "movePlayedSan": "Nc3",
+  "playerColor": "w",
+  "userRating": 1400,
+  "coachText": "Good move."
+}

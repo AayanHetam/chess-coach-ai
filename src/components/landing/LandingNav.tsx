@@ -3,14 +3,14 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
-import AuthDialog from "@/components/auth/AuthDialog";
+import { useAuthDialog } from "@/contexts/AuthDialogContext";
 import { ANNOUNCEMENT_BAR_HEIGHT } from "@/components/landing/LandingAnnouncementBar";
 
 export default function LandingNav() {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const { user } = useAuth();
-  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const { openAuthDialog } = useAuthDialog();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -149,7 +149,7 @@ export default function LandingNav() {
           <Button
             variant="contained"
             size="small"
-            onClick={() => user ? router.push("/analysis") : setAuthDialogOpen(true)}
+            onClick={() => user ? router.push("/analysis") : openAuthDialog()}
             sx={{
               px: 3,
               py: 1,
@@ -172,8 +172,6 @@ export default function LandingNav() {
           </Button>
         </Box>
       </Container>
-
-      <AuthDialog open={authDialogOpen} onClose={() => setAuthDialogOpen(false)} />
     </Box>
   );
 }

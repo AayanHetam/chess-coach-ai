@@ -6,6 +6,7 @@ import { AppProps } from "next/app";
 import Layout from "@/sections/layout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthDialogProvider } from "@/contexts/AuthDialogContext";
 import { Typography, Box, Container } from "@mui/material";
 import Head from "next/head";
 import { Analytics } from "@vercel/analytics/react";
@@ -67,19 +68,24 @@ export default function MyApp({ Component, pageProps }: AppProps) {
       </Head>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          {/* Persists pre-auth onboarding-quiz answers once the user signs in,
-              by either method (email in-page or Google full-page redirect). */}
-          <QuizPersistenceFlush />
-          {/* Sends any new signed-in user without a completed quiz straight to
-              the onboarding questionnaire (mandatory once). */}
-          <OnboardingGate />
-          {/* Registers the push service worker (no-op where unsupported). */}
-          <ServiceWorkerRegistrar />
-          <ErrorBoundary name="app">
-            <Layout>
-              <Component {...pageProps} />
-            </Layout>
-          </ErrorBoundary>
+          {/* Hosts the single app-wide sign-in / sign-up dialog. Any component
+              opens it via useAuthDialog(); the dialog itself is rendered once
+              by <GlobalAuthDialog /> inside the themed Layout. */}
+          <AuthDialogProvider>
+            {/* Persists pre-auth onboarding-quiz answers once the user signs in,
+                by either method (email in-page or Google full-page redirect). */}
+            <QuizPersistenceFlush />
+            {/* Sends any new signed-in user without a completed quiz straight to
+                the onboarding questionnaire (mandatory once). */}
+            <OnboardingGate />
+            {/* Registers the push service worker (no-op where unsupported). */}
+            <ServiceWorkerRegistrar />
+            <ErrorBoundary name="app">
+              <Layout>
+                <Component {...pageProps} />
+              </Layout>
+            </ErrorBoundary>
+          </AuthDialogProvider>
         </AuthProvider>
       </QueryClientProvider>
       <Analytics />

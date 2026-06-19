@@ -15,8 +15,8 @@ import { motion } from "framer-motion";
 import { Menu as MenuIcon, Sparkles, LogOut, User, Settings } from "lucide-react";
 import { AppDrawer, type NavId } from "./AppDrawer";
 import { useAuth } from "@/contexts/AuthContext";
-import AuthDialog from "@/components/auth/AuthDialog";
 import ProfileDialog from "@/components/auth/ProfileDialog";
+import { useAuthDialog } from "@/contexts/AuthDialogContext";
 
 interface NavPillProps {
   active?: NavId;
@@ -55,7 +55,7 @@ export function NavPill({ active }: NavPillProps) {
   // the legacy chrome, we mount a compact account control here: "Sign in"
   // pill when signed out, avatar dropdown when signed in.
   const { user, signOut, loading } = useAuth();
-  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const { openAuthDialog } = useAuthDialog();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const handleAvatarClick = (e: MouseEvent<HTMLElement>) =>
@@ -347,7 +347,7 @@ export function NavPill({ active }: NavPillProps) {
               </>
             ) : (
               <Stack
-                onClick={() => setAuthDialogOpen(true)}
+                onClick={() => openAuthDialog()}
                 direction="row"
                 spacing={0.75}
                 alignItems="center"
@@ -382,10 +382,6 @@ export function NavPill({ active }: NavPillProps) {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         activeId={active}
-      />
-      <AuthDialog
-        open={authDialogOpen}
-        onClose={() => setAuthDialogOpen(false)}
       />
       <ProfileDialog
         open={profileDialogOpen}

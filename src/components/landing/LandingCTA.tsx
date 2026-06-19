@@ -1,14 +1,13 @@
-import { useState } from "react";
 import { Box, Button, Container, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
-import AuthDialog from "@/components/auth/AuthDialog";
+import { useAuthDialog } from "@/contexts/AuthDialogContext";
 
 export default function LandingCTA() {
   const router = useRouter();
   const { user } = useAuth();
-  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const { openAuthDialog } = useAuthDialog();
 
   return (
     <Box
@@ -107,7 +106,7 @@ export default function LandingCTA() {
           <Button
             variant="outlined"
             size="large"
-            onClick={() => user ? router.push("/analysis") : setAuthDialogOpen(true)}
+            onClick={() => user ? router.push("/analysis") : openAuthDialog()}
             startIcon={<Icon icon="mdi:magnify" />}
             sx={{
               px: 5,
@@ -202,7 +201,6 @@ export default function LandingCTA() {
           </Button>
         </Box>
       </Container>
-      <AuthDialog open={authDialogOpen} onClose={() => setAuthDialogOpen(false)} />
     </Box>
   );
 }

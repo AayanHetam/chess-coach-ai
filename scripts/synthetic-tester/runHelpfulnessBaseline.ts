@@ -82,12 +82,25 @@ function loadTargets(args: Args): Array<{ id: string; pgn: string; userRating: n
   }));
 }
 
-function isFallback(text: string): boolean {
+/**
+ * Classify a non-coaching response so it is NOT scored as teaching. Two kinds:
+ *  - "timeout_stub": the pipeline's timeout/"Still analyzing" stub.
+ *  - "validator_fallback": the deterministic fallback.ts template (emitted when the
+ *    LLM response fails the relational/eval validators and regeneration is
+ *    exhausted). Its signature ("X lost its role as ...", "became <role>") never
+ *    appears in real LLM coaching. THIS was previously scored as coaching and
+ *    silently inflated the numbers — ~40% of sharp-position responses.
+ * Returns null for a genuine LLM coaching response.
+ */
+export function fallbackReason(text: string): "timeout_stub" | "validator_fallback" | null {
   const t = text.trim();
-  return (
-    t.length < 40 ||
-    /still analyzing|still thinking|took longer than expected|ask again|rephrase/i.test(t)
-  );
+  if (t.length < 40 || /still analyzing|still thinking|took longer than expected|ask again|rephrase/i.test(t)) {
+    return "timeout_stub";
+  }
+  if (/lost its role as|became (defender|attacker|bad-bishop|good-bishop|overworked|trapped)\b/i.test(t)) {
+    return "validator_fallback";
+  }
+  return null;
 }
 
 function median(xs: number[]): number {
@@ -177,9 +190,10 @@ async function main() {
         continue;
       }
       flagshipSpend += args.flagshipUsd;
-      if (isFallback(res.initialAnalysis)) {
-        rows.push({ id: fx.id, ok: false, reason: "coach_fallback_or_timeout" });
-        console.log("✗ coach returned a fallback/timeout (excluded)");
+      const fbReason = fallbackReason(res.initialAnalysis);
+      if (fbReason) {
+        rows.push({ id: fx.id, ok: false, reason: fbReason });
+        console.log(`✗ non-coaching response (${fbReason}) — excluded from teaching score`);
         continue;
       }
 
@@ -239,11 +253,18 @@ async function main() {
   }
   const totalSpend = cost.totalSpent() + flagshipSpend;
 
+  const validatorFb = rows.filter((r) => r.reason === "validator_fallback").length;
+  const timeoutFb = rows.filter((r) => r.reason === "timeout_stub").length;
+  const errFb = rows.filter((r) => !r.ok && r.reason !== "validator_fallback" && r.reason !== "timeout_stub").length;
+  const attempted = graded.length + validatorFb + timeoutFb; // exclude hard errors (502/no-moves) from the rate denominator
+  const fbRatePct = attempted > 0 ? ((validatorFb + timeoutFb) / attempted) * 100 : 0;
+
   console.log(`\n=== HELPFULNESS BASELINE REPORT (current coach) ===`);
   console.log(`fixtures attempted:     ${rows.length}`);
-  console.log(`graded (real answers):  ${graded.length}`);
-  console.log(`excluded (fallback/err):${rows.length - graded.length}  [${rows.filter((r) => !r.ok).map((r) => `${r.id}:${r.reason}`).join(", ")}]`);
-  console.log(`MEDIAN total:           ${median(graded.map((r) => r.cappedTotal!)).toFixed(2)} / 14`);
+  console.log(`graded (real coaching): ${graded.length}`);
+  console.log(`FALLBACK RATE:          ${fbRatePct.toFixed(0)}%  (validator_fallback=${validatorFb}, timeout_stub=${timeoutFb})  <- robotic non-coaching, NOT scored`);
+  console.log(`hard errors (502/etc):  ${errFb}`);
+  console.log(`MEDIAN total (real):    ${median(graded.map((r) => r.cappedTotal!)).toFixed(2)} / 14`);
   const dimNames = ["", "correctness", "diagnostic", "insight", "actionability", "level-fit", "assist-calib", "focus"];
   for (let d = 1; d <= 7; d++) console.log(`  dim${d} ${dimNames[d].padEnd(13)} median EV: ${Number.isNaN(dimMedians[d]) ? "n/a" : dimMedians[d].toFixed(2)}`);
   console.log(`est. spend:             $${totalSpend.toFixed(3)}`);
@@ -261,7 +282,11 @@ async function main() {
   );
 }
 
-main().catch((e) => {
-  console.error("baseline failed:", e);
-  process.exit(1);
-});
+// Only run when executed directly (so tests can import fallbackReason without
+// triggering a full baseline run).
+if (process.argv[1] && /runHelpfulnessBaseline/.test(process.argv[1])) {
+  main().catch((e) => {
+    console.error("baseline failed:", e);
+    process.exit(1);
+  });
+}

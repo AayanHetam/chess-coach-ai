@@ -126,7 +126,9 @@ export interface LLMResult {
 // ── Model mapping ───────────────────────────────────────────────────────────
 const MODELS = {
   anthropic: {
-    flagship: "claude-sonnet-4-20250514",
+    // claude-sonnet-4-20250514 was retired by Anthropic on 2026-06-15.
+    // claude-sonnet-4-6 is the same-tier ($3/$15) drop-in replacement.
+    flagship: "claude-sonnet-4-6",
     fast: "claude-haiku-4-5-20251001",
   },
   openai: {

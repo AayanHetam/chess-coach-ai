@@ -32,6 +32,16 @@ export interface ModelPricing {
 }
 
 export const MODEL_PRICING: Record<string, ModelPricing> = {
+  // Current flagship. Same $3/$15 tier as the retired claude-sonnet-4-20250514.
+  "claude-sonnet-4-6": {
+    provider: "anthropic",
+    displayName: "Claude Sonnet 4.6",
+    inputPerMillion: 3.0,
+    outputPerMillion: 15.0,
+    cacheWritePerMillion: 3.75,
+    cacheReadPerMillion: 0.3,
+  },
+  // Retired 2026-06-15. Kept as a historical key for past llm_calls rows.
   "claude-sonnet-4-20250514": {
     provider: "anthropic",
     displayName: "Claude Sonnet 4",

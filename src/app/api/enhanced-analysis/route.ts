@@ -67,6 +67,7 @@ import { compileVoterResult } from "@/lib/grounding/voter";
 import { buildAsyncSnapshotForMove } from "@/lib/grounding/voterSnapshot";
 import { queryLc0, shouldCallLc0 } from "@/lib/grounding/lc0";
 import { queryMaiaAtRating, shouldCallMaia } from "@/lib/grounding/maia";
+import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
 
 const log = logger.child({ module: "enhanced-analysis" });
 
@@ -672,6 +673,16 @@ async function buildGameContext(
     // Non-critical — skip if annotation fails
   }
 
+  // --- Lever 1: relational facts for final position (anti-hallucination grounding) ---
+  try {
+    const finalFacts = buildRelationalFacts(game.fen());
+    sections.push(
+      `## VERIFIED POSITION FACTS — FINAL POSITION (chess.js oracle)\n${finalFacts.summary}`
+    );
+  } catch {
+    // skip if FEN is invalid (e.g. no moves played yet)
+  }
+
   // --- Chess Intelligence Layer: pre-computed structured context for critical positions ---
   // This gives GPT verified tactical tags, explanation seeds, and branch analysis
   // so it explains known truths rather than hallucinating chess ideas.
@@ -752,6 +763,15 @@ async function buildGameContext(
         }
 
         if (explanationSeed) block += `ENGINE IDEA: ${explanationSeed}\n`;
+
+        // Lever 1: relational facts for this critical position (anti-hallucination)
+        try {
+          const relFacts = buildRelationalFacts(m.fenBefore);
+          block += `VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):\n${relFacts.summary}\n`;
+        } catch {
+          // skip on invalid FEN
+        }
+
         intelligenceLines.push(block);
       }
 
@@ -1215,6 +1235,24 @@ export async function POST(request: NextRequest) {
     // Stage B insertion point A (§3.7.9): single env read. No branching cost
     // when off; flag-off path remains byte-identical to today.
     const { validatorsEnabled } = getMastermindEnv();
+
+    // Build ply→FEN map for the relational-claim validator (Lever 2).
+    // Only constructed when validators are on (avoids O(n) work otherwise).
+    // Maps 1-indexed ply number → FEN after that half-move so the validator
+    // can check historical claims against the board they reference, not just
+    // the final position.
+    const relationalFenMap: Record<number, string> = {};
+    if (validatorsEnabled && moveHistory?.length) {
+      try {
+        const _g = new Chess();
+        for (let _i = 0; _i < moveHistory.length; _i++) {
+          _g.move(moveHistory[_i]);
+          relationalFenMap[_i + 1] = _g.fen();
+        }
+      } catch {
+        // leave map empty — validator falls back to opts.fen
+      }
+    }
 
     // Look up the signed-in user's coaching prefs + stored rating from
     // Firestore so the system prompt, skill calibration, and puzzle
@@ -1802,6 +1840,8 @@ export async function POST(request: NextRequest) {
                     userHistory: streamingDataSources.userHistory,
                   },
                   voterSnapshot: stage9Snapshot,
+                  enableRelationalValidator: validatorsEnabled,
+                  relationalFenMap,
                   signal,
                 }),
               {
@@ -2317,6 +2357,8 @@ export async function POST(request: NextRequest) {
                   userHistory: nonStreamingDataSources.userHistory,
                 },
                 voterSnapshot: stage9SnapshotNonStream,
+                enableRelationalValidator: validatorsEnabled,
+                relationalFenMap,
                 signal,
               }),
             {

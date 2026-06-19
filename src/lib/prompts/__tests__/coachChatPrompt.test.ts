@@ -85,8 +85,8 @@ describe("getCoachChatSystemPrompt — negative invariants (no unresolved interp
 });
 
 describe("PROMPT_VERSION", () => {
-  it("is bumped to 3.3", () => {
-    expect(PROMPT_VERSION).toBe("3.3");
+  it("is bumped to 3.4", () => {
+    expect(PROMPT_VERSION).toBe("3.4");
   });
 });
 
@@ -94,6 +94,20 @@ describe("CH-1a hedge reverted (3.2 -> 3.3)", () => {
   it("no longer carries the CONFIDENCE & HEDGING block (no measurable benefit; GCC-Eval Track B)", () => {
     const p = getCoachChatSystemPrompt(baseInput);
     expect(p).not.toContain("CONFIDENCE & HEDGING");
+  });
+});
+
+describe("3.4 — relational claim constraint (Lever 1 prompt side)", () => {
+  const p = getCoachChatSystemPrompt(baseInput);
+
+  it("contains the VERIFIED POSITION FACTS constraint header", () => {
+    expect(p).toContain("RELATIONAL CLAIM CONSTRAINT — VERIFIED POSITION FACTS");
+  });
+  it("forbids asserting relationships absent from the facts block", () => {
+    expect(p).toContain("Do NOT assert any attack, capture, defense, threat, fork, or pin relationship");
+  });
+  it("instructs reframing when a claim is not in the facts", () => {
+    expect(p).toContain("reframe as a strategic observation");
   });
 });
 

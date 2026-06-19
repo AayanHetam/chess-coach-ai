@@ -697,3 +697,98 @@ describe("runValidationPipeline: position-anchored validator scope (2026-05-26)"
     expect(r.cumulativeIssues).toHaveLength(0);
   });
 });
+
+describe("runValidationPipeline: relational validator not gated by runPositionValidators (task 10)", () => {
+  // The relational-claim validator runs for both game_review and position_analysis.
+  // It uses its own FEN anchor (opts.fen + opts.relationalFenMap), NOT the
+  // runPositionValidators flag that gates the eval/featureDelta validators.
+
+  const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  const ITALIAN_FEN = "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
+
+  it("game_review with enableRelationalValidator=true makes a relational parser call", async () => {
+    let relationalParserCalled = false;
+    // The relational extractor system prompt starts with "You extract VERIFIABLE chess claims"
+    const spyParser: ParserCall = async ({ system }) => {
+      if (system.includes("VERIFIABLE chess claims")) relationalParserCalled = true;
+      return { raw: "[]", costUsd: 0.001 };
+    };
+    await runValidationPipeline({
+      initialRequest,
+      stockfishEval: { cp: 50 },
+      featureDelta: emptyDelta(),
+      pieceRoleDiff: [],
+      playerPerspective: "white",
+      correlationId: "game-review-relational",
+      parseCall: spyParser,
+      callLLM: llmReturning(["game review coaching response"]),
+      category: "game_review",
+      fen: STARTING_FEN,
+      enableRelationalValidator: true,
+    });
+    // Relational validator fires even for game_review (NOT gated by runPositionValidators)
+    expect(relationalParserCalled).toBe(true);
+  });
+
+  it("game_review without enableRelationalValidator still skips relational parser", async () => {
+    let relationalParserCalled = false;
+    const spyParser: ParserCall = async ({ system }) => {
+      if (system.includes("VERIFIABLE chess claims")) relationalParserCalled = true;
+      return { raw: "[]", costUsd: 0.001 };
+    };
+    await runValidationPipeline({
+      initialRequest,
+      stockfishEval: { cp: 50 },
+      featureDelta: emptyDelta(),
+      pieceRoleDiff: [],
+      playerPerspective: "white",
+      correlationId: "game-review-no-relational",
+      parseCall: spyParser,
+      callLLM: llmReturning(["game review coaching response"]),
+      category: "game_review",
+      fen: STARTING_FEN,
+      // enableRelationalValidator omitted → still no-op
+    });
+    expect(relationalParserCalled).toBe(false);
+  });
+
+  it("relationalFenMap is forwarded: claim at moveRefPly=7 verified against Italian FEN", async () => {
+    // Extractor returns a claim about Nf3 attacking e5 at ply 7.
+    // Primary FEN is STARTING_FEN (Ng1, can't attack e5).
+    // fenMap[7] = ITALIAN_FEN (Nf3 exists, attacks e5) → holds, no issue.
+    const relClaimsParser: ParserCall = async ({ system }) => {
+      if (!system.includes("VERIFIABLE chess claims")) return { raw: "[]", costUsd: 0 };
+      return {
+        raw: JSON.stringify([
+          {
+            kind: "attack",
+            pieceColor: "w",
+            pieceType: "n",
+            fromSquare: "f3",
+            targetSquare: "e5",
+            moveRefPly: 7,
+            rawText: "the knight on f3 attacks e5",
+          },
+        ]),
+        costUsd: 0.001,
+      };
+    };
+    const r = await runValidationPipeline({
+      initialRequest,
+      stockfishEval: { cp: 50 },
+      featureDelta: emptyDelta(),
+      pieceRoleDiff: [],
+      playerPerspective: "white",
+      correlationId: "relational-fenmap",
+      parseCall: relClaimsParser,
+      callLLM: llmReturning(["After move 4 the knight on f3 attacks e5."]),
+      category: "game_review",
+      fen: STARTING_FEN,
+      relationalFenMap: { 7: ITALIAN_FEN },
+      enableRelationalValidator: true,
+    });
+    // fenMap resolves ply 7 → Italian FEN → Nf3 attacks e5 → holds → no issues
+    expect(r.finalOutcome).toBe("passed_initial");
+    expect(r.cumulativeIssues).toHaveLength(0);
+  });
+});

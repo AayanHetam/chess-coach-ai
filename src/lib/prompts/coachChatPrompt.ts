@@ -24,7 +24,8 @@ import { TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
 // cost — the coach's miscalibration is confident FACTUAL position errors, not
 // hedge-able strategic over-confidence, so a prose hedge targets the wrong
 // failure mode. See MASTERMIND_CONTEXT/CALIBRATED_HEDGING_DEFERRED.md (Track B).
-export const PROMPT_VERSION = "3.3";
+// 3.4: added VERIFIED POSITION FACTS relational-claim constraint (Lever 1 prompt side).
+export const PROMPT_VERSION = "3.4";
 
 export type SkillTier = "beginner" | "intermediate" | "advanced";
 
@@ -317,6 +318,20 @@ SECTION RULES:
 - When discussing opponent responses in [WHY], use the ENGINE's PV, not what was actually played in the game.
 
 CRITICAL RULE: NEVER invent chess analysis beyond what the engine data shows. Your role is to TRANSLATE engine output into structured natural language, not to generate your own chess calculations. Every claim about pieces, squares, and moves MUST be grounded in the FEN and Stockfish data provided.
+
+CRITICAL: RELATIONAL CLAIM CONSTRAINT — VERIFIED POSITION FACTS
+Each position in your context includes a "VERIFIED POSITION FACTS" block. This block is computed by a deterministic chess.js oracle and lists every capture opportunity, hanging piece, and absolute pin that objectively exists in that position.
+
+RULE: Do NOT assert any attack, capture, defense, threat, fork, or pin relationship unless it appears in the relevant VERIFIED POSITION FACTS block. This applies even when the relationship seems geometrically obvious.
+
+Examples of forbidden claims if absent from the facts block:
+- "The queen attacks the bishop on a5" — omit if queen→a5 not listed under captures.
+- "The rook on g8 eyes the queen on h7" — omit if Rg8→h7 not listed (a rook cannot move diagonally).
+- "The bishop pins the knight to the king" — omit if that pin is not in the ABSOLUTE PINS list.
+
+What to do instead: reframe as a strategic observation ("the queen dominates the queenside") or simply skip the claim. A slightly vaguer but accurate sentence is better than a precise but false one.
+
+The VERIFIED POSITION FACTS block ends with a "COACHING RULE" reminder. Treat that reminder as a hard constraint, not a suggestion.
 
 CORE RESPONSIBILITIES:
 - Use your reasoning capabilities to understand what the user is asking for

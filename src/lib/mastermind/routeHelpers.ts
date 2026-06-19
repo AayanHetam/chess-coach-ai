@@ -232,24 +232,54 @@ export interface PrepareMastermindOpts {
  * fetchDataSources throw (FD failure per §3.2) → `dataSources: null`
  * and route falls back to flag-off for the turn.
  */
+/**
+ * Turn-1 game reviews have no user question to classify. Sending an empty
+ * question to the LLM classifier yields a low-confidence result that defaults to
+ * meta_motivational (20s pipeline budget), and the long game-review generation
+ * then times out. When there's no question but there IS a game, the category is
+ * deterministically `game_review` (50s budget). Returns null when the normal
+ * classifier path should run (i.e. there is a user question, or no game).
+ */
+export function resolveTurn1Category(
+  userMessage: string | undefined,
+  moveHistory: string[] | undefined,
+): QuestionCategory | null {
+  const hasUserQuestion = (userMessage ?? "").trim().length > 0;
+  const hasGameToReview = (moveHistory?.length ?? 0) > 0;
+  return !hasUserQuestion && hasGameToReview ? "game_review" : null;
+}
+
 export async function prepareMastermindContext(
   opts: PrepareMastermindOpts,
 ): Promise<MastermindPrepResult> {
   const t0 = Date.now();
 
-  const classifierResult = await classifyQuestion({
-    question: opts.userMessage,
-  }).catch((err) => {
-    log.warn("mastermind classifier failed", {
-      err: err instanceof Error ? err.message : String(err),
-      correlation_id: opts.correlationId,
-    });
-    return {
-      category: DEFAULT_LOW_CONFIDENCE_CATEGORY,
-      confidence: 0,
-      rationale: "classifier_call_threw",
-    };
-  });
+  // A turn-1 game review carries no user question. Classifying an empty message
+  // lands on the low-confidence default (meta_motivational, 20s budget); the long
+  // game-review generation then blows that budget and the pipeline falls back to a
+  // non-answer ("Still analyzing…"). When there is no question but there IS a game
+  // to review, this is deterministically a game_review — skip the classifier (also
+  // saves a Haiku call) so it gets the 50s game_review budget instead of 20s.
+  const forcedCategory = resolveTurn1Category(opts.userMessage, opts.moveHistory);
+  const classifierResult = forcedCategory
+    ? {
+        category: forcedCategory,
+        confidence: 1,
+        rationale: "no_user_question_with_game_history",
+      }
+    : await classifyQuestion({
+          question: opts.userMessage,
+        }).catch((err) => {
+          log.warn("mastermind classifier failed", {
+            err: err instanceof Error ? err.message : String(err),
+            correlation_id: opts.correlationId,
+          });
+          return {
+            category: DEFAULT_LOW_CONFIDENCE_CATEGORY,
+            confidence: 0,
+            rationale: "classifier_call_threw",
+          };
+        });
 
   // Boundary contract observability: positions.length should be
   // moveHistory.length + 1 (positions[0] = starting state, positions[N] =

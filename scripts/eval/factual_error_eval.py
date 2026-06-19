@@ -22,9 +22,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import chess, chess.engine
 
 STOCKFISH = os.environ.get("STOCKFISH_BIN", "/opt/homebrew/bin/stockfish")
-SONNET = "claude-sonnet-4-20250514"        # flagship
+SONNET = "claude-sonnet-4-6"               # flagship (claude-sonnet-4-20250514 retired 2026-06-15)
 HAIKU = "claude-haiku-4-5-20251001"         # fast follow-up tier
-JUDGE = "claude-sonnet-4-20250514"          # judge (capable; given ground truth)
+JUDGE = "claude-sonnet-4-6"                 # judge (capable; given ground truth)
 NAMES = {"sonnet": SONNET, "haiku": HAIKU}
 
 

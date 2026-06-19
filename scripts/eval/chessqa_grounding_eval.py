@@ -24,7 +24,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import chess, chess.engine
 
 STOCKFISH = os.environ.get("STOCKFISH_BIN", "/opt/homebrew/bin/stockfish")
-MODEL = "claude-sonnet-4-20250514"  # product flagship — src/lib/llmProvider.ts
+MODEL = "claude-sonnet-4-6"  # product flagship — src/lib/llmProvider.ts (was retired claude-sonnet-4-20250514)
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 
 

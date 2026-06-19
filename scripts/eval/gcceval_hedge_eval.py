@@ -28,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import chess, chess.engine
 
 STOCKFISH = os.environ.get("STOCKFISH_BIN", "/opt/homebrew/bin/stockfish")
-GEN_MODEL = "claude-sonnet-4-20250514"      # product flagship (generator)
+GEN_MODEL = "claude-sonnet-4-6"             # product flagship (generator); was retired claude-sonnet-4-20250514
 # GCC-Eval uses gpt-4o as judge; OPENAI_API_KEY is commented out locally, so we
 # use Claude Haiku as the judge instead. For a WITHIN comparison (3.1 vs 3.2,
 # same generator + same judge) judge bias cancels in the delta, and calibration

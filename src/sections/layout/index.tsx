@@ -12,6 +12,7 @@ import { Lc0DownloadBanner } from "@/components/Lc0DownloadBanner";
 import { useRouter } from "next/router";
 import { useViewer } from "@/hooks/useViewer";
 import { EmployeeChrome } from "@/components/intern/EmployeeChrome";
+import { GlobalAuthDialog } from "@/contexts/AuthDialogContext";
 
 export default function Layout({ children }: PropsWithChildren) {
   // Default to light mode for Chess Masti AI - bright and fun!
@@ -86,6 +87,8 @@ export default function Layout({ children }: PropsWithChildren) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        {/* Single app-wide sign-in / sign-up dialog, themed by this provider. */}
+        <GlobalAuthDialog />
         <EmployeeChrome>
           <main style={{ overflowX: "hidden", width: "100%" }}>
             {children}
@@ -98,6 +101,8 @@ export default function Layout({ children }: PropsWithChildren) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      {/* Single app-wide sign-in / sign-up dialog, themed by this provider. */}
+      <GlobalAuthDialog />
       <EmployeeChrome>
         <NavBar
           darkMode={isDarkMode}

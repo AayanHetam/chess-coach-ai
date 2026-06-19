@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { Box } from "@mui/material";
-import AuthDialog from "@/components/auth/AuthDialog";
 import OnboardingQuiz from "@/components/onboarding/OnboardingQuiz";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthDialog } from "@/contexts/AuthDialogContext";
 import { buildPayload, QuizAnswers } from "@/components/onboarding/quizConfig";
 import {
   writeFlushPayload,
@@ -25,8 +25,14 @@ const PAGE_DESC =
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, updateProfile } = useAuth();
-  const [authOpen, setAuthOpen] = useState(false);
+  const { openAuthDialog, isAuthDialogOpen } = useAuthDialog();
   const [submitting, setSubmitting] = useState(false);
+
+  // The post-signup redirect runs from the dialog's onClose callback, which is
+  // captured when the dialog opens (user still null). Read the latest user via
+  // a ref so the callback sees the freshly-authenticated user at close time.
+  const userRef = useRef(user);
+  userRef.current = user;
 
   const handleUnlock = useCallback(
     async (answers: QuizAnswers) => {
@@ -53,29 +59,27 @@ export default function OnboardingPage() {
       }
 
       // Pre-auth: stash the payload for the redirect-proof flush, then open the
-      // signup gate (email/password or Google OAuth).
+      // signup gate (email/password or Google OAuth). The email path closes the
+      // dialog once signup completes, so `user` is set — head to the payoff.
+      // If they close without signing up, `user` is null and we stay put.
       writeFlushPayload(payload);
-      setAuthOpen(true);
+      openAuthDialog({
+        onClose: () => {
+          if (userRef.current) router.replace("/plan");
+        },
+      });
     },
-    [user, updateProfile, router]
+    [user, updateProfile, router, openAuthDialog]
   );
-
-  const handleAuthClose = useCallback(() => {
-    setAuthOpen(false);
-    // Email path: the dialog closes after signup completes, so `user` is set —
-    // head to the payoff. If they closed without signing up, `user` is null and
-    // we stay on the result screen.
-    if (user) router.replace("/plan");
-  }, [user, router]);
 
   // Google path (and any post-signup landing): the OAuth redirect returns the
   // user here already authenticated with a pending flush and no dialog open.
   // Send them to the seeded practice feed. Gated on freshness so a stale key
   // from a long-ago abandoned quiz doesn't bounce a returning user.
   useEffect(() => {
-    if (!user || authOpen) return;
+    if (!user || isAuthDialogOpen) return;
     if (hasFreshPendingFlush()) router.replace("/plan");
-  }, [user, authOpen, router]);
+  }, [user, isAuthDialogOpen, router]);
 
   return (
     <>
@@ -114,8 +118,6 @@ export default function OnboardingPage() {
           authed={!!user}
         />
       </Box>
-
-      <AuthDialog open={authOpen} onClose={handleAuthClose} />
     </>
   );
 }

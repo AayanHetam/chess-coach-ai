@@ -14,13 +14,13 @@ import {
 } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
-import AuthDialog from "./AuthDialog";
+import { useAuthDialog } from "@/contexts/AuthDialogContext";
 import ProfileDialog from "./ProfileDialog";
 
 export default function UserMenu() {
   const { user, profile, loading, signOut, isFirebaseConfigured } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const { openAuthDialog } = useAuthDialog();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   if (!isFirebaseConfigured) return null;
@@ -31,27 +31,21 @@ export default function UserMenu() {
 
   if (!user) {
     return (
-      <>
-        <Button
-          variant="text"
-          size="small"
-          onClick={() => setAuthDialogOpen(true)}
-          startIcon={<Icon icon="mdi:account-circle-outline" width={20} />}
-          sx={{
-            textTransform: "none",
-            fontWeight: 600,
-            fontSize: "0.85rem",
-            color: "text.primary",
-            "&:hover": { color: "primary.main" },
-          }}
-        >
-          Sign In
-        </Button>
-        <AuthDialog
-          open={authDialogOpen}
-          onClose={() => setAuthDialogOpen(false)}
-        />
-      </>
+      <Button
+        variant="text"
+        size="small"
+        onClick={() => openAuthDialog()}
+        startIcon={<Icon icon="mdi:account-circle-outline" width={20} />}
+        sx={{
+          textTransform: "none",
+          fontWeight: 600,
+          fontSize: "0.85rem",
+          color: "text.primary",
+          "&:hover": { color: "primary.main" },
+        }}
+      >
+        Sign In
+      </Button>
     );
   }
 

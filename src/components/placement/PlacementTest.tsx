@@ -5,7 +5,7 @@ import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import { useAtom, useSetAtom } from "jotai";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
-import AuthDialog from "@/components/auth/AuthDialog";
+import { useAuthDialog } from "@/contexts/AuthDialogContext";
 import PlacementBoard from "./PlacementBoard";
 import PlacementResult from "./PlacementResult";
 import QuizProgress from "@/components/onboarding/QuizProgress";
@@ -54,6 +54,7 @@ async function fetchOne(
 export default function PlacementTest() {
   const router = useRouter();
   const { user, profile, updateProfile } = useAuth();
+  const { openAuthDialog } = useAuthDialog();
   const [session, setSession] = useAtom(placementSessionAtom);
   const setGlobalStats = useSetAtom(puzzleStatsAtom);
 
@@ -62,7 +63,6 @@ export default function PlacementTest() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PlacementResultData | null>(null);
-  const [authOpen, setAuthOpen] = useState(false);
 
   const gradedRef = useRef(false);
   const loadingRef = useRef(false);
@@ -244,10 +244,9 @@ export default function PlacementTest() {
           Sign in to take the 20-puzzle placement test and unlock your training
           plan.
         </Typography>
-        <PrimaryButton onClick={() => setAuthOpen(true)}>
+        <PrimaryButton onClick={() => openAuthDialog()}>
           Sign in to start
         </PrimaryButton>
-        <AuthDialog open={authOpen} onClose={() => setAuthOpen(false)} />
       </Panel>
     );
   }

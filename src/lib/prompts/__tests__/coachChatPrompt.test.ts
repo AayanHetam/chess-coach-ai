@@ -158,7 +158,13 @@ describe("3.5 — sub-1400 beginner band split (perUser line, no 4th tier)", () 
     expect(sub1200).toContain("Band focus (800-1200)");
     expect(sub1200).not.toContain("Band focus (<800)");
   });
-  it("emits no band line for non-beginner tiers", () => {
+  it("emits the hope-chess band line for 1000-1199 (low intermediate, not just beginner tier)", () => {
+    // regression: previously gated on tier==="beginner" (<1000), so 1000-1199
+    // — the research's highest-leverage band — got nothing.
+    const eleven00 = getCoachChatSystemPrompt({ ...baseInput, userRating: 1100 });
+    expect(eleven00).toContain("Band focus (800-1200)");
+  });
+  it("emits no band line at 1200+", () => {
     const intermediate = getCoachChatSystemPrompt({ ...baseInput, userRating: 1300 });
     expect(intermediate).not.toContain("Band focus");
   });

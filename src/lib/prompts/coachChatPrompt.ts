@@ -171,7 +171,10 @@ export function getCoachChatSystemPromptParts(
   // hope-chess → real-chess habit of enumerating the opponent's replies before
   // committing. Kept in perUser (where rating already lives) so the cached
   // stable prefix is untouched.
-  if (tier === "beginner") {
+  // Gate on the rating RANGE, not tier: the 800-1200 "hope chess" band spans the
+  // beginner tier (<1000) AND low-intermediate (1000-1199). Gating on
+  // tier==="beginner" missed 1000-1199 — the research's highest-leverage band.
+  if (input.userRating < 1200) {
     const subBand =
       input.userRating < 800
         ? "Band focus (<800): board vision and the 'is it safe?' check. Before any move, count the attackers vs defenders on the target square. Most mistakes at this level are simply leaving a piece where it can be taken for free."

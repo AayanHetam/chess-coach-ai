@@ -1,0 +1,37 @@
+{
+  "items": [
+    {
+      "id": "sample-001",
+      "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 3 3",
+      "movePlayedSan": "Nf6",
+      "bestMoveSan": "g6",
+      "evalDeltaCpMoverPov": -320,
+      "classification": "blunder",
+      "userRating": 1100,
+      "tier": "flagship",
+      "coachText": "Careful here — White is lining up a quick attack on f7. After **Nf6**, the queen on f3 and the bishop on c4 both eye **f7**, and there's a nasty idea: **Qxf7#** is threatened because the f7 pawn is only defended by your king. The point of **g6** instead is that it shores up the light squares around your king and takes the sting out of the queen+bishop battery.\n\nQuick checklist for openings like this: whenever an enemy queen and bishop both point at f7 (or f2 for White), pause and ask *\"is f7 about to fall?\"* before developing on autopilot."
+    },
+    {
+      "id": "sample-002",
+      "fen": "rnbqkb1r/pp2pppp/3p1n2/2pP4/4P3/2N5/PPP2PPP/R1BQKBNR b KQkq - 0 4",
+      "movePlayedSan": "e6",
+      "bestMoveSan": "e6",
+      "evalDeltaCpMoverPov": 10,
+      "classification": "best",
+      "userRating": 1650,
+      "tier": "flagship",
+      "coachText": "Solid choice. **e6** strikes at the d5 pawn and opens a path for your light-squared bishop, which is the right plan in this Benoni-style structure. You're not trying to win material yet — you're contesting the center White grabbed with d5. After the likely **dxe6 Bxe6** (or **fxe6**), you get a half-open file and active pieces.\n\nThe idea to carry forward: in cramped center pawn structures, the lever break (here **e6**, often **b5** later) is how you generate counterplay rather than sitting passively."
+    },
+    {
+      "id": "sample-003",
+      "fen": "8/8/8/4k3/8/4K3/4P3/8 w - - 0 1",
+      "movePlayedSan": "e4",
+      "bestMoveSan": "Kd3",
+      "evalDeltaCpMoverPov": -90,
+      "classification": "inaccuracy",
+      "userRating": 1400,
+      "tier": "fast",
+      "coachText": "In king-and-pawn endings, pushing the pawn too early often throws away the win. After **e4+ Ke5** Black's king sits right in front of your pawn and you can't make progress — that's a draw. The winning method here is **Kd3** first: you bring the king ahead of the pawn to grab the **opposition** and shepherd it home.\n\nRule of thumb for these endings: *king before pawn.* Get your king to the sixth rank (or seize the opposition) before you commit the pawn forward."
+    }
+  ]
+}

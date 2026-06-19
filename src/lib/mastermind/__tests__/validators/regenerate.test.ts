@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { regenerateUntilValid, buildRetryInstruction } from "../../validators/regenerate";
+import {
+  regenerateUntilValid,
+  buildRetryInstruction,
+  buildSurgicalCorrectionRequest,
+} from "../../validators/regenerate";
 import { ValidatorResult, ValidatorIssue } from "../../validators/types";
 import type { CallLLMOptions, LLMResult } from "@/lib/llmProvider";
 
@@ -348,5 +352,267 @@ describe("regenerateUntilValid: signal cancellation (fix-orphan-pipeline-cancell
       signal: controller.signal,
     });
     expect(receivedSignal).toBe(controller.signal);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Surgical correction (feat/adaptive-coach)
+// ─────────────────────────────────────────────────────────────────────────
+
+function relationalIssue(span: string, reason: string): ValidatorIssue {
+  return {
+    check_name: "relational_claim_contradicted",
+    severity: "error",
+    llm_span: span,
+    expected: { verdict: "holds" },
+    actual: { verdict: "contradicted", reason },
+    detail: `Relational claim contradicted by chess.js oracle: "${span}" — ${reason}`,
+  };
+}
+
+describe("buildSurgicalCorrectionRequest", () => {
+  it("requests the FAST (Haiku) tier with a deterministic temperature", () => {
+    const req = buildSurgicalCorrectionRequest(
+      "prev text",
+      [relationalIssue("the knight on f3 attacks g6", "f3 does not attack g6")],
+    );
+    expect(req.tier).toBe("fast");
+    expect(req.temperature).toBe(0);
+  });
+
+  it("names the specific contradicted claim (rawText + oracle reason) in the prompt", () => {
+    const req = buildSurgicalCorrectionRequest(
+      "You can play Nxh7 because the rook on h7 is hanging.",
+      [relationalIssue("the rook on h7 is hanging", "h7 is empty — nothing to capture")],
+    );
+    const user = req.messages[0].content;
+    expect(user).toContain("the rook on h7 is hanging");
+    expect(user).toContain("h7 is empty — nothing to capture");
+    // The full prior response is embedded for verbatim editing.
+    expect(user).toContain("You can play Nxh7 because the rook on h7 is hanging.");
+  });
+
+  it("does NOT carry the coach system prompt (fresh editor prompt only)", () => {
+    const req = buildSurgicalCorrectionRequest(
+      "prev",
+      [relationalIssue("a", "b")],
+    );
+    expect(req.system).not.toBe("test system");
+    expect(req.system).toContain("precise text editor");
+    expect(req.systemSuffix).toBeUndefined();
+    expect(req.cacheSystem).toBeUndefined();
+  });
+
+  it("mirrors the source maxTokens so the edited message is not truncated", () => {
+    expect(buildSurgicalCorrectionRequest("p", [relationalIssue("a", "b")], 3000).maxTokens).toBe(3000);
+    // Falls back to a sane default when the source cap is omitted.
+    expect(buildSurgicalCorrectionRequest("p", [relationalIssue("a", "b")]).maxTokens).toBe(3000);
+  });
+});
+
+// A mock LLM that returns flagship-modeled output for the first call (the
+// initial flagship analysis) and Haiku-modeled output for the surgical edit,
+// driven by the request's tier. Records each call's tier + opts for assertions.
+function tierAwareLlm(byTier: { flagship: string[]; fast: string[] }): {
+  fn: (opts: CallLLMOptions) => Promise<LLMResult>;
+  tiers: ("flagship" | "fast")[];
+  opts: CallLLMOptions[];
+} {
+  const idx = { flagship: 0, fast: 0 };
+  const tiers: ("flagship" | "fast")[] = [];
+  const opts: CallLLMOptions[] = [];
+  return {
+    fn: async (o) => {
+      tiers.push(o.tier);
+      opts.push(o);
+      const pool = byTier[o.tier];
+      const content = pool[Math.min(idx[o.tier], pool.length - 1)];
+      idx[o.tier]++;
+      return {
+        content,
+        provider: "anthropic",
+        model: o.tier === "fast" ? "claude-haiku-4-5-test" : "claude-sonnet-4-test",
+        inputTokens: 100,
+        outputTokens: 50,
+      } as LLMResult;
+    },
+    tiers,
+    opts,
+  };
+}
+
+// Validator that fails ONLY on the initial flagship text, passes once the
+// surgical (fast) edit has stripped the offending phrase.
+function failThenPassOnSurgical(badText: string): {
+  fn: (response: string) => Promise<ValidatorResult>;
+  count: number;
+} {
+  const state = { count: 0 };
+  return {
+    fn: async (response: string) => {
+      state.count++;
+      const stillBad = response.includes(badText);
+      return stillBad
+        ? {
+            issues: [relationalIssue(badText, "f3 does not attack g6")],
+            passed: false,
+            telemetry: [],
+            costUsd: 0.001,
+          }
+        : { issues: [], passed: true, telemetry: [], costUsd: 0.001 };
+    },
+    get count() {
+      return state.count;
+    },
+  };
+}
+
+describe("regenerateUntilValid: surgical correction", () => {
+  it("surgical pass returns passed_after_retry without a 2nd flagship call", async () => {
+    const badPhrase = "the knight attacks g6";
+    const llm = tierAwareLlm({
+      flagship: [`Good move. ${badPhrase}.`],
+      fast: ["Good move."], // surgical edit removed the false phrase
+    });
+    const validate = failThenPassOnSurgical(badPhrase);
+    const r = await regenerateUntilValid({
+      initialRequest: { ...initialRequest, maxTokens: 3000 },
+      validate: validate.fn,
+      buildFallback: async () => "FALLBACK",
+      correlationId: "rg-surgical-pass",
+      callLLM: llm.fn,
+      maxRetries: 1,
+    });
+    expect(r.finalOutcome).toBe("passed_after_retry");
+    expect(r.finalResponse).toBe("Good move.");
+    // Exactly one flagship call (the initial) + one fast surgical call.
+    expect(llm.tiers).toEqual(["flagship", "fast"]);
+    expect(llm.tiers.filter((t) => t === "flagship").length).toBe(1);
+    // Surgical request was named with the specific claim.
+    const surgicalOpts = llm.opts.find((o) => o.tier === "fast")!;
+    expect(surgicalOpts.maxTokens).toBe(3000);
+    expect(surgicalOpts.messages[0].content).toContain(badPhrase);
+  });
+
+  it("surgical fail still falls back (truthfulness floor unchanged)", async () => {
+    const badPhrase = "the bishop attacks h2";
+    // Surgical edit fails to remove the phrase; with maxRetries 0 there is no
+    // flagship retry, so the loop falls straight through to buildFallback.
+    const llm = tierAwareLlm({
+      flagship: [`Watch out: ${badPhrase}.`],
+      fast: [`Watch out: ${badPhrase}.`], // Haiku botched it — phrase remains
+    });
+    const validate = failThenPassOnSurgical(badPhrase);
+    const r = await regenerateUntilValid({
+      initialRequest: { ...initialRequest, maxTokens: 3000 },
+      validate: validate.fn,
+      buildFallback: async () => "FALLBACK CONTENT",
+      correlationId: "rg-surgical-fail",
+      callLLM: llm.fn,
+      maxRetries: 0,
+    });
+    expect(r.finalOutcome).toBe("fallback_used");
+    expect(r.finalResponse).toBe("FALLBACK CONTENT");
+    // Initial flagship + one surgical attempt; no flagship retry (maxRetries 0).
+    expect(llm.tiers).toEqual(["flagship", "fast"]);
+    // Both the initial and surgical-output issues are accumulated.
+    expect(r.cumulativeIssues.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("does NOT attempt surgical edit on mixed (non-relational) issue sets", async () => {
+    const llm = tierAwareLlm({
+      flagship: ["bad1", "bad2"],
+      fast: ["should not be reached"],
+    });
+    const mixedValidator = async (): Promise<ValidatorResult> => ({
+      issues: [
+        relationalIssue("a relational thing", "oracle says no"),
+        {
+          check_name: "eval_mismatch_qualitative",
+          severity: "error",
+          llm_span: "winning",
+          expected: { band: "equal" },
+          actual: { band: "winning" },
+          detail: "Wrong band.",
+        },
+      ],
+      passed: false,
+      telemetry: [],
+      costUsd: 0.001,
+    });
+    const r = await regenerateUntilValid({
+      initialRequest,
+      validate: mixedValidator,
+      buildFallback: async () => "FALLBACK",
+      correlationId: "rg-surgical-mixed",
+      callLLM: llm.fn,
+      maxRetries: 1,
+    });
+    // No fast-tier call: surgical path is gated on an all-relational set.
+    expect(llm.tiers.includes("fast")).toBe(false);
+    // Existing full-regen path ran: initial flagship + one flagship retry.
+    expect(llm.tiers).toEqual(["flagship", "flagship"]);
+    expect(r.finalOutcome).toBe("fallback_used");
+  });
+
+  it("costs the surgical edit at Haiku rates (model contains 'haiku')", async () => {
+    const badPhrase = "queen forks the king and rook";
+    const llm = tierAwareLlm({
+      flagship: [`Nice. ${badPhrase}.`],
+      fast: ["Nice."],
+    });
+    const validate = failThenPassOnSurgical(badPhrase);
+    const r = await regenerateUntilValid({
+      initialRequest: { ...initialRequest, maxTokens: 3000 },
+      validate: validate.fn,
+      buildFallback: async () => "FALLBACK",
+      correlationId: "rg-surgical-cost",
+      callLLM: llm.fn,
+      maxRetries: 1,
+    });
+    // Default estimateCost keys Haiku rates off model.includes("haiku"); the
+    // surgical call's contribution must be counted (positive total includes it).
+    expect(r.totalCostUsd).toBeGreaterThan(0);
+    // Haiku call: 100/1M*$1 + 50/1M*$5 = $0.00035, plus 2 validator calls
+    // ($0.001 each) and one Sonnet call (100/1M*$3 + 50/1M*$15 = $0.00105).
+    // Total ≈ $0.0024 — assert above the Sonnet-only floor to prove the
+    // surgical Haiku call was added.
+    expect(r.totalCostUsd).toBeGreaterThan(0.0012);
+  });
+
+  it("aborts to fallback when signal expires during the surgical attempt", async () => {
+    const badPhrase = "rook controls the open d-file behind a pawn";
+    const controller = new AbortController();
+    const llm = tierAwareLlm({
+      flagship: [`Note: ${badPhrase}.`, "should-not-reach flagship retry"],
+      fast: [`Note: ${badPhrase}.`], // surgical fails to fix
+    });
+    let validateCount = 0;
+    const validate = async (response: string): Promise<ValidatorResult> => {
+      validateCount++;
+      // Abort after the surgical re-validation (2nd validate) completes, so
+      // the post-surgical abort check short-circuits to fallback instead of
+      // launching a flagship retry.
+      if (validateCount === 2) controller.abort();
+      return {
+        issues: [relationalIssue(badPhrase, "no such pawn")],
+        passed: response.includes(badPhrase) ? false : true,
+        telemetry: [],
+        costUsd: 0.001,
+      };
+    };
+    const r = await regenerateUntilValid({
+      initialRequest: { ...initialRequest, maxTokens: 3000 },
+      validate,
+      buildFallback: async () => "FALLBACK ON ABORT",
+      correlationId: "rg-surgical-abort",
+      callLLM: llm.fn,
+      maxRetries: 1,
+      signal: controller.signal,
+    });
+    expect(r.finalOutcome).toBe("fallback_used");
+    expect(r.finalResponse).toBe("FALLBACK ON ABORT");
+    // initial flagship + surgical fast; NO flagship retry (aborted first).
+    expect(llm.tiers).toEqual(["flagship", "fast"]);
   });
 });

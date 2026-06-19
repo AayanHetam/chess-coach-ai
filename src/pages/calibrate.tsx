@@ -38,11 +38,13 @@ import {
   DimScore,
   formatCpDelta,
   isItemFullyRated,
+  NotesState,
   RatingsState,
 } from "@/lib/calibrate/calibrationExport";
 
 const RATER_KEY = "calibrate.rater";
 const ratingsKey = (rater: string) => `calibrate.ratings.${rater}`;
+const notesKey = (rater: string) => `calibrate.notes.${rater}`;
 
 export default function CalibratePage() {
   const [items, setItems] = useState<CalibrationItem[] | null>(null);
@@ -50,6 +52,7 @@ export default function CalibratePage() {
   const [idx, setIdx] = useState(0);
   const [rater, setRater] = useState("");
   const [ratings, setRatings] = useState<RatingsState>({});
+  const [notes, setNotes] = useState<NotesState>({});
 
   // effect A: fetch the calibration packet once.
   useEffect(() => {
@@ -91,6 +94,7 @@ export default function CalibratePage() {
     window.localStorage.setItem(RATER_KEY, rater);
     if (!rater) {
       setRatings({});
+      setNotes({});
       return;
     }
     try {
@@ -98,6 +102,12 @@ export default function CalibratePage() {
       setRatings(raw ? (JSON.parse(raw) as RatingsState) : {});
     } catch {
       setRatings({});
+    }
+    try {
+      const rawN = window.localStorage.getItem(notesKey(rater));
+      setNotes(rawN ? (JSON.parse(rawN) as NotesState) : {});
+    } catch {
+      setNotes({});
     }
   }, [rater]);
 
@@ -124,6 +134,25 @@ export default function CalibratePage() {
     [persistRatings]
   );
 
+  const persistNotes = useCallback(
+    (next: NotesState) => {
+      if (typeof window === "undefined" || !rater) return;
+      window.localStorage.setItem(notesKey(rater), JSON.stringify(next));
+    },
+    [rater]
+  );
+
+  const setNote = useCallback(
+    (itemId: string, text: string) => {
+      setNotes((prev) => {
+        const next: NotesState = { ...prev, [itemId]: text };
+        persistNotes(next);
+        return next;
+      });
+    },
+    [persistNotes]
+  );
+
   const fullyRatedCount = useMemo(() => {
     if (!items) return 0;
     return items.reduce(
@@ -136,7 +165,7 @@ export default function CalibratePage() {
 
   const handleExport = useCallback(() => {
     if (!items || !rater) return;
-    const { payload, excludedCount } = buildExport(rater, items, ratings);
+    const { payload, excludedCount } = buildExport(rater, items, ratings, notes);
     if (payload.ratings.length === 0) {
       window.alert("No fully-rated items to export yet.");
       return;
@@ -156,7 +185,7 @@ export default function CalibratePage() {
     a.download = `calibration-${rater || "rater"}-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [items, rater, ratings]);
+  }, [items, rater, ratings, notes]);
 
   const current = items && items.length > 0 ? items[idx] : null;
   const total = items?.length ?? 0;
@@ -191,7 +220,10 @@ export default function CalibratePage() {
           <Button
             variant="contained"
             onClick={handleExport}
-            disabled={!rater || fullyRatedCount === 0}
+            disabled={
+              !rater ||
+              (fullyRatedCount === 0 && !Object.values(notes).some((n) => n.trim()))
+            }
           >
             Export ratings JSON
           </Button>
@@ -291,7 +323,7 @@ export default function CalibratePage() {
               {/* Rubric rows */}
               <Paper sx={{ p: 2 }}>
                 <Typography variant="overline" color="text.secondary">
-                  Rate (0 / 1 / 2)
+                  Rate (0 / 1 / 2 / N/A)
                 </Typography>
                 {DIMENSIONS.map((dim) => (
                   <DimRow
@@ -302,6 +334,23 @@ export default function CalibratePage() {
                     onChange={(v) => setDim(current.id, dim.key, v)}
                   />
                 ))}
+              </Paper>
+
+              {/* Free-text notes / issue flag */}
+              <Paper sx={{ p: 2, mt: 2 }}>
+                <Typography variant="overline" color="text.secondary">
+                  Notes / flag an issue (optional)
+                </Typography>
+                <TextField
+                  multiline
+                  minRows={2}
+                  fullWidth
+                  size="small"
+                  placeholder="e.g. duplicate position, bad fixture, coach response is off, or anything worth flagging…"
+                  value={notes[current.id] ?? ""}
+                  onChange={(e) => setNote(current.id, e.target.value)}
+                  sx={{ mt: 0.5 }}
+                />
               </Paper>
             </Grid>
 
@@ -405,6 +454,7 @@ function DimRow({
         <ToggleButton value={0}>0</ToggleButton>
         <ToggleButton value={1}>1</ToggleButton>
         <ToggleButton value={2}>2</ToggleButton>
+        <ToggleButton value="na">N/A</ToggleButton>
       </ToggleButtonGroup>
     </Box>
   );

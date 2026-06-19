@@ -56,6 +56,9 @@ async function main() {
   await sf.init();
   const entries: EvalEntry[] = [];
   let ratingIdx = 0;
+  const seenFens = new Set<string>(); // dedupe positions across the whole set
+  const openingCounts = new Map<string, number>(); // cap entries per opening family
+  const MAX_PER_OPENING = 3;
   try {
     for (const src of sources) {
       let states: Awaited<ReturnType<typeof evaluateGame>>["states"];
@@ -67,16 +70,27 @@ async function main() {
         continue;
       }
       if (!states || states.length < 2) continue;
-      // Balance kinds: one ERROR (max-swing blunder/mistake) + one BEST (min-swing
-      // well-played move), past the opening, so the dim-2 "move was best" path is
-      // exercised alongside the dim-2 "diagnose the mistake" path.
-      const pool = states.filter((s) => s.ply >= 3);
-      const ranked = [...(pool.length >= 2 ? pool : states)].sort((a, b) => b.swing - a.swing);
-      const errState = ranked[0];
-      const bestState = ranked[ranked.length - 1];
-      const picks = errState.ply === bestState.ply ? [errState] : [errState, bestState];
+      // Diversity: pick MID-GAME checkpoints (ply >= 12) so positions are varied
+      // middlegames. Early-opening picks made all the e4 e5 fixtures collapse to
+      // the SAME Italian opening position; by move 12 those lines have diverged.
+      // Balance kinds: one ERROR (max-swing) + one BEST (min-swing).
+      const MID_PLY = 12;
+      let pool = states.filter((s) => s.ply >= MID_PLY);
+      if (pool.length < 2) pool = states.filter((s) => s.ply >= Math.floor(states.length / 2));
+      if (pool.length < 2) pool = states;
+      const ranked = [...pool].sort((a, b) => b.swing - a.swing);
+      // Up to 3 distinct-ply checkpoints: max-swing (error), median, min-swing (best).
+      const candidates = [ranked[0], ranked[Math.floor(ranked.length / 2)], ranked[ranked.length - 1]];
+      const picks = candidates.filter((s, i, arr) => arr.findIndex((x) => x.ply === s.ply) === i);
       for (let i = 0; i < picks.length; i++) {
         const s = picks[i];
+        if (seenFens.has(s.fenAfter)) continue; // no two entries share a position
+        // Cap entries per opening family (first 6 plies) so no single opening
+        // (e.g. the e4 e5 Bc4 Italian) dominates the rating set.
+        const opening = chessjsHistory.slice(0, 6).join(" ");
+        if ((openingCounts.get(opening) ?? 0) >= MAX_PER_OPENING) continue;
+        openingCounts.set(opening, (openingCounts.get(opening) ?? 0) + 1);
+        seenFens.add(s.fenAfter);
         const userRating = RATING_CYCLE[ratingIdx++ % RATING_CYCLE.length];
         entries.push({
           id: `${src.id}#${s.ply}`,
@@ -88,7 +102,7 @@ async function main() {
           playerColor: s.moverIsWhite ? "w" : "b",
           userRating,
           tier: tierOf(userRating),
-          kind: i === 0 ? "error" : "best",
+          kind: s.swing >= 100 ? "error" : "best",
           classification: String(classifyBySwing(s.swing)),
           swingCp: Math.round(s.swing),
         });

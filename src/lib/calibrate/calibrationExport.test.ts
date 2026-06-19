@@ -69,4 +69,19 @@ describe("buildExport", () => {
     const { payload } = buildExport("Casey", items, ratings);
     expect(payload.ratings[0].d3).toBe(0);
   });
+
+  it("treats N/A as a valid (rated) value and preserves it in the export", () => {
+    const ratings = { a: { ...full, d2: "na" } } as const;
+    expect(isItemFullyRated(ratings.a)).toBe(true);
+    const { payload } = buildExport("Casey", items, ratings);
+    expect(payload.ratings[0].d2).toBe("na");
+  });
+
+  it("exports a note-only item (rater flagged an issue without full ratings)", () => {
+    const { payload, excludedCount } = buildExport("Casey", items, { a: { d1: 2 } }, { a: "duplicate position" });
+    const row = payload.ratings.find((r) => r.id === "a");
+    expect(row?.notes).toBe("duplicate position");
+    expect(row?.d1).toBe(2);
+    expect(excludedCount).toBe(1); // item b: no rating, no note
+  });
 });

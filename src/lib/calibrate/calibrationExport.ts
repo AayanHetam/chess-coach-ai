@@ -20,17 +20,20 @@ export interface CalibrationData {
   items: CalibrationItem[];
 }
 
-export type DimScore = 0 | 1 | 2;
+/** "na" = the dimension doesn't apply to this position (conditional activation,
+ *  e.g. diagnostic accuracy when the move WAS best). Excluded from recalibration. */
+export type DimScore = 0 | 1 | 2 | "na";
 export type DimKey = "d1" | "d2" | "d3" | "d4" | "d5" | "d6" | "d7";
 
 /** A per-item rating: any subset of the 7 dims may be filled in. */
 export type ItemRating = Partial<Record<DimKey, DimScore>>;
 /** All ratings for the current rater, keyed by item id. */
 export type RatingsState = Record<string, ItemRating>;
+/** Free-text rater notes per item id (optional; for flagging eval/coach issues). */
+export type NotesState = Record<string, string>;
 
-export interface ExportRow extends Record<DimKey, DimScore> {
-  id: string;
-}
+/** Dims are optional: a row may have N/A dims, a partial rating, or be note-only. */
+export type ExportRow = { id: string; notes?: string } & Partial<Record<DimKey, DimScore>>;
 export interface ExportShape {
   rater: string;
   generatedNote: string;
@@ -98,26 +101,26 @@ export function isItemFullyRated(rating: ItemRating | undefined): boolean {
 export function buildExport(
   rater: string,
   items: CalibrationItem[],
-  ratings: RatingsState
+  ratings: RatingsState,
+  notes: NotesState = {}
 ): { payload: ExportShape; excludedCount: number } {
   const rows: ExportRow[] = [];
   let excludedCount = 0;
   for (const it of items) {
-    const r = ratings[it.id];
-    if (!isItemFullyRated(r)) {
+    const r = ratings[it.id] ?? {};
+    const note = notes[it.id]?.trim();
+    // Include an item if it's fully rated OR the rater left a note (a note alone
+    // is a valid "flag this item" signal even without all 7 dims). Otherwise drop.
+    if (!isItemFullyRated(r) && !note) {
       excludedCount += 1;
       continue;
     }
-    rows.push({
-      id: it.id,
-      d1: r!.d1!,
-      d2: r!.d2!,
-      d3: r!.d3!,
-      d4: r!.d4!,
-      d5: r!.d5!,
-      d6: r!.d6!,
-      d7: r!.d7!,
-    });
+    const row: ExportRow = { id: it.id };
+    for (const k of DIM_KEYS) {
+      if (r[k] !== undefined) row[k] = r[k];
+    }
+    if (note) row.notes = note;
+    rows.push(row);
   }
   const payload: ExportShape = {
     rater,

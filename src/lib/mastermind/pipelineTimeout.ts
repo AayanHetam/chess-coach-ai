@@ -124,10 +124,14 @@ export function readPipelineTimeoutMs(category?: QuestionCategory): number {
  *
  * The right per-intent budget falls out of the latency profile:
  *
- *   - game_review: 0 — Sonnet flagship is too expensive to retry under
- *     60s wall. Single shot; validator-rejection → buildFallback.
- *     Trade-off: lose the recovery benefit of retries, gain bounded
- *     latency + no timeout-empty-bubble.
+ *   - game_review: 1 (raised from 0 on 2026-06-19) — the Sonnet effort=medium
+ *     pin (lower latency) makes one retry affordable, and the pipeline timeout
+ *     is a SHARED deadline (regenerate aborts via opts.signal before/within each
+ *     attempt), so total wall-time stays bounded by the 50s budget regardless of
+ *     retry count — the 60s Vercel guarantee holds. The retry feeds the SPECIFIC
+ *     chess.js contradiction back to the LLM (buildRetryInstruction), which is
+ *     what lets it self-correct a relational hallucination instead of dropping
+ *     straight to the robotic buildFallback template (~40% of sharp positions).
  *   - opponent_prep: 1 — coach ~15-25s leaves room for one retry under
  *     40s budget.
  *   - improvement_strategy: 1 — similar profile to opponent_prep.
@@ -136,7 +140,7 @@ export function readPipelineTimeoutMs(category?: QuestionCategory): number {
  *   - meta_motivational: 2 — shortest coach calls.
  */
 export const MAX_RETRIES_BY_CATEGORY: Record<QuestionCategory, number> = {
-  game_review: 0,
+  game_review: 1,
   opponent_prep: 1,
   improvement_strategy: 1,
   position_analysis: 2,

@@ -1,37 +1,224 @@
 {
   "items": [
     {
-      "id": "sample-001",
-      "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 3 3",
-      "movePlayedSan": "Nf6",
-      "bestMoveSan": "g6",
-      "evalDeltaCpMoverPov": -320,
+      "id": "fx-fried-liver#12",
+      "fen": "r1bqkb1r/ppp2Npp/2n5/3np3/2B5/8/PPPP1PPP/RNBQK2R b KQkq - 0 6",
+      "movePlayedSan": "Kxf7",
+      "bestMoveSan": "Kxf7",
+      "evalDeltaCpMoverPov": 379,
       "classification": "blunder",
-      "userRating": 1100,
-      "tier": "flagship",
-      "coachText": "Careful here — White is lining up a quick attack on f7. After **Nf6**, the queen on f3 and the bishop on c4 both eye **f7**, and there's a nasty idea: **Qxf7#** is threatened because the f7 pawn is only defended by your king. The point of **g6** instead is that it shores up the light squares around your king and takes the sting out of the queen+bishop battery.\n\nQuick checklist for openings like this: whenever an enemy queen and bishop both point at f7 (or f2 for White), pause and ask *\"is f7 about to fall?\"* before developing on autopilot."
+      "userRating": 800,
+      "tier": "beginner",
+      "coachText": "White holds a significant advantage in this position.\n\nWhat changed:\n- White lost material (3 points).\n\nWhat to look at:\n- Black's king on e8 lost its role as attacker, defender, overworked.\n- Black's king on f7 became defender."
     },
     {
-      "id": "sample-002",
-      "fen": "rnbqkb1r/pp2pppp/3p1n2/2pP4/4P3/2N5/PPP2PPP/R1BQKBNR b KQkq - 0 4",
-      "movePlayedSan": "e6",
-      "bestMoveSan": "e6",
-      "evalDeltaCpMoverPov": 10,
-      "classification": "best",
-      "userRating": 1650,
-      "tier": "flagship",
-      "coachText": "Solid choice. **e6** strikes at the d5 pawn and opens a path for your light-squared bishop, which is the right plan in this Benoni-style structure. You're not trying to win material yet — you're contesting the center White grabbed with d5. After the likely **dxe6 Bxe6** (or **fxe6**), you get a half-open file and active pieces.\n\nThe idea to carry forward: in cramped center pawn structures, the lever break (here **e6**, often **b5** later) is how you generate counterplay rather than sitting passively."
+      "id": "fx-fried-liver#5",
+      "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+      "movePlayedSan": "Bc4",
+      "bestMoveSan": "Bb5",
+      "evalDeltaCpMoverPov": -8,
+      "classification": "okay",
+      "userRating": 1400,
+      "tier": "intermediate",
+      "coachText": "It looks like you've just started a game — only 3 moves in, and everything is completely fine so far!\n\nYou're playing the **Italian Game** (also called the Giuoco Piano): 1. e4 e5 2. Nf3 Nc6 3. Bc4. This is one of the oldest and most respected openings in chess — it's been played by grandmasters for centuries and is still popular at every level today.\n\nThe idea behind 3. Bc4 is elegant: your bishop eyes the f7 pawn (Black's weakest point in the opening), you've developed a knight to its best square, and you're ready to castle kingside quickly.\n\nWhat would you like to do?\n\n- **Continue playing** and I'll analyze as the game develops\n- **Ask about your opening plans** — what to do next as White\n- **Explore alternatives** — like the Ruy Lopez (3. Bb5) or other options on move 3"
     },
     {
-      "id": "sample-003",
-      "fen": "8/8/8/4k3/8/4K3/4P3/8 w - - 0 1",
-      "movePlayedSan": "e4",
-      "bestMoveSan": "Kd3",
-      "evalDeltaCpMoverPov": -90,
+      "id": "fx-traxler#12",
+      "fen": "r1bqk2r/pppp1Npp/2n2n2/4p3/2B1P3/8/PPPP1KPP/RNBQ3R b kq - 0 6",
+      "movePlayedSan": "Nxe4+",
+      "bestMoveSan": "Nxe4+",
+      "evalDeltaCpMoverPov": 191,
+      "classification": "mistake",
+      "userRating": 1800,
+      "tier": "advanced",
+      "coachText": "White holds a significant advantage in this position.\n\nWhat changed:\n- White lost material (1 point).\n- White's king is less safe than before.\n\nWhat to look at:\n- Black's pawn on g7 lost its role as defender.\n- Black's knight on f6 lost its role as attacker, defender, overworked."
+    },
+    {
+      "id": "fx-traxler#5",
+      "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+      "movePlayedSan": "Bc4",
+      "bestMoveSan": "Bb5",
+      "evalDeltaCpMoverPov": -6,
+      "classification": "okay",
+      "userRating": 800,
+      "tier": "beginner",
+      "coachText": "It's the Italian Game — one of the oldest and most popular openings in chess! You're in great shape so far.\n\nWhat would you like to do? I can:\n- **Explain what's happening** in this position and what both sides are planning\n- **Suggest your next move** as Black and why\n- **Talk about the opening** — why these moves are played and what comes next\n\nJust let me know! 😊"
+    },
+    {
+      "id": "fx-evans-gambit#15",
+      "fen": "r1bqk1nr/pppp1ppp/2n5/b7/2B1P3/2p2N2/P4PPP/RNBQ1RK1 w kq - 0 8",
+      "movePlayedSan": "Qb3",
+      "bestMoveSan": "Qb3",
+      "evalDeltaCpMoverPov": 82,
       "classification": "inaccuracy",
       "userRating": 1400,
-      "tier": "fast",
-      "coachText": "In king-and-pawn endings, pushing the pawn too early often throws away the win. After **e4+ Ke5** Black's king sits right in front of your pawn and you can't make progress — that's a draw. The winning method here is **Kd3** first: you bring the king ahead of the pawn to grab the **opposition** and shepherd it home.\n\nRule of thumb for these endings: *king before pawn.* Get your king to the sixth rank (or seize the opposition) before you commit the pawn forward."
+      "tier": "intermediate",
+      "coachText": "White stands a touch better — a small but real edge.\n\nWhat to look at:\n- White's pawn on a2 became defender.\n- White's queen on d1 lost its role as attacker, defender, overworked."
+    },
+    {
+      "id": "fx-evans-gambit#5",
+      "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+      "movePlayedSan": "Bc4",
+      "bestMoveSan": "Bb5",
+      "evalDeltaCpMoverPov": -12,
+      "classification": "okay",
+      "userRating": 1800,
+      "tier": "advanced",
+      "coachText": "It's the Italian Game — one of the oldest and most respected openings in chess. Let's see what's happening after 3. Bc4.\n\nThis is a completely standard position. You've entered the **Italian Game** (also called the Giuoco Piano after 3... Bc5, or the Two Knights Defense if Black plays 3... Nf6). The engine shows a slight White advantage of +0.26, which is normal for this opening.\n\nA few things worth noting about the position:\n\n**What you've achieved with 1. e4 2. Nf3 3. Bc4:**\n- Your bishop on c4 eyes the f7 pawn, Black's most vulnerable point in the opening\n- Your knight on f3 controls the center and pressures e5\n- You're one move from castling kingside\n\n**What to watch for now:**\n\nBlack's most common responses are:\n- **3... Bc5** — the classical Giuoco Piano, leading to symmetrical development\n- **3... Nf6** — the Two Knights Defense, where Black immediately counterattacks e4\n- **3... Be7** — a quieter, more solid setup\n\nThe critical decision point comes in the next few moves. If Black plays 3... Nf6 (Two Knights), you'll face the question of whether to play the aggressive **4. Ng5** (attacking f7 immediately) or the solid **4. d3** (entering a slower Italian setup).\n\nIf Black plays 3... Bc5, the modern approach is **4. c3** followed by **5. d4**, fighting for the center — this is the main line of the Giuoco Piano.\n\nWhat would you like to do? Analyze a specific line, or are you playing this game live and want to know what to do after Black's next move?"
+    },
+    {
+      "id": "fx-scotch-gambit#15",
+      "fen": "r1bqk2r/ppp2ppp/2n2P2/2b5/2pp4/2P2N2/PP3PPP/RNBQK2R w KQkq - 0 8",
+      "movePlayedSan": "fxg7",
+      "bestMoveSan": "cxd4",
+      "evalDeltaCpMoverPov": 487,
+      "classification": "blunder",
+      "userRating": 800,
+      "tier": "beginner",
+      "coachText": "White is winning here — the position is decisive.\n\nWhat changed:\n- Black lost material (1 point).\n\nWhat to look at:\n- Black's queen on d8 lost its role as attacker.\n- White's pawn on g7 became attacker."
+    },
+    {
+      "id": "fx-scotch-gambit#4",
+      "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      "movePlayedSan": "Nc6",
+      "bestMoveSan": "Nc6",
+      "evalDeltaCpMoverPov": 17,
+      "classification": "okay",
+      "userRating": 1400,
+      "tier": "intermediate",
+      "coachText": "I see you've just started a game with 1. e4 e5 2. Nf3 Nc6 — that's the beginning of one of chess's most classical and rich openings! Welcome to what could become a Ruy Lopez, Italian Game, or several other exciting lines.\n\nWhat would you like to do? I can:\n\n- **Suggest your next move** and explain the key ideas behind it\n- **Explain the opening** you're in and what plans are available\n- **Answer a specific question** about the position\n\nWhat's on your mind? 😊"
+    },
+    {
+      "id": "fx-najdorf#6",
+      "fen": "rnbqkbnr/pp2pppp/3p4/2p5/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 3",
+      "movePlayedSan": "cxd4",
+      "bestMoveSan": "cxd4",
+      "evalDeltaCpMoverPov": 19,
+      "classification": "okay",
+      "userRating": 1800,
+      "tier": "advanced",
+      "coachText": "The position is balanced — neither side has a clear advantage.\n\nWhat changed:\n- White lost material (1 point).\n\nWhat to look at:\n- Black's pawn on d6 lost its role as defender.\n- Black's pawn on c5 lost its role as attacker."
+    },
+    {
+      "id": "fx-najdorf#10",
+      "fen": "rnbqkb1r/pp2pppp/3p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R b KQkq - 2 5",
+      "movePlayedSan": "a6",
+      "bestMoveSan": "Nc6",
+      "evalDeltaCpMoverPov": 6,
+      "classification": "okay",
+      "userRating": 800,
+      "tier": "beginner",
+      "coachText": "You've got the Najdorf Sicilian on the board! One of the most famous openings in chess history — played by legends like Bobby Fischer and Garry Kasparov. Let's see where things stand.\n\nThe game is only 5 moves in and there are no significant mistakes from either side — everything is well within normal range. This is a completely standard Najdorf position.\n\n**What's happening on the board:**\n\n- You (White) have a strong knight on d4 controlling the center, and your other knight just came to c3 to support it\n- Black played 5... a6 — that's the signature Najdorf move! It stops your pieces from coming to b5 and prepares to expand on the queenside\n- The position is roughly equal, with White having a tiny edge (+0.32)\n\n**What should White think about now?**\n\nThis is the big decision moment! White has many famous plans here:\n\n- **6. Be3** — the English Attack, preparing f3 and g4 for a kingside attack\n- **6. Bg5** — pinning the knight and preparing for sharp play\n- **6. Bc4** — the Fischer-Sozin Attack, pointing the bishop aggressively at the kingside\n- **6. f4** — the aggressive Austrian Attack\n\nAll of these are well-studied and completely sound. The key idea for White is to **develop your bishops and castle** before launching any attack.\n\nWhat would you like to do — continue the game, or explore one of these plans? 😊"
+    },
+    {
+      "id": "fx-french-winawer#10",
+      "fen": "rnbqk1nr/pp3ppp/4p3/2ppP3/1b1P4/P1N5/1PP2PPP/R1BQKBNR b KQkq - 0 5",
+      "movePlayedSan": "Bxc3+",
+      "bestMoveSan": "Bxc3+",
+      "evalDeltaCpMoverPov": 604,
+      "classification": "blunder",
+      "userRating": 1400,
+      "tier": "intermediate",
+      "coachText": "White is winning here — the position is decisive.\n\nWhat changed:\n- White lost material (3 points).\n- White's king is less safe than before.\n\nWhat to look at:\n- Black's pawn on c5 lost its role as defender.\n- Black's bishop on b4 lost its role as attacker, defender, overworked."
+    },
+    {
+      "id": "fx-french-winawer#5",
+      "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3",
+      "movePlayedSan": "Nc3",
+      "bestMoveSan": "Nc3",
+      "evalDeltaCpMoverPov": 18,
+      "classification": "okay",
+      "userRating": 1800,
+      "tier": "advanced",
+      "coachText": "You've entered the French Defense — specifically, after 3. Nc3 you're in the Classical Variation (or heading toward it). This is deep, well-trodden theory. No mistakes here — just a rich middlegame ahead.\n\nWhat would you like to explore? I can walk you through:\n- **Black's main responses** (3... Nf6, 3... dxe4, 3... Bb4 — the Winawer)\n- **Your plans as White** in this structure\n- **Key strategic themes** in the French Classical\n\nWhat would you like to dig into?"
+    },
+    {
+      "id": "fx-qgd-tartakower#16",
+      "fen": "rnbq1rk1/p1p1bpp1/1p2pn1p/3P4/3P3B/2N1PN2/PP3PPP/R2QKB1R b KQ - 0 8",
+      "movePlayedSan": "Nxd5",
+      "bestMoveSan": "Nxd5",
+      "evalDeltaCpMoverPov": 36,
+      "classification": "okay",
+      "userRating": 800,
+      "tier": "beginner",
+      "coachText": "Let's walk through the key moments in your game.\n\n[INSIGHT:8:w:mistake:+0.11:+1.79:cxd5:Nxe6]\nThis capture looked natural, but it handed Black a chance to equalize — the timing was the issue.\n[WHY]\nIdea: White wanted to open the center and trade pawns to gain space.\nProblem: By capturing on d5, White gave Black's knight a great square to land on — right in the middle of the board.\nSolution: The engine preferred keeping the tension and striking elsewhere first.\nOutcome: After Black recaptured, the knight on d5 became very strong and the advantage slipped away.\n[CONTINUATION:8:w]\n[MAIA_CONTINUATION:8:w]\n[/WHY]\n[THREATS]\n- White's bishop on h4 can capture the bishop on e7\n- Black's knight on d5 threatens the knight on c3 and the pawn on e3\n[/THREATS]\n[ROLES]\n- White's bishop on h4: Eyeing the bishop on e7, but now under pressure itself\n- Black's knight on d5: Landed on a powerful central square after recapturing\n[/ROLES]\n[CONCEPT:fork:Knight Fork Tactics]\nWhen a knight lands in the center like on d5, it can threaten multiple pieces at once — this is called a fork. Here Black's knight on d5 already eyes both the knight on c3 and the pawn on e3.\n[/CONCEPT]\n[/INSIGHT]\n\n[INSIGHT:8:b:mistake:+1.79:-0.21:Nxd5:Nxd5]\nBlack recaptured with the knight and completely turned the game around — a big swing in one move.\n[WHY]\nIdea: Black wanted to recapture the pawn and place the knight actively.\nProblem: White had just given Black this opportunity by trading too early.\nSolution: Taking back with the knight was exactly right — it centralized the knight powerfully.\nOutcome: The position flipped from slightly better for White to roughly equal, with Black's knight dominating the center.\n[CONTINUATION:8:b]\n[MAIA_CONTINUATION:8:b]\n[/WHY]\n[THREATS]\n- Black's knight on d5 attacks White's knight on c3 and pawn on e3\n- White can capture Black's bishop on e7 with the bishop on h4\n[/THREATS]\n[ROLES]\n- Black's knight on d5: A powerhouse in the center — attacks two White pieces at once\n- White's bishop on h4: Active on the diagonal but the position has shifted in Black's favor\n[/ROLES]\n[CONCEPT:hangingPiece:Hanging Piece Awareness]\nBefore trading pawns, always ask: \"What does my opponent get after they recapture?\" Here, White traded the c-pawn but gave Black a free central square for the knight — that's too high a price!\n[/CONCEPT]\n[/INSIGHT]"
+    },
+    {
+      "id": "fx-qgd-tartakower#5",
+      "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3",
+      "movePlayedSan": "Nc3",
+      "bestMoveSan": "Nf3",
+      "evalDeltaCpMoverPov": 6,
+      "classification": "okay",
+      "userRating": 1400,
+      "tier": "intermediate",
+      "coachText": "The game has just begun — only 3 moves in, and everything looks solid so far!\n\nYou're playing the **Queen's Gambit** (1. d4 d5 2. c4), and after 2... e6 3. Nc3, you've entered the **Queen's Gambit Declined**. This is one of the most respected openings in chess history, played at every level from club games to World Championship matches.\n\nNo mistakes have been made by either side — all moves are well within theory. What would you like to do?\n\n- **Continue the game** — make your next move and I'll analyze it\n- **Ask about plans** — I can explain White's and Black's key ideas from here\n- **Explore alternatives** — curious what happens after a different move like 3. Nf3 or 3... Nf6?"
+    },
+    {
+      "id": "fx-kings-indian#15",
+      "fen": "r1bq1rk1/ppp2pbp/2np1np1/4p3/2PPP3/2N2N2/PP2BPPP/R1BQ1RK1 w - - 2 8",
+      "movePlayedSan": "d5",
+      "bestMoveSan": "d5",
+      "evalDeltaCpMoverPov": 31,
+      "classification": "okay",
+      "userRating": 1800,
+      "tier": "advanced",
+      "coachText": "The King's Indian Classical — let's see where things stand after 8. d5.\n\nThis is a critical moment. You've just closed the center with 8. d5, and now both sides have clear plans: Black will attack on the kingside, White on the queenside. The question is — who executes faster?\n\n**The Position After 8. d5**\n\nBy playing 8. d5 you've committed to the Classical King's Indian structure. The pawn on d5 gains space and nudges Black's knight on c6, which is attacked (the knight is defended by the b7-pawn, but it must now choose its future). Black's typical plans from here are **8... Ne7** (rerouting toward f5 or g6 for a kingside attack) or **8... Nb8** (the \"knight maneuver\" to d7, then f8-h5 or f6-e8-d7).\n\n**What you should be thinking about now (as White):**\n\nThe classical queenside break is the engine of your position. Your plan is **b4-b5**, potentially supported by **a4** first. The knight on c3 wants to eventually reach d3 and then b4 or c5. The bishop on c1 needs to find its way to e3 or f4.\n\nOne concrete note: 8. d5 is slightly inaccurate according to the engine (eval drops from +0.83 to a slightly less optimal score) — the engine prefers **8. Be3** first, keeping more flexibility. After 8. Be3, if Black plays 8... Ng4, you have 9. Bg5 with good play. 8. d5 isn't bad — it's a very common human choice — but it commits the structure a move early before completing development on the queenside.\n\n**Immediate priorities:**\n\n- **Develop your queenside:** Get the c1-bishop active (Be3 or Bg5 were available before d5)\n- **Plan b4:** After Black responds, consider 9. Ne1 — the classic regrouping move in the King's Indian. The knight goes Ne1-Nd3, supporting the b4-b5 push\n- **Watch Black's kingside:** Black will play ...f5 soon. Be ready to meet it\n\nWhat would you like to explore — the queenside attack plan, how to handle Black's kingside counterplay, or something else?"
+    },
+    {
+      "id": "fx-kings-indian#4",
+      "fen": "rnbqkb1r/pppppppp/5n2/8/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 2",
+      "movePlayedSan": "g6",
+      "bestMoveSan": "e6",
+      "evalDeltaCpMoverPov": 2,
+      "classification": "okay",
+      "userRating": 800,
+      "tier": "beginner",
+      "coachText": "It's only move 2 — you're in the opening! Let me tell you what's happening.\n\nYou've entered the **King's Indian Defense** — one of the most popular and respected openings in chess. Black plays 1... Nf6 and 2... g6, planning to put the bishop on g7 (a \"fianchetto\") and castle kingside. It's a solid, fighting opening used by world champions like Bobby Fischer and Garry Kasparov.\n\nNo mistakes here at all — both sides are playing good, standard moves. What would you like to do?\n\n- **Ask about the best plan** for White from here\n- **Ask what Black is planning** with g6\n- **Keep playing** and come back for a full game review when you're done"
+    },
+    {
+      "id": "fx-ruy-lopez#12",
+      "fen": "r1bqk2r/1pppbppp/p1n2n2/4p3/B3P3/5N2/PPPP1PPP/RNBQR1K1 b kq - 5 6",
+      "movePlayedSan": "b5",
+      "bestMoveSan": "b5",
+      "evalDeltaCpMoverPov": 379,
+      "classification": "blunder",
+      "userRating": 1400,
+      "tier": "intermediate",
+      "coachText": "White is winning here — the position is decisive.\n\nWhat to look at:\n- Black's pawn on b7 lost its role as defender.\n- Black's pawn on a6 became defender."
+    },
+    {
+      "id": "fx-ruy-lopez#10",
+      "fen": "r1bqkb1r/1ppp1ppp/p1n2n2/4p3/B3P3/5N2/PPPP1PPP/RNBQ1RK1 b kq - 3 5",
+      "movePlayedSan": "Be7",
+      "bestMoveSan": "Be7",
+      "evalDeltaCpMoverPov": 9,
+      "classification": "okay",
+      "userRating": 1800,
+      "tier": "advanced",
+      "coachText": "I see you're playing the Ruy Lopez — one of the most deeply studied openings in chess history. You're right in the thick of the main line: 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7, which is the Classical Variation. No mistakes on either side — just solid, principled play.\n\nWhat would you like to explore? A few directions we could go:\n\n- **What's the plan from here?** (6. Re1, 6. d3, or the critical 6. d4 — each leads to very different structures)\n- **Why does the Ruy Lopez work the way it does?** (The logic behind Bb5-a4 and what White is really threatening)\n- **The main theoretical lines** from this position (the Closed Ruy, the Marshall Attack, the Breyer, the Chigorin...)\n- **A specific move you're considering** — tell me what you're thinking and I'll analyze it\n\nWhat's on your mind?"
+    },
+    {
+      "id": "fx-caro-kann#16",
+      "fen": "r2qkbnr/pp1nppp1/2p3bp/7P/3P4/5NN1/PPP2PP1/R1BQKB1R b KQkq - 0 8",
+      "movePlayedSan": "Bh7",
+      "bestMoveSan": "Bh7",
+      "evalDeltaCpMoverPov": 22,
+      "classification": "okay",
+      "userRating": 800,
+      "tier": "beginner",
+      "coachText": "The position is balanced — neither side has a clear advantage.\n\nWhat to look at:\n- Black's pawn on f7 lost its role as defender.\n- Black's bishop on g6 lost its role as attacker, defender, overworked."
+    },
+    {
+      "id": "fx-caro-kann#13",
+      "fen": "rn1qkbnr/pp2ppp1/2p3bp/8/3P3P/6N1/PPP2PP1/R1BQKBNR w KQkq - 0 7",
+      "movePlayedSan": "Nf3",
+      "bestMoveSan": "Nf3",
+      "evalDeltaCpMoverPov": 6,
+      "classification": "okay",
+      "userRating": 1400,
+      "tier": "intermediate",
+      "coachText": "The position is balanced — neither side has a clear advantage.\n\nWhat to look at:\n- White's pawn on g2 became defender.\n- White's knight on f3 became defender, overworked."
     }
   ]
 }

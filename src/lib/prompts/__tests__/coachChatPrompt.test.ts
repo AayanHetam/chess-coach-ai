@@ -85,8 +85,8 @@ describe("getCoachChatSystemPrompt — negative invariants (no unresolved interp
 });
 
 describe("PROMPT_VERSION", () => {
-  it("is bumped to 3.4", () => {
-    expect(PROMPT_VERSION).toBe("3.4");
+  it("is bumped to 3.5", () => {
+    expect(PROMPT_VERSION).toBe("3.5");
   });
 });
 
@@ -108,6 +108,59 @@ describe("3.4 — relational claim constraint (Lever 1 prompt side)", () => {
   });
   it("instructs reframing when a claim is not in the facts", () => {
     expect(p).toContain("reframe as a strategic observation");
+  });
+});
+
+describe("3.5 — Phase-2 teaching method block (principles 1-5,7)", () => {
+  const p = getCoachChatSystemPrompt(baseInput);
+
+  it("contains the TEACHING METHOD header", () => {
+    expect(p).toContain("TEACHING METHOD (how to explain, not just what):");
+  });
+  it("states the ONE PRIMARY IDEA relevance filter", () => {
+    expect(p).toContain("ONE PRIMARY IDEA");
+  });
+  it("requires diagnose-before-correct on mistakes", () => {
+    expect(p).toContain("DIAGNOSE BEFORE CORRECT");
+  });
+  it("forbids substituting the eval for the explanation", () => {
+    expect(p).toContain("CAUSAL WHY, NOT EVAL RESTATEMENT");
+  });
+  it("frames pedagogy as taking precedence over masti (not deleting it)", () => {
+    expect(p).toContain("PEDAGOGY OVER MASTI");
+    expect(p).toContain("precedence rule");
+  });
+});
+
+describe("3.5 — Silman imbalance language gated behind ADVANCED (>=1600)", () => {
+  it("permits imbalance-based assessment for advanced players", () => {
+    const advanced = getCoachChatSystemPrompt({ ...baseInput, userRating: 2000 });
+    expect(advanced).toContain("imbalance-based assessment (the Silman framework");
+  });
+  it("forbids Silman imbalance vocabulary in the BEGINNER block", () => {
+    // The stable body is identical across tiers, so the gate text is present
+    // for every rating — the assertion is that the forbidding line exists.
+    const beginner = getCoachChatSystemPrompt({ ...baseInput, userRating: 700 });
+    expect(beginner).toContain(
+      "Do NOT use imbalance-based (Silman) assessment language"
+    );
+  });
+});
+
+describe("3.5 — sub-1400 beginner band split (perUser line, no 4th tier)", () => {
+  it("emits the <800 board-vision band line", () => {
+    const sub800 = getCoachChatSystemPrompt({ ...baseInput, userRating: 600 });
+    expect(sub800).toContain("Band focus (<800)");
+    expect(sub800).not.toContain("Band focus (800-1200)");
+  });
+  it("emits the 800-1200 hope-chess band line", () => {
+    const sub1200 = getCoachChatSystemPrompt({ ...baseInput, userRating: 950 });
+    expect(sub1200).toContain("Band focus (800-1200)");
+    expect(sub1200).not.toContain("Band focus (<800)");
+  });
+  it("emits no band line for non-beginner tiers", () => {
+    const intermediate = getCoachChatSystemPrompt({ ...baseInput, userRating: 1300 });
+    expect(intermediate).not.toContain("Band focus");
   });
 });
 

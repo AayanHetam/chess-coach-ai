@@ -13,7 +13,7 @@
  *   npm run dev   # another terminal
  *   npx tsx scripts/synthetic-tester/runHelpfulnessBaseline.ts --max-cost 6 --base-url http://127.0.0.1:3000
  */
-import { appendFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import { appendFileSync, writeFileSync, mkdirSync, existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { config as loadDotenv } from "dotenv";
@@ -39,6 +39,7 @@ interface Args {
   depth: number;
   limit: number;
   userRating: number;
+  evalSet?: string;
   out?: string;
   flagshipUsd: number;
 }
@@ -52,11 +53,33 @@ function parseArgs(argv: string[]): Args {
     baseUrl: get("base-url") || "http://127.0.0.1:3000",
     maxCost: parseFloat(get("max-cost") || "6"),
     depth: parseInt(get("depth") || "14", 10),
-    limit: parseInt(get("limit") || String(RELATIONAL_FIXTURES.length), 10),
+    limit: parseInt(get("limit") || "999", 10),
     userRating: parseInt(get("user-rating") || "1500", 10),
+    evalSet: get("eval-set"),
     out: get("out"),
     flagshipUsd: parseFloat(get("flagship-usd") || "0.08"),
   };
+}
+
+/** Build a target list (id, pgn, userRating) from the frozen eval set or the
+ *  fixtures. The frozen entries store a SAN moveHistory; chess.js reconstructs a
+ *  valid PGN so the existing evaluateGame path works unchanged. */
+function loadTargets(args: Args): Array<{ id: string; pgn: string; userRating: number }> {
+  if (args.evalSet) {
+    const data = JSON.parse(readFileSync(args.evalSet, "utf8")) as {
+      entries: Array<{ id: string; moveHistory: string[]; userRating: number }>;
+    };
+    return data.entries.slice(0, args.limit).map((e) => {
+      const c = new Chess();
+      for (const m of e.moveHistory) c.move(m);
+      return { id: e.id, pgn: c.pgn(), userRating: e.userRating };
+    });
+  }
+  return RELATIONAL_FIXTURES.slice(0, args.limit).map((f) => ({
+    id: f.id,
+    pgn: f.pgn,
+    userRating: args.userRating,
+  }));
 }
 
 function isFallback(text: string): boolean {
@@ -81,6 +104,15 @@ interface FixtureRow {
   cappedTotal?: number;
   normalized?: number;
   dims?: Record<number, number | null>; // dim -> EV or null if N/A
+  // Persisted for calibration export (raters need the response + position context):
+  coachText?: string;
+  grounding?: {
+    fen: string;
+    movePlayedSan: string;
+    bestMoveSan: string;
+    evalDeltaCpMoverPov: number;
+    classification: string;
+  };
 }
 
 async function main() {
@@ -96,10 +128,12 @@ async function main() {
     email: "helpbaseline@chessmasti.local",
   });
   const cost = new CostTracker(args.maxCost);
-  const fixtures = RELATIONAL_FIXTURES.slice(0, args.limit);
+  const targets = loadTargets(args);
 
   console.log(`\n=== LIVE helpfulness BASELINE (current coach) ===`);
-  console.log(`fixtures=${fixtures.length} baseUrl=${args.baseUrl} depth=${args.depth} maxCost=$${args.maxCost}\n`);
+  console.log(
+    `source=${args.evalSet ?? "relational-fixtures"} targets=${targets.length} baseUrl=${args.baseUrl} depth=${args.depth} maxCost=$${args.maxCost}\n`,
+  );
 
   const sf = new StockfishEngine();
   await sf.init();
@@ -107,7 +141,7 @@ async function main() {
   let flagshipSpend = 0;
 
   try {
-    for (const fx of fixtures) {
+    for (const fx of targets) {
       if (cost.totalSpent() + flagshipSpend >= args.maxCost) {
         console.warn(`\nABORT: budget $${args.maxCost} reached.`);
         break;
@@ -134,7 +168,7 @@ async function main() {
         fen: fenAfter,
         gameEval,
         playerColor,
-        userRating: args.userRating,
+        userRating: fx.userRating,
         personalityId: "friendly",
       });
       if (!res.ok || !res.initialAnalysis) {
@@ -154,7 +188,7 @@ async function main() {
         fenBefore,
         movePlayedSan,
         playerColor,
-        userRating: args.userRating,
+        userRating: fx.userRating,
         engine: sf,
         depth: args.depth,
       });
@@ -182,6 +216,14 @@ async function main() {
         cappedTotal: jury.aggregate.cappedTotal,
         normalized: jury.aggregate.normalized,
         dims,
+        coachText: res.initialAnalysis,
+        grounding: {
+          fen: packet.fen,
+          movePlayedSan: packet.movePlayedSan,
+          bestMoveSan: packet.stockfish.bestMoveSan,
+          evalDeltaCpMoverPov: packet.stockfish.evalDeltaCpMoverPov,
+          classification: String(packet.stockfish.classification),
+        },
       });
       console.log(`total=${jury.aggregate.cappedTotal.toFixed(1)}/14 norm=${jury.aggregate.normalized.toFixed(2)}`);
     }

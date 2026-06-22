@@ -60,10 +60,18 @@ export const FREE_DAILY_LIMITS: Record<FeatureKey, number> = {
 };
 
 export const PROMO = {
-  /** The shared Akanksha code, seeded into the `promo_codes` table. */
-  AKANKSHA_CODE: "AKANKSHA2026",
   /** `compedReason` is stored as `${COMPED_REASON_PREFIX}${code}`. */
   COMPED_REASON_PREFIX: "promo:",
+  /**
+   * Codes seeded into the `promo_codes` table by the migration. Each grants
+   * free-forever Premium (a "comp") to kids in a partner program — no card,
+   * works even before go-live. Admins can mint more / cap / revoke from
+   * /admin/promo-codes.
+   */
+  SEED_CODES: [
+    { code: "AKANKSHA2026", note: "Akanksha Foundation kids" },
+    { code: "GRANDKNIGHTS2026", note: "Grandknights program kids" },
+  ],
 } as const;
 
 export function compedReasonForCode(code: string): string {

@@ -281,7 +281,7 @@ export default function PaywallDialog({
                     <Typography
                       sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.5)" }}
                     >
-                      / {PRICE_DISPLAY.cadence} · cancel anytime
+                      / {PRICE_DISPLAY.cadence}
                     </Typography>
                   </Box>
 
@@ -344,6 +344,36 @@ export default function PaywallDialog({
                       ? "Starting checkout…"
                       : `Upgrade — ${PRICE_DISPLAY.amount}/${PRICE_DISPLAY.cadence}`}
                   </Box>
+
+                  <Typography
+                    sx={{
+                      mt: 1.5,
+                      fontSize: "0.7rem",
+                      color: "rgba(255,255,255,0.42)",
+                      textAlign: "center",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    Auto-renews at {PRICE_DISPLAY.amount}/{PRICE_DISPLAY.cadence}{" "}
+                    until you cancel. You&apos;ll see the exact amount due today
+                    at checkout. By continuing you agree to our{" "}
+                    <Box
+                      component="a"
+                      href="/terms"
+                      sx={{ color: "#FB923C", textDecoration: "none" }}
+                    >
+                      Terms
+                    </Box>{" "}
+                    and{" "}
+                    <Box
+                      component="a"
+                      href="/privacy"
+                      sx={{ color: "#FB923C", textDecoration: "none" }}
+                    >
+                      Privacy Policy
+                    </Box>
+                    .
+                  </Typography>
 
                   <Typography
                     component="a"

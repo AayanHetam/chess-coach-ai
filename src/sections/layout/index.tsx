@@ -155,6 +155,9 @@ export default function Layout({ children }: PropsWithChildren) {
               { href: "/practice", label: "Puzzle training" },
               { href: "/scout", label: "Opponent scout" },
               { href: "/openings", label: "Openings" },
+              { href: "/pricing", label: "Pricing" },
+              { href: "/terms", label: "Terms" },
+              { href: "/privacy", label: "Privacy" },
               { href: "/", label: "Home" },
             ].map((link) => (
               <Typography

@@ -212,6 +212,30 @@ export default function PricingPage() {
           />
         </Stack>
 
+        <Typography
+          sx={{
+            maxWidth: 560,
+            mx: "auto",
+            mt: 2.5,
+            textAlign: "center",
+            fontSize: "0.78rem",
+            color: "rgba(255,255,255,0.45)",
+            lineHeight: 1.5,
+          }}
+        >
+          Premium auto-renews at {PRICE_DISPLAY.amount}/{PRICE_DISPLAY.cadence}{" "}
+          until you cancel — cancel anytime from Manage subscription. You&apos;ll
+          see the exact amount due today at checkout. See our{" "}
+          <Box component="a" href="/terms" sx={{ color: "#FB923C", textDecoration: "none" }}>
+            Terms
+          </Box>{" "}
+          and{" "}
+          <Box component="a" href="/privacy" sx={{ color: "#FB923C", textDecoration: "none" }}>
+            Privacy Policy
+          </Box>
+          .
+        </Typography>
+
         {/* Promo redeem */}
         <Box id="redeem" sx={{ maxWidth: 460, mx: "auto", mt: 5 }}>
           <Typography sx={{ fontSize: "0.92rem", fontWeight: 700, mb: 1, textAlign: "center" }}>

@@ -88,14 +88,16 @@ export default function Layout({ children }: PropsWithChildren) {
   // Scoped to an explicit allowlist on purpose — do NOT broaden the
   // isLandingPage/isPreviewRoute flags, which would affect every route.
   //
-  // /analysis is included because AnalysisImpl already self-hosts its own
-  // dark analysisTheme + GradientBackdrop + <SharedNavPill active="analysis">;
-  // before this it took the else branch and rendered the legacy NavBar ON TOP
-  // of its own glass pill (a double-nav left over from the cutover).
+  // /analysis and /plan are included because each already self-hosts its own
+  // dark glass chrome (GradientBackdrop + SharedNavPill, plus a dark theme on
+  // /analysis); before this they took the else branch and rendered the legacy
+  // NavBar ON TOP of their own glass pill (a double-nav left over from the
+  // cutover / the learning-engine launch).
   const isGlassRoute =
     router.pathname === "/play" ||
     router.pathname === "/profile" ||
-    router.pathname === "/analysis";
+    router.pathname === "/analysis" ||
+    router.pathname === "/plan";
 
   // Landing page, preview route, or a glass cutover route: skip NavBar and
   // app chrome for a full-bleed look.

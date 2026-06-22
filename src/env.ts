@@ -218,3 +218,49 @@ export function assertAuthSecrets(opts: {
     throw new Error(`Missing required auth env: ${missing.join(", ")}`);
   }
 }
+
+/**
+ * Billing / pricing-pivot env (Stripe + freemium flag). All optional so an
+ * unconfigured deploy stays inert: with FREEMIUM_ENABLED unset/false, gating is
+ * a no-op (every user treated as premium) and the Stripe routes 503 loudly via
+ * assertStripeSecrets() rather than crashing boot. Read via functions (matches
+ * getAuthEnv/getTrackingEnv) so tests can flip vars without cache fighting.
+ *
+ * Mind the trailing-\n gotcha on FREEMIUM_ENABLED — parseBoolEnv trims it.
+ */
+export function getBillingEnv() {
+  return {
+    freemiumEnabled: parseBoolEnv(process.env.FREEMIUM_ENABLED),
+    appBaseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  };
+}
+
+export function getStripeEnv() {
+  return {
+    secretKey: process.env.STRIPE_SECRET_KEY,
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    priceId: process.env.STRIPE_PRICE_ID,
+    publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+  };
+}
+
+/**
+ * Throw early if required Stripe secrets are missing. Call from the Stripe
+ * route handlers (checkout/webhook/portal), NOT module-load, so a deploy
+ * without keys degrades to a loud 503 on those routes instead of crashing the
+ * whole app and taking the free tier down with it.
+ */
+export function assertStripeSecrets(
+  opts: { needsWebhook?: boolean } = {},
+): void {
+  const env = getStripeEnv();
+  const missing: string[] = [];
+  if (!env.secretKey) missing.push("STRIPE_SECRET_KEY");
+  if (!env.priceId) missing.push("STRIPE_PRICE_ID");
+  if (opts.needsWebhook && !env.webhookSecret) {
+    missing.push("STRIPE_WEBHOOK_SECRET");
+  }
+  if (missing.length) {
+    throw new Error(`Missing required Stripe env: ${missing.join(", ")}`);
+  }
+}

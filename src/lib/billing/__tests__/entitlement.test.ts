@@ -1,0 +1,131 @@
+import { describe, it, expect } from "vitest";
+import {
+  computeEntitlement,
+  entitlementForUser,
+  trialDaysRemaining,
+} from "../entitlement";
+import { PAST_DUE_GRACE_MS } from "../config";
+
+const NOW = 1_700_000_000_000; // fixed epoch ms — no Date.now() in tests
+const DAY = 24 * 60 * 60 * 1000;
+
+describe("computeEntitlement", () => {
+  it("comped → premium forever regardless of status/dates", () => {
+    const e = computeEntitlement(
+      { compedReason: "promo:AKANKSHA2026", status: "none" },
+      NOW,
+    );
+    expect(e).toMatchObject({
+      tier: "premium",
+      isPremium: true,
+      reason: "comped",
+      comped: true,
+    });
+  });
+
+  it("active with no period end → premium", () => {
+    const e = computeEntitlement({ status: "active" }, NOW);
+    expect(e.isPremium).toBe(true);
+    expect(e.reason).toBe("active");
+  });
+
+  it("active with future period end → premium", () => {
+    const e = computeEntitlement(
+      { status: "active", currentPeriodEndMs: NOW + DAY },
+      NOW,
+    );
+    expect(e.isPremium).toBe(true);
+  });
+
+  it("active with past period end → free/expired", () => {
+    const e = computeEntitlement(
+      { status: "active", currentPeriodEndMs: NOW - DAY },
+      NOW,
+    );
+    expect(e.isPremium).toBe(false);
+    expect(e.reason).toBe("expired");
+  });
+
+  it("past_due within grace → premium(grace)", () => {
+    const e = computeEntitlement(
+      { status: "past_due", currentPeriodEndMs: NOW - DAY },
+      NOW,
+    );
+    expect(e.isPremium).toBe(true);
+    expect(e.reason).toBe("grace");
+  });
+
+  it("past_due beyond grace → free", () => {
+    const e = computeEntitlement(
+      { status: "past_due", currentPeriodEndMs: NOW - PAST_DUE_GRACE_MS - DAY },
+      NOW,
+    );
+    expect(e.isPremium).toBe(false);
+  });
+
+  it("trialing not expired → premium(trialing)", () => {
+    const e = computeEntitlement(
+      { status: "trialing", trialEndsAtMs: NOW + 2 * DAY },
+      NOW,
+    );
+    expect(e.isPremium).toBe(true);
+    expect(e.reason).toBe("trialing");
+  });
+
+  it("trialing expired → free/expired", () => {
+    const e = computeEntitlement(
+      { status: "trialing", trialEndsAtMs: NOW - DAY },
+      NOW,
+    );
+    expect(e.isPremium).toBe(false);
+    expect(e.reason).toBe("expired");
+  });
+
+  it("none → free/none", () => {
+    const e = computeEntitlement({ status: "none" }, NOW);
+    expect(e).toMatchObject({ tier: "free", isPremium: false, reason: "none" });
+  });
+
+  it("canceled → free/expired", () => {
+    const e = computeEntitlement({ status: "canceled" }, NOW);
+    expect(e.isPremium).toBe(false);
+    expect(e.reason).toBe("expired");
+  });
+});
+
+describe("entitlementForUser (Timestamp adapter)", () => {
+  it("reads toMillis() off Timestamp-like fields", () => {
+    const e = entitlementForUser(
+      {
+        subscriptionStatus: "trialing",
+        trialEndsAt: { toMillis: () => NOW + DAY },
+      },
+      NOW,
+    );
+    expect(e.isPremium).toBe(true);
+    expect(e.trialEndsAt).toBe(NOW + DAY);
+  });
+
+  it("comped user is premium", () => {
+    const e = entitlementForUser({ compedReason: "promo:AKANKSHA2026" }, NOW);
+    expect(e.comped).toBe(true);
+    expect(e.isPremium).toBe(true);
+  });
+
+  it("missing fields → free/none", () => {
+    const e = entitlementForUser({}, NOW);
+    expect(e.isPremium).toBe(false);
+    expect(e.reason).toBe("none");
+  });
+});
+
+describe("trialDaysRemaining", () => {
+  it("ceils partial days", () => {
+    expect(trialDaysRemaining({ trialEndsAt: NOW + DAY + 1 }, NOW)).toBe(2);
+    expect(trialDaysRemaining({ trialEndsAt: NOW + DAY }, NOW)).toBe(1);
+  });
+  it("floors at 0 when past or null", () => {
+    expect(trialDaysRemaining({ trialEndsAt: NOW - DAY }, NOW)).toBe(0);
+    expect(trialDaysRemaining({ trialEndsAt: null }, NOW)).toBe(0);
+  });
+});

@@ -57,3 +57,19 @@ Promo: Supabase `promo_codes` + `promo_redemptions`, redeemed atomically via the
 `trackEvent()` fires: `trial_started` (implicit), `paywall_shown`,
 `checkout_started`, `checkout_completed`, `subscription_active`,
 `subscription_canceled`, `promo_redeemed`.
+
+## Compliance (ROSCA / negative-option)
+- **No negative option on the trial**: the 7-day trial is a pure Firestore
+  grant — Stripe is never touched until the user clicks Upgrade, so nothing
+  auto-charges when the trial ends. This sidesteps the main ROSCA trap.
+- **Disclosure at the consent point**: PaywallDialog + `/pricing` state
+  "Auto-renews at $0.99/month until you cancel" with Terms + Privacy links right
+  beside the charge button, plus "you'll see the exact amount due today at
+  checkout" (covers the <49h-left immediate-charge case).
+- **Terms of Service**: `/terms` (`src/app/terms/page.tsx`) — price, monthly
+  cadence, auto-renewal, trial, cancellation, refunds, promo codes. Linked at
+  point of sale and in the footer.
+- **Stripe disclosed** in the Privacy Policy as the payment processor; we store
+  subscription status but never the card number.
+- **Cancellation = as easy as signup**: Stripe Billing Portal via "Manage
+  subscription" on `/pricing` and in the account menu (UserMenu).

@@ -33,6 +33,7 @@ import {
   buildExport,
   CalibrationData,
   CalibrationItem,
+  cleanCoachText,
   DIMENSIONS,
   DimKey,
   DimScore,
@@ -315,7 +316,7 @@ export default function CalibratePage() {
                   }}
                 >
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {current.coachText}
+                    {cleanCoachText(current.coachText)}
                   </ReactMarkdown>
                 </Box>
               </Paper>

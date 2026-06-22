@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildExport, isItemFullyRated } from "./calibrationExport";
+import { buildExport, cleanCoachText, isItemFullyRated } from "./calibrationExport";
 
 const items = [
   {
@@ -75,6 +75,17 @@ describe("buildExport", () => {
     expect(isItemFullyRated(ratings.a)).toBe(true);
     const { payload } = buildExport("Casey", items, ratings);
     expect(payload.ratings[0].d2).toBe("na");
+  });
+
+  it("cleanCoachText strips control tags but keeps the prose", () => {
+    const raw =
+      "Let's walk through it.\n\n[INSIGHT:7:b:mistake:-1.05:-1.15:dxc3:Nxd4]\nThis was a clever pawn grab.\n[WHY]\nIdea: snatch c3.\nProblem: opens a queen move.\n[CONTINUATION:7:b]\n[MAIA_CONTINUATION:7:b]\n[/WHY]\n[THREATS]";
+    const cleaned = cleanCoachText(raw);
+    expect(cleaned).not.toMatch(/\[INSIGHT|\[WHY|\[CONTINUATION|\[MAIA|\[THREATS|\[\/WHY/);
+    expect(cleaned).toContain("This was a clever pawn grab.");
+    expect(cleaned).toContain("Idea: snatch c3.");
+    expect(cleaned).toContain("Problem: opens a queen move.");
+    expect(cleaned).not.toMatch(/\n{3,}/); // collapsed blank lines
   });
 
   it("exports a note-only item (rater flagged an issue without full ratings)", () => {

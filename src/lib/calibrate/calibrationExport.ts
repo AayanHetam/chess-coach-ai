@@ -134,3 +134,22 @@ export function formatCpDelta(cp: number): string {
   const sign = cp > 0 ? "+" : "";
   return `${sign}${cp}cp`;
 }
+
+/**
+ * Strip the coach's machine-readable control tags so a human rates the prose,
+ * not the markup. The real app PARSES these into UI cards/boards; raw, they read
+ * as gibberish ("[INSIGHT:7:b:mistake:-1.05:...]", "[CONTINUATION:...]",
+ * "[MAIA_CONTINUATION:...]", "[THREATS]", "[WHY]…[/WHY]", "[CONCEPT:...]"). We
+ * drop the bracketed control tags and collapse the blank lines they leave behind;
+ * the underlying Idea/Problem/Solution/Outcome prose is preserved verbatim.
+ */
+const CONTROL_TAG_RE =
+  /\[\/?(?:INSIGHT|WHY|CONTINUATION|MAIA_CONTINUATION|THREATS|CONCEPT|MOVE|BOARD|EVAL)[^\]]*\]/g;
+
+export function cleanCoachText(text: string): string {
+  return text
+    .replace(CONTROL_TAG_RE, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

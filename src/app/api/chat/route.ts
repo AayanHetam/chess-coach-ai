@@ -13,6 +13,7 @@ import {
 } from "@/lib/llmProvider";
 import { recordLLMCall } from "@/lib/llmStatsAggregator";
 import { requireSession } from "@/lib/auth/session";
+import { gateFeature } from "@/lib/billing/gate";
 import {
   logger,
   logErrorToSentry,
@@ -75,6 +76,12 @@ export async function POST(request: NextRequest) {
 
     const parsed = validateRequest(chatSchema, body);
     if (!parsed.success) return parsed.response;
+    // Gate AFTER validation so a malformed request doesn't burn the free-tier
+    // allowance. Re-checked every call (no tier in the contextId cache key).
+    const gate = await gateFeature(guard.session.uid, "coach_chat", {
+      surface: "coach_chat",
+    });
+    if (!gate.ok) return gate.response;
     const { messages, contextId, userMessage, conversationHistory } = parsed.data;
 
     // API-key presence is validated inside callLLM(); both Anthropic and

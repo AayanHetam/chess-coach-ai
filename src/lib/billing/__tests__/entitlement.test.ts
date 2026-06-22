@@ -38,13 +38,15 @@ describe("computeEntitlement", () => {
     expect(e.isPremium).toBe(true);
   });
 
-  it("active with past period end → free/expired", () => {
+  it("active with a lagging/past period end → still premium (status is authoritative)", () => {
+    // Renewal webhook hasn't advanced currentPeriodEnd yet; the paying user
+    // must NOT be downgraded.
     const e = computeEntitlement(
       { status: "active", currentPeriodEndMs: NOW - DAY },
       NOW,
     );
-    expect(e.isPremium).toBe(false);
-    expect(e.reason).toBe("expired");
+    expect(e.isPremium).toBe(true);
+    expect(e.reason).toBe("active");
   });
 
   it("past_due within grace → premium(grace)", () => {

@@ -64,8 +64,13 @@ export function computeEntitlement(
   // 1. Comped (Akanksha promo / admin) — premium forever, no card needed.
   if (comped) return premium("comped");
 
-  // 2. Active paid subscription (no period end recorded ⇒ treat as current).
-  if (status === "active" && (currentPeriodEnd === null || nowMs < currentPeriodEnd)) {
+  // 2. Active paid subscription. Stripe keeps status 'active' across renewals
+  //    and until a scheduled cancellation's period actually ends, then flips it
+  //    to past_due/canceled via webhook. So status alone is authoritative —
+  //    do NOT also require nowMs < currentPeriodEnd, or a paying customer would
+  //    drop to free in the window between period rollover and the renewal
+  //    webhook landing. currentPeriodEnd is kept for display only.
+  if (status === "active") {
     return premium("active");
   }
 
@@ -85,11 +90,11 @@ export function computeEntitlement(
 
   // 5. Otherwise free. Distinguish a lapsed sub/trial ("expired") from a
   //    user who never had anything ("none") — drives copy + paywall framing.
+  // `active` is handled above (early-return), so it can't reach here. A lapsed
+  // trial keeps status "trialing" until a webhook/cron moves it, hence it counts
+  // as "had something" → reason "expired" rather than "none".
   const everHadSomething =
-    status === "trialing" ||
-    status === "active" ||
-    status === "past_due" ||
-    status === "canceled";
+    status === "trialing" || status === "past_due" || status === "canceled";
   return {
     tier: "free",
     isPremium: false,

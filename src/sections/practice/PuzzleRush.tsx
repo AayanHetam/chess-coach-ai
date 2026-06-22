@@ -301,10 +301,24 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
   // ---- SETUP SCREEN ----
   if (phase === "setup") {
     return (
-      <Paper sx={{ p: 4, maxWidth: 600, mx: "auto" }}>
+      <Paper
+        sx={{
+          p: 4,
+          maxWidth: 600,
+          mx: "auto",
+          borderRadius: "1.5rem",
+          background: "rgba(20,22,28,0.55)",
+          backdropFilter: "blur(14px) saturate(140%)",
+          WebkitBackdropFilter: "blur(14px) saturate(140%)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow:
+            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          overflow: "hidden",
+        }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-          <BoltIcon sx={{ color: "warning.main", fontSize: 32 }} />
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          <BoltIcon sx={{ color: "#FB923C", fontSize: 32 }} />
+          <Typography variant="h5" sx={{ fontWeight: 700, color: "rgba(255,255,255,0.94)" }}>
             Puzzle Rush
           </Typography>
         </Box>
@@ -325,14 +339,24 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
                 flex: 1,
                 minWidth: 140,
                 cursor: "pointer",
-                border: "2px solid",
-                borderColor: mode === m.value ? "primary.main" : "grey.700",
-                bgcolor: mode === m.value ? "rgba(25,118,210,0.08)" : "grey.900",
-                transition: "all 0.2s",
-                "&:hover": { borderColor: "primary.light" },
+                borderRadius: "1rem",
+                border:
+                  mode === m.value
+                    ? "1px solid rgba(249,115,22,0.4)"
+                    : "1px solid rgba(255,255,255,0.08)",
+                background:
+                  mode === m.value
+                    ? "rgba(249,115,22,0.18)"
+                    : "rgba(255,255,255,0.04)",
+                boxShadow:
+                  mode === m.value
+                    ? "0 0 0 1px rgba(249,115,22,0.18)"
+                    : "none",
+                transition: "all 180ms ease",
+                "&:hover": { borderColor: "rgba(249,115,22,0.4)" },
               }}
             >
-              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "rgba(255,255,255,0.94)" }}>
                 {m.label}
               </Typography>
               <Typography variant="caption" color="text.secondary">
@@ -352,11 +376,46 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
 
         {/* Difficulty */}
         <FormControl size="small" sx={{ mb: 3, minWidth: 200 }}>
-          <InputLabel>Difficulty</InputLabel>
+          <InputLabel
+            sx={{
+              color: "rgba(255,255,255,0.55)",
+              "&.Mui-focused": { color: "#FB923C" },
+            }}
+          >
+            Difficulty
+          </InputLabel>
           <Select
             value={difficulty}
             label="Difficulty"
             onChange={(e) => setDifficulty(e.target.value as DifficultyBand | "all")}
+            sx={{
+              background: "rgba(255,255,255,0.03)",
+              color: "rgba(255,255,255,0.7)",
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: "rgba(255,255,255,0.1)",
+              },
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                borderColor: "rgba(255,255,255,0.2)",
+              },
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                borderColor: "#F97316",
+              },
+              "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.55)" },
+            }}
+            MenuProps={{
+              slotProps: {
+                paper: {
+                  sx: {
+                    background: "rgba(20,22,28,0.92)",
+                    backdropFilter: "blur(14px) saturate(140%)",
+                    WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: "12px",
+                    color: "rgba(255,255,255,0.85)",
+                  },
+                },
+              },
+            }}
           >
             <MenuItem value="all">All Levels</MenuItem>
             <MenuItem value="beginner">Beginner (0-1200)</MenuItem>
@@ -367,7 +426,21 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
         </FormControl>
 
         <Box sx={{ display: "flex", gap: 2 }}>
-          <Button variant="outlined" onClick={onBack} sx={{ textTransform: "none" }}>
+          <Button
+            variant="outlined"
+            onClick={onBack}
+            sx={{
+              textTransform: "none",
+              color: "rgba(255,255,255,0.85)",
+              borderColor: "rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.04)",
+              "&:hover": {
+                borderColor: "rgba(249,115,22,0.4)",
+                color: "#FB923C",
+                background: "rgba(249,115,22,0.12)",
+              },
+            }}
+          >
             Back
           </Button>
           <Button
@@ -375,7 +448,16 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
             size="large"
             onClick={handleStart}
             startIcon={<BoltIcon />}
-            sx={{ px: 4, fontWeight: 700, textTransform: "none" }}
+            sx={{
+              px: 4,
+              fontWeight: 700,
+              textTransform: "none",
+              borderRadius: "999px",
+              bgcolor: "#F97316",
+              color: "#0A0A0A",
+              boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
+              "&:hover": { bgcolor: "#FB923C" },
+            }}
           >
             Start Rush
           </Button>
@@ -398,12 +480,19 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
           justifyContent: "space-between",
           flexWrap: "wrap",
           gap: 1,
-          bgcolor: "grey.900",
-          color: "grey.100",
+          borderRadius: "1rem",
+          background: "rgba(20,22,28,0.55)",
+          backdropFilter: "blur(14px) saturate(140%)",
+          WebkitBackdropFilter: "blur(14px) saturate(140%)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow:
+            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          overflow: "hidden",
+          color: "rgba(255,255,255,0.94)",
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <BoltIcon sx={{ color: "warning.main" }} />
+          <BoltIcon sx={{ color: "#FB923C" }} />
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             {modeConfig.label}
           </Typography>
@@ -412,15 +501,15 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
         <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
           {/* Score */}
           <Box sx={{ textAlign: "center" }}>
-            <Typography variant="caption" sx={{ color: "grey.500" }}>Score</Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700, color: "success.light", lineHeight: 1 }}>
+            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>Score</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: "success.light", lineHeight: 1, fontFamily: "Monaco, monospace" }}>
               {score}
             </Typography>
           </Box>
 
           {/* Timer */}
           <Box sx={{ textAlign: "center" }}>
-            <Typography variant="caption" sx={{ color: "grey.500" }}>
+            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
               {modeConfig.timeSeconds === Infinity ? "Time" : "Time Left"}
             </Typography>
             <Typography
@@ -429,7 +518,7 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
                 fontWeight: 700,
                 lineHeight: 1,
                 fontFamily: "monospace",
-                color: modeConfig.timeSeconds !== Infinity && timeLeft <= 30 ? "error.light" : "grey.100",
+                color: modeConfig.timeSeconds !== Infinity && timeLeft <= 30 ? "error.light" : "rgba(255,255,255,0.94)",
               }}
             >
               {formatTimer(timeLeft)}
@@ -444,7 +533,7 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
                   key={i}
                   sx={{
                     fontSize: 22,
-                    color: i < lives ? "error.main" : "grey.700",
+                    color: i < lives ? "error.main" : "rgba(255,255,255,0.14)",
                     transition: "color 0.3s",
                   }}
                 />
@@ -457,7 +546,11 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
             <Chip
               label={`Rating: ${currentPuzzle.rating}`}
               size="small"
-              sx={{ bgcolor: "grey.800", color: "grey.300" }}
+              sx={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.85)",
+              }}
             />
           )}
         </Box>
@@ -470,9 +563,14 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
             setPhase("finished");
           }}
           sx={{
-            color: "grey.300",
-            borderColor: "grey.700",
-            "&:hover": { borderColor: "grey.500", bgcolor: "grey.800" },
+            color: "rgba(255,255,255,0.85)",
+            borderColor: "rgba(255,255,255,0.18)",
+            background: "rgba(255,255,255,0.04)",
+            "&:hover": {
+              borderColor: "rgba(249,115,22,0.4)",
+              color: "#FB923C",
+              background: "rgba(249,115,22,0.12)",
+            },
             textTransform: "none",
           }}
         >
@@ -489,7 +587,7 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
             mb: 2,
             height: 6,
             borderRadius: 3,
-            bgcolor: "grey.800",
+            bgcolor: "rgba(255,255,255,0.08)",
             "& .MuiLinearProgress-bar": {
               bgcolor: timeLeft <= 30 ? "error.main" : timeLeft <= 60 ? "warning.main" : "success.main",
               transition: "transform 1s linear",
@@ -507,14 +605,14 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               mb: 1,
               px: 1.5,
               py: 0.75,
-              borderRadius: 1,
+              borderRadius: "12px",
               bgcolor: board.puzzleError
                 ? "warning.dark"
                 : board.status === "solved"
                   ? "success.dark"
                   : board.status === "wrong"
                     ? "error.dark"
-                    : "grey.800",
+                    : "rgba(255,255,255,0.06)",
               display: "flex",
               alignItems: "center",
               gap: 1,
@@ -526,9 +624,9 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
                   width: 14,
                   height: 14,
                   borderRadius: "50%",
-                  bgcolor: board.game.turn() === "w" ? "#fff" : "#333",
+                  bgcolor: board.game.turn() === "w" ? "#fff" : "#1a1a1a",
                   border: "2px solid",
-                  borderColor: "grey.500",
+                  borderColor: "rgba(255,255,255,0.3)",
                   flexShrink: 0,
                 }}
               />
@@ -542,7 +640,7 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
                   board.status === "wrong" ||
                   board.puzzleError
                     ? "#fff"
-                    : "grey.300",
+                    : "rgba(255,255,255,0.85)",
               }}
             >
               {board.puzzleError
@@ -586,13 +684,29 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
         open={showFinishDialog}
         maxWidth="xs"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: "grey.900" } }}
+        PaperProps={{
+          sx: {
+            borderRadius: "1.5rem",
+            background: "rgba(20,22,28,0.92)",
+            backdropFilter: "blur(16px) saturate(160%)",
+            WebkitBackdropFilter: "blur(16px) saturate(160%)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          },
+        }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              backgroundColor: "rgba(0,0,0,0.6)",
+              backdropFilter: "blur(2px)",
+            },
+          },
+        }}
       >
         <DialogContent sx={{ textAlign: "center", py: 4 }}>
           {isNewHighScore && (
             <EmojiEventsIcon sx={{ fontSize: 48, color: "warning.main", mb: 1 }} />
           )}
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: "rgba(255,255,255,0.94)" }}>
             {isNewHighScore ? "New High Score!" : "Rush Complete!"}
           </Typography>
           <Typography variant="h2" sx={{ fontWeight: 800, color: "success.light", mb: 2 }}>
@@ -606,8 +720,8 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               Time: {formatTimer(timeLeft)}
             </Typography>
           )}
-          <Typography variant="body2" sx={{ mt: 2, color: "grey.500" }}>
-            Your puzzle rating: <strong style={{ color: "#e0e0e0" }}>{globalStats.rating}</strong>
+          <Typography variant="body2" sx={{ mt: 2, color: "rgba(255,255,255,0.55)" }}>
+            Your puzzle rating: <strong style={{ color: "rgba(255,255,255,0.9)" }}>{globalStats.rating}</strong>
           </Typography>
         </DialogContent>
         <DialogActions sx={{ justifyContent: "center", pb: 3, gap: 1 }}>
@@ -617,7 +731,17 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               setPhase("setup");
               setShowFinishDialog(false);
             }}
-            sx={{ textTransform: "none" }}
+            sx={{
+              textTransform: "none",
+              color: "rgba(255,255,255,0.85)",
+              borderColor: "rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.04)",
+              "&:hover": {
+                borderColor: "rgba(249,115,22,0.4)",
+                color: "#FB923C",
+                background: "rgba(249,115,22,0.12)",
+              },
+            }}
           >
             Back to Setup
           </Button>
@@ -628,7 +752,15 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               handleStart();
             }}
             startIcon={<BoltIcon />}
-            sx={{ textTransform: "none", fontWeight: 700 }}
+            sx={{
+              textTransform: "none",
+              fontWeight: 700,
+              borderRadius: "999px",
+              bgcolor: "#F97316",
+              color: "#0A0A0A",
+              boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
+              "&:hover": { bgcolor: "#FB923C" },
+            }}
           >
             Play Again
           </Button>

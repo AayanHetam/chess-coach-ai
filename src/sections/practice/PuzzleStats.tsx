@@ -66,9 +66,17 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
           <Tooltip key={card.label} title={card.label}>
             <Chip
               icon={card.icon}
-              label={`${card.value}`}
+              label={
+                <span style={{ fontFamily: "Monaco, monospace" }}>{`${card.value}`}</span>
+              }
               size="small"
-              sx={{ bgcolor: "grey.800", color: "grey.200" }}
+              sx={{
+                bgcolor: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.85)",
+                borderRadius: "999px",
+                "& .MuiChip-icon": { color: card.color },
+              }}
             />
           </Tooltip>
         ))}
@@ -77,8 +85,20 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
   }
 
   return (
-    <Paper sx={{ p: 2.5, bgcolor: "grey.900", borderRadius: 2 }}>
-      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, color: "grey.100" }}>
+    <Paper
+      sx={{
+        p: 2.5,
+        borderRadius: "1.5rem",
+        background: "rgba(20,22,28,0.55)",
+        backdropFilter: "blur(14px) saturate(140%)",
+        WebkitBackdropFilter: "blur(14px) saturate(140%)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        boxShadow:
+          "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+        overflow: "hidden",
+      }}
+    >
+      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, color: "rgba(255,255,255,0.94)" }}>
         Your Puzzle Stats
       </Typography>
 
@@ -91,18 +111,27 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
               flex: 1,
               minWidth: 100,
               p: 1.5,
-              bgcolor: "grey.800",
+              bgcolor: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
               textAlign: "center",
-              borderRadius: 1.5,
+              borderRadius: "1rem",
             }}
           >
             <Box sx={{ display: "flex", justifyContent: "center", mb: 0.5, color: card.color }}>
               {card.icon}
             </Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: "grey.100", lineHeight: 1.2 }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+                color: "rgba(255,255,255,0.94)",
+                lineHeight: 1.2,
+                fontFamily: "Monaco, monospace",
+              }}
+            >
               {card.value}
             </Typography>
-            <Typography variant="caption" sx={{ color: "grey.500" }}>
+            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
               {card.label}
             </Typography>
           </Paper>
@@ -111,16 +140,16 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
 
       {/* Summary */}
       <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
-        <Typography variant="caption" sx={{ color: "grey.500" }}>
-          Total: <strong style={{ color: "#ccc" }}>{stats.totalAttempts}</strong> puzzles
+        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
+          Total: <strong style={{ color: "rgba(255,255,255,0.85)" }}>{stats.totalAttempts}</strong> puzzles
         </Typography>
-        <Typography variant="caption" sx={{ color: "grey.500" }}>
+        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
           Solved: <strong style={{ color: "#66bb6a" }}>{stats.totalSolved}</strong>
         </Typography>
-        <Typography variant="caption" sx={{ color: "grey.500" }}>
+        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
           Failed: <strong style={{ color: "#ef5350" }}>{stats.totalFailed}</strong>
         </Typography>
-        <Typography variant="caption" sx={{ color: "grey.500" }}>
+        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
           Current Streak: <strong style={{ color: "#ffa726" }}>{stats.currentStreak}</strong>
         </Typography>
       </Box>
@@ -128,7 +157,7 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
       {/* Rating chart */}
       {stats.ratingHistory.length > 2 && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant="caption" sx={{ color: "grey.500", mb: 1, display: "block" }}>
+          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)", mb: 1, display: "block" }}>
             Rating History
           </Typography>
           <Box sx={{ width: "100%", height: 120 }}>
@@ -141,12 +170,12 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
                 />
                 <RechartsTooltip
                   contentStyle={{
-                    backgroundColor: "#333",
-                    border: "none",
+                    backgroundColor: "rgba(20,22,28,0.92)",
+                    border: "1px solid rgba(255,255,255,0.08)",
                     borderRadius: 8,
                     fontSize: 12,
                   }}
-                  labelStyle={{ color: "#999" }}
+                  labelStyle={{ color: "rgba(255,255,255,0.6)" }}
                 />
                 <Line
                   type="monotone"
@@ -165,7 +194,7 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
       {/* Theme breakdown */}
       {Object.keys(stats.themeStats).length > 0 && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant="caption" sx={{ color: "grey.500", mb: 1, display: "block" }}>
+          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)", mb: 1, display: "block" }}>
             Theme Performance
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
@@ -185,6 +214,7 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
                       sx={{
                         bgcolor: rate >= 70 ? "rgba(76,175,80,0.15)" : rate >= 40 ? "rgba(255,193,7,0.15)" : "rgba(244,67,54,0.15)",
                         color: rate >= 70 ? "success.light" : rate >= 40 ? "warning.light" : "error.light",
+                        border: "1px solid rgba(255,255,255,0.06)",
                         fontSize: "0.7rem",
                       }}
                     />

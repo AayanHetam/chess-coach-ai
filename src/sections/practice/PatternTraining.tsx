@@ -324,7 +324,7 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
       const existing = styles[sq] || {};
       styles[sq] = {
         ...existing,
-        background: `${existing.backgroundColor || ""} radial-gradient(circle, rgba(0,0,0,0.15) 25%, transparent 25%)`.trim(),
+        background: `${existing.backgroundColor || ""} radial-gradient(circle, rgba(255,255,255,0.14) 25%, transparent 25%)`.trim(),
       };
     }
     if (wrongSquare) {
@@ -336,10 +336,24 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
   // ---- SETUP SCREEN ----
   if (phase === "setup" && !showFinishDialog) {
     return (
-      <Paper sx={{ p: 4, maxWidth: 500, mx: "auto" }}>
+      <Paper
+        sx={{
+          p: 4,
+          maxWidth: 500,
+          mx: "auto",
+          borderRadius: "1.5rem",
+          background: "rgba(20,22,28,0.55)",
+          backdropFilter: "blur(14px) saturate(140%)",
+          WebkitBackdropFilter: "blur(14px) saturate(140%)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow:
+            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          overflow: "hidden",
+        }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-          <PsychologyIcon sx={{ color: "info.main", fontSize: 28 }} />
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>Pattern Training</Typography>
+          <PsychologyIcon sx={{ color: "#FB923C", fontSize: 28 }} />
+          <Typography variant="h5" sx={{ fontWeight: 700, color: "rgba(255,255,255,0.94)" }}>Pattern Training</Typography>
         </Box>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -347,12 +361,40 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
           Find the best move from memory! Trains your pattern recognition and board visualization.
         </Typography>
 
-        <FormControl size="small" sx={{ mb: 2, minWidth: 200 }}>
+        <FormControl
+          size="small"
+          sx={{
+            mb: 2,
+            minWidth: 200,
+            "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.55)" },
+            "& .MuiInputLabel-root.Mui-focused": { color: "#FB923C" },
+            "& .MuiOutlinedInput-root": {
+              backgroundColor: "rgba(255,255,255,0.03)",
+              color: "rgba(255,255,255,0.7)",
+              "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.1)" },
+              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.2)" },
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#F97316" },
+            },
+            "& .MuiSelect-icon": { color: "rgba(255,255,255,0.5)" },
+          }}
+        >
           <InputLabel>Flash Duration</InputLabel>
           <Select
             value={flashDuration}
             label="Flash Duration"
             onChange={(e) => setFlashDuration(e.target.value as unknown as FlashDuration)}
+            MenuProps={{
+              PaperProps: {
+                sx: {
+                  borderRadius: "12px",
+                  background: "rgba(20,22,28,0.92)",
+                  backdropFilter: "blur(16px) saturate(160%)",
+                  WebkitBackdropFilter: "blur(16px) saturate(160%)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "rgba(255,255,255,0.85)",
+                },
+              },
+            }}
           >
             <MenuItem value={3}>3 seconds (Hard)</MenuItem>
             <MenuItem value={5}>5 seconds (Normal)</MenuItem>
@@ -360,12 +402,41 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
           </Select>
         </FormControl>
 
-        <FormControl size="small" sx={{ mb: 3, minWidth: 200, ml: { sm: 2 } }}>
+        <FormControl
+          size="small"
+          sx={{
+            mb: 3,
+            minWidth: 200,
+            ml: { sm: 2 },
+            "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.55)" },
+            "& .MuiInputLabel-root.Mui-focused": { color: "#FB923C" },
+            "& .MuiOutlinedInput-root": {
+              backgroundColor: "rgba(255,255,255,0.03)",
+              color: "rgba(255,255,255,0.7)",
+              "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.1)" },
+              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.2)" },
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#F97316" },
+            },
+            "& .MuiSelect-icon": { color: "rgba(255,255,255,0.5)" },
+          }}
+        >
           <InputLabel>Difficulty</InputLabel>
           <Select
             value={difficulty}
             label="Difficulty"
             onChange={(e) => setDifficulty(e.target.value as DifficultyBand | "all")}
+            MenuProps={{
+              PaperProps: {
+                sx: {
+                  borderRadius: "12px",
+                  background: "rgba(20,22,28,0.92)",
+                  backdropFilter: "blur(16px) saturate(160%)",
+                  WebkitBackdropFilter: "blur(16px) saturate(160%)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "rgba(255,255,255,0.85)",
+                },
+              },
+            }}
           >
             <MenuItem value="all">All Levels</MenuItem>
             <MenuItem value="beginner">Beginner</MenuItem>
@@ -376,12 +447,37 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
         </FormControl>
 
         <Box sx={{ display: "flex", gap: 2 }}>
-          <Button variant="outlined" onClick={onBack} sx={{ textTransform: "none" }}>Back</Button>
+          <Button
+            variant="outlined"
+            onClick={onBack}
+            sx={{
+              textTransform: "none",
+              borderRadius: "999px",
+              color: "rgba(255,255,255,0.85)",
+              borderColor: "rgba(255,255,255,0.18)",
+              backgroundColor: "rgba(255,255,255,0.03)",
+              "&:hover": {
+                borderColor: "rgba(255,255,255,0.3)",
+                backgroundColor: "rgba(255,255,255,0.06)",
+              },
+            }}
+          >
+            Back
+          </Button>
           <Button
             variant="contained"
             onClick={handleStart}
             startIcon={<PsychologyIcon />}
-            sx={{ px: 4, fontWeight: 700, textTransform: "none" }}
+            sx={{
+              px: 4,
+              fontWeight: 700,
+              textTransform: "none",
+              borderRadius: "999px",
+              bgcolor: "#F97316",
+              color: "#0A0A0A",
+              boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
+              "&:hover": { bgcolor: "#FB923C" },
+            }}
           >
             Start Training
           </Button>
@@ -398,19 +494,36 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
         sx={{
           px: 2, py: 1.5, mb: 2,
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          flexWrap: "wrap", gap: 1, bgcolor: "grey.900", color: "grey.100",
+          flexWrap: "wrap", gap: 1,
+          borderRadius: "1.5rem",
+          background: "rgba(20,22,28,0.55)",
+          backdropFilter: "blur(14px) saturate(140%)",
+          WebkitBackdropFilter: "blur(14px) saturate(140%)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow:
+            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          overflow: "hidden",
+          color: "rgba(255,255,255,0.94)",
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <PsychologyIcon sx={{ color: "info.main" }} />
+          <PsychologyIcon sx={{ color: "#FB923C" }} />
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Pattern Training</Typography>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Typography variant="body2" sx={{ color: "grey.400" }}>
+          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.62)" }}>
             Score: <strong style={{ color: "#66bb6a" }}>{score}</strong>/{total}
           </Typography>
           {currentPuzzle && (
-            <Chip label={`Rating: ${currentPuzzle.rating}`} size="small" sx={{ bgcolor: "grey.800", color: "grey.300" }} />
+            <Chip
+              label={`Rating: ${currentPuzzle.rating}`}
+              size="small"
+              sx={{
+                bgcolor: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.85)",
+              }}
+            />
           )}
         </Box>
       </Paper>
@@ -428,7 +541,7 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
             variant="determinate"
             value={(flashTimeLeft / flashDuration) * 100}
             sx={{
-              height: 6, borderRadius: 3, bgcolor: "grey.800",
+              height: 6, borderRadius: 3, bgcolor: "rgba(255,255,255,0.08)",
               "& .MuiLinearProgress-bar": { bgcolor: "warning.main" },
             }}
           />
@@ -437,7 +550,7 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
 
       {/* Status */}
       {phase === "solve" && (
-        <Box sx={{ mb: 1, px: 1.5, py: 0.75, borderRadius: 1, bgcolor: "info.dark" }}>
+        <Box sx={{ mb: 1, px: 1.5, py: 0.75, borderRadius: "12px", bgcolor: "info.dark" }}>
           <Typography variant="body2" sx={{ fontWeight: 600, color: "#fff" }}>
             Pieces hidden — find the best move from memory!
           </Typography>
@@ -446,7 +559,7 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
 
       {phase === "result" && (
         <Box sx={{
-          mb: 1, px: 1.5, py: 0.75, borderRadius: 1,
+          mb: 1, px: 1.5, py: 0.75, borderRadius: "12px",
           bgcolor: wrongSquare ? "error.dark" : "success.dark",
         }}>
           <Typography variant="body2" sx={{ fontWeight: 600, color: "#fff" }}>
@@ -465,7 +578,7 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
             onSquareClick={onSquareClick}
             boardOrientation={boardOrientation}
             boardWidth={boardSize}
-            customBoardStyle={{ borderRadius: "4px", boxShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
+            customBoardStyle={{ borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.35)" }}
             customSquareStyles={customSquareStyles}
             customPieces={customPieces}
             isDraggablePiece={({ piece }) => {
@@ -483,11 +596,31 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
         open={showFinishDialog}
         maxWidth="xs"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: "grey.900" } }}
+        PaperProps={{
+          sx: {
+            borderRadius: "1.5rem",
+            background: "rgba(20,22,28,0.92)",
+            backdropFilter: "blur(16px) saturate(160%)",
+            WebkitBackdropFilter: "blur(16px) saturate(160%)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow:
+              "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+            backgroundImage: "none",
+          },
+        }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              backgroundColor: "rgba(0,0,0,0.6)",
+              backdropFilter: "blur(2px)",
+              WebkitBackdropFilter: "blur(2px)",
+            },
+          },
+        }}
       >
         <DialogContent sx={{ textAlign: "center", py: 4 }}>
-          <PsychologyIcon sx={{ fontSize: 48, color: "info.main", mb: 1 }} />
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>Session Complete!</Typography>
+          <PsychologyIcon sx={{ fontSize: 48, color: "#FB923C", mb: 1 }} />
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: "rgba(255,255,255,0.94)" }}>Session Complete!</Typography>
           <Typography variant="h2" sx={{ fontWeight: 800, color: "success.light", mb: 0.5 }}>
             {total > 0 ? Math.round((score / total) * 100) : 0}%
           </Typography>
@@ -496,10 +629,37 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
           </Typography>
         </DialogContent>
         <DialogActions sx={{ justifyContent: "center", pb: 3, gap: 1 }}>
-          <Button variant="outlined" onClick={() => { setShowFinishDialog(false); setPhase("setup"); }} sx={{ textTransform: "none" }}>
+          <Button
+            variant="outlined"
+            onClick={() => { setShowFinishDialog(false); setPhase("setup"); }}
+            sx={{
+              textTransform: "none",
+              borderRadius: "999px",
+              color: "rgba(255,255,255,0.85)",
+              borderColor: "rgba(255,255,255,0.18)",
+              backgroundColor: "rgba(255,255,255,0.03)",
+              "&:hover": {
+                borderColor: "rgba(255,255,255,0.3)",
+                backgroundColor: "rgba(255,255,255,0.06)",
+              },
+            }}
+          >
             Back to Setup
           </Button>
-          <Button variant="contained" onClick={() => { setShowFinishDialog(false); handleStart(); }} startIcon={<PsychologyIcon />} sx={{ textTransform: "none", fontWeight: 700 }}>
+          <Button
+            variant="contained"
+            onClick={() => { setShowFinishDialog(false); handleStart(); }}
+            startIcon={<PsychologyIcon />}
+            sx={{
+              textTransform: "none",
+              fontWeight: 700,
+              borderRadius: "999px",
+              bgcolor: "#F97316",
+              color: "#0A0A0A",
+              boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
+              "&:hover": { bgcolor: "#FB923C" },
+            }}
+          >
             Play Again
           </Button>
         </DialogActions>

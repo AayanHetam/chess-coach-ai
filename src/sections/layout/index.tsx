@@ -87,8 +87,15 @@ export default function Layout({ children }: PropsWithChildren) {
   // these get the same full-bleed treatment as the landing/preview routes.
   // Scoped to an explicit allowlist on purpose — do NOT broaden the
   // isLandingPage/isPreviewRoute flags, which would affect every route.
+  //
+  // /analysis is included because AnalysisImpl already self-hosts its own
+  // dark analysisTheme + GradientBackdrop + <SharedNavPill active="analysis">;
+  // before this it took the else branch and rendered the legacy NavBar ON TOP
+  // of its own glass pill (a double-nav left over from the cutover).
   const isGlassRoute =
-    router.pathname === "/play" || router.pathname === "/profile";
+    router.pathname === "/play" ||
+    router.pathname === "/profile" ||
+    router.pathname === "/analysis";
 
   // Landing page, preview route, or a glass cutover route: skip NavBar and
   // app chrome for a full-bleed look.

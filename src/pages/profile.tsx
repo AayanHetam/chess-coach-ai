@@ -11,9 +11,14 @@ import {
   IconButton,
   Tooltip,
 } from "@mui/material";
+import { ThemeProvider } from "@mui/material/styles";
+import Head from "next/head";
 import { useAtomValue } from "jotai";
 import { PageTitle } from "@/components/pageTitle";
-import { puzzleStatsAtom, getSolveRate, formatTime } from "@/lib/puzzleRating";
+import { chessMastiDarkTheme } from "@/theme/chessMasti";
+import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
+import { NavPill } from "@/components/ui/NavPill";
+import { puzzleStatsAtom, getSolveRate } from "@/lib/puzzleRating";
 import { gameRecordsAtom, buildProfile, generateRecommendations } from "@/lib/playerProfile";
 import { drillProgressAtom } from "@/lib/spacedRepetition";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
@@ -133,11 +138,39 @@ export default function Profile() {
       : 0;
 
   return (
-    <>
+    <ThemeProvider theme={chessMastiDarkTheme}>
       <PageTitle title="Chess Masti AI - Player Profile" />
-      <Box sx={{ width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } }}>
+      <Head>
+        <meta name="color-scheme" content="dark" />
+        <meta name="theme-color" content="#08090C" />
+        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
+      </Head>
+
+      <GradientBackdrop />
+
+      <Box
+        sx={{
+          minHeight: "100vh",
+          color: "rgba(255,255,255,0.94)",
+          pt: 2,
+          pb: 4,
+          px: { xs: 2, md: 3 },
+        }}
+      >
+        <NavPill active="profile" />
         <Box sx={{ maxWidth: 1100, mx: "auto" }}>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 800,
+              letterSpacing: "-0.025em",
+              mb: 3,
+              background: "linear-gradient(135deg, #F97316, #FB923C, #FBBF24)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
             Your Progress Dashboard
           </Typography>
 
@@ -145,7 +178,16 @@ export default function Profile() {
           <Grid container spacing={2} sx={{ mb: 3 }}>
             {/* Puzzle Rating */}
             <Grid size={{ xs: 6, sm: 3 }}>
-              <Paper sx={{ p: 2, textAlign: "center", bgcolor: "grey.900", borderRadius: 2 }}>
+              <Paper
+                sx={{
+                  p: 2.5,
+                  textAlign: "center",
+                  borderRadius: "1rem",
+                  background: "rgba(20,22,28,0.5)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+                }}
+              >
                 <ExtensionIcon sx={{ color: "primary.main", mb: 0.5 }} />
                 <Typography variant="h4" sx={{ fontWeight: 800, color: "primary.light" }}>
                   {puzzleStats.rating}
@@ -158,7 +200,16 @@ export default function Profile() {
 
             {/* Games Played */}
             <Grid size={{ xs: 6, sm: 3 }}>
-              <Paper sx={{ p: 2, textAlign: "center", bgcolor: "grey.900", borderRadius: 2 }}>
+              <Paper
+                sx={{
+                  p: 2.5,
+                  textAlign: "center",
+                  borderRadius: "1rem",
+                  background: "rgba(20,22,28,0.5)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+                }}
+              >
                 <EmojiEventsIcon sx={{ color: "warning.main", mb: 0.5 }} />
                 <Typography variant="h4" sx={{ fontWeight: 800, color: "grey.100" }}>
                   {profile.totalGames}
@@ -171,7 +222,16 @@ export default function Profile() {
 
             {/* Puzzles Solved */}
             <Grid size={{ xs: 6, sm: 3 }}>
-              <Paper sx={{ p: 2, textAlign: "center", bgcolor: "grey.900", borderRadius: 2 }}>
+              <Paper
+                sx={{
+                  p: 2.5,
+                  textAlign: "center",
+                  borderRadius: "1rem",
+                  background: "rgba(20,22,28,0.5)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+                }}
+              >
                 <TrendingUpIcon sx={{ color: "success.main", mb: 0.5 }} />
                 <Typography variant="h4" sx={{ fontWeight: 800, color: "success.light" }}>
                   {puzzleStats.totalSolved}
@@ -184,7 +244,16 @@ export default function Profile() {
 
             {/* Opening Lines */}
             <Grid size={{ xs: 6, sm: 3 }}>
-              <Paper sx={{ p: 2, textAlign: "center", bgcolor: "grey.900", borderRadius: 2 }}>
+              <Paper
+                sx={{
+                  p: 2.5,
+                  textAlign: "center",
+                  borderRadius: "1rem",
+                  background: "rgba(20,22,28,0.5)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+                }}
+              >
                 <MenuBookIcon sx={{ color: "info.main", mb: 0.5 }} />
                 <Typography variant="h4" sx={{ fontWeight: 800, color: "info.light" }}>
                   {totalDrilled}
@@ -200,7 +269,20 @@ export default function Profile() {
           <Grid container spacing={2} sx={{ mb: 3 }}>
             {/* Puzzle Rating History */}
             <Grid size={{ xs: 12, md: 8 }}>
-              <Paper sx={{ p: 2.5, bgcolor: "grey.900", borderRadius: 2, height: "100%" }}>
+              <Paper
+                sx={{
+                  p: 2.5,
+                  height: "100%",
+                  borderRadius: "1.5rem",
+                  background: "rgba(20,22,28,0.55)",
+                  backdropFilter: "blur(14px) saturate(140%)",
+                  WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  boxShadow:
+                    "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                  overflow: "hidden",
+                }}
+              >
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100", mb: 1 }}>
                   Puzzle Rating Over Time
                 </Typography>
@@ -211,7 +293,7 @@ export default function Profile() {
                         <XAxis dataKey="time" tick={{ fontSize: 10, fill: "#777" }} />
                         <YAxis domain={["dataMin - 50", "dataMax + 50"]} tick={{ fontSize: 10, fill: "#777" }} />
                         <RechartsTooltip
-                          contentStyle={{ backgroundColor: "#333", border: "none", borderRadius: 8, fontSize: 12 }}
+                          contentStyle={{ backgroundColor: "rgba(20,22,28,0.92)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12, color: "rgba(255,255,255,0.94)" }}
                         />
                         <Line type="monotone" dataKey="rating" stroke="#42a5f5" strokeWidth={2} dot={false} />
                       </LineChart>
@@ -229,7 +311,20 @@ export default function Profile() {
 
             {/* Win/Draw/Loss */}
             <Grid size={{ xs: 12, md: 4 }}>
-              <Paper sx={{ p: 2.5, bgcolor: "grey.900", borderRadius: 2, height: "100%" }}>
+              <Paper
+                sx={{
+                  p: 2.5,
+                  height: "100%",
+                  borderRadius: "1.5rem",
+                  background: "rgba(20,22,28,0.55)",
+                  backdropFilter: "blur(14px) saturate(140%)",
+                  WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  boxShadow:
+                    "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                  overflow: "hidden",
+                }}
+              >
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100", mb: 1 }}>
                   Game Results
                 </Typography>
@@ -252,7 +347,7 @@ export default function Profile() {
                             ))}
                           </Pie>
                           <RechartsTooltip
-                            contentStyle={{ backgroundColor: "#333", border: "none", borderRadius: 8, fontSize: 12 }}
+                            contentStyle={{ backgroundColor: "rgba(20,22,28,0.92)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12, color: "rgba(255,255,255,0.94)" }}
                           />
                         </PieChart>
                       </ResponsiveContainer>
@@ -278,7 +373,20 @@ export default function Profile() {
           <Grid container spacing={2} sx={{ mb: 3 }}>
             {/* Phase Accuracy */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <Paper sx={{ p: 2.5, bgcolor: "grey.900", borderRadius: 2, height: "100%" }}>
+              <Paper
+                sx={{
+                  p: 2.5,
+                  height: "100%",
+                  borderRadius: "1.5rem",
+                  background: "rgba(20,22,28,0.55)",
+                  backdropFilter: "blur(14px) saturate(140%)",
+                  WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  boxShadow:
+                    "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                  overflow: "hidden",
+                }}
+              >
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100", mb: 2 }}>
                   Phase Accuracy
                 </Typography>
@@ -289,7 +397,7 @@ export default function Profile() {
                         <XAxis dataKey="phase" tick={{ fontSize: 12, fill: "#aaa" }} />
                         <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "#777" }} />
                         <RechartsTooltip
-                          contentStyle={{ backgroundColor: "#333", border: "none", borderRadius: 8, fontSize: 12 }}
+                          contentStyle={{ backgroundColor: "rgba(20,22,28,0.92)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12, color: "rgba(255,255,255,0.94)" }}
                           formatter={(value: number) => [`${value}%`, "Accuracy"]}
                         />
                         <Bar dataKey="accuracy" radius={[4, 4, 0, 0]}>
@@ -312,7 +420,20 @@ export default function Profile() {
 
             {/* Recommendations */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <Paper sx={{ p: 2.5, bgcolor: "grey.900", borderRadius: 2, height: "100%" }}>
+              <Paper
+                sx={{
+                  p: 2.5,
+                  height: "100%",
+                  borderRadius: "1.5rem",
+                  background: "rgba(20,22,28,0.55)",
+                  backdropFilter: "blur(14px) saturate(140%)",
+                  WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  boxShadow:
+                    "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                  overflow: "hidden",
+                }}
+              >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
                   <LightbulbIcon sx={{ color: "warning.main" }} />
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100" }}>
@@ -325,12 +446,12 @@ export default function Profile() {
                     sx={{
                       p: 1.5,
                       mb: 1,
-                      borderRadius: 1,
-                      bgcolor: "rgba(255,167,38,0.06)",
-                      border: "1px solid rgba(255,167,38,0.15)",
+                      borderRadius: "10px",
+                      background: "rgba(249,115,22,0.08)",
+                      border: "1px solid rgba(249,115,22,0.32)",
                     }}
                   >
-                    <Typography variant="body2" sx={{ color: "grey.200" }}>
+                    <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.9)" }}>
                       {rec}
                     </Typography>
                   </Box>
@@ -341,7 +462,20 @@ export default function Profile() {
 
           {/* Puzzle Theme Performance */}
           {Object.keys(puzzleStats.themeStats).length > 0 && (
-            <Paper sx={{ p: 2.5, bgcolor: "grey.900", borderRadius: 2, mb: 3 }}>
+            <Paper
+              sx={{
+                p: 2.5,
+                mb: 3,
+                borderRadius: "1.5rem",
+                background: "rgba(20,22,28,0.55)",
+                backdropFilter: "blur(14px) saturate(140%)",
+                WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow:
+                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                overflow: "hidden",
+              }}
+            >
               <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100", mb: 2 }}>
                 Puzzle Theme Performance
               </Typography>
@@ -359,16 +493,22 @@ export default function Profile() {
                         sx={{
                           bgcolor:
                             rate >= 70
-                              ? "rgba(76,175,80,0.12)"
+                              ? "rgba(34,197,94,0.14)"
                               : rate >= 40
-                              ? "rgba(255,193,7,0.12)"
-                              : "rgba(244,67,54,0.12)",
+                              ? "rgba(251,191,36,0.14)"
+                              : "rgba(239,68,68,0.14)",
+                          border:
+                            rate >= 70
+                              ? "1px solid rgba(34,197,94,0.3)"
+                              : rate >= 40
+                              ? "1px solid rgba(251,191,36,0.3)"
+                              : "1px solid rgba(239,68,68,0.3)",
                           color:
                             rate >= 70
-                              ? "success.light"
+                              ? "#86efac"
                               : rate >= 40
-                              ? "warning.light"
-                              : "error.light",
+                              ? "#FBBF24"
+                              : "#fca5a5",
                           fontSize: "0.75rem",
                         }}
                       />
@@ -383,7 +523,21 @@ export default function Profile() {
               since the underlying useGameDatabase + cloud sync require
               auth. */}
           {user && (
-            <Paper sx={{ p: 2.5, bgcolor: "grey.900", borderRadius: 2, mb: 3 }}>
+            <Paper
+              sx={{
+                position: "relative",
+                p: 2.5,
+                mb: 3,
+                borderRadius: "1.5rem",
+                background: "rgba(20,22,28,0.55)",
+                backdropFilter: "blur(14px) saturate(140%)",
+                WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow:
+                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                overflow: "hidden",
+              }}
+            >
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100" }}>
                   Saved Games
@@ -401,7 +555,11 @@ export default function Profile() {
                   size="small"
                   variant="text"
                   onClick={() => router.push("/analysis")}
-                  sx={{ textTransform: "none", color: "primary.light" }}
+                  sx={{
+                    textTransform: "none",
+                    color: "#FB923C",
+                    "&:hover": { color: "#FDBA74", bgcolor: "rgba(249,115,22,0.08)" },
+                  }}
                 >
                   Analyse a new game →
                 </Button>
@@ -411,9 +569,10 @@ export default function Profile() {
                   sx={{
                     p: 3,
                     textAlign: "center",
-                    borderRadius: 1.5,
+                    borderRadius: "12px",
                     border: "1px dashed rgba(255,255,255,0.12)",
-                    color: "grey.500",
+                    background: "rgba(255,255,255,0.02)",
+                    color: "rgba(255,255,255,0.5)",
                   }}
                 >
                   <Typography variant="body2" sx={{ mb: 0.5 }}>
@@ -439,16 +598,22 @@ export default function Profile() {
                         <Box
                           sx={{
                             p: 1.75,
-                            borderRadius: 1.5,
+                            borderRadius: "12px",
                             border: "1px solid rgba(255,255,255,0.08)",
-                            bgcolor: "rgba(255,255,255,0.02)",
+                            background: "rgba(20,22,28,0.5)",
+                            backdropFilter: "blur(14px) saturate(140%)",
+                            WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
                             display: "flex",
                             flexDirection: "column",
                             gap: 1,
-                            transition: "border-color 160ms ease, background 160ms ease",
+                            transition: "all 200ms cubic-bezier(0.22,0.61,0.36,1)",
                             "&:hover": {
                               borderColor: "rgba(249,115,22,0.4)",
-                              bgcolor: "rgba(249,115,22,0.04)",
+                              background:
+                                "linear-gradient(180deg, rgba(249,115,22,0.06), rgba(20,22,28,0.6))",
+                              boxShadow:
+                                "0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(249,115,22,0.18)",
                             },
                           }}
                         >
@@ -480,8 +645,10 @@ export default function Profile() {
                                 sx={{
                                   height: 18,
                                   fontSize: "0.65rem",
-                                  bgcolor: "rgba(255,255,255,0.06)",
-                                  color: "grey.300",
+                                  background: "rgba(255,255,255,0.06)",
+                                  border: "1px solid rgba(255,255,255,0.08)",
+                                  color: "rgba(255,255,255,0.7)",
+                                  fontFamily: "Monaco, Menlo, monospace",
                                 }}
                               />
                             )}
@@ -500,8 +667,8 @@ export default function Profile() {
                             {transcriptCount > 0 && (
                               <Tooltip title={`${transcriptCount} coach message${transcriptCount === 1 ? "" : "s"} saved`}>
                                 <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.4, ml: "auto" }}>
-                                  <ForumOutlinedIcon sx={{ fontSize: 14, color: "primary.light" }} />
-                                  <Typography variant="caption" sx={{ color: "primary.light", fontWeight: 600 }}>
+                                  <ForumOutlinedIcon sx={{ fontSize: 14, color: "#FB923C" }} />
+                                  <Typography variant="caption" sx={{ color: "#FB923C", fontWeight: 600 }}>
                                     {transcriptCount}
                                   </Typography>
                                 </Box>
@@ -518,6 +685,14 @@ export default function Profile() {
                                 textTransform: "none",
                                 fontSize: "0.78rem",
                                 py: 0.4,
+                                borderRadius: "10px",
+                                color: "#FB923C",
+                                borderColor: "rgba(249,115,22,0.4)",
+                                transition: "all 180ms ease",
+                                "&:hover": {
+                                  borderColor: "rgba(249,115,22,0.6)",
+                                  bgcolor: "rgba(249,115,22,0.08)",
+                                },
                               }}
                             >
                               Open
@@ -527,8 +702,9 @@ export default function Profile() {
                               aria-label="Delete saved game"
                               onClick={() => handleDeleteSavedGame(g.id)}
                               sx={{
-                                color: "grey.500",
-                                "&:hover": { color: "error.light", bgcolor: "rgba(239,68,68,0.08)" },
+                                color: "rgba(255,255,255,0.5)",
+                                transition: "all 180ms ease",
+                                "&:hover": { color: "#fca5a5", bgcolor: "rgba(239,68,68,0.12)" },
                               }}
                             >
                               <DeleteOutlineIcon sx={{ fontSize: 18 }} />
@@ -546,23 +722,41 @@ export default function Profile() {
             <Paper
               sx={{
                 p: 2.5,
-                bgcolor: "grey.900",
-                borderRadius: 2,
                 mb: 3,
                 textAlign: "center",
+                borderRadius: "1.5rem",
+                background: "rgba(20,22,28,0.55)",
+                backdropFilter: "blur(14px) saturate(140%)",
+                WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow:
+                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                overflow: "hidden",
               }}
             >
-              <Typography variant="body2" sx={{ color: "grey.300", mb: 1 }}>
+              <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.9)", mb: 1 }}>
                 Sign in to save analyzed games and their coach conversations.
               </Typography>
-              <Typography variant="caption" sx={{ color: "grey.500" }}>
+              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
                 Each save persists the PGN, Stockfish eval, and the full chat — so you can pick up where you left off on any device.
               </Typography>
             </Paper>
           )}
 
           {/* Quick Actions */}
-          <Paper sx={{ p: 2.5, bgcolor: "grey.900", borderRadius: 2 }}>
+          <Paper
+            sx={{
+              p: 2.5,
+              borderRadius: "1.5rem",
+              background: "rgba(20,22,28,0.55)",
+              backdropFilter: "blur(14px) saturate(140%)",
+              WebkitBackdropFilter: "blur(14px) saturate(140%)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow:
+                "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+              overflow: "hidden",
+            }}
+          >
             <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100", mb: 2 }}>
               Quick Actions
             </Typography>
@@ -571,7 +765,17 @@ export default function Profile() {
                 variant="outlined"
                 startIcon={<ExtensionIcon />}
                 onClick={() => router.push("/practice")}
-                sx={{ textTransform: "none" }}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: "12px",
+                  color: "#FB923C",
+                  borderColor: "rgba(249,115,22,0.4)",
+                  transition: "all 180ms ease",
+                  "&:hover": {
+                    borderColor: "rgba(249,115,22,0.6)",
+                    bgcolor: "rgba(249,115,22,0.08)",
+                  },
+                }}
               >
                 Practice Puzzles
               </Button>
@@ -579,7 +783,17 @@ export default function Profile() {
                 variant="outlined"
                 startIcon={<MenuBookIcon />}
                 onClick={() => router.push("/openings")}
-                sx={{ textTransform: "none" }}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: "12px",
+                  color: "#FB923C",
+                  borderColor: "rgba(249,115,22,0.4)",
+                  transition: "all 180ms ease",
+                  "&:hover": {
+                    borderColor: "rgba(249,115,22,0.6)",
+                    bgcolor: "rgba(249,115,22,0.08)",
+                  },
+                }}
               >
                 Drill Openings
               </Button>
@@ -587,7 +801,17 @@ export default function Profile() {
                 variant="outlined"
                 startIcon={<SchoolIcon />}
                 onClick={() => router.push("/analysis")}
-                sx={{ textTransform: "none" }}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: "12px",
+                  color: "#FB923C",
+                  borderColor: "rgba(249,115,22,0.4)",
+                  transition: "all 180ms ease",
+                  "&:hover": {
+                    borderColor: "rgba(249,115,22,0.6)",
+                    bgcolor: "rgba(249,115,22,0.08)",
+                  },
+                }}
               >
                 Analyze a Game
               </Button>
@@ -595,6 +819,6 @@ export default function Profile() {
           </Paper>
         </Box>
       </Box>
-    </>
+    </ThemeProvider>
   );
 }

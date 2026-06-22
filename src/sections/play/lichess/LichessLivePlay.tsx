@@ -119,14 +119,15 @@ export default function LichessLivePlay() {
               width: 88,
               height: 88,
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+              background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 8px 32px rgba(255,107,53,0.25)',
+              color: '#0A0A0A',
+              boxShadow: '0 0 32px rgba(249,115,22,0.4), inset 0 1px 0 rgba(255,255,255,0.18)',
             }}
           >
-            <Icon icon="simple-icons:lichess" width={44} style={{ color: '#fff' }} />
+            <Icon icon="simple-icons:lichess" width={44} style={{ color: '#0A0A0A' }} />
           </Box>
 
           <Stack spacing={1} alignItems="center" textAlign="center">
@@ -153,9 +154,13 @@ export default function LichessLivePlay() {
             spacing={2}
             sx={{
               width: '100%',
-              bgcolor: 'rgba(255,107,53,0.04)',
-              borderRadius: 3,
               p: 2.5,
+              borderRadius: '1.5rem',
+              background: 'rgba(20,22,28,0.55)',
+              backdropFilter: 'blur(14px) saturate(140%)',
+              WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
             }}
           >
             <FeaturePill icon="mdi:earth" text="Play real opponents worldwide" />
@@ -172,15 +177,18 @@ export default function LichessLivePlay() {
             startIcon={<Icon icon="simple-icons:lichess" />}
             sx={{
               textTransform: 'none',
-              fontWeight: 800,
+              fontWeight: 600,
               py: 1.6,
               fontSize: '1.05rem',
-              borderRadius: 3,
-              background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-              boxShadow: '0 4px 20px rgba(255,107,53,0.3)',
+              borderRadius: '12px',
+              bgcolor: '#F97316',
+              color: '#0A0A0A',
+              boxShadow: '0 0 0 1px rgba(249,115,22,0.5), 0 8px 32px rgba(249,115,22,0.25)',
+              transition: 'all 180ms ease',
               '&:hover': {
-                background: 'linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)',
-                boxShadow: '0 6px 24px rgba(255,107,53,0.4)',
+                bgcolor: '#FB923C',
+                transform: 'translateY(-1px)',
+                boxShadow: '0 0 0 1px rgba(249,115,22,0.6), 0 10px 36px rgba(249,115,22,0.35)',
               },
             }}
           >
@@ -237,7 +245,8 @@ export default function LichessLivePlay() {
                 width: 14,
                 height: 14,
                 borderRadius: '50%',
-                bgcolor: '#FF6B35',
+                bgcolor: '#F97316',
+                boxShadow: '0 0 8px rgba(249,115,22,0.6)',
                 animation: 'pulse 1.4s ease-in-out infinite',
                 '@keyframes pulse': {
                   '0%, 100%': { opacity: 1, transform: 'scale(1)' },
@@ -256,8 +265,12 @@ export default function LichessLivePlay() {
               width: '100%',
               aspectRatio: '1',
               maxWidth: 400,
-              borderRadius: 4,
-              background: 'linear-gradient(145deg, rgba(255,107,53,0.08) 0%, rgba(255,140,66,0.15) 50%, rgba(255,107,53,0.06) 100%)',
+              borderRadius: '1.5rem',
+              background: 'linear-gradient(135deg, rgba(249,115,22,0.08), rgba(20,22,28,0.6))',
+              backdropFilter: 'blur(16px) saturate(150%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.4)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -273,10 +286,10 @@ export default function LichessLivePlay() {
                 inset: 0,
                 opacity: 0.06,
                 backgroundImage: `
-                  linear-gradient(45deg, #FF6B35 25%, transparent 25%),
-                  linear-gradient(-45deg, #FF6B35 25%, transparent 25%),
-                  linear-gradient(45deg, transparent 75%, #FF6B35 75%),
-                  linear-gradient(-45deg, transparent 75%, #FF6B35 75%)
+                  linear-gradient(45deg, rgba(249,115,22,0.12) 25%, transparent 25%),
+                  linear-gradient(-45deg, rgba(249,115,22,0.12) 25%, transparent 25%),
+                  linear-gradient(45deg, transparent 75%, rgba(249,115,22,0.12) 75%),
+                  linear-gradient(-45deg, transparent 75%, rgba(249,115,22,0.12) 75%)
                 `,
                 backgroundSize: '60px 60px',
                 backgroundPosition: '0 0, 0 30px, 30px -30px, -30px 0px',
@@ -287,12 +300,12 @@ export default function LichessLivePlay() {
               icon="mdi:crown"
               width={64}
               style={{
-                color: '#FF6B35',
+                color: '#FB923C',
                 marginBottom: 12,
-                filter: 'drop-shadow(0 4px 12px rgba(255,107,53,0.3))',
+                filter: 'drop-shadow(0 0 8px rgba(249,115,22,0.5))',
               }}
             />
-            <Typography sx={{ fontWeight: 800, fontSize: '1.25rem', color: '#FF6B35' }}>
+            <Typography sx={{ fontWeight: 800, fontSize: '1.25rem', color: '#FB923C' }}>
               Finding opponent…
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -306,11 +319,15 @@ export default function LichessLivePlay() {
             sx={{
               textTransform: 'none',
               fontWeight: 700,
-              borderRadius: 3,
+              borderRadius: '12px',
               px: 4,
-              borderColor: 'divider',
-              color: 'text.primary',
-              '&:hover': { bgcolor: 'rgba(0,0,0,0.04)' },
+              color: 'rgba(255,255,255,0.94)',
+              borderColor: 'rgba(255,255,255,0.12)',
+              transition: 'all 180ms ease',
+              '&:hover': {
+                borderColor: 'rgba(255,255,255,0.2)',
+                bgcolor: 'rgba(255,255,255,0.07)',
+              },
             }}
           >
             Abort
@@ -327,11 +344,15 @@ export default function LichessLivePlay() {
         {/* ── Profile card ── */}
         <Box
           sx={{
-            borderRadius: 4,
-            border: '1px solid',
-            borderColor: 'divider',
+            position: 'relative',
             p: 3,
-            bgcolor: 'background.paper',
+            borderRadius: '1.5rem',
+            background: 'rgba(20,22,28,0.55)',
+            backdropFilter: 'blur(14px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+            overflow: 'hidden',
           }}
         >
           <Stack spacing={2.5}>
@@ -343,14 +364,15 @@ export default function LichessLivePlay() {
                     width: 52,
                     height: 52,
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+                    background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#fff',
+                    color: '#0A0A0A',
                     fontSize: '1.3rem',
                     fontWeight: 900,
-                    boxShadow: '0 2px 12px rgba(255,107,53,0.2)',
+                    border: '1px solid rgba(249,115,22,0.45)',
+                    boxShadow: '0 0 12px rgba(249,115,22,0.25)',
                   }}
                 >
                   {(user?.username ?? '?')[0].toUpperCase()}
@@ -372,9 +394,9 @@ export default function LichessLivePlay() {
                 sx={{
                   textTransform: 'none',
                   fontWeight: 600,
-                  color: 'text.secondary',
+                  color: 'rgba(255,255,255,0.55)',
                   fontSize: '0.78rem',
-                  '&:hover': { color: 'error.main' },
+                  '&:hover': { color: '#fca5a5' },
                 }}
               >
                 Disconnect
@@ -388,8 +410,9 @@ export default function LichessLivePlay() {
                   display: 'flex',
                   gap: 2,
                   flexWrap: 'wrap',
-                  bgcolor: 'rgba(0,0,0,0.025)',
-                  borderRadius: 2.5,
+                  bgcolor: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '12px',
                   p: 1.5,
                   px: 2,
                 }}
@@ -417,8 +440,9 @@ export default function LichessLivePlay() {
                 sx={{
                   display: 'flex',
                   gap: 3,
-                  bgcolor: 'rgba(0,0,0,0.025)',
-                  borderRadius: 2.5,
+                  bgcolor: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '12px',
                   p: 1.5,
                   px: 2,
                 }}
@@ -448,11 +472,15 @@ export default function LichessLivePlay() {
         {/* ── Start a game card ── */}
         <Box
           sx={{
-            borderRadius: 4,
-            border: '1px solid',
-            borderColor: 'divider',
+            position: 'relative',
             p: 3,
-            bgcolor: 'background.paper',
+            borderRadius: '1.5rem',
+            background: 'rgba(20,22,28,0.55)',
+            backdropFilter: 'blur(14px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+            overflow: 'hidden',
           }}
         >
           <Stack spacing={3}>
@@ -470,16 +498,19 @@ export default function LichessLivePlay() {
                 onChange={(e) => setRated(e.target.checked)}
                 sx={{
                   '& .MuiSwitch-switchBase.Mui-checked': {
-                    color: '#FF6B35',
+                    color: '#F97316',
                   },
                   '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                    backgroundColor: '#FF6B35',
+                    backgroundColor: 'rgba(249,115,22,0.5)',
+                  },
+                  '& .MuiSwitch-track': {
+                    backgroundColor: 'rgba(255,255,255,0.18)',
                   },
                 }}
               />
             </Stack>
 
-            <Divider />
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
 
             {/* Time control */}
             <Box>
@@ -507,24 +538,22 @@ export default function LichessLivePlay() {
                         textTransform: 'none',
                         fontWeight: 700,
                         fontSize: '0.82rem',
-                        borderRadius: 2.5,
+                        borderRadius: '12px',
                         py: 1,
                         minWidth: 0,
                         ...(selected
                           ? {
-                              background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-                              boxShadow: '0 2px 8px rgba(255,107,53,0.3)',
-                              border: 'none',
-                              '&:hover': {
-                                background: 'linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)',
-                              },
+                              background: 'rgba(249,115,22,0.18)',
+                              border: '1px solid rgba(249,115,22,0.4)',
+                              color: '#FB923C',
                             }
                           : {
-                              borderColor: 'divider',
-                              color: 'text.primary',
+                              background: 'rgba(255,255,255,0.04)',
+                              border: '1px solid rgba(255,255,255,0.08)',
+                              color: 'rgba(255,255,255,0.94)',
+                              transition: 'all 180ms ease',
                               '&:hover': {
-                                bgcolor: 'rgba(255,107,53,0.06)',
-                                borderColor: '#FF6B35',
+                                background: 'rgba(255,255,255,0.07)',
                               },
                             }),
                       }}
@@ -544,7 +573,7 @@ export default function LichessLivePlay() {
               </Typography>
             </Box>
 
-            <Divider />
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
 
             {/* Color select */}
             <Box>
@@ -572,22 +601,21 @@ export default function LichessLivePlay() {
                       sx={{
                         textTransform: 'capitalize',
                         fontWeight: 700,
-                        borderRadius: 2.5,
+                        borderRadius: '12px',
                         flex: 1,
                         ...(sel
                           ? {
-                              background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-                              border: 'none',
-                              '&:hover': {
-                                background: 'linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)',
-                              },
+                              background: 'rgba(249,115,22,0.18)',
+                              border: '1px solid rgba(249,115,22,0.4)',
+                              color: '#FB923C',
                             }
                           : {
-                              borderColor: 'divider',
-                              color: 'text.primary',
+                              background: 'rgba(255,255,255,0.04)',
+                              border: '1px solid rgba(255,255,255,0.08)',
+                              color: 'rgba(255,255,255,0.94)',
+                              transition: 'all 180ms ease',
                               '&:hover': {
-                                bgcolor: 'rgba(255,107,53,0.06)',
-                                borderColor: '#FF6B35',
+                                background: 'rgba(255,255,255,0.07)',
                               },
                             }),
                       }}
@@ -617,15 +645,22 @@ export default function LichessLivePlay() {
               }}
               sx={{
                 textTransform: 'none',
-                fontWeight: 800,
+                fontWeight: 600,
                 py: 1.6,
                 fontSize: '1.05rem',
-                borderRadius: 3,
-                background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-                boxShadow: '0 4px 20px rgba(255,107,53,0.3)',
+                borderRadius: '12px',
+                bgcolor: '#F97316',
+                color: '#0A0A0A',
+                boxShadow: '0 0 0 1px rgba(249,115,22,0.5), 0 8px 32px rgba(249,115,22,0.25)',
+                transition: 'all 180ms ease',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)',
-                  boxShadow: '0 6px 24px rgba(255,107,53,0.4)',
+                  bgcolor: '#FB923C',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 0 0 1px rgba(249,115,22,0.6), 0 10px 36px rgba(249,115,22,0.35)',
+                },
+                '&.Mui-disabled': {
+                  bgcolor: 'rgba(249,115,22,0.25)',
+                  color: 'rgba(255,255,255,0.4)',
                 },
               }}
             >
@@ -636,7 +671,7 @@ export default function LichessLivePlay() {
 
         {/* Footer */}
         <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="center" sx={{ pb: 2 }}>
-          <Icon icon="simple-icons:lichess" width={14} style={{ color: '#999' }} />
+          <Icon icon="simple-icons:lichess" width={14} style={{ color: 'rgba(255,255,255,0.5)' }} />
           <Typography variant="caption" color="text.secondary">
             Powered by Lichess
           </Typography>
@@ -656,14 +691,15 @@ function FeaturePill({ icon, text }: { icon: string; text: string }) {
           width: 32,
           height: 32,
           borderRadius: '50%',
-          bgcolor: 'rgba(255,107,53,0.1)',
+          bgcolor: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.08)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
         }}
       >
-        <Icon icon={icon} width={16} style={{ color: '#FF6B35' }} />
+        <Icon icon={icon} width={16} style={{ color: '#FB923C' }} />
       </Box>
       <Typography variant="body2" sx={{ fontWeight: 600 }}>
         {text}
@@ -675,7 +711,7 @@ function FeaturePill({ icon, text }: { icon: string; text: string }) {
 function StatItem({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
     <Stack direction="row" spacing={1} alignItems="center">
-      <Icon icon={icon} width={18} style={{ color: '#FF6B35' }} />
+      <Icon icon={icon} width={18} style={{ color: '#FB923C' }} />
       <Box>
         <Typography
           sx={{

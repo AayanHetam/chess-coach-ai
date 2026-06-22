@@ -92,18 +92,21 @@ describe("buildJudgePacket — shape & deterministic fields (fake engine)", () =
     expect(p.stockfish.evalDeltaCpMoverPov).toBe(-150);
   });
 
-  it("classifies a >=300cp swing as a blunder and ~0 swing as okay", async () => {
-    const blunderEngine = fakeEngine({ beforeBestUci: "e2e4", beforeScoreCp: 50, afterScoreCp: -300 });
+  it("classifies by LOSS vs best, and never calls the best move a mistake", async () => {
+    // Played e4 but engine best is d4 → mover loses 350cp → blunder.
+    const blunderEngine = fakeEngine({ beforeBestUci: "d2d4", beforeScoreCp: 50, afterScoreCp: -300 });
     const blunder = await buildJudgePacket({
       fenBefore: STARTPOS, movePlayedSan: "e4", playerColor: "w", userRating: 1500, engine: blunderEngine,
     });
     expect(blunder.stockfish.classification).toBe(MoveClassification.Blunder);
 
-    const okayEngine = fakeEngine({ beforeBestUci: "e2e4", beforeScoreCp: 40, afterScoreCp: 40 });
-    const okay = await buildJudgePacket({
-      fenBefore: STARTPOS, movePlayedSan: "e4", playerColor: "w", userRating: 1500, engine: okayEngine,
+    // The screenshot bug: played the BEST move (e4 == engine best) and the eval
+    // even rose +91cp → must be "best", NOT "inaccuracy" (old abs-swing bug).
+    const bestEngine = fakeEngine({ beforeBestUci: "e2e4", beforeScoreCp: 40, afterScoreCp: 131 });
+    const best = await buildJudgePacket({
+      fenBefore: STARTPOS, movePlayedSan: "e4", playerColor: "w", userRating: 1500, engine: bestEngine,
     });
-    expect(okay.stockfish.classification).toBe(MoveClassification.Okay);
+    expect(best.stockfish.classification).toBe(MoveClassification.Best);
   });
 });
 

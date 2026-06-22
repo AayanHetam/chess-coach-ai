@@ -7,8 +7,8 @@
  * All inputs are pure chess.js / Stockfish; importable under vitest and tsx.
  */
 import { Chess } from "chess.js";
+import { MoveClassification } from "../../src/types/enums";
 import { normalizeEval, type EngineScore } from "./stockfish";
-import { classifyBySwing } from "./checkpoints";
 import { detectMotifs } from "@/lib/tactics";
 import { compute_feature_delta, type PositionFeatureDelta } from "@/lib/mastermind/featureDelta";
 import type { JudgePacket, StockfishPacket, EngineLike } from "./helpfulnessTypes";
@@ -89,6 +89,26 @@ function signed(n: number): string {
   return n > 0 ? `+${n}` : `${n}`;
 }
 
+/**
+ * Classify the played move by the cp it LOST relative to best (mover POV), NOT
+ * the absolute eval swing. The old classifyBySwing(|Δ|) labelled a move that
+ * IMPROVED the eval by 91cp as an "inaccuracy" (|91| ≥ 50) and ignored that the
+ * best move was played. Playing the best move is "best"; a move that gains or
+ * holds ground is "good"; only a move that gives ground is inaccuracy/mistake/blunder.
+ */
+export function classifyPlayedMove(
+  movePlayedUci: string,
+  bestMoveUci: string,
+  evalDeltaCpMoverPov: number,
+): MoveClassification {
+  if (movePlayedUci === bestMoveUci) return MoveClassification.Best;
+  const loss = Math.max(0, -evalDeltaCpMoverPov); // cp the mover gave up (≥0)
+  if (loss >= 300) return MoveClassification.Blunder;
+  if (loss >= 150) return MoveClassification.Mistake;
+  if (loss >= 50) return MoveClassification.Inaccuracy;
+  return MoveClassification.Good;
+}
+
 export interface BuildJudgePacketArgs {
   fenBefore: string;
   movePlayedSan: string;
@@ -128,7 +148,7 @@ export async function buildJudgePacket(args: BuildJudgePacketArgs): Promise<Judg
   const bestMoveSan = uciToSan(args.fenBefore, bestMoveUci);
 
   // 4. Classification from the absolute swing (descriptive metadata).
-  const classification = classifyBySwing(Math.abs(evalAfterCp - evalBeforeCp));
+  const classification = classifyPlayedMove(movePlayedUci, bestMoveUci, evalDeltaCpMoverPov);
 
   // 5. Top-3 multi-PV rows as SAN.
   const multiPv: StockfishPacket["multiPv"] = before.slice(0, 3).map((line) => {

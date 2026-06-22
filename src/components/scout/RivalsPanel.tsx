@@ -18,16 +18,19 @@ export default function RivalsPanel({ rivals }: RivalsPanelProps) {
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 3,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
+        borderRadius: '1.5rem',
+        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(20,22,28,0.55)',
+        backdropFilter: 'blur(14px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+        overflow: 'hidden',
         height: '100%',
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <Icon icon="mdi:account-group" width={20} style={{ color: '#FF6B35' }} />
-        <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>Frequent Rivals</Typography>
+        <Icon icon="mdi:account-group" width={20} style={{ color: '#FB923C' }} />
+        <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>Frequent Rivals</Typography>
         <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
           (3+ games)
         </Typography>
@@ -41,7 +44,7 @@ export default function RivalsPanel({ rivals }: RivalsPanelProps) {
             color: 'text.secondary',
             borderRadius: 2,
             border: '1px dashed',
-            borderColor: 'divider',
+            borderColor: 'rgba(255,255,255,0.12)',
           }}
         >
           <Typography variant="body2">No repeat opponents in this window.</Typography>
@@ -60,14 +63,15 @@ export default function RivalsPanel({ rivals }: RivalsPanelProps) {
                   alignItems: 'center',
                   px: 1.25,
                   py: 0.75,
-                  borderRadius: 1.5,
-                  bgcolor: 'rgba(0,0,0,0.02)',
+                  borderRadius: '12px',
+                  bgcolor: 'rgba(255,255,255,0.04)',
                 }}
               >
                 <Typography
                   sx={{
                     fontWeight: 600,
                     fontSize: '0.85rem',
+                    color: 'rgba(255,255,255,0.94)',
                     textOverflow: 'ellipsis',
                     overflow: 'hidden',
                     whiteSpace: 'nowrap',
@@ -82,7 +86,7 @@ export default function RivalsPanel({ rivals }: RivalsPanelProps) {
                   <Pill label="L" value={r.losses} color="#ef4444" />
                 </Stack>
 
-                <Typography sx={{ fontWeight: 800, fontSize: '0.9rem', color, minWidth: 44, textAlign: 'right' }}>
+                <Typography sx={{ fontWeight: 800, fontSize: '0.9rem', fontFamily: 'Monaco, monospace', color, minWidth: 44, textAlign: 'right' }}>
                   {r.scorePct.toFixed(0)}%
                 </Typography>
               </Box>

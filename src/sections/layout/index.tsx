@@ -97,7 +97,9 @@ export default function Layout({ children }: PropsWithChildren) {
     router.pathname === "/play" ||
     router.pathname === "/profile" ||
     router.pathname === "/analysis" ||
-    router.pathname === "/plan";
+    router.pathname === "/plan" ||
+    router.pathname === "/openings" ||
+    router.pathname === "/scout";
 
   // Landing page, preview route, or a glass cutover route: skip NavBar and
   // app chrome for a full-bleed look.

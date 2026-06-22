@@ -38,10 +38,14 @@ export default function CollisionPanel({
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 3,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
+        borderRadius: '1.5rem',
+        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(20,22,28,0.55)',
+        backdropFilter: 'blur(14px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+        boxShadow:
+          '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+        overflow: 'hidden',
       }}
     >
       <Stack
@@ -53,16 +57,17 @@ export default function CollisionPanel({
       >
         <Box>
           <Stack direction="row" spacing={1} alignItems="center">
-            <Icon icon="mdi:crosshairs-gps" width={20} style={{ color: '#FF6B35' }} />
-            <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>
+            <Icon icon="mdi:crosshairs-gps" width={20} style={{ color: '#FB923C' }} />
+            <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>
               Collisions · You vs {targetUsername}
             </Typography>
             <Chip
               label="NEW"
               size="small"
               sx={{
-                bgcolor: 'rgba(255,107,53,0.15)',
-                color: '#FF6B35',
+                bgcolor: 'rgba(249,115,22,0.18)',
+                color: '#FB923C',
+                border: '1px solid rgba(249,115,22,0.4)',
                 fontWeight: 800,
                 fontSize: '0.6rem',
                 height: 18,
@@ -87,9 +92,10 @@ export default function CollisionPanel({
               fontWeight: 700,
               fontSize: '0.82rem',
               px: 2,
+              color: 'rgba(255,255,255,0.62)',
             },
-            '& .Mui-selected': { color: '#FF6B35 !important' },
-            '& .MuiTabs-indicator': { background: '#FF6B35', height: 3, borderRadius: 2 },
+            '& .Mui-selected': { color: '#FB923C !important' },
+            '& .MuiTabs-indicator': { background: '#FB923C', height: 3, borderRadius: 2 },
           }}
         >
           <Tab
@@ -113,7 +119,7 @@ export default function CollisionPanel({
             value="black"
             label={
               <Stack direction="row" spacing={0.75} alignItems="center">
-                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#333' }} />
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#3a3a3a', border: '1px solid rgba(255,255,255,0.2)' }} />
                 <span>you as Black</span>
               </Stack>
             }
@@ -169,8 +175,7 @@ function EmptyState({
         textAlign: 'center',
         color: 'text.secondary',
         borderRadius: 2,
-        border: '1px dashed',
-        borderColor: 'divider',
+        border: '1px dashed rgba(255,255,255,0.12)',
       }}
     >
       <Icon icon="mdi:crosshairs-off" width={36} style={{ opacity: 0.4 }} />
@@ -196,14 +201,14 @@ function CollisionCard({
       onClick={onExplore}
       sx={{
         p: 1.5,
-        borderRadius: 2,
-        border: '1px solid',
-        borderColor: 'divider',
+        borderRadius: '12px',
+        border: '1px solid rgba(255,255,255,0.08)',
+        bgcolor: 'rgba(255,255,255,0.03)',
         cursor: 'pointer',
-        transition: 'all 0.15s',
+        transition: 'all 180ms ease',
         '&:hover': {
-          borderColor: '#FF6B35',
-          boxShadow: '0 6px 18px rgba(255,107,53,0.12)',
+          border: '1px solid rgba(249,115,22,0.35)',
+          boxShadow: '0 6px 18px rgba(249,115,22,0.12)',
           transform: 'translateY(-1px)',
         },
       }}
@@ -213,8 +218,8 @@ function CollisionCard({
           label={line.eco}
           size="small"
           sx={{
-            bgcolor: '#0f172a',
-            color: '#fff',
+            bgcolor: 'rgba(255,255,255,0.08)',
+            color: 'rgba(255,255,255,0.94)',
             fontFamily: 'monospace',
             fontWeight: 700,
             fontSize: '0.72rem',
@@ -222,7 +227,7 @@ function CollisionCard({
           }}
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', lineHeight: 1.3 }}>
+          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', lineHeight: 1.3, color: 'rgba(255,255,255,0.94)' }}>
             {line.name}
             {line.variation && (
               <Box component="span" sx={{ color: 'text.secondary', fontWeight: 500, ml: 0.5 }}>
@@ -284,8 +289,8 @@ function CollisionCard({
             textTransform: 'none',
             fontWeight: 700,
             fontSize: '0.72rem',
-            color: '#FF6B35',
-            '&:hover': { bgcolor: 'rgba(255,107,53,0.08)' },
+            color: '#FB923C',
+            '&:hover': { bgcolor: 'rgba(249,115,22,0.08)' },
           }}
         >
           Explore line
@@ -331,7 +336,7 @@ function EdgeBar({
           </Typography>
         </Stack>
       </Stack>
-      <Box sx={{ height: 5, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+      <Box sx={{ height: 5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
         <Box
           sx={{
             width: `${Math.max(3, Math.min(100, score))}%`,

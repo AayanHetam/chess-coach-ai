@@ -22,7 +22,6 @@ import { pieceSetAtom } from "@/components/board/states";
 import { Piece, CustomPieces } from "react-chessboard/dist/chessboard/types";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import PsychologyIcon from "@mui/icons-material/Psychology";
-import TimerIcon from "@mui/icons-material/Timer";
 import type { DifficultyBand } from "@/types/puzzles";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import { puzzleSolvedStatusAtom } from "./states";

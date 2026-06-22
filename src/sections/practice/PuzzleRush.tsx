@@ -18,7 +18,6 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { puzzleSolvedStatusAtom } from "./states";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { pieceSetAtom } from "@/components/board/states";
-import TimerIcon from "@mui/icons-material/Timer";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import BoltIcon from "@mui/icons-material/Bolt";
 import FavoriteIcon from "@mui/icons-material/Favorite";

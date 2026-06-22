@@ -4,17 +4,46 @@
  * MUI / react-chessboard / react-markdown.
  */
 
-export interface CalibrationItem {
+/**
+ * The coach emits two rating UNITS per game review, so calibration items are a
+ * discriminated union on `type`:
+ *   - "insight"   — one key move. Board + move/best/classification/eval come
+ *                   from the coach's own engine-grounded [INSIGHT] header, so
+ *                   the board and the WHY prose always describe the same move.
+ *   - "full_game" — the intro/overall prose (outside any [WHY]); no board.
+ *
+ * Both share `id`, `userRating`, `tier`. The rubric, N/A handling, notes, and
+ * export logic all key off `id` only — they're type-agnostic.
+ */
+interface CalibrationItemBase {
   id: string;
-  fen: string;
-  movePlayedSan: string;
-  bestMoveSan: string;
-  evalDeltaCpMoverPov: number;
-  classification: string;
   userRating: number;
   tier: string;
-  coachText: string;
 }
+
+export interface InsightCalibrationItem extends CalibrationItemBase {
+  type: "insight";
+  fen: string;
+  /** e.g. "8. Qb3" (white) or "7...dxc3" (black). */
+  moveLabel: string;
+  movePlayedSan: string;
+  bestMoveSan: string;
+  classification: string;
+  evalBefore: string;
+  evalAfter: string;
+  /** Non-spoiler headline lede. */
+  description: string;
+  /** Full [WHY] prose, control markers already stripped by the builder. */
+  whyText: string;
+}
+
+export interface FullGameCalibrationItem extends CalibrationItemBase {
+  type: "full_game";
+  /** Cleaned intro/overall review prose. */
+  fullGameAnalysis: string;
+}
+
+export type CalibrationItem = InsightCalibrationItem | FullGameCalibrationItem;
 
 export interface CalibrationData {
   items: CalibrationItem[];
@@ -33,7 +62,9 @@ export type RatingsState = Record<string, ItemRating>;
 export type NotesState = Record<string, string>;
 
 /** Dims are optional: a row may have N/A dims, a partial rating, or be note-only. */
-export type ExportRow = { id: string; notes?: string } & Partial<Record<DimKey, DimScore>>;
+export type ExportRow = { id: string; notes?: string } & Partial<
+  Record<DimKey, DimScore>
+>;
 export interface ExportShape {
   rater: string;
   generatedNote: string;
@@ -144,7 +175,7 @@ export function formatCpDelta(cp: number): string {
  * the underlying Idea/Problem/Solution/Outcome prose is preserved verbatim.
  */
 const CONTROL_TAG_RE =
-  /\[\/?(?:INSIGHT|WHY|CONTINUATION|MAIA_CONTINUATION|THREATS|CONCEPT|MOVE|BOARD|EVAL)[^\]]*\]/g;
+  /\[\/?(?:INSIGHT|WHY|CONTINUATION|MAIA_CONTINUATION|THREATS|ROLES|CONCEPT|ENGINE_LINE|MOVE|BOARD|EVAL|PRACTICE)[^\]]*\]/g;
 
 export function cleanCoachText(text: string): string {
   return text

@@ -1,28 +1,35 @@
 import { describe, it, expect } from "vitest";
-import { buildExport, cleanCoachText, isItemFullyRated } from "./calibrationExport";
+import {
+  buildExport,
+  CalibrationItem,
+  cleanCoachText,
+  isItemFullyRated,
+} from "./calibrationExport";
 
-const items = [
+// One of each item type — the export/N-A/notes logic keys off `id` only, so it
+// is type-agnostic; the union just needs to type-check both shapes.
+const items: CalibrationItem[] = [
   {
+    type: "insight",
     id: "a",
-    fen: "8/8/8/8/8/8/8/8 w - - 0 1",
+    fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    moveLabel: "1. e4",
     movePlayedSan: "e4",
     bestMoveSan: "e4",
-    evalDeltaCpMoverPov: 0,
     classification: "best",
+    evalBefore: "+0.20",
+    evalAfter: "+0.20",
+    description: "A principled first move.",
+    whyText: "Idea: control the center.",
     userRating: 1200,
     tier: "fast",
-    coachText: "x",
   },
   {
+    type: "full_game",
     id: "b",
-    fen: "8/8/8/8/8/8/8/8 w - - 0 1",
-    movePlayedSan: "e4",
-    bestMoveSan: "d4",
-    evalDeltaCpMoverPov: -100,
-    classification: "inaccuracy",
+    fullGameAnalysis: "Let's walk through the key moments.",
     userRating: 1200,
     tier: "fast",
-    coachText: "y",
   },
 ];
 
@@ -81,15 +88,32 @@ describe("buildExport", () => {
     const raw =
       "Let's walk through it.\n\n[INSIGHT:7:b:mistake:-1.05:-1.15:dxc3:Nxd4]\nThis was a clever pawn grab.\n[WHY]\nIdea: snatch c3.\nProblem: opens a queen move.\n[CONTINUATION:7:b]\n[MAIA_CONTINUATION:7:b]\n[/WHY]\n[THREATS]";
     const cleaned = cleanCoachText(raw);
-    expect(cleaned).not.toMatch(/\[INSIGHT|\[WHY|\[CONTINUATION|\[MAIA|\[THREATS|\[\/WHY/);
+    expect(cleaned).not.toMatch(
+      /\[INSIGHT|\[WHY|\[CONTINUATION|\[MAIA|\[THREATS|\[\/WHY/
+    );
     expect(cleaned).toContain("This was a clever pawn grab.");
     expect(cleaned).toContain("Idea: snatch c3.");
     expect(cleaned).toContain("Problem: opens a queen move.");
     expect(cleaned).not.toMatch(/\n{3,}/); // collapsed blank lines
   });
 
+  it("cleanCoachText strips ROLES and CONCEPT markers too", () => {
+    const raw =
+      "Idea: improve the knight.\n[ROLES]\n- The knight on f3 guards e5.\n[/ROLES]\n[CONCEPT:fork:Knight Fork]\nA fork hits two pieces at once.\n[/CONCEPT]";
+    const cleaned = cleanCoachText(raw);
+    expect(cleaned).not.toMatch(/\[ROLES|\[\/ROLES|\[CONCEPT|\[\/CONCEPT/);
+    expect(cleaned).toContain("Idea: improve the knight.");
+    expect(cleaned).toContain("The knight on f3 guards e5.");
+    expect(cleaned).toContain("A fork hits two pieces at once.");
+  });
+
   it("exports a note-only item (rater flagged an issue without full ratings)", () => {
-    const { payload, excludedCount } = buildExport("Casey", items, { a: { d1: 2 } }, { a: "duplicate position" });
+    const { payload, excludedCount } = buildExport(
+      "Casey",
+      items,
+      { a: { d1: 2 } },
+      { a: "duplicate position" }
+    );
     const row = payload.ratings.find((r) => r.id === "a");
     expect(row?.notes).toBe("duplicate position");
     expect(row?.d1).toBe(2);

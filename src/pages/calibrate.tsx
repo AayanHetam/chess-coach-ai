@@ -37,7 +37,6 @@ import {
   DIMENSIONS,
   DimKey,
   DimScore,
-  formatCpDelta,
   isItemFullyRated,
   NotesState,
   RatingsState,
@@ -166,7 +165,12 @@ export default function CalibratePage() {
 
   const handleExport = useCallback(() => {
     if (!items || !rater) return;
-    const { payload, excludedCount } = buildExport(rater, items, ratings, notes);
+    const { payload, excludedCount } = buildExport(
+      rater,
+      items,
+      ratings,
+      notes
+    );
     if (payload.ratings.length === 0) {
       window.alert("No fully-rated items to export yet.");
       return;
@@ -223,7 +227,8 @@ export default function CalibratePage() {
             onClick={handleExport}
             disabled={
               !rater ||
-              (fullyRatedCount === 0 && !Object.values(notes).some((n) => n.trim()))
+              (fullyRatedCount === 0 &&
+                !Object.values(notes).some((n) => n.trim()))
             }
           >
             Export ratings JSON
@@ -250,78 +255,113 @@ export default function CalibratePage() {
 
         {current && (
           <Grid container spacing={2}>
-            {/* LEFT: read-only board */}
-            <Grid size={{ xs: 12, md: 5 }}>
-              <Box sx={{ display: "flex", justifyContent: "center" }}>
-                <Box sx={{ width: boardWidth, maxWidth: "100%" }}>
-                  <Chessboard
-                    id="CalibrateBoard"
-                    position={current.fen}
-                    boardWidth={boardWidth}
-                    arePiecesDraggable={false}
-                    customBoardStyle={{
-                      borderRadius: 8,
-                      boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
+            {/* LEFT: read-only board — INSIGHT items only. Full-game review
+                items have no single board to show. */}
+            {current.type === "insight" && (
+              <Grid size={{ xs: 12, md: 5 }}>
+                <Box sx={{ display: "flex", justifyContent: "center" }}>
+                  <Box sx={{ width: boardWidth, maxWidth: "100%" }}>
+                    <Chessboard
+                      id="CalibrateBoard"
+                      position={current.fen}
+                      boardWidth={boardWidth}
+                      arePiecesDraggable={false}
+                      customBoardStyle={{
+                        borderRadius: 8,
+                        boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
+                      }}
+                    />
+                  </Box>
+                </Box>
+              </Grid>
+            )}
+
+            {/* RIGHT: facts/prose + rubric. Full width for full-game items. */}
+            <Grid size={{ xs: 12, md: current.type === "insight" ? 7 : 12 }}>
+              {current.type === "insight" ? (
+                <>
+                  {/* Insight facts — straight from the coach's [INSIGHT] header,
+                      so they match the board and the WHY prose by construction. */}
+                  <Paper sx={{ p: 2, mb: 2 }}>
+                    <Typography variant="overline" color="text.secondary">
+                      Insight ({current.moveLabel})
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: "auto 1fr",
+                        columnGap: 2,
+                        rowGap: 0.5,
+                        mt: 0.5,
+                      }}
+                    >
+                      <FactLabel>ID</FactLabel>
+                      <FactValue>{current.id}</FactValue>
+                      <FactLabel>Move played</FactLabel>
+                      <FactValue>{current.movePlayedSan}</FactValue>
+                      <FactLabel>Best move</FactLabel>
+                      <FactValue>{current.bestMoveSan}</FactValue>
+                      <FactLabel>Eval (before → after)</FactLabel>
+                      <FactValue>
+                        {current.evalBefore} → {current.evalAfter}
+                      </FactValue>
+                      <FactLabel>Classification</FactLabel>
+                      <FactValue>{current.classification}</FactValue>
+                      <FactLabel>User rating</FactLabel>
+                      <FactValue>{current.userRating}</FactValue>
+                      <FactLabel>Tier</FactLabel>
+                      <FactValue>{current.tier}</FactValue>
+                    </Box>
+                  </Paper>
+
+                  {/* Coach prose for THIS move: headline lede + WHY. */}
+                  <Paper sx={{ p: 2, mb: 2 }}>
+                    <Typography variant="overline" color="text.secondary">
+                      Coach response (this move)
+                    </Typography>
+                    <Box
+                      sx={{
+                        mt: 0.5,
+                        "& p": { mt: 0, mb: 1 },
+                        "& p:last-child": { mb: 0 },
+                      }}
+                    >
+                      {current.description && (
+                        <Typography
+                          variant="body1"
+                          sx={{ fontWeight: 600, mb: 1 }}
+                        >
+                          {current.description}
+                        </Typography>
+                      )}
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {cleanCoachText(current.whyText)}
+                      </ReactMarkdown>
+                    </Box>
+                  </Paper>
+                </>
+              ) : (
+                /* Full-game overall review — no board, no single-move card. */
+                <Paper sx={{ p: 2, mb: 2 }}>
+                  <Typography variant="overline" color="text.secondary">
+                    Overall game review — {current.id} (rating{" "}
+                    {current.userRating}, {current.tier})
+                  </Typography>
+                  <Box
+                    sx={{
+                      mt: 0.5,
+                      "& p": { mt: 0, mb: 1 },
+                      "& p:last-child": { mb: 0 },
                     }}
-                  />
-                </Box>
-              </Box>
-            </Grid>
+                  >
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {cleanCoachText(current.fullGameAnalysis)}
+                    </ReactMarkdown>
+                  </Box>
+                </Paper>
+              )}
 
-            {/* RIGHT: facts + coach text + rubric */}
-            <Grid size={{ xs: 12, md: 7 }}>
-              {/* Facts panel */}
-              <Paper sx={{ p: 2, mb: 2 }}>
-                <Typography variant="overline" color="text.secondary">
-                  Position facts
-                </Typography>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "auto 1fr",
-                    columnGap: 2,
-                    rowGap: 0.5,
-                    mt: 0.5,
-                  }}
-                >
-                  <FactLabel>ID</FactLabel>
-                  <FactValue>{current.id}</FactValue>
-                  <FactLabel>Move played</FactLabel>
-                  <FactValue>{current.movePlayedSan}</FactValue>
-                  <FactLabel>Best move</FactLabel>
-                  <FactValue>{current.bestMoveSan}</FactValue>
-                  <FactLabel>Eval delta (mover POV)</FactLabel>
-                  <FactValue>
-                    {formatCpDelta(current.evalDeltaCpMoverPov)}
-                  </FactValue>
-                  <FactLabel>Classification</FactLabel>
-                  <FactValue>{current.classification}</FactValue>
-                  <FactLabel>User rating</FactLabel>
-                  <FactValue>{current.userRating}</FactValue>
-                  <FactLabel>Tier</FactLabel>
-                  <FactValue>{current.tier}</FactValue>
-                </Box>
-              </Paper>
-
-              {/* Coach text */}
-              <Paper sx={{ p: 2, mb: 2 }}>
-                <Typography variant="overline" color="text.secondary">
-                  Coach response
-                </Typography>
-                <Box
-                  sx={{
-                    mt: 0.5,
-                    "& p": { mt: 0, mb: 1 },
-                    "& p:last-child": { mb: 0 },
-                  }}
-                >
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {cleanCoachText(current.coachText)}
-                  </ReactMarkdown>
-                </Box>
-              </Paper>
-
-              {/* Rubric rows */}
+              {/* Rubric rows — identical for both item types. */}
               <Paper sx={{ p: 2 }}>
                 <Typography variant="overline" color="text.secondary">
                   Rate (0 / 1 / 2 / N/A)

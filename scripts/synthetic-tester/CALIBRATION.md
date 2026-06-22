@@ -17,11 +17,27 @@ optional.
    npx tsx scripts/synthetic-tester/runHelpfulnessBaseline.ts --eval-set scripts/synthetic-tester/fixtures/helpfulness/eval-set-50.json --max-cost 6
    ```
    (Persists `coachText` + `grounding` per row in the run JSON.)
-2. **Export rater worksheets** (auto-scores withheld to avoid anchoring):
+2. **Build the /calibrate rater packet AND export rater worksheets**
+   (auto-scores withheld to avoid anchoring):
    ```
+   # Insight-aware packet for the /calibrate page. Splits each coach response
+   # into the units the coach actually emits: one INSIGHT item per key move
+   # (board + move/best/classification come from the coach's own [INSIGHT]
+   # header, so board and prose always match) plus one full-game review item.
+   # FENs are derived from the fixture's moveHistory with an off-by-one guard;
+   # any insight whose movePlayedSan is illegal from the derived FEN is DROPPED
+   # (and console.warn'd). No coach re-run, no Stockfish.
+   npx tsx scripts/synthetic-tester/buildInsightCalibrationData.ts --run scripts/synthetic-tester/runs/helpbaseline-XXXX.json
+   # -> public/calibration-data.json (then open /calibrate to rate)
+
+   # Worksheet CSV export (legacy single-checkpoint flow):
    npx tsx scripts/synthetic-tester/exportCalibrationSheet.ts --run scripts/synthetic-tester/runs/helpbaseline-XXXX.json --rater A
    # repeat for raters B, C
    ```
+   The older `buildCalibrationData.ts` (one item per fixture, keyed off the
+   single artificial-checkpoint move) is kept but superseded: it showed one
+   mismatched board against a whole-game response. Prefer
+   `buildInsightCalibrationData.ts`.
 3. **Collect ratings.** Give each sheet to a **distinct rater rated ≥1600**
    (≥3 raters). Each fills `d1..d7` with 0/1/2 per the rubric in
    `helpfulnessPrompt.ts` (dim definitions). Same rubric the judge uses.

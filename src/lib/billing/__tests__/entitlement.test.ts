@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  applyFreemiumFlag,
   computeEntitlement,
   entitlementForUser,
   trialDaysRemaining,
@@ -116,6 +117,29 @@ describe("entitlementForUser (Timestamp adapter)", () => {
     const e = entitlementForUser({}, NOW);
     expect(e.isPremium).toBe(false);
     expect(e.reason).toBe("none");
+  });
+});
+
+describe("applyFreemiumFlag (dark-launch master switch)", () => {
+  it("flag OFF → a free user becomes premium (no paywall pre-launch)", () => {
+    const free = computeEntitlement({ status: "none" }, NOW);
+    expect(free.isPremium).toBe(false);
+    const masked = applyFreemiumFlag(free, false);
+    expect(masked.isPremium).toBe(true);
+    expect(masked.tier).toBe("premium");
+    expect(masked.reason).toBe("active");
+  });
+
+  it("flag OFF → comped user stays comped/premium", () => {
+    const comped = computeEntitlement({ compedReason: "promo:AKANKSHA2026" }, NOW);
+    const masked = applyFreemiumFlag(comped, false);
+    expect(masked.isPremium).toBe(true);
+    expect(masked.reason).toBe("comped");
+  });
+
+  it("flag ON → entitlement passes through unchanged", () => {
+    const free = computeEntitlement({ status: "none" }, NOW);
+    expect(applyFreemiumFlag(free, true)).toEqual(free);
   });
 });
 

@@ -13,6 +13,7 @@ import {
   UserProfileUpdates,
 } from "@/lib/firestoreUsers";
 import OAuthErrorSnackbar from "@/components/auth/OAuthErrorSnackbar";
+import type { ClientEntitlement } from "@/lib/billing/entitlement";
 
 /**
  * Auth runs entirely against chessmasti.com /api/auth/*. The browser
@@ -41,6 +42,9 @@ interface AuthContextType {
   // CMIP dashboard admin (matches CMIP_DASHBOARD_ADMIN_EMAIL). Gates
   // /admin/intern-data UI on the browser; server re-checks every request.
   isAdmin: boolean;
+  // Live subscription entitlement from /api/auth/me (pricing pivot). null while
+  // loading or signed out. Read via useEntitlement() for gating UI.
+  entitlement: ClientEntitlement | null;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUp: (input: {
@@ -60,6 +64,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isIntern: false,
   isAdmin: false,
+  entitlement: null,
   signInWithGoogle: async () => {},
   signInWithEmail: async () => {},
   signUp: async () => {},
@@ -83,18 +88,23 @@ async function fetchMe(): Promise<{
   profile: UserProfile | null;
   isIntern: boolean;
   isAdmin: boolean;
+  entitlement: ClientEntitlement | null;
 }> {
   const res = await fetch("/api/auth/me", { credentials: "include" });
-  if (!res.ok) return { profile: null, isIntern: false, isAdmin: false };
+  if (!res.ok) {
+    return { profile: null, isIntern: false, isAdmin: false, entitlement: null };
+  }
   const data = (await res.json()) as {
     user: UserProfile | null;
     isIntern?: boolean;
     isAdmin?: boolean;
+    entitlement?: ClientEntitlement | null;
   };
   return {
     profile: data.user ?? null,
     isIntern: !!data.isIntern,
     isAdmin: !!data.isAdmin,
+    entitlement: data.entitlement ?? null,
   };
 }
 
@@ -123,21 +133,29 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isIntern, setIsIntern] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [entitlement, setEntitlement] = useState<ClientEntitlement | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
-      const { profile: p, isIntern: intern, isAdmin: admin } = await fetchMe();
+      const {
+        profile: p,
+        isIntern: intern,
+        isAdmin: admin,
+        entitlement: ent,
+      } = await fetchMe();
       setProfile(p);
       setUser(profileToUser(p));
       setIsIntern(intern);
       setIsAdmin(admin);
+      setEntitlement(ent);
     } catch (err) {
       console.error("Auth refresh failed:", err);
       setProfile(null);
       setUser(null);
       setIsIntern(false);
       setIsAdmin(false);
+      setEntitlement(null);
     } finally {
       setLoading(false);
     }
@@ -145,6 +163,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  // Re-check entitlement when the tab regains focus, so an upgrade / cancel /
+  // promo that happened elsewhere (Stripe Checkout in another tab, a webhook)
+  // is reflected without a manual reload. Silent — doesn't toggle `loading`.
+  useEffect(() => {
+    const onFocus = () => {
+      refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [refresh]);
 
   const signInWithEmail = useCallback(
@@ -202,6 +231,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setUser(null);
     setIsIntern(false);
     setIsAdmin(false);
+    setEntitlement(null);
   }, []);
 
   const updateProfile = useCallback(
@@ -223,6 +253,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         loading,
         isIntern,
         isAdmin,
+        entitlement,
         signInWithGoogle,
         signInWithEmail,
         signUp,

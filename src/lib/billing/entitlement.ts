@@ -146,3 +146,34 @@ export function trialDaysRemaining(
   if (ms <= 0) return 0;
   return Math.ceil(ms / (24 * 60 * 60 * 1000));
 }
+
+/**
+ * Apply the FREEMIUM_ENABLED master switch. When enforcement is OFF (dark
+ * launch / pre-go-live) EVERY user is premium with no paywall — this is the
+ * property that makes the whole pivot safe to merge before Stripe keys are
+ * live. Pure so it's unit-testable; the env read happens in the server layer.
+ */
+export function applyFreemiumFlag(
+  ent: Entitlement,
+  freemiumEnabled: boolean,
+): Entitlement {
+  if (freemiumEnabled) return ent;
+  return {
+    ...ent,
+    tier: "premium",
+    isPremium: true,
+    reason: ent.comped ? "comped" : "active",
+  };
+}
+
+/**
+ * Client-facing entitlement payload returned by /api/auth/me. Carries the
+ * resolved entitlement plus the flag (so the UI knows whether to render trial
+ * banners / paywalls at all) and a precomputed trial-days-remaining (avoids
+ * client-clock drift). Defined here (pure module) so client code can import the
+ * TYPE without pulling any server-only Firestore/Stripe code.
+ */
+export type ClientEntitlement = Entitlement & {
+  freemiumEnabled: boolean;
+  trialDaysRemaining: number;
+};

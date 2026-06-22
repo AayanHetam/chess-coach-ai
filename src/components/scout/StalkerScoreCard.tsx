@@ -31,13 +31,13 @@ const FACTOR_META: Record<
 function factorColor(v: number): string {
   if (v >= 70) return '#ef4444';
   if (v >= 50) return '#f59e0b';
-  if (v >= 35) return '#FF6B35';
+  if (v >= 35) return '#FB923C';
   return '#22c55e';
 }
 
 function predictabilityColor(p: StalkerScore['predictability']): string {
   if (p === 'High') return '#ef4444';
-  if (p === 'Medium') return '#FF6B35';
+  if (p === 'Medium') return '#FB923C';
   return '#22c55e';
 }
 
@@ -49,19 +49,25 @@ export default function StalkerScoreCard({ stalker }: StalkerScoreCardProps) {
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 3,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
+        borderRadius: '1.5rem',
+        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(20,22,28,0.55)',
+        backdropFilter: 'blur(14px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+        boxShadow:
+          '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+        overflow: 'hidden',
         height: '100%',
       }}
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Icon icon="mdi:eye-outline" width={20} style={{ color: '#FF6B35' }} />
-          <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>Stalker Score</Typography>
+          <Icon icon="mdi:eye-outline" width={20} style={{ color: '#FB923C' }} />
+          <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>
+            Stalker Score
+          </Typography>
           <Tooltip title="How exploitable this opponent is. Higher = easier to prep against." arrow>
-            <Box sx={{ color: 'text.disabled', display: 'flex', cursor: 'help' }}>
+            <Box sx={{ color: 'rgba(255,255,255,0.5)', display: 'flex', cursor: 'help' }}>
               <Icon icon="mdi:help-circle-outline" width={14} />
             </Box>
           </Tooltip>
@@ -104,7 +110,7 @@ function StalkerGauge({ value }: { value: number }) {
   const R = 52;
   const ARC_LEN = 2 * Math.PI * R * 0.75; // 270°
   const offset = ARC_LEN * (1 - value / 100);
-  const color = value >= 70 ? '#ef4444' : value >= 50 ? '#FF6B35' : value >= 30 ? '#f59e0b' : '#22c55e';
+  const color = value >= 70 ? '#ef4444' : value >= 50 ? '#FB923C' : value >= 30 ? '#f59e0b' : '#22c55e';
 
   return (
     <Box sx={{ position: 'relative', width: 132, height: 132, flexShrink: 0 }}>
@@ -114,7 +120,7 @@ function StalkerGauge({ value }: { value: number }) {
           cy="66"
           r={R}
           fill="none"
-          stroke="rgba(0,0,0,0.06)"
+          stroke="rgba(255,255,255,0.10)"
           strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={`${ARC_LEN} ${ARC_LEN * 2}`}
@@ -147,7 +153,7 @@ function StalkerGauge({ value }: { value: number }) {
         </Typography>
         <Typography
           variant="caption"
-          sx={{ color: 'text.secondary', fontWeight: 600, letterSpacing: 0.5 }}
+          sx={{ color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: 0.5 }}
         >
           /100
         </Typography>
@@ -176,7 +182,10 @@ function FactorRow({
             <Box sx={{ color: 'text.secondary' }}>
               <Icon icon={icon} width={14} />
             </Box>
-            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.78rem' }}>
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 600, fontSize: '0.78rem', color: 'rgba(255,255,255,0.94)' }}
+            >
               {label}
             </Typography>
           </Stack>
@@ -186,7 +195,7 @@ function FactorRow({
           sx={{
             height: 5,
             borderRadius: 2,
-            bgcolor: 'rgba(0,0,0,0.05)',
+            bgcolor: 'rgba(255,255,255,0.08)',
             overflow: 'hidden',
           }}
         >

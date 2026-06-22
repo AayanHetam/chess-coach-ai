@@ -130,26 +130,62 @@ export default function TreeExplorer({
       <Grid size={{ xs: 12, lg: 5 }}>
         <Paper
           elevation={0}
-          sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}
+          sx={{
+            p: 2,
+            borderRadius: '1.5rem',
+            background: 'rgba(20,22,28,0.55)',
+            backdropFilter: 'blur(14px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+            overflow: 'hidden',
+          }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
             <Tooltip title="Starting position (Home)">
               <span>
-                <IconButton size="small" onClick={onReset} disabled={currentPath.length === 0}>
+                <IconButton
+                  size="small"
+                  onClick={onReset}
+                  disabled={currentPath.length === 0}
+                  sx={{
+                    color: 'rgba(255,255,255,0.7)',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+                    '&.Mui-disabled': { color: 'rgba(255,255,255,0.25)' },
+                  }}
+                >
                   <Icon icon="mdi:home" />
                 </IconButton>
               </span>
             </Tooltip>
             <Tooltip title="Back (←)">
               <span>
-                <IconButton size="small" onClick={onBack} disabled={historyLen === 0}>
+                <IconButton
+                  size="small"
+                  onClick={onBack}
+                  disabled={historyLen === 0}
+                  sx={{
+                    color: 'rgba(255,255,255,0.7)',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+                    '&.Mui-disabled': { color: 'rgba(255,255,255,0.25)' },
+                  }}
+                >
                   <Icon icon="mdi:arrow-left" />
                 </IconButton>
               </span>
             </Tooltip>
             <Tooltip title="Forward (→)">
               <span>
-                <IconButton size="small" onClick={onForward} disabled={futureLen === 0}>
+                <IconButton
+                  size="small"
+                  onClick={onForward}
+                  disabled={futureLen === 0}
+                  sx={{
+                    color: 'rgba(255,255,255,0.7)',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+                    '&.Mui-disabled': { color: 'rgba(255,255,255,0.25)' },
+                  }}
+                >
                   <Icon icon="mdi:arrow-right" />
                 </IconButton>
               </span>
@@ -166,8 +202,8 @@ export default function TreeExplorer({
               mb: 1.5,
               px: 0.75,
               py: 0.75,
-              borderRadius: 1.5,
-              bgcolor: 'action.hover',
+              borderRadius: '12px',
+              bgcolor: 'rgba(255,255,255,0.04)',
               minHeight: 32,
               display: 'flex',
               alignItems: 'center',
@@ -183,7 +219,7 @@ export default function TreeExplorer({
                 fontFamily: 'monospace',
                 fontSize: '0.85rem',
                 fontWeight: 700,
-                color: currentPath.length === 0 ? '#FF6B35' : 'text.secondary',
+                color: currentPath.length === 0 ? '#FB923C' : 'rgba(255,255,255,0.62)',
                 textDecoration: 'none',
                 cursor: 'pointer',
                 px: 0.5,
@@ -210,12 +246,12 @@ export default function TreeExplorer({
                       fontFamily: 'monospace',
                       fontSize: '0.85rem',
                       fontWeight: 700,
-                      color: isLast ? '#FF6B35' : 'text.primary',
+                      color: isLast ? '#FB923C' : 'rgba(255,255,255,0.94)',
                       textDecoration: 'none',
                       cursor: 'pointer',
                       px: 0.25,
                       borderRadius: 0.5,
-                      '&:hover': { bgcolor: 'rgba(255,107,53,0.12)' },
+                      '&:hover': { bgcolor: 'rgba(249,115,22,0.18)' },
                     }}
                   >
                     {mv}
@@ -257,16 +293,16 @@ export default function TreeExplorer({
                   fontWeight: 700,
                   bgcolor:
                     cloudEval.cp !== undefined && cloudEval.cp > 0
-                      ? '#e8f5e9'
+                      ? 'rgba(34,197,94,0.16)'
                       : cloudEval.cp !== undefined && cloudEval.cp < 0
-                      ? '#ffebee'
-                      : '#f5f5f5',
+                      ? 'rgba(239,68,68,0.16)'
+                      : 'rgba(255,255,255,0.08)',
                   color:
                     cloudEval.cp !== undefined && cloudEval.cp > 0
-                      ? '#2e7d32'
+                      ? '#22c55e'
                       : cloudEval.cp !== undefined && cloudEval.cp < 0
-                      ? '#c62828'
-                      : '#333',
+                      ? '#ef4444'
+                      : 'rgba(255,255,255,0.8)',
                 }}
               />
             )}
@@ -297,9 +333,13 @@ export default function TreeExplorer({
           elevation={0}
           sx={{
             p: 2,
-            borderRadius: 3,
-            border: '1px solid',
-            borderColor: 'divider',
+            borderRadius: '1.5rem',
+            background: 'rgba(20,22,28,0.55)',
+            backdropFilter: 'blur(14px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+            overflow: 'hidden',
             minHeight: 400,
             display: 'flex',
             flexDirection: 'column',
@@ -307,8 +347,8 @@ export default function TreeExplorer({
         >
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Icon icon="mdi:file-tree" width={20} style={{ color: '#FF6B35' }} />
-              <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>Opening Tree</Typography>
+              <Icon icon="mdi:file-tree" width={20} style={{ color: '#FB923C' }} />
+              <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>Opening Tree</Typography>
             </Stack>
             {currentNode && currentNode.children.length > 0 && (
               <Chip
@@ -317,7 +357,11 @@ export default function TreeExplorer({
                   currentNode.children.length === 1 ? '' : 's'
                 }`}
                 variant="outlined"
-                sx={{ fontWeight: 600 }}
+                sx={{
+                  fontWeight: 600,
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: 'rgba(255,255,255,0.62)',
+                }}
               />
             )}
           </Stack>
@@ -331,27 +375,26 @@ export default function TreeExplorer({
                   gap: 1,
                   px: 1,
                   py: 0.75,
-                  borderBottom: '2px solid',
-                  borderColor: 'divider',
+                  borderBottom: '2px solid rgba(255,255,255,0.1)',
                   mb: 0.5,
                   position: 'sticky',
                   top: 0,
-                  bgcolor: 'background.paper',
+                  bgcolor: 'rgba(20,22,28,0.92)',
                   zIndex: 1,
                 }}
               >
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 0.5 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5 }}>
                   MOVE
                 </Typography>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 0.5 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5 }}>
                   GAMES
                 </Typography>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 0.5 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5 }}>
                   W / D / L
                 </Typography>
                 <Typography
                   variant="caption"
-                  sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 0.5, textAlign: 'right' }}
+                  sx={{ fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5, textAlign: 'right' }}
                 >
                   SCORE
                 </Typography>
@@ -373,9 +416,9 @@ export default function TreeExplorer({
                         py: 0.85,
                         cursor: 'pointer',
                         borderRadius: 1,
-                        bgcolor: idx % 2 === 0 ? 'action.hover' : 'transparent',
+                        bgcolor: idx % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
                         '&:hover': {
-                          bgcolor: 'rgba(255,107,53,0.12)',
+                          bgcolor: 'rgba(249,115,22,0.12)',
                           transform: 'translateX(2px)',
                         },
                         transition: 'all 0.15s',
@@ -384,12 +427,12 @@ export default function TreeExplorer({
                     >
                       <Typography
                         variant="body2"
-                        sx={{ fontWeight: 700, fontFamily: 'monospace', color: '#FF6B35' }}
+                        sx={{ fontWeight: 700, fontFamily: 'monospace', color: '#FB923C' }}
                       >
                         {child.move}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.94)' }}>
                           {child.totalGames}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -419,7 +462,7 @@ export default function TreeExplorer({
             </Box>
           ) : (
             <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Icon icon="mdi:leaf" width={40} style={{ color: '#999', marginBottom: 8 }} />
+              <Icon icon="mdi:leaf" width={40} style={{ color: 'rgba(255,255,255,0.35)', marginBottom: 8 }} />
               <Typography color="text.secondary">
                 {minGames > 1
                   ? `No continuations with \u2265 ${minGames} games. Lower the minimum to see more.`

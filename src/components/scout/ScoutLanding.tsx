@@ -35,12 +35,13 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
             icon={<Icon icon="mdi:star-four-points" width={14} />}
             label="NEW · Scout reports · 8 tools"
             sx={{
-              bgcolor: 'rgba(255,107,53,0.12)',
-              color: '#FF6B35',
+              bgcolor: 'rgba(249,115,22,0.18)',
+              color: '#FB923C',
+              border: '1px solid rgba(249,115,22,0.4)',
               fontWeight: 700,
               fontSize: '0.72rem',
               mb: 3,
-              '& .MuiChip-icon': { color: '#FF6B35' },
+              '& .MuiChip-icon': { color: '#FB923C' },
             }}
           />
 
@@ -59,7 +60,7 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
             <Box
               component="span"
               sx={{
-                background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+                background: 'linear-gradient(135deg, #F97316 0%, #FB923C 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 position: 'relative',
@@ -71,7 +72,7 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                   bottom: -4,
                   height: 4,
                   borderRadius: 2,
-                  background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+                  background: 'linear-gradient(135deg, #F97316 0%, #FB923C 100%)',
                   opacity: 0.35,
                 },
               }}
@@ -106,18 +107,23 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                 fontSize: '0.95rem',
                 textTransform: 'none',
                 borderRadius: 2.5,
-                background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-                boxShadow: '0 6px 22px rgba(255,107,53,0.35)',
+                bgcolor: '#F97316',
+                color: '#0A0A0A',
+                boxShadow: '0 6px 18px rgba(249,115,22,0.32)',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)',
-                  boxShadow: '0 10px 28px rgba(255,107,53,0.45)',
+                  bgcolor: '#FB923C',
+                  boxShadow: '0 10px 28px rgba(249,115,22,0.45)',
+                },
+                '&.Mui-disabled': {
+                  bgcolor: 'rgba(255,255,255,0.06)',
+                  color: 'rgba(255,255,255,0.3)',
                 },
               }}
             >
               Stalk your first opponent
             </Button>
             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary' }}>
-              <Icon icon="mdi:check-circle" style={{ color: '#FF6B35' }} width={16} />
+              <Icon icon="mdi:check-circle" style={{ color: '#FB923C' }} width={16} />
               <Typography variant="caption" sx={{ fontWeight: 600 }}>
                 Free · No signup required
               </Typography>
@@ -140,10 +146,12 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                 position: 'absolute',
                 top: -14,
                 right: 16,
-                bgcolor: '#fff',
-                color: '#FF6B35',
+                bgcolor: 'rgba(20,22,28,0.85)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                color: '#FB923C',
                 fontWeight: 700,
-                border: '1px solid rgba(255,107,53,0.3)',
+                border: '1px solid rgba(249,115,22,0.4)',
                 zIndex: 2,
                 '&::before': {
                   content: '""',
@@ -158,13 +166,18 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
             />
 
             <Paper
-              elevation={6}
+              elevation={0}
               sx={{
                 p: 2.5,
-                borderRadius: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                background: 'linear-gradient(180deg, #ffffff 0%, #fafbfc 100%)',
+                borderRadius: '1.5rem',
+                border: '1px solid rgba(255,255,255,0.08)',
+                background:
+                  'linear-gradient(135deg, rgba(249,115,22,0.08), rgba(20,22,28,0.6))',
+                backdropFilter: 'blur(14px) saturate(140%)',
+                WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+                boxShadow:
+                  '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+                overflow: 'hidden',
               }}
             >
               <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
@@ -173,18 +186,19 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                     width: 54,
                     height: 54,
                     borderRadius: 2,
-                    background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                    background:
+                      'linear-gradient(135deg, rgba(40,44,55,0.9) 0%, rgba(20,22,28,0.9) 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#FF6B35',
+                    color: '#FB923C',
                     flexShrink: 0,
                   }}
                 >
                   <Icon icon="mdi:chess-king" width={30} />
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontWeight: 800, fontSize: '1.05rem' }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', color: 'rgba(255,255,255,0.94)' }}>
                     DragonSlayer99
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
@@ -199,11 +213,12 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                 label="The Berserker"
                 size="small"
                 sx={{
-                  bgcolor: 'rgba(255,107,53,0.12)',
-                  color: '#FF6B35',
+                  bgcolor: 'rgba(249,115,22,0.18)',
+                  color: '#FB923C',
+                  border: '1px solid rgba(249,115,22,0.4)',
                   fontWeight: 700,
                   mb: 2,
-                  '& .MuiChip-icon': { color: '#FF6B35' },
+                  '& .MuiChip-icon': { color: '#FB923C' },
                 }}
               />
 
@@ -227,7 +242,7 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
 
       {/* How it works */}
       <Box sx={{ mt: { xs: 6, md: 10 }, textAlign: 'center' }}>
-        <Typography variant="overline" sx={{ letterSpacing: 2, color: 'text.secondary', fontWeight: 700 }}>
+        <Typography variant="overline" sx={{ letterSpacing: '0.14em', color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
           HOW IT WORKS
         </Typography>
         <Typography sx={{ color: 'text.secondary', mb: 4 }}>
@@ -241,15 +256,21 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                 sx={{
                   p: 3,
                   height: '100%',
-                  borderRadius: 3,
-                  border: '1px solid',
-                  borderColor: 'divider',
+                  borderRadius: '1.5rem',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(20,22,28,0.55)',
+                  backdropFilter: 'blur(14px) saturate(140%)',
+                  WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+                  boxShadow:
+                    '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+                  overflow: 'hidden',
                   position: 'relative',
-                  transition: 'all 0.2s',
+                  transition: 'all 180ms ease',
                   '&:hover': {
-                    borderColor: '#FF6B35',
+                    border: '1px solid rgba(249,115,22,0.35)',
                     transform: 'translateY(-2px)',
-                    boxShadow: '0 12px 28px rgba(255,107,53,0.12)',
+                    boxShadow:
+                      '0 12px 28px rgba(0,0,0,0.4), 0 0 0 1px rgba(249,115,22,0.18), inset 0 1px 0 rgba(255,255,255,0.06)',
                   },
                 }}
               >
@@ -261,8 +282,8 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                     width: 30,
                     height: 30,
                     borderRadius: '50%',
-                    bgcolor: '#FF6B35',
-                    color: '#fff',
+                    bgcolor: '#F97316',
+                    color: '#0A0A0A',
                     fontWeight: 800,
                     display: 'flex',
                     alignItems: 'center',
@@ -272,10 +293,10 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                 >
                   {s.n}
                 </Box>
-                <Box sx={{ color: '#FF6B35', mb: 1.5 }}>
+                <Box sx={{ color: '#FB923C', mb: 1.5 }}>
                   <Icon icon={s.icon} width={36} />
                 </Box>
-                <Typography sx={{ fontWeight: 800, fontSize: '1rem', mb: 0.5 }}>
+                <Typography sx={{ fontWeight: 800, fontSize: '1rem', mb: 0.5, color: 'rgba(255,255,255,0.94)' }}>
                   {s.title}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>
@@ -288,7 +309,7 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                       right: -18,
                       top: '50%',
                       display: { xs: 'none', sm: 'block' },
-                      color: '#FF6B35',
+                      color: '#FB923C',
                       opacity: 0.5,
                     }}
                   >
@@ -307,7 +328,7 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
 function StatPill({ value, label }: { value: string; label: string }) {
   return (
     <Box>
-      <Typography sx={{ fontSize: '1.5rem', fontWeight: 800, color: '#FF6B35', lineHeight: 1 }}>
+      <Typography sx={{ fontSize: '1.5rem', fontWeight: 800, color: '#FB923C', lineHeight: 1, fontFamily: 'Monaco, Menlo, monospace' }}>
         {value}
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
@@ -323,13 +344,13 @@ function OvrRing({ value }: { value: number }) {
   return (
     <Box sx={{ position: 'relative', width: 54, height: 54, flexShrink: 0 }}>
       <svg width={54} height={54} viewBox="0 0 54 54">
-        <circle cx="27" cy="27" r="22" fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="4" />
+        <circle cx="27" cy="27" r="22" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="4" />
         <circle
           cx="27"
           cy="27"
           r="22"
           fill="none"
-          stroke="#FF6B35"
+          stroke="#FB923C"
           strokeWidth="4"
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -347,10 +368,10 @@ function OvrRing({ value }: { value: number }) {
           justifyContent: 'center',
         }}
       >
-        <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', letterSpacing: 1.2 }}>
+        <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)', letterSpacing: 1.2 }}>
           OVR
         </Typography>
-        <Typography sx={{ fontWeight: 800, fontSize: 14, color: '#FF6B35', lineHeight: 1 }}>
+        <Typography sx={{ fontWeight: 800, fontSize: 14, color: '#FB923C', lineHeight: 1, fontFamily: 'Monaco, Menlo, monospace' }}>
           {value}
         </Typography>
       </Box>
@@ -376,7 +397,7 @@ function StatMini({ label, value, color }: { label: string; value: number; color
             width={14}
           />
         </Box>
-        <Typography sx={{ fontSize: '1.15rem', fontWeight: 800, color, lineHeight: 1.1 }}>
+        <Typography sx={{ fontSize: '1.15rem', fontWeight: 800, color, lineHeight: 1.1, fontFamily: 'Monaco, Menlo, monospace' }}>
           {value}
         </Typography>
         <Typography variant="caption" sx={{ fontSize: '0.6rem', letterSpacing: 1.2, color: 'text.secondary', fontWeight: 700 }}>
@@ -398,18 +419,18 @@ function RatingRow({ icon, label, rating }: { icon: string; label: string; ratin
         px: 1.25,
         py: 0.75,
         borderRadius: 1.5,
-        bgcolor: 'rgba(0,0,0,0.025)',
+        bgcolor: 'rgba(255,255,255,0.04)',
       }}
     >
       <Stack direction="row" spacing={1} alignItems="center">
-        <Box sx={{ color: '#FF6B35' }}>
+        <Box sx={{ color: '#FB923C' }}>
           <Icon icon={icon} width={14} />
         </Box>
         <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.72rem' }}>
           {label}
         </Typography>
       </Stack>
-      <Typography sx={{ fontWeight: 800, fontSize: '0.85rem' }}>{rating}</Typography>
+      <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: 'rgba(255,255,255,0.94)', fontFamily: 'Monaco, Menlo, monospace' }}>{rating}</Typography>
     </Box>
   );
 }

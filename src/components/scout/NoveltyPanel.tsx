@@ -19,22 +19,26 @@ export default function NoveltyPanel({ findings, onExplore }: NoveltyPanelProps)
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 3,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
+        borderRadius: '1.5rem',
+        border: '1px solid rgba(255,255,255,0.08)',
+        bgcolor: 'rgba(20,22,28,0.55)',
+        backdropFilter: 'blur(14px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+        overflow: 'hidden',
       }}
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.75 }}>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Icon icon="mdi:alert-octagram-outline" width={20} style={{ color: '#FF6B35' }} />
-          <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>Novelty finder</Typography>
+          <Icon icon="mdi:alert-octagram-outline" width={20} style={{ color: '#FB923C' }} />
+          <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>Novelty finder</Typography>
           <Chip
             label="NEW"
             size="small"
             sx={{
-              bgcolor: 'rgba(255,107,53,0.15)',
-              color: '#FF6B35',
+              bgcolor: 'rgba(249,115,22,0.18)',
+              color: '#FB923C',
+              border: '1px solid rgba(249,115,22,0.4)',
               fontWeight: 800,
               fontSize: '0.6rem',
               height: 18,
@@ -58,8 +62,7 @@ export default function NoveltyPanel({ findings, onExplore }: NoveltyPanelProps)
             textAlign: 'center',
             color: 'text.secondary',
             borderRadius: 2,
-            border: '1px dashed',
-            borderColor: 'divider',
+            border: '1px dashed rgba(255,255,255,0.12)',
           }}
         >
           <Typography variant="body2">
@@ -99,15 +102,15 @@ function NoveltyCard({
       onClick={onExplore}
       sx={{
         p: 1.5,
-        borderRadius: 2,
-        border: '1px solid',
-        borderColor: 'divider',
+        borderRadius: '12px',
+        border: '1px solid rgba(255,255,255,0.08)',
+        bgcolor: 'rgba(255,255,255,0.03)',
         cursor: 'pointer',
-        transition: 'all 0.15s',
+        transition: 'all 180ms ease',
         '&:hover': {
-          borderColor: '#FF6B35',
+          border: '1px solid rgba(249,115,22,0.35)',
           transform: 'translateY(-1px)',
-          boxShadow: '0 6px 18px rgba(255,107,53,0.12)',
+          boxShadow: '0 6px 18px rgba(249,115,22,0.18)',
         },
       }}
     >
@@ -116,8 +119,8 @@ function NoveltyCard({
           label={finding.eco}
           size="small"
           sx={{
-            bgcolor: '#0f172a',
-            color: '#fff',
+            bgcolor: 'rgba(255,255,255,0.08)',
+            color: 'rgba(255,255,255,0.94)',
             fontFamily: 'monospace',
             fontWeight: 700,
             fontSize: '0.72rem',
@@ -125,7 +128,7 @@ function NoveltyCard({
           }}
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', lineHeight: 1.3 }}>
+          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', lineHeight: 1.3, color: 'rgba(255,255,255,0.94)' }}>
             {finding.name}
             {finding.variation && (
               <Box component="span" sx={{ color: 'text.secondary', fontWeight: 500, ml: 0.5 }}>
@@ -146,8 +149,8 @@ function NoveltyCard({
       <Box
         sx={{
           p: 1.25,
-          borderRadius: 1.5,
-          bgcolor: 'rgba(0,0,0,0.025)',
+          borderRadius: '8px',
+          bgcolor: 'rgba(255,255,255,0.04)',
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: 1,
@@ -157,7 +160,7 @@ function NoveltyCard({
           <Typography
             variant="caption"
             sx={{
-              color: 'text.secondary',
+              color: 'rgba(255,255,255,0.5)',
               fontWeight: 700,
               fontSize: '0.62rem',
               letterSpacing: 1.2,
@@ -180,7 +183,7 @@ function NoveltyCard({
           <Typography
             variant="caption"
             sx={{
-              color: 'text.secondary',
+              color: 'rgba(255,255,255,0.5)',
               fontWeight: 700,
               fontSize: '0.62rem',
               letterSpacing: 1.2,
@@ -225,8 +228,8 @@ function NoveltyCard({
             textTransform: 'none',
             fontWeight: 700,
             fontSize: '0.7rem',
-            color: '#FF6B35',
-            '&:hover': { bgcolor: 'rgba(255,107,53,0.08)' },
+            color: '#FB923C',
+            '&:hover': { bgcolor: 'rgba(249,115,22,0.08)' },
           }}
         >
           Investigate

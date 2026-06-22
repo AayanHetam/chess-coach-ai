@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { triggerPaywall } from "@/contexts/PaywallDialogContext";
 import {
   Box,
   Paper,
@@ -2502,6 +2503,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             signal: abortControllerRef.current.signal,
           });
 
+          if (response.status === 402) {
+            // Free-tier allowance exhausted — surface the upgrade dialog.
+            triggerPaywall({ feature: "AI coach", reason: "quota_exhausted" });
+          }
           if (!response.ok) {
             // Server returned an error status BEFORE streaming. Body is JSON.
             const errorData = await response.json().catch(() => ({}));

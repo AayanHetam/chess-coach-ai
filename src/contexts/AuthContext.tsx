@@ -55,6 +55,8 @@ interface AuthContextType {
   forgotPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: UserProfileUpdates) => Promise<void>;
+  /** Re-fetch /api/auth/me (user + entitlement). Used after upgrade/redeem. */
+  refresh: () => Promise<void>;
   isFirebaseConfigured: boolean;
 }
 
@@ -71,6 +73,7 @@ const AuthContext = createContext<AuthContextType>({
   forgotPassword: async () => {},
   signOut: async () => {},
   updateProfile: async () => {},
+  refresh: async () => {},
   isFirebaseConfigured: true,
 });
 
@@ -260,6 +263,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         forgotPassword,
         signOut,
         updateProfile,
+        refresh,
         isFirebaseConfigured: true,
       }}
     >

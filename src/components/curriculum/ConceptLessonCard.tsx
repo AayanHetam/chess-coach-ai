@@ -6,6 +6,7 @@ import { useAtomValue } from "jotai";
 import { puzzleStatsAtom } from "@/lib/puzzleRating";
 import { computeCurriculumProgress } from "@/lib/curriculum/mastery";
 import { unitById, SYLLABUS } from "@/lib/curriculum/syllabus";
+import { triggerPaywall } from "@/contexts/PaywallDialogContext";
 
 const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
 const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
@@ -41,6 +42,11 @@ export default function ConceptLessonCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ themeId, userRating: stats.rating }),
       });
+      if (res.status === 402) {
+        triggerPaywall({ feature: "concept lessons", reason: "quota_exhausted" });
+        setError("Daily free lesson used — upgrade for unlimited.");
+        return;
+      }
       const data = await res.json();
       if (res.ok && data.lesson) {
         setLesson(data.lesson as Lesson);

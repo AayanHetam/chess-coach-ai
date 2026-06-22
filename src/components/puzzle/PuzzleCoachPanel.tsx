@@ -16,6 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import { motion } from "framer-motion";
+import { triggerPaywall } from "@/contexts/PaywallDialogContext";
 import { ArrowUp, RotateCcw, Sparkles, Target } from "lucide-react";
 import { Chess } from "chess.js";
 import {
@@ -224,6 +225,9 @@ export function PuzzleCoachPanel({
             userMessage: turnIndex >= 1 ? userMessage : undefined,
           }),
         });
+        if (resp.status === 402) {
+          triggerPaywall({ feature: "puzzle coach", reason: "quota_exhausted" });
+        }
         if (!resp.ok || !resp.body) {
           throw new Error(`puzzle-chat HTTP ${resp.status}`);
         }

@@ -792,7 +792,7 @@ export default function PreviewPuzzlesPage() {
                     textTransform: "uppercase",
                   }}
                 >
-                  Puzzle Coach · Preview
+                  Puzzle Coach
                 </Typography>
               </Box>
               {feed.totalAvailable !== null && (

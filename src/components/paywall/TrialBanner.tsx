@@ -12,7 +12,8 @@ import { PRICE_DISPLAY } from "@/lib/billing/config";
  * dark-launch period), so mounting it is a no-op until go-live.
  */
 export default function TrialBanner() {
-  const { freemiumEnabled, isOnTrial, trialDaysRemaining } = useEntitlement();
+  const { freemiumEnabled, isOnTrial, trialDaysRemaining, hasStripeSubscription } =
+    useEntitlement();
   const { openPaywallDialog } = usePaywallDialog();
 
   if (!freemiumEnabled || !isOnTrial) return null;
@@ -46,24 +47,44 @@ export default function TrialBanner() {
       >
         {daysLabel}
       </Typography>
-      <Box
-        component="button"
-        type="button"
-        onClick={() => openPaywallDialog({ reason: "manual" })}
-        sx={{
-          cursor: "pointer",
-          border: "none",
-          background: "transparent",
-          color: "#FB923C",
-          fontWeight: 700,
-          fontSize: "0.82rem",
-          textDecoration: "underline",
-          textUnderlineOffset: "2px",
-          "&:hover": { color: "#FDBA74" },
-        }}
-      >
-        Keep Premium — {PRICE_DISPLAY.amount}/{PRICE_DISPLAY.cadence}
-      </Box>
+      {hasStripeSubscription ? (
+        // Already subscribed (Stripe-backed trial) — Premium will continue
+        // automatically, so never re-prompt to pay. Offer management instead.
+        <Box
+          component="a"
+          href="/pricing"
+          sx={{
+            color: "#FB923C",
+            fontWeight: 700,
+            fontSize: "0.82rem",
+            textDecoration: "underline",
+            textUnderlineOffset: "2px",
+            "&:hover": { color: "#FDBA74" },
+          }}
+        >
+          Manage subscription
+        </Box>
+      ) : (
+        // Local no-card trial — genuine upsell to convert before it lapses.
+        <Box
+          component="button"
+          type="button"
+          onClick={() => openPaywallDialog({ reason: "manual" })}
+          sx={{
+            cursor: "pointer",
+            border: "none",
+            background: "transparent",
+            color: "#FB923C",
+            fontWeight: 700,
+            fontSize: "0.82rem",
+            textDecoration: "underline",
+            textUnderlineOffset: "2px",
+            "&:hover": { color: "#FDBA74" },
+          }}
+        >
+          Keep Premium — {PRICE_DISPLAY.amount}/{PRICE_DISPLAY.cadence}
+        </Box>
+      )}
     </Box>
   );
 }

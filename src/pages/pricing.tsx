@@ -6,7 +6,7 @@ import { Check, Sparkles, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { PRICE_DISPLAY } from "@/lib/billing/config";
+import { PRICE_DISPLAY, subscriptionBillingNote } from "@/lib/billing/config";
 
 const orangeGradient = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
 
@@ -46,15 +46,33 @@ export default function PricingPage() {
   }, [router.query.checkout, refresh]);
 
   const comped = entitlement?.comped ?? false;
-  const hasStripeSub =
-    entitlement?.status === "active" ||
-    entitlement?.status === "past_due" ||
-    entitlement?.status === "canceled";
+  // "Manage subscription" must show whenever the user has a REAL Stripe
+  // subscription — including a Stripe-backed trial (status: "trialing" + card on
+  // file). Gating on status alone missed that case, so a just-subscribed trial
+  // user saw "Upgrade" again and could double-subscribe. hasStripeSubscription
+  // is true iff a stripeSubscriptionId exists, which also keeps a no-card local
+  // trial showing "Upgrade" (correct — they have nothing to manage yet).
+  const hasStripeSub = entitlement?.hasStripeSubscription ?? false;
+
+  // Auto-renewal disclosure shown at the upgrade CTA — same helper (and same
+  // first-charge logic) as the in-app paywall, so the terms never disagree.
+  const billingNote = subscriptionBillingNote({
+    isOnTrial: entitlement?.reason === "trialing",
+    trialEndsAtMs: entitlement?.trialEndsAt ?? null,
+    nowMs: Date.now(),
+  });
 
   const statusLine = useMemo(() => {
     if (!user) return "Sign in to start your free 7-day Premium trial.";
     if (comped) return "You have free Premium access — enjoy! 🎉";
     if (!entitlement) return "";
+    if (isPremium && entitlement.cancelAtPeriodEnd) {
+      const end = entitlement.currentPeriodEnd ?? entitlement.trialEndsAt;
+      const when = end
+        ? new Date(end).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+        : "the end of your billing period";
+      return `Premium until ${when} — your subscription is set to cancel. Resume anytime from Manage subscription.`;
+    }
     if (entitlement.reason === "trialing")
       return `You're on a free trial — ${entitlement.trialDaysRemaining} day${
         entitlement.trialDaysRemaining === 1 ? "" : "s"
@@ -202,11 +220,18 @@ export default function PricingPage() {
               ) : hasStripeSub ? (
                 <CtaButton label={busy === "portal" ? "Opening…" : "Manage subscription"} onClick={handleManage} disabled={busy !== null} />
               ) : (
-                <CtaButton
-                  label={busy === "checkout" ? "Starting…" : user ? `Upgrade — ${PRICE_DISPLAY.amount}/${PRICE_DISPLAY.cadence}` : "Sign in to upgrade"}
-                  onClick={handleUpgrade}
-                  disabled={busy !== null}
-                />
+                <Stack spacing={1}>
+                  <CtaButton
+                    label={busy === "checkout" ? "Starting…" : user ? `Upgrade — ${PRICE_DISPLAY.amount}/${PRICE_DISPLAY.cadence}` : "Sign in to upgrade"}
+                    onClick={handleUpgrade}
+                    disabled={busy !== null}
+                  />
+                  {user && (
+                    <Typography sx={{ fontSize: "0.72rem", lineHeight: 1.5, color: "rgba(255,255,255,0.45)", textAlign: "center" }}>
+                      {billingNote}
+                    </Typography>
+                  )}
+                </Stack>
               )
             }
           />
@@ -269,6 +294,34 @@ export default function PricingPage() {
             />
           </Stack>
         </Box>
+
+        {/* Subscription terms disclosure (FTC/ROSCA) */}
+        <Typography
+          sx={{
+            maxWidth: 560,
+            mx: "auto",
+            mt: 5,
+            textAlign: "center",
+            fontSize: "0.78rem",
+            lineHeight: 1.6,
+            color: "rgba(255,255,255,0.42)",
+          }}
+        >
+          Premium is {PRICE_DISPLAY.amount}/{PRICE_DISPLAY.cadence} and renews
+          automatically until you cancel. The 7-day trial requires no card. You
+          can cancel anytime from <strong>Manage subscription</strong> (here or
+          in your account menu); cancellation stops future charges and keeps
+          access until the end of the paid period. By subscribing you agree to
+          our{" "}
+          <Box component="a" href="/terms" sx={{ color: "#FB923C", textDecoration: "none" }}>
+            Terms
+          </Box>{" "}
+          and{" "}
+          <Box component="a" href="/privacy" sx={{ color: "#FB923C", textDecoration: "none" }}>
+            Privacy Policy
+          </Box>
+          .
+        </Typography>
       </Box>
     </>
   );

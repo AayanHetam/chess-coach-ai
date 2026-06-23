@@ -5,7 +5,7 @@ import { Box, Modal, Stack, Typography } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, Check, AlertTriangle } from "lucide-react";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { PRICE_DISPLAY } from "@/lib/billing/config";
+import { PRICE_DISPLAY, subscriptionBillingNote } from "@/lib/billing/config";
 import type { OpenPaywallOptions } from "@/contexts/PaywallDialogContext";
 
 // MUI Modal calls cloneElement(child, { ref }); AnimatePresence is fragment-
@@ -39,9 +39,17 @@ export default function PaywallDialog({
   onClose,
   context,
 }: PaywallDialogProps) {
-  const { isOnTrial, trialDaysRemaining } = useEntitlement();
+  const { entitlement, isOnTrial, trialDaysRemaining } = useEntitlement();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-renewal disclosure (price, recurring nature, first-charge moment, how
+  // to cancel) — kept in sync with the checkout route via the shared helper.
+  const billingNote = subscriptionBillingNote({
+    isOnTrial,
+    trialEndsAtMs: entitlement?.trialEndsAt ?? null,
+    nowMs: Date.now(),
+  });
 
   const handleUpgrade = async () => {
     setSubmitting(true);
@@ -103,13 +111,12 @@ export default function PaywallDialog({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.98 }}
               transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
-              style={{
-                position: "fixed",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                outline: "none",
-              }}
+              // Centering handled by the parent MUI Modal's flexbox. Do NOT
+              // add position:fixed + translate(-50%,-50%) here: framer-motion
+              // animates y/scale and owns `transform`, so it would overwrite the
+              // centering and drop the modal off-center (same bug fixed in
+              // AuthDialog).
+              style={{ outline: "none" }}
             >
               <Box
                 role="dialog"
@@ -285,6 +292,20 @@ export default function PaywallDialog({
                     </Typography>
                   </Box>
 
+                  {/* Auto-renewal / first-charge disclosure (FTC/ROSCA) — tells
+                      the user the exact moment of their first charge, matched to
+                      what the checkout route will actually do. */}
+                  <Typography
+                    sx={{
+                      mt: 1,
+                      fontSize: "0.72rem",
+                      lineHeight: 1.5,
+                      color: "rgba(255,255,255,0.45)",
+                    }}
+                  >
+                    {billingNote}
+                  </Typography>
+
                   {error && (
                     <Box
                       sx={{
@@ -354,9 +375,7 @@ export default function PaywallDialog({
                       lineHeight: 1.5,
                     }}
                   >
-                    Auto-renews at {PRICE_DISPLAY.amount}/{PRICE_DISPLAY.cadence}{" "}
-                    until you cancel. You&apos;ll see the exact amount due today
-                    at checkout. By continuing you agree to our{" "}
+                    By continuing you agree to our{" "}
                     <Box
                       component="a"
                       href="/terms"

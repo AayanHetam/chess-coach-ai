@@ -68,6 +68,18 @@ export default function TermsPage() {
           </section>
 
           <section>
+            <h2>Who can use it</h2>
+            <p>
+              Chess Masti is intended for users <strong>13 and older</strong>. If
+              you are under 13, you may use it only with the involvement and
+              consent of a parent or guardian, who agrees to these terms on your
+              behalf and is responsible for any subscription. If you are a parent
+              and believe a child under 13 has signed up without your consent,
+              email us (below) and we&apos;ll remove the account and its data.
+            </p>
+          </section>
+
+          <section>
             <h2>Free tier, trial, and Premium</h2>
             <ul>
               <li>
@@ -132,10 +144,11 @@ export default function TermsPage() {
           <section>
             <h2>Refunds</h2>
             <p>
-              Because the 7-day trial lets you evaluate Premium before paying,
-              charges are generally non-refundable except where required by law.
-              If you were charged in error or have a billing problem, email us
-              (below) and we&apos;ll make it right.
+              Because the 7-day trial lets you evaluate Premium in full before
+              paying, all Premium charges are final and non-refundable, except
+              where a refund is required by law. If you were charged in error or
+              have a billing problem, email us (below) and we&apos;ll make it
+              right.
             </p>
           </section>
 

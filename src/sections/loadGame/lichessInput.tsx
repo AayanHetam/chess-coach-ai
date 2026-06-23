@@ -8,9 +8,11 @@ import {
   ListItemButton,
   ListItemText,
   TextField,
+  useTheme,
 } from "@mui/material";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery } from "@tanstack/react-query";
+import { glassInputSx, glassListRowSx } from "./glassTheme";
 
 interface Props {
   onSelect: (
@@ -27,6 +29,7 @@ export default function LichessInput({ onSelect }: Props) {
     ""
   );
   const debouncedUsername = useDebounce(lichessUsername, 500);
+  const dark = useTheme().palette.mode === "dark";
 
   const {
     data: games,
@@ -48,6 +51,7 @@ export default function LichessInput({ onSelect }: Props) {
           variant="outlined"
           value={lichessUsername ?? ""}
           onChange={(e) => setLichessUsername(e.target.value)}
+          sx={glassInputSx(dark)}
         />
       </FormControl>
 
@@ -85,6 +89,7 @@ export default function LichessInput({ onSelect }: Props) {
                   );
                 }}
                 style={{ width: 350, maxWidth: 350 }}
+                sx={glassListRowSx(dark)}
                 key={game.id}
               >
                 <ListItemText

@@ -1,4 +1,5 @@
-import { FormControl, TextField } from "@mui/material";
+import { FormControl, TextField, useTheme } from "@mui/material";
+import { glassInputSx } from "./glassTheme";
 
 interface Props {
   pgn: string;
@@ -6,6 +7,7 @@ interface Props {
 }
 
 export default function GamePgnInput({ pgn, setPgn }: Props) {
+  const dark = useTheme().palette.mode === "dark";
   return (
     <FormControl fullWidth>
       <TextField
@@ -14,6 +16,7 @@ export default function GamePgnInput({ pgn, setPgn }: Props) {
         multiline
         value={pgn}
         onChange={(e) => setPgn(e.target.value)}
+        sx={glassInputSx(dark)}
       />
     </FormControl>
   );

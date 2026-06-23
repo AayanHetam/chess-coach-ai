@@ -218,13 +218,13 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
               duration: 0.28,
               ease: [0.22, 0.61, 0.36, 1],
             }}
-            style={{
-              position: "fixed",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              outline: "none",
-            }}
+            // Centering is handled by the parent MUI Modal's flexbox
+            // (display:flex; align/justify center). We must NOT also set
+            // position:fixed + translate(-50%,-50%) here, because framer-motion
+            // animates `y`/`scale` and owns the `transform` property — it would
+            // clobber the -50% centering and drop the modal low-and-right,
+            // pushing the bottom (Google button) off-screen.
+            style={{ outline: "none" }}
           >
             <Box
               role="dialog"

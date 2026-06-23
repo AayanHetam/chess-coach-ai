@@ -196,6 +196,13 @@ export function CoachShareDialog({
           },
         },
       }}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        outline: "none",
+        p: 2,
+      }}
     >
       <AnimatePresence>
         {open && (
@@ -204,13 +211,11 @@ export function CoachShareDialog({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.98 }}
             transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
-            style={{
-              position: "fixed",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              outline: "none",
-            }}
+            // Centering handled by the parent Modal's flexbox (added in its sx).
+            // Must NOT set position:fixed + translate(-50%,-50%) here —
+            // framer-motion animates y/scale and owns `transform`, so it would
+            // overwrite the centering and drop the dialog off-center.
+            style={{ outline: "none" }}
           >
             <Box
               sx={{

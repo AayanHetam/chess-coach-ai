@@ -33,6 +33,23 @@ export type Entitlement = {
   currentPeriodEnd: number | null;
   /** true once comped (e.g. Akanksha promo) */
   comped: boolean;
+  /**
+   * true once the user has a real Stripe subscription (i.e. went through
+   * checkout). Distinguishes a Stripe-backed trial — already subscribed, card
+   * on file — from a local no-card trial, which are otherwise both
+   * `status: "trialing"`. The UI gates on this so an already-subscribed user
+   * sees "Manage subscription" (not "Upgrade"/"Keep Premium") and is never
+   * re-prompted to pay a second time.
+   */
+  hasStripeSubscription: boolean;
+  /**
+   * true when a cancellation is scheduled — the user stays premium until
+   * `currentPeriodEnd` (or `trialEndsAt`), then drops to free. Drives the
+   * "Premium til {date} · Resume" affordance so a cancelled user can see the
+   * state and reverse it. (Derived in syncStripeSubscription from cancel_at /
+   * cancel_at_period_end.)
+   */
+  cancelAtPeriodEnd: boolean;
 };
 
 export type EntitlementInput = {
@@ -40,6 +57,8 @@ export type EntitlementInput = {
   trialEndsAtMs?: number | null;
   currentPeriodEndMs?: number | null;
   compedReason?: string | null;
+  stripeSubscriptionId?: string | null;
+  cancelAtPeriodEnd?: boolean | null;
 };
 
 export function computeEntitlement(
@@ -50,6 +69,8 @@ export function computeEntitlement(
   const trialEndsAt = input.trialEndsAtMs ?? null;
   const currentPeriodEnd = input.currentPeriodEndMs ?? null;
   const comped = Boolean(input.compedReason);
+  const hasStripeSubscription = Boolean(input.stripeSubscriptionId);
+  const cancelAtPeriodEnd = Boolean(input.cancelAtPeriodEnd);
 
   const premium = (reason: EntitlementReason): Entitlement => ({
     tier: "premium",
@@ -59,6 +80,8 @@ export function computeEntitlement(
     trialEndsAt,
     currentPeriodEnd,
     comped,
+    hasStripeSubscription,
+    cancelAtPeriodEnd,
   });
 
   // 1. Comped (Akanksha promo / admin) — premium forever, no card needed.
@@ -103,6 +126,8 @@ export function computeEntitlement(
     trialEndsAt,
     currentPeriodEnd,
     comped: false,
+    hasStripeSubscription,
+    cancelAtPeriodEnd,
   };
 }
 
@@ -124,6 +149,8 @@ export type UserSubscriptionFields = {
   trialEndsAt?: MillisLike;
   currentPeriodEnd?: MillisLike;
   compedReason?: string | null;
+  stripeSubscriptionId?: string | null;
+  cancelAtPeriodEnd?: boolean | null;
 };
 
 export function entitlementForUser(
@@ -136,6 +163,8 @@ export function entitlementForUser(
       trialEndsAtMs: toMs(user.trialEndsAt),
       currentPeriodEndMs: toMs(user.currentPeriodEnd),
       compedReason: user.compedReason ?? null,
+      stripeSubscriptionId: user.stripeSubscriptionId ?? null,
+      cancelAtPeriodEnd: user.cancelAtPeriodEnd ?? null,
     },
     nowMs,
   );

@@ -94,6 +94,41 @@ describe("computeEntitlement", () => {
     expect(e.isPremium).toBe(false);
     expect(e.reason).toBe("expired");
   });
+
+  it("hasStripeSubscription reflects a stripeSubscriptionId", () => {
+    // No Stripe sub yet (e.g. local no-card trial) → false.
+    const local = computeEntitlement(
+      { status: "trialing", trialEndsAtMs: NOW + 2 * DAY },
+      NOW,
+    );
+    expect(local.hasStripeSubscription).toBe(false);
+
+    // Stripe-backed trial: still trialing/premium, but a subscription exists →
+    // true, so the UI shows "Manage subscription" not "Upgrade"/"Keep Premium".
+    const stripeTrial = computeEntitlement(
+      {
+        status: "trialing",
+        trialEndsAtMs: NOW + 2 * DAY,
+        stripeSubscriptionId: "sub_123",
+      },
+      NOW,
+    );
+    expect(stripeTrial.isPremium).toBe(true);
+    expect(stripeTrial.reason).toBe("trialing");
+    expect(stripeTrial.hasStripeSubscription).toBe(true);
+  });
+
+  it("carries cancelAtPeriodEnd (premium stays, just scheduled to end)", () => {
+    const plain = computeEntitlement({ status: "active" }, NOW);
+    expect(plain.cancelAtPeriodEnd).toBe(false);
+
+    const ending = computeEntitlement(
+      { status: "active", currentPeriodEndMs: NOW + 5 * DAY, cancelAtPeriodEnd: true },
+      NOW,
+    );
+    expect(ending.isPremium).toBe(true); // access holds until period end
+    expect(ending.cancelAtPeriodEnd).toBe(true);
+  });
 });
 
 describe("entitlementForUser (Timestamp adapter)", () => {
@@ -119,6 +154,19 @@ describe("entitlementForUser (Timestamp adapter)", () => {
     const e = entitlementForUser({}, NOW);
     expect(e.isPremium).toBe(false);
     expect(e.reason).toBe("none");
+  });
+
+  it("surfaces hasStripeSubscription from the user doc", () => {
+    expect(entitlementForUser({}, NOW).hasStripeSubscription).toBe(false);
+    const e = entitlementForUser(
+      {
+        subscriptionStatus: "trialing",
+        trialEndsAt: { toMillis: () => NOW + DAY },
+        stripeSubscriptionId: "sub_abc",
+      },
+      NOW,
+    );
+    expect(e.hasStripeSubscription).toBe(true);
   });
 });
 

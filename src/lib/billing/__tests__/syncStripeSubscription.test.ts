@@ -81,4 +81,19 @@ describe("subscriptionToPatch", () => {
       subscriptionToPatch(sub({ cancel_at_period_end: true })).cancelAtPeriodEnd,
     ).toBe(true);
   });
+
+  it("treats a `cancel_at` timestamp as a scheduled cancel (dahlia portal cancel)", () => {
+    // The Customer Portal's "cancel at end of billing period" on API
+    // 2026-05-27.dahlia sets `cancel_at` and leaves `cancel_at_period_end`
+    // false — reading the boolean alone would miss the cancellation entirely.
+    const p = subscriptionToPatch(
+      sub({
+        status: "trialing",
+        cancel_at: PERIOD_END_SEC,
+        cancel_at_period_end: false,
+      }),
+    );
+    expect(p.cancelAtPeriodEnd).toBe(true);
+    expect(p.subscriptionStatus).toBe("trialing"); // still premium until then
+  });
 });

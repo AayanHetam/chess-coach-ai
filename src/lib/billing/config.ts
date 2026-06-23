@@ -19,6 +19,17 @@ export const TRIAL_DAYS = 7;
 export const TRIAL_MS = TRIAL_DAYS * 24 * 60 * 60 * 1000;
 
 /**
+ * Minimum lead time before trial end for Stripe to accept a `trial_end` on a
+ * Checkout subscription (Stripe requires ≥48h; we keep a 1h margin so request
+ * latency + the second-floor can't land us just under the line). Shared by the
+ * checkout route — which uses it to decide whether to honor the remaining trial
+ * (no charge now) or charge at checkout — and the UI billing disclosure below,
+ * so what we *tell* the user about when they'll first be charged always matches
+ * what Stripe actually does.
+ */
+export const MIN_TRIAL_LEAD_MS = 49 * 60 * 60 * 1000;
+
+/**
  * Grace window after a paid period lapses (e.g. a failed card → `past_due`)
  * before we actually downgrade. Keeps a paying customer's access alive while
  * Stripe retries the charge, instead of locking them out on the first dunning.
@@ -76,4 +87,38 @@ export const PROMO = {
 
 export function compedReasonForCode(code: string): string {
   return `${PROMO.COMPED_REASON_PREFIX}${code.trim().toUpperCase()}`;
+}
+
+/**
+ * Plain-English auto-renewal disclosure shown right next to the subscribe
+ * button. Centralised so the paywall modal and the pricing page disclose the
+ * SAME recurring terms and the SAME first-charge moment — "billed today" vs "at
+ * trial end" is derived from the same `MIN_TRIAL_LEAD_MS` the checkout route
+ * uses, so the copy can never drift from what Stripe will actually charge.
+ * (FTC/ROSCA wants the recurring nature, the price, and the cancellation method
+ * clear, conspicuous, and adjacent to the point of consent.)
+ */
+export function subscriptionBillingNote(args: {
+  isOnTrial: boolean;
+  trialEndsAtMs: number | null;
+  nowMs: number;
+}): string {
+  const { isOnTrial, trialEndsAtMs, nowMs } = args;
+  const price = `${PRICE_DISPLAY.amount}/${PRICE_DISPLAY.cadence}`;
+  const chargedToday =
+    !isOnTrial ||
+    trialEndsAtMs === null ||
+    trialEndsAtMs <= nowMs + MIN_TRIAL_LEAD_MS;
+
+  if (isOnTrial && !chargedToday && trialEndsAtMs !== null) {
+    const when = new Date(trialEndsAtMs).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+    return `You won't be charged until ${when}, when your free trial ends. After that it's ${price}, billed automatically until you cancel. Cancel anytime from Manage subscription.`;
+  }
+  if (isOnTrial && chargedToday) {
+    return `Your trial is almost over, so you'll be charged ${PRICE_DISPLAY.amount} today, then ${price} automatically until you cancel. Cancel anytime from Manage subscription.`;
+  }
+  return `${price}, billed automatically until you cancel. Cancel anytime from Manage subscription.`;
 }

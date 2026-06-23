@@ -48,11 +48,18 @@ export function subscriptionToPatch(sub: Stripe.Subscription): SubscriptionPatch
   const status = mapStripeStatus(sub.status);
   const isPremium =
     status === "active" || status === "trialing" || status === "past_due";
+  // Scheduled cancellation. As of API 2026-05-27.dahlia the Customer Portal's
+  // "cancel at end of billing period" sets `cancel_at` (a concrete timestamp =
+  // period/trial end) and leaves `cancel_at_period_end: false` — so reading the
+  // legacy boolean ALONE misses every portal-initiated cancel. Treat either
+  // signal as "scheduled to cancel" (the user keeps access until period end).
+  const cancelAtPeriodEnd =
+    Boolean(sub.cancel_at_period_end) || sub.cancel_at != null;
   const patch: SubscriptionPatch = {
     stripeSubscriptionId: sub.id,
     subscriptionStatus: status,
     plan: isPremium ? "premium" : "free",
-    cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+    cancelAtPeriodEnd,
   };
   const periodEndMs = currentPeriodEndMs(sub);
   if (periodEndMs !== null) {

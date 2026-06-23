@@ -17,6 +17,11 @@ export function useEntitlement(): {
   freemiumEnabled: boolean;
   trialDaysRemaining: number;
   isOnTrial: boolean;
+  /** Has a real Stripe subscription (already checked out) — vs a local no-card
+   *  trial. Gate "Manage subscription" / suppress re-upsell on this. */
+  hasStripeSubscription: boolean;
+  /** A cancellation is scheduled — premium until the period/trial end, then free. */
+  cancelAtPeriodEnd: boolean;
 } {
   const { entitlement, loading } = useAuth();
   return {
@@ -26,5 +31,7 @@ export function useEntitlement(): {
     freemiumEnabled: entitlement?.freemiumEnabled ?? false,
     trialDaysRemaining: entitlement?.trialDaysRemaining ?? 0,
     isOnTrial: entitlement?.reason === "trialing",
+    hasStripeSubscription: entitlement?.hasStripeSubscription ?? false,
+    cancelAtPeriodEnd: entitlement?.cancelAtPeriodEnd ?? false,
   };
 }

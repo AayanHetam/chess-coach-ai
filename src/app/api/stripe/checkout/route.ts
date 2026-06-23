@@ -5,14 +5,9 @@ import { assertStripeSecrets, getStripeEnv, getBillingEnv } from "@/env";
 import { getStripe } from "@/lib/stripe";
 import { getUserById, updateSubscription } from "@/lib/server/users";
 import { trackEvent } from "@/lib/tracking/track";
+import { MIN_TRIAL_LEAD_MS } from "@/lib/billing/config";
 
 export const runtime = "nodejs";
-
-// Stripe requires checkout subscription trial_end to be ≥48h out; we add a 1h
-// margin so request latency + the s-floor below can't land us just under the
-// line (Stripe would reject it). Under the threshold we just charge at checkout
-// (the day-7 prompt case).
-const MIN_TRIAL_LEAD_MS = 49 * 60 * 60 * 1000;
 
 /**
  * Create a Stripe Checkout Session for the $0.99/mo Premium subscription.
@@ -49,6 +44,26 @@ export async function POST() {
     return NextResponse.json(
       { error: "You already have free Premium access." },
       { status: 400 },
+    );
+  }
+
+  // Defense-in-depth against double-subscribing: if the user already has a live
+  // Stripe subscription (incl. a Stripe-backed trial), do NOT open a second
+  // checkout — that would create a duplicate subscription and bill them twice.
+  // The UI already routes these users to "Manage subscription", but the server
+  // is the real guard. A `canceled` sub is intentionally allowed through so a
+  // lapsed user can resubscribe.
+  const sub = user.subscriptionStatus;
+  if (
+    user.stripeSubscriptionId &&
+    (sub === "active" || sub === "trialing" || sub === "past_due")
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "You already have an active subscription. Manage it from the billing portal.",
+      },
+      { status: 409 },
     );
   }
 

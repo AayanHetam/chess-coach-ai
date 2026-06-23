@@ -246,6 +246,71 @@ export default function GamesTable({ games }: Props) {
             ],
           },
         }}
+        sx={{
+          // Neutral glass card frame around the table.
+          borderRadius: "1.5rem",
+          border: "1px solid rgba(255,255,255,0.08)",
+          background: "rgba(20,22,28,0.55)",
+          backdropFilter: "blur(14px) saturate(140%)",
+          WebkitBackdropFilter: "blur(14px) saturate(140%)",
+          boxShadow:
+            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          overflow: "hidden",
+          color: "rgba(255,255,255,0.94)",
+          // Flip the light tracks/gridlines to white-alpha so they're
+          // visible on the dark glass instead of painting black/grey hairlines.
+          "--DataGrid-rowBorderColor": "rgba(255,255,255,0.06)",
+          "--DataGrid-containerBackground": "transparent",
+          "& .MuiDataGrid-columnHeaders": {
+            background: "transparent",
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+          },
+          "& .MuiDataGrid-columnHeader": {
+            background: "transparent",
+            color: "rgba(255,255,255,0.62)",
+          },
+          "& .MuiDataGrid-columnSeparator": {
+            color: "rgba(255,255,255,0.06)",
+          },
+          "& .MuiDataGrid-cell": {
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            color: "rgba(255,255,255,0.94)",
+          },
+          "& .MuiDataGrid-row": {
+            transition: "background-color 180ms ease",
+          },
+          "& .MuiDataGrid-row:hover": {
+            backgroundColor: "rgba(255,255,255,0.04)",
+          },
+          "& .MuiDataGrid-row.Mui-selected": {
+            backgroundColor: "rgba(249,115,22,0.12)",
+            boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.35)",
+            "&:hover": { backgroundColor: "rgba(249,115,22,0.16)" },
+          },
+          // Right-edge scrollbar filler / pinned fillers paint white in v7
+          // unless these are flipped transparent.
+          "& .MuiDataGrid-filler, & .MuiDataGrid-filler--borderTop, & .MuiDataGrid-scrollbarFiller, & .MuiDataGrid-scrollbarFiller--header":
+            {
+              background: "transparent",
+              borderColor: "rgba(255,255,255,0.06)",
+            },
+          "& .MuiDataGrid-virtualScroller": {
+            background: "transparent",
+          },
+          "& .MuiDataGrid-footerContainer": {
+            borderTop: "1px solid rgba(255,255,255,0.08)",
+            color: "rgba(255,255,255,0.62)",
+          },
+          // 'No games found' overlay reads at the muted floor.
+          "& .MuiDataGrid-overlay": {
+            background: "transparent",
+            color: "rgba(255,255,255,0.5)",
+          },
+          "& .MuiDataGrid-iconButtonContainer .MuiSvgIcon-root, & .MuiDataGrid-sortIcon, & .MuiDataGrid-menuIconButton .MuiSvgIcon-root":
+            {
+              color: "rgba(255,255,255,0.62)",
+            },
+        }}
       />
 
       {/* Perspective Toggle Dialog */}
@@ -254,18 +319,45 @@ export default function GamesTable({ games }: Props) {
         onClose={() => setPerspectiveDialogOpen(false)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              backgroundColor: "rgba(8,9,12,0.72)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+            },
+          },
+        }}
+        PaperProps={{
+          sx: {
+            borderRadius: "1.5rem",
+            background:
+              "linear-gradient(180deg, rgba(20,22,28,0.92), rgba(12,14,20,0.92))",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow:
+              "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+            color: "rgba(255,255,255,0.94)",
+          },
+        }}
       >
         <DialogContent sx={{ textAlign: "center", py: 4, px: 3 }}>
           <Icon
             icon="mdi:chess-king"
             width={40}
-            style={{ marginBottom: 12, color: "#FF6B35" }}
+            style={{ marginBottom: 12, color: "#FB923C" }}
           />
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 700, mb: 1, color: "rgba(255,255,255,0.94)" }}
+          >
             Analyze from which perspective?
           </Typography>
-          <Typography variant="body2" sx={{ color: "#777", mb: 3 }}>
+          <Typography
+            variant="body2"
+            sx={{ color: "rgba(255,255,255,0.62)", mb: 3 }}
+          >
             Choose the color you played so the AI coach analyzes from your point of view.
           </Typography>
 
@@ -284,11 +376,17 @@ export default function GamesTable({ games }: Props) {
                 fontWeight: 600,
                 fontSize: "1rem",
                 borderRadius: "12px 0 0 12px !important",
+                color: "rgba(255,255,255,0.62)",
+                bgcolor: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                transition: "all 180ms ease",
+                "&:hover": { bgcolor: "rgba(255,255,255,0.06)" },
                 "&.Mui-selected": {
-                  bgcolor: "#fff",
-                  color: "#333",
-                  border: "2px solid #FF6B35",
-                  "&:hover": { bgcolor: "#f5f5f5" },
+                  bgcolor: "rgba(255,255,255,0.92)",
+                  color: "#0A0A0A",
+                  border: "1px solid rgba(249,115,22,0.4)",
+                  boxShadow: "0 0 0 1px rgba(249,115,22,0.18)",
+                  "&:hover": { bgcolor: "rgba(255,255,255,0.98)" },
                 },
               }}
             >
@@ -304,11 +402,17 @@ export default function GamesTable({ games }: Props) {
                 fontWeight: 600,
                 fontSize: "1rem",
                 borderRadius: "0 12px 12px 0 !important",
+                color: "rgba(255,255,255,0.62)",
+                bgcolor: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                transition: "all 180ms ease",
+                "&:hover": { bgcolor: "rgba(255,255,255,0.06)" },
                 "&.Mui-selected": {
-                  bgcolor: "#333",
-                  color: "#fff",
-                  border: "2px solid #FF6B35",
-                  "&:hover": { bgcolor: "#444" },
+                  bgcolor: "rgba(20,22,28,0.9)",
+                  color: "rgba(255,255,255,0.94)",
+                  border: "1px solid rgba(249,115,22,0.4)",
+                  boxShadow: "0 0 0 1px rgba(249,115,22,0.18)",
+                  "&:hover": { bgcolor: "rgba(28,30,38,0.95)" },
                 },
               }}
             >
@@ -322,7 +426,10 @@ export default function GamesTable({ games }: Props) {
           </ToggleButtonGroup>
 
           {pendingGame && (
-            <Typography variant="caption" sx={{ display: "block", mb: 2, color: "#999" }}>
+            <Typography
+              variant="caption"
+              sx={{ display: "block", mb: 2, color: "rgba(255,255,255,0.5)" }}
+            >
               {pendingGame.white?.name || "White"} vs {pendingGame.black?.name || "Black"}
             </Typography>
           )}
@@ -331,7 +438,14 @@ export default function GamesTable({ games }: Props) {
             <Button
               onClick={() => setPerspectiveDialogOpen(false)}
               variant="text"
-              sx={{ textTransform: "none", color: "#888" }}
+              sx={{
+                textTransform: "none",
+                color: "rgba(255,255,255,0.62)",
+                "&:hover": {
+                  color: "rgba(255,255,255,0.92)",
+                  bgcolor: "rgba(255,255,255,0.04)",
+                },
+              }}
             >
               Cancel
             </Button>
@@ -341,13 +455,15 @@ export default function GamesTable({ games }: Props) {
               sx={{
                 px: 4,
                 fontWeight: 700,
-                borderRadius: 2.5,
+                borderRadius: "12px",
                 textTransform: "none",
-                background:
-                  "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
+                bgcolor: "#F97316",
+                color: "#0A0A0A",
+                boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
+                transition: "all 180ms ease",
                 "&:hover": {
-                  background:
-                    "linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)",
+                  bgcolor: "#FB923C",
+                  boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
                 },
               }}
             >

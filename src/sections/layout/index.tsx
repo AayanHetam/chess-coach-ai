@@ -83,9 +83,35 @@ export default function Layout({ children }: PropsWithChildren) {
   // full-bleed, no legacy chrome.
   const isPreviewRoute = router.pathname.startsWith("/preview");
 
-  // Landing page or preview route: skip NavBar and app chrome for a
-  // full-bleed look.
-  if (isLandingPage || isPreviewRoute) {
+  // Cutover surfaces promoted from /preview/* that ship their own
+  // Obsidian-Glass chrome (ThemeProvider + GradientBackdrop + SharedNavPill).
+  // Mounting the legacy light NavBar on top would double-stack headers, so
+  // these get the same full-bleed treatment as the landing/preview routes.
+  // Scoped to an explicit allowlist on purpose — do NOT broaden the
+  // isLandingPage/isPreviewRoute flags, which would affect every route.
+  //
+  // /analysis and /plan are included because each already self-hosts its own
+  // dark glass chrome (GradientBackdrop + SharedNavPill, plus a dark theme on
+  // /analysis); before this they took the else branch and rendered the legacy
+  // NavBar ON TOP of their own glass pill (a double-nav left over from the
+  // cutover / the learning-engine launch).
+  const isGlassRoute =
+    router.pathname === "/play" ||
+    router.pathname === "/profile" ||
+    router.pathname === "/analysis" ||
+    router.pathname === "/plan" ||
+    router.pathname === "/openings" ||
+    router.pathname === "/scout" ||
+    router.pathname === "/practice" ||
+    router.pathname === "/puzzles" ||
+    router.pathname === "/puzzles/sessions" ||
+    router.pathname === "/repetit-training" ||
+    router.pathname === "/database" ||
+    router.pathname === "/courses";
+
+  // Landing page, preview route, or a glass cutover route: skip NavBar and
+  // app chrome for a full-bleed look.
+  if (isLandingPage || isPreviewRoute || isGlassRoute) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />

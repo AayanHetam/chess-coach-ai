@@ -18,7 +18,12 @@ import {
 import { Chessboard } from "react-chessboard";
 import { Chess, Square } from "chess.js";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { ThemeProvider } from "@mui/material/styles";
+import Head from "next/head";
 import { PageTitle } from "@/components/pageTitle";
+import { chessMastiDarkTheme } from "@/theme/chessMasti";
+import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
+import { NavPill } from "@/components/ui/NavPill";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { pieceSetAtom } from "@/components/board/states";
 import { Piece, CustomPieces } from "react-chessboard/dist/chessboard/types";
@@ -371,17 +376,63 @@ export default function Openings() {
   // ==================== BROWSE VIEW ====================
   if (phase === "browse") {
     return (
-      <>
+      <ThemeProvider theme={chessMastiDarkTheme}>
         <PageTitle title="Chess Masti AI - Opening Training" />
-        <Box sx={{ width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } }}>
-          <Paper sx={{ p: 3, mb: 2, maxWidth: 1000, mx: "auto" }}>
+        <Head>
+          <meta name="color-scheme" content="dark" />
+          <meta name="theme-color" content="#08090C" />
+          <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
+        </Head>
+
+        <GradientBackdrop />
+
+        <Box
+          sx={{
+            minHeight: "100vh",
+            color: "rgba(255,255,255,0.94)",
+            pt: 2,
+            pb: 4,
+            px: { xs: 2, md: 3 },
+          }}
+        >
+          <NavPill active="openings" />
+          <Paper
+            sx={{
+              p: 3,
+              mb: 2,
+              maxWidth: 1000,
+              mx: "auto",
+              borderRadius: "1.5rem",
+              background: "rgba(20,22,28,0.55)",
+              backdropFilter: "blur(14px) saturate(140%)",
+              WebkitBackdropFilter: "blur(14px) saturate(140%)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow:
+                "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+              overflow: "hidden",
+            }}
+          >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-              <MenuBookIcon sx={{ color: "primary.main", fontSize: 28 }} />
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "12px",
+                  bgcolor: "rgba(249,115,22,0.14)",
+                  border: "1px solid rgba(249,115,22,0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <MenuBookIcon sx={{ color: "#F97316", fontSize: 24 }} />
+              </Box>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: "rgba(255,255,255,0.94)" }}>
                 Opening Training
               </Typography>
             </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            <Typography variant="body2" sx={{ mb: 3, color: "rgba(255,255,255,0.62)" }}>
               Master your openings through flashcard-style drills with spaced repetition.
             </Typography>
 
@@ -392,15 +443,70 @@ export default function Openings() {
                 exclusive
                 onChange={(_, val) => val && setColorFilter(val)}
                 size="small"
+                sx={{
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: "999px",
+                  p: 0.5,
+                  gap: 0.5,
+                }}
               >
-                <ToggleButton value="white" sx={{ textTransform: "none", px: 3 }}>White</ToggleButton>
-                <ToggleButton value="black" sx={{ textTransform: "none", px: 3 }}>Black</ToggleButton>
+                <ToggleButton
+                  value="white"
+                  sx={{
+                    textTransform: "none",
+                    px: 3,
+                    border: "none",
+                    borderRadius: "999px",
+                    color: "rgba(255,255,255,0.62)",
+                    "&:hover": { color: "rgba(255,255,255,0.92)" },
+                    "&.Mui-selected": {
+                      bgcolor: "rgba(249,115,22,0.18)",
+                      border: "1px solid rgba(249,115,22,0.4)",
+                      color: "#FB923C",
+                      boxShadow: "0 0 0 1px rgba(249,115,22,0.18)",
+                      "&:hover": { bgcolor: "rgba(249,115,22,0.24)" },
+                    },
+                  }}
+                >
+                  White
+                </ToggleButton>
+                <ToggleButton
+                  value="black"
+                  sx={{
+                    textTransform: "none",
+                    px: 3,
+                    border: "none",
+                    borderRadius: "999px",
+                    color: "rgba(255,255,255,0.62)",
+                    "&:hover": { color: "rgba(255,255,255,0.92)" },
+                    "&.Mui-selected": {
+                      bgcolor: "rgba(249,115,22,0.18)",
+                      border: "1px solid rgba(249,115,22,0.4)",
+                      color: "#FB923C",
+                      boxShadow: "0 0 0 1px rgba(249,115,22,0.18)",
+                      "&:hover": { bgcolor: "rgba(249,115,22,0.24)" },
+                    },
+                  }}
+                >
+                  Black
+                </ToggleButton>
               </ToggleButtonGroup>
               <Button
                 variant="outlined"
                 startIcon={<AddIcon />}
                 onClick={() => setImportDialogOpen(true)}
-                sx={{ textTransform: "none", fontWeight: 600 }}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 600,
+                  borderRadius: "999px",
+                  color: "rgba(255,255,255,0.8)",
+                  borderColor: "rgba(255,255,255,0.18)",
+                  "&:hover": {
+                    borderColor: "rgba(255,255,255,0.32)",
+                    bgcolor: "rgba(255,255,255,0.04)",
+                  },
+                }}
               >
                 Import PGN
               </Button>
@@ -409,7 +515,7 @@ export default function Openings() {
             {/* ===== COURSES (Chessly-style) ===== */}
             {filteredCourses.length > 0 && (
               <>
-                <Typography variant="overline" sx={{ color: "grey.500", fontWeight: 700, letterSpacing: 1.5, mb: 1.5, display: "block" }}>
+                <Typography variant="overline" sx={{ color: "rgba(255,255,255,0.5)", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", mb: 1.5, display: "block" }}>
                   Courses
                 </Typography>
                 {filteredCourses.map((course) => {
@@ -421,10 +527,16 @@ export default function Openings() {
                       key={course.id}
                       sx={{
                         mb: 2,
-                        border: "1px solid",
-                        borderColor: isExpanded ? "primary.dark" : "grey.800",
-                        bgcolor: "grey.900",
-                        borderRadius: 3,
+                        background: "rgba(20,22,28,0.55)",
+                        backdropFilter: "blur(14px) saturate(140%)",
+                        WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                        border: isExpanded
+                          ? "1px solid rgba(249,115,22,0.35)"
+                          : "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: "1.5rem",
+                        boxShadow: isExpanded
+                          ? "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(249,115,22,0.18)"
+                          : "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
                         overflow: "hidden",
                       }}
                     >
@@ -437,7 +549,8 @@ export default function Openings() {
                           gap: 2,
                           p: 2.5,
                           cursor: "pointer",
-                          "&:hover": { bgcolor: "rgba(255,255,255,0.02)" },
+                          transition: "all 180ms ease",
+                          "&:hover": { bgcolor: "rgba(255,255,255,0.04)" },
                         }}
                       >
                         {/* Course icon */}
@@ -445,29 +558,30 @@ export default function Openings() {
                           sx={{
                             width: 64,
                             height: 64,
-                            borderRadius: 2,
-                            bgcolor: "primary.dark",
+                            borderRadius: "1rem",
+                            bgcolor: "rgba(249,115,22,0.14)",
+                            border: "1px solid rgba(249,115,22,0.3)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             flexShrink: 0,
                           }}
                         >
-                          <SchoolIcon sx={{ fontSize: 32, color: "primary.light" }} />
+                          <SchoolIcon sx={{ fontSize: 32, color: "#FB923C" }} />
                         </Box>
 
                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="h6" sx={{ fontWeight: 700, color: "grey.100", lineHeight: 1.3 }}>
+                          <Typography variant="h6" sx={{ fontWeight: 700, color: "rgba(255,255,255,0.94)", lineHeight: 1.3 }}>
                             {course.name}
                           </Typography>
-                          <Typography variant="body2" sx={{ color: "grey.400", mt: 0.25 }} noWrap>
+                          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.62)", mt: 0.25 }} noWrap>
                             {course.description}
                           </Typography>
                           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 1 }}>
-                            <Typography variant="caption" sx={{ color: "grey.500" }}>
+                            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)" }}>
                               {course.chapters.length} chapters
                             </Typography>
-                            <Typography variant="caption" sx={{ color: cp.pct > 0 ? "success.light" : "grey.500" }}>
+                            <Typography variant="caption" sx={{ color: cp.pct > 0 ? "#4ADE80" : "rgba(255,255,255,0.5)", fontFamily: "Menlo, Monaco, monospace" }}>
                               {cp.pct}%
                             </Typography>
                             <LinearProgress
@@ -477,24 +591,24 @@ export default function Openings() {
                                 flex: 1,
                                 height: 5,
                                 borderRadius: 3,
-                                bgcolor: "grey.800",
-                                "& .MuiLinearProgress-bar": { bgcolor: cp.pct > 0 ? "success.main" : "grey.700" },
+                                bgcolor: "rgba(255,255,255,0.1)",
+                                "& .MuiLinearProgress-bar": { bgcolor: cp.pct > 0 ? "#4ADE80" : "rgba(255,255,255,0.18)" },
                               }}
                             />
                           </Box>
                         </Box>
 
                         {isExpanded ? (
-                          <ExpandLessIcon sx={{ color: "grey.500" }} />
+                          <ExpandLessIcon sx={{ color: "rgba(255,255,255,0.5)" }} />
                         ) : (
-                          <ExpandMoreIcon sx={{ color: "grey.500" }} />
+                          <ExpandMoreIcon sx={{ color: "rgba(255,255,255,0.5)" }} />
                         )}
                       </Box>
 
                       {/* Expanded chapters */}
                       {isExpanded && (
                         <Box sx={{ px: 2.5, pb: 2.5 }}>
-                          <Divider sx={{ borderColor: "grey.800", mb: 1.5 }} />
+                          <Divider sx={{ borderColor: "rgba(255,255,255,0.08)", mb: 1.5 }} />
                           {course.chapters.map((chapter, chIdx) => {
                             const chProg = getChapterProgress(chapter);
                             const isChExpanded = expandedChapter === chapter.id;
@@ -508,15 +622,16 @@ export default function Openings() {
                                     alignItems: "center",
                                     gap: 1.5,
                                     p: 1.5,
-                                    borderRadius: 2,
-                                    bgcolor: isChExpanded ? "rgba(255,255,255,0.03)" : "transparent",
+                                    borderRadius: "12px",
+                                    transition: "all 180ms ease",
+                                    bgcolor: isChExpanded ? "rgba(255,255,255,0.05)" : "transparent",
                                     "&:hover": { bgcolor: "rgba(255,255,255,0.03)" },
                                   }}
                                 >
                                   <Typography
                                     variant="caption"
                                     sx={{
-                                      color: "grey.500",
+                                      color: "rgba(255,255,255,0.5)",
                                       fontWeight: 600,
                                       minWidth: 70,
                                       flexShrink: 0,
@@ -529,13 +644,13 @@ export default function Openings() {
                                     sx={{ flex: 1, minWidth: 0, cursor: "pointer" }}
                                     onClick={() => setExpandedChapter(isChExpanded ? null : chapter.id)}
                                   >
-                                    <Typography variant="body2" sx={{ fontWeight: 600, color: "grey.200" }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: "rgba(255,255,255,0.94)" }}>
                                       {chapter.name}
                                     </Typography>
                                   </Box>
 
                                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
-                                    <Typography variant="caption" sx={{ color: chProg.pct > 0 ? "success.light" : "grey.600" }}>
+                                    <Typography variant="caption" sx={{ color: chProg.pct > 0 ? "#4ADE80" : "rgba(255,255,255,0.5)", fontFamily: "Menlo, Monaco, monospace" }}>
                                       {chProg.pct}%
                                     </Typography>
                                     <LinearProgress
@@ -545,11 +660,23 @@ export default function Openings() {
                                         width: 80,
                                         height: 4,
                                         borderRadius: 2,
-                                        bgcolor: "grey.800",
-                                        "& .MuiLinearProgress-bar": { bgcolor: chProg.pct > 0 ? "success.main" : "grey.700" },
+                                        bgcolor: "rgba(255,255,255,0.1)",
+                                        "& .MuiLinearProgress-bar": { bgcolor: chProg.pct > 0 ? "#4ADE80" : "rgba(255,255,255,0.18)" },
                                       }}
                                     />
-                                    <Tooltip title={`Drill Shuffle — ${chProg.total} lines`}>
+                                    <Tooltip
+                                      title={`Drill Shuffle — ${chProg.total} lines`}
+                                      slotProps={{
+                                        tooltip: {
+                                          sx: {
+                                            bgcolor: "rgba(20,22,28,0.92)",
+                                            border: "1px solid rgba(255,255,255,0.1)",
+                                            backdropFilter: "blur(8px)",
+                                            color: "rgba(255,255,255,0.92)",
+                                          },
+                                        },
+                                      }}
+                                    >
                                       <Button
                                         size="small"
                                         variant="text"
@@ -560,8 +687,8 @@ export default function Openings() {
                                         sx={{
                                           minWidth: 0,
                                           px: 1,
-                                          color: "grey.400",
-                                          "&:hover": { color: "primary.main", bgcolor: "rgba(255,107,53,0.08)" },
+                                          color: "rgba(255,255,255,0.62)",
+                                          "&:hover": { color: "#FB923C", bgcolor: "rgba(249,115,22,0.1)" },
                                         }}
                                       >
                                         <ShuffleIcon sx={{ fontSize: 18 }} />
@@ -572,9 +699,9 @@ export default function Openings() {
                                       sx={{ cursor: "pointer", display: "flex", alignItems: "center" }}
                                     >
                                       {isChExpanded ? (
-                                        <ExpandLessIcon sx={{ fontSize: 20, color: "grey.500" }} />
+                                        <ExpandLessIcon sx={{ fontSize: 20, color: "rgba(255,255,255,0.5)" }} />
                                       ) : (
-                                        <ExpandMoreIcon sx={{ fontSize: 20, color: "grey.500" }} />
+                                        <ExpandMoreIcon sx={{ fontSize: 20, color: "rgba(255,255,255,0.5)" }} />
                                       )}
                                     </Box>
                                   </Box>
@@ -583,10 +710,10 @@ export default function Openings() {
                                 {/* Expanded chapter description */}
                                 {isChExpanded && (
                                   <Box sx={{ pl: 10, pr: 2, pb: 1 }}>
-                                    <Typography variant="body2" sx={{ color: "grey.400", fontSize: "0.82rem", mb: 1 }}>
+                                    <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.62)", fontSize: "0.82rem", mb: 1 }}>
                                       {chapter.description}
                                     </Typography>
-                                    <Typography variant="caption" sx={{ color: "grey.600" }}>
+                                    <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)" }}>
                                       {chProg.total} lines · {chProg.practiced} practiced
                                     </Typography>
                                   </Box>
@@ -611,7 +738,7 @@ export default function Openings() {
             onImport={handleImportRepertoire}
           />
         </Box>
-      </>
+      </ThemeProvider>
     );
   }
 
@@ -626,9 +753,26 @@ export default function Openings() {
   const progressPct = (drillMoveIndex / selectedLine.moves.length) * 100;
 
   return (
-    <>
+    <ThemeProvider theme={chessMastiDarkTheme}>
       <PageTitle title={`Chess Masti AI - Drill: ${selectedLine.name}`} />
-      <Box sx={{ width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } }}>
+      <Head>
+        <meta name="color-scheme" content="dark" />
+        <meta name="theme-color" content="#08090C" />
+        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
+      </Head>
+
+      <GradientBackdrop />
+
+      <Box
+        sx={{
+          minHeight: "100vh",
+          color: "rgba(255,255,255,0.94)",
+          pt: 2,
+          pb: 4,
+          px: { xs: 2, md: 3 },
+        }}
+      >
+        <NavPill active="openings" />
         <Box sx={{ maxWidth: 1200, mx: "auto" }}>
           {/* Header */}
           <Paper
@@ -641,17 +785,24 @@ export default function Openings() {
               justifyContent: "space-between",
               flexWrap: "wrap",
               gap: 1,
-              bgcolor: "grey.900",
-              color: "grey.100",
+              borderRadius: "1.5rem",
+              color: "rgba(255,255,255,0.94)",
+              background: "rgba(20,22,28,0.55)",
+              backdropFilter: "blur(14px) saturate(140%)",
+              WebkitBackdropFilter: "blur(14px) saturate(140%)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow:
+                "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+              overflow: "hidden",
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <SchoolIcon sx={{ color: "primary.main" }} />
+              <SchoolIcon sx={{ color: "#FB923C" }} />
               <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2, color: "rgba(255,255,255,0.94)" }}>
                   {selectedRepertoire.name}: {selectedLine.name}
                 </Typography>
-                <Typography variant="caption" sx={{ color: "grey.500" }}>
+                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)" }}>
                   {selectedLine.description}
                 </Typography>
               </Box>
@@ -661,9 +812,10 @@ export default function Openings() {
               size="small"
               onClick={() => setPhase("browse")}
               sx={{
-                color: "grey.300",
-                borderColor: "grey.700",
-                "&:hover": { borderColor: "grey.500", bgcolor: "grey.800" },
+                color: "rgba(255,255,255,0.8)",
+                borderColor: "rgba(255,255,255,0.18)",
+                borderRadius: "999px",
+                "&:hover": { borderColor: "rgba(255,255,255,0.32)", bgcolor: "rgba(255,255,255,0.04)" },
                 textTransform: "none",
               }}
             >
@@ -679,9 +831,9 @@ export default function Openings() {
               mb: 2,
               height: 6,
               borderRadius: 3,
-              bgcolor: "grey.800",
+              bgcolor: "rgba(255,255,255,0.1)",
               "& .MuiLinearProgress-bar": {
-                bgcolor: drillStatus === "complete" ? "success.main" : "primary.main",
+                bgcolor: drillStatus === "complete" ? "#4ADE80" : "#F97316",
               },
             }}
           />
@@ -704,13 +856,19 @@ export default function Openings() {
                   mb: 1,
                   px: 1.5,
                   py: 0.75,
-                  borderRadius: 1,
+                  borderRadius: "12px",
                   bgcolor:
                     drillStatus === "complete"
-                      ? "success.dark"
+                      ? "rgba(74,222,128,0.16)"
                       : wrongSquare
-                      ? "error.dark"
-                      : "grey.800",
+                      ? "rgba(248,113,113,0.16)"
+                      : "rgba(255,255,255,0.05)",
+                  border:
+                    drillStatus === "complete"
+                      ? "1px solid rgba(74,222,128,0.4)"
+                      : wrongSquare
+                      ? "1px solid rgba(248,113,113,0.45)"
+                      : "1px solid rgba(255,255,255,0.08)",
                   display: "flex",
                   alignItems: "center",
                   gap: 1,
@@ -724,7 +882,7 @@ export default function Openings() {
                       borderRadius: "50%",
                       bgcolor: game.turn() === "w" ? "#fff" : "#333",
                       border: "2px solid",
-                      borderColor: "grey.500",
+                      borderColor: "rgba(255,255,255,0.4)",
                       flexShrink: 0,
                     }}
                   />
@@ -733,7 +891,12 @@ export default function Openings() {
                   variant="body2"
                   sx={{
                     fontWeight: 600,
-                    color: drillStatus === "complete" || wrongSquare ? "#fff" : "grey.300",
+                    color:
+                      drillStatus === "complete"
+                        ? "#86EFAC"
+                        : wrongSquare
+                        ? "#FCA5A5"
+                        : "rgba(255,255,255,0.94)",
                   }}
                 >
                   {drillStatus === "complete"
@@ -746,9 +909,20 @@ export default function Openings() {
                 </Typography>
               </Box>
 
-              <Box sx={{ width: boardSize }}>
-                <Chessboard
-                  id="OpeningDrillBoard"
+              <Box
+                sx={{
+                  p: 1,
+                  borderRadius: "1.5rem",
+                  background: "rgba(20,22,28,0.55)",
+                  backdropFilter: "blur(14px) saturate(140%)",
+                  WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+                }}
+              >
+                <Box sx={{ width: boardSize }}>
+                  <Chessboard
+                    id="OpeningDrillBoard"
                   position={game.fen()}
                   onPieceDrop={onPieceDrop}
                   onSquareClick={onSquareClick}
@@ -767,6 +941,7 @@ export default function Openings() {
                   }}
                   animationDuration={200}
                 />
+                </Box>
               </Box>
             </Box>
 
@@ -774,8 +949,14 @@ export default function Openings() {
             <Paper
               sx={{
                 p: 2.5,
-                bgcolor: "grey.900",
-                borderRadius: 2,
+                borderRadius: "1.5rem",
+                background: "rgba(20,22,28,0.55)",
+                backdropFilter: "blur(14px) saturate(140%)",
+                WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow:
+                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                overflow: "hidden",
                 flex: 1,
                 minWidth: 0,
                 maxWidth: { lg: 360 },
@@ -783,7 +964,7 @@ export default function Openings() {
               }}
             >
               {/* Move list */}
-              <Typography variant="caption" sx={{ color: "grey.500", fontWeight: 600, mb: 1, display: "block" }}>
+              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", mb: 1, display: "block" }}>
                 MOVES
               </Typography>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 2 }}>
@@ -799,7 +980,7 @@ export default function Openings() {
                   return (
                     <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
                       {showNum && (
-                        <Typography variant="caption" sx={{ color: "grey.600", mr: 0.25 }}>
+                        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", mr: 0.25 }}>
                           {moveNum}.
                         </Typography>
                       )}
@@ -812,20 +993,20 @@ export default function Openings() {
                           fontWeight: isUserMove ? 700 : 400,
                           bgcolor: isPlayed
                             ? isUserMove
-                              ? "rgba(76,175,80,0.15)"
-                              : "rgba(255,255,255,0.05)"
+                              ? "rgba(74,222,128,0.16)"
+                              : "rgba(255,255,255,0.06)"
                             : isCurrent
-                            ? "rgba(25,118,210,0.15)"
-                            : "rgba(255,255,255,0.03)",
+                            ? "rgba(249,115,22,0.18)"
+                            : "rgba(255,255,255,0.04)",
                           color: isPlayed
                             ? isUserMove
-                              ? "success.light"
-                              : "grey.400"
+                              ? "#86EFAC"
+                              : "rgba(255,255,255,0.7)"
                             : isCurrent
-                            ? "primary.light"
-                            : "grey.600",
+                            ? "#FB923C"
+                            : "rgba(255,255,255,0.5)",
                           border: isCurrent ? "1px solid" : "none",
-                          borderColor: "primary.dark",
+                          borderColor: "rgba(249,115,22,0.4)",
                         }}
                       />
                     </Box>
@@ -833,10 +1014,10 @@ export default function Openings() {
                 })}
               </Box>
 
-              <Divider sx={{ borderColor: "grey.800", my: 2 }} />
+              <Divider sx={{ borderColor: "rgba(255,255,255,0.08)", my: 2 }} />
 
               {/* Themes */}
-              <Typography variant="caption" sx={{ color: "grey.500", fontWeight: 600, mb: 1, display: "block" }}>
+              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", mb: 1, display: "block" }}>
                 STRATEGIC THEMES
               </Typography>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 2 }}>
@@ -845,7 +1026,7 @@ export default function Openings() {
                     key={t}
                     label={t}
                     size="small"
-                    sx={{ bgcolor: "grey.800", color: "grey.300", fontSize: "0.72rem" }}
+                    sx={{ bgcolor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)", fontSize: "0.72rem" }}
                   />
                 ))}
               </Box>
@@ -857,7 +1038,15 @@ export default function Openings() {
                     variant="contained"
                     startIcon={<ReplayIcon />}
                     onClick={() => startDrill(selectedRepertoire, selectedLine)}
-                    sx={{ textTransform: "none", fontWeight: 600 }}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 700,
+                      borderRadius: "999px",
+                      bgcolor: "#F97316",
+                      color: "#0A0A0A",
+                      boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
+                      "&:hover": { bgcolor: "#FB923C" },
+                    }}
                   >
                     Drill Again
                   </Button>
@@ -871,7 +1060,13 @@ export default function Openings() {
                           variant="outlined"
                           endIcon={<ArrowForwardIcon />}
                           onClick={() => startDrill(selectedRepertoire, nextLine)}
-                          sx={{ textTransform: "none" }}
+                          sx={{
+                            textTransform: "none",
+                            borderRadius: "999px",
+                            color: "rgba(255,255,255,0.8)",
+                            borderColor: "rgba(255,255,255,0.18)",
+                            "&:hover": { borderColor: "rgba(255,255,255,0.32)", bgcolor: "rgba(255,255,255,0.04)" },
+                          }}
                         >
                           Next: {nextLine.name}
                         </Button>
@@ -882,7 +1077,7 @@ export default function Openings() {
                   <Button
                     variant="text"
                     onClick={() => setPhase("browse")}
-                    sx={{ textTransform: "none", color: "grey.400" }}
+                    sx={{ textTransform: "none", color: "rgba(255,255,255,0.62)", "&:hover": { color: "rgba(255,255,255,0.9)" } }}
                   >
                     Back to Repertoires
                   </Button>
@@ -892,6 +1087,6 @@ export default function Openings() {
           </Box>
         </Box>
       </Box>
-    </>
+    </ThemeProvider>
   );
 }

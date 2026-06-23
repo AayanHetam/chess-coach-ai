@@ -72,7 +72,13 @@ export default function LiveClock({
 
   const low = localMs < lowTimeMs;
   const critical = localMs < 10_000;
-  const textColor = critical ? '#ef4444' : low ? '#f59e0b' : 'text.primary';
+  const textColor = critical
+    ? '#ef4444'
+    : low
+      ? '#f59e0b'
+      : active
+        ? '#FB923C'
+        : 'rgba(255,255,255,0.94)';
   void label; // label not rendered in this design
 
   return (
@@ -84,9 +90,13 @@ export default function LiveClock({
         px: size === 'sm' ? 1.5 : 2,
         py: size === 'sm' ? 0.75 : 1,
         borderRadius: 2.5,
-        bgcolor: active ? 'rgba(255,107,53,0.08)' : 'rgba(0,0,0,0.03)',
+        background: active ? 'rgba(249,115,22,0.18)' : 'rgba(255,255,255,0.04)',
+        border: active
+          ? '1px solid rgba(249,115,22,0.4)'
+          : '1px solid rgba(255,255,255,0.08)',
+        boxShadow: active ? '0 0 12px rgba(249,115,22,0.25)' : 'none',
         minWidth: size === 'sm' ? 80 : 100,
-        transition: 'background-color 0.2s',
+        transition: 'background-color 0.2s, border-color 0.2s, box-shadow 0.2s',
       }}
     >
       <Typography

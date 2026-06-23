@@ -505,12 +505,14 @@ export default function LichessLiveBoard({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(15,23,42,0.62)',
-              borderRadius: '6px',
+              background: 'rgba(20,22,28,0.7)',
+              backdropFilter: 'blur(14px) saturate(140%)',
+              WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '12px',
               color: '#fff',
               textAlign: 'center',
               p: 3,
-              backdropFilter: 'blur(2px)',
             }}
           >
             <Icon
@@ -537,12 +539,15 @@ export default function LichessLiveBoard({
                 onClick={onExit}
                 startIcon={<Icon icon="mdi:refresh" />}
                 sx={{
+                  borderRadius: '12px',
                   textTransform: 'none',
-                  fontWeight: 800,
-                  borderRadius: 2.5,
+                  fontWeight: 600,
                   px: 2.5,
-                  background: 'linear-gradient(135deg, #FF6B35, #FF8C42)',
-                  '&:hover': { background: 'linear-gradient(135deg, #e85d2c, #e07a38)' },
+                  bgcolor: '#F97316',
+                  color: '#0A0A0A',
+                  boxShadow: '0 0 0 1px rgba(249,115,22,0.5), 0 8px 32px rgba(249,115,22,0.25)',
+                  transition: 'all 180ms ease',
+                  '&:hover': { bgcolor: '#FB923C', transform: 'translateY(-1px)' },
                 }}
               >
                 Play again
@@ -562,11 +567,12 @@ export default function LichessLiveBoard({
                 sx={{
                   textTransform: 'none',
                   fontWeight: 700,
-                  borderRadius: 2.5,
+                  borderRadius: '12px',
                   px: 2.5,
-                  borderColor: 'rgba(255,255,255,0.4)',
-                  color: '#fff',
-                  '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
+                  borderColor: 'rgba(255,255,255,0.2)',
+                  color: 'rgba(255,255,255,0.94)',
+                  transition: 'all 180ms ease',
+                  '&:hover': { borderColor: 'rgba(255,255,255,0.4)', bgcolor: 'rgba(255,255,255,0.07)' },
                 }}
               >
                 Analyze with Coach
@@ -608,7 +614,7 @@ export default function LichessLiveBoard({
               size="small"
               disabled={viewMoveIndex === 0 || (viewMoveIndex === null && totalMoves === 0)}
               onClick={goToStart}
-              sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+              sx={{ color: 'rgba(255,255,255,0.62)', '&:hover': { color: 'rgba(255,255,255,0.94)', bgcolor: 'rgba(255,255,255,0.07)' } }}
             >
               <Icon icon="mdi:chevron-double-left" width={22} />
             </IconButton>
@@ -620,7 +626,7 @@ export default function LichessLiveBoard({
               size="small"
               disabled={viewMoveIndex === 0 || (viewMoveIndex === null && totalMoves === 0)}
               onClick={goBack}
-              sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+              sx={{ color: 'rgba(255,255,255,0.62)', '&:hover': { color: 'rgba(255,255,255,0.94)', bgcolor: 'rgba(255,255,255,0.07)' } }}
             >
               <Icon icon="mdi:chevron-left" width={22} />
             </IconButton>
@@ -632,7 +638,7 @@ export default function LichessLiveBoard({
               size="small"
               disabled={viewMoveIndex === null}
               onClick={goForward}
-              sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+              sx={{ color: 'rgba(255,255,255,0.62)', '&:hover': { color: 'rgba(255,255,255,0.94)', bgcolor: 'rgba(255,255,255,0.07)' } }}
             >
               <Icon icon="mdi:chevron-right" width={22} />
             </IconButton>
@@ -645,8 +651,8 @@ export default function LichessLiveBoard({
               disabled={viewMoveIndex === null}
               onClick={goToLive}
               sx={{
-                color: viewMoveIndex !== null ? '#FF6B35' : 'text.secondary',
-                '&:hover': { color: '#FF6B35' },
+                color: viewMoveIndex !== null ? '#FB923C' : 'rgba(255,255,255,0.62)',
+                '&:hover': { color: '#FB923C', bgcolor: 'rgba(255,255,255,0.07)' },
               }}
             >
               <Icon icon="mdi:chevron-double-right" width={22} />
@@ -670,8 +676,8 @@ export default function LichessLiveBoard({
                     try { await onOfferDraw(); } finally { setBusy(null); }
                   }}
                   sx={{
-                    color: 'text.secondary',
-                    '&:hover': { color: 'text.primary', bgcolor: 'rgba(0,0,0,0.04)' },
+                    color: 'rgba(255,255,255,0.62)',
+                    '&:hover': { color: 'rgba(255,255,255,0.94)', bgcolor: 'rgba(255,255,255,0.07)' },
                   }}
                 >
                   <Icon icon="mdi:handshake-outline" width={20} />
@@ -688,8 +694,8 @@ export default function LichessLiveBoard({
                     try { await onResign(); } finally { setBusy(null); }
                   }}
                   sx={{
-                    color: 'text.secondary',
-                    '&:hover': { color: 'error.main', bgcolor: 'rgba(239,68,68,0.06)' },
+                    color: 'rgba(255,255,255,0.62)',
+                    '&:hover': { color: '#fca5a5', bgcolor: 'rgba(239,68,68,0.12)' },
                   }}
                 >
                   <Icon icon="mdi:flag-outline" width={20} />
@@ -809,9 +815,10 @@ function PlayerRow({
             width: 36,
             height: 36,
             borderRadius: '50%',
-            bgcolor: color === 'white' ? '#e8e8e8' : '#333',
+            bgcolor: color === 'white' ? 'rgba(232,232,232,0.9)' : 'rgba(40,42,48,1)',
             border: '2px solid',
-            borderColor: isYou ? '#FF6B35' : 'transparent',
+            borderColor: isYou ? '#F97316' : 'rgba(255,255,255,0.12)',
+            boxShadow: isYou ? '0 0 12px rgba(249,115,22,0.25)' : 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

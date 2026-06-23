@@ -93,7 +93,7 @@ export async function GET(req: Request) {
               u.currentStreak && u.currentStreak > 0
                 ? `Keep your ${u.currentStreak}-day streak alive — a few puzzles now.`
                 : "A few minutes of training keeps your tactics sharp.",
-            url: "/learn",
+            url: "/plan",
           });
           if (result === "sent") {
             pushedOk = true;

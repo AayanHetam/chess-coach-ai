@@ -521,7 +521,7 @@ function Hero() {
               flexWrap: "wrap",
             }}
           >
-            <Box>10,000+ monthly active players</Box>
+            <Box>Engine-grounded AI coaching</Box>
             <Box>·</Box>
             <Box>No sign-up required</Box>
             <Box>·</Box>

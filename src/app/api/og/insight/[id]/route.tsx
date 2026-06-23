@@ -52,7 +52,7 @@ export async function GET(
   const { id } = await params;
 
   let coachExcerpt =
-    "An AI chess coach that explains every move like a real coach — no hallucinations.";
+    "An AI chess coach that explains every move like a real coach — grounded in the engine.";
   let fen = "";
   let sideLabel = "chessmasti.com";
 

@@ -126,6 +126,45 @@ export default function LandingFooter() {
             </Typography>
             <Typography
               component="a"
+              href="/pricing"
+              sx={{
+                color: "rgba(255,255,255,0.5)",
+                textDecoration: "none",
+                fontSize: "0.85rem",
+                "&:hover": { color: "#FF6B35" },
+                transition: "color 0.2s",
+              }}
+            >
+              Pricing
+            </Typography>
+            <Typography
+              component="a"
+              href="/terms"
+              sx={{
+                color: "rgba(255,255,255,0.5)",
+                textDecoration: "none",
+                fontSize: "0.85rem",
+                "&:hover": { color: "#FF6B35" },
+                transition: "color 0.2s",
+              }}
+            >
+              Terms
+            </Typography>
+            <Typography
+              component="a"
+              href="/privacy"
+              sx={{
+                color: "rgba(255,255,255,0.5)",
+                textDecoration: "none",
+                fontSize: "0.85rem",
+                "&:hover": { color: "#FF6B35" },
+                transition: "color 0.2s",
+              }}
+            >
+              Privacy
+            </Typography>
+            <Typography
+              component="a"
               href="https://github.com/AayanHetam/chess-coach-ai"
               target="_blank"
               rel="noopener noreferrer"
@@ -150,7 +189,7 @@ export default function LandingFooter() {
             variant="caption"
             sx={{ color: "rgba(255,255,255,0.3)", width: { xs: "100%", md: "auto" } }}
           >
-            &copy; {new Date().getFullYear()} Chess Coach AI. Free forever.
+            &copy; {new Date().getFullYear()} Chess Coach AI. Free to start.
           </Typography>
         </Box>
       </Container>

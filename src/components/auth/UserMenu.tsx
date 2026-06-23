@@ -154,6 +154,18 @@ export default function UserMenu() {
           <ListItemText>My Games</ListItemText>
         </MenuItem>
 
+        <MenuItem
+          onClick={handleMenuClose}
+          component="a"
+          href="/pricing"
+          sx={{ py: 1.5 }}
+        >
+          <ListItemIcon>
+            <Icon icon="mdi:credit-card-outline" width={20} />
+          </ListItemIcon>
+          <ListItemText>Manage subscription</ListItemText>
+        </MenuItem>
+
         <MenuItem onClick={handleSignOut} sx={{ py: 1.5, color: "error.main" }}>
           <ListItemIcon sx={{ color: "error.main" }}>
             <Icon icon="mdi:logout" width={20} />

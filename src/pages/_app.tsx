@@ -7,12 +7,13 @@ import Layout from "@/sections/layout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthDialogProvider } from "@/contexts/AuthDialogContext";
+import { PaywallDialogProvider } from "@/contexts/PaywallDialogContext";
 import { Typography, Box, Container } from "@mui/material";
 import Head from "next/head";
 import { Analytics } from "@vercel/analytics/react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import QuizPersistenceFlush from "@/components/auth/QuizPersistenceFlush";
-import OnboardingGate from "@/components/auth/OnboardingGate";
+import OnboardingNudge from "@/components/onboarding/OnboardingNudge";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 
 const queryClient = new QueryClient();
@@ -75,16 +76,21 @@ export default function MyApp({ Component, pageProps }: AppProps) {
             {/* Persists pre-auth onboarding-quiz answers once the user signs in,
                 by either method (email in-page or Google full-page redirect). */}
             <QuizPersistenceFlush />
-            {/* Sends any new signed-in user without a completed quiz straight to
-                the onboarding questionnaire (mandatory once). */}
-            <OnboardingGate />
+            {/* Gently nudges a new signed-in user (no completed quiz) toward
+                /profile to personalize — a dismissable, one-time dialog. Never
+                force-redirects; the home screen stays the default surface. */}
+            <OnboardingNudge />
             {/* Registers the push service worker (no-op where unsupported). */}
             <ServiceWorkerRegistrar />
-            <ErrorBoundary name="app">
-              <Layout>
-                <Component {...pageProps} />
-              </Layout>
-            </ErrorBoundary>
+            {/* Hosts the single app-wide Premium upgrade dialog; opened via
+                usePaywallDialog() from any 402 handler or upgrade affordance. */}
+            <PaywallDialogProvider>
+              <ErrorBoundary name="app">
+                <Layout>
+                  <Component {...pageProps} />
+                </Layout>
+              </ErrorBoundary>
+            </PaywallDialogProvider>
           </AuthDialogProvider>
         </AuthProvider>
       </QueryClientProvider>

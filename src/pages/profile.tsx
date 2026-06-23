@@ -47,7 +47,9 @@ import ExtensionIcon from "@mui/icons-material/Extension";
 import HistoryIcon from "@mui/icons-material/History";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import LightbulbIcon from "@mui/icons-material/Lightbulb";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import { useRouter } from "next/router";
+import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 
 export default function Profile() {
   const router = useRouter();
@@ -59,7 +61,10 @@ export default function Profile() {
   // `games` stays empty and the tile section renders empty for signed-in
   // users who have games waiting in Firestore.
   const { games: savedGames, deleteGame } = useGameDatabase(true);
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile: account, loading: authLoading } = useAuth();
+  // Personalization quiz is now opt-in (no forced redirect) — this page is its
+  // home. `personalized` drives the CTA vs summary state of the card below.
+  const personalized = !!account?.onboardingCompletedAt;
 
   const handleOpenSavedGame = useCallback(
     (gameId: number) => {
@@ -174,6 +179,80 @@ export default function Profile() {
           >
             Your Progress Dashboard
           </Typography>
+
+          {/* Personalize your coaching — the entry point to the (now opt-in)
+              personalization quiz. Shows a CTA until completed, then a summary
+              + retake. Only meaningful for signed-in users. */}
+          {user && (
+            <Paper
+              sx={{
+                p: 2.5,
+                mb: 3,
+                borderRadius: 2,
+                ...(personalized
+                  ? { bgcolor: "grey.900", border: "1px solid rgba(255,255,255,0.06)" }
+                  : {
+                      background:
+                        "linear-gradient(180deg, rgba(249,115,22,0.12), rgba(20,22,28,0.97))",
+                      border: "1px solid rgba(249,115,22,0.3)",
+                    }),
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 1.5,
+                  flexWrap: "wrap",
+                }}
+              >
+                <AutoAwesomeIcon sx={{ color: "primary.main", mt: 0.3 }} />
+                <Box sx={{ flex: 1, minWidth: 240 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100" }}>
+                    {personalized ? "Your coaching profile" : "Personalize your coaching"}
+                  </Typography>
+                  {personalized ? (
+                    <>
+                      <Typography variant="body2" sx={{ color: "grey.400", mt: 0.5 }}>
+                        Your coach is tuned to your level, goals, and focus areas.
+                      </Typography>
+                      {!!account?.focusThemes?.length && (
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1.25 }}>
+                          {account.focusThemes.slice(0, 6).map((t) => (
+                            <Chip
+                              key={t}
+                              size="small"
+                              label={
+                                FOCUS_THEME_LABELS[t as keyof typeof FOCUS_THEME_LABELS] ?? t
+                              }
+                              sx={{
+                                bgcolor: "rgba(249,115,22,0.12)",
+                                color: "primary.light",
+                                fontSize: "0.72rem",
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      )}
+                    </>
+                  ) : (
+                    <Typography variant="body2" sx={{ color: "grey.300", mt: 0.5 }}>
+                      Take a 2-minute quiz so your coach knows your level, goals, and
+                      weak spots — it tailors your analysis, puzzles, and training
+                      plan.
+                    </Typography>
+                  )}
+                </Box>
+                <Button
+                  variant={personalized ? "outlined" : "contained"}
+                  onClick={() => router.push("/onboarding")}
+                  sx={{ textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}
+                >
+                  {personalized ? "Retake quiz" : "Start personalization test"}
+                </Button>
+              </Box>
+            </Paper>
+          )}
 
           {/* Top Stats Row */}
           <Grid container spacing={2} sx={{ mb: 3 }}>

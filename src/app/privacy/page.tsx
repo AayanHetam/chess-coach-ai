@@ -50,7 +50,7 @@ export default function PrivacyPage() {
             <p className="cm-lede">
               Plain English. Covers <strong>chessmasti.com</strong> (the website)
               and <strong>Analyze with Chess Masti</strong> (the Chrome extension).
-              Last updated 2026-05-26.
+              Last updated 2026-06-22.
             </p>
           </header>
 
@@ -73,6 +73,12 @@ export default function PrivacyPage() {
               <li>
                 <strong>Session cookie</strong> (<code>cm_session</code>): a signed
                 JWT in an httpOnly cookie. Used only to keep you signed in.
+              </li>
+              <li>
+                <strong>Subscription status</strong> (only if you start a trial or
+                subscribe to Premium): your plan, trial and renewal dates, and a
+                Stripe customer ID, stored with your account in Firestore. We
+                never store your card number — Stripe holds that.
               </li>
             </ul>
 
@@ -107,6 +113,14 @@ export default function PrivacyPage() {
               <li>
                 <strong>Resend</strong> sends the password-reset email when you
                 request one.
+              </li>
+              <li>
+                <strong>Stripe</strong> processes payments if you subscribe to
+                Premium. Your card details go directly to Stripe&apos;s secure
+                checkout — we never see or store your full card number — and
+                Stripe sends back your subscription status (active, trialing,
+                canceled) so we can unlock or lock Premium. See{" "}
+                <a href="https://stripe.com/privacy">stripe.com/privacy</a>.
               </li>
               <li>
                 <strong>Google Firebase Analytics</strong> and{" "}
@@ -149,6 +163,17 @@ export default function PrivacyPage() {
               <li>We do not share PGNs or chats with anyone outside the third parties listed above.</li>
               <li>We do not run Stockfish on our servers — engine analysis happens in your browser as WebAssembly. Positions you analyse stay on your machine for engine evaluation; they only leave it when you choose to ask the AI coach about them.</li>
             </ul>
+
+            <h3>Children</h3>
+            <p>
+              Chess Masti is intended for users aged 13 and over, and we ask you
+              to confirm you&apos;re 13+ when you create an account. We don&apos;t
+              knowingly collect personal information from children under 13. If
+              you believe a child under 13 has signed up without a parent&apos;s
+              involvement, email us at{" "}
+              <a href="mailto:aayanhetamsaria4@gmail.com">aayanhetamsaria4@gmail.com</a>{" "}
+              and we&apos;ll delete the account and its data.
+            </p>
 
             <h3>Deleting your data</h3>
             <p>

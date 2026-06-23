@@ -14,6 +14,7 @@ import { useState, MouseEvent } from "react";
 import { motion } from "framer-motion";
 import { Menu as MenuIcon, Sparkles, LogOut, User, Settings } from "lucide-react";
 import { AppDrawer, type NavId } from "./AppDrawer";
+import NavPlanBadge from "./NavPlanBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import ProfileDialog from "@/components/auth/ProfileDialog";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
@@ -215,6 +216,10 @@ export function NavPill({ active }: NavPillProps) {
             );
           })}
         </Box>
+
+        {/* Plan-status pill (Premium / Free / Trial / "Premium til {date}").
+            Self-gates on freemium + signed-in, so it's invisible pre-launch. */}
+        <NavPlanBadge />
 
         {/* Account: signed-out → Sign in pill, signed-in → avatar menu.
             Hidden during the auth-resolving flash to avoid the UI flicker

@@ -13,6 +13,8 @@ import { useRouter } from "next/router";
 import { useViewer } from "@/hooks/useViewer";
 import { EmployeeChrome } from "@/components/intern/EmployeeChrome";
 import { GlobalAuthDialog } from "@/contexts/AuthDialogContext";
+import { GlobalPaywallDialog } from "@/contexts/PaywallDialogContext";
+import TrialBanner from "@/components/paywall/TrialBanner";
 
 export default function Layout({ children }: PropsWithChildren) {
   // Default to light mode for Chess Masti AI - bright and fun!
@@ -115,6 +117,7 @@ export default function Layout({ children }: PropsWithChildren) {
         <CssBaseline />
         {/* Single app-wide sign-in / sign-up dialog, themed by this provider. */}
         <GlobalAuthDialog />
+        <GlobalPaywallDialog />
         <EmployeeChrome>
           <main style={{ overflowX: "hidden", width: "100%" }}>
             {children}
@@ -129,6 +132,7 @@ export default function Layout({ children }: PropsWithChildren) {
       <CssBaseline />
       {/* Single app-wide sign-in / sign-up dialog, themed by this provider. */}
       <GlobalAuthDialog />
+      <GlobalPaywallDialog />
       <EmployeeChrome>
         <NavBar
           darkMode={isDarkMode}
@@ -152,6 +156,7 @@ export default function Layout({ children }: PropsWithChildren) {
               mb: 2,
             }}
           >
+            <TrialBanner />
             <Lc0DownloadBanner />
           </Box>
           {children}
@@ -176,6 +181,9 @@ export default function Layout({ children }: PropsWithChildren) {
               { href: "/practice", label: "Puzzle training" },
               { href: "/scout", label: "Opponent scout" },
               { href: "/openings", label: "Openings" },
+              { href: "/pricing", label: "Pricing" },
+              { href: "/terms", label: "Terms" },
+              { href: "/privacy", label: "Privacy" },
               { href: "/", label: "Home" },
             ].map((link) => (
               <Typography

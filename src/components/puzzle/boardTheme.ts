@@ -22,6 +22,8 @@ export interface BoardTheme {
   lastMove: string;
   /** The square a wrong move was dropped on. */
   wrong: string;
+  /** The square a correct move just landed on (per-move reinforcement). */
+  correct: string;
   /** The currently-selected source square (click-to-move). */
   selected: string;
   /** Quiet legal-target indicator (a centered dot). */
@@ -37,6 +39,7 @@ export const DEFAULT_PUZZLE_THEME: BoardTheme = {
   dark: "#5C4630",
   lastMove: "rgba(255, 122, 26, 0.42)",
   wrong: "rgba(239, 68, 68, 0.55)",
+  correct: "rgba(34, 197, 94, 0.55)",
   selected: "rgba(255, 122, 26, 0.30)",
   legalDot:
     "radial-gradient(circle, rgba(255,255,255,0.32) 22%, transparent 26%)",
@@ -49,6 +52,8 @@ export interface SquareStyleParts {
   underlay?: Record<string, CSSProperties> | null;
   lastMove?: { from: string; to: string } | null;
   wrongSquare?: string | null;
+  /** Square a correct move just landed on — painted green over last-move. */
+  correctSquare?: string | null;
   dotSquares?: string[];
   captureSquares?: string[];
   selected?: string | null;
@@ -76,6 +81,8 @@ export function composePuzzleSquareStyles(
     set(parts.lastMove.to, { background: theme.lastMove });
   }
   if (parts.wrongSquare) set(parts.wrongSquare, { background: theme.wrong });
+  if (parts.correctSquare)
+    set(parts.correctSquare, { background: theme.correct });
   for (const sq of parts.dotSquares ?? []) set(sq, { background: theme.legalDot });
   for (const sq of parts.captureSquares ?? [])
     set(sq, { boxShadow: theme.legalCaptureShadow });

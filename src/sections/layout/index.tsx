@@ -101,6 +101,8 @@ export default function Layout({ children }: PropsWithChildren) {
     router.pathname === "/openings" ||
     router.pathname === "/scout" ||
     router.pathname === "/practice" ||
+    router.pathname === "/puzzles" ||
+    router.pathname === "/puzzles/sessions" ||
     router.pathname === "/repetit-training" ||
     router.pathname === "/database" ||
     router.pathname === "/courses";

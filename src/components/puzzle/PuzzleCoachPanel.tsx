@@ -23,6 +23,7 @@ import {
   PuzzleCoachThinkingBubble,
 } from "./PuzzleCoachBubble";
 import { HintStageRow } from "./HintStageRow";
+import { PuzzleDrillMenu } from "./PuzzleDrillMenu";
 import type {
   PuzzleContext,
   PuzzleOutcome,
@@ -84,8 +85,15 @@ interface PuzzleCoachPanelProps {
   /** Optional user rating to tune the coach voice depth. */
   userRating?: number;
   /** Fired when the user clicks "Drill 3 more like this". Parent loads
-   *  fresh puzzles of the same theme + swaps `puzzle` prop. */
+   *  fresh puzzles of the same theme + swaps `puzzle` prop. Used as the
+   *  fallback when no `drillPuzzles` previews are available. */
   onRequestMorePuzzles?: () => void;
+  /** Preview puzzles for the drag-down "drill more" menu. When present the
+   *  panel renders a collapsible mini-board picker instead of the plain CTA. */
+  drillPuzzles?: PuzzleContext[];
+  /** Fired with the id of a drill puzzle the user chose to open on the main
+   *  board. */
+  onPickDrillPuzzle?: (id: string) => void;
   /** Fired when the user resets the puzzle. Panel clears history. */
   onResetPuzzle?: () => void;
   /** Fired when the user taps "Show on board" inside a DemoMoveCard. Parent
@@ -110,6 +118,8 @@ export function PuzzleCoachPanel({
   userAttemptSan,
   userRating,
   onRequestMorePuzzles,
+  drillPuzzles,
+  onPickDrillPuzzle,
   onResetPuzzle,
   onCoachDemoRequest,
   onShowCoachHighlight,
@@ -621,12 +631,18 @@ export function PuzzleCoachPanel({
           />
         )}
 
-        {/* Drill-more CTA — only after a successful solve and the coach has
-            finished its first explanation. */}
+        {/* Drill-more — only after a successful solve and the coach has
+            finished its first explanation. Prefer the drag-down mini-board
+            picker; fall back to the plain CTA when no previews are loaded. */}
         {outcome === "solved" &&
           turns.length > 0 &&
           !streaming &&
-          onRequestMorePuzzles && (
+          (drillPuzzles && drillPuzzles.length > 0 && onPickDrillPuzzle ? (
+            <PuzzleDrillMenu
+              puzzles={drillPuzzles}
+              onPick={onPickDrillPuzzle}
+            />
+          ) : onRequestMorePuzzles ? (
             <motion.div
               initial={{ opacity: 0, transform: "translateY(8px)" }}
               animate={{ opacity: 1, transform: "translateY(0px)" }}
@@ -664,7 +680,7 @@ export function PuzzleCoachPanel({
                 </Button>
               </Box>
             </motion.div>
-          )}
+          ) : null)}
 
         {error && (
           <Typography

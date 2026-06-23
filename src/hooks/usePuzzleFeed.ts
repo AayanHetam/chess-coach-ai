@@ -27,6 +27,9 @@ export interface PuzzleFeedFilters {
 
 interface UsePuzzleFeedReturn {
   currentPuzzle: PuzzleContext | null;
+  /** The next queued puzzles (after the current one) — used to preview a
+   *  "drill more like this" set without consuming the queue. */
+  upcoming: PuzzleContext[];
   /** Total in the corpus matching the active filters (before exclude). */
   totalAvailable: number | null;
   /** Position within the current batch (1-indexed). */
@@ -39,6 +42,10 @@ interface UsePuzzleFeedReturn {
   error: string | null;
   /** Move to next puzzle. No-op when queue is empty. */
   advance: () => void;
+  /** Bring an already-queued puzzle (by id) to the front so it becomes the
+   *  current puzzle. No-op if the id isn't in the queue. Used by the drill
+   *  menu to "open" a previewed puzzle on the main board. */
+  jumpTo: (id: string) => void;
   /** Apply new filters (resets queue + seen-ids). */
   setFilters: (next: PuzzleFeedFilters) => void;
   /** Current active filters. */
@@ -173,6 +180,27 @@ export function usePuzzleFeed(
   }, [queue.length]);
 
   const currentPuzzle = queue.length > 0 ? queue[0] : null;
+  // Peek the next puzzles without consuming them (capped so the drill menu
+  // only ever previews a small set).
+  const upcoming = useMemo(() => queue.slice(1, 4), [queue]);
+
+  const jumpTo = useCallback((id: string) => {
+    setQueue((prev) => {
+      const idx = prev.findIndex((p) => p.id === id);
+      if (idx <= 0) return prev; // not found, or already current
+      // Mark the puzzles we skip over as seen so they don't reappear, then
+      // reorder so the picked puzzle is current with the rest trailing it.
+      const picked = prev[idx];
+      const before = prev.slice(0, idx);
+      const after = prev.slice(idx + 1);
+      setSeenIds((s) => {
+        const next = [...s];
+        for (const p of before) if (!next.includes(p.id)) next.push(p.id);
+        return next.length > MAX_EXCLUDE ? next.slice(-MAX_EXCLUDE) : next;
+      });
+      return [picked, ...after];
+    });
+  }, []);
 
   const advance = useCallback(() => {
     setQueue((prev) => {
@@ -202,24 +230,28 @@ export function usePuzzleFeed(
   return useMemo(
     () => ({
       currentPuzzle,
+      upcoming,
       totalAvailable,
       positionInBatch,
       batchSize,
       loading,
       error,
       advance,
+      jumpTo,
       setFilters,
       filters,
       refresh,
     }),
     [
       currentPuzzle,
+      upcoming,
       totalAvailable,
       positionInBatch,
       batchSize,
       loading,
       error,
       advance,
+      jumpTo,
       setFilters,
       filters,
       refresh,

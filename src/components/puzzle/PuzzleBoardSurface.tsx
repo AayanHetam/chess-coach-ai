@@ -89,6 +89,8 @@ export interface PuzzleBoardSurfaceProps {
   lastMove?: { from: string; to: string } | null;
   /** Square a wrong move landed on, flashed in the theme's wrong color. */
   wrongSquare?: string | null;
+  /** Square a correct move just landed on, painted green for reinforcement. */
+  correctSquare?: string | null;
   /** User piece set id; omit to use react-chessboard's default pieces. */
   pieceSet?: string;
   /** Explicit pixel width; omit to fill the container fluidly (preview-style). */
@@ -117,6 +119,7 @@ export function PuzzleBoardSurface({
   onPieceDrop,
   lastMove,
   wrongSquare,
+  correctSquare,
   pieceSet,
   boardWidth,
   animationMs,
@@ -170,6 +173,7 @@ export function PuzzleBoardSurface({
         underlay: underlaySquareStyles,
         lastMove,
         wrongSquare,
+        correctSquare,
         dotSquares,
         captureSquares,
         selected,
@@ -178,6 +182,7 @@ export function PuzzleBoardSurface({
       underlaySquareStyles,
       lastMove,
       wrongSquare,
+      correctSquare,
       dotSquares,
       captureSquares,
       selected,

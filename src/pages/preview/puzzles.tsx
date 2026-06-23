@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Chess } from "chess.js";
 import {
+  Alert,
   Box,
   Button,
   CircularProgress,
   IconButton,
+  Snackbar,
   Stack,
   Typography,
 } from "@mui/material";
@@ -19,6 +21,8 @@ import { useRouter } from "next/router";
 import {
   Check,
   ChevronRight,
+  Eye,
+  Flag,
   Lightbulb,
   RotateCcw,
   Shuffle,
@@ -45,7 +49,22 @@ import type {
   PuzzleContext,
 } from "@/lib/validation/puzzleChatSchemas";
 import { useAuth } from "@/contexts/AuthContext";
-import { puzzleStatsAtom, updatePuzzleStats } from "@/lib/puzzleRating";
+import {
+  puzzleStatsAtom,
+  updatePuzzleStats,
+  calculateNewRating,
+} from "@/lib/puzzleRating";
+import { SessionRecapDialog } from "@/components/puzzle/SessionRecapDialog";
+import {
+  type SessionResult,
+  type SessionEndReason,
+  puzzleSessionHistoryAtom,
+  puzzlePracticeQueueAtom,
+  buildSavedSession,
+  appendSession,
+  SESSION_IDLE_MS,
+} from "@/lib/puzzleSession";
+import type { FlashState } from "@/components/puzzle/FlashOverlay";
 import {
   puzzleResumeAtom,
   isResumeFresh,
@@ -235,9 +254,19 @@ export default function PreviewPuzzlesPage() {
   const [stats, setStats] = useAtom(puzzleStatsAtom);
   const [resume, setResume] = useAtom(puzzleResumeAtom);
   const pieceSet = useAtomValue(pieceSetAtom);
+  const setSessionHistory = useSetAtom(puzzleSessionHistoryAtom);
+  const [practiceQueueAtomVal, setPracticeQueueAtom] = useAtom(
+    puzzlePracticeQueueAtom,
+  );
 
   const [activeTheme, setActiveTheme] = useState<string | null>(null);
   const [activeBand, setActiveBand] = useState<string>("all");
+
+  // Re-practice queue: when the user taps "Practice missed" in session history,
+  // the page drills through these specific puzzles (taking precedence over the
+  // feed) then reverts. practiceList is the snapshot; practiceIdx walks it.
+  const [practiceList, setPracticeList] = useState<PuzzleContext[] | null>(null);
+  const [practiceIdx, setPracticeIdx] = useState(0);
 
   // Snapshot any fresh "continue where you left off" entry at mount, before
   // the persist effect below can overwrite it with the feed's first puzzle.
@@ -289,8 +318,9 @@ export default function PreviewPuzzlesPage() {
 
   const handleThemeClick = useCallback(
     (id: string | null) => {
-      // A manual filter pick exits "resume" mode — the user wants a new stream.
+      // A manual filter pick exits "resume"/"practice" mode — fresh stream.
       setResumeOverride(null);
+      setPracticeList(null);
       setActiveTheme(id);
       applyFilters(id, activeBand);
     },
@@ -300,16 +330,32 @@ export default function PreviewPuzzlesPage() {
   const handleBandClick = useCallback(
     (bandId: string) => {
       setResumeOverride(null);
+      setPracticeList(null);
       setActiveBand(bandId);
       applyFilters(activeTheme, bandId);
     },
     [activeTheme, applyFilters],
   );
 
-  // The resumed puzzle wins until cleared; otherwise the feed's current puzzle.
-  // The resume effect sets the override synchronously on mount, before the
-  // feed's first (async) batch resolves, so there's no wrong-puzzle flash.
-  const puzzle = resumeOverride ?? feed.currentPuzzle;
+  // Consume an injected re-practice queue once it hydrates from storage: snapshot
+  // it into local state and clear the atom so a refresh doesn't replay it.
+  useEffect(() => {
+    if (
+      practiceQueueAtomVal &&
+      practiceQueueAtomVal.length > 0 &&
+      !practiceList
+    ) {
+      setPracticeList(practiceQueueAtomVal);
+      setPracticeIdx(0);
+      setPracticeQueueAtom(null);
+    }
+  }, [practiceQueueAtomVal, practiceList, setPracticeQueueAtom]);
+
+  // Puzzle precedence: re-practice queue > resumed puzzle > feed. The resume
+  // effect sets its override synchronously on mount, before the feed's first
+  // (async) batch resolves, so there's no wrong-puzzle flash.
+  const puzzle =
+    practiceList?.[practiceIdx] ?? resumeOverride ?? feed.currentPuzzle;
 
   // Apply the opponent's setup move (solution[0]) to get the student's
   // starting position. Board always renders from this FEN.
@@ -322,7 +368,7 @@ export default function PreviewPuzzlesPage() {
         g.move({
           from: opp.slice(0, 2),
           to: opp.slice(2, 4),
-          promotion: opp.length > 4 ? opp.slice(4, 5) : undefined,
+          promotion: opp.length > 4 ? opp.slice(4, 5).toLowerCase() : undefined,
         });
       }
       return g.fen();
@@ -345,6 +391,47 @@ export default function PreviewPuzzlesPage() {
   const [wrongSquare, setWrongSquare] = useState<string | null>(null);
   const [lastWrongSan, setLastWrongSan] = useState<string | null>(null);
   const [wrongAttempts, setWrongAttempts] = useState(0);
+  // Per-move reinforcement: the square a correct move just landed on (painted
+  // green) + a flash ring re-triggered via flashKey on every attempt.
+  const [correctSquare, setCorrectSquare] = useState<string | null>(null);
+  const [flash, setFlash] = useState<FlashState>("idle");
+  const [flashKey, setFlashKey] = useState(0);
+  // Pending opponent auto-reply timer. Tracked in a ref so a puzzle swap /
+  // reset / unmount cancels it — otherwise a stale closure fires its old-puzzle
+  // setGame/setStatus onto the NEXT puzzle (and can phantom-grade it solved).
+  const oppReplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Session tracking: every graded puzzle (solve or skip) appends a result.
+  // Counts drive the top-right HUD; the list powers the Finish recap graph.
+  // Rating itself auto-saves per puzzle via setStats — Finish is purely a
+  // recap + reset gesture, no save dependency.
+  const [sessionResults, setSessionResults] = useState<SessionResult[]>([]);
+  const [recapOpen, setRecapOpen] = useState(false);
+  // Frozen copy the recap renders, so Finish can reset the live session
+  // immediately (preventing a double-save if the user then goes idle).
+  const [recapResults, setRecapResults] = useState<SessionResult[]>([]);
+  const [lastSessionMsg, setLastSessionMsg] = useState<string | undefined>(
+    undefined,
+  );
+  const [idleSavedOpen, setIdleSavedOpen] = useState(false);
+  // Fresh-stats mirror so grading reads the current rating/attempts without
+  // adding `stats` to every grade callback's dep list.
+  const statsRef = useRef(stats);
+  useEffect(() => {
+    statsRef.current = stats;
+  }, [stats]);
+  // Mirror of sessionResults for timer/unmount closures that must read the
+  // current list without being re-created on every grade.
+  const sessionResultsRef = useRef<SessionResult[]>([]);
+  useEffect(() => {
+    sessionResultsRef.current = sessionResults;
+  }, [sessionResults]);
+  // Session identity — stamped lazily on the first graded puzzle, cleared when
+  // the session is saved/reset. Lets us persist a coherent start→end record.
+  const sessionIdRef = useRef<string | null>(null);
+  const sessionStartRef = useRef<number>(0);
+  // 15-minute idle timer; re-armed on every interaction (see bumpActivity).
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Coach demo state — coach asks "show on board", user picks speed in
   // the dialog, then `activeDemo` runs the moves on the main board while
@@ -365,6 +452,12 @@ export default function PreviewPuzzlesPage() {
   // Reset board state whenever the puzzle changes.
   useEffect(() => {
     if (!studentStartFen) return;
+    // Cancel any pending opponent reply from the previous puzzle so it can't
+    // write its stale move/status onto this one.
+    if (oppReplyTimerRef.current) {
+      clearTimeout(oppReplyTimerRef.current);
+      oppReplyTimerRef.current = null;
+    }
     setGame(new Chess(studentStartFen));
     setMoveIdx(0);
     setStatus("playing");
@@ -372,10 +465,20 @@ export default function PreviewPuzzlesPage() {
     setWrongSquare(null);
     setLastWrongSan(null);
     setWrongAttempts(0);
+    setCorrectSquare(null);
+    setFlash("idle");
     setPendingDemoMoves(null);
     setActiveDemo(null);
     setCoachHighlights(null);
   }, [studentStartFen]);
+
+  // Cancel a pending opponent reply on unmount.
+  useEffect(
+    () => () => {
+      if (oppReplyTimerRef.current) clearTimeout(oppReplyTimerRef.current);
+    },
+    [],
+  );
 
   // Reset the grading clock + guard whenever a new puzzle is shown.
   useEffect(() => {
@@ -422,25 +525,126 @@ export default function PreviewPuzzlesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, router.isReady]);
 
+  // Single grade path: updates the persisted rating AND appends a session
+  // result (rating before → after) so the HUD counts + Finish graph stay in
+  // sync with the saved Elo. Callers own the one-grade-per-puzzle guard.
+  const recordGrade = useCallback(
+    (solved: boolean) => {
+      if (!puzzle) return;
+      const s = statsRef.current;
+      // Feed puzzles always carry a rating; fall back to the player's own
+      // (neutral Elo) on the rare untagged puzzle.
+      const puzzleRating = puzzle.rating ?? s.rating;
+      const before = s.rating;
+      // Mirror updatePuzzleStats's internal Elo calc so the session graph's
+      // ratingAfter matches the value that gets persisted.
+      const after = calculateNewRating(
+        before,
+        puzzleRating,
+        solved,
+        s.totalAttempts,
+      );
+      const theme = pickPrimaryTheme(puzzle.themes);
+      const timeMs = Math.max(0, Date.now() - startTimeRef.current);
+      // Stamp the session identity on its first graded puzzle.
+      if (!sessionIdRef.current) {
+        sessionIdRef.current = `s-${Date.now()}-${Math.floor(
+          Math.random() * 1e6,
+        )}`;
+        sessionStartRef.current = Date.now();
+      }
+      setStats((prev) =>
+        updatePuzzleStats(prev, {
+          puzzleId: puzzle.id,
+          puzzleRating,
+          solved,
+          timeMs,
+          theme,
+          timestamp: Date.now(),
+        }),
+      );
+      setSessionResults((prev) => [
+        ...prev,
+        {
+          id: puzzle.id,
+          ratingBefore: before,
+          ratingAfter: after,
+          solved,
+          theme,
+          timeMs,
+          puzzle,
+        },
+      ]);
+    },
+    [puzzle, setStats],
+  );
+
   // Grade the rating on solve (first-try only counts as solved, mirroring
   // SessionRunner so a wrong-then-solved is a miss). One grade per puzzle.
   useEffect(() => {
     if (status !== "solved" || !puzzle) return;
     if (gradedRef.current === puzzle.id) return;
     gradedRef.current = puzzle.id;
-    setStats((prev) =>
-      updatePuzzleStats(prev, {
-        puzzleId: puzzle.id,
-        // Feed puzzles always carry a rating; fall back to the player's own
-        // (neutral Elo) on the rare untagged puzzle.
-        puzzleRating: puzzle.rating ?? prev.rating,
-        solved: wrongAttempts === 0,
-        timeMs: Math.max(0, Date.now() - startTimeRef.current),
-        theme: pickPrimaryTheme(puzzle.themes),
-        timestamp: Date.now(),
-      }),
-    );
-  }, [status, puzzle, wrongAttempts, setStats]);
+    recordGrade(wrongAttempts === 0);
+  }, [status, puzzle, wrongAttempts, recordGrade]);
+
+  // Persist the current session to history (newest first). Save-only — the
+  // counters are cleared separately by resetSession so the recap can still read
+  // them after a Finish.
+  const persistSession = useCallback(
+    (reason: SessionEndReason) => {
+      const results = sessionResultsRef.current;
+      if (results.length === 0 || !sessionIdRef.current) return;
+      const session = buildSavedSession(results, {
+        id: sessionIdRef.current,
+        startedAt: sessionStartRef.current || Date.now(),
+        endedAt: Date.now(),
+        endReason: reason,
+      });
+      setSessionHistory((prev) => appendSession(prev, session));
+    },
+    [setSessionHistory],
+  );
+
+  // Clear the live session (counters back to zero + new identity next grade).
+  const resetSession = useCallback(() => {
+    setSessionResults([]);
+    sessionIdRef.current = null;
+    sessionStartRef.current = 0;
+  }, []);
+
+  // Re-arm the 15-minute idle timer. Called on every interaction. When it fires
+  // and the session has ≥1 solved puzzle, the session auto-saves to history and
+  // a snackbar confirms it. A session with 0 solves is not worth saving, so the
+  // timer simply lapses (the next interaction re-arms it).
+  const bumpActivity = useCallback(() => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      const solved = sessionResultsRef.current.filter((r) => r.solved).length;
+      if (solved >= 1) {
+        persistSession("idle");
+        resetSession();
+        setIdleSavedOpen(true);
+      }
+    }, SESSION_IDLE_MS);
+  }, [persistSession, resetSession]);
+
+  // Arm the idle timer on mount; clear it on unmount.
+  useEffect(() => {
+    bumpActivity();
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [bumpActivity]);
+
+  // Drop the green reinforcement highlight shortly after each correct move so
+  // it reads as a pulse, not a persistent paint. Keyed on flashKey so every
+  // correct move restarts the window.
+  useEffect(() => {
+    if (!correctSquare) return;
+    const t = setTimeout(() => setCorrectSquare(null), 850);
+    return () => clearTimeout(t);
+  }, [correctSquare, flashKey]);
 
   // Constant save: persist the active puzzle + filters so a returning user
   // resumes exactly here.
@@ -532,6 +736,131 @@ export default function PreviewPuzzlesPage() {
     setActiveDemo(null);
   }, []);
 
+  // "Show solution" — reset to the puzzle's initial position and replay the
+  // full solution (opponent setup + both sides) to the end. Anchored at
+  // puzzle.fen so it always starts from the very beginning, regardless of how
+  // far the user got. resumeFen returns them to their own attempt when done.
+  const handleShowSolution = useCallback(() => {
+    if (!puzzle) return;
+    bumpActivity();
+    const sanMoves: string[] = [];
+    try {
+      const g = new Chess(puzzle.fen);
+      for (const uci of puzzle.solution) {
+        const r = g.move({
+          from: uci.slice(0, 2),
+          to: uci.slice(2, 4),
+          promotion: uci.length > 4 ? uci.slice(4, 5).toLowerCase() : undefined,
+        });
+        if (!r) break;
+        sanMoves.push(r.san);
+      }
+    } catch {
+      return;
+    }
+    if (sanMoves.length === 0) return;
+    setCoachHighlights(null);
+    setActiveDemo({
+      moves: sanMoves,
+      startFen: puzzle.fen,
+      resumeFen: game.fen(),
+      speedMs: DEMO_SPEED_MS.normal,
+      idx: 0,
+      finished: false,
+    });
+  }, [puzzle, game, bumpActivity]);
+
+  // Session: counts for the HUD + Finish recap. Rating already auto-saves per
+  // puzzle, so Finish is purely a recap + reset gesture.
+  const sessionSolved = sessionResults.filter((r) => r.solved).length;
+  const sessionTotal = sessionResults.length;
+  const sessionWrong = sessionTotal - sessionSolved;
+
+  const handleFinishSession = useCallback(() => {
+    const results = sessionResultsRef.current;
+    if (results.length === 0) return;
+    persistSession("finished");
+    // Freeze the results for the recap, then end the live session right away so
+    // the idle timer can't persist the same session a second time.
+    setRecapResults(results);
+    resetSession();
+    setRecapOpen(true);
+  }, [persistSession, resetSession]);
+
+  // The session was already saved + reset on Finish; closing the recap just
+  // dismisses it. Persisted rating is untouched.
+  const handleRecapClose = useCallback(() => {
+    setRecapOpen(false);
+  }, []);
+
+  // Session HUD (correct / wrong / total + Finish). Rendered at the board
+  // card's top-right so it stays visible while solving — the page header
+  // scrolls away once you focus the board.
+  const sessionHud = (
+    <Stack direction="row" alignItems="center" spacing={1}>
+      <Box
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 0.5,
+          px: 1.5,
+          py: 0.55,
+          borderRadius: "999px",
+          background: "rgba(10,9,7,0.6)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          fontFamily: "Monaco, Menlo, monospace",
+          fontSize: "0.86rem",
+          fontWeight: 800,
+          lineHeight: 1,
+        }}
+        aria-label={`${sessionSolved} correct, ${sessionWrong} wrong, ${sessionTotal} total`}
+      >
+        <Box component="span" sx={{ color: "#4ade80" }}>
+          {sessionSolved}
+        </Box>
+        <Box component="span" sx={{ color: "rgba(255,240,224,0.3)" }}>
+          /
+        </Box>
+        <Box component="span" sx={{ color: "#f87171" }}>
+          {sessionWrong}
+        </Box>
+        <Box component="span" sx={{ color: "rgba(255,240,224,0.3)" }}>
+          /
+        </Box>
+        <Box component="span" sx={{ color: "rgba(255,240,224,0.55)" }}>
+          {sessionTotal}
+        </Box>
+      </Box>
+      <Button
+        onClick={handleFinishSession}
+        disabled={sessionTotal === 0}
+        startIcon={<Flag size={13} />}
+        sx={{
+          px: 1.75,
+          py: 0.5,
+          minHeight: 0,
+          borderRadius: "999px",
+          background: "linear-gradient(135deg, #FF7A1A, #EF4444)",
+          color: "#fff",
+          fontSize: "0.8rem",
+          fontWeight: 800,
+          textTransform: "none",
+          boxShadow: "0 8px 24px -10px rgba(239,68,68,0.6)",
+          "&:hover": {
+            background: "linear-gradient(135deg, #FB923C, #DC2626)",
+          },
+          "&.Mui-disabled": {
+            background: "rgba(22,18,14,0.7)",
+            color: "rgba(255,240,224,0.35)",
+            boxShadow: "none",
+          },
+        }}
+      >
+        Finish
+      </Button>
+    </Stack>
+  );
+
   // Advance the demo by one move every speedMs until exhausted. Cleanup
   // cancels the pending tick if the demo finishes / is cancelled / unmounts.
   useEffect(() => {
@@ -568,7 +897,10 @@ export default function PreviewPuzzlesPage() {
   // Last-move highlight: during demo, the most recently played ply; outside,
   // the user's last accepted move.
   const displayLastMove = useMemo<[string, string] | null>(() => {
-    if (!activeDemo || activeDemo.idx === 0) return lastMove;
+    if (!activeDemo) return lastMove;
+    // First demo frame is the anchor position — don't bleed the user's stale
+    // last-move highlight onto it (it's from a different position).
+    if (activeDemo.idx === 0) return null;
     const g = new Chess(activeDemo.startFen);
     let last: { from: string; to: string } | null = null;
     for (let i = 0; i < activeDemo.idx; i++) {
@@ -586,6 +918,8 @@ export default function PreviewPuzzlesPage() {
   const handleMove = useCallback(
     (orig: string, dest: string): boolean => {
       if (status === "solved") return false;
+      // A move attempt is activity — re-arm the idle auto-close timer.
+      bumpActivity();
       // Any attempt clears the coach overlay — it was a hint for THIS
       // move, not the next one.
       setCoachHighlights(null);
@@ -603,6 +937,9 @@ export default function PreviewPuzzlesPage() {
         }
         setLastWrongSan(attemptedSan);
         setWrongSquare(dest);
+        setCorrectSquare(null);
+        setFlash("red");
+        setFlashKey((k) => k + 1);
         setWrongAttempts((n) => n + 1);
         // "wrong" is a transient flash, not a terminal lock — the auto-revert
         // effect below flips status back to "playing" after ~1.4s so the user
@@ -623,6 +960,11 @@ export default function PreviewPuzzlesPage() {
       setGame(next);
       setLastMove([expected.from, expected.to]);
       setWrongSquare(null);
+      // Per-move reinforcement: green-flash the square the correct move just
+      // landed on — fires on EVERY correct move, not only the final solve.
+      setCorrectSquare(expected.to);
+      setFlash("green");
+      setFlashKey((k) => k + 1);
 
       const nextIdx = moveIdx + 1;
       if (nextIdx >= parsedMoves.length) {
@@ -632,7 +974,9 @@ export default function PreviewPuzzlesPage() {
       }
 
       const opp = parsedMoves[nextIdx];
-      setTimeout(() => {
+      if (oppReplyTimerRef.current) clearTimeout(oppReplyTimerRef.current);
+      oppReplyTimerRef.current = setTimeout(() => {
+        oppReplyTimerRef.current = null;
         const g2 = new Chess(next.fen());
         const oppMove = g2.move({
           from: opp.from,
@@ -651,11 +995,15 @@ export default function PreviewPuzzlesPage() {
       setStatus("playing");
       return true;
     },
-    [game, moveIdx, parsedMoves, status],
+    [game, moveIdx, parsedMoves, status, bumpActivity],
   );
 
   const handleReset = useCallback(() => {
     if (!studentStartFen) return;
+    if (oppReplyTimerRef.current) {
+      clearTimeout(oppReplyTimerRef.current);
+      oppReplyTimerRef.current = null;
+    }
     setGame(new Chess(studentStartFen));
     setMoveIdx(0);
     setStatus("playing");
@@ -663,32 +1011,46 @@ export default function PreviewPuzzlesPage() {
     setWrongSquare(null);
     setLastWrongSan(null);
     setWrongAttempts(0);
+    setCorrectSquare(null);
+    setFlash("idle");
   }, [studentStartFen]);
 
   const handleNextPuzzle = useCallback(() => {
+    bumpActivity();
     // Every puzzle, solved or not, moves the rating: an unsolved skip counts as
     // a miss (unless it was already graded by solving).
     if (puzzle && gradedRef.current !== puzzle.id) {
       gradedRef.current = puzzle.id;
-      setStats((prev) =>
-        updatePuzzleStats(prev, {
-          puzzleId: puzzle.id,
-          puzzleRating: puzzle.rating ?? prev.rating,
-          solved: false,
-          timeMs: Math.max(0, Date.now() - startTimeRef.current),
-          theme: pickPrimaryTheme(puzzle.themes),
-          timestamp: Date.now(),
-        }),
-      );
+      recordGrade(false);
     }
-    // Clearing the resume override reveals the feed's next puzzle; otherwise
-    // advance the feed itself.
-    if (resumeOverride) {
+    // Advance through the active source: re-practice queue, then resume, then
+    // feed. When a finite source runs out, fall back to the live feed.
+    if (practiceList) {
+      if (practiceIdx < practiceList.length - 1) {
+        setPracticeIdx((i) => i + 1);
+      } else {
+        setPracticeList(null);
+        setPracticeIdx(0);
+      }
+    } else if (resumeOverride) {
       setResumeOverride(null);
     } else {
       feed.advance();
     }
-  }, [puzzle, resumeOverride, setStats, feed]);
+  }, [puzzle, resumeOverride, recordGrade, feed, practiceList, practiceIdx, bumpActivity]);
+
+  // Drill menu → "Open on board". Bring the chosen upcoming puzzle to the
+  // front of the feed and drop any resume override so it becomes current.
+  // The just-solved puzzle was already graded, so no extra grade here.
+  const handlePickDrillPuzzle = useCallback(
+    (id: string) => {
+      bumpActivity();
+      feed.jumpTo(id);
+      setResumeOverride(null);
+      setPracticeList(null);
+    },
+    [feed, bumpActivity],
+  );
 
   const coachOutcome: PuzzleOutcome = useMemo(() => {
     if (status === "solved") return "solved";
@@ -865,6 +1227,55 @@ export default function PreviewPuzzlesPage() {
             />
           </Box>
 
+          {/* Re-practice banner — visible while drilling a saved session's
+              missed puzzles. */}
+          {practiceList && practiceList.length > 0 && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                mb: 2,
+                px: 2,
+                py: 1,
+                borderRadius: "999px",
+                background:
+                  "linear-gradient(135deg, rgba(255,122,26,0.16), rgba(255,140,66,0.06))",
+                border: "1px solid rgba(255,122,26,0.35)",
+              }}
+            >
+              <RotateCcw size={15} color="#FFD1A8" />
+              <Typography
+                sx={{ fontSize: "0.85rem", fontWeight: 600, color: "#FFD1A8" }}
+              >
+                Re-practicing missed puzzles ·{" "}
+                {Math.min(practiceIdx + 1, practiceList.length)} of{" "}
+                {practiceList.length}
+              </Typography>
+              <Box sx={{ flex: 1 }} />
+              <Button
+                onClick={() => {
+                  setPracticeList(null);
+                  setPracticeIdx(0);
+                }}
+                size="small"
+                sx={{
+                  px: 1.5,
+                  py: 0.3,
+                  minHeight: 0,
+                  borderRadius: "999px",
+                  color: "rgba(255,240,224,0.7)",
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                  textTransform: "none",
+                  "&:hover": { color: "#FFD1A8" },
+                }}
+              >
+                Exit
+              </Button>
+            </Box>
+          )}
+
           {/* Main grid: board + coach */}
           <Box
             sx={{
@@ -905,8 +1316,20 @@ export default function PreviewPuzzlesPage() {
               >
                 {puzzle && studentStartFen ? (
                   <>
+                    {/* Session HUD — pinned to the board's top-right so it
+                        stays in view while solving. */}
                     <Box
                       sx={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        mb: 1.5,
+                      }}
+                    >
+                      {sessionHud}
+                    </Box>
+                    <Box
+                      sx={{
+                        position: "relative",
                         maxWidth: { xs: "100%", md: 540 },
                         mx: "auto",
                         width: "100%",
@@ -930,6 +1353,10 @@ export default function PreviewPuzzlesPage() {
                             : null
                         }
                         wrongSquare={boardWrongSquare}
+                        correctSquare={activeDemo ? null : correctSquare}
+                        flash={
+                          activeDemo ? null : { state: flash, flashKey }
+                        }
                         underlaySquareStyles={coachUnderlay}
                         pieceSet={pieceSet}
                       />
@@ -1081,6 +1508,32 @@ export default function PreviewPuzzlesPage() {
                       </IconButton>
 
                       <Button
+                        onClick={handleShowSolution}
+                        disabled={!!activeDemo}
+                        startIcon={<Eye size={14} />}
+                        sx={{
+                          px: 1.75,
+                          py: 0.6,
+                          borderRadius: "999px",
+                          background: "rgba(22,18,14,0.7)",
+                          color: "rgba(255,240,224,0.85)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          "&:hover": {
+                            background: "rgba(22,18,14,0.85)",
+                            borderColor: "rgba(255,122,26,0.3)",
+                            color: "#FFD1A8",
+                          },
+                          "&.Mui-disabled": {
+                            color: "rgba(255,240,224,0.3)",
+                          },
+                        }}
+                      >
+                        Show solution
+                      </Button>
+
+                      <Button
                         onClick={handleNextPuzzle}
                         endIcon={
                           status === "solved" ? (
@@ -1228,6 +1681,8 @@ export default function PreviewPuzzlesPage() {
                   outcome={coachOutcome}
                   userAttemptSan={lastWrongSan}
                   onRequestMorePuzzles={handleNextPuzzle}
+                  drillPuzzles={feed.upcoming}
+                  onPickDrillPuzzle={handlePickDrillPuzzle}
                   onResetPuzzle={handleReset}
                   onCoachDemoRequest={handleCoachDemoRequest}
                   onShowCoachHighlight={handleShowCoachHighlight}
@@ -1264,6 +1719,45 @@ export default function PreviewPuzzlesPage() {
         onConfirm={handleDemoConfirm}
         onCancel={handleDemoCancel}
       />
+
+      <SessionRecapDialog
+        open={recapOpen}
+        results={recapResults}
+        onClose={handleRecapClose}
+        lastMessage={lastSessionMsg}
+        onMessagePicked={setLastSessionMsg}
+      />
+
+      <Snackbar
+        open={idleSavedOpen}
+        autoHideDuration={6000}
+        onClose={() => setIdleSavedOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity="info"
+          icon={<Flag size={16} />}
+          onClose={() => setIdleSavedOpen(false)}
+          action={
+            <Button
+              size="small"
+              onClick={() => router.push("/puzzles/sessions")}
+              sx={{ color: "#FFD1A8", fontWeight: 700, textTransform: "none" }}
+            >
+              View
+            </Button>
+          }
+          sx={{
+            bgcolor: "rgba(22,18,14,0.96)",
+            color: "rgba(255,240,224,0.94)",
+            border: "1px solid rgba(255,122,26,0.35)",
+            borderRadius: "0.85rem",
+            "& .MuiAlert-icon": { color: "#FFD1A8" },
+          }}
+        >
+          Session auto-saved after 15 min idle.
+        </Alert>
+      </Snackbar>
     </ThemeProvider>
   );
 }

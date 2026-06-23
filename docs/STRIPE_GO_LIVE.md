@@ -9,10 +9,13 @@ needs your Stripe + Supabase accounts.
 > with live keys and flip the flag.
 
 ## 1. Create the Stripe product + price
-1. Stripe Dashboard → **Test mode** (toggle, top right).
+1. Stripe Dashboard → **sandbox / Test mode** (toggle, top right).
 2. Products → **Add product**: name `Chess Masti Premium`.
-3. Pricing: **Recurring**, **$0.99 USD / month**. Save.
-4. Copy the price id (`price_…`) → this is `STRIPE_PRICE_ID`.
+3. **Product tax code**: search the picker and pick **"Software as a service (SaaS) — personal use"**. Do NOT pick an education code (it can trigger exemptions that under-collect tax).
+4. Pricing: **Recurring**, **$0.99 USD / month**.
+5. **Tax behavior → "Inclusive of tax"** — the $0.99 is all-in everywhere (required for EU/UK consumer display; no checkout surprise). ⚠️ This is **sticky**: once a price is used you can't flip inclusive↔exclusive, you must create a new price. Confirm before copying the id.
+6. Save. Copy the price id (`price_…`) → this is `STRIPE_PRICE_ID`.
+   - Verify from the CLI: `stripe prices retrieve <price_id>` → expect `"tax_behavior": "inclusive"`, `"unit_amount": 99`.
 
 ## 2. Get API keys
 - Developers → API keys → copy **Secret key** (`sk_test_…`) → `STRIPE_SECRET_KEY`.
@@ -27,6 +30,12 @@ needs your Stripe + Supabase accounts.
    `customer.subscription.updated`,
    `customer.subscription.deleted`.
 4. Copy the **Signing secret** (`whsec_…`) → `STRIPE_WEBHOOK_SECRET`.
+
+> **Local testing doesn't need a dashboard endpoint.** Run
+> `stripe listen --forward-to localhost:3000/api/stripe/webhook` — it prints its
+> own `whsec_…` (use that for local) and tunnels events to your dev server. Only
+> create the dashboard endpoint for deployed (preview/live) environments. The
+> dashboard webhook secret differs from the CLI one — keep them straight.
 
 ## 4. Set the env vars in Vercel
 Project → Settings → Environment Variables (Production **and** Preview):
@@ -65,6 +74,42 @@ With test keys set, set `FREEMIUM_ENABLED=true` on a **preview** deploy and:
 2. Set `FREEMIUM_ENABLED=true` in Production.
 3. Redeploy (so `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is baked in).
 4. Smoke-test one real upgrade + one promo redemption.
+
+## 3b. Managed Payments, Billing Portal & statement descriptor
+These aren't optional — the cancel flow and tax handling depend on them.
+
+- **Managed Payments (Merchant of Record)** — in onboarding we chose *"Stripe does it"*. Stripe becomes liable for global **sales tax + VAT** and calculates/remits it (the big de-risk for an India-based founder billing US/EU). Costs ~3.5% per charge (≈3.5¢ on $0.99 — trivial). Finish the **"Get started with Managed Payments"** setup-guide step or tax won't actually calculate. Requires a business **origin address** set.
+- **Billing Portal** (Settings → Billing → Customer portal) — enable **"Cancel subscriptions"**, set **"Cancel at end of billing period"** (keeps paid access until period end → matches our entitlement + `/terms`). Do NOT add a retention/save-offer step (dark-pattern / ROSCA risk). A non-blocking "cancellation reason" survey is fine. **Per-mode**: configure it in test AND again in live.
+- **Statement descriptor** (Settings → Payments) — set `CHESSMASTI` so the card line isn't a mystery charge (FTC sore point). Under Managed Payments / MoR, Stripe may prefix its own entity — verify on a real charge that your name appears.
+- **Webhook events to subscribe (live endpoint)**: exactly `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted` — the only four the code handles.
+
+## Verified in sandbox (2026-06-22) + gotchas that bit us
+Full checkout→cancel loop was run end-to-end in the ChessMasti sandbox with the
+Stripe CLI; every webhook returned `[200]`. Specifics worth keeping:
+
+- **Trial is honored, no charge today** — checkout with a future `trial_end` fires `setup_intent.*` + `payment_method.attached` (card saved for later) and a **$0 `invoice.paid`**, not a real charge. Checkout shows "N days free, then $0.99 starting {date}".
+- **API `2026-05-27.dahlia` moved fields:**
+  - `current_period_end` is on `subscription.items[0]`, **not** the subscription (already handled in `syncStripeSubscription.currentPeriodEndMs`).
+  - **Portal "cancel at period end" sets `cancel_at` (a timestamp) + `canceled_at`, and leaves `cancel_at_period_end: false`.** Reading the boolean alone misses portal cancels — `syncStripeSubscription` now treats `cancel_at_period_end || cancel_at != null` as scheduled-to-cancel. If you see a "cancelled but app shows active subscription" report after a Stripe upgrade, check this first.
+- **Stripe-backed trial vs local no-card trial** are both `status: "trialing"`; only a `stripeSubscriptionId` distinguishes them (`entitlement.hasStripeSubscription`). The checkout route 409s an already-subscribed user to prevent a duplicate subscription / double-billing.
+- **Resend a processed event for re-testing**: `stripe events resend <evt_id>` (re-runs the webhook against current code).
+- **Stripe CLI install**: `brew install stripe/stripe-cli/stripe` failed on outdated Command Line Tools → used the **prebuilt binary** from the GitHub release into `/opt/homebrew/bin/stripe`.
+
+## Tested via Stripe test clock (2026-06-22)
+The **paid `active` → scheduled-cancel → `canceled`** path was validated with a
+test clock: a no-trial subscription created `status: active` with a real $0.99
+charge; setting `cancel_at_period_end` populated `cancel_at` too (dahlia); after
+advancing the clock past the period end the subscription went `canceled`. Our
+`mapStripeStatus` + `cancel_at`-aware mirror handle every state. (A test clock
+uses a fresh customer, so this validates Stripe mechanics + webhook resilience,
+not a real user's Firestore mirror — see below.)
+
+## Still not validated (do at go-live)
+- **Real-user mirror on the paid path** — a real signed-in user converting from
+  trial to a charged `active` sub and cancelling. Can't be done with a test clock
+  (you can't move an existing customer onto a clock); confirm at the live smoke
+  test (step 7).
+- Real **live-mode** charge with a real card (step 7 smoke test).
 
 ## Rollback
 Set `FREEMIUM_ENABLED=false` (or unset) and redeploy → every user is treated as

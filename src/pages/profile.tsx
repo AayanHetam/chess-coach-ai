@@ -44,6 +44,7 @@ import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import SchoolIcon from "@mui/icons-material/School";
 import WarningIcon from "@mui/icons-material/Warning";
 import ExtensionIcon from "@mui/icons-material/Extension";
+import HistoryIcon from "@mui/icons-material/History";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import LightbulbIcon from "@mui/icons-material/Lightbulb";
 import { useRouter } from "next/router";
@@ -778,6 +779,24 @@ export default function Profile() {
                 }}
               >
                 Practice Puzzles
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<HistoryIcon />}
+                onClick={() => router.push("/puzzles/sessions")}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: "12px",
+                  color: "#FB923C",
+                  borderColor: "rgba(249,115,22,0.4)",
+                  transition: "all 180ms ease",
+                  "&:hover": {
+                    borderColor: "rgba(249,115,22,0.6)",
+                    bgcolor: "rgba(249,115,22,0.08)",
+                  },
+                }}
+              >
+                Puzzle Sessions
               </Button>
               <Button
                 variant="outlined"

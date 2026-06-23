@@ -164,6 +164,17 @@ export default function PrivacyPage() {
               <li>We do not run Stockfish on our servers — engine analysis happens in your browser as WebAssembly. Positions you analyse stay on your machine for engine evaluation; they only leave it when you choose to ask the AI coach about them.</li>
             </ul>
 
+            <h3>Children</h3>
+            <p>
+              Chess Masti is intended for users aged 13 and over, and we ask you
+              to confirm you&apos;re 13+ when you create an account. We don&apos;t
+              knowingly collect personal information from children under 13. If
+              you believe a child under 13 has signed up without a parent&apos;s
+              involvement, email us at{" "}
+              <a href="mailto:aayanhetamsaria4@gmail.com">aayanhetamsaria4@gmail.com</a>{" "}
+              and we&apos;ll delete the account and its data.
+            </p>
+
             <h3>Deleting your data</h3>
             <p>
               Email <a href="mailto:aayanhetamsaria4@gmail.com">aayanhetamsaria4@gmail.com</a> and

@@ -56,6 +56,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
 
   const [chesscomUsername, setChesscomUsername] = useState("");
   const [lichessUsername, setLichessUsername] = useState("");
@@ -70,6 +71,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
     setEmail("");
     setPassword("");
     setDisplayName("");
+    setAgeConfirmed(false);
     setChesscomUsername("");
     setLichessUsername("");
     setError(null);
@@ -83,6 +85,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
 
   const handleEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (mode === "signup" && !ageConfirmed) return; // COPPA neutral age screen
     setError(null);
     setInfo(null);
     setSubmitting(true);
@@ -185,6 +188,11 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
 
   const orangeGradient = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
   const orangeHover = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
+
+  // COPPA neutral age screen: a new account must affirm 13+ before it can be
+  // created. Light-touch (no DOB collected) — under-13 are screened out, not
+  // gathered. Gates the signup submit only.
+  const submitDisabled = submitting || (mode === "signup" && !ageConfirmed);
 
   return (
     <Modal
@@ -471,6 +479,58 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                           />
                         )}
 
+                        {mode === "signup" && (
+                          <Box
+                            component="button"
+                            type="button"
+                            onClick={() => setAgeConfirmed((v) => !v)}
+                            aria-pressed={ageConfirmed}
+                            sx={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 1,
+                              textAlign: "left",
+                              background: "transparent",
+                              border: "none",
+                              outline: "none",
+                              cursor: "pointer",
+                              p: 0,
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                mt: "1px",
+                                width: 18,
+                                height: 18,
+                                flexShrink: 0,
+                                borderRadius: "5px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                transition: "all 160ms ease",
+                                border: ageConfirmed
+                                  ? "1px solid rgba(249,115,22,0.6)"
+                                  : "1px solid rgba(255,255,255,0.25)",
+                                background: ageConfirmed
+                                  ? "rgba(249,115,22,0.18)"
+                                  : "transparent",
+                              }}
+                            >
+                              {ageConfirmed && <Check size={12} color="#FB923C" />}
+                            </Box>
+                            <Typography
+                              sx={{
+                                fontSize: "0.78rem",
+                                lineHeight: 1.45,
+                                color: "rgba(255,255,255,0.62)",
+                              }}
+                            >
+                              I confirm I&apos;m 13 or older. If you&apos;re under 13,
+                              please ask a parent or guardian to set up access.
+                            </Typography>
+                          </Box>
+                        )}
+
                         {mode === "signin" && (
                           <Box sx={{ textAlign: "right" }}>
                             <Box
@@ -556,11 +616,11 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                         <Box
                           component="button"
                           type="submit"
-                          disabled={submitting}
+                          disabled={submitDisabled}
                           sx={{
                             width: "100%",
-                            cursor: submitting ? "not-allowed" : "pointer",
-                            opacity: submitting ? 0.7 : 1,
+                            cursor: submitDisabled ? "not-allowed" : "pointer",
+                            opacity: submitDisabled ? 0.7 : 1,
                             border: "none",
                             outline: "none",
                             py: 1.25,
@@ -572,7 +632,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             background: orangeGradient,
                             boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
                             transition: "all 180ms ease",
-                            "&:hover": submitting
+                            "&:hover": submitDisabled
                               ? {}
                               : {
                                   background: orangeHover,

@@ -77,3 +77,7 @@ graphify-out/
 .loop/
 .env.prod-smoke
 scripts/synthetic-tester/runs/
+
+# loop runtime objective file (placed per-worktree by scripts/loop/loops.sh)
+/OBJECTIVE.md
+__pycache__/

@@ -45,9 +45,10 @@ SHIP_ONLY=false
 # ---- preflight ----
 command -v jq >/dev/null || { echo "jq required"; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "gh not authenticated"; exit 1; }
-if [ "$SHIP_ONLY" = "false" ] && [ -n "$(git status --porcelain --ignore-submodules=all)" ]; then
+# OBJECTIVE.md is runtime state placed by the queue runner, never part of the change
+if [ "$SHIP_ONLY" = "false" ] && [ -n "$(git status --porcelain --ignore-submodules=all -- ':!OBJECTIVE.md')" ]; then
   echo "Working tree is dirty. Commit or stash before running the loop."
-  git status --porcelain --ignore-submodules=all
+  git status --porcelain --ignore-submodules=all -- ':!OBJECTIVE.md'
   exit 1
 fi
 if [ ! -f "$OBJ" ] && [ "$SHIP_ONLY" = "false" ]; then

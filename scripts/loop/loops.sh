@@ -70,6 +70,8 @@ run_instance() {
     # strip frontmatter (--- ... ---) into the worktree's OBJECTIVE.md
     awk 'BEGIN{c=0} /^---[[:space:]]*$/{c++; next} c!=1{print}' "$obj" > "$wt/OBJECTIVE.md"
     mkdir -p "$wt/.loop"
+    # re-claims resume with their prior backlog (progress notes survive worktree teardown)
+    [ -f "$LOOP_HOME/reports/$id-backlog.md" ] && cp "$LOOP_HOME/reports/$id-backlog.md" "$wt/.loop/backlog.md" || true
 
     # stacked bases (base != origin/main) predate the loop infra on main: merge main
     # in up-front so the worktree carries loop tooling + latest prod code. On conflict,
@@ -77,8 +79,8 @@ run_instance() {
     if [ "$base" != "origin/main" ]; then
       if ! git -C "$wt" merge --no-edit origin/main >/dev/null 2>&1; then
         git -C "$wt" merge --abort 2>/dev/null || true
-        printf '# Backlog (auto-managed by the loop)\n\n> loop-note (claim): MERGE CONFLICT: this branch conflicts with origin/main. First BUILD iteration: run git merge origin/main, resolve every conflict correctly (never blind-accept either side), gate, commit the merge.\n' \
-          > "$wt/.loop/backlog.md"
+        printf '\n> loop-note (claim): MERGE CONFLICT: this branch conflicts with origin/main. First BUILD iteration: run git merge origin/main, resolve every conflict correctly (never blind-accept either side), gate, commit the merge.\n' \
+          >> "$wt/.loop/backlog.md"
         echo "inst$i: $id base conflicts with main — seeded merge todo for the loop"
       fi
     fi

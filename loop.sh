@@ -203,8 +203,9 @@ if [ "$SHIP_ONLY" = "true" ]; then
 fi
 
 # ---- one branch per objective; iterations accumulate commits on it ----
+# resume an existing objective branch (keep its commits); create only if absent
 BRANCH="loop/obj-$OBJ_SLUG"
-git checkout -B "$BRANCH" >/dev/null 2>&1
+git checkout "$BRANCH" >/dev/null 2>&1 || git checkout -b "$BRANCH" >/dev/null 2>&1
 
 iter=0; stall=0; clean_streak=0; merge_attempts=0; revert_cycles=0
 last_head=$(git rev-parse HEAD)
@@ -260,11 +261,14 @@ Hard rules:
 EOF
 )"
 
+  # NOTE: never use jq's // for boolean fields — `false // default` yields the
+  # default, silently inverting claude's answer (cost us a 6-iteration critique loop).
+  jbool() { jq -r ".$1 | if . == null then \"$2\" else tostring end" "$STATUS" 2>/dev/null || echo "$2"; }
   phase=$(jq -r '.phase // "build"'           "$STATUS" 2>/dev/null || echo build)
-  made=$(jq -r '.made_changes // false'       "$STATUS" 2>/dev/null || echo false)
-  gaps_found=$(jq -r '.gaps_found // true'    "$STATUS" 2>/dev/null || echo true)
-  exit_sig=$(jq -r '.exit // false'           "$STATUS" 2>/dev/null || echo false)
-  ship_ready=$(jq -r '.ship_ready // true'    "$STATUS" 2>/dev/null || echo true)
+  made=$(jbool made_changes false)
+  gaps_found=$(jbool gaps_found true)
+  exit_sig=$(jbool exit false)
+  ship_ready=$(jbool ship_ready true)
   ship_blockers=$(jq -r '(.ship_blockers // []) | join("; ")' "$STATUS" 2>/dev/null || echo "")
   echo "  phase=$phase made=$made gaps_found=$gaps_found exit=$exit_sig ship_ready=$ship_ready"
 

@@ -68,6 +68,11 @@ import { compileVoterResult } from "@/lib/grounding/voter";
 import { buildAsyncSnapshotForMove } from "@/lib/grounding/voterSnapshot";
 import { queryLc0, shouldCallLc0 } from "@/lib/grounding/lc0";
 import { queryMaiaAtRating, shouldCallMaia } from "@/lib/grounding/maia";
+import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
+// Phase-2 GROUNDED TEACHING SPINE (principle 8): pure-synchronous chess.js
+// helpers (no async/engine) — safe to call inside buildGameContext's top3 loop.
+import { compute_feature_delta } from "@/lib/mastermind/featureDelta";
+import { buildThreatTree } from "@/lib/mastermind/threatTree";
 
 const log = logger.child({ module: "enhanced-analysis" });
 
@@ -373,6 +378,101 @@ type GameHeadersInput = {
 };
 
 /**
+ * Phase-2 GROUNDED TEACHING SPINE (principle 8). For a single critical
+ * position, render the top 1-2 non-empty concept-DELTAS the move changed plus
+ * the enumerated opponent checks/captures/threats, so the LLM's "why" is
+ * anchored to verified facts rather than synthesized. Pure-synchronous
+ * (chess.js only). Returns "" when there is nothing grounded to say — callers
+ * append nothing in that case. Callers wrap this in try/catch: both helpers
+ * call `new Chess(fen)` and can throw InvalidFenError on edge FENs.
+ *
+ * Deliberately terse: emit only the dominant deltas + ≤3 threats, never the
+ * full PositionFeatureDelta/ThreatNode trees (token-bloat / latency guard).
+ */
+function buildTeachingSpine(
+  fenBefore: string,
+  fenAfter: string,
+  bestPvUci: string[]
+): string {
+  const lines: string[] = [];
+
+  // --- Concept DELTA: what the move actually changed ---
+  const delta = compute_feature_delta(fenBefore, fenAfter, { pv: bestPvUci });
+  if (!delta.isEmptyDelta) {
+    const deltaBits: string[] = [];
+
+    // Material swing (the most teachable single fact).
+    const matW = delta.materialDelta.white;
+    const matB = delta.materialDelta.black;
+    if (matW !== 0 || matB !== 0) {
+      const net = matB - matW; // >0 means Black gained relative to White
+      const side = net > 0 ? "Black" : "White";
+      deltaBits.push(
+        `material swung ~${Math.abs(net)} point(s) toward ${side}`
+      );
+    }
+
+    // Pieces left hanging by the move (board-vision failures).
+    const hung = delta.hangingPiecesDelta.newlyHanging;
+    if (hung.length) {
+      deltaBits.push(
+        `now hanging: ${hung
+          .slice(0, 2)
+          .map((h) => `${h.color} ${h.piece} on ${h.square}`)
+          .join(", ")}`
+      );
+    }
+
+    // New threats the move conceded.
+    const newThreats = delta.threatsDelta.newThreats;
+    if (newThreats.length) {
+      deltaBits.push(
+        `new threat(s): ${newThreats
+          .slice(0, 2)
+          .map((t) => t.description)
+          .join("; ")}`
+      );
+    }
+
+    // King-safety degradation.
+    const ksW = delta.kingSafetyDelta.white;
+    const ksB = delta.kingSafetyDelta.black;
+    if (ksW < 0 || ksB < 0) {
+      const worse = ksW < ksB ? "White" : "Black";
+      deltaBits.push(`${worse}'s king safety dropped`);
+    }
+
+    // A piece the move trapped.
+    const trapped = delta.pieceActivityDelta.newlyTrapped;
+    if (trapped.length) {
+      deltaBits.push(
+        `newly trapped: ${trapped
+          .slice(0, 1)
+          .map((p) => `${p.color} ${p.piece} on ${p.square}`)
+          .join(", ")}`
+      );
+    }
+
+    // Top 1-2 dominant sub-deltas only — do not dump everything.
+    if (deltaBits.length) {
+      lines.push(`CONCEPT DELTA (what the move changed): ${deltaBits.slice(0, 2).join(" | ")}`);
+    }
+  }
+
+  // --- Opponent threats to COUNT (principle 6, 800-1200 band; principle 8) ---
+  const threats = buildThreatTree(fenBefore, 2);
+  if (threats.length) {
+    const threatBits = threats.slice(0, 3).map((t) => {
+      const tag = t.isMate ? "MATE" : t.isCheck ? "check" : `wins ~${Math.round(t.approxMaterialGainCp / 100)}p`;
+      return `${t.threatSan} (${tag})`;
+    });
+    lines.push(`OPPONENT THREATS TO COUNT: ${threatBits.join(", ")}`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
  * Build a rich move-by-move game context string from the move history + Stockfish evals.
  * This gives the LLM everything it needs to analyze the game.
  */
@@ -673,6 +773,16 @@ async function buildGameContext(
     // Non-critical — skip if annotation fails
   }
 
+  // --- Lever 1: relational facts for final position (anti-hallucination grounding) ---
+  try {
+    const finalFacts = buildRelationalFacts(game.fen());
+    sections.push(
+      `## VERIFIED POSITION FACTS — FINAL POSITION (chess.js oracle)\n${finalFacts.summary}`
+    );
+  } catch {
+    // skip if FEN is invalid (e.g. no moves played yet)
+  }
+
   // --- Chess Intelligence Layer: pre-computed structured context for critical positions ---
   // This gives GPT verified tactical tags, explanation seeds, and branch analysis
   // so it explains known truths rather than hallucinating chess ideas.
@@ -753,6 +863,33 @@ async function buildGameContext(
         }
 
         if (explanationSeed) block += `ENGINE IDEA: ${explanationSeed}\n`;
+
+        // Lever 1: relational facts for this critical position (anti-hallucination)
+        try {
+          const relFacts = buildRelationalFacts(m.fenBefore);
+          block += `VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):\n${relFacts.summary}\n`;
+        } catch {
+          // skip on invalid FEN
+        }
+
+        // Phase-2 GROUNDED TEACHING SPINE (principle 8): the concept-DELTA the
+        // move changed + the opponent threats to count, grounded next to the
+        // Lever-1 facts above. try/catch mirrors the Lever-1 pattern — a bad
+        // FEN degrades silently rather than 500-ing the analysis.
+        try {
+          const fenAfter = getFenAtHalfMove(moveHistory, m.halfMoveIdx + 1);
+          const spine = buildTeachingSpine(
+            m.fenBefore,
+            fenAfter,
+            evalBefore.lines[0].pv ?? []
+          );
+          if (spine) {
+            block += `GROUNDED TEACHING SPINE (what the move changed + threats to count):\n${spine}\n`;
+          }
+        } catch {
+          // skip on invalid FEN / unexpected chess.js throw
+        }
+
         intelligenceLines.push(block);
       }
 
@@ -1220,6 +1357,24 @@ export async function POST(request: NextRequest) {
     // Stage B insertion point A (§3.7.9): single env read. No branching cost
     // when off; flag-off path remains byte-identical to today.
     const { validatorsEnabled } = getMastermindEnv();
+
+    // Build ply→FEN map for the relational-claim validator (Lever 2).
+    // Only constructed when validators are on (avoids O(n) work otherwise).
+    // Maps 1-indexed ply number → FEN after that half-move so the validator
+    // can check historical claims against the board they reference, not just
+    // the final position.
+    const relationalFenMap: Record<number, string> = {};
+    if (validatorsEnabled && moveHistory?.length) {
+      try {
+        const _g = new Chess();
+        for (let _i = 0; _i < moveHistory.length; _i++) {
+          _g.move(moveHistory[_i]);
+          relationalFenMap[_i + 1] = _g.fen();
+        }
+      } catch {
+        // leave map empty — validator falls back to opts.fen
+      }
+    }
 
     // Look up the signed-in user's coaching prefs + stored rating from
     // Firestore so the system prompt, skill calibration, and puzzle
@@ -1807,6 +1962,8 @@ export async function POST(request: NextRequest) {
                     userHistory: streamingDataSources.userHistory,
                   },
                   voterSnapshot: stage9Snapshot,
+                  enableRelationalValidator: validatorsEnabled,
+                  relationalFenMap,
                   signal,
                 }),
               {
@@ -2322,6 +2479,8 @@ export async function POST(request: NextRequest) {
                   userHistory: nonStreamingDataSources.userHistory,
                 },
                 voterSnapshot: stage9SnapshotNonStream,
+                enableRelationalValidator: validatorsEnabled,
+                relationalFenMap,
                 signal,
               }),
             {

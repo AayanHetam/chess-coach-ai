@@ -93,3 +93,42 @@ See `output.ts:Row`. Highlights:
 ## Out of scope
 
 Per the plan §10: no auto-grading, no multi-turn within a checkpoint, no web UI, no fine-tuning, no CI hookup, no streaming.
+
+## Offline helpfulness eval (the GRADE module)
+
+Grades STORED coach responses on a 7-dimension helpfulness rubric (0-2 each,
+max 14) using a 2-model Claude jury, grounded against engine evidence. It is
+OFFLINE: it needs `ANTHROPIC_API_KEY` and a Stockfish binary (`STOCKFISH_BIN`,
+default `/opt/homebrew/bin/stockfish`); it NEVER POSTs to `/api/*`.
+
+```
+ANTHROPIC_API_KEY=... npx tsx scripts/synthetic-tester/runHelpfulnessEval.ts --max-cost 4
+# flags: --fixtures <dir> --depth 16 --judges sonnet,haiku|all --limit <n> --out <path>
+```
+
+Modules (all `scripts/synthetic-tester/`):
+- `helpfulnessTypes.ts` — `JudgePacket`, `DimScore`, `RubricResult`, `JuryResult`.
+- `helpfulnessGrounding.ts` — `buildJudgePacket()`: Stockfish multi-PV + `detectMotifs`
+  (confirmed-only) + `compute_feature_delta` concept-delta. No LLM.
+- `helpfulnessPrompt.ts` — reference-grounded judge prompt + evidence renderer.
+- `helpfulnessJudge.ts` — single-model judge; probability-weighted EV per dim;
+  injectable `call` seam for network-free tests; composes the chess.js GATE
+  (`falseRelationalClaims > 0` → dim-1 EV 0 → total capped ≤ 4).
+- `helpfulnessJury.ts` — 2 distinct Claude models (`claude-sonnet-4-6` strong 0.6 /
+  `claude-haiku-4-5-20251001` cross-check 0.4); gate re-applied on the aggregate.
+- `runHelpfulnessEval.ts` — CLI driver; relbaseline-shaped report in `runs/`.
+
+The rubric is **ungameable by terseness**: empty/terse → ~0 on dims 3,4,6; a bare
+engine-line dump → 0 on dim 6; padding → 0 on dim 7. Proven by
+`__tests__/helpfulnessUngameable.test.ts` (logic-level monotonicity assertion runs
+in CI; the live 2-model calibration is `skipIf(!ANTHROPIC_API_KEY)`).
+
+The GRADE composes with the GATE (`relationalScorer` / `relationalVerify` /
+`relationalExtract`, ported from `loop/iter-20`); it consumes the GATE's
+`ScoreResult.falseRelationalClaims`, it does not replace it. Multi-PV support
+was added to `stockfish.ts` (`evaluateMultiPv`).
+
+Runner fixtures: `fixtures/helpfulness/run_*.json`
+(`{fenBefore, movePlayedSan, playerColor, userRating, coachText}`). The
+ungameable fixture (`ungameable_queen_drop.json`) carries a frozen packet +
+4 response variants so the live test needs no engine.

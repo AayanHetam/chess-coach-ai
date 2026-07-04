@@ -96,7 +96,11 @@ describe("getCoachChatSystemPromptParts — split contract", () => {
       },
     });
     expect(stable).not.toContain("unique_caro_kann_handle");
-    expect(stable).not.toContain("Masti");
+    // The per-user `masti` TONE_GUIDANCE must not leak into the cached prefix.
+    // (Note: the static TEACHING METHOD "PEDAGOGY OVER MASTI" precedence rule in
+    // 3.5 legitimately names Masti in `stable` — that is identical for every
+    // user, so we assert on the per-user tone-guidance sentence specifically.)
+    expect(stable).not.toContain("Adopt the playful, spirited 'Masti' house voice");
   });
 
   it("threads the username + rating + prefs into perUser", () => {

@@ -18,7 +18,11 @@ export type CheckName =
   | "positional_claim_unsupported"
   | "mate_claim_unsupported"
   | "mate_distance_incorrect"
-  | "material_win_unsupported";
+  | "material_win_unsupported"
+  // ─────────────────────────────────────────────────────────────────────
+  // Lever 2 relational-claim validator (Phase 2)
+  // ─────────────────────────────────────────────────────────────────────
+  | "relational_claim_contradicted";
 
 export type FireReason =
   | "numeric_diff_exceeds_threshold"
@@ -48,7 +52,12 @@ export type FireReason =
   | "mate_claim_without_syzygy_or_sf_mate"
   | "mate_distance_off_by_more_than_one"
   | "material_claim_without_voter_med_or_high"
-  | "material_claim_contradicts_stockfish";
+  | "material_claim_contradicts_stockfish"
+  // ─────────────────────────────────────────────────────────────────────
+  // Lever 2 relational-claim validator (Phase 2)
+  // ─────────────────────────────────────────────────────────────────────
+  | "relational_claim_contradicted"
+  | "no_fen_to_verify";
 
 export type FinalOutcome =
   | "passed_initial"

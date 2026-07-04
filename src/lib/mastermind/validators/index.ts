@@ -10,6 +10,7 @@ import { validateUserVisibility } from "./userVisibility";
 import { validatePositionalClaim } from "./positionalClaim";
 import { validateMateInN } from "./mateInN";
 import { validateMaterialWin } from "./materialWin";
+import { validateRelationalClaim } from "./relationalClaim";
 import { regenerateUntilValid, RegenerateResult } from "./regenerate";
 import { buildFallbackResponse, CoachTone } from "./fallback";
 import { createTelemetryEvent } from "./telemetry";
@@ -43,6 +44,8 @@ export { validateMateInN } from "./mateInN";
 export type { MateInNOpts } from "./mateInN";
 export { validateMaterialWin } from "./materialWin";
 export type { MaterialWinOpts } from "./materialWin";
+export { validateRelationalClaim, defaultRelationalParserCall } from "./relationalClaim";
+export type { RelationalClaimOpts } from "./relationalClaim";
 export { regenerateUntilValid, buildRetryInstruction } from "./regenerate";
 export type { RegenerateOpts, RegenerateResult } from "./regenerate";
 export { buildFallbackResponse } from "./fallback";
@@ -172,6 +175,31 @@ export interface PipelineOpts {
    * callers that pre-date this field.
    */
   voterSnapshot?: VoterSnapshot;
+  /**
+   * Lever 2 relational-claim validator (Phase 2, task 10 position-anchoring fix).
+   *
+   * When true, the relational-claim validator runs on the coach's output,
+   * extracting and verifying attack/capture/defense/pin claims against the
+   * chess.js board oracle. Any "contradicted" claim triggers regeneration.
+   *
+   * NOT gated by runPositionValidators — the relational validator works for
+   * both position_analysis and game_review. It uses opts.fen (the primary
+   * position anchor) plus opts.relationalFenMap for ply-indexed multi-position
+   * responses: claims with a moveRefPly resolve via fenMap[ply] ?? fen so
+   * historical references are checked against the board state they describe.
+   *
+   * When undefined/false, the validator is a no-op. Preserves byte-identical
+   * behavior for all existing callers that pre-date this field.
+   */
+  enableRelationalValidator?: boolean;
+  /**
+   * Optional ply→FEN map for multi-position responses (game_review).
+   * Forwarded to validateRelationalClaim so claims tagged with moveRefPly
+   * are verified against the correct board state, not the final FEN.
+   * Mirrors the relational scorer's Phase 0.5 fenMap approach.
+   * Ignored when enableRelationalValidator is false/absent.
+   */
+  relationalFenMap?: Record<number, string>;
 }
 
 /**
@@ -411,6 +439,27 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
         }))
       : Promise.resolve(null);
 
+    // ─── Lever 2: relational-claim validator (Phase 2, task 10 fix) ────
+    // NOT gated by runPositionValidators — the relational validator works
+    // for game_review as well as position_analysis. It receives the primary
+    // FEN (opts.fen) plus an optional fenMap (opts.relationalFenMap) so
+    // per-claim ply anchoring is applied: claims with a moveRefPly resolve
+    // to fenMap[ply] ?? fen before oracle verification.
+    //
+    // Preserves byte-identical behavior when enableRelationalValidator is
+    // absent/false — all existing callers and tests are unaffected.
+    const relationalClaimPromise: Promise<ValidatorResult | null> =
+      opts.enableRelationalValidator && opts.fen
+        ? validateRelationalClaim({
+            llmResponse: response,
+            fen: opts.fen,
+            fenMap: opts.relationalFenMap,
+            correlationId: opts.correlationId,
+            parseCall: opts.parseCall,
+            signal: opts.signal,
+          })
+        : Promise.resolve(null);
+
     const [
       evalResult,
       citationResult,
@@ -420,6 +469,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       positionalResult,
       mateResult,
       materialResult,
+      relationalResult,
     ] = await Promise.all([
       evalPromise,
       citationPromise,
@@ -429,6 +479,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       positionalClaimPromise,
       mateInNPromise,
       materialWinPromise,
+      relationalClaimPromise,
     ]);
 
     const issues = [
@@ -440,6 +491,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       ...(positionalResult?.issues ?? []),
       ...(mateResult?.issues ?? []),
       ...(materialResult?.issues ?? []),
+      ...(relationalResult?.issues ?? []),
     ];
     const telemetry: TelemetryEvent[] = [
       ...evalResult.telemetry,
@@ -450,6 +502,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       ...(positionalResult?.telemetry ?? []),
       ...(mateResult?.telemetry ?? []),
       ...(materialResult?.telemetry ?? []),
+      ...(relationalResult?.telemetry ?? []),
     ];
     const costUsd =
       evalResult.costUsd +
@@ -459,7 +512,8 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       (userVisResult?.costUsd ?? 0) +
       (positionalResult?.costUsd ?? 0) +
       (mateResult?.costUsd ?? 0) +
-      (materialResult?.costUsd ?? 0);
+      (materialResult?.costUsd ?? 0) +
+      (relationalResult?.costUsd ?? 0);
     return {
       issues,
       passed: issues.length === 0,

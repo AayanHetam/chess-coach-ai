@@ -1,0 +1,186 @@
+/**
+ * Pure helpers + shared types for the /calibrate rater page. Kept JSX-free so
+ * they can be unit-tested under vitest's node environment without dragging in
+ * MUI / react-chessboard / react-markdown.
+ */
+
+/**
+ * The coach emits two rating UNITS per game review, so calibration items are a
+ * discriminated union on `type`:
+ *   - "insight"   — one key move. Board + move/best/classification/eval come
+ *                   from the coach's own engine-grounded [INSIGHT] header, so
+ *                   the board and the WHY prose always describe the same move.
+ *   - "full_game" — the intro/overall prose (outside any [WHY]); no board.
+ *
+ * Both share `id`, `userRating`, `tier`. The rubric, N/A handling, notes, and
+ * export logic all key off `id` only — they're type-agnostic.
+ */
+interface CalibrationItemBase {
+  id: string;
+  userRating: number;
+  tier: string;
+}
+
+export interface InsightCalibrationItem extends CalibrationItemBase {
+  type: "insight";
+  fen: string;
+  /** e.g. "8. Qb3" (white) or "7...dxc3" (black). */
+  moveLabel: string;
+  movePlayedSan: string;
+  bestMoveSan: string;
+  classification: string;
+  evalBefore: string;
+  evalAfter: string;
+  /** Non-spoiler headline lede. */
+  description: string;
+  /** Full [WHY] prose, control markers already stripped by the builder. */
+  whyText: string;
+}
+
+export interface FullGameCalibrationItem extends CalibrationItemBase {
+  type: "full_game";
+  /** Cleaned intro/overall review prose. */
+  fullGameAnalysis: string;
+}
+
+export type CalibrationItem = InsightCalibrationItem | FullGameCalibrationItem;
+
+export interface CalibrationData {
+  items: CalibrationItem[];
+}
+
+/** "na" = the dimension doesn't apply to this position (conditional activation,
+ *  e.g. diagnostic accuracy when the move WAS best). Excluded from recalibration. */
+export type DimScore = 0 | 1 | 2 | "na";
+export type DimKey = "d1" | "d2" | "d3" | "d4" | "d5" | "d6" | "d7";
+
+/** A per-item rating: any subset of the 7 dims may be filled in. */
+export type ItemRating = Partial<Record<DimKey, DimScore>>;
+/** All ratings for the current rater, keyed by item id. */
+export type RatingsState = Record<string, ItemRating>;
+/** Free-text rater notes per item id (optional; for flagging eval/coach issues). */
+export type NotesState = Record<string, string>;
+
+/** Dims are optional: a row may have N/A dims, a partial rating, or be note-only. */
+export type ExportRow = { id: string; notes?: string } & Partial<
+  Record<DimKey, DimScore>
+>;
+export interface ExportShape {
+  rater: string;
+  generatedNote: string;
+  ratings: ExportRow[];
+}
+
+/** Static rubric (mirrors helpfulnessPrompt.ts SCORING ANCHORS). */
+export const DIMENSIONS: { key: DimKey; label: string; rubric: string }[] = [
+  {
+    key: "d1",
+    label: "1. Chess correctness",
+    rubric:
+      "Every move/claim legal & consistent with the FEN; 0 if any line contradicts the board.",
+  },
+  {
+    key: "d2",
+    label: "2. Diagnostic accuracy",
+    rubric:
+      "Names the specific mistake & why, matching classification + eval delta. (N/A if the move was best.)",
+  },
+  {
+    key: "d3",
+    label: "3. Insight / the “why”",
+    rubric:
+      "A causal idea (plan/threat/weakness) for THIS position; bare eval restatement = 0.",
+  },
+  {
+    key: "d4",
+    label: "4. Actionability",
+    rubric:
+      "Concrete, position-specific next step; generic advice (“develop pieces”) = 0.",
+  },
+  {
+    key: "d5",
+    label: "5. Level-appropriateness",
+    rubric: "Vocabulary & depth matched to the user's rating.",
+  },
+  {
+    key: "d6",
+    label: "6. Assistance calibration",
+    rubric:
+      "Surfaces the idea / right question; 0 if it dumps the full engine line OR withholds to uselessness.",
+  },
+  {
+    key: "d7",
+    label: "7. Focus / non-redundancy",
+    rubric: "On the key feature, length-controlled; padding/repetition = 0.",
+  },
+];
+
+export const DIM_KEYS: DimKey[] = DIMENSIONS.map((d) => d.key);
+
+/** An item is fully rated when all 7 dims are present. */
+export function isItemFullyRated(rating: ItemRating | undefined): boolean {
+  if (!rating) return false;
+  return DIM_KEYS.every((k) => rating[k] !== undefined);
+}
+
+/**
+ * Build the export payload. Only fully-rated items are included; partially
+ * rated items are dropped (never zero-filled — that would corrupt calibration
+ * data). Returns the payload plus the count of excluded items so the caller
+ * can warn.
+ */
+export function buildExport(
+  rater: string,
+  items: CalibrationItem[],
+  ratings: RatingsState,
+  notes: NotesState = {}
+): { payload: ExportShape; excludedCount: number } {
+  const rows: ExportRow[] = [];
+  let excludedCount = 0;
+  for (const it of items) {
+    const r = ratings[it.id] ?? {};
+    const note = notes[it.id]?.trim();
+    // Include an item if it's fully rated OR the rater left a note (a note alone
+    // is a valid "flag this item" signal even without all 7 dims). Otherwise drop.
+    if (!isItemFullyRated(r) && !note) {
+      excludedCount += 1;
+      continue;
+    }
+    const row: ExportRow = { id: it.id };
+    for (const k of DIM_KEYS) {
+      if (r[k] !== undefined) row[k] = r[k];
+    }
+    if (note) row.notes = note;
+    rows.push(row);
+  }
+  const payload: ExportShape = {
+    rater,
+    generatedNote: `Calibrated on ${new Date().toISOString()} — ${rows.length} items`,
+    ratings: rows,
+  };
+  return { payload, excludedCount };
+}
+
+export function formatCpDelta(cp: number): string {
+  const sign = cp > 0 ? "+" : "";
+  return `${sign}${cp}cp`;
+}
+
+/**
+ * Strip the coach's machine-readable control tags so a human rates the prose,
+ * not the markup. The real app PARSES these into UI cards/boards; raw, they read
+ * as gibberish ("[INSIGHT:7:b:mistake:-1.05:...]", "[CONTINUATION:...]",
+ * "[MAIA_CONTINUATION:...]", "[THREATS]", "[WHY]…[/WHY]", "[CONCEPT:...]"). We
+ * drop the bracketed control tags and collapse the blank lines they leave behind;
+ * the underlying Idea/Problem/Solution/Outcome prose is preserved verbatim.
+ */
+const CONTROL_TAG_RE =
+  /\[\/?(?:INSIGHT|WHY|CONTINUATION|MAIA_CONTINUATION|THREATS|ROLES|CONCEPT|ENGINE_LINE|MOVE|BOARD|EVAL|PRACTICE)[^\]]*\]/g;
+
+export function cleanCoachText(text: string): string {
+  return text
+    .replace(CONTROL_TAG_RE, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

@@ -6,9 +6,17 @@
 # Tracked files (do not gitignore):
 #   - rmom5mxo6-4cc2b5.csv         (Tuesday harness smoke from 2026-05-22)
 #   - rmom5mxo6-4cc2b5.meta.json   (matching meta sidecar)
+#   - helpbaseline-mqmjkzq5-09f9ad.json
+#       Frozen helpfulness run (2026-06-20). The insight-calibration invariant
+#       test (deriveInsightFen.test.ts) iterates committed helpbaseline-*.json
+#       runs to assert every surviving insight's movePlayedSan is legal from its
+#       derived fen — so CI needs at least this one present.
 #
-# Everything else is local-only.
+# Everything else (per-developer help/rel baseline JSONs) is local-only.
 *.csv
 *.meta.json
+helpbaseline-*.json
+relbaseline-*.json
 !rmom5mxo6-4cc2b5.csv
 !rmom5mxo6-4cc2b5.meta.json
+!helpbaseline-mqmjkzq5-09f9ad.json

@@ -1,0 +1,9 @@
+{
+  "id": "run_03_italian_dev",
+  "note": "Italian Game: Nc3 is a sound developing move (move was ~best). Dim-2 should be N/A (affirmed best). Coach gives a solid level-appropriate explanation.",
+  "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+  "movePlayedSan": "Nc3",
+  "playerColor": "w",
+  "userRating": 1100,
+  "coachText": "Nice — Nc3 develops your last knight toward the center and keeps an eye on the d5 and e4 squares. A good rule in the opening is to get your knights and bishops out before moving the same piece twice. Next you can castle to tuck your king away safely."
+}

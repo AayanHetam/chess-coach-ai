@@ -58,7 +58,7 @@ run_instance() {
     wt="$WT_BASE/inst$i"
     git -C "$REPO" worktree remove --force "$wt" 2>/dev/null || true
     git -C "$REPO" fetch origin >/dev/null 2>&1
-    git -C "$REPO" worktree add --detach "$wt" "$base" >/dev/null
+    git -C "$REPO" worktree add --detach "$wt" "$base" >/dev/null 2>&1
 
     # tooling: reuse the main checkout's node_modules (read-only during test/build);
     # objectives that touch package.json get their own install
@@ -94,8 +94,17 @@ run_instance() {
     cp "$wt/.loop/report.md"  "$LOOP_HOME/reports/$id-report.md" 2>/dev/null || true
     cp "$wt/.loop/backlog.md" "$LOOP_HOME/reports/$id-backlog.md" 2>/dev/null || true
     cp "$wt/.loop/cost.log"   "$LOOP_HOME/reports/$id-cost.log" 2>/dev/null || true
-    if [ "$rc" -eq 0 ]; then mv "$obj" "$LOOP_HOME/done/"; else mv "$obj" "$LOOP_HOME/parked/"; fi
-    echo "inst$i: $id finished rc=$rc ($( [ "$rc" -eq 0 ] && echo shipped || echo parked )) — spend total \$$(global_spend)"
+    # rc contract: 0 = shipped, 2 = genuinely parked (loop ran and gave up).
+    # Anything else is an INFRA failure — return the objective to the queue and
+    # halt this instance so a broken harness can't burn the whole queue.
+    case "$rc" in
+      0) mv "$obj" "$LOOP_HOME/done/";   echo "inst$i: $id SHIPPED — spend total \$$(global_spend)" ;;
+      2) mv "$obj" "$LOOP_HOME/parked/"; echo "inst$i: $id parked (see reports/$id-report.md) — spend total \$$(global_spend)" ;;
+      *) mv "$obj" "$LOOP_HOME/queue/"
+         echo "inst$i: INFRA FAILURE on $id (rc=$rc) — objective returned to queue, instance HALTED. Fix the harness, then restart."
+         git -C "$REPO" worktree remove --force "$wt" 2>/dev/null || true
+         return 1 ;;
+    esac
 
     git -C "$REPO" worktree remove --force "$wt" 2>/dev/null || true
   done

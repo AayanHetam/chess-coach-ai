@@ -64,16 +64,19 @@ export default function PsychologyPanel({ psychology, recentBuckets }: Psycholog
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 3,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
+        borderRadius: '1.5rem',
+        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(20,22,28,0.55)',
+        backdropFilter: 'blur(14px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+        overflow: 'hidden',
         height: '100%',
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <Icon icon="mdi:brain" width={20} style={{ color: '#FF6B35' }} />
-        <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>Psychology & Recent</Typography>
+        <Icon icon="mdi:brain" width={20} style={{ color: '#FB923C' }} />
+        <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>Psychology & Recent</Typography>
       </Stack>
 
       <Grid container spacing={1} sx={{ mb: 2 }}>
@@ -83,8 +86,8 @@ export default function PsychologyPanel({ psychology, recentBuckets }: Psycholog
               <Box
                 sx={{
                   p: 1.25,
-                  borderRadius: 2,
-                  bgcolor: 'rgba(0,0,0,0.02)',
+                  borderRadius: '12px',
+                  bgcolor: 'rgba(255,255,255,0.04)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1,
@@ -97,7 +100,7 @@ export default function PsychologyPanel({ psychology, recentBuckets }: Psycholog
                   <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem', lineHeight: 1 }}>
                     {r.label}
                   </Typography>
-                  <Typography sx={{ fontWeight: 800, fontSize: '0.95rem', color: r.color, lineHeight: 1.1 }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: '0.95rem', color: r.color, lineHeight: 1.1, fontFamily: 'Monaco, monospace' }}>
                     {r.value}
                   </Typography>
                 </Box>
@@ -109,7 +112,7 @@ export default function PsychologyPanel({ psychology, recentBuckets }: Psycholog
 
       <Box>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.75 }}>
-          <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 0.5, color: 'text.secondary' }}>
+          <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.14em', color: 'rgba(255,255,255,0.5)' }}>
             RECENT FORM (groups of 10, oldest → newest)
           </Typography>
         </Stack>
@@ -133,7 +136,7 @@ export default function PsychologyPanel({ psychology, recentBuckets }: Psycholog
                       display: 'flex',
                       flexDirection: 'column-reverse',
                       height: '100%',
-                      bgcolor: 'rgba(0,0,0,0.04)',
+                      bgcolor: 'rgba(255,255,255,0.08)',
                       borderRadius: 1,
                       overflow: 'hidden',
                       cursor: 'help',

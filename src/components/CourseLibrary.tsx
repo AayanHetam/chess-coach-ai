@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
 import {
   Grid,
   Card,
@@ -7,14 +8,24 @@ import {
   Typography,
   Button,
   Box,
+  Stack,
   Chip,
   LinearProgress,
   Alert,
   Skeleton,
 } from "@mui/material";
 import { useRouter } from "next/router";
+import {
+  GraduationCap,
+  Clock,
+  Swords,
+  BookOpen,
+  Scale,
+  Flag,
+  Brain,
+  Crown,
+} from "lucide-react";
 import { Course } from "@/app/api/courses/route";
-import { PageTitle } from "@/components/pageTitle";
 
 interface CourseCardProps {
   course: Course;
@@ -32,81 +43,144 @@ function CourseCard({ course, onStartCourse }: CourseCardProps) {
     }
   };
 
-  const getCategoryIcon = (category: Course['category']) => {
+  const getCategoryIcon = (category: Course['category']): ReactNode => {
+    const iconProps = { size: 40, color: '#FB923C', opacity: 0.9 };
     switch (category) {
-      case 'tactics': return '⚔️';
-      case 'openings': return '📖';
-      case 'middlegame': return '⚖️';
-      case 'endgame': return '🏁';
-      case 'strategy': return '🧠';
-      default: return '♟️';
+      case 'tactics': return <Swords {...iconProps} />;
+      case 'openings': return <BookOpen {...iconProps} />;
+      case 'middlegame': return <Scale {...iconProps} />;
+      case 'endgame': return <Flag {...iconProps} />;
+      case 'strategy': return <Brain {...iconProps} />;
+      default: return <Crown {...iconProps} />;
     }
   };
 
   return (
-    <Card 
-      sx={{ 
-        height: '100%', 
-        display: 'flex', 
+    <Card
+      sx={{
+        height: '100%',
+        display: 'flex',
         flexDirection: 'column',
-        transition: 'transform 0.2s, box-shadow 0.2s',
+        borderRadius: '1.5rem',
+        background: 'rgba(20,22,28,0.55)',
+        backdropFilter: 'blur(14px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+        overflow: 'hidden',
+        transition: 'all 180ms ease',
         '&:hover': {
           transform: 'translateY(-4px)',
-          boxShadow: 4,
+          borderColor: 'rgba(249,115,22,0.35)',
+          boxShadow: '0 12px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(249,115,22,0.18), inset 0 1px 0 rgba(255,255,255,0.06)',
         }
       }}
     >
       <CardMedia
         sx={{
           height: 140,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, rgba(249,115,22,0.08), rgba(20,22,28,0.6))',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '3rem',
         }}
       >
         {getCategoryIcon(course.category)}
       </CardMedia>
       
       <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <Typography gutterBottom variant="h5" component="div" fontWeight={600}>
+        <Typography
+          gutterBottom
+          variant="h5"
+          component="div"
+          sx={{
+            fontWeight: 700,
+            color: 'rgba(255,255,255,0.94)',
+            letterSpacing: '-0.01em',
+            lineHeight: 1.25,
+          }}
+        >
           {course.title}
         </Typography>
-        
-        <Typography 
-          variant="body2" 
-          color="text.secondary" 
-          sx={{ mb: 2, flexGrow: 1 }}
+
+        <Typography
+          variant="body2"
+          sx={{ mb: 2, flexGrow: 1, color: 'rgba(255,255,255,0.62)', lineHeight: 1.55 }}
         >
           {course.description}
         </Typography>
 
         <Box sx={{ mb: 2 }}>
-          <Chip 
-            label={course.difficulty.toUpperCase()} 
+          <Chip
+            label={course.difficulty.toUpperCase()}
             color={getDifficultyColor(course.difficulty)}
             size="small"
-            sx={{ mr: 1 }}
+            sx={{
+              mr: 1,
+              borderRadius: '999px',
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              fontSize: '0.66rem',
+            }}
           />
-          <Chip 
-            label={course.category.toUpperCase()} 
-            variant="outlined" 
+          <Chip
+            label={course.category.toUpperCase()}
             size="small"
+            sx={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: 'rgba(255,255,255,0.72)',
+              borderRadius: '999px',
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              fontSize: '0.66rem',
+            }}
           />
         </Box>
 
-        <Typography variant="body2" sx={{ mb: 1 }}>
-          <strong>⏱️ {course.estimatedTime} minutes</strong> • {course.puzzles.length} puzzles
-        </Typography>
+        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 1 }}>
+          <Clock size={14} color="rgba(255,255,255,0.5)" style={{ verticalAlign: 'middle', marginRight: 4 }} />
+          <Typography variant="body2" component="span" sx={{ color: 'rgba(255,255,255,0.62)' }}>
+            <Box component="span" sx={{ fontFamily: 'Monaco, monospace', color: 'rgba(255,255,255,0.94)' }}>{course.estimatedTime}</Box> minutes • <Box component="span" sx={{ fontFamily: 'Monaco, monospace', color: 'rgba(255,255,255,0.94)' }}>{course.puzzles.length}</Box> puzzles
+          </Typography>
+        </Stack>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          <strong>Concepts:</strong> {course.concepts.join(', ')}
+        <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.72)' }}>
+          <Box
+            component="span"
+            sx={{
+              display: 'block',
+              color: 'rgba(255,255,255,0.5)',
+              fontWeight: 700,
+              fontSize: '0.7rem',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              mb: 0.5,
+            }}
+          >
+            Concepts:
+          </Box>
+          {course.concepts.join(', ')}
         </Typography>
 
         {course.prerequisites && course.prerequisites.length > 0 && (
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 2 }}>
-            <strong>Prerequisites:</strong> {course.prerequisites.join(', ')}
+          <Typography variant="caption" sx={{ mb: 2, color: 'rgba(255,255,255,0.5)' }}>
+            <Box
+              component="span"
+              sx={{
+                display: 'block',
+                color: 'rgba(255,255,255,0.5)',
+                fontWeight: 700,
+                fontSize: '0.7rem',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                mb: 0.5,
+              }}
+            >
+              Prerequisites:
+            </Box>
+            {course.prerequisites.join(', ')}
           </Typography>
         )}
 
@@ -114,7 +188,21 @@ function CourseCard({ course, onStartCourse }: CourseCardProps) {
           variant="contained"
           fullWidth
           onClick={() => onStartCourse(course.id)}
-          sx={{ mt: 'auto' }}
+          sx={{
+            mt: 'auto',
+            bgcolor: '#F97316',
+            color: '#0A0A0A',
+            fontWeight: 700,
+            borderRadius: '12px',
+            textTransform: 'none',
+            py: 1,
+            boxShadow: '0 6px 18px rgba(249,115,22,0.32)',
+            transition: 'all 180ms ease',
+            '&:hover': {
+              bgcolor: '#FB923C',
+              boxShadow: '0 8px 22px rgba(249,115,22,0.42)',
+            },
+          }}
         >
           Start Course
         </Button>
@@ -156,18 +244,27 @@ export default function CourseLibrary() {
   };
 
   if (loading) {
+    const glassCardSx = {
+      borderRadius: '1.5rem',
+      background: 'rgba(20,22,28,0.55)',
+      backdropFilter: 'blur(14px) saturate(140%)',
+      WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+      overflow: 'hidden',
+    };
+    const skeletonSx = { bgcolor: 'rgba(255,255,255,0.06)' };
     return (
       <>
-        <PageTitle title="Chess Masti AI - Course Library" />
         <Grid container spacing={3}>
           {[1, 2, 3, 4, 5, 6].map((item) => (
             <Grid size={{ xs: 12, sm: 6, md: 4 }} key={item}>
-              <Card>
+              <Card sx={glassCardSx}>
                 <CardContent>
-                  <Skeleton variant="text" height={40} />
-                  <Skeleton variant="text" height={20} sx={{ mt: 1 }} />
-                  <Skeleton variant="rectangular" height={100} sx={{ mt: 2 }} />
-                  <Skeleton variant="text" height={30} sx={{ mt: 2 }} />
+                  <Skeleton variant="text" height={40} sx={skeletonSx} />
+                  <Skeleton variant="text" height={20} sx={{ mt: 1, ...skeletonSx }} />
+                  <Skeleton variant="rectangular" height={100} sx={{ mt: 2, ...skeletonSx }} />
+                  <Skeleton variant="text" height={30} sx={{ mt: 2, ...skeletonSx }} />
                 </CardContent>
               </Card>
             </Grid>
@@ -180,12 +277,41 @@ export default function CourseLibrary() {
   if (error) {
     return (
       <>
-        <PageTitle title="Chess Masti AI - Course Library" />
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
+            borderRadius: '1rem',
+            background: 'rgba(20,22,28,0.55)',
+            backdropFilter: 'blur(14px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+            border: '1px solid rgba(239,68,68,0.35)',
+            color: 'rgba(255,255,255,0.94)',
+            '& .MuiAlert-icon': { color: '#F87171' },
+          }}
+        >
           {error}
         </Alert>
         <Box sx={{ textAlign: 'center', mt: 4 }}>
-          <Button variant="contained" onClick={() => window.location.reload()}>
+          <Button
+            variant="contained"
+            onClick={() => window.location.reload()}
+            sx={{
+              bgcolor: '#F97316',
+              color: '#0A0A0A',
+              fontWeight: 700,
+              borderRadius: '12px',
+              textTransform: 'none',
+              py: 1,
+              px: 3,
+              boxShadow: '0 6px 18px rgba(249,115,22,0.32)',
+              transition: 'all 180ms ease',
+              '&:hover': {
+                bgcolor: '#FB923C',
+                boxShadow: '0 8px 22px rgba(249,115,22,0.42)',
+              },
+            }}
+          >
             Try Again
           </Button>
         </Box>
@@ -195,13 +321,37 @@ export default function CourseLibrary() {
 
   return (
     <>
-      <PageTitle title="Chess Masti AI - Course Library" />
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" gutterBottom fontWeight={600}>
-          🎓 Chess Learning Courses
+        <Typography
+          sx={{
+            fontWeight: 700,
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            fontSize: '0.72rem',
+            color: 'rgba(255,255,255,0.5)',
+            mb: 1,
+          }}
+        >
+          Course Library
         </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Choose a course to improve specific chess skills. Each course contains 50 curated puzzles 
+        <Stack direction="row" spacing={1.25} alignItems="center">
+          <GraduationCap size={26} color="#FB923C" />
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 800,
+              color: 'rgba(255,255,255,0.94)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Chess Learning Courses
+          </Typography>
+        </Stack>
+        <Typography
+          variant="body1"
+          sx={{ color: 'rgba(255,255,255,0.62)', maxWidth: 620, lineHeight: 1.55, mt: 1 }}
+        >
+          Choose a course to improve specific chess skills. Each course contains 50 curated puzzles
           focused on particular concepts and difficulty levels.
         </Typography>
       </Box>

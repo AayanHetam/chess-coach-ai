@@ -105,8 +105,8 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
       onClick={onClose}
       sx={{
         zIndex: theme => theme.zIndex.modal + 8,
-        background: 'rgba(5, 10, 20, 0.75)',
-        backdropFilter: 'blur(6px)',
+        background: 'rgba(8, 9, 12, 0.72)',
+        backdropFilter: 'blur(8px)',
       }}
     >
       <Paper
@@ -117,16 +117,20 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
           maxHeight: '92vh',
           overflow: 'auto',
           p: 3,
-          borderRadius: 3,
-          background: 'linear-gradient(180deg, #ffffff 0%, #fafbfc 100%)',
+          borderRadius: '1.5rem',
+          background: 'linear-gradient(180deg, rgba(20,22,28,0.92), rgba(12,14,20,0.92))',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
           position: 'relative',
         }}
       >
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
           <Box>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Icon icon="mdi:share-variant" width={20} style={{ color: '#FF6B35' }} />
-              <Typography sx={{ fontWeight: 800, fontSize: '1.05rem' }}>
+              <Icon icon="mdi:share-variant" width={20} style={{ color: '#FB923C' }} />
+              <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', color: 'rgba(255,255,255,0.94)' }}>
                 Share {data.username}&apos;s card
               </Typography>
             </Stack>
@@ -134,7 +138,14 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
               Football-sticker export · PNG, Twitter, Reddit
             </Typography>
           </Box>
-          <IconButton size="small" onClick={onClose}>
+          <IconButton
+            size="small"
+            onClick={onClose}
+            sx={{
+              color: 'rgba(255,255,255,0.62)',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+            }}
+          >
             <Icon icon="mdi:close" width={18} />
           </IconButton>
         </Stack>
@@ -144,7 +155,7 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
           sx={{
             display: 'flex',
             justifyContent: 'center',
-            bgcolor: 'rgba(15,23,42,0.04)',
+            bgcolor: 'rgba(255,255,255,0.04)',
             borderRadius: 2,
             p: 1,
             mb: 2.5,
@@ -175,9 +186,15 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
             sx={{
               textTransform: 'none',
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+              bgcolor: '#F97316',
+              color: '#0A0A0A',
+              boxShadow: '0 6px 18px rgba(249,115,22,0.32)',
               '&:hover': {
-                background: 'linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)',
+                bgcolor: '#FB923C',
+              },
+              '&.Mui-disabled': {
+                bgcolor: 'rgba(255,255,255,0.06)',
+                color: 'rgba(255,255,255,0.3)',
               },
             }}
           >
@@ -189,7 +206,16 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
             startIcon={<Icon icon="mdi:content-copy" />}
             onClick={handleCopy}
             disabled={copying}
-            sx={{ textTransform: 'none', fontWeight: 700 }}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 700,
+              border: '1px solid rgba(255,255,255,0.12)',
+              color: 'rgba(255,255,255,0.94)',
+              '&:hover': {
+                border: '1px solid #FB923C',
+                bgcolor: 'rgba(255,255,255,0.04)',
+              },
+            }}
           >
             {copying ? 'Copying…' : 'Copy image'}
           </Button>
@@ -205,8 +231,8 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
             textAlign: 'center',
             fontWeight: 700,
             fontSize: '0.7rem',
-            letterSpacing: 1.5,
-            color: 'text.secondary',
+            letterSpacing: '0.14em',
+            color: 'rgba(255,255,255,0.5)',
           }}
         >
           OR SHARE TO
@@ -226,6 +252,7 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
               py: 1.1,
               bgcolor: '#0f1419',
               color: '#fff',
+              border: '1px solid rgba(255,255,255,0.06)',
               '&:hover': { bgcolor: '#1d2226' },
               boxShadow: '0 4px 12px rgba(15,20,25,0.25)',
             }}
@@ -285,9 +312,9 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
             mt: 1.5,
             textTransform: 'none',
             fontWeight: 700,
-            borderColor: 'divider',
-            color: 'text.secondary',
-            '&:hover': { borderColor: '#FF6B35', color: '#FF6B35' },
+            borderColor: 'rgba(255,255,255,0.12)',
+            color: 'rgba(255,255,255,0.62)',
+            '&:hover': { borderColor: '#FB923C', color: '#FB923C' },
           }}
         >
           Copy share link

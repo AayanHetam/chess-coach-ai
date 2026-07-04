@@ -5,6 +5,10 @@ import path from "node:path";
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  // tsconfig sets jsx: "preserve" (Next.js default); force the automatic JSX
+  // runtime on the oxc transformer so component tests (e.g. Logo/Loader) can be
+  // rendered via renderToStaticMarkup without a jsdom/testing-library setup.
+  oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     alias: {
       "@": path.resolve(root, "src"),
@@ -12,6 +16,11 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // Some CPU-bound suites (e.g. mastermind threatTree search) run ~3s in
+    // isolation but exceed the 5s default under full-suite parallel contention,
+    // flaking the CI ship-gate. Raise the global ceiling to give them headroom
+    // without touching out-of-scope test logic.
+    testTimeout: 20000,
     include: [
       "src/**/*.test.ts",
       "src/**/*.test.tsx",

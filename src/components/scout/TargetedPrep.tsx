@@ -38,10 +38,13 @@ export default function TargetedPrepPanel({ prep, onExplore }: TargetedPrepProps
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 3,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
+        borderRadius: '1.5rem',
+        border: '1px solid rgba(255,255,255,0.08)',
+        bgcolor: 'rgba(20,22,28,0.55)',
+        backdropFilter: 'blur(14px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+        overflow: 'hidden',
       }}
     >
       <Stack
@@ -53,8 +56,8 @@ export default function TargetedPrepPanel({ prep, onExplore }: TargetedPrepProps
       >
         <Box>
           <Stack direction="row" spacing={1} alignItems="center">
-            <Icon icon="mdi:target" width={20} style={{ color: '#FF6B35' }} />
-            <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>Targeted Preparation</Typography>
+            <Icon icon="mdi:target" width={20} style={{ color: '#FB923C' }} />
+            <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>Targeted Preparation</Typography>
           </Stack>
           <Typography variant="caption" color="text.secondary">
             What to play vs. what to avoid — click any line to explore on the board.
@@ -72,9 +75,10 @@ export default function TargetedPrepPanel({ prep, onExplore }: TargetedPrepProps
               fontWeight: 700,
               fontSize: '0.82rem',
               px: 2,
+              color: 'rgba(255,255,255,0.62)',
             },
-            '& .Mui-selected': { color: '#FF6B35 !important' },
-            '& .MuiTabs-indicator': { background: '#FF6B35', height: 3, borderRadius: 2 },
+            '& .Mui-selected': { color: '#FB923C !important' },
+            '& .MuiTabs-indicator': { background: '#FB923C', height: 3, borderRadius: 2 },
           }}
         >
           <Tab
@@ -90,7 +94,7 @@ export default function TargetedPrepPanel({ prep, onExplore }: TargetedPrepProps
             value="black"
             label={
               <Stack direction="row" spacing={0.75} alignItems="center">
-                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#333' }} />
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#3a3a3a', border: '1px solid rgba(255,255,255,0.2)' }} />
                 <span>as Black</span>
               </Stack>
             }
@@ -175,7 +179,7 @@ function ColumnHeader({
     <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
       <Stack direction="row" spacing={0.75} alignItems="center">
         <Icon icon={icon} width={16} style={{ color }} />
-        <Typography sx={{ fontWeight: 700, fontSize: '0.9rem' }}>{title}</Typography>
+        <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: 'rgba(255,255,255,0.94)' }}>{title}</Typography>
         <Typography variant="caption" color="text.secondary">
           ({count})
         </Typography>
@@ -203,7 +207,7 @@ function EmptyColumn({ message }: { message: string }) {
         p: 2,
         borderRadius: 2,
         border: '1px dashed',
-        borderColor: 'divider',
+        borderColor: 'rgba(255,255,255,0.12)',
         textAlign: 'center',
         color: 'text.secondary',
       }}
@@ -236,11 +240,11 @@ function OpeningCard({
       onClick={onExplore}
       sx={{
         p: 1.5,
-        borderRadius: 2,
-        border: '1px solid',
-        borderColor: 'divider',
+        borderRadius: '12px',
+        border: '1px solid rgba(255,255,255,0.08)',
+        bgcolor: 'rgba(255,255,255,0.03)',
         cursor: 'pointer',
-        transition: 'all 0.15s',
+        transition: 'all 180ms ease',
         '&:hover': {
           borderColor: accent,
           transform: 'translateY(-1px)',
@@ -253,8 +257,8 @@ function OpeningCard({
           label={line.eco}
           size="small"
           sx={{
-            bgcolor: '#0f172a',
-            color: '#fff',
+            bgcolor: 'rgba(255,255,255,0.08)',
+            color: 'rgba(255,255,255,0.94)',
             fontFamily: 'monospace',
             fontWeight: 700,
             fontSize: '0.72rem',
@@ -263,7 +267,7 @@ function OpeningCard({
           }}
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', lineHeight: 1.3 }}>
+          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', lineHeight: 1.3, color: 'rgba(255,255,255,0.94)' }}>
             {line.name}
             {line.variation && (
               <Box component="span" sx={{ color: 'text.secondary', fontWeight: 500, ml: 0.5 }}>
@@ -301,8 +305,8 @@ function OpeningCard({
                 sx={{
                   fontSize: '0.6rem',
                   height: 18,
-                  bgcolor: 'rgba(245,158,11,0.12)',
-                  color: '#b45309',
+                  bgcolor: 'rgba(245,158,11,0.14)',
+                  color: '#f59e0b',
                   fontWeight: 700,
                 }}
               />
@@ -328,8 +332,8 @@ function OpeningCard({
             textTransform: 'none',
             fontWeight: 700,
             fontSize: '0.72rem',
-            color: '#FF6B35',
-            '&:hover': { bgcolor: 'rgba(255,107,53,0.08)' },
+            color: '#FB923C',
+            '&:hover': { bgcolor: 'rgba(249,115,22,0.08)' },
           }}
         >
           {ctaLabel}

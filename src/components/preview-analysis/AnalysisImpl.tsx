@@ -1,6 +1,7 @@
 "use client";
 
 import { Chess, type Move } from "chess.js";
+import { triggerPaywall } from "@/contexts/PaywallDialogContext";
 import {
   Box,
   Button,
@@ -580,6 +581,9 @@ async function streamCoachReply(params: {
       contextIdRef.current = null;
     } else if (chatRes.status === 401) {
       throw new CoachAuthError();
+    } else if (chatRes.status === 402) {
+      triggerPaywall({ feature: "AI coach", reason: "quota_exhausted" });
+      throw new CoachApiError(402);
     } else if (!chatRes.ok) {
       throw new CoachApiError(chatRes.status);
     } else {
@@ -691,6 +695,10 @@ async function streamCoachReply(params: {
   });
 
   if (res.status === 401) throw new CoachAuthError();
+  if (res.status === 402) {
+    triggerPaywall({ feature: "AI coach", reason: "quota_exhausted" });
+    throw new CoachApiError(402);
+  }
   if (!res.ok) throw new CoachApiError(res.status);
   if (!res.body) throw new CoachApiError(res.status);
 

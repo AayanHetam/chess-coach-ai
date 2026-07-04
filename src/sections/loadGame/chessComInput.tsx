@@ -2,13 +2,13 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { getChessComUserRecentGames } from "@/lib/chessCom";
 import { capitalize } from "@/lib/helpers";
 import {
-  CircularProgress,
   FormControl,
   Grid,
   ListItemButton,
   ListItemText,
   TextField,
 } from "@mui/material";
+import { Loader } from "@/components/ui/Loader";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery } from "@tanstack/react-query";
 
@@ -61,7 +61,7 @@ export default function ChessComInput({ onSelect }: Props) {
           size={12}
         >
           {isFetching ? (
-            <CircularProgress />
+            <Loader size={44} showLabel={false} />
           ) : isError ? (
             <span style={{ color: "salmon" }}>
               User not found. Please check your username.

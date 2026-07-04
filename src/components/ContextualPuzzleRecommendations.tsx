@@ -6,10 +6,10 @@ import {
   Paper,
   Typography,
   Chip,
-  CircularProgress,
   Alert,
   Button,
 } from "@mui/material";
+import { Loader } from "@/components/ui/Loader";
 import { styled } from "@mui/material/styles";
 import { useRouter } from "next/router";
 import { useSetAtom } from "jotai";
@@ -171,7 +171,7 @@ export const ContextualPuzzleRecommendations: React.FC<
     return (
       <StyledPaper>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <CircularProgress size={24} />
+          <Loader size={28} showLabel={false} />
           <Typography variant="body2" color="text.secondary">
             Finding puzzles that address this specific pattern...
           </Typography>

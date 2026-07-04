@@ -19,6 +19,13 @@ import {
 import { useRouter } from "next/router";
 import { useSetAtom } from "jotai";
 import { PageTitle } from "@/components/pageTitle";
+import { Box, Stack, Typography, Button, IconButton } from "@mui/material";
+import { ThemeProvider } from "@mui/material/styles";
+import Head from "next/head";
+import { Target, Check, Trash2, Inbox } from "lucide-react";
+import { chessMastiDarkTheme } from "@/theme/chessMasti";
+import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
+import { NavPill } from "@/components/ui/NavPill";
 import {
   practicePuzzlesAtom,
   currentPuzzleIndexAtom,
@@ -70,101 +77,152 @@ export default function RepetitTrainingPage() {
   };
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%)",
-      color: "#fff",
-      padding: "2rem",
-    }}>
+    <ThemeProvider theme={chessMastiDarkTheme}>
       <PageTitle title="Chess Masti AI - Repetit Training" />
-      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        {/* Header */}
-        <div style={{ marginBottom: "2rem" }}>
-          <h1 style={{
-            fontSize: "2.5rem",
-            fontWeight: 700,
-            marginBottom: "0.5rem",
-            background: "linear-gradient(135deg, #4CAF50, #8BC34A)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}>
-            🎯 Repetit Training
-          </h1>
-          <p style={{ color: "#b0b0c0", fontSize: "1.1rem" }}>
-            AI-suggested puzzle sets to strengthen your tactical vision
-          </p>
-        </div>
+      <Head>
+        <meta name="color-scheme" content="dark" />
+        <meta name="theme-color" content="#08090C" />
+        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
+      </Head>
 
-        {/* User Stats Card */}
-        {userStats && (
-          <div style={{
-            background: "linear-gradient(135deg, #2d2d3f 0%, #3a3a4f 100%)",
-            borderRadius: "16px",
-            padding: "1.5rem",
-            marginBottom: "2rem",
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-            gap: "1.5rem",
-          }}>
-            <StatCard label="Total Solved" value={userStats.totalSolved} />
-            <StatCard label="Accuracy" value={`${userStats.accuracy}%`} />
-            <StatCard label="XP" value={userStats.xp} />
-            <StatCard label="Current Streak" value={`${userStats.currentStreak} days`} />
-            <StatCard label="Longest Streak" value={`${userStats.longestStreak} days`} />
-          </div>
-        )}
+      <GradientBackdrop />
 
-        {/* Training Sets Grid */}
-        {trainingSets.length === 0 ? (
-          <div style={{
-            textAlign: "center",
-            padding: "4rem 2rem",
-            background: "#2d2d3f",
-            borderRadius: "16px",
-          }}>
-            <p style={{ fontSize: "1.2rem", color: "#b0b0c0", marginBottom: "1rem" }}>
-              No training sets yet
-            </p>
-            <p style={{ color: "#808090" }}>
-              Ask the AI coach to suggest practice puzzles, and they'll appear here!
-            </p>
-            <button
-              onClick={() => router.push("/")}
-              style={{
-                marginTop: "1.5rem",
-                padding: "0.75rem 1.5rem",
-                background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
-                color: "#fff",
-                border: "none",
-                borderRadius: "8px",
-                fontSize: "1rem",
-                fontWeight: 600,
-                cursor: "pointer",
+      <Box
+        sx={{
+          minHeight: "100vh",
+          color: "rgba(255,255,255,0.94)",
+          pt: 2,
+          pb: 4,
+          px: { xs: 2, md: 3 },
+        }}
+      >
+        <NavPill />
+
+        <Box sx={{ maxWidth: 1200, mx: "auto" }}>
+          {/* Header */}
+          <Box sx={{ mb: 4 }}>
+            <Typography
+              sx={{
+                fontWeight: 700,
+                fontSize: "0.72rem",
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: "rgba(255,255,255,0.5)",
+                mb: 1,
               }}
             >
-              Go to AI Coach
-            </button>
-          </div>
-        ) : (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: "1.5rem",
-          }}>
-            {trainingSets
-              .sort((a, b) => b.createdAt - a.createdAt) // Newest first
-              .map((set) => (
-                <TrainingSetCard
-                  key={set.id}
-                  set={set}
-                  onContinue={() => handleContinueTraining(set)}
-                  onDelete={() => handleDeleteSet(set.id)}
-                />
-              ))}
-          </div>
-        )}
-      </div>
-    </div>
+              Spaced Repetition
+            </Typography>
+            <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 0.75 }}>
+              <Target size={28} color="#FB923C" />
+              <Typography
+                variant="h3"
+                sx={{ fontWeight: 700, color: "rgba(255,255,255,0.94)" }}
+              >
+                Repetit Training
+              </Typography>
+            </Stack>
+            <Typography sx={{ color: "rgba(255,255,255,0.62)", fontSize: "1.1rem" }}>
+              AI-suggested puzzle sets to strengthen your tactical vision
+            </Typography>
+          </Box>
+
+          {/* User Stats Card — single ember-tinted hero surface */}
+          {userStats && (
+            <Box
+              sx={{
+                borderRadius: "2rem",
+                background:
+                  "linear-gradient(135deg, rgba(249,115,22,0.08), rgba(20,22,28,0.6))",
+                backdropFilter: "blur(14px) saturate(140%)",
+                WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow:
+                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                overflow: "hidden",
+                p: 3,
+                mb: 4,
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                gap: 3,
+              }}
+            >
+              <StatCard label="Total Solved" value={userStats.totalSolved} />
+              <StatCard label="Accuracy" value={`${userStats.accuracy}%`} />
+              <StatCard label="XP" value={userStats.xp} />
+              <StatCard label="Current Streak" value={`${userStats.currentStreak} days`} />
+              <StatCard label="Longest Streak" value={`${userStats.longestStreak} days`} />
+            </Box>
+          )}
+
+          {/* Training Sets Grid */}
+          {trainingSets.length === 0 ? (
+            <Box
+              sx={{
+                textAlign: "center",
+                py: 8,
+                px: 4,
+                borderRadius: "1.5rem",
+                background: "rgba(20,22,28,0.55)",
+                backdropFilter: "blur(14px) saturate(140%)",
+                WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow:
+                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                overflow: "hidden",
+              }}
+            >
+              <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
+                <Inbox size={40} color="rgba(255,255,255,0.4)" />
+              </Box>
+              <Typography sx={{ fontSize: "1.2rem", color: "rgba(255,255,255,0.62)", mb: 2 }}>
+                No training sets yet
+              </Typography>
+              <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>
+                Ask the AI coach to suggest practice puzzles, and they'll appear here!
+              </Typography>
+              <Button
+                onClick={() => router.push("/")}
+                sx={{
+                  mt: 3,
+                  bgcolor: "#F97316",
+                  color: "#0A0A0A",
+                  fontWeight: 700,
+                  borderRadius: "999px",
+                  px: 3,
+                  py: 1.25,
+                  textTransform: "none",
+                  boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
+                  transition: "all 180ms ease",
+                  "&:hover": { bgcolor: "#FB923C" },
+                }}
+              >
+                Go to AI Coach
+              </Button>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                gap: 3,
+              }}
+            >
+              {trainingSets
+                .sort((a, b) => b.createdAt - a.createdAt) // Newest first
+                .map((set) => (
+                  <TrainingSetCard
+                    key={set.id}
+                    set={set}
+                    onContinue={() => handleContinueTraining(set)}
+                    onDelete={() => handleDeleteSet(set.id)}
+                  />
+                ))}
+            </Box>
+          )}
+        </Box>
+      </Box>
+    </ThemeProvider>
   );
 }
 
@@ -172,19 +230,23 @@ export default function RepetitTrainingPage() {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div style={{ textAlign: "center" }}>
-      <div style={{
-        fontSize: "2rem",
-        fontWeight: 700,
-        color: "#4CAF50",
-        marginBottom: "0.25rem",
-      }}>
+    <Box sx={{ textAlign: "center" }}>
+      <Typography
+        sx={{
+          fontSize: "2rem",
+          fontWeight: 700,
+          color: "#FB923C",
+          fontFamily: "Monaco, monospace",
+          lineHeight: 1.1,
+          mb: 0.25,
+        }}
+      >
         {value}
-      </div>
-      <div style={{ fontSize: "0.9rem", color: "#b0b0c0" }}>
+      </Typography>
+      <Typography sx={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.62)" }}>
         {label}
-      </div>
-    </div>
+      </Typography>
+    </Box>
   );
 }
 
@@ -203,118 +265,169 @@ function TrainingSetCard({
   const isCompleted = completedCount === totalCount && totalCount > 0;
 
   return (
-    <div style={{
-      background: "linear-gradient(135deg, #2d2d3f 0%, #3a3a4f 100%)",
-      borderRadius: "16px",
-      padding: "1.5rem",
-      position: "relative",
-      border: isCompleted ? "2px solid #4CAF50" : "2px solid transparent",
-    }}>
-      {/* Completed Badge */}
+    <Box
+      sx={{
+        position: "relative",
+        borderRadius: "1.5rem",
+        p: 3,
+        background: "rgba(20,22,28,0.55)",
+        backdropFilter: "blur(14px) saturate(140%)",
+        WebkitBackdropFilter: "blur(14px) saturate(140%)",
+        boxShadow: isCompleted
+          ? "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(249,115,22,0.18)"
+          : "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+        border: isCompleted
+          ? "1px solid rgba(249,115,22,0.35)"
+          : "1px solid rgba(255,255,255,0.08)",
+        overflow: "hidden",
+        transition: "all 180ms ease",
+      }}
+    >
+      {/* Completed Badge — ember active chip */}
       {isCompleted && (
-        <div style={{
-          position: "absolute",
-          top: "1rem",
-          right: "1rem",
-          background: "#4CAF50",
-          color: "#fff",
-          padding: "0.25rem 0.75rem",
-          borderRadius: "12px",
-          fontSize: "0.75rem",
-          fontWeight: 600,
-        }}>
-          ✓ COMPLETED
-        </div>
+        <Box
+          sx={{
+            position: "absolute",
+            top: "1rem",
+            right: "1rem",
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            bgcolor: "rgba(249,115,22,0.18)",
+            border: "1px solid rgba(249,115,22,0.4)",
+            color: "#FB923C",
+            px: 1,
+            py: 0.4,
+            borderRadius: "999px",
+            fontSize: "0.7rem",
+            fontWeight: 700,
+            letterSpacing: "0.06em",
+          }}
+        >
+          <Check size={12} />
+          COMPLETED
+        </Box>
       )}
 
       {/* Title */}
-      <h3 style={{
-        fontSize: "1.25rem",
-        fontWeight: 600,
-        marginBottom: "0.5rem",
-        color: "#fff",
-      }}>
+      <Typography
+        component="h3"
+        sx={{
+          fontSize: "1.25rem",
+          fontWeight: 600,
+          mb: 0.5,
+          color: "rgba(255,255,255,0.94)",
+          pr: 11,
+        }}
+      >
         {set.displayName}
-      </h3>
+      </Typography>
 
       {/* Meta info */}
-      <div style={{ color: "#b0b0c0", fontSize: "0.85rem", marginBottom: "1rem" }}>
+      <Typography sx={{ color: "rgba(255,255,255,0.62)", fontSize: "0.85rem", mb: 2 }}>
         {new Date(set.createdAt).toLocaleDateString()} • {totalCount} puzzles
         {set.difficulty && ` • ${set.difficulty}`}
-      </div>
+      </Typography>
 
       {/* Progress Bar */}
-      <div style={{
-        background: "#1e1e2e",
-        borderRadius: "8px",
-        height: "8px",
-        marginBottom: "0.75rem",
-        overflow: "hidden",
-      }}>
-        <div style={{
-          background: "linear-gradient(90deg, #4CAF50, #8BC34A)",
-          height: "100%",
-          width: `${progress}%`,
-          transition: "width 0.3s ease",
-        }} />
-      </div>
+      <Box
+        sx={{
+          background: "rgba(255,255,255,0.08)",
+          borderRadius: "999px",
+          height: 8,
+          mb: 1.5,
+          overflow: "hidden",
+        }}
+      >
+        <Box
+          sx={{
+            height: "100%",
+            width: `${progress}%`,
+            borderRadius: "999px",
+            background: "linear-gradient(90deg, #F97316, #FB923C)",
+            transition: "width 0.3s ease",
+          }}
+        />
+      </Box>
 
       {/* Stats */}
-      <div style={{
-        display: "flex",
-        gap: "1rem",
-        marginBottom: "1rem",
-        fontSize: "0.9rem",
-      }}>
-        <div>
-          <span style={{ color: "#b0b0c0" }}>Progress: </span>
-          <span style={{ color: "#fff", fontWeight: 600 }}>
+      <Box sx={{ display: "flex", gap: 2, mb: 2, fontSize: "0.9rem" }}>
+        <Box>
+          <Box component="span" sx={{ color: "rgba(255,255,255,0.62)" }}>
+            Progress:{" "}
+          </Box>
+          <Box
+            component="span"
+            sx={{
+              color: "rgba(255,255,255,0.94)",
+              fontWeight: 600,
+              fontFamily: "Monaco, monospace",
+            }}
+          >
             {completedCount}/{totalCount}
-          </span>
-        </div>
+          </Box>
+        </Box>
         {set.accuracy > 0 && (
-          <div>
-            <span style={{ color: "#b0b0c0" }}>Accuracy: </span>
-            <span style={{ color: set.accuracy >= 80 ? "#4CAF50" : "#FFC107", fontWeight: 600 }}>
+          <Box>
+            <Box component="span" sx={{ color: "rgba(255,255,255,0.62)" }}>
+              Accuracy:{" "}
+            </Box>
+            {/* SEMANTIC data color (pass/warning threshold) — intentionally kept green/amber, NOT ember-ified */}
+            <Box
+              component="span"
+              sx={{
+                color: set.accuracy >= 80 ? "#4CAF50" : "#FFC107",
+                fontWeight: 600,
+                fontFamily: "Monaco, monospace",
+              }}
+            >
               {set.accuracy}%
-            </span>
-          </div>
+            </Box>
+          </Box>
         )}
-      </div>
+      </Box>
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: "0.75rem" }}>
-        <button
+      <Box sx={{ display: "flex", gap: 1 }}>
+        <Button
           onClick={onContinue}
-          style={{
+          fullWidth
+          sx={{
             flex: 1,
-            padding: "0.75rem",
-            background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
-            color: "#fff",
-            border: "none",
-            borderRadius: "8px",
+            borderRadius: "12px",
+            py: 1,
+            textTransform: "none",
+            fontWeight: 700,
             fontSize: "0.95rem",
-            fontWeight: 600,
-            cursor: "pointer",
+            color: "#FB923C",
+            background: "rgba(249,115,22,0.18)",
+            border: "1px solid rgba(249,115,22,0.4)",
+            transition: "all 180ms ease",
+            "&:hover": { background: "rgba(249,115,22,0.28)" },
           }}
         >
           {isCompleted ? "Review" : "Continue"}
-        </button>
-        <button
+        </Button>
+        <IconButton
           onClick={onDelete}
-          style={{
-            padding: "0.75rem",
-            background: "#3a3a4f",
-            color: "#ff4444",
-            border: "none",
-            borderRadius: "8px",
-            fontSize: "0.95rem",
-            cursor: "pointer",
+          aria-label="Delete training set"
+          sx={{
+            borderRadius: "12px",
+            px: 1.25,
+            color: "rgba(239,68,68,0.85)",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            transition: "all 180ms ease",
+            "&:hover": {
+              background: "rgba(239,68,68,0.12)",
+              borderColor: "rgba(239,68,68,0.4)",
+              color: "#EF4444",
+            },
           }}
         >
-          🗑️
-        </button>
-      </div>
-    </div>
+          <Trash2 size={16} />
+        </IconButton>
+      </Box>
+    </Box>
   );
 }

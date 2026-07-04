@@ -8,6 +8,9 @@ import {
   buildTurn0Trigger,
 } from "@/lib/prompts/puzzleChatPrompt";
 import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
+import { requireSession } from "@/lib/auth/session";
+import { gateFeature } from "@/lib/billing/gate";
+import { isFreemiumEnabled } from "@/lib/billing/access";
 
 /**
  * Puzzle Coach chat endpoint — scoped, interactive, multi-turn coach for
@@ -30,6 +33,19 @@ const log = logger.child({ module: "puzzle-chat" });
 
 export async function POST(request: NextRequest) {
   const requestId = extractRequestId(request.headers);
+
+  // Premium gate (pricing pivot). The puzzle coach is a premium feature. When
+  // FREEMIUM_ENABLED is OFF the route stays fully anonymous as before (no
+  // regression). When ON, require sign-in and consume the free puzzle-coach
+  // daily allowance.
+  if (isFreemiumEnabled()) {
+    const guard = await requireSession();
+    if ("response" in guard) return guard.response;
+    const gate = await gateFeature(guard.session.uid, "puzzle_coach", {
+      surface: "puzzle_coach",
+    });
+    if (!gate.ok) return gate.response;
+  }
 
   let body: unknown;
   try {

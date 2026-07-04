@@ -25,6 +25,7 @@ import { getReinforcements } from "@/lib/concept/conceptRetrieval";
 import { detectConcepts } from "@/lib/concept/conceptDetector";
 import { getConcept } from "@/lib/concept/conceptTaxonomy";
 import { requireSession } from "@/lib/auth/session";
+import { gateFeature } from "@/lib/billing/gate";
 import { getUserById } from "@/lib/server/users";
 // ── Stage B (PR 1.C) Mastermind validator pipeline imports ──────────
 // All flag-gated by getMastermindEnv().validatorsEnabled. When false, none
@@ -1320,6 +1321,10 @@ export async function POST(request: NextRequest) {
 
     const parsed = validateRequest(enhancedAnalysisSchema, body);
     if (!parsed.success) return parsed.response;
+    // Gate AFTER validation so a malformed request doesn't burn the free-tier
+    // allowance. No-op when FREEMIUM_ENABLED is off; premium/trial = unlimited.
+    const gate = await gateFeature(session.uid, "analysis", { surface: "analysis" });
+    if (!gate.ok) return gate.response;
     const {
       userMessage,
       message,

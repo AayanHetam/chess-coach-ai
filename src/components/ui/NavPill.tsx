@@ -12,8 +12,10 @@ import {
 import Link from "next/link";
 import { useState, MouseEvent } from "react";
 import { motion } from "framer-motion";
-import { Menu as MenuIcon, Sparkles, LogOut, User, Settings } from "lucide-react";
+import { Menu as MenuIcon, LogOut, User, Settings } from "lucide-react";
+import { Logo } from "./Logo";
 import { AppDrawer, type NavId } from "./AppDrawer";
+import NavPlanBadge from "./NavPlanBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import ProfileDialog from "@/components/auth/ProfileDialog";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
@@ -29,15 +31,16 @@ interface NavPillProps {
 // to /analysis; the other /preview/* routes still exist as separate UI
 // drafts but the navbar points at the canonical production routes.
 //
-// 2026-06-03: Practice now points at /preview/puzzles (Puzzle Coach
-// experience shipped PR #130) — the interactive multi-turn coach + 100k
-// CSV-backed puzzle feed is the canonical Practice surface. Old /practice
-// (fixture board + theme grid + stats strip) still works at the URL for
-// existing bookmarks but is no longer surfaced in the nav.
+// 2026-06-03: Practice now points at /puzzles (Puzzle Coach experience
+// shipped PR #130) — the interactive multi-turn coach + 100k CSV-backed
+// puzzle feed is the canonical Practice surface. (/puzzles re-exports the
+// same component as /preview/puzzles; link the clean canonical URL.) Old
+// /practice (fixture board + theme grid + stats strip) still works at the
+// URL for existing bookmarks but is no longer surfaced in the nav.
 const NAV_LINKS: { id: NavId; label: string; href: string }[] = [
   { id: "play", label: "Play", href: "/play" },
   { id: "analysis", label: "Analyze", href: "/analysis" },
-  { id: "practice", label: "Practice", href: "/preview/puzzles" },
+  { id: "practice", label: "Practice", href: "/puzzles" },
   { id: "openings", label: "Learn", href: "/openings" },
   { id: "scout", label: "Scout", href: "/scout" },
 ];
@@ -143,7 +146,7 @@ export function NavPill({ active }: NavPillProps) {
               flexShrink: 0,
             }}
           >
-            <Sparkles size={14} color="#0A0A0A" />
+            <Logo variant="bold" size={16} color="#0A0A0A" />
           </Box>
           <Box sx={{ display: { xs: "none", sm: "block" } }}>Chess Masti</Box>
         </Box>
@@ -214,6 +217,10 @@ export function NavPill({ active }: NavPillProps) {
             );
           })}
         </Box>
+
+        {/* Plan-status pill (Premium / Free / Trial / "Premium til {date}").
+            Self-gates on freemium + signed-in, so it's invisible pre-launch. */}
+        <NavPlanBadge />
 
         {/* Account: signed-out → Sign in pill, signed-in → avatar menu.
             Hidden during the auth-resolving flash to avoid the UI flicker

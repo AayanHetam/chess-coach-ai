@@ -20,11 +20,16 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { ThemeProvider } from '@mui/material/styles';
+import Head from 'next/head';
 import { Icon } from '@iconify/react';
 import { useAtomValue } from 'jotai';
 import { pieceSetAtom } from '@/components/board/states';
 import { useScreenSize } from '@/hooks/useScreenSize';
 import { PageTitle } from '@/components/pageTitle';
+import { chessMastiDarkTheme } from '@/theme/chessMasti';
+import { GradientBackdrop } from '@/components/ui/GradientBackdrop';
+import { NavPill } from '@/components/ui/NavPill';
 import {
   OpeningTreeNode,
   Platform,
@@ -93,14 +98,16 @@ function ScoutSearchBar({
       sx={{
         p: { xs: 1.25, sm: 1.5 },
         borderRadius: 999,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
+        background: 'rgba(20,22,28,0.55)',
+        backdropFilter: 'blur(14px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+        border: '1px solid rgba(255,255,255,0.08)',
         display: 'flex',
         flexWrap: { xs: 'wrap', md: 'nowrap' },
         alignItems: 'center',
         gap: 1.25,
-        boxShadow: '0 4px 24px rgba(15,23,42,0.06)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+        overflow: 'hidden',
       }}
     >
       <ToggleButtonGroup
@@ -116,10 +123,12 @@ function ScoutSearchBar({
             fontSize: '0.78rem',
             px: 1.5,
             borderRadius: 999,
+            color: 'rgba(255,255,255,0.62)',
           },
           '& .Mui-selected': {
-            bgcolor: 'rgba(255,107,53,0.12) !important',
-            color: '#FF6B35 !important',
+            bgcolor: 'rgba(249,115,22,0.18) !important',
+            color: '#FB923C !important',
+            border: '1px solid rgba(249,115,22,0.4)',
           },
         }}
       >
@@ -136,7 +145,7 @@ function ScoutSearchBar({
       <Box sx={{ height: 28, width: '1px', bgcolor: 'divider', display: { xs: 'none', md: 'block' } }} />
 
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1, minWidth: 240 }}>
-        <Icon icon="mdi:magnify" width={20} style={{ color: '#94a3b8' }} />
+        <Icon icon="mdi:magnify" width={20} style={{ color: 'rgba(255,255,255,0.5)' }} />
         <TextField
           inputRef={inputRef}
           fullWidth
@@ -149,7 +158,12 @@ function ScoutSearchBar({
           }}
           InputProps={{
             disableUnderline: true,
-            sx: { fontSize: '0.95rem', fontWeight: 600 },
+            sx: {
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.94)',
+              '& input::placeholder': { color: 'rgba(255,255,255,0.5)', opacity: 1 },
+            },
           }}
         />
 
@@ -178,7 +192,12 @@ function ScoutSearchBar({
               }}
               InputProps={{
                 disableUnderline: true,
-                sx: { fontSize: '0.9rem', fontWeight: 600, color: '#FF6B35' },
+                sx: {
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  color: '#FB923C',
+                  '& input::placeholder': { color: 'rgba(255,255,255,0.5)', opacity: 1 },
+                },
               }}
               sx={{ maxWidth: 170 }}
             />
@@ -197,11 +216,11 @@ function ScoutSearchBar({
                   height: 22,
                   borderRadius: '50%',
                   border: 'none',
-                  bgcolor: 'rgba(0,0,0,0.04)',
+                  bgcolor: 'rgba(255,255,255,0.06)',
                   color: 'text.secondary',
                   cursor: 'pointer',
                   flexShrink: 0,
-                  '&:hover': { bgcolor: 'rgba(255,107,53,0.12)', color: '#FF6B35' },
+                  '&:hover': { bgcolor: 'rgba(249,115,22,0.18)', color: '#FB923C' },
                 }}
               >
                 <Icon icon="mdi:close" width={14} />
@@ -218,11 +237,12 @@ function ScoutSearchBar({
               sx={{
                 fontWeight: 700,
                 fontSize: '0.72rem',
-                bgcolor: 'rgba(255,107,53,0.1)',
-                color: '#FF6B35',
+                bgcolor: 'rgba(249,115,22,0.18)',
+                color: '#FB923C',
+                border: '1px solid rgba(249,115,22,0.4)',
                 cursor: 'pointer',
-                '& .MuiChip-icon': { color: '#FF6B35' },
-                '&:hover': { bgcolor: 'rgba(255,107,53,0.2)' },
+                '& .MuiChip-icon': { color: '#FB923C' },
+                '&:hover': { bgcolor: 'rgba(249,115,22,0.28)' },
               }}
             />
           </Tooltip>
@@ -235,7 +255,29 @@ function ScoutSearchBar({
           value={months}
           disableUnderline
           onChange={e => onMonthsChange(Number(e.target.value))}
-          sx={{ fontSize: '0.85rem', fontWeight: 600 }}
+          sx={{
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            color: 'rgba(255,255,255,0.94)',
+            '& .MuiSelect-icon': { color: 'rgba(255,255,255,0.62)' },
+          }}
+          MenuProps={{
+            PaperProps: {
+              sx: {
+                background: 'rgba(20,22,28,0.92)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                '& .MuiMenuItem-root': {
+                  '&:hover': { bgcolor: 'rgba(249,115,22,0.12)' },
+                  '&.Mui-selected': {
+                    bgcolor: 'rgba(249,115,22,0.12)',
+                    '&:hover': { bgcolor: 'rgba(249,115,22,0.18)' },
+                  },
+                },
+              },
+            },
+          }}
         >
           <MenuItem value={3}>3 months</MenuItem>
           <MenuItem value={6}>6 months</MenuItem>
@@ -249,7 +291,7 @@ function ScoutSearchBar({
         size="large"
         disabled={loading || !username.trim()}
         onClick={onSubmit}
-        startIcon={loading ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : <Icon icon="mdi:binoculars" />}
+        startIcon={loading ? <CircularProgress size={16} sx={{ color: '#0A0A0A' }} /> : <Icon icon="mdi:binoculars" />}
         sx={{
           borderRadius: 999,
           px: 3,
@@ -258,10 +300,16 @@ function ScoutSearchBar({
           letterSpacing: 0.5,
           textTransform: 'uppercase',
           fontSize: '0.82rem',
-          background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-          boxShadow: '0 6px 18px rgba(255,107,53,0.35)',
+          bgcolor: '#F97316',
+          color: '#0A0A0A',
+          boxShadow: '0 6px 18px rgba(249,115,22,0.32)',
           '&:hover': {
-            background: 'linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)',
+            bgcolor: '#FB923C',
+            boxShadow: '0 6px 18px rgba(249,115,22,0.32)',
+          },
+          '&.Mui-disabled': {
+            bgcolor: 'rgba(255,255,255,0.06)',
+            color: 'rgba(255,255,255,0.3)',
           },
         }}
       >
@@ -288,8 +336,12 @@ function TwinBanner({
       sx={{
         p: { xs: 2, sm: 2.5 },
         borderRadius: 3,
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #111c38 100%)',
-        color: '#fff',
+        background: 'linear-gradient(135deg, rgba(249,115,22,0.08), rgba(20,22,28,0.6))',
+        backdropFilter: 'blur(14px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+        color: 'rgba(255,255,255,0.94)',
         display: 'flex',
         flexDirection: { xs: 'column', sm: 'row' },
         alignItems: { xs: 'flex-start', sm: 'center' },
@@ -360,7 +412,7 @@ function TwinBanner({
           </Typography>
         </Box>
         <Button
-          variant="contained"
+          variant="outlined"
           onClick={onPlay}
           startIcon={<Icon icon="mdi:play-circle-outline" />}
           sx={{
@@ -368,10 +420,12 @@ function TwinBanner({
             textTransform: 'none',
             fontWeight: 700,
             px: 2.5,
-            background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-            boxShadow: '0 6px 18px rgba(34,197,94,0.35)',
+            bgcolor: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            color: 'rgba(255,255,255,0.94)',
             '&:hover': {
-              background: 'linear-gradient(135deg, #1fb356 0%, #149042 100%)',
+              bgcolor: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(249,115,22,0.4)',
             },
           }}
         >
@@ -867,20 +921,39 @@ export default function ScoutPage() {
   const hasResult = !!scoutResult && !!tree;
 
   return (
-    <Box sx={{ maxWidth: 1400, mx: 'auto', px: { xs: 1, sm: 2 }, py: 2 }}>
+    <ThemeProvider theme={chessMastiDarkTheme}>
       <PageTitle title="Chess Masti AI - Scout" />
+      <Head>
+        <meta name="color-scheme" content="dark" />
+        <meta name="theme-color" content="#08090C" />
+        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
+      </Head>
 
-      {/* Sticky search header */}
+      <GradientBackdrop />
+
+      <Box
+        sx={{
+          minHeight: '100vh',
+          color: 'rgba(255,255,255,0.94)',
+          pt: 2,
+          pb: 4,
+          px: { xs: 2, md: 3 },
+        }}
+      >
+        <NavPill active="scout" />
+
+        <Box sx={{ maxWidth: 1400, mx: 'auto', mt: 2 }}>
+          {/* Sticky search header */}
       <Box
         sx={{
           position: 'sticky',
           top: 0,
           zIndex: 20,
           py: 1.25,
-          backdropFilter: 'blur(8px)',
-          bgcolor: 'rgba(250, 251, 252, 0.85)',
-          borderBottom: scoutResult ? '1px solid' : 'none',
-          borderColor: 'divider',
+          backdropFilter: 'blur(14px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+          bgcolor: 'rgba(8,9,12,0.72)',
+          borderBottom: scoutResult ? '1px solid rgba(255,255,255,0.08)' : 'none',
           mb: 2,
         }}
       >
@@ -890,7 +963,7 @@ export default function ScoutPage() {
               width: 34,
               height: 34,
               borderRadius: 2,
-              background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+              background: 'linear-gradient(135deg, #F97316 0%, #FB923C 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -900,7 +973,7 @@ export default function ScoutPage() {
             <Icon icon="mdi:binoculars" width={20} />
           </Box>
           <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', lineHeight: 1 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', lineHeight: 1, color: 'rgba(255,255,255,0.94)' }}>
               Scout
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
@@ -924,7 +997,18 @@ export default function ScoutPage() {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError(null)}>
+        <Alert
+          severity="error"
+          sx={{
+            mb: 2,
+            borderRadius: '12px',
+            background: 'rgba(239,68,68,0.12)',
+            border: '1px solid rgba(239,68,68,0.35)',
+            color: 'rgba(255,255,255,0.94)',
+            '& .MuiAlert-icon': { color: '#ef4444' },
+          }}
+          onClose={() => setError(null)}
+        >
           {error}
         </Alert>
       )}
@@ -935,13 +1019,14 @@ export default function ScoutPage() {
           <Chip
             icon={<Icon icon="mdi:account" />}
             label={`${scoutResult.username} · ${scoutResult.platform}`}
-            color="primary"
             variant="outlined"
+            sx={{ borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.62)' }}
           />
           <Chip
             icon={<Icon icon="mdi:chess-pawn" />}
             label={`${scoutResult.totalGames} games`}
             variant="outlined"
+            sx={{ borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.62)' }}
           />
           {scoutResult.cached && (
             <Tooltip title="Served from server cache (10-min TTL)">
@@ -949,7 +1034,7 @@ export default function ScoutPage() {
                 icon={<Icon icon="mdi:lightning-bolt" />}
                 label="cached"
                 size="small"
-                sx={{ fontWeight: 700, bgcolor: 'rgba(255,107,53,0.12)', color: '#FF6B35' }}
+                sx={{ fontWeight: 700, bgcolor: 'rgba(249,115,22,0.18)', color: '#FB923C' }}
               />
             </Tooltip>
           )}
@@ -957,17 +1042,21 @@ export default function ScoutPage() {
             <Chip
               icon={<Icon icon="mdi:alert" />}
               label="Limited data — results may be less reliable"
-              color="warning"
               variant="outlined"
+              sx={{
+                bgcolor: 'rgba(245,158,11,0.14)',
+                border: '1px solid rgba(245,158,11,0.4)',
+                color: '#f59e0b',
+              }}
             />
           )}
           {building && tree && (
             <Chip
-              icon={<CircularProgress size={12} sx={{ color: '#FF6B35' }} />}
+              icon={<CircularProgress size={12} sx={{ color: '#FB923C' }} />}
               label="Rebuilding…"
               size="small"
               variant="outlined"
-              sx={{ borderColor: '#FF6B35', color: '#FF6B35' }}
+              sx={{ borderColor: '#FB923C', color: '#FB923C' }}
             />
           )}
         </Stack>
@@ -1003,7 +1092,17 @@ export default function ScoutPage() {
 
           {/* You-vs-them collisions (only when yourUsername provided) */}
           {collisionsError && yourUsername.trim() && (
-            <Alert severity="warning" sx={{ borderRadius: 2 }} onClose={() => setCollisionsError(null)}>
+            <Alert
+              severity="warning"
+              sx={{
+                borderRadius: '12px',
+                background: 'rgba(245,158,11,0.12)',
+                border: '1px solid rgba(245,158,11,0.35)',
+                color: 'rgba(255,255,255,0.94)',
+                '& .MuiAlert-icon': { color: '#f59e0b' },
+              }}
+              onClose={() => setCollisionsError(null)}
+            >
               {collisionsError}
             </Alert>
           )}
@@ -1012,16 +1111,18 @@ export default function ScoutPage() {
               elevation={0}
               sx={{
                 p: 2,
-                borderRadius: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
+                borderRadius: '1rem',
+                background: 'rgba(20,22,28,0.55)',
+                backdropFilter: 'blur(14px) saturate(140%)',
+                WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1.5,
               }}
             >
-              <CircularProgress size={18} sx={{ color: '#FF6B35' }} />
+              <CircularProgress size={18} sx={{ color: '#FB923C' }} />
               <Typography variant="body2" color="text.secondary">
                 Loading <strong>{yourUsername}</strong>&apos;s games and computing collisions…
               </Typography>
@@ -1075,10 +1176,13 @@ export default function ScoutPage() {
               elevation={0}
               sx={{
                 p: 2,
-                borderRadius: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
+                borderRadius: '1.5rem',
+                background: 'rgba(20,22,28,0.55)',
+                backdropFilter: 'blur(14px) saturate(140%)',
+                WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+                overflow: 'hidden',
                 mb: 2,
               }}
             >
@@ -1089,15 +1193,15 @@ export default function ScoutPage() {
                 justifyContent="space-between"
               >
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Icon icon="mdi:file-tree" width={20} style={{ color: '#FF6B35' }} />
-                  <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>
+                  <Icon icon="mdi:file-tree" width={20} style={{ color: '#FB923C' }} />
+                  <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>
                     Deep-dive Opening Tree
                   </Typography>
                   <Tooltip
                     title="Drill into the target's repertoire move-by-move. Use ← / → keys."
                     arrow
                   >
-                    <Box sx={{ color: 'text.disabled', display: 'flex', cursor: 'help' }}>
+                    <Box sx={{ color: 'rgba(255,255,255,0.5)', display: 'flex', cursor: 'help' }}>
                       <Icon icon="mdi:help-circle-outline" width={14} />
                     </Box>
                   </Tooltip>
@@ -1109,18 +1213,29 @@ export default function ScoutPage() {
                     exclusive
                     size="small"
                     onChange={(_, v) => v && setColorFilter(v)}
+                    sx={{
+                      '& .MuiToggleButton-root': {
+                        color: 'rgba(255,255,255,0.62)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                      },
+                      '& .Mui-selected': {
+                        bgcolor: 'rgba(249,115,22,0.18) !important',
+                        color: '#FB923C !important',
+                        border: '1px solid rgba(249,115,22,0.4) !important',
+                      },
+                    }}
                   >
                     <ToggleButton value="white" sx={{ textTransform: 'none', px: 2 }}>
                       <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#fff', border: '1px solid #999', mr: 0.75 }} /> As White
                     </ToggleButton>
                     <ToggleButton value="black" sx={{ textTransform: 'none', px: 2 }}>
-                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#333', mr: 0.75 }} /> As Black
+                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#3a3a3a', border: '1px solid rgba(255,255,255,0.2)', mr: 0.75 }} /> As Black
                     </ToggleButton>
                   </ToggleButtonGroup>
 
                   <Box sx={{ minWidth: 220 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 0.25 }}>
-                      Min games: <strong style={{ color: '#FF6B35' }}>{minGames}</strong>
+                      Min games: <strong style={{ color: '#FB923C' }}>{minGames}</strong>
                     </Typography>
                     <Slider
                       size="small"
@@ -1134,7 +1249,11 @@ export default function ScoutPage() {
                         { value: 5, label: '5' },
                         { value: 10, label: '10' },
                       ]}
-                      sx={{ color: '#FF6B35' }}
+                      sx={{
+                        color: '#FB923C',
+                        '& .MuiSlider-rail': { opacity: 1, bgcolor: 'rgba(255,255,255,0.12)' },
+                        '& .MuiSlider-markLabel': { color: 'rgba(255,255,255,0.5)' },
+                      }}
                     />
                   </Box>
                 </Stack>
@@ -1242,7 +1361,9 @@ export default function ScoutPage() {
           snapshotId={scoutSnapshotId}
         />
       )}
-    </Box>
+        </Box>
+      </Box>
+    </ThemeProvider>
   );
 }
 

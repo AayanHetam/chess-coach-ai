@@ -10,9 +10,9 @@ import {
   IconButton,
   Typography,
   Tooltip,
-  CircularProgress,
   TextField,
 } from "@mui/material";
+import { Loader } from "@/components/ui/Loader";
 import { Icon } from "@iconify/react";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
@@ -142,7 +142,7 @@ export default function ChatHistoryList({ onNavigate }: Props) {
 
       {loading && !chats && (
         <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-          <CircularProgress size={20} />
+          <Loader size={36} showLabel={false} />
         </Box>
       )}
 

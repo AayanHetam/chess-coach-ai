@@ -28,7 +28,7 @@ const TC_META: Array<{
   color: string;
 }> = [
   { key: 'bullet', label: 'Bullet', icon: 'mdi:lightning-bolt', color: '#f59e0b' },
-  { key: 'blitz', label: 'Blitz', icon: 'mdi:fire', color: '#FF6B35' },
+  { key: 'blitz', label: 'Blitz', icon: 'mdi:fire', color: '#FB923C' },
   { key: 'rapid', label: 'Rapid', icon: 'mdi:timer-outline', color: '#22c55e' },
   { key: 'classical', label: 'Classical', icon: 'mdi:chess-queen', color: '#6366f1' },
 ];
@@ -52,10 +52,13 @@ export default function ProfileCard({ username, platform, profile, onShare }: Pr
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 3,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
+        borderRadius: '1.5rem',
+        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(20,22,28,0.55)',
+        backdropFilter: 'blur(14px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+        overflow: 'hidden',
         height: '100%',
       }}
     >
@@ -66,11 +69,11 @@ export default function ProfileCard({ username, platform, profile, onShare }: Pr
             width: 58,
             height: 58,
             borderRadius: 2,
-            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+            background: 'linear-gradient(135deg, rgba(40,44,55,0.9) 0%, rgba(20,22,28,0.9) 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#FF6B35',
+            color: '#FB923C',
             flexShrink: 0,
           }}
         >
@@ -83,6 +86,7 @@ export default function ProfileCard({ username, platform, profile, onShare }: Pr
               fontWeight: 800,
               fontSize: '1.2rem',
               lineHeight: 1.1,
+              color: 'rgba(255,255,255,0.94)',
               textOverflow: 'ellipsis',
               overflow: 'hidden',
               whiteSpace: 'nowrap',
@@ -100,11 +104,12 @@ export default function ProfileCard({ username, platform, profile, onShare }: Pr
             label={profile.archetype}
             size="small"
             sx={{
-              bgcolor: 'rgba(255,107,53,0.12)',
-              color: '#FF6B35',
+              bgcolor: 'rgba(249,115,22,0.18)',
+              color: '#FB923C',
+              border: '1px solid rgba(249,115,22,0.4)',
               fontWeight: 700,
               fontSize: '0.72rem',
-              '& .MuiChip-icon': { color: '#FF6B35' },
+              '& .MuiChip-icon': { color: '#FB923C' },
             }}
           />
         </Box>
@@ -127,15 +132,15 @@ export default function ProfileCard({ username, platform, profile, onShare }: Pr
                     textAlign: 'center',
                     p: 1,
                     borderRadius: 2,
-                    bgcolor: 'rgba(0,0,0,0.02)',
-                    transition: 'all 0.15s',
-                    '&:hover': { bgcolor: 'rgba(255,107,53,0.06)' },
+                    bgcolor: 'rgba(255,255,255,0.04)',
+                    transition: 'all 180ms ease',
+                    '&:hover': { bgcolor: 'rgba(249,115,22,0.08)' },
                   }}
                 >
                   <Box sx={{ color, mb: 0.25 }}>
                     <Icon icon={meta.icon} width={16} />
                   </Box>
-                  <Typography sx={{ fontSize: '1.35rem', fontWeight: 800, color, lineHeight: 1.1 }}>
+                  <Typography sx={{ fontSize: '1.35rem', fontWeight: 800, color, lineHeight: 1.1, fontFamily: 'Monaco, Menlo, monospace' }}>
                     {value}
                   </Typography>
                   <Typography
@@ -171,7 +176,7 @@ export default function ProfileCard({ username, platform, profile, onShare }: Pr
                   px: 1.25,
                   py: 0.85,
                   borderRadius: 1.5,
-                  bgcolor: 'rgba(0,0,0,0.025)',
+                  bgcolor: 'rgba(255,255,255,0.04)',
                 }}
               >
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -182,7 +187,7 @@ export default function ProfileCard({ username, platform, profile, onShare }: Pr
                     {tc.label}
                   </Typography>
                 </Stack>
-                <Typography sx={{ fontWeight: 800, fontSize: '0.9rem' }}>
+                <Typography sx={{ fontWeight: 800, fontSize: '0.9rem', color: 'rgba(255,255,255,0.94)', fontFamily: 'Monaco, Menlo, monospace' }}>
                   {rating ?? '—'}
                 </Typography>
               </Box>
@@ -199,8 +204,7 @@ export default function ProfileCard({ username, platform, profile, onShare }: Pr
           justifyContent: 'space-between',
           gap: 1,
           pt: 1.5,
-          borderTop: '1px solid',
-          borderColor: 'divider',
+          borderTop: '1px solid rgba(255,255,255,0.08)',
         }}
       >
         <Chip
@@ -283,15 +287,19 @@ export default function ProfileCard({ username, platform, profile, onShare }: Pr
             textTransform: 'none',
             fontWeight: 800,
             fontSize: '0.95rem',
-            color: '#fff',
-            background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-            boxShadow: '0 6px 18px rgba(255,107,53,0.32)',
+            color: '#0A0A0A',
+            bgcolor: '#F97316',
+            boxShadow: '0 6px 18px rgba(249,115,22,0.32)',
             borderRadius: 2,
-            transition: 'transform 0.12s ease, box-shadow 0.12s ease',
+            transition: 'transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease',
             '&:hover': {
-              background: 'linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)',
-              boxShadow: '0 8px 22px rgba(255,107,53,0.44)',
+              bgcolor: '#FB923C',
+              boxShadow: '0 8px 22px rgba(249,115,22,0.44)',
               transform: 'translateY(-1px)',
+            },
+            '&.Mui-disabled': {
+              bgcolor: 'rgba(255,255,255,0.06)',
+              color: 'rgba(255,255,255,0.3)',
             },
           }}
         >
@@ -314,11 +322,11 @@ function OvrRing({ value }: { value: number }) {
   const R = 26;
   const circumference = 2 * Math.PI * R;
   const offset = circumference * (1 - value / 100);
-  const color = value >= 75 ? '#22c55e' : value >= 60 ? '#FF6B35' : value >= 45 ? '#f59e0b' : '#ef4444';
+  const color = value >= 75 ? '#22c55e' : value >= 60 ? '#FB923C' : value >= 45 ? '#f59e0b' : '#ef4444';
   return (
     <Box sx={{ position: 'relative', width: 64, height: 64, flexShrink: 0 }}>
       <svg width={64} height={64} viewBox="0 0 64 64">
-        <circle cx="32" cy="32" r={R} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="5" />
+        <circle cx="32" cy="32" r={R} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="5" />
         <circle
           cx="32"
           cy="32"
@@ -343,10 +351,10 @@ function OvrRing({ value }: { value: number }) {
           justifyContent: 'center',
         }}
       >
-        <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'text.secondary', letterSpacing: 1.2 }}>
+        <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: 1.2 }}>
           OVR
         </Typography>
-        <Typography sx={{ fontWeight: 800, fontSize: 17, color, lineHeight: 1 }}>
+        <Typography sx={{ fontWeight: 800, fontSize: 17, color, lineHeight: 1, fontFamily: 'Monaco, Menlo, monospace' }}>
           {value}
         </Typography>
       </Box>

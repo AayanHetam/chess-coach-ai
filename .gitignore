@@ -72,3 +72,8 @@ maia-weights/
 
 # Graphify build artifacts (knowledge graph output)
 graphify-out/
+
+# autonomous loop state + prod-smoke secrets
+.loop/
+.env.prod-smoke
+scripts/synthetic-tester/runs/

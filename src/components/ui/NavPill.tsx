@@ -12,7 +12,8 @@ import {
 import Link from "next/link";
 import { useState, MouseEvent } from "react";
 import { motion } from "framer-motion";
-import { Menu as MenuIcon, Sparkles, LogOut, User, Settings } from "lucide-react";
+import { Menu as MenuIcon, LogOut, User, Settings } from "lucide-react";
+import { Logo } from "./Logo";
 import { AppDrawer, type NavId } from "./AppDrawer";
 import NavPlanBadge from "./NavPlanBadge";
 import { useAuth } from "@/contexts/AuthContext";
@@ -145,7 +146,7 @@ export function NavPill({ active }: NavPillProps) {
               flexShrink: 0,
             }}
           >
-            <Sparkles size={14} color="#0A0A0A" />
+            <Logo variant="bold" size={16} color="#0A0A0A" />
           </Box>
           <Box sx={{ display: { xs: "none", sm: "block" } }}>Chess Masti</Box>
         </Box>

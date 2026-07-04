@@ -5,6 +5,10 @@ import path from "node:path";
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  // tsconfig sets jsx: "preserve" (Next.js default); force the automatic JSX
+  // runtime on the oxc transformer so component tests (e.g. Logo/Loader) can be
+  // rendered via renderToStaticMarkup without a jsdom/testing-library setup.
+  oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     alias: {
       "@": path.resolve(root, "src"),

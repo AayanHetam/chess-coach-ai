@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
   Dialog,
   DialogContent,
   IconButton,
@@ -13,6 +12,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
+import { Loader } from "@/components/ui/Loader";
 import { Icon } from '@iconify/react';
 import {
   AnalysisSnippetData,
@@ -333,7 +333,7 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
                 justifyContent: 'center',
               }}
             >
-              <CircularProgress size={28} sx={{ color: '#FF6B35' }} />
+              <Loader size={44} showLabel={false} />
             </Box>
           )}
         </Box>

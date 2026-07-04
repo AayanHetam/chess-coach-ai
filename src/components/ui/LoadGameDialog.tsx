@@ -11,6 +11,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import { Loader } from "@/components/ui/Loader";
 import { Chess } from "chess.js";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -457,7 +458,7 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
   if (!games) {
     return (
       <Stack alignItems="center" spacing={1.5} sx={{ py: 4 }}>
-        <CircularProgress size={20} sx={{ color: "#FB923C" }} />
+        <Loader size={36} showLabel={false} />
         <Typography
           sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.5)" }}
         >

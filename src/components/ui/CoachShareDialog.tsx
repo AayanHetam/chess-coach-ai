@@ -10,6 +10,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import { Loader } from "@/components/ui/Loader";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Check,
@@ -387,10 +388,7 @@ export function CoachShareDialog({
                       dangerouslySetInnerHTML={{ __html: svg }}
                     />
                   ) : (
-                    <CircularProgress
-                      size={28}
-                      sx={{ color: "rgba(249,115,22,0.8)" }}
-                    />
+                    <Loader size={44} showLabel={false} />
                   )}
                 </Box>
 

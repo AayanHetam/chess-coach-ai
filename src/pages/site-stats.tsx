@@ -6,7 +6,6 @@ import {
   Typography,
   Paper,
   Grid,
-  CircularProgress,
   Chip,
   Table,
   TableBody,
@@ -18,6 +17,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
+import { Loader } from "@/components/ui/Loader";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import PeopleIcon from "@mui/icons-material/People";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
@@ -121,7 +121,7 @@ export default function SiteStatsPage() {
 
           {loading ? (
             <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-              <CircularProgress sx={{ color: "primary.main" }} />
+              <Loader size={48} showLabel={false} />
             </Box>
           ) : (
             <>

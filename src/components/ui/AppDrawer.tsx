@@ -11,11 +11,11 @@ import {
   Crown,
   Home,
   Puzzle,
-  Sparkles,
   User,
   X,
   Zap,
 } from "lucide-react";
+import { Logo } from "./Logo";
 
 export type NavId =
   | "launch"
@@ -139,7 +139,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                   boxShadow: "0 0 16px rgba(249,115,22,0.4)",
                 }}
               >
-                <Sparkles size={16} color="#0A0A0A" />
+                <Logo variant="bold" size={20} color="#0A0A0A" />
               </Box>
               <Box>
                 <Typography

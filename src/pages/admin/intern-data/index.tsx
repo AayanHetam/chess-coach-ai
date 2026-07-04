@@ -10,7 +10,6 @@ import {
   Typography,
   Chip,
   Button,
-  CircularProgress,
   Skeleton,
   Table,
   TableBody,
@@ -22,6 +21,7 @@ import {
   Switch,
   Divider,
 } from "@mui/material";
+import { Loader } from "@/components/ui/Loader";
 import { useViewer } from "@/hooks/useViewer";
 import { INTERN_THEME_COLOR_DARK } from "@/constants";
 import type { RosterEntry, RosterResponse } from "@/app/api/admin/intern-data/roster/route";
@@ -98,7 +98,7 @@ export default function AdminInternData() {
   if (viewerLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
+        <Loader size={48} showLabel={false} />
       </Box>
     );
   }

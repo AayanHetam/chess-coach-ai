@@ -10,7 +10,6 @@ import {
   Typography,
   Chip,
   Button,
-  CircularProgress,
   Skeleton,
   Table,
   TableBody,
@@ -24,6 +23,7 @@ import {
   Switch,
   FormControlLabel,
 } from "@mui/material";
+import { Loader } from "@/components/ui/Loader";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useViewer } from "@/hooks/useViewer";
 import { INTERN_THEME_COLOR_DARK } from "@/constants";
@@ -257,7 +257,7 @@ export default function AdminCost() {
   if (viewerLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
+        <Loader size={48} showLabel={false} />
       </Box>
     );
   }

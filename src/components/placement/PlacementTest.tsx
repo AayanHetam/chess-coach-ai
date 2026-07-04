@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
+import { Loader } from "@/components/ui/Loader";
 import { useAtom, useSetAtom } from "jotai";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
@@ -357,7 +358,7 @@ export default function PlacementTest() {
         </Box>
       ) : loading || !currentPuzzle ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-          <CircularProgress sx={{ color: "#FB923C" }} />
+          <Loader size={48} showLabel={false} />
         </Box>
       ) : (
         <>

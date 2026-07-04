@@ -5,8 +5,8 @@ import {
   Paper,
   Button,
   Chip,
-  CircularProgress,
 } from "@mui/material";
+import { Loader } from "@/components/ui/Loader";
 import { useRouter } from "next/router";
 import { useAtomValue, useSetAtom } from "jotai";
 import { pieceSetAtom } from "@/components/board/states";
@@ -122,7 +122,7 @@ export default function DailyPuzzle() {
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-        <CircularProgress sx={{ color: "#FF6B35" }} />
+        <Loader size={44} showLabel={false} />
       </Box>
     );
   }

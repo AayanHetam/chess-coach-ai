@@ -1,0 +1,9 @@
+{
+  "id": "run_02_fried_liver",
+  "note": "Fried Liver: White plays Nxf7 sacrificing the knight to expose the black king. Coach response is a bare engine-line dump (should score 0 on dim 6).",
+  "fenBefore": "r1bqkb1r/ppp2ppp/2n5/3np1N1/2B5/8/PPPP1PPP/RNBQK2R w KQkq - 0 6",
+  "movePlayedSan": "Nxf7",
+  "playerColor": "w",
+  "userRating": 1600,
+  "coachText": "6.Nxf7 Kxf7 7.Qf3+ Ke6 8.Nc3 Nb4 9.O-O c6 10.d4 (engine line)."
+}

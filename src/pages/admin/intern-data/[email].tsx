@@ -10,9 +10,9 @@ import {
   Typography,
   Chip,
   Button,
-  CircularProgress,
   Divider,
 } from "@mui/material";
+import { Loader } from "@/components/ui/Loader";
 import { useViewer } from "@/hooks/useViewer";
 import { INTERN_THEME_COLOR, INTERN_THEME_COLOR_DARK } from "@/constants";
 import type { AdminInternDetail } from "@/app/api/admin/intern-data/detail/[email]/route";
@@ -74,7 +74,7 @@ export default function AdminInternDetailPage() {
   if (viewerLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
+        <Loader size={48} showLabel={false} />
       </Box>
     );
   }
@@ -110,7 +110,7 @@ export default function AdminInternDetailPage() {
 
         {!detail && !error && (
           <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-            <CircularProgress />
+            <Loader size={48} showLabel={false} />
           </Box>
         )}
 

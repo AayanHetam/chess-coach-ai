@@ -7,12 +7,12 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
   IconButton,
   Snackbar,
   Stack,
   Typography,
 } from "@mui/material";
+import { Loader } from "@/components/ui/Loader";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import Head from "next/head";
@@ -1620,10 +1620,7 @@ export default function PreviewPuzzlesPage() {
                   >
                     {feed.loading ? (
                       <>
-                        <CircularProgress
-                          size={28}
-                          sx={{ color: "#FF7A1A" }}
-                        />
+                        <Loader size={44} showLabel={false} />
                         <Typography
                           sx={{ fontSize: "0.92rem", fontWeight: 600 }}
                         >

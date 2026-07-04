@@ -2,12 +2,12 @@ import {
   Backdrop,
   Box,
   Button,
-  CircularProgress,
   LinearProgress,
   Paper,
   Stack,
   Typography,
 } from '@mui/material';
+import { Loader } from "@/components/ui/Loader";
 import { Icon } from '@iconify/react';
 
 export type AnalyzingStage = 'connect' | 'download' | 'analyze';
@@ -203,11 +203,7 @@ export default function AnalyzingModal({
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', my: 1.5 }}>
-            <CircularProgress
-              size={32}
-              thickness={4}
-              sx={{ color: '#FF6B35' }}
-            />
+            <Loader size={48} showLabel={false} />
           </Box>
 
           <LinearProgress

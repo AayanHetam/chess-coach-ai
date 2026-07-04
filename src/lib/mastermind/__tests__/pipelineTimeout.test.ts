@@ -376,8 +376,8 @@ describe("readMaxRetries: per-category retry budget", () => {
   // 2026-05-30 fix-per-category-retries: heavy intents (game_review)
   // can't afford retries within Vercel's 60s wall — Sonnet flagship is
   // ~30-40s/call so even 1 retry = 60-80s. Single shot then buildFallback.
-  it("returns 0 for game_review (one shot — no retry budget)", () => {
-    expect(readMaxRetries("game_review")).toBe(0);
+  it("returns 1 for game_review (one retry — affordable post effort=medium, shared deadline)", () => {
+    expect(readMaxRetries("game_review")).toBe(1);
   });
 
   it("returns 1 for medium-weight intents (opponent_prep, improvement_strategy)", () => {
@@ -396,11 +396,13 @@ describe("readMaxRetries: per-category retry budget", () => {
     expect(readMaxRetries()).toBe(2);
   });
 
-  it("worst-case wall-time stays under 60s for game_review (0 retries × 50s budget)", () => {
-    // Per-category timeout × (retries + 1) is the upper bound on LLM
-    // attempts. For game_review: 50_000 × (0 + 1) = 50_000 ≤ 60_000 ✓
-    const retries = readMaxRetries("game_review");
+  it("worst-case wall-time stays under 60s for game_review (shared deadline, not per-attempt)", () => {
+    // The pipeline timeout is a SHARED deadline: regenerate checks opts.signal
+    // before each attempt and every callLLM passes the signal, so total
+    // wall-time across initial + retries is bounded by the single timeout —
+    // NOT timeout × (retries + 1). The real Vercel-60s invariant is therefore
+    // just: the per-category budget itself stays under 60s.
     const timeout = readPipelineTimeoutMs("game_review");
-    expect(timeout * (retries + 1)).toBeLessThanOrEqual(60_000);
+    expect(timeout).toBeLessThanOrEqual(60_000);
   });
 });

@@ -1,0 +1,9 @@
+{
+  "id": "run_01_queen_drop",
+  "note": "White is mating but plays Qd5?? dropping the queen on the open d-file. A rich coach should name the open file + the thrown-away mate and point to Rh8+.",
+  "fenBefore": "3rk3/pp6/8/8/8/8/PP6/3QK2R w K - 0 1",
+  "movePlayedSan": "Qd5",
+  "playerColor": "w",
+  "userRating": 1200,
+  "coachText": "Qd5 drops the queen — the rook on d8 sits on the same open file and just takes it, and you also gave up the mate you already had. Play Rh8+ instead; it's a forcing check that leads straight to mate. When you're completely winning, look for forcing checks before anything else."
+}

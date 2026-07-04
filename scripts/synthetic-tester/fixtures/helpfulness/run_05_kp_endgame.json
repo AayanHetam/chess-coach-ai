@@ -1,0 +1,9 @@
+{
+  "id": "run_05_kp_endgame",
+  "note": "King-and-pawn endgame: pushing the e-pawn with the king nearby. Coach explains the opposition/king-support idea (rich, level-appropriate for a stronger player).",
+  "fenBefore": "8/5k2/8/8/8/3K4/4P3/8 w - - 0 1",
+  "movePlayedSan": "e4",
+  "playerColor": "w",
+  "userRating": 1800,
+  "coachText": "Pushing e4 is fine, but in king-and-pawn endings the king is the engine — keep it ahead of the pawn. The winning method here is to use your king to seize the opposition and shoulder the black king away, then escort the pawn to promotion. Aim to advance the king before the pawn whenever you safely can."
+}

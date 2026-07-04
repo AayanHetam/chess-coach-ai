@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildSavedSession,
   appendSession,
+  mergeSessions,
   sessionSolvedCount,
   sessionMissed,
   sessionNetDelta,
@@ -99,6 +100,44 @@ describe("appendSession", () => {
     expect(history).toHaveLength(50);
     expect(history[0].id).toBe("s54"); // newest first
     expect(history[49].id).toBe("s5"); // oldest 5 dropped
+  });
+});
+
+describe("appendSession dedup", () => {
+  it("replaces an existing session with the same id (no duplicate)", () => {
+    const v1 = buildSavedSession([result("a", false, 1200, 1190)], {
+      id: "sX",
+      startedAt: 0,
+      endedAt: 1,
+      endReason: "closed",
+    });
+    const v2 = buildSavedSession([result("a", true, 1200, 1215)], {
+      id: "sX",
+      startedAt: 0,
+      endedAt: 2,
+      endReason: "finished",
+    });
+    const after = appendSession(appendSession([], v1), v2);
+    expect(after).toHaveLength(1);
+    expect(after[0].endReason).toBe("finished");
+  });
+});
+
+describe("mergeSessions", () => {
+  it("merges by id (primary wins), newest-first", () => {
+    const mk = (id: string, startedAt: number, reason: "finished" | "idle") =>
+      buildSavedSession([result(id, true, 1200, 1201)], {
+        id,
+        startedAt,
+        endedAt: startedAt + 1,
+        endReason: reason,
+      });
+    const server = [mk("a", 100, "finished"), mk("b", 300, "finished")];
+    const local = [mk("b", 300, "idle"), mk("c", 200, "idle")];
+    const merged = mergeSessions(server, local);
+    expect(merged.map((s) => s.id)).toEqual(["b", "c", "a"]); // by startedAt desc
+    // 'b' exists in both — server (primary) wins.
+    expect(merged.find((s) => s.id === "b")!.endReason).toBe("finished");
   });
 });
 

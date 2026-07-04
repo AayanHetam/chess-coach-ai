@@ -8,8 +8,9 @@ import type { PuzzleContext } from "@/lib/validation/puzzleChatSchemas";
  * user can review which puzzles they got right/wrong, how long each took, and
  * re-practice the ones they missed.
  *
- * Storage is client-side localStorage (mirrors puzzleStatsAtom /
- * puzzleResumeAtom) — no server round-trip, available offline, per-device.
+ * Storage is client-side localStorage (offline, per-device) AND, for
+ * signed-in users, mirrored to Firestore via /api/puzzle-sessions so history
+ * is available cross-device. The sessions page merges both by id.
  */
 
 /** One graded puzzle inside a session. Carries the full puzzle payload so a
@@ -26,7 +27,7 @@ export interface SessionResult {
   puzzle: PuzzleContext;
 }
 
-export type SessionEndReason = "finished" | "idle";
+export type SessionEndReason = "finished" | "idle" | "closed";
 
 export interface SavedPuzzleSession {
   id: string;
@@ -43,9 +44,11 @@ export const SESSION_IDLE_MS = 15 * 60 * 1000;
 
 const MAX_SESSIONS = 50;
 
+export const SESSION_STORAGE_KEY = "chessMastiPuzzleSessionHistory";
+
 /** Persisted history of closed sessions, newest first. */
 export const puzzleSessionHistoryAtom = atomWithStorage<SavedPuzzleSession[]>(
-  "chessMastiPuzzleSessionHistory",
+  SESSION_STORAGE_KEY,
   [],
 );
 
@@ -76,12 +79,78 @@ export function buildSavedSession(
   };
 }
 
-/** Prepend a closed session, capped at MAX_SESSIONS. */
+/** Prepend a closed session (de-duped by id), capped at MAX_SESSIONS. */
 export function appendSession(
   history: SavedPuzzleSession[],
   session: SavedPuzzleSession,
 ): SavedPuzzleSession[] {
-  return [session, ...history].slice(0, MAX_SESSIONS);
+  const withoutDupe = history.filter((s) => s.id !== session.id);
+  return [session, ...withoutDupe].slice(0, MAX_SESSIONS);
+}
+
+/** Merge two session lists (server + local) by id, newest-first, capped. */
+export function mergeSessions(
+  primary: SavedPuzzleSession[],
+  secondary: SavedPuzzleSession[],
+): SavedPuzzleSession[] {
+  const byId = new Map<string, SavedPuzzleSession>();
+  for (const s of [...primary, ...secondary]) {
+    if (!byId.has(s.id)) byId.set(s.id, s);
+  }
+  return Array.from(byId.values())
+    .sort((a, b) => b.startedAt - a.startedAt)
+    .slice(0, MAX_SESSIONS);
+}
+
+/**
+ * Synchronous localStorage append — used from the beforeunload handler where a
+ * React/atom state update isn't guaranteed to flush before the tab closes.
+ */
+export function appendSessionToStorage(session: SavedPuzzleSession): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    const hist = Array.isArray(parsed) ? (parsed as SavedPuzzleSession[]) : [];
+    window.localStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify(appendSession(hist, session)),
+    );
+  } catch {
+    /* storage full / unavailable — localStorage is best-effort */
+  }
+}
+
+/**
+ * Mirror a closed session to the server for cross-device history. Best-effort:
+ * 401 (anon) and network errors are swallowed — localStorage stays the source
+ * of truth offline. `keepalive` lets it survive a page-unload close.
+ */
+export function postSessionToServer(session: SavedPuzzleSession): void {
+  if (typeof window === "undefined") return;
+  try {
+    void fetch("/api/puzzle-sessions", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(session),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Fetch the signed-in user's server-side sessions (empty for anon/offline). */
+export async function fetchServerSessions(): Promise<SavedPuzzleSession[]> {
+  try {
+    const res = await fetch("/api/puzzle-sessions", { credentials: "include" });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { sessions?: SavedPuzzleSession[] };
+    return Array.isArray(data.sessions) ? data.sessions : [];
+  } catch {
+    return [];
+  }
 }
 
 export function sessionSolvedCount(s: SavedPuzzleSession): number {

@@ -72,3 +72,9 @@ maia-weights/
 
 # Graphify build artifacts (knowledge graph output)
 graphify-out/
+
+# Local tooling + agent scratch (not source)
+.loop/
+__pycache__/
+# Synthetic-tester eval run artifacts (generated locally, not committed)
+scripts/synthetic-tester/runs/

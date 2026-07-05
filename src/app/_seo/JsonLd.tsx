@@ -6,7 +6,7 @@ export const ORGANIZATION_ID = `${BASE}/#organization`;
 export const WEBSITE_ID = `${BASE}/#website`;
 export const SOFTWARE_APP_ID = `${BASE}/#software-app`;
 
-const organization = {
+export const organization = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "@id": ORGANIZATION_ID,
@@ -19,7 +19,7 @@ const organization = {
   },
 };
 
-const website = {
+export const website = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   "@id": WEBSITE_ID,
@@ -51,6 +51,39 @@ const softwareApplication = {
   },
   publisher: { "@id": ORGANIZATION_ID },
 };
+
+// Homepage-specific SoftwareApplication node. Same @id as `softwareApplication`
+// so the Pages Router homepage graph merges into the site-wide entity instead of
+// forming a disconnected island. Richer (featureList) and links to the shared
+// Organization via publisher @id reference.
+export const homeSoftwareApplication = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "@id": SOFTWARE_APP_ID,
+  name: "Chess Masti AI",
+  url: BASE,
+  applicationCategory: "EducationalApplication",
+  operatingSystem: "Web",
+  description:
+    "Free conversational chess coaching: Stockfish 17 evaluates, Claude explains, a hallucination validator checks every claim, and adaptive puzzles come from a 100,000+ position Neo4j graph.",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  featureList: [
+    "Engine-grounded coaching using Stockfish 17 WASM",
+    "Two-tier Anthropic Claude (Sonnet for analysis, Haiku for chat)",
+    "Hallucination validator backed by chess.js",
+    "Maia-2 humanlike opponent (Twin Bot)",
+    "Adaptive puzzles from a 100,000+ position Neo4j graph",
+    "FEN cosine-similarity puzzle re-ranking",
+    "Lichess OAuth 2.0 PKCE live play",
+    "Opponent scouting with Stalker Score",
+  ],
+  creator: { "@type": "Person", name: "Aayan Hetamsaria" },
+  publisher: { "@id": ORGANIZATION_ID },
+};
+
+// Node set the (Pages Router) homepage emits. Reuses the shared organization +
+// website nodes so their @id identities match the site-wide SiteJsonLd graph.
+export const homePageJsonLd = [organization, website, homeSoftwareApplication];
 
 function JsonLdScript({ data }: { data: object }) {
   return (

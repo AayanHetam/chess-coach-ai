@@ -5,6 +5,7 @@ import {
   SourceBadge,
   buildCandidatesFromApi,
   formatCount,
+  nextCandidateIndex,
   replayPreviewMove,
 } from "@/components/ui/MasterGamesTakeover";
 
@@ -175,5 +176,34 @@ describe("replayPreviewMove (ae4cf45 replay pattern)", () => {
   it("returns null for a malformed / empty UCI", () => {
     expect(replayPreviewMove(START_FEN, "")).toBeNull();
     expect(replayPreviewMove(START_FEN, "e2")).toBeNull();
+  });
+});
+
+/**
+ * ↑/↓ keyboard nav wrap logic (PR #147 in-panel candidate navigation).
+ * nextCandidateIndex is the pure unit behind the panel's ArrowUp/ArrowDown
+ * handler; the wrap-around at both ends is the part worth pinning.
+ */
+describe("nextCandidateIndex", () => {
+  it("advances forward (down) within bounds", () => {
+    expect(nextCandidateIndex(0, 5, 1)).toBe(1);
+    expect(nextCandidateIndex(3, 5, 1)).toBe(4);
+  });
+
+  it("wraps from the last row back to the first when going down", () => {
+    expect(nextCandidateIndex(4, 5, 1)).toBe(0);
+  });
+
+  it("moves backward (up) within bounds", () => {
+    expect(nextCandidateIndex(3, 5, -1)).toBe(2);
+  });
+
+  it("wraps from the first row to the last when going up", () => {
+    expect(nextCandidateIndex(0, 5, -1)).toBe(4);
+  });
+
+  it("returns 0 for an empty list so callers can index safely", () => {
+    expect(nextCandidateIndex(0, 0, 1)).toBe(0);
+    expect(nextCandidateIndex(0, 0, -1)).toBe(0);
   });
 });

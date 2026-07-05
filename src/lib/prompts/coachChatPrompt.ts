@@ -13,6 +13,10 @@
 
 import { getPersonalityById } from "@/config/coachPersonalities";
 import { TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
+import {
+  renderPersonalizedFocus,
+  type MasterySummary,
+} from "@/lib/teaching/relevanceFilter";
 
 /**
  * Bumped from "2.0" (legacy chessPrinciples wrapper, deleted in Phase 0) to
@@ -54,6 +58,14 @@ export interface CoachChatPromptInput {
   chesscomUsername?: string;
   lichessUsername?: string;
   coachingPrefs?: CoachingPrefs;
+  /**
+   * Phase-3 cross-game weakness memory. Bounded projection of the per-user
+   * weakness store (see relevanceFilter.toMasterySummary). When present it adds
+   * a small PERSONALIZED FOCUS block to the per-user (uncached) prompt half so
+   * the coach's ONE-PRIMARY-IDEA choice can favor a recurring weakness. Absent
+   * for a cold user ⇒ no block, stable prefix untouched.
+   */
+  masterySummary?: MasterySummary | null;
 }
 
 const TONE_GUIDANCE: Record<CoachTone, string> = {
@@ -183,9 +195,15 @@ export function getCoachChatSystemPromptParts(
   }
 
   const personalizationBlock = renderCoachingPrefs(input.coachingPrefs);
-  const userContext = personalizationBlock
-    ? `${userContextLines.join("\n")}\n\n${personalizationBlock}`
-    : userContextLines.join("\n");
+  // Phase-3 cross-game weakness memory (empty string for a cold user).
+  const personalizedFocusBlock = renderPersonalizedFocus(input.masterySummary);
+  const userContext = [
+    userContextLines.join("\n"),
+    personalizationBlock,
+    personalizedFocusBlock,
+  ]
+    .filter((s) => s && s.length)
+    .join("\n\n");
 
   const body = `You are an expert grandmaster-level chess coach with deep knowledge of chess principles, strategy, and tactics. Your role is to guide users through their games by providing clear, actionable feedback that helps them improve.
 

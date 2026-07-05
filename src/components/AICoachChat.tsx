@@ -60,6 +60,8 @@ import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRe
 import { InlinePuzzleSet } from "@/components/InlinePuzzleSet";
 import { InsightsCarousel, parseInsights } from "@/components/AICoachInsights";
 import { getAuthHeader } from "@/lib/auth/getAuthHeader";
+import { loadWeaknessProfile } from "@/lib/weaknessProfile";
+import { toMasterySummary } from "@/lib/teaching/relevanceFilter";
 import {
   createChat,
   appendMessage,
@@ -2432,14 +2434,24 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
         if (hasContext) {
           // === FAST PATH: Follow-up via /api/chat ===
+          // Phase-3 chat-path parity: the follow-up path reuses the turn-1
+          // system-prompt suffix, but the player may have analyzed more games
+          // since then — send the FRESH bounded weakness projection so the route
+          // can refresh the PERSONALIZED FOCUS block. Only sent once there is
+          // real cross-game signal (toMasterySummary returns null below 2 games).
+          const chatBody: Record<string, unknown> = {
+            contextId: analysisContextIdRef.current,
+            userMessage: textToSend,
+            conversationHistory: conversationHistory,
+          };
+          const chatMasterySummary = toMasterySummary(loadWeaknessProfile());
+          if (chatMasterySummary) {
+            chatBody.masterySummary = chatMasterySummary;
+          }
           const chatResponse = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
-            body: JSON.stringify({
-              contextId: analysisContextIdRef.current,
-              userMessage: textToSend,
-              conversationHistory: conversationHistory,
-            }),
+            body: JSON.stringify(chatBody),
             signal: abortControllerRef.current.signal,
           });
 
@@ -2485,6 +2497,17 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             requestData.fen = game.fen();
           } else if (position) {
             requestData.fen = position;
+          }
+
+          // Phase-3 cross-game weakness memory: the store lives in the browser's
+          // localStorage, so the client projects it into the bounded, server-
+          // validated MasterySummary and ships it in the body. The route feeds
+          // it to the teaching relevance filter so the coach's ONE-PRIMARY-IDEA
+          // choice can favor a recurring weakness. Only sent once there is real
+          // cross-game signal (toMasterySummary returns null below 2 games).
+          const masterySummary = toMasterySummary(loadWeaknessProfile());
+          if (masterySummary) {
+            requestData.masterySummary = masterySummary;
           }
 
           // Opt into Server-Sent Events streaming. The route emits text

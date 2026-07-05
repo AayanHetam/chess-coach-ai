@@ -56,6 +56,7 @@ import {
   prepareMastermindContext,
   forwardPipelineTelemetryForRoute,
   type MastermindPrepResult,
+  type MastermindMoveContext,
 } from "@/lib/mastermind/routeHelpers";
 import { buildCurrentPositionFacts } from "@/lib/mastermind/positionFacts";
 import { detectMotifs, motifsToPropmt } from "@/lib/tactics";
@@ -71,10 +72,45 @@ import { queryMaiaAtRating, shouldCallMaia } from "@/lib/grounding/maia";
 import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
 // Phase-2 GROUNDED TEACHING SPINE (principle 8): pure-synchronous chess.js
 // helpers (no async/engine) — safe to call inside buildGameContext's top3 loop.
-import { buildTeachingSpine } from "@/lib/teaching/teachingSpine";
+import { buildTeachingSpine, buildTimeoutTeachingMessage } from "@/lib/teaching/teachingSpine";
 import type { MasterySummary } from "@/lib/teaching/relevanceFilter";
 
 const log = logger.child({ module: "enhanced-analysis" });
+
+/**
+ * Neutral fallback shown when the Mastermind pipeline times out AND there is
+ * nothing grounded to teach for the move (quiet move / position-only anchor).
+ */
+const PIPELINE_TIMEOUT_STUB =
+  "Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase.";
+
+/**
+ * Resolve the text handed to `withPipelineTimeout` as its timeout fallback. On
+ * a sharp critical move this is a SHORT, engine-grounded coaching turn built
+ * from the already-computed concept-delta + opponent threats (chess.js only,
+ * no LLM — so it composes with the truthfulness floor and cannot hallucinate).
+ * When the position is quiet or degraded (fenBefore === fenAfter) there's
+ * nothing grounded to say, so it degrades to the neutral "ask again" stub.
+ * try/catch mirrors the buildTeachingSpine callsite: a bad FEN degrades to the
+ * stub rather than throwing inside the request path.
+ */
+function buildTimeoutFallbackText(
+  moveCtx: MastermindMoveContext,
+  masterySummary?: MasterySummary | null,
+): string {
+  try {
+    const grounded = buildTimeoutTeachingMessage(
+      moveCtx.fenBefore,
+      moveCtx.fenAfter,
+      moveCtx.stockfishLinesBefore[0]?.pv ?? [],
+      moveCtx.moveSan,
+      masterySummary,
+    );
+    return grounded || PIPELINE_TIMEOUT_STUB;
+  } catch {
+    return PIPELINE_TIMEOUT_STUB;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // Stage B Mastermind helpers live in src/lib/mastermind/routeHelpers.ts
@@ -1834,6 +1870,17 @@ export async function POST(request: NextRequest) {
               }).catch(() => undefined)
             : undefined;
 
+          // On a pipeline timeout the route otherwise emits a dead "ask again"
+          // stub — a 0-teaching turn. We have already computed the critical
+          // move's engine-grounded facts, so re-render them (chess.js only, no
+          // LLM) into a short coaching turn to hand back instead. Composes with
+          // the truthfulness floor (spine is fact-derived, cannot hallucinate).
+          // Falls back to the neutral stub when there's nothing grounded to say.
+          const timeoutFallback = buildTimeoutFallbackText(
+            prep.moveCtx,
+            masterySummary,
+          );
+
           let pipelineResult: PipelineResultWithTimeout;
           try {
             pipelineResult = await withPipelineTimeout(
@@ -1879,8 +1926,7 @@ export async function POST(request: NextRequest) {
               {
                 correlationId: requestId,
                 timeoutMs: readPipelineTimeoutMs(prep.category),
-                fallbackResponse:
-                  "Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase.",
+                fallbackResponse: timeoutFallback,
               },
             );
           } catch (err) {
@@ -2354,6 +2400,13 @@ export async function POST(request: NextRequest) {
               // Fail-open: degrade to no-snapshot rather than 502 the turn.
             }).catch(() => undefined)
           : undefined;
+        // Same grounded-timeout fallback as the streaming branch: on timeout,
+        // hand back the already-computed engine facts as a short coaching turn
+        // rather than the dead "ask again" stub (chess.js only, no LLM).
+        const timeoutFallbackNonStream = buildTimeoutFallbackText(
+          prep.moveCtx,
+          masterySummary,
+        );
         try {
           const pipelineResult = await withPipelineTimeout(
             (signal) =>
@@ -2396,8 +2449,7 @@ export async function POST(request: NextRequest) {
             {
               correlationId: requestId,
               timeoutMs: readPipelineTimeoutMs(prep.category),
-              fallbackResponse:
-                "Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase.",
+              fallbackResponse: timeoutFallbackNonStream,
             },
           );
           rawAnalysis = pipelineResult.finalResponse || "No analysis generated.";

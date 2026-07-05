@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { buildTeachingSpine } from "@/lib/teaching/teachingSpine";
+import {
+  buildTeachingSpine,
+  buildTimeoutTeachingMessage,
+} from "@/lib/teaching/teachingSpine";
+import type { MasterySummary } from "@/lib/teaching/relevanceFilter";
 
 /**
  * Phase-2 integration test: proves the GROUNDED TEACHING SPINE is (a) computed
@@ -88,5 +92,102 @@ describe("buildTeachingSpine", () => {
       .replace("OPPONENT THREATS TO COUNT: ", "")
       .split(", ").length;
     expect(count).toBeLessThanOrEqual(3);
+  });
+});
+
+/**
+ * Phase-2 TIMEOUT FALLBACK test. Proves that when the Mastermind pipeline times
+ * out, the route can hand back a SHORT, engine-grounded coaching turn instead of
+ * the dead "ask again" stub — and that it degrades to "" (⇒ the neutral stub)
+ * when there is nothing grounded to teach. This is the deterministic
+ * teaching-presence guard the P1 fallback-rate todo optimizes against; it needs
+ * no LLM, so it composes with the truthfulness floor.
+ */
+describe("buildTimeoutTeachingMessage", () => {
+  // 1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.Nxe5?? — the Italian knight-hang blunder.
+  const ITALIAN_BEFORE =
+    "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
+  const ITALIAN_AFTER_BLUNDER =
+    "r1bqk1nr/pppp1ppp/2n5/2b1N3/2B1P3/8/PPPP1PPP/RNBQK2R b KQkq - 0 4";
+
+  // 4.Ng5 — provokes the Missed Tactics / Piece Activity delta the relevance
+  // filter re-weights (same fixture as relevanceFilter.test.ts).
+  const NG5_BEFORE =
+    "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
+  const NG5_AFTER =
+    "r1bqk1nr/pppp1ppp/2n5/2b1p1N1/2B1P3/8/PPPP1PPP/RNBQK2R b KQkq - 5 4";
+
+  function summaryWith(category: string): MasterySummary {
+    return {
+      gamesAnalyzed: 5,
+      weaknesses: [{ category, severity: "critical", frequency: 0.6 }],
+    };
+  }
+
+  it("renders a grounded, user-facing coaching turn for a real blunder", () => {
+    const msg = buildTimeoutTeachingMessage(
+      ITALIAN_BEFORE,
+      ITALIAN_AFTER_BLUNDER,
+      ["c6e5"],
+      "Nxe5"
+    );
+
+    // Non-empty ⇒ the route uses it INSTEAD of the neutral stub.
+    expect(msg).not.toBe("");
+    // Names the move the user just played.
+    expect(msg).toContain("Nxe5");
+    // Grounded in the actual material swing (knight for pawn ≈ 2 points).
+    expect(msg).toContain("material swung ~2 point(s) toward Black");
+    // Enumerates opponent forcing replies to count.
+    expect(msg).toMatch(/forcing replies:/);
+    // Reads like a coaching turn, not a dead stub — offers a path forward.
+    expect(msg).toContain("Ask again");
+    // Must NOT be the neutral "ask again or rephrase" dead stub.
+    expect(msg).not.toContain("Please ask again or rephrase");
+  });
+
+  it("returns '' (⇒ neutral stub) when there is nothing grounded to teach", () => {
+    // Bare K vs K king step: empty delta, no threats.
+    const before = "8/8/4k3/8/8/4K3/8/8 w - - 0 1";
+    const after = "8/8/4k3/8/8/3K4/8/8 b - - 1 1";
+    expect(buildTimeoutTeachingMessage(before, after, [], "Kd3")).toBe("");
+  });
+
+  it("is behavior-preserving on the mastery arg (null === undefined)", () => {
+    const base = buildTimeoutTeachingMessage(NG5_BEFORE, NG5_AFTER, [], "Ng5");
+    expect(buildTimeoutTeachingMessage(NG5_BEFORE, NG5_AFTER, [], "Ng5", null)).toBe(base);
+    expect(base).not.toContain("recurring");
+  });
+
+  it("adds a personalized line when cross-game memory flips the primary idea", () => {
+    const msg = buildTimeoutTeachingMessage(
+      NG5_BEFORE,
+      NG5_AFTER,
+      [],
+      "Ng5",
+      summaryWith("Piece Activity")
+    );
+    expect(msg).toContain("recurring **Piece Activity** weakness");
+  });
+
+  it("omits the personalized line when memory does NOT flip the choice", () => {
+    const msg = buildTimeoutTeachingMessage(
+      NG5_BEFORE,
+      NG5_AFTER,
+      [],
+      "Ng5",
+      summaryWith("Missed Tactics")
+    );
+    expect(msg).not.toContain("recurring");
+  });
+
+  it("works without a move SAN (falls back to 'that move')", () => {
+    const msg = buildTimeoutTeachingMessage(
+      ITALIAN_BEFORE,
+      ITALIAN_AFTER_BLUNDER,
+      ["c6e5"]
+    );
+    expect(msg).not.toBe("");
+    expect(msg).toContain("that move");
   });
 });

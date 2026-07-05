@@ -44,6 +44,43 @@ export const skillLevelSchema = z.enum(
   }
 );
 
+// Phase-3 cross-game weakness memory (per-user teaching relevance filter).
+// The weakness store lives in the BROWSER's localStorage (weaknessProfile.ts);
+// the server routes can't read it, so the client sends a bounded projection
+// (relevanceFilter.toMasterySummary) that the routes thread into the teaching
+// relevance filter (buildTeachingSpine per critical move + the PERSONALIZED
+// FOCUS prompt block). AUDIT-PHASE-1.4 discipline: this is NOT free-form prompt
+// text — category + severity are closed enums (mirroring weaknessProfile.ts's
+// MISTAKE_CATEGORIES and severity buckets), frequency is clamped to 0..1, and
+// the list is capped at 3, so nothing here reaches the system prompt as raw
+// client prose. Shared verbatim between /api/enhanced-analysis (deep, turn 1)
+// and /api/chat (Haiku follow-up) so both paths validate the identical shape.
+export const masterySummarySchema = z
+  .object({
+    gamesAnalyzed: z.number().int().min(0).max(100000),
+    weaknesses: z
+      .array(
+        z
+          .object({
+            category: z.enum([
+              "Hanging Pieces",
+              "Missed Tactics",
+              "King Safety",
+              "Pawn Structure",
+              "Piece Activity",
+              "Endgame Technique",
+              "Time Management",
+              "Positional Errors",
+            ]),
+            severity: z.enum(["critical", "frequent", "occasional"]),
+            frequency: z.number().min(0).max(1),
+          })
+          .strict()
+      )
+      .max(3),
+  })
+  .strict();
+
 // ── Route schemas ────────────────────────────────────────────────────────────
 
 /** POST /api/chess-puzzles */
@@ -113,6 +150,12 @@ export const chatSchema = z.object({
   model: z.string().optional(),
   temperature: z.number().min(0).max(2).optional(),
   max_tokens: z.number().int().min(1).max(16000).optional(),
+  // Phase-3 cross-game weakness memory on the follow-up path. The fast path
+  // reuses the turn-1 system-prompt suffix (which already embeds a PERSONALIZED
+  // FOCUS block when the deep call carried a summary), but a follow-up can carry
+  // a FRESHER summary — the player analyzed more games since turn 1 — so the
+  // route refreshes the block from this field (relevanceFilter.refreshPersonalizedFocus).
+  masterySummary: masterySummarySchema.optional(),
 });
 
 /** POST /api/enhanced-analysis */
@@ -194,42 +237,8 @@ export const enhancedAnalysisSchema = z.object({
     })
     .strict()
     .optional(),
-  // Phase-3 cross-game weakness memory (per-user teaching relevance filter).
-  // The weakness store lives in the BROWSER's localStorage (weaknessProfile.ts);
-  // this server route can't read it, so the client sends a bounded projection
-  // (relevanceFilter.toMasterySummary) that the route threads into
-  // buildTeachingSpine (per critical move) + getCoachChatSystemPrompt (the
-  // PERSONALIZED FOCUS block). AUDIT-PHASE-1.4 discipline: this is NOT free-form
-  // prompt text — category + severity are closed enums (mirroring
-  // weaknessProfile.ts's MISTAKE_CATEGORIES and severity buckets), frequency is
-  // clamped to 0..1, and the list is capped at 3, so nothing here reaches the
-  // system prompt as raw client prose.
-  masterySummary: z
-    .object({
-      gamesAnalyzed: z.number().int().min(0).max(100000),
-      weaknesses: z
-        .array(
-          z
-            .object({
-              category: z.enum([
-                "Hanging Pieces",
-                "Missed Tactics",
-                "King Safety",
-                "Pawn Structure",
-                "Piece Activity",
-                "Endgame Technique",
-                "Time Management",
-                "Positional Errors",
-              ]),
-              severity: z.enum(["critical", "frequent", "occasional"]),
-              frequency: z.number().min(0).max(1),
-            })
-            .strict()
-        )
-        .max(3),
-    })
-    .strict()
-    .optional(),
+  // Phase-3 cross-game weakness memory (see masterySummarySchema above).
+  masterySummary: masterySummarySchema.optional(),
   stream: z.boolean().optional(),
 });
 

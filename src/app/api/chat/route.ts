@@ -13,6 +13,7 @@ import {
 } from "@/lib/llmProvider";
 import { recordLLMCall } from "@/lib/llmStatsAggregator";
 import { requireSession } from "@/lib/auth/session";
+import { refreshPersonalizedFocus } from "@/lib/teaching/relevanceFilter";
 import { gateFeature } from "@/lib/billing/gate";
 import {
   logger,
@@ -111,8 +112,21 @@ export async function POST(request: NextRequest) {
       // different names share a cache miss, same behaviour as before.
       const cachedSystemPrompt = context.systemPromptStable ?? context.systemPrompt;
       const condensedContext = buildCondensedContext(context);
+      // Phase-3 cross-game memory (chat-path parity). The cached suffix embeds
+      // the turn-1 PERSONALIZED FOCUS block; refresh it from THIS turn's
+      // masterySummary (the player may have analyzed more games since turn 1)
+      // before the per-turn condensed game context is appended. No-op when the
+      // follow-up carries no summary, so behaviour is unchanged for callers that
+      // don't send one. Legacy contexts (no split suffix) are left as-is — their
+      // block, if any, lives inside the monolithic systemPrompt.
+      const refreshedSuffix = context.systemPromptStable
+        ? refreshPersonalizedFocus(
+            context.systemPromptSuffix ?? "",
+            parsed.data.masterySummary
+          )
+        : "";
       const uncachedSuffix = context.systemPromptStable
-        ? `${context.systemPromptSuffix ?? ""}\n\n${condensedContext}`.trim()
+        ? `${refreshedSuffix}\n\n${condensedContext}`.trim()
         : condensedContext;
 
       const nonSystemMessages: LLMMessage[] = [];

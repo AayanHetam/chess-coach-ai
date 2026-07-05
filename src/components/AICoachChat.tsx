@@ -2434,14 +2434,24 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
         if (hasContext) {
           // === FAST PATH: Follow-up via /api/chat ===
+          // Phase-3 chat-path parity: the follow-up path reuses the turn-1
+          // system-prompt suffix, but the player may have analyzed more games
+          // since then — send the FRESH bounded weakness projection so the route
+          // can refresh the PERSONALIZED FOCUS block. Only sent once there is
+          // real cross-game signal (toMasterySummary returns null below 2 games).
+          const chatBody: Record<string, unknown> = {
+            contextId: analysisContextIdRef.current,
+            userMessage: textToSend,
+            conversationHistory: conversationHistory,
+          };
+          const chatMasterySummary = toMasterySummary(loadWeaknessProfile());
+          if (chatMasterySummary) {
+            chatBody.masterySummary = chatMasterySummary;
+          }
           const chatResponse = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
-            body: JSON.stringify({
-              contextId: analysisContextIdRef.current,
-              userMessage: textToSend,
-              conversationHistory: conversationHistory,
-            }),
+            body: JSON.stringify(chatBody),
             signal: abortControllerRef.current.signal,
           });
 

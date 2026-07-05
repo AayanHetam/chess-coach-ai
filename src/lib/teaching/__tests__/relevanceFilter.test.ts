@@ -4,6 +4,8 @@ import {
   selectPrimaryIdea,
   toMasterySummary,
   renderPersonalizedFocus,
+  refreshPersonalizedFocus,
+  PERSONALIZED_FOCUS_MARKER,
   type MasterySummary,
   type TeachingCandidate,
 } from "@/lib/teaching/relevanceFilter";
@@ -201,5 +203,47 @@ describe("renderPersonalizedFocus — bounded prompt block", () => {
     expect(block).toContain("ONE PRIMARY IDEA");
     // Bounded: header + one weakness line + directive ⇒ ≤ 3 lines here.
     expect(block.split("\n").length).toBeLessThanOrEqual(5);
+  });
+});
+
+describe("refreshPersonalizedFocus — chat-path parity (fresh over stale)", () => {
+  const BASE = "USER CONTEXT: white, 950\n- Band focus (800-1200): ...";
+
+  it("undefined summary leaves the suffix (and any inherited block) untouched", () => {
+    const withBlock = `${BASE}\n\n${renderPersonalizedFocus(summaryWith("King Safety"))}`;
+    expect(refreshPersonalizedFocus(withBlock, undefined)).toBe(withBlock);
+    expect(refreshPersonalizedFocus(BASE, undefined)).toBe(BASE);
+  });
+
+  it("appends the block to a suffix that has none", () => {
+    const out = refreshPersonalizedFocus(BASE, summaryWith("Piece Activity"));
+    expect(out.startsWith(BASE)).toBe(true);
+    expect(out).toContain(PERSONALIZED_FOCUS_MARKER);
+    expect(out).toContain("Piece Activity");
+  });
+
+  it("replaces a STALE block rather than double-injecting", () => {
+    const stale = `${BASE}\n\n${renderPersonalizedFocus(summaryWith("King Safety"))}`;
+    const fresh = refreshPersonalizedFocus(stale, summaryWith("Hanging Pieces"));
+    // exactly one marker survives...
+    expect(fresh.split(PERSONALIZED_FOCUS_MARKER).length - 1).toBe(1);
+    // ...and it is the FRESH weakness, not the stale one.
+    expect(fresh).toContain("Hanging Pieces");
+    expect(fresh).not.toContain("King Safety");
+    // the non-focus prefix is preserved.
+    expect(fresh.startsWith(BASE)).toBe(true);
+  });
+
+  it("a fresh summary with no weaknesses strips the stale block and adds nothing", () => {
+    const stale = `${BASE}\n\n${renderPersonalizedFocus(summaryWith("King Safety"))}`;
+    const out = refreshPersonalizedFocus(stale, { gamesAnalyzed: 6, weaknesses: [] });
+    expect(out).toBe(BASE);
+    expect(out).not.toContain(PERSONALIZED_FOCUS_MARKER);
+  });
+
+  it("is idempotent: refreshing with the same summary twice is stable", () => {
+    const once = refreshPersonalizedFocus(BASE, summaryWith("Missed Tactics"));
+    const twice = refreshPersonalizedFocus(once, summaryWith("Missed Tactics"));
+    expect(twice).toBe(once);
   });
 });

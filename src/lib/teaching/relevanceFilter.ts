@@ -216,6 +216,13 @@ export function selectPrimaryIdea(
 }
 
 /**
+ * Stable header for the PERSONALIZED FOCUS block. Kept as a constant so callers
+ * that need to detect / strip an already-injected block (the chat follow-up
+ * path reuses a cached suffix) key off one source of truth, not a magic string.
+ */
+export const PERSONALIZED_FOCUS_MARKER = "PERSONALIZED FOCUS";
+
+/**
  * Bounded prompt block naming the player's recurring cross-game weaknesses and
  * the directive to lead with one when the current position touches it. Returns
  * "" when there is no trustworthy signal (so nothing is injected). Kept to a
@@ -230,8 +237,35 @@ export function renderPersonalizedFocus(
       `- ${w.category} — recurred in ${Math.round(w.frequency * 100)}% of games [${w.severity}]`
   );
   return [
-    `PERSONALIZED FOCUS (cross-game weakness memory, ${summary.gamesAnalyzed} games analyzed):`,
+    `${PERSONALIZED_FOCUS_MARKER} (cross-game weakness memory, ${summary.gamesAnalyzed} games analyzed):`,
     ...lines,
     "When the current move touches one of these recurring weaknesses, make THAT the ONE PRIMARY IDEA even if a larger one-off point also exists — the recurring pattern is the lesson that transfers. Connect it explicitly ('this is the same pattern we've seen before'). Do not invent a weakness the position does not show.",
   ].join("\n");
+}
+
+// The focus block is always appended LAST in the per-user prompt suffix
+// (getCoachChatSystemPromptParts joins it after the coaching-prefs block), so a
+// stale copy can be stripped by cutting from the marker to end-of-string.
+const STALE_FOCUS_RE = new RegExp(`\\n*${PERSONALIZED_FOCUS_MARKER}[\\s\\S]*$`);
+
+/**
+ * Refresh the PERSONALIZED FOCUS block on a system-prompt suffix that may
+ * already carry one — the /api/chat follow-up path reuses the turn-1 suffix
+ * verbatim, so a summary baked in at turn 1 can be STALE once the player has
+ * analyzed more games. Behavior by `summary`:
+ *   - `undefined` → the client sent no summary this turn; leave the suffix
+ *     (and any inherited block) untouched.
+ *   - present → strip any stale block, then re-append the current one (or
+ *     nothing, if the fresh summary has no weaknesses).
+ * Idempotent and safe on a suffix with no existing block.
+ */
+export function refreshPersonalizedFocus(
+  suffix: string,
+  summary: MasterySummary | null | undefined
+): string {
+  if (summary === undefined) return suffix;
+  const base = suffix.replace(STALE_FOCUS_RE, "").trimEnd();
+  const block = renderPersonalizedFocus(summary);
+  if (!block) return base;
+  return base ? `${base}\n\n${block}` : block;
 }

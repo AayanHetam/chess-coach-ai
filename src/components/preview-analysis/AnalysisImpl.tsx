@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   MasterGamesTakeover,
   getMasterCandidates,
+  replayPreviewMove,
   type MasterCandidate,
 } from "@/components/ui/MasterGamesTakeover";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
@@ -6874,6 +6875,17 @@ export default function AnalysisPage() {
     san: string;
   } | null>(null);
 
+  // Desync fix (companion to the ae4cf45 replay fix): navigating game history
+  // (arrows / move-history strip) advances `currentPly` → `currentFen`, but the
+  // exploration preview was never cleared, so `displayFen` stayed pinned to the
+  // stale preview — the board froze on the preview while the engine/ply cursor
+  // moved on. Drop the preview whenever the ply cursor changes so `displayFen`
+  // follows it. Preview clicks don't touch `currentPly`, so this never fires
+  // spuriously while exploring in place.
+  useEffect(() => {
+    setTakeoverPreview(null);
+  }, [currentPly]);
+
   // Arrow toggle state (Engine best / Most common / Game played / Maia)
   const [arrowToggles, setArrowToggles] = useState<ArrowToggleState>(
     DEFAULT_ARROW_TOGGLES
@@ -7076,13 +7088,14 @@ export default function AnalysisPage() {
     (uci: string, san: string) => {
       // Play on top of the currently displayed position so chained clicks
       // walk the opening tree (engine state must follow the preview cursor,
-      // not stay pinned to the canonical game's FEN).
-      const g = new Chess(displayFen);
-      const from = uci.slice(0, 2);
-      const to = uci.slice(2, 4);
-      const result = g.move({ from, to, promotion: "q" });
-      if (result) {
-        setTakeoverPreview({ fen: g.fen(), from, to, san });
+      // not stay pinned to the canonical game's FEN). See replayPreviewMove
+      // (the ae4cf45 fix pattern) — it replays on displayFen and no-ops on an
+      // illegal move instead of throwing.
+      const played = replayPreviewMove(displayFen, uci);
+      if (played) {
+        // Trust the caller's SAN (it comes from the candidate list) but fall
+        // back to the derived SAN if it was omitted.
+        setTakeoverPreview({ ...played, san: san || played.san });
       }
     },
     [displayFen]
@@ -7092,16 +7105,8 @@ export default function AnalysisPage() {
   const handleBoardMove = useCallback(
     (orig: string, dest: string) => {
       // Replay from the currently displayed position (preview or canonical)
-      const g = new Chess(displayFen);
-      const result = g.move({ from: orig, to: dest, promotion: "q" });
-      if (result) {
-        setTakeoverPreview({
-          fen: g.fen(),
-          from: orig,
-          to: dest,
-          san: result.san,
-        });
-      }
+      const played = replayPreviewMove(displayFen, `${orig}${dest}`);
+      if (played) setTakeoverPreview(played);
     },
     [displayFen]
   );
@@ -8341,6 +8346,8 @@ export default function AnalysisPage() {
                         onSendToCoach={handleTakeoverSendToCoach}
                         onRevert={() => handleTabChange("coach")}
                         onCandidatesUpdate={setTakeoverCandidates}
+                        moves={allMoves}
+                        onJumpToPly={setCurrentPly}
                       />
                     </motion.div>
                   )}

@@ -1,14 +1,17 @@
 "use client";
 
 import { Box, Button, IconButton, Stack, Tooltip, Typography } from "@mui/material";
-import { Chess } from "chess.js";
+import { Chess, type Move } from "chess.js";
 import { motion } from "framer-motion";
 import {
   ArrowLeftRight,
   BookOpen,
+  ChevronLeft,
+  ChevronRight,
   Filter,
   Loader2,
   MessageSquare,
+  Rewind,
   Search,
   X,
 } from "lucide-react";
@@ -79,6 +82,14 @@ function findPlayerFromName(name: string | undefined): TopPlayer | undefined {
 // Candidate model
 // ───────────────────────────────────────────────────────────────────────────
 
+/**
+ * Which upstream in the master-games source chain produced this response.
+ * Mirrors `ApiData["source"]` from /api/opening-explorer:
+ * curated (hand-vetted master index) → lichess (Lichess Masters, live) →
+ * chessdb (chessdb.cn engine fallback).
+ */
+export type MasterSource = "curated" | "lichess" | "chessdb";
+
 export interface MasterCandidate {
   san: string;
   uci: string;
@@ -93,6 +104,11 @@ export interface MasterCandidate {
   rank?: number;
   /** White's expected score (0..100) from chessdb's engine analysis. */
   winrate?: number;
+  /**
+   * The data source that produced this candidate — threaded from the
+   * response-level `ApiData.source`. Undefined for hardcoded-demo rows.
+   */
+  source?: MasterSource;
 }
 
 // Hardcoded fallback for the Pirc/Kasparov demo when the Lichess API is
@@ -130,6 +146,48 @@ export function getMasterCandidates(ply: number): MasterCandidate[] {
   return HARDCODED_FALLBACK_BY_PLY[ply] ?? [];
 }
 
+/**
+ * Replay a UCI move on top of a base FEN and return the resulting position.
+ *
+ * This is the ae4cf45 fix pattern extracted into a pure unit: exploration
+ * moves in the Master Games takeover must replay from the *currently displayed*
+ * position (the running preview cursor), not the canonical game FEN — otherwise
+ * chained clicks throw "Invalid move" once the board has walked past ply 0.
+ * Returns null on an illegal move (e.g. replaying "e7e5" on the start position)
+ * so callers can no-op instead of crashing.
+ */
+export function replayPreviewMove(
+  baseFen: string,
+  uci: string
+): { fen: string; from: string; to: string; san: string } | null {
+  if (!uci || uci.length < 4) return null;
+  const from = uci.slice(0, 2);
+  const to = uci.slice(2, 4);
+  try {
+    const g = new Chess(baseFen);
+    const result = g.move({ from, to, promotion: "q" });
+    if (!result) return null;
+    return { fen: g.fen(), from, to, san: result.san };
+  } catch {
+    // chess.js throws on an illegal move rather than returning null.
+    return null;
+  }
+}
+
+/**
+ * Wrap-around index for ↑/↓ keyboard nav through the candidate list.
+ * `dir` is +1 (down/next) or -1 (up/prev). Returns 0 for an empty list so
+ * callers can index safely without a length guard.
+ */
+export function nextCandidateIndex(
+  current: number,
+  len: number,
+  dir: 1 | -1
+): number {
+  if (len <= 0) return 0;
+  return (current + dir + len) % len;
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // API response parsing (Lichess masters via our /api/opening-explorer proxy)
 // ───────────────────────────────────────────────────────────────────────────
@@ -164,11 +222,11 @@ interface ApiData {
   moves: ApiMove[];
   topGames?: ApiTopGame[];
   opening?: { eco: string; name: string };
-  source?: "chessdb" | "lichess" | "curated";
+  source?: MasterSource;
   indexedPositions?: number;
 }
 
-function buildCandidatesFromApi(
+export function buildCandidatesFromApi(
   data: ApiData,
   fen: string
 ): MasterCandidate[] {
@@ -234,8 +292,71 @@ function buildCandidatesFromApi(
       eval: m.eval,
       rank: m.rank,
       winrate: m.winrate,
+      source: data.source,
     };
   });
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Source badge — per-row attribution of which upstream produced the candidate.
+// Pure, hookless → SSR-testable. Derived from `candidate.source`, never a
+// hardcoded per-move constant. Undefined source (hardcoded demo) → renders null.
+// ───────────────────────────────────────────────────────────────────────────
+
+const SOURCE_META: Record<
+  MasterSource,
+  { initials: string; label: string; color: string }
+> = {
+  curated: {
+    initials: "CUR",
+    label: "Curated master index",
+    color: "#22C55E",
+  },
+  lichess: {
+    initials: "LIC",
+    label: "Lichess Masters (live)",
+    color: "#60A5FA",
+  },
+  chessdb: {
+    initials: "CDB",
+    label: "chessdb.cn engine",
+    color: "#A78BFA",
+  },
+};
+
+export function SourceBadge({
+  source,
+}: {
+  source?: MasterSource;
+}) {
+  if (!source) return null;
+  const meta = SOURCE_META[source];
+  if (!meta) return null;
+  return (
+    <Tooltip title={`Source: ${meta.label}`} arrow placement="top">
+      <Box
+        component="span"
+        aria-label={`Source: ${meta.label}`}
+        sx={{
+          px: 0.85,
+          py: 0.3,
+          borderRadius: "6px",
+          background: `${meta.color}1F`,
+          border: `1px solid ${meta.color}59`,
+          color: meta.color,
+          fontFamily: "Monaco, Menlo, monospace",
+          fontSize: "0.62rem",
+          fontWeight: 800,
+          letterSpacing: "0.06em",
+          lineHeight: 1,
+          flexShrink: 0,
+          userSelect: "none",
+        }}
+      >
+        {meta.initials}
+      </Box>
+    </Tooltip>
+  );
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -291,6 +412,59 @@ function PlayerAvatar({
 }
 
 // ───────────────────────────────────────────────────────────────────────────
+// Move-history strip styling — glass tokens per the Obsidian Glass design OS.
+// ───────────────────────────────────────────────────────────────────────────
+
+const navBtnSx = {
+  width: 26,
+  height: 26,
+  color: "rgba(255,255,255,0.7)",
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: "7px",
+  flexShrink: 0,
+  transition: "all 180ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+  "&:hover": {
+    background: "rgba(249,115,22,0.12)",
+    borderColor: "rgba(249,115,22,0.3)",
+    color: "#FB923C",
+  },
+  "&.Mui-disabled": {
+    color: "rgba(255,255,255,0.18)",
+    background: "rgba(255,255,255,0.02)",
+    borderColor: "rgba(255,255,255,0.04)",
+  },
+} as const;
+
+const stripCellSx = (isCurrent: boolean) =>
+  ({
+    flexShrink: 0,
+    px: 0.85,
+    py: 0.45,
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontSize: "0.78rem",
+    fontFamily: "Monaco, Menlo, monospace",
+    fontWeight: 600,
+    lineHeight: 1,
+    whiteSpace: "nowrap" as const,
+    color: isCurrent ? "#FB923C" : "rgba(255,255,255,0.78)",
+    background: isCurrent
+      ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(251,146,60,0.10))"
+      : "transparent",
+    border: isCurrent
+      ? "1px solid rgba(249,115,22,0.45)"
+      : "1px solid transparent",
+    boxShadow: isCurrent ? "0 0 12px rgba(249,115,22,0.25)" : "none",
+    transition: "all 180ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+    "&:hover": {
+      background: isCurrent
+        ? "linear-gradient(135deg, rgba(249,115,22,0.3), rgba(251,146,60,0.16))"
+        : "rgba(255,255,255,0.05)",
+    },
+  }) as const;
+
+// ───────────────────────────────────────────────────────────────────────────
 // Main panel
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -313,6 +487,10 @@ interface MasterGamesTakeoverProps {
   /** Fires whenever the visible candidate list changes — parent uses it
    *  to overlay top-N moves as soft arrows on the board. */
   onCandidatesUpdate?: (candidates: MasterCandidate[]) => void;
+  /** Loaded game's move list — drives the in-panel history strip. */
+  moves?: Move[];
+  /** Jump board + panel to a half-move. Wires to the parent's currentPly. */
+  onJumpToPly?: (ply: number) => void;
 }
 
 export function MasterGamesTakeover({
@@ -323,6 +501,8 @@ export function MasterGamesTakeover({
   onSendToCoach,
   onRevert,
   onCandidatesUpdate,
+  moves,
+  onJumpToPly,
 }: MasterGamesTakeoverProps) {
   const [apiData, setApiData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -400,6 +580,63 @@ export function MasterGamesTakeover({
   const hasRealCounts = totalGames > 0;
   const openingName = apiData?.opening?.name;
   const openingEco = apiData?.opening?.eco;
+
+  // Keyboard-selected candidate index. Reset whenever the visible list shifts.
+  const [selectedCandidateIdx, setSelectedCandidateIdx] = useState(0);
+  useEffect(() => {
+    setSelectedCandidateIdx(0);
+  }, [fen, displayed.length]);
+
+  // ↑/↓ to cycle candidates, Enter to preview. ←/→ are bound globally in the
+  // parent (AnalysisImpl keyboard nav effect) so we deliberately skip them.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.isContentEditable)
+      ) {
+        return;
+      }
+      if (displayed.length === 0) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedCandidateIdx((i) => nextCandidateIndex(i, displayed.length, 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedCandidateIdx((i) =>
+          nextCandidateIndex(i, displayed.length, -1)
+        );
+      } else if (e.key === "Enter") {
+        const c = displayed[selectedCandidateIdx];
+        if (!c) return;
+        e.preventDefault();
+        onPreviewMove(c.uci, c.san);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [displayed, selectedCandidateIdx, onPreviewMove]);
+
+  // Auto-scroll the move-history strip to keep the current ply in view.
+  const stripRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!stripRef.current) return;
+    const el = stripRef.current.querySelector(
+      `[data-strip-ply="${ply}"]`
+    ) as HTMLElement | null;
+    el?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [ply, moves]);
+
+  const totalPlies = moves?.length ?? 0;
+  const canPrev = !!onJumpToPly && ply > 0;
+  const canNext = !!onJumpToPly && ply < totalPlies;
 
   return (
     <motion.div
@@ -550,6 +787,113 @@ export function MasterGamesTakeover({
           </Button>
         </Box>
 
+        {/* Move-history strip — back/forward + click-to-jump scrubber. */}
+        {onJumpToPly && moves && moves.length > 0 && (
+          <Box
+            sx={{
+              px: 1.5,
+              py: 1,
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              background: "rgba(10,10,12,0.35)",
+              flexShrink: 0,
+            }}
+          >
+            <Tooltip title="Jump to start" arrow>
+              <span>
+                <IconButton
+                  onClick={() => onJumpToPly(0)}
+                  disabled={!canPrev}
+                  size="small"
+                  sx={navBtnSx}
+                >
+                  <Rewind size={13} />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Previous move (←)" arrow>
+              <span>
+                <IconButton
+                  onClick={() => onJumpToPly(Math.max(0, ply - 1))}
+                  disabled={!canPrev}
+                  size="small"
+                  sx={navBtnSx}
+                >
+                  <ChevronLeft size={14} />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Next move (→)" arrow>
+              <span>
+                <IconButton
+                  onClick={() => onJumpToPly(Math.min(totalPlies, ply + 1))}
+                  disabled={!canNext}
+                  size="small"
+                  sx={navBtnSx}
+                >
+                  <ChevronRight size={14} />
+                </IconButton>
+              </span>
+            </Tooltip>
+
+            <Box
+              ref={stripRef}
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 0.35,
+                overflowX: "auto",
+                px: 0.5,
+                py: 0.25,
+                "&::-webkit-scrollbar": { height: 4 },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "rgba(255,255,255,0.12)",
+                  borderRadius: "2px",
+                },
+              }}
+            >
+              <Box
+                data-strip-ply={0}
+                onClick={() => onJumpToPly(0)}
+                sx={stripCellSx(ply === 0)}
+              >
+                start
+              </Box>
+              {moves.map((m, i) => {
+                const movePly = i + 1;
+                const isWhite = i % 2 === 0;
+                const moveNumber = Math.floor(i / 2) + 1;
+                return (
+                  <Box
+                    key={`${movePly}-${m.san}`}
+                    data-strip-ply={movePly}
+                    onClick={() => onJumpToPly(movePly)}
+                    sx={stripCellSx(movePly === ply)}
+                  >
+                    {isWhite && (
+                      <Box
+                        component="span"
+                        sx={{
+                          color: "rgba(255,255,255,0.4)",
+                          mr: 0.4,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {moveNumber}.
+                      </Box>
+                    )}
+                    {m.san}
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        )}
+
         {/* Filter indicator */}
         {filterPlayer && (
           <Box
@@ -622,13 +966,23 @@ export function MasterGamesTakeover({
             </Box>
           ) : (
             <Stack spacing={0.75}>
-              {displayed.map((c) => {
+              {displayed.map((c, idx) => {
                 const isPlayed = c.san === playedSan;
+                const isKbSelected = idx === selectedCandidateIdx;
                 const percentage =
                   totalGames > 0 ? (c.count / totalGames) * 100 : 0;
                 return (
                   <Box
                     key={c.san}
+                    data-kb-selected={isKbSelected || undefined}
+                    ref={(el: HTMLDivElement | null) => {
+                      if (el && isKbSelected) {
+                        el.scrollIntoView({
+                          block: "nearest",
+                          behavior: "smooth",
+                        });
+                      }
+                    }}
                     onClick={() => onPreviewMove(c.uci, c.san)}
                     sx={{
                       position: "relative",
@@ -638,10 +992,17 @@ export function MasterGamesTakeover({
                       cursor: "pointer",
                       background: isPlayed
                         ? "linear-gradient(90deg, rgba(249,115,22,0.1), rgba(20,22,28,0.4))"
+                        : isKbSelected
+                        ? "linear-gradient(90deg, rgba(249,115,22,0.08), rgba(20,22,28,0.45))"
                         : "rgba(255,255,255,0.025)",
                       border: isPlayed
                         ? "1px solid rgba(249,115,22,0.3)"
+                        : isKbSelected
+                        ? "1px solid rgba(249,115,22,0.55)"
                         : "1px solid rgba(255,255,255,0.05)",
+                      boxShadow: isKbSelected
+                        ? "0 0 18px rgba(249,115,22,0.28)"
+                        : "none",
                       transition: "all 180ms ease",
                       "&:hover": {
                         background: "rgba(34,197,94,0.06)",
@@ -700,6 +1061,8 @@ export function MasterGamesTakeover({
                       </Box>
 
                       <Box sx={{ flex: 1 }} />
+
+                      <SourceBadge source={c.source} />
 
                       {c.topPlayer && (
                         <Box

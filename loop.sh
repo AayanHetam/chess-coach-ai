@@ -208,9 +208,14 @@ if [ "$SHIP_ONLY" = "true" ]; then
 fi
 
 # ---- one branch per objective; iterations accumulate commits on it ----
-# resume an existing objective branch (keep its commits); create only if absent
+# resume an existing objective branch (keep its commits); create only if absent.
+# stderr stays visible and a transient shared-.git race gets one retry.
 BRANCH="loop/obj-$OBJ_SLUG"
-git checkout "$BRANCH" >/dev/null 2>&1 || git checkout -b "$BRANCH" >/dev/null 2>&1
+if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+  git checkout "$BRANCH" || { echo "  checkout of $BRANCH failed; retrying in 5s"; sleep 5; git checkout "$BRANCH"; }
+else
+  git checkout -b "$BRANCH"
+fi
 
 iter=0; stall=0; clean_streak=0; merge_attempts=0; revert_cycles=0; claude_fails=0
 last_head=$(git rev-parse HEAD)

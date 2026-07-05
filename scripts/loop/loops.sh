@@ -41,7 +41,7 @@ claim() { # $1=instance-id — atomic via rename(2); loser silently tries the ne
 }
 
 run_instance() {
-  local i="$1" obj id slug model iters budget base gate rc wt
+  local i="$1" obj id slug model iters budget base gate rc wt last_infra=""
   mkdir -p "$LOOP_HOME/active/inst$i"
   while true; do
     [ -f "$LOOP_HOME/locks/STOP" ] && { echo "inst$i: STOP present — no more claims."; break; }
@@ -56,6 +56,9 @@ run_instance() {
     echo "inst$i: claimed $id ($slug) — base=$base model=$model budget=\$$budget"
 
     wt="$WT_BASE/inst$i"
+    # claim.lock: worktree add + branch ops mutate the shared .git — serialize them
+    # across instances (a transient ref race here halted inst2 on 2026-07-04)
+    until mkdir "$LOOP_HOME/locks/claim.lock" 2>/dev/null; do sleep 5; done
     git -C "$REPO" worktree remove --force "$wt" 2>/dev/null || true
     git -C "$REPO" fetch origin >/dev/null 2>&1
     git -C "$REPO" worktree add --detach "$wt" "$base" >/dev/null 2>&1
@@ -85,11 +88,16 @@ run_instance() {
       fi
     fi
 
+    # run a private COPY of loop.sh: infra edits to the main checkout must never
+    # rewrite a script bash is currently executing
+    cp "$REPO/loop.sh" "$wt/.loop/runner.sh"
+    rmdir "$LOOP_HOME/locks/claim.lock" 2>/dev/null || true
+
     set +e
     ( cd "$wt" && env \
         OBJ_SLUG="$id-$slug" LOOP_HOME="$LOOP_HOME" MODEL="$model" MAX_ITERS="$iters" \
         COST_BUDGET="$budget" REPO_SLUG="AayanHetam/chess-coach-ai" \
-        bash "$REPO/loop.sh" ) >> "$LOOP_HOME/reports/inst$i.log" 2>&1
+        bash "$wt/.loop/runner.sh" ) >> "$LOOP_HOME/reports/inst$i.log" 2>&1
     rc=$?
     set -e
 
@@ -101,12 +109,18 @@ run_instance() {
     # Anything else is an INFRA failure — return the objective to the queue and
     # halt this instance so a broken harness can't burn the whole queue.
     case "$rc" in
-      0) mv "$obj" "$LOOP_HOME/done/";   echo "inst$i: $id SHIPPED — spend total \$$(global_spend)" ;;
-      2) mv "$obj" "$LOOP_HOME/parked/"; echo "inst$i: $id parked (see reports/$id-report.md) — spend total \$$(global_spend)" ;;
+      0) mv "$obj" "$LOOP_HOME/done/";   last_infra=""; echo "inst$i: $id SHIPPED — spend total \$$(global_spend)" ;;
+      2) mv "$obj" "$LOOP_HOME/parked/"; last_infra=""; echo "inst$i: $id parked (see reports/$id-report.md) — spend total \$$(global_spend)" ;;
       *) mv "$obj" "$LOOP_HOME/queue/"
-         echo "inst$i: INFRA FAILURE on $id (rc=$rc) — objective returned to queue, instance HALTED. Fix the harness, then restart."
          git -C "$REPO" worktree remove --force "$wt" 2>/dev/null || true
-         return 1 ;;
+         if [ "${last_infra:-}" = "$id" ]; then
+           echo "inst$i: INFRA FAILURE on $id twice in a row (rc=$rc) — instance HALTED. Fix the harness, then restart."
+           return 1
+         fi
+         last_infra="$id"
+         echo "inst$i: infra failure on $id (rc=$rc) — returned to queue, retrying once after 30s."
+         sleep 30
+         continue ;;
     esac
 
     git -C "$REPO" worktree remove --force "$wt" 2>/dev/null || true

@@ -14,35 +14,13 @@ import LandingInternship from "@/components/landing/LandingInternship";
 import LandingCTA from "@/components/landing/LandingCTA";
 import LandingFooter from "@/components/landing/LandingFooter";
 import { InternalHomeCard } from "@/components/intern/InternalHomeCard";
+import { homePageJsonLd } from "@/app/_seo/JsonLd";
 
 const HOME_TITLE =
   "Chess Masti AI — engine-grounded chess coaching, free";
 const HOME_DESC =
   "AI chess coach: Stockfish 17 evaluates first, Claude explains, a hallucination validator checks every claim. 100,000+ Lichess puzzles in a Neo4j graph. Free.";
 const HOME_OG_IMAGE = "https://chessmasti.com/social-networks-1200x630.png";
-
-const HOME_JSON_LD = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "Chess Masti AI",
-  url: "https://chessmasti.com",
-  applicationCategory: "GameApplication",
-  operatingSystem: "Web",
-  description:
-    "Free conversational chess coaching: Stockfish 17 evaluates, Claude explains, a hallucination validator checks every claim, and adaptive puzzles come from a 100,000+ position Neo4j graph.",
-  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-  featureList: [
-    "Engine-grounded coaching using Stockfish 17 WASM",
-    "Two-tier Anthropic Claude (Sonnet for analysis, Haiku for chat)",
-    "Hallucination validator backed by chess.js",
-    "Maia-2 humanlike opponent (Twin Bot)",
-    "Adaptive puzzles from a 100,000+ position Neo4j graph",
-    "FEN cosine-similarity puzzle re-ranking",
-    "Lichess OAuth 2.0 PKCE live play",
-    "Opponent scouting with Stalker Score",
-  ],
-  creator: { "@type": "Person", name: "Aayan Hetamsaria" },
-};
 
 export default function LandingPage() {
   return (
@@ -114,10 +92,13 @@ export default function LandingPage() {
           content={HOME_OG_IMAGE}
         />
 
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(HOME_JSON_LD) }}
-        />
+        {homePageJsonLd.map((node) => (
+          <script
+            key={node["@id"]}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(node) }}
+          />
+        ))}
       </Head>
       <LandingAnnouncementBar />
       <LandingNav />

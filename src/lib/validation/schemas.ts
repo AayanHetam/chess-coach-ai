@@ -194,6 +194,42 @@ export const enhancedAnalysisSchema = z.object({
     })
     .strict()
     .optional(),
+  // Phase-3 cross-game weakness memory (per-user teaching relevance filter).
+  // The weakness store lives in the BROWSER's localStorage (weaknessProfile.ts);
+  // this server route can't read it, so the client sends a bounded projection
+  // (relevanceFilter.toMasterySummary) that the route threads into
+  // buildTeachingSpine (per critical move) + getCoachChatSystemPrompt (the
+  // PERSONALIZED FOCUS block). AUDIT-PHASE-1.4 discipline: this is NOT free-form
+  // prompt text — category + severity are closed enums (mirroring
+  // weaknessProfile.ts's MISTAKE_CATEGORIES and severity buckets), frequency is
+  // clamped to 0..1, and the list is capped at 3, so nothing here reaches the
+  // system prompt as raw client prose.
+  masterySummary: z
+    .object({
+      gamesAnalyzed: z.number().int().min(0).max(100000),
+      weaknesses: z
+        .array(
+          z
+            .object({
+              category: z.enum([
+                "Hanging Pieces",
+                "Missed Tactics",
+                "King Safety",
+                "Pawn Structure",
+                "Piece Activity",
+                "Endgame Technique",
+                "Time Management",
+                "Positional Errors",
+              ]),
+              severity: z.enum(["critical", "frequent", "occasional"]),
+              frequency: z.number().min(0).max(1),
+            })
+            .strict()
+        )
+        .max(3),
+    })
+    .strict()
+    .optional(),
   stream: z.boolean().optional(),
 });
 

@@ -72,6 +72,7 @@ import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
 // Phase-2 GROUNDED TEACHING SPINE (principle 8): pure-synchronous chess.js
 // helpers (no async/engine) — safe to call inside buildGameContext's top3 loop.
 import { buildTeachingSpine } from "@/lib/teaching/teachingSpine";
+import type { MasterySummary } from "@/lib/teaching/relevanceFilter";
 
 const log = logger.child({ module: "enhanced-analysis" });
 
@@ -386,7 +387,8 @@ async function buildGameContext(
   playerColor: string,
   username?: string,
   userRating?: number,
-  gameHeaders?: GameHeadersInput
+  gameHeaders?: GameHeadersInput,
+  masterySummary?: MasterySummary | null
 ): Promise<string> {
   const sections: string[] = [];
 
@@ -785,7 +787,8 @@ async function buildGameContext(
           const spine = buildTeachingSpine(
             m.fenBefore,
             fenAfter,
-            evalBefore.lines[0].pv ?? []
+            evalBefore.lines[0].pv ?? [],
+            masterySummary
           );
           if (spine) {
             block += `GROUNDED TEACHING SPINE (what the move changed + threats to count):\n${spine}\n`;
@@ -1254,6 +1257,7 @@ export async function POST(request: NextRequest) {
       opponentUsername,
       opponentPlatform,
       gameHeaders,
+      masterySummary,
       stream: streamRequested,
     } = parsed.data;
     const messageText = userMessage || message || "";
@@ -1352,7 +1356,8 @@ export async function POST(request: NextRequest) {
         playerColor || (boardOrientation ? "w" : "b"),
         username,
         userRating,
-        gameHeaders
+        gameHeaders,
+        masterySummary
       );
     } else if (fen || position) {
       // Position-only analysis
@@ -1405,6 +1410,7 @@ export async function POST(request: NextRequest) {
       chesscomUsername,
       lichessUsername,
       coachingPrefs,
+      masterySummary,
     });
     const claudeSystemPrompt = `${claudeSystemParts.stable}\n\n${claudeSystemParts.perUser}`;
 

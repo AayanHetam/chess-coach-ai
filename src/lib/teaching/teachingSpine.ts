@@ -1,5 +1,10 @@
 import { compute_feature_delta } from "@/lib/mastermind/featureDelta";
 import { buildThreatTree } from "@/lib/mastermind/threatTree";
+import {
+  candidatesFromDelta,
+  selectPrimaryIdea,
+  type MasterySummary,
+} from "@/lib/teaching/relevanceFilter";
 
 /**
  * Phase-2 GROUNDED TEACHING SPINE (principle 8). For a single critical
@@ -19,12 +24,31 @@ import { buildThreatTree } from "@/lib/mastermind/threatTree";
 export function buildTeachingSpine(
   fenBefore: string,
   fenAfter: string,
-  bestPvUci: string[]
+  bestPvUci: string[],
+  masterySummary?: MasterySummary | null
 ): string {
   const lines: string[] = [];
 
   // --- Concept DELTA: what the move actually changed ---
   const delta = compute_feature_delta(fenBefore, fenAfter, { pv: bestPvUci });
+
+  // --- Phase-3 personalized primary idea (cross-game weakness memory) ---
+  // When a mastery summary is supplied AND one of this move's concept-deltas
+  // matches a recurring weakness, the relevance filter re-weights the primary
+  // idea toward that weakness. Emit a directive line only when the memory
+  // actually changed the choice — otherwise the cold ONE-PRIMARY-IDEA rule and
+  // the CONCEPT DELTA below already carry it, and a redundant line just bloats.
+  if (masterySummary) {
+    const { primary, personalized } = selectPrimaryIdea(
+      candidatesFromDelta(delta),
+      masterySummary
+    );
+    if (primary && personalized) {
+      lines.push(
+        `PRIMARY IDEA (personalized — this move touches your recurring "${primary.category}" weakness): ${primary.text}`
+      );
+    }
+  }
   if (!delta.isEmptyDelta) {
     const deltaBits: string[] = [];
 

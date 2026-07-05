@@ -70,6 +70,13 @@ run_instance() {
       [ -f "$REPO/$envf" ] && cp "$REPO/$envf" "$wt/$envf" || true
     done
 
+    # a base branch may carry a TRACKED OBJECTIVE.md (e.g. adaptive-coach's June
+    # loop file, which OBJ-02's merge put on main) — de-track it or the runner's
+    # rewrite makes the tree dirty and branch switches refuse (halted inst2 twice)
+    if git -C "$wt" ls-files --error-unmatch OBJECTIVE.md >/dev/null 2>&1; then
+      git -C "$wt" rm -q OBJECTIVE.md
+      git -C "$wt" commit -q -m "loop: de-track OBJECTIVE.md (runner-managed, gitignored)"
+    fi
     # strip frontmatter (--- ... ---) into the worktree's OBJECTIVE.md
     awk 'BEGIN{c=0} /^---[[:space:]]*$/{c++; next} c!=1{print}' "$obj" > "$wt/OBJECTIVE.md"
     mkdir -p "$wt/.loop"
@@ -133,8 +140,11 @@ case "${1:-start}" in
   start)
     N="${2:-1}"
     rm -f "$LOOP_HOME/locks/STOP"
+    mkdir -p "$LOOP_HOME/runners"
     for i in $(seq 1 "$N"); do
-      nohup bash "$REPO/scripts/loop/loops.sh" run "$i" >> "$LOOP_HOME/reports/inst$i.log" 2>&1 &
+      # run a private copy: editing loops.sh must never corrupt a live runner
+      cp "$REPO/scripts/loop/loops.sh" "$LOOP_HOME/runners/loops-inst$i.sh"
+      nohup bash "$LOOP_HOME/runners/loops-inst$i.sh" run "$i" >> "$LOOP_HOME/reports/inst$i.log" 2>&1 &
       echo "spawned instance $i (pid $!) — log: $LOOP_HOME/reports/inst$i.log"
     done ;;
   status)

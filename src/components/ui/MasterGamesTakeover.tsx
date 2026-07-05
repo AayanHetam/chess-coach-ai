@@ -143,6 +143,34 @@ export function getMasterCandidates(ply: number): MasterCandidate[] {
   return HARDCODED_FALLBACK_BY_PLY[ply] ?? [];
 }
 
+/**
+ * Replay a UCI move on top of a base FEN and return the resulting position.
+ *
+ * This is the ae4cf45 fix pattern extracted into a pure unit: exploration
+ * moves in the Master Games takeover must replay from the *currently displayed*
+ * position (the running preview cursor), not the canonical game FEN — otherwise
+ * chained clicks throw "Invalid move" once the board has walked past ply 0.
+ * Returns null on an illegal move (e.g. replaying "e7e5" on the start position)
+ * so callers can no-op instead of crashing.
+ */
+export function replayPreviewMove(
+  baseFen: string,
+  uci: string
+): { fen: string; from: string; to: string; san: string } | null {
+  if (!uci || uci.length < 4) return null;
+  const from = uci.slice(0, 2);
+  const to = uci.slice(2, 4);
+  try {
+    const g = new Chess(baseFen);
+    const result = g.move({ from, to, promotion: "q" });
+    if (!result) return null;
+    return { fen: g.fen(), from, to, san: result.san };
+  } catch {
+    // chess.js throws on an illegal move rather than returning null.
+    return null;
+  }
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // API response parsing (Lichess masters via our /api/opening-explorer proxy)
 // ───────────────────────────────────────────────────────────────────────────

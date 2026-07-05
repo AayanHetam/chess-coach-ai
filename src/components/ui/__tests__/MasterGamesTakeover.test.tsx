@@ -5,6 +5,7 @@ import {
   SourceBadge,
   buildCandidatesFromApi,
   formatCount,
+  replayPreviewMove,
 } from "@/components/ui/MasterGamesTakeover";
 
 /**
@@ -134,5 +135,45 @@ describe("formatCount", () => {
   it("leaves sub-thousand counts bare", () => {
     expect(formatCount(0)).toBe("0");
     expect(formatCount(42)).toBe("42");
+  });
+});
+
+/**
+ * Regression coverage for the Master Games takeover desync (June-6 report).
+ *
+ * The ae4cf45 fix requires exploration moves to replay on the *currently
+ * displayed* FEN (the running preview cursor), not the canonical game FEN.
+ * replayPreviewMove is that logic extracted into a pure unit; both board
+ * move handlers in AnalysisImpl call it.
+ */
+describe("replayPreviewMove (ae4cf45 replay pattern)", () => {
+  it("chains e4 → e5 when each step replays on the PREVIOUS displayFen", () => {
+    // Step 1: e4 from the start position.
+    const first = replayPreviewMove(START_FEN, "e2e4");
+    expect(first).not.toBeNull();
+    expect(first!.san).toBe("e4");
+    expect(first!.from).toBe("e2");
+    expect(first!.to).toBe("e4");
+
+    // Step 2: black replies e5 — replayed on the FEN produced by step 1, NOT
+    // on the canonical start FEN. This is the whole point of the fix: chained
+    // clicks walk the opening tree instead of throwing.
+    const second = replayPreviewMove(first!.fen, "e7e5");
+    expect(second).not.toBeNull();
+    expect(second!.san).toBe("e5");
+    // The resulting position must be black-having-moved (white to move again).
+    expect(second!.fen.split(" ")[1]).toBe("w");
+  });
+
+  it("returns null for an illegal move (e7e5 on the ply-0 start FEN)", () => {
+    // Reproduces the original "Invalid move: e7-e5" bug: replaying black's
+    // reply on the start position (white to move) is illegal. The helper must
+    // no-op (null) rather than throw, so the caller leaves the board untouched.
+    expect(replayPreviewMove(START_FEN, "e7e5")).toBeNull();
+  });
+
+  it("returns null for a malformed / empty UCI", () => {
+    expect(replayPreviewMove(START_FEN, "")).toBeNull();
+    expect(replayPreviewMove(START_FEN, "e2")).toBeNull();
   });
 });

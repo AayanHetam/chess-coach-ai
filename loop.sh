@@ -38,6 +38,8 @@ LOOP_HOME="${LOOP_HOME:-}"                    # empty = single-instance mode, lo
 ITER_TIMEOUT="${ITER_TIMEOUT:-2400}"          # seconds before a hung claude iteration is killed
 MAX_MERGE_ATTEMPTS="${MAX_MERGE_ATTEMPTS:-3}" # main-reconcile conflicts handed back to claude
 MAX_REVERT_CYCLES="${MAX_REVERT_CYCLES:-2}"
+CLAUDE_RETRY_SLEEP="${CLAUDE_RETRY_SLEEP:-300}" # wait-out for API/rate failures (no status.json written)
+MAX_CLAUDE_FAILS="${MAX_CLAUDE_FAILS:-6}"       # consecutive claude failures before parking
 
 SHIP_ONLY=false
 [ "${1:-}" = "--ship-only" ] && SHIP_ONLY=true
@@ -151,6 +153,9 @@ ship() {
     pr=$(gh pr list --repo "$REPO_SLUG" --head "$BRANCH" --state open --json number -q '.[0].number' 2>/dev/null || true)
   fi
   if [ -z "$pr" ]; then ship_unlock; return 5; fi
+  # a reused PR may be a leftover park draft: flip it ready + retitle, else merge refuses it
+  gh pr edit "$pr" --repo "$REPO_SLUG" --title "loop($OBJ_SLUG): autonomous ship" >/dev/null 2>&1 || true
+  gh pr ready "$pr" --repo "$REPO_SLUG" >/dev/null 2>&1 || true
   echo "  ship: waiting for CI on PR #$pr"
   sleep 15
   if ! gh pr checks "$pr" --repo "$REPO_SLUG" --watch --fail-fast; then
@@ -207,7 +212,7 @@ fi
 BRANCH="loop/obj-$OBJ_SLUG"
 git checkout "$BRANCH" >/dev/null 2>&1 || git checkout -b "$BRANCH" >/dev/null 2>&1
 
-iter=0; stall=0; clean_streak=0; merge_attempts=0; revert_cycles=0
+iter=0; stall=0; clean_streak=0; merge_attempts=0; revert_cycles=0; claude_fails=0
 last_head=$(git rev-parse HEAD)
 
 while [ "$iter" -lt "$MAX_ITERS" ]; do
@@ -260,6 +265,18 @@ Hard rules:
   ship_ready: true when nothing beyond this repo is required for the change to be safe in production.
 EOF
 )"
+
+  # claude died without writing status (rate limit / API error / kill): wait it out
+  # and retry — an errored invocation is NOT "no progress" and must not stall the loop
+  if [ ! -s "$STATUS" ]; then
+    claude_fails=$((claude_fails+1))
+    echo "  claude wrote no status (fail $claude_fails/$MAX_CLAUDE_FAILS): $(tail -c 200 "$LOOP_DIR/iter-$iter.err" 2>/dev/null | tr '\n' ' ')"
+    if [ "$claude_fails" -ge "$MAX_CLAUDE_FAILS" ]; then park "claude invocation failed $MAX_CLAUDE_FAILS times in a row (API/rate errors)"; exit 2; fi
+    iter=$((iter-1))   # retry does not consume an iteration slot
+    sleep "$CLAUDE_RETRY_SLEEP"
+    continue
+  fi
+  claude_fails=0
 
   # NOTE: never use jq's // for boolean fields — `false // default` yields the
   # default, silently inverting claude's answer (cost us a 6-iteration critique loop).

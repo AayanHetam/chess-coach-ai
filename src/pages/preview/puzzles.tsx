@@ -62,6 +62,8 @@ import {
   puzzlePracticeQueueAtom,
   buildSavedSession,
   appendSession,
+  appendSessionToStorage,
+  postSessionToServer,
   SESSION_IDLE_MS,
 } from "@/lib/puzzleSession";
 import type { FlashState } from "@/components/puzzle/FlashOverlay";
@@ -249,7 +251,7 @@ function pickPrimaryTheme(themes: string[] | undefined): string {
 }
 
 export default function PreviewPuzzlesPage() {
-  const { profile, updateProfile, loading: authLoading } = useAuth();
+  const { user, profile, updateProfile, loading: authLoading } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useAtom(puzzleStatsAtom);
   const [resume, setResume] = useAtom(puzzleResumeAtom);
@@ -432,6 +434,12 @@ export default function PreviewPuzzlesPage() {
   const sessionStartRef = useRef<number>(0);
   // 15-minute idle timer; re-armed on every interaction (see bumpActivity).
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Auth mirror so save closures (timer/unload) can decide whether to also
+  // sync the session to the server without being re-created on auth change.
+  const authedRef = useRef(false);
+  useEffect(() => {
+    authedRef.current = !!user;
+  }, [user]);
 
   // Coach demo state — coach asks "show on board", user picks speed in
   // the dialog, then `activeDemo` runs the moves on the main board while
@@ -602,6 +610,8 @@ export default function PreviewPuzzlesPage() {
         endReason: reason,
       });
       setSessionHistory((prev) => appendSession(prev, session));
+      // Mirror to the server for cross-device history (best-effort; anon no-op).
+      if (authedRef.current) postSessionToServer(session);
     },
     [setSessionHistory],
   );
@@ -636,6 +646,27 @@ export default function PreviewPuzzlesPage() {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
   }, [bumpActivity]);
+
+  // Tab close / navigate away with a live session (≥1 solved) → save it.
+  // Writes localStorage synchronously (survives unload) and mirrors to the
+  // server with a keepalive request. Stable handler; reads refs only.
+  useEffect(() => {
+    const handler = () => {
+      const results = sessionResultsRef.current;
+      if (!sessionIdRef.current) return;
+      if (results.filter((r) => r.solved).length < 1) return;
+      const session = buildSavedSession(results, {
+        id: sessionIdRef.current,
+        startedAt: sessionStartRef.current || Date.now(),
+        endedAt: Date.now(),
+        endReason: "closed",
+      });
+      appendSessionToStorage(session);
+      if (authedRef.current) postSessionToServer(session);
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
 
   // Drop the green reinforcement highlight shortly after each correct move so
   // it reads as a pulse, not a persistent paint. Keyed on flashKey so every

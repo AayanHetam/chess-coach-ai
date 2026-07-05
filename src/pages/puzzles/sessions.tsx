@@ -25,6 +25,8 @@ import {
   sessionNetDelta,
   sessionDurationMs,
   formatDuration,
+  mergeSessions,
+  fetchServerSessions,
   type SavedPuzzleSession,
   type SessionResult,
 } from "@/lib/puzzleSession";
@@ -54,8 +56,24 @@ function prettyTheme(t: string): string {
 
 export default function PuzzleSessionsPage() {
   const router = useRouter();
-  const history = useAtomValue(puzzleSessionHistoryAtom);
+  const localHistory = useAtomValue(puzzleSessionHistoryAtom);
   const setPracticeQueue = useSetAtom(puzzlePracticeQueueAtom);
+  // Cross-device sessions from the server (empty for anon/offline). Merged with
+  // localStorage by id so signed-in users see history from any device.
+  const [serverSessions, setServerSessions] = useState<SavedPuzzleSession[]>([]);
+  useEffect(() => {
+    let alive = true;
+    fetchServerSessions().then((s) => {
+      if (alive) setServerSessions(s);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const history = useMemo(
+    () => mergeSessions(serverSessions, localHistory),
+    [serverSessions, localHistory],
+  );
   const [expanded, setExpanded] = useState<string | null>(null);
   // Auto-expand the newest session once the history atom hydrates from storage
   // (it's empty on first render). One-shot so re-collapsing stays collapsed.
@@ -279,13 +297,13 @@ function SessionCard({
           <Chip
             size="small"
             icon={
-              session.endReason === "idle" ? (
-                <Clock size={12} />
-              ) : (
+              session.endReason === "finished" ? (
                 <Flag size={12} />
+              ) : (
+                <Clock size={12} />
               )
             }
-            label={session.endReason === "idle" ? "Auto-saved" : "Finished"}
+            label={session.endReason === "finished" ? "Finished" : "Auto-saved"}
             sx={{
               bgcolor: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(255,255,255,0.1)",

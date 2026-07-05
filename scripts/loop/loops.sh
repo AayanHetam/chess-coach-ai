@@ -96,6 +96,7 @@ run_instance() {
     cp "$wt/.loop/report.md"  "$LOOP_HOME/reports/$id-report.md" 2>/dev/null || true
     cp "$wt/.loop/backlog.md" "$LOOP_HOME/reports/$id-backlog.md" 2>/dev/null || true
     cp "$wt/.loop/cost.log"   "$LOOP_HOME/reports/$id-cost.log" 2>/dev/null || true
+    tail -c 2000 "$wt"/.loop/iter-*.err > "$LOOP_HOME/reports/$id-errors.log" 2>/dev/null || true
     # rc contract: 0 = shipped, 2 = genuinely parked (loop ran and gave up).
     # Anything else is an INFRA failure — return the objective to the queue and
     # halt this instance so a broken harness can't burn the whole queue.

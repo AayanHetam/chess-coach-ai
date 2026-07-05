@@ -7,10 +7,12 @@ import {
   ListItemButton,
   ListItemText,
   TextField,
+  useTheme,
 } from "@mui/material";
 import { Loader } from "@/components/ui/Loader";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery } from "@tanstack/react-query";
+import { glassInputSx, glassListRowSx } from "./glassTheme";
 
 interface Props {
   onSelect: (
@@ -27,6 +29,7 @@ export default function ChessComInput({ onSelect }: Props) {
     ""
   );
   const debouncedUsername = useDebounce(chessComUsername, 300);
+  const dark = useTheme().palette.mode === "dark";
 
   const {
     data: games,
@@ -48,6 +51,7 @@ export default function ChessComInput({ onSelect }: Props) {
           variant="outlined"
           value={chessComUsername ?? ""}
           onChange={(e) => setChessComUsername(e.target.value)}
+          sx={glassInputSx(dark)}
         />
       </FormControl>
 
@@ -85,6 +89,7 @@ export default function ChessComInput({ onSelect }: Props) {
                   );
                 }}
                 style={{ width: 350, maxWidth: 350 }}
+                sx={glassListRowSx(dark)}
                 key={game.uuid}
               >
                 <ListItemText

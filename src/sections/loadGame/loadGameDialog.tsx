@@ -15,6 +15,7 @@ import {
   Grid,
   Snackbar,
   Alert,
+  useTheme,
 } from "@mui/material";
 import { setContext as setSentryContext } from "@sentry/react";
 import { Chess } from "chess.js";
@@ -26,6 +27,13 @@ import LichessInput from "./lichessInput";
 import { useSetAtom } from "jotai";
 import { boardOrientationAtom, userPlayerInfoAtom } from "../analysis/states";
 import { extractImportedGameInfo, detectUserColor } from "@/lib/smartColorDetection";
+import {
+  glassDialogPaperSx,
+  glassBackdropSx,
+  glassInputSx,
+  glassPrimaryBtnSx,
+  glassOutlineBtnSx,
+} from "./glassTheme";
 
 interface Props {
   open: boolean;
@@ -44,6 +52,7 @@ export default function NewGameDialog({ open, onClose, setGame }: Props) {
   const setBoardOrientation = useSetAtom(boardOrientationAtom);
   const setUserPlayerInfo = useSetAtom(userPlayerInfoAtom);
   const { addGame } = useGameDatabase();
+  const dark = useTheme().palette.mode === "dark";
 
   const handleAddGame = async (
     pgn: string,
@@ -131,12 +140,8 @@ export default function NewGameDialog({ open, onClose, setGame }: Props) {
       maxWidth="md"
       fullWidth
       slotProps={{
-        paper: {
-          sx: {
-            position: "fixed",
-            top: 0,
-          },
-        },
+        paper: { sx: glassDialogPaperSx(dark) },
+        backdrop: { sx: glassBackdropSx(dark) },
       }}
     >
       <DialogTitle marginY={1} variant="h5">
@@ -150,7 +155,7 @@ export default function NewGameDialog({ open, onClose, setGame }: Props) {
           justifyContent="start"
           rowGap={2}
         >
-          <FormControl sx={{ m: 1, width: 150 }}>
+          <FormControl sx={[{ m: 1, width: 150 }, glassInputSx(dark)]}>
             <InputLabel id="dialog-select-label">Game origin</InputLabel>
             <Select
               labelId="dialog-select-label"
@@ -196,13 +201,17 @@ export default function NewGameDialog({ open, onClose, setGame }: Props) {
         </Grid>
       </DialogContent>
       <DialogActions sx={{ m: 2 }}>
-        <Button variant="outlined" onClick={handleClose}>
+        <Button
+          variant="outlined"
+          onClick={handleClose}
+          sx={glassOutlineBtnSx(dark)}
+        >
           Cancel
         </Button>
         {gameOrigin === GameOrigin.Pgn && (
           <Button
             variant="contained"
-            sx={{ marginLeft: 2 }}
+            sx={[{ marginLeft: 2 }, glassPrimaryBtnSx(dark)]}
             onClick={() => {
               handleAddGame(pgn);
             }}

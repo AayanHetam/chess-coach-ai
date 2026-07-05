@@ -153,6 +153,9 @@ ship() {
     pr=$(gh pr list --repo "$REPO_SLUG" --head "$BRANCH" --state open --json number -q '.[0].number' 2>/dev/null || true)
   fi
   if [ -z "$pr" ]; then ship_unlock; return 5; fi
+  # a reused PR may be a leftover park draft: flip it ready + retitle, else merge refuses it
+  gh pr edit "$pr" --repo "$REPO_SLUG" --title "loop($OBJ_SLUG): autonomous ship" >/dev/null 2>&1 || true
+  gh pr ready "$pr" --repo "$REPO_SLUG" >/dev/null 2>&1 || true
   echo "  ship: waiting for CI on PR #$pr"
   sleep 15
   if ! gh pr checks "$pr" --repo "$REPO_SLUG" --watch --fail-fast; then

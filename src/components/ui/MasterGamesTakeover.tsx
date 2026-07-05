@@ -79,6 +79,14 @@ function findPlayerFromName(name: string | undefined): TopPlayer | undefined {
 // Candidate model
 // ───────────────────────────────────────────────────────────────────────────
 
+/**
+ * Which upstream in the master-games source chain produced this response.
+ * Mirrors `ApiData["source"]` from /api/opening-explorer:
+ * curated (hand-vetted master index) → lichess (Lichess Masters, live) →
+ * chessdb (chessdb.cn engine fallback).
+ */
+export type MasterSource = "curated" | "lichess" | "chessdb";
+
 export interface MasterCandidate {
   san: string;
   uci: string;
@@ -93,6 +101,11 @@ export interface MasterCandidate {
   rank?: number;
   /** White's expected score (0..100) from chessdb's engine analysis. */
   winrate?: number;
+  /**
+   * The data source that produced this candidate — threaded from the
+   * response-level `ApiData.source`. Undefined for hardcoded-demo rows.
+   */
+  source?: MasterSource;
 }
 
 // Hardcoded fallback for the Pirc/Kasparov demo when the Lichess API is
@@ -164,11 +177,11 @@ interface ApiData {
   moves: ApiMove[];
   topGames?: ApiTopGame[];
   opening?: { eco: string; name: string };
-  source?: "chessdb" | "lichess" | "curated";
+  source?: MasterSource;
   indexedPositions?: number;
 }
 
-function buildCandidatesFromApi(
+export function buildCandidatesFromApi(
   data: ApiData,
   fen: string
 ): MasterCandidate[] {
@@ -234,8 +247,71 @@ function buildCandidatesFromApi(
       eval: m.eval,
       rank: m.rank,
       winrate: m.winrate,
+      source: data.source,
     };
   });
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Source badge — per-row attribution of which upstream produced the candidate.
+// Pure, hookless → SSR-testable. Derived from `candidate.source`, never a
+// hardcoded per-move constant. Undefined source (hardcoded demo) → renders null.
+// ───────────────────────────────────────────────────────────────────────────
+
+const SOURCE_META: Record<
+  MasterSource,
+  { initials: string; label: string; color: string }
+> = {
+  curated: {
+    initials: "CUR",
+    label: "Curated master index",
+    color: "#22C55E",
+  },
+  lichess: {
+    initials: "LIC",
+    label: "Lichess Masters (live)",
+    color: "#60A5FA",
+  },
+  chessdb: {
+    initials: "CDB",
+    label: "chessdb.cn engine",
+    color: "#A78BFA",
+  },
+};
+
+export function SourceBadge({
+  source,
+}: {
+  source?: MasterSource;
+}) {
+  if (!source) return null;
+  const meta = SOURCE_META[source];
+  if (!meta) return null;
+  return (
+    <Tooltip title={`Source: ${meta.label}`} arrow placement="top">
+      <Box
+        component="span"
+        aria-label={`Source: ${meta.label}`}
+        sx={{
+          px: 0.85,
+          py: 0.3,
+          borderRadius: "6px",
+          background: `${meta.color}1F`,
+          border: `1px solid ${meta.color}59`,
+          color: meta.color,
+          fontFamily: "Monaco, Menlo, monospace",
+          fontSize: "0.62rem",
+          fontWeight: 800,
+          letterSpacing: "0.06em",
+          lineHeight: 1,
+          flexShrink: 0,
+          userSelect: "none",
+        }}
+      >
+        {meta.initials}
+      </Box>
+    </Tooltip>
+  );
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -700,6 +776,8 @@ export function MasterGamesTakeover({
                       </Box>
 
                       <Box sx={{ flex: 1 }} />
+
+                      <SourceBadge source={c.source} />
 
                       {c.topPlayer && (
                         <Box

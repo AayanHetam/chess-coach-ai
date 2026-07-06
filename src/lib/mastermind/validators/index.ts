@@ -516,7 +516,16 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       (relationalResult?.costUsd ?? 0);
     return {
       issues,
-      passed: issues.length === 0,
+      // Severity-aware gate (2026-07-05, CALIBRATED_HEDGING_DEFERRED item 6):
+      // only ERROR-severity issues fail validation and trigger a flagship
+      // regeneration. Warn-level fires (mate/material/positional base
+      // severities, user_visibility tokens) are last-move-anchored string
+      // scans with a known false-positive profile on multi-position prose —
+      // under the old blunt `issues.length === 0` gate each one burned a
+      // full Sonnet regen or dropped to the template fallback. This is the
+      // documented prerequisite for arming Maia user_visibility (the client
+      // repoint in PR-A made it live) without the predicted regen storm.
+      passed: issues.every((i) => i.severity !== "error"),
       telemetry,
       costUsd,
     };

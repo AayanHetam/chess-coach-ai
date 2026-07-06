@@ -229,6 +229,11 @@ export async function regenerateUntilValid(opts: RegenerateOpts): Promise<Regene
     totalCostUsd += validation.costUsd;
 
     if (validation.passed) {
+      // Severity-aware gating (2026-07-05): a validation can pass while
+      // carrying warn-level fires. Record them — callers and tests read
+      // cumulativeIssues as "all issues found", and warn observability
+      // must survive the gate change.
+      cumulativeIssues.push(...validation.issues);
       const outcome: FinalOutcome = retry === 0 ? "passed_initial" : "passed_after_retry";
       telemetry.push(
         createTelemetryEvent({
@@ -257,11 +262,17 @@ export async function regenerateUntilValid(opts: RegenerateOpts): Promise<Regene
     // (no chess reasoning) → ~4s, which fits the shared deadline that a 2nd
     // Sonnet call (~20s) would overrun. finalResponse holds the most recent
     // LLM output, so it is exactly the text to hand back for editing.
-    if (!opts.signal?.aborted && isRelationalDominant(validation.issues)) {
+    //
+    // 2026-07-05 severity-aware gating: validation now fails only on
+    // error-severity issues, so decide surgical-vs-full-regen on the ERROR
+    // set (a coincidental warn riding alongside a relational contradiction
+    // must not force a full flagship regen).
+    const failingErrorIssues = validation.issues.filter((i) => i.severity === "error");
+    if (!opts.signal?.aborted && isRelationalDominant(failingErrorIssues)) {
       const surgicalReq: CallLLMOptions = {
         ...buildSurgicalCorrectionRequest(
           finalResponse,
-          validation.issues,
+          failingErrorIssues,
           opts.initialRequest.maxTokens,
         ),
         signal: opts.signal,

@@ -63,6 +63,8 @@ import type { AnyMotif } from "@/lib/tactics";
 import { fetch_lichess_tablebase } from "@/lib/mastermind/lichessTablebase";
 import { validateMotifGrounding } from "@/lib/mastermind/validators/motifGrounding";
 import { runStreamingStage9Validators } from "@/lib/mastermind/validators/streamingStage9";
+import { correctStreamedAnalysis } from "@/lib/mastermind/validators/streamCorrection";
+import type { ValidatorIssue } from "@/lib/mastermind/validators/types";
 import { queryChessdb } from "@/lib/grounding/chessdb";
 import { compileVoterResult } from "@/lib/grounding/voter";
 import { buildAsyncSnapshotForMove } from "@/lib/grounding/voterSnapshot";
@@ -1797,8 +1799,16 @@ export async function POST(request: NextRequest) {
                 category: prep.category,
               });
             }
-            // Motif grounding parity with non-streaming flag-on branch
-            // (route.ts:2035-2054). Log-only in v1.
+            // Motif grounding + Stage 9 on the realtime wing. Historically
+            // LOG-ONLY — the dominant production path (streamed game_review)
+            // shipped raw model output while validators grumbled into logs
+            // (audit §3.1). Now: warn-level fires stay telemetry-only (they
+            // are last-move-anchored and false-positive on multi-position
+            // prose), but ERROR-severity fires — the high-precision signals —
+            // trigger a post-stream Haiku surgical edit delivered via the
+            // done event's corrected/analysis contract the client already
+            // honors.
+            const enforceableIssues: ValidatorIssue[] = [];
             if (prep.moveCtx.moveSan && prep.moveCtx.fenBefore) {
               try {
                 const moveMotifs: AnyMotif[] = detectMotifs(prep.moveCtx.fenBefore, prep.moveCtx.moveSan);
@@ -1817,13 +1827,15 @@ export async function POST(request: NextRequest) {
                     branch: "stream-flagon-fallback",
                   });
                 }
-                // Stage 9: same log-only pattern for the four claim-class
-                // validators. The async-grounded snapshot was kicked off
-                // before the stream started, so this await is ~instant in
-                // the common case.
+                enforceableIssues.push(
+                  ...groundingResult.issues.filter((i) => i.severity === "error"),
+                );
+                // Stage 9 claim-class validators. The async-grounded snapshot
+                // was kicked off before the stream started, so this await is
+                // ~instant in the common case.
                 const stage9Snap = await stage9SnapPromise;
                 if (stage9Snap) {
-                  runStreamingStage9Validators({
+                  const stage9Results = runStreamingStage9Validators({
                     llmResponse: rawAnalysis,
                     voterSnapshot: stage9Snap,
                     fen: prep.moveCtx.fenAfter,
@@ -1833,6 +1845,18 @@ export async function POST(request: NextRequest) {
                     branch: "stream-flagon-fallback",
                     log,
                   });
+                  if (stage9Results) {
+                    for (const r of [
+                      stage9Results.userVis,
+                      stage9Results.positional,
+                      stage9Results.mate,
+                      stage9Results.material,
+                    ]) {
+                      enforceableIssues.push(
+                        ...r.issues.filter((i) => i.severity === "error"),
+                      );
+                    }
+                  }
                 }
               } catch { /* non-critical */ }
             }
@@ -1841,10 +1865,29 @@ export async function POST(request: NextRequest) {
             // historical-citation false positives are systematic.
             const usePositionAnchoredAnnotationFD =
               POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
-            const analysisContent =
+            let analysisContent =
               usePositionAnchoredAnnotationFD && !validation.isValid
                 ? validation.correctedResponse
                 : rawAnalysis;
+            let streamCorrected = false;
+            if (enforceableIssues.length > 0) {
+              const correction = await correctStreamedAnalysis({
+                rawText: analysisContent,
+                issues: enforceableIssues,
+                correlationId: requestId,
+                maxTokens: 3000,
+              });
+              analysisContent = correction.correctedText;
+              streamCorrected = true;
+              log.warn("stream_correction_applied", {
+                mode: correction.mode,
+                issueCount: enforceableIssues.length,
+                checks: enforceableIssues.map((i) => i.check_name),
+                costUsd: correction.costUsd,
+                correlationId: requestId,
+                branch: "stream-flagon-fallback",
+              });
+            }
             setCachedResponse(cacheKey, analysisContent, validation.score);
             const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
             const compactGameContext = buildCompactGameContext(
@@ -1890,10 +1933,12 @@ export async function POST(request: NextRequest) {
                 moveCount: Math.ceil(game.history().length / 2),
                 availableMoves: game.moves().length,
                 validationScore: validation.score,
-                validationIssues: validation.issues.length,
+                validationIssues: validation.issues.length + enforceableIssues.length,
                 contextId,
                 puzzleRecommendations,
-                corrected: usePositionAnchoredAnnotationFD && !validation.isValid,
+                corrected:
+                  streamCorrected ||
+                  (usePositionAnchoredAnnotationFD && !validation.isValid),
                 pipeline: {
                   fallbackReason: !prep.dataSources
                     ? "fd_failed"

@@ -31,6 +31,43 @@ function formatCp(cp: number, mate?: number | null): string {
  * gameEval for the current eval). Returns "" when there are no moves yet.
  * Pure; replays the moves with chess.js and stops at the first illegal move.
  */
+/**
+ * Board facts for an arbitrary FEN — the /api/chat per-turn variant of
+ * buildCurrentPositionFacts. Used when the user has navigated the board and
+ * the position under discussion is NOT the analysis-time final position.
+ * Returns "" for unparseable FENs (callers fall back to the stored context).
+ */
+export function buildFenPositionFacts(fen: string): string {
+  let game: Chess;
+  try {
+    game = new Chess(fen);
+  } catch {
+    return "";
+  }
+
+  const white: string[] = [];
+  const black: string[] = [];
+  for (const row of game.board()) {
+    for (const sq of row) {
+      if (sq) (sq.color === "w" ? white : black).push(PIECE_LETTER[sq.type] + sq.square);
+    }
+  }
+
+  const toMove = game.turn() === "w" ? "White" : "Black";
+
+  return (
+    "## CURRENTLY VIEWED POSITION (the board the user is looking at RIGHT NOW — " +
+    "answer about THIS position; use these exact facts; do NOT reconstruct " +
+    "the board from the move list)\n" +
+    [
+      `FEN: ${game.fen()}`,
+      `White pieces: ${white.join(" ")}`,
+      `Black pieces: ${black.join(" ")}`,
+      `${toMove} to move.`,
+    ].join("\n")
+  );
+}
+
 export function buildCurrentPositionFacts(
   moveHistory: string[] | undefined,
   gameEval?: GameEvalLike,

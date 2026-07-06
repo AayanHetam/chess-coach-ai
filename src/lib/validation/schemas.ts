@@ -93,6 +93,16 @@ export const chatSchema = z.object({
   // Fast-path fields
   contextId: z.string().optional(),
   userMessage: z.string().optional(),
+  // The FEN currently displayed on the user's board. Follow-ups routinely
+  // discuss positions other than the analysis-time final position; without
+  // this, grounding + validation ran against the frozen context.fen and
+  // answered about the wrong board. Validated server-side with chess.js —
+  // invalid values fall back to context.fen.
+  fen: z.string().max(120).optional(),
+  // Half-move index of the displayed position within the analyzed game
+  // (0 = starting position). Lets the Mastermind pipeline anchor its move
+  // context to the viewed ply instead of the last move played.
+  moveIndex: z.number().int().min(0).max(1024).optional(),
   conversationHistory: z
     .array(
       z.object({

@@ -1829,7 +1829,7 @@ export async function POST(request: NextRequest) {
                 ? validation.correctedResponse
                 : rawAnalysis;
             setCachedResponse(cacheKey, analysisContent, validation.score);
-            const contextId = generateContextId(moveHistory, fen, playerColor || "w");
+            const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
             const compactGameContext = buildCompactGameContext(
               moveHistory ?? [],
               gameEval,
@@ -2087,7 +2087,7 @@ export async function POST(request: NextRequest) {
               : finalText;
 
           setCachedResponse(cacheKey, analysisContent, validation.score);
-          const contextId = generateContextId(moveHistory, fen, playerColor || "w");
+          const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
           const compactGameContext = buildCompactGameContext(
             moveHistory ?? [],
             gameEval,
@@ -2335,7 +2335,7 @@ export async function POST(request: NextRequest) {
           const analysisContent = validation.isValid ? rawAnalysis : validation.correctedResponse;
 
           setCachedResponse(cacheKey, analysisContent, validation.score);
-          const contextId = generateContextId(moveHistory, fen, playerColor || "w");
+          const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
           const compactGameContext = buildCompactGameContext(
             moveHistory ?? [],
             gameEval,
@@ -2702,7 +2702,7 @@ export async function POST(request: NextRequest) {
     setCachedResponse(cacheKey, analysisContent, validation.score);
 
     // Store full analysis context for fast follow-up chat via /api/chat
-    const contextId = generateContextId(moveHistory, fen, playerColor || "w");
+    const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
     const compactGameContext = buildCompactGameContext(
       moveHistory ?? [],
       gameEval,

@@ -1,5 +1,22 @@
 import { describe, it, expect } from "vitest";
-import { buildCurrentPositionFacts } from "../positionFacts";
+import { buildCurrentPositionFacts, buildFenPositionFacts } from "../positionFacts";
+
+describe("buildFenPositionFacts", () => {
+  it("emits the CURRENTLY VIEWED POSITION block for a valid FEN", () => {
+    // After 1.e4 e5 2.Nf3 — Black to move, knight on f3.
+    const fen = "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
+    const out = buildFenPositionFacts(fen);
+    expect(out).toContain("## CURRENTLY VIEWED POSITION");
+    expect(out).toContain(`FEN: ${fen}`);
+    expect(out).toContain("Nf3");
+    expect(out).toContain("Black to move.");
+    expect(out).toMatch(/do NOT reconstruct/);
+  });
+
+  it("returns empty for an unparseable FEN (caller falls back to context)", () => {
+    expect(buildFenPositionFacts("not-a-fen")).toBe("");
+  });
+});
 
 describe("buildCurrentPositionFacts", () => {
   it("returns empty for no moves", () => {

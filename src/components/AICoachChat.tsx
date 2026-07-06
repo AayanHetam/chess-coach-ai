@@ -2439,6 +2439,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
               contextId: analysisContextIdRef.current,
               userMessage: textToSend,
               conversationHistory: conversationHistory,
+              // The position currently on the board — follow-ups routinely
+              // discuss positions other than the analysis-time final one;
+              // the server grounds + validates against this FEN.
+              fen: game ? game.fen() : position || undefined,
             }),
             signal: abortControllerRef.current.signal,
           });

@@ -36,7 +36,12 @@ export function parseEnv(source: NodeJS.ProcessEnv = process.env) {
  */
 export function getAuthEnv() {
   return {
-    enforced: process.env.AUTH_ENFORCED === "true",
+    // parseBoolEnv (not raw === "true") so a Vercel save of "true\n" still
+    // enforces auth. Raw equality silently left routes OPEN on a trailing
+    // newline — the same save hazard the codebase already got burned by on
+    // MASTERMIND_VALIDATORS_ENABLED (audit §3.8). parseBoolEnv is a hoisted
+    // function declaration below, so calling it here is fine.
+    enforced: parseBoolEnv(process.env.AUTH_ENFORCED),
     firebase: {
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,

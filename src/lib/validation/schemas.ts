@@ -120,7 +120,10 @@ export const chatSchema = z.object({
       })
     )
     .optional(),
-  model: z.string().optional(),
+  // `model` field removed (audit §3.8): it was accepted and silently ignored
+  // — callers pick a tier, never a model name (see CLAUDE.md). temperature is
+  // clamped to Anthropic's [0,1] at the call site even though this accepts the
+  // wider OpenAI range, so an out-of-range value degrades instead of 400ing.
   temperature: z.number().min(0).max(2).optional(),
   max_tokens: z.number().int().min(1).max(16000).optional(),
 });

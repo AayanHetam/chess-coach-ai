@@ -4,6 +4,7 @@ import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { annotatePosition, annotationToPromptContext } from "@/lib/positionAnnotator";
 import { selectExamples, formatExamplesForPrompt } from "@/data/goldStandardExamples";
 import { generateCacheKey, getCachedResponse, setCachedResponse } from "@/lib/responseCache";
+import { findMistakePuzzles } from "@/lib/mistakePuzzles";
 import { recordLLMCall } from "@/lib/llmStatsAggregator";
 import {
   generateContextId,
@@ -1265,23 +1266,22 @@ async function generatePuzzleRecommendations(
     const motifs = detectTacticalMotifs(fenBefore, bestMove, bestPvSan);
 
     try {
-      // Call the mistake-puzzles API
-      const response = await fetch("http://localhost:3000/api/mistake-puzzles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fen: fenBefore,
-          movePlayed: moveHistory[i],
-          correctMove: bestMove,
-          evalBefore: cpBefore,
-          evalAfter: cpAfter,
-          tacticalMotifs: motifs,
-          userRating,
-        }),
+      // In-process call (was `fetch("http://localhost:3000/api/mistake-puzzles")`,
+      // which threw on every Vercel invocation — nothing listens on
+      // localhost:3000 there — so puzzle recs silently shipped empty in prod,
+      // audit §3.8). findMistakePuzzles degrades to notConfigured when Neo4j
+      // is absent rather than throwing.
+      const data = await findMistakePuzzles({
+        fen: fenBefore,
+        movePlayed: moveHistory[i],
+        correctMove: bestMove,
+        evalBefore: cpBefore,
+        evalAfter: cpAfter,
+        tacticalMotifs: motifs,
+        userRating,
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (!data.notConfigured && data.puzzles.length > 0) {
         const reinforcements = await buildReinforcements(
           fenBefore,
           bestMove,
@@ -1303,7 +1303,7 @@ async function generatePuzzleRecommendations(
         });
       }
     } catch (error) {
-      console.error(`Failed to fetch puzzles for mistake at move ${Math.floor(i / 2) + 1}:`, error);
+      console.error(`Failed to build puzzles for mistake at move ${Math.floor(i / 2) + 1}:`, error);
       // Continue with other mistakes even if one fails
     }
 

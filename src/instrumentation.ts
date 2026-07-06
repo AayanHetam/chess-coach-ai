@@ -17,10 +17,12 @@ export async function register() {
 
   // Validate env at boot — throws on missing ANTHROPIC_API_KEY etc. so the
   // worker fails fast rather than silently 500ing on the first AI request.
-  const { parseEnv } = await import("./env");
+  const { parseEnv, parseBoolEnv } = await import("./env");
   parseEnv();
 
-  if (process.env.SKIP_RETRIEVAL_SELFTEST === "true") return;
+  // parseBoolEnv (not raw === "true") so a Vercel save of "true\n" still
+  // skips the self-test as intended (audit §3.8 trailing-newline class).
+  if (parseBoolEnv(process.env.SKIP_RETRIEVAL_SELFTEST)) return;
 
   // Defer imports so instrumentation does not drag DB drivers into edge bundles
   const { getReinforcements } = await import("./lib/concept/conceptRetrieval");

@@ -1,8 +1,11 @@
+import { Chess } from "chess.js";
 import { NextRequest, NextResponse } from "next/server";
 import {
   getAnalysisContext,
   buildCondensedContext,
 } from "@/lib/analysisContextCache";
+import { buildFenPositionFacts } from "@/lib/mastermind/positionFacts";
+import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
 import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { chatSchema, validateRequest } from "@/lib/validation/schemas";
 import {
@@ -82,7 +85,14 @@ export async function POST(request: NextRequest) {
       surface: "coach_chat",
     });
     if (!gate.ok) return gate.response;
-    const { messages, contextId, userMessage, conversationHistory } = parsed.data;
+    const {
+      messages,
+      contextId,
+      userMessage,
+      conversationHistory,
+      fen: clientFen,
+      moveIndex,
+    } = parsed.data;
 
     // API-key presence is validated inside callLLM(); both Anthropic and
     // OpenAI are accepted, with automatic fallback from one to the other.
@@ -109,8 +119,41 @@ export async function POST(request: NextRequest) {
       // When the new fields are absent (legacy contextId) we send everything
       // as the cacheable block — the worst case is just that two users with
       // different names share a cache miss, same behaviour as before.
+      // ── Position under discussion ────────────────────────────────────
+      // The client sends the FEN currently displayed on its board. Before
+      // this, every follow-up was grounded and validated against the
+      // analysis-time final position (context.fen) — navigate to move 12,
+      // ask "what should I play here?", and the answer (plus all validators)
+      // referenced move 40's board. Invalid/absent client FENs fall back to
+      // the stored context.
+      let activeFen = context.fen;
+      if (clientFen) {
+        try {
+          activeFen = new Chess(clientFen).fen();
+        } catch {
+          // unparseable client FEN — keep context.fen
+        }
+      }
+
+      // Per-turn oracle facts for the active position. The v3.4+ system
+      // prompt forbids any attack/capture/pin/fork claim not present in a
+      // VERIFIED POSITION FACTS block, but this path never injected one —
+      // the constraint was unsatisfiable on every follow-up turn, forcing
+      // the model to either break its own rules or refuse tactical talk
+      // (audit §3.4). buildRelationalFacts is a pure chess.js computation.
+      let perTurnFacts = "";
+      try {
+        const boardFacts = buildFenPositionFacts(activeFen);
+        const relational = buildRelationalFacts(activeFen);
+        perTurnFacts = [boardFacts, relational.summary].filter(Boolean).join("\n\n");
+      } catch {
+        // oracle failure — proceed without per-turn facts (legacy behavior)
+      }
+
       const cachedSystemPrompt = context.systemPromptStable ?? context.systemPrompt;
-      const condensedContext = buildCondensedContext(context);
+      const condensedContext = [buildCondensedContext(context), perTurnFacts]
+        .filter(Boolean)
+        .join("\n\n");
       const uncachedSuffix = context.systemPromptStable
         ? `${context.systemPromptSuffix ?? ""}\n\n${condensedContext}`.trim()
         : condensedContext;
@@ -160,10 +203,20 @@ export async function POST(request: NextRequest) {
       if (validatorsEnabled) {
         const playerPerspective: "white" | "black" =
           (context.playerColor === "b" || context.playerColor === "black") ? "black" : "white";
+        // Anchor the pipeline to the viewed ply when the client supplies
+        // moveIndex (position after half-move k = gameEval.positions[k], so
+        // slicing the history to k keeps eval indexing aligned). Without it,
+        // the pipeline stays last-move-anchored (legacy behavior).
+        const effectiveMoveHistory =
+          typeof moveIndex === "number" &&
+          Array.isArray(context.playedMoves) &&
+          moveIndex <= context.playedMoves.length
+            ? context.playedMoves.slice(0, moveIndex)
+            : context.playedMoves;
         const prep = await prepareMastermindContext({
           userMessage,
-          moveHistory: context.playedMoves,
-          fen: context.fen,
+          moveHistory: effectiveMoveHistory,
+          fen: activeFen,
           // (γ-route, 2026-05-23): gameEval is now persisted into
           // AnalysisContext at /api/enhanced-analysis store-sites and
           // threaded through here. Legacy cache entries created before
@@ -241,7 +294,7 @@ export async function POST(request: NextRequest) {
           }
 
           const rawContent = pipelineResult.finalResponse || "I couldn't generate a response.";
-          const validation = validateAIResponse(rawContent, context.fen);
+          const validation = validateAIResponse(rawContent, activeFen);
 
           forwardPipelineTelemetryForRoute({
             pipelineResult,
@@ -277,7 +330,7 @@ export async function POST(request: NextRequest) {
                 usePositionAnchoredAnnotation && !validation.isValid
                   ? validation.correctedResponse
                   : rawContent,
-              position: context.fen,
+              position: activeFen,
               validationScore: validation.score,
               cached: false,
               fastPath: true,
@@ -322,7 +375,7 @@ export async function POST(request: NextRequest) {
             feature: "chat",
             uid: guard.session.uid,
             isIntern: guard.session.isIntern,
-            fen: context.fen,
+            fen: activeFen,
             props: { path: "fast", contextId: contextId ?? null },
           },
         });
@@ -341,13 +394,13 @@ export async function POST(request: NextRequest) {
       recordLLMCall(llmResult);
       const rawContent = llmResult.content || "I couldn't generate a response.";
 
-      // Light validation against the cached FEN
-      const validation = validateAIResponse(rawContent, context.fen);
+      // Light validation against the position under discussion
+      const validation = validateAIResponse(rawContent, activeFen);
 
       return NextResponse.json({
         gameAnalysis: {
           analysis: validation.isValid ? rawContent : validation.correctedResponse,
-          position: context.fen,
+          position: activeFen,
           validationScore: validation.score,
           cached: false,
           fastPath: true,

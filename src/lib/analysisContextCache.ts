@@ -63,17 +63,25 @@ const contextCache = new Map<string, AnalysisContext>();
 
 /**
  * Generate a unique context ID from the game state.
- * Same game + same player = same context ID (allows reconnection).
+ * Same game + same player + same user = same context ID (allows reconnection).
+ *
+ * `uid` is part of the key: without it, two users analyzing the same game
+ * (e.g. a master game) shared one cache entry — last write won, so the other
+ * user's follow-ups ran with someone else's persona suffix, rating, and
+ * initial analysis. Omitting uid (legacy/unauthenticated callers) keeps the
+ * old per-game key.
  */
 export function generateContextId(
   moveHistory: string[] | undefined,
   fen: string | undefined,
-  playerColor: string
+  playerColor: string,
+  uid?: string
 ): string {
   const key = JSON.stringify({
     moves: moveHistory?.join(",") || "",
     fen: fen || "startpos",
     color: playerColor,
+    ...(uid ? { uid } : {}),
   });
   return createHash("sha256").update(key).digest("hex").slice(0, 16);
 }

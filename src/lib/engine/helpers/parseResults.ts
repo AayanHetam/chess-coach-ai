@@ -60,6 +60,17 @@ export const parseEvaluationResults = (
 
 export const sortLines = (a: LineEval, b: LineEval): number => {
   if (a.mate !== undefined && b.mate !== undefined) {
+    // Scores here are side-to-move perspective (normalization to white-centric
+    // happens after sorting). Mixed signs: a line where we deliver mate
+    // (mate > 0) is always better than one where we get mated (mate <= 0).
+    // The plain `a.mate - b.mate` handled same-sign pairs but ranked
+    // "mated in 3" (-3) ABOVE "mates in 2" (+2), making lines[0] — used
+    // everywhere as "the eval" — the losing line.
+    const aDelivers = a.mate > 0;
+    const bDelivers = b.mate > 0;
+    if (aDelivers !== bDelivers) {
+      return aDelivers ? -1 : 1;
+    }
     return a.mate - b.mate;
   }
 

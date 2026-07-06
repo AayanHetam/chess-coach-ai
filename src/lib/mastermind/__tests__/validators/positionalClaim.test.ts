@@ -180,6 +180,72 @@ describe("validatePositionalClaim — ungrounded claims (no Lc0 veto)", () => {
   });
 });
 
+// ── Degraded mode: Lc0 unavailable, SF alone decisive ─────────────────────────
+//
+// Lc0 has never been deployed in production (LC0_API_URL unset), so
+// positional_plan can never reach HIGH. Requiring HIGH made this validator
+// fire on EVERY strong positional phrase — even at +8.0 — burning a flagship
+// regeneration per fire. With a single engine, |SF| ≥ 300 grounds the claim.
+
+describe("validatePositionalClaim — degraded single-engine mode", () => {
+  it("passes strong claims when Lc0 unavailable and SF decisive (+3.5)", () => {
+    const result = validatePositionalClaim({
+      llmResponse: "White is completely winning with a decisive advantage.",
+      positional_plan: "MED", // ceiling without Lc0
+      sfCp: 350,
+      lc0Cp: null,
+      correlationId: CORR,
+    });
+    expect(result.passed).toBe(true);
+    expect(result.telemetry[0].fire_reason).toBe("passed_sf_decisive_lc0_unavailable");
+  });
+
+  it("passes symmetrically for Black-decisive evals (-8.0)", () => {
+    const result = validatePositionalClaim({
+      llmResponse: "Black is dominating.",
+      positional_plan: "MED",
+      sfCp: -800,
+      lc0Cp: null,
+      correlationId: CORR,
+    });
+    expect(result.passed).toBe(true);
+  });
+
+  it("still fires when Lc0 unavailable and SF below the decisive band", () => {
+    const result = validatePositionalClaim({
+      llmResponse: "White is dominating.",
+      positional_plan: "MED",
+      sfCp: 290,
+      lc0Cp: null,
+      correlationId: CORR,
+    });
+    expect(result.passed).toBe(false);
+    expect(result.issues[0].severity).toBe("warn");
+  });
+
+  it("does NOT apply degraded mode when Lc0 WAS consulted (consensus still required)", () => {
+    const result = validatePositionalClaim({
+      llmResponse: "White is dominating.",
+      positional_plan: "MED",
+      sfCp: 350,
+      lc0Cp: 40, // consulted but below the 150 consensus bar
+      correlationId: CORR,
+    });
+    expect(result.passed).toBe(false);
+  });
+
+  it("does NOT apply degraded mode when sfCp is null", () => {
+    const result = validatePositionalClaim({
+      llmResponse: "White is dominating.",
+      positional_plan: "NONE",
+      sfCp: null,
+      lc0Cp: null,
+      correlationId: CORR,
+    });
+    expect(result.passed).toBe(false);
+  });
+});
+
 // ── Severity escalation: Lc0 vetoes SF ────────────────────────────────────────
 
 describe("validatePositionalClaim — Lc0 veto escalates severity", () => {

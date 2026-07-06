@@ -1,12 +1,27 @@
-// Maia-2 predict_at_rating client — Stage 8 of the Tactical Grounding Program.
+// Maia-2 visibility client — Stage 8 of the Tactical Grounding Program.
 //
 // Returns the probability that a Maia-2 player at the user's rating plays a
 // specific UCI move (typically Stockfish's recommendation), used to drive the
 // voter's `user_visibility` claim class.
 //
+// IMPORTANT (2026-07-05): this client previously POSTed to
+// `${MAIA_API_URL}/predict_at_rating` — an endpoint that has NEVER existed in
+// maia-service/maia_server.py (it implements only /health, /predict, /). Every
+// call 404'd silently, so user_visibility grounding never worked in any
+// environment. The client now derives prob_plays_best from the existing
+// /predict endpoint, which returns the top human-like move (with confidence)
+// plus up to 4 alternatives with probabilities:
+//   - best move is the top move or listed → exact probability
+//   - best move absent from the top 5 → its probability is bounded above by
+//     the smallest returned probability; if that bound is already below the
+//     VIS_LOW threshold we use it (classification is unaffected), otherwise
+//     we return null (fail closed — no grounding rather than a guess).
+//
 // When prob_plays_best < 0.15, the LLM is told to suppress "obvious" / "clearly"
 // language — the move is genuinely hard to see at the user's rating, so calling
 // it "obvious" reads as dismissive of effort the user actually made.
+
+import { Chess } from "chess.js";
 
 import type { ConfidenceLevel } from "./voter";
 
@@ -50,7 +65,7 @@ export function __isMaiaConfigured(): boolean { return !!MAIA_API_URL; }
  * Should we call Maia for this position?
  *
  * Required:
- *   1. Maia service configured (LC0_API_URL set)
+ *   1. Maia service configured (MAIA_API_URL set)
  *   2. User rating present (Maia output is meaningless without a rating)
  *   3. SF best move present (we need a move to ask about)
  *
@@ -108,13 +123,12 @@ export async function queryMaiaAtRating(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(`${MAIA_API_URL}/predict_at_rating`, {
+    const res = await fetch(`${MAIA_API_URL}/predict`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         fen,
         rating,
-        best_move: bestMoveUci,
         opponent_rating: opponentRating ?? rating,
       }),
       signal: controller.signal,
@@ -122,23 +136,33 @@ export async function queryMaiaAtRating(
     if (!res.ok) return null;
 
     const data = await res.json() as {
-      prob_plays_best: number;
-      likely_moves: Array<{ move: string; probability: number }>;
+      humanLikeMove: string;
+      confidence: number;
+      alternativeMoves: Array<{ move: string; probability: number }>;
       rating: number;
-      model: string;
     };
 
-    if (typeof data.prob_plays_best !== "number") return null;
+    if (typeof data.humanLikeMove !== "string" || typeof data.confidence !== "number") return null;
+
+    const candidates: MaiaLikelyMove[] = [
+      { move: data.humanLikeMove, probability: data.confidence },
+      ...(Array.isArray(data.alternativeMoves)
+        ? data.alternativeMoves.filter(
+            (m) => m && typeof m.move === "string" && typeof m.probability === "number",
+          )
+        : []),
+    ];
+
+    const prob = deriveProbPlaysBest(fen, bestMoveUci, candidates);
+    if (prob === null) return null;
 
     const result: MaiaProbResult = {
       fen,
       rating,
       best_move_uci: bestMoveUci,
-      prob_plays_best: data.prob_plays_best,
-      likely_moves: Array.isArray(data.likely_moves)
-        ? data.likely_moves.filter((m) => m && typeof m.move === "string" && typeof m.probability === "number")
-        : [],
-      model: data.model ?? "maia2",
+      prob_plays_best: prob,
+      likely_moves: candidates,
+      model: "maia2",
       source: "live",
     };
 
@@ -149,6 +173,58 @@ export async function queryMaiaAtRating(
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Strip decorations that differ between SAN producers (check/mate marks,
+// annotation glyphs) before comparing moves.
+function normalizeMoveToken(move: string): string {
+  return move.replace(/[+#!?]/g, "");
+}
+
+/** UCI → SAN via chess.js; null when the move is illegal/unparseable. */
+function uciToSanForMaia(fen: string, uci: string): string | null {
+  try {
+    const game = new Chess(fen);
+    const move = game.move({
+      from: uci.slice(0, 2),
+      to: uci.slice(2, 4),
+      promotion: uci.length > 4 ? uci.slice(4, 5) : undefined,
+    });
+    return move ? move.san : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Derive the probability that a player plays `bestMoveUci` from the /predict
+ * candidate list (top move + up to 4 alternatives, in SAN — UCI when the
+ * service's own SAN conversion failed).
+ *
+ * Exported for tests.
+ */
+export function deriveProbPlaysBest(
+  fen: string,
+  bestMoveUci: string,
+  candidates: MaiaLikelyMove[],
+): number | null {
+  if (candidates.length === 0) return null;
+  const bestSan = uciToSanForMaia(fen, bestMoveUci);
+  const targets = new Set(
+    [bestSan, bestMoveUci].filter((t): t is string => !!t).map(normalizeMoveToken),
+  );
+
+  for (const c of candidates) {
+    if (targets.has(normalizeMoveToken(c.move))) return c.probability;
+  }
+
+  // Not in the returned top moves: true probability ≤ the smallest returned
+  // probability. If that bound already classifies as NONE (< VIS_LOW), use it
+  // — the visibility outcome is identical for any value below the bound.
+  // Otherwise we cannot know the bucket; fail closed.
+  const minProb = Math.min(...candidates.map((c) => c.probability));
+  if (minProb < VIS_LOW) return minProb;
+  return null;
 }
 
 /**

@@ -580,7 +580,11 @@ async function buildGameContext(
       // Evaluation after
       if (evalAfter?.lines?.[0]) {
         const topLine = evalAfter.lines[0];
-        if (topLine.mate !== undefined) {
+        if (topLine.depth === 0) {
+          // Client-side timeout sentinel ({cp: 0, depth: 0}) — NOT a real 0.00.
+          // Narrating it as an eval fabricates a massive swing in decided games.
+          line += `\n    Eval: engine data unavailable for this move (analysis timed out)`;
+        } else if (topLine.mate !== undefined) {
           line += `\n    Eval: M${topLine.mate > 0 ? "+" : ""}${topLine.mate}`;
         } else if (topLine.cp !== undefined) {
           const pawns = (topLine.cp / 100).toFixed(2);
@@ -609,7 +613,12 @@ async function buildGameContext(
       moveLines.push(line);
 
       // Detect mistakes (evaluation drops)
-      if (evalBefore?.lines?.[0] && evalAfter?.lines?.[0]) {
+      // Skip positions carrying the client timeout sentinel ({cp: 0, depth: 0})
+      // — comparing a real eval against a fabricated 0.00 manufactures a fake
+      // "blunder" (or hides a real one) in the TOP MISTAKES the coach narrates.
+      const beforeIsSentinel = evalBefore?.lines?.[0]?.depth === 0;
+      const afterIsSentinel = evalAfter?.lines?.[0]?.depth === 0;
+      if (evalBefore?.lines?.[0] && evalAfter?.lines?.[0] && !beforeIsSentinel && !afterIsSentinel) {
         const cpBefore = evalBefore.lines[0].mate !== undefined
           ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
           : (evalBefore.lines[0].cp ?? 0);
@@ -650,7 +659,7 @@ async function buildGameContext(
       }
     }
 
-    sections.push(`## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)\n${moveLines.join("\n")}`);
+    sections.push(`## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)\nAll evals are in pawns from White's perspective (positive = better for White); M+n / M-n = forced mate for White / Black.\n${moveLines.join("\n")}`);
 
     // --- Top mistakes with full PV lines and candidate moves ---
     // System prompt says ONLY analyse the player's mistakes. The mistakes
@@ -965,10 +974,15 @@ function buildCompactGameContext(
     }
 
     // Eval drop from the player's perspective
+    // Client timeout sentinels ({cp: 0, depth: 0}) are not real evals — skip
+    // swing computation entirely so a stalled position can't narrate as a
+    // fabricated blunder (or mask a real one) on the Haiku follow-up path.
+    const compactSentinel =
+      evalBefore?.lines?.[0]?.depth === 0 || evalAfter?.lines?.[0]?.depth === 0;
     let drop = 0;
     let cpBefore: number | null = null;
     let cpAfter: number | null = null;
-    if (evalBefore?.lines?.[0] && evalAfter?.lines?.[0]) {
+    if (evalBefore?.lines?.[0] && evalAfter?.lines?.[0] && !compactSentinel) {
       cpBefore = evalBefore.lines[0].mate !== undefined
         ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
         : (evalBefore.lines[0].cp ?? 0);
@@ -995,8 +1009,9 @@ function buildCompactGameContext(
       const beforeStr = formatCp(cpBefore, evalBefore?.lines?.[0]?.mate);
       const afterStr = formatCp(cpAfter, evalAfter?.lines?.[0]?.mate);
       sentence += `; eval ${beforeStr} → ${afterStr} (lost ${(drop / 100).toFixed(1)} pawns)`;
-    } else if (evalAfter?.lines?.[0]) {
-      // For routine moves, just the resulting eval
+    } else if (evalAfter?.lines?.[0] && evalAfter.lines[0].depth !== 0) {
+      // For routine moves, just the resulting eval (skip timeout sentinels —
+      // a fabricated "eval +0.00" is worse than saying nothing)
       const afterStr = formatCp(evalAfter.lines[0].cp ?? 0, evalAfter.lines[0].mate);
       sentence += `${label ? ";" : " —"} eval ${afterStr}`;
     }
@@ -1461,7 +1476,9 @@ export async function POST(request: NextRequest) {
         if (tbResult) {
           let tbBlock = `\n\n## ENDGAME GROUND TRUTH (Syzygy tablebases — mathematically perfect for ≤7 pieces)\n`;
           tbBlock += `Outcome for side to move: ${tbResult.category}\n`;
-          if (tbResult.dtm !== null) tbBlock += `Distance to mate: ${tbResult.dtm} moves\n`;
+          // Lichess DTM is signed plies — convert to full moves for the prompt
+          // (raw plies labeled "moves" taught the model ~2x-too-long mates).
+          if (tbResult.dtm !== null) tbBlock += `Distance to mate: ${Math.ceil(Math.abs(tbResult.dtm) / 2)} moves (${Math.abs(tbResult.dtm)} plies)\n`;
           if (tbResult.dtz !== null) tbBlock += `Distance to zeroing: ${tbResult.dtz}\n`;
           if (tbResult.moves.length > 0) {
             const best = tbResult.moves[0];

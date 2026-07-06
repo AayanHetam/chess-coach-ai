@@ -42,7 +42,8 @@ export function generateCacheKey(
   fen: string,
   skillLevel: string,
   userMessage: string,
-  personaSignature?: string
+  personaSignature?: string,
+  moveHistory?: string[]
 ): string {
   const messageHash = createHash("md5")
     .update(userMessage.toLowerCase().trim())
@@ -54,6 +55,17 @@ export function generateCacheKey(
     .digest("hex")
     .slice(0, 12);
 
+  // Move history is part of the key: game reviews narrate the MOVES, not
+  // just the final position. Keying on final FEN alone meant two different
+  // games transposing into the same position (with the same question)
+  // shared a cached response narrating the FIRST game's moves — a
+  // wrong-answer-served bug, not just a stale one. Absent history (pure
+  // position analysis) collapses to the empty bucket, preserving old keys.
+  const movesHash = createHash("md5")
+    .update((moveHistory ?? []).join(","))
+    .digest("hex")
+    .slice(0, 12);
+
   // Normalize FEN by removing move counters (halfmove clock + fullmove number)
   // so the same position at different move numbers still matches
   const fenParts = fen.split(" ");
@@ -62,7 +74,7 @@ export function generateCacheKey(
   // Prefix with PROMPT_VERSION so a prompt revision (Phase 2 = "3.0") makes
   // older cache entries unreachable instead of serving stale stub-prompt
   // analyses to clients on the new prompt.
-  return `v${PROMPT_VERSION}|${normalizedFen}|${skillLevel}|${messageHash}|p${personaHash}`;
+  return `v${PROMPT_VERSION}|${normalizedFen}|${skillLevel}|${messageHash}|p${personaHash}|m${movesHash}`;
 }
 
 /**

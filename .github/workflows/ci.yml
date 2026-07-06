@@ -33,3 +33,10 @@ jobs:
       # manual/API-billed and can't run here; this is the free floor).
       - name: Validator gate (deterministic fixtures)
         run: npx tsx scripts/mastermind/validator-gate-dryrun.ts
+
+      # Contract-fidelity smoke (PR-CI-2) — builds CoachContracts for the 10
+      # vendored fixtures and asserts the referee checks catch canned
+      # fabrications with zero false fires on the clean control. No network;
+      # the live BEFORE/AFTER baseline runs stay manual (API-billed).
+      - name: Contract fidelity smoke (--dry-run, no network)
+        run: npx tsx scripts/eval/contract_fidelity_eval.ts --dry-run

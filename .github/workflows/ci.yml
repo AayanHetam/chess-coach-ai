@@ -26,3 +26,10 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
+      # Deterministic validator gate — 22 known-good/known-bad fixtures, no
+      # network, mocked parser+LLM. Guards the Mastermind enforcement layer
+      # against silent bit-rot (the eval harnesses in scripts/eval/ are
+      # manual/API-billed and can't run here; this is the free floor).
+      - name: Validator gate (deterministic fixtures)
+        run: npx tsx scripts/mastermind/validator-gate-dryrun.ts

@@ -111,10 +111,10 @@ Output the score ONLY (a single digit 1-5)."""
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=15)
-    ap.add_argument("--bench", default="/tmp/chessqa-benchmark/benchmark/semantic.jsonl")
-    ap.add_argument("--prompt", default="/tmp/coach_prompt_32.txt",
+    ap.add_argument("--bench", default=str(Path(__file__).resolve().parent / "fixtures/chessqa/semantic.jsonl"))
+    ap.add_argument("--prompt", default=str(Path(__file__).resolve().parent / "fixtures/coach_prompt_v3.5_stable.txt"),
                     help="coach system prompt file (hedge block stripped automatically)")
-    ap.add_argument("--repo", default=str(Path.home() / "Downloads/Inspirit_project/chess-coach-ai"))
+    ap.add_argument("--repo", default=str(Path(__file__).resolve().parents[2]))
     ap.add_argument("--depth", type=int, default=16)
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--output", default=None)

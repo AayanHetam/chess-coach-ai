@@ -125,6 +125,35 @@ describe("compileVoterResult — mate_in_n", () => {
     const r = compileVoterResult({});
     expect(r.confidence.mate_in_n).toBe("NONE");
   });
+
+  // Regression: mate values are White-perspective; a forced mate FOR BLACK
+  // (mate < 0) is just as real. The old `mate > 0` check returned NONE here,
+  // which made factually-correct "forced mate" claims about Black fire
+  // mate_claim_unsupported.
+  it("LOW when SF shows a forced mate for Black (mate < 0)", () => {
+    const r = compileVoterResult({ stockfishBestMoveMate: -4 });
+    expect(r.confidence.mate_in_n).toBe("LOW");
+  });
+
+  it("MED when SF mate for Black AND chessdb decisive (loss for side to move)", () => {
+    const r = compileVoterResult({
+      stockfishBestMoveMate: -4,
+      chessdbResult: { fen: "test", best_move: null, score_cp: -320, outcome: "loss", source: "live" },
+    });
+    expect(r.confidence.mate_in_n).toBe("MED");
+  });
+
+  it("HIGH when Syzygy loss with DTM (forced mate for the opponent)", () => {
+    const r = compileVoterResult({
+      tablbaseResult: { ...SYZYGY_WIN, category: "loss", dtm: -11 },
+    });
+    expect(r.confidence.mate_in_n).toBe("HIGH");
+  });
+
+  it("NONE when SF mate is 0 (no mate signal)", () => {
+    const r = compileVoterResult({ stockfishBestMoveMate: 0 });
+    expect(r.confidence.mate_in_n).toBe("NONE");
+  });
 });
 
 // ── tactical_motif confidence ─────────────────────────────────────────────────
@@ -225,7 +254,8 @@ describe("compileVoterResult — groundingContext", () => {
   it("includes endgame ground truth when Syzygy present", () => {
     const r = compileVoterResult({ tablbaseResult: SYZYGY_WIN });
     expect(r.groundingContext).toContain("ENDGAME GROUND TRUTH");
-    expect(r.groundingContext).toContain("DTM: 14");
+    // Lichess DTM is signed plies; the prompt must show full moves.
+    expect(r.groundingContext).toContain("DTM: mate in 7 moves (14 plies)");
     expect(r.groundingContext).toContain("Ke5");
   });
 

@@ -10,7 +10,11 @@ const FETCH_TIMEOUT_MS = 6000;
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h
 const QUEUE_COOLDOWN_MS = 30 * 1000; // don't re-queue the same position for 30s
 
-export type ChessdbOutcome = "win" | "draw" | "loss" | "unknown";
+// "unclear" = a real advantage that is below the decisive threshold — NOT a draw.
+// The old mapping labeled every |cp| < 200 position "draw", and that label was
+// injected verbatim into the LLM prompt ("+1.50 pawns (draw for side to move)"),
+// teaching the model factually wrong outcomes. Draw now requires near-equality.
+export type ChessdbOutcome = "win" | "draw" | "loss" | "unclear" | "unknown";
 
 export interface ChessdbResult {
   fen: string;
@@ -49,7 +53,8 @@ function scoreToOutcome(score: number | null): ChessdbOutcome {
   if (score === null) return "unknown";
   if (score >= 200) return "win";
   if (score <= -200) return "loss";
-  return "draw";
+  if (Math.abs(score) < 50) return "draw";
+  return "unclear";
 }
 
 async function chessdbFetch<T>(params: Record<string, string>): Promise<T | null> {
@@ -132,5 +137,14 @@ export function chessdbResultToContext(result: ChessdbResult): string {
   const scoreStr = (result.score_cp / 100).toFixed(2);
   const sign = result.score_cp >= 0 ? "+" : "";
   const move = result.best_move ? ` Best move: ${result.best_move}.` : "";
-  return `ChessDB cloud-eval: ${sign}${scoreStr} pawns (${result.outcome} for side to move).${move}`;
+  // Label derived from the score so the prompt never contradicts the eval it
+  // quotes (a +1.50 position must not be described as a draw).
+  const cp = result.score_cp;
+  const label =
+    cp >= 200 ? "winning for the side to move" :
+    cp <= -200 ? "losing for the side to move" :
+    Math.abs(cp) < 50 ? "roughly equal" :
+    cp > 0 ? "somewhat better for the side to move" :
+    "somewhat worse for the side to move";
+  return `ChessDB cloud-eval: ${sign}${scoreStr} pawns (${label}).${move}`;
 }

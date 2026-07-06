@@ -125,6 +125,34 @@ export function validatePositionalClaim(opts: PositionalClaimOpts): ValidatorRes
     };
   }
 
+  // Degraded mode: Lc0 not consulted (unconfigured in prod). positional_plan
+  // can never reach HIGH without a second engine, so requiring HIGH here made
+  // this validator fire a warn on EVERY strong positional phrase — even at
+  // +8.0 — and each warn burns a flagship regeneration inside the pipeline.
+  // With a single engine, accept strong claims when Stockfish alone is
+  // decisive (|cp| ≥ 300); everything below still fires as before.
+  if (lc0Cp === null && sfCp !== null && Math.abs(sfCp) >= 300) {
+    return {
+      issues: [],
+      passed: true,
+      telemetry: [
+        createTelemetryEvent({
+          check_name: "positional_claim",
+          fire_reason: "passed_sf_decisive_lc0_unavailable",
+          expected: { sf_abs_cp_gte: 300 },
+          actual: {
+            positional_plan_confidence: positional_plan,
+            matched_token_count: matches.length,
+            sf_cp: sfCp,
+            lc0_cp: lc0Cp,
+          },
+          context: { fen, move_san: moveSan, player_perspective: playerPerspective, correlation_id: correlationId },
+        }),
+      ],
+      costUsd: 0,
+    };
+  }
+
   // Voter says HIGH → claims are grounded.
   if (positional_plan === "HIGH") {
     return {

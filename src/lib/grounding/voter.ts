@@ -36,10 +36,11 @@ export interface VoterInput {
   // math below uses Math.abs so direction is irrelevant; both sides of an
   // edge count equally toward grounding a material claim.
   stockfishEvalCp?: number | null;
-  // Stockfish forced-mate distance (positive = mate available for the side
-  // searched by Stockfish, in White's perspective alongside stockfishEvalCp).
-  // Only `> 0` is consulted below, paired with cdb outcome — see
-  // computeConfidence for the exact semantics.
+  // Stockfish forced-mate distance (White's perspective alongside
+  // stockfishEvalCp: positive = White mates, negative = Black mates).
+  // A forced mate for EITHER side grounds a mate claim — the old `> 0`
+  // check silently dropped every forced mate for Black, causing correct
+  // "forced mate" statements about Black to fire mate_claim_unsupported.
   stockfishBestMoveMate?: number | null;
   // Stage 7: Lc0 neural eval (centipawns, same perspective as stockfishEvalCp
   // i.e. White-positive); null when not called.
@@ -114,10 +115,19 @@ function computeConfidence(input: VoterInput): VoterConfidence {
       : "NONE";
 
   // ── mate_in_n: Syzygy DTM (exact), else SF + chessdb agree ──────────────
-  const syzygyMate = endgame_wdl === "HIGH" && tbCat === "win" && input.tablbaseResult?.dtm !== null;
-  const sfMate = typeof input.stockfishBestMoveMate === "number" && input.stockfishBestMoveMate > 0;
-  const cdbWin = input.chessdbResult?.outcome === "win";
-  const mate_in_n: ConfidenceLevel = syzygyMate ? "HIGH" : sfMate && cdbWin ? "MED" : sfMate ? "LOW" : "NONE";
+  // sfMate is direction-agnostic: a forced mate for Black (mate < 0) is just
+  // as real as one for White. chessdb corroboration is likewise "the position
+  // is decisive" (win OR loss, side-to-move perspective) — requiring "win"
+  // only could never confirm a mate against the side to move.
+  const syzygyMate =
+    endgame_wdl === "HIGH" &&
+    (tbCat === "win" || tbCat === "loss") && // "loss" = forced mate for the opponent — equally exact
+    input.tablbaseResult?.dtm !== null;
+  const sfMate = typeof input.stockfishBestMoveMate === "number" && input.stockfishBestMoveMate !== 0;
+  const cdbOutcome = input.chessdbResult?.outcome;
+  const cdbWin = cdbOutcome === "win";
+  const cdbDecisive = cdbOutcome === "win" || cdbOutcome === "loss";
+  const mate_in_n: ConfidenceLevel = syzygyMate ? "HIGH" : sfMate && cdbDecisive ? "MED" : sfMate ? "LOW" : "NONE";
 
   // ── tactical_motif: confirmed detector output ────────────────────────────
   const tactical_motif: ConfidenceLevel =
@@ -221,7 +231,11 @@ function buildGroundingContext(input: VoterInput, confidence: VoterConfidence): 
   if (input.tablbaseResult && confidence.endgame_wdl === "HIGH") {
     const tb = input.tablbaseResult;
     let tbLine = `ENDGAME GROUND TRUTH (Syzygy — mathematically perfect): ${tb.category}`;
-    if (tb.dtm !== null) tbLine += ` | DTM: ${tb.dtm} moves`;
+    // Lichess DTM is signed PLIES (half-moves). Convert to full moves for the
+    // prompt — injecting raw plies labeled "moves" taught the model mate
+    // distances ~2x too large (the validator side already normalizes with
+    // ceil(|dtm|/2); this brings the prompt side into agreement).
+    if (tb.dtm !== null) tbLine += ` | DTM: mate in ${Math.ceil(Math.abs(tb.dtm) / 2)} moves (${Math.abs(tb.dtm)} plies)`;
     if (tb.dtz !== null) tbLine += ` | DTZ: ${tb.dtz}`;
     if (tb.moves.length > 0) tbLine += ` | Best: ${tb.moves[0].san ?? tb.moves[0].uci}`;
     parts.push(`${tbLine}\nRULE: Endgame outcome claims MUST match this exactly.`);
@@ -273,7 +287,7 @@ function buildGroundingContext(input: VoterInput, confidence: VoterConfidence): 
     if (lc0ctx) {
       const planRule = confidence.positional_plan === "HIGH"
         ? "RULE: Both engines agree — positional and material claims at full confidence."
-        : "RULE: SF shows advantage but Lc0 not consulted — positional claims at medium confidence.";
+        : "RULE: Lc0 was consulted but does not conclusively confirm Stockfish — keep positional claims at medium confidence.";
       parts.push(`${lc0ctx}\n${planRule}`);
     }
   }

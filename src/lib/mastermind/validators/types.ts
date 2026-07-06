@@ -49,6 +49,10 @@ export type FireReason =
   | "obviousness_claim_below_visibility_threshold"
   | "positional_overclaim_without_voter_high"
   | "positional_overclaim_against_lc0_veto"
+  // 2026-07-05 degraded single-engine mode: Lc0 unconfigured in prod means
+  // positional_plan can never reach HIGH; strong claims pass on |SF| ≥ 300
+  // alone instead of warn-firing (and burning a regen) on every one.
+  | "passed_sf_decisive_lc0_unavailable"
   | "mate_claim_without_syzygy_or_sf_mate"
   | "mate_distance_off_by_more_than_one"
   | "material_claim_without_voter_med_or_high"

@@ -635,7 +635,11 @@ export async function POST(request: NextRequest) {
         gameHeaders,
         // PR-CI-1: uid feeds the CoachContract's contractId (the same
         // identity generateContextId derives for the response/context caches).
-        session.uid
+        session.uid,
+        // PR-CI-2: identity threading — the request-body fen + this route's
+        // `playerColor || "w"` defaulting, so contractId ≡ contextId exactly.
+        // Identity-only; the rendered prompt never reads these.
+        { fen, playerColor: playerColor || "w" }
       );
     } else if (fen || position) {
       // Position-only analysis

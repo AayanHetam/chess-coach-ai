@@ -51,6 +51,10 @@ const log = logger.child({ module: "contract" });
  * `uid` (new, PR-CI-1) feeds the contract's contractId (=== the route's
  * contextId identity, per plan §2); defaulted so pre-existing call sites
  * compile unchanged.
+ *
+ * `identity` (new, PR-CI-2) carries the route's request-body `fen` and its
+ * `playerColor || "w"` defaulting so contractId ≡ the route's contextId
+ * exactly. Identity-only: never read by the renderer (snapshots pin this).
  */
 export async function buildGameContext(
   moveHistory: string[],
@@ -60,6 +64,7 @@ export async function buildGameContext(
   userRating?: number,
   gameHeaders?: GameHeadersInput,
   uid?: string,
+  identity?: { fen?: string; playerColor?: string },
 ): Promise<string> {
   const contract = await buildCoachContract({
     moveHistory,
@@ -69,6 +74,7 @@ export async function buildGameContext(
     userRating,
     gameHeaders,
     uid,
+    identity,
   });
 
   if (getContractEnv().shadowEnabled) {

@@ -26,6 +26,7 @@ import type { GameEvalInput, GameHeadersInput } from "@/lib/contract/gameEvalSch
 import { buildCoachContract } from "@/lib/contract/builder";
 import { renderLegacyPrompt, serializeForVerbalizer } from "@/lib/contract/serialize";
 import { getFenAtHalfMove } from "@/lib/contract/chessFormat";
+import { generateContextId } from "@/lib/analysisContextCache";
 import {
   __setFetchForTesting,
   __resetFetchForTesting,
@@ -345,6 +346,59 @@ describe("contract assembly + serializeForVerbalizer", () => {
     expect(topKeys).toEqual([...topKeys].sort());
     expect(parsed.version).toBe("1.0");
     expect(parsed.contractId).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it("contractId ≡ route contextId for a moveHistory-AND-fen request (PR-CI-2 identity fix)", async () => {
+    const f = loadFixture("07_knight_fork");
+    // The route sends the request-body fen (usually the final position) and
+    // computes contextId with `playerColor || "w"`. The contract must land on
+    // the SAME id — one identity for response cache, chat context, telemetry.
+    const requestFen = getFenAtHalfMove(f.moveHistory, f.moveHistory.length);
+    const contract = await buildCoachContract({
+      moveHistory: f.moveHistory,
+      gameEval: f.gameEval,
+      playerColor: f.playerColor,
+      userRating: f.userRating,
+      uid: "user-identity-1",
+      identity: { fen: requestFen, playerColor: f.playerColor || "w" },
+    });
+    expect(contract.contractId).toBe(
+      generateContextId(f.moveHistory, requestFen, f.playerColor || "w", "user-identity-1"),
+    );
+    // And it differs from the fen-less identity CI-1 used to compute —
+    // proving the fen actually participates.
+    expect(contract.contractId).not.toBe(
+      generateContextId(f.moveHistory, undefined, f.playerColor || "w", "user-identity-1"),
+    );
+  });
+
+  it("contractId ≡ route contextId for a fen-only request (empty moveHistory)", async () => {
+    const requestFen = "8/8/4k3/8/8/4K3/4P3/8 w - - 0 1";
+    const contract = await buildCoachContract({
+      moveHistory: [],
+      gameEval: undefined,
+      // Route corner: client sent no playerColor — the route's contextId
+      // defaults it to "w" and threads exactly that through identity.
+      playerColor: "",
+      uid: "user-identity-2",
+      identity: { fen: requestFen, playerColor: "w" },
+    });
+    expect(contract.contractId).toBe(
+      generateContextId(undefined, requestFen, "w", "user-identity-2"),
+    );
+  });
+
+  it("contractId without identity falls back to the CI-1 shape with || 'w' defaulting", async () => {
+    const f = loadFixture("06_short_opening");
+    const contract = await buildCoachContract({
+      moveHistory: f.moveHistory,
+      gameEval: f.gameEval,
+      playerColor: f.playerColor,
+      uid: "user-identity-3",
+    });
+    expect(contract.contractId).toBe(
+      generateContextId(f.moveHistory, undefined, f.playerColor || "w", "user-identity-3"),
+    );
   });
 
   it("contractId is stable for the same game+player+uid and differs across uids", async () => {

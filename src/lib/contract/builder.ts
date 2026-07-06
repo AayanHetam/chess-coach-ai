@@ -70,6 +70,16 @@ export interface BuildCoachContractArgs {
   userRating?: number;
   gameHeaders?: GameHeadersInput;
   uid?: string;
+  /**
+   * Identity inputs for contractId (PR-CI-2, closing the CI-1 follow-up):
+   * the route's request-body `fen` and its `playerColor || "w"` defaulting,
+   * so contractId ≡ the route's contextId EXACTLY (one identity for response
+   * cache, chat context, and telemetry — plan §2). Rendering NEVER reads
+   * these. When absent (tests/older call sites) the fallback is
+   * {fen: undefined, playerColor: playerColor || "w"} — the same shape
+   * generateContextId sees on the route for a moveHistory-only request.
+   */
+  identity?: { fen?: string; playerColor?: string };
 }
 
 type RawLine = PositionEvalInput["lines"][number];
@@ -212,7 +222,7 @@ function buildLineFacts(idPrefix: string, fenBefore: string, playedSan: string, 
 
 // ── The builder ─────────────────────────────────────────────────────────────
 export async function buildCoachContract(args: BuildCoachContractArgs): Promise<CoachContract> {
-  const { moveHistory, gameEval, playerColor, username, userRating, gameHeaders, uid } = args;
+  const { moveHistory, gameEval, playerColor, username, userRating, gameHeaders, uid, identity } = args;
   const t0 = Date.now();
 
   // --- Game replay (identical to legacy: stop at the first bad SAN) ---
@@ -569,7 +579,15 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
 
   const contract: CoachContract = {
     version: CONTRACT_VERSION,
-    contractId: generateContextId(moveHistory, undefined, playerColor, uid),
+    // PR-CI-2 identity fix: computed with the route's request-body fen and
+    // its playerColor || "w" defaulting so contractId ≡ the route contextId
+    // exactly (see BuildCoachContractArgs.identity).
+    contractId: generateContextId(
+      moveHistory,
+      identity?.fen,
+      identity?.playerColor ?? (playerColor || "w"),
+      uid,
+    ),
     builtAtMs: t0,
     buildMs: 0, // patched below so the field reflects the full build
     game: {

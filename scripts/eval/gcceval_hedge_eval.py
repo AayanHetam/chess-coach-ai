@@ -149,7 +149,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=15)
     ap.add_argument("--bench", default=str(Path(__file__).resolve().parent / "fixtures/chessqa/semantic.jsonl"))
-    ap.add_argument("--prompt32", default=str(Path(__file__).resolve().parent / "fixtures/coach_prompt_v3.5_stable.txt"),
+    ap.add_argument("--prompt32", default=str(Path(__file__).resolve().parent / "fixtures/coach_prompt_v3.6_stable.txt"),
                     help="NOTE: hedge A/B needs a v3.2 snapshot with the CONFIDENCE & HEDGING block; the vendored default is v3.5 (block absent) — build_prompts will refuse, which is correct: Track B answered its question and was archived (CALIBRATED_HEDGING_DEFERRED.md)")
     ap.add_argument("--repo", default=str(Path(__file__).resolve().parents[2]))
     ap.add_argument("--depth", type=int, default=16)

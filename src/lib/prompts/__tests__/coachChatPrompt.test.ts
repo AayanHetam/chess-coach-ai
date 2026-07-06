@@ -59,8 +59,12 @@ describe("getCoachChatSystemPrompt — format invariants", () => {
   it("contains [/INSIGHT]", () => {
     expect(out).toContain("[/INSIGHT]");
   });
-  it("contains 'Neo4j graph of 200,000+'", () => {
-    expect(out).toContain("Neo4j graph of 200,000+");
+  it("names the practice puzzle system without asserting a puzzle count or DB name (3.6)", () => {
+    expect(out).toContain("PRACTICE PUZZLE SYSTEM");
+    // The old prompt asserted "Neo4j graph of 200,000+ REAL PUZZLES" as fact
+    // to the model; 3.6 removed that unverifiable marketing claim.
+    expect(out).not.toContain("200,000+");
+    expect(out).not.toContain("Neo4j");
   });
   it("contains 'VERY SHORT prose intro'", () => {
     expect(out).toContain("VERY SHORT prose intro");
@@ -85,8 +89,25 @@ describe("getCoachChatSystemPrompt — negative invariants (no unresolved interp
 });
 
 describe("PROMPT_VERSION", () => {
-  it("is bumped to 3.5", () => {
-    expect(PROMPT_VERSION).toBe("3.5");
+  it("is bumped to 3.6", () => {
+    expect(PROMPT_VERSION).toBe("3.6");
+  });
+});
+
+describe("3.6 — opening-move policy is single + non-contradictory", () => {
+  const p = getCoachChatSystemPrompt(baseInput);
+
+  it("removes the dead BOOK_SOLID/BOOK_DUBIOUS marker branch (no code emits those markers)", () => {
+    expect(p).not.toContain("BOOK_SOLID");
+    expect(p).not.toContain("BOOK_DUBIOUS");
+  });
+  it("drops the contradictory move-15/move-16 opening cutoff", () => {
+    expect(p).not.toContain("moves 1-15");
+    expect(p).not.toContain("move 16 onwards");
+  });
+  it("keeps one canonical policy that always covers opening blunders/misses", () => {
+    expect(p).toContain("OPENING MOVES POLICY");
+    expect(p.toLowerCase()).toContain("always cover");
   });
 });
 

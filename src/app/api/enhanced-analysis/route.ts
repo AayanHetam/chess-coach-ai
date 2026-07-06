@@ -492,11 +492,20 @@ async function buildGameContext(
   const totalHalfMoves = moveHistory.length;
   const totalFullMoves = Math.ceil(totalHalfMoves / 2);
   const game = new Chess();
+  let replayedPlies = 0;
   for (const m of moveHistory) {
-    try { game.move(m); } catch { break; }
+    try { game.move(m); replayedPlies++; } catch { break; }
   }
+  // If a SAN failed to replay, `game` (and every FEN/eval derived from it
+  // below) reflects only the moves BEFORE the break — silently analyzing the
+  // wrong "final" position. Tell the model where the record stops instead of
+  // letting it narrate a truncated board as complete (audit §3.6).
+  const historyTruncated = replayedPlies < totalHalfMoves;
 
   let overview = `## GAME OVERVIEW\n`;
+  if (historyTruncated) {
+    overview += `- ⚠️ NOTE: the move record could not be fully replayed — analysis covers the first ${Math.ceil(replayedPlies / 2)} moves (ply ${replayedPlies} of ${totalHalfMoves}). Do NOT comment on moves after this point or describe this as the final position of a completed game.\n`;
+  }
   overview += `- Total moves: ${totalFullMoves} full moves (${totalHalfMoves} half-moves)\n`;
   overview += `- Result: ${game.isCheckmate() ? "Checkmate" : game.isStalemate() ? "Stalemate" : game.isDraw() ? "Draw" : "In progress"}\n`;
   if (username) overview += `- Player: ${username} playing as ${playerColor === "w" ? "White" : "Black"}\n`;

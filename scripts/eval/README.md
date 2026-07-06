@@ -5,7 +5,7 @@ and validity caveats: [docs/COACH_ARCHITECTURE_AND_ACCURACY_AUDIT.md](../../docs
 
 **As of 2026-07-05 these are self-contained**: the ChessQA fixtures are
 vendored (`fixtures/chessqa/`, 100 items/category, MIT — CSSLab/chessqa-benchmark),
-the coach system prompt snapshot is vendored (`fixtures/coach_prompt_v3.5_stable.txt`,
+the coach system prompt snapshot is vendored (`fixtures/coach_prompt_v3.6_stable.txt`,
 regenerate with `npx tsx` + `getCoachChatSystemPromptParts` after prompt bumps),
 and nothing depends on `/tmp` any more. The pre-2026-07 result JSONs in
 `results/` were produced by the retired `claude-sonnet-4-20250514`; files

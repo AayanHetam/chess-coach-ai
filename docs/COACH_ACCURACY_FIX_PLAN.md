@@ -3,6 +3,20 @@
 **Date:** 2026-07-05 · **Companion to:** [COACH_ARCHITECTURE_AND_ACCURACY_AUDIT.md](./COACH_ARCHITECTURE_AND_ACCURACY_AUDIT.md)
 **Goal:** close every hole the audit found, in impact order, with each workstream shipping as an independently-verifiable PR. Defect numbers (#N) reference the audit's §3 census.
 
+## STATUS — all seven workstreams SHIPPED to main (2026-07-05, overnight autonomous run)
+
+| PR | Workstream | GitHub | State |
+|---|---|---|---|
+| A | Truth fixes (chessdb labels, DTM units, Black-mate, sortLines, sentinel, positionalClaim degraded mode, Maia /predict repoint) | #209 | ✅ merged |
+| B | Enforcement on streamed game_review (post-stream surgical correction, severity-aware gating) | #211 | ✅ merged |
+| C | Haiku follow-up surface (per-turn relational facts, current-FEN chat schema, uid-scoped contextId) | #210 | ✅ merged |
+| D | Cache hygiene (moveHistory key, no placeholder/fallback caching, contextId on hits) | #213 | ✅ merged |
+| E | Measurement resurrection (vendored fixtures, CI validator gate, fresh flagship numbers) | #212 | ✅ merged |
+| F | Prompt integrity 3.6 (opening-rule dedup, dead BOOK_* branch, marketing claim, SAN-truncation note) | #214 | ✅ merged |
+| G | Dead-code + hardening (in-process puzzle recs, env trims, temperature clamp, dead-file removal) | #215 | ✅ merged |
+
+Every PR verified locally (`tsc --noEmit` + `next build` + `vitest`, plus the deterministic validator gate) and merged on green CI. **Fresh accuracy numbers (claude-sonnet-4-6, first since the June model swap): ChessQA short_tactics 24% → 96% (+72pp) with grounding; motifs 48% → 48% (detector layer still the lever); 2×2 factual Haiku 2.44 ungrounded → 4.36 grounded.** Founder-gated items below (Lc0 deploy, TRACKING_ENABLED flip, depth-16 default, contract-architecture inversion) remain deliberately unshipped.
+
 ## Ground rules
 
 - Every PR: `tsc --noEmit` + `next build` + `vitest` locally before push (standing rule: don't make CI the first failure-detection layer). New logic gets unit tests.

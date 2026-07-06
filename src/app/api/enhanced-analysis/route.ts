@@ -632,7 +632,10 @@ export async function POST(request: NextRequest) {
         playerColor || (boardOrientation ? "w" : "b"),
         username,
         userRating,
-        gameHeaders
+        gameHeaders,
+        // PR-CI-1: uid feeds the CoachContract's contractId (the same
+        // identity generateContextId derives for the response/context caches).
+        session.uid
       );
     } else if (fen || position) {
       // Position-only analysis

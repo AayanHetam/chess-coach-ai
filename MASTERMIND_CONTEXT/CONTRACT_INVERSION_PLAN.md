@@ -304,3 +304,29 @@ At ~100 MAU: noise (<$5/mo delta). Against the PR_2F $3.84M/yr-at-1M-MAU model, 
 - **No "semantic equivalence" shadow gates** — Phase 1 is byte-equality or it doesn't ship.
 
 Even on mid-program abandonment, the permanent wins are banked: the typed contract builder + fetch parallelization, the fidelity eval with a committed BEFORE number, server-authoritative insight headers, structured-output claim parsers, and the gameEval sanity schema.
+
+---
+
+## 12. Review outcomes (2026-07-07)
+
+**Status change:** DESIGN FOR REVIEW → **APPROVED TO BUILD PR-CI-1..3** (shadow/dark phases). Serving phases (CI-4+) additionally need the two pending UX clarifications below before their flags flip.
+
+### Aayan (chess/coaching)
+1. **Fail-closed voice — ANSWERED: honest register.** "The model should be upfront and honest and try to remain as helpful as it can despite that." Verbalizer charter gains: *"If an insight's contract has no confirmed motif, say plainly that the engine's preference is concrete but no named tactic was verified — then teach from the engine line, concept, and teaching spine. Never bluff a theme."* Template-card copy follows the same register.
+2. **Card-at-a-time streaming — CLARIFICATION PENDING** (plain-language explanation + recommendation sent; gates CI-3 flag-on, not CI-3 code).
+3. **Template fallback card — CLARIFICATION PENDING** (same; gates CI-4+ ladder step (d) copy sign-off, not the mechanism).
+4. **Uncited soft-observation vocabulary — APPROVED; v0 draft below for review at PR-CI-4.**
+   *Rule:* a sentence may go citation-free iff it (a) contains **no** square, SAN, number, eval, mate, or material term, and (b) uses hedged/figurative register. Extends `FORBIDDEN_WITHOUT_BACKING` (puzzlePatternAllowlist.ts) rather than replacing it.
+   *Allowed (examples):* "your kingside looks a bit drafty" · "this knight is dreaming of an outpost" · "you were playing with fire through this stretch" · "patience wins these endings" · encouragement, humor, story, masti interjections.
+   *Never citation-free:* named tactics (fork/pin/skewer/discovered/…), "winning/losing material", "hanging/undefended", any eval or mate phrasing, any concrete square or move.
+5. **Gold examples — YES:** Aayan authors/reviews the prose halves of the 3 contract→prose few-shots (needed at PR-CI-4).
+6. **Insight selection — YES (interpreted):** severity-first, with a teachability preference among near-equal severities (richly-covered mistakes — confirmed motifs/concepts — win ties). ⚠️ *Interpreted from a "yes" to an either/or question; implemented as a `selectInsights` config knob so it's reversible in one line.*
+
+### Tech-lead (architecture/scope/cost) — delegated to Claude by Aayan ("You do 7"), decided 2026-07-07
+1. **Cache/version topology — APPROVED as planned:** `VERBALIZER_PROMPT_VERSION="4.0"` + `c4.0|` cache prefix; legacy `PROMPT_VERSION` 3.6 untouched (warm-cache rollback beats one-constant tidiness).
+2. **Vercel KV — stays deferred to CI-7b**, with a pull-forward trigger: if intern dogfood (CI-5) shows **>20% of follow-up turns** losing their context to cold-lambda misses, KV lands in CI-6 instead.
+3. **Ladder economics — full ladder at GA.** +20% typical is noise at ~100 MAU. `CONTRACT_REFEREE_MODE=deterministic` (checks 2–5+7 only, no Haiku parses) ships as a flag in CI-4 so the cost lever exists from day one; default revisited at ≥10k MAU.
+4. **maxDuration — stays 60s** (vercel.json `functions` cap, verified). The ladder gains a **hard wall-clock deadline**: remaining route budget minus a 5s margin; on exhaustion it short-circuits to the template card (deterministic, instant) — "never a timeout" holds without assuming a Vercel plan upgrade. An optional per-route bump to 120s is a follow-up, not a dependency.
+5. **CMIP as CI-5 gate — APPROVED**; intern flag payload formally gains `{contractId, refereeOutcomes, citedFactIds}`.
+6. **Structured-output claim parsers — no objection; resequenced to PR-CI-3** (the natural seam: that PR already wires relationalClaim synchronously).
+7. **Depth-16 / server-side eval re-check — remains OUTSIDE this program** (founder product-latency call, per the fix plan's deferral discipline); `evalIntegrity` (CI-1) supplies the flags either way, so the program is ready to consume it whenever that decision lands.

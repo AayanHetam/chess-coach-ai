@@ -118,3 +118,27 @@ describe("response cache round-trip", () => {
     expect(getCachedResponse(keyUserA)).toBe("warm-and-fuzzy reply");
   });
 });
+
+describe("generateCacheKey — move-history scoping (2026-07-05)", () => {
+  const FEN2 = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+  it("two different games reaching the same position get DIFFERENT keys", () => {
+    // Regression: keying on final FEN alone meant transpositions shared a
+    // cached response narrating the WRONG game's moves.
+    const viaItalian = generateCacheKey(FEN2, "intermediate", "analyze", "p", ["e4", "e5", "Nf3", "Nc6", "Bc4"]);
+    const viaScotch = generateCacheKey(FEN2, "intermediate", "analyze", "p", ["e4", "e5", "Nf3", "Nc6", "d4"]);
+    expect(viaItalian).not.toBe(viaScotch);
+  });
+
+  it("same game + question is stable", () => {
+    const a = generateCacheKey(FEN2, "intermediate", "analyze", "p", ["e4", "e5"]);
+    const b = generateCacheKey(FEN2, "intermediate", "analyze", "p", ["e4", "e5"]);
+    expect(a).toBe(b);
+  });
+
+  it("absent history collapses to one bucket (position-only analysis)", () => {
+    const a = generateCacheKey(FEN2, "intermediate", "analyze", "p");
+    const b = generateCacheKey(FEN2, "intermediate", "analyze", "p", []);
+    expect(a).toBe(b);
+  });
+});

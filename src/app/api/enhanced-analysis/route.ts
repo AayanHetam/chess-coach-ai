@@ -1596,7 +1596,8 @@ export async function POST(request: NextRequest) {
       currentFen,
       skillLevel,
       messageText || "analyze",
-      personaSignature
+      personaSignature,
+      moveHistory
     );
     const cachedResponse = getCachedResponse(cacheKey);
 
@@ -1611,6 +1612,41 @@ export async function POST(request: NextRequest) {
         try { cachedGame.load(fen); } catch { /* ignore */ }
       }
 
+      // Re-seed the follow-up context on cache hits. The cached payload used
+      // to carry NO contextId, so after a hit every subsequent message in the
+      // chat re-fired a FULL flagship deep analysis instead of the Haiku fast
+      // path — the cache made follow-ups MORE expensive. All inputs are
+      // already in scope (context build happens above the cache check), so
+      // re-seeding costs zero LLM calls.
+      let cachedContextId: string | undefined;
+      try {
+        cachedContextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
+        storeAnalysisContext({
+          contextId: cachedContextId,
+          gameContext,
+          compactGameContext: buildCompactGameContext(
+            moveHistory ?? [],
+            gameEval,
+            playerColor || "w",
+          ),
+          playedMoves: moveHistory ?? [],
+          systemPrompt: claudeSystemPrompt,
+          systemPromptStable: claudeSystemParts.stable,
+          systemPromptSuffix: claudeSystemParts.perUser,
+          fewShotExamples: examplesContext,
+          fen: cachedGame.fen(),
+          skillLevel,
+          playerColor: playerColor || "w",
+          moveCount: Math.ceil(cachedGame.history().length / 2),
+          createdAt: Date.now(),
+          initialAnalysis: cachedResponse,
+          gameEval,
+        });
+      } catch {
+        // Context re-seed is best-effort; a miss just means the legacy
+        // fall-back-to-deep-path behavior for this conversation.
+      }
+
       const cachedPayload = {
         gameAnalysis: {
           analysis: cachedResponse,
@@ -1621,6 +1657,7 @@ export async function POST(request: NextRequest) {
           validationScore: 1.0,
           validationIssues: 0,
           cached: true,
+          contextId: cachedContextId,
         },
       };
 
@@ -2148,7 +2185,14 @@ export async function POST(request: NextRequest) {
               ? validation.correctedResponse
               : finalText;
 
-          setCachedResponse(cacheKey, analysisContent, validation.score);
+          // Never cache non-answers: the timeout placeholder ("Still
+          // analyzing — …") scores 1.0 on the regex validator and used to be
+          // cached for 24h, replaying the non-answer for every identical
+          // question on that position. Same for the deterministic template
+          // fallback — a degraded artifact, not the analysis.
+          if (!pipelineResult.timedOut && !isFallbackUsed) {
+            setCachedResponse(cacheKey, analysisContent, validation.score);
+          }
           const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
           const compactGameContext = buildCompactGameContext(
             moveHistory ?? [],
@@ -2760,8 +2804,15 @@ export async function POST(request: NextRequest) {
         ? validation.correctedResponse
         : rawAnalysis;
 
-    // Cache the validated response for future identical queries
-    setCachedResponse(cacheKey, analysisContent, validation.score);
+    // Cache the validated response for future identical queries — but never
+    // cache non-answers (timeout placeholder / deterministic template
+    // fallback), which used to be cached for 24h and replayed verbatim.
+    const nonStreamDegraded =
+      pipelineResultForTelemetry?.timedOut === true ||
+      pipelineResultForTelemetry?.finalOutcome === "fallback_used";
+    if (!nonStreamDegraded) {
+      setCachedResponse(cacheKey, analysisContent, validation.score);
+    }
 
     // Store full analysis context for fast follow-up chat via /api/chat
     const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);

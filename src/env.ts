@@ -126,6 +126,33 @@ export function __resetMastermindEnvCacheForTests(): void {
 }
 
 /**
+ * Contract Inversion shadow flag (PR-CI-1).
+ *
+ * CONTRACT_SHADOW=true logs one structured line per CoachContract build
+ * ({contractId, buildMs, insightCount, contractBytes, evalIntegrity}) from
+ * the game-review path. It changes NOTHING about what is served — the legacy
+ * prompt is rendered from the contract either way (byte-identical, snapshot-
+ * pinned). Default false ⇒ zero new log output.
+ *
+ * parseBoolEnv + memoized reader per the getMastermindEnv pattern (trim-
+ * hardened against the Vercel trailing-\n save hazard).
+ */
+let cachedContractEnv: { shadowEnabled: boolean } | undefined;
+
+export function getContractEnv(): { shadowEnabled: boolean } {
+  if (cachedContractEnv) return cachedContractEnv;
+  cachedContractEnv = {
+    shadowEnabled: parseBoolEnv(process.env.CONTRACT_SHADOW),
+  };
+  return cachedContractEnv;
+}
+
+/** Test-only seam — clears the memoized CONTRACT_SHADOW flag. */
+export function __resetContractEnvCacheForTests(): void {
+  cachedContractEnv = undefined;
+}
+
+/**
  * Generic boolean env parser. Truthy (case-insensitive, whitespace-trimmed):
  * "true", "1", "yes". Everything else — including "", undefined, and the
  * trailing "\n" Vercel's UI appends to multi-line saves — is false. The

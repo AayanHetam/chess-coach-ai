@@ -1,0 +1,3118 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildGameContext byte-equality snapshots (PR-CI-1) > renders 01_mate_for_white_midgame.json byte-identically 1`] = `
+"## GAME OVERVIEW
+- Total moves: 8 full moves (16 half-moves)
+- Result: In progress
+- Player: AayanTest playing as White
+- Player rating: 1450
+- Estimated Elo: White ~1520, Black ~1480
+- White: AayanTest (1450)
+- Black: NN (1500)
+- Event: Casual blitz
+
+
+## PGN
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Nxd5 6. Nxf7 Kxf7 7. Qf3+ Ke6 8. Nc3 Ne7
+
+## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)
+All evals are in pawns from White's perspective (positive = better for White); M+n / M-n = forced mate for White / Black.
+1. e4 (White) | White pawn moved from e2 to e4
+    FEN before: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    FEN after:  rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1
+    Classification: BOOK
+    Eval: +0.25
+1... e5 (Black) | Black pawn moved from e7 to e5
+    FEN before: rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1
+    FEN after:  rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+    Eval: +0.22
+2. Nf3 (White) | White knight moved from g1 to f3
+    FEN before: rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+    FEN after:  rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+    Classification: BOOK
+    Eval: +0.30
+2... Nc6 (Black) | Black knight moved from b8 to c6
+    FEN before: rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+    FEN after:  r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3
+    Eval: +0.28
+3. Bc4 (White) | White bishop moved from f1 to c4
+    FEN before: r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3
+    FEN after:  r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3
+    Classification: BOOK
+    Eval: +0.35
+3... Nf6 (Black) | Black knight moved from g8 to f6
+    FEN before: r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3
+    FEN after:  r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4
+    Eval: +0.33
+4. Ng5 (White) | White knight moved from f3 to g5
+    FEN before: r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4
+    FEN after:  r1bqkb1r/pppp1ppp/2n2n2/4p1N1/2B1P3/8/PPPP1PPP/RNBQK2R b KQkq - 5 4
+    Eval: +0.60
+4... d5 (Black) | Black pawn moved from d7 to d5
+    FEN before: r1bqkb1r/pppp1ppp/2n2n2/4p1N1/2B1P3/8/PPPP1PPP/RNBQK2R b KQkq - 5 4
+    FEN after:  r1bqkb1r/ppp2ppp/2n2n2/3pp1N1/2B1P3/8/PPPP1PPP/RNBQK2R w KQkq - 0 5
+    Eval: +0.55
+5. exd5 (White) | White pawn moved from e4 to d5, capturing pawn on d5
+    FEN before: r1bqkb1r/ppp2ppp/2n2n2/3pp1N1/2B1P3/8/PPPP1PPP/RNBQK2R w KQkq - 0 5
+    FEN after:  r1bqkb1r/ppp2ppp/2n2n2/3Pp1N1/2B5/8/PPPP1PPP/RNBQK2R b KQkq - 0 5
+    Eval: +1.30
+5... Nxd5 (Black) | Black knight moved from f6 to d5, capturing pawn on d5
+    FEN before: r1bqkb1r/ppp2ppp/2n2n2/3Pp1N1/2B5/8/PPPP1PPP/RNBQK2R b KQkq - 0 5
+    FEN after:  r1bqkb1r/ppp2ppp/2n5/3np1N1/2B5/8/PPPP1PPP/RNBQK2R w KQkq - 0 6
+    Eval: +1.20
+6. Nxf7 (White) | White knight moved from g5 to f7, capturing pawn on f7
+    FEN before: r1bqkb1r/ppp2ppp/2n5/3np1N1/2B5/8/PPPP1PPP/RNBQK2R w KQkq - 0 6
+    FEN after:  r1bqkb1r/ppp2Npp/2n5/3np3/2B5/8/PPPP1PPP/RNBQK2R b KQkq - 0 6
+    Eval: +2.60
+6... Kxf7 (Black) | Black king moved from e8 to f7, capturing knight on f7
+    FEN before: r1bqkb1r/ppp2Npp/2n5/3np3/2B5/8/PPPP1PPP/RNBQK2R b KQkq - 0 6
+    FEN after:  r1bq1b1r/ppp2kpp/2n5/3np3/2B5/8/PPPP1PPP/RNBQK2R w KQ - 0 7
+    Eval: +2.50
+7. Qf3+ (White) | White queen moved from d1 to f3, giving check
+    FEN before: r1bq1b1r/ppp2kpp/2n5/3np3/2B5/8/PPPP1PPP/RNBQK2R w KQ - 0 7
+    FEN after:  r1bq1b1r/ppp2kpp/2n5/3np3/2B5/5Q2/PPPP1PPP/RNB1K2R b KQ - 1 7
+    Eval: +2.50
+7... Ke6 (Black) | Black king moved from f7 to e6
+    FEN before: r1bq1b1r/ppp2kpp/2n5/3np3/2B5/5Q2/PPPP1PPP/RNB1K2R b KQ - 1 7
+    FEN after:  r1bq1b1r/ppp3pp/2n1k3/3np3/2B5/5Q2/PPPP1PPP/RNB1K2R w KQ - 2 8
+    Classification: BLUNDER
+    Eval: M+3
+    Best was: Bf5 (+2.50, depth 13) — Engine line: 7... Bf5 8. Ba6 Ba3 9. Bb5
+8. Nc3 (White) | White knight moved from b1 to c3
+    FEN before: r1bq1b1r/ppp3pp/2n1k3/3np3/2B5/5Q2/PPPP1PPP/RNB1K2R w KQ - 2 8
+    FEN after:  r1bq1b1r/ppp3pp/2n1k3/3np3/2B5/2N2Q2/PPPP1PPP/R1B1K2R b KQ - 3 8
+    Eval: M+2
+8... Ne7 (Black) | Black knight moved from c6 to e7
+    FEN before: r1bq1b1r/ppp3pp/2n1k3/3np3/2B5/2N2Q2/PPPP1PPP/R1B1K2R b KQ - 3 8
+    FEN after:  r1bq1b1r/ppp1n1pp/4k3/3np3/2B5/2N2Q2/PPPP1PPP/R1B1K2R w KQ - 4 9
+    Eval: M+2
+
+## MISTAKES
+No significant mistakes detected (all moves within 0.5 pawn of engine best).
+
+## FINAL POSITION
+FEN: r1bq1b1r/ppp1n1pp/4k3/3np3/2B5/2N2Q2/PPPP1PPP/R1B1K2R w KQ - 4 9
+Material: Black +2 material
+
+## POSITION ANNOTATION
+Game Phase: OPENING
+Summary: White to move. Game phase: opening. Captures available.
+
+### THREATS
+- [white] capture: White can capture knight on d5
+
+### TACTICAL MOTIFS
+- [significant] Possible Pin/Trapped Piece: White bishop on c1 has no legal moves
+
+### STRATEGIC THEMES
+- [high] Black center dominance: Black controls more central squares
+
+### PAWN STRUCTURE
+- Isolated pawns: White 0, Black 1
+
+### KING SAFETY
+- White king safety: 80/100
+- Black king safety: 80/100
+
+### PIECE ACTIVITY
+- black rook on a8: undeveloped — Still on starting square
+- black bishop on c8: undeveloped — Still on starting square
+- black queen on d8: undeveloped — Still on starting square
+- black bishop on f8: undeveloped — Still on starting square
+- black rook on h8: undeveloped — Still on starting square
+- black knight on e7: trapped — No legal moves available — piece is trapped or pinned
+- black knight on d5: trapped — No legal moves available — piece is trapped or pinned
+- white queen on f3: active — 15 legal moves available
+- white rook on a1: undeveloped — Still on starting square
+- white bishop on c1: undeveloped — Still on starting square
+- white rook on h1: undeveloped — Still on starting square
+
+## VERIFIED POSITION FACTS — FINAL POSITION (chess.js oracle)
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Qf3→Bf8, Bc4→Nd5, Nc3→Nd5, Qf3→Nd5
+  Black: Nd5→Nc3
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  Black Nd5 is pinned to Ke6 by White Bc4
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+
+## CHESS INTELLIGENCE LAYER
+(Pre-computed verified analysis — use this to ground your explanations)
+
+### CRITICAL POSITION: Move 7 (Black — BLUNDER)
+TACTICAL FACTS: [] — no tactical patterns detected.
+Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
+CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+BRANCH POINT: Key divergence — best: Bf5 vs alternative: Ke6
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Relative pin (tactical, confidence 0.80)
+    Definition: A piece is pinned against a more valuable piece behind it; moving it is legal but loses material.
+    Evidence: P@c2 pinned to N@b1
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays Bf5 — no capture, no check, no promotion
+ENGINE IDEA: The line runs Bf5 Ba6 Ba3 Bb5 — a positional sequence building long-term advantage.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: Black
+
+ATTACKS ON ENEMY PIECES:
+  White: Qf3→Kf7, Bc4→Nd5, Qf3→Nd5
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  Black Nd5 is pinned to Kf7 by White Bc4
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): new threat(s): White can capture knight on d5
+OPPONENT THREATS TO COUNT: Bxd5+ (check), Qxd5+ (check), Bb5+ (check)
+"
+`;
+
+exports[`buildGameContext byte-equality snapshots (PR-CI-1) > renders 02_mate_for_black.json byte-identically 1`] = `
+"## GAME OVERVIEW
+- Total moves: 10 full moves (20 half-moves)
+- Result: In progress
+- Player: BlackSide playing as Black
+- Player rating: 1600
+- White: WhiteHat
+- Black: BlackSide
+
+
+## PGN
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 Nf6 5. d4 exd4 6. cxd4 Bb6 7. d5 Ne7 8. e5 Ng4 9. d6 cxd6 10. exd6 Nc6
+
+## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)
+All evals are in pawns from White's perspective (positive = better for White); M+n / M-n = forced mate for White / Black.
+1. e4 (White) | White pawn moved from e2 to e4
+    FEN before: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    FEN after:  rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1
+    Eval: +0.30
+1... e5 (Black) | Black pawn moved from e7 to e5
+    FEN before: rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1
+    FEN after:  rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+    Eval: +0.25
+2. Nf3 (White) | White knight moved from g1 to f3
+    FEN before: rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+    FEN after:  rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+    Eval: +0.35
+2... Nc6 (Black) | Black knight moved from b8 to c6
+    FEN before: rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+    FEN after:  r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3
+    Eval: +0.30
+3. Bc4 (White) | White bishop moved from f1 to c4
+    FEN before: r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3
+    FEN after:  r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3
+    Eval: +0.40
+3... Bc5 (Black) | Black bishop moved from f8 to c5
+    FEN before: r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3
+    FEN after:  r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4
+    Eval: +0.35
+4. c3 (White) | White pawn moved from c2 to c3
+    FEN before: r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4
+    FEN after:  r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/2P2N2/PP1P1PPP/RNBQK2R b KQkq - 0 4
+    Eval: +0.45
+4... Nf6 (Black) | Black knight moved from g8 to f6
+    FEN before: r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/2P2N2/PP1P1PPP/RNBQK2R b KQkq - 0 4
+    FEN after:  r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2P2N2/PP1P1PPP/RNBQK2R w KQkq - 1 5
+    Eval: +0.40
+5. d4 (White) | White pawn moved from d2 to d4
+    FEN before: r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2P2N2/PP1P1PPP/RNBQK2R w KQkq - 1 5
+    FEN after:  r1bqk2r/pppp1ppp/2n2n2/2b1p3/2BPP3/2P2N2/PP3PPP/RNBQK2R b KQkq - 0 5
+    Eval: +0.50
+5... exd4 (Black) | Black pawn moved from e5 to d4, capturing pawn on d4
+    FEN before: r1bqk2r/pppp1ppp/2n2n2/2b1p3/2BPP3/2P2N2/PP3PPP/RNBQK2R b KQkq - 0 5
+    FEN after:  r1bqk2r/pppp1ppp/2n2n2/2b5/2BpP3/2P2N2/PP3PPP/RNBQK2R w KQkq - 0 6
+    Classification: INACCURACY
+    Eval: +1.40
+    Best was: Ba3 (+0.50, depth 12) — Engine line: 5... Ba3 6. Ba6 Bb4 7. Bb5
+6. cxd4 (White) | White pawn moved from c3 to d4, capturing pawn on d4
+    FEN before: r1bqk2r/pppp1ppp/2n2n2/2b5/2BpP3/2P2N2/PP3PPP/RNBQK2R w KQkq - 0 6
+    FEN after:  r1bqk2r/pppp1ppp/2n2n2/2b5/2BPP3/5N2/PP3PPP/RNBQK2R b KQkq - 0 6
+    Eval: +1.30
+6... Bb6 (Black) | Black bishop moved from c5 to b6
+    FEN before: r1bqk2r/pppp1ppp/2n2n2/2b5/2BPP3/5N2/PP3PPP/RNBQK2R b KQkq - 0 6
+    FEN after:  r1bqk2r/pppp1ppp/1bn2n2/8/2BPP3/5N2/PP3PPP/RNBQK2R w KQkq - 1 7
+    Eval: +1.35
+7. d5 (White) | White pawn moved from d4 to d5
+    FEN before: r1bqk2r/pppp1ppp/1bn2n2/8/2BPP3/5N2/PP3PPP/RNBQK2R w KQkq - 1 7
+    FEN after:  r1bqk2r/pppp1ppp/1bn2n2/3P4/2B1P3/5N2/PP3PPP/RNBQK2R b KQkq - 0 7
+    Eval: +1.25
+7... Ne7 (Black) | Black knight moved from c6 to e7
+    FEN before: r1bqk2r/pppp1ppp/1bn2n2/3P4/2B1P3/5N2/PP3PPP/RNBQK2R b KQkq - 0 7
+    FEN after:  r1bqk2r/ppppnppp/1b3n2/3P4/2B1P3/5N2/PP3PPP/RNBQK2R w KQkq - 1 8
+    Eval: +1.20
+8. e5 (White) | White pawn moved from e4 to e5
+    FEN before: r1bqk2r/ppppnppp/1b3n2/3P4/2B1P3/5N2/PP3PPP/RNBQK2R w KQkq - 1 8
+    FEN after:  r1bqk2r/ppppnppp/1b3n2/3PP3/2B5/5N2/PP3PPP/RNBQK2R b KQkq - 0 8
+    Classification: BLUNDER
+    Eval: M-4
+8... Ng4 (Black) | Black knight moved from f6 to g4
+    FEN before: r1bqk2r/ppppnppp/1b3n2/3PP3/2B5/5N2/PP3PPP/RNBQK2R b KQkq - 0 8
+    FEN after:  r1bqk2r/ppppnppp/1b6/3PP3/2B3n1/5N2/PP3PPP/RNBQK2R w KQkq - 1 9
+    Eval: -3.00
+    Best was: Ba5+ (M-4, depth 12) — Engine line: 8... Ba5+ 9. Bd2 Bb4 10. Ba6
+9. d6 (White) | White pawn moved from d5 to d6
+    FEN before: r1bqk2r/ppppnppp/1b6/3PP3/2B3n1/5N2/PP3PPP/RNBQK2R w KQkq - 1 9
+    FEN after:  r1bqk2r/ppppnppp/1b1P4/4P3/2B3n1/5N2/PP3PPP/RNBQK2R b KQkq - 0 9
+    Eval: M-3
+9... cxd6 (Black) | Black pawn moved from c7 to d6, capturing pawn on d6
+    FEN before: r1bqk2r/ppppnppp/1b1P4/4P3/2B3n1/5N2/PP3PPP/RNBQK2R b KQkq - 0 9
+    FEN after:  r1bqk2r/pp1pnppp/1b1p4/4P3/2B3n1/5N2/PP3PPP/RNBQK2R w KQkq - 0 10
+    Eval: M-3
+10. exd6 (White) | White pawn moved from e5 to d6, capturing pawn on d6
+    FEN before: r1bqk2r/pp1pnppp/1b1p4/4P3/2B3n1/5N2/PP3PPP/RNBQK2R w KQkq - 0 10
+    FEN after:  r1bqk2r/pp1pnppp/1b1P4/8/2B3n1/5N2/PP3PPP/RNBQK2R b KQkq - 0 10
+    Eval: M-2
+10... Nc6 (Black) | Black knight moved from e7 to c6
+    FEN before: r1bqk2r/pp1pnppp/1b1P4/8/2B3n1/5N2/PP3PPP/RNBQK2R b KQkq - 0 10
+    FEN after:  r1bqk2r/pp1p1ppp/1bnP4/8/2B3n1/5N2/PP3PPP/RNBQK2R w KQkq - 1 11
+    Eval: M-2
+
+## TOP MISTAKES (sorted by severity — ANALYZE EACH WITH FULL DEPTH)
+### Move 8 (Black): Ng4 [BLUNDER]
+  Eval: M- → -3.00 (lost 97.0 pawns)
+  What happened: Black knight moved from f6 to g4
+  FEN before: r1bqk2r/ppppnppp/1b3n2/3PP3/2B5/5N2/PP3PPP/RNBQK2R b KQkq - 0 8
+  TACTICAL FACTS: [] — no tactical patterns detected.
+Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
+  CRITICAL JUNCTION — gap between #1 and #2 candidate: 94.99 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Ba5+, played line goes Ng4
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Ba5+ (M-4) — Line: 8... Ba5+ 9. Bd2 Bb4 10. Ba6 (depth 12)
+    ⮕ PLAYED: Ng4 (-5.00) — Line: 8... Ng4 9. Ba6 Ba5+ (depth 12)
+    ★ BETTER: Bc5 (-5.00) — Line: 8... Bc5 9. Ba6 (depth 12)
+  Best move was: Ba5+
+
+### Move 5 (Black): exd4 [INACCURACY]
+  Eval: 0.50 → 1.40 (lost 0.9 pawns)
+  What happened: Black pawn moved from e5 to d4, capturing pawn on d4
+  FEN before: r1bqk2r/pppp1ppp/2n2n2/2b1p3/2BPP3/2P2N2/PP3PPP/RNBQK2R b KQkq - 0 5
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "e4",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "f6",
+        "piece": "n"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "c3",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "d4",
+        "piece": "p"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "b2",
+        "piece": "p"
+      },
+      {
+        "square": "b1",
+        "piece": "n"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Ba3, played line goes exd4
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Ba3 (+0.50) — Line: 5... Ba3 6. Ba6 Bb4 7. Bb5 (depth 12)
+    ⮕ PLAYED: exd4 (-0.10) — Line: 5... exd4 6. Ba6 Ba3 (depth 12)
+    ★ BETTER: Bb4 (-0.70) — Line: 5... Bb4 6. Ba6 (depth 12)
+  Best move was: Ba3
+
+## FINAL POSITION
+FEN: r1bqk2r/pp1p1ppp/1bnP4/8/2B3n1/5N2/PP3PPP/RNBQK2R w KQkq - 1 11
+Material: Equal material
+
+## POSITION ANNOTATION
+Game Phase: OPENING
+Summary: White to move. Game phase: opening.
+
+### TACTICAL MOTIFS
+- [significant] Possible Pin/Trapped Piece: White rook on a1 has no legal moves
+
+### PAWN STRUCTURE
+- Isolated pawns: White 1, Black 1
+- Open files: c, e
+
+### KING SAFETY
+- White king safety: 70/100
+- Black king safety: 80/100
+
+### PIECE ACTIVITY
+- black rook on a8: undeveloped — Still on starting square
+- black bishop on c8: undeveloped — Still on starting square
+- black queen on d8: undeveloped — Still on starting square
+- black rook on h8: undeveloped — Still on starting square
+- black bishop on b6: trapped — No legal moves available — piece is trapped or pinned
+- black knight on c6: trapped — No legal moves available — piece is trapped or pinned
+- black knight on g4: trapped — No legal moves available — piece is trapped or pinned
+- white rook on a1: undeveloped — Still on starting square
+- white knight on b1: undeveloped — Still on starting square
+- white bishop on c1: undeveloped — Still on starting square
+- white queen on d1: undeveloped — Still on starting square
+- white rook on h1: undeveloped — Still on starting square
+
+## VERIFIED POSITION FACTS — FINAL POSITION (chess.js oracle)
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Bc4→Pf7
+  Black: Bb6→Pf2, Ng4→Pf2, Ng4→Ph2
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+
+## CHESS INTELLIGENCE LAYER
+(Pre-computed verified analysis — use this to ground your explanations)
+
+### CRITICAL POSITION: Move 8 (White — BLUNDER)
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "f6",
+    "piece": "n",
+    "attackers": [
+      {
+        "square": "e5",
+        "piece": "p"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "g7",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 320,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+CANDIDATE RANKING: Only one candidate line available.
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays e5 — no capture, no check, no promotion
+ENGINE IDEA: The key idea: 8... Ba5+ gives check.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  Black: Ne7→Pd5, Nf6→Pd5, Nf6→Pe4, Bb6→Pf2
+
+HANGING (attacked, inadequately defended):
+  White Pe4: attacked by Nf6; no defenders
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): newly trapped: white bishop on c4
+OPPONENT THREATS TO COUNT: Bxf2+ (check), Ba5+ (check)
+
+### CRITICAL POSITION: Move 8 (Black — BLUNDER)
+TACTICAL FACTS: [] — no tactical patterns detected.
+Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
+CANDIDATE RANKING: CRITICAL JUNCTION — gap between #1 and #2 candidate: 94.99 pawns
+BRANCH POINT: Key divergence — best: Ba5+ vs alternative: Ng4
+ENGINE IDEA: The key idea: 8... Ba5+ gives check.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: Black
+
+ATTACKS ON ENEMY PIECES:
+  White: Pe5→Nf6
+  Black: Ne7→Pd5, Nf6→Pd5, Bb6→Pf2
+
+HANGING (attacked, inadequately defended):
+  Black Nf6: attacked by Pe5; defended by g7
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): newly trapped: black knight on e7
+OPPONENT THREATS TO COUNT: exf6 (wins ~3p)
+
+### CRITICAL POSITION: Move 9 (White — BLUNDER)
+TACTICAL FACTS: [] — structural patterns detected but all escapable against best defense.
+Refutations:
+  fork: refuted by c7xd6 (recapture)
+  discovered_attack: refuted by defend-f7 (counter_threat)
+Do not assert: fork, pin, skewer, discovered, hanging, trapped, back rank, mate threat.
+
+UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): fork — refuted by c7xd6; discovered_attack — refuted by defend-f7
+CANDIDATE RANKING: Only one candidate line available.
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Pawn fork (tactical, confidence 0.92)
+    Definition: A pawn advance attacks two enemy pieces at once, winning material since at most one can retreat.
+    Evidence: P on d6 attacks P@c7, N@e7
+- Double attack (tactical, confidence 0.80)
+    Definition: A single move creates two distinct threats (not necessarily a fork by one piece); the opponent cannot parry both.
+    Evidence: P on d6 attacks P@c7, N@e7
+- Discovered attack (tactical, confidence 0.80)
+    Definition: Moving one piece uncovers an attack from another piece behind it along the line.
+    Evidence: Move d6 discovers attack on f7
+ENGINE IDEA: The key idea: 9... Ba5+ gives check.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  Black: Ne7→Pd5, Ng4→Pe5, Bb6→Pf2, Ng4→Pf2, Ng4→Ph2
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): newly trapped: white bishop on c4
+OPPONENT THREATS TO COUNT: Bxf2+ (check), Ba5+ (check)
+"
+`;
+
+exports[`buildGameContext byte-equality snapshots (PR-CI-1) > renders 03_sentinel_timeout.json byte-identically 1`] = `
+"## GAME OVERVIEW
+- Total moves: 8 full moves (16 half-moves)
+- Result: In progress
+- Player: SentinelSam playing as White
+- Player rating: 1200
+
+
+## PGN
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 h6 7. Bh4 b6 8. cxd5 Nxd5
+
+## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)
+All evals are in pawns from White's perspective (positive = better for White); M+n / M-n = forced mate for White / Black.
+1. d4 (White) | White pawn moved from d2 to d4
+    FEN before: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    FEN after:  rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1
+    Eval: +0.20
+1... d5 (Black) | Black pawn moved from d7 to d5
+    FEN before: rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1
+    FEN after:  rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2
+    Eval: +0.18
+2. c4 (White) | White pawn moved from c2 to c4
+    FEN before: rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2
+    FEN after:  rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 2
+    Eval: +0.25
+2... e6 (Black) | Black pawn moved from e7 to e6
+    FEN before: rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 2
+    FEN after:  rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3
+    Eval: +0.22
+3. Nc3 (White) | White knight moved from b1 to c3
+    FEN before: rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3
+    FEN after:  rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR b KQkq - 1 3
+    Eval: +0.30
+3... Nf6 (Black) | Black knight moved from g8 to f6
+    FEN before: rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR b KQkq - 1 3
+    FEN after:  rnbqkb1r/ppp2ppp/4pn2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 2 4
+    Eval: +0.28
+4. Bg5 (White) | White bishop moved from c1 to g5
+    FEN before: rnbqkb1r/ppp2ppp/4pn2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 2 4
+    FEN after:  rnbqkb1r/ppp2ppp/4pn2/3p2B1/2PP4/2N5/PP2PPPP/R2QKBNR b KQkq - 3 4
+    Eval: +0.80
+4... Be7 (Black) | Black bishop moved from f8 to e7
+    FEN before: rnbqkb1r/ppp2ppp/4pn2/3p2B1/2PP4/2N5/PP2PPPP/R2QKBNR b KQkq - 3 4
+    FEN after:  rnbqk2r/ppp1bppp/4pn2/3p2B1/2PP4/2N5/PP2PPPP/R2QKBNR w KQkq - 4 5
+    Eval: engine data unavailable for this move (analysis timed out)
+5. e3 (White) | White pawn moved from e2 to e3
+    FEN before: rnbqk2r/ppp1bppp/4pn2/3p2B1/2PP4/2N5/PP2PPPP/R2QKBNR w KQkq - 4 5
+    FEN after:  rnbqk2r/ppp1bppp/4pn2/3p2B1/2PP4/2N1P3/PP3PPP/R2QKBNR b KQkq - 0 5
+    Eval: -0.80
+5... O-O (Black) | Black castled kingside
+    FEN before: rnbqk2r/ppp1bppp/4pn2/3p2B1/2PP4/2N1P3/PP3PPP/R2QKBNR b KQkq - 0 5
+    FEN after:  rnbq1rk1/ppp1bppp/4pn2/3p2B1/2PP4/2N1P3/PP3PPP/R2QKBNR w KQ - 1 6
+    Eval: +0.40
+6. Nf3 (White) | White knight moved from g1 to f3
+    FEN before: rnbq1rk1/ppp1bppp/4pn2/3p2B1/2PP4/2N1P3/PP3PPP/R2QKBNR w KQ - 1 6
+    FEN after:  rnbq1rk1/ppp1bppp/4pn2/3p2B1/2PP4/2N1PN2/PP3PPP/R2QKB1R b KQ - 2 6
+    Classification: MISTAKE
+    Eval: -1.40
+    Best was: Bd3 (+0.40, depth 13) — Engine line: 6. Bd3 Ba3 7. Bb1 Bb4
+6... h6 (Black) | Black pawn moved from h7 to h6
+    FEN before: rnbq1rk1/ppp1bppp/4pn2/3p2B1/2PP4/2N1PN2/PP3PPP/R2QKB1R b KQ - 2 6
+    FEN after:  rnbq1rk1/ppp1bpp1/4pn1p/3p2B1/2PP4/2N1PN2/PP3PPP/R2QKB1R w KQ - 0 7
+    Eval: -1.30
+7. Bh4 (White) | White bishop moved from g5 to h4
+    FEN before: rnbq1rk1/ppp1bpp1/4pn1p/3p2B1/2PP4/2N1PN2/PP3PPP/R2QKB1R w KQ - 0 7
+    FEN after:  rnbq1rk1/ppp1bpp1/4pn1p/3p4/2PP3B/2N1PN2/PP3PPP/R2QKB1R b KQ - 1 7
+    Eval: -1.20
+7... b6 (Black) | Black pawn moved from b7 to b6
+    FEN before: rnbq1rk1/ppp1bpp1/4pn1p/3p4/2PP3B/2N1PN2/PP3PPP/R2QKB1R b KQ - 1 7
+    FEN after:  rnbq1rk1/p1p1bpp1/1p2pn1p/3p4/2PP3B/2N1PN2/PP3PPP/R2QKB1R w KQ - 0 8
+    Eval: -1.10
+8. cxd5 (White) | White pawn moved from c4 to d5, capturing pawn on d5
+    FEN before: rnbq1rk1/p1p1bpp1/1p2pn1p/3p4/2PP3B/2N1PN2/PP3PPP/R2QKB1R w KQ - 0 8
+    FEN after:  rnbq1rk1/p1p1bpp1/1p2pn1p/3P4/3P3B/2N1PN2/PP3PPP/R2QKB1R b KQ - 0 8
+    Eval: -1.00
+8... Nxd5 (Black) | Black knight moved from f6 to d5, capturing pawn on d5
+    FEN before: rnbq1rk1/p1p1bpp1/1p2pn1p/3P4/3P3B/2N1PN2/PP3PPP/R2QKB1R b KQ - 0 8
+    FEN after:  rnbq1rk1/p1p1bpp1/1p2p2p/3n4/3P3B/2N1PN2/PP3PPP/R2QKB1R w KQ - 0 9
+    Eval: -0.90
+
+## TOP MISTAKES (sorted by severity — ANALYZE EACH WITH FULL DEPTH)
+### Move 6 (White): Nf3 [MISTAKE]
+  Eval: 0.40 → -1.40 (lost 1.8 pawns)
+  What happened: White knight moved from g1 to f3
+  FEN before: rnbq1rk1/ppp1bppp/4pn2/3p2B1/2PP4/2N1P3/PP3PPP/R2QKBNR w KQ - 1 6
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "pin",
+    "kind": "relative",
+    "pinner": {
+      "square": "g5",
+      "piece": "b"
+    },
+    "pinned": {
+      "square": "f6",
+      "piece": "n"
+    },
+    "behind": {
+      "square": "e7",
+      "piece": "b"
+    },
+    "ray": "diag-g5-e7",
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "f6",
+    "piece": "n",
+    "attackers": [
+      {
+        "square": "g5",
+        "piece": "b"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "e7",
+        "piece": "b"
+      },
+      {
+        "square": "g7",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 320,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "d5",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "c4",
+        "piece": "p"
+      },
+      {
+        "square": "c3",
+        "piece": "n"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "d8",
+        "piece": "q"
+      },
+      {
+        "square": "e6",
+        "piece": "p"
+      },
+      {
+        "square": "f6",
+        "piece": "n"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Bd3, played line goes Nf3
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Bd3 (+0.40) — Line: 6. Bd3 Ba3 7. Bb1 Bb4 (depth 13)
+    ⮕ PLAYED: Nf3 (-0.20) — Line: 6. Nf3 Ba3 7. Bd3 (depth 13)
+    ★ BETTER: Be2 (-0.80) — Line: 6. Be2 Ba3 (depth 13)
+  Best move was: Bd3
+
+## FINAL POSITION
+FEN: rnbq1rk1/p1p1bpp1/1p2p2p/3n4/3P3B/2N1PN2/PP3PPP/R2QKB1R w KQ - 0 9
+Material: Equal material
+
+## POSITION ANNOTATION
+Game Phase: OPENING
+Summary: White to move. Game phase: opening. Captures available.
+
+### THREATS
+- [white] capture: White can capture bishop on e7
+
+### STRATEGIC THEMES
+- [medium] Closed position: Many pawns — knights may be stronger than bishops
+
+### PAWN STRUCTURE
+
+### KING SAFETY
+- White king safety: 70/100
+- Black king safety: 90/100
+
+### PIECE ACTIVITY
+- black rook on a8: undeveloped — Still on starting square
+- black knight on b8: undeveloped — Still on starting square
+- black bishop on c8: undeveloped — Still on starting square
+- black queen on d8: undeveloped — Still on starting square
+- black rook on f8: trapped — No legal moves available — piece is trapped or pinned
+- black bishop on e7: trapped — No legal moves available — piece is trapped or pinned
+- black knight on d5: trapped — No legal moves available — piece is trapped or pinned
+- white rook on a1: undeveloped — Still on starting square
+- white queen on d1: undeveloped — Still on starting square
+- white bishop on f1: undeveloped — Still on starting square
+- white rook on h1: undeveloped — Still on starting square
+
+## VERIFIED POSITION FACTS — FINAL POSITION (chess.js oracle)
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Bh4→Be7, Nc3→Nd5
+  Black: Be7→Bh4, Nd5→Nc3, Nd5→Pe3
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+
+## CHESS INTELLIGENCE LAYER
+(Pre-computed verified analysis — use this to ground your explanations)
+
+### CRITICAL POSITION: Move 6 (White — MISTAKE)
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "pin",
+    "kind": "relative",
+    "pinner": {
+      "square": "g5",
+      "piece": "b"
+    },
+    "pinned": {
+      "square": "f6",
+      "piece": "n"
+    },
+    "behind": {
+      "square": "e7",
+      "piece": "b"
+    },
+    "ray": "diag-g5-e7",
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "f6",
+    "piece": "n",
+    "attackers": [
+      {
+        "square": "g5",
+        "piece": "b"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "e7",
+        "piece": "b"
+      },
+      {
+        "square": "g7",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 320,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "d5",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "c4",
+        "piece": "p"
+      },
+      {
+        "square": "c3",
+        "piece": "n"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "d8",
+        "piece": "q"
+      },
+      {
+        "square": "e6",
+        "piece": "p"
+      },
+      {
+        "square": "f6",
+        "piece": "n"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+BRANCH POINT: Key divergence — best: Bd3 vs alternative: Nf3
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays Bd3 — no capture, no check, no promotion
+ENGINE IDEA: The line runs Bd3 Ba3 Bb1 Bb4 — a positional sequence building long-term advantage.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Bg5→Nf6, Pc4→Pd5, Nc3→Pd5
+  Black: Pd5→Pc4
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): newly trapped: white bishop on g5
+
+### CRITICAL POSITION: Move 5 (Black — INACCURACY)
+TACTICAL FACTS: [] — no tactical patterns detected.
+Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
+CANDIDATE RANKING: Only one candidate line available.
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays O-O — no capture, no check, no promotion
+ENGINE IDEA: The line runs O-O Bd3 Ba3 Bb1 — a positional sequence building long-term advantage.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: Black
+
+ATTACKS ON ENEMY PIECES:
+  White: Bg5→Nf6, Pc4→Pd5, Nc3→Pd5
+  Black: Pd5→Pc4
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): new threat(s): White can capture knight on f6 | newly trapped: black rook on f8
+OPPONENT THREATS TO COUNT: Qa4+ (check), Bxf6 (wins ~3p)
+
+### CRITICAL POSITION: Move 5 (White — INACCURACY)
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "pin",
+    "kind": "relative",
+    "pinner": {
+      "square": "g5",
+      "piece": "b"
+    },
+    "pinned": {
+      "square": "f6",
+      "piece": "n"
+    },
+    "behind": {
+      "square": "e7",
+      "piece": "b"
+    },
+    "ray": "diag-g5-e7",
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "f6",
+    "piece": "n",
+    "attackers": [
+      {
+        "square": "g5",
+        "piece": "b"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "e7",
+        "piece": "b"
+      },
+      {
+        "square": "g7",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 320,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "d5",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "c4",
+        "piece": "p"
+      },
+      {
+        "square": "c3",
+        "piece": "n"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "d8",
+        "piece": "q"
+      },
+      {
+        "square": "e6",
+        "piece": "p"
+      },
+      {
+        "square": "f6",
+        "piece": "n"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+CANDIDATE RANKING: Only one candidate line available.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Bg5→Nf6, Pc4→Pd5, Nc3→Pd5
+  Black: Pd5→Pc4
+
+HANGING (attacked, inadequately defended):
+  White Pc4: attacked by Pd5; no defenders
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): White's king safety dropped | newly trapped: white bishop on g5
+"
+`;
+
+exports[`buildGameContext byte-equality snapshots (PR-CI-1) > renders 04_invalid_san_truncation.json byte-identically 1`] = `
+"## GAME OVERVIEW
+- ⚠️ NOTE: the move record could not be fully replayed — analysis covers the first 5 moves (ply 9 of 12). Do NOT comment on moves after this point or describe this as the final position of a completed game.
+- Total moves: 6 full moves (12 half-moves)
+- Result: In progress
+- Player: TruncTest playing as White
+- Player rating: 900
+
+
+## PGN
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 Qxz9 6. g6 Bg5
+
+## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)
+All evals are in pawns from White's perspective (positive = better for White); M+n / M-n = forced mate for White / Black.
+1. e4 (White) | White pawn moved from e2 to e4
+    FEN before: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    FEN after:  rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1
+    Eval: +0.35
+1... c5 (Black) | Black pawn moved from c7 to c5
+    FEN before: rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1
+    FEN after:  rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+    Eval: +0.32
+2. Nf3 (White) | White knight moved from g1 to f3
+    FEN before: rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+    FEN after:  rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+    Eval: +0.38
+2... d6 (Black) | Black pawn moved from d7 to d6
+    FEN before: rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+    FEN after:  rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3
+    Eval: +0.35
+3. d4 (White) | White pawn moved from d2 to d4
+    FEN before: rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3
+    FEN after:  rnbqkbnr/pp2pppp/3p4/2p5/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 3
+    Eval: -0.30
+    Best was: Ba6 (+0.35, depth 13) — Engine line: 3. Ba6 Bd7 4. Bb5 Bc6
+3... cxd4 (Black) | Black pawn moved from c5 to d4, capturing pawn on d4
+    FEN before: rnbqkbnr/pp2pppp/3p4/2p5/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 3
+    FEN after:  rnbqkbnr/pp2pppp/3p4/8/3pP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4
+    Eval: -0.25
+4. Nxd4 (White) | White knight moved from f3 to d4, capturing pawn on d4
+    FEN before: rnbqkbnr/pp2pppp/3p4/8/3pP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4
+    FEN after:  rnbqkbnr/pp2pppp/3p4/8/3NP3/8/PPP2PPP/RNBQKB1R b KQkq - 0 4
+    Eval: -0.20
+4... Nf6 (Black) | Black knight moved from g8 to f6
+    FEN before: rnbqkbnr/pp2pppp/3p4/8/3NP3/8/PPP2PPP/RNBQKB1R b KQkq - 0 4
+    FEN after:  rnbqkb1r/pp2pppp/3p1n2/8/3NP3/8/PPP2PPP/RNBQKB1R w KQkq - 1 5
+    Eval: -0.22
+5. Nc3 (White) | White knight moved from b1 to c3
+    FEN before: rnbqkb1r/pp2pppp/3p1n2/8/3NP3/8/PPP2PPP/RNBQKB1R w KQkq - 1 5
+    FEN after:  rnbqkb1r/pp2pppp/3p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R b KQkq - 2 5
+    Eval: -0.18
+5... Qxz9 (Black)
+    FEN before: rnbqkb1r/pp2pppp/3p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R b KQkq - 2 5
+    FEN after:  rnbqkb1r/pp2pppp/3p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R b KQkq - 2 5
+    Eval: -0.15
+    Best was: Bd7 (-0.18, depth 12) — Engine line: 5... Bd7 6. Ba6 Ba4 7. Bb5+
+6. g6 (White) | Black pawn moved from g7 to g6
+    FEN before: rnbqkb1r/pp2pppp/3p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R b KQkq - 2 5
+    FEN after:  rnbqkb1r/pp2pppp/3p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R b KQkq - 2 5
+    Eval: -0.12
+6... Bg5 (Black)
+    FEN before: rnbqkb1r/pp2pppp/3p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R b KQkq - 2 5
+    FEN after:  rnbqkb1r/pp2pppp/3p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R b KQkq - 2 5
+
+## TOP MISTAKES (sorted by severity — ANALYZE EACH WITH FULL DEPTH)
+### Move 3 (White): d4 [INACCURACY]
+  Eval: 0.35 → -0.30 (lost 0.7 pawns)
+  What happened: White pawn moved from d2 to d4
+  FEN before: rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "c5",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "d4",
+        "piece": "p"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "d6",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Ba6, played line goes d4
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Ba6 (+0.35) — Line: 3. Ba6 Bd7 4. Bb5 Bc6 (depth 13)
+    ⮕ PLAYED: d4 (-0.25) — Line: 3. d4 Bd7 4. Ba6 (depth 13)
+    ★ BETTER: Bb5+ (-0.85) — Line: 3. Bb5+ Bd7 (depth 13)
+  Best move was: Ba6
+
+## FINAL POSITION
+FEN: rnbqkb1r/pp2pppp/3p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R b KQkq - 2 5
+Material: Equal material
+
+## POSITION ANNOTATION
+Game Phase: OPENING
+Summary: Black to move. Game phase: opening.
+
+### TACTICAL MOTIFS
+- [significant] Possible Pin/Trapped Piece: Black rook on a8 has no legal moves
+- [significant] Possible Pin/Trapped Piece: Black bishop on f8 has no legal moves
+
+### STRATEGIC THEMES
+- [high] White center dominance: White controls more central squares
+- [medium] Closed position: Many pawns — knights may be stronger than bishops
+
+### PAWN STRUCTURE
+
+### KING SAFETY
+- White king safety: 70/100
+- Black king safety: 80/100
+
+### PIECE ACTIVITY
+- black rook on a8: undeveloped — Still on starting square
+- black knight on b8: undeveloped — Still on starting square
+- black bishop on c8: undeveloped — Still on starting square
+- black queen on d8: undeveloped — Still on starting square
+- black bishop on f8: undeveloped — Still on starting square
+- black rook on h8: undeveloped — Still on starting square
+- white knight on d4: trapped — No legal moves available — piece is trapped or pinned
+- white knight on c3: trapped — No legal moves available — piece is trapped or pinned
+- white rook on a1: undeveloped — Still on starting square
+- white bishop on c1: undeveloped — Still on starting square
+- white queen on d1: undeveloped — Still on starting square
+- white bishop on f1: undeveloped — Still on starting square
+- white rook on h1: undeveloped — Still on starting square
+
+## VERIFIED POSITION FACTS — FINAL POSITION (chess.js oracle)
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: Black
+
+ATTACKS ON ENEMY PIECES:
+  Black: Nf6→Pe4
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+
+## CHESS INTELLIGENCE LAYER
+(Pre-computed verified analysis — use this to ground your explanations)
+
+### CRITICAL POSITION: Move 3 (White — INACCURACY)
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "c5",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "d4",
+        "piece": "p"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "d6",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+BRANCH POINT: Key divergence — best: Ba6 vs alternative: d4
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Relative pin (tactical, confidence 0.80)
+    Definition: A piece is pinned against a more valuable piece behind it; moving it is legal but loses material.
+    Evidence: P@b7 pinned to B@c8
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays Ba6 — no capture, no check, no promotion
+ENGINE IDEA: The line runs Ba6 Bd7 Bb5 Bc6 — a positional sequence building long-term advantage.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  (none)
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): White's king safety dropped | newly trapped: white knight on f3
+"
+`;
+
+exports[`buildGameContext byte-equality snapshots (PR-CI-1) > renders 05_long_game_six_mistakes.json byte-identically 1`] = `
+"## GAME OVERVIEW
+- Total moves: 42 full moves (84 half-moves)
+- Result: In progress
+- Player: MarathonMan playing as White
+- Player rating: 1500
+- Accuracy: White 71.4%, Black 88.2%
+- Date: 2026.07.01
+- Time control: 600
+- Opening: Deterministic Walk, ECO A00
+- PGN result tag: 0-1
+
+
+## PGN
+1. Na3 a5 2. Nh3 Nh6 3. f3 g6 4. e3 e5 5. d4 c6 6. Nb5 Ng8 7. g4 Ke7 8. Qd3 Qe8 9. Ng5 Bg7 10. c3 Ra7 11. Qc4 h6 12. Nxa7 e4 13. Nxf7 Na6 14. Ke2 Be5 15. Nxh6 Bb8 16. h4 b5 17. Ke1 bxc4 18. Rh3 Qf7 19. Bxc4 c5 20. Rg3 Be5 21. Bd5 c4 22. Ba8 Ke8 23. Kd2 Qe6 24. Kc2 Bg7 25. Nxg8 Bf6 26. g5 d6 27. Rg2 Bg7 28. Re2 Qxg8 29. Nb5 Bb7 30. a4 Qf8 31. Rh2 Ke7 32. Rh1 Nc7 33. Bd2 Bxd4 34. Rhe1 Qxf3 35. b4 Qh5 36. Na7 Nb5 37. Red1 Bxa8 38. Nc8+ Kf7 39. Rdb1 Bxe3 40. Rc1 Rh7 41. Be1 Rh6 42. bxa5 Ba7
+
+## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)
+All evals are in pawns from White's perspective (positive = better for White); M+n / M-n = forced mate for White / Black.
+1. Na3 (White) | White knight moved from b1 to a3
+    FEN before: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    FEN after:  rnbqkbnr/pppppppp/8/8/8/N7/PPPPPPPP/R1BQKBNR b KQkq - 1 1
+    Eval: +0.25
+1... a5 (Black) | Black pawn moved from a7 to a5
+    FEN before: rnbqkbnr/pppppppp/8/8/8/N7/PPPPPPPP/R1BQKBNR b KQkq - 1 1
+    FEN after:  rnbqkbnr/1ppppppp/8/p7/8/N7/PPPPPPPP/R1BQKBNR w KQkq - 0 2
+    Eval: +0.30
+2. Nh3 (White) | White knight moved from g1 to h3
+    FEN before: rnbqkbnr/1ppppppp/8/p7/8/N7/PPPPPPPP/R1BQKBNR w KQkq - 0 2
+    FEN after:  rnbqkbnr/1ppppppp/8/p7/8/N6N/PPPPPPPP/R1BQKB1R b KQkq - 1 2
+    Eval: +0.25
+2... Nh6 (Black) | Black knight moved from g8 to h6
+    FEN before: rnbqkbnr/1ppppppp/8/p7/8/N6N/PPPPPPPP/R1BQKB1R b KQkq - 1 2
+    FEN after:  rnbqkb1r/1ppppppp/7n/p7/8/N6N/PPPPPPPP/R1BQKB1R w KQkq - 2 3
+    Eval: +0.20
+3. f3 (White) | White pawn moved from f2 to f3
+    FEN before: rnbqkb1r/1ppppppp/7n/p7/8/N6N/PPPPPPPP/R1BQKB1R w KQkq - 2 3
+    FEN after:  rnbqkb1r/1ppppppp/7n/p7/8/N4P1N/PPPPP1PP/R1BQKB1R b KQkq - 0 3
+    Eval: +0.25
+3... g6 (Black) | Black pawn moved from g7 to g6
+    FEN before: rnbqkb1r/1ppppppp/7n/p7/8/N4P1N/PPPPP1PP/R1BQKB1R b KQkq - 0 3
+    FEN after:  rnbqkb1r/1ppppp1p/6pn/p7/8/N4P1N/PPPPP1PP/R1BQKB1R w KQkq - 0 4
+    Eval: +0.30
+4. e3 (White) | White pawn moved from e2 to e3
+    FEN before: rnbqkb1r/1ppppp1p/6pn/p7/8/N4P1N/PPPPP1PP/R1BQKB1R w KQkq - 0 4
+    FEN after:  rnbqkb1r/1ppppp1p/6pn/p7/8/N3PP1N/PPPP2PP/R1BQKB1R b KQkq - 0 4
+    Eval: +0.25
+4... e5 (Black) | Black pawn moved from e7 to e5
+    FEN before: rnbqkb1r/1ppppp1p/6pn/p7/8/N3PP1N/PPPP2PP/R1BQKB1R b KQkq - 0 4
+    FEN after:  rnbqkb1r/1ppp1p1p/6pn/p3p3/8/N3PP1N/PPPP2PP/R1BQKB1R w KQkq - 0 5
+    Eval: +0.20
+5. d4 (White) | White pawn moved from d2 to d4
+    FEN before: rnbqkb1r/1ppp1p1p/6pn/p3p3/8/N3PP1N/PPPP2PP/R1BQKB1R w KQkq - 0 5
+    FEN after:  rnbqkb1r/1ppp1p1p/6pn/p3p3/3P4/N3PP1N/PPP3PP/R1BQKB1R b KQkq - 0 5
+    Eval: +0.25
+5... c6 (Black) | Black pawn moved from c7 to c6
+    FEN before: rnbqkb1r/1ppp1p1p/6pn/p3p3/3P4/N3PP1N/PPP3PP/R1BQKB1R b KQkq - 0 5
+    FEN after:  rnbqkb1r/1p1p1p1p/2p3pn/p3p3/3P4/N3PP1N/PPP3PP/R1BQKB1R w KQkq - 0 6
+    Eval: +0.30
+6. Nb5 (White) | White knight moved from a3 to b5
+    FEN before: rnbqkb1r/1p1p1p1p/2p3pn/p3p3/3P4/N3PP1N/PPP3PP/R1BQKB1R w KQkq - 0 6
+    FEN after:  rnbqkb1r/1p1p1p1p/2p3pn/pN2p3/3P4/4PP1N/PPP3PP/R1BQKB1R b KQkq - 1 6
+    Eval: +0.25
+6... Ng8 (Black) | Black knight moved from h6 to g8
+    FEN before: rnbqkb1r/1p1p1p1p/2p3pn/pN2p3/3P4/4PP1N/PPP3PP/R1BQKB1R b KQkq - 1 6
+    FEN after:  rnbqkbnr/1p1p1p1p/2p3p1/pN2p3/3P4/4PP1N/PPP3PP/R1BQKB1R w KQkq - 2 7
+    Eval: +0.20
+7. g4 (White) | White pawn moved from g2 to g4
+    FEN before: rnbqkbnr/1p1p1p1p/2p3p1/pN2p3/3P4/4PP1N/PPP3PP/R1BQKB1R w KQkq - 2 7
+    FEN after:  rnbqkbnr/1p1p1p1p/2p3p1/pN2p3/3P2P1/4PP1N/PPP4P/R1BQKB1R b KQkq - 0 7
+    Eval: +0.25
+7... Ke7 (Black) | Black king moved from e8 to e7
+    FEN before: rnbqkbnr/1p1p1p1p/2p3p1/pN2p3/3P2P1/4PP1N/PPP4P/R1BQKB1R b KQkq - 0 7
+    FEN after:  rnbq1bnr/1p1pkp1p/2p3p1/pN2p3/3P2P1/4PP1N/PPP4P/R1BQKB1R w KQ - 1 8
+    Eval: +0.30
+8. Qd3 (White) | White queen moved from d1 to d3
+    FEN before: rnbq1bnr/1p1pkp1p/2p3p1/pN2p3/3P2P1/4PP1N/PPP4P/R1BQKB1R w KQ - 1 8
+    FEN after:  rnbq1bnr/1p1pkp1p/2p3p1/pN2p3/3P2P1/3QPP1N/PPP4P/R1B1KB1R b KQ - 2 8
+    Eval: +0.25
+8... Qe8 (Black) | Black queen moved from d8 to e8
+    FEN before: rnbq1bnr/1p1pkp1p/2p3p1/pN2p3/3P2P1/3QPP1N/PPP4P/R1B1KB1R b KQ - 2 8
+    FEN after:  rnb1qbnr/1p1pkp1p/2p3p1/pN2p3/3P2P1/3QPP1N/PPP4P/R1B1KB1R w KQ - 3 9
+    Eval: +0.20
+9. Ng5 (White) | White knight moved from h3 to g5
+    FEN before: rnb1qbnr/1p1pkp1p/2p3p1/pN2p3/3P2P1/3QPP1N/PPP4P/R1B1KB1R w KQ - 3 9
+    FEN after:  rnb1qbnr/1p1pkp1p/2p3p1/pN2p1N1/3P2P1/3QPP2/PPP4P/R1B1KB1R b KQ - 4 9
+    Eval: +0.25
+9... Bg7 (Black) | Black bishop moved from f8 to g7
+    FEN before: rnb1qbnr/1p1pkp1p/2p3p1/pN2p1N1/3P2P1/3QPP2/PPP4P/R1B1KB1R b KQ - 4 9
+    FEN after:  rnb1q1nr/1p1pkpbp/2p3p1/pN2p1N1/3P2P1/3QPP2/PPP4P/R1B1KB1R w KQ - 5 10
+    Eval: +0.30
+10. c3 (White) | White pawn moved from c2 to c3
+    FEN before: rnb1q1nr/1p1pkpbp/2p3p1/pN2p1N1/3P2P1/3QPP2/PPP4P/R1B1KB1R w KQ - 5 10
+    FEN after:  rnb1q1nr/1p1pkpbp/2p3p1/pN2p1N1/3P2P1/2PQPP2/PP5P/R1B1KB1R b KQ - 0 10
+    Eval: +0.25
+10... Ra7 (Black) | Black rook moved from a8 to a7
+    FEN before: rnb1q1nr/1p1pkpbp/2p3p1/pN2p1N1/3P2P1/2PQPP2/PP5P/R1B1KB1R b KQ - 0 10
+    FEN after:  1nb1q1nr/rp1pkpbp/2p3p1/pN2p1N1/3P2P1/2PQPP2/PP5P/R1B1KB1R w KQ - 1 11
+    Eval: +0.20
+11. Qc4 (White) | White queen moved from d3 to c4
+    FEN before: 1nb1q1nr/rp1pkpbp/2p3p1/pN2p1N1/3P2P1/2PQPP2/PP5P/R1B1KB1R w KQ - 1 11
+    FEN after:  1nb1q1nr/rp1pkpbp/2p3p1/pN2p1N1/2QP2P1/2P1PP2/PP5P/R1B1KB1R b KQ - 2 11
+    Eval: -0.35
+    Best was: Bd2 (+0.20, depth 14) — Engine line: 11. Bd2 Bf6 12. Bc1 Bg7
+11... h6 (Black) | Black pawn moved from h7 to h6
+    FEN before: 1nb1q1nr/rp1pkpbp/2p3p1/pN2p1N1/2QP2P1/2P1PP2/PP5P/R1B1KB1R b KQ - 2 11
+    FEN after:  1nb1q1nr/rp1pkpb1/2p3pp/pN2p1N1/2QP2P1/2P1PP2/PP5P/R1B1KB1R w KQ - 0 12
+    Eval: -0.30
+12. Nxa7 (White) | White knight moved from b5 to a7, capturing rook on a7
+    FEN before: 1nb1q1nr/rp1pkpb1/2p3pp/pN2p1N1/2QP2P1/2P1PP2/PP5P/R1B1KB1R w KQ - 0 12
+    FEN after:  1nb1q1nr/Np1pkpb1/2p3pp/p3p1N1/2QP2P1/2P1PP2/PP5P/R1B1KB1R b KQ - 0 12
+    Eval: -0.35
+12... e4 (Black) | Black pawn moved from e5 to e4
+    FEN before: 1nb1q1nr/Np1pkpb1/2p3pp/p3p1N1/2QP2P1/2P1PP2/PP5P/R1B1KB1R b KQ - 0 12
+    FEN after:  1nb1q1nr/Np1pkpb1/2p3pp/p5N1/2QPp1P1/2P1PP2/PP5P/R1B1KB1R w KQ - 0 13
+    Eval: -0.40
+13. Nxf7 (White) | White knight moved from g5 to f7, capturing pawn on f7
+    FEN before: 1nb1q1nr/Np1pkpb1/2p3pp/p5N1/2QPp1P1/2P1PP2/PP5P/R1B1KB1R w KQ - 0 13
+    FEN after:  1nb1q1nr/Np1pkNb1/2p3pp/p7/2QPp1P1/2P1PP2/PP5P/R1B1KB1R b KQ - 0 13
+    Eval: -0.35
+13... Na6 (Black) | Black knight moved from b8 to a6
+    FEN before: 1nb1q1nr/Np1pkNb1/2p3pp/p7/2QPp1P1/2P1PP2/PP5P/R1B1KB1R b KQ - 0 13
+    FEN after:  2b1q1nr/Np1pkNb1/n1p3pp/p7/2QPp1P1/2P1PP2/PP5P/R1B1KB1R w KQ - 1 14
+    Eval: +1.65
+14. Ke2 (White) | White king moved from e1 to e2
+    FEN before: 2b1q1nr/Np1pkNb1/n1p3pp/p7/2QPp1P1/2P1PP2/PP5P/R1B1KB1R w KQ - 1 14
+    FEN after:  2b1q1nr/Np1pkNb1/n1p3pp/p7/2QPp1P1/2P1PP2/PP2K2P/R1B2B1R b - - 2 14
+    Eval: +1.60
+14... Be5 (Black) | Black bishop moved from g7 to e5
+    FEN before: 2b1q1nr/Np1pkNb1/n1p3pp/p7/2QPp1P1/2P1PP2/PP2K2P/R1B2B1R b - - 2 14
+    FEN after:  2b1q1nr/Np1pkN2/n1p3pp/p3b3/2QPp1P1/2P1PP2/PP2K2P/R1B2B1R w - - 3 15
+    Eval: +1.55
+15. Nxh6 (White) | White knight moved from f7 to h6, capturing pawn on h6
+    FEN before: 2b1q1nr/Np1pkN2/n1p3pp/p3b3/2QPp1P1/2P1PP2/PP2K2P/R1B2B1R w - - 3 15
+    FEN after:  2b1q1nr/Np1pk3/n1p3pN/p3b3/2QPp1P1/2P1PP2/PP2K2P/R1B2B1R b - - 0 15
+    Eval: +1.60
+15... Bb8 (Black) | Black bishop moved from e5 to b8
+    FEN before: 2b1q1nr/Np1pk3/n1p3pN/p3b3/2QPp1P1/2P1PP2/PP2K2P/R1B2B1R b - - 0 15
+    FEN after:  1bb1q1nr/Np1pk3/n1p3pN/p7/2QPp1P1/2P1PP2/PP2K2P/R1B2B1R w - - 1 16
+    Eval: +1.65
+16. h4 (White) | White pawn moved from h2 to h4
+    FEN before: 1bb1q1nr/Np1pk3/n1p3pN/p7/2QPp1P1/2P1PP2/PP2K2P/R1B2B1R w - - 1 16
+    FEN after:  1bb1q1nr/Np1pk3/n1p3pN/p7/2QPp1PP/2P1PP2/PP2K3/R1B2B1R b - - 0 16
+    Eval: +0.75
+    Best was: Bd2 (+1.65, depth 12) — Engine line: 16. Bd2 Bc7 17. Bc1 Bb6
+16... b5 (Black) | Black pawn moved from b7 to b5
+    FEN before: 1bb1q1nr/Np1pk3/n1p3pN/p7/2QPp1PP/2P1PP2/PP2K3/R1B2B1R b - - 0 16
+    FEN after:  1bb1q1nr/N2pk3/n1p3pN/pp6/2QPp1PP/2P1PP2/PP2K3/R1B2B1R w - - 0 17
+    Eval: +0.70
+17. Ke1 (White) | White king moved from e2 to e1
+    FEN before: 1bb1q1nr/N2pk3/n1p3pN/pp6/2QPp1PP/2P1PP2/PP2K3/R1B2B1R w - - 0 17
+    FEN after:  1bb1q1nr/N2pk3/n1p3pN/pp6/2QPp1PP/2P1PP2/PP6/R1B1KB1R b - - 1 17
+    Eval: +0.75
+17... bxc4 (Black) | Black pawn moved from b5 to c4, capturing queen on c4
+    FEN before: 1bb1q1nr/N2pk3/n1p3pN/pp6/2QPp1PP/2P1PP2/PP6/R1B1KB1R b - - 1 17
+    FEN after:  1bb1q1nr/N2pk3/n1p3pN/p7/2pPp1PP/2P1PP2/PP6/R1B1KB1R w - - 0 18
+    Eval: +0.80
+18. Rh3 (White) | White rook moved from h1 to h3
+    FEN before: 1bb1q1nr/N2pk3/n1p3pN/p7/2pPp1PP/2P1PP2/PP6/R1B1KB1R w - - 0 18
+    FEN after:  1bb1q1nr/N2pk3/n1p3pN/p7/2pPp1PP/2P1PP1R/PP6/R1B1KB2 b - - 1 18
+    Eval: +0.75
+18... Qf7 (Black) | Black queen moved from e8 to f7
+    FEN before: 1bb1q1nr/N2pk3/n1p3pN/p7/2pPp1PP/2P1PP1R/PP6/R1B1KB2 b - - 1 18
+    FEN after:  1bb3nr/N2pkq2/n1p3pN/p7/2pPp1PP/2P1PP1R/PP6/R1B1KB2 w - - 2 19
+    Eval: +0.70
+19. Bxc4 (White) | White bishop moved from f1 to c4, capturing pawn on c4
+    FEN before: 1bb3nr/N2pkq2/n1p3pN/p7/2pPp1PP/2P1PP1R/PP6/R1B1KB2 w - - 2 19
+    FEN after:  1bb3nr/N2pkq2/n1p3pN/p7/2BPp1PP/2P1PP1R/PP6/R1B1K3 b - - 0 19
+    Eval: +0.75
+19... c5 (Black) | Black pawn moved from c6 to c5
+    FEN before: 1bb3nr/N2pkq2/n1p3pN/p7/2BPp1PP/2P1PP1R/PP6/R1B1K3 b - - 0 19
+    FEN after:  1bb3nr/N2pkq2/n5pN/p1p5/2BPp1PP/2P1PP1R/PP6/R1B1K3 w - - 0 20
+    Eval: +0.80
+20. Rg3 (White) | White rook moved from h3 to g3
+    FEN before: 1bb3nr/N2pkq2/n5pN/p1p5/2BPp1PP/2P1PP1R/PP6/R1B1K3 w - - 0 20
+    FEN after:  1bb3nr/N2pkq2/n5pN/p1p5/2BPp1PP/2P1PPR1/PP6/R1B1K3 b - - 1 20
+    Eval: +0.75
+20... Be5 (Black) | Black bishop moved from b8 to e5
+    FEN before: 1bb3nr/N2pkq2/n5pN/p1p5/2BPp1PP/2P1PPR1/PP6/R1B1K3 b - - 1 20
+    FEN after:  2b3nr/N2pkq2/n5pN/p1p1b3/2BPp1PP/2P1PPR1/PP6/R1B1K3 w - - 2 21
+    Eval: +0.70
+21. Bd5 (White) | White bishop moved from c4 to d5
+    FEN before: 2b3nr/N2pkq2/n5pN/p1p1b3/2BPp1PP/2P1PPR1/PP6/R1B1K3 w - - 2 21
+    FEN after:  2b3nr/N2pkq2/n5pN/p1pBb3/3Pp1PP/2P1PPR1/PP6/R1B1K3 b - - 3 21
+    Eval: -0.90
+    Best was: Bb3 (+0.70, depth 13) — Engine line: 21. Bb3 Bb7 22. Ba4 Ba8
+21... c4 (Black) | Black pawn moved from c5 to c4
+    FEN before: 2b3nr/N2pkq2/n5pN/p1pBb3/3Pp1PP/2P1PPR1/PP6/R1B1K3 b - - 3 21
+    FEN after:  2b3nr/N2pkq2/n5pN/p2Bb3/2pPp1PP/2P1PPR1/PP6/R1B1K3 w - - 0 22
+    Eval: -0.85
+22. Ba8 (White) | White bishop moved from d5 to a8
+    FEN before: 2b3nr/N2pkq2/n5pN/p2Bb3/2pPp1PP/2P1PPR1/PP6/R1B1K3 w - - 0 22
+    FEN after:  B1b3nr/N2pkq2/n5pN/p3b3/2pPp1PP/2P1PPR1/PP6/R1B1K3 b - - 1 22
+    Eval: -0.90
+22... Ke8 (Black) | Black king moved from e7 to e8
+    FEN before: B1b3nr/N2pkq2/n5pN/p3b3/2pPp1PP/2P1PPR1/PP6/R1B1K3 b - - 1 22
+    FEN after:  B1b1k1nr/N2p1q2/n5pN/p3b3/2pPp1PP/2P1PPR1/PP6/R1B1K3 w - - 2 23
+    Eval: -0.95
+23. Kd2 (White) | White king moved from e1 to d2
+    FEN before: B1b1k1nr/N2p1q2/n5pN/p3b3/2pPp1PP/2P1PPR1/PP6/R1B1K3 w - - 2 23
+    FEN after:  B1b1k1nr/N2p1q2/n5pN/p3b3/2pPp1PP/2P1PPR1/PP1K4/R1B5 b - - 3 23
+    Eval: -0.90
+23... Qe6 (Black) | Black queen moved from f7 to e6
+    FEN before: B1b1k1nr/N2p1q2/n5pN/p3b3/2pPp1PP/2P1PPR1/PP1K4/R1B5 b - - 3 23
+    FEN after:  B1b1k1nr/N2p4/n3q1pN/p3b3/2pPp1PP/2P1PPR1/PP1K4/R1B5 w - - 4 24
+    Eval: +3.10
+24. Kc2 (White) | White king moved from d2 to c2
+    FEN before: B1b1k1nr/N2p4/n3q1pN/p3b3/2pPp1PP/2P1PPR1/PP1K4/R1B5 w - - 4 24
+    FEN after:  B1b1k1nr/N2p4/n3q1pN/p3b3/2pPp1PP/2P1PPR1/PPK5/R1B5 b - - 5 24
+    Eval: +3.05
+24... Bg7 (Black) | Black bishop moved from e5 to g7
+    FEN before: B1b1k1nr/N2p4/n3q1pN/p3b3/2pPp1PP/2P1PPR1/PPK5/R1B5 b - - 5 24
+    FEN after:  B1b1k1nr/N2p2b1/n3q1pN/p7/2pPp1PP/2P1PPR1/PPK5/R1B5 w - - 6 25
+    Eval: +3.00
+25. Nxg8 (White) | White knight moved from h6 to g8, capturing knight on g8
+    FEN before: B1b1k1nr/N2p2b1/n3q1pN/p7/2pPp1PP/2P1PPR1/PPK5/R1B5 w - - 6 25
+    FEN after:  B1b1k1Nr/N2p2b1/n3q1p1/p7/2pPp1PP/2P1PPR1/PPK5/R1B5 b - - 0 25
+    Eval: +3.05
+25... Bf6 (Black) | Black bishop moved from g7 to f6
+    FEN before: B1b1k1Nr/N2p2b1/n3q1p1/p7/2pPp1PP/2P1PPR1/PPK5/R1B5 b - - 0 25
+    FEN after:  B1b1k1Nr/N2p4/n3qbp1/p7/2pPp1PP/2P1PPR1/PPK5/R1B5 w - - 1 26
+    Eval: +3.10
+26. g5 (White) | White pawn moved from g4 to g5
+    FEN before: B1b1k1Nr/N2p4/n3qbp1/p7/2pPp1PP/2P1PPR1/PPK5/R1B5 w - - 1 26
+    FEN after:  B1b1k1Nr/N2p4/n3qbp1/p5P1/2pPp2P/2P1PPR1/PPK5/R1B5 b - - 0 26
+    Eval: +0.60
+    Best was: Bb7 (+3.10, depth 14) — Engine line: 26. Bb7 Bd8 27. Ba8 Bb6
+26... d6 (Black) | Black pawn moved from d7 to d6
+    FEN before: B1b1k1Nr/N2p4/n3qbp1/p5P1/2pPp2P/2P1PPR1/PPK5/R1B5 b - - 0 26
+    FEN after:  B1b1k1Nr/N7/n2pqbp1/p5P1/2pPp2P/2P1PPR1/PPK5/R1B5 w - - 0 27
+    Eval: +0.55
+27. Rg2 (White) | White rook moved from g3 to g2
+    FEN before: B1b1k1Nr/N7/n2pqbp1/p5P1/2pPp2P/2P1PPR1/PPK5/R1B5 w - - 0 27
+    FEN after:  B1b1k1Nr/N7/n2pqbp1/p5P1/2pPp2P/2P1PP2/PPK3R1/R1B5 b - - 1 27
+    Eval: +0.60
+27... Bg7 (Black) | Black bishop moved from f6 to g7
+    FEN before: B1b1k1Nr/N7/n2pqbp1/p5P1/2pPp2P/2P1PP2/PPK3R1/R1B5 b - - 1 27
+    FEN after:  B1b1k1Nr/N5b1/n2pq1p1/p5P1/2pPp2P/2P1PP2/PPK3R1/R1B5 w - - 2 28
+    Eval: +0.65
+28. Re2 (White) | White rook moved from g2 to e2
+    FEN before: B1b1k1Nr/N5b1/n2pq1p1/p5P1/2pPp2P/2P1PP2/PPK3R1/R1B5 w - - 2 28
+    FEN after:  B1b1k1Nr/N5b1/n2pq1p1/p5P1/2pPp2P/2P1PP2/PPK1R3/R1B5 b - - 3 28
+    Eval: +0.60
+28... Qxg8 (Black) | Black queen moved from e6 to g8, capturing knight on g8
+    FEN before: B1b1k1Nr/N5b1/n2pq1p1/p5P1/2pPp2P/2P1PP2/PPK1R3/R1B5 b - - 3 28
+    FEN after:  B1b1k1qr/N5b1/n2p2p1/p5P1/2pPp2P/2P1PP2/PPK1R3/R1B5 w - - 0 29
+    Eval: +0.55
+29. Nb5 (White) | White knight moved from a7 to b5
+    FEN before: B1b1k1qr/N5b1/n2p2p1/p5P1/2pPp2P/2P1PP2/PPK1R3/R1B5 w - - 0 29
+    FEN after:  B1b1k1qr/6b1/n2p2p1/pN4P1/2pPp2P/2P1PP2/PPK1R3/R1B5 b - - 1 29
+    Eval: +0.60
+29... Bb7 (Black) | Black bishop moved from c8 to b7
+    FEN before: B1b1k1qr/6b1/n2p2p1/pN4P1/2pPp2P/2P1PP2/PPK1R3/R1B5 b - - 1 29
+    FEN after:  B3k1qr/1b4b1/n2p2p1/pN4P1/2pPp2P/2P1PP2/PPK1R3/R1B5 w - - 2 30
+    Eval: +0.65
+30. a4 (White) | White pawn moved from a2 to a4
+    FEN before: B3k1qr/1b4b1/n2p2p1/pN4P1/2pPp2P/2P1PP2/PPK1R3/R1B5 w - - 2 30
+    FEN after:  B3k1qr/1b4b1/n2p2p1/pN4P1/P1pPp2P/2P1PP2/1PK1R3/R1B5 b - - 0 30
+    Eval: +0.60
+30... Qf8 (Black) | Black queen moved from g8 to f8
+    FEN before: B3k1qr/1b4b1/n2p2p1/pN4P1/P1pPp2P/2P1PP2/1PK1R3/R1B5 b - - 0 30
+    FEN after:  B3kq1r/1b4b1/n2p2p1/pN4P1/P1pPp2P/2P1PP2/1PK1R3/R1B5 w - - 1 31
+    Eval: +0.55
+31. Rh2 (White) | White rook moved from e2 to h2
+    FEN before: B3kq1r/1b4b1/n2p2p1/pN4P1/P1pPp2P/2P1PP2/1PK1R3/R1B5 w - - 1 31
+    FEN after:  B3kq1r/1b4b1/n2p2p1/pN4P1/P1pPp2P/2P1PP2/1PK4R/R1B5 b - - 2 31
+    Eval: -2.65
+    Best was: Bd2 (+0.55, depth 12) — Engine line: 31. Bd2 Bc6 32. Bb7 Bd5
+31... Ke7 (Black) | Black king moved from e8 to e7
+    FEN before: B3kq1r/1b4b1/n2p2p1/pN4P1/P1pPp2P/2P1PP2/1PK4R/R1B5 b - - 2 31
+    FEN after:  B4q1r/1b2k1b1/n2p2p1/pN4P1/P1pPp2P/2P1PP2/1PK4R/R1B5 w - - 3 32
+    Eval: -2.60
+32. Rh1 (White) | White rook moved from h2 to h1
+    FEN before: B4q1r/1b2k1b1/n2p2p1/pN4P1/P1pPp2P/2P1PP2/1PK4R/R1B5 w - - 3 32
+    FEN after:  B4q1r/1b2k1b1/n2p2p1/pN4P1/P1pPp2P/2P1PP2/1PK5/R1B4R b - - 4 32
+    Eval: -2.65
+32... Nc7 (Black) | Black knight moved from a6 to c7
+    FEN before: B4q1r/1b2k1b1/n2p2p1/pN4P1/P1pPp2P/2P1PP2/1PK5/R1B4R b - - 4 32
+    FEN after:  B4q1r/1bn1k1b1/3p2p1/pN4P1/P1pPp2P/2P1PP2/1PK5/R1B4R w - - 5 33
+    Eval: -2.70
+33. Bd2 (White) | White bishop moved from c1 to d2
+    FEN before: B4q1r/1bn1k1b1/3p2p1/pN4P1/P1pPp2P/2P1PP2/1PK5/R1B4R w - - 5 33
+    FEN after:  B4q1r/1bn1k1b1/3p2p1/pN4P1/P1pPp2P/2P1PP2/1PKB4/R6R b - - 6 33
+    Eval: -2.65
+33... Bxd4 (Black) | Black bishop moved from g7 to d4, capturing pawn on d4
+    FEN before: B4q1r/1bn1k1b1/3p2p1/pN4P1/P1pPp2P/2P1PP2/1PKB4/R6R b - - 6 33
+    FEN after:  B4q1r/1bn1k3/3p2p1/pN4P1/P1pbp2P/2P1PP2/1PKB4/R6R w - - 0 34
+    Eval: -2.60
+34. Rhe1 (White) | White rook moved from h1 to e1
+    FEN before: B4q1r/1bn1k3/3p2p1/pN4P1/P1pbp2P/2P1PP2/1PKB4/R6R w - - 0 34
+    FEN after:  B4q1r/1bn1k3/3p2p1/pN4P1/P1pbp2P/2P1PP2/1PKB4/R3R3 b - - 1 34
+    Eval: -2.65
+34... Qxf3 (Black) | Black queen moved from f8 to f3, capturing pawn on f3
+    FEN before: B4q1r/1bn1k3/3p2p1/pN4P1/P1pbp2P/2P1PP2/1PKB4/R3R3 b - - 1 34
+    FEN after:  B6r/1bn1k3/3p2p1/pN4P1/P1pbp2P/2P1Pq2/1PKB4/R3R3 w - - 0 35
+    Eval: -2.70
+35. b4 (White) | White pawn moved from b2 to b4
+    FEN before: B6r/1bn1k3/3p2p1/pN4P1/P1pbp2P/2P1Pq2/1PKB4/R3R3 w - - 0 35
+    FEN after:  B6r/1bn1k3/3p2p1/pN4P1/PPpbp2P/2P1Pq2/2KB4/R3R3 b - b3 0 35
+    Eval: -2.65
+35... Qh5 (Black) | Black queen moved from f3 to h5
+    FEN before: B6r/1bn1k3/3p2p1/pN4P1/PPpbp2P/2P1Pq2/2KB4/R3R3 b - b3 0 35
+    FEN after:  B6r/1bn1k3/3p2p1/pN4Pq/PPpbp2P/2P1P3/2KB4/R3R3 w - - 1 36
+    Eval: -2.60
+36. Na7 (White) | White knight moved from b5 to a7
+    FEN before: B6r/1bn1k3/3p2p1/pN4Pq/PPpbp2P/2P1P3/2KB4/R3R3 w - - 1 36
+    FEN after:  B6r/Nbn1k3/3p2p1/p5Pq/PPpbp2P/2P1P3/2KB4/R3R3 b - - 2 36
+    Eval: -7.60
+    Best was: Bc1 (-2.60, depth 13) — Engine line: 36. Bc1 Ba6 37. Ba3 Ba7
+36... Nb5 (Black) | Black knight moved from c7 to b5
+    FEN before: B6r/Nbn1k3/3p2p1/p5Pq/PPpbp2P/2P1P3/2KB4/R3R3 b - - 2 36
+    FEN after:  B6r/Nb2k3/3p2p1/pn4Pq/PPpbp2P/2P1P3/2KB4/R3R3 w - - 3 37
+    Eval: -7.65
+37. Red1 (White) | White rook moved from e1 to d1
+    FEN before: B6r/Nb2k3/3p2p1/pn4Pq/PPpbp2P/2P1P3/2KB4/R3R3 w - - 3 37
+    FEN after:  B6r/Nb2k3/3p2p1/pn4Pq/PPpbp2P/2P1P3/2KB4/R2R4 b - - 4 37
+    Eval: -7.60
+37... Bxa8 (Black) | Black bishop moved from b7 to a8, capturing bishop on a8
+    FEN before: B6r/Nb2k3/3p2p1/pn4Pq/PPpbp2P/2P1P3/2KB4/R2R4 b - - 4 37
+    FEN after:  b6r/N3k3/3p2p1/pn4Pq/PPpbp2P/2P1P3/2KB4/R2R4 w - - 0 38
+    Eval: -7.55
+38. Nc8+ (White) | White knight moved from a7 to c8, giving check
+    FEN before: b6r/N3k3/3p2p1/pn4Pq/PPpbp2P/2P1P3/2KB4/R2R4 w - - 0 38
+    FEN after:  b1N4r/4k3/3p2p1/pn4Pq/PPpbp2P/2P1P3/2KB4/R2R4 b - - 1 38
+    Eval: -7.60
+38... Kf7 (Black) | Black king moved from e7 to f7
+    FEN before: b1N4r/4k3/3p2p1/pn4Pq/PPpbp2P/2P1P3/2KB4/R2R4 b - - 1 38
+    FEN after:  b1N4r/5k2/3p2p1/pn4Pq/PPpbp2P/2P1P3/2KB4/R2R4 w - - 2 39
+    Eval: -7.65
+39. Rdb1 (White) | White rook moved from d1 to b1
+    FEN before: b1N4r/5k2/3p2p1/pn4Pq/PPpbp2P/2P1P3/2KB4/R2R4 w - - 2 39
+    FEN after:  b1N4r/5k2/3p2p1/pn4Pq/PPpbp2P/2P1P3/2KB4/RR6 b - - 3 39
+    Eval: -7.60
+39... Bxe3 (Black) | Black bishop moved from d4 to e3, capturing pawn on e3
+    FEN before: b1N4r/5k2/3p2p1/pn4Pq/PPpbp2P/2P1P3/2KB4/RR6 b - - 3 39
+    FEN after:  b1N4r/5k2/3p2p1/pn4Pq/PPp1p2P/2P1b3/2KB4/RR6 w - - 0 40
+    Eval: -7.55
+40. Rc1 (White) | White rook moved from b1 to c1
+    FEN before: b1N4r/5k2/3p2p1/pn4Pq/PPp1p2P/2P1b3/2KB4/RR6 w - - 0 40
+    FEN after:  b1N4r/5k2/3p2p1/pn4Pq/PPp1p2P/2P1b3/2KB4/R1R5 b - - 1 40
+    Eval: -7.60
+40... Rh7 (Black) | Black rook moved from h8 to h7
+    FEN before: b1N4r/5k2/3p2p1/pn4Pq/PPp1p2P/2P1b3/2KB4/R1R5 b - - 1 40
+    FEN after:  b1N5/5k1r/3p2p1/pn4Pq/PPp1p2P/2P1b3/2KB4/R1R5 w - - 2 41
+    Eval: -7.65
+41. Be1 (White) | White bishop moved from d2 to e1
+    FEN before: b1N5/5k1r/3p2p1/pn4Pq/PPp1p2P/2P1b3/2KB4/R1R5 w - - 2 41
+    FEN after:  b1N5/5k1r/3p2p1/pn4Pq/PPp1p2P/2P1b3/2K5/R1R1B3 b - - 3 41
+    Eval: -7.60
+41... Rh6 (Black) | Black rook moved from h7 to h6
+    FEN before: b1N5/5k1r/3p2p1/pn4Pq/PPp1p2P/2P1b3/2K5/R1R1B3 b - - 3 41
+    FEN after:  b1N5/5k2/3p2pr/pn4Pq/PPp1p2P/2P1b3/2K5/R1R1B3 w - - 4 42
+    Eval: -7.55
+42. bxa5 (White) | White pawn moved from b4 to a5, capturing pawn on a5
+    FEN before: b1N5/5k2/3p2pr/pn4Pq/PPp1p2P/2P1b3/2K5/R1R1B3 w - - 4 42
+    FEN after:  b1N5/5k2/3p2pr/Pn4Pq/P1p1p2P/2P1b3/2K5/R1R1B3 b - - 0 42
+    Eval: -7.60
+42... Ba7 (Black) | Black bishop moved from e3 to a7
+    FEN before: b1N5/5k2/3p2pr/Pn4Pq/P1p1p2P/2P1b3/2K5/R1R1B3 b - - 0 42
+    FEN after:  b1N5/b4k2/3p2pr/Pn4Pq/P1p1p2P/2P5/2K5/R1R1B3 w - - 1 43
+    Eval: -7.65
+
+## TOP MISTAKES (sorted by severity — ANALYZE EACH WITH FULL DEPTH)
+### Move 36 (White): Na7 [BLUNDER]
+  Eval: -2.60 → -7.60 (lost 5.0 pawns)
+  What happened: White knight moved from b5 to a7
+  FEN before: B6r/1bn1k3/3p2p1/pN4Pq/PPpbp2P/2P1P3/2KB4/R3R3 w - - 1 36
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "b7",
+    "piece": "b",
+    "attackers": [
+      {
+        "square": "a8",
+        "piece": "b"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "a5",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "b4",
+        "piece": "p"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "d4",
+    "piece": "b",
+    "attackers": [
+      {
+        "square": "c3",
+        "piece": "p"
+      },
+      {
+        "square": "e3",
+        "piece": "p"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Bc1, played line goes Na7
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Bc1 (-2.60) — Line: 36. Bc1 Ba6 37. Ba3 Ba7 (depth 13)
+    ⮕ PLAYED: Na7 (-3.20) — Line: 36. Na7 Ba6 37. Bb7 (depth 13)
+    ★ BETTER: Bxb7 (-3.80) — Line: 36. Bxb7 Ba7 (depth 13)
+  Best move was: Bc1
+
+### Move 31 (White): Rh2 [BLUNDER]
+  Eval: 0.55 → -2.65 (lost 3.2 pawns)
+  What happened: White rook moved from e2 to h2
+  FEN before: B3kq1r/1b4b1/n2p2p1/pN4P1/P1pPp2P/2P1PP2/1PK1R3/R1B5 w - - 1 31
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "b7",
+    "piece": "b",
+    "attackers": [
+      {
+        "square": "a8",
+        "piece": "b"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "trapped_piece",
+    "square": "g7",
+    "piece": "b",
+    "escape_squares_checked": [
+      "h6",
+      "f6",
+      "e5",
+      "d4"
+    ],
+    "all_unsafe_because": [
+      {
+        "square": "h6",
+        "threatened_by": "g5"
+      },
+      {
+        "square": "f6",
+        "threatened_by": "g5"
+      },
+      {
+        "square": "e5",
+        "threatened_by": "d4"
+      },
+      {
+        "square": "d4",
+        "threatened_by": "b5"
+      }
+    ],
+    "confirmed": true,
+    "refutation": null
+  }
+]
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Bd2, played line goes Rh2
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Bd2 (+0.55) — Line: 31. Bd2 Bc6 32. Bb7 Bd5 (depth 12)
+    ⮕ PLAYED: Rh2 (-0.05) — Line: 31. Rh2 Bc6 32. Bb7 (depth 12)
+    ★ BETTER: Bxb7 (-0.65) — Line: 31. Bxb7 Be5 (depth 12)
+  Best move was: Bd2
+
+### Move 26 (White): g5 [MISTAKE]
+  Eval: 3.10 → 0.60 (lost 2.5 pawns)
+  What happened: White pawn moved from g4 to g5
+  FEN before: B1b1k1Nr/N2p4/n3qbp1/p7/2pPp1PP/2P1PPR1/PPK5/R1B5 w - - 1 26
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "c8",
+    "piece": "b",
+    "attackers": [
+      {
+        "square": "a7",
+        "piece": "n"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Bb7, played line goes g5
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Bb7 (+3.10) — Line: 26. Bb7 Bd8 27. Ba8 Bb6 (depth 14)
+    ⮕ PLAYED: g5 (+2.50) — Line: 26. g5 Bb7 27. Bd2 (depth 14)
+    ★ BETTER: Bc6 (+1.90) — Line: 26. Bc6 Bb7 (depth 14)
+  Best move was: Bb7
+
+### Move 21 (White): Bd5 [MISTAKE]
+  Eval: 0.70 → -0.90 (lost 1.6 pawns)
+  What happened: White bishop moved from c4 to d5
+  FEN before: 2b3nr/N2pkq2/n5pN/p1p1b3/2BPp1PP/2P1PPR1/PP6/R1B1K3 w - - 2 21
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "c8",
+    "piece": "b",
+    "attackers": [
+      {
+        "square": "a7",
+        "piece": "n"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "g8",
+    "piece": "n",
+    "attackers": [
+      {
+        "square": "h6",
+        "piece": "n"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "h8",
+        "piece": "r"
+      },
+      {
+        "square": "f7",
+        "piece": "q"
+      }
+    ],
+    "see_value_cp": 140,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "e5",
+    "piece": "b",
+    "attackers": [
+      {
+        "square": "d4",
+        "piece": "p"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+
+UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): fork — refuted by f7xd5; skewer — refuted by f7xd5
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Bb3, played line goes Bd5
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Bb3 (+0.70) — Line: 21. Bb3 Bb7 22. Ba4 Ba8 (depth 13)
+    ⮕ PLAYED: Bd5 (+0.10) — Line: 21. Bd5 Bb7 22. Bb3 (depth 13)
+    ★ BETTER: Bb5 (?) — Line: 21. Bb5 Bb7 (depth 13)
+  Best move was: Bb3
+
+### Move 16 (White): h4 [INACCURACY]
+  Eval: 1.65 → 0.75 (lost 0.9 pawns)
+  What happened: White pawn moved from h2 to h4
+  FEN before: 1bb1q1nr/Np1pk3/n1p3pN/p7/2QPp1P1/2P1PP2/PP2K2P/R1B2B1R w - - 1 16
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "pin",
+    "kind": "relative",
+    "pinner": {
+      "square": "c4",
+      "piece": "q"
+    },
+    "pinned": {
+      "square": "c6",
+      "piece": "p"
+    },
+    "behind": {
+      "square": "c8",
+      "piece": "b"
+    },
+    "ray": "file-c",
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "g8",
+    "piece": "n",
+    "attackers": [
+      {
+        "square": "h6",
+        "piece": "n"
+      },
+      {
+        "square": "c4",
+        "piece": "q"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "e8",
+        "piece": "q"
+      },
+      {
+        "square": "h8",
+        "piece": "r"
+      }
+    ],
+    "see_value_cp": 140,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "a6",
+    "piece": "n",
+    "attackers": [
+      {
+        "square": "c4",
+        "piece": "q"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "b7",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 320,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "c6",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "a7",
+        "piece": "n"
+      },
+      {
+        "square": "c4",
+        "piece": "q"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "b7",
+        "piece": "p"
+      },
+      {
+        "square": "d7",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "e4",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "f3",
+        "piece": "p"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Bd2, played line goes h4
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Bd2 (+1.65) — Line: 16. Bd2 Bc7 17. Bc1 Bb6 (depth 12)
+    ⮕ PLAYED: h4 (+1.05) — Line: 16. h4 Bc7 17. Bd2 (depth 12)
+    ★ BETTER: Bg2 (+0.45) — Line: 16. Bg2 Bc7 (depth 12)
+  Best move was: Bd2
+
+### Move 11 (White): Qc4 [INACCURACY]
+  Eval: 0.20 → -0.35 (lost 0.6 pawns)
+  What happened: White queen moved from d3 to c4
+  FEN before: 1nb1q1nr/rp1pkpbp/2p3p1/pN2p1N1/3P2P1/2PQPP2/PP5P/R1B1KB1R w KQ - 1 11
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "pin",
+    "kind": "relative",
+    "pinner": {
+      "square": "c4",
+      "piece": "q"
+    },
+    "pinned": {
+      "square": "f7",
+      "piece": "p"
+    },
+    "behind": {
+      "square": "g8",
+      "piece": "n"
+    },
+    "ray": "diag-c4-g8",
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "pin",
+    "kind": "relative",
+    "pinner": {
+      "square": "c4",
+      "piece": "q"
+    },
+    "pinned": {
+      "square": "c6",
+      "piece": "p"
+    },
+    "behind": {
+      "square": "c8",
+      "piece": "b"
+    },
+    "ray": "file-c",
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "a7",
+    "piece": "r",
+    "attackers": [
+      {
+        "square": "b5",
+        "piece": "n"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 500,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "c6",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "c4",
+        "piece": "q"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "b8",
+        "piece": "n"
+      },
+      {
+        "square": "b7",
+        "piece": "p"
+      },
+      {
+        "square": "d7",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Bd2, played line goes Qc4
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Bd2 (+0.20) — Line: 11. Bd2 Bf6 12. Bc1 Bg7 (depth 14)
+    ⮕ PLAYED: Qc4 (-0.40) — Line: 11. Qc4 Bf6 12. Bd2 (depth 14)
+    ★ BETTER: Be2 (-1.00) — Line: 11. Be2 Bf6 (depth 14)
+  Best move was: Bd2
+
+## FINAL POSITION
+FEN: b1N5/b4k2/3p2pr/Pn4Pq/P1p1p2P/2P5/2K5/R1R1B3 w - - 1 43
+Material: Black +6 material
+
+## POSITION ANNOTATION
+Game Phase: MIDDLEGAME
+Summary: White to move. Game phase: middlegame. Captures available. Passed pawns on the board.
+
+### THREATS
+- [white] capture: White can capture rook on h6
+
+### STRATEGIC THEMES
+- [medium] Black has bishop pair: Black's two bishops can be powerful in open positions
+
+### PAWN STRUCTURE
+- Doubled pawns: White 1, Black 0
+- Isolated pawns: White 2, Black 1
+- White passed pawns: a5
+- Black passed pawns: e4
+- Open files: b, f
+
+### KING SAFETY
+- White king safety: 80/100
+- Black king safety: 80/100
+
+### PIECE ACTIVITY
+- black bishop on a8: trapped — No legal moves available — piece is trapped or pinned
+- black bishop on a7: trapped — No legal moves available — piece is trapped or pinned
+- black rook on h6: trapped — No legal moves available — piece is trapped or pinned
+- black knight on b5: trapped — No legal moves available — piece is trapped or pinned
+- black queen on h5: trapped — No legal moves available — piece is trapped or pinned
+- white rook on a1: undeveloped — Still on starting square
+- white rook on c1: passive — Only 2 legal move(s) — restricted mobility
+
+## VERIFIED POSITION FACTS — FINAL POSITION (chess.js oracle)
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Nc8→Ba7, Nc8→Pd6, Pg5→Rh6, Pa4→Nb5
+  Black: Qh5→Pg5, Qh5→Ph4, Nb5→Pc3
+
+HANGING (attacked, inadequately defended):
+  Black Rh6: attacked by Pg5; defended by h5
+  Black Nb5: attacked by Pa4; no defenders
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+
+## CHESS INTELLIGENCE LAYER
+(Pre-computed verified analysis — use this to ground your explanations)
+
+### CRITICAL POSITION: Move 36 (White — BLUNDER)
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "b7",
+    "piece": "b",
+    "attackers": [
+      {
+        "square": "a8",
+        "piece": "b"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "a5",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "b4",
+        "piece": "p"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "d4",
+    "piece": "b",
+    "attackers": [
+      {
+        "square": "c3",
+        "piece": "p"
+      },
+      {
+        "square": "e3",
+        "piece": "p"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+BRANCH POINT: Key divergence — best: Bc1 vs alternative: Na7
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays Bc1 — no capture, no check, no promotion
+ENGINE IDEA: The line runs Bc1 Ba6 Ba3 Ba7 — a positional sequence building long-term advantage.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Ba8→Bb7, Nb5→Nc7, Nb5→Pd6, Pb4→Pa5, Nb5→Bd4, Pc3→Bd4, Pe3→Bd4
+  Black: Rh8→Ba8, Bb7→Ba8, Nc7→Ba8, Nc7→Nb5, Qh5→Pg5, Pa5→Pb4, Qh5→Ph4, Bd4→Pc3, Bd4→Pe3
+
+HANGING (attacked, inadequately defended):
+  White Ba8: attacked by Rh8, Bb7, Nc7; no defenders
+  Black Bb7: attacked by Ba8; no defenders
+  Black Nc7: attacked by Nb5; no defenders
+  Black Pa5: attacked by Pb4; no defenders
+  Black Bd4: attacked by Nb5, Pc3, Pe3; no defenders
+  White Ph4: attacked by Qh5; no defenders
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): new threat(s): Black can capture bishop on a8 | newly trapped: white bishop on a8
+OPPONENT THREATS TO COUNT: Qd1+ (check), Rxa8 (wins ~3p), Bxa8 (wins ~3p)
+
+### CRITICAL POSITION: Move 23 (Black — BLUNDER)
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "h6",
+    "piece": "n",
+    "attackers": [
+      {
+        "square": "g8",
+        "piece": "n"
+      },
+      {
+        "square": "h8",
+        "piece": "r"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 320,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "d4",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "e5",
+        "piece": "b"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "c3",
+        "piece": "p"
+      },
+      {
+        "square": "e3",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "g4",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "e6",
+        "piece": "q"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "h6",
+        "piece": "n"
+      },
+      {
+        "square": "f3",
+        "piece": "p"
+      },
+      {
+        "square": "g3",
+        "piece": "r"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "g3",
+    "piece": "r",
+    "attackers": [
+      {
+        "square": "e5",
+        "piece": "b"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 500,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+CANDIDATE RANKING: Only one candidate line available.
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays Qe6 — no capture, no check, no promotion
+ENGINE IDEA: The line runs Qe6 Bb7 Bb8 Ba8 — a positional sequence building long-term advantage.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: Black
+
+ATTACKS ON ENEMY PIECES:
+  White: Na7→Bc8, Nh6→Ng8, Nh6→Qf7, Pd4→Be5, Ba8→Pe4, Pf3→Pe4
+  Black: Ng8→Nh6, Rh8→Nh6, Be5→Pd4, Qf7→Pf3, Pe4→Pf3, Be5→Rg3
+
+HANGING (attacked, inadequately defended):
+  Black Bc8: attacked by Na7; no defenders
+  Black Qf7: attacked by Nh6; defended by e8
+  White Nh6: attacked by Ng8, Rh8; no defenders
+  Black Be5: attacked by Pd4; no defenders
+  Black Pe4: attacked by Ba8, Pf3; no defenders
+  White Rg3: attacked by Be5; no defenders
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): new threat(s): White can capture bishop on c8 | newly trapped: black knight on a6
+OPPONENT THREATS TO COUNT: Nxf7 (wins ~9p), Nxc8 (wins ~3p), dxe5 (wins ~3p)
+
+### CRITICAL POSITION: Move 31 (White — BLUNDER)
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "b7",
+    "piece": "b",
+    "attackers": [
+      {
+        "square": "a8",
+        "piece": "b"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "trapped_piece",
+    "square": "g7",
+    "piece": "b",
+    "escape_squares_checked": [
+      "h6",
+      "f6",
+      "e5",
+      "d4"
+    ],
+    "all_unsafe_because": [
+      {
+        "square": "h6",
+        "threatened_by": "g5"
+      },
+      {
+        "square": "f6",
+        "threatened_by": "g5"
+      },
+      {
+        "square": "e5",
+        "threatened_by": "d4"
+      },
+      {
+        "square": "d4",
+        "threatened_by": "b5"
+      }
+    ],
+    "confirmed": true,
+    "refutation": null
+  }
+]
+CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+BRANCH POINT: Key divergence — best: Bd2 vs alternative: Rh2
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays Bd2 — no capture, no check, no promotion
+ENGINE IDEA: The line runs Bd2 Bc6 Bb7 Bd5 — a positional sequence building long-term advantage.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Ba8→Bb7, Nb5→Pd6, Pf3→Pe4
+  Black: Bb7→Ba8, Bg7→Pd4, Rh8→Ph4, Qf8→Pf3, Pe4→Pf3
+
+HANGING (attacked, inadequately defended):
+  White Ba8: attacked by Bb7; no defenders
+  Black Bb7: attacked by Ba8; no defenders
+  White Ph4: attacked by Rh8; no defenders
+  White Pf3: attacked by Qf8, Pe4; no defenders
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): new threat(s): Black can capture bishop on a8 | newly trapped: white bishop on a8
+OPPONENT THREATS TO COUNT: Nb4+ (check), Bxa8 (wins ~3p)
+"
+`;
+
+exports[`buildGameContext byte-equality snapshots (PR-CI-1) > renders 06_short_opening.json byte-identically 1`] = `
+"## GAME OVERVIEW
+- Total moves: 4 full moves (8 half-moves)
+- Result: In progress
+
+
+## PGN
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6
+
+## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)
+All evals are in pawns from White's perspective (positive = better for White); M+n / M-n = forced mate for White / Black.
+1. e4 (White) | White pawn moved from e2 to e4
+    FEN before: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    FEN after:  rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1
+    Eval: +0.30
+1... e5 (Black) | Black pawn moved from e7 to e5
+    FEN before: rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1
+    FEN after:  rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+    Eval: +0.25
+2. Nf3 (White) | White knight moved from g1 to f3
+    FEN before: rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+    FEN after:  rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+    Eval: +0.35
+2... Nc6 (Black) | Black knight moved from b8 to c6
+    FEN before: rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+    FEN after:  r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3
+    Eval: +0.30
+3. Bb5 (White) | White bishop moved from f1 to b5
+    FEN before: r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3
+    FEN after:  r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3
+    Eval: +0.40
+3... a6 (Black) | Black pawn moved from a7 to a6
+    FEN before: r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3
+    FEN after:  r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4
+    Eval: +0.35
+4. Ba4 (White) | White bishop moved from b5 to a4
+    FEN before: r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4
+    FEN after:  r1bqkbnr/1ppp1ppp/p1n5/4p3/B3P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 1 4
+    Eval: +0.45
+4... Nf6 (Black) | Black knight moved from g8 to f6
+    FEN before: r1bqkbnr/1ppp1ppp/p1n5/4p3/B3P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 1 4
+    FEN after:  r1bqkb1r/1ppp1ppp/p1n2n2/4p3/B3P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 5
+    Eval: +0.40
+
+## MISTAKES
+No significant mistakes detected (all moves within 0.5 pawn of engine best).
+
+## FINAL POSITION
+FEN: r1bqkb1r/1ppp1ppp/p1n2n2/4p3/B3P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 5
+Material: Equal material
+
+## POSITION ANNOTATION
+Game Phase: OPENING
+Summary: White to move. Game phase: opening. Captures available.
+
+### THREATS
+- [white] capture: White can capture knight on c6
+
+### TACTICAL MOTIFS
+- [significant] Possible Pin/Trapped Piece: White rook on a1 has no legal moves
+- [significant] Possible Pin/Trapped Piece: White bishop on c1 has no legal moves
+
+### STRATEGIC THEMES
+- [medium] Closed position: Many pawns — knights may be stronger than bishops
+
+### PAWN STRUCTURE
+
+### KING SAFETY
+- White king safety: 80/100
+- Black king safety: 80/100
+
+### PIECE ACTIVITY
+- black rook on a8: undeveloped — Still on starting square
+- black bishop on c8: undeveloped — Still on starting square
+- black queen on d8: undeveloped — Still on starting square
+- black bishop on f8: undeveloped — Still on starting square
+- black rook on h8: undeveloped — Still on starting square
+- black knight on c6: trapped — No legal moves available — piece is trapped or pinned
+- black knight on f6: trapped — No legal moves available — piece is trapped or pinned
+- white rook on a1: undeveloped — Still on starting square
+- white knight on b1: undeveloped — Still on starting square
+- white bishop on c1: undeveloped — Still on starting square
+- white queen on d1: undeveloped — Still on starting square
+- white rook on h1: undeveloped — Still on starting square
+
+## VERIFIED POSITION FACTS — FINAL POSITION (chess.js oracle)
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Ba4→Nc6, Nf3→Pe5
+  Black: Nf6→Pe4
+
+HANGING (attacked, inadequately defended):
+  White Pe4: attacked by Nf6; no defenders
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here."
+`;
+
+exports[`buildGameContext byte-equality snapshots (PR-CI-1) > renders 07_knight_fork.json byte-identically 1`] = `
+"## GAME OVERVIEW
+- Total moves: 10 full moves (20 half-moves)
+- Result: In progress
+- Player: ForkFinder playing as White
+- Player rating: 1350
+- White: ForkFinder
+- Black: Defender
+- Event: Club night
+- Time control: 300+2
+
+
+## PGN
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 Qb6 5. Nf3 Qxb2 6. Na3 Qxa1 7. Nb5 Qxc1 8. Nc7+ Kd8 9. Nxa8 Qxd1+ 10. Kxd1 e5
+
+## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)
+All evals are in pawns from White's perspective (positive = better for White); M+n / M-n = forced mate for White / Black.
+1. e4 (White) | White pawn moved from e2 to e4
+    FEN before: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    FEN after:  rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1
+    Eval: +0.30
+1... c5 (Black) | Black pawn moved from c7 to c5
+    FEN before: rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1
+    FEN after:  rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+    Eval: +0.28
+2. Nf3 (White) | White knight moved from g1 to f3
+    FEN before: rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+    FEN after:  rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+    Eval: +0.33
+2... Nc6 (Black) | Black knight moved from b8 to c6
+    FEN before: rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+    FEN after:  r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3
+    Eval: +0.30
+3. d4 (White) | White pawn moved from d2 to d4
+    FEN before: r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3
+    FEN after:  r1bqkbnr/pp1ppppp/2n5/2p5/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 3
+    Eval: +0.38
+3... cxd4 (Black) | Black pawn moved from c5 to d4, capturing pawn on d4
+    FEN before: r1bqkbnr/pp1ppppp/2n5/2p5/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 3
+    FEN after:  r1bqkbnr/pp1ppppp/2n5/8/3pP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4
+    Eval: +0.35
+4. Nxd4 (White) | White knight moved from f3 to d4, capturing pawn on d4
+    FEN before: r1bqkbnr/pp1ppppp/2n5/8/3pP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4
+    FEN after:  r1bqkbnr/pp1ppppp/2n5/8/3NP3/8/PPP2PPP/RNBQKB1R b KQkq - 0 4
+    Eval: -0.60
+4... Qb6 (Black) | Black queen moved from d8 to b6
+    FEN before: r1bqkbnr/pp1ppppp/2n5/8/3NP3/8/PPP2PPP/RNBQKB1R b KQkq - 0 4
+    FEN after:  r1b1kbnr/pp1ppppp/1qn5/8/3NP3/8/PPP2PPP/RNBQKB1R w KQkq - 1 5
+    Eval: -0.55
+5. Nf3 (White) | White knight moved from d4 to f3
+    FEN before: r1b1kbnr/pp1ppppp/1qn5/8/3NP3/8/PPP2PPP/RNBQKB1R w KQkq - 1 5
+    FEN after:  r1b1kbnr/pp1ppppp/1qn5/8/4P3/5N2/PPP2PPP/RNBQKB1R b KQkq - 2 5
+    Eval: -2.50
+    Best was: Ba6 (-0.55, depth 14) — Engine line: 5. Ba6 Kd8 6. Bb5 Kc7
+5... Qxb2 (Black) | Black queen moved from b6 to b2, capturing pawn on b2
+    FEN before: r1b1kbnr/pp1ppppp/1qn5/8/4P3/5N2/PPP2PPP/RNBQKB1R b KQkq - 2 5
+    FEN after:  r1b1kbnr/pp1ppppp/2n5/8/4P3/5N2/PqP2PPP/RNBQKB1R w KQkq - 0 6
+    Eval: -2.40
+6. Na3 (White) | White knight moved from b1 to a3
+    FEN before: r1b1kbnr/pp1ppppp/2n5/8/4P3/5N2/PqP2PPP/RNBQKB1R w KQkq - 0 6
+    FEN after:  r1b1kbnr/pp1ppppp/2n5/8/4P3/N4N2/PqP2PPP/R1BQKB1R b KQkq - 1 6
+    Eval: -2.90
+6... Qxa1 (Black) | Black queen moved from b2 to a1, capturing rook on a1
+    FEN before: r1b1kbnr/pp1ppppp/2n5/8/4P3/N4N2/PqP2PPP/R1BQKB1R b KQkq - 1 6
+    FEN after:  r1b1kbnr/pp1ppppp/2n5/8/4P3/N4N2/P1P2PPP/q1BQKB1R w Kkq - 0 7
+    Eval: -2.85
+7. Nb5 (White) | White knight moved from a3 to b5
+    FEN before: r1b1kbnr/pp1ppppp/2n5/8/4P3/N4N2/P1P2PPP/q1BQKB1R w Kkq - 0 7
+    FEN after:  r1b1kbnr/pp1ppppp/2n5/1N6/4P3/5N2/P1P2PPP/q1BQKB1R b Kkq - 1 7
+    Eval: -3.20
+7... Qxc1 (Black) | Black queen moved from a1 to c1, capturing bishop on c1
+    FEN before: r1b1kbnr/pp1ppppp/2n5/1N6/4P3/5N2/P1P2PPP/q1BQKB1R b Kkq - 1 7
+    FEN after:  r1b1kbnr/pp1ppppp/2n5/1N6/4P3/5N2/P1P2PPP/2qQKB1R w Kkq - 0 8
+    Eval: -3.40
+8. Nc7+ (White) | White knight moved from b5 to c7, giving check
+    FEN before: r1b1kbnr/pp1ppppp/2n5/1N6/4P3/5N2/P1P2PPP/2qQKB1R w Kkq - 0 8
+    FEN after:  r1b1kbnr/ppNppppp/2n5/8/4P3/5N2/P1P2PPP/2qQKB1R b Kkq - 1 8
+    Eval: -5.00
+    Best was: Bc4 (-3.40, depth 14) — Engine line: 8. Bc4 Kd8 9. Bb3 Ke8
+8... Kd8 (Black) | Black king moved from e8 to d8
+    FEN before: r1b1kbnr/ppNppppp/2n5/8/4P3/5N2/P1P2PPP/2qQKB1R b Kkq - 1 8
+    FEN after:  r1bk1bnr/ppNppppp/2n5/8/4P3/5N2/P1P2PPP/2qQKB1R w K - 2 9
+    Eval: -4.90
+9. Nxa8 (White) | White knight moved from c7 to a8, capturing rook on a8
+    FEN before: r1bk1bnr/ppNppppp/2n5/8/4P3/5N2/P1P2PPP/2qQKB1R w K - 2 9
+    FEN after:  N1bk1bnr/pp1ppppp/2n5/8/4P3/5N2/P1P2PPP/2qQKB1R b K - 0 9
+    Eval: -5.05
+9... Qxd1+ (Black) | Black queen moved from c1 to d1, capturing queen on d1, giving check
+    FEN before: N1bk1bnr/pp1ppppp/2n5/8/4P3/5N2/P1P2PPP/2qQKB1R b K - 0 9
+    FEN after:  N1bk1bnr/pp1ppppp/2n5/8/4P3/5N2/P1P2PPP/3qKB1R w K - 0 10
+    Eval: -5.00
+10. Kxd1 (White) | White king moved from e1 to d1, capturing queen on d1
+    FEN before: N1bk1bnr/pp1ppppp/2n5/8/4P3/5N2/P1P2PPP/3qKB1R w K - 0 10
+    FEN after:  N1bk1bnr/pp1ppppp/2n5/8/4P3/5N2/P1P2PPP/3K1B1R b - - 0 10
+    Eval: -4.95
+10... e5 (Black) | Black pawn moved from e7 to e5
+    FEN before: N1bk1bnr/pp1ppppp/2n5/8/4P3/5N2/P1P2PPP/3K1B1R b - - 0 10
+    FEN after:  N1bk1bnr/pp1p1ppp/2n5/4p3/4P3/5N2/P1P2PPP/3K1B1R w - - 0 11
+    Eval: -4.90
+
+## TOP MISTAKES (sorted by severity — ANALYZE EACH WITH FULL DEPTH)
+### Move 5 (White): Nf3 [MISTAKE]
+  Eval: -0.55 → -2.50 (lost 1.9 pawns)
+  What happened: White knight moved from d4 to f3
+  FEN before: r1b1kbnr/pp1ppppp/1qn5/8/3NP3/8/PPP2PPP/RNBQKB1R w KQkq - 1 5
+  TACTICAL FACTS: [] — structural patterns detected but all escapable against best defense.
+Refutations:
+  discovered_attack: refuted by defend-d7 (counter_threat)
+Do not assert: fork, pin, skewer, discovered, hanging, trapped, back rank, mate threat.
+
+UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): discovered_attack — refuted by defend-d7
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Ba6 (-0.55) — Line: 5. Ba6 Kd8 6. Bb5 Kc7 (depth 14)
+    ★ BETTER: Ba6 (-1.15) — Line: 5. Ba6 Na5 6. Bb5 (depth 14)
+    ★ BETTER: Bb5 (-1.75) — Line: 5. Bb5 Kd8 (depth 14)
+  Best move was: Ba6
+
+### Move 8 (White): Nc7+ [MISTAKE]
+  Eval: -3.40 → -5.00 (lost 1.6 pawns)
+  What happened: White knight moved from b5 to c7, giving check
+  FEN before: r1b1kbnr/pp1ppppp/2n5/1N6/4P3/5N2/P1P2PPP/2qQKB1R w Kkq - 0 8
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "fork",
+    "by_piece": "n",
+    "by_square": "c7",
+    "targets": [
+      {
+        "square": "e8",
+        "piece": "k"
+      },
+      {
+        "square": "a8",
+        "piece": "r"
+      }
+    ],
+    "unavoidable_loss_cp": 500,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "c1",
+    "piece": "q",
+    "attackers": [
+      {
+        "square": "d1",
+        "piece": "q"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 900,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Bc4, played line goes Nc7+
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Bc4 (-3.40) — Line: 8. Bc4 Kd8 9. Bb3 Ke8 (depth 14)
+    ⮕ PLAYED: Nc7+ (-4.00) — Line: 8. Nc7+ Kd8 9. Ba6 (depth 14)
+    ★ BETTER: Bd3 (-4.60) — Line: 8. Bd3 Kd8 (depth 14)
+  Best move was: Bc4
+
+### Move 4 (White): Nxd4 [INACCURACY]
+  Eval: 0.35 → -0.60 (lost 0.9 pawns)
+  What happened: White knight moved from f3 to d4, capturing pawn on d4
+  FEN before: r1bqkbnr/pp1ppppp/2n5/8/3pP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "c6",
+    "piece": "n",
+    "attackers": [
+      {
+        "square": "d4",
+        "piece": "n"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "b7",
+        "piece": "p"
+      },
+      {
+        "square": "d7",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 320,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+  Only one candidate line available.
+  CANDIDATE MOVES (from Stockfish, best first):
+    ⮕ PLAYED: Nxd4 (+0.35) — Line: 4. Nxd4 Na5 5. Ba6 Nb3 (depth 12)
+  Best move was: Nxd4
+
+## FINAL POSITION
+FEN: N1bk1bnr/pp1p1ppp/2n5/4p3/4P3/5N2/P1P2PPP/3K1B1R w - - 0 11
+Material: Black +4 material
+
+## POSITION ANNOTATION
+Game Phase: MIDDLEGAME
+Summary: White to move. Game phase: middlegame.
+
+### STRATEGIC THEMES
+- [medium] Black has bishop pair: Black's two bishops can be powerful in open positions
+
+### PAWN STRUCTURE
+- Isolated pawns: White 2, Black 0
+
+### KING SAFETY
+- White king safety: 80/100
+- Black king safety: 80/100
+
+### PIECE ACTIVITY
+- white knight on a8: passive — Only 2 legal move(s) — restricted mobility
+- black bishop on c8: undeveloped — Still on starting square
+- black bishop on f8: undeveloped — Still on starting square
+- black knight on g8: undeveloped — Still on starting square
+- black rook on h8: undeveloped — Still on starting square
+- black knight on c6: trapped — No legal moves available — piece is trapped or pinned
+- white bishop on f1: undeveloped — Still on starting square
+- white rook on h1: undeveloped — Still on starting square
+
+## VERIFIED POSITION FACTS — FINAL POSITION (chess.js oracle)
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Nf3→Pe5
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+
+## CHESS INTELLIGENCE LAYER
+(Pre-computed verified analysis — use this to ground your explanations)
+
+### CRITICAL POSITION: Move 5 (White — MISTAKE)
+TACTICAL FACTS: [] — structural patterns detected but all escapable against best defense.
+Refutations:
+  discovered_attack: refuted by defend-d7 (counter_threat)
+Do not assert: fork, pin, skewer, discovered, hanging, trapped, back rank, mate threat.
+
+UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): discovered_attack — refuted by defend-d7
+CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+BRANCH POINT: Shared first 1 move(s): Ba6. Key divergence — best: Kd8 vs alternative: Na5
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Relative pin (tactical, confidence 0.80)
+    Definition: A piece is pinned against a more valuable piece behind it; moving it is legal but loses material.
+    Evidence: P@b7 pinned to B@c8
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays Ba6 — no capture, no check, no promotion
+ENGINE IDEA: The line runs Ba6 Kd8 Bb5 Kc7 — a positional sequence building long-term advantage.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Nd4→Nc6
+  Black: Qb6→Nd4, Nc6→Nd4, Qb6→Pb2
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): newly trapped: white knight on f3
+OPPONENT THREATS TO COUNT: Qb4+ (check), Qa5+ (check), Qxd4 (wins ~3p)
+
+### CRITICAL POSITION: Move 8 (White — MISTAKE)
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "fork",
+    "by_piece": "n",
+    "by_square": "c7",
+    "targets": [
+      {
+        "square": "e8",
+        "piece": "k"
+      },
+      {
+        "square": "a8",
+        "piece": "r"
+      }
+    ],
+    "unavoidable_loss_cp": 500,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "c1",
+    "piece": "q",
+    "attackers": [
+      {
+        "square": "d1",
+        "piece": "q"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 900,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+BRANCH POINT: Key divergence — best: Bc4 vs alternative: Nc7+
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Relative pin (tactical, confidence 0.80)
+    Definition: A piece is pinned against a more valuable piece behind it; moving it is legal but loses material.
+    Evidence: P@f7 pinned to N@g8
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays Bc4 — no capture, no check, no promotion
+ENGINE IDEA: The line runs Bc4 Kd8 Bb3 Ke8 — a positional sequence building long-term advantage.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Nb5→Pa7, Qd1→Pd7, Qd1→Qc1
+  Black: Qc1→Pc2, Qc1→Qd1
+
+HANGING (attacked, inadequately defended):
+  Black Qc1: attacked by Qd1; no defenders
+
+ABSOLUTE PINS (pinned to king):
+  White Qd1 is pinned to Ke1 by Black Qc1
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): new threat(s): Black king is in check | Black's king safety dropped
+OPPONENT THREATS TO COUNT: Qxd1+ (check), Qd2+ (check), Qe3+ (check)
+
+### CRITICAL POSITION: Move 4 (White — INACCURACY)
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "c6",
+    "piece": "n",
+    "attackers": [
+      {
+        "square": "d4",
+        "piece": "n"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "b7",
+        "piece": "p"
+      },
+      {
+        "square": "d7",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 320,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+CANDIDATE RANKING: Only one candidate line available.
+ENGINE IDEA: The key idea: 4. Nxd4 wins the pawn.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Nf3→Pd4, Qd1→Pd4
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): material swung ~1 point(s) toward White | new threat(s): Black can capture knight on d4
+OPPONENT THREATS TO COUNT: Qa5+ (check)
+"
+`;
+
+exports[`buildGameContext byte-equality snapshots (PR-CI-1) > renders 08_quiet_positional.json byte-identically 1`] = `
+"## GAME OVERVIEW
+- Total moves: 12 full moves (24 half-moves)
+- Result: In progress
+- Player: QuietCarl playing as White
+- Player rating: 1820
+- Accuracy: White 94.2%, Black 95.8%
+- Estimated Elo: White ~1820, Black ~1870
+- White: QuietCarl (1820)
+- Black: SolidSue (1870)
+- Event: Weekly rapid
+- Date: 2026.06.28
+- Time control: 900+10
+- Opening: King's Indian Attack, ECO A05
+- PGN result tag: 1/2-1/2
+
+
+## PGN
+1. Nf3 Nf6 2. g3 g6 3. Bg2 Bg7 4. O-O O-O 5. d3 d6 6. c4 e5 7. Nc3 Nc6 8. Rb1 a5 9. a3 h6 10. b4 axb4 11. axb4 Be6 12. b5 Ne7
+
+## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)
+All evals are in pawns from White's perspective (positive = better for White); M+n / M-n = forced mate for White / Black.
+1. Nf3 (White) | White knight moved from g1 to f3
+    FEN before: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    FEN after:  rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1
+    Eval: +0.15
+1... Nf6 (Black) | Black knight moved from g8 to f6
+    FEN before: rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1
+    FEN after:  rnbqkb1r/pppppppp/5n2/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 2 2
+    Eval: +0.12
+2. g3 (White) | White pawn moved from g2 to g3
+    FEN before: rnbqkb1r/pppppppp/5n2/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 2 2
+    FEN after:  rnbqkb1r/pppppppp/5n2/8/8/5NP1/PPPPPP1P/RNBQKB1R b KQkq - 0 2
+    Classification: EXCELLENT
+    Eval: +0.18
+2... g6 (Black) | Black pawn moved from g7 to g6
+    FEN before: rnbqkb1r/pppppppp/5n2/8/8/5NP1/PPPPPP1P/RNBQKB1R b KQkq - 0 2
+    FEN after:  rnbqkb1r/pppppp1p/5np1/8/8/5NP1/PPPPPP1P/RNBQKB1R w KQkq - 0 3
+    Eval: +0.15
+3. Bg2 (White) | White bishop moved from f1 to g2
+    FEN before: rnbqkb1r/pppppp1p/5np1/8/8/5NP1/PPPPPP1P/RNBQKB1R w KQkq - 0 3
+    FEN after:  rnbqkb1r/pppppp1p/5np1/8/8/5NP1/PPPPPPBP/RNBQK2R b KQkq - 1 3
+    Eval: +0.22
+3... Bg7 (Black) | Black bishop moved from f8 to g7
+    FEN before: rnbqkb1r/pppppp1p/5np1/8/8/5NP1/PPPPPPBP/RNBQK2R b KQkq - 1 3
+    FEN after:  rnbqk2r/ppppppbp/5np1/8/8/5NP1/PPPPPPBP/RNBQK2R w KQkq - 2 4
+    Eval: +0.18
+4. O-O (White) | White castled kingside
+    FEN before: rnbqk2r/ppppppbp/5np1/8/8/5NP1/PPPPPPBP/RNBQK2R w KQkq - 2 4
+    FEN after:  rnbqk2r/ppppppbp/5np1/8/8/5NP1/PPPPPPBP/RNBQ1RK1 b kq - 3 4
+    Classification: GOOD
+    Eval: +0.25
+4... O-O (Black) | Black castled kingside
+    FEN before: rnbqk2r/ppppppbp/5np1/8/8/5NP1/PPPPPPBP/RNBQ1RK1 b kq - 3 4
+    FEN after:  rnbq1rk1/ppppppbp/5np1/8/8/5NP1/PPPPPPBP/RNBQ1RK1 w - - 4 5
+    Eval: +0.20
+5. d3 (White) | White pawn moved from d2 to d3
+    FEN before: rnbq1rk1/ppppppbp/5np1/8/8/5NP1/PPPPPPBP/RNBQ1RK1 w - - 4 5
+    FEN after:  rnbq1rk1/ppppppbp/5np1/8/8/3P1NP1/PPP1PPBP/RNBQ1RK1 b - - 0 5
+    Eval: +0.28
+5... d6 (Black) | Black pawn moved from d7 to d6
+    FEN before: rnbq1rk1/ppppppbp/5np1/8/8/3P1NP1/PPP1PPBP/RNBQ1RK1 b - - 0 5
+    FEN after:  rnbq1rk1/ppp1ppbp/3p1np1/8/8/3P1NP1/PPP1PPBP/RNBQ1RK1 w - - 0 6
+    Eval: +0.22
+6. c4 (White) | White pawn moved from c2 to c4
+    FEN before: rnbq1rk1/ppp1ppbp/3p1np1/8/8/3P1NP1/PPP1PPBP/RNBQ1RK1 w - - 0 6
+    FEN after:  rnbq1rk1/ppp1ppbp/3p1np1/8/2P5/3P1NP1/PP2PPBP/RNBQ1RK1 b - - 0 6
+    Eval: +0.30
+6... e5 (Black) | Black pawn moved from e7 to e5
+    FEN before: rnbq1rk1/ppp1ppbp/3p1np1/8/2P5/3P1NP1/PP2PPBP/RNBQ1RK1 b - - 0 6
+    FEN after:  rnbq1rk1/ppp2pbp/3p1np1/4p3/2P5/3P1NP1/PP2PPBP/RNBQ1RK1 w - - 0 7
+    Eval: +0.25
+7. Nc3 (White) | White knight moved from b1 to c3
+    FEN before: rnbq1rk1/ppp2pbp/3p1np1/4p3/2P5/3P1NP1/PP2PPBP/RNBQ1RK1 w - - 0 7
+    FEN after:  rnbq1rk1/ppp2pbp/3p1np1/4p3/2P5/2NP1NP1/PP2PPBP/R1BQ1RK1 b - - 1 7
+    Eval: +0.30
+7... Nc6 (Black) | Black knight moved from b8 to c6
+    FEN before: rnbq1rk1/ppp2pbp/3p1np1/4p3/2P5/2NP1NP1/PP2PPBP/R1BQ1RK1 b - - 1 7
+    FEN after:  r1bq1rk1/ppp2pbp/2np1np1/4p3/2P5/2NP1NP1/PP2PPBP/R1BQ1RK1 w - - 2 8
+    Eval: +0.25
+8. Rb1 (White) | White rook moved from a1 to b1
+    FEN before: r1bq1rk1/ppp2pbp/2np1np1/4p3/2P5/2NP1NP1/PP2PPBP/R1BQ1RK1 w - - 2 8
+    FEN after:  r1bq1rk1/ppp2pbp/2np1np1/4p3/2P5/2NP1NP1/PP2PPBP/1RBQ1RK1 b - - 3 8
+    Classification: INACCURACY
+    Eval: -0.35
+    Best was: Bd2 (+0.25, depth 14) — Engine line: 8. Bd2 Bd7 9. Bc1 Bc8
+8... a5 (Black) | Black pawn moved from a7 to a5
+    FEN before: r1bq1rk1/ppp2pbp/2np1np1/4p3/2P5/2NP1NP1/PP2PPBP/1RBQ1RK1 b - - 3 8
+    FEN after:  r1bq1rk1/1pp2pbp/2np1np1/p3p3/2P5/2NP1NP1/PP2PPBP/1RBQ1RK1 w - - 0 9
+    Eval: -0.30
+9. a3 (White) | White pawn moved from a2 to a3
+    FEN before: r1bq1rk1/1pp2pbp/2np1np1/p3p3/2P5/2NP1NP1/PP2PPBP/1RBQ1RK1 w - - 0 9
+    FEN after:  r1bq1rk1/1pp2pbp/2np1np1/p3p3/2P5/P1NP1NP1/1P2PPBP/1RBQ1RK1 b - - 0 9
+    Eval: -0.25
+9... h6 (Black) | Black pawn moved from h7 to h6
+    FEN before: r1bq1rk1/1pp2pbp/2np1np1/p3p3/2P5/P1NP1NP1/1P2PPBP/1RBQ1RK1 b - - 0 9
+    FEN after:  r1bq1rk1/1pp2pb1/2np1npp/p3p3/2P5/P1NP1NP1/1P2PPBP/1RBQ1RK1 w - - 0 10
+    Eval: -0.28
+10. b4 (White) | White pawn moved from b2 to b4
+    FEN before: r1bq1rk1/1pp2pb1/2np1npp/p3p3/2P5/P1NP1NP1/1P2PPBP/1RBQ1RK1 w - - 0 10
+    FEN after:  r1bq1rk1/1pp2pb1/2np1npp/p3p3/1PP5/P1NP1NP1/4PPBP/1RBQ1RK1 b - - 0 10
+    Eval: -0.20
+10... axb4 (Black) | Black pawn moved from a5 to b4, capturing pawn on b4
+    FEN before: r1bq1rk1/1pp2pb1/2np1npp/p3p3/1PP5/P1NP1NP1/4PPBP/1RBQ1RK1 b - - 0 10
+    FEN after:  r1bq1rk1/1pp2pb1/2np1npp/4p3/1pP5/P1NP1NP1/4PPBP/1RBQ1RK1 w - - 0 11
+    Eval: -0.22
+11. axb4 (White) | White pawn moved from a3 to b4, capturing pawn on b4
+    FEN before: r1bq1rk1/1pp2pb1/2np1npp/4p3/1pP5/P1NP1NP1/4PPBP/1RBQ1RK1 w - - 0 11
+    FEN after:  r1bq1rk1/1pp2pb1/2np1npp/4p3/1PP5/2NP1NP1/4PPBP/1RBQ1RK1 b - - 0 11
+    Eval: -0.15
+11... Be6 (Black) | Black bishop moved from c8 to e6
+    FEN before: r1bq1rk1/1pp2pb1/2np1npp/4p3/1PP5/2NP1NP1/4PPBP/1RBQ1RK1 b - - 0 11
+    FEN after:  r2q1rk1/1pp2pb1/2npbnpp/4p3/1PP5/2NP1NP1/4PPBP/1RBQ1RK1 w - - 1 12
+    Eval: -0.18
+12. b5 (White) | White pawn moved from b4 to b5
+    FEN before: r2q1rk1/1pp2pb1/2npbnpp/4p3/1PP5/2NP1NP1/4PPBP/1RBQ1RK1 w - - 1 12
+    FEN after:  r2q1rk1/1pp2pb1/2npbnpp/1P2p3/2P5/2NP1NP1/4PPBP/1RBQ1RK1 b - - 0 12
+    Eval: -0.10
+12... Ne7 (Black) | Black knight moved from c6 to e7
+    FEN before: r2q1rk1/1pp2pb1/2npbnpp/1P2p3/2P5/2NP1NP1/4PPBP/1RBQ1RK1 b - - 0 12
+    FEN after:  r2q1rk1/1pp1npb1/3pbnpp/1P2p3/2P5/2NP1NP1/4PPBP/1RBQ1RK1 w - - 1 13
+    Eval: -0.12
+
+## TOP MISTAKES (sorted by severity — ANALYZE EACH WITH FULL DEPTH)
+### Move 8 (White): Rb1 [INACCURACY]
+  Eval: 0.25 → -0.35 (lost 0.6 pawns)
+  What happened: White rook moved from a1 to b1
+  FEN before: r1bq1rk1/ppp2pbp/2np1np1/4p3/2P5/2NP1NP1/PP2PPBP/R1BQ1RK1 w - - 2 8
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "e5",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "f3",
+        "piece": "n"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "c6",
+        "piece": "n"
+      },
+      {
+        "square": "d6",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Bd2, played line goes Rb1
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Bd2 (+0.25) — Line: 8. Bd2 Bd7 9. Bc1 Bc8 (depth 14)
+    ⮕ PLAYED: Rb1 (-0.35) — Line: 8. Rb1 Bd7 9. Bd2 (depth 14)
+    ★ BETTER: Be3 (-0.95) — Line: 8. Be3 Bd7 (depth 14)
+  Best move was: Bd2
+
+## FINAL POSITION
+FEN: r2q1rk1/1pp1npb1/3pbnpp/1P2p3/2P5/2NP1NP1/4PPBP/1RBQ1RK1 w - - 1 13
+Material: Equal material
+
+## POSITION ANNOTATION
+Game Phase: OPENING
+Summary: White to move. Game phase: opening.
+
+### STRATEGIC THEMES
+- [medium] Closed position: Many pawns — knights may be stronger than bishops
+
+### PAWN STRUCTURE
+- Open files: a
+
+### KING SAFETY
+- White king safety: 90/100
+- Black king safety: 80/100
+
+### PIECE ACTIVITY
+- black rook on a8: undeveloped — Still on starting square
+- black queen on d8: undeveloped — Still on starting square
+- black rook on f8: trapped — No legal moves available — piece is trapped or pinned
+- black knight on e7: trapped — No legal moves available — piece is trapped or pinned
+- black bishop on g7: trapped — No legal moves available — piece is trapped or pinned
+- black bishop on e6: trapped — No legal moves available — piece is trapped or pinned
+- black knight on f6: trapped — No legal moves available — piece is trapped or pinned
+- white bishop on g2: passive — Only 2 legal move(s) — restricted mobility
+- white rook on b1: active — 4 legal moves available
+- white bishop on c1: undeveloped — Still on starting square
+- white queen on d1: undeveloped — Still on starting square
+- white rook on f1: passive — Only 1 legal move(s) — restricted mobility
+
+## VERIFIED POSITION FACTS — FINAL POSITION (chess.js oracle)
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Bc1→Ph6, Nf3→Pe5
+  Black: Be6→Pc4
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+
+## CHESS INTELLIGENCE LAYER
+(Pre-computed verified analysis — use this to ground your explanations)
+
+### CRITICAL POSITION: Move 8 (White — INACCURACY)
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "e5",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "f3",
+        "piece": "n"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "c6",
+        "piece": "n"
+      },
+      {
+        "square": "d6",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+BRANCH POINT: Key divergence — best: Bd2 vs alternative: Rb1
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays Bd2 — no capture, no check, no promotion
+ENGINE IDEA: The line runs Bd2 Bd7 Bc1 Bc8 — a positional sequence building long-term advantage.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Nf3→Pe5
+
+HANGING (attacked, inadequately defended):
+  (none)
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): newly trapped: white knight on c3
+"
+`;

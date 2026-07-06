@@ -1,0 +1,152 @@
+{
+  "moveHistory": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "Bb5",
+    "a6",
+    "Ba4",
+    "Nf6"
+  ],
+  "gameEval": {
+    "positions": [
+      {
+        "lines": [
+          {
+            "pv": [
+              "e2e4",
+              "b8a6",
+              "f1b5",
+              "a6b4"
+            ],
+            "cp": 20,
+            "depth": 12,
+            "multiPv": 1
+          }
+        ]
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "e7e5",
+              "f1a6",
+              "f8a3",
+              "a6b5"
+            ],
+            "cp": 30,
+            "depth": 13,
+            "multiPv": 1
+          }
+        ]
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "g1f3",
+              "f8a3",
+              "f1a6",
+              "a3b4"
+            ],
+            "cp": 25,
+            "depth": 14,
+            "multiPv": 1
+          }
+        ]
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "b8c6",
+              "f1a6",
+              "f8a3",
+              "a6b5"
+            ],
+            "cp": 35,
+            "depth": 12,
+            "multiPv": 1
+          }
+        ]
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "f1b5",
+              "f8a3",
+              "b5a4",
+              "a3b4"
+            ],
+            "cp": 30,
+            "depth": 13,
+            "multiPv": 1
+          }
+        ]
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "a7a6",
+              "b5a4",
+              "f8a3",
+              "a4b3"
+            ],
+            "cp": 40,
+            "depth": 14,
+            "multiPv": 1
+          }
+        ]
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "b5a4",
+              "f8a3",
+              "a4b3",
+              "a3b4"
+            ],
+            "cp": 35,
+            "depth": 12,
+            "multiPv": 1
+          }
+        ]
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "g8f6",
+              "a4b3",
+              "f8a3",
+              "b3a4"
+            ],
+            "cp": 45,
+            "depth": 13,
+            "multiPv": 1
+          }
+        ]
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "a4b3",
+              "f8a3",
+              "b3a4",
+              "a3b4"
+            ],
+            "cp": 40,
+            "depth": 14,
+            "multiPv": 1
+          }
+        ]
+      }
+    ]
+  },
+  "playerColor": "b"
+}

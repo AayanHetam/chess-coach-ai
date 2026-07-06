@@ -1,0 +1,5 @@
+# Offline eval harnesses (Track A ChessQA grounding + 2x2 factual-error).
+# pip install -r scripts/eval/requirements.txt
+# Also needs a Stockfish binary (STOCKFISH_BIN, default /opt/homebrew/bin/stockfish)
+# and ANTHROPIC_API_KEY (env or .env.local).
+chess>=1.10

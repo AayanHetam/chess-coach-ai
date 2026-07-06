@@ -1,13 +1,15 @@
 {
   "version": 1,
   "createdAt": "2026-05-18",
-  "_note": "Dry-run gate fixture set per PR_1C_PLAN.md §1.2. 20 tuples: 10 known-good (validator should not fire), 10 known-bad (validator should fire). Each tuple drives runValidationPipeline through mocked parser + mocked LLM. Default config passes all 20; --override-tolerance=2000 specifically suppresses BAD-1's adjacent qualitative band-flip detection, dropping chess-correctness below the 0-violations threshold.",
+  "_note": "Dry-run gate fixture set per PR_1C_PLAN.md \u00a71.2. 20 tuples: 10 known-good (validator should not fire), 10 known-bad (validator should fire). Each tuple drives runValidationPipeline through mocked parser + mocked LLM. Default config passes all 20; --override-tolerance=2000 specifically suppresses BAD-1's adjacent qualitative band-flip detection, dropping chess-correctness below the 0-violations threshold.",
   "fixtures": [
     {
       "name": "GOOD-1: clean band, white perspective",
       "category": "known_good",
       "description": "Slightly-better white-perspective claim on a +70cp position. Bands match.",
-      "stockfishEval": { "cp": 70 },
+      "stockfishEval": {
+        "cp": 70
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -16,7 +18,9 @@
         {
           "stated_band": "slightly_better",
           "stated_cp": null,
-          "supporting_spans": ["White is slightly better"],
+          "supporting_spans": [
+            "White is slightly better"
+          ],
           "confidence": 0.95,
           "claim_class": "evaluative",
           "perspective": "white"
@@ -35,8 +39,10 @@
     {
       "name": "GOOD-2: numeric claim within threshold",
       "category": "known_good",
-      "description": "Stated +0.8 vs Stockfish +0.7 — diff 10 cp, well under 150 numeric threshold.",
-      "stockfishEval": { "cp": 70 },
+      "description": "Stated +0.8 vs Stockfish +0.7 \u2014 diff 10 cp, well under 150 numeric threshold.",
+      "stockfishEval": {
+        "cp": 70
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -45,7 +51,9 @@
         {
           "stated_band": "slightly_better",
           "stated_cp": 80,
-          "supporting_spans": ["+0.8"],
+          "supporting_spans": [
+            "+0.8"
+          ],
           "confidence": 0.95,
           "claim_class": "evaluative",
           "perspective": "white"
@@ -65,7 +73,9 @@
       "name": "GOOD-3: equal band on equal position",
       "category": "known_good",
       "description": "Stockfish +20cp falls in the equal band; response says roughly equal.",
-      "stockfishEval": { "cp": 20 },
+      "stockfishEval": {
+        "cp": 20
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -74,7 +84,9 @@
         {
           "stated_band": "equal",
           "stated_cp": null,
-          "supporting_spans": ["Roughly equal"],
+          "supporting_spans": [
+            "Roughly equal"
+          ],
           "confidence": 0.95,
           "claim_class": "evaluative",
           "perspective": "white"
@@ -94,7 +106,9 @@
       "name": "GOOD-4: black-perspective claim correctly translated",
       "category": "known_good",
       "description": "Stockfish -70cp (white view) = slightly_worse for white = slightly_better for black. Black-perspective claim normalizes to slightly_worse, matches expected.",
-      "stockfishEval": { "cp": -70 },
+      "stockfishEval": {
+        "cp": -70
+      },
       "playerPerspective": "black",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -103,7 +117,9 @@
         {
           "stated_band": "slightly_better",
           "stated_cp": null,
-          "supporting_spans": ["I'm slightly better"],
+          "supporting_spans": [
+            "I'm slightly better"
+          ],
           "confidence": 0.95,
           "claim_class": "evaluative",
           "perspective": "black"
@@ -123,7 +139,9 @@
       "name": "GOOD-5: low-confidence parser claim is skipped",
       "category": "known_good",
       "description": "Parser confidence 0.3 < default threshold 0.5; claim is skipped silently, no fire.",
-      "stockfishEval": { "cp": 70 },
+      "stockfishEval": {
+        "cp": 70
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -132,7 +150,9 @@
         {
           "stated_band": "winning",
           "stated_cp": null,
-          "supporting_spans": ["Maybe Black is winning"],
+          "supporting_spans": [
+            "Maybe Black is winning"
+          ],
           "confidence": 0.3,
           "claim_class": "evaluative",
           "perspective": "black"
@@ -152,18 +172,40 @@
       "name": "GOOD-6: passed-pawn citation matches delta",
       "category": "known_good",
       "description": "Delta has passedPawnsGained.white = ['d5']; response cites that exact square.",
-      "stockfishEval": { "cp": 100 },
+      "stockfishEval": {
+        "cp": 100
+      },
       "playerPerspective": "white",
       "featureDelta": {
         "pawnStructureDelta": {
-          "doubledPawnsChange": { "white": 0, "black": 0 },
-          "isolatedPawnsChange": { "white": 0, "black": 0 },
-          "passedPawnsGained": { "white": ["d5"], "black": [] },
-          "passedPawnsLost": { "white": [], "black": [] },
+          "doubledPawnsChange": {
+            "white": 0,
+            "black": 0
+          },
+          "isolatedPawnsChange": {
+            "white": 0,
+            "black": 0
+          },
+          "passedPawnsGained": {
+            "white": [
+              "d5"
+            ],
+            "black": []
+          },
+          "passedPawnsLost": {
+            "white": [],
+            "black": []
+          },
           "openFilesGained": [],
           "openFilesLost": [],
-          "semiOpenFilesGained": { "white": [], "black": [] },
-          "semiOpenFilesLost": { "white": [], "black": [] }
+          "semiOpenFilesGained": {
+            "white": [],
+            "black": []
+          },
+          "semiOpenFilesLost": {
+            "white": [],
+            "black": []
+          }
         },
         "isEmptyDelta": false
       },
@@ -174,7 +216,10 @@
         {
           "claim_text": "passed pawn on d5",
           "claim_type": "new_passed_pawn",
-          "expected_in_delta": { "side": "white", "square": "d5" },
+          "expected_in_delta": {
+            "side": "white",
+            "square": "d5"
+          },
           "claim_class": "factual_delta_claim",
           "confidence": 0.95
         }
@@ -191,8 +236,10 @@
     {
       "name": "GOOD-7: metaphorical claim is not evaluated",
       "category": "known_good",
-      "description": "claim_class: metaphorical → evaluative-check loop skips. No fire on a band that would otherwise mismatch.",
-      "stockfishEval": { "cp": 70 },
+      "description": "claim_class: metaphorical \u2192 evaluative-check loop skips. No fire on a band that would otherwise mismatch.",
+      "stockfishEval": {
+        "cp": 70
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -201,7 +248,9 @@
         {
           "stated_band": "winning",
           "stated_cp": null,
-          "supporting_spans": ["dancing"],
+          "supporting_spans": [
+            "dancing"
+          ],
           "confidence": 0.9,
           "claim_class": "metaphorical",
           "perspective": "white"
@@ -220,8 +269,10 @@
     {
       "name": "GOOD-8: conditional speculation is not evaluated",
       "category": "known_good",
-      "description": "claim_class: conditional → evaluative-check loop skips even though a stated band is present.",
-      "stockfishEval": { "cp": 70 },
+      "description": "claim_class: conditional \u2192 evaluative-check loop skips even though a stated band is present.",
+      "stockfishEval": {
+        "cp": 70
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -230,7 +281,9 @@
         {
           "stated_band": "slightly_better",
           "stated_cp": null,
-          "supporting_spans": ["might still give White a slight edge"],
+          "supporting_spans": [
+            "might still give White a slight edge"
+          ],
           "confidence": 0.85,
           "claim_class": "conditional",
           "perspective": "white"
@@ -250,10 +303,15 @@
       "name": "GOOD-9: lost-piece citation matches material delta",
       "category": "known_good",
       "description": "materialDelta.white = -3; response cites 'you lost a piece'; matchClaim returns matched.",
-      "stockfishEval": { "cp": -300 },
+      "stockfishEval": {
+        "cp": -300
+      },
       "playerPerspective": "white",
       "featureDelta": {
-        "materialDelta": { "white": -3, "black": 0 },
+        "materialDelta": {
+          "white": -3,
+          "black": 0
+        },
         "isEmptyDelta": false
       },
       "pieceRoleDiff": [],
@@ -262,7 +320,9 @@
         {
           "stated_band": "losing",
           "stated_cp": null,
-          "supporting_spans": ["losing"],
+          "supporting_spans": [
+            "losing"
+          ],
           "confidence": 0.9,
           "claim_class": "evaluative",
           "perspective": "white"
@@ -272,7 +332,9 @@
         {
           "claim_text": "you lost a piece",
           "claim_type": "lost_piece",
-          "expected_in_delta": { "side": "white" },
+          "expected_in_delta": {
+            "side": "white"
+          },
           "claim_class": "factual_delta_claim",
           "confidence": 0.95
         }
@@ -290,11 +352,19 @@
       "name": "GOOD-10: hanging-piece citation matches delta",
       "category": "known_good",
       "description": "hangingPiecesDelta.newlyHanging has a white knight on e5; response cites it; matchClaim filters return a hit.",
-      "stockfishEval": { "cp": -200 },
+      "stockfishEval": {
+        "cp": -200
+      },
       "playerPerspective": "white",
       "featureDelta": {
         "hangingPiecesDelta": {
-          "newlyHanging": [{ "square": "e5", "piece": "n", "color": "white" }],
+          "newlyHanging": [
+            {
+              "square": "e5",
+              "piece": "n",
+              "color": "white"
+            }
+          ],
           "nowDefended": []
         },
         "isEmptyDelta": false
@@ -306,7 +376,11 @@
         {
           "claim_text": "knight on e5 is hanging",
           "claim_type": "hanging_piece",
-          "expected_in_delta": { "side": "white", "square": "e5", "piece": "n" },
+          "expected_in_delta": {
+            "side": "white",
+            "square": "e5",
+            "piece": "n"
+          },
           "claim_class": "factual_delta_claim",
           "confidence": 0.95
         }
@@ -323,8 +397,10 @@
     {
       "name": "BAD-1: adjacent qualitative band-flip, far from boundary",
       "category": "known_bad",
-      "description": "Stockfish +250cp (much_better); response claims slightly_better. Adjacent bands, boundary at 150cp, |250-150|=100 > default tolerance 20 → fires. --override-tolerance=2000 suppresses this fire (100 < 2000) and the bad response leaks through.",
-      "stockfishEval": { "cp": 250 },
+      "description": "Stockfish +250cp (much_better); response claims slightly_better. Adjacent bands, boundary at 150cp, |250-150|=100 > default tolerance 20 \u2192 fires. --override-tolerance=2000 suppresses this fire (100 < 2000) and the bad response leaks through.",
+      "stockfishEval": {
+        "cp": 250
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -334,7 +410,9 @@
         {
           "stated_band": "slightly_better",
           "stated_cp": null,
-          "supporting_spans": ["White is slightly better"],
+          "supporting_spans": [
+            "White is slightly better"
+          ],
           "confidence": 0.95,
           "claim_class": "evaluative",
           "perspective": "white"
@@ -354,7 +432,9 @@
       "name": "BAD-2: numeric mismatch beyond threshold",
       "category": "known_bad",
       "description": "Stockfish +70cp; response cites +5.0 (stated_cp 500). |500-70|=430 > 150 default. --override-numeric=20000 would suppress this (430 < 20000).",
-      "stockfishEval": { "cp": 70 },
+      "stockfishEval": {
+        "cp": 70
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -364,7 +444,9 @@
         {
           "stated_band": "slightly_better",
           "stated_cp": 500,
-          "supporting_spans": ["+5.0"],
+          "supporting_spans": [
+            "+5.0"
+          ],
           "confidence": 0.95,
           "claim_class": "evaluative",
           "perspective": "white"
@@ -383,8 +465,10 @@
     {
       "name": "BAD-3: non-adjacent qualitative band-flip (override-insensitive)",
       "category": "known_bad",
-      "description": "Stockfish +70cp (slightly_better); response claims winning. Distance 2, not adjacent. Tolerance overrides have no effect — fires regardless.",
-      "stockfishEval": { "cp": 70 },
+      "description": "Stockfish +70cp (slightly_better); response claims winning. Distance 2, not adjacent. Tolerance overrides have no effect \u2014 fires regardless.",
+      "stockfishEval": {
+        "cp": 70
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -394,7 +478,9 @@
         {
           "stated_band": "winning",
           "stated_cp": null,
-          "supporting_spans": ["White is winning"],
+          "supporting_spans": [
+            "White is winning"
+          ],
           "confidence": 0.95,
           "claim_class": "evaluative",
           "perspective": "white"
@@ -414,7 +500,9 @@
       "name": "BAD-4: invented new passed pawn",
       "category": "known_bad",
       "description": "Delta has empty passedPawnsGained; response invents a passed pawn on c5.",
-      "stockfishEval": { "cp": 50 },
+      "stockfishEval": {
+        "cp": 50
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -425,7 +513,10 @@
         {
           "claim_text": "passed pawn on c5",
           "claim_type": "new_passed_pawn",
-          "expected_in_delta": { "side": "white", "square": "c5" },
+          "expected_in_delta": {
+            "side": "white",
+            "square": "c5"
+          },
           "claim_class": "factual_delta_claim",
           "confidence": 0.95
         }
@@ -443,7 +534,9 @@
       "name": "BAD-5: invented material loss",
       "category": "known_bad",
       "description": "materialDelta.white = 0; response claims you lost a piece.",
-      "stockfishEval": { "cp": 0 },
+      "stockfishEval": {
+        "cp": 0
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -454,7 +547,9 @@
         {
           "claim_text": "you lost a piece",
           "claim_type": "lost_piece",
-          "expected_in_delta": { "side": "white" },
+          "expected_in_delta": {
+            "side": "white"
+          },
           "claim_class": "factual_delta_claim",
           "confidence": 0.95
         }
@@ -472,7 +567,9 @@
       "name": "BAD-6: invented hanging piece",
       "category": "known_bad",
       "description": "hangingPiecesDelta.newlyHanging is empty; response invents a hanging queen on d8.",
-      "stockfishEval": { "cp": 0 },
+      "stockfishEval": {
+        "cp": 0
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -483,7 +580,11 @@
         {
           "claim_text": "queen on d8 is hanging",
           "claim_type": "hanging_piece",
-          "expected_in_delta": { "side": "white", "square": "d8", "piece": "q" },
+          "expected_in_delta": {
+            "side": "white",
+            "square": "d8",
+            "piece": "q"
+          },
           "claim_class": "factual_delta_claim",
           "confidence": 0.95
         }
@@ -501,7 +602,9 @@
       "name": "BAD-7: both numeric AND qualitative wrong",
       "category": "known_bad",
       "description": "Stockfish +70cp slightly_better white-view; response claims Black wins by +3.0. After normalize: stated_band losing, stated_cp -300. Both numeric (diff 370 > 150) AND qualitative (distance 4, not adjacent) fire.",
-      "stockfishEval": { "cp": 70 },
+      "stockfishEval": {
+        "cp": 70
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -511,7 +614,10 @@
         {
           "stated_band": "winning",
           "stated_cp": 300,
-          "supporting_spans": ["+3.0 advantage", "is winning"],
+          "supporting_spans": [
+            "+3.0 advantage",
+            "is winning"
+          ],
           "confidence": 0.95,
           "claim_class": "evaluative",
           "perspective": "black"
@@ -531,7 +637,9 @@
       "name": "BAD-8: invented new outpost",
       "category": "known_bad",
       "description": "pieceRoleDiff is empty; response claims your knight gained a new outpost on e5.",
-      "stockfishEval": { "cp": 0 },
+      "stockfishEval": {
+        "cp": 0
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -542,7 +650,11 @@
         {
           "claim_text": "knight gained a new outpost on e5",
           "claim_type": "new_outpost",
-          "expected_in_delta": { "side": "white", "square": "e5", "piece": "n" },
+          "expected_in_delta": {
+            "side": "white",
+            "square": "e5",
+            "piece": "n"
+          },
           "claim_class": "factual_delta_claim",
           "confidence": 0.95
         }
@@ -560,7 +672,9 @@
       "name": "BAD-9: invented open file",
       "category": "known_bad",
       "description": "openFilesGained empty; response claims the e-file is now open.",
-      "stockfishEval": { "cp": 0 },
+      "stockfishEval": {
+        "cp": 0
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -571,7 +685,9 @@
         {
           "claim_text": "the e-file is now open",
           "claim_type": "new_open_file",
-          "expected_in_delta": { "square": "e" },
+          "expected_in_delta": {
+            "square": "e"
+          },
           "claim_class": "factual_delta_claim",
           "confidence": 0.95
         }
@@ -589,7 +705,9 @@
       "name": "BAD-10: invented role gained (attacker)",
       "category": "known_bad",
       "description": "pieceRoleDiff is empty; response claims your bishop on f1 became an attacker.",
-      "stockfishEval": { "cp": 0 },
+      "stockfishEval": {
+        "cp": 0
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -600,7 +718,12 @@
         {
           "claim_text": "bishop on f1 became an attacker",
           "claim_type": "role_gained",
-          "expected_in_delta": { "side": "white", "square": "f1", "piece": "b", "role": "attacker" },
+          "expected_in_delta": {
+            "side": "white",
+            "square": "f1",
+            "piece": "b",
+            "role": "attacker"
+          },
           "claim_class": "factual_delta_claim",
           "confidence": 0.95
         }
@@ -617,8 +740,10 @@
     {
       "name": "BAD-11: adjacent band-flip on the other side of boundary 150",
       "category": "known_bad",
-      "description": "Stockfish +120cp (slightly_better band); response claims much_better. Adjacent flip across the same 150 boundary as BAD-1 but from the other side — slightly_better → much_better at distance 30. |120-150|=30 > default tolerance 20 → fires. --override-tolerance=2000 suppresses (30 < 2000). Generalizes BAD-1's case across direction: BAD-1 underestimates (much_better expected, slightly_better claimed) at distance 100; BAD-11 overestimates (slightly_better expected, much_better claimed) at distance 30.",
-      "stockfishEval": { "cp": 120 },
+      "description": "Stockfish +100cp (slightly_better band); response claims much_better. Adjacent flip across the 150 boundary from below \u2014 slightly_better \u2192 much_better at distance 50. |100-150|=50 > ADJACENT_BAND_TOLERANCE_CP (40, widened from the plan's 20 in Stage-3 hardening; this fixture originally sat at +120/distance 30 and went stale when the tolerance widened) \u2192 fires. --override-tolerance=2000 suppresses (50 < 2000). Generalizes BAD-1's case across direction: BAD-1 underestimates at distance 100; BAD-11 overestimates at distance 50.",
+      "stockfishEval": {
+        "cp": 100
+      },
       "playerPerspective": "white",
       "featureDelta": {},
       "pieceRoleDiff": [],
@@ -628,7 +753,9 @@
         {
           "stated_band": "much_better",
           "stated_cp": null,
-          "supporting_spans": ["White has a clear advantage"],
+          "supporting_spans": [
+            "White has a clear advantage"
+          ],
           "confidence": 0.95,
           "claim_class": "evaluative",
           "perspective": "white"
@@ -645,22 +772,49 @@
       "groundingMatchedCount": 0
     },
     {
-      "name": "GOOD-11: partial grounding — 4 opportunities, response cites 2",
+      "name": "GOOD-11: partial grounding \u2014 4 opportunities, response cites 2",
       "category": "known_good",
-      "description": "Delta has 4 citable entries (passed pawn on d5, role change knight-outpost-e5, open file e, material loss). Response cites the passed pawn AND the material loss but skips the role change and open file. Ratio 2/4 = 0.5 → drags the aggregate grounding metric from 1.00 to 0.875, demonstrating the threshold catches incomplete grounding. Validators don't fire (all cited claims match the delta); finalOutcome is passed_initial.",
-      "stockfishEval": { "cp": -50 },
+      "description": "Delta has 4 citable entries (passed pawn on d5, role change knight-outpost-e5, open file e, material loss). Response cites the passed pawn AND the material loss but skips the role change and open file. Ratio 2/4 = 0.5 \u2192 drags the aggregate grounding metric from 1.00 to 0.875, demonstrating the threshold catches incomplete grounding. Validators don't fire (all cited claims match the delta); finalOutcome is passed_initial.",
+      "stockfishEval": {
+        "cp": -50
+      },
       "playerPerspective": "white",
       "featureDelta": {
-        "materialDelta": { "white": -3, "black": 0 },
+        "materialDelta": {
+          "white": -3,
+          "black": 0
+        },
         "pawnStructureDelta": {
-          "doubledPawnsChange": { "white": 0, "black": 0 },
-          "isolatedPawnsChange": { "white": 0, "black": 0 },
-          "passedPawnsGained": { "white": ["d5"], "black": [] },
-          "passedPawnsLost": { "white": [], "black": [] },
-          "openFilesGained": ["e"],
+          "doubledPawnsChange": {
+            "white": 0,
+            "black": 0
+          },
+          "isolatedPawnsChange": {
+            "white": 0,
+            "black": 0
+          },
+          "passedPawnsGained": {
+            "white": [
+              "d5"
+            ],
+            "black": []
+          },
+          "passedPawnsLost": {
+            "white": [],
+            "black": []
+          },
+          "openFilesGained": [
+            "e"
+          ],
           "openFilesLost": [],
-          "semiOpenFilesGained": { "white": [], "black": [] },
-          "semiOpenFilesLost": { "white": [], "black": [] }
+          "semiOpenFilesGained": {
+            "white": [],
+            "black": []
+          },
+          "semiOpenFilesLost": {
+            "white": [],
+            "black": []
+          }
         },
         "isEmptyDelta": false
       },
@@ -669,24 +823,31 @@
           "square": "e5",
           "piece": "n",
           "color": "w",
-          "gained": ["outpost"],
+          "gained": [
+            "outpost"
+          ],
           "lost": []
         }
       ],
-      "response": "You traded a piece for the d5 passed pawn — material is now down but the pawn is a long-term asset.",
+      "response": "You traded a piece for the d5 passed pawn \u2014 material is now down but the pawn is a long-term asset.",
       "evalParserOutput": [],
       "citationParserOutput": [
         {
           "claim_text": "d5 passed pawn",
           "claim_type": "new_passed_pawn",
-          "expected_in_delta": { "side": "white", "square": "d5" },
+          "expected_in_delta": {
+            "side": "white",
+            "square": "d5"
+          },
           "claim_class": "factual_delta_claim",
           "confidence": 0.95
         },
         {
           "claim_text": "traded a piece",
           "claim_type": "lost_piece",
-          "expected_in_delta": { "side": "white" },
+          "expected_in_delta": {
+            "side": "white"
+          },
           "claim_class": "factual_delta_claim",
           "confidence": 0.95
         }

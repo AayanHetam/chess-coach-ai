@@ -10,8 +10,8 @@ two modes:
 Answer extraction + scoring are copied VERBATIM from ChessQA's
 eval/run_openrouter.py so the numbers match their methodology.
 
-Run (needs the venv with python-chess + a Stockfish binary):
-  /tmp/chessqa-venv/bin/python scripts/eval/chessqa_grounding_eval.py \
+Run (pip install -r scripts/eval/requirements.txt + a Stockfish binary):
+  python3 scripts/eval/chessqa_grounding_eval.py \
       --category short_tactics --n 15 --output scripts/eval/results/chessqa-short_tactics.json
 
   add --dry-run to build prompts + engine context with ZERO API calls.
@@ -106,8 +106,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--category", default="short_tactics")
     ap.add_argument("--n", type=int, default=15)
-    ap.add_argument("--bench", default="/tmp/chessqa-benchmark/benchmark")
-    ap.add_argument("--repo", default=str(Path.home() / "Downloads/Inspirit_project/chess-coach-ai"))
+    ap.add_argument("--bench", default=str(Path(__file__).resolve().parent / "fixtures/chessqa"),
+                    help="ChessQA jsonl dir (vendored 100-item subsets in-repo; point at a full clone for bigger n)")
+    ap.add_argument("--repo", default=str(Path(__file__).resolve().parents[2]))
     ap.add_argument("--depth", type=int, default=18)
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--output", default=None)

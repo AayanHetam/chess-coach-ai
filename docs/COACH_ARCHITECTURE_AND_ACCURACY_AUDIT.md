@@ -4,6 +4,8 @@
 **Scope:** Full architecture of the AI chess coach (chessmasti.com), why its responses are inaccurate in production, whether "training" is the problem, and how competing products (chess.com, DecodeChess, Take Take Take, Chessvia, chesscoach.dev) architect the same problem.
 **Method:** 9 parallel code-reading agents mapped every subsystem with file:line evidence; defect hunts with adversarial verification; web research sweep over competitor architectures and the academic literature. Everything cited below to `file:line` was read from the actual working tree.
 
+> **Post-audit note (2026-07-05):** all seven fix workstreams in the companion [COACH_ACCURACY_FIX_PLAN.md](./COACH_ACCURACY_FIX_PLAN.md) shipped to main the same night (PRs #209–#215). This document describes the state that **prompted** the fixes; line numbers and behaviors below reflect the pre-fix tree. See the fix plan's STATUS table for what changed. First fresh accuracy numbers on the production flagship (`claude-sonnet-4-6`): ChessQA short_tactics **24% → 96% (+72pp)** with engine grounding, motifs 48% → 48%, 2×2 factual Haiku **2.44 → 4.36** grounded — committed under `scripts/eval/results/*-sonnet46.json`.
+
 ---
 
 ## 0. Executive summary

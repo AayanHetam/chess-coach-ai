@@ -441,7 +441,10 @@ export async function POST(request: NextRequest) {
         fallbackMessages.length > 0
           ? fallbackMessages
           : ([{ role: "user", content: "Hello" }] as LLMMessage[]),
-      temperature: parsed.data.temperature ?? 0.7,
+      // Clamp to Anthropic's valid range [0, 1]. chatSchema accepts up to 2
+      // (OpenAI's range); forwarding 1.5 to Anthropic 400s the request, which
+      // is a user-facing failure in single-provider mode (audit §3.8).
+      temperature: Math.max(0, Math.min(1, parsed.data.temperature ?? 0.7)),
       maxTokens: parsed.data.max_tokens ?? 3000,
       capture: {
         feature: "chat",

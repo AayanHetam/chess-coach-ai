@@ -1,0 +1,823 @@
+{
+  "date": "2026-07-06",
+  "mode": "legacy_path_BEFORE_baseline",
+  "model": {
+    "generator": "claude-sonnet-4-6",
+    "judge": "claude-haiku-4-5-20251001"
+  },
+  "promptVersion": "3.6",
+  "contractVersion": "1.0",
+  "fixtures": 10,
+  "generation": {
+    "tier": "flagship",
+    "temperature": 0.7,
+    "maxTokens": 3000,
+    "userMessage": "analyze my game"
+  },
+  "judge": {
+    "tier": "fast",
+    "passes": 2,
+    "rubric": "masti voice / encouragement / teaching structure, 1-5"
+  },
+  "aggregate": {
+    "fabricationRate": 24.6,
+    "fabricationCount": 61,
+    "claimSentences": 248,
+    "violationsByCheck": {
+      "eval_display": 0,
+      "san_whitelist": 45,
+      "tactical_keyword": 12,
+      "forbidden_claim": 4
+    },
+    "violationsByCategory": {
+      "eval_unbacked": 0,
+      "mate_distance_wrong": 0,
+      "san_unknown": 43,
+      "square_unknown": 1,
+      "hypothetical_line_off_contract": 1,
+      "tactical_keyword_unbacked": 12,
+      "forbidden_claim_present": 4
+    },
+    "personaMean": 3.75,
+    "unmatchedBlocks": 0,
+    "blocksEmitted": 16
+  },
+  "perGame": [
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "contractId": "3ef3d01123b95ac7",
+      "insightsInContract": 1,
+      "blocksEmitted": 1,
+      "blocksMatched": 1,
+      "unmatchedBlocks": 0,
+      "claimSentences": 13,
+      "fabricationCount": 11,
+      "fabricationRate": 84.62,
+      "violationsByCheck": {
+        "eval_display": 0,
+        "san_whitelist": 10,
+        "tactical_keyword": 1,
+        "forbidden_claim": 0
+      },
+      "violationsByCategory": {
+        "eval_unbacked": 0,
+        "mate_distance_wrong": 0,
+        "san_unknown": 10,
+        "square_unknown": 0,
+        "hypothetical_line_off_contract": 0,
+        "tactical_keyword_unbacked": 1,
+        "forbidden_claim_present": 0
+      },
+      "personaScores": [
+        2,
+        2
+      ],
+      "personaMean": 2,
+      "sampleViolations": [
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Qf3+",
+          "factIdPrefix": "I1",
+          "detail": "SAN token \"Qf3+\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Bc4",
+          "factIdPrefix": "I1",
+          "detail": "SAN token \"Bc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nd5",
+          "factIdPrefix": "I1",
+          "detail": "SAN token \"Nd5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Qf3",
+          "factIdPrefix": "I1",
+          "detail": "SAN token \"Qf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nc3",
+          "factIdPrefix": "I1",
+          "detail": "SAN token \"Nc3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Bc4",
+          "factIdPrefix": "I1",
+          "detail": "SAN token \"Bc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nd5",
+          "factIdPrefix": "I1",
+          "detail": "SAN token \"Nd5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Qf3",
+          "factIdPrefix": "I1",
+          "detail": "SAN token \"Qf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nd5",
+          "factIdPrefix": "I1",
+          "detail": "SAN token \"Nd5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nd5",
+          "factIdPrefix": "I1",
+          "detail": "SAN token \"Nd5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "pin",
+          "factIdPrefix": "I1",
+          "detail": "tactical keyword \"pin\" without a confirmed motif of that type in the contract"
+        }
+      ],
+      "generatorModel": "claude-sonnet-4-6",
+      "outputTokens": 481
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "contractId": "ca1fcf046a0ac035",
+      "insightsInContract": 4,
+      "blocksEmitted": 2,
+      "blocksMatched": 2,
+      "unmatchedBlocks": 0,
+      "claimSentences": 34,
+      "fabricationCount": 12,
+      "fabricationRate": 35.29,
+      "violationsByCheck": {
+        "eval_display": 0,
+        "san_whitelist": 10,
+        "tactical_keyword": 1,
+        "forbidden_claim": 1
+      },
+      "violationsByCategory": {
+        "eval_unbacked": 0,
+        "mate_distance_wrong": 0,
+        "san_unknown": 9,
+        "square_unknown": 0,
+        "hypothetical_line_off_contract": 1,
+        "tactical_keyword_unbacked": 1,
+        "forbidden_claim_present": 1
+      },
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "sampleViolations": [
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nf6",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Nf6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Bb6",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Bb6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nf6",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Nf6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "pin",
+          "factIdPrefix": "M1",
+          "detail": "tactical keyword \"pin\" without a confirmed motif of that type in the contract"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "hypothetical_line_off_contract",
+          "span": "exd4 cxd4",
+          "factIdPrefix": "M2",
+          "detail": "move sequence \"exd4 cxd4\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "cxd4",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"cxd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nf6",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Nf6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nf6",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Nf6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nf6",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Nf6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Bc5",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Bc5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nf6",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Nf6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "forbidden_claim",
+          "category": "forbidden_claim_present",
+          "span": "obvious",
+          "factIdPrefix": "M2",
+          "detail": "\"obvious\" while user_visibility is forbidden (Maia not consulted for this insight)"
+        }
+      ],
+      "generatorModel": "claude-sonnet-4-6",
+      "outputTokens": 1104
+    },
+    {
+      "fixture": "03_sentinel_timeout",
+      "contractId": "fb417b570bf4d4e7",
+      "insightsInContract": 3,
+      "blocksEmitted": 1,
+      "blocksMatched": 1,
+      "unmatchedBlocks": 0,
+      "claimSentences": 18,
+      "fabricationCount": 2,
+      "fabricationRate": 11.11,
+      "violationsByCheck": {
+        "eval_display": 0,
+        "san_whitelist": 1,
+        "tactical_keyword": 1,
+        "forbidden_claim": 0
+      },
+      "violationsByCategory": {
+        "eval_unbacked": 0,
+        "mate_distance_wrong": 0,
+        "san_unknown": 1,
+        "square_unknown": 0,
+        "hypothetical_line_off_contract": 0,
+        "tactical_keyword_unbacked": 1,
+        "forbidden_claim_present": 0
+      },
+      "personaScores": [
+        5,
+        4
+      ],
+      "personaMean": 4.5,
+      "sampleViolations": [
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nc3",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Nc3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "trapped",
+          "factIdPrefix": "M1",
+          "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+        }
+      ],
+      "generatorModel": "claude-sonnet-4-6",
+      "outputTokens": 547
+    },
+    {
+      "fixture": "04_invalid_san_truncation",
+      "contractId": "4e36971c9e392ca8",
+      "insightsInContract": 1,
+      "blocksEmitted": 1,
+      "blocksMatched": 1,
+      "unmatchedBlocks": 0,
+      "claimSentences": 12,
+      "fabricationCount": 2,
+      "fabricationRate": 16.67,
+      "violationsByCheck": {
+        "eval_display": 0,
+        "san_whitelist": 2,
+        "tactical_keyword": 0,
+        "forbidden_claim": 0
+      },
+      "violationsByCategory": {
+        "eval_unbacked": 0,
+        "mate_distance_wrong": 0,
+        "san_unknown": 2,
+        "square_unknown": 0,
+        "hypothetical_line_off_contract": 0,
+        "tactical_keyword_unbacked": 0,
+        "forbidden_claim_present": 0
+      },
+      "personaScores": [
+        5,
+        5
+      ],
+      "personaMean": 5,
+      "sampleViolations": [
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "cxd4",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"cxd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "cxd4",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"cxd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        }
+      ],
+      "generatorModel": "claude-sonnet-4-6",
+      "outputTokens": 456
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "contractId": "c3b77ded2a1a8ad7",
+      "insightsInContract": 7,
+      "blocksEmitted": 4,
+      "blocksMatched": 4,
+      "unmatchedBlocks": 0,
+      "claimSentences": 55,
+      "fabricationCount": 6,
+      "fabricationRate": 10.91,
+      "violationsByCheck": {
+        "eval_display": 0,
+        "san_whitelist": 1,
+        "tactical_keyword": 5,
+        "forbidden_claim": 0
+      },
+      "violationsByCategory": {
+        "eval_unbacked": 0,
+        "mate_distance_wrong": 0,
+        "san_unknown": 1,
+        "square_unknown": 0,
+        "hypothetical_line_off_contract": 0,
+        "tactical_keyword_unbacked": 5,
+        "forbidden_claim_present": 0
+      },
+      "personaScores": [
+        5,
+        5
+      ],
+      "personaMean": 5,
+      "sampleViolations": [
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Ba8",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Ba8\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "back rank",
+          "factIdPrefix": "M2",
+          "detail": "tactical keyword \"back rank\" without a confirmed motif of that type in the contract"
+        },
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "pin",
+          "factIdPrefix": "M3",
+          "detail": "tactical keyword \"pin\" without a confirmed motif of that type in the contract"
+        },
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "back rank",
+          "factIdPrefix": "M3",
+          "detail": "tactical keyword \"back rank\" without a confirmed motif of that type in the contract"
+        },
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "fork",
+          "factIdPrefix": "M4",
+          "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+        },
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "fork",
+          "factIdPrefix": "M4",
+          "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+        }
+      ],
+      "generatorModel": "claude-sonnet-4-6",
+      "outputTokens": 2059
+    },
+    {
+      "fixture": "06_short_opening",
+      "contractId": "b9d2d9bba32dfe00",
+      "insightsInContract": 0,
+      "blocksEmitted": 0,
+      "blocksMatched": 0,
+      "unmatchedBlocks": 0,
+      "claimSentences": 0,
+      "fabricationCount": 0,
+      "fabricationRate": 0,
+      "violationsByCheck": {
+        "eval_display": 0,
+        "san_whitelist": 0,
+        "tactical_keyword": 0,
+        "forbidden_claim": 0
+      },
+      "violationsByCategory": {
+        "eval_unbacked": 0,
+        "mate_distance_wrong": 0,
+        "san_unknown": 0,
+        "square_unknown": 0,
+        "hypothetical_line_off_contract": 0,
+        "tactical_keyword_unbacked": 0,
+        "forbidden_claim_present": 0
+      },
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "sampleViolations": [],
+      "generatorModel": "claude-sonnet-4-6",
+      "outputTokens": 538
+    },
+    {
+      "fixture": "07_knight_fork",
+      "contractId": "e77977da0afb8d87",
+      "insightsInContract": 3,
+      "blocksEmitted": 2,
+      "blocksMatched": 2,
+      "unmatchedBlocks": 0,
+      "claimSentences": 30,
+      "fabricationCount": 5,
+      "fabricationRate": 16.67,
+      "violationsByCheck": {
+        "eval_display": 0,
+        "san_whitelist": 2,
+        "tactical_keyword": 2,
+        "forbidden_claim": 1
+      },
+      "violationsByCategory": {
+        "eval_unbacked": 0,
+        "mate_distance_wrong": 0,
+        "san_unknown": 2,
+        "square_unknown": 0,
+        "hypothetical_line_off_contract": 0,
+        "tactical_keyword_unbacked": 2,
+        "forbidden_claim_present": 1
+      },
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "sampleViolations": [
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Qxb2",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Qxb2\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Qxa1",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Qxa1\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "forbidden_claim",
+          "category": "forbidden_claim_present",
+          "span": "obvious",
+          "factIdPrefix": "M1",
+          "detail": "\"obvious\" while user_visibility is forbidden (Maia not consulted for this insight)"
+        },
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "pin",
+          "factIdPrefix": "M2",
+          "detail": "tactical keyword \"pin\" without a confirmed motif of that type in the contract"
+        },
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "back rank",
+          "factIdPrefix": "M2",
+          "detail": "tactical keyword \"back rank\" without a confirmed motif of that type in the contract"
+        }
+      ],
+      "generatorModel": "claude-sonnet-4-6",
+      "outputTokens": 1054
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "contractId": "18df9f31fb8f2e24",
+      "insightsInContract": 1,
+      "blocksEmitted": 1,
+      "blocksMatched": 1,
+      "unmatchedBlocks": 0,
+      "claimSentences": 17,
+      "fabricationCount": 3,
+      "fabricationRate": 17.65,
+      "violationsByCheck": {
+        "eval_display": 0,
+        "san_whitelist": 3,
+        "tactical_keyword": 0,
+        "forbidden_claim": 0
+      },
+      "violationsByCategory": {
+        "eval_unbacked": 0,
+        "mate_distance_wrong": 0,
+        "san_unknown": 2,
+        "square_unknown": 1,
+        "hypothetical_line_off_contract": 0,
+        "tactical_keyword_unbacked": 0,
+        "forbidden_claim_present": 0
+      },
+      "personaScores": [
+        2,
+        2
+      ],
+      "personaMean": 2,
+      "sampleViolations": [
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nf3",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Nf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nc6",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Nc6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "square_unknown",
+          "span": "b4",
+          "factIdPrefix": "M1",
+          "detail": "square \"b4\" appears in a claim sentence (\"a5 is the strategic threat White is trying to neutralize with the b4 push.…\") but is not in the contract's square set"
+        }
+      ],
+      "generatorModel": "claude-sonnet-4-6",
+      "outputTokens": 609
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "contractId": "b1c0d5797d616ae2",
+      "insightsInContract": 2,
+      "blocksEmitted": 2,
+      "blocksMatched": 2,
+      "unmatchedBlocks": 0,
+      "claimSentences": 36,
+      "fabricationCount": 12,
+      "fabricationRate": 33.33,
+      "violationsByCheck": {
+        "eval_display": 0,
+        "san_whitelist": 10,
+        "tactical_keyword": 2,
+        "forbidden_claim": 0
+      },
+      "violationsByCategory": {
+        "eval_unbacked": 0,
+        "mate_distance_wrong": 0,
+        "san_unknown": 10,
+        "square_unknown": 0,
+        "hypothetical_line_off_contract": 0,
+        "tactical_keyword_unbacked": 2,
+        "forbidden_claim_present": 0
+      },
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "sampleViolations": [
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nf3",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Nf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nf3",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Nf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Bc4",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Bc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nf3",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Nf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nf3",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Nf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Bc4",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Bc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Bc4",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Bc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Ne5",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Ne5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Ne5",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Ne5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Bc4",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Bc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "discovered",
+          "factIdPrefix": "M1",
+          "detail": "tactical keyword \"discovered\" without a confirmed motif of that type in the contract"
+        },
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "trapped",
+          "factIdPrefix": "M1",
+          "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+        }
+      ],
+      "generatorModel": "claude-sonnet-4-6",
+      "outputTokens": 1133
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "contractId": "bec671def34f5daf",
+      "insightsInContract": 3,
+      "blocksEmitted": 2,
+      "blocksMatched": 2,
+      "unmatchedBlocks": 0,
+      "claimSentences": 33,
+      "fabricationCount": 8,
+      "fabricationRate": 24.24,
+      "violationsByCheck": {
+        "eval_display": 0,
+        "san_whitelist": 6,
+        "tactical_keyword": 0,
+        "forbidden_claim": 2
+      },
+      "violationsByCategory": {
+        "eval_unbacked": 0,
+        "mate_distance_wrong": 0,
+        "san_unknown": 6,
+        "square_unknown": 0,
+        "hypothetical_line_off_contract": 0,
+        "tactical_keyword_unbacked": 0,
+        "forbidden_claim_present": 2
+      },
+      "personaScores": [
+        3,
+        3
+      ],
+      "personaMean": 3,
+      "sampleViolations": [
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nd4",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Nd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nd4",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Nd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Rh1",
+          "factIdPrefix": "M1",
+          "detail": "SAN token \"Rh1\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "forbidden_claim",
+          "category": "forbidden_claim_present",
+          "span": "obvious",
+          "factIdPrefix": "M1",
+          "detail": "\"obvious\" while user_visibility is forbidden (Maia not consulted for this insight)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Ne5",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Ne5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Be7",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Be7\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "san_whitelist",
+          "category": "san_unknown",
+          "span": "Nd4",
+          "factIdPrefix": "M2",
+          "detail": "SAN token \"Nd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+        },
+        {
+          "check": "forbidden_claim",
+          "category": "forbidden_claim_present",
+          "span": "obvious",
+          "factIdPrefix": "M2",
+          "detail": "\"obvious\" while user_visibility is forbidden (Maia not consulted for this insight)"
+        }
+      ],
+      "generatorModel": "claude-sonnet-4-6",
+      "outputTokens": 1083
+    }
+  ]
+}

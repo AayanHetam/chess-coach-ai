@@ -16,7 +16,7 @@ export const showBestMoveArrowAtom = atom(true);
 export const showPlayerMoveIconAtom = atom(true);
 
 export const engineNameAtom = atom<EngineName>(DEFAULT_ENGINE);
-export const engineDepthAtom = atom(14);
+export const engineDepthAtom = atom(16);
 export const engineMultiPvAtom = atom(3);
 export const engineWorkersNbAtom = atomWithStorage(
   "engineWorkersNb",

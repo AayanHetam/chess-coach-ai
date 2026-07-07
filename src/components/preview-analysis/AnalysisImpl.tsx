@@ -1447,7 +1447,7 @@ function GameHeader({
       <EngineSettingsPopover
         anchorEl={enginePopoverAnchor}
         onClose={() => setEnginePopoverAnchor(null)}
-        depth={engineDepth ?? 12}
+        depth={engineDepth ?? 16}
         onDepthChange={onEngineDepthChange}
         engineName={engineName ?? EngineName.Stockfish17Lite}
         onEngineNameChange={onEngineNameChange}
@@ -6229,12 +6229,12 @@ export default function AnalysisPage() {
   // ───── Real Stockfish evaluation ─────
   // Stockfish17Lite is single-threaded — works on networks that block
   // SharedArrayBuffer (school WiFi) and has the fastest cold start.
-  // Depth 12 is plenty for surfacing the eval-curve shape; depth 16
-  // matches production /analysis default and gives sharper tactics.
+  // Depth 16 everywhere: sharper tactics for the coach's ground truth,
+  // at the cost of a longer first eval pass (progress bar covers it).
   const [engineSettings, setEngineSettings] = useState<{
     depth: number;
     engineName: EngineName;
-  }>({ depth: 12, engineName: EngineName.Stockfish17Lite });
+  }>({ depth: 16, engineName: EngineName.Stockfish17Lite });
   const engine = useEngine(engineSettings.engineName);
   const [enginePositions, setEnginePositions] = useState<PositionEval[] | null>(
     null

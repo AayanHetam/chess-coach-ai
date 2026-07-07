@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: lc0-chess-service
+    runtime: docker
+    rootDir: lc0-service
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "10000"

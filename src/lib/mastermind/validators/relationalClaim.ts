@@ -15,7 +15,6 @@
  * (position_analysis category). Game-review multi-position support (fenMap) is
  * task 10 (position-anchoring fix).
  */
-import { callLLM } from "@/lib/llmProvider";
 import {
   verifyRelationalClaim,
   describePosition,
@@ -23,9 +22,9 @@ import {
   type RelationKind,
 } from "@/lib/relational/relationalVerify";
 import { createTelemetryEvent } from "./telemetry";
+import { RELATIONAL_CLAIM_ITEM_SCHEMA, makeStructuredClaimsParserCall } from "./claimSchemas";
 import type { ValidatorResult, ValidatorIssue, TelemetryEvent } from "./types";
 import type { ParserCall } from "./evalClaim";
-import type { LLMResult } from "@/lib/llmProvider";
 
 // ---------------------------------------------------------------------------
 // Parser LLM call (Haiku, same tier as other parser calls)
@@ -140,34 +139,18 @@ function parseClaims(text: string): RelationalClaim[] {
 
 // ---------------------------------------------------------------------------
 // Default parser (Haiku, cacheSystem on to warm the extraction prompt)
+//
+// PR-CI-3 (tech-lead decision #6): STRUCTURED-OUTPUT — the response is
+// constrained to a {claims: RelationalClaim[]} json_schema and unwrapped to
+// the bare array parseClaims expects, killing the fail-open unparseable-JSON
+// class (audit #4). Same tier/temp/caching as before.
 // ---------------------------------------------------------------------------
 
-const HAIKU_INPUT_PRICE_PER_M = 1.0;
-const HAIKU_OUTPUT_PRICE_PER_M = 5.0;
-const HAIKU_CACHE_READ_PRICE_PER_M = 0.1;
-const HAIKU_CACHE_WRITE_PRICE_PER_M = 1.25;
-
-function estimateHaikuCost(r: LLMResult): number {
-  return (
-    (r.inputTokens / 1_000_000) * HAIKU_INPUT_PRICE_PER_M +
-    ((r.cacheReadTokens ?? 0) / 1_000_000) * HAIKU_CACHE_READ_PRICE_PER_M +
-    ((r.cacheCreationTokens ?? 0) / 1_000_000) * HAIKU_CACHE_WRITE_PRICE_PER_M +
-    (r.outputTokens / 1_000_000) * HAIKU_OUTPUT_PRICE_PER_M
-  );
-}
-
-export const defaultRelationalParserCall: ParserCall = async ({ system, user, signal }) => {
-  const result = await callLLM({
-    tier: "fast",
-    system,
-    messages: [{ role: "user", content: user }],
-    temperature: 0,
-    maxTokens: 1024,
-    cacheSystem: true,
-    signal,
-  });
-  return { raw: result.content, costUsd: estimateHaikuCost(result), result };
-};
+export const defaultRelationalParserCall: ParserCall = makeStructuredClaimsParserCall({
+  schemaName: "relational_claims",
+  itemSchema: RELATIONAL_CLAIM_ITEM_SCHEMA,
+  maxTokens: 1024,
+});
 
 // ---------------------------------------------------------------------------
 // Public interface

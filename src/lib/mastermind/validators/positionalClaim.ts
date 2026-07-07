@@ -57,8 +57,13 @@ export interface PositionalClaimOpts {
  * Excluded (intentional false-negative): "slight edge", "small advantage",
  * "better position", "active pieces". Coach prose at MED confidence uses
  * these legitimately; firing on them would over-suppress.
+ *
+ * Exported (PR-CI-2) so contract/refereeChecks.ts measures the SAME token
+ * class this validator enforces — one regex, two consumers, no copy drift.
+ * NOTE for importers: the regex carries the /g flag — use `matchAll` or
+ * clone via `new RegExp(source, flags)`; never share `.test()` state.
  */
-const POSITIONAL_TOKEN_REGEX = /\b(?:strategically (?:winning|crushing)|dominat(?:ing|es|ed)|completely (?:winning|won|lost)|overwhelming advantage|decisive (?:advantage|edge))\b/gi;
+export const POSITIONAL_TOKEN_REGEX = /\b(?:strategically (?:winning|crushing)|dominat(?:ing|es|ed)|completely (?:winning|won|lost)|overwhelming advantage|decisive (?:advantage|edge))\b/gi;
 
 interface PositionalMatch {
   raw: string;

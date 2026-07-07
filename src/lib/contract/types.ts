@@ -248,10 +248,10 @@ export interface CoachContract {
   version: typeof CONTRACT_VERSION;
   /** === contextId: reuses generateContextId(moveHistory, fen, playerColor,
    * uid) — ONE identity for response cache, chat context, and telemetry.
-   * NOTE (CI-1): buildGameContext is not handed the request-body `fen`, so
-   * this is computed with fen=undefined; on requests that send BOTH
-   * moveHistory and fen the route's own contextId can differ. Shadow-only
-   * today; CI-2 should thread the route fen through if identity must match. */
+   * PR-CI-2 closed the CI-1 identity gap: the route now threads its
+   * request-body `fen` + `playerColor || "w"` defaulting via
+   * BuildCoachContractArgs.identity, so contractId ≡ the route's contextId
+   * exactly (unit-tested against generateContextId in contract.test.ts). */
   contractId: string;
   builtAtMs: number;
   /** CPU-only build time in ms — the grounding-fetch network wait is

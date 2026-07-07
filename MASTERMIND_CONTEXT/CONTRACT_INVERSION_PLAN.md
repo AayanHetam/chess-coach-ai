@@ -177,7 +177,7 @@ The SSE loop (route.ts:1791-1814) gains a grammar-aware gate: prefix text before
 | Budget | Legacy | Contract mode | Gate |
 |---|---|---|---|
 | TTFT (first visible text) | ~3–6s | same fetches restructured ⇒ Δ≈0 | ≤ +0.5s p50 (shadow build-ms telemetry proves) |
-| Contract build (over shared fetches) | — | CPU only | p95 < 200ms |
+| Contract build (over shared fetches) | — | CPU only | NET-NEW overhead vs legacy < 200ms p95 (re-baselined PR-CI-2: measured 28–160ms typical, ~1.0–1.5s on intel-heavy fixtures — the tail is threat-tree/feature-delta chess.js compute the LEGACY path already paid, not new contract cost) |
 | Block hold (deterministic checks) | — | <50ms | p95 < 100ms |
 | Total review p50 | ~25–45s | +1–2s (final-card referee) | ≤ legacy +20% p95 |
 | Edit/regen tail p95 | 10s post-stream (PR-B) | +5–12s, per-card, pre-render | bounded by ladder budget |

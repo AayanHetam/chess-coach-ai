@@ -126,23 +126,35 @@ export function __resetMastermindEnvCacheForTests(): void {
 }
 
 /**
- * Contract Inversion shadow flag (PR-CI-1).
+ * Contract Inversion shadow flags (PR-CI-1 / PR-CI-3).
  *
- * CONTRACT_SHADOW=true logs one structured line per CoachContract build
- * ({contractId, buildMs, insightCount, contractBytes, evalIntegrity}) from
- * the game-review path. It changes NOTHING about what is served — the legacy
- * prompt is rendered from the contract either way (byte-identical, snapshot-
- * pinned). Default false ⇒ zero new log output.
+ * CONTRACT_SHADOW=true (PR-CI-1) logs one structured line per CoachContract
+ * build ({contractId, buildMs, insightCount, contractBytes, evalIntegrity})
+ * from the game-review path. It changes NOTHING about what is served — the
+ * legacy prompt is rendered from the contract either way (byte-identical,
+ * snapshot-pinned). Default false ⇒ zero new log output.
+ *
+ * CONTRACT_REFEREE_SHADOW=true (PR-CI-3) additionally runs the blocking-grade
+ * output referee (src/lib/contract/referee.ts) per [INSIGHT] block on the
+ * streaming game-review path — LOG ONLY, bytes forwarded unmodified (proven
+ * by the SSE transcript byte-identity test). Flag off ⇒ the gate code is not
+ * in the path at all (the route never constructs it).
  *
  * parseBoolEnv + memoized reader per the getMastermindEnv pattern (trim-
  * hardened against the Vercel trailing-\n save hazard).
  */
-let cachedContractEnv: { shadowEnabled: boolean } | undefined;
+let cachedContractEnv:
+  | { shadowEnabled: boolean; refereeShadowEnabled: boolean }
+  | undefined;
 
-export function getContractEnv(): { shadowEnabled: boolean } {
+export function getContractEnv(): {
+  shadowEnabled: boolean;
+  refereeShadowEnabled: boolean;
+} {
   if (cachedContractEnv) return cachedContractEnv;
   cachedContractEnv = {
     shadowEnabled: parseBoolEnv(process.env.CONTRACT_SHADOW),
+    refereeShadowEnabled: parseBoolEnv(process.env.CONTRACT_REFEREE_SHADOW),
   };
   return cachedContractEnv;
 }

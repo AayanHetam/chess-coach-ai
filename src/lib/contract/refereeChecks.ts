@@ -60,6 +60,13 @@ export interface RefereeViolation {
   detail: string;
   /** Set for forbidden_claim_present violations. */
   claimClass?: ClaimClass;
+  /**
+   * hypothetical_line_off_contract under the STRICT prefix rule only
+   * (PR-CI-3 blocking referee): true when the sequence fails the plan-§4.3
+   * prefix rule but WOULD pass the measurement-widened window rule.
+   * Arming telemetry for the CI-4/5 30-game false-positive decision.
+   */
+  wouldPassWidenedWindow?: boolean;
 }
 
 // ── Shared regexes (fresh clones per call — /g state never shared) ─────────
@@ -101,7 +108,9 @@ function clone(re: RegExp): RegExp {
   return new RegExp(re.source, re.flags);
 }
 
-function stripSanDecorations(san: string): string {
+/** Exported (PR-CI-3) — the blocking referee reuses the SAME normalization
+ * (grammar-drift hazard if duplicated; see referee.ts). */
+export function stripSanDecorations(san: string): string {
   return san.replace(/[+#!?]+$/g, "");
 }
 
@@ -273,7 +282,7 @@ function uciSquares(uci: string): string[] {
   return out;
 }
 
-interface Whitelist {
+export interface Whitelist {
   /** Normalized SAN tokens (decorations stripped) the contract can back. */
   san: Set<string>;
   /** Squares the contract can back (plan §4 check 3 set). */
@@ -282,7 +291,8 @@ interface Whitelist {
   pvs: string[][];
 }
 
-function buildWhitelist(insight: InsightContract): Whitelist {
+/** Exported (PR-CI-3) — one whitelist builder for measurement AND blocking. */
+export function buildWhitelist(insight: InsightContract): Whitelist {
   const san = new Set<string>();
   const squares = new Set<string>();
   const pvs: string[][] = [];
@@ -348,7 +358,7 @@ function buildWhitelist(insight: InsightContract): Whitelist {
   return { san, squares, pvs };
 }
 
-interface ProseToken {
+export interface ProseToken {
   raw: string;
   norm: string;
   /** Offset of the STRIPPED token in the prose. */
@@ -359,7 +369,8 @@ interface ProseToken {
   kind: "piece_san" | "pawn_or_square" | "move_number" | "other";
 }
 
-function tokenizeProse(prose: string): ProseToken[] {
+/** Exported (PR-CI-3) — one tokenizer for measurement AND blocking. */
+export function tokenizeProse(prose: string): ProseToken[] {
   const tokens: ProseToken[] = [];
   const wordRe = /[^\s]+/g;
   for (const m of Array.from(prose.matchAll(wordRe))) {
@@ -397,7 +408,7 @@ function tokenizeProse(prose: string): ProseToken[] {
  * would poison the measurement. CI-3 decides the serving-severity rule on
  * the 30-game false-positive set before this check ever arms at error.
  */
-function isPvWindow(seq: string[], pvs: string[][]): boolean {
+export function isPvWindow(seq: string[], pvs: string[][]): boolean {
   return pvs.some((pv) => {
     if (pv.length < seq.length) return false;
     for (let off = 0; off + seq.length <= pv.length; off++) {
@@ -405,6 +416,19 @@ function isPvWindow(seq: string[], pvs: string[][]): boolean {
     }
     return false;
   });
+}
+
+/**
+ * The plan-§4.3 STRICT hypothetical-line rule (PR-CI-3 blocking form): a
+ * prose move sequence is legal iff it is a PREFIX of some contract PV — the
+ * continuation must start from the position the card is anchored to.
+ * The widened window form above is kept for measurement only (BEFORE
+ * baseline comparability); the blocking referee uses this one.
+ */
+export function isPvPrefix(seq: string[], pvs: string[][]): boolean {
+  return pvs.some(
+    (pv) => pv.length >= seq.length && seq.every((s, i) => pv[i] === s),
+  );
 }
 
 function sentenceBounds(prose: string, index: number): { start: number; end: number } {
@@ -428,15 +452,33 @@ function sentenceBounds(prose: string, index: number): { start: number; end: num
   return { start, end };
 }
 
+export interface SanWhitelistOpts {
+  /**
+   * Hypothetical-line rule (plan §4.3):
+   *  - "window" (default — MEASUREMENT-widened, keeps the BEFORE baseline
+   *    comparable): sequences legal iff a contiguous window of a contract PV.
+   *  - "prefix" (STRICT, the blocking referee): sequences legal iff a prefix
+   *    of a contract PV; window-passing failures carry
+   *    wouldPassWidenedWindow=true for the CI-4/5 arming measurement.
+   */
+  hypotheticalRule?: "window" | "prefix";
+}
+
 /**
- * Plan §4 check 3 (measurement form): every unambiguous SAN token and every
- * bare square coupled with a claim verb must be derivable from the contract.
- * Includes the §4.3 hypothetical-line allowance (see isPvWindow): multi-move
- * SAN sequences are legal iff they sit inside a contract PV; off-contract
- * sequences report ONE `hypothetical_line_off_contract` violation (members
- * are not double-reported individually).
+ * Plan §4 check 3: every unambiguous SAN token and every bare square coupled
+ * with a claim verb must be derivable from the contract. Includes the §4.3
+ * hypothetical-line allowance (see isPvWindow / isPvPrefix + SanWhitelistOpts):
+ * multi-move SAN sequences are legal iff backed by a contract PV under the
+ * selected rule; off-contract sequences report ONE
+ * `hypothetical_line_off_contract` violation (members are not double-reported
+ * individually).
  */
-export function checkSanWhitelist(prose: string, insight: InsightContract): RefereeViolation[] {
+export function checkSanWhitelist(
+  prose: string,
+  insight: InsightContract,
+  opts: SanWhitelistOpts = {},
+): RefereeViolation[] {
+  const rule = opts.hypotheticalRule ?? "window";
   const wl = buildWhitelist(insight);
   const violations: RefereeViolation[] = [];
   const tokens = tokenizeProse(prose);
@@ -465,13 +507,20 @@ export function checkSanWhitelist(prose: string, insight: InsightContract): Refe
       if (moveIdx.length >= 2 && hasPieceSan) {
         const seq = moveIdx.map((k) => tokens[k].norm);
         for (const k of moveIdx) consumed.add(k);
-        if (!isPvWindow(seq, wl.pvs)) {
+        const legal = rule === "prefix" ? isPvPrefix(seq, wl.pvs) : isPvWindow(seq, wl.pvs);
+        if (!legal) {
           violations.push({
             check: "san_whitelist",
             category: "hypothetical_line_off_contract",
             span: seq.join(" "),
             index: tokens[moveIdx[0]].index,
-            detail: `move sequence "${seq.join(" ")}" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)`,
+            detail:
+              rule === "prefix"
+                ? `move sequence "${seq.join(" ")}" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)`
+                : `move sequence "${seq.join(" ")}" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)`,
+            ...(rule === "prefix"
+              ? { wouldPassWidenedWindow: isPvWindow(seq, wl.pvs) }
+              : {}),
           });
         }
       }

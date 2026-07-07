@@ -29,7 +29,7 @@ import { getUserById } from "@/lib/server/users";
 // All flag-gated by getMastermindEnv().validatorsEnabled. When false, none
 // of these symbols execute. See PR_1C_STAGE_B_PLAN.md §3.7 for the audit
 // and §3.7.9 for insertion-point rationale.
-import { getMastermindEnv } from "@/env";
+import { getContractEnv, getMastermindEnv } from "@/env";
 import {
   runValidationPipeline,
   countScoutOpportunities,
@@ -59,7 +59,7 @@ import { buildCurrentPositionFacts } from "@/lib/mastermind/positionFacts";
 import { detectMotifs, motifsToPropmt } from "@/lib/tactics";
 import type { AnyMotif } from "@/lib/tactics";
 import {
-  buildGameContext,
+  buildGameContextWithContract,
   buildPgnFromMoves,
   convertPvToSan,
   getFenAtHalfMove,
@@ -68,6 +68,8 @@ import {
   uciToSan,
   type GameEvalInput,
 } from "@/lib/contract/legacyGameContext";
+import { maybeCreateShadowRefereeGate } from "@/lib/contract/shadowReferee";
+import type { CoachContract } from "@/lib/contract/types";
 import { fetch_lichess_tablebase } from "@/lib/mastermind/lichessTablebase";
 import { validateMotifGrounding } from "@/lib/mastermind/validators/motifGrounding";
 import { runStreamingStage9Validators } from "@/lib/mastermind/validators/streamingStage9";
@@ -625,8 +627,13 @@ export async function POST(request: NextRequest) {
 
     // Build game context for the LLM
     let gameContext = "";
+    // PR-CI-3: the contract rides along for the shadow output referee.
+    // Captured ONLY when CONTRACT_REFEREE_SHADOW is on — flag off keeps the
+    // gate code entirely out of the path (the streaming branches see null
+    // and their `refereeGate?.push` sites are no-ops).
+    let contractForShadowReferee: CoachContract | null = null;
     if (moveHistory && moveHistory.length > 0) {
-      gameContext = await buildGameContext(
+      const built = await buildGameContextWithContract(
         moveHistory,
         gameEval,
         playerColor || (boardOrientation ? "w" : "b"),
@@ -641,6 +648,10 @@ export async function POST(request: NextRequest) {
         // Identity-only; the rendered prompt never reads these.
         { fen, playerColor: playerColor || "w" }
       );
+      gameContext = built.prompt;
+      if (getContractEnv().refereeShadowEnabled) {
+        contractForShadowReferee = built.contract;
+      }
     } else if (fen || position) {
       // Position-only analysis
       const fenStr = fen || position;
@@ -949,6 +960,15 @@ export async function POST(request: NextRequest) {
                     branch: "stream-flagon-fallback",
                   }).catch(() => undefined)
                 : Promise.resolve(undefined);
+            // PR-CI-3 shadow referee (DARK): observer only — the send()
+            // below stays the sole emitter, so client bytes are untouched.
+            // Null unless CONTRACT_REFEREE_SHADOW is on AND this is a
+            // game-review request with a contract.
+            const refereeGate = maybeCreateShadowRefereeGate({
+              contract: contractForShadowReferee,
+              correlationId: requestId,
+              branch: "stream-flagon-fallback",
+            });
             // Reuse the live-stream loop from the flag-off path inline.
             let fullText = "";
             let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
@@ -973,10 +993,12 @@ export async function POST(request: NextRequest) {
                 if (evt.type === "text") {
                   fullText += evt.delta;
                   send({ type: "text", delta: evt.delta });
+                  refereeGate?.push(evt.delta);
                 } else {
                   llmDone = evt.result;
                 }
               }
+              refereeGate?.end();
             } catch (err) {
               const e = err instanceof LLMError ? err : new Error(String(err));
               log.error("LLM streaming failed (flagoff-fallback inside flag-on stream)", { message: e.message });
@@ -1506,6 +1528,13 @@ export async function POST(request: NextRequest) {
             } catch { /* non-critical — Stage 9 block below skips */ }
           }
 
+          // PR-CI-3 shadow referee (DARK): observer only — see the flag-on
+          // wing note; null unless CONTRACT_REFEREE_SHADOW is on.
+          const refereeGate = maybeCreateShadowRefereeGate({
+            contract: contractForShadowReferee,
+            correlationId: requestId,
+            branch: "stream-flagoff",
+          });
           let fullText = "";
           let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
           try {
@@ -1529,10 +1558,12 @@ export async function POST(request: NextRequest) {
               if (evt.type === "text") {
                 fullText += evt.delta;
                 send({ type: "text", delta: evt.delta });
+                refereeGate?.push(evt.delta);
               } else {
                 llmDone = evt.result;
               }
             }
+            refereeGate?.end();
           } catch (err) {
             const e = err instanceof LLMError ? err : new Error(String(err));
             log.error("LLM streaming failed for enhanced-analysis", { message: e.message });

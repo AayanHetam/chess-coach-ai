@@ -105,6 +105,20 @@ export interface CallLLMOptions {
    * calls. The write is fire-and-forget and can never break this call.
    */
   capture?: LLMCaptureContext;
+  /**
+   * Structured output (PR-CI-3, Contract Inversion tech-lead decision #6).
+   * Constrains the response to a JSON schema via Anthropic's
+   * `output_config.format: {type: "json_schema", schema}` (GA on Haiku 4.5 +
+   * Sonnet 4.6) — kills the fail-open unparseable-JSON class on the Haiku
+   * claim parsers (audit #4). Schema rules: every object needs
+   * `additionalProperties: false`; no numeric/string constraints; first use
+   * of a new schema pays a one-time server-side compilation (cached 24h).
+   * On the OpenAI fallback this maps to `response_format.json_schema`
+   * (`name` is required there — Anthropic ignores it).
+   * Non-streaming calls only; callLLMStream does not send it (the streamed
+   * flagship call is deliberately free-text, plan §3).
+   */
+  outputSchema?: { name: string; schema: Record<string, unknown> };
 }
 
 export interface LLMResult {
@@ -187,10 +201,22 @@ async function callAnthropic(
       messages: opts.messages,
       temperature: opts.temperature ?? 0.7,
       max_tokens: opts.maxTokens ?? 1500,
-      // Sonnet 4.6 defaults effort to "high" (more thinking → higher latency/cost).
-      // Pin it to "medium" for the balanced cost/quality point. Flagship-only:
-      // the fast tier (Haiku 4.5) returns 400 if sent `effort`.
-      ...(tier === "flagship" ? { output_config: { effort: "medium" } } : {}),
+      // output_config carries up to two independent knobs:
+      //  - effort: Sonnet 4.6 defaults effort to "high" (more thinking →
+      //    higher latency/cost). Pin it to "medium" for the balanced
+      //    cost/quality point. Flagship-only: the fast tier (Haiku 4.5)
+      //    returns 400 if sent `effort`.
+      //  - format: structured output (see CallLLMOptions.outputSchema).
+      ...(tier === "flagship" || opts.outputSchema
+        ? {
+            output_config: {
+              ...(tier === "flagship" ? { effort: "medium" } : {}),
+              ...(opts.outputSchema
+                ? { format: { type: "json_schema", schema: opts.outputSchema.schema } }
+                : {}),
+            },
+          }
+        : {}),
     }),
     signal: opts.signal,
   });
@@ -258,6 +284,18 @@ async function callOpenAI(
       messages: openaiMessages,
       temperature: opts.temperature ?? 0.7,
       max_tokens: opts.maxTokens ?? 1500,
+      // OpenAI's structured-output shape. `strict` is deliberately omitted:
+      // OpenAI's strict mode requires every property listed in `required`,
+      // which the claim schemas don't guarantee. Downstream parsers keep
+      // their lenient JSON handling either way.
+      ...(opts.outputSchema
+        ? {
+            response_format: {
+              type: "json_schema",
+              json_schema: { name: opts.outputSchema.name, schema: opts.outputSchema.schema },
+            },
+          }
+        : {}),
     }),
     signal: opts.signal,
   });

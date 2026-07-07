@@ -465,4 +465,22 @@ describe("getContractEnv", () => {
     __resetContractEnvCacheForTests();
     expect(getContractEnv().shadowEnabled).toBe(false);
   });
+
+  it("CONTRACT_REFEREE_SHADOW (PR-CI-3): defaults off, trim-hardened, independent of CONTRACT_SHADOW", () => {
+    __resetContractEnvCacheForTests();
+    vi.stubEnv("CONTRACT_SHADOW", "");
+    vi.stubEnv("CONTRACT_REFEREE_SHADOW", "");
+    expect(getContractEnv().refereeShadowEnabled).toBe(false);
+
+    // The Vercel trailing-newline save hazard.
+    __resetContractEnvCacheForTests();
+    vi.stubEnv("CONTRACT_REFEREE_SHADOW", "true\n");
+    expect(getContractEnv().refereeShadowEnabled).toBe(true);
+    // Independent flags: referee shadow on does not imply build shadow on.
+    expect(getContractEnv().shadowEnabled).toBe(false);
+
+    __resetContractEnvCacheForTests();
+    vi.stubEnv("CONTRACT_REFEREE_SHADOW", "garbage");
+    expect(getContractEnv().refereeShadowEnabled).toBe(false);
+  });
 });

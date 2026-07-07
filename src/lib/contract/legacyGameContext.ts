@@ -28,6 +28,7 @@ import { logger } from "@/lib/logging";
 import { getContractEnv } from "@/env";
 import { buildCoachContract } from "./builder";
 import { renderLegacyPrompt, serializeForVerbalizer } from "./serialize";
+import type { CoachContract } from "./types";
 import type { GameEvalInput, GameHeadersInput } from "./gameEvalSchema";
 
 export {
@@ -66,6 +67,34 @@ export async function buildGameContext(
   uid?: string,
   identity?: { fen?: string; playerColor?: string },
 ): Promise<string> {
+  const { prompt } = await buildGameContextWithContract(
+    moveHistory,
+    gameEval,
+    playerColor,
+    username,
+    userRating,
+    gameHeaders,
+    uid,
+    identity,
+  );
+  return prompt;
+}
+
+/**
+ * PR-CI-3: same build, but the contract rides along for the route's shadow
+ * referee (CONTRACT_REFEREE_SHADOW). The prompt string is byte-identical to
+ * buildGameContext (it IS buildGameContext — one implementation).
+ */
+export async function buildGameContextWithContract(
+  moveHistory: string[],
+  gameEval: GameEvalInput | undefined,
+  playerColor: string,
+  username?: string,
+  userRating?: number,
+  gameHeaders?: GameHeadersInput,
+  uid?: string,
+  identity?: { fen?: string; playerColor?: string },
+): Promise<{ prompt: string; contract: CoachContract }> {
   const contract = await buildCoachContract({
     moveHistory,
     gameEval,
@@ -87,5 +116,5 @@ export async function buildGameContext(
     });
   }
 
-  return renderLegacyPrompt(contract);
+  return { prompt: renderLegacyPrompt(contract), contract };
 }

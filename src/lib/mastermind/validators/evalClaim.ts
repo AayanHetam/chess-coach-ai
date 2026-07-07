@@ -1,4 +1,5 @@
-import { callLLM, LLMResult } from "@/lib/llmProvider";
+import { LLMResult } from "@/lib/llmProvider";
+import { EVAL_CLAIM_ITEM_SCHEMA, makeStructuredClaimsParserCall } from "./claimSchemas";
 import {
   cpToBand,
   isWithinTolerance,
@@ -49,20 +50,18 @@ const HAIKU_CACHE_WRITE_PRICE_PER_M = 1.25; // 1.25× base input for 5-min TTL
  * Default parser: route through callLLM with cacheSystem on so the
  * EVAL_CLAIM_PARSER_SYSTEM string stays warm. Tests inject a mock to avoid
  * network calls; PR 1.C wires this to live Anthropic.
+ *
+ * PR-CI-3 (tech-lead decision #6): the call is now STRUCTURED-OUTPUT — the
+ * response is constrained to a {claims: ParsedEvalClaim[]} json_schema and
+ * unwrapped back to the bare array tryParseClaims expects, killing the
+ * fail-open unparseable-JSON class (audit #4). Same tier/temp/caching;
+ * schema compilation is server-cached (24h) after the first call.
  */
-export const defaultEvalParserCall: ParserCall = async ({ system, user, signal }) => {
-  const result = await callLLM({
-    tier: "fast",
-    system,
-    messages: [{ role: "user", content: user }],
-    temperature: 0,
-    maxTokens: 600,
-    cacheSystem: true,
-    signal,
-  });
-  const costUsd = estimateHaikuCost(result);
-  return { raw: result.content, costUsd, result };
-};
+export const defaultEvalParserCall: ParserCall = makeStructuredClaimsParserCall({
+  schemaName: "eval_claims",
+  itemSchema: EVAL_CLAIM_ITEM_SCHEMA,
+  maxTokens: 600,
+});
 
 /**
  * Per Anthropic's Messages API docs, `input_tokens` is the uncached portion

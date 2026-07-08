@@ -108,14 +108,14 @@ import {
   recordPuzzleAttempt,
   getAllAttempts,
 } from "@/lib/repetitTraining";
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { savedEvalsAtom } from "@/sections/analysis/states";
 import type { SavedEvals } from "@/types/eval";
 import {
   extractImportedGameInfo,
   detectUserColor,
 } from "@/lib/smartColorDetection";
-import { getEvaluateGameParams } from "@/lib/chess";
+import { getEvaluateGameParams, getEvaluationBarValue } from "@/lib/chess";
 import { detectOpening } from "@/lib/unifiedOpeningDetector";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
@@ -1930,6 +1930,121 @@ function DrillBanner({
   );
 }
 
+/** Data driving the vertical eval bar beside the board. */
+type EvalBarData = {
+  /** White's share of the bar, 0–100 (lichess win-percentage model). */
+  whitePercentage: number;
+  /** "1.2" / "M4" / "1-0" / "½-½" — null while pending. */
+  label: string | null;
+  /** True while no eval exists yet for the displayed position. */
+  pending: boolean;
+};
+
+// Vertical evaluation bar — tracks the position actually on the board
+// (mainline, takeover preview, or drill), not just the mainline ply.
+// White's share uses the same lichess win-percentage model as the
+// sparkline; mates snap to a full bar; terminal board positions show
+// the game result. Pending state pulses a neutral 50/50 bar.
+function GlassEvalBar({
+  whitePercentage,
+  label,
+  pending,
+  boardOrientation,
+}: EvalBarData & { boardOrientation: "white" | "black" }) {
+  const whiteShare = pending
+    ? 50
+    : Math.max(0, Math.min(100, whitePercentage));
+  const whiteOnTop = boardOrientation === "black";
+  const whiteAdv = whiteShare >= 50;
+  // Label sits at the advantaged side's outer edge (lichess convention).
+  const labelAtTop = whiteAdv === whiteOnTop;
+
+  return (
+    <Box
+      role="img"
+      aria-label={
+        pending ? "Engine evaluation: calculating" : `Engine evaluation: ${label}`
+      }
+      sx={{
+        position: "relative",
+        width: { xs: 16, md: 22 },
+        flexShrink: 0,
+        alignSelf: "stretch",
+        borderRadius: "10px",
+        overflow: "hidden",
+        border: "1px solid rgba(255,255,255,0.08)",
+        // Black's side of the bar — the white segment paints over it.
+        background:
+          "linear-gradient(180deg, rgba(30,32,40,0.96), rgba(12,13,17,0.96))",
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.35)",
+      }}
+    >
+      <Box
+        sx={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          [whiteOnTop ? "top" : "bottom"]: 0,
+          height: `${whiteShare}%`,
+          background: "linear-gradient(180deg, #FBFAF7, #E9E6DE)",
+          transition: "height 220ms cubic-bezier(0.33, 1, 0.68, 1)",
+        }}
+      />
+      {/* 50% midline tick — ember accent */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: "50%",
+          left: 0,
+          right: 0,
+          height: "2px",
+          mt: "-1px",
+          background: "rgba(249,115,22,0.55)",
+          zIndex: 1,
+        }}
+      />
+      {pending && (
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.10))",
+            animation: "cmEvalBarPulse 1.8s ease-in-out infinite",
+            "@keyframes cmEvalBarPulse": {
+              "0%, 100%": { opacity: 0.35 },
+              "50%": { opacity: 1 },
+            },
+            zIndex: 1,
+          }}
+        />
+      )}
+      {label !== null && !pending && (
+        <Typography
+          sx={{
+            position: "absolute",
+            [labelAtTop ? "top" : "bottom"]: "4px",
+            left: 0,
+            width: "100%",
+            textAlign: "center",
+            fontSize: { xs: "0.5rem", md: "0.6rem" },
+            fontWeight: 800,
+            lineHeight: 1,
+            letterSpacing: "-0.02em",
+            fontVariantNumeric: "tabular-nums",
+            color: whiteAdv ? "rgba(17,19,24,0.92)" : "rgba(255,255,255,0.92)",
+            zIndex: 2,
+            pointerEvents: "none",
+          }}
+        >
+          {label}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
 function BoardArea({
   fen,
   lastMove,
@@ -1941,6 +2056,7 @@ function BoardArea({
   dests,
   onMove,
   syncTick,
+  evalBar,
 }: {
   fen: string;
   lastMove: Move | null;
@@ -1953,6 +2069,7 @@ function BoardArea({
   onMove?: (from: string, to: string) => void;
   /** Bump to force chessground to re-sync to `fen` (rejected drag, etc.). */
   syncTick?: number;
+  evalBar: EvalBarData;
 }) {
   const lastMoveTuple = useMemo<[string, string] | undefined>(
     () => (lastMove ? [lastMove.from, lastMove.to] : undefined),
@@ -1976,24 +2093,35 @@ function BoardArea({
     >
       <Box
         sx={{
-          borderRadius: "14px",
-          overflow: "hidden",
-          boxShadow:
-            "0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
+          display: "flex",
+          alignItems: "stretch",
+          gap: { xs: 1, md: 1.5 },
         }}
       >
-        <ChessgroundBoard
-          fen={fen}
-          orientation={boardOrientation}
-          lastMove={lastMoveTuple}
-          check={isInCheck}
-          viewOnly={!interactive}
-          shapes={shapes}
-          movableColor={movableColor}
-          dests={dests}
-          onMove={onMove}
-          syncTick={syncTick}
-        />
+        <GlassEvalBar {...evalBar} boardOrientation={boardOrientation} />
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            borderRadius: "14px",
+            overflow: "hidden",
+            boxShadow:
+              "0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
+          }}
+        >
+          <ChessgroundBoard
+            fen={fen}
+            orientation={boardOrientation}
+            lastMove={lastMoveTuple}
+            check={isInCheck}
+            viewOnly={!interactive}
+            shapes={shapes}
+            movableColor={movableColor}
+            dests={dests}
+            onMove={onMove}
+            syncTick={syncTick}
+          />
+        </Box>
       </Box>
     </Box>
   );
@@ -6963,6 +7091,113 @@ export default function AnalysisPage() {
     return m;
   }, [displayFen]);
 
+  // ───── Eval bar: evaluation of the position on the board ─────
+  // Resolution order for displayFen:
+  //   1. terminal board position (checkmate/stalemate/dead draw) — no
+  //      engine lines exist, synthesize the game result;
+  //   2. savedEvalsAtom — FEN-keyed evals the game pass (G15) already
+  //      published, so mainline navigation never re-runs the engine;
+  //   3. live single-position eval (takeover previews, drill positions,
+  //      custom FENs) streamed via evaluatePositionWithUpdate.
+  const displayTerminal = useMemo<{
+    whitePercentage: number;
+    label: string;
+  } | null>(() => {
+    const c = new Chess(displayFen);
+    if (c.isCheckmate()) {
+      return c.turn() === "w"
+        ? { whitePercentage: 0, label: "0-1" }
+        : { whitePercentage: 100, label: "1-0" };
+    }
+    if (c.isStalemate() || c.isInsufficientMaterial()) {
+      return { whitePercentage: 50, label: "½-½" };
+    }
+    return null;
+  }, [displayFen]);
+
+  const savedEvals = useAtomValue(savedEvalsAtom);
+  const [liveEval, setLiveEval] = useState<{
+    fen: string;
+    position: PositionEval;
+  } | null>(null);
+  // Completed off-mainline evals, keyed by FEN + depth so a depth change
+  // re-evaluates instead of serving the shallower cached answer.
+  const liveEvalCacheRef = useRef<Map<string, PositionEval>>(new Map());
+
+  // Never preempt the game-wide pass: evaluatePositionWithUpdate calls
+  // stopAllCurrentJobs(), which would kill evaluateGame mid-run. FEN-only
+  // loads keep analysisActive true forever (evaluateGame bails on zero
+  // moves), so gate on allMoves.length too — those positions are exactly
+  // the ones that need a live eval.
+  const gameAnalysisRunning = analysisActive && allMoves.length > 0;
+
+  useEffect(() => {
+    if (!engine || gameAnalysisRunning || displayTerminal) return;
+    const fen = displayFen;
+    if (savedEvals[fen]?.lines?.length) return;
+    const liveCacheKey = `${fen}|d${engineSettings.depth}`;
+    const cached = liveEvalCacheRef.current.get(liveCacheKey);
+    if (cached) {
+      setLiveEval({ fen, position: cached });
+      return;
+    }
+    let cancelled = false;
+    // Small debounce so rapid drill/preview sequences don't churn searches.
+    const timer = window.setTimeout(() => {
+      engine
+        .evaluatePositionWithUpdate({
+          fen,
+          depth: engineSettings.depth,
+          setPartialEval: (ev) => {
+            if (!cancelled && ev.lines.length) setLiveEval({ fen, position: ev });
+          },
+        })
+        .then((ev) => {
+          if (cancelled || !ev.lines.length) return;
+          liveEvalCacheRef.current.set(liveCacheKey, ev);
+          setLiveEval({ fen, position: ev });
+        })
+        .catch(() => {
+          /* engine busy or shut down — bar stays pending */
+        });
+    }, 180);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [
+    engine,
+    gameAnalysisRunning,
+    displayTerminal,
+    displayFen,
+    savedEvals,
+    engineSettings.depth,
+  ]);
+
+  const evalBarData = useMemo<EvalBarData>(() => {
+    if (displayTerminal) return { ...displayTerminal, pending: false };
+    const saved = savedEvals[displayFen];
+    const position = saved?.lines?.length
+      ? saved
+      : liveEval?.fen === displayFen && liveEval.position.lines.length
+        ? liveEval.position
+        : null;
+    if (!position) return { whitePercentage: 50, label: null, pending: true };
+    try {
+      const bar = getEvaluationBarValue(position);
+      const mate = position.lines[0].mate;
+      return {
+        // Mates snap to a full bar (the win-% model ceils cp at ±1000).
+        whitePercentage: mate ? (mate > 0 ? 100 : 0) : bar.whiteBarPercentage,
+        label: bar.label,
+        pending: false,
+      };
+    } catch {
+      // Line with neither cp nor mate — treat as not-yet-evaluated.
+      return { whitePercentage: 50, label: null, pending: true };
+    }
+  }, [displayTerminal, savedEvals, displayFen, liveEval]);
+
   // Computed arrow shapes from toggles + takeover state
   const displayShapes = useMemo<DrawShape[]>(() => {
     const shapes: DrawShape[] = [];
@@ -8225,6 +8460,7 @@ export default function AnalysisPage() {
                       : undefined
                   }
                   syncTick={boardSyncTick}
+                  evalBar={evalBarData}
                 />
               </ErrorBoundary>
               <BoardArrowToggles

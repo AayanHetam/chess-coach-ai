@@ -15,6 +15,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import QuizPersistenceFlush from "@/components/auth/QuizPersistenceFlush";
 import OnboardingNudge from "@/components/onboarding/OnboardingNudge";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
+import ConsentBanner from "@/components/consent/ConsentBanner";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +83,11 @@ export default function MyApp({ Component, pageProps }: AppProps) {
             <OnboardingNudge />
             {/* Registers the push service worker (no-op where unsupported). */}
             <ServiceWorkerRegistrar />
+            {/* Cookie-consent banner. App Router pages get it from
+                src/app/layout.tsx; this mount covers every Pages Router route
+                (/, /preview/*, /analysis, ...). Fixed-position and self-styled,
+                so it renders fine outside the themed Layout below. */}
+            <ConsentBanner />
             {/* Hosts the single app-wide Premium upgrade dialog; opened via
                 usePaywallDialog() from any 402 handler or upgrade affordance. */}
             <PaywallDialogProvider>

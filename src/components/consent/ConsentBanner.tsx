@@ -7,18 +7,20 @@ import {
   getClientConsent,
   setClientConsent,
   gpcEnabled,
-  type ConsentValue,
 } from "@/lib/tracking/consent";
 import { track } from "@/lib/tracking/client";
 
 /**
- * Cookie-consent banner (TRK-6). Shows on first visit until a choice is made.
+ * Cookie-consent banner (TRK-6). Shows on first visit until "I agree" is
+ * chosen; "Read more" opens the privacy policy (cookie section) without
+ * dismissing the banner.
  *
  * - Global Privacy Control is honored silently: if the browser signals GPC we
  *   record "rejected" and never show the banner (no nagging an opt-out user).
  * - Strictly-necessary cookies (the auth session) are always on; this gates the
- *   analytics/AI-conversation tier only — which is also why nothing is tracked
- *   until "Accept" is chosen (the client SDK + server both gate on consent).
+ *   analytics/AI-conversation tier only. Not agreeing means no consent cookie,
+ *   and the client SDK + server both treat absent consent as "no" — so there is
+ *   no explicit reject button; ignoring the banner is a de-facto opt-out.
  *
  * Styling follows the Chess Masti design OS: smoked glass surface, 1px
  * white-alpha edge, ember accent reserved for the primary action.
@@ -36,10 +38,10 @@ export default function ConsentBanner() {
 
   if (!visible) return null;
 
-  const choose = (value: ConsentValue) => {
-    setClientConsent(value);
+  const agree = () => {
+    setClientConsent("accepted");
     setVisible(false);
-    if (value === "accepted") track("consent.accepted");
+    track("consent.accepted");
   };
 
   return (
@@ -73,35 +75,33 @@ export default function ConsentBanner() {
         <Box sx={{ fontSize: 14, lineHeight: 1.5 }}>
           <Typography variant="body2" sx={{ color: "inherit" }}>
             We use cookies for analytics and to improve the AI coach. Essential
-            cookies (keeping you signed in) are always on.{" "}
-            <Box
-              component={NextLink}
-              href="/privacy"
-              sx={{ color: "#ff7a1a", textDecorationColor: "rgba(255,122,26,0.5)" }}
-            >
-              Privacy policy
-            </Box>
-            .
+            cookies (keeping you signed in) are always on.
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
           <Button
-            onClick={() => choose("rejected")}
+            component={NextLink}
+            href="/privacy"
             variant="text"
-            sx={{ color: "rgba(255,255,255,0.7)", whiteSpace: "nowrap" }}
+            sx={{
+              color: "rgba(255,255,255,0.7)",
+              whiteSpace: "nowrap",
+              textTransform: "none",
+            }}
           >
-            Reject non-essential
+            Read more
           </Button>
           <Button
-            onClick={() => choose("accepted")}
+            onClick={agree}
             variant="contained"
             sx={{
               whiteSpace: "nowrap",
+              textTransform: "none",
               backgroundColor: "#ff7a1a",
               "&:hover": { backgroundColor: "#e96a0c" },
             }}
           >
-            Accept all
+            I agree
           </Button>
         </Stack>
       </Stack>

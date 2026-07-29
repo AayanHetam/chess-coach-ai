@@ -82,6 +82,7 @@ export default function Layout({ children }: PropsWithChildren) {
   // breaking the cutover. Treat preview/* like the landing page —
   // full-bleed, no legacy chrome.
   const isPreviewRoute = router.pathname.startsWith("/preview");
+  const isTest3DRoute = router.pathname === "/test-3d";
 
   // Cutover surfaces promoted from /preview/* that ship their own
   // Obsidian-Glass chrome (ThemeProvider + GradientBackdrop + SharedNavPill).
@@ -111,7 +112,7 @@ export default function Layout({ children }: PropsWithChildren) {
 
   // Landing page, preview route, or a glass cutover route: skip NavBar and
   // app chrome for a full-bleed look.
-  if (isLandingPage || isPreviewRoute || isGlassRoute) {
+  if (isLandingPage || isPreviewRoute || isGlassRoute || isTest3DRoute) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />

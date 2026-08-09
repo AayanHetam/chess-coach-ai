@@ -5,16 +5,24 @@
 # ── Stage 1: compile lc0 ────────────────────────────────────────────────────
 FROM debian:bookworm-slim AS build
 
+# protobuf-compiler + libprotobuf-dev are REQUIRED (lc0 protoc-compiles its
+# network format; without a system protobuf, meson falls back to building a
+# bundled subproject copy, which is what failed on the first Render build).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git g++ meson ninja-build pkg-config libeigen3-dev zlib1g-dev ca-certificates \
+    protobuf-compiler libprotobuf-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git clone --depth 1 --branch v0.31.2 --recurse-submodules \
     https://github.com/LeelaChessZero/lc0.git /lc0
 
 WORKDIR /lc0
-RUN meson setup build --buildtype=release -Deigen=true -Dblas=false -Dgtest=false \
-    && ninja -C build lc0
+# On failure, surface the real meson error into the build log (Render truncates
+# to the Docker wrapper otherwise). -j2 bounds compile memory on small builders.
+RUN meson --version && g++ --version | head -1 \
+    && (meson setup build --buildtype=release -Deigen=true -Dblas=false -Dgtest=false \
+        || { echo '--- meson-log tail ---'; tail -80 build/meson-logs/meson-log.txt; exit 1; }) \
+    && ninja -C build -j 2 lc0
 
 # ── Stage 2: runtime ────────────────────────────────────────────────────────
 FROM python:3.11-slim

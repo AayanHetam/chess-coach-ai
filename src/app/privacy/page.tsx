@@ -50,7 +50,7 @@ export default function PrivacyPage() {
             <p className="cm-lede">
               Plain English. Covers <strong>chessmasti.com</strong> (the website)
               and <strong>Analyze with Chess Masti</strong> (the Chrome extension).
-              Last updated 2026-06-22.
+              Last updated 2026-08-10.
             </p>
           </header>
 
@@ -79,6 +79,40 @@ export default function PrivacyPage() {
                 subscribe to Premium): your plan, trial and renewal dates, and a
                 Stripe customer ID, stored with your account in Firestore. We
                 never store your card number — Stripe holds that.
+              </li>
+            </ul>
+
+            <h3>Product analytics and AI-conversation records — only with your consent</h3>
+            <p>
+              On your first visit we show a cookie banner with{" "}
+              <strong>&quot;I agree&quot;</strong> and <strong>&quot;No thanks&quot;</strong>.
+              Until you agree, none of the following is recorded, and if your
+              browser sends the <strong>Global Privacy Control</strong> signal we
+              treat that as a &quot;no&quot; automatically and never ask.
+            </p>
+            <ul>
+              <li>
+                <strong>Usage events</strong>: pages you view, features you use,
+                puzzle attempts and analysis sessions, your browser type and the
+                referring page, plus an anonymous identifier cookie
+                (<code>cm_anon</code>) and your consent choice
+                (<code>cm_consent</code>). Your IP address is stored only as an{" "}
+                <strong>irreversible hash</strong> — never the raw address.
+              </li>
+              <li>
+                <strong>AI-conversation records</strong>: the questions you ask
+                the coach and the coach&apos;s replies, together with the
+                position and game they relate to. We keep these to improve
+                answer quality and debug the coach.
+              </li>
+              <li>
+                <strong>Retention</strong>: these records are deleted
+                automatically after at most one year.
+              </li>
+              <li>
+                <strong>Changing your mind</strong>: clear this site&apos;s
+                cookies and the banner will ask again — or email us (below) and
+                we&apos;ll purge what&apos;s recorded about you.
               </li>
             </ul>
 
@@ -150,10 +184,11 @@ export default function PrivacyPage() {
                 sent to us.
               </li>
               <li>
-                <strong>On Supabase</strong>: data from the internal feedback
-                portal used by our intern programme. Regular users do not
-                interact with this; if you have been added to the intern
-                allowlist we store the feedback and quality flags you submit.
+                <strong>On Supabase</strong>: the consent-gated usage events and
+                AI-conversation records described above, and data from the
+                internal feedback portal used by our intern programme (if you
+                have been added to the intern allowlist we store the feedback
+                and quality flags you submit).
               </li>
             </ul>
 
@@ -171,13 +206,13 @@ export default function PrivacyPage() {
               knowingly collect personal information from children under 13. If
               you believe a child under 13 has signed up without a parent&apos;s
               involvement, email us at{" "}
-              <a href="mailto:aayanhetamsaria4@gmail.com">aayanhetamsaria4@gmail.com</a>{" "}
+              <a href="mailto:chessmastiprivacy@gmail.com">chessmastiprivacy@gmail.com</a>{" "}
               and we&apos;ll delete the account and its data.
             </p>
 
             <h3>Deleting your data</h3>
             <p>
-              Email <a href="mailto:aayanhetamsaria4@gmail.com">aayanhetamsaria4@gmail.com</a> and
+              Email <a href="mailto:chessmastiprivacy@gmail.com">chessmastiprivacy@gmail.com</a> and
               we'll delete your account and saved games within seven days.
             </p>
           </section>
@@ -242,7 +277,7 @@ export default function PrivacyPage() {
             <h2>Contact</h2>
             <p>
               Questions, deletion requests, or anything else:{" "}
-              <a href="mailto:aayanhetamsaria4@gmail.com">aayanhetamsaria4@gmail.com</a>.
+              <a href="mailto:chessmastiprivacy@gmail.com">chessmastiprivacy@gmail.com</a>.
             </p>
           </section>
 

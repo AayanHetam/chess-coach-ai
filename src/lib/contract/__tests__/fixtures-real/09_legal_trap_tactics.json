@@ -1,0 +1,279 @@
+{
+  "moveHistory": [
+    "e4",
+    "e5",
+    "Nf3",
+    "d6",
+    "Bc4",
+    "Bg4",
+    "Nc3",
+    "g6",
+    "Nxe5",
+    "Bxd1",
+    "Bxf7+",
+    "Ke7",
+    "Nd5#"
+  ],
+  "gameEval": {
+    "positions": [
+      {
+        "lines": [
+          {
+            "pv": [
+              "e2e4",
+              "e7e5",
+              "g1f3",
+              "g8f6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 30
+          }
+        ],
+        "bestMove": "e2e4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "e7e5",
+              "g1f3",
+              "b8c6",
+              "b1c3"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 27
+          }
+        ],
+        "bestMove": "e7e5"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "g1f3",
+              "b8c6",
+              "f1b5",
+              "a7a6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 29
+          }
+        ],
+        "bestMove": "g1f3"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "b8c6",
+              "f1b5",
+              "a7a6",
+              "b5a4"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 27
+          }
+        ],
+        "bestMove": "b8c6"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "d2d4",
+              "e5d4",
+              "f3d4",
+              "b8c6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 56
+          }
+        ],
+        "bestMove": "d2d4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "f8e7",
+              "d2d4",
+              "e5d4",
+              "f3d4"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 26
+          }
+        ],
+        "bestMove": "f8e7"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "d2d4",
+              "e5d4",
+              "c2c3",
+              "g8f6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 91
+          }
+        ],
+        "bestMove": "d2d4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "g8f6",
+              "h2h3",
+              "g4f3",
+              "d1f3"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 43
+          },
+          {
+            "pv": [
+              "b8c6",
+              "h2h3",
+              "g4f3",
+              "d1f3"
+            ],
+            "depth": 16,
+            "multiPv": 2,
+            "cp": 44
+          }
+        ],
+        "bestMove": "g8f6"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "f3e5",
+              "d6e5",
+              "d1g4",
+              "b8c6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 191
+          }
+        ],
+        "bestMove": "f3e5"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "d6e5",
+              "d1g4",
+              "b8c6",
+              "d2d3"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 189
+          },
+          {
+            "pv": [
+              "g4e6",
+              "c4e6",
+              "d6e5",
+              "e6b3"
+            ],
+            "depth": 16,
+            "multiPv": 2,
+            "cp": 226
+          }
+        ],
+        "bestMove": "d6e5"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "c4f7",
+              "e8e7",
+              "c3d5"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "mate": 2
+          },
+          {
+            "pv": [
+              "e5f7",
+              "d8f6",
+              "c3b5",
+              "b8a6"
+            ],
+            "depth": 16,
+            "multiPv": 2,
+            "cp": -181
+          }
+        ],
+        "bestMove": "c4f7"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "e8e7",
+              "c3d5"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "mate": 1
+          }
+        ],
+        "bestMove": "e8e7"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "c3d5"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "mate": 1
+          }
+        ],
+        "bestMove": "c3d5"
+      },
+      {
+        "lines": []
+      }
+    ],
+    "accuracy": {
+      "white": 94.2,
+      "black": 58.7
+    },
+    "estimatedElo": {
+      "white": 1710,
+      "black": 1240
+    }
+  },
+  "playerColor": "b",
+  "username": "FixtureNine",
+  "userRating": 1300,
+  "gameHeaders": {
+    "white": "TrapWeaver",
+    "black": "FixtureNine",
+    "blackElo": "1300",
+    "event": "Casual rapid",
+    "eco": "C41",
+    "opening": "Philidor Defense: Légal Trap",
+    "result": "1-0"
+  }
+}

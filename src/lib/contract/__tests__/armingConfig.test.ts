@@ -18,8 +18,12 @@ function finding(over: Partial<ServingFinding>): ServingFinding {
   };
 }
 
-describe("DEFAULT_ARMING_TABLE — conservative defaults", () => {
-  it("arms eval_display / forbidden_claim / tactical_keyword / san_whitelist at error", () => {
+describe("DEFAULT_ARMING_TABLE — precision-pack correction: NOTHING arms at error", () => {
+  // The 30-game FP adjudication (contract-referee-fp-30game, 2026-08-10)
+  // found 30/37 contested fires were false positives — including on
+  // tactical_keyword and forbidden_claim, which CI-4 had armed at error.
+  // Until the precision-pack re-measure lands, every check is warn.
+  it("every check — including tactical_keyword and forbidden_claim — defaults to warn", () => {
     for (const [check, category] of [
       ["eval_display", "eval_unbacked"],
       ["forbidden_claim", "forbidden_claim_present"],
@@ -28,12 +32,15 @@ describe("DEFAULT_ARMING_TABLE — conservative defaults", () => {
       ["san_whitelist", "square_unknown"],
       ["citation_invalid", "citation_unresolvable"],
       ["relational_claim", "relational_claim_contradicted"],
+      ["stage9_positional_claim", "positional_claim"],
+      ["stage9_mate_in_n", "mate_in_n"],
+      ["stage9_material_win", "material_win"],
     ] as const) {
-      expect(armSeverity(finding({ check, category, severity: "error" }))).toBe("error");
+      expect(armSeverity(finding({ check, category, severity: "error" }))).toBe("warn");
     }
   });
 
-  it("hypothetical_line under BOTH rules failing (true fabrication) stays error", () => {
+  it("hypothetical_line failing under BOTH rules stays warn by default too", () => {
     expect(
       armSeverity(
         finding({
@@ -43,6 +50,14 @@ describe("DEFAULT_ARMING_TABLE — conservative defaults", () => {
           wouldPassWidenedWindow: false,
         }),
       ),
+    ).toBe("warn");
+  });
+
+  it("an explicit enforcement table can still arm a check at error (the machinery is intact)", () => {
+    expect(
+      armSeverity(finding({ check: "eval_display", severity: "error" }), {
+        eval_display: "error",
+      }),
     ).toBe("error");
   });
 });
@@ -81,16 +96,28 @@ describe("structural clamps (cannot be overridden by config)", () => {
 });
 
 describe("armFindings partition", () => {
-  it("splits errors/warns per the table and drops 'off'", () => {
+  it("all-warn default: nothing lands in errors", () => {
     const fs: ServingFinding[] = [
-      finding({}), // error by default
-      finding({ check: "stage9_user_visibility", severity: "warn" }), // clamped warn
+      finding({}),
+      finding({ check: "stage9_user_visibility", severity: "warn" }),
       finding({ check: "tactical_keyword", category: "tactical_keyword_unbacked" }),
     ];
     const armed = armFindings(fs);
+    expect(armed.errors).toHaveLength(0);
+    expect(armed.warns).toHaveLength(3);
+  });
+
+  it("splits errors/warns per an explicit enforcement table and drops 'off'", () => {
+    const fs: ServingFinding[] = [
+      finding({}), // eval_display
+      finding({ check: "stage9_user_visibility", severity: "warn" }), // clamped warn
+      finding({ check: "tactical_keyword", category: "tactical_keyword_unbacked" }),
+    ];
+    const enforce = { ...DEFAULT_ARMING_TABLE, eval_display: "error", tactical_keyword: "error" } as const;
+    const armed = armFindings(fs, enforce);
     expect(armed.errors).toHaveLength(2);
     expect(armed.warns).toHaveLength(1);
-    const off = armFindings(fs, { ...DEFAULT_ARMING_TABLE, tactical_keyword: "off" });
+    const off = armFindings(fs, { ...enforce, tactical_keyword: "off" });
     expect(off.errors).toHaveLength(1);
   });
 });

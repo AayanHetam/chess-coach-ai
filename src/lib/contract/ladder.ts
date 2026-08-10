@@ -142,8 +142,9 @@ async function evaluateBody(
   const prose = stripGrammarTokenLines(body);
   const citation = checkCitations(body, opts.insight, opts.citationGranularity);
   // Deterministic checks 2-5 run on the prose; the header is server-rendered
-  // from the contract and passes by construction.
-  const det = refereeInsight(prose, opts.insight, opts.refereeOpts);
+  // from the contract and passes by construction. The contract rides along
+  // for the contract-global eval_display license pool (precision-pack fix 7).
+  const det = refereeInsight(prose, opts.insight, { ...opts.refereeOpts, contract: opts.contract });
   const findings: ServingFinding[] = [...citation.findings, ...det.findings];
 
   let relationalParsesUsed = 0;

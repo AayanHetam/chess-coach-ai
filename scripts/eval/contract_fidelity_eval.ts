@@ -50,7 +50,16 @@
  *   npx tsx scripts/eval/contract_fidelity_eval.ts --dry-run
  *   npx tsx scripts/eval/contract_fidelity_eval.ts [--only 09] [--output p.json]
  *   npx tsx scripts/eval/contract_fidelity_eval.ts --fp-measure [--samples 3]
+ *   npx tsx scripts/eval/contract_fidelity_eval.ts --fp-measure --fixtures-real
  *   npx tsx scripts/eval/contract_fidelity_eval.ts --fp-measure --dry-run
+ *
+ * PRECISION PACK additions: --fixtures-real points --fp-measure at
+ * src/lib/contract/__tests__/fixtures-real/ (same 10 games, gameEval
+ * regenerated with real Stockfish depth 16 multipv 3 —
+ * scripts/eval/generate_fixture_evals.ts); the dual referee additionally
+ * runs the measurement-ONLY checks (pv_truncation, mobility_claims) and
+ * reports their fires separately (measurementOnlyByCheck + needs-review
+ * flagged spans) without touching the check-2-5 strict/widened tallies.
  *
  * Known baseline caveats (documented, not silent):
  *  - selectExamples() jitters few-shot choice per run and temperature is
@@ -70,6 +79,11 @@ import type { GameEvalInput, GameHeadersInput } from "@/lib/contract/gameEvalSch
 
 const REPO_ROOT = process.cwd();
 const FIXTURES_DIR = path.join(REPO_ROOT, "src/lib/contract/__tests__/fixtures");
+/** PRECISION PACK: same 10 games, gameEval regenerated with REAL Stockfish
+ * (scripts/eval/generate_fixture_evals.ts, depth 16 multipv 3). Selected via
+ * --fixtures-real — the v2 FP measurement runs against these so arming
+ * decisions rest on engine-true contracts, not hand-authored evals. */
+const FIXTURES_REAL_DIR = path.join(REPO_ROOT, "src/lib/contract/__tests__/fixtures-real");
 const RESULTS_DIR = path.join(REPO_ROOT, "scripts/eval/results");
 
 interface FixtureFile {
@@ -86,16 +100,25 @@ interface Args {
   only: string | null;
   output: string | null;
   fpMeasure: boolean;
+  fixturesReal: boolean;
   samples: number;
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { dryRun: false, only: null, output: null, fpMeasure: false, samples: 3 };
+  const args: Args = {
+    dryRun: false,
+    only: null,
+    output: null,
+    fpMeasure: false,
+    fixturesReal: false,
+    samples: 3,
+  };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--dry-run") args.dryRun = true;
     else if (argv[i] === "--only") args.only = argv[++i] ?? null;
     else if (argv[i] === "--output") args.output = argv[++i] ?? null;
     else if (argv[i] === "--fp-measure") args.fpMeasure = true;
+    else if (argv[i] === "--fixtures-real") args.fixturesReal = true;
     else if (argv[i] === "--samples") {
       const n = Number.parseInt(argv[++i] ?? "", 10);
       if (!Number.isFinite(n) || n < 1) {
@@ -111,16 +134,26 @@ function parseArgs(argv: string[]): Args {
   return args;
 }
 
-function loadFixtures(only: string | null): Array<{ name: string; fixture: FixtureFile }> {
+function loadFixtures(
+  only: string | null,
+  fixturesReal = false,
+): Array<{ name: string; fixture: FixtureFile }> {
+  const dir = fixturesReal ? FIXTURES_REAL_DIR : FIXTURES_DIR;
+  if (fixturesReal && !fs.existsSync(dir)) {
+    console.error(
+      `--fixtures-real: ${dir} missing — generate it first: npx tsx scripts/eval/generate_fixture_evals.ts`,
+    );
+    process.exit(2);
+  }
   const names = fs
-    .readdirSync(FIXTURES_DIR)
+    .readdirSync(dir)
     .filter((f) => f.endsWith(".json"))
     .sort();
   return names
     .filter((n) => (only ? n.includes(only) : true))
     .map((name) => ({
       name: name.replace(/\.json$/, ""),
-      fixture: JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, name), "utf8")) as FixtureFile,
+      fixture: JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")) as FixtureFile,
     }));
 }
 
@@ -746,6 +779,11 @@ interface FpSample {
   strictByCategory: Record<string, number>;
   widenedByCategory: Record<string, number>;
   stage9ByCheck: Record<string, number>;
+  /** PRECISION PACK: pv_truncation / mobility_claims fires — measurement-ONLY
+   * evidence gathering (plan §9 risk 3 discipline: fire-rate data before any
+   * arming conversation). Never counted into strict/widened fires so v1↔v2
+   * check-2-5 numbers stay directly comparable. */
+  measurementOnlyByCheck: Record<string, number>;
   /** Non-empty ⇒ strict ≠ widened + strictOnly for some insight (grammar drift). */
   consistency: string[];
 }
@@ -767,9 +805,13 @@ async function refereeReviewDual(input: {
   generatorModel: string;
   outputTokens: number;
 }): Promise<{ result: FpSample; flagged: FpFlaggedSpan[] }> {
-  const { runInsightChecks, countClaimSentences, stripSanDecorations, isPvWindow } = await import(
-    "@/lib/contract/refereeChecks"
-  );
+  const {
+    runInsightChecks,
+    runMeasurementOnlyChecks,
+    countClaimSentences,
+    stripSanDecorations,
+    isPvWindow,
+  } = await import("@/lib/contract/refereeChecks");
   const { refereeInsight } = await import("@/lib/contract/referee");
   const pools = await buildFpPools(input.contract);
   const helpers: FpAdjudicateHelpers = { stripSanDecorations, isPvWindow };
@@ -779,6 +821,7 @@ async function refereeReviewDual(input: {
   const strictByCategory: Record<string, number> = {};
   const widenedByCategory: Record<string, number> = {};
   const stage9ByCheck: Record<string, number> = {};
+  const measurementOnlyByCheck: Record<string, number> = {};
   const consistency: string[] = [];
   let matched = 0;
   let unmatched = 0;
@@ -853,6 +896,24 @@ async function refereeReviewDual(input: {
     for (const f of strictAll.filter((f) => !FP_CONTRACT_CHECKS.has(f.check))) {
       bump(stage9ByCheck, f.check);
     }
+    // PRECISION PACK measurement-only checks (pv_truncation / mobility_claims):
+    // evidence-gathering fires only — separate tally, no mechanical
+    // adjudicator (every fire ships as needs-review with sentence context).
+    for (const v of runMeasurementOnlyChecks(block.prose, insight)) {
+      bump(measurementOnlyByCheck, v.check);
+      flagged.push({
+        fixture: input.fixture,
+        sample: input.sample,
+        factIdPrefix: insight.factIdPrefix,
+        referee: "both",
+        check: v.check,
+        category: v.category,
+        span: v.span,
+        sentence: sentenceContext(block.prose, v.span, v.index),
+        adjudication: "needs-review",
+        detail: v.detail.slice(0, 300),
+      });
+    }
   }
 
   return {
@@ -872,6 +933,7 @@ async function refereeReviewDual(input: {
       strictByCategory,
       widenedByCategory,
       stage9ByCheck,
+      measurementOnlyByCheck,
       consistency,
     },
     flagged,
@@ -896,6 +958,7 @@ function summarizeFp(samples: FpSample[], flagged: FpFlaggedSpan[]) {
   const strictByCategory = mergeCats((s) => s.strictByCategory);
   const widenedByCategory = mergeCats((s) => s.widenedByCategory);
   const stage9ByCheck = mergeCats((s) => s.stage9ByCheck);
+  const measurementOnlyByCheck = mergeCats((s) => s.measurementOnlyByCheck ?? {});
 
   const tallyFor = (cats: string[], side: "strict" | "widened"): FpClassTally => {
     const src = side === "strict" ? strictByCategory : widenedByCategory;
@@ -941,12 +1004,31 @@ function summarizeFp(samples: FpSample[], flagged: FpFlaggedSpan[]) {
     hypoRec = `prefix and window agree on all ${hypoStrictFires} fire(s) (no widening pressure observed); adjudicate the needs-review spans before arming`;
   }
 
+  // PRECISION PACK measurement-only checks: evidence tallies only — every
+  // fire is a needs-review flagged span; adjudicate before ANY arming talk.
+  const measurementOnlyTally = (check: string): FpClassTally => {
+    const mine = flagged.filter((f) => f.check === check);
+    return {
+      fires: measurementOnlyByCheck[check] ?? 0,
+      adjudications: mine.length > 0 ? { "needs-review": mine.length } : {},
+      needsReview: mine.length,
+    };
+  };
+  const pvTruncation = measurementOnlyTally("pv_truncation");
+  const mobilityClaims = measurementOnlyTally("mobility_claims");
+  const measurementOnlyRec = (t: FpClassTally): string =>
+    t.fires === 0
+      ? "0 fires — measurement-only check gathered no evidence on this set; keep measuring before proposing"
+      : `${t.fires} measurement-only fire(s), all needs-review by construction — adjudicate flaggedSpans before this check may even be PROPOSED for the arming table`;
+
   const perCheck = {
     eval_display: { ...evalDisplay, recommendation: recFor(evalDisplay) },
     san_whitelist_strict: { ...sanStrict, recommendation: recFor(sanStrict) },
     san_whitelist_widened: { ...sanWidened, recommendation: recFor(sanWidened) },
     tactical_keyword: { ...tactical, recommendation: recFor(tactical) },
     forbidden_claim: { ...forbidden, recommendation: recFor(forbidden) },
+    pv_truncation: { ...pvTruncation, recommendation: measurementOnlyRec(pvTruncation) },
+    mobility_claims: { ...mobilityClaims, recommendation: measurementOnlyRec(mobilityClaims) },
     hypothetical_line: {
       strictFires: hypoStrictFires,
       widenedFires: hypoWidenedFires,
@@ -973,7 +1055,14 @@ function summarizeFp(samples: FpSample[], flagged: FpFlaggedSpan[]) {
     ) as Record<string, string>,
   };
 
-  return { summary, perCheck, strictByCategory, widenedByCategory, stage9ByCheck };
+  return {
+    summary,
+    perCheck,
+    strictByCategory,
+    widenedByCategory,
+    stage9ByCheck,
+    measurementOnlyByCheck,
+  };
 }
 
 async function runFpMeasure(args: Args): Promise<void> {
@@ -981,10 +1070,11 @@ async function runFpMeasure(args: Args): Promise<void> {
   const { PROMPT_VERSION } = await import("@/lib/prompts/coachChatPrompt");
   const { CONTRACT_VERSION } = await import("@/lib/contract/types");
 
-  const fixtures = loadFixtures(args.only);
+  const fixtures = loadFixtures(args.only, args.fixturesReal);
   const total = fixtures.length * args.samples;
   console.log(
-    `\n=== Mode C (--fp-measure): ${fixtures.length} fixtures × ${args.samples} samples = ${total} live reviews, dual-refereed ===`,
+    `\n=== Mode C (--fp-measure): ${fixtures.length} fixtures × ${args.samples} samples = ${total} live reviews, dual-refereed` +
+      `${args.fixturesReal ? " [fixtures-real: real-Stockfish gameEvals]" : ""} ===`,
   );
 
   const samples: FpSample[] = [];
@@ -1060,18 +1150,23 @@ async function runFpMeasure(args: Args): Promise<void> {
     promptVersion: PROMPT_VERSION,
     contractVersion: CONTRACT_VERSION,
     fixtures: fixtures.length,
+    fixturesSource: args.fixturesReal
+      ? "fixtures-real (real-Stockfish gameEvals, generate_fixture_evals.ts)"
+      : "fixtures (hand-authored gameEvals)",
     samplesPerFixture: args.samples,
     failedSamples,
     generation: { tier: "flagship", temperature: 0.7, maxTokens: 3000, userMessage: "analyze my game" },
     referees: {
-      widened: "refereeChecks.runInsightChecks (hypotheticalRule: window)",
+      widened: "refereeChecks.runInsightChecks (hypotheticalRule: window, precision-pack licenses)",
       strict: "referee.refereeInsight (hypotheticalRule: prefix, wouldPassWidenedWindow telemetry)",
+      measurementOnly: "refereeChecks.runMeasurementOnlyChecks (pv_truncation + mobility_claims)",
     },
     summary: agg.summary,
     perCheck: agg.perCheck,
     strictByCategory: agg.strictByCategory,
     widenedByCategory: agg.widenedByCategory,
     stage9Informational: agg.stage9ByCheck,
+    measurementOnlyByCheck: agg.measurementOnlyByCheck,
     perFixture,
     flaggedSpans: flagged,
   };
@@ -1198,8 +1293,8 @@ async function runFpSmoke(): Promise<void> {
   );
   check("summary: widenedLicensedShare = 1", agg.summary.widenedLicensedShare === 1, agg.summary);
   check(
-    "summary: all six per-check recommendations present",
-    Object.keys(agg.summary.recommendation).length === 6,
+    "summary: all eight per-check recommendations present (incl. the 2 measurement-only)",
+    Object.keys(agg.summary.recommendation).length === 8,
     agg.summary.recommendation,
   );
   check(

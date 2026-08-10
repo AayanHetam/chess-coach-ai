@@ -6,12 +6,25 @@
 import { describe, it, expect, vi } from "vitest";
 import { dropViolatingSentences, runInsightLadder, DEFAULT_LADDER_BUDGETS } from "@/lib/contract/ladder";
 import type { LadderBudgets, LadderCardOpts } from "@/lib/contract/ladder";
+import type { ArmingTable } from "@/lib/contract/armingConfig";
 import type { StreamCorrectionResult } from "@/lib/mastermind/validators/streamCorrection";
 import type { LLMResult } from "@/lib/llmProvider";
 import { makeContract, makeInsight } from "./insightFactory";
 
 const insight = makeInsight();
 const contract = makeContract([insight]);
+
+// The DEFAULT arming table is all-warn since the precision-pack correction
+// (30-game FP adjudication: 30/37 contested fires were false positives) —
+// these tests exercise the LADDER MACHINERY, so they arm explicitly.
+const ENFORCE_TABLE: ArmingTable = {
+  eval_display: "error",
+  san_whitelist: "error",
+  tactical_keyword: "error",
+  forbidden_claim: "error",
+  relational_claim: "error",
+  citation_invalid: "error",
+};
 
 const CLEAN_BODY =
   "You went for Bd3, but Ne6 was the star move [F:M1]. After Ne6 Qd7 Nxg7 the knight nets material at +3.20 [F:M1.pv0]. A fine fighting choice, just one square short.";
@@ -65,7 +78,7 @@ describe("dropViolatingSentences", () => {
 
 describe("runInsightLadder — stages", () => {
   it("clean body passes untouched (stage: pass), citations stripped, header authoritative", async () => {
-    const result = await runInsightLadder(CLEAN_BODY, makeOpts());
+    const result = await runInsightLadder(CLEAN_BODY, makeOpts(), ENFORCE_TABLE);
     expect(result.stage).toBe("pass");
     expect(result.finalText.startsWith("[INSIGHT:11:w:blunder:+1.38:-2.12:Bd3:Ne6]")).toBe(true);
     expect(result.finalText.endsWith("[/INSIGHT]")).toBe(true);
@@ -77,7 +90,7 @@ describe("runInsightLadder — stages", () => {
 
   it("a violation confined to one sentence resolves by sentence-drop (no LLM)", async () => {
     const opts = makeOpts();
-    const result = await runInsightLadder(BAD_BODY, opts);
+    const result = await runInsightLadder(BAD_BODY, opts, ENFORCE_TABLE);
     expect(result.stage).toBe("sentence_drop");
     expect(result.finalText).not.toContain("-9.50");
     expect(result.finalText).toContain("star move");
@@ -95,7 +108,7 @@ describe("runInsightLadder — stages", () => {
       costUsd: 0.001,
     }));
     const opts = makeOpts({ deps: { correctImpl } });
-    const result = await runInsightLadder(body, opts);
+    const result = await runInsightLadder(body, opts, ENFORCE_TABLE);
     expect(result.stage).toBe("edited");
     expect(correctImpl).toHaveBeenCalledOnce();
     expect(result.editsUsed).toBe(1);
@@ -112,7 +125,7 @@ describe("runInsightLadder — stages", () => {
     }));
     const callLLMImpl = vi.fn(async () => llmResult(CLEAN_BODY));
     const opts = makeOpts({ deps: { correctImpl, callLLMImpl } });
-    const result = await runInsightLadder(body, opts);
+    const result = await runInsightLadder(body, opts, ENFORCE_TABLE);
     expect(result.stage).toBe("regenerated");
     expect(result.regensUsed).toBe(1);
     expect(opts.budgets.regensRemaining).toBe(2);
@@ -125,7 +138,7 @@ describe("runInsightLadder — stages", () => {
     const correctImpl = vi.fn();
     const callLLMImpl = vi.fn();
     const opts = makeOpts({ budgets, deps: { correctImpl: correctImpl as never, callLLMImpl: callLLMImpl as never } });
-    const result = await runInsightLadder(body, opts);
+    const result = await runInsightLadder(body, opts, ENFORCE_TABLE);
     expect(result.stage).toBe("templated");
     expect(correctImpl).not.toHaveBeenCalled();
     expect(callLLMImpl).not.toHaveBeenCalled();
@@ -141,7 +154,7 @@ describe("runInsightLadder — stages", () => {
       deadlineAtMs: Date.now() + 500, // no LLM stage fits
       deps: { correctImpl: correctImpl as never, callLLMImpl: callLLMImpl as never },
     });
-    const result = await runInsightLadder(body, opts);
+    const result = await runInsightLadder(body, opts, ENFORCE_TABLE);
     expect(result.stage).toBe("templated");
     expect(result.deadlineBreached).toBe(true);
     expect(correctImpl).not.toHaveBeenCalled();
@@ -154,7 +167,7 @@ describe("runInsightLadder — stages", () => {
       throw new Error("anthropic 529");
     });
     const opts = makeOpts({ deps: { correctImpl: boom as never, callLLMImpl: boom as never } });
-    const result = await runInsightLadder(body, opts);
+    const result = await runInsightLadder(body, opts, ENFORCE_TABLE);
     expect(result.stage).toBe("templated");
     expect(result.finalText.length).toBeGreaterThan(50);
   });
@@ -170,7 +183,7 @@ describe("runInsightLadder — stages", () => {
       refereeMode: "full",
       deps: { relationalParseCall: relationalParseCall as never },
     });
-    const result = await runInsightLadder(CLEAN_BODY, opts);
+    const result = await runInsightLadder(CLEAN_BODY, opts, ENFORCE_TABLE);
     expect(result.stage).toBe("pass");
     expect(relationalParseCall).toHaveBeenCalled();
     expect(opts.budgets.relationalRemaining).toBe(7);

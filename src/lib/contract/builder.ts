@@ -16,6 +16,7 @@ import { Chess } from "chess.js";
 import { annotatePosition, annotationToPromptContext } from "@/lib/positionAnnotator";
 import { detectMotifs } from "@/lib/tactics";
 import type { AnyMotif } from "@/lib/tactics";
+import { buildMotifLicense } from "./motifScope";
 import { queryChessdb, type ChessdbResult } from "@/lib/grounding/chessdb";
 import { compileVoterResult } from "@/lib/grounding/voter";
 import { queryLc0, shouldCallLc0, lc0AgreesWithSf, __isLc0Configured, type Lc0Result } from "@/lib/grounding/lc0";
@@ -417,6 +418,20 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     const bestPvLine = lines[0];
     const bestPvSan = bestPvLine?.pv ? convertPvToSan(fenBefore, bestPvLine.pv) : [];
     const motifs = playedSan ? detectMotifs(fenBefore, playedSan) : [];
+    // PRECISION PACK fix 4 — referee LICENSE POOL only (never rendered/voted/
+    // serialized): static fenAfter scan + first 2 plies of each PV. See
+    // motifScope.ts. Computed AFTER `motifs` so the voter inputs are
+    // byte-identical to legacy.
+    let motifLicense: AnyMotif[] = [];
+    try {
+      motifLicense = buildMotifLicense({
+        fenBefore,
+        fenAfter,
+        pvSans: lines.map((l) => (l.pv && l.pv.length > 0 ? convertPvToSan(fenBefore, l.pv) : [])),
+      });
+    } catch {
+      motifLicense = [];
+    }
     const voter = compileVoterResult({
       motifs,
       chessdbResult,
@@ -543,6 +558,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       intelBranchPoint,
       changeDescription: describeMoveChange(fenBefore, playedSan),
       motifs,
+      motifLicense,
       allowedTacticalKeywords: voter.allowedTacticalKeywords,
       voterConfidence: voter.confidence,
       positionConfidence: voter.positionConfidence,

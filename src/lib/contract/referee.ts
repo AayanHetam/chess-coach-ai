@@ -52,7 +52,7 @@ import {
   checkTacticalKeywords,
 } from "./refereeChecks";
 import type { RefereeViolation } from "./refereeChecks";
-import type { InsightContract } from "./types";
+import type { CoachContract, InsightContract } from "./types";
 
 // ── Result types ────────────────────────────────────────────────────────────
 export type RefereeSeverity = "error" | "warn";
@@ -137,7 +137,10 @@ function severityForViolation(v: RefereeViolation): RefereeSeverity {
 
 function violationToFinding(v: RefereeViolation): RefereeFinding {
   return {
-    check: v.check,
+    // The blocking referee only ever feeds violations from checks 2-5; the
+    // measurement-only precision-pack checks (pv_truncation/mobility_claims)
+    // never reach it, so the narrowing cast is sound.
+    check: v.check as RefereeFinding["check"],
     severity: severityForViolation(v),
     category: v.category,
     span: v.span,
@@ -167,6 +170,13 @@ export interface RefereeInsightOpts {
   userRating: number | null;
   correlationId: string;
   playerPerspective?: "white" | "black";
+  /**
+   * PRECISION PACK fix 7: when provided, the eval-display check licenses
+   * against contract-GLOBAL facts (all insights + move table) instead of the
+   * insight-local pools — the 30-game FP measurement adjudicated 2/2
+   * insight-local eval_display fires as licensed by another insight's facts.
+   */
+  contract?: CoachContract;
 }
 
 export function refereeInsight(
@@ -179,7 +189,7 @@ export function refereeInsight(
 
   // Checks 2–4 (plan §4): eval displays, SAN/square whitelist (STRICT
   // hypothetical-line prefix rule), tactical keywords, forbidden claims.
-  for (const v of checkEvalDisplays(prose, insight)) findings.push(violationToFinding(v));
+  for (const v of checkEvalDisplays(prose, insight, opts.contract)) findings.push(violationToFinding(v));
   for (const v of checkSanWhitelist(prose, insight, { hypotheticalRule: "prefix" }))
     findings.push(violationToFinding(v));
   for (const v of checkTacticalKeywords(prose, insight)) findings.push(violationToFinding(v));

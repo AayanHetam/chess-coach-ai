@@ -27,6 +27,7 @@
  *     prose for measurement precision (and userVisibility checks are under a
  *     standing warn-only prohibition in serving anyway).
  */
+import { Chess } from "chess.js";
 import type { AnyMotif } from "@/lib/tactics/types";
 import { ALL_TACTICAL_KEYWORDS } from "@/lib/grounding/voter";
 import { validateMotifGrounding } from "@/lib/mastermind/validators/motifGrounding";
@@ -39,7 +40,11 @@ export type RefereeCheckName =
   | "eval_display"
   | "san_whitelist"
   | "tactical_keyword"
-  | "forbidden_claim";
+  | "forbidden_claim"
+  // PRECISION-PACK measurement-only checks — wired into the --fp-measure
+  // harness ONLY, never into runInsightChecks / refereeInsight, never armed.
+  | "pv_truncation"
+  | "mobility_claims";
 
 export type RefereeViolationCategory =
   | "eval_unbacked" // signed pawn figure with no contract eval within ±0.3
@@ -48,7 +53,10 @@ export type RefereeViolationCategory =
   | "square_unknown" // bare square + claim verb, square not in the contract
   | "hypothetical_line_off_contract" // multi-move sequence, not a PV prefix
   | "tactical_keyword_unbacked"
-  | "forbidden_claim_present";
+  | "forbidden_claim_present"
+  // Measurement-only categories (precision pack; see the check-name note).
+  | "pv_truncation_suspect" // PV quote stops one ply before a recapture while asserting a favorable outcome
+  | "mobility_count_wrong"; // bare-integer mobility claim contradicted by chess.js counts
 
 export interface RefereeViolation {
   check: RefereeCheckName;
@@ -147,13 +155,60 @@ export function collectEvalPools(insight: InsightContract): EvalPools {
 }
 
 /**
+ * PRECISION PACK fix 7 — contract-GLOBAL eval license pool. The 30-game FP
+ * measurement (contract-referee-fp-30game-*.json) adjudicated BOTH
+ * eval_display fires as "licensed-elsewhere-in-contract": legitimate
+ * cross-insight/game references (e.g. the move-table's M-2 quoted from an
+ * adjacent insight's card) that the insight-LOCAL whitelist over-fired on.
+ * Union of every insight's pools + the move table's evals + bestWas lines —
+ * the same facts the FP harness's mechanical adjudicator used.
+ */
+export function collectContractEvalPools(contract: CoachContract): EvalPools {
+  const pawns: number[] = [];
+  const mates: number[] = [];
+  for (const ins of contract.insights) {
+    const p = collectEvalPools(ins);
+    pawns.push(...p.pawns);
+    mates.push(...p.mates);
+  }
+  const addFact = (f: EvalFact | null | undefined) => {
+    if (!f || f.sentinel) return;
+    if (f.mate !== null) mates.push(f.mate);
+    else if (f.cp !== null) pawns.push(f.cp / 100);
+  };
+  for (const row of contract.moveTable) {
+    addFact(row.evalAfter);
+    if (row.bestWas?.line) addFact(row.bestWas.line.eval);
+  }
+  return { pawns, mates };
+}
+
+const contractEvalPoolsCache = new WeakMap<CoachContract, EvalPools>();
+function contractEvalPools(contract: CoachContract): EvalPools {
+  let pools = contractEvalPoolsCache.get(contract);
+  if (!pools) {
+    pools = collectContractEvalPools(contract);
+    contractEvalPoolsCache.set(contract, pools);
+  }
+  return pools;
+}
+
+/**
  * Plan §4 check 2 (measurement form): every ±N.NN span must land within
  * ±0.3 pawns of a contract eval; every M±n / "mate in n" span must match a
  * contract mate distance exactly (signed for M±n; absolute for "mate in n",
  * which does not encode a side).
+ *
+ * When the full CoachContract is provided the license pool is
+ * contract-GLOBAL (precision-pack fix 7 — see collectContractEvalPools);
+ * insight-local otherwise (older call sites, unit fixtures).
  */
-export function checkEvalDisplays(prose: string, insight: InsightContract): RefereeViolation[] {
-  const pools = collectEvalPools(insight);
+export function checkEvalDisplays(
+  prose: string,
+  insight: InsightContract,
+  contract?: CoachContract,
+): RefereeViolation[] {
+  const pools = contract ? contractEvalPools(contract) : collectEvalPools(insight);
   const violations: RefereeViolation[] = [];
 
   for (const m of Array.from(prose.matchAll(clone(PAWN_FIGURE_RE)))) {
@@ -371,6 +426,14 @@ export interface ProseToken {
   wordStart: number;
   wordEnd: number;
   kind: "piece_san" | "pawn_or_square" | "move_number" | "other";
+  /**
+   * PRECISION PACK fix 3: the token's trailing punctuation contained a
+   * clause separator (, ; : — –). A move sequence NEVER continues past such
+   * a token — attacker/threat enumerations ("Rh8, Bb7, and Nc7", "threats of
+   * Qb4+, Qa5+", "Passive on h1; Rhe1 activates it") are prose lists, not
+   * lines. Adjudicated FP spans #13/#15/#29 of the 30-game measurement.
+   */
+  endsRun: boolean;
 }
 
 /** Exported (PR-CI-3) — one tokenizer for measurement AND blocking. */
@@ -382,7 +445,8 @@ export function tokenizeProse(prose: string): ProseToken[] {
     const wordStart = m.index ?? 0;
     // Strip common surrounding punctuation, keep move/SAN internals.
     const leading = word.match(/^[("'“”‘’[]+/)?.[0] ?? "";
-    const stripped = word.slice(leading.length).replace(/[)"'“”‘’\],;:.!?]+$/, "");
+    const stripped = word.slice(leading.length).replace(/[)"'“”‘’\],;:.!?—–]+$/, "");
+    const trailing = word.slice(leading.length + stripped.length);
     const norm = stripSanDecorations(stripped);
     let kind: ProseToken["kind"] = "other";
     // Move numbers keep their trailing dot(s), so classify BEFORE the strip
@@ -398,6 +462,7 @@ export function tokenizeProse(prose: string): ProseToken[] {
       wordStart,
       wordEnd: wordStart + word.length,
       kind,
+      endsRun: /[,;:—–]/.test(trailing),
     });
   }
   return tokens;
@@ -456,6 +521,102 @@ function sentenceBounds(prose: string, index: number): { start: number; end: num
   return { start, end };
 }
 
+// ── PRECISION PACK fixes 1 + 2: designator license + legal-move normalization ─
+/** Square → FEN piece char (case carries color) for a placement string. */
+export function fenPieceMap(fen: string): Map<string, string> {
+  const map = new Map<string, string>();
+  const placement = fen.split(" ")[0] ?? "";
+  const ranks = placement.split("/");
+  for (let r = 0; r < ranks.length && r < 8; r++) {
+    let file = 0;
+    for (const ch of ranks[r]) {
+      if (/\d/.test(ch)) {
+        file += Number.parseInt(ch, 10);
+      } else {
+        map.set(`${"abcdefgh"[file]}${8 - r}`, ch);
+        file += 1;
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * Fix 1 — piece-designator license: a bare SAN-shaped token ("Ne5", "Rh1",
+ * "Bc4") is routine coaching shorthand for "the knight ON e5" — a board
+ * reference, not a move claim — whenever that piece type actually stands on
+ * that square in the insight's fenBefore OR fenAfter (either color).
+ * Adjudicated FP spans #23-#26 ("the Ne5"), #34 ("Rh1: undeveloped and
+ * idle") and the members of #13 (Rh8/Bb7/Nc7 attacker enumeration) of the
+ * 30-game measurement. Restricted to the UNDECORATED form — a trailing
+ * +/#/x makes it a move/capture claim and stays under the whitelist rule.
+ */
+const PIECE_DESIGNATOR_RE = /^[KQRBN][a-h][1-8]$/;
+function isPieceDesignatorLicensed(rawSpan: string, maps: Array<Map<string, string>>): boolean {
+  if (!PIECE_DESIGNATOR_RE.test(rawSpan)) return false;
+  const piece = rawSpan[0];
+  const sq = rawSpan.slice(1);
+  return maps.some((m) => (m.get(sq) ?? "").toUpperCase() === piece);
+}
+
+/**
+ * Fix 2 — legal-move normalization: over-/under-/mis-disambiguated SAN is
+ * normalized against the LEGAL MOVES of fenBefore/fenAfter before the
+ * whitelist verdict. "Bc4xd5+" → Bxd5, "Qd5+" → Qxd5 (when only the
+ * capture-check exists), "Re1" → Rhe1/Rae1 (ambiguous rook). The token is
+ * licensed iff SOME legal-move reading of it is contract-backed.
+ * Adjudicated FP spans #0, #5, #30 of the 30-game measurement.
+ */
+const SAN_CORE_RE = /^([KQRBN])([a-h][1-8]|[a-h]|[1-8])?(x?)([a-h][1-8])(?:=([QRBN]))?$/;
+
+type LegalMovesCache = Map<string, Array<{ from: string; to: string; piece: string; san: string; captured: boolean; promotion: string | null }>>;
+
+function legalMovesOf(fen: string, cache: LegalMovesCache) {
+  let moves = cache.get(fen);
+  if (moves === undefined) {
+    try {
+      moves = new Chess(fen).moves({ verbose: true }).map((m) => ({
+        from: m.from,
+        to: m.to,
+        piece: m.piece,
+        san: m.san,
+        captured: !!m.captured,
+        promotion: m.promotion ?? null,
+      }));
+    } catch {
+      moves = [];
+    }
+    cache.set(fen, moves);
+  }
+  return moves;
+}
+
+/** Legal-move SANs (decorations stripped) consistent with a piece-SAN token. */
+function legalNormalizations(norm: string, fens: string[], cache: LegalMovesCache): string[] {
+  const m = norm.match(SAN_CORE_RE);
+  if (!m) return [];
+  const [, piece, disambig = "", capture, dest, promo = null] = m;
+  const out = new Set<string>();
+  for (const fen of fens) {
+    for (const mv of legalMovesOf(fen, cache)) {
+      if (mv.piece.toUpperCase() !== piece) continue;
+      if (mv.to !== dest) continue;
+      if ((mv.promotion ? mv.promotion.toUpperCase() : null) !== promo) continue;
+      // A claimed capture must BE a capture; an unclaimed one may be either
+      // ("Qd5+" where only Qxd5+ is legal is under-specification, not
+      // fabrication — a fabricated capture marker is).
+      if (capture === "x" && !mv.captured) continue;
+      // Disambiguation, when present, must be consistent with the mover.
+      if (disambig.length === 2 && mv.from !== disambig) continue;
+      if (disambig.length === 1) {
+        if (/[a-h]/.test(disambig) ? mv.from[0] !== disambig : mv.from[1] !== disambig) continue;
+      }
+      out.add(stripSanDecorations(mv.san));
+    }
+  }
+  return Array.from(out);
+}
+
 export interface SanWhitelistOpts {
   /**
    * Hypothetical-line rule (plan §4.3):
@@ -487,8 +648,18 @@ export function checkSanWhitelist(
   const violations: RefereeViolation[] = [];
   const tokens = tokenizeProse(prose);
   const consumed = new Set<number>(); // token indices already judged in a sequence
+  // Precision-pack license inputs (fixes 1 + 2): board maps + lazy legal moves.
+  const pieceMaps = [fenPieceMap(insight.fenBefore), fenPieceMap(insight.fenAfter)];
+  const fens = [insight.fenBefore, insight.fenAfter];
+  const legalCache: LegalMovesCache = new Map();
+  const sanLicensed = (rawSpan: string, norm: string): boolean => {
+    if (wl.san.has(norm)) return true;
+    if (isPieceDesignatorLicensed(rawSpan, pieceMaps)) return true; // fix 1
+    return legalNormalizations(norm, fens, legalCache).some((s) => wl.san.has(s)); // fix 2
+  };
 
-  // ── Pass 1: move sequences (≥2 moves, move-numbers allowed between) ──────
+  // ── Pass 1: move sequences (≥2 moves, move-numbers allowed between; a
+  //    clause separator , ; : — – ends the run — precision-pack fix 3) ──────
   let i = 0;
   while (i < tokens.length) {
     if (tokens[i].kind === "piece_san" || tokens[i].kind === "pawn_or_square" || tokens[i].kind === "move_number") {
@@ -501,7 +672,9 @@ export function checkSanWhitelist(
           tokens[j].kind === "move_number")
       ) {
         runIdx.push(j);
+        const endsRun = tokens[j].endsRun;
         j++;
+        if (endsRun) break;
       }
       const moveIdx = runIdx.filter((k) => tokens[k].kind !== "move_number");
       const hasPieceSan = moveIdx.some((k) => tokens[k].kind === "piece_san");
@@ -538,13 +711,13 @@ export function checkSanWhitelist(
   for (let k = 0; k < tokens.length; k++) {
     const t = tokens[k];
     if (t.kind !== "piece_san" || consumed.has(k)) continue;
-    if (!wl.san.has(t.norm)) {
+    if (!sanLicensed(t.raw, t.norm)) {
       violations.push({
         check: "san_whitelist",
         category: "san_unknown",
         span: t.raw,
         index: t.index,
-        detail: `SAN token "${t.raw}" does not occur in the contract (lines/branch points/threats/motifs/played/best)`,
+        detail: `SAN token "${t.raw}" does not occur in the contract (lines/branch points/threats/motifs/played/best), names no piece standing on that square, and no legal-move normalization of it is contract-backed`,
       });
     }
   }
@@ -560,13 +733,13 @@ export function checkSanWhitelist(
     const end = idx + m[0].length;
     if (judgedSpans.some((s) => idx < s.end && end > s.start)) continue;
     const norm = stripSanDecorations(m[0]);
-    if (!wl.san.has(norm)) {
+    if (!sanLicensed(m[0], norm)) {
       violations.push({
         check: "san_whitelist",
         category: "san_unknown",
         span: m[0],
         index: idx,
-        detail: `SAN token "${m[0]}" does not occur in the contract (lines/branch points/threats/motifs/played/best)`,
+        detail: `SAN token "${m[0]}" does not occur in the contract (lines/branch points/threats/motifs/played/best), names no piece standing on that square, and no legal-move normalization of it is contract-backed`,
       });
     }
   }
@@ -600,16 +773,36 @@ export function checkSanWhitelist(
  * (the voter's compiled allowance; belt and suspenders, they derive from the
  * same confirmed motifs).
  */
+/**
+ * PRECISION PACK fix 5 — CONCEPT-tag exemption: `[CONCEPT:...]` spans are
+ * structured widget markup (client-rendered chips), not prose claims — CI-4's
+ * serving ladder already strips grammar-token lines before refereeing
+ * (stripGrammarTokenLines); this mirrors that in the measurement checks.
+ * Adjudicated FP spans #21/#27 ("[CONCEPT:discoveredAttack:...]") of the
+ * 30-game measurement. Blanked (not deleted) so indices stay stable.
+ */
+function scrubConceptTags(prose: string): string {
+  return prose.replace(/\[CONCEPT:[^\]\n]*\]/g, (m) => " ".repeat(m.length));
+}
+
 export function checkTacticalKeywords(prose: string, insight: InsightContract): RefereeViolation[] {
+  const scrubbed = scrubConceptTags(prose); // fix 5
+  // PRECISION PACK fix 4 (consumer side): the license pool is the insight's
+  // own played-move motifs PLUS the scope-extended motifLicense the builder
+  // detects on fenAfter and the first 2 plies of each contract PV — real
+  // pins/traps/fork-threats the fenBefore+playedSan scope missed
+  // (adjudicated FP spans #1/#3/#6/#11/#12/#16/#22).
+  const motifPool = [...insight.motifs, ...(insight.motifLicense ?? [])];
   const result = validateMotifGrounding({
-    llmResponse: prose,
-    detectedMotifs: insight.motifs,
+    llmResponse: scrubbed,
+    detectedMotifs: motifPool,
     fen: insight.fenBefore,
     moveSan: insight.playedSan,
     correlationId: `fidelity:${insight.factIdPrefix}`,
   });
   const allowed = new Set(insight.allowedTacticalKeywords.map((k) => k.toLowerCase()));
-  const lower = prose.toLowerCase();
+  const lower = scrubbed.toLowerCase();
+  const seen = new Set<string>(); // fix 6 — dedup identical (keyword) double-fires
   return result.issues
     .map((issue) => ({
       issue,
@@ -624,8 +817,18 @@ export function checkTacticalKeywords(prose: string, insight: InsightContract): 
     // "pinned" still count; mid-word hits don't). Real serving false-fire
     // class — worth CI-3's attention when these checks move into the ladder.
     .filter(({ keyword }) =>
-      new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&")}`, "i").test(prose),
+      new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&")}`, "i").test(scrubbed),
     )
+    // PRECISION PACK fix 6 — dedup: TACTICAL_CLAIM_KEYWORDS lists "fork"
+    // twice, so one ungrounded "forking" produced two identical
+    // (sentence, keyword) fires (adjudicated span pairs #11/#12, #31/#32,
+    // #35/#36 of the 30-game measurement). Identical fires count ONCE.
+    .filter(({ keyword }) => {
+      const key = keyword.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .map(({ keyword }) => ({
       check: "tactical_keyword" as const,
       category: "tactical_keyword_unbacked" as const,
@@ -712,9 +915,15 @@ export function checkForbiddenClaims(prose: string, insight: InsightContract): R
 }
 
 // ── Convenience: all checks over one insight ────────────────────────────────
-export function runInsightChecks(prose: string, insight: InsightContract): RefereeViolation[] {
+/** `contract`, when provided, widens the eval_display license pool to
+ * contract-global facts (precision-pack fix 7). */
+export function runInsightChecks(
+  prose: string,
+  insight: InsightContract,
+  contract?: CoachContract,
+): RefereeViolation[] {
   return [
-    ...checkEvalDisplays(prose, insight),
+    ...checkEvalDisplays(prose, insight, contract),
     ...checkSanWhitelist(prose, insight),
     ...checkTacticalKeywords(prose, insight),
     ...checkForbiddenClaims(prose, insight),
@@ -763,6 +972,9 @@ export function countClaimSentences(prose: string): number {
     .filter((s) => isClaimSentence(s)).length;
 }
 
+// NOTE: the measurement-only precision-pack checks (pv_truncation /
+// mobility_claims) are deliberately absent — they never run through
+// runInsightChecks/aggregateFidelity, only through the --fp-measure harness.
 const CHECK_NAMES: RefereeCheckName[] = [
   "eval_display",
   "san_whitelist",
@@ -797,7 +1009,7 @@ export function aggregateFidelity(entries: FidelityEntry[], contract: CoachContr
 
   for (const { insight, prose } of entries) {
     claimSentences += countClaimSentences(prose);
-    for (const v of runInsightChecks(prose, insight)) {
+    for (const v of runInsightChecks(prose, insight, contract)) {
       violationsByCheck[v.check] += 1;
       violationsByCategory[v.category] += 1;
       allViolations.push({ ...v, factIdPrefix: insight.factIdPrefix });
@@ -817,4 +1029,180 @@ export function aggregateFidelity(entries: FidelityEntry[], contract: CoachContr
     sanViolations: allViolations.filter((v) => v.check === "san_whitelist"),
     allViolations,
   };
+}
+
+// ── PRECISION PACK measurement-only checks (fixes 9 + 10) ───────────────────
+// NEVER armed, NEVER part of runInsightChecks/refereeInsight: these two run
+// exclusively inside the --fp-measure harness (contract_fidelity_eval.ts) to
+// gather fire-rate evidence before any arming conversation. Plan §9 risk 3
+// discipline: every new check gets a 0-false-fire control gate + a measured
+// FP rate before it can even be PROPOSED for the serving table.
+
+/** Favorable-outcome assertion ("you've won material", "wins the exchange"). */
+const FAVORABLE_OUTCOME_RE =
+  /\b(?:you(?:'ve|’ve| have)?\s+(?:won|win)|wins?|winning|won)\b[^.!?\n]{0,60}?\b(?:material|the exchange|an exchange|a piece|the piece|a pawn|the pawn|the queen|the rook|the bishop|the knight)\b/i;
+
+/**
+ * Fix 9 — pv_truncation: prose that quotes a contract PV but stops exactly
+ * one ply before a recapture/refutation in that PV while asserting a
+ * favorable outcome. The adjudicated true-fabrication class of span #28
+ * ("cxd3, you've won material while your knight dominates the board" — the
+ * PV continues Bxf5, winning the material straight back): every quoted move
+ * is contract-licensed, yet the claim inverts the line's meaning. Caught on
+ * merit, not by whitelist accident.
+ */
+export function checkPvTruncation(prose: string, insight: InsightContract): RefereeViolation[] {
+  const wl = buildWhitelist(insight);
+  if (wl.pvs.length === 0) return [];
+  const tokens = tokenizeProse(prose);
+  const violations: RefereeViolation[] = [];
+  const reported = new Set<string>();
+
+  // Collect quoted move runs (same run grammar as the whitelist pass,
+  // including the fix-3 clause-separator break).
+  let i = 0;
+  while (i < tokens.length) {
+    const kindOk = (k: ProseToken["kind"]) =>
+      k === "piece_san" || k === "pawn_or_square" || k === "move_number";
+    if (!kindOk(tokens[i].kind)) {
+      i++;
+      continue;
+    }
+    const runIdx: number[] = [];
+    let j = i;
+    while (j < tokens.length && kindOk(tokens[j].kind)) {
+      runIdx.push(j);
+      const endsRun = tokens[j].endsRun;
+      j++;
+      if (endsRun) break;
+    }
+    const moveIdx = runIdx.filter((k) => tokens[k].kind !== "move_number");
+    const hasPieceSan = moveIdx.some((k) => tokens[k].kind === "piece_san");
+    if (moveIdx.length >= 1 && hasPieceSan) {
+      const seq = moveIdx.map((k) => tokens[k].norm);
+      const lastTok = tokens[moveIdx[moveIdx.length - 1]];
+      // Find a PV window ending at pv[e] with a capture at pv[e+1].
+      let truncatedBefore: string | null = null;
+      for (const pv of wl.pvs) {
+        if (pv.length < seq.length + 1) continue;
+        for (let off = 0; off + seq.length < pv.length; off++) {
+          if (!seq.every((s, k) => pv[off + k] === s)) continue;
+          const next = pv[off + seq.length];
+          if (next.includes("x")) {
+            truncatedBefore = next;
+            break;
+          }
+        }
+        if (truncatedBefore) break;
+      }
+      if (truncatedBefore) {
+        const { start, end } = sentenceBounds(prose, lastTok.index);
+        const sentence = prose.slice(start, end);
+        if (FAVORABLE_OUTCOME_RE.test(sentence)) {
+          const key = `${seq.join(" ")}@${lastTok.index}`;
+          if (!reported.has(key)) {
+            reported.add(key);
+            violations.push({
+              check: "pv_truncation",
+              category: "pv_truncation_suspect",
+              span: seq.join(" "),
+              index: tokens[moveIdx[0]].index,
+              detail: `quoted line "${seq.join(" ")}" stops one ply before ${truncatedBefore} in the contract PV while asserting a favorable outcome ("${sentence.trim().slice(0, 100)}…")`,
+            });
+          }
+        }
+      }
+    }
+    i = j;
+  }
+  return violations;
+}
+
+/** "15 legal moves" / "15 active squares" style bare-integer mobility claims. */
+const MOBILITY_CLAIM_RE = /\b(\d{1,2})\s+(?:legal moves?|active squares?|available (?:moves?|squares?)|squares? of activity)\b/gi;
+/** Piece references: "queen on f3" / "knight at d4" / designator "Qf3". */
+const PIECE_ON_SQUARE_RE = /\b(queen|rook|bishop|knight|king|pawn)\s+(?:on|at)\s+([a-h][1-8])\b/i;
+const PIECE_DESIGNATOR_IN_SENTENCE_RE = /\b([KQRBN])([a-h][1-8])\b/;
+const PIECE_NAME_TO_LETTER: Record<string, string> = {
+  king: "k",
+  queen: "q",
+  rook: "r",
+  bishop: "b",
+  knight: "n",
+  pawn: "p",
+};
+
+/** Legal-move count for the piece on `square`, turn-corrected. null = not
+ * computable (no piece there / illegal position after the turn flip). */
+function mobilityCount(fen: string, square: string, pieceLetter: string): number | null {
+  try {
+    const parts = fen.split(" ");
+    const map = fenPieceMap(fen);
+    const onBoard = map.get(square);
+    if (!onBoard || onBoard.toLowerCase() !== pieceLetter) return null;
+    const color = onBoard === onBoard.toUpperCase() ? "w" : "b";
+    if (parts[1] !== color) {
+      parts[1] = color;
+      parts[3] = "-"; // en passant is stale after a turn flip
+    }
+    const game = new Chess(parts.join(" "));
+    return game.moves({ square: square as never }).length;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fix 10 — mobility_claims: bare-integer mobility/square-count claims
+ * verified against chess.js counts from the insight FENs. The adjudicated
+ * class: fixture 01's thrice-repeated "queen on f3 … 15 active squares /
+ * 15 legal moves" (spans #2/#4/#7 context) — a concrete number the board
+ * contradicts. Fires ONLY when a piece+square reference is resolvable in
+ * the same sentence and the claimed count matches NEITHER fenBefore nor
+ * fenAfter; unverifiable claims are skipped (precision first).
+ */
+export function checkMobilityClaims(prose: string, insight: InsightContract): RefereeViolation[] {
+  const violations: RefereeViolation[] = [];
+  for (const m of Array.from(prose.matchAll(clone(MOBILITY_CLAIM_RE)))) {
+    const claimed = Number.parseInt(m[1], 10);
+    if (!Number.isFinite(claimed)) continue;
+    const idx = m.index ?? 0;
+    const { start, end } = sentenceBounds(prose, idx);
+    const sentence = prose.slice(start, end);
+    let pieceLetter: string | null = null;
+    let square: string | null = null;
+    const named = sentence.match(PIECE_ON_SQUARE_RE);
+    if (named) {
+      pieceLetter = PIECE_NAME_TO_LETTER[named[1].toLowerCase()] ?? null;
+      square = named[2];
+    } else {
+      const desig = sentence.match(PIECE_DESIGNATOR_IN_SENTENCE_RE);
+      if (desig) {
+        pieceLetter = desig[1].toLowerCase();
+        square = desig[2];
+      }
+    }
+    if (!pieceLetter || !square) continue; // unverifiable — skip, never guess
+    const counts = [insight.fenBefore, insight.fenAfter]
+      .map((fen) => mobilityCount(fen, square!, pieceLetter!))
+      .filter((c): c is number => c !== null);
+    if (counts.length === 0) continue; // piece not on that square in either FEN
+    if (counts.some((c) => c === claimed)) continue; // board backs the number
+    violations.push({
+      check: "mobility_claims",
+      category: "mobility_count_wrong",
+      span: m[0],
+      index: idx,
+      detail: `mobility claim "${m[0]}" for the ${pieceLetter.toUpperCase()} on ${square} contradicts chess.js (actual: ${counts.join("/")} legal move(s) in fenBefore/fenAfter)`,
+    });
+  }
+  return violations;
+}
+
+/** The --fp-measure harness's entry for the measurement-only checks. */
+export function runMeasurementOnlyChecks(
+  prose: string,
+  insight: InsightContract,
+): RefereeViolation[] {
+  return [...checkPvTruncation(prose, insight), ...checkMobilityClaims(prose, insight)];
 }

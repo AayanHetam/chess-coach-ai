@@ -22,56 +22,7 @@ export default function Layout({ children }: PropsWithChildren) {
   // bailing the whole app to client-only render. Dark-mode users see a brief
   // light-theme flash on hydration; trade-off is documented in PR #site-content-ssr.
   const [storedDarkMode, setDarkMode] = useLocalStorage("useDarkMode", false);
-  const isDarkMode = storedDarkMode ?? false;
   const { isIntern } = useViewer();
-
-  const theme = useMemo(
-    () => {
-      // CMIP intern view swaps the brand primary to deep blue. Customer view
-      // (default) keeps the orange theme unchanged.
-      const primary = isIntern ? INTERN_THEME_COLOR : MAIN_THEME_COLOR;
-      const secondaryLight = isIntern ? "#D8E4F4" : "#FFE4D6";
-      const paperTint = isIntern ? "#F4F7FC" : "#FFF8F5";
-      const appBarShadow = isIntern
-        ? "0 2px 8px rgba(10, 77, 168, 0.18)"
-        : "0 2px 8px rgba(255, 107, 53, 0.15)";
-      const appBarBorder = isIntern ? "1px solid #D8E4F4" : "1px solid #FFE4D6";
-
-      return createTheme({
-        palette: {
-          mode: isDarkMode ? "dark" : "light",
-          error: {
-            main: red[400],
-          },
-          primary: {
-            main: primary,
-            light: isIntern ? INTERN_THEME_COLOR_LIGHT : "#FF8C42",
-          },
-          secondary: {
-            main: isDarkMode ? "#424242" : secondaryLight,
-          },
-          background: {
-            default: isDarkMode ? "#121212" : "#FFFFFF",
-            paper: isDarkMode ? "#1e1e1e" : paperTint,
-          },
-        },
-        components: {
-          // Custom styling for Chess Masti AI
-          MuiAppBar: {
-            styleOverrides: {
-              root: {
-                backgroundColor: isDarkMode ? "#19191c" : "#FFFFFF",
-                color: isDarkMode ? "#FFFFFF" : "#333333",
-                boxShadow: isDarkMode ? "none" : appBarShadow,
-                borderBottom: isDarkMode ? "none" : appBarBorder,
-              },
-            },
-          },
-        },
-      });
-    },
-    [isDarkMode, isIntern]
-  );
 
   const router = useRouter();
   const isLandingPage = router.pathname === "/";
@@ -104,6 +55,69 @@ export default function Layout({ children }: PropsWithChildren) {
     router.pathname === "/repetit-training" ||
     router.pathname === "/database" ||
     router.pathname === "/courses";
+
+  // Obsidian-Glass surfaces are dark ALWAYS — never subject to the legacy
+  // light/dark toggle. Without this, CssBaseline injected `body { background:
+  // #fff }` in light mode, which paints OVER the pages' fixed zIndex:-1
+  // GradientBackdrops (negative-z elements paint before in-flow backgrounds
+  // once <html> carries its own background) — the white-landing bug of
+  // 2026-08-10.
+  const forceGlassDark = isLandingPage || isGlassRoute;
+  const isDarkMode = forceGlassDark || (storedDarkMode ?? false);
+
+  const theme = useMemo(
+    () => {
+      // CMIP intern view swaps the brand primary to deep blue. Customer view
+      // (default) keeps the orange theme unchanged.
+      const primary = isIntern ? INTERN_THEME_COLOR : MAIN_THEME_COLOR;
+      const secondaryLight = isIntern ? "#D8E4F4" : "#FFE4D6";
+      const paperTint = isIntern ? "#F4F7FC" : "#FFF8F5";
+      const appBarShadow = isIntern
+        ? "0 2px 8px rgba(10, 77, 168, 0.18)"
+        : "0 2px 8px rgba(255, 107, 53, 0.15)";
+      const appBarBorder = isIntern ? "1px solid #D8E4F4" : "1px solid #FFE4D6";
+
+      return createTheme({
+        palette: {
+          mode: isDarkMode ? "dark" : "light",
+          error: {
+            main: red[400],
+          },
+          primary: {
+            main: primary,
+            light: isIntern ? INTERN_THEME_COLOR_LIGHT : "#FF8C42",
+          },
+          secondary: {
+            main: isDarkMode ? "#424242" : secondaryLight,
+          },
+          background: {
+            // Obsidian base on glass surfaces so the CssBaseline body layer
+            // matches the GradientBackdrop base tone exactly.
+            default: forceGlassDark
+              ? "#08090C"
+              : isDarkMode
+              ? "#121212"
+              : "#FFFFFF",
+            paper: isDarkMode ? "#1e1e1e" : paperTint,
+          },
+        },
+        components: {
+          // Custom styling for Chess Masti AI
+          MuiAppBar: {
+            styleOverrides: {
+              root: {
+                backgroundColor: isDarkMode ? "#19191c" : "#FFFFFF",
+                color: isDarkMode ? "#FFFFFF" : "#333333",
+                boxShadow: isDarkMode ? "none" : appBarShadow,
+                borderBottom: isDarkMode ? "none" : appBarBorder,
+              },
+            },
+          },
+        },
+      });
+    },
+    [isDarkMode, isIntern, forceGlassDark]
+  );
 
   // Landing page or a glass cutover route: skip NavBar and app chrome for
   // a full-bleed look.

@@ -1136,7 +1136,11 @@ export default function PreviewPuzzlesPage() {
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content="#0A0907" />
         <style>{`
-          html, body { background-color: #0A0907; color-scheme: dark; margin: 0; }
+          /* body-only on purpose — see src/pages/index.tsx: an <html>
+             background blocks body→canvas propagation and paints over
+             fixed zIndex:-1 backdrops. */
+          html { color-scheme: dark; }
+          body { background-color: #0A0907; color-scheme: dark; margin: 0; }
           ::-webkit-scrollbar { width: 8px; height: 8px; }
           ::-webkit-scrollbar-track { background: transparent; }
           ::-webkit-scrollbar-thumb {

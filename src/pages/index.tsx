@@ -2386,7 +2386,13 @@ export default function LandingPage() {
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content="#08090C" />
         <style>{`
-          html, body { background-color: #08090C; color-scheme: dark; margin: 0; }
+          /* body-only on purpose: with <html> transparent, the body color
+             propagates to the canvas and paints BEHIND the fixed zIndex:-1
+             GradientBackdrop. Setting it on <html> too blocks that
+             propagation, so body would paint OVER the backdrop and hide the
+             gradient orbs (the white-landing bug of 2026-08-10). */
+          html { color-scheme: dark; }
+          body { background-color: #08090C; color-scheme: dark; margin: 0; }
           ::-webkit-scrollbar { width: 12px; height: 12px; }
           ::-webkit-scrollbar-track { background: #08090C; }
           ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 6px; }

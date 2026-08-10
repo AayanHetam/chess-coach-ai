@@ -143,18 +143,64 @@ export function __resetMastermindEnvCacheForTests(): void {
  * parseBoolEnv + memoized reader per the getMastermindEnv pattern (trim-
  * hardened against the Vercel trailing-\n save hazard).
  */
-let cachedContractEnv:
-  | { shadowEnabled: boolean; refereeShadowEnabled: boolean }
-  | undefined;
+/**
+ * PR-CI-4 additions (all trim-hardened, memoized, default-dark):
+ *
+ * CONTRACT_CATEGORIES — comma-separated category list (categoryClassifier
+ * vocabulary, e.g. "position_analysis"). A request whose classified category
+ * is listed AND that has a CoachContract serves through the ENFORCED
+ * verbalizer-4.0 path (contractServing.ts). Default "" ⇒ fully dark: the
+ * contract branch is never entered and legacy serving is byte-identical
+ * (pinned by contractRollbackDrill.test.ts). Emptying the list IS the
+ * rollback — legacy serves from its warm 3.6 cache.
+ *
+ * CONTRACT_REFEREE_MODE — "full" (default; Haiku relational parses included
+ * in the enforce ladder) | "deterministic" (checks 2–5+7 only, zero Haiku
+ * parse calls) — the cost lever, tech-lead decision #3.
+ *
+ * CONTRACT_CITATION_GRANULARITY — "sentence" (default) | "paragraph". The
+ * pre-built persona fallback (plan §3): paragraph mode counts a claim
+ * sentence as cited when its PARAGRAPH carries a [F:] token. Dark by
+ * default; flip only if sentence-level citation tanks the persona rubric.
+ */
+export type ContractRefereeMode = "full" | "deterministic";
+export type ContractCitationGranularity = "sentence" | "paragraph";
 
-export function getContractEnv(): {
+export interface ContractEnv {
   shadowEnabled: boolean;
   refereeShadowEnabled: boolean;
-} {
+  /** Lowercased, trimmed, deduped category list; [] = enforcement dark. */
+  categories: string[];
+  refereeMode: ContractRefereeMode;
+  citationGranularity: ContractCitationGranularity;
+}
+
+export function parseContractCategories(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return Array.from(
+    new Set(
+      raw
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => s.length > 0),
+    ),
+  );
+}
+
+let cachedContractEnv: ContractEnv | undefined;
+
+export function getContractEnv(): ContractEnv {
   if (cachedContractEnv) return cachedContractEnv;
+  const modeRaw = (process.env.CONTRACT_REFEREE_MODE ?? "").trim().toLowerCase();
+  const granularityRaw = (process.env.CONTRACT_CITATION_GRANULARITY ?? "")
+    .trim()
+    .toLowerCase();
   cachedContractEnv = {
     shadowEnabled: parseBoolEnv(process.env.CONTRACT_SHADOW),
     refereeShadowEnabled: parseBoolEnv(process.env.CONTRACT_REFEREE_SHADOW),
+    categories: parseContractCategories(process.env.CONTRACT_CATEGORIES),
+    refereeMode: modeRaw === "deterministic" ? "deterministic" : "full",
+    citationGranularity: granularityRaw === "paragraph" ? "paragraph" : "sentence",
   };
   return cachedContractEnv;
 }

@@ -69,6 +69,10 @@ import {
   type GameEvalInput,
 } from "@/lib/contract/legacyGameContext";
 import { maybeCreateShadowRefereeGate } from "@/lib/contract/shadowReferee";
+// PR-CI-4: contract-mode enforced serving (verbalizer 4.0 + failure ladder).
+// Dead code until CONTRACT_CATEGORIES lists a category.
+import { serveContractAnalysis } from "@/lib/contract/contractServing";
+import { VERBALIZER_PROMPT_VERSION } from "@/lib/prompts/verbalizerPrompt";
 import type { CoachContract } from "@/lib/contract/types";
 import { fetch_lichess_tablebase } from "@/lib/mastermind/lichessTablebase";
 import { validateMotifGrounding } from "@/lib/mastermind/validators/motifGrounding";
@@ -649,7 +653,13 @@ export async function POST(request: NextRequest) {
         { fen, playerColor: playerColor || "w" }
       );
       gameContext = built.prompt;
-      if (getContractEnv().refereeShadowEnabled) {
+      // PR-CI-4: the contract also rides along when enforcement is armed for
+      // any category (CONTRACT_CATEGORIES non-empty). With both flags at
+      // their defaults this stays null and the legacy path is untouched.
+      if (
+        getContractEnv().refereeShadowEnabled ||
+        getContractEnv().categories.length > 0
+      ) {
         contractForShadowReferee = built.contract;
       }
     } else if (fen || position) {
@@ -898,6 +908,9 @@ export async function POST(request: NextRequest) {
       const validationFen = game.fen();
       const playerPerspective: "white" | "black" =
         playerColor === "b" ? "black" : "white";
+      // PR-CI-4: wall-clock anchor for the contract ladder's hard deadline
+      // (tech-lead decision #4 — everything must fit maxDuration 60s).
+      const contractRequestStartMs = Date.now();
 
       const encoder = new TextEncoder();
       const sseStream = new ReadableStream({
@@ -920,6 +933,132 @@ export async function POST(request: NextRequest) {
             opponentUsername,
             opponentPlatform,
           });
+
+          // ── PR-CI-4: contract-mode ENFORCED serving ────────────────────
+          // Live ONLY when this request's classified category is listed in
+          // CONTRACT_CATEGORIES (default "" ⇒ dead branch, legacy bytes
+          // identical — pinned by contractRollbackDrill.test.ts) AND a
+          // CoachContract was built (game path). Verbalizer 4.0 + block-
+          // gated referee + failure ladder; cache reads/writes only c4.0|
+          // keys (generateContractCacheKey) — legacy 3.6 keys untouched.
+          if (
+            contractForShadowReferee &&
+            getContractEnv().categories.includes(prep.category)
+          ) {
+            try {
+              const serving = await serveContractAnalysis({
+                contract: contractForShadowReferee,
+                category: prep.category,
+                emitText: (delta) => send({ type: "text", delta }),
+                messageText: messageText || undefined,
+                // Conversation history only — the contract user turn
+                // replaces the legacy final user message.
+                priorMessages: claudeMessages.slice(0, -1),
+                promptInput: {
+                  personalityId: personalityId ?? "friendly",
+                  userRating: userRating ?? 1500,
+                  username,
+                  playerColorName,
+                  chesscomUsername,
+                  lichessUsername,
+                  coachingPrefs,
+                },
+                correlationId: requestId,
+                uid: session.uid,
+                requestStartMs: contractRequestStartMs,
+                cacheInputs: {
+                  currentFen,
+                  skillLevel,
+                  userMessage: messageText || "analyze",
+                  personaSignature,
+                  moveHistory,
+                },
+              });
+              if (serving.llmResult) {
+                console.log("coach.tokens", {
+                  input: serving.llmResult.inputTokens,
+                  output: serving.llmResult.outputTokens,
+                  cacheCreation: serving.llmResult.cacheCreationTokens,
+                  cacheRead: serving.llmResult.cacheReadTokens,
+                  promptVersion: VERBALIZER_PROMPT_VERSION,
+                  streamed: true,
+                  contractMode: true,
+                });
+                recordLLMCall(serving.llmResult);
+              }
+              const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
+              storeAnalysisContext({
+                contextId,
+                gameContext,
+                compactGameContext: buildCompactGameContext(
+                  moveHistory ?? [],
+                  gameEval,
+                  playerColor || "w",
+                ),
+                playedMoves: moveHistory ?? [],
+                systemPrompt: claudeSystemPrompt,
+                systemPromptStable: claudeSystemParts.stable,
+                systemPromptSuffix: claudeSystemParts.perUser,
+                fewShotExamples: examplesContext,
+                fen: validationFen,
+                skillLevel,
+                playerColor: playerColor || "w",
+                moveCount: Math.ceil(game.history().length / 2),
+                createdAt: Date.now(),
+                initialAnalysis: serving.analysisContent,
+                gameEval,
+              });
+              let puzzleRecommendations: unknown = undefined;
+              try {
+                puzzleRecommendations = await generatePuzzleRecommendations(
+                  moveHistory,
+                  gameEval,
+                  userRating,
+                );
+              } catch (err) {
+                log.warn("puzzle recs failed in stream (contract mode)", {
+                  err: err instanceof Error ? err.message : String(err),
+                });
+              }
+              send({
+                type: "done",
+                metadata: {
+                  analysis: serving.analysisContent,
+                  position: validationFen,
+                  turn: game.turn(),
+                  moveCount: Math.ceil(game.history().length / 2),
+                  availableMoves: game.moves().length,
+                  // Referee-enforced path: every shipped card passed the
+                  // referee or resolved through the ladder floor.
+                  validationScore: 1.0,
+                  validationIssues: serving.validationIssues,
+                  contextId,
+                  puzzleRecommendations,
+                  corrected: false,
+                  // CMIP payload (tech-lead decision #5): flags filed on this
+                  // response become triageable against the exact contract.
+                  contract: serving.contractMetadata,
+                  pipeline: {
+                    category: prep.category,
+                    classifierConfidence: prep.classifierConfidence,
+                    prepMs: prep.prepMs,
+                    contractMode: true,
+                  },
+                },
+              });
+            } catch (err) {
+              const e = err instanceof LLMError ? err : new Error(String(err));
+              log.error("Contract-mode serving failed", { message: e.message });
+              reportFatal(err, "stream:contract-enforced", {
+                category: prep.category,
+                provider: e instanceof LLMError ? e.provider : undefined,
+                status: e instanceof LLMError ? e.status : undefined,
+              });
+              send({ type: "error", error: e.message });
+            }
+            controller.close();
+            return;
+          }
 
           // §3.2 contract: FD throws → fall back to flag-off path.
           //

@@ -1,0 +1,460 @@
+{
+  "date": "2026-08-10",
+  "mode": "verbalizer_4.0_enforced_AFTER_deterministic_sample",
+  "model": {
+    "generator": "claude-sonnet-4-6",
+    "judge": "claude-haiku-4-5-20251001"
+  },
+  "verbalizerPromptVersion": "4.0",
+  "legacyPromptVersion": "3.6",
+  "fixtures": 3,
+  "userMessage": "analyze this position and where my play went wrong",
+  "refereeMode": "deterministic",
+  "aggregate": {
+    "fabricationRate": 0,
+    "fabricationCount": 0,
+    "claimSentences": 119,
+    "citationCoverage": 0.737,
+    "personaMean": 4,
+    "ladderDistribution": {
+      "pass": 2,
+      "sentence_drop": 11,
+      "edited": 0,
+      "regenerated": 0,
+      "templated": 0,
+      "passthrough_footnoted": 0
+    },
+    "ttft": {
+      "legacyTtftP50Ms": 1401,
+      "contractTtftP50Ms": 1221,
+      "legacyFirstCardP50Ms": 14047,
+      "contractFirstCardP50Ms": 14284,
+      "firstCardDeltaP50Ms": -801
+    },
+    "totalCostUsd": 0
+  },
+  "gates": {
+    "fabricationLe1": true,
+    "citationCoverageGe80": false,
+    "personaMeanGe355": true,
+    "firstCardLeLegacyPlus500msP50": true
+  },
+  "perGame": [
+    {
+      "fixture": "03_sentinel_timeout",
+      "contractId": "ca22dc8ab336b661",
+      "cardsPlanned": 3,
+      "cardsShipped": 3,
+      "ladder": {
+        "pass": 2,
+        "sentence_drop": 1,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": 0.7415917415917416,
+      "claimSentences": 35,
+      "fabricationCount": 0,
+      "fabricationRate": 0,
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "legacyTtftMs": 1932,
+      "legacyFirstCardMs": 17461,
+      "contractTtftMs": 1221,
+      "contractFirstCardMs": 14284,
+      "errorsInitial": 1,
+      "warnsInitial": 1,
+      "editsUsed": 0,
+      "regensUsed": 0,
+      "costUsd": 0,
+      "sampleViolations": [],
+      "cards": [
+        {
+          "factIdPrefix": "M1",
+          "stage": "pass",
+          "errorsInitial": 0,
+          "warnsInitial": 1,
+          "citationCoverage": 0.818,
+          "findings": []
+        },
+        {
+          "factIdPrefix": "I2",
+          "stage": "sentence_drop",
+          "errorsInitial": 1,
+          "warnsInitial": 0,
+          "citationCoverage": 0.714,
+          "findings": [
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "pin"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "I3",
+          "stage": "pass",
+          "errorsInitial": 0,
+          "warnsInitial": 0,
+          "citationCoverage": 0.692,
+          "findings": []
+        }
+      ]
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "contractId": "a59f54a0bf0710ac",
+      "cardsPlanned": 7,
+      "cardsShipped": 7,
+      "ladder": {
+        "pass": 0,
+        "sentence_drop": 7,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": 0.7563492063492063,
+      "claimSentences": 50,
+      "fabricationCount": 0,
+      "fabricationRate": 0,
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "legacyTtftMs": 1401,
+      "legacyFirstCardMs": 12920,
+      "contractTtftMs": 2789,
+      "contractFirstCardMs": 14799,
+      "errorsInitial": 33,
+      "warnsInitial": 1,
+      "editsUsed": 0,
+      "regensUsed": 0,
+      "costUsd": 0,
+      "sampleViolations": [],
+      "cards": [
+        {
+          "factIdPrefix": "M1",
+          "stage": "sentence_drop",
+          "errorsInitial": 7,
+          "warnsInitial": 0,
+          "citationCoverage": 1,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M1.featureDelta]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "hypothetical_line_off_contract",
+              "span": "Rh8 Bb7"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ba8"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nc7"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bd4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nb5"
+            },
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "trapped"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M2",
+          "stage": "sentence_drop",
+          "errorsInitial": 3,
+          "warnsInitial": 0,
+          "citationCoverage": 0.889,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M2.featureDelta]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ba8"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Rh8"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M3",
+          "stage": "sentence_drop",
+          "errorsInitial": 2,
+          "warnsInitial": 0,
+          "citationCoverage": 0.625,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M3.rel0]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bc8"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M4",
+          "stage": "sentence_drop",
+          "errorsInitial": 5,
+          "warnsInitial": 0,
+          "citationCoverage": 0.778,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M4.rel2]"
+            },
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M4.rel0]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Be5"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bc8"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Na7"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M5",
+          "stage": "sentence_drop",
+          "errorsInitial": 5,
+          "warnsInitial": 0,
+          "citationCoverage": 0.625,
+          "findings": [
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ng8"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nh6"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Qc4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Na6"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Qc4"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M6",
+          "stage": "sentence_drop",
+          "errorsInitial": 2,
+          "warnsInitial": 0,
+          "citationCoverage": 0.6,
+          "findings": [
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ra7"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nb5"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "I2",
+          "stage": "sentence_drop",
+          "errorsInitial": 9,
+          "warnsInitial": 1,
+          "citationCoverage": 0.778,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:I2.featureDelta]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ng8"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Rh8"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nh6"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ng8"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Rh8"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Rg3"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Be5"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "07_knight_fork",
+      "contractId": "c91aa6af1f14bc57",
+      "cardsPlanned": 3,
+      "cardsShipped": 3,
+      "ladder": {
+        "pass": 0,
+        "sentence_drop": 3,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": 0.7117216117216117,
+      "claimSentences": 34,
+      "fabricationCount": 0,
+      "fabricationRate": 0,
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "legacyTtftMs": 1252,
+      "legacyFirstCardMs": 14047,
+      "contractTtftMs": 1054,
+      "contractFirstCardMs": 13246,
+      "errorsInitial": 6,
+      "warnsInitial": 0,
+      "editsUsed": 0,
+      "regensUsed": 0,
+      "costUsd": 0,
+      "sampleViolations": [],
+      "cards": [
+        {
+          "factIdPrefix": "M1",
+          "stage": "sentence_drop",
+          "errorsInitial": 1,
+          "warnsInitial": 0,
+          "citationCoverage": 0.8,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M1.relational]"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M2",
+          "stage": "sentence_drop",
+          "errorsInitial": 1,
+          "warnsInitial": 0,
+          "citationCoverage": 0.692,
+          "findings": [
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "pin"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M3",
+          "stage": "sentence_drop",
+          "errorsInitial": 4,
+          "warnsInitial": 0,
+          "citationCoverage": 0.643,
+          "findings": [
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Qb6"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Qb6"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "square_unknown",
+              "span": "b6"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "square_unknown",
+              "span": "b6"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "note": "3-fixture CONTRACT_REFEREE_MODE=deterministic sample (tech-lead decision #3 lever) demonstrating the first-card latency gate passes without the synchronous Haiku relational parse: firstCardDeltaP50Ms = -801 (contract mode FASTER than legacy first completed card)."
+}

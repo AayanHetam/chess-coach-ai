@@ -313,13 +313,14 @@ Even on mid-program abandonment, the permanent wins are banked: the typed contra
 
 ### Aayan (chess/coaching)
 1. **Fail-closed voice — ANSWERED: honest register.** "The model should be upfront and honest and try to remain as helpful as it can despite that." Verbalizer charter gains: *"If an insight's contract has no confirmed motif, say plainly that the engine's preference is concrete but no named tactic was verified — then teach from the engine line, concept, and teaching spine. Never bluff a theme."* Template-card copy follows the same register.
-2. **Card-at-a-time streaming — CLARIFICATION PENDING** (plain-language explanation + recommendation sent; gates CI-3 flag-on, not CI-3 code).
-3. **Template fallback card — CLARIFICATION PENDING** (same; gates CI-4+ ladder step (d) copy sign-off, not the mechanism).
+2. **Card-at-a-time streaming — APPROVED (2026-08-10):** whole cards every ~3–8s with the prefix greeting still streaming token-by-token. Aayan: "ok if it will improve accuracy and quality." Unblocks CI-4 enforce-mode serving.
+3. **Template fallback card — APPROVED (2026-08-10):** deterministic masti-toned template as the ladder-(d) floor. Aayan confirmed understanding that the template's SUBSTANCE (engine line, eval swing, concept) adapts per position — only the structure is fixed. Copy itself remains subject to the CI-5 voice veto (§12 A5).
 4. **Uncited soft-observation vocabulary — APPROVED; v0 draft below for review at PR-CI-4.**
    *Rule:* a sentence may go citation-free iff it (a) contains **no** square, SAN, number, eval, mate, or material term, and (b) uses hedged/figurative register. Extends `FORBIDDEN_WITHOUT_BACKING` (puzzlePatternAllowlist.ts) rather than replacing it.
    *Allowed (examples):* "your kingside looks a bit drafty" · "this knight is dreaming of an outpost" · "you were playing with fire through this stretch" · "patience wins these endings" · encouragement, humor, story, masti interjections.
    *Never citation-free:* named tactics (fork/pin/skewer/discovered/…), "winning/losing material", "hanging/undefended", any eval or mate phrasing, any concrete square or move.
 5. **Gold examples — YES:** Aayan authors/reviews the prose halves of the 3 contract→prose few-shots (needed at PR-CI-4).
+   *2026-08-10 amendment (documented deviation):* founder approved proceeding with CI-4 overnight; the prose halves ship as **Claude-authored DRAFTS in masti register** (marked "DRAFT — Aayan voice review at CI-5") so the verbalizer has few-shots from day one. Aayan's authorship/review moves to the CI-5 explicit voice-veto point — the veto covers both the gold prose and the template-card copy.
 6. **Insight selection — YES (interpreted):** severity-first, with a teachability preference among near-equal severities (richly-covered mistakes — confirmed motifs/concepts — win ties). ⚠️ *Interpreted from a "yes" to an either/or question; implemented as a `selectInsights` config knob so it's reversible in one line.*
 
 ### Tech-lead (architecture/scope/cost) — delegated to Claude by Aayan ("You do 7"), decided 2026-07-07

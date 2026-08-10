@@ -84,12 +84,17 @@ def stockfish_context(engine, fen: str, depth: int, multipv: int = 3) -> str:
     return "Engine analysis (Stockfish, ground truth):\n" + "\n".join(lines) + "\n\n"
 
 
-def call_claude(api_key: str, prompt: str, max_tokens: int = 2048):
-    body = json.dumps({
+def call_claude(api_key: str, prompt: str, max_tokens: int = 2048, system: str | None = None):
+    payload = {
         "model": MODEL,
         "max_tokens": max_tokens,
         "messages": [{"role": "user", "content": prompt}],
-    }).encode()
+    }
+    # PR-CI-4: optional system prompt so the verbalizer-4.0 charter can be
+    # measured against the grounded baseline (plan §7 CI-4 ChessQA gate).
+    if system:
+        payload["system"] = system
+    body = json.dumps(payload).encode()
     req = urllib.request.Request(ANTHROPIC_URL, data=body, headers={
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
@@ -112,8 +117,12 @@ def main():
     ap.add_argument("--depth", type=int, default=18)
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--output", default=None)
+    ap.add_argument("--system-file", default=None,
+                    help="optional file whose contents ride as the system prompt on every call "
+                         "(PR-CI-4: the verbalizer-4.0 system, to gate the charter against the grounded baseline)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
+    system_prompt = Path(args.system_file).read_text() if args.system_file else None
 
     api_key = None if args.dry_run else load_api_key(args.repo)
     items = [json.loads(l) for l in open(Path(args.bench) / f"{args.category}.jsonl")][: args.n]
@@ -142,7 +151,7 @@ def main():
         task, mode, context = job
         prompt = format_prompt(task, context)
         try:
-            resp, _ = call_claude(api_key, prompt)
+            resp, _ = call_claude(api_key, prompt, system=system_prompt)
         except Exception as e:
             resp = f"[ERROR {e}]"
         ext, ok = extract_answer(resp)
@@ -166,6 +175,7 @@ def main():
         return 100 * tally[m]["correct"] / max(1, tally[m]["total"])
     summary = {
         "category": args.category, "n": len(items), "model": MODEL, "engine_depth": args.depth,
+        "system_file": args.system_file,
         "off_accuracy_pct": round(pct("off"), 1),
         "on_accuracy_pct": round(pct("on"), 1),
         "delta_pp": round(pct("on") - pct("off"), 1),

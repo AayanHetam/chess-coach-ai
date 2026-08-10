@@ -45,6 +45,11 @@ const RESULTS_DIR = path.join(REPO_ROOT, "scripts/eval/results");
 /** Position-analysis-shaped request (the CI-4 armed category). */
 const USER_MESSAGE = "analyze this position and where my play went wrong";
 
+/** Referee mode under measurement — "full" (serving default) unless
+ * CI4_REFEREE_MODE=deterministic (the tech-lead-#3 cost/latency lever). */
+const REFEREE_MODE: "full" | "deterministic" =
+  (process.env.CI4_REFEREE_MODE ?? "").trim() === "deterministic" ? "deterministic" : "full";
+
 interface FixtureFile {
   moveHistory: string[];
   gameEval: GameEvalInput;
@@ -372,7 +377,7 @@ async function runLive(args: Args): Promise<void> {
         }
       },
       correlationId: `ci4-${name}`,
-      refereeMode: "full",
+      refereeMode: REFEREE_MODE,
       citationGranularity: "sentence",
       deadlineAtMs: tContract + 55_000,
       regenSystem: vParts,
@@ -524,7 +529,7 @@ async function runLive(args: Args): Promise<void> {
     legacyPromptVersion: PROMPT_VERSION,
     fixtures: perGame.length,
     userMessage: USER_MESSAGE,
-    refereeMode: "full",
+    refereeMode: REFEREE_MODE,
     aggregate,
     gates: {
       fabricationLe1: fabricationRate <= 1,

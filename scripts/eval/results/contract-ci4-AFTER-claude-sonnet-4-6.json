@@ -1,0 +1,1137 @@
+{
+  "date": "2026-08-10",
+  "mode": "verbalizer_4.0_enforced_AFTER",
+  "model": {
+    "generator": "claude-sonnet-4-6",
+    "judge": "claude-haiku-4-5-20251001"
+  },
+  "verbalizerPromptVersion": "4.0",
+  "legacyPromptVersion": "3.6",
+  "fixtures": 10,
+  "userMessage": "analyze this position and where my play went wrong",
+  "refereeMode": "full",
+  "aggregate": {
+    "fabricationRate": 0.78,
+    "fabricationCount": 2,
+    "claimSentences": 256,
+    "citationCoverage": 0.704,
+    "personaMean": 3.5,
+    "ladderDistribution": {
+      "pass": 5,
+      "sentence_drop": 17,
+      "edited": 1,
+      "regenerated": 0,
+      "templated": 2,
+      "passthrough_footnoted": 0
+    },
+    "ttft": {
+      "legacyTtftP50Ms": 1444,
+      "contractTtftP50Ms": 1499,
+      "legacyFirstCardP50Ms": 14365,
+      "contractFirstCardP50Ms": 19406,
+      "firstCardDeltaP50Ms": 3519
+    },
+    "totalCostUsd": 0.122
+  },
+  "gates": {
+    "fabricationLe1": true,
+    "citationCoverageGe80": false,
+    "personaMeanGe355": false,
+    "firstCardLeLegacyPlus500msP50": false
+  },
+  "perGame": [
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "contractId": "cc265a53889b9a86",
+      "cardsPlanned": 1,
+      "cardsShipped": 1,
+      "ladder": {
+        "pass": 0,
+        "sentence_drop": 1,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": 0.75,
+      "claimSentences": 6,
+      "fabricationCount": 1,
+      "fabricationRate": 16.67,
+      "personaScores": [
+        2,
+        2
+      ],
+      "personaMean": 2,
+      "legacyTtftMs": 1461,
+      "legacyFirstCardMs": 12578,
+      "contractTtftMs": 1749,
+      "contractFirstCardMs": 18315,
+      "errorsInitial": 13,
+      "warnsInitial": 1,
+      "editsUsed": 0,
+      "regensUsed": 0,
+      "costUsd": 0.0043,
+      "sampleViolations": [
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "pin"
+        }
+      ],
+      "cards": [
+        {
+          "factIdPrefix": "I1",
+          "stage": "sentence_drop",
+          "errorsInitial": 13,
+          "warnsInitial": 1,
+          "citationCoverage": 0.75,
+          "findings": [
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nd5"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bc4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bc4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nd5"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Qf3"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nd5"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bc4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nd5"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "contractId": "fb4e0338df15dff3",
+      "cardsPlanned": 4,
+      "cardsShipped": 4,
+      "ladder": {
+        "pass": 0,
+        "sentence_drop": 3,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 1,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": 0.8106060606060606,
+      "claimSentences": 38,
+      "fabricationCount": 1,
+      "fabricationRate": 2.63,
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "legacyTtftMs": 1804,
+      "legacyFirstCardMs": 13821,
+      "contractTtftMs": 1827,
+      "contractFirstCardMs": 17248,
+      "errorsInitial": 13,
+      "warnsInitial": 0,
+      "editsUsed": 0,
+      "regensUsed": 0,
+      "costUsd": 0.0184,
+      "sampleViolations": [
+        {
+          "check": "tactical_keyword",
+          "category": "tactical_keyword_unbacked",
+          "span": "pin"
+        }
+      ],
+      "cards": [
+        {
+          "factIdPrefix": "M1",
+          "stage": "sentence_drop",
+          "errorsInitial": 2,
+          "warnsInitial": 0,
+          "citationCoverage": 0.667,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M1.threat1]"
+            },
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "trapped"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M2",
+          "stage": "sentence_drop",
+          "errorsInitial": 1,
+          "warnsInitial": 0,
+          "citationCoverage": 0.667,
+          "findings": [
+            {
+              "check": "san_whitelist",
+              "category": "hypothetical_line_off_contract",
+              "span": "exd4 cxd4"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "I1",
+          "stage": "sentence_drop",
+          "errorsInitial": 3,
+          "warnsInitial": 0,
+          "citationCoverage": 1,
+          "findings": [
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "trapped"
+            },
+            {
+              "check": "stage9_mate_in_n",
+              "category": "mate_claim_unsupported",
+              "span": "forced mate"
+            },
+            {
+              "check": "stage9_mate_in_n",
+              "category": "mate_claim_unsupported",
+              "span": "mating attack"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "I3",
+          "stage": "templated",
+          "errorsInitial": 7,
+          "warnsInitial": 0,
+          "citationCoverage": 0.909,
+          "findings": [
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "cxd6"
+            },
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "fork"
+            },
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "discovered"
+            },
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "fork"
+            },
+            {
+              "check": "stage9_mate_in_n",
+              "category": "mate_claim_unsupported",
+              "span": "forced mate"
+            },
+            {
+              "check": "stage9_mate_in_n",
+              "category": "mate_claim_unsupported",
+              "span": "forced mate"
+            },
+            {
+              "check": "relational_claim",
+              "category": "relational_claim_contradicted",
+              "span": "the engine line 9. d6 Ba5+ Bd2 Bb4"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "03_sentinel_timeout",
+      "contractId": "ca22dc8ab336b661",
+      "cardsPlanned": 3,
+      "cardsShipped": 3,
+      "ladder": {
+        "pass": 2,
+        "sentence_drop": 1,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": 0.5715506715506716,
+      "claimSentences": 46,
+      "fabricationCount": 0,
+      "fabricationRate": 0,
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "legacyTtftMs": 1433,
+      "legacyFirstCardMs": 16561,
+      "contractTtftMs": 1058,
+      "contractFirstCardMs": 20034,
+      "errorsInitial": 1,
+      "warnsInitial": 0,
+      "editsUsed": 0,
+      "regensUsed": 0,
+      "costUsd": 0.0126,
+      "sampleViolations": [],
+      "cards": [
+        {
+          "factIdPrefix": "M1",
+          "stage": "pass",
+          "errorsInitial": 0,
+          "warnsInitial": 0,
+          "citationCoverage": 0.533,
+          "findings": []
+        },
+        {
+          "factIdPrefix": "I2",
+          "stage": "sentence_drop",
+          "errorsInitial": 1,
+          "warnsInitial": 0,
+          "citationCoverage": 0.643,
+          "findings": [
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nf3"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "I3",
+          "stage": "pass",
+          "errorsInitial": 0,
+          "warnsInitial": 0,
+          "citationCoverage": 0.538,
+          "findings": []
+        }
+      ]
+    },
+    {
+      "fixture": "04_invalid_san_truncation",
+      "contractId": "3fe49a40139877e6",
+      "cardsPlanned": 1,
+      "cardsShipped": 1,
+      "ladder": {
+        "pass": 0,
+        "sentence_drop": 1,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": 0.75,
+      "claimSentences": 7,
+      "fabricationCount": 0,
+      "fabricationRate": 0,
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "legacyTtftMs": 1121,
+      "legacyFirstCardMs": 12370,
+      "contractTtftMs": 1022,
+      "contractFirstCardMs": 15889,
+      "errorsInitial": 4,
+      "warnsInitial": 1,
+      "editsUsed": 0,
+      "regensUsed": 0,
+      "costUsd": 0.0035,
+      "sampleViolations": [],
+      "cards": [
+        {
+          "factIdPrefix": "M1",
+          "stage": "sentence_drop",
+          "errorsInitial": 4,
+          "warnsInitial": 1,
+          "citationCoverage": 0.75,
+          "findings": [
+            {
+              "check": "san_whitelist",
+              "category": "hypothetical_line_off_contract",
+              "span": "d4 cxd4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "cxd4"
+            },
+            {
+              "check": "stage9_material_win",
+              "category": "material_win_unsupported",
+              "span": "up the bishop"
+            },
+            {
+              "check": "relational_claim",
+              "category": "relational_claim_contradicted",
+              "span": "the c5 pawn is attacked by the d4 pawn"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "contractId": "a59f54a0bf0710ac",
+      "cardsPlanned": 7,
+      "cardsShipped": 7,
+      "ladder": {
+        "pass": 2,
+        "sentence_drop": 5,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": 0.7650793650793651,
+      "claimSentences": 72,
+      "fabricationCount": 0,
+      "fabricationRate": 0,
+      "personaScores": [
+        5,
+        5
+      ],
+      "personaMean": 5,
+      "legacyTtftMs": 2195,
+      "legacyFirstCardMs": 12288,
+      "contractTtftMs": 1499,
+      "contractFirstCardMs": 18020,
+      "errorsInitial": 26,
+      "warnsInitial": 1,
+      "editsUsed": 0,
+      "regensUsed": 0,
+      "costUsd": 0.0186,
+      "sampleViolations": [],
+      "cards": [
+        {
+          "factIdPrefix": "M1",
+          "stage": "sentence_drop",
+          "errorsInitial": 9,
+          "warnsInitial": 0,
+          "citationCoverage": 0.889,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M1.featureDelta]"
+            },
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M1.featureDelta]"
+            },
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M1.featureDelta]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "hypothetical_line_off_contract",
+              "span": "Rh8 Bb7"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ba8"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nc7"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bd4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nb5"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M2",
+          "stage": "sentence_drop",
+          "errorsInitial": 7,
+          "warnsInitial": 0,
+          "citationCoverage": 0.75,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M2.featureDelta]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ba8"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Rh8"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Qf8"
+            },
+            {
+              "check": "relational_claim",
+              "category": "relational_claim_contradicted",
+              "span": "White Ba8 is attacked by Bb7 with no defenders"
+            },
+            {
+              "check": "relational_claim",
+              "category": "relational_claim_contradicted",
+              "span": "White Ph4 is attacked by Rh8 with no defenders"
+            },
+            {
+              "check": "relational_claim",
+              "category": "relational_claim_contradicted",
+              "span": "White Pf3 is attacked by Qf8 and Pe4 with no defenders"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M3",
+          "stage": "sentence_drop",
+          "errorsInitial": 3,
+          "warnsInitial": 0,
+          "citationCoverage": 0.583,
+          "findings": [
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "fork"
+            },
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "fork"
+            },
+            {
+              "check": "relational_claim",
+              "category": "relational_claim_contradicted",
+              "span": "the bishop on c8 is hanging, attacked by the knight on a7 wi"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M4",
+          "stage": "sentence_drop",
+          "errorsInitial": 1,
+          "warnsInitial": 0,
+          "citationCoverage": 0.583,
+          "findings": [
+            {
+              "check": "relational_claim",
+              "category": "relational_claim_contradicted",
+              "span": "Black can recapture with f7xd5"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M5",
+          "stage": "pass",
+          "errorsInitial": 0,
+          "warnsInitial": 0,
+          "citationCoverage": 0.8,
+          "findings": []
+        },
+        {
+          "factIdPrefix": "M6",
+          "stage": "pass",
+          "errorsInitial": 0,
+          "warnsInitial": 0,
+          "citationCoverage": 0.75,
+          "findings": []
+        },
+        {
+          "factIdPrefix": "I2",
+          "stage": "sentence_drop",
+          "errorsInitial": 6,
+          "warnsInitial": 1,
+          "citationCoverage": 1,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:I2.featureDelta]"
+            },
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:I2.relational]"
+            },
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:I2.featureDelta]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ng8"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Rh8"
+            },
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "trapped"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "06_short_opening",
+      "contractId": "bfa6097180d1d73a",
+      "cardsPlanned": 0,
+      "cardsShipped": 0,
+      "ladder": {
+        "pass": 0,
+        "sentence_drop": 0,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": null,
+      "claimSentences": 0,
+      "fabricationCount": 0,
+      "fabricationRate": 0,
+      "personaScores": [
+        2,
+        2
+      ],
+      "personaMean": 2,
+      "legacyTtftMs": 1946,
+      "legacyFirstCardMs": null,
+      "contractTtftMs": 1042,
+      "contractFirstCardMs": null,
+      "errorsInitial": 0,
+      "warnsInitial": 0,
+      "editsUsed": 0,
+      "regensUsed": 0,
+      "costUsd": 0,
+      "sampleViolations": [],
+      "cards": []
+    },
+    {
+      "fixture": "07_knight_fork",
+      "contractId": "c91aa6af1f14bc57",
+      "cardsPlanned": 3,
+      "cardsShipped": 3,
+      "ladder": {
+        "pass": 1,
+        "sentence_drop": 1,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 1,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": 0.5839402427637722,
+      "claimSentences": 37,
+      "fabricationCount": 0,
+      "fabricationRate": 0,
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "legacyTtftMs": 1348,
+      "legacyFirstCardMs": 16114,
+      "contractTtftMs": 1917,
+      "contractFirstCardMs": 19406,
+      "errorsInitial": 7,
+      "warnsInitial": 3,
+      "editsUsed": 1,
+      "regensUsed": 1,
+      "costUsd": 0.0361,
+      "sampleViolations": [],
+      "cards": [
+        {
+          "factIdPrefix": "M1",
+          "stage": "pass",
+          "errorsInitial": 0,
+          "warnsInitial": 1,
+          "citationCoverage": 0.571,
+          "findings": []
+        },
+        {
+          "factIdPrefix": "M2",
+          "stage": "templated",
+          "errorsInitial": 4,
+          "warnsInitial": 1,
+          "citationCoverage": 0.647,
+          "findings": [
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "pin"
+            },
+            {
+              "check": "relational_claim",
+              "category": "relational_claim_contradicted",
+              "span": "the knight on b5 forks the king on e8"
+            },
+            {
+              "check": "relational_claim",
+              "category": "relational_claim_contradicted",
+              "span": "the knight on b5 forks the rook on a8"
+            },
+            {
+              "check": "relational_claim",
+              "category": "relational_claim_contradicted",
+              "span": "after 8. Nc7+ Kd8, Black plays ...Qxd1+"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M3",
+          "stage": "sentence_drop",
+          "errorsInitial": 3,
+          "warnsInitial": 1,
+          "citationCoverage": 0.533,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M1.pv0]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Qb6"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Qb6"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "contractId": "22a4cb9e0c804c60",
+      "cardsPlanned": 1,
+      "cardsShipped": 1,
+      "ladder": {
+        "pass": 0,
+        "sentence_drop": 1,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": 0.6666666666666666,
+      "claimSentences": 7,
+      "fabricationCount": 0,
+      "fabricationRate": 0,
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "legacyTtftMs": 1790,
+      "legacyFirstCardMs": 17680,
+      "contractTtftMs": 2036,
+      "contractFirstCardMs": 19483,
+      "errorsInitial": 6,
+      "warnsInitial": 1,
+      "editsUsed": 0,
+      "regensUsed": 0,
+      "costUsd": 0.0035,
+      "sampleViolations": [],
+      "cards": [
+        {
+          "factIdPrefix": "M1",
+          "stage": "sentence_drop",
+          "errorsInitial": 6,
+          "warnsInitial": 1,
+          "citationCoverage": 0.667,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:finalRelational]"
+            },
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:finalAnnotation]"
+            },
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:finalAnnotation]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nf3"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Be6"
+            },
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "back rank"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "contractId": "f7bde52a35f62986",
+      "cardsPlanned": 2,
+      "cardsShipped": 2,
+      "ladder": {
+        "pass": 0,
+        "sentence_drop": 2,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": 0.7211538461538461,
+      "claimSentences": 18,
+      "fabricationCount": 0,
+      "fabricationRate": 0,
+      "personaScores": [
+        2,
+        4
+      ],
+      "personaMean": 3,
+      "legacyTtftMs": 1190,
+      "legacyFirstCardMs": 15475,
+      "contractTtftMs": 1256,
+      "contractFirstCardMs": 19523,
+      "errorsInitial": 14,
+      "warnsInitial": 2,
+      "editsUsed": 0,
+      "regensUsed": 0,
+      "costUsd": 0.01,
+      "sampleViolations": [],
+      "cards": [
+        {
+          "factIdPrefix": "M1",
+          "stage": "sentence_drop",
+          "errorsInitial": 6,
+          "warnsInitial": 1,
+          "citationCoverage": 0.75,
+          "findings": [
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ne5"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bc4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ne5"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bg4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nf3"
+            },
+            {
+              "check": "tactical_keyword",
+              "category": "tactical_keyword_unbacked",
+              "span": "pin"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M2",
+          "stage": "sentence_drop",
+          "errorsInitial": 8,
+          "warnsInitial": 1,
+          "citationCoverage": 0.692,
+          "findings": [
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nf3"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bc4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bc4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bg4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nf3"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bg4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nf3"
+            },
+            {
+              "check": "relational_claim",
+              "category": "relational_claim_contradicted",
+              "span": "it attacks the e4 pawn"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "contractId": "dd9d10575138fea0",
+      "cardsPlanned": 3,
+      "cardsShipped": 3,
+      "ladder": {
+        "pass": 0,
+        "sentence_drop": 2,
+        "edited": 1,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "citationCoverage": 0.7129629629629629,
+      "claimSentences": 25,
+      "fabricationCount": 0,
+      "fabricationRate": 0,
+      "personaScores": [
+        3,
+        3
+      ],
+      "personaMean": 3,
+      "legacyTtftMs": 1444,
+      "legacyFirstCardMs": 14365,
+      "contractTtftMs": 1573,
+      "contractFirstCardMs": 21538,
+      "errorsInitial": 23,
+      "warnsInitial": 1,
+      "editsUsed": 1,
+      "regensUsed": 0,
+      "costUsd": 0.015,
+      "sampleViolations": [],
+      "cards": [
+        {
+          "factIdPrefix": "M1",
+          "stage": "edited",
+          "errorsInitial": 6,
+          "warnsInitial": 0,
+          "citationCoverage": 0.583,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M1.relational]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Rh1"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ng6"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nd4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Rh1"
+            },
+            {
+              "check": "relational_claim",
+              "category": "relational_claim_contradicted",
+              "span": "The knight on e6 is immediately captured by the bishop"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "M2",
+          "stage": "sentence_drop",
+          "errorsInitial": 5,
+          "warnsInitial": 0,
+          "citationCoverage": 0.667,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:M2.relational]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ne5"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Rh1"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Ne5"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nd4"
+            }
+          ]
+        },
+        {
+          "factIdPrefix": "I2",
+          "stage": "sentence_drop",
+          "errorsInitial": 12,
+          "warnsInitial": 1,
+          "citationCoverage": 0.889,
+          "findings": [
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:I2.relational]"
+            },
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:I2.relational]"
+            },
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:I2.relational]"
+            },
+            {
+              "check": "citation_invalid",
+              "category": "citation_unresolvable",
+              "span": "[F:I2.relational]"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nf6"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bh4"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Nf6"
+            },
+            {
+              "check": "san_whitelist",
+              "category": "san_unknown",
+              "span": "Bh4"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "note": "Run 2 (post referee-precision fixes d126f6c) — the committed AFTER artifact. run1Reference = pre-fix run (same night); personaCombinedBothRuns pools all 4 judge passes/fixture across both runs (judge variance straddles the 3.55 gate: 3.6 run1 / 3.5 run2).",
+  "personaCombinedBothRuns": 3.55,
+  "run1Reference": {
+    "aggregate": {
+      "fabricationRate": 0,
+      "fabricationCount": 0,
+      "claimSentences": 268,
+      "citationCoverage": 0.658,
+      "personaMean": 3.6,
+      "ladderDistribution": {
+        "pass": 4,
+        "sentence_drop": 8,
+        "edited": 5,
+        "regenerated": 1,
+        "templated": 7,
+        "passthrough_footnoted": 0
+      },
+      "ttft": {
+        "legacyTtftP50Ms": 1634,
+        "contractTtftP50Ms": 1396,
+        "legacyFirstCardP50Ms": 14665,
+        "contractFirstCardP50Ms": 25680,
+        "firstCardDeltaP50Ms": 8428
+      },
+      "totalCostUsd": 0.29
+    }
+  }
+}

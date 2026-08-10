@@ -40,6 +40,7 @@ export async function POST(request: Request) {
       email: input.email,
       password: input.password,
       displayName: input.displayName,
+      ageAffirmed: input.ageAffirmed,
     });
 
     const isIntern = await isAllowlistedIntern(user.email);

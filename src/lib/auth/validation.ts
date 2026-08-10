@@ -37,6 +37,13 @@ export const signupSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   displayName: displayNameSchema.optional(),
+  // COPPA: set by the client only after the neutral DOB age gate resolves
+  // 13+. Must be literally true — account creation is refused without it,
+  // and the server stamps ageAffirmedAt from it. The DOB itself is never
+  // transmitted.
+  ageAffirmed: z
+    .boolean()
+    .refine((v) => v === true, "Please confirm your date of birth to sign up."),
 });
 
 export const signinSchema = z.object({

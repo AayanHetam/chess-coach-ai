@@ -45,12 +45,15 @@ interface AuthContextType {
   // Live subscription entitlement from /api/auth/me (pricing pivot). null while
   // loading or signed out. Read via useEntitlement() for gating UI.
   entitlement: ClientEntitlement | null;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (opts?: { ageAffirmed?: boolean }) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUp: (input: {
     email: string;
     password: string;
     displayName?: string;
+    // COPPA: true only after the DOB age gate resolves 13+ (required by the
+    // signup API; the birth date itself never leaves the browser).
+    ageAffirmed: boolean;
   }) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -188,7 +191,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const signUp = useCallback(
-    async (input: { email: string; password: string; displayName?: string }) => {
+    async (input: {
+      email: string;
+      password: string;
+      displayName?: string;
+      ageAffirmed: boolean;
+    }) => {
       await postJson("/api/auth/signup", input);
       await refresh();
     },
@@ -199,7 +207,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await postJson("/api/auth/forgot-password", { email });
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (opts?: { ageAffirmed?: boolean }) => {
     // Server-routed OAuth: full-page redirect through chessmasti.com so
     // we never hit the *.firebaseapp.com handler that school WiFi blocks.
     //
@@ -221,7 +229,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     // Only pass same-origin paths. Server-side `sanitizeReturnTo` rejects
     // anything else, but we keep client-side hygiene tight too.
     const returnTo = here.startsWith("/") ? here : "/";
-    w.href = `/api/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`;
+    // ageAffirmed=1 marks that the signup dialog's DOB gate already resolved
+    // 13+, so the OAuth callback can skip the /auth/age interstitial.
+    const ageParam = opts?.ageAffirmed ? "&ageAffirmed=1" : "";
+    w.href = `/api/auth/google/start?returnTo=${encodeURIComponent(returnTo)}${ageParam}`;
   }, []);
 
   const signOut = useCallback(async () => {

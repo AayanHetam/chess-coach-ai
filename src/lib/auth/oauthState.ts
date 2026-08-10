@@ -16,6 +16,12 @@ export type OAuthStatePayload = {
   state: string;
   codeVerifier: string;
   returnTo?: string;
+  // True when the user completed the neutral DOB age gate (13+) client-side
+  // before starting OAuth. Lets the callback create the account immediately
+  // instead of routing through the /auth/age interstitial. Self-asserted by
+  // our own signup UI — same trust level as any age screen — but carried in
+  // the signed state cookie so a forged query param can't set it.
+  ageAffirmed?: boolean;
 };
 
 let cachedKey: Uint8Array | null = null;
@@ -81,6 +87,7 @@ export async function readOAuthStateFromRequest(
       state: payload.state,
       codeVerifier: payload.codeVerifier,
       returnTo: typeof payload.returnTo === "string" ? payload.returnTo : undefined,
+      ageAffirmed: payload.ageAffirmed === true,
     };
   } catch {
     return null;

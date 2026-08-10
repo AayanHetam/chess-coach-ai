@@ -39,6 +39,10 @@ export async function GET(request: Request) {
   const env = getAuthEnv();
   const url = new URL(request.url);
   const returnTo = sanitizeReturnTo(url.searchParams.get("returnTo"));
+  // Set by the signup dialog after the user passes the DOB age gate; carried
+  // in the signed state cookie so the callback can skip the /auth/age
+  // interstitial for brand-new accounts.
+  const ageAffirmed = url.searchParams.get("ageAffirmed") === "1";
 
   const state = generateState();
   const { verifier, challenge } = generatePkcePair();
@@ -61,6 +65,7 @@ export async function GET(request: Request) {
     state,
     codeVerifier: verifier,
     returnTo,
+    ageAffirmed,
   });
   return response;
 }

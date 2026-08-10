@@ -21,6 +21,21 @@ import {
   replayPreviewMove,
   type MasterCandidate,
 } from "@/components/ui/MasterGamesTakeover";
+import {
+  findAllMoveRefs,
+  findPlyForMoveRef,
+  plyBeforeMove,
+  buildRecommendedPreview,
+  playSanOnFen,
+} from "@/components/preview-analysis/coachMoveRefs";
+import {
+  gameSideKey,
+  inferPlayerSideFromHeaders,
+  loadStoredSide,
+  storeSide,
+  type PlayerSide,
+  type PlayerSideColor,
+} from "@/components/preview-analysis/playerSide";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import {
   BoardArrowToggles,
@@ -111,10 +126,6 @@ import {
 import { useAtomValue, useSetAtom } from "jotai";
 import { savedEvalsAtom } from "@/sections/analysis/states";
 import type { SavedEvals } from "@/types/eval";
-import {
-  extractImportedGameInfo,
-  detectUserColor,
-} from "@/lib/smartColorDetection";
 import { getEvaluateGameParams, getEvaluationBarValue } from "@/lib/chess";
 import { detectOpening } from "@/lib/unifiedOpeningDetector";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
@@ -3119,6 +3130,171 @@ function EngineLinesPanel({
   );
 }
 
+// ─── "Which side were you playing?" inline ask ───────────────────────────
+// Shown once per game inside the coach stream when the player's side
+// can't be inferred (no username match, no stored answer). Answering
+// threads playerColor into every analysis/chat request and persists the
+// choice per-game. Dark-glass styling; the two side buttons are equal
+// choices, so ember stays a hover accent rather than a fill.
+function PlayerSideAsk({
+  onChoose,
+}: {
+  onChoose: (color: PlayerSideColor) => void;
+}) {
+  const sideButton = (color: PlayerSideColor) => (
+    <Box
+      component="button"
+      onClick={() => onChoose(color)}
+      aria-label={`I was playing ${color}`}
+      sx={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 0.75,
+        px: 1.75,
+        py: 1,
+        cursor: "pointer",
+        borderRadius: "12px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        color: "rgba(255,255,255,0.92)",
+        fontSize: "0.82rem",
+        fontWeight: 700,
+        fontFamily: "inherit",
+        transition: "all 180ms ease",
+        "&:hover": {
+          background: "rgba(249,115,22,0.14)",
+          borderColor: "rgba(249,115,22,0.5)",
+          color: "#FB923C",
+          transform: "translateY(-1px)",
+        },
+      }}
+    >
+      <Box
+        component="span"
+        sx={{ fontSize: "1.1rem", lineHeight: 1 }}
+        aria-hidden
+      >
+        {color === "white" ? "♔" : "♚"}
+      </Box>
+      {color === "white" ? "White" : "Black"}
+    </Box>
+  );
+  return (
+    <Box
+      data-testid="player-side-ask"
+      sx={{
+        alignSelf: "stretch",
+        borderRadius: "1rem",
+        background: "rgba(20,22,28,0.55)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+        px: 2,
+        py: 1.75,
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: "0.85rem",
+          fontWeight: 600,
+          color: "rgba(255,255,255,0.9)",
+          mb: 1.25,
+        }}
+      >
+        Quick check — which side were you playing?
+      </Typography>
+      <Stack direction="row" spacing={1.25}>
+        {sideButton("white")}
+        {sideButton("black")}
+      </Stack>
+      <Typography
+        sx={{
+          fontSize: "0.7rem",
+          color: "rgba(255,255,255,0.45)",
+          mt: 1,
+          lineHeight: 1.4,
+        }}
+      >
+        The coach tailors its analysis to your side — mistakes, plans, and
+        praise all depend on it.
+      </Typography>
+    </Box>
+  );
+}
+
+// Compact chip showing which side the coach is coaching, with a one-click
+// switch — surfaced when the side was inferred (username match) or
+// remembered, so a wrong guess is one tap away from correct.
+function PlayerSideChip({
+  side,
+  onChoose,
+}: {
+  side: PlayerSide;
+  onChoose?: (color: PlayerSideColor) => void;
+}) {
+  const other: PlayerSideColor = side.color === "white" ? "black" : "white";
+  const sourceLabel =
+    side.source === "username_match"
+      ? "matched your username"
+      : side.source === "stored_choice"
+        ? "remembered from last time"
+        : "your choice";
+  return (
+    <Tooltip title={`Side ${sourceLabel} — click to switch to ${other}`}>
+      <Box
+        data-testid="player-side-chip"
+        onClick={() => onChoose?.(other)}
+        sx={{
+          alignSelf: "center",
+          display: "flex",
+          alignItems: "center",
+          gap: 0.6,
+          px: 1.25,
+          py: 0.4,
+          cursor: onChoose ? "pointer" : "default",
+          borderRadius: "999px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          transition: "all 180ms ease",
+          "&:hover": onChoose
+            ? {
+                background: "rgba(249,115,22,0.1)",
+                borderColor: "rgba(249,115,22,0.4)",
+              }
+            : {},
+        }}
+      >
+        <Box component="span" sx={{ fontSize: "0.85rem", lineHeight: 1 }} aria-hidden>
+          {side.color === "white" ? "♔" : "♚"}
+        </Box>
+        <Typography
+          sx={{
+            fontSize: "0.68rem",
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.65)",
+          }}
+        >
+          Coaching you as {side.color === "white" ? "White" : "Black"}
+        </Typography>
+        {onChoose && (
+          <Typography
+            sx={{
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              color: "#FB923C",
+            }}
+          >
+            · switch
+          </Typography>
+        )}
+      </Box>
+    </Tooltip>
+  );
+}
+
 function CoachPanel({
   messages,
   input,
@@ -3141,6 +3317,9 @@ function CoachPanel({
   personalityId,
   onChangePersonality,
   suggestions,
+  playerSide,
+  sideUiEligible,
+  onChoosePlayerSide,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -3150,7 +3329,9 @@ function CoachPanel({
   isThinking: boolean;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
   allMoves?: Move[];
-  onMoveRefClick?: (ply: number) => void;
+  /** ply-only → jump the cursor; with `playSan` → load the recommended
+   *  alternative onto the board as an exploration preview. */
+  onMoveRefClick?: (ply: number, playSan?: string) => void;
   onShareMessage?: (msg: CoachMessage) => void;
   onPuzzleSolved?: (puzzle: DrillPuzzle, timeSpentSeconds: number) => void;
   onPracticeConcept?: (
@@ -3193,6 +3374,13 @@ function CoachPanel({
    *  Computed by the parent (AnalysisPage) so the command palette can
    *  share the same list. */
   suggestions: Suggestion[];
+  /** The side the user played (inferred or chosen), null while ambiguous. */
+  playerSide?: PlayerSide | null;
+  /** True when a real game (not demo/puzzle/bare FEN) is loaded — gates
+   *  both the inline "Which side were you playing?" ask (playerSide null)
+   *  and the assumed-side switch chip (playerSide set). */
+  sideUiEligible?: boolean;
+  onChoosePlayerSide?: (color: PlayerSideColor) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -3501,6 +3689,9 @@ function CoachPanel({
         }}
       >
         <Stack spacing={2}>
+          {sideUiEligible && playerSide && (
+            <PlayerSideChip side={playerSide} onChoose={onChoosePlayerSide} />
+          )}
           {mistakeContext && (
             <Box sx={{ alignSelf: "stretch" }}>
               <ContextualPuzzleRecommendations
@@ -3545,6 +3736,16 @@ function CoachPanel({
               </motion.div>
             ))}
           </AnimatePresence>
+          {sideUiEligible && !playerSide && onChoosePlayerSide && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
+              style={{ alignSelf: "stretch" }}
+            >
+              <PlayerSideAsk onChoose={onChoosePlayerSide} />
+            </motion.div>
+          )}
           {isThinking && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -4230,130 +4431,10 @@ function CoachPuzzleCard({
   );
 }
 
-// G7: production-parity 4-tier move-reference parser. Mirrors
-// AICoachChat.tsx:1323-1353. Patterns ordered by specificity (longer +
-// more anchored first) so overlapping matches are resolved in favor of
-// the more specific one.
-const MOVE_REF_PATTERNS: Array<{
-  re: RegExp;
-  // Slot in match[] that holds (moveNumber, color?, san)
-  numIdx: number;
-  colorIdx?: number;
-  sanIdx: number;
-}> = [
-  // Priority 1: AI parenthesized — "Move 3 (Nxd4)"
-  {
-    re: /Move\s+(\d+)\s*\([^)]*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\)/gi,
-    numIdx: 1,
-    sanIdx: 2,
-  },
-  // Priority 2: "Move 3: Nxd4"
-  {
-    re: /Move\s+(\d+):\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
-    numIdx: 1,
-    sanIdx: 2,
-  },
-  // Priority 3: Standard "24.Rxd4" / "23...Nf6"
-  {
-    re: /(?<![A-Za-z0-9])(\d+)(\.{1,3})\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g,
-    numIdx: 1,
-    colorIdx: 2, // 1-dot = white, 3-dot = black
-    sanIdx: 3,
-  },
-  // Priority 4: "move 3 (w|b): Nxd4"
-  {
-    re: /move\s+(\d+)([wb])?:\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
-    numIdx: 1,
-    colorIdx: 2,
-    sanIdx: 3,
-  },
-];
-
-// Recommended-move detector. Case-insensitive so "BEST MOVE:" uppercase
-// headings (which the coach emits inside structured cards) match too.
-// Expanded beyond production's set to cover the phrasings Aayan's smoke
-// tests surfaced on 2026-05-29: "only winning move", "winning continuation",
-// "best move:" with colon-anchored headings, etc.
-const RECOMMENDED_CONTEXT_RE =
-  /best\s*(was|move|is|continuation|move\s*:)|should\s*have\s*(played|been)|instead\s*(of|,|:)|better\s*(was|move|is|alternative)|recommended|correct\s*move|improvement|only\s+(winning|good|playable|sensible)\s+move|winning\s+(move|continuation|line)|key\s+move/i;
-
-interface MoveRefMatch {
-  start: number;
-  end: number;
-  full: string;
-  moveNumber: number;
-  isBlack: boolean;
-  san: string;
-  recommended: boolean;
-}
-
-function findAllMoveRefs(
-  text: string,
-  forceRecommended = false
-): MoveRefMatch[] {
-  const matches: MoveRefMatch[] = [];
-  for (const pat of MOVE_REF_PATTERNS) {
-    const re = new RegExp(pat.re.source, pat.re.flags);
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text))) {
-      const moveNumber = parseInt(m[pat.numIdx], 10);
-      let isBlack = false;
-      if (pat.colorIdx !== undefined) {
-        const c = m[pat.colorIdx];
-        // For priority 3 the slot holds dots ("." | ".." | "..."), so
-        // length >= 3 means black. For priority 4 it's an explicit w|b.
-        isBlack = c?.length === 3 || c === "b";
-      }
-      const san = m[pat.sanIdx];
-      // Skip if a higher-priority match already covered this range.
-      const overlaps = matches.some(
-        (existing) => m!.index < existing.end && m!.index + m![0].length > existing.start
-      );
-      if (overlaps) continue;
-      const contextBefore = text
-        .slice(Math.max(0, m.index - 60), m.index)
-        .toLowerCase();
-      matches.push({
-        start: m.index,
-        end: m.index + m[0].length,
-        full: m[0],
-        moveNumber,
-        isBlack,
-        san,
-        recommended:
-          forceRecommended || RECOMMENDED_CONTEXT_RE.test(contextBefore),
-      });
-    }
-  }
-  matches.sort((a, b) => a.start - b.start);
-  return matches;
-}
-
-const stripSanDecorators = (s: string) => s.replace(/[+#!?]/g, "").toLowerCase();
-
-// Resolve a "moveNumber.san" reference (e.g., 24.Rxd4) to the half-move ply
-// it points at. Returns null if the game doesn't have that move at that
-// position (within ±1 tolerance for off-by-one moveNumber typos in coach
-// output).
-function findPlyForMoveRef(
-  allMoves: Move[],
-  moveNumber: number,
-  isBlack: boolean,
-  san: string
-): number | null {
-  const target = stripSanDecorators(san);
-  const expectedPly = (moveNumber - 1) * 2 + (isBlack ? 2 : 1);
-  const sanAt = (p: number) =>
-    p >= 1 && p <= allMoves.length
-      ? stripSanDecorators(allMoves[p - 1].san)
-      : null;
-  if (sanAt(expectedPly) === target) return expectedPly;
-  for (const adj of [-1, 1, 2, -2]) {
-    const p = expectedPly + adj;
-    if (sanAt(p) === target) return p;
-  }
-  return null;
-}
+// G7 move-reference parser + green-link exploration helpers — extracted to
+// coachMoveRefs.ts (2026-08-10) so the "click a recommended move → the
+// board loads that line" behavior is unit-tested. See that module for the
+// pattern table + RECOMMENDED_CONTEXT_RE.
 
 // ─── InsightBodyText ─────────────────────────────────────────────────────
 // Beautifies the prose inside Why/Threats/Roles/Concept panels.
@@ -5479,8 +5560,10 @@ function CoachBubble({
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
   /** Full move history — used to resolve "24.Rxd4" → ply 47. */
   allMoves?: Move[];
-  /** Fired when the user clicks a move reference in coach text. */
-  onMoveRefClick?: (ply: number) => void;
+  /** Fired when the user clicks a move reference in coach text. `playSan`
+   *  is set for recommended-alternative (green) refs: the parent replays
+   *  to `ply` and plays `playSan` on the board (exploration preview). */
+  onMoveRefClick?: (ply: number, playSan?: string) => void;
   /** Fired when the user clicks the share icon on a coach reply. */
   onShare?: (msg: CoachMessage) => void;
   /** Full chat history — required for G12 FlagButton context. */
@@ -5564,28 +5647,28 @@ function CoachBubble({
         // RECOMMENDED moves are by definition NOT what the player actually
         // played, so findPlyForMoveRef will return null for them — the SAN
         // at that ply won't match the recommended SAN. We still want them
-        // clickable (jumps to the position FROM which the recommended move
-        // would be played, so the user lands in exploration mode). Same
-        // ply derivation as findPlyForMoveRef's expectedPly, then -1 to
-        // sit BEFORE the move. Round-2 + Round-3 smoke caught this:
-        // "11. g4" in a SOLUTION row rendered as a plain <span> with no
-        // click handler because findPlyForMoveRef returned null.
+        // clickable, and clicking must actually LOAD the alternative onto
+        // the board: pass the SAN alongside the anchor ply so the parent
+        // handler (handleCoachMoveRef) replays the mainline to the anchor
+        // and plays the recommended move as an exploration preview.
+        // (Founder bug 2026-08-10: the old handler only did
+        // setCurrentPly(anchor) — a no-op when the user was already
+        // sitting on the mistake ply, so green links "did nothing".)
         const recommendedTargetPly =
           ref.recommended && matchedPly === null
-            ? Math.max(
-                0,
-                (ref.moveNumber - 1) * 2 + (ref.isBlack ? 1 : 0)
-              )
+            ? plyBeforeMove(ref.moveNumber, ref.isBlack)
             : null;
         const ply = matchedPly ?? recommendedTargetPly;
         if (ply !== null) {
+          const playSan =
+            ref.recommended && matchedPly === null ? ref.san : undefined;
           const recColor = "#86efac"; // light green for recommended
           const navColor = isUser ? "#0A0A0A" : "#FB923C";
           out.push(
             <Box
               key={`${boldIdx}m${ref.start}`}
               component="span"
-              onClick={() => onMoveRefClick(ply)}
+              onClick={() => onMoveRefClick(ply, playSan)}
               title={
                 ref.recommended
                   ? `Recommended alternative: ${ref.san}`
@@ -6606,6 +6689,13 @@ export default function AnalysisPage() {
     "white"
   );
 
+  // Which side did the user play in the loaded game? Null = ambiguous →
+  // CoachPanel shows the inline "Which side were you playing?" ask before
+  // the first analysis request. Set by loadNewGame (username match against
+  // the PGN headers, or a stored per-game answer) or by the user clicking
+  // the ask card / the switch chip. Threads into coachExtras.playerColor.
+  const [playerSide, setPlayerSide] = useState<PlayerSide | null>(null);
+
   // ─── Production-parity personalization extras for the deep coach path ───
   // Production's AICoachChat (line 2459-2487) threads playerColor +
   // playerColorName + boardOrientation + username + chess-platform handles
@@ -6629,8 +6719,11 @@ export default function AnalysisPage() {
   );
 
   const coachExtras = useMemo(() => {
-    const playerColor: "w" | "b" =
-      boardOrientation === "white" ? "w" : "b";
+    // The user's side. An explicit/inferred answer (playerSide) wins; the
+    // board orientation is only the last-resort assumption when the side
+    // is still ambiguous (user hasn't answered the inline ask yet).
+    const sideName: "white" | "black" = playerSide?.color ?? boardOrientation;
+    const playerColor: "w" | "b" = sideName === "white" ? "w" : "b";
     let chesscomUsername: string | undefined;
     let lichessUsername: string | undefined;
     if (typeof window !== "undefined") {
@@ -6649,7 +6742,7 @@ export default function AnalysisPage() {
     }
     return {
       playerColor,
-      playerColorName: boardOrientation,
+      playerColorName: sideName,
       boardOrientation,
       username:
         user?.displayName ?? user?.email?.split("@")[0] ?? undefined,
@@ -6658,6 +6751,7 @@ export default function AnalysisPage() {
       personalityId: personality.id,
     };
   }, [
+    playerSide,
     boardOrientation,
     user?.displayName,
     user?.email,
@@ -6804,9 +6898,32 @@ export default function AnalysisPage() {
   // dropping the contextId we force the next message back through the
   // deep path, which re-mints context under the new persona.
   const coachContextIdRef = useRef<string | null>(null);
+  // Also reset when the player's declared side changes: the deep-analysis
+  // context (and the system prompt it caches) is composed for a specific
+  // playerColor — /api/chat follow-ups would otherwise keep coaching the
+  // wrong side until the next game load.
   useEffect(() => {
     coachContextIdRef.current = null;
-  }, [loadedGame, selectedPersonalityId]);
+  }, [loadedGame, selectedPersonalityId, playerSide?.color]);
+
+  // User answered the "Which side were you playing?" ask (or hit the
+  // switch chip). Flip the board to their side and persist per-game so a
+  // reload of the same PGN doesn't re-ask.
+  const handleChoosePlayerSide = useCallback(
+    (color: PlayerSideColor) => {
+      setPlayerSide({ color, source: "user_choice" });
+      setBoardOrientation(color);
+      try {
+        storeSide(
+          gameSideKey(loadedGame.header(), loadedGame.history().length),
+          color
+        );
+      } catch {
+        /* persistence is best-effort */
+      }
+    },
+    [loadedGame]
+  );
 
   // Replace the loaded game from a fresh Chess instance (e.g. user pasted
   // a PGN, or a URL param brought one in). Resets cursor + seed chat +
@@ -6817,37 +6934,43 @@ export default function AnalysisPage() {
       setLoadedGame(game);
       setIsDemoGame(false);
       setCurrentPly(0);
-      // G13: smart color detection on imports. If the PGN headers point at
-      // chess.com or lichess.org AND we have a known username (stashed in
-      // localStorage by the LichessInput / ChessComInput loaders, or from
-      // the signed-in profile), flip the board so the user is at the
-      // bottom. Falls through silently otherwise.
+      // G13 (extended 2026-08-10): resolve which side the user played.
+      //  1. Username match against the White/Black headers — any known
+      //     handle (lichess/chess.com localStorage stash, display name,
+      //     email prefix). Broader than the old check, which required a
+      //     chess.com/lichess Site header before even trying.
+      //  2. A stored per-game answer from a previous "Which side?" ask.
+      //  3. Neither → playerSide null → CoachPanel asks inline before the
+      //     first analysis request.
+      // On any resolution the board flips so the user's side is at the
+      // bottom (same behavior the old username_match path had).
       try {
+        let resolved: PlayerSide | null = null;
         if (typeof window !== "undefined") {
-          const headerSite = (game.header().Site ?? "").toLowerCase();
-          let source: "chesscom" | "lichess" | undefined;
-          if (headerSite.includes("chess.com")) source = "chesscom";
-          else if (headerSite.includes("lichess.org")) source = "lichess";
-          if (source) {
-            const stored =
-              source === "lichess"
-                ? window.localStorage.getItem("lichess-username")
-                : window.localStorage.getItem("chesscom-username");
-            const cleanStored = stored ? stored.replace(/^"|"$/g, "") : null;
-            const username =
-              cleanStored ||
-              user?.displayName ||
-              user?.email?.split("@")[0] ||
-              undefined;
-            const info = extractImportedGameInfo(game, source, username);
-            const detection = detectUserColor(game, info);
-            if (detection.method === "username_match") {
-              setBoardOrientation(detection.userColor);
-            }
+          const clean = (v: string | null) =>
+            v ? v.replace(/^"|"$/g, "") : null;
+          const candidates = [
+            clean(window.localStorage.getItem("lichess-username")),
+            clean(window.localStorage.getItem("chesscom-username")),
+            user?.displayName,
+            user?.email?.split("@")[0],
+          ];
+          const headers = game.header();
+          const inferred = inferPlayerSideFromHeaders(headers, candidates);
+          if (inferred) {
+            resolved = { color: inferred, source: "username_match" };
+          } else {
+            const stored = loadStoredSide(
+              gameSideKey(headers, game.history().length)
+            );
+            if (stored) resolved = { color: stored, source: "stored_choice" };
           }
         }
+        setPlayerSide(resolved);
+        if (resolved) setBoardOrientation(resolved.color);
       } catch {
         /* defensive — color detection should never block a game load */
+        setPlayerSide(null);
       }
       // Sentry breadcrumb so debugging "the page broke on my Lichess game"
       // has the actual PGN at hand without us having to ask.
@@ -7010,7 +7133,17 @@ export default function AnalysisPage() {
   // moved on. Drop the preview whenever the ply cursor changes so `displayFen`
   // follows it. Preview clicks don't touch `currentPly`, so this never fires
   // spuriously while exploring in place.
+  //
+  // One exception: a green coach-link click (handleCoachMoveRef) syncs the
+  // cursor to the anchor ply AND sets a preview in the same act — the ref
+  // below tells this effect to keep that just-set preview alive for the
+  // one ply change it deliberately caused.
+  const keepPreviewOnPlySyncRef = useRef(false);
   useEffect(() => {
+    if (keepPreviewOnPlySyncRef.current) {
+      keepPreviewOnPlySyncRef.current = false;
+      return;
+    }
     setTakeoverPreview(null);
   }, [currentPly]);
 
@@ -7334,6 +7467,50 @@ export default function AnalysisPage() {
       }
     },
     [displayFen]
+  );
+
+  // Coach move-reference clicks. Two shapes:
+  //  - navigate (orange link / insight header): jump the mainline cursor.
+  //  - recommended alternative (green 🔍 link): actually LOAD the line —
+  //    replay the mainline to the anchor ply, play the recommended SAN on
+  //    top, and surface it through the exploration-preview channel (board,
+  //    eval bar, last-move highlight all follow displayFen).
+  // Founder bug 2026-08-10: this used to be bare setCurrentPly, which for
+  // green links resolved to the ply the user was ALREADY on (the insight
+  // is about the current mistake), so clicks visibly did nothing and the
+  // recommended move never reached the board.
+  const handleCoachMoveRef = useCallback(
+    (ply: number, playSan?: string) => {
+      if (playSan) {
+        const preview = buildRecommendedPreview(allMoves, ply, playSan);
+        if (preview) {
+          if (preview.anchorPly !== currentPly) {
+            keepPreviewOnPlySyncRef.current = true;
+          }
+          setCurrentPly(preview.anchorPly);
+          setTakeoverPreview({
+            fen: preview.fen,
+            from: preview.from,
+            to: preview.to,
+            san: preview.san,
+          });
+          return;
+        }
+        // Chained PV clicks: the SAN isn't legal from the mainline anchor
+        // but is legal on the position currently displayed (the user is
+        // already previewing the line) — continue the preview in place.
+        const continued = playSanOnFen(displayFen, playSan);
+        if (continued) {
+          setTakeoverPreview(continued);
+          return;
+        }
+      }
+      // Plain navigation — clear any exploration preview deterministically
+      // (the [currentPly] effect won't fire when ply === currentPly).
+      setTakeoverPreview(null);
+      setCurrentPly(ply);
+    },
+    [allMoves, currentPly, displayFen]
   );
 
   // User makes a move on the board directly (interactive in takeover mode)
@@ -8530,7 +8707,14 @@ export default function AnalysisPage() {
                         analysisActive={analysisActive}
                         onPromoteToBoard={handlePromoteToBoard}
                         allMoves={allMoves}
-                        onMoveRefClick={setCurrentPly}
+                        onMoveRefClick={handleCoachMoveRef}
+                        playerSide={playerSide}
+                        sideUiEligible={
+                          !isDemoGame &&
+                          !isPuzzleMode &&
+                          allMoves.length > 0
+                        }
+                        onChoosePlayerSide={handleChoosePlayerSide}
                         onShareMessage={(m) =>
                           setShareDialog({ msg: m, fen: displayFen })
                         }

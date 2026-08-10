@@ -11,7 +11,7 @@ const DISMISS_KEY = "cm_onboarding_nudge_dismissed";
 
 // Surfaces where the nudge would be redundant or in the way: the quiz itself,
 // and /profile (which is exactly where we'd be sending them).
-const SUPPRESSED_PREFIXES = ["/onboarding", "/preview/onboarding", "/profile"];
+const SUPPRESSED_PREFIXES = ["/onboarding", "/profile"];
 
 const orangeGradient = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
 const orangeHover = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";

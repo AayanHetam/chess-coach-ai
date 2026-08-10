@@ -31,19 +31,22 @@ interface NavItem {
   label: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   icon: React.ComponentType<any>;
-  preview: string;
-  production: string;
+  href: string;
   comingSoon?: boolean;
 }
 
+// Post-cutover (2026-08-10): every /preview/* route is a 308 redirect to
+// its canonical surface, so the drawer links canonical URLs only.
+// Practice points at /puzzles — the canonical Practice surface (PR #130);
+// legacy /practice still resolves for old bookmarks but isn't navigated to.
 const NAV_ITEMS: NavItem[] = [
-  { id: "launch", label: "Home", icon: Home, preview: "/", production: "/" },
-  { id: "analysis", label: "Analyze", icon: Zap, preview: "/preview/analysis", production: "/analysis" },
-  { id: "play", label: "Play", icon: Crown, preview: "/preview/play", production: "/play" },
-  { id: "practice", label: "Practice", icon: Puzzle, preview: "/preview/practice", production: "/practice" },
-  { id: "scout", label: "Scout", icon: Crosshair, preview: "/preview/scout", production: "/scout" },
-  { id: "profile", label: "Profile", icon: User, preview: "/preview/profile", production: "/profile" },
-  { id: "openings", label: "Learn", icon: BookOpen, preview: "/preview/openings", production: "/openings" },
+  { id: "launch", label: "Home", icon: Home, href: "/" },
+  { id: "analysis", label: "Analyze", icon: Zap, href: "/analysis" },
+  { id: "play", label: "Play", icon: Crown, href: "/play" },
+  { id: "practice", label: "Practice", icon: Puzzle, href: "/puzzles" },
+  { id: "scout", label: "Scout", icon: Crosshair, href: "/scout" },
+  { id: "profile", label: "Profile", icon: User, href: "/profile" },
+  { id: "openings", label: "Learn", icon: BookOpen, href: "/openings" },
 ];
 
 interface AppDrawerProps {
@@ -55,7 +58,6 @@ interface AppDrawerProps {
 export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
   const router = useRouter();
   const currentPath = router.pathname;
-  const isPreview = currentPath.startsWith("/preview");
 
   // ESC to close
   useEffect(() => {
@@ -69,11 +71,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
 
   // Auto-resolve active item from current path if not passed explicitly
   const resolvedActiveId =
-    activeId ??
-    NAV_ITEMS.find(
-      (i) => i.preview === currentPath || i.production === currentPath
-    )?.id;
-  const activeItem = NAV_ITEMS.find((i) => i.id === resolvedActiveId);
+    activeId ?? NAV_ITEMS.find((i) => i.href === currentPath)?.id;
 
   return (
     <AnimatePresence>
@@ -155,14 +153,14 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                 <Typography
                   sx={{
                     fontSize: "0.7rem",
-                    color: isPreview ? "#FB923C" : "rgba(255,255,255,0.5)",
+                    color: "rgba(255,255,255,0.5)",
                     mt: 0.25,
                     letterSpacing: "0.12em",
                     fontWeight: 600,
                     textTransform: "uppercase",
                   }}
                 >
-                  {isPreview ? "Preview" : "Production"}
+                  chessmasti.com
                 </Typography>
               </Box>
               <Box sx={{ flex: 1 }} />
@@ -202,7 +200,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
               </Typography>
               <Stack spacing={0.5}>
                 {NAV_ITEMS.map((item, i) => {
-                  const targetHref = isPreview ? item.preview : item.production;
+                  const targetHref = item.href;
                   const active = resolvedActiveId === item.id;
                   const Icon = item.icon;
                   return (
@@ -306,95 +304,6 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
               </Stack>
             </Box>
 
-            {/* Side toggle */}
-            <Box sx={{ p: 2, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-              <Typography
-                sx={{
-                  px: 0.5,
-                  pb: 1,
-                  fontSize: "0.66rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.16em",
-                  color: "rgba(255,255,255,0.38)",
-                  textTransform: "uppercase",
-                }}
-              >
-                Switch view
-              </Typography>
-              <Box
-                sx={{
-                  p: 0.5,
-                  borderRadius: "12px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 0.5,
-                }}
-              >
-                <Box
-                  component={Link}
-                  href={activeItem?.preview ?? "/"}
-                  onClick={onClose}
-                  sx={{
-                    px: 1.5,
-                    py: 1,
-                    borderRadius: "8px",
-                    textDecoration: "none",
-                    background: isPreview
-                      ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(234,88,12,0.12))"
-                      : "transparent",
-                    border: isPreview
-                      ? "1px solid rgba(249,115,22,0.4)"
-                      : "1px solid transparent",
-                    color: isPreview ? "#FB923C" : "rgba(255,255,255,0.55)",
-                    textAlign: "center",
-                    fontWeight: 700,
-                    fontSize: "0.82rem",
-                    transition: "all 180ms ease",
-                  }}
-                >
-                  Preview
-                </Box>
-                <Box
-                  component={Link}
-                  href={activeItem?.production ?? "/"}
-                  onClick={onClose}
-                  sx={{
-                    px: 1.5,
-                    py: 1,
-                    borderRadius: "8px",
-                    textDecoration: "none",
-                    background: !isPreview
-                      ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(234,88,12,0.12))"
-                      : "transparent",
-                    border: !isPreview
-                      ? "1px solid rgba(249,115,22,0.4)"
-                      : "1px solid transparent",
-                    color: !isPreview ? "#FB923C" : "rgba(255,255,255,0.55)",
-                    textAlign: "center",
-                    fontWeight: 700,
-                    fontSize: "0.82rem",
-                    transition: "all 180ms ease",
-                  }}
-                >
-                  Production
-                </Box>
-              </Box>
-              <Typography
-                sx={{
-                  fontSize: "0.68rem",
-                  color: "rgba(255,255,255,0.4)",
-                  mt: 1.25,
-                  textAlign: "center",
-                  lineHeight: 1.5,
-                }}
-              >
-                Preview = dark glass redesign
-                <br />
-                Production = chessmasti.com
-              </Typography>
-            </Box>
           </motion.aside>
         </>
       )}

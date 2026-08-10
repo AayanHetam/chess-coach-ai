@@ -250,6 +250,12 @@ export function assertAuthSecrets(opts: {
   if (opts.needsGoogle) {
     if (!env.google.clientId) missing.push("GOOGLE_OAUTH_CLIENT_ID");
     if (!env.google.clientSecret) missing.push("GOOGLE_OAUTH_CLIENT_SECRET");
+    // The OAuth redirect_uri is built from appBaseUrl. On Vercel the localhost
+    // fallback would send Google a redirect_uri_mismatch for every sign-in —
+    // fail loud (503) instead of silently building a broken authorize URL.
+    if (process.env.VERCEL && !process.env.NEXT_PUBLIC_APP_URL) {
+      missing.push("NEXT_PUBLIC_APP_URL (OAuth redirect_uri base)");
+    }
   }
   if (opts.needsEmail && !env.email.resendApiKey) {
     missing.push("RESEND_API_KEY");

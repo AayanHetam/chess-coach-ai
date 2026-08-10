@@ -133,11 +133,19 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+// Auth-flow lookups (signup/signin/OAuth callback) get a longer deadline than
+// the 3s default: the FIRST Firestore call on a cold serverless instance pays
+// gRPC channel + token setup, measured at ~3s+ in prod — right at the default
+// cap, so cold-start signups flaked with FirestoreTimeoutError. 8s still
+// bounds a genuine stall well below the platform function timeout.
+const AUTH_READ_TIMEOUT_MS = 8_000;
+
 export async function getUserById(uid: string): Promise<StoredUser | null> {
   const db = await getAdminFirestore();
   const snap = await withFirestoreTimeout(
     db.collection(COLLECTION).doc(uid).get(),
-    `users.getUserById(${uid})`
+    `users.getUserById(${uid})`,
+    AUTH_READ_TIMEOUT_MS
   );
   if (!snap.exists) return null;
   return { uid: snap.id, ...(snap.data() as Omit<StoredUser, "uid">) };
@@ -153,7 +161,8 @@ export async function getUserByEmail(
       .where("email", "==", normalizeEmail(email))
       .limit(1)
       .get(),
-    `users.getUserByEmail(${normalizeEmail(email)})`
+    `users.getUserByEmail(${normalizeEmail(email)})`,
+    AUTH_READ_TIMEOUT_MS
   );
   if (snap.empty) return null;
   const doc = snap.docs[0];
@@ -166,7 +175,8 @@ export async function getUserByGoogleId(
   const db = await getAdminFirestore();
   const snap = await withFirestoreTimeout(
     db.collection(COLLECTION).where("googleId", "==", googleId).limit(1).get(),
-    `users.getUserByGoogleId(${googleId})`
+    `users.getUserByGoogleId(${googleId})`,
+    AUTH_READ_TIMEOUT_MS
   );
   if (snap.empty) return null;
   const doc = snap.docs[0];

@@ -114,6 +114,9 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
   };
 
   const handleGoogle = async () => {
+    // COPPA: the Google path creates brand-new accounts server-side too, so
+    // in signup mode it's gated on the same 13+ affirmation as email signup.
+    if (mode === "signup" && !ageConfirmed) return;
     setError(null);
     try {
       await signInWithGoogle();
@@ -722,6 +725,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                           component="button"
                           type="button"
                           onClick={handleGoogle}
+                          disabled={mode === "signup" && !ageConfirmed}
                           sx={{
                             width: "100%",
                             cursor: "pointer",
@@ -742,6 +746,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                               background: "rgba(249,115,22,0.08)",
                               borderColor: "rgba(249,115,22,0.4)",
                             },
+                            "&:disabled": {
+                              cursor: "not-allowed",
+                              opacity: 0.45,
+                            },
                           }}
                         >
                           <Icon
@@ -750,6 +758,21 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                           />
                           Continue with Google
                         </Box>
+
+                        {mode === "signin" && (
+                          <Typography
+                            sx={{
+                              display: "block",
+                              textAlign: "center",
+                              mt: 1.25,
+                              fontSize: "0.68rem",
+                              color: "rgba(255,255,255,0.38)",
+                              lineHeight: 1.45,
+                            }}
+                          >
+                            By continuing, you confirm you&apos;re 13 or older.
+                          </Typography>
+                        )}
                       </>
                     )}
 

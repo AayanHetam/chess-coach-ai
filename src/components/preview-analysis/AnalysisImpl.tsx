@@ -21,6 +21,13 @@ import {
   replayPreviewMove,
   type MasterCandidate,
 } from "@/components/ui/MasterGamesTakeover";
+import {
+  findAllMoveRefs,
+  findPlyForMoveRef,
+  plyBeforeMove,
+  buildRecommendedPreview,
+  playSanOnFen,
+} from "@/components/preview-analysis/coachMoveRefs";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import {
   BoardArrowToggles,
@@ -3150,7 +3157,9 @@ function CoachPanel({
   isThinking: boolean;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
   allMoves?: Move[];
-  onMoveRefClick?: (ply: number) => void;
+  /** ply-only → jump the cursor; with `playSan` → load the recommended
+   *  alternative onto the board as an exploration preview. */
+  onMoveRefClick?: (ply: number, playSan?: string) => void;
   onShareMessage?: (msg: CoachMessage) => void;
   onPuzzleSolved?: (puzzle: DrillPuzzle, timeSpentSeconds: number) => void;
   onPracticeConcept?: (
@@ -4230,130 +4239,10 @@ function CoachPuzzleCard({
   );
 }
 
-// G7: production-parity 4-tier move-reference parser. Mirrors
-// AICoachChat.tsx:1323-1353. Patterns ordered by specificity (longer +
-// more anchored first) so overlapping matches are resolved in favor of
-// the more specific one.
-const MOVE_REF_PATTERNS: Array<{
-  re: RegExp;
-  // Slot in match[] that holds (moveNumber, color?, san)
-  numIdx: number;
-  colorIdx?: number;
-  sanIdx: number;
-}> = [
-  // Priority 1: AI parenthesized — "Move 3 (Nxd4)"
-  {
-    re: /Move\s+(\d+)\s*\([^)]*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\)/gi,
-    numIdx: 1,
-    sanIdx: 2,
-  },
-  // Priority 2: "Move 3: Nxd4"
-  {
-    re: /Move\s+(\d+):\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
-    numIdx: 1,
-    sanIdx: 2,
-  },
-  // Priority 3: Standard "24.Rxd4" / "23...Nf6"
-  {
-    re: /(?<![A-Za-z0-9])(\d+)(\.{1,3})\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g,
-    numIdx: 1,
-    colorIdx: 2, // 1-dot = white, 3-dot = black
-    sanIdx: 3,
-  },
-  // Priority 4: "move 3 (w|b): Nxd4"
-  {
-    re: /move\s+(\d+)([wb])?:\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
-    numIdx: 1,
-    colorIdx: 2,
-    sanIdx: 3,
-  },
-];
-
-// Recommended-move detector. Case-insensitive so "BEST MOVE:" uppercase
-// headings (which the coach emits inside structured cards) match too.
-// Expanded beyond production's set to cover the phrasings Aayan's smoke
-// tests surfaced on 2026-05-29: "only winning move", "winning continuation",
-// "best move:" with colon-anchored headings, etc.
-const RECOMMENDED_CONTEXT_RE =
-  /best\s*(was|move|is|continuation|move\s*:)|should\s*have\s*(played|been)|instead\s*(of|,|:)|better\s*(was|move|is|alternative)|recommended|correct\s*move|improvement|only\s+(winning|good|playable|sensible)\s+move|winning\s+(move|continuation|line)|key\s+move/i;
-
-interface MoveRefMatch {
-  start: number;
-  end: number;
-  full: string;
-  moveNumber: number;
-  isBlack: boolean;
-  san: string;
-  recommended: boolean;
-}
-
-function findAllMoveRefs(
-  text: string,
-  forceRecommended = false
-): MoveRefMatch[] {
-  const matches: MoveRefMatch[] = [];
-  for (const pat of MOVE_REF_PATTERNS) {
-    const re = new RegExp(pat.re.source, pat.re.flags);
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text))) {
-      const moveNumber = parseInt(m[pat.numIdx], 10);
-      let isBlack = false;
-      if (pat.colorIdx !== undefined) {
-        const c = m[pat.colorIdx];
-        // For priority 3 the slot holds dots ("." | ".." | "..."), so
-        // length >= 3 means black. For priority 4 it's an explicit w|b.
-        isBlack = c?.length === 3 || c === "b";
-      }
-      const san = m[pat.sanIdx];
-      // Skip if a higher-priority match already covered this range.
-      const overlaps = matches.some(
-        (existing) => m!.index < existing.end && m!.index + m![0].length > existing.start
-      );
-      if (overlaps) continue;
-      const contextBefore = text
-        .slice(Math.max(0, m.index - 60), m.index)
-        .toLowerCase();
-      matches.push({
-        start: m.index,
-        end: m.index + m[0].length,
-        full: m[0],
-        moveNumber,
-        isBlack,
-        san,
-        recommended:
-          forceRecommended || RECOMMENDED_CONTEXT_RE.test(contextBefore),
-      });
-    }
-  }
-  matches.sort((a, b) => a.start - b.start);
-  return matches;
-}
-
-const stripSanDecorators = (s: string) => s.replace(/[+#!?]/g, "").toLowerCase();
-
-// Resolve a "moveNumber.san" reference (e.g., 24.Rxd4) to the half-move ply
-// it points at. Returns null if the game doesn't have that move at that
-// position (within ±1 tolerance for off-by-one moveNumber typos in coach
-// output).
-function findPlyForMoveRef(
-  allMoves: Move[],
-  moveNumber: number,
-  isBlack: boolean,
-  san: string
-): number | null {
-  const target = stripSanDecorators(san);
-  const expectedPly = (moveNumber - 1) * 2 + (isBlack ? 2 : 1);
-  const sanAt = (p: number) =>
-    p >= 1 && p <= allMoves.length
-      ? stripSanDecorators(allMoves[p - 1].san)
-      : null;
-  if (sanAt(expectedPly) === target) return expectedPly;
-  for (const adj of [-1, 1, 2, -2]) {
-    const p = expectedPly + adj;
-    if (sanAt(p) === target) return p;
-  }
-  return null;
-}
+// G7 move-reference parser + green-link exploration helpers — extracted to
+// coachMoveRefs.ts (2026-08-10) so the "click a recommended move → the
+// board loads that line" behavior is unit-tested. See that module for the
+// pattern table + RECOMMENDED_CONTEXT_RE.
 
 // ─── InsightBodyText ─────────────────────────────────────────────────────
 // Beautifies the prose inside Why/Threats/Roles/Concept panels.
@@ -5479,8 +5368,10 @@ function CoachBubble({
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
   /** Full move history — used to resolve "24.Rxd4" → ply 47. */
   allMoves?: Move[];
-  /** Fired when the user clicks a move reference in coach text. */
-  onMoveRefClick?: (ply: number) => void;
+  /** Fired when the user clicks a move reference in coach text. `playSan`
+   *  is set for recommended-alternative (green) refs: the parent replays
+   *  to `ply` and plays `playSan` on the board (exploration preview). */
+  onMoveRefClick?: (ply: number, playSan?: string) => void;
   /** Fired when the user clicks the share icon on a coach reply. */
   onShare?: (msg: CoachMessage) => void;
   /** Full chat history — required for G12 FlagButton context. */
@@ -5564,28 +5455,28 @@ function CoachBubble({
         // RECOMMENDED moves are by definition NOT what the player actually
         // played, so findPlyForMoveRef will return null for them — the SAN
         // at that ply won't match the recommended SAN. We still want them
-        // clickable (jumps to the position FROM which the recommended move
-        // would be played, so the user lands in exploration mode). Same
-        // ply derivation as findPlyForMoveRef's expectedPly, then -1 to
-        // sit BEFORE the move. Round-2 + Round-3 smoke caught this:
-        // "11. g4" in a SOLUTION row rendered as a plain <span> with no
-        // click handler because findPlyForMoveRef returned null.
+        // clickable, and clicking must actually LOAD the alternative onto
+        // the board: pass the SAN alongside the anchor ply so the parent
+        // handler (handleCoachMoveRef) replays the mainline to the anchor
+        // and plays the recommended move as an exploration preview.
+        // (Founder bug 2026-08-10: the old handler only did
+        // setCurrentPly(anchor) — a no-op when the user was already
+        // sitting on the mistake ply, so green links "did nothing".)
         const recommendedTargetPly =
           ref.recommended && matchedPly === null
-            ? Math.max(
-                0,
-                (ref.moveNumber - 1) * 2 + (ref.isBlack ? 1 : 0)
-              )
+            ? plyBeforeMove(ref.moveNumber, ref.isBlack)
             : null;
         const ply = matchedPly ?? recommendedTargetPly;
         if (ply !== null) {
+          const playSan =
+            ref.recommended && matchedPly === null ? ref.san : undefined;
           const recColor = "#86efac"; // light green for recommended
           const navColor = isUser ? "#0A0A0A" : "#FB923C";
           out.push(
             <Box
               key={`${boldIdx}m${ref.start}`}
               component="span"
-              onClick={() => onMoveRefClick(ply)}
+              onClick={() => onMoveRefClick(ply, playSan)}
               title={
                 ref.recommended
                   ? `Recommended alternative: ${ref.san}`
@@ -7010,7 +6901,17 @@ export default function AnalysisPage() {
   // moved on. Drop the preview whenever the ply cursor changes so `displayFen`
   // follows it. Preview clicks don't touch `currentPly`, so this never fires
   // spuriously while exploring in place.
+  //
+  // One exception: a green coach-link click (handleCoachMoveRef) syncs the
+  // cursor to the anchor ply AND sets a preview in the same act — the ref
+  // below tells this effect to keep that just-set preview alive for the
+  // one ply change it deliberately caused.
+  const keepPreviewOnPlySyncRef = useRef(false);
   useEffect(() => {
+    if (keepPreviewOnPlySyncRef.current) {
+      keepPreviewOnPlySyncRef.current = false;
+      return;
+    }
     setTakeoverPreview(null);
   }, [currentPly]);
 
@@ -7334,6 +7235,50 @@ export default function AnalysisPage() {
       }
     },
     [displayFen]
+  );
+
+  // Coach move-reference clicks. Two shapes:
+  //  - navigate (orange link / insight header): jump the mainline cursor.
+  //  - recommended alternative (green 🔍 link): actually LOAD the line —
+  //    replay the mainline to the anchor ply, play the recommended SAN on
+  //    top, and surface it through the exploration-preview channel (board,
+  //    eval bar, last-move highlight all follow displayFen).
+  // Founder bug 2026-08-10: this used to be bare setCurrentPly, which for
+  // green links resolved to the ply the user was ALREADY on (the insight
+  // is about the current mistake), so clicks visibly did nothing and the
+  // recommended move never reached the board.
+  const handleCoachMoveRef = useCallback(
+    (ply: number, playSan?: string) => {
+      if (playSan) {
+        const preview = buildRecommendedPreview(allMoves, ply, playSan);
+        if (preview) {
+          if (preview.anchorPly !== currentPly) {
+            keepPreviewOnPlySyncRef.current = true;
+          }
+          setCurrentPly(preview.anchorPly);
+          setTakeoverPreview({
+            fen: preview.fen,
+            from: preview.from,
+            to: preview.to,
+            san: preview.san,
+          });
+          return;
+        }
+        // Chained PV clicks: the SAN isn't legal from the mainline anchor
+        // but is legal on the position currently displayed (the user is
+        // already previewing the line) — continue the preview in place.
+        const continued = playSanOnFen(displayFen, playSan);
+        if (continued) {
+          setTakeoverPreview(continued);
+          return;
+        }
+      }
+      // Plain navigation — clear any exploration preview deterministically
+      // (the [currentPly] effect won't fire when ply === currentPly).
+      setTakeoverPreview(null);
+      setCurrentPly(ply);
+    },
+    [allMoves, currentPly, displayFen]
   );
 
   // User makes a move on the board directly (interactive in takeover mode)
@@ -8530,7 +8475,7 @@ export default function AnalysisPage() {
                         analysisActive={analysisActive}
                         onPromoteToBoard={handlePromoteToBoard}
                         allMoves={allMoves}
-                        onMoveRefClick={setCurrentPly}
+                        onMoveRefClick={handleCoachMoveRef}
                         onShareMessage={(m) =>
                           setShareDialog({ msg: m, fen: displayFen })
                         }

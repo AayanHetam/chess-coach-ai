@@ -18,9 +18,10 @@ import { track } from "@/lib/tracking/client";
  * - Global Privacy Control is honored silently: if the browser signals GPC we
  *   record "rejected" and never show the banner (no nagging an opt-out user).
  * - Strictly-necessary cookies (the auth session) are always on; this gates the
- *   analytics/AI-conversation tier only. Not agreeing means no consent cookie,
- *   and the client SDK + server both treat absent consent as "no" — so there is
- *   no explicit reject button; ignoring the banner is a de-facto opt-out.
+ *   analytics/AI-conversation tier only. Absent consent is treated as "no" by
+ *   both the client SDK and the server, but an explicit "No thanks" is still
+ *   offered: GDPR/CNIL guidance requires declining to be as easy as accepting,
+ *   and it also stops the banner from reappearing every visit.
  *
  * Styling follows the Chess Masti design OS: smoked glass surface, 1px
  * white-alpha edge, ember accent reserved for the primary action.
@@ -42,6 +43,12 @@ export default function ConsentBanner() {
     setClientConsent("accepted");
     setVisible(false);
     track("consent.accepted");
+  };
+
+  const decline = () => {
+    setClientConsent("rejected");
+    setVisible(false);
+    // Deliberately no track() call: the user just said no.
   };
 
   return (
@@ -90,6 +97,17 @@ export default function ConsentBanner() {
             }}
           >
             Read more
+          </Button>
+          <Button
+            onClick={decline}
+            variant="text"
+            sx={{
+              color: "rgba(255,255,255,0.7)",
+              whiteSpace: "nowrap",
+              textTransform: "none",
+            }}
+          >
+            No thanks
           </Button>
           <Button
             onClick={agree}

@@ -40,7 +40,7 @@ import { isClaimSentence } from "./refereeChecks";
 import type { InsightContract } from "./types";
 
 /** [F:id] token — id charset covers "M3.pv0"-style dotted ids. */
-const CITATION_TOKEN_RE = /\[F:([A-Za-z0-9_.\-]{1,40})\]/g;
+const CITATION_TOKEN_RE = /\[F:([A-Za-z0-9_.-]{1,40})\]/g;
 /** Streaming-safe: longest suffix that might be the start of a token. */
 const CITATION_OPEN = "[F:";
 
@@ -208,8 +208,8 @@ export function checkCitations(
  * case where the leading space was already forwarded). */
 export function stripCitations(text: string): string {
   return text
-    .replace(/ \[F:[A-Za-z0-9_.\-]{1,40}\]/g, "")
-    .replace(/\[F:[A-Za-z0-9_.\-]{1,40}\] ?/g, "");
+    .replace(/ \[F:[A-Za-z0-9_.-]{1,40}\]/g, "")
+    .replace(/\[F:[A-Za-z0-9_.-]{1,40}\] ?/g, "");
 }
 
 /**

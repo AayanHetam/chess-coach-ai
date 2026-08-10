@@ -29,11 +29,19 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# libprotobuf32 is required at runtime: stage 1 links lc0 against the system
+# protobuf shared library, so the binary cannot exec without it here.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    zlib1g \
+    zlib1g libprotobuf32 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /lc0/build/lc0 /app/bin/lc0
+
+# Fail the BUILD (loudly, with the linker's own report) if the binary cannot
+# exec in this image — a missing shared lib otherwise becomes a silent
+# crash-loop at runtime.
+RUN /app/bin/lc0 --help >/dev/null 2>&1 \
+    || { echo 'lc0 binary cannot start in runtime image:'; ldd /app/bin/lc0 || true; exit 1; }
 
 # Maia-1900 network weights (human-calibrated ~1900-strength policy; the
 # handoff-specified network for second-opinion evals). URL verified live.

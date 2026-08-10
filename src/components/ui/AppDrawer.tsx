@@ -37,7 +37,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "launch", label: "Home", icon: Home, preview: "/preview/launch", production: "/" },
+  { id: "launch", label: "Home", icon: Home, preview: "/", production: "/" },
   { id: "analysis", label: "Analyze", icon: Zap, preview: "/preview/analysis", production: "/analysis" },
   { id: "play", label: "Play", icon: Crown, preview: "/preview/play", production: "/play" },
   { id: "practice", label: "Practice", icon: Puzzle, preview: "/preview/practice", production: "/practice" },
@@ -334,7 +334,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
               >
                 <Box
                   component={Link}
-                  href={activeItem?.preview ?? "/preview/launch"}
+                  href={activeItem?.preview ?? "/"}
                   onClick={onClose}
                   sx={{
                     px: 1.5,

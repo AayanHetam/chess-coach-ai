@@ -28,7 +28,7 @@ import { callLLM as defaultCallLLM } from "@/lib/llmProvider";
 import type { ContractCitationGranularity, ContractRefereeMode } from "@/env";
 import { armFindings } from "./armingConfig";
 import type { ArmingTable, ServingFinding } from "./armingConfig";
-import { checkCitations, stripCitations } from "./citations";
+import { checkCitations, stripCitations, stripGrammarTokenLines } from "./citations";
 import { INSIGHT_CLOSE_TOKEN, renderInsightHeader } from "./insightGrammar";
 import { refereeInsight, refereeInsightRelational } from "./referee";
 import type { RefereeInsightOpts, RefereeRelationalOpts } from "./referee";
@@ -124,32 +124,53 @@ async function evaluateBody(
   opts: LadderCardOpts,
   armingTable: ArmingTable | undefined,
   now: () => number,
+  /**
+   * "live"    — first evaluation: in full referee mode, run the bounded
+   *             synchronous Haiku relational parse (plan §4 check 6).
+   * "recheck" — post-stage re-validation: deterministic checks re-run in
+   *             full, but instead of paying another Haiku parse (latency +
+   *             cost per ladder stage), the PRIOR relational error findings
+   *             are re-asserted against the candidate text — a finding whose
+   *             span survived still fails; excised/edited-away spans clear.
+   */
+  relationalMode: "live" | "recheck",
+  priorRelationalErrors: ServingFinding[] = [],
 ): Promise<BodyEvaluation> {
+  // The referee sees PROSE only: structural widget lines ([CONCEPT:...],
+  // [CONTINUATION:...], section markers) are client-rendered markup, not
+  // claims — refereeing them was a measured false-fire class.
+  const prose = stripGrammarTokenLines(body);
   const citation = checkCitations(body, opts.insight, opts.citationGranularity);
-  // Deterministic checks 2-5 run on the BODY; the header is server-rendered
+  // Deterministic checks 2-5 run on the prose; the header is server-rendered
   // from the contract and passes by construction.
-  const det = refereeInsight(body, opts.insight, opts.refereeOpts);
+  const det = refereeInsight(prose, opts.insight, opts.refereeOpts);
   const findings: ServingFinding[] = [...citation.findings, ...det.findings];
 
   let relationalParsesUsed = 0;
   let costUsd = 0;
-  if (
-    opts.refereeMode === "full" &&
-    opts.budgets.relationalRemaining > 0 &&
-    now() + RELATIONAL_ESTIMATE_MS < opts.deadlineAtMs
-  ) {
-    opts.budgets.relationalRemaining -= 1;
-    relationalParsesUsed = 1;
-    try {
-      const rel = await refereeInsightRelational(body, opts.insight, {
-        correlationId: opts.refereeOpts.correlationId,
-        parseCall: opts.deps?.relationalParseCall,
-      });
-      findings.push(...rel.findings);
-      costUsd += rel.costUsd;
-    } catch {
-      // Referee-infra failure on the optional Haiku check: fail OPEN here
-      // (the deterministic floor already ran); never block the card on it.
+  if (relationalMode === "live") {
+    if (
+      opts.refereeMode === "full" &&
+      opts.budgets.relationalRemaining > 0 &&
+      now() + RELATIONAL_ESTIMATE_MS < opts.deadlineAtMs
+    ) {
+      opts.budgets.relationalRemaining -= 1;
+      relationalParsesUsed = 1;
+      try {
+        const rel = await refereeInsightRelational(prose, opts.insight, {
+          correlationId: opts.refereeOpts.correlationId,
+          parseCall: opts.deps?.relationalParseCall,
+        });
+        findings.push(...rel.findings);
+        costUsd += rel.costUsd;
+      } catch {
+        // Referee-infra failure on the optional Haiku check: fail OPEN here
+        // (the deterministic floor already ran); never block the card on it.
+      }
+    }
+  } else {
+    for (const f of priorRelationalErrors) {
+      if (f.span && prose.includes(f.span)) findings.push(f);
     }
   }
 
@@ -314,7 +335,7 @@ export async function runInsightLadder(
 
   let initial: BodyEvaluation;
   try {
-    initial = await evaluateBody(modelBody.trim(), opts, armingTable, now);
+    initial = await evaluateBody(modelBody.trim(), opts, armingTable, now, "live");
     relationalParsesUsed += initial.relationalParsesUsed;
     costUsd += initial.costUsd;
   } catch (err) {
@@ -327,6 +348,9 @@ export async function runInsightLadder(
   if (initial.errors.length === 0) {
     return finish("pass", wrapBlock(insight, modelBody.trim()), initial);
   }
+  // Relational error findings re-asserted (span presence) on recheck passes
+  // instead of paying a fresh Haiku parse per ladder stage.
+  const priorRelational = initial.errors.filter((f) => f.check === "relational_claim");
 
   // ── (a) deterministic sentence-drop ───────────────────────────────────────
   const dropped = dropViolatingSentences(
@@ -335,7 +359,7 @@ export async function runInsightLadder(
   );
   if (dropped !== null) {
     try {
-      const check = await evaluateBody(dropped, opts, armingTable, now);
+      const check = await evaluateBody(dropped, opts, armingTable, now, "recheck", priorRelational);
       relationalParsesUsed += check.relationalParsesUsed;
       costUsd += check.costUsd;
       if (check.errors.length === 0) {
@@ -362,7 +386,7 @@ export async function runInsightLadder(
       // stands, so the footnoted raw must NOT ship (that path is reserved
       // for referee-infra failure). Only re-check genuine edits.
       if (correction.mode === "edited") {
-        const check = await evaluateBody(correction.correctedText, opts, armingTable, now);
+        const check = await evaluateBody(correction.correctedText, opts, armingTable, now, "recheck", priorRelational);
         relationalParsesUsed += check.relationalParsesUsed;
         costUsd += check.costUsd;
         if (check.errors.length === 0) {
@@ -385,7 +409,7 @@ export async function runInsightLadder(
       costUsd += result.inputTokens * SONNET_IN + result.outputTokens * SONNET_OUT;
       const regenBody = result.content.trim();
       if (regenBody.length > 0) {
-        const check = await evaluateBody(regenBody, opts, armingTable, now);
+        const check = await evaluateBody(regenBody, opts, armingTable, now, "recheck", priorRelational);
         relationalParsesUsed += check.relationalParsesUsed;
         costUsd += check.costUsd;
         if (check.errors.length === 0) {

@@ -302,6 +302,15 @@ async function runLive(args: Args): Promise<void> {
     regensUsed: number;
     costUsd: number;
     sampleViolations: Array<{ check: string; category: string; span: string }>;
+    /** Per-card triage detail: what the referee saw on the MODEL's body. */
+    cards: Array<{
+      factIdPrefix: string;
+      stage: LadderStage;
+      errorsInitial: number;
+      warnsInitial: number;
+      citationCoverage: number;
+      findings: Array<{ check: string; category: string; span: string }>;
+    }>;
   }
   const perGame: PerGame[] = [];
   let generatorModel = "unknown";
@@ -438,6 +447,14 @@ async function runLive(args: Args): Promise<void> {
       sampleViolations: report.allViolations
         .slice(0, 8)
         .map((v) => ({ check: v.check, category: v.category, span: v.span.slice(0, 60) })),
+      cards: summary.cards.map((c) => ({
+        factIdPrefix: c.factIdPrefix,
+        stage: c.stage,
+        errorsInitial: c.errorsInitial,
+        warnsInitial: c.warnsInitial,
+        citationCoverage: Number(c.citationCoverage.toFixed(3)),
+        findings: c.findings,
+      })),
     });
     const g = perGame[perGame.length - 1];
     console.log(

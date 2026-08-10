@@ -9,6 +9,7 @@ import {
   CitationStripper,
   resolveFactId,
   stripCitations,
+  stripGrammarTokenLines,
 } from "@/lib/contract/citations";
 import { makeInsight } from "./insightFactory";
 
@@ -74,6 +75,30 @@ describe("checkCitations", () => {
     const r = checkCitations("Wonderful energy out there [F:M1].", insight);
     expect(r.claimSentences).toBe(0);
     expect(r.coverage).toBe(1);
+  });
+
+  it("structural widget lines are excluded from the coverage denominator", () => {
+    const prose =
+      "Ne6 wins material [F:M1.pv0].\n" +
+      "[CONCEPT:fork:Knight Fork Tactics]\n" + // markup naming a keyword
+      "[CONTINUATION:11:w]\n";
+    const r = checkCitations(prose, insight);
+    expect(r.claimSentences).toBe(1);
+    expect(r.coverage).toBe(1);
+  });
+});
+
+describe("stripGrammarTokenLines", () => {
+  it("removes widget/marker lines but keeps prose (incl. bulleted claims)", () => {
+    const body =
+      "[WHY]\nIdea: grab the fork with Ne6.\n[CONTINUATION:11:w]\n[/WHY]\n" +
+      "[CONCEPT:fork:Knight Fork Tactics]\nForks punish loose pieces.\n[/CONCEPT]";
+    const out = stripGrammarTokenLines(body);
+    expect(out).toContain("Idea: grab the fork with Ne6.");
+    expect(out).toContain("Forks punish loose pieces.");
+    expect(out).not.toContain("[CONCEPT:");
+    expect(out).not.toContain("[CONTINUATION:");
+    expect(out).not.toContain("[WHY]");
   });
 });
 

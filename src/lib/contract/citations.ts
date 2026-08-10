@@ -120,6 +120,27 @@ function splitSentences(text: string): string[] {
 }
 
 /**
+ * Structural grammar tokens the CLIENT renders as widgets — [CONCEPT:...],
+ * [CONTINUATION:...], [WHY], [/THREATS], header echoes, etc. They carry SAN/
+ * square/keyword text but are NOT prose claims (the widgets render
+ * server-verified data), so they are excluded from the citation-coverage
+ * denominator — counting markup as "uncited claim sentences" was a pure
+ * measurement artifact.
+ */
+const GRAMMAR_TOKEN_LINE_RE = /^\s*(?:\[\/?[A-Z_]+(?::[^\]]*)?\]\s*)+$/;
+
+/** Exported for the ladder: blank out structural widget lines so the
+ * deterministic referee sees only prose (a [CONCEPT:fork:...] practice-
+ * button tag on a card without a confirmed fork is widget labeling, not a
+ * tactical claim — refereeing markup was a measured false-fire class). */
+export function stripGrammarTokenLines(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => !GRAMMAR_TOKEN_LINE_RE.test(line))
+    .join("\n");
+}
+
+/**
  * Check every [F:id] token in `prose` against the insight's fact space and
  * compute citation coverage. `granularity` "paragraph" (the pre-built
  * persona fallback, dark by default) counts a claim sentence as cited when
@@ -156,6 +177,9 @@ export function checkCitations(
   for (const para of paragraphs) {
     const paraCited = clone(CITATION_TOKEN_RE).test(para);
     for (const sentence of splitSentences(para)) {
+      // Structural widget markup is not a prose claim (see
+      // GRAMMAR_TOKEN_LINE_RE) — excluded from the coverage denominator.
+      if (GRAMMAR_TOKEN_LINE_RE.test(sentence)) continue;
       // Strip tokens before claim detection so a citation never makes a
       // rhetoric sentence count as a claim.
       const bare = stripCitations(sentence);

@@ -77,6 +77,13 @@ export function renderTemplateCardBody(insight: InsightContract): string {
 
   lines.push(s.headline(insight));
   lines.push("");
+  // Founder decision 2026-08-10: fallback cards openly signal what they are —
+  // a small honest confidence marker, not a disguise. (Aayan: "we want to be
+  // open about the fallback cards being fallbacks.")
+  lines.push(
+    "_Quick honesty note: I couldn't fully verify my usual deep-dive for this move, so this card sticks to engine-checked facts only._",
+  );
+  lines.push("");
   lines.push(s.ideaLead);
 
   // Eval swing — always from contract displays (sentinel-safe).

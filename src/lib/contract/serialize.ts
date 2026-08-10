@@ -360,5 +360,9 @@ function sortKeysDeep(value: unknown): unknown {
  */
 export function serializeForVerbalizer(contract: CoachContract): string {
   const { builtAtMs: _builtAtMs, buildMs: _buildMs, ...rest } = contract;
-  return JSON.stringify(sortKeysDeep(rest));
+  // PRECISION PACK fix 4: motifLicense is a REFEREE license pool, not a
+  // sayable fact — stripping it keeps the verbalizer prompt (and its cache
+  // prefix) byte-identical to pre-precision-pack contracts.
+  const insights = rest.insights.map(({ motifLicense: _motifLicense, ...ins }) => ins);
+  return JSON.stringify(sortKeysDeep({ ...rest, insights }));
 }

@@ -48,11 +48,14 @@ function legacySse(deltas: string[]): Buffer {
   return Buffer.concat(chunks);
 }
 
-/** The route decision + emission, as wired in PR-CI-4. */
+/** The route decision + emission, as wired in PR-CI-4. `armingTable` mirrors
+ * the serving override seam (contractServing.ts) — omitted, the precision-
+ * pack all-warn default applies. */
 async function serveStreaming(
   deltas: string[],
   category: string,
   contract: CoachContract,
+  armingTable?: import("@/lib/contract/armingConfig").ArmingTable,
 ): Promise<Buffer> {
   if (!contractBranchArmed(contract, category)) {
     return legacySse(deltas); // legacy branches — untouched
@@ -70,6 +73,7 @@ async function serveStreaming(
     citationGranularity: "sentence",
     deadlineAtMs: Date.now() + 60_000,
     regenSystem: { stable: "SYS", perUser: "USER" },
+    armingTable,
   });
   for (const d of deltas) stream.push(d);
   const summary = await stream.end();
@@ -125,14 +129,34 @@ describe("rollback drill: CONTRACT_CATEGORIES empty ⇒ byte-identical legacy se
     expect(getContractEnv().categories).toEqual(["position_analysis"]);
   });
 
-  it("sanity (non-vacuous drill): the armed path actually changes serving", async () => {
+  it("sanity (non-vacuous drill): an ENFORCEMENT-armed path actually changes serving", async () => {
     vi.stubEnv("CONTRACT_CATEGORIES", "position_analysis");
     __resetContractEnvCacheForTests();
     const { deltas, contract } = fixtureDeltas();
     const legacy = legacySse(deltas);
-    const armed = await serveStreaming(deltas, "position_analysis", contract);
+    // Precision-pack correction: the DEFAULT table is all-warn (30-game FP
+    // adjudication — nothing arms at error before the re-measure), so the
+    // drill arms explicitly via the serving override seam, exactly as a
+    // post-re-measure config would.
+    const armed = await serveStreaming(deltas, "position_analysis", contract, {
+      eval_display: "error",
+      san_whitelist: "error",
+      tactical_keyword: "error",
+      forbidden_claim: "error",
+      citation_invalid: "error",
+    });
     // The fabricated mate/eval card gets refereed — bytes MUST differ.
     expect(armed.equals(legacy)).toBe(false);
     expect(armed.toString()).not.toContain("mate in 3");
+  });
+
+  it("precision-pack default (all-warn): the contract branch never suppresses content", async () => {
+    vi.stubEnv("CONTRACT_CATEGORIES", "position_analysis");
+    __resetContractEnvCacheForTests();
+    const { deltas, contract } = fixtureDeltas();
+    const served = await serveStreaming(deltas, "position_analysis", contract);
+    // Findings are telemetry-only under the default table: the (fabricated)
+    // prose still ships untouched — arming stays a deliberate config act.
+    expect(served.toString()).toContain("mate in 3");
   });
 });

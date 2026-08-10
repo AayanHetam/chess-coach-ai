@@ -31,6 +31,18 @@ const CLEAN_B = "Steady move [F:M2].";
 const BAD_B_EXTRA =
   "A steady choice that kept the position balanced and the king out of trouble [F:M2].\nThe eval crashed to -9.50 here.";
 
+// The DEFAULT arming table is all-warn since the precision-pack correction
+// (30-game FP adjudication) — these tests exercise the enforcement machinery,
+// so they arm explicitly, exactly as a post-re-measure serving config would.
+const ENFORCE_TABLE = {
+  eval_display: "error",
+  san_whitelist: "error",
+  tactical_keyword: "error",
+  forbidden_claim: "error",
+  relational_claim: "error",
+  citation_invalid: "error",
+} as const;
+
 function makeStream(over: Partial<EnforcedStreamOpts> = {}) {
   const emitted: string[] = [];
   const stream = createEnforcedContractStream({
@@ -41,6 +53,7 @@ function makeStream(over: Partial<EnforcedStreamOpts> = {}) {
     citationGranularity: "sentence",
     deadlineAtMs: Date.now() + 60_000,
     regenSystem: { stable: "SYS", perUser: "USER" },
+    armingTable: ENFORCE_TABLE,
     ...over,
   });
   return { stream, emitted };

@@ -190,6 +190,16 @@ async function runDryRun(): Promise<void> {
     citationGranularity: "sentence",
     deadlineAtMs: Date.now() + 1, // deadline already breached ⇒ no LLM stages
     regenSystem: sys,
+    // The DEFAULT arming table is all-warn since the precision-pack
+    // correction (30-game FP adjudication) — this smoke exercises the
+    // ENFORCEMENT machinery, so it arms explicitly.
+    armingTable: {
+      eval_display: "error",
+      san_whitelist: "error",
+      tactical_keyword: "error",
+      forbidden_claim: "error",
+      citation_invalid: "error",
+    },
   });
   for (let i = 0; i < message.length; i += 17) stream.push(message.slice(i, i + 17));
   const summary = await stream.end();

@@ -111,6 +111,7 @@ export function maybeCreateShadowRefereeGate(
         userRating,
         correlationId,
         playerPerspective,
+        contract, // contract-global eval_display pool (precision-pack fix 7)
       });
       totalErrors += result.errorCount;
       totalWarns += result.warnCount;

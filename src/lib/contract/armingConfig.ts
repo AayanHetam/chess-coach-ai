@@ -47,26 +47,63 @@ export type ArmedSeverity = "error" | "warn" | "off";
 /** Table keys: `${check}` or `${check}:${category}` (most specific wins). */
 export type ArmingTable = Record<string, ArmedSeverity>;
 
+/**
+ * PRECISION-PACK CORRECTION (supersedes the CI-4 "conservative defaults"
+ * above, which were NOT conservative): the position-verified adjudication of
+ * the 30-game FP measurement (contract-referee-fp-30game-*.json, 2026-08-10)
+ * re-judged all 37 contested fires as 7 TRUE_FABRICATION / 30 FALSE_POSITIVE.
+ * Per-check FP evidence:
+ *   - tactical_keyword: 15 needs-review fires → ~11 were real board tactics
+ *     outside the detector's scope, CONCEPT-widget text, or double-counted
+ *     duplicates. CI-4 armed this at error — wrong.
+ *   - forbidden_claim: 8 needs-review fires → the "Dominates/dominating"
+ *     positional class split TF/FP on facts the check cannot see; "obvious"
+ *     fires were definitional prose. CI-4 armed this at error — wrong.
+ *   - san_whitelist: 14 needs-review fires → piece designators ("the Ne5"),
+ *     mis-disambiguated-but-legal SAN, and punctuation-joined enumerations.
+ *   - eval_display: 2/2 fires licensed by contract-global facts.
+ * Until the precision-pack fixes land AND the measurement is RE-RUN against
+ * real-engine fixtures (fixtures-real/), NO check arms at error. Everything
+ * below is warn (telemetry); enforcement callers must pass an explicit table.
+ */
 export const DEFAULT_ARMING_TABLE: ArmingTable = {
-  // Deterministic contract checks (plan §4 checks 2-4).
-  eval_display: "error",
-  tactical_keyword: "error",
-  forbidden_claim: "error", // user_visibility fires clamped to warn in armSeverity
-  san_whitelist: "error",
-  // Strict-only hypothetical-line fires stay WARN until the 30-game FP
-  // measurement decides (finding.wouldPassWidenedWindow === true). Handled
-  // structurally in armSeverity below — a widened-window FAILURE (fabricated
-  // line under BOTH rules) stays at the san_whitelist error default.
-  // Stage-9 scanners: validator-assigned severity passes through.
-  stage9_positional_claim: "error",
-  stage9_mate_in_n: "error",
-  stage9_material_win: "error",
+  // Deterministic contract checks (plan §4 checks 2-4) — warn pending re-measure.
+  eval_display: "warn",
+  tactical_keyword: "warn",
+  forbidden_claim: "warn",
+  san_whitelist: "warn",
+  // Stage-9 scanners — their CI-3 gates predate the adjudication's evidence
+  // standard; held at warn with everything else until the v2 measurement.
+  stage9_positional_claim: "warn",
+  stage9_mate_in_n: "warn",
+  stage9_material_win: "warn",
   stage9_user_visibility: "warn", // standing prohibition (clamped in code too)
   // Relational oracle contradictions (full referee mode only).
-  relational_claim: "error",
+  relational_claim: "warn",
   // Citation validity (PR-CI-4 check 7).
-  citation_invalid: "error",
+  citation_invalid: "warn",
 };
+
+/**
+ * POST-PRECISION-PACK PROPOSED table — COMMENTED OUT ON PURPOSE. This is the
+ * arming candidate set to confirm against the v2 measurement
+ * (contract-referee-fp-30game-v2-*.json, real-engine fixtures): flip a row
+ * to error ONLY if that check measures 0 FP there (plan §9 risk 3's
+ * 0-false-fire control gate).
+ *
+ * export const PROPOSED_ARMING_TABLE: ArmingTable = {
+ *   eval_display: "error",        // contract-global pool: v1's only 2 fires were licensed
+ *   san_whitelist: "error",       // after designator license + legal-move normalization + punctuation fix
+ *   tactical_keyword: "warn",     // even with motif-scope extension, TF/FP split needs the re-measure
+ *   forbidden_claim: "warn",      // "dominates" class is not mechanically adjudicable yet
+ *   stage9_positional_claim: "error",
+ *   stage9_mate_in_n: "error",
+ *   stage9_material_win: "error",
+ *   stage9_user_visibility: "warn", // standing prohibition — never error
+ *   relational_claim: "error",
+ *   citation_invalid: "error",    // deterministic provenance check, no chess judgment involved
+ * };
+ */
 
 export interface ArmedFinding {
   finding: ServingFinding;

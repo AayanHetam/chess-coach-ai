@@ -195,6 +195,18 @@ export interface InsightContract {
   /** detectMotifs(fenBefore, playedSan) — confirmed AND refuted (heuristic
    * confidence — 1-ply SEE escapability, never narrated as board truth). */
   motifs: AnyMotif[];
+  /**
+   * PRECISION PACK fix 4 — REFEREE LICENSE POOL ONLY, never rendered, never
+   * serialized to the verbalizer (stripped in serializeForVerbalizer), never
+   * fed to the voter. Motifs detected beyond the fenBefore+playedSan scope:
+   * a static both-color scan of fenAfter (pins/hanging/trapped the played
+   * move didn't create) plus detectMotifs over the first 2 plies of each
+   * contract PV. Closes the builder.ts scope gap behind the adjudicated
+   * tactical-keyword FPs (#1/#3/#6/#11/#12/#16/#22 in
+   * contract-referee-fp-30game). Optional so older fixtures/factories and
+   * cached contracts stay valid.
+   */
+  motifLicense?: AnyMotif[];
   allowedTacticalKeywords: string[];
   voterConfidence: VoterConfidence;
   positionConfidence: PositionConfidence;

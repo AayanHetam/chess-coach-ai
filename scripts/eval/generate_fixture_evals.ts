@@ -32,7 +32,7 @@
  * Usage (needs a `stockfish` binary on PATH — `brew install stockfish`):
  *   npx tsx scripts/eval/generate_fixture_evals.ts [--only 07] [--depth 16]
  */
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { Chess } from "chess.js";
@@ -72,14 +72,16 @@ interface FixtureFile {
 
 // ── UCI driver ──────────────────────────────────────────────────────────────
 class Engine {
-  private proc: ChildProcessWithoutNullStreams;
+  private stdin: NodeJS.WritableStream;
   private buffer = "";
   private waiters: Array<{ match: (line: string) => boolean; resolve: (lines: string[]) => void; lines: string[] }> = [];
 
   constructor(bin: string) {
-    this.proc = spawn(bin, [], { stdio: ["pipe", "pipe", "inherit"] });
-    this.proc.stdout.setEncoding("utf8");
-    this.proc.stdout.on("data", (chunk: string) => {
+    const proc = spawn(bin, [], { stdio: ["pipe", "pipe", "inherit"] });
+    if (!proc.stdin || !proc.stdout) throw new Error("stockfish: no stdio pipes");
+    this.stdin = proc.stdin;
+    proc.stdout.setEncoding("utf8");
+    proc.stdout.on("data", (chunk: string) => {
       this.buffer += chunk;
       let nl: number;
       while ((nl = this.buffer.indexOf("\n")) >= 0) {
@@ -99,7 +101,7 @@ class Engine {
   }
 
   send(cmd: string): void {
-    this.proc.stdin.write(cmd + "\n");
+    this.stdin.write(cmd + "\n");
   }
 
   /** Send `cmd` and collect stdout lines until one matches `until`. */
@@ -112,7 +114,7 @@ class Engine {
 
   quit(): void {
     this.send("quit");
-    this.proc.stdin.end();
+    this.stdin.end();
   }
 }
 

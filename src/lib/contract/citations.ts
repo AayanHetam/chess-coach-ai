@@ -1,0 +1,235 @@
+/**
+ * Citation grammar (PR-CI-4) — [F:id] tokens: parse, resolve, coverage,
+ * strip.
+ *
+ * The verbalizer charter requires every chess-fact sentence to end with a
+ * citation token naming the contract fact it derives from. This module owns:
+ *
+ *  - the fact-id vocabulary (resolveFactId): which ids an InsightContract can
+ *    back. Prefix families mirror the plan-§2 sketch ("[F:M3.pv0],
+ *    [F:M3.rel2], [F:M3.motif0]"):
+ *      <P>            the insight itself (played/best move, classification,
+ *                     evalBefore/evalAfter, severity — header-adjacent facts)
+ *      <P>.pv<k>      lines[k] (matches LineFact.id "M3.pv0" from builder)
+ *      <P>.motif<k>   motifs[k]
+ *      <P>.rel<k>     flattened relational facts (captures ++ hanging ++ pins)
+ *      <P>.threat<k>  threats[k]
+ *      <P>.concept<k> concepts[k]
+ *      <P>.delta      featureDelta
+ *      <P>.branch     branchPoint / intelBranchPoint
+ *      <P>.chessdb / <P>.lc0 / <P>.syzygy / <P>.maia
+ *                     Degraded sources — resolvable ONLY when status==="ok"
+ *                     (citing an unavailable source is a fabricated
+ *                     provenance claim → citation_invalid)
+ *      <P>.idea       engineIdea
+ *  - citation checking (checkCitations): unresolvable tokens → findings the
+ *    arming table treats as errors; coverage = cited claim-sentences /
+ *    claim-sentences (isClaimSentence from refereeChecks — one grammar).
+ *  - stripping: stripCitations for whole strings, CitationStripper for the
+ *    streamed prefix (holds back an ambiguous "[F:..." tail across delta
+ *    boundaries so a token split over two deltas never leaks to the client).
+ *
+ * Uncited-vocabulary policy (plan §12 Q4 v0): sentences with NO citation are
+ * NOT findings here — rhetoric is cite-exempt. Uncited HARD claims are
+ * caught by the deterministic checks 2-5 (they validate content, not
+ * citation presence); coverage is the telemetry that watches the trend.
+ */
+import type { ServingFinding } from "./armingConfig";
+import type { ContractCitationGranularity } from "@/env";
+import { isClaimSentence } from "./refereeChecks";
+import type { InsightContract } from "./types";
+
+/** [F:id] token — id charset covers "M3.pv0"-style dotted ids. */
+const CITATION_TOKEN_RE = /\[F:([A-Za-z0-9_.\-]{1,40})\]/g;
+/** Streaming-safe: longest suffix that might be the start of a token. */
+const CITATION_OPEN = "[F:";
+
+function clone(re: RegExp): RegExp {
+  return new RegExp(re.source, re.flags);
+}
+
+// ── Fact-id resolution ──────────────────────────────────────────────────────
+function relationalCount(insight: InsightContract): number {
+  const r = insight.relational;
+  if (!r) return 0;
+  return r.captures.length + r.hanging.length + r.pins.length;
+}
+
+/** True iff `id` resolves to a populated fact on THIS insight. */
+export function resolveFactId(id: string, insight: InsightContract): boolean {
+  const p = insight.factIdPrefix;
+  if (id === p) return true;
+  if (!id.startsWith(`${p}.`)) return false;
+  const suffix = id.slice(p.length + 1);
+
+  const indexed = (name: string): number | null => {
+    if (!suffix.startsWith(name)) return null;
+    const rest = suffix.slice(name.length);
+    if (!/^\d{1,2}$/.test(rest)) return null;
+    return Number.parseInt(rest, 10);
+  };
+
+  const pv = indexed("pv");
+  if (pv !== null) return pv < insight.lines.length;
+  const motif = indexed("motif");
+  if (motif !== null) return motif < insight.motifs.length;
+  const rel = indexed("rel");
+  if (rel !== null) return rel < relationalCount(insight);
+  const threat = indexed("threat");
+  if (threat !== null) return threat < (insight.threats?.length ?? 0);
+  const concept = indexed("concept");
+  if (concept !== null) return concept < insight.concepts.length;
+
+  switch (suffix) {
+    case "delta":
+      return insight.featureDelta !== null;
+    case "branch":
+      return insight.branchPoint !== null || insight.intelBranchPoint !== null;
+    case "idea":
+      return insight.engineIdea !== null;
+    case "chessdb":
+      return insight.chessdb.status === "ok";
+    case "lc0":
+      return insight.lc0.status === "ok";
+    case "syzygy":
+      return insight.syzygy.status === "ok";
+    case "maia":
+      return insight.visibility.status === "ok";
+    default:
+      return false;
+  }
+}
+
+// ── Citation check + coverage ───────────────────────────────────────────────
+export interface CitationReport {
+  /** All tokens found (raw ids). */
+  tokens: string[];
+  /** Tokens that resolve to a contract fact. */
+  validTokens: string[];
+  findings: ServingFinding[];
+  /** Sentences carrying a chess claim (refereeChecks.isClaimSentence). */
+  claimSentences: number;
+  /** Claim sentences counted as cited under the active granularity. */
+  citedClaimSentences: number;
+  /** citedClaimSentences / claimSentences (1 when no claim sentences). */
+  coverage: number;
+}
+
+function splitSentences(text: string): string[] {
+  return text.split(/(?<=[.!?])\s+|\n+/);
+}
+
+/**
+ * Check every [F:id] token in `prose` against the insight's fact space and
+ * compute citation coverage. `granularity` "paragraph" (the pre-built
+ * persona fallback, dark by default) counts a claim sentence as cited when
+ * its paragraph carries at least one valid token.
+ */
+export function checkCitations(
+  prose: string,
+  insight: InsightContract,
+  granularity: ContractCitationGranularity = "sentence",
+): CitationReport {
+  const tokens: string[] = [];
+  const validTokens: string[] = [];
+  const findings: ServingFinding[] = [];
+
+  for (const m of Array.from(prose.matchAll(clone(CITATION_TOKEN_RE)))) {
+    const id = m[1];
+    tokens.push(id);
+    if (resolveFactId(id, insight)) {
+      validTokens.push(id);
+    } else {
+      findings.push({
+        check: "citation_invalid",
+        severity: "error",
+        category: "citation_unresolvable",
+        span: m[0],
+        detail: `citation ${m[0]} resolves to no fact on insight ${insight.factIdPrefix}`,
+      });
+    }
+  }
+
+  let claimSentences = 0;
+  let citedClaimSentences = 0;
+  const paragraphs = prose.split(/\n{2,}/);
+  for (const para of paragraphs) {
+    const paraCited = clone(CITATION_TOKEN_RE).test(para);
+    for (const sentence of splitSentences(para)) {
+      // Strip tokens before claim detection so a citation never makes a
+      // rhetoric sentence count as a claim.
+      const bare = stripCitations(sentence);
+      if (!isClaimSentence(bare)) continue;
+      claimSentences += 1;
+      const cited =
+        granularity === "paragraph" ? paraCited : clone(CITATION_TOKEN_RE).test(sentence);
+      if (cited) citedClaimSentences += 1;
+    }
+  }
+
+  return {
+    tokens,
+    validTokens,
+    findings,
+    claimSentences,
+    citedClaimSentences,
+    coverage: claimSentences > 0 ? citedClaimSentences / claimSentences : 1,
+  };
+}
+
+// ── Stripping ───────────────────────────────────────────────────────────────
+/** Remove every [F:id] token plus one leading space when present (so
+ * "wins a piece [F:M1.motif0]." → "wins a piece."). */
+export function stripCitations(text: string): string {
+  return text.replace(/ ?\[F:[A-Za-z0-9_.\-]{1,40}\]/g, "");
+}
+
+/**
+ * Streaming-safe citation stripper for the enforce path's PREFIX text (the
+ * greeting streams token-by-token; a [F: token could split across deltas).
+ * push() returns the bytes safe to forward now; flush() returns the held
+ * tail at stream end (an unterminated "[F:..." is forwarded raw — content is
+ * never swallowed, plan risk #5 posture).
+ */
+export class CitationStripper {
+  private tail = "";
+
+  push(delta: string): string {
+    const text = this.tail + delta;
+    const stripped = stripCitations(text);
+    // Hold back the longest suffix that could still become a citation token:
+    // either a partial "[F:" opener or an unclosed "[F:id..." body.
+    const held = ambiguousCitationTail(stripped);
+    this.tail = held;
+    return stripped.slice(0, stripped.length - held.length);
+  }
+
+  flush(): string {
+    const out = this.tail;
+    this.tail = "";
+    return out;
+  }
+}
+
+function ambiguousCitationTail(text: string): string {
+  // Unclosed token body: "...[F:M3.pv" (no "]" yet, still short enough).
+  const openIdx = text.lastIndexOf(CITATION_OPEN);
+  if (openIdx !== -1) {
+    const after = text.slice(openIdx);
+    if (!after.includes("]") && after.length <= CITATION_OPEN.length + 40) {
+      // Include a preceding space so the strip-with-space form still applies
+      // once the token completes.
+      const start = openIdx > 0 && text[openIdx - 1] === " " ? openIdx - 1 : openIdx;
+      return text.slice(start);
+    }
+  }
+  // Partial opener at the very end: "[", "[F".
+  for (let len = CITATION_OPEN.length - 1; len > 0; len--) {
+    if (text.endsWith(CITATION_OPEN.slice(0, len))) {
+      const start = text.length - len;
+      const withSpace = start > 0 && text[start - 1] === " " ? start - 1 : start;
+      return text.slice(withSpace);
+    }
+  }
+  return "";
+}

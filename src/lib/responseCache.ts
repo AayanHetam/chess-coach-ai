@@ -6,6 +6,7 @@
 
 import { createHash } from "crypto";
 import { PROMPT_VERSION } from "@/lib/prompts/coachChatPrompt";
+import { VERBALIZER_PROMPT_VERSION } from "@/lib/prompts/verbalizerPrompt";
 
 interface CacheEntry {
   response: string;
@@ -75,6 +76,31 @@ export function generateCacheKey(
   // older cache entries unreachable instead of serving stale stub-prompt
   // analyses to clients on the new prompt.
   return `v${PROMPT_VERSION}|${normalizedFen}|${skillLevel}|${messageHash}|p${personaHash}|m${movesHash}`;
+}
+
+/**
+ * Contract-mode cache marker (PR-CI-4, plan §3 + risk #6): EVERY key the
+ * verbalizer-4.0 path reads or writes carries this prefix, so dual-mode
+ * serving can never cross-serve — legacy 3.6 keys are untouched (warm
+ * rollback) and a contract response can never satisfy a legacy lookup or
+ * vice versa. Unit-tested at every generateCacheKey call site
+ * (contractCacheKey.test.ts).
+ */
+export const CONTRACT_CACHE_PREFIX = `c${VERBALIZER_PROMPT_VERSION}|`;
+
+/**
+ * The ONLY key builder the contract serving path may use. Same inputs as
+ * generateCacheKey (identical bucketing semantics) with the contract-mode
+ * marker prepended.
+ */
+export function generateContractCacheKey(
+  fen: string,
+  skillLevel: string,
+  userMessage: string,
+  personaSignature?: string,
+  moveHistory?: string[]
+): string {
+  return `${CONTRACT_CACHE_PREFIX}${generateCacheKey(fen, skillLevel, userMessage, personaSignature, moveHistory)}`;
 }
 
 /**

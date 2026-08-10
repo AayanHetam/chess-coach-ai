@@ -1,0 +1,427 @@
+{
+  "moveHistory": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "Bc4",
+    "Bc5",
+    "c3",
+    "Nf6",
+    "d4",
+    "exd4",
+    "cxd4",
+    "Bb6",
+    "d5",
+    "Ne7",
+    "e5",
+    "Ng4",
+    "d6",
+    "cxd6",
+    "exd6",
+    "Nc6"
+  ],
+  "gameEval": {
+    "positions": [
+      {
+        "lines": [
+          {
+            "pv": [
+              "e2e4",
+              "c7c5",
+              "c2c3",
+              "d7d5"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 30
+          }
+        ],
+        "bestMove": "e2e4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "e7e6",
+              "d2d4",
+              "d7d5",
+              "b1c3"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 30
+          }
+        ],
+        "bestMove": "e7e6"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "g1f3",
+              "b8c6",
+              "f1b5",
+              "a7a6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 32
+          }
+        ],
+        "bestMove": "g1f3"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "b8c6",
+              "f1b5",
+              "a7a6",
+              "b5a4"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 29
+          }
+        ],
+        "bestMove": "b8c6"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "f1b5",
+              "a7a6",
+              "b5a4",
+              "g8f6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 37
+          }
+        ],
+        "bestMove": "f1b5"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "g8f6",
+              "d2d3",
+              "f8c5",
+              "b1c3"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 13
+          }
+        ],
+        "bestMove": "g8f6"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "d2d3",
+              "g8f6",
+              "b1c3",
+              "d7d6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 11
+          }
+        ],
+        "bestMove": "d2d3"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "g8f6",
+              "d2d3",
+              "d7d6",
+              "e1g1"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 7
+          }
+        ],
+        "bestMove": "g8f6"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "b2b4",
+              "c5b6",
+              "d2d3",
+              "e8g8"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 23
+          }
+        ],
+        "bestMove": "b2b4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "e5d4",
+              "e4e5",
+              "d7d5",
+              "c4b5"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 0
+          },
+          {
+            "pv": [
+              "c5b6",
+              "f3e5",
+              "c6e5",
+              "d4e5"
+            ],
+            "depth": 16,
+            "multiPv": 2,
+            "cp": 89
+          },
+          {
+            "pv": [
+              "c5d6",
+              "e1g1",
+              "h7h6",
+              "b1d2"
+            ],
+            "depth": 16,
+            "multiPv": 3,
+            "cp": 167
+          }
+        ],
+        "bestMove": "e5d4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "c3d4",
+              "c5b4",
+              "c1d2",
+              "f6e4"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 2
+          }
+        ],
+        "bestMove": "c3d4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "c5b4",
+              "c1d2",
+              "b4d2",
+              "b1d2"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 0
+          }
+        ],
+        "bestMove": "c5b4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "d4d5",
+              "c6e7",
+              "e4e5",
+              "f6g4"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 147
+          }
+        ],
+        "bestMove": "d4d5"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "c6e7",
+              "e4e5",
+              "f6e4",
+              "e1g1"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 180
+          }
+        ],
+        "bestMove": "c6e7"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "e4e5",
+              "f6e4",
+              "e1g1",
+              "d7d6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 190
+          }
+        ],
+        "bestMove": "e4e5"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "f6g4",
+              "d5d6",
+              "b6f2",
+              "e1f1"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 192
+          },
+          {
+            "pv": [
+              "f6e4",
+              "e1g1",
+              "d7d6",
+              "d1e2"
+            ],
+            "depth": 16,
+            "multiPv": 2,
+            "cp": 200
+          },
+          {
+            "pv": [
+              "b6a5",
+              "c1d2",
+              "a5d2",
+              "d1d2"
+            ],
+            "depth": 16,
+            "multiPv": 3,
+            "cp": 254
+          }
+        ],
+        "bestMove": "f6g4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "d5d6",
+              "b6f2",
+              "e1f1",
+              "c7d6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 205
+          }
+        ],
+        "bestMove": "d5d6"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "c7d6",
+              "e5d6",
+              "b6f2",
+              "e1f1"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 210
+          }
+        ],
+        "bestMove": "c7d6"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "e5d6",
+              "b6f2",
+              "e1f1",
+              "b7b5"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 224
+          },
+          {
+            "pv": [
+              "c4f7",
+              "e8f7",
+              "f3g5",
+              "f7e8"
+            ],
+            "depth": 16,
+            "multiPv": 2,
+            "cp": 86
+          }
+        ],
+        "bestMove": "e5d6"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "e8g8",
+              "e1g1",
+              "e7f5",
+              "b1c3"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 236
+          }
+        ],
+        "bestMove": "e8g8"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "d1e2",
+              "e8f8",
+              "h2h3",
+              "g4f6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 327
+          }
+        ],
+        "bestMove": "d1e2"
+      }
+    ]
+  },
+  "playerColor": "b",
+  "username": "BlackSide",
+  "userRating": 1600,
+  "gameHeaders": {
+    "white": "WhiteHat",
+    "black": "BlackSide",
+    "result": "*"
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "moveHistory": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "Bb5",
+    "a6",
+    "Ba4",
+    "Nf6"
+  ],
+  "gameEval": {
+    "positions": [
+      {
+        "lines": [
+          {
+            "pv": [
+              "e2e4",
+              "c7c5",
+              "g1f3",
+              "d7d6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 26
+          }
+        ],
+        "bestMove": "e2e4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "c7c5",
+              "g1f3",
+              "d7d6",
+              "b1c3"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 29
+          }
+        ],
+        "bestMove": "c7c5"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "g1f3",
+              "b8c6",
+              "f1b5",
+              "a7a6"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 36
+          }
+        ],
+        "bestMove": "g1f3"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "b8c6",
+              "d2d4",
+              "e5d4",
+              "f3d4"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 30
+          }
+        ],
+        "bestMove": "b8c6"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "d2d4",
+              "e5d4",
+              "f3d4",
+              "f8c5"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 27
+          }
+        ],
+        "bestMove": "d2d4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "c6d4",
+              "f3d4",
+              "e5d4",
+              "e1g1"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 37
+          }
+        ],
+        "bestMove": "c6d4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "b5a4",
+              "g8f6",
+              "e1g1",
+              "f6e4"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 43
+          }
+        ],
+        "bestMove": "b5a4"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "g8f6",
+              "e1g1",
+              "f6e4",
+              "d2d4"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 30
+          }
+        ],
+        "bestMove": "g8f6"
+      },
+      {
+        "lines": [
+          {
+            "pv": [
+              "e1g1",
+              "f8e7",
+              "f1e1",
+              "b7b5"
+            ],
+            "depth": 16,
+            "multiPv": 1,
+            "cp": 34
+          }
+        ],
+        "bestMove": "e1g1"
+      }
+    ]
+  },
+  "playerColor": "b"
+}

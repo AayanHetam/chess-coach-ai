@@ -331,3 +331,17 @@ Even on mid-program abandonment, the permanent wins are banked: the typed contra
 5. **CMIP as CI-5 gate — APPROVED**; intern flag payload formally gains `{contractId, refereeOutcomes, citedFactIds}`.
 6. **Structured-output claim parsers — no objection; resequenced to PR-CI-3** (the natural seam: that PR already wires relationalClaim synchronously).
 7. **Depth-16 / server-side eval re-check — remains OUTSIDE this program** (founder product-latency call, per the fix plan's deferral discipline); `evalIntegrity` (CI-1) supplies the flags either way, so the program is ready to consume it whenever that decision lands.
+
+---
+
+## 13. Execution log (updated 2026-08-10)
+
+**Shipped:** CI-1 #222 (shadow builder, byte-equality-gated, 9→7 fetch dedup) · CI-2 #223 (measurement referee + BEFORE baseline: fabrication 24.6/100, persona 3.75, prompt 3.6) · CI-3 #226 (referee v1 + shadow block-gating, 7/7 known-bad / 0 false fires / p95 1ms; structured-output Haiku parsers live) · CI-4 #241 (verbalizer 4.0 + enforce ladder, DARK behind `CONTRACT_CATEGORIES=""`; rollback drill proves byte-identical flag-off) · 30-game FP measurement #242 · independent CI-4 verification #243 · gold-example geometry fix + eval-attribution charter rule #245 (founder-caught fabrication in the few-shots) · fallback honesty signal #246 · founder-reported UI fixes (dead recommended-move links + ask-your-side) #248.
+
+**Founder decisions recorded:** Q2 card-at-a-time YES · Q3 template card YES (+ open fallback signal) · voice veto PASSED on all 5 items (2026-08-10) · eval-swing attribution rule (evals assume best play; swings attribute to the mover handing the opponent a resource) → charter.
+
+**Verification outcomes (the grain-of-salt record):** builder's CI-4 comparability HONEST, but fabrication ≤1 gate NOT robust (fresh run 2.56/100; ~83% cut stands directionally), persona gate fails single-run (3.45–3.5), full-mode first-card +3.5s fails (deterministic mode −0.8s passes). Raw v4.0 generator fabricates MORE than legacy pre-ladder (27.95 vs 14.8) — all improvement is the ladder; deletion is targeted (engine-fact retention 0.92). Span adjudication: 37 contested fires → 7 TRUE_FABRICATION / 30 FALSE_POSITIVE; NO check arms at error on v1 data. Fixture contamination found (synthetic junk PVs both induce and falsely license fabrications) → all v1 numbers provisional.
+
+**In flight:** referee precision pack (8 FP fixes + pv_truncation + mobility_claims measurement checks + fixtures-real/ with real Stockfish evals + armingConfig all-warn) + v2 30-game re-measurement on branch `feat/referee-precision-pack`.
+
+**CI-5 remaining gates:** arming table from v2 data · citation-coverage decision (70.4% vs ≥80; paragraph-granularity lever built dark) · first-card latency mode decision · preview-env flip + manual smoke · `CONTRACT_UIDS` intern dogfood week · referee-intervention <15% (80–96% pre-precision-pack, FP-driven) · fabrication ≤1/100 multi-sample. Tracking is LIVE and e2e-verified (events + llm_calls), so dogfood traffic is measurable. The migration is complete only after CI-6's ramp and legacy retirement.

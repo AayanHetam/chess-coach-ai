@@ -3,6 +3,10 @@
 # 404s) and serves it behind FastAPI. OpenBLAS backend: pure-CPU, no GPU.
 # (v0.31.2 has NO "eigen" meson option — that guess cost three builds; the
 # boolean options are blas/openblas/ispc/gtest, see meson_options.txt.)
+# buildtype MUST NOT be "release": lc0's meson.build injects -march=native on
+# gcc release builds, and Render's build CPUs are newer than its runtime CPUs
+# → SIGILL at engine start (observed exit -4). debugoptimized skips that
+# branch; -march=x86-64-v2 + f16c/pext off keeps the binary portable.
 
 # ── Stage 1: compile lc0 ────────────────────────────────────────────────────
 FROM debian:bookworm-slim AS build
@@ -22,7 +26,8 @@ WORKDIR /lc0
 # On failure, surface the real meson error into the build log (Render truncates
 # to the Docker wrapper otherwise). -j2 bounds compile memory on small builders.
 RUN meson --version && g++ --version | head -1 \
-    && (meson setup build --buildtype=release -Dblas=true -Dopenblas=true -Dispc=false -Dgtest=false \
+    && (meson setup build --buildtype=debugoptimized -Dcpp_args=-march=x86-64-v2 \
+        -Dblas=true -Dopenblas=true -Dispc=false -Dgtest=false -Df16c=false -Dpext=false \
         || { echo '--- meson-log tail ---'; tail -80 build/meson-logs/meson-log.txt; exit 1; }) \
     && ninja -C build -j 2 lc0
 

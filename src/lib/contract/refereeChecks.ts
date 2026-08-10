@@ -115,14 +115,16 @@ export function stripSanDecorations(san: string): string {
 }
 
 // ── Check 1: eval displays ──────────────────────────────────────────────────
-interface EvalPools {
+export interface EvalPools {
   /** Pawn values (cp/100) the contract can back. */
   pawns: number[];
   /** Signed mate distances the contract can back. */
   mates: number[];
 }
 
-function collectEvalPools(insight: InsightContract): EvalPools {
+/** Exported (FP-30game measurement) — the harness builds contract-global
+ * license pools from the same grammar; logic unchanged. */
+export function collectEvalPools(insight: InsightContract): EvalPools {
   const pawns: number[] = [];
   const mates: number[] = [];
   const addFact = (f: EvalFact | null | undefined) => {
@@ -240,7 +242,9 @@ function motifSquares(motifs: AnyMotif[]): string[] {
   return squares;
 }
 
-function fenPieceSquares(fen: string): string[] {
+/** Exported (FP-30game measurement) — same reuse rationale as
+ * collectEvalPools; logic unchanged. */
+export function fenPieceSquares(fen: string): string[] {
   const squares: string[] = [];
   const placement = fen.split(" ")[0] ?? "";
   const ranks = placement.split("/");

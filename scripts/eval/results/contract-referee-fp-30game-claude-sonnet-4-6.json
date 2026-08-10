@@ -1,0 +1,2396 @@
+{
+  "date": "2026-08-10",
+  "mode": "referee_fp_30game_pre_arming",
+  "planGate": "CONTRACT_INVERSION_PLAN.md §7 PR-CI-3: SAN/square-check false-positive rate measured on a 30-game set before any error-severity arming",
+  "model": {
+    "generator": "claude-sonnet-4-6"
+  },
+  "promptVersion": "3.6",
+  "contractVersion": "1.0",
+  "fixtures": 10,
+  "samplesPerFixture": 3,
+  "failedSamples": [],
+  "generation": {
+    "tier": "flagship",
+    "temperature": 0.7,
+    "maxTokens": 3000,
+    "userMessage": "analyze my game"
+  },
+  "referees": {
+    "widened": "refereeChecks.runInsightChecks (hypotheticalRule: window)",
+    "strict": "referee.refereeInsight (hypotheticalRule: prefix, wouldPassWidenedWindow telemetry)"
+  },
+  "summary": {
+    "reviews": 30,
+    "claimSentences": 778,
+    "strictFires": 119,
+    "widenedFires": 105,
+    "strictOnlyFires": 14,
+    "widenedLicensedShare": 1,
+    "recommendation": {
+      "eval_display": "all 2 fire(s) mechanically licensed by contract-GLOBAL facts — the insight-LOCAL whitelist over-fires on legitimate cross-insight/game references; do NOT arm insight-local at error, widen the license pool (or keep warn) first",
+      "san_whitelist_strict": "14/92 fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming",
+      "san_whitelist_widened": "14/78 fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming",
+      "tactical_keyword": "15/17 fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming",
+      "forbidden_claim": "8/8 fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming",
+      "hypothetical_line": "strict §4.3 prefix rule over-fires 14× where the widened window licenses the span — keep the widened window (or strict-at-warn) in CI-4; 3 shared fire(s) still need review"
+    }
+  },
+  "perCheck": {
+    "eval_display": {
+      "fires": 2,
+      "adjudications": {
+        "licensed-elsewhere-in-contract": 2
+      },
+      "needsReview": 0,
+      "recommendation": "all 2 fire(s) mechanically licensed by contract-GLOBAL facts — the insight-LOCAL whitelist over-fires on legitimate cross-insight/game references; do NOT arm insight-local at error, widen the license pool (or keep warn) first"
+    },
+    "san_whitelist_strict": {
+      "fires": 92,
+      "adjudications": {
+        "needs-review": 14,
+        "licensed-elsewhere-in-contract": 55,
+        "game-history-recap": 9,
+        "widened-licensed": 14
+      },
+      "needsReview": 14,
+      "recommendation": "14/92 fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming"
+    },
+    "san_whitelist_widened": {
+      "fires": 78,
+      "adjudications": {
+        "needs-review": 14,
+        "licensed-elsewhere-in-contract": 55,
+        "game-history-recap": 9
+      },
+      "needsReview": 14,
+      "recommendation": "14/78 fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming"
+    },
+    "tactical_keyword": {
+      "fires": 17,
+      "adjudications": {
+        "needs-review": 15,
+        "licensed-elsewhere-in-contract": 2
+      },
+      "needsReview": 15,
+      "recommendation": "15/17 fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming"
+    },
+    "forbidden_claim": {
+      "fires": 8,
+      "adjudications": {
+        "needs-review": 8
+      },
+      "needsReview": 8,
+      "recommendation": "8/8 fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming"
+    },
+    "hypothetical_line": {
+      "strictFires": 26,
+      "widenedFires": 12,
+      "strictOnlyFires": 14,
+      "adjudications": {
+        "game-history-recap": 9,
+        "widened-licensed": 14,
+        "needs-review": 3
+      },
+      "needsReview": 3,
+      "recommendation": "strict §4.3 prefix rule over-fires 14× where the widened window licenses the span — keep the widened window (or strict-at-warn) in CI-4; 3 shared fire(s) still need review"
+    }
+  },
+  "strictByCategory": {
+    "san_unknown": 63,
+    "tactical_keyword_unbacked": 17,
+    "forbidden_claim_present": 8,
+    "square_unknown": 3,
+    "hypothetical_line_off_contract": 26,
+    "mate_distance_wrong": 2
+  },
+  "widenedByCategory": {
+    "san_unknown": 63,
+    "tactical_keyword_unbacked": 17,
+    "forbidden_claim_present": 8,
+    "square_unknown": 3,
+    "hypothetical_line_off_contract": 12,
+    "mate_distance_wrong": 2
+  },
+  "stage9Informational": {
+    "stage9_positional_claim": 5,
+    "stage9_mate_in_n": 5,
+    "stage9_material_win": 4
+  },
+  "perFixture": [
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "samples": [
+        {
+          "fixture": "01_mate_for_white_midgame",
+          "sample": 1,
+          "contractId": "3ef3d01123b95ac7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 879,
+          "blocksEmitted": 2,
+          "blocksMatched": 1,
+          "unmatchedBlocks": 1,
+          "claimSentences": 11,
+          "strictFires": 3,
+          "widenedFires": 3,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 1,
+            "tactical_keyword_unbacked": 1,
+            "forbidden_claim_present": 1
+          },
+          "widenedByCategory": {
+            "san_unknown": 1,
+            "tactical_keyword_unbacked": 1,
+            "forbidden_claim_present": 1
+          },
+          "stage9ByCheck": {
+            "stage9_positional_claim": 1,
+            "stage9_mate_in_n": 1
+          },
+          "consistency": []
+        },
+        {
+          "fixture": "01_mate_for_white_midgame",
+          "sample": 2,
+          "contractId": "3ef3d01123b95ac7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 889,
+          "blocksEmitted": 2,
+          "blocksMatched": 1,
+          "unmatchedBlocks": 1,
+          "claimSentences": 14,
+          "strictFires": 4,
+          "widenedFires": 4,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 2,
+            "tactical_keyword_unbacked": 1,
+            "forbidden_claim_present": 1
+          },
+          "widenedByCategory": {
+            "san_unknown": 2,
+            "tactical_keyword_unbacked": 1,
+            "forbidden_claim_present": 1
+          },
+          "stage9ByCheck": {
+            "stage9_positional_claim": 1,
+            "stage9_mate_in_n": 1
+          },
+          "consistency": []
+        },
+        {
+          "fixture": "01_mate_for_white_midgame",
+          "sample": 3,
+          "contractId": "3ef3d01123b95ac7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 870,
+          "blocksEmitted": 2,
+          "blocksMatched": 1,
+          "unmatchedBlocks": 1,
+          "claimSentences": 13,
+          "strictFires": 4,
+          "widenedFires": 4,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 1,
+            "square_unknown": 1,
+            "tactical_keyword_unbacked": 1,
+            "forbidden_claim_present": 1
+          },
+          "widenedByCategory": {
+            "san_unknown": 1,
+            "square_unknown": 1,
+            "tactical_keyword_unbacked": 1,
+            "forbidden_claim_present": 1
+          },
+          "stage9ByCheck": {
+            "stage9_positional_claim": 1,
+            "stage9_mate_in_n": 1
+          },
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 38,
+        "strictFires": 11,
+        "widenedFires": 11,
+        "strictOnlyFires": 0
+      }
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "samples": [
+        {
+          "fixture": "02_mate_for_black",
+          "sample": 1,
+          "contractId": "ca1fcf046a0ac035",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1031,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 26,
+          "strictFires": 6,
+          "widenedFires": 5,
+          "strictOnlyFires": 1,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 2,
+            "san_unknown": 3,
+            "mate_distance_wrong": 1
+          },
+          "widenedByCategory": {
+            "hypothetical_line_off_contract": 1,
+            "san_unknown": 3,
+            "mate_distance_wrong": 1
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "02_mate_for_black",
+          "sample": 2,
+          "contractId": "ca1fcf046a0ac035",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1014,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 25,
+          "strictFires": 9,
+          "widenedFires": 9,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 6,
+            "hypothetical_line_off_contract": 2,
+            "square_unknown": 1
+          },
+          "widenedByCategory": {
+            "san_unknown": 6,
+            "hypothetical_line_off_contract": 2,
+            "square_unknown": 1
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "02_mate_for_black",
+          "sample": 3,
+          "contractId": "ca1fcf046a0ac035",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 920,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 23,
+          "strictFires": 4,
+          "widenedFires": 4,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 1,
+            "san_unknown": 2,
+            "mate_distance_wrong": 1
+          },
+          "widenedByCategory": {
+            "hypothetical_line_off_contract": 1,
+            "san_unknown": 2,
+            "mate_distance_wrong": 1
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 74,
+        "strictFires": 19,
+        "widenedFires": 18,
+        "strictOnlyFires": 1
+      }
+    },
+    {
+      "fixture": "03_sentinel_timeout",
+      "samples": [
+        {
+          "fixture": "03_sentinel_timeout",
+          "sample": 1,
+          "contractId": "fb417b570bf4d4e7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 579,
+          "blocksEmitted": 1,
+          "blocksMatched": 1,
+          "unmatchedBlocks": 0,
+          "claimSentences": 17,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "03_sentinel_timeout",
+          "sample": 2,
+          "contractId": "fb417b570bf4d4e7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 539,
+          "blocksEmitted": 1,
+          "blocksMatched": 1,
+          "unmatchedBlocks": 0,
+          "claimSentences": 16,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "03_sentinel_timeout",
+          "sample": 3,
+          "contractId": "fb417b570bf4d4e7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 644,
+          "blocksEmitted": 1,
+          "blocksMatched": 1,
+          "unmatchedBlocks": 0,
+          "claimSentences": 17,
+          "strictFires": 1,
+          "widenedFires": 1,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "forbidden_claim_present": 1
+          },
+          "widenedByCategory": {
+            "forbidden_claim_present": 1
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 50,
+        "strictFires": 1,
+        "widenedFires": 1,
+        "strictOnlyFires": 0
+      }
+    },
+    {
+      "fixture": "04_invalid_san_truncation",
+      "samples": [
+        {
+          "fixture": "04_invalid_san_truncation",
+          "sample": 1,
+          "contractId": "4e36971c9e392ca8",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 461,
+          "blocksEmitted": 1,
+          "blocksMatched": 1,
+          "unmatchedBlocks": 0,
+          "claimSentences": 11,
+          "strictFires": 1,
+          "widenedFires": 1,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 1
+          },
+          "widenedByCategory": {
+            "san_unknown": 1
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "04_invalid_san_truncation",
+          "sample": 2,
+          "contractId": "4e36971c9e392ca8",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 497,
+          "blocksEmitted": 1,
+          "blocksMatched": 1,
+          "unmatchedBlocks": 0,
+          "claimSentences": 10,
+          "strictFires": 4,
+          "widenedFires": 4,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 2,
+            "san_unknown": 1,
+            "tactical_keyword_unbacked": 1
+          },
+          "widenedByCategory": {
+            "hypothetical_line_off_contract": 2,
+            "san_unknown": 1,
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "04_invalid_san_truncation",
+          "sample": 3,
+          "contractId": "4e36971c9e392ca8",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 436,
+          "blocksEmitted": 1,
+          "blocksMatched": 1,
+          "unmatchedBlocks": 0,
+          "claimSentences": 11,
+          "strictFires": 2,
+          "widenedFires": 2,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 1,
+            "tactical_keyword_unbacked": 1
+          },
+          "widenedByCategory": {
+            "san_unknown": 1,
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 32,
+        "strictFires": 7,
+        "widenedFires": 7,
+        "strictOnlyFires": 0
+      }
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "samples": [
+        {
+          "fixture": "05_long_game_six_mistakes",
+          "sample": 1,
+          "contractId": "c3b77ded2a1a8ad7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 3000,
+          "blocksEmitted": 6,
+          "blocksMatched": 6,
+          "unmatchedBlocks": 0,
+          "claimSentences": 93,
+          "strictFires": 6,
+          "widenedFires": 6,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 1,
+            "hypothetical_line_off_contract": 1,
+            "square_unknown": 1,
+            "tactical_keyword_unbacked": 3
+          },
+          "widenedByCategory": {
+            "san_unknown": 1,
+            "hypothetical_line_off_contract": 1,
+            "square_unknown": 1,
+            "tactical_keyword_unbacked": 3
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "05_long_game_six_mistakes",
+          "sample": 2,
+          "contractId": "c3b77ded2a1a8ad7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 2667,
+          "blocksEmitted": 5,
+          "blocksMatched": 5,
+          "unmatchedBlocks": 0,
+          "claimSentences": 74,
+          "strictFires": 9,
+          "widenedFires": 9,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 1,
+            "san_unknown": 7,
+            "tactical_keyword_unbacked": 1
+          },
+          "widenedByCategory": {
+            "hypothetical_line_off_contract": 1,
+            "san_unknown": 7,
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {
+            "stage9_material_win": 1
+          },
+          "consistency": []
+        },
+        {
+          "fixture": "05_long_game_six_mistakes",
+          "sample": 3,
+          "contractId": "c3b77ded2a1a8ad7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 2901,
+          "blocksEmitted": 6,
+          "blocksMatched": 6,
+          "unmatchedBlocks": 0,
+          "claimSentences": 95,
+          "strictFires": 5,
+          "widenedFires": 0,
+          "strictOnlyFires": 5,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 5
+          },
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 262,
+        "strictFires": 20,
+        "widenedFires": 15,
+        "strictOnlyFires": 5
+      }
+    },
+    {
+      "fixture": "06_short_opening",
+      "samples": [
+        {
+          "fixture": "06_short_opening",
+          "sample": 1,
+          "contractId": "b9d2d9bba32dfe00",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 515,
+          "blocksEmitted": 0,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 0,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "06_short_opening",
+          "sample": 2,
+          "contractId": "b9d2d9bba32dfe00",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 470,
+          "blocksEmitted": 0,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 0,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "06_short_opening",
+          "sample": 3,
+          "contractId": "b9d2d9bba32dfe00",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 516,
+          "blocksEmitted": 0,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 0,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 0,
+        "strictFires": 0,
+        "widenedFires": 0,
+        "strictOnlyFires": 0
+      }
+    },
+    {
+      "fixture": "07_knight_fork",
+      "samples": [
+        {
+          "fixture": "07_knight_fork",
+          "sample": 1,
+          "contractId": "e77977da0afb8d87",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1096,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 32,
+          "strictFires": 3,
+          "widenedFires": 3,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 2,
+            "forbidden_claim_present": 1
+          },
+          "widenedByCategory": {
+            "san_unknown": 2,
+            "forbidden_claim_present": 1
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "07_knight_fork",
+          "sample": 2,
+          "contractId": "e77977da0afb8d87",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 967,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 29,
+          "strictFires": 2,
+          "widenedFires": 2,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 2
+          },
+          "widenedByCategory": {
+            "hypothetical_line_off_contract": 2
+          },
+          "stage9ByCheck": {
+            "stage9_material_win": 2
+          },
+          "consistency": []
+        },
+        {
+          "fixture": "07_knight_fork",
+          "sample": 3,
+          "contractId": "e77977da0afb8d87",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1055,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 33,
+          "strictFires": 3,
+          "widenedFires": 3,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 1,
+            "hypothetical_line_off_contract": 1,
+            "tactical_keyword_unbacked": 1
+          },
+          "widenedByCategory": {
+            "san_unknown": 1,
+            "hypothetical_line_off_contract": 1,
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 94,
+        "strictFires": 8,
+        "widenedFires": 8,
+        "strictOnlyFires": 0
+      }
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "samples": [
+        {
+          "fixture": "08_quiet_positional",
+          "sample": 1,
+          "contractId": "18df9f31fb8f2e24",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 745,
+          "blocksEmitted": 1,
+          "blocksMatched": 1,
+          "unmatchedBlocks": 0,
+          "claimSentences": 14,
+          "strictFires": 5,
+          "widenedFires": 5,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 4,
+            "forbidden_claim_present": 1
+          },
+          "widenedByCategory": {
+            "san_unknown": 4,
+            "forbidden_claim_present": 1
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "08_quiet_positional",
+          "sample": 2,
+          "contractId": "18df9f31fb8f2e24",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 629,
+          "blocksEmitted": 1,
+          "blocksMatched": 1,
+          "unmatchedBlocks": 0,
+          "claimSentences": 15,
+          "strictFires": 2,
+          "widenedFires": 2,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 2
+          },
+          "widenedByCategory": {
+            "san_unknown": 2
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "08_quiet_positional",
+          "sample": 3,
+          "contractId": "18df9f31fb8f2e24",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 680,
+          "blocksEmitted": 1,
+          "blocksMatched": 1,
+          "unmatchedBlocks": 0,
+          "claimSentences": 13,
+          "strictFires": 3,
+          "widenedFires": 3,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 3
+          },
+          "widenedByCategory": {
+            "san_unknown": 3
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 42,
+        "strictFires": 10,
+        "widenedFires": 10,
+        "strictOnlyFires": 0
+      }
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "samples": [
+        {
+          "fixture": "09_legal_trap_tactics",
+          "sample": 1,
+          "contractId": "b1c0d5797d616ae2",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1035,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 30,
+          "strictFires": 5,
+          "widenedFires": 5,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 3,
+            "tactical_keyword_unbacked": 2
+          },
+          "widenedByCategory": {
+            "san_unknown": 3,
+            "tactical_keyword_unbacked": 2
+          },
+          "stage9ByCheck": {
+            "stage9_mate_in_n": 2
+          },
+          "consistency": []
+        },
+        {
+          "fixture": "09_legal_trap_tactics",
+          "sample": 2,
+          "contractId": "b1c0d5797d616ae2",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1139,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 36,
+          "strictFires": 2,
+          "widenedFires": 0,
+          "strictOnlyFires": 2,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 2
+          },
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "09_legal_trap_tactics",
+          "sample": 3,
+          "contractId": "b1c0d5797d616ae2",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1127,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 29,
+          "strictFires": 14,
+          "widenedFires": 14,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "san_unknown": 13,
+            "tactical_keyword_unbacked": 1
+          },
+          "widenedByCategory": {
+            "san_unknown": 13,
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 95,
+        "strictFires": 21,
+        "widenedFires": 19,
+        "strictOnlyFires": 2
+      }
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "samples": [
+        {
+          "fixture": "10_queenless_endgame",
+          "sample": 1,
+          "contractId": "bec671def34f5daf",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1026,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 31,
+          "strictFires": 4,
+          "widenedFires": 1,
+          "strictOnlyFires": 3,
+          "strictByCategory": {
+            "forbidden_claim_present": 1,
+            "hypothetical_line_off_contract": 3
+          },
+          "widenedByCategory": {
+            "forbidden_claim_present": 1
+          },
+          "stage9ByCheck": {
+            "stage9_positional_claim": 1
+          },
+          "consistency": []
+        },
+        {
+          "fixture": "10_queenless_endgame",
+          "sample": 2,
+          "contractId": "bec671def34f5daf",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 965,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 25,
+          "strictFires": 5,
+          "widenedFires": 4,
+          "strictOnlyFires": 1,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 2,
+            "san_unknown": 1,
+            "tactical_keyword_unbacked": 2
+          },
+          "widenedByCategory": {
+            "hypothetical_line_off_contract": 1,
+            "san_unknown": 1,
+            "tactical_keyword_unbacked": 2
+          },
+          "stage9ByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "10_queenless_endgame",
+          "sample": 3,
+          "contractId": "bec671def34f5daf",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1105,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 35,
+          "strictFires": 13,
+          "widenedFires": 11,
+          "strictOnlyFires": 2,
+          "strictByCategory": {
+            "san_unknown": 8,
+            "forbidden_claim_present": 1,
+            "hypothetical_line_off_contract": 2,
+            "tactical_keyword_unbacked": 2
+          },
+          "widenedByCategory": {
+            "san_unknown": 8,
+            "forbidden_claim_present": 1,
+            "tactical_keyword_unbacked": 2
+          },
+          "stage9ByCheck": {
+            "stage9_positional_claim": 1,
+            "stage9_material_win": 1
+          },
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 91,
+        "strictFires": 22,
+        "widenedFires": 16,
+        "strictOnlyFires": 6
+      }
+    }
+  ],
+  "flaggedSpans": [
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 1,
+      "factIdPrefix": "I1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bc4xd5+",
+      "sentence": "- White threatens Qxd5+ (check), Bc4xd5+ (check), and Bb5+ — the king on e6 is caught in the open",
+      "adjudication": "needs-review",
+      "detail": "SAN token \"Bc4xd5+\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 1,
+      "factIdPrefix": "I1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "pin",
+      "sentence": "- Black's knight on d5 is pinned to the king by your bishop on c4, making it unable to help defend",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"pin\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 1,
+      "factIdPrefix": "I1",
+      "referee": "both",
+      "check": "forbidden_claim",
+      "category": "forbidden_claim_present",
+      "span": "Dominates",
+      "sentence": "- White queen on f3: Dominates the board with 15 active squares, delivering check and eyeing d5",
+      "adjudication": "needs-review",
+      "detail": "strong positional claim \"Dominates\" while positional_plan is forbidden (Lc0 unavailable) and SF is not decisive (cp=250)"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 2,
+      "factIdPrefix": "I1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bc4",
+      "sentence": "- White Bc4: Pins the Black knight on d5 to the king, making it a spectator in the defense.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Bc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 2,
+      "factIdPrefix": "I1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Qf3",
+      "sentence": "- White Qf3: Dominates the board with 15 active squares, ready to deliver check from multiple angles.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Qf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 2,
+      "factIdPrefix": "I1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "pin",
+      "sentence": "Problem: Moving to e6 walks the king directly into the crossfire of your queen on f3 and bishop on c4, with the knight on d5 pinned and unable to help defend.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"pin\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 2,
+      "factIdPrefix": "I1",
+      "referee": "both",
+      "check": "forbidden_claim",
+      "category": "forbidden_claim_present",
+      "span": "Dominates",
+      "sentence": "- White Qf3: Dominates the board with 15 active squares, ready to deliver check from multiple angles.",
+      "adjudication": "needs-review",
+      "detail": "strong positional claim \"Dominates\" while positional_plan is forbidden (Lc0 unavailable) and SF is not decisive (cp=250)"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 3,
+      "factIdPrefix": "I1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Qd5+",
+      "sentence": "- White threatens Qd5+ and Bb5# — the king on e6 is caught in a mating net",
+      "adjudication": "needs-review",
+      "detail": "SAN token \"Qd5+\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 3,
+      "factIdPrefix": "I1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "square_unknown",
+      "span": "c3",
+      "sentence": "Problem: Moving to e6 walks directly into White's attacking pieces — the queen on f3, the bishop on c4, and the knight about to join via c3 all converge on the exposed king.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "square \"c3\" appears in a claim sentence (\"Problem: Moving to e6 walks directly into White's attacking pieces — the queen o…\") but is not in the contract's square set"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 3,
+      "factIdPrefix": "I1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "pin",
+      "sentence": "Crucially, the knight on d5 is pinned to the king by your bishop on c4, so it can't help defend.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"pin\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 3,
+      "factIdPrefix": "I1",
+      "referee": "both",
+      "check": "forbidden_claim",
+      "category": "forbidden_claim_present",
+      "span": "dominates",
+      "sentence": "- Your queen on f3 dominates the board with 15 legal moves, putting immediate pressure on the exposed king",
+      "adjudication": "needs-review",
+      "detail": "strong positional claim \"dominates\" while positional_plan is forbidden (Lc0 unavailable) and SF is not decisive (cp=250)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "exd4 cxd4",
+      "sentence": "- After exd4 cxd4, White's pawn center becomes a battering ram pointing at your position.",
+      "adjudication": "game-history-recap",
+      "detail": "move sequence \"exd4 cxd4\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "cxd4",
+      "sentence": "Problem: Taking on d4 hands White a strong center for free — after cxd4, White gets a full pawn center with d4+e4 and gains a tempo because your bishop on c5 will need to move.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"cxd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bc4",
+      "sentence": "- Your bishop on c5: its real value here is as a trading piece against Bc4, not as a static defender — use it aggressively.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Bc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bc4",
+      "sentence": "- White's Bc4: the Italian bishop that eyes f7 and anchors White's attacking setup — neutralizing it early is a strategic priority.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Bc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "eval_display",
+      "category": "mate_distance_wrong",
+      "span": "M-2",
+      "sentence": "00:M-2:Ng4:Ba5+]",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "mate figure M-2 does not match any contract mate exactly (contract mates: -4, -4)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Bd2 Bb4",
+      "sentence": "Bd2 Bb4, trapping and winning the bishop on c4 while your attack continues.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Bd2 Bb4\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nf6",
+      "sentence": "- White's e5 pawn was attacking your Nf6, threatening to win it with exf6",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nf6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bb6",
+      "sentence": "- The Bb6 was the hero of the position — a check from a5 drags the king into the open",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Bb6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ne7",
+      "sentence": "- The Ne7 and Ng4 (after the played line) end up passive and uncoordinated",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Ne7\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "exd4 cxd4",
+      "sentence": "exd4 6.",
+      "adjudication": "game-history-recap",
+      "detail": "move sequence \"exd4 cxd4\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "exd4 cxd4",
+      "sentence": "exd4 6.",
+      "adjudication": "game-history-recap",
+      "detail": "move sequence \"exd4 cxd4\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nf6",
+      "sentence": "- The e4 pawn was hanging (your Nf6 attacked it), which is part of why the position was tense",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nf6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bc5",
+      "sentence": "- The Bc5 needed a plan — retreating to b6 (as played next) left it passive on the rim",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Bc5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nf6",
+      "sentence": "- The Nf6 was already eyeing e4, meaning you had active counterplay available without trading",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nf6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "square_unknown",
+      "span": "d5",
+      "sentence": "cxd4, White's pawn center on d4/e4 gives a space advantage and threatens d5 next",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "square \"d5\" appears in a claim sentence (\"cxd4, White's pawn center on d4/e4 gives a space advantage and threatens d5 next…\") but is not in the contract's square set"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "exd4 cxd4",
+      "sentence": "exd4 6.",
+      "adjudication": "game-history-recap",
+      "detail": "move sequence \"exd4 cxd4\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "cxd4",
+      "sentence": "cxd4, White gets a mobile d-pawn and your bishop on c5 is immediately under pressure.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"cxd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "cxd4",
+      "sentence": "- White d-pawn after cxd4: becomes a structural asset, supporting d5 and e5 advances",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"cxd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "eval_display",
+      "category": "mate_distance_wrong",
+      "span": "M-2",
+      "sentence": "00:M-2:Ng4:Ba5+]",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "mate figure M-2 does not match any contract mate exactly (contract mates: -4, -4)"
+    },
+    {
+      "fixture": "03_sentinel_timeout",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "forbidden_claim",
+      "category": "forbidden_claim_present",
+      "span": "obvious",
+      "sentence": "A quiet move is one with no capture, no check, and no obvious threat — but it sets up something powerful.",
+      "adjudication": "needs-review",
+      "detail": "\"obvious\" while user_visibility is forbidden (Maia not consulted for this insight)"
+    },
+    {
+      "fixture": "04_invalid_san_truncation",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "cxd4",
+      "sentence": "cxd4, Black equalizes comfortably and gets a solid position.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"cxd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "04_invalid_san_truncation",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "d4 cxd4",
+      "sentence": "d4 cxd4, Black captures and equalizes the center immediately",
+      "adjudication": "game-history-recap",
+      "detail": "move sequence \"d4 cxd4\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+    },
+    {
+      "fixture": "04_invalid_san_truncation",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "d4 cxd4",
+      "sentence": "- Black's c5-pawn: under pressure, but it escapes easily after d4 cxd4",
+      "adjudication": "game-history-recap",
+      "detail": "move sequence \"d4 cxd4\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+    },
+    {
+      "fixture": "04_invalid_san_truncation",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "cxd4",
+      "sentence": "cxd4, and after you recapture, the position is roughly equal.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"cxd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "04_invalid_san_truncation",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "pin",
+      "sentence": "Ba6 threatens to win the b7-pawn indirectly by pinning the b7-pawn's defender",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"pin\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "04_invalid_san_truncation",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "cxd4",
+      "sentence": "cxd4, Black gets to trade pawns on your terms, and the position equalizes.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"cxd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "04_invalid_san_truncation",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "pin",
+      "sentence": "The bishop eyes the b7 pawn and creates a pin-like discomfort — Black has to spend a move responding instead of developing freely.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"pin\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 1,
+      "factIdPrefix": "M6",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "bxc4",
+      "sentence": "bxc4), losing the queen for a pawn — a catastrophic trade that stems from this premature placement.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"bxc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 1,
+      "factIdPrefix": "M4",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Bd5 c4",
+      "sentence": "Bd5 c4, the position flips from +0.",
+      "adjudication": "game-history-recap",
+      "detail": "move sequence \"Bd5 c4\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 1,
+      "factIdPrefix": "M3",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "square_unknown",
+      "span": "d6",
+      "sentence": "d6, and suddenly the position is only slightly better for White instead of winning.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "square \"d6\" appears in a claim sentence (\"d6, and suddenly the position is only slightly better for White instead of winni…\") but is not in the contract's square set"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "fork",
+      "sentence": "Idea: Moving the knight to a7 might have been aimed at forking or creating threats — it feels like an active, aggressive continuation.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "- White bishop on a8: trapped and under attack from three Black pieces — the biggest liability",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "fork",
+      "sentence": "Idea: Moving the knight to a7 might have been aimed at forking or creating threats — it feels like an active, aggressive continuation.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Rh8 Bb7",
+      "sentence": "- White Ba8 was attacked by Black's Rh8, Bb7, and Nc7 simultaneously — three attackers, zero defenders.",
+      "adjudication": "needs-review",
+      "detail": "move sequence \"Rh8 Bb7\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ba8",
+      "sentence": "- White Ba8 was attacked by Black's Rh8, Bb7, and Nc7 simultaneously — three attackers, zero defenders.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Ba8\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nc7",
+      "sentence": "- White Ba8 was attacked by Black's Rh8, Bb7, and Nc7 simultaneously — three attackers, zero defenders.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nc7\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ba8",
+      "sentence": "- Black Bb7 was hanging to Ba8, but that trade would only accelerate Black's counterplay.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Ba8\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "- The bishop on a8 had ventured deep into enemy territory with no escape route — a classic trapped piece scenario.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ke7",
+      "sentence": "Ke7 and starts untangling, eventually winning the bishop on a8 and converting the material advantage.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Ke7\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ba8",
+      "sentence": "- Black's Bb7 attacked the White Ba8 with no defenders — this threat needed to be addressed immediately.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Ba8\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bg7",
+      "sentence": "- Black's Bg7 was completely trapped: h6 and f6 were controlled by g5, e5 by d4, and d4 by Nb5.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Bg7\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nb5",
+      "sentence": "- Black's Bg7 was completely trapped: h6 and f6 were controlled by g5, e5 by d4, and d4 by Nb5.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nb5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 3,
+      "factIdPrefix": "M5",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Bc7 Bc1 Bb6",
+      "sentence": "Bd2, the engine line shows Bc7 17.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Bc7 Bc1 Bb6\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 3,
+      "factIdPrefix": "M4",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Bb7 Ba4 Ba8",
+      "sentence": "Bb7 22.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Bb7 Ba4 Ba8\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 3,
+      "factIdPrefix": "M3",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Bd8 Ba8 Bb6",
+      "sentence": "Bd8 27.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Bd8 Ba8 Bb6\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Bc6 Bb7 Bd5",
+      "sentence": "Bc6 32.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Bc6 Bb7 Bd5\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Ba6 Ba3 Ba7",
+      "sentence": "Ba6 37.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Ba6 Ba3 Ba7\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Qxb2",
+      "sentence": "Qxb2, winning your b-pawn with tempo.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Qxb2\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Qxb2",
+      "sentence": "Qxb2, attacking your rook on a1.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Qxb2\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "forbidden_claim",
+      "category": "forbidden_claim_present",
+      "span": "obvious",
+      "sentence": "Ba6 works precisely because it threatens something subtle (restricting the king) rather than something obvious.",
+      "adjudication": "needs-review",
+      "detail": "\"obvious\" while user_visibility is forbidden (Maia not consulted for this insight)"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Qb4 Qa5",
+      "sentence": "Problem: Retreating to f3 abandons the center entirely and lets Black's queen roam freely — the threats of Qb4+, Qa5+, and Qxd4 become very real, winning material.",
+      "adjudication": "needs-review",
+      "detail": "move sequence \"Qb4 Qa5\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Nc7 Kd8 Nxa8 Qxd1 Kxd1",
+      "sentence": "Nc7+ Kd8 9.",
+      "adjudication": "game-history-recap",
+      "detail": "move sequence \"Nc7 Kd8 Nxa8 Qxd1 Kxd1\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Qxb2",
+      "sentence": "Qxb2, winning a pawn and invading White's position.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Qxb2\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Nc7 Kd8 Nxa8",
+      "sentence": "Nc7+ Kd8 9.",
+      "adjudication": "game-history-recap",
+      "detail": "move sequence \"Nc7 Kd8 Nxa8\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "Nc7+ Kd8, the knight gets trapped in the corner on a8 with no escape.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nf3",
+      "sentence": "- White's Nf3 eyes the e5 pawn, but Black's Nc6 and d6-pawn adequately defend it — there's no immediate tactical gain there.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nc6",
+      "sentence": "- White's Nf3 eyes the e5 pawn, but Black's Nc6 and d6-pawn adequately defend it — there's no immediate tactical gain there.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nc6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bc3",
+      "sentence": "- White's bishop on c1 is the key undeveloped piece — it needs a diagonal, and Bd2 gives it one while keeping options open for Bc3 or Ba5.",
+      "adjudication": "needs-review",
+      "detail": "SAN token \"Bc3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ba5",
+      "sentence": "- White's bishop on c1 is the key undeveloped piece — it needs a diagonal, and Bd2 gives it one while keeping options open for Bc3 or Ba5.",
+      "adjudication": "needs-review",
+      "detail": "SAN token \"Ba5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "forbidden_claim",
+      "category": "forbidden_claim_present",
+      "span": "obvious",
+      "sentence": "A quiet move — no capture, no check, no obvious threat — is the hardest class of move to find.",
+      "adjudication": "needs-review",
+      "detail": "\"obvious\" while user_visibility is forbidden (Maia not consulted for this insight)"
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nf3",
+      "sentence": "- White's Nf3 eyes the e5 pawn, but Black's Nc6 and the d6 pawn adequately defend it — there's no immediate material to win there.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nc6",
+      "sentence": "- White's Nf3 eyes the e5 pawn, but Black's Nc6 and the d6 pawn adequately defend it — there's no immediate material to win there.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nc6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bc3",
+      "sentence": "Bd2 is the quiet move that keeps everything in order — it develops the bishop, keeps the option of Bc3 to reinforce the center or contest the e5 square, and leaves the rook on a1 where it still has options.",
+      "adjudication": "needs-review",
+      "detail": "SAN token \"Bc3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nf3",
+      "sentence": "- White's Nf3 eyes the e5 pawn, but it's adequately defended by Nc6 and the d6 pawn — don't overestimate that pressure.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nc6",
+      "sentence": "- White's Nf3 eyes the e5 pawn, but it's adequately defended by Nc6 and the d6 pawn — don't overestimate that pressure.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nc6\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bc4",
+      "sentence": "Meanwhile, White has a threat brewing with Bc4 eyeing f7, and your e5-pawn has no extra support.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Bc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nxe5",
+      "sentence": "Nxe5, seemingly hanging the knight.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nxe5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nxe5",
+      "sentence": "When White played Nxe5, it set up a discovered attack pattern — moving the f3-knight uncovered the bishop on c4's deadly diagonal toward f7.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nxe5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "discovered",
+      "sentence": "[CONCEPT:discoveredAttack:Discovered Attack Puzzles]",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"discovered\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "Your king is trapped with no escape.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Bxf7 Kxf7",
+      "sentence": "Bxf7+ Kxf7, but you win the bishop back and stay in the game with a manageable position.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Bxf7 Kxf7\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Bxf7 Ke7 Nd5",
+      "sentence": "Bxf7+ Ke7 7.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Bxf7 Ke7 Nd5\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nf3",
+      "sentence": "Problem: Your bishop on g4 is pinning the Nf3 against the queen, but that pin isn't as strong as it looks.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bxd1",
+      "sentence": "Nxe5 works because taking the queen with Bxd1 allows Bxf7+ and Nd5#.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Bxd1\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nd5#",
+      "sentence": "Nxe5 works because taking the queen with Bxd1 allows Bxf7+ and Nd5#.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nd5#\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bc4",
+      "sentence": "- White's Bc4 eyes the f7-pawn, which is a chronic weakness in the Philidor.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Bc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ne5",
+      "sentence": "- Your d6-pawn could capture the Ne5 if it ever lands there — that's a resource you should keep in mind.",
+      "adjudication": "needs-review",
+      "detail": "SAN token \"Ne5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bg4",
+      "sentence": "- Your Bg4: pinning the Nf3 against the queen, but it's undefended and vulnerable.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Bg4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nf3",
+      "sentence": "- Your Bg4: pinning the Nf3 against the queen, but it's undefended and vulnerable.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nf3",
+      "sentence": "- White's Nf3: \"pinned\" but still able to jump to e5 because the queen isn't actually lost.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nf3\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ne5",
+      "sentence": "The Ne5 has no defenders, so you win a full piece.",
+      "adjudication": "needs-review",
+      "detail": "SAN token \"Ne5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ne5",
+      "sentence": "- The Ne5 on e5 was completely undefended — your d6-pawn could capture it for free.",
+      "adjudication": "needs-review",
+      "detail": "SAN token \"Ne5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ne5",
+      "sentence": "- White's Ne5: the bait — it looks like a blunder but it's a deliberate sacrifice.",
+      "adjudication": "needs-review",
+      "detail": "SAN token \"Ne5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bc4",
+      "sentence": "- White's Bc4: the key attacker, covering f7 to enable the mating pattern.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Bc4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Bg4",
+      "sentence": "- Your Bg4: the piece that \"won\" the queen but cost you the game.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Bg4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "discovered",
+      "sentence": "[CONCEPT:discoveredAttack:Discovered Attack Puzzles]",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"discovered\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "forbidden_claim",
+      "category": "forbidden_claim_present",
+      "span": "dominates",
+      "sentence": "cxd3, you've won material while your knight dominates the board.",
+      "adjudication": "needs-review",
+      "detail": "strong positional claim \"dominates\" while positional_plan is forbidden (Lc0 unavailable) and SF is not decisive (cp=140)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "gxf4 gxf4",
+      "sentence": "gxf4 16.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"gxf4 gxf4\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Nxd3 cxd3",
+      "sentence": "Nxd3+ 16.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Nxd3 cxd3\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Nxf4 Nxc6",
+      "sentence": "Nxf4 19.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Nxf4 Nxc6\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "h1 Rhe1",
+      "sentence": "- White rook on h1: Passive on h1; Rhe1 activates it immediately on the critical open e-file.",
+      "adjudication": "needs-review",
+      "detail": "move sequence \"h1 Rhe1\" is not a contiguous window of any contract PV (plan §4.3 hypothetical-line rule, measurement-widened from prefix)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Re1",
+      "sentence": "- White's Re1 on the h1-rook eyes the e-file and supports future central activity.",
+      "adjudication": "needs-review",
+      "detail": "SAN token \"Re1\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "fork",
+      "sentence": "Idea: You wanted to plant the knight on e6, a classic outpost that forks the bishop pair and disrupts Black's structure.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "fork",
+      "sentence": "Idea: You wanted to plant the knight on e6, a classic outpost that forks the bishop pair and disrupts Black's structure.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "gxf4 gxf4 Ng6",
+      "sentence": "gxf4, and the pawn structure dissolves without giving you anything concrete.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"gxf4 gxf4 Ng6\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nd4",
+      "sentence": "Meanwhile, your Nd4 is sitting on a great square but not doing enough.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ne5",
+      "sentence": "cxd3 Bxf5, you've traded off the active Ne5 and kept a structural edge.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Ne5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nd4",
+      "sentence": "- White's Nd4 can leap to f5, attacking the bishop on e7 and dominating the center.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ne5",
+      "sentence": "- Black's Ne5 eyes d3 — the pawn is under pressure.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Ne5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nd4",
+      "sentence": "- Nd4: A dominant centralized knight — its best use is an active leap, not waiting for a pawn trade to resolve the tension.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Ne5",
+      "sentence": "- Ne5: Black's most active piece, centralized and threatening d3.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Ne5\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "forbidden_claim",
+      "category": "forbidden_claim_present",
+      "span": "dominating",
+      "sentence": "- White's Nd4 can leap to f5, attacking the bishop on e7 and dominating the center.",
+      "adjudication": "needs-review",
+      "detail": "strong positional claim \"dominating\" while positional_plan is forbidden (Lc0 unavailable) and SF is not decisive (cp=140)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "gxf4 gxf4",
+      "sentence": "gxf4 16.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"gxf4 gxf4\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "cxd3 Bxf5",
+      "sentence": "cxd3 Bxf5, you've traded off the active Ne5 and kept a structural edge.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"cxd3 Bxf5\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Nd4",
+      "sentence": "- Nd4: Well-placed in the center — its job is to support the position, not sacrifice itself without a forcing sequence.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "SAN token \"Nd4\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "san_whitelist",
+      "category": "san_unknown",
+      "span": "Rh1",
+      "sentence": "- Rh1: Undeveloped and idle — activating it to e1 connects the rooks and adds pressure to the e-file immediately.",
+      "adjudication": "needs-review",
+      "detail": "SAN token \"Rh1\" does not occur in the contract (lines/branch points/threats/motifs/played/best)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "fork",
+      "sentence": "Idea: You spotted the outpost on e6 and wanted to plant the knight there, forking the bishops and creating chaos.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "fork",
+      "sentence": "Idea: You spotted the outpost on e6 and wanted to plant the knight there, forking the bishops and creating chaos.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+    }
+  ]
+}

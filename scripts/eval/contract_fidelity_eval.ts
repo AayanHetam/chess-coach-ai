@@ -23,11 +23,34 @@
  *               with the NON-generator tier (fast/Haiku, 2 passes — PR-E
  *               judge hygiene). Cost: ~10 flagship + ~20 fast calls ≈ $1.
  *
+ *   --fp-measure  (CI-4 pre-arming gate, plan §7 PR-CI-3: "SAN/square-check
+ *               false-positive rate measured on a 30-game set before any
+ *               error-severity arming"). Generates --samples (default 3)
+ *               independent live flagship reviews per fixture (10 × 3 = 30)
+ *               through the SAME legacy generation path as the BEFORE
+ *               baseline, then referees each review TWICE: (a) the
+ *               measurement-WIDENED checks (runInsightChecks — window
+ *               hypothetical rule) and (b) the STRICT blocking referee
+ *               (referee.ts refereeInsight — §4.3 prefix rule). Every fire
+ *               is adjudicated mechanically where possible (strict-only +
+ *               wouldPassWidenedWindow ⇒ "widened-licensed"; sequence is a
+ *               window of the actual game moves ⇒ "game-history-recap";
+ *               span backed elsewhere in the contract ⇒
+ *               "licensed-elsewhere-in-contract") and otherwise emitted
+ *               with sentence context as "needs-review" for human/CI-4
+ *               adjudication. No persona judge (fidelity-only measurement).
+ *               Output: scripts/eval/results/
+ *               contract-referee-fp-30game-<model>.json.
+ *               `--fp-measure --dry-run` is the deterministic no-network
+ *               smoke for this mode.
+ *
  * Output: scripts/eval/results/contract-fidelity-BEFORE-<model>.json
  * (override with --output). Run from the repo root:
  *
  *   npx tsx scripts/eval/contract_fidelity_eval.ts --dry-run
  *   npx tsx scripts/eval/contract_fidelity_eval.ts [--only 09] [--output p.json]
+ *   npx tsx scripts/eval/contract_fidelity_eval.ts --fp-measure [--samples 3]
+ *   npx tsx scripts/eval/contract_fidelity_eval.ts --fp-measure --dry-run
  *
  * Known baseline caveats (documented, not silent):
  *  - selectExamples() jitters few-shot choice per run and temperature is
@@ -62,15 +85,25 @@ interface Args {
   dryRun: boolean;
   only: string | null;
   output: string | null;
+  fpMeasure: boolean;
+  samples: number;
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { dryRun: false, only: null, output: null };
+  const args: Args = { dryRun: false, only: null, output: null, fpMeasure: false, samples: 3 };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--dry-run") args.dryRun = true;
     else if (argv[i] === "--only") args.only = argv[++i] ?? null;
     else if (argv[i] === "--output") args.output = argv[++i] ?? null;
-    else {
+    else if (argv[i] === "--fp-measure") args.fpMeasure = true;
+    else if (argv[i] === "--samples") {
+      const n = Number.parseInt(argv[++i] ?? "", 10);
+      if (!Number.isFinite(n) || n < 1) {
+        console.error("--samples needs a positive integer");
+        process.exit(2);
+      }
+      args.samples = n;
+    } else {
       console.error(`unknown arg: ${argv[i]}`);
       process.exit(2);
     }
@@ -299,6 +332,51 @@ interface PerGameResult {
   outputTokens: number;
 }
 
+/**
+ * THE legacy-path generation seam — one review, exactly as the BEFORE
+ * baseline (and the route) composes it. Shared by Mode B (runLive) and
+ * --fp-measure so the two modes can never drift apart. Dynamic imports are
+ * module-cached by Node, so per-call importing costs nothing after the
+ * first review.
+ */
+async function generateLegacyReview(
+  name: string,
+  fixture: FixtureFile,
+): Promise<{ contract: CoachContract; content: string; model: string; outputTokens: number }> {
+  const { callLLM } = await import("@/lib/llmProvider");
+  const { getCoachChatSystemPromptParts } = await import("@/lib/prompts/coachChatPrompt");
+  const { selectExamples, formatExamplesForPrompt } = await import("@/data/goldStandardExamples");
+  const { renderLegacyPrompt } = await import("@/lib/contract/serialize");
+
+  const contract = await buildContractFor(name, fixture);
+  const gameContext = renderLegacyPrompt(contract);
+
+  // Mirror route.ts's userContent assembly exactly: USER REQUEST + game
+  // context + gold-standard few-shots ("analyze my game" is the client's
+  // canonical auto-review message — AICoachChat autoAnalyze).
+  const skillLevel = skillLevelOf(fixture.userRating);
+  const examplesContext = formatExamplesForPrompt(selectExamples(undefined, skillLevel, 3));
+  const userContent = `## USER REQUEST:\nanalyze my game\n\n${gameContext}${examplesContext}`;
+
+  const parts = getCoachChatSystemPromptParts({
+    personalityId: "friendly",
+    userRating: fixture.userRating ?? 1500,
+    username: fixture.username,
+    playerColorName: fixture.playerColor === "b" ? "black" : "white",
+  });
+
+  const result = await callLLM({
+    tier: "flagship",
+    system: parts.stable,
+    systemSuffix: parts.perUser,
+    cacheSystem: true,
+    messages: [{ role: "user", content: userContent }],
+    temperature: 0.7,
+    maxTokens: 3000,
+  });
+  return { contract, content: result.content, model: result.model, outputTokens: result.outputTokens };
+}
+
 const PERSONA_JUDGE_SYSTEM = [
   "You are an evaluation judge for a chess-coaching product called Chess Masti.",
   "Grade the PERSONA quality of the coaching response you are given — NOT its chess accuracy.",
@@ -325,9 +403,7 @@ async function runLive(args: Args): Promise<void> {
   process.env.ANTHROPIC_API_KEY = loadApiKey();
 
   const { callLLM } = await import("@/lib/llmProvider");
-  const { getCoachChatSystemPromptParts, PROMPT_VERSION } = await import("@/lib/prompts/coachChatPrompt");
-  const { selectExamples, formatExamplesForPrompt } = await import("@/data/goldStandardExamples");
-  const { renderLegacyPrompt } = await import("@/lib/contract/serialize");
+  const { PROMPT_VERSION } = await import("@/lib/prompts/coachChatPrompt");
   const { aggregateFidelity, countClaimSentences } = await import("@/lib/contract/refereeChecks");
   const { CONTRACT_VERSION } = await import("@/lib/contract/types");
 
@@ -340,32 +416,8 @@ async function runLive(args: Args): Promise<void> {
 
   for (const { name, fixture } of fixtures) {
     const t0 = Date.now();
-    const contract = await buildContractFor(name, fixture);
-    const gameContext = renderLegacyPrompt(contract);
-
-    // Mirror route.ts's userContent assembly exactly: USER REQUEST + game
-    // context + gold-standard few-shots ("analyze my game" is the client's
-    // canonical auto-review message — AICoachChat autoAnalyze).
-    const skillLevel = skillLevelOf(fixture.userRating);
-    const examplesContext = formatExamplesForPrompt(selectExamples(undefined, skillLevel, 3));
-    const userContent = `## USER REQUEST:\nanalyze my game\n\n${gameContext}${examplesContext}`;
-
-    const parts = getCoachChatSystemPromptParts({
-      personalityId: "friendly",
-      userRating: fixture.userRating ?? 1500,
-      username: fixture.username,
-      playerColorName: fixture.playerColor === "b" ? "black" : "white",
-    });
-
-    const result = await callLLM({
-      tier: "flagship",
-      system: parts.stable,
-      systemSuffix: parts.perUser,
-      cacheSystem: true,
-      messages: [{ role: "user", content: userContent }],
-      temperature: 0.7,
-      maxTokens: 3000,
-    });
+    const result = await generateLegacyReview(name, fixture);
+    const contract = result.contract;
     generatorModel = result.model;
 
     const { blocks } = parseInsightBlocks(result.content);
@@ -491,9 +543,680 @@ async function runLive(args: Args): Promise<void> {
   console.log(`written: ${outPath}`);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Mode C — --fp-measure: strict-vs-widened false-positive pre-arming set
+// (plan §7 PR-CI-3 gate: "SAN/square-check false-positive rate measured on a
+// 30-game set before any error-severity arming"). See module doc.
+// ─────────────────────────────────────────────────────────────────────────────
+type FpAdjudication =
+  | "widened-licensed" // strict-only: the sequence IS a contiguous window of a contract PV
+  | "game-history-recap" // the sequence is a contiguous window of the actual game moves
+  | "licensed-elsewhere-in-contract" // span backed by another insight / the move table
+  | "needs-review"; // no mechanical license — human/CI-4 adjudication required
+
+interface FpFlaggedSpan {
+  fixture: string;
+  sample: number;
+  factIdPrefix: string;
+  /** "both" = fires under widened AND strict (widened fires ⊆ strict fires);
+   * "strict-only" = §4.3 prefix rule fires where the widened window passes. */
+  referee: "both" | "strict-only";
+  check: string;
+  category: string;
+  span: string;
+  /** The sentence the span sits in — context for human adjudication. */
+  sentence: string;
+  adjudication: FpAdjudication;
+  wouldPassWidenedWindow?: boolean;
+  detail: string;
+}
+
+interface FpContractPools {
+  san: Set<string>;
+  squares: Set<string>;
+  pawns: number[];
+  mates: number[];
+  keywords: Set<string>;
+  /** Normalized actual game moves (contract.game.moveHistory). */
+  gameMoves: string[];
+  /** All insights' PVs + move-table bestWas lines (contract-global). */
+  pvs: string[][];
+}
+
+/**
+ * Contract-GLOBAL license pools for mechanical adjudication. The referee
+ * checks are insight-LOCAL by design (plan §4.3); a fire whose span is backed
+ * elsewhere in the same contract ("earlier you played Nf3") is the documented
+ * measurement-bias class — legitimate prose, not fabrication. Built from the
+ * same exported grammar (buildWhitelist / collectEvalPools / fenPieceSquares)
+ * so the adjudicator can never drift from the checks.
+ */
+async function buildFpPools(contract: CoachContract): Promise<FpContractPools> {
+  const { buildWhitelist, collectEvalPools, fenPieceSquares, stripSanDecorations } = await import(
+    "@/lib/contract/refereeChecks"
+  );
+  const san = new Set<string>();
+  const squares = new Set<string>();
+  const pawns: number[] = [];
+  const mates: number[] = [];
+  const keywords = new Set<string>();
+  const pvs: string[][] = [];
+  const addSanToken = (raw: string) => {
+    const s = stripSanDecorations(raw);
+    if (!s) return;
+    san.add(s);
+    for (const sq of s.match(/[a-h][1-8]/g) ?? []) squares.add(sq);
+  };
+
+  for (const ins of contract.insights) {
+    const wl = buildWhitelist(ins);
+    wl.san.forEach((s) => san.add(s));
+    wl.squares.forEach((sq) => squares.add(sq));
+    pvs.push(...wl.pvs);
+    const ep = collectEvalPools(ins);
+    pawns.push(...ep.pawns);
+    mates.push(...ep.mates);
+    for (const k of ins.allowedTacticalKeywords) keywords.add(k.toLowerCase());
+  }
+
+  const gameMoves = contract.game.moveHistory.map(stripSanDecorations);
+  for (const m of contract.game.moveHistory) addSanToken(m);
+  for (const row of contract.moveTable) {
+    if (row.evalAfter && !row.evalAfter.sentinel) {
+      if (row.evalAfter.mate !== null) mates.push(row.evalAfter.mate);
+      else if (row.evalAfter.cp !== null) pawns.push(row.evalAfter.cp / 100);
+    }
+    for (const fen of [row.fenBefore, row.fenAfter]) {
+      if (fen) for (const sq of fenPieceSquares(fen)) squares.add(sq);
+    }
+    if (row.bestWas) {
+      addSanToken(row.bestWas.san);
+      if (row.bestWas.line) {
+        const line = row.bestWas.line.san.map(stripSanDecorations);
+        pvs.push(line);
+        for (const s of row.bestWas.line.san) addSanToken(s);
+        const ev = row.bestWas.line.eval;
+        if (!ev.sentinel) {
+          if (ev.mate !== null) mates.push(ev.mate);
+          else if (ev.cp !== null) pawns.push(ev.cp / 100);
+        }
+      }
+    }
+  }
+  return { san, squares, pawns, mates, keywords, gameMoves, pvs };
+}
+
+interface FpAdjudicateHelpers {
+  stripSanDecorations: (s: string) => string;
+  isPvWindow: (seq: string[], pvs: string[][]) => boolean;
+}
+
+/** Mechanical adjudication of one fire. Anything not provably licensed stays
+ * "needs-review" — no hand-waving; the span+sentence ship in the output. */
+function adjudicateFp(
+  v: { category: string; span: string; wouldPassWidenedWindow?: boolean },
+  pools: FpContractPools,
+  helpers: FpAdjudicateHelpers,
+): FpAdjudication {
+  const { stripSanDecorations, isPvWindow } = helpers;
+  switch (v.category) {
+    case "hypothetical_line_off_contract": {
+      if (v.wouldPassWidenedWindow) return "widened-licensed";
+      const seq = v.span.split(/\s+/).map(stripSanDecorations).filter(Boolean);
+      if (seq.length > 0 && isPvWindow(seq, [pools.gameMoves])) return "game-history-recap";
+      if (seq.length > 0 && isPvWindow(seq, pools.pvs)) return "licensed-elsewhere-in-contract";
+      return "needs-review";
+    }
+    case "san_unknown":
+      return pools.san.has(stripSanDecorations(v.span)) ? "licensed-elsewhere-in-contract" : "needs-review";
+    case "square_unknown":
+      return pools.squares.has(v.span) ? "licensed-elsewhere-in-contract" : "needs-review";
+    case "eval_unbacked": {
+      const val = Number.parseFloat(v.span);
+      return Number.isFinite(val) &&
+        pools.pawns.some((p) => Math.abs(p - val) <= EVAL_ADJUDICATION_TOLERANCE + 1e-9)
+        ? "licensed-elsewhere-in-contract"
+        : "needs-review";
+    }
+    case "mate_distance_wrong": {
+      const signed = v.span.match(/^M([+-]\d+)$/);
+      if (signed) {
+        const d = Number.parseInt(signed[1], 10);
+        return pools.mates.some((md) => md === d) ? "licensed-elsewhere-in-contract" : "needs-review";
+      }
+      const m = v.span.match(/\d+/);
+      const dist = m ? Number.parseInt(m[0], 10) : Number.NaN;
+      return pools.mates.some((md) => Math.abs(md) === dist)
+        ? "licensed-elsewhere-in-contract"
+        : "needs-review";
+    }
+    case "tactical_keyword_unbacked":
+      return pools.keywords.has(v.span.toLowerCase()) ? "licensed-elsewhere-in-contract" : "needs-review";
+    default:
+      return "needs-review";
+  }
+}
+/** Same ±0.3-pawn tolerance the eval-display check itself uses. */
+const EVAL_ADJUDICATION_TOLERANCE = 0.3;
+
+/** Sentence around a span (RefereeFinding drops the index, so fall back to
+ * first occurrence; sequences fall back to their first token). */
+function sentenceContext(prose: string, span: string, index?: number): string {
+  let idx = typeof index === "number" && index >= 0 ? index : prose.indexOf(span);
+  if (idx < 0) {
+    const tok = span.split(/\s+/)[0] ?? "";
+    idx = tok ? prose.indexOf(tok) : -1;
+  }
+  if (idx < 0) return "";
+  let start = 0;
+  for (let i = idx - 1; i >= 0; i--) {
+    const ch = prose[i];
+    if (ch === "." || ch === "!" || ch === "?" || ch === "\n") {
+      start = i + 1;
+      break;
+    }
+  }
+  let end = prose.length;
+  for (let i = idx; i < prose.length; i++) {
+    const ch = prose[i];
+    if (ch === "." || ch === "!" || ch === "?" || ch === "\n") {
+      end = i + 1;
+      break;
+    }
+  }
+  return prose.slice(start, end).trim().slice(0, 300);
+}
+
+const FP_CONTRACT_CHECKS = new Set(["eval_display", "san_whitelist", "tactical_keyword", "forbidden_claim"]);
+
+interface FpSample {
+  fixture: string;
+  sample: number;
+  contractId: string;
+  generatorModel: string;
+  outputTokens: number;
+  blocksEmitted: number;
+  blocksMatched: number;
+  unmatchedBlocks: number;
+  claimSentences: number;
+  /** Contract checks 2–5 only; stage-9 scanners reported separately. */
+  strictFires: number;
+  widenedFires: number;
+  strictOnlyFires: number;
+  strictByCategory: Record<string, number>;
+  widenedByCategory: Record<string, number>;
+  stage9ByCheck: Record<string, number>;
+  /** Non-empty ⇒ strict ≠ widened + strictOnly for some insight (grammar drift). */
+  consistency: string[];
+}
+
+/**
+ * Referee ONE review with BOTH graders: (a) measurement-widened
+ * runInsightChecks (window hypothetical rule) and (b) the PR-CI-3 blocking
+ * refereeInsight (strict §4.3 prefix rule + wouldPassWidenedWindow
+ * telemetry). Widened fires are a subset of strict fires by construction
+ * (prefix ⊂ window; all other checks rule-independent) — verified per
+ * insight via the consistency field rather than assumed.
+ */
+async function refereeReviewDual(input: {
+  fixture: string;
+  sample: number;
+  contract: CoachContract;
+  content: string;
+  userRating: number | null;
+  generatorModel: string;
+  outputTokens: number;
+}): Promise<{ result: FpSample; flagged: FpFlaggedSpan[] }> {
+  const { runInsightChecks, countClaimSentences, stripSanDecorations, isPvWindow } = await import(
+    "@/lib/contract/refereeChecks"
+  );
+  const { refereeInsight } = await import("@/lib/contract/referee");
+  const pools = await buildFpPools(input.contract);
+  const helpers: FpAdjudicateHelpers = { stripSanDecorations, isPvWindow };
+
+  const { blocks } = parseInsightBlocks(input.content);
+  const flagged: FpFlaggedSpan[] = [];
+  const strictByCategory: Record<string, number> = {};
+  const widenedByCategory: Record<string, number> = {};
+  const stage9ByCheck: Record<string, number> = {};
+  const consistency: string[] = [];
+  let matched = 0;
+  let unmatched = 0;
+  let claimSentences = 0;
+  let strictFires = 0;
+  let widenedFires = 0;
+  let strictOnlyFires = 0;
+  const bump = (rec: Record<string, number>, key: string) => {
+    rec[key] = (rec[key] ?? 0) + 1;
+  };
+
+  for (const block of blocks) {
+    const insight = input.contract.insights.find(
+      (i) => i.moveNumber === block.moveNumber && i.color === block.color,
+    );
+    if (!insight) {
+      unmatched++;
+      continue;
+    }
+    matched++;
+    claimSentences += countClaimSentences(block.prose);
+
+    const widened = runInsightChecks(block.prose, insight);
+    const strictAll = refereeInsight(block.prose, insight, {
+      userRating: input.userRating,
+      correlationId: `fp30:${input.fixture}:s${input.sample}:${insight.factIdPrefix}`,
+    }).findings;
+    const strictContract = strictAll.filter((f) => FP_CONTRACT_CHECKS.has(f.check));
+    const strictOnly = strictContract.filter(
+      (f) => f.category === "hypothetical_line_off_contract" && f.wouldPassWidenedWindow === true,
+    );
+    strictFires += strictContract.length;
+    widenedFires += widened.length;
+    strictOnlyFires += strictOnly.length;
+    if (strictContract.length !== widened.length + strictOnly.length) {
+      consistency.push(
+        `${insight.factIdPrefix}: strict=${strictContract.length} widened=${widened.length} strictOnly=${strictOnly.length} — strict ≠ widened + strictOnly (grammar drift?)`,
+      );
+    }
+    for (const v of widened) {
+      bump(widenedByCategory, v.category);
+      bump(strictByCategory, v.category); // widened fires ⊆ strict fires
+      flagged.push({
+        fixture: input.fixture,
+        sample: input.sample,
+        factIdPrefix: insight.factIdPrefix,
+        referee: "both",
+        check: v.check,
+        category: v.category,
+        span: v.span,
+        sentence: sentenceContext(block.prose, v.span, v.index),
+        adjudication: adjudicateFp(v, pools, helpers),
+        detail: v.detail.slice(0, 300),
+      });
+    }
+    for (const f of strictOnly) {
+      bump(strictByCategory, f.category);
+      flagged.push({
+        fixture: input.fixture,
+        sample: input.sample,
+        factIdPrefix: insight.factIdPrefix,
+        referee: "strict-only",
+        check: f.check,
+        category: f.category,
+        span: f.span,
+        sentence: sentenceContext(block.prose, f.span),
+        adjudication: adjudicateFp(f, pools, helpers),
+        wouldPassWidenedWindow: true,
+        detail: f.detail.slice(0, 300),
+      });
+    }
+    for (const f of strictAll.filter((f) => !FP_CONTRACT_CHECKS.has(f.check))) {
+      bump(stage9ByCheck, f.check);
+    }
+  }
+
+  return {
+    result: {
+      fixture: input.fixture,
+      sample: input.sample,
+      contractId: input.contract.contractId,
+      generatorModel: input.generatorModel,
+      outputTokens: input.outputTokens,
+      blocksEmitted: blocks.length,
+      blocksMatched: matched,
+      unmatchedBlocks: unmatched,
+      claimSentences,
+      strictFires,
+      widenedFires,
+      strictOnlyFires,
+      strictByCategory,
+      widenedByCategory,
+      stage9ByCheck,
+      consistency,
+    },
+    flagged,
+  };
+}
+
+interface FpClassTally {
+  fires: number;
+  adjudications: Record<string, number>;
+  needsReview: number;
+}
+
+function summarizeFp(samples: FpSample[], flagged: FpFlaggedSpan[]) {
+  const sum = (pick: (s: FpSample) => number) => samples.reduce((a, s) => a + pick(s), 0);
+  const mergeCats = (pick: (s: FpSample) => Record<string, number>) => {
+    const out: Record<string, number> = {};
+    for (const s of samples) {
+      for (const [k, n] of Object.entries(pick(s))) out[k] = (out[k] ?? 0) + n;
+    }
+    return out;
+  };
+  const strictByCategory = mergeCats((s) => s.strictByCategory);
+  const widenedByCategory = mergeCats((s) => s.widenedByCategory);
+  const stage9ByCheck = mergeCats((s) => s.stage9ByCheck);
+
+  const tallyFor = (cats: string[], side: "strict" | "widened"): FpClassTally => {
+    const src = side === "strict" ? strictByCategory : widenedByCategory;
+    const fires = cats.reduce((a, c) => a + (src[c] ?? 0), 0);
+    const adjudications: Record<string, number> = {};
+    let needsReview = 0;
+    for (const f of flagged) {
+      if (!cats.includes(f.category)) continue;
+      if (side === "widened" && f.referee !== "both") continue;
+      adjudications[f.adjudication] = (adjudications[f.adjudication] ?? 0) + 1;
+      if (f.adjudication === "needs-review") needsReview++;
+    }
+    return { fires, adjudications, needsReview };
+  };
+
+  const evalDisplay = tallyFor(["eval_unbacked", "mate_distance_wrong"], "strict");
+  const sanStrict = tallyFor(["san_unknown", "square_unknown", "hypothetical_line_off_contract"], "strict");
+  const sanWidened = tallyFor(["san_unknown", "square_unknown", "hypothetical_line_off_contract"], "widened");
+  const tactical = tallyFor(["tactical_keyword_unbacked"], "strict");
+  const forbidden = tallyFor(["forbidden_claim_present"], "strict");
+  const hypoStrictFires = strictByCategory["hypothetical_line_off_contract"] ?? 0;
+  const hypoWidenedFires = widenedByCategory["hypothetical_line_off_contract"] ?? 0;
+  const strictOnlyFires = sum((s) => s.strictOnlyFires);
+  const strictOnlySpans = flagged.filter((f) => f.referee === "strict-only");
+  const strictOnlyLicensed = strictOnlySpans.filter((f) => f.adjudication === "widened-licensed").length;
+  const hypoTally = tallyFor(["hypothetical_line_off_contract"], "strict");
+
+  const recFor = (t: FpClassTally): string => {
+    if (t.fires === 0)
+      return "0 fires across the set — no FP evidence; candidate to arm at error in CI-4 (known-bad detection suite must stay green)";
+    if (t.needsReview === 0)
+      return `all ${t.fires} fire(s) mechanically licensed by contract-GLOBAL facts — the insight-LOCAL whitelist over-fires on legitimate cross-insight/game references; do NOT arm insight-local at error, widen the license pool (or keep warn) first`;
+    return `${t.needsReview}/${t.fires} fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming`;
+  };
+  let hypoRec: string;
+  if (strictOnlyFires > 0) {
+    hypoRec = `strict §4.3 prefix rule over-fires ${strictOnlyFires}× where the widened window licenses the span — keep the widened window (or strict-at-warn) in CI-4; ${
+      hypoTally.needsReview > 0 ? `${hypoTally.needsReview} shared fire(s) still need review` : "no shared fires need review"
+    }`;
+  } else if (hypoStrictFires === 0) {
+    hypoRec = "0 fires — prefix and window rules agree vacuously on this set; either rule can arm, prefer strict";
+  } else {
+    hypoRec = `prefix and window agree on all ${hypoStrictFires} fire(s) (no widening pressure observed); adjudicate the needs-review spans before arming`;
+  }
+
+  const perCheck = {
+    eval_display: { ...evalDisplay, recommendation: recFor(evalDisplay) },
+    san_whitelist_strict: { ...sanStrict, recommendation: recFor(sanStrict) },
+    san_whitelist_widened: { ...sanWidened, recommendation: recFor(sanWidened) },
+    tactical_keyword: { ...tactical, recommendation: recFor(tactical) },
+    forbidden_claim: { ...forbidden, recommendation: recFor(forbidden) },
+    hypothetical_line: {
+      strictFires: hypoStrictFires,
+      widenedFires: hypoWidenedFires,
+      strictOnlyFires,
+      adjudications: hypoTally.adjudications,
+      needsReview: hypoTally.needsReview,
+      recommendation: hypoRec,
+    },
+  };
+
+  const summary = {
+    reviews: samples.length,
+    claimSentences: sum((s) => s.claimSentences),
+    strictFires: sum((s) => s.strictFires),
+    widenedFires: sum((s) => s.widenedFires),
+    strictOnlyFires,
+    /** Share of strict-only fires the widened window licenses (computed, not
+     * assumed — 1.0 confirms the strict/widened delta is exactly the
+     * wouldPassWidenedWindow class). */
+    widenedLicensedShare:
+      strictOnlyFires > 0 ? Number((strictOnlyLicensed / strictOnlyFires).toFixed(3)) : null,
+    recommendation: Object.fromEntries(
+      Object.entries(perCheck).map(([k, v]) => [k, v.recommendation]),
+    ) as Record<string, string>,
+  };
+
+  return { summary, perCheck, strictByCategory, widenedByCategory, stage9ByCheck };
+}
+
+async function runFpMeasure(args: Args): Promise<void> {
+  process.env.ANTHROPIC_API_KEY = loadApiKey();
+  const { PROMPT_VERSION } = await import("@/lib/prompts/coachChatPrompt");
+  const { CONTRACT_VERSION } = await import("@/lib/contract/types");
+
+  const fixtures = loadFixtures(args.only);
+  const total = fixtures.length * args.samples;
+  console.log(
+    `\n=== Mode C (--fp-measure): ${fixtures.length} fixtures × ${args.samples} samples = ${total} live reviews, dual-refereed ===`,
+  );
+
+  const samples: FpSample[] = [];
+  const flagged: FpFlaggedSpan[] = [];
+  const failedSamples: Array<{ fixture: string; sample: number; error: string }> = [];
+  let generatorModel = "unknown";
+
+  for (const { name, fixture } of fixtures) {
+    const t0 = Date.now();
+    // The samples of one fixture run concurrently (independent draws at the
+    // serving temperature); fixtures run sequentially to stay rate-limit-kind.
+    const runs = await Promise.all(
+      Array.from({ length: args.samples }, async (_, k) => {
+        try {
+          return { k, gen: await generateLegacyReview(name, fixture) };
+        } catch (err) {
+          console.error(
+            `  ${name} s${k + 1}: generation failed (${(err as Error).message}) — retrying once`,
+          );
+          try {
+            return { k, gen: await generateLegacyReview(name, fixture) };
+          } catch (err2) {
+            failedSamples.push({ fixture: name, sample: k + 1, error: (err2 as Error).message });
+            return { k, gen: null };
+          }
+        }
+      }),
+    );
+    for (const { k, gen } of runs) {
+      if (!gen) continue;
+      generatorModel = gen.model;
+      const { result, flagged: f } = await refereeReviewDual({
+        fixture: name,
+        sample: k + 1,
+        contract: gen.contract,
+        content: gen.content,
+        userRating: fixture.userRating ?? null,
+        generatorModel: gen.model,
+        outputTokens: gen.outputTokens,
+      });
+      samples.push(result);
+      flagged.push(...f);
+      console.log(
+        `  ${name} s${k + 1}: blocks=${result.blocksEmitted} matched=${result.blocksMatched} ` +
+          `claims=${result.claimSentences} strict=${result.strictFires} widened=${result.widenedFires} ` +
+          `strictOnly=${result.strictOnlyFires}${result.consistency.length ? " CONSISTENCY-MISMATCH" : ""}`,
+      );
+    }
+    console.log(`  ${name}: done [${Date.now() - t0}ms]`);
+  }
+
+  const agg = summarizeFp(samples, flagged);
+  const perFixture = fixtures.map(({ name }) => {
+    const mine = samples.filter((s) => s.fixture === name);
+    return {
+      fixture: name,
+      samples: mine,
+      totals: {
+        claimSentences: mine.reduce((a, s) => a + s.claimSentences, 0),
+        strictFires: mine.reduce((a, s) => a + s.strictFires, 0),
+        widenedFires: mine.reduce((a, s) => a + s.widenedFires, 0),
+        strictOnlyFires: mine.reduce((a, s) => a + s.strictOnlyFires, 0),
+      },
+    };
+  });
+
+  const payload = {
+    date: new Date().toISOString().slice(0, 10),
+    mode: "referee_fp_30game_pre_arming",
+    planGate:
+      "CONTRACT_INVERSION_PLAN.md §7 PR-CI-3: SAN/square-check false-positive rate measured on a 30-game set before any error-severity arming",
+    model: { generator: generatorModel },
+    promptVersion: PROMPT_VERSION,
+    contractVersion: CONTRACT_VERSION,
+    fixtures: fixtures.length,
+    samplesPerFixture: args.samples,
+    failedSamples,
+    generation: { tier: "flagship", temperature: 0.7, maxTokens: 3000, userMessage: "analyze my game" },
+    referees: {
+      widened: "refereeChecks.runInsightChecks (hypotheticalRule: window)",
+      strict: "referee.refereeInsight (hypotheticalRule: prefix, wouldPassWidenedWindow telemetry)",
+    },
+    summary: agg.summary,
+    perCheck: agg.perCheck,
+    strictByCategory: agg.strictByCategory,
+    widenedByCategory: agg.widenedByCategory,
+    stage9Informational: agg.stage9ByCheck,
+    perFixture,
+    flaggedSpans: flagged,
+  };
+
+  const outPath =
+    args.output ?? path.join(RESULTS_DIR, `contract-referee-fp-30game-${generatorModel}.json`);
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify(payload, null, 2) + "\n");
+  console.log(`\n=== FP pre-arming summary ===`);
+  console.log(JSON.stringify(agg.summary, null, 2));
+  console.log(`written: ${outPath}`);
+  if (failedSamples.length > 0) {
+    console.error(`WARNING: ${failedSamples.length}/${total} samples failed generation — set is short`);
+    process.exitCode = 1;
+  }
+}
+
+/** --fp-measure --dry-run: deterministic no-network smoke of the dual-referee
+ * + adjudication + aggregation path (same network kill as Mode A). */
+async function runFpSmoke(): Promise<void> {
+  delete process.env.LC0_API_URL;
+  delete process.env.MAIA_API_URL;
+  const chessdb = await import("@/lib/grounding/chessdb");
+  chessdb.__setFetchForTesting(async () => {
+    throw new Error("network disabled in contract_fidelity_eval --fp-measure --dry-run");
+  });
+  const { buildWhitelist, isPvPrefix } = await import("@/lib/contract/refereeChecks");
+
+  console.log(`\n=== --fp-measure --dry-run: dual-referee smoke (no network) ===`);
+  const fixtures = loadFixtures(null);
+  const f09 = fixtures.find((f) => f.name === "09_legal_trap_tactics");
+  const f07 = fixtures.find((f) => f.name === "07_knight_fork");
+  check("fixtures 09 + 07 present", !!f09 && !!f07);
+  if (!f09 || !f07) process.exit(1);
+  chessdb.__clearChessdbCache();
+  const c09 = await buildContractFor(f09.name, f09.fixture);
+  chessdb.__clearChessdbCache();
+  const c07 = await buildContractFor(f07.name, f07.fixture);
+  const bxd1 = c09.insights.find((i) => i.playedSan === "Bxd1");
+  const nc7 = c07.insights.find((i) => i.playedSan === "Nc7+");
+  check("Bxd1 + Nc7+ insights present", !!bxd1 && !!nc7);
+  if (!bxd1 || !nc7) process.exit(1);
+
+  // A mid-PV window: contiguous window of a contract PV that is NOT a prefix
+  // of any PV — the exact strict-vs-widened divergence class.
+  const wl = buildWhitelist(bxd1);
+  let windowSeq: string[] | null = null;
+  outer: for (const pv of wl.pvs) {
+    for (let off = 1; off + 2 <= pv.length; off++) {
+      const seq = pv.slice(off, off + 2);
+      if (seq.some((t) => !/^[a-h][1-8]$/.test(t)) && !isPvPrefix(seq, wl.pvs)) {
+        windowSeq = seq;
+        break outer;
+      }
+    }
+  }
+  check("found a mid-PV window seq (window-legal, prefix-illegal)", windowSeq !== null);
+  if (!windowSeq) process.exit(1);
+
+  const review09 = `[INSIGHT:${bxd1.moveNumber}:${bxd1.color}]\nAfter ${windowSeq.join(" ")} there is nothing more to say.\n[/INSIGHT]`;
+  const dual09 = await refereeReviewDual({
+    fixture: "09_smoke",
+    sample: 1,
+    contract: c09,
+    content: review09,
+    userRating: f09.fixture.userRating ?? null,
+    generatorModel: "dry-run",
+    outputTokens: 0,
+  });
+  check("smoke09: widened passes the mid-PV window", dual09.result.widenedFires === 0, dual09.result.widenedByCategory);
+  check("smoke09: strict fires exactly once", dual09.result.strictFires === 1, dual09.result.strictByCategory);
+  check(
+    "smoke09: the fire is strict-only hypothetical_line",
+    dual09.result.strictOnlyFires === 1 &&
+      (dual09.result.strictByCategory["hypothetical_line_off_contract"] ?? 0) === 1,
+    dual09.result.strictByCategory,
+  );
+  check(
+    "smoke09: adjudicated widened-licensed (mechanical)",
+    dual09.flagged.length === 1 &&
+      dual09.flagged[0].referee === "strict-only" &&
+      dual09.flagged[0].adjudication === "widened-licensed",
+    dual09.flagged,
+  );
+  check(
+    "smoke09: flagged span carries sentence context",
+    (dual09.flagged[0]?.sentence ?? "").includes(windowSeq[0]),
+    dual09.flagged[0]?.sentence,
+  );
+
+  // A fabricated line (Mode A's bad2 class): fires under BOTH rules and must
+  // never be widened-licensed.
+  const review07 = `[INSIGHT:${nc7.moveNumber}:${nc7.color}]\nInstead Qh5 g6 Qxe5 and there is nothing more to say.\n[/INSIGHT]`;
+  const dual07 = await refereeReviewDual({
+    fixture: "07_smoke",
+    sample: 1,
+    contract: c07,
+    content: review07,
+    userRating: f07.fixture.userRating ?? null,
+    generatorModel: "dry-run",
+    outputTokens: 0,
+  });
+  const hypo07 = dual07.flagged.filter((f) => f.category === "hypothetical_line_off_contract");
+  check(
+    "smoke07: fabricated line fires under BOTH rules",
+    dual07.result.strictOnlyFires === 0 && dual07.result.widenedFires >= 1 && hypo07.length >= 1,
+    dual07.result,
+  );
+  check(
+    "smoke07: fabricated line is NOT widened-licensed",
+    hypo07.every((f) => f.adjudication !== "widened-licensed"),
+    hypo07.map((f) => f.adjudication),
+  );
+
+  // Aggregation shape + arithmetic.
+  const samples = [dual09.result, dual07.result];
+  const flagged = [...dual09.flagged, ...dual07.flagged];
+  const agg = summarizeFp(samples, flagged);
+  check("summary: reviews = 2", agg.summary.reviews === 2, agg.summary);
+  check(
+    "summary: strict = widened + strictOnly",
+    agg.summary.strictFires === agg.summary.widenedFires + agg.summary.strictOnlyFires,
+    agg.summary,
+  );
+  check("summary: widenedLicensedShare = 1", agg.summary.widenedLicensedShare === 1, agg.summary);
+  check(
+    "summary: all six per-check recommendations present",
+    Object.keys(agg.summary.recommendation).length === 6,
+    agg.summary.recommendation,
+  );
+  check(
+    "consistency: no strict/widened grammar drift",
+    samples.every((s) => s.consistency.length === 0),
+    samples.map((s) => s.consistency),
+  );
+
+  console.log(`\n=== --fp-measure smoke result: ${failures === 0 ? "GREEN" : `${failures} FAILURE(S)`} ===`);
+  process.exit(failures === 0 ? 0 : 1);
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  if (args.dryRun) await runDryRun();
+  if (args.fpMeasure && args.dryRun) await runFpSmoke();
+  else if (args.fpMeasure) await runFpMeasure(args);
+  else if (args.dryRun) await runDryRun();
   else await runLive(args);
 }
 

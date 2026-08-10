@@ -25,23 +25,35 @@ export async function isAllowlistedIntern(email: string): Promise<boolean> {
   const cached = cache.get(normalized);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
 
-  const supabase = await getInternSupabase();
-  const { data, error } = await supabase
-    .from("intern_allowlist")
-    .select("email")
-    .eq("email", normalized)
-    .maybeSingle();
+  // Fail closed on ANY failure — including a throw from getInternSupabase()
+  // when SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are unset. This runs inside
+  // signup/signin/OAuth-callback session creation: an intern-portal nicety
+  // must never be able to fail core sign-in (it bricked new-user creation
+  // when the throw escaped to the routes' generic 500 handlers).
+  try {
+    const supabase = await getInternSupabase();
+    const { data, error } = await supabase
+      .from("intern_allowlist")
+      .select("email")
+      .eq("email", normalized)
+      .maybeSingle();
 
-  if (error) {
-    // Don't grant intern access on a transient DB error — fail closed.
-    // Log so it surfaces in Vercel runtime logs; do not cache the failure.
-    console.error("[intern.allowlist] lookup failed:", error.message);
+    if (error) {
+      // Log so it surfaces in Vercel runtime logs; do not cache the failure.
+      console.error("[intern.allowlist] lookup failed:", error.message);
+      return false;
+    }
+
+    const value = data !== null;
+    cache.set(normalized, { value, expiresAt: Date.now() + TTL_MS });
+    return value;
+  } catch (err) {
+    console.error(
+      "[intern.allowlist] unavailable, treating as non-intern:",
+      err instanceof Error ? err.message : err
+    );
     return false;
   }
-
-  const value = data !== null;
-  cache.set(normalized, { value, expiresAt: Date.now() + TTL_MS });
-  return value;
 }
 
 export function __resetAllowlistCacheForTests() {

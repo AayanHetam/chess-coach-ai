@@ -41,27 +41,29 @@ export const VERBALIZER_GOLD_EXAMPLES: VerbalizerGoldExample[] = [
       lines: [{ id: "M1.pv0", san: ["Qe7", "Nf3", "Rd8"], eval: { display: "-0.35" } }],
       motifs: [
         {
+          // Geometry-verified (Aayan caught the original e6→d7 impossibility,
+          // 2026-08-10): a knight on c5 attacks both d7 and b7.
           motif: "fork",
           confirmed: true,
           by_piece: "n",
-          by_square: "e6",
+          by_square: "c5",
           targets: [
             { square: "d7", piece: "q" },
-            { square: "f8", piece: "r" },
+            { square: "b7", piece: "b" },
           ],
         },
       ],
       sayables: {
-        motifs: ["Confirmed: fork by the n on e6 hitting q on d7 and r on f8."],
+        motifs: ["Confirmed: fork by the n on c5 hitting q on d7 and b on b7."],
       },
       concepts: [{ name: "Knight Fork Awareness" }],
     }),
     idealProse: [
       "[INSIGHT:18:b:blunder:-0.35:+2.90:Qd7:Qe7]",
       "Ooh, this one stings a little — the queen walked straight into the knight's favorite trick.",
-      "You probably wanted to keep the queen connected to the rook, and that instinct is good! But the knight hop to e6 forks the queen on d7 and the rook on f8 [F:M1.motif0], and suddenly Black is losing serious material — the eval jumps from -0.35 to +2.90 [F:M1].",
+      "You probably wanted to keep the queen connected to the rook, and that instinct is good! But this move hands White a resource: the knight hop to c5 forks the queen on d7 and the bishop on b7 [F:M1.motif0], and Black is losing serious material — the eval swings from -0.35 to +2.90 [F:M1].",
       "The engine's path keeps everything safe: 18... Qe7 followed by Nf3 Rd8 [F:M1.pv0], and Black is still right in the game at -0.35 [F:M1.pv0].",
-      "Here's the pattern to bank: before dropping your queen on a square, scan every knight-hop landing square around it. Knights don't telegraph their forks — you have to count for them [F:M1.motif0].",
+      "Here's the pattern to bank: before parking your queen, scan every knight-hop landing square around her AND your loose pieces. Knights don't telegraph their forks — you have to count for them [F:M1.motif0].",
       "[CONCEPT:fork:Knight Fork Tactics]",
       "Knight forks punish pieces standing two squares apart on the same color complex — one hop, two targets.",
       "[/CONCEPT]",

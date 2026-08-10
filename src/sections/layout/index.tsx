@@ -75,20 +75,16 @@ export default function Layout({ children }: PropsWithChildren) {
 
   const router = useRouter();
   const isLandingPage = router.pathname === "/";
-  // Preview routes (the new design system that's replacing the legacy
-  // /play, /analysis, etc.) ship their own SharedNavPill chrome. Mounting
-  // the legacy NavBar on top of it would double-stack headers AND every
-  // legacy link would deep-link the user back into the prod surface,
-  // breaking the cutover. Treat preview/* like the landing page —
-  // full-bleed, no legacy chrome.
-  const isPreviewRoute = router.pathname.startsWith("/preview");
+  // Post-cutover (2026-08-10): every /preview/* route is a server-side 308
+  // redirect stub that never renders, so no preview-specific chrome flag is
+  // needed anymore.
 
   // Cutover surfaces promoted from /preview/* that ship their own
   // Obsidian-Glass chrome (ThemeProvider + GradientBackdrop + SharedNavPill).
   // Mounting the legacy light NavBar on top would double-stack headers, so
   // these get the same full-bleed treatment as the landing/preview routes.
   // Scoped to an explicit allowlist on purpose — do NOT broaden the
-  // isLandingPage/isPreviewRoute flags, which would affect every route.
+  // isLandingPage flag, which would affect every route.
   //
   // /analysis and /plan are included because each already self-hosts its own
   // dark glass chrome (GradientBackdrop + SharedNavPill, plus a dark theme on
@@ -109,9 +105,9 @@ export default function Layout({ children }: PropsWithChildren) {
     router.pathname === "/database" ||
     router.pathname === "/courses";
 
-  // Landing page, preview route, or a glass cutover route: skip NavBar and
-  // app chrome for a full-bleed look.
-  if (isLandingPage || isPreviewRoute || isGlassRoute) {
+  // Landing page or a glass cutover route: skip NavBar and app chrome for
+  // a full-bleed look.
+  if (isLandingPage || isGlassRoute) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />

@@ -27,16 +27,14 @@ interface NavPillProps {
 
 // Five primary nav links across the production surfaces. Order tells the
 // user flow: play your game → analyze it → practice your weakness → learn
-// theory → scout your next opponent. /preview/analysis already redirects
-// to /analysis; the other /preview/* routes still exist as separate UI
-// drafts but the navbar points at the canonical production routes.
+// theory → scout your next opponent. Post-cutover (2026-08-10) every
+// /preview/* route is a 308 redirect to its canonical surface.
 //
-// 2026-06-03: Practice now points at /puzzles (Puzzle Coach experience
-// shipped PR #130) — the interactive multi-turn coach + 100k CSV-backed
-// puzzle feed is the canonical Practice surface. (/puzzles re-exports the
-// same component as /preview/puzzles; link the clean canonical URL.) Old
-// /practice (fixture board + theme grid + stats strip) still works at the
-// URL for existing bookmarks but is no longer surfaced in the nav.
+// 2026-06-03: Practice points at /puzzles (Puzzle Coach experience shipped
+// PR #130) — the interactive multi-turn coach + 100k CSV-backed puzzle
+// feed is the canonical Practice surface. Old /practice (fixture board +
+// theme grid + stats strip) still works at the URL for existing bookmarks
+// but is no longer surfaced in the nav.
 const NAV_LINKS: { id: NavId; label: string; href: string }[] = [
   { id: "play", label: "Play", href: "/play" },
   { id: "analysis", label: "Analyze", href: "/analysis" },

@@ -1,24 +1,25 @@
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/router";
-import Head from "next/head";
+import type { GetServerSideProps } from "next";
 
 /**
- * /preview/practice was a static chessground marketing demo with an unwired
- * (non-functional) solve loop — the only chessground-based puzzle surface left.
- * It's superseded by the real, functional Puzzle Coach, so this redirects to
- * the canonical /puzzles URL (retiring chessground from puzzle surfaces
- * entirely). Kept as a route so any existing links resolve.
+ * /preview/practice — server-side 308 redirect to /puzzles after the preview
+ * cleanup (2026-08-10). Same pattern as /preview/analysis and
+ * /preview/launch: permanent, query string preserved, kept as a redirect
+ * (not deleted) so old bookmarks and cached links don't 404.
  */
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const queryString = ctx.req.url?.split("?")[1] ?? "";
+  const destination = queryString ? "/puzzles?" + queryString : "/puzzles";
+  return {
+    redirect: {
+      destination,
+      permanent: true,
+    },
+  };
+};
+
+// Required by Next.js even though we never render — getServerSideProps
+// always returns a redirect.
 export default function PreviewPracticeRedirect() {
-  const router = useRouter();
-  useEffect(() => {
-    router.replace("/puzzles");
-  }, [router]);
-  return (
-    <Head>
-      <title key="title">Puzzle Coach · Chess Masti</title>
-    </Head>
-  );
+  return null;
 }

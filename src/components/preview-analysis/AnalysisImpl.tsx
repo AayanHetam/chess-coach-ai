@@ -6936,7 +6936,7 @@ export default function AnalysisPage() {
       lichessReviewLoadedRef.current = true;
       loadNewGame(g);
       // Clean up the URL after ingest so refreshes don't try to re-load
-      router.replace("/preview/analysis", undefined, { shallow: true });
+      router.replace(router.pathname, undefined, { shallow: true });
     } catch (err) {
       console.warn("[preview/analysis] malformed lichess-review payload:", err);
     }

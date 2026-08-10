@@ -28,6 +28,14 @@ import {
   buildRecommendedPreview,
   playSanOnFen,
 } from "@/components/preview-analysis/coachMoveRefs";
+import {
+  gameSideKey,
+  inferPlayerSideFromHeaders,
+  loadStoredSide,
+  storeSide,
+  type PlayerSide,
+  type PlayerSideColor,
+} from "@/components/preview-analysis/playerSide";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import {
   BoardArrowToggles,
@@ -118,10 +126,6 @@ import {
 import { useAtomValue, useSetAtom } from "jotai";
 import { savedEvalsAtom } from "@/sections/analysis/states";
 import type { SavedEvals } from "@/types/eval";
-import {
-  extractImportedGameInfo,
-  detectUserColor,
-} from "@/lib/smartColorDetection";
 import { getEvaluateGameParams, getEvaluationBarValue } from "@/lib/chess";
 import { detectOpening } from "@/lib/unifiedOpeningDetector";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
@@ -3126,6 +3130,171 @@ function EngineLinesPanel({
   );
 }
 
+// ─── "Which side were you playing?" inline ask ───────────────────────────
+// Shown once per game inside the coach stream when the player's side
+// can't be inferred (no username match, no stored answer). Answering
+// threads playerColor into every analysis/chat request and persists the
+// choice per-game. Dark-glass styling; the two side buttons are equal
+// choices, so ember stays a hover accent rather than a fill.
+function PlayerSideAsk({
+  onChoose,
+}: {
+  onChoose: (color: PlayerSideColor) => void;
+}) {
+  const sideButton = (color: PlayerSideColor) => (
+    <Box
+      component="button"
+      onClick={() => onChoose(color)}
+      aria-label={`I was playing ${color}`}
+      sx={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 0.75,
+        px: 1.75,
+        py: 1,
+        cursor: "pointer",
+        borderRadius: "12px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        color: "rgba(255,255,255,0.92)",
+        fontSize: "0.82rem",
+        fontWeight: 700,
+        fontFamily: "inherit",
+        transition: "all 180ms ease",
+        "&:hover": {
+          background: "rgba(249,115,22,0.14)",
+          borderColor: "rgba(249,115,22,0.5)",
+          color: "#FB923C",
+          transform: "translateY(-1px)",
+        },
+      }}
+    >
+      <Box
+        component="span"
+        sx={{ fontSize: "1.1rem", lineHeight: 1 }}
+        aria-hidden
+      >
+        {color === "white" ? "♔" : "♚"}
+      </Box>
+      {color === "white" ? "White" : "Black"}
+    </Box>
+  );
+  return (
+    <Box
+      data-testid="player-side-ask"
+      sx={{
+        alignSelf: "stretch",
+        borderRadius: "1rem",
+        background: "rgba(20,22,28,0.55)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+        px: 2,
+        py: 1.75,
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: "0.85rem",
+          fontWeight: 600,
+          color: "rgba(255,255,255,0.9)",
+          mb: 1.25,
+        }}
+      >
+        Quick check — which side were you playing?
+      </Typography>
+      <Stack direction="row" spacing={1.25}>
+        {sideButton("white")}
+        {sideButton("black")}
+      </Stack>
+      <Typography
+        sx={{
+          fontSize: "0.7rem",
+          color: "rgba(255,255,255,0.45)",
+          mt: 1,
+          lineHeight: 1.4,
+        }}
+      >
+        The coach tailors its analysis to your side — mistakes, plans, and
+        praise all depend on it.
+      </Typography>
+    </Box>
+  );
+}
+
+// Compact chip showing which side the coach is coaching, with a one-click
+// switch — surfaced when the side was inferred (username match) or
+// remembered, so a wrong guess is one tap away from correct.
+function PlayerSideChip({
+  side,
+  onChoose,
+}: {
+  side: PlayerSide;
+  onChoose?: (color: PlayerSideColor) => void;
+}) {
+  const other: PlayerSideColor = side.color === "white" ? "black" : "white";
+  const sourceLabel =
+    side.source === "username_match"
+      ? "matched your username"
+      : side.source === "stored_choice"
+        ? "remembered from last time"
+        : "your choice";
+  return (
+    <Tooltip title={`Side ${sourceLabel} — click to switch to ${other}`}>
+      <Box
+        data-testid="player-side-chip"
+        onClick={() => onChoose?.(other)}
+        sx={{
+          alignSelf: "center",
+          display: "flex",
+          alignItems: "center",
+          gap: 0.6,
+          px: 1.25,
+          py: 0.4,
+          cursor: onChoose ? "pointer" : "default",
+          borderRadius: "999px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          transition: "all 180ms ease",
+          "&:hover": onChoose
+            ? {
+                background: "rgba(249,115,22,0.1)",
+                borderColor: "rgba(249,115,22,0.4)",
+              }
+            : {},
+        }}
+      >
+        <Box component="span" sx={{ fontSize: "0.85rem", lineHeight: 1 }} aria-hidden>
+          {side.color === "white" ? "♔" : "♚"}
+        </Box>
+        <Typography
+          sx={{
+            fontSize: "0.68rem",
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.65)",
+          }}
+        >
+          Coaching you as {side.color === "white" ? "White" : "Black"}
+        </Typography>
+        {onChoose && (
+          <Typography
+            sx={{
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              color: "#FB923C",
+            }}
+          >
+            · switch
+          </Typography>
+        )}
+      </Box>
+    </Tooltip>
+  );
+}
+
 function CoachPanel({
   messages,
   input,
@@ -3148,6 +3317,9 @@ function CoachPanel({
   personalityId,
   onChangePersonality,
   suggestions,
+  playerSide,
+  sideUiEligible,
+  onChoosePlayerSide,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -3202,6 +3374,13 @@ function CoachPanel({
    *  Computed by the parent (AnalysisPage) so the command palette can
    *  share the same list. */
   suggestions: Suggestion[];
+  /** The side the user played (inferred or chosen), null while ambiguous. */
+  playerSide?: PlayerSide | null;
+  /** True when a real game (not demo/puzzle/bare FEN) is loaded — gates
+   *  both the inline "Which side were you playing?" ask (playerSide null)
+   *  and the assumed-side switch chip (playerSide set). */
+  sideUiEligible?: boolean;
+  onChoosePlayerSide?: (color: PlayerSideColor) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -3510,6 +3689,9 @@ function CoachPanel({
         }}
       >
         <Stack spacing={2}>
+          {sideUiEligible && playerSide && (
+            <PlayerSideChip side={playerSide} onChoose={onChoosePlayerSide} />
+          )}
           {mistakeContext && (
             <Box sx={{ alignSelf: "stretch" }}>
               <ContextualPuzzleRecommendations
@@ -3554,6 +3736,16 @@ function CoachPanel({
               </motion.div>
             ))}
           </AnimatePresence>
+          {sideUiEligible && !playerSide && onChoosePlayerSide && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
+              style={{ alignSelf: "stretch" }}
+            >
+              <PlayerSideAsk onChoose={onChoosePlayerSide} />
+            </motion.div>
+          )}
           {isThinking && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -6497,6 +6689,13 @@ export default function AnalysisPage() {
     "white"
   );
 
+  // Which side did the user play in the loaded game? Null = ambiguous →
+  // CoachPanel shows the inline "Which side were you playing?" ask before
+  // the first analysis request. Set by loadNewGame (username match against
+  // the PGN headers, or a stored per-game answer) or by the user clicking
+  // the ask card / the switch chip. Threads into coachExtras.playerColor.
+  const [playerSide, setPlayerSide] = useState<PlayerSide | null>(null);
+
   // ─── Production-parity personalization extras for the deep coach path ───
   // Production's AICoachChat (line 2459-2487) threads playerColor +
   // playerColorName + boardOrientation + username + chess-platform handles
@@ -6520,8 +6719,11 @@ export default function AnalysisPage() {
   );
 
   const coachExtras = useMemo(() => {
-    const playerColor: "w" | "b" =
-      boardOrientation === "white" ? "w" : "b";
+    // The user's side. An explicit/inferred answer (playerSide) wins; the
+    // board orientation is only the last-resort assumption when the side
+    // is still ambiguous (user hasn't answered the inline ask yet).
+    const sideName: "white" | "black" = playerSide?.color ?? boardOrientation;
+    const playerColor: "w" | "b" = sideName === "white" ? "w" : "b";
     let chesscomUsername: string | undefined;
     let lichessUsername: string | undefined;
     if (typeof window !== "undefined") {
@@ -6540,7 +6742,7 @@ export default function AnalysisPage() {
     }
     return {
       playerColor,
-      playerColorName: boardOrientation,
+      playerColorName: sideName,
       boardOrientation,
       username:
         user?.displayName ?? user?.email?.split("@")[0] ?? undefined,
@@ -6549,6 +6751,7 @@ export default function AnalysisPage() {
       personalityId: personality.id,
     };
   }, [
+    playerSide,
     boardOrientation,
     user?.displayName,
     user?.email,
@@ -6695,9 +6898,32 @@ export default function AnalysisPage() {
   // dropping the contextId we force the next message back through the
   // deep path, which re-mints context under the new persona.
   const coachContextIdRef = useRef<string | null>(null);
+  // Also reset when the player's declared side changes: the deep-analysis
+  // context (and the system prompt it caches) is composed for a specific
+  // playerColor — /api/chat follow-ups would otherwise keep coaching the
+  // wrong side until the next game load.
   useEffect(() => {
     coachContextIdRef.current = null;
-  }, [loadedGame, selectedPersonalityId]);
+  }, [loadedGame, selectedPersonalityId, playerSide?.color]);
+
+  // User answered the "Which side were you playing?" ask (or hit the
+  // switch chip). Flip the board to their side and persist per-game so a
+  // reload of the same PGN doesn't re-ask.
+  const handleChoosePlayerSide = useCallback(
+    (color: PlayerSideColor) => {
+      setPlayerSide({ color, source: "user_choice" });
+      setBoardOrientation(color);
+      try {
+        storeSide(
+          gameSideKey(loadedGame.header(), loadedGame.history().length),
+          color
+        );
+      } catch {
+        /* persistence is best-effort */
+      }
+    },
+    [loadedGame]
+  );
 
   // Replace the loaded game from a fresh Chess instance (e.g. user pasted
   // a PGN, or a URL param brought one in). Resets cursor + seed chat +
@@ -6708,37 +6934,43 @@ export default function AnalysisPage() {
       setLoadedGame(game);
       setIsDemoGame(false);
       setCurrentPly(0);
-      // G13: smart color detection on imports. If the PGN headers point at
-      // chess.com or lichess.org AND we have a known username (stashed in
-      // localStorage by the LichessInput / ChessComInput loaders, or from
-      // the signed-in profile), flip the board so the user is at the
-      // bottom. Falls through silently otherwise.
+      // G13 (extended 2026-08-10): resolve which side the user played.
+      //  1. Username match against the White/Black headers — any known
+      //     handle (lichess/chess.com localStorage stash, display name,
+      //     email prefix). Broader than the old check, which required a
+      //     chess.com/lichess Site header before even trying.
+      //  2. A stored per-game answer from a previous "Which side?" ask.
+      //  3. Neither → playerSide null → CoachPanel asks inline before the
+      //     first analysis request.
+      // On any resolution the board flips so the user's side is at the
+      // bottom (same behavior the old username_match path had).
       try {
+        let resolved: PlayerSide | null = null;
         if (typeof window !== "undefined") {
-          const headerSite = (game.header().Site ?? "").toLowerCase();
-          let source: "chesscom" | "lichess" | undefined;
-          if (headerSite.includes("chess.com")) source = "chesscom";
-          else if (headerSite.includes("lichess.org")) source = "lichess";
-          if (source) {
-            const stored =
-              source === "lichess"
-                ? window.localStorage.getItem("lichess-username")
-                : window.localStorage.getItem("chesscom-username");
-            const cleanStored = stored ? stored.replace(/^"|"$/g, "") : null;
-            const username =
-              cleanStored ||
-              user?.displayName ||
-              user?.email?.split("@")[0] ||
-              undefined;
-            const info = extractImportedGameInfo(game, source, username);
-            const detection = detectUserColor(game, info);
-            if (detection.method === "username_match") {
-              setBoardOrientation(detection.userColor);
-            }
+          const clean = (v: string | null) =>
+            v ? v.replace(/^"|"$/g, "") : null;
+          const candidates = [
+            clean(window.localStorage.getItem("lichess-username")),
+            clean(window.localStorage.getItem("chesscom-username")),
+            user?.displayName,
+            user?.email?.split("@")[0],
+          ];
+          const headers = game.header();
+          const inferred = inferPlayerSideFromHeaders(headers, candidates);
+          if (inferred) {
+            resolved = { color: inferred, source: "username_match" };
+          } else {
+            const stored = loadStoredSide(
+              gameSideKey(headers, game.history().length)
+            );
+            if (stored) resolved = { color: stored, source: "stored_choice" };
           }
         }
+        setPlayerSide(resolved);
+        if (resolved) setBoardOrientation(resolved.color);
       } catch {
         /* defensive — color detection should never block a game load */
+        setPlayerSide(null);
       }
       // Sentry breadcrumb so debugging "the page broke on my Lichess game"
       // has the actual PGN at hand without us having to ask.
@@ -8476,6 +8708,13 @@ export default function AnalysisPage() {
                         onPromoteToBoard={handlePromoteToBoard}
                         allMoves={allMoves}
                         onMoveRefClick={handleCoachMoveRef}
+                        playerSide={playerSide}
+                        sideUiEligible={
+                          !isDemoGame &&
+                          !isPuzzleMode &&
+                          allMoves.length > 0
+                        }
+                        onChoosePlayerSide={handleChoosePlayerSide}
                         onShareMessage={(m) =>
                           setShareDialog({ msg: m, fen: displayFen })
                         }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, FormEvent } from "react";
+import React, { useState, useEffect, FormEvent } from "react";
 
 // MUI Modal calls cloneElement(child, { ref }) on its direct child.
 // AnimatePresence is fragment-shaped — no DOM node for the ref to land on
@@ -23,6 +23,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, ArrowLeft, AlertTriangle, Check } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
+import AgeGate from "@/components/consent/AgeGate";
+import { isAgeGateBlocked, setAgeGateBlocked } from "@/lib/tracking/ageGateLock";
 
 interface AuthDialogProps {
   open: boolean;
@@ -56,7 +58,16 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  // COPPA DOB gate: signup mode shows the neutral age screen first; the form
+  // (and its Google button) only renders after a 13+ resolution. An under-13
+  // resolution sets a persistent lockout (isAgeGateBlocked) so the gate can't
+  // be retried by reopening the dialog.
+  const [agePassed, setAgePassed] = useState(false);
+  const [ageBlocked, setAgeBlocked] = useState(false);
+
+  useEffect(() => {
+    if (open) setAgeBlocked(isAgeGateBlocked());
+  }, [open]);
 
   const [chesscomUsername, setChesscomUsername] = useState("");
   const [lichessUsername, setLichessUsername] = useState("");
@@ -71,7 +82,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
     setEmail("");
     setPassword("");
     setDisplayName("");
-    setAgeConfirmed(false);
+    setAgePassed(false);
     setChesscomUsername("");
     setLichessUsername("");
     setError(null);
@@ -85,7 +96,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
 
   const handleEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (mode === "signup" && !ageConfirmed) return; // COPPA neutral age screen
+    if (mode === "signup" && !agePassed) return; // COPPA neutral age screen
     setError(null);
     setInfo(null);
     setSubmitting(true);
@@ -98,6 +109,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
           email,
           password,
           displayName: displayName.trim() || undefined,
+          ageAffirmed: true, // only reachable after the DOB gate resolves 13+
         });
         setStep("usernames");
       } else {
@@ -114,12 +126,13 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
   };
 
   const handleGoogle = async () => {
-    // COPPA: the Google path creates brand-new accounts server-side too, so
-    // in signup mode it's gated on the same 13+ affirmation as email signup.
-    if (mode === "signup" && !ageConfirmed) return;
     setError(null);
     try {
-      await signInWithGoogle();
+      // In signup mode this button only renders after the DOB gate resolved
+      // 13+, so the affirmation rides along and the OAuth callback can skip
+      // the /auth/age interstitial. From the sign-in tab, brand-new accounts
+      // get the interstitial server-side instead.
+      await signInWithGoogle({ ageAffirmed: mode === "signup" && agePassed });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed.");
     }
@@ -192,10 +205,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
   const orangeGradient = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
   const orangeHover = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
 
-  // COPPA neutral age screen: a new account must affirm 13+ before it can be
-  // created. Light-touch (no DOB collected) — under-13 are screened out, not
-  // gathered. Gates the signup submit only.
-  const submitDisabled = submitting || (mode === "signup" && !ageConfirmed);
+  const submitDisabled = submitting;
 
   return (
     <Modal
@@ -432,7 +442,94 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                   },
                 }}
               >
-                {step === "auth" ? (
+                {step === "auth" && mode === "signup" && ageBlocked ? (
+                  /* COPPA: neutral under-13 lockout. No account exists and no
+                     personal data was stored — the DOB never left the browser. */
+                  <Box sx={{ textAlign: "center", py: 3, px: 1 }}>
+                    <AlertTriangle
+                      size={28}
+                      color="rgba(255,255,255,0.45)"
+                      style={{ marginBottom: 12 }}
+                    />
+                    <Typography
+                      sx={{
+                        fontSize: "0.95rem",
+                        fontWeight: 700,
+                        color: "rgba(255,255,255,0.92)",
+                        mb: 1,
+                      }}
+                    >
+                      We can&apos;t create an account for you right now.
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "0.8rem",
+                        lineHeight: 1.5,
+                        color: "rgba(255,255,255,0.55)",
+                      }}
+                    >
+                      A parent or guardian can get in touch through the contact
+                      details on our{" "}
+                      <Box
+                        component="a"
+                        href="/privacy"
+                        sx={{ color: "#FB923C", textDecoration: "none" }}
+                      >
+                        Privacy page
+                      </Box>
+                      .
+                    </Typography>
+                  </Box>
+                ) : step === "auth" && mode === "signup" && !agePassed ? (
+                  /* COPPA: neutral DOB gate — shown before the signup form
+                     (and its Google button) ever renders. 13+ reveals the
+                     form; under-13 flips the persistent lockout above. */
+                  <Box sx={{ py: 0.5 }}>
+                    <AgeGate
+                      onResolved={({ isUnder13 }) => {
+                        if (isUnder13) {
+                          setAgeGateBlocked();
+                          setAgeBlocked(true);
+                        } else {
+                          setAgePassed(true);
+                        }
+                      }}
+                      slotSx={{
+                        title: {
+                          fontSize: "0.95rem",
+                          fontWeight: 700,
+                          color: "rgba(255,255,255,0.92)",
+                        },
+                        caption: {
+                          color: "rgba(255,255,255,0.55)",
+                          fontSize: "0.78rem",
+                          lineHeight: 1.45,
+                        },
+                        input: {
+                          ...inputSx,
+                          "& input::-webkit-calendar-picker-indicator": {
+                            filter: "invert(1)",
+                            opacity: 0.55,
+                          },
+                        },
+                        button: {
+                          background: orangeGradient,
+                          color: "#0A0A0A",
+                          fontWeight: 800,
+                          textTransform: "none",
+                          borderRadius: "12px",
+                          py: 1.1,
+                          boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
+                          "&:hover": { background: orangeHover },
+                          "&.Mui-disabled": {
+                            background: "rgba(255,255,255,0.08)",
+                            color: "rgba(255,255,255,0.35)",
+                          },
+                        },
+                      }}
+                    />
+                  </Box>
+                ) : step === "auth" ? (
                   <>
                     <Box component="form" onSubmit={handleEmailSubmit}>
                       <Stack spacing={1.75}>
@@ -480,58 +577,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             onChange={(e) => setDisplayName(e.target.value)}
                             sx={inputSx}
                           />
-                        )}
-
-                        {mode === "signup" && (
-                          <Box
-                            component="button"
-                            type="button"
-                            onClick={() => setAgeConfirmed((v) => !v)}
-                            aria-pressed={ageConfirmed}
-                            sx={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: 1,
-                              textAlign: "left",
-                              background: "transparent",
-                              border: "none",
-                              outline: "none",
-                              cursor: "pointer",
-                              p: 0,
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                mt: "1px",
-                                width: 18,
-                                height: 18,
-                                flexShrink: 0,
-                                borderRadius: "5px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                transition: "all 160ms ease",
-                                border: ageConfirmed
-                                  ? "1px solid rgba(249,115,22,0.6)"
-                                  : "1px solid rgba(255,255,255,0.25)",
-                                background: ageConfirmed
-                                  ? "rgba(249,115,22,0.18)"
-                                  : "transparent",
-                              }}
-                            >
-                              {ageConfirmed && <Check size={12} color="#FB923C" />}
-                            </Box>
-                            <Typography
-                              sx={{
-                                fontSize: "0.78rem",
-                                lineHeight: 1.45,
-                                color: "rgba(255,255,255,0.62)",
-                              }}
-                            >
-                              I confirm I&apos;m 13 or older. If you&apos;re under 13,
-                              please ask a parent or guardian to set up access.
-                            </Typography>
-                          </Box>
                         )}
 
                         {mode === "signin" && (
@@ -725,7 +770,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                           component="button"
                           type="button"
                           onClick={handleGoogle}
-                          disabled={mode === "signup" && !ageConfirmed}
                           sx={{
                             width: "100%",
                             cursor: "pointer",
@@ -746,10 +790,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                               background: "rgba(249,115,22,0.08)",
                               borderColor: "rgba(249,115,22,0.4)",
                             },
-                            "&:disabled": {
-                              cursor: "not-allowed",
-                              opacity: 0.45,
-                            },
                           }}
                         >
                           <Icon
@@ -758,21 +798,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                           />
                           Continue with Google
                         </Box>
-
-                        {mode === "signin" && (
-                          <Typography
-                            sx={{
-                              display: "block",
-                              textAlign: "center",
-                              mt: 1.25,
-                              fontSize: "0.68rem",
-                              color: "rgba(255,255,255,0.38)",
-                              lineHeight: 1.45,
-                            }}
-                          >
-                            By continuing, you confirm you&apos;re 13 or older.
-                          </Typography>
-                        )}
                       </>
                     )}
 

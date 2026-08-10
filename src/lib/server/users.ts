@@ -20,6 +20,10 @@ export type StoredUser = {
   emailVerified?: boolean;
   passwordHash?: string;
   googleId?: string;
+  // COPPA: server timestamp of the 13+ affirmation recorded at account
+  // creation (neutral DOB gate; the birth date itself never leaves the
+  // browser). Absent on accounts created before the gate shipped.
+  ageAffirmedAt?: Timestamp;
 
   displayName?: string;
   photoURL?: string;
@@ -208,6 +212,7 @@ export type CreateUserInput = {
   displayName?: string;
   photoURL?: string;
   emailVerified?: boolean;
+  ageAffirmed?: boolean;
 };
 
 export async function createUser(input: CreateUserInput): Promise<StoredUser> {
@@ -233,6 +238,7 @@ export async function createUser(input: CreateUserInput): Promise<StoredUser> {
     lastLoginAt: FieldValue.serverTimestamp(),
   };
   if (passwordHash) doc.passwordHash = passwordHash;
+  if (input.ageAffirmed) doc.ageAffirmedAt = FieldValue.serverTimestamp();
   if (input.googleId) doc.googleId = input.googleId;
   if (input.displayName) doc.displayName = input.displayName;
   if (input.photoURL) doc.photoURL = input.photoURL;

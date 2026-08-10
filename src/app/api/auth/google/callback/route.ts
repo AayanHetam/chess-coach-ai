@@ -5,6 +5,7 @@ import {
   clearOAuthStateCookie,
   readOAuthStateFromRequest,
 } from "@/lib/auth/oauthState";
+import { setPendingSignupCookie } from "@/lib/auth/pendingSignup";
 import { setSessionCookieOnResponse } from "@/lib/auth/session";
 import {
   createUser,
@@ -175,15 +176,37 @@ export async function GET(request: Request) {
           ...(photoURL && !existing.photoURL ? { photoURL } : {}),
         });
         user = { ...existing, googleId, emailVerified: true };
-      } else {
-        // Brand-new user
+      } else if (stateCookie.ageAffirmed) {
+        // Brand-new user who already passed the DOB age gate in the signup
+        // dialog before starting OAuth (flag rode in the signed state cookie).
         user = await createUser({
           email,
           googleId,
           displayName,
           photoURL,
           emailVerified: true,
+          ageAffirmed: true,
         });
+      } else {
+        // Brand-new user with no age affirmation (e.g. "Continue with
+        // Google" from the sign-in tab). COPPA: do NOT create the account
+        // yet — park the verified profile in a short-lived signed cookie
+        // and route through the neutral DOB gate at /auth/age.
+        // /api/auth/google/complete finishes account creation on 13+.
+        const target = new URL("/auth/age", env.appBaseUrl);
+        if (stateCookie.returnTo) {
+          target.searchParams.set("returnTo", safeReturnTo(stateCookie.returnTo));
+        }
+        const response = NextResponse.redirect(target);
+        await setPendingSignupCookie(response, {
+          googleId,
+          email,
+          displayName,
+          photoURL,
+          returnTo: stateCookie.returnTo,
+        });
+        clearOAuthStateCookie(response);
+        return response;
       }
     }
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Box, Stack, Typography, TextField, Button } from "@mui/material";
+import type { SxProps, Theme } from "@mui/material";
 import { isUnderCoppaAge, COPPA_MIN_AGE } from "@/lib/tracking/age";
 
 /**
@@ -17,8 +18,17 @@ import { isUnderCoppaAge, COPPA_MIN_AGE } from "@/lib/tracking/age";
  */
 export default function AgeGate({
   onResolved,
+  slotSx,
 }: {
   onResolved: (result: { birthDate: Date; isUnder13: boolean }) => void;
+  /** Optional per-slot style overrides so the gate can sit on dark-glass
+   *  surfaces (AuthDialog, /auth/age) without forking the component. */
+  slotSx?: {
+    title?: SxProps<Theme>;
+    caption?: SxProps<Theme>;
+    input?: SxProps<Theme>;
+    button?: SxProps<Theme>;
+  };
 }) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -36,8 +46,13 @@ export default function AgeGate({
   return (
     <Box sx={{ maxWidth: 360 }}>
       <Stack spacing={1.5}>
-        <Typography variant="subtitle1">What's your date of birth?</Typography>
-        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+        <Typography variant="subtitle1" sx={slotSx?.title}>
+          What's your date of birth?
+        </Typography>
+        <Typography
+          variant="caption"
+          sx={slotSx?.caption ?? { color: "text.secondary" }}
+        >
           We ask so we can keep accounts for under-{COPPA_MIN_AGE}s appropriately
           private.
         </Typography>
@@ -49,8 +64,14 @@ export default function AgeGate({
           helperText={error ?? " "}
           inputProps={{ "aria-label": "Date of birth" }}
           fullWidth
+          sx={slotSx?.input}
         />
-        <Button variant="contained" onClick={submit} disabled={!value}>
+        <Button
+          variant="contained"
+          onClick={submit}
+          disabled={!value}
+          sx={slotSx?.button}
+        >
           Continue
         </Button>
       </Stack>

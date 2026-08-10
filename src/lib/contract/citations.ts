@@ -178,10 +178,14 @@ export function checkCitations(
 }
 
 // ── Stripping ───────────────────────────────────────────────────────────────
-/** Remove every [F:id] token plus one leading space when present (so
- * "wins a piece [F:M1.motif0]." → "wins a piece."). */
+/** Remove every [F:id] token plus one adjacent space — leading space when
+ * present ("wins a piece [F:M1.motif0]." → "wins a piece."), else one
+ * trailing space ("[F:M1.motif0] material" → "material", the delta-boundary
+ * case where the leading space was already forwarded). */
 export function stripCitations(text: string): string {
-  return text.replace(/ ?\[F:[A-Za-z0-9_.\-]{1,40}\]/g, "");
+  return text
+    .replace(/ \[F:[A-Za-z0-9_.\-]{1,40}\]/g, "")
+    .replace(/\[F:[A-Za-z0-9_.\-]{1,40}\] ?/g, "");
 }
 
 /**

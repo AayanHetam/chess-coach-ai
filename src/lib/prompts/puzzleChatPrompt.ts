@@ -28,6 +28,7 @@
 
 import { Chess } from "chess.js";
 import { PUZZLE_PATTERN_ALLOWLIST, normalizeThemes } from "./puzzlePatternAllowlist";
+import { analyzeMateClaim, describeMateTruth } from "@/lib/tactics/mateClaim";
 import type {
   PuzzleContext,
   PuzzleOutcome,
@@ -209,6 +210,13 @@ export function buildPuzzleContextSuffix(args: {
     return `OUTCOME: The student is still working on this puzzle (hasn't attempted yet). If they ask for a hint, give a directional hint — name a piece or a target square, not the full move.`;
   })();
 
+  // Whether the line ends in mate is decidable, so we decide it here rather
+  // than letting the model guess. Shipped bug: the coach called Qxd8+ "mate"
+  // on puzzle 0vFpB, where Black still has Kh7 and Bf8. See mateClaim.ts.
+  const mateTruthLine = describeMateTruth(
+    analyzeMateClaim(puzzle.fen, puzzle.solution),
+  );
+
   const ratingLine =
     userRating !== undefined
       ? `Student rating: ~${userRating}. Tune the depth of explanation accordingly.`
@@ -233,7 +241,7 @@ Side to move: ${sideToMove}
 
 # Forced solution (only sequence that solves; SAN with move numbers)
 ${numberedSolution || "(empty — handle as a hint-only puzzle)"}
-
+${mateTruthLine ? `\n# Mate ground truth (verified by the engine — outranks your own reading)\n${mateTruthLine}\n` : ""}
 # Outcome + per-turn instruction
 ${outcomeBlock}
 

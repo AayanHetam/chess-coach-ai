@@ -62,7 +62,7 @@ System prompt body: [src/lib/prompts/coachChatPrompt.ts](src/lib/prompts/coachCh
 | Google OAuth (server-routed) | ✅ wired; needs `GOOGLE_OAUTH_CLIENT_ID/SECRET` |
 | Resend (password reset emails) | ⚠️ wired; deliveries fail until `chessmasti.com` is verified in Resend (DNS records) |
 | Lichess OAuth | ⚠️ configured, flows not exercised recently |
-| Neo4j | ⚠️ env keys (`NEO4J_URI/USERNAME/PASSWORD`) not in `.env.local`, but `/api/chess-puzzles-dataset command:random` returns real data — some puzzle queries use a non-Neo4j store |
+| Neo4j | ✅ `NEO4J_URI/USERNAME/PASSWORD` **are** present in `.env.local` (corrected 2026-08-10 — the old "not in `.env.local`" note was wrong). Probe with `/api/health/neo4j` rather than assuming reachability. Missing from `.env.example`, so a fresh clone/deploy has no template entry. **`/puzzles` does not use Neo4j** — its feed is a static CSV (`src/lib/puzzle-feed/loadPuzzles.ts`, `source: "static-csv"`); Neo4j is a separate store with a *different, kebab-case, inferred* theme vocabulary |
 | Supabase (CMIP intern portal) | ✅ live; needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`. Read-only allowlist check at sign-in only (CMIP-1.A) |
 | Stripe / freemium ($0.99/mo) | ⚙️ built, **dark** behind `FREEMIUM_ENABLED` (default false ⇒ everyone premium, nothing gated). Go-live: needs `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRICE_ID` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` + the promo Supabase migration. See [docs/STRIPE_GO_LIVE.md](docs/STRIPE_GO_LIVE.md) + [docs/SUBSCRIPTION.md](docs/SUBSCRIPTION.md). Entitlement is computed live (`src/lib/billing/`), never JWT-stamped; promo codes `AKANKSHA2026`/`GRANDKNIGHTS2026` comp users free-forever |
 

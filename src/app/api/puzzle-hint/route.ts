@@ -19,6 +19,7 @@ import {
   parseHintResponse,
 } from "@/lib/puzzleHint/responseProcessor";
 import { getCachedHint, setCachedHint } from "@/lib/puzzleHint/cache";
+import { analyzeMateClaim, applyMateCorrection } from "@/lib/tactics/mateClaim";
 import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
 
 /**
@@ -182,9 +183,29 @@ export async function POST(request: NextRequest) {
       usedResult = retry;
     }
 
+    // Mate-claim enforcement. The base prompt invites the model to assert
+    // checkmate, and nothing else here checks whether that's true — a shipped
+    // response called Qxd8+ "mate" on puzzle 0vFpB, where Kh7 and Bf8 are both
+    // legal. Whether a solution move mates is decidable from data we already
+    // hold, so we rewrite the annotation deterministically rather than trusting
+    // the model or spending another call on it. This runs BEFORE the cache
+    // write below, so a false claim is never memoised and replayed.
+    const { text: prose, corrections: falseMates } = applyMateCorrection(
+      parsedResp.prose,
+      analyzeMateClaim(puzzle.fen, puzzle.solution),
+    );
+    if (falseMates.length > 0) {
+      log.warn("puzzle-hint false mate claim corrected", {
+        requestId,
+        puzzleId: puzzle.id,
+        stage,
+        claimed: falseMates.map((f) => f.claimed),
+      });
+    }
+
     const response: PuzzleHintResponse = {
       stage,
-      prose: parsedResp.prose,
+      prose,
       mentions: parsedResp.mentions,
       showMoves: parsedResp.showMoves,
       meta: {

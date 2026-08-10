@@ -8,6 +8,9 @@ import {
   Box,
   Button,
   IconButton,
+  Divider,
+  Menu,
+  MenuItem,
   Snackbar,
   Stack,
   Typography,
@@ -20,12 +23,12 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import {
   Check,
-  ChevronRight,
+  ChevronDown,
   Eye,
   Flag,
   Lightbulb,
+  Network,
   RotateCcw,
-  Shuffle,
   Sparkles,
   X,
 } from "lucide-react";
@@ -55,6 +58,9 @@ import {
   calculateNewRating,
 } from "@/lib/puzzleRating";
 import { SessionRecapDialog } from "@/components/puzzle/SessionRecapDialog";
+import { PuzzleSessionRail } from "@/components/puzzle/PuzzleSessionRail";
+import { confirmMovesAtom } from "@/lib/puzzlePrefs";
+import { stepDifficulty } from "@/lib/puzzleDifficulty";
 import {
   type SessionResult,
   type SessionEndReason,
@@ -170,6 +176,28 @@ interface RatingBand {
   max: number;
 }
 
+/**
+ * Lichess tags that describe a puzzle's shape rather than its motif. The Neo4j
+ * loader turns these into node *properties* (gamePhase, evaluation,
+ * puzzleLength) instead of :Theme nodes, so sending them to /api/similar-puzzles
+ * matches nothing. Filter before calling, or "similar" silently returns empty.
+ */
+const NON_GRAPH_THEMES = new Set([
+  "middlegame",
+  "endgame",
+  "opening",
+  "crushing",
+  "advantage",
+  "equality",
+  "short",
+  "long",
+  "veryLong",
+  "oneMove",
+  "master",
+  "masterVsMaster",
+  "superGM",
+]);
+
 const RATING_BANDS: RatingBand[] = [
   { id: "all", label: "Any", min: 400, max: 3000 },
   { id: "beginner", label: "<1200", min: 400, max: 1199 },
@@ -253,6 +281,7 @@ function pickPrimaryTheme(themes: string[] | undefined): string {
 export default function PreviewPuzzlesPage() {
   const { user, profile, updateProfile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const [confirmMoves, setConfirmMoves] = useAtom(confirmMovesAtom);
   const [stats, setStats] = useAtom(puzzleStatsAtom);
   const [resume, setResume] = useAtom(puzzleResumeAtom);
   const pieceSet = useAtomValue(pieceSetAtom);
@@ -398,6 +427,21 @@ export default function PreviewPuzzlesPage() {
   const [correctSquare, setCorrectSquare] = useState<string | null>(null);
   const [flash, setFlash] = useState<FlashState>("idle");
   const [flashKey, setFlashKey] = useState(0);
+  // Confirm-move staging. Non-null means the user has placed a move but not
+  // committed it: the board renders `fen`, grading hasn't run, and Submit is
+  // armed. Only ever set for the USER's own moves — opponent replies are
+  // applied directly inside the reply timer and bypass this entirely.
+  const [staged, setStaged] = useState<{
+    from: string;
+    to: string;
+    fen: string;
+  } | null>(null);
+  const [difficultyAnchor, setDifficultyAnchor] =
+    useState<HTMLElement | null>(null);
+  const [similarLoading, setSimilarLoading] = useState(false);
+  // Non-empty when the graph lookup couldn't be honoured — surfaced in a
+  // snackbar so we never silently pass a CSV puzzle off as a graph match.
+  const [similarNote, setSimilarNote] = useState("");
   // Pending opponent auto-reply timer. Tracked in a ref so a puzzle swap /
   // reset / unmount cancels it — otherwise a stale closure fires its old-puzzle
   // setGame/setStatus onto the NEXT puzzle (and can phantom-grade it solved).
@@ -478,6 +522,7 @@ export default function PreviewPuzzlesPage() {
     setPendingDemoMoves(null);
     setActiveDemo(null);
     setCoachHighlights(null);
+    setStaged(null);
   }, [studentStartFen]);
 
   // Cancel a pending opponent reply on unmount.
@@ -807,6 +852,14 @@ export default function PreviewPuzzlesPage() {
   const sessionTotal = sessionResults.length;
   const sessionWrong = sessionTotal - sessionSolved;
 
+  // Rail heading — the subject of this session. Mirrors the active theme chip
+  // so the rail and the filter row never disagree about what you're drilling.
+  // Unfiltered is "All" in the chip row, which is a filter state, not a
+  // subject — the rail says "Tactics" there instead.
+  const railHeading = activeTheme
+    ? QUICK_THEMES.find((t) => t.id === activeTheme)?.label ?? "Tactics"
+    : "Tactics";
+
   const handleFinishSession = useCallback(() => {
     const results = sessionResultsRef.current;
     if (results.length === 0) return;
@@ -912,6 +965,10 @@ export default function PreviewPuzzlesPage() {
   // sequence in real time (react-chessboard animates each transition).
   // Outside of demo mode, this is just the user's attempt position.
   const displayFen = useMemo(() => {
+    // A staged move is shown on the board even though it hasn't been graded —
+    // that preview IS the "you picked this, now commit" affordance. Demo
+    // playback still wins, since it repositions the board wholesale.
+    if (!activeDemo && staged) return staged.fen;
     if (!activeDemo) return game.fen();
     const g = new Chess(activeDemo.startFen);
     for (let i = 0; i < activeDemo.idx; i++) {
@@ -923,11 +980,14 @@ export default function PreviewPuzzlesPage() {
       }
     }
     return g.fen();
-  }, [activeDemo, game]);
+  }, [activeDemo, game, staged]);
 
   // Last-move highlight: during demo, the most recently played ply; outside,
   // the user's last accepted move.
   const displayLastMove = useMemo<[string, string] | null>(() => {
+    // Highlight the staged move so the user can see what they're about to
+    // commit — same treatment an accepted move gets.
+    if (!activeDemo && staged) return [staged.from, staged.to];
     if (!activeDemo) return lastMove;
     // First demo frame is the anchor position — don't bleed the user's stale
     // last-move highlight onto it (it's from a different position).
@@ -944,7 +1004,7 @@ export default function PreviewPuzzlesPage() {
       }
     }
     return last ? [last.from, last.to] : lastMove;
-  }, [activeDemo, lastMove]);
+  }, [activeDemo, lastMove, staged]);
 
   const handleMove = useCallback(
     (orig: string, dest: string): boolean => {
@@ -1044,6 +1104,7 @@ export default function PreviewPuzzlesPage() {
     setWrongAttempts(0);
     setCorrectSquare(null);
     setFlash("idle");
+    setStaged(null);
   }, [studentStartFen]);
 
   const handleNextPuzzle = useCallback(() => {
@@ -1070,6 +1131,109 @@ export default function PreviewPuzzlesPage() {
     }
   }, [puzzle, resumeOverride, recordGrade, feed, practiceList, practiceIdx, bumpActivity]);
 
+  // "New puzzle ⌄" → Easier / Same / Harder. Same just advances; the other two
+  // shift the active rating band one step and let the refetch deliver a puzzle
+  // at the new difficulty (changing filters resets the queue, so there's no
+  // advance() to pair with it). "Any" isn't a difficulty, so when the band is
+  // unset we locate the current puzzle's own band and step from there.
+  const handleNewPuzzleAtDifficulty = useCallback(
+    (delta: -1 | 0 | 1) => {
+      if (delta === 0) {
+        handleNextPuzzle();
+        return;
+      }
+      const target = stepDifficulty(
+        RATING_BANDS.filter((b) => b.id !== "all"),
+        activeBand,
+        puzzle?.rating ?? stats.rating,
+        delta,
+      );
+      // Already at the floor/ceiling — serve another at this difficulty rather
+      // than silently doing nothing.
+      if (!target) {
+        handleNextPuzzle();
+        return;
+      }
+      handleBandClick(target.id);
+    },
+    [activeBand, puzzle, stats.rating, handleBandClick, handleNextPuzzle],
+  );
+
+  // "Neo4j similar puzzle" — same motif, same difficulty, served from the
+  // puzzle graph rather than the CSV feed this page normally reads.
+  //
+  // Worth knowing: /puzzles' feed is a static CSV, and Neo4j is a SEPARATE
+  // store with a different (kebab-case, inferred) theme vocabulary. The route
+  // kebabs camelCase input itself, but structural Lichess tags — middlegame,
+  // endgame, crushing, short — have no Theme node at all and would match
+  // nothing, so they're filtered out before the call. If nothing tactical is
+  // left we don't pretend: we say so and serve a normal same-difficulty puzzle.
+  const handleNeo4jSimilar = useCallback(async () => {
+    if (!puzzle || similarLoading) return;
+    bumpActivity();
+    const themes = puzzle.themes.filter(
+      (t) => !NON_GRAPH_THEMES.has(t),
+    );
+    if (themes.length === 0) {
+      setSimilarNote(
+        "This puzzle has no tactical motif tagged, so the graph has nothing to match. Served a same-difficulty puzzle instead.",
+      );
+      handleNextPuzzle();
+      return;
+    }
+    setSimilarLoading(true);
+    try {
+      const res = await fetch("/api/similar-puzzles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fen: puzzle.fen,
+          themes,
+          userRating: puzzle.rating ?? stats.rating,
+          limit: 1,
+          solutionUci: puzzle.solution,
+          excludeIds: [
+            puzzle.id,
+            ...sessionResultsRef.current.map((r) => r.id),
+          ],
+        }),
+      });
+      if (res.status === 503) {
+        setSimilarNote(
+          "Puzzle graph is unavailable right now. Served a same-difficulty puzzle instead.",
+        );
+        handleNextPuzzle();
+        return;
+      }
+      if (!res.ok) throw new Error(`similar-puzzles ${res.status}`);
+      const data = await res.json();
+      const hit = data?.puzzles?.[0];
+      if (!hit?.puzzleId || !hit?.fen || !hit?.moves) {
+        setSimilarNote(
+          "No close match in the graph for this motif. Served a same-difficulty puzzle instead.",
+        );
+        handleNextPuzzle();
+        return;
+      }
+      // Graph shape → feed shape: `moves` is one space-separated UCI string.
+      setResumeOverride({
+        id: hit.puzzleId,
+        fen: hit.fen,
+        solution: String(hit.moves).trim().split(/\s+/),
+        rating: typeof hit.rating === "number" ? hit.rating : undefined,
+        themes: Array.isArray(hit.themes) ? hit.themes : [],
+      });
+      setPracticeList(null);
+    } catch {
+      setSimilarNote(
+        "Couldn't reach the puzzle graph. Served a same-difficulty puzzle instead.",
+      );
+      handleNextPuzzle();
+    } finally {
+      setSimilarLoading(false);
+    }
+  }, [puzzle, similarLoading, stats.rating, handleNextPuzzle, bumpActivity]);
+
   // Drill menu → "Open on board". Bring the chosen upcoming puzzle to the
   // front of the feed and drop any resume override so it becomes current.
   // The just-solved puzzle was already graded, so no extra grade here.
@@ -1094,7 +1258,11 @@ export default function PreviewPuzzlesPage() {
   // Demo locks out interaction — the coach is driving. The wrong-square
   // flash is also suppressed during demo so red overlays don't bleed into
   // a teaching moment.
-  const interactive = status !== "solved" && !!puzzle && !activeDemo;
+  // Locked while a move is staged. The board is rendering the *staged*
+  // position, so a second drag would report squares that don't exist in the
+  // real position and get rejected confusingly. "Change move" unstages first.
+  const interactive =
+    status !== "solved" && !!puzzle && !activeDemo && !staged;
   const boardWrongSquare =
     !activeDemo && wrongSquare && status === "wrong" ? wrongSquare : null;
 
@@ -1115,19 +1283,45 @@ export default function PreviewPuzzlesPage() {
   // Board → page move sink. The shared board doesn't judge legality (each
   // surface owns its own move semantics), so we replicate the legality probe
   // PuzzleBoard.tsx used to do — illegal drags snap back silently rather than
-  // registering as a wrong attempt — then hand off to handleMove.
+  // registering as a wrong attempt — then either stage the move (confirm mode)
+  // or hand off to handleMove for immediate grading.
   const onBoardMove = useCallback(
     (from: string, to: string): boolean => {
+      let stagedFen: string;
       try {
         const probe = new Chess(game.fen());
         if (!probe.move({ from, to, promotion: "q" })) return false;
+        stagedFen = probe.fen();
       } catch {
         return false;
       }
-      return handleMove(from, to);
+      if (!confirmMoves) return handleMove(from, to);
+      // Stage it: show the resulting position and arm Submit. Grading is
+      // deliberately NOT run here — `game` still holds the pre-move position,
+      // so handleMove works unchanged when Submit fires.
+      bumpActivity();
+      setStaged({ from, to, fen: stagedFen });
+      return true;
     },
-    [game, handleMove],
+    [game, handleMove, confirmMoves, bumpActivity],
   );
+
+  // Turning confirm-mode off mid-puzzle must not leave a move stranded on the
+  // board with no Submit button to commit it.
+  useEffect(() => {
+    if (!confirmMoves) setStaged(null);
+  }, [confirmMoves]);
+
+  // Submit the staged move — the only path from staged → graded.
+  const handleSubmitMove = useCallback(() => {
+    if (!staged) return;
+    const { from, to } = staged;
+    setStaged(null);
+    handleMove(from, to);
+  }, [staged, handleMove]);
+
+  // Take it back before committing. Returns the board to the real position.
+  const handleUnstageMove = useCallback(() => setStaged(null), []);
 
   return (
     <ThemeProvider theme={puzzleTheme}>
@@ -1163,7 +1357,9 @@ export default function PreviewPuzzlesPage() {
       >
         <NavPill active="practice" badge={{ label: "Puzzle Coach" }} />
 
-        <Box sx={{ maxWidth: 1500, mx: "auto", mt: 3 }}>
+        {/* Widened from 1500 for the three-region layout — at 1500 the rail's
+            240px minimum ate into the board column. */}
+        <Box sx={{ maxWidth: 1640, mx: "auto", mt: 3 }}>
           {/* Page header — compact, doesn't compete with the board */}
           <Box sx={{ mb: 2.5 }}>
             <Stack direction="row" alignItems="center" spacing={1.5} mb={1.25}>
@@ -1315,15 +1511,30 @@ export default function PreviewPuzzlesPage() {
           <Box
             sx={{
               display: "grid",
+              // Three regions, Acely format (docs/PUZZLE_TRAINING_LAYOUT_SPEC.md):
+              // session rail | the one puzzle | the coach. The rail is dropped
+              // below lg rather than stacked — on a phone the queue is noise
+              // under the board, and the session HUD already carries progress.
               gridTemplateColumns: {
                 xs: "1fr",
-                lg: "minmax(0, 1fr) minmax(440px, 540px)",
+                lg: "minmax(240px, 17%) minmax(0, 1fr) minmax(380px, 30%)",
               },
-              gap: { xs: 3, lg: 3.5 },
+              gap: { xs: 3, lg: 3 },
               alignItems: "stretch",
               minHeight: { lg: "clamp(540px, 70vh, 740px)" },
             }}
           >
+            {/* Session rail */}
+            <Box sx={{ display: { xs: "none", lg: "block" }, minHeight: 0 }}>
+              <PuzzleSessionRail
+                heading={railHeading}
+                results={sessionResults}
+                currentPuzzle={puzzle}
+                upcoming={feed.upcoming}
+                onJumpTo={handlePickDrillPuzzle}
+              />
+            </Box>
+
             {/* Board column */}
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <Box
@@ -1568,45 +1779,222 @@ export default function PreviewPuzzlesPage() {
                         Show solution
                       </Button>
 
-                      <Button
-                        onClick={handleNextPuzzle}
-                        endIcon={
-                          status === "solved" ? (
-                            <ChevronRight size={15} />
-                          ) : (
-                            <Shuffle size={14} />
-                          )
-                        }
+                    </Stack>
+
+                    {/* Action bar — Acely's commit/escape pair, bottom-anchored
+                        under a divider. Submit is the only path from a staged
+                        move to a graded one; "New puzzle" is deliberately just
+                        as heavy, because skipping shouldn't feel punished. */}
+                    <Box
+                      sx={{
+                        mt: "auto",
+                        pt: 2.5,
+                        borderTop: "1px solid rgba(255,255,255,0.07)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 1.5,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {confirmMoves && (
+                        <>
+                          <Button
+                            onClick={handleSubmitMove}
+                            disabled={!staged}
+                            sx={{
+                              px: 3,
+                              py: 1,
+                              borderRadius: "0.6rem",
+                              background: staged
+                                ? "linear-gradient(135deg, #FF7A1A, #FB923C)"
+                                : "rgba(255,255,255,0.05)",
+                              color: staged ? "#0A0907" : undefined,
+                              fontSize: "0.9rem",
+                              fontWeight: 700,
+                              minWidth: 172,
+                              "&:hover": {
+                                background: staged
+                                  ? "linear-gradient(135deg, #FB923C, #FBBF24)"
+                                  : "rgba(255,255,255,0.05)",
+                              },
+                              "&.Mui-disabled": {
+                                color: "rgba(255,240,224,0.32)",
+                              },
+                            }}
+                          >
+                            Submit move
+                          </Button>
+                          {staged && (
+                            <Button
+                              onClick={handleUnstageMove}
+                              sx={{
+                                px: 1.5,
+                                py: 1,
+                                borderRadius: "0.6rem",
+                                color: "rgba(255,240,224,0.6)",
+                                fontSize: "0.82rem",
+                                fontWeight: 600,
+                                "&:hover": {
+                                  color: "#FFD1A8",
+                                  background: "rgba(255,122,26,0.08)",
+                                },
+                              }}
+                            >
+                              Change move
+                            </Button>
+                          )}
+                        </>
+                      )}
+
+                      {/* Split control, like Acely's "New Hard Question ⌄":
+                          the body is the action (next puzzle, same
+                          difficulty), the chevron opens the difficulty menu.
+                          Keeping the body clickable preserves the one-tap
+                          "Next puzzle" this replaced — burying the most common
+                          action behind a menu would be a regression. */}
+                      <Box
                         sx={{
-                          px: 2,
-                          py: 0.75,
-                          borderRadius: "999px",
+                          display: "inline-flex",
+                          borderRadius: "0.6rem",
+                          overflow: "hidden",
+                          border:
+                            status === "solved"
+                              ? "1px solid transparent"
+                              : "1px solid rgba(255,255,255,0.12)",
                           background:
                             status === "solved"
                               ? "linear-gradient(135deg, #FF7A1A, #FB923C)"
                               : "rgba(22,18,14,0.7)",
-                          color:
-                            status === "solved"
-                              ? "#0A0907"
-                              : "rgba(255,240,224,0.85)",
-                          border:
-                            status === "solved"
-                              ? "none"
-                              : "1px solid rgba(255,255,255,0.08)",
-                          fontSize: "0.82rem",
-                          fontWeight: 700,
                           "&:hover": {
-                            background:
+                            borderColor:
                               status === "solved"
-                                ? "linear-gradient(135deg, #FB923C, #FBBF24)"
-                                : "rgba(22,18,14,0.85)",
-                            borderColor: "rgba(255,122,26,0.3)",
+                                ? "transparent"
+                                : "rgba(255,122,26,0.35)",
                           },
                         }}
                       >
-                        Next puzzle
+                        <Button
+                          onClick={handleNextPuzzle}
+                          sx={{
+                            px: 2.5,
+                            py: 1,
+                            borderRadius: 0,
+                            color:
+                              status === "solved"
+                                ? "#0A0907"
+                                : "rgba(255,240,224,0.9)",
+                            fontSize: "0.9rem",
+                            fontWeight: 700,
+                            "&:hover": { background: "rgba(255,255,255,0.06)" },
+                          }}
+                        >
+                          New puzzle
+                        </Button>
+                        <Box
+                          sx={{
+                            width: "1px",
+                            my: 0.9,
+                            background:
+                              status === "solved"
+                                ? "rgba(10,9,7,0.25)"
+                                : "rgba(255,255,255,0.12)",
+                          }}
+                        />
+                        <IconButton
+                          onClick={(e) => setDifficultyAnchor(e.currentTarget)}
+                          aria-label="Choose difficulty"
+                          sx={{
+                            borderRadius: 0,
+                            px: 1,
+                            color:
+                              status === "solved"
+                                ? "#0A0907"
+                                : "rgba(255,240,224,0.9)",
+                            "&:hover": { background: "rgba(255,255,255,0.06)" },
+                          }}
+                        >
+                          <ChevronDown size={15} />
+                        </IconButton>
+                      </Box>
+                      <Menu
+                        anchorEl={difficultyAnchor}
+                        open={Boolean(difficultyAnchor)}
+                        onClose={() => setDifficultyAnchor(null)}
+                        anchorOrigin={{
+                          vertical: "top",
+                          horizontal: "center",
+                        }}
+                        transformOrigin={{
+                          vertical: "bottom",
+                          horizontal: "center",
+                        }}
+                      >
+                        {(
+                          [
+                            ["Easier", -1],
+                            ["Same difficulty", 0],
+                            ["Harder", 1],
+                          ] as Array<[string, -1 | 0 | 1]>
+                        ).map(([label, delta]) => (
+                          <MenuItem
+                            key={label}
+                            onClick={() => {
+                              setDifficultyAnchor(null);
+                              handleNewPuzzleAtDifficulty(delta);
+                            }}
+                            sx={{ fontSize: "0.86rem", fontWeight: 600 }}
+                          >
+                            {label}
+                          </MenuItem>
+                        ))}
+                        <Divider sx={{ my: 0.5 }} />
+                        <MenuItem
+                          disabled={similarLoading}
+                          onClick={() => {
+                            setDifficultyAnchor(null);
+                            void handleNeo4jSimilar();
+                          }}
+                          sx={{ fontSize: "0.86rem", fontWeight: 700 }}
+                        >
+                          <Network size={14} style={{ marginRight: 8 }} />
+                          {similarLoading
+                            ? "Searching graph…"
+                            : "Neo4j similar puzzle"}
+                        </MenuItem>
+                      </Menu>
+                    </Box>
+
+                    {/* The moment you want confirm-mode off is the moment it
+                        just slowed you down — so the toggle lives here, not
+                        only in profile settings. */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        mt: 1,
+                      }}
+                    >
+                      <Button
+                        onClick={() => setConfirmMoves((v) => !v)}
+                        sx={{
+                          px: 1,
+                          py: 0.25,
+                          minHeight: 0,
+                          color: "rgba(255,240,224,0.4)",
+                          fontSize: "0.74rem",
+                          fontWeight: 600,
+                          "&:hover": {
+                            color: "rgba(255,240,224,0.75)",
+                            background: "transparent",
+                          },
+                        }}
+                      >
+                        {confirmMoves
+                          ? "Confirm each move: on"
+                          : "Confirm each move: off"}
                       </Button>
-                    </Stack>
+                    </Box>
                   </>
                 ) : (
                   <Box
@@ -1759,6 +2147,30 @@ export default function PreviewPuzzlesPage() {
         lastMessage={lastSessionMsg}
         onMessagePicked={setLastSessionMsg}
       />
+
+      {/* Fires only when the graph lookup fell back. The menu item promises a
+          Neo4j match, so a silent CSV substitution would make the label a lie. */}
+      <Snackbar
+        open={similarNote !== ""}
+        autoHideDuration={7000}
+        onClose={() => setSimilarNote("")}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity="warning"
+          icon={<Network size={16} />}
+          onClose={() => setSimilarNote("")}
+          sx={{
+            bgcolor: "rgba(22,18,14,0.96)",
+            color: "rgba(255,240,224,0.94)",
+            border: "1px solid rgba(255,122,26,0.35)",
+            borderRadius: "0.85rem",
+            "& .MuiAlert-icon": { color: "#FFD1A8" },
+          }}
+        >
+          {similarNote}
+        </Alert>
+      </Snackbar>
 
       <Snackbar
         open={idleSavedOpen}

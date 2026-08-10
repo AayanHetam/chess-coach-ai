@@ -1,0 +1,204 @@
+{
+  "summary": {
+    "category": "short_tactics",
+    "n": 15,
+    "model": "claude-sonnet-4-6",
+    "engine_depth": 18,
+    "system_file": "/private/tmp/claude-501/-Users-aayanhetamsaria-Downloads-Inspirit-project/269eda3d-18f9-4604-92c2-683bab035729/scratchpad/v4-system.txt",
+    "off_accuracy_pct": 33.3,
+    "on_accuracy_pct": 93.3,
+    "delta_pp": 60.0,
+    "tally": {
+      "off": {
+        "correct": 5,
+        "total": 15
+      },
+      "on": {
+        "correct": 14,
+        "total": 15
+      }
+    }
+  },
+  "results": [
+    {
+      "task_id": "short_tactics_rating_beginner_0000",
+      "correct_answer": "h3h2",
+      "on": {
+        "extracted": "h3h2",
+        "correct": true
+      },
+      "off": {
+        "extracted": "g4e3",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_intermediate_0000",
+      "correct_answer": "e4d2",
+      "off": {
+        "extracted": "e4f2",
+        "correct": false
+      },
+      "on": {
+        "extracted": "e4d2",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_advanced_0000",
+      "correct_answer": "c5c4",
+      "on": {
+        "extracted": "c5c4",
+        "correct": true
+      },
+      "off": {
+        "extracted": "d2f2",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_intermediate_0001",
+      "correct_answer": "d4e6",
+      "on": {
+        "extracted": "d4e6",
+        "correct": true
+      },
+      "off": {
+        "extracted": "d4e6",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_intermediate_0002",
+      "correct_answer": "d4f3",
+      "on": {
+        "extracted": "e4f3",
+        "correct": false
+      },
+      "off": {
+        "extracted": "d4f3",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_intermediate_0003",
+      "correct_answer": "d1d8",
+      "on": {
+        "extracted": "d1d8",
+        "correct": true
+      },
+      "off": {
+        "extracted": "e4d6",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_advanced_0001",
+      "correct_answer": "a5b5",
+      "on": {
+        "extracted": "a5b5",
+        "correct": true
+      },
+      "off": {
+        "extracted": "e8e1",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_beginner_0001",
+      "correct_answer": "f4d3",
+      "on": {
+        "extracted": "f4d3",
+        "correct": true
+      },
+      "off": {
+        "extracted": "f4e2",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_beginner_0002",
+      "correct_answer": "a6b5",
+      "on": {
+        "extracted": "a6b5",
+        "correct": true
+      },
+      "off": {
+        "extracted": "a6b5",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_intermediate_0004",
+      "correct_answer": "f1d3",
+      "on": {
+        "extracted": "f1d3",
+        "correct": true
+      },
+      "off": {
+        "extracted": "d2d3",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_intermediate_0005",
+      "correct_answer": "d6e5",
+      "on": {
+        "extracted": "d6e5",
+        "correct": true
+      },
+      "off": {
+        "extracted": "d6e5",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_intermediate_0006",
+      "correct_answer": "d1g1",
+      "on": {
+        "extracted": "d1g1",
+        "correct": true
+      },
+      "off": {
+        "extracted": "f5c2",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_intermediate_0007",
+      "correct_answer": "d1d8",
+      "on": {
+        "extracted": "d1d8",
+        "correct": true
+      },
+      "off": {
+        "extracted": "d1d8",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_advanced_0002",
+      "correct_answer": "b5g5",
+      "off": {
+        "extracted": "b5b6",
+        "correct": false
+      },
+      "on": {
+        "extracted": "b5g5",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "short_tactics_rating_beginner_0003",
+      "correct_answer": "e4h7",
+      "on": {
+        "extracted": "e4h7",
+        "correct": true
+      },
+      "off": {
+        "extracted": "e4e8",
+        "correct": false
+      }
+    }
+  ]
+}

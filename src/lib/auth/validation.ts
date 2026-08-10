@@ -42,7 +42,7 @@ export const signupSchema = z.object({
   // and the server stamps ageAffirmedAt from it. The DOB itself is never
   // transmitted.
   ageAffirmed: z
-    .boolean()
+    .boolean("Please confirm your date of birth to sign up.")
     .refine((v) => v === true, "Please confirm your date of birth to sign up."),
 });
 

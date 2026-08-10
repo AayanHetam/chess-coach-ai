@@ -1,6 +1,8 @@
 # Lc0 microservice — builds lc0 v0.31.2 from source (the project publishes no
 # Linux CPU release binaries; the URL pinned in TACTICAL_GROUNDING_HANDOFF.md
-# 404s) and serves it behind FastAPI. Eigen backend: pure-CPU, no BLAS/GPU.
+# 404s) and serves it behind FastAPI. OpenBLAS backend: pure-CPU, no GPU.
+# (v0.31.2 has NO "eigen" meson option — that guess cost three builds; the
+# boolean options are blas/openblas/ispc/gtest, see meson_options.txt.)
 
 # ── Stage 1: compile lc0 ────────────────────────────────────────────────────
 FROM debian:bookworm-slim AS build
@@ -9,7 +11,7 @@ FROM debian:bookworm-slim AS build
 # network format; without a system protobuf, meson falls back to building a
 # bundled subproject copy, which is what failed on the first Render build).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git g++ meson ninja-build pkg-config libeigen3-dev zlib1g-dev ca-certificates \
+    git g++ meson ninja-build pkg-config libopenblas-dev zlib1g-dev ca-certificates \
     protobuf-compiler libprotobuf-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -20,7 +22,7 @@ WORKDIR /lc0
 # On failure, surface the real meson error into the build log (Render truncates
 # to the Docker wrapper otherwise). -j2 bounds compile memory on small builders.
 RUN meson --version && g++ --version | head -1 \
-    && (meson setup build --buildtype=release -Deigen=true -Dblas=false -Dgtest=false \
+    && (meson setup build --buildtype=release -Dblas=true -Dopenblas=true -Dispc=false -Dgtest=false \
         || { echo '--- meson-log tail ---'; tail -80 build/meson-logs/meson-log.txt; exit 1; }) \
     && ninja -C build -j 2 lc0
 
@@ -32,7 +34,7 @@ WORKDIR /app
 # libprotobuf32 is required at runtime: stage 1 links lc0 against the system
 # protobuf shared library, so the binary cannot exec without it here.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    zlib1g libprotobuf32 \
+    zlib1g libprotobuf32 libopenblas0 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /lc0/build/lc0 /app/bin/lc0

@@ -1,7 +1,7 @@
 # Lc0 Evaluation Microservice
 
-FastAPI wrapper around a persistent **Leela Chess Zero** (lc0 v0.31.2, eigen CPU
-backend, Maia-1900 network) engine. This is Stage 7 of the Tactical Grounding
+FastAPI wrapper around a persistent **Leela Chess Zero** (lc0 v0.31.2, OpenBLAS
+CPU backend, Maia-1900 network) engine. This is Stage 7 of the Tactical Grounding
 Program: the grounding voter (`src/lib/grounding/lc0.ts` + `voter.ts`) uses it as
 a second-opinion neural eval next to client Stockfish — confirming or vetoing
 `positional_plan` claims and unlocking the `material_win` MED→HIGH upgrade path.
@@ -59,7 +59,7 @@ subdirectory. Free tier hibernates; the same keep-alive cron applies.
 
 ## Performance & tuning
 
-- 800 nodes on 2 vCPU (eigen backend): typically 1–4s per position. The client
+- 800 nodes on 2 vCPU (OpenBLAS backend): typically 1–4s per position. The client
   timeout is 8s and treats failure as "unavailable" — never user-facing.
 - `LC0_SEARCH_TIMEOUT_S` (default 7) caps a single search server-side.
 - The voter calls this service only at contested positions (|SF| ≤ 200cp with

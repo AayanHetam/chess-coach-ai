@@ -54,7 +54,7 @@ def _load_engine() -> None:
     try:
         logger.info("Starting lc0: binary=%s network=%s", LC0_BINARY, LC0_NETWORK)
         engine = chess.engine.SimpleEngine.popen_uci(
-            [LC0_BINARY, f"--weights={LC0_NETWORK}", "--backend=eigen"]
+            [LC0_BINARY, f"--weights={LC0_NETWORK}", "--backend=blas"]
         )
         engine_loaded = True
         logger.info("lc0 ready: %s", engine.id.get("name", "unknown"))

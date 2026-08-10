@@ -1068,7 +1068,7 @@ function NavPill() {
     >
       <Box
         component={Link}
-        href="/preview/launch"
+        href="/"
         sx={{
           display: "flex",
           alignItems: "center",
@@ -8662,7 +8662,7 @@ export default function AnalysisPage() {
             <Stack direction="row" spacing={2.5} alignItems="center">
               <Box
                 component={Link}
-                href="/preview/launch"
+                href="/"
                 sx={{
                   display: "flex",
                   alignItems: "center",

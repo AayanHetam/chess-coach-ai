@@ -120,7 +120,7 @@ export function NavPill({ active }: NavPillProps) {
 
         <Box
           component={Link}
-          href="/preview/launch"
+          href="/"
           sx={{
             display: "flex",
             alignItems: "center",

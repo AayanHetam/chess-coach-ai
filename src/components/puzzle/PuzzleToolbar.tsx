@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Box, Tooltip, Typography } from "@mui/material";
-import { BookOpen, Clock, Eye, EyeOff } from "lucide-react";
+import { BookOpen, Clock, Eye, EyeOff, Ban } from "lucide-react";
 import { formatSolveClock } from "@/lib/puzzle/solveClock";
 
 /**
@@ -95,6 +95,8 @@ interface PuzzleToolbarProps {
   referenceOpen: boolean;
   referenceDisabledReason?: string;
   onToggleReference: () => void;
+  eliminateOn: boolean;
+  onToggleEliminate: () => void;
   /** Session counters + Finish, kept at the far right. */
   trailing?: ReactNode;
 }
@@ -106,6 +108,8 @@ export function PuzzleToolbar({
   referenceOpen,
   referenceDisabledReason,
   onToggleReference,
+  eliminateOn,
+  onToggleEliminate,
   trailing,
 }: PuzzleToolbarProps) {
   return (
@@ -173,6 +177,13 @@ export function PuzzleToolbar({
         disabled={Boolean(referenceDisabledReason)}
         disabledReason={referenceDisabledReason}
         onClick={onToggleReference}
+      />
+
+      <ToolButton
+        icon={<Ban size={18} />}
+        label="Eliminate"
+        active={eliminateOn}
+        onClick={onToggleEliminate}
       />
 
       {trailing ? <Box sx={{ ml: 1 }}>{trailing}</Box> : null}

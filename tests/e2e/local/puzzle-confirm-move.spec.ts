@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { Chess } from "chess.js";
+import { waitForStableFen } from "../helpers";
 
 /**
  * Confirm-move staging on /puzzles, driven through the real board.
@@ -34,12 +35,12 @@ test.describe("confirm-move staging", () => {
 
   /** Play a legal move by reading the board's own position. */
   async function playLegalMove(page: Page): Promise<{ from: string; to: string }> {
-    const fen = await page
-      .locator("[data-board-fen]")
-      .getAttribute("data-board-fen");
-    expect(fen, "board must publish its position").toBeTruthy();
+    // Settle first: computing a move from a FEN the board is about to replace
+    // would click squares belonging to a position that no longer exists, and
+    // the move would silently not register.
+    const fen = await waitForStableFen(page);
 
-    const moves = new Chess(fen as string).moves({ verbose: true }) as Array<{
+    const moves = new Chess(fen).moves({ verbose: true }) as Array<{
       from: string;
       to: string;
     }>;

@@ -1,0 +1,69 @@
+# Deploy verification (usability-detection program, 2026-08-10).
+#
+# "Merged + CI green" is NOT "shipped": Vercel's build is a separate gate,
+# and when it fails, prod silently freezes at the last good deploy (this
+# happened 2026-08-10 — prod frozen for ~a day, nobody alerted). This
+# workflow makes that loud: after every push to main, poll /api/version
+# until prod serves this commit (or a newer one containing it); if it never
+# does, fail the run and file a GitHub issue.
+name: Deploy verify
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify-prod-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Wait for prod to serve this commit
+        run: |
+          for i in $(seq 1 40); do
+            SHA=$(curl -sf --max-time 10 https://www.chessmasti.com/api/version \
+              | sed -E 's/.*"sha":"([a-f0-9]+)".*/\1/') || SHA=""
+            if [ -n "$SHA" ]; then
+              if [ "$SHA" = "$GITHUB_SHA" ]; then
+                echo "Prod is serving $SHA — deploy verified."
+                exit 0
+              fi
+              # A newer commit that contains ours also counts (rapid merges).
+              if git cat-file -e "$SHA" 2>/dev/null \
+                && git merge-base --is-ancestor "$GITHUB_SHA" "$SHA"; then
+                echo "Prod is serving $SHA which contains $GITHUB_SHA — deploy verified."
+                exit 0
+              fi
+            fi
+            echo "attempt $i/40: prod serves '${SHA:-unreachable}', waiting..."
+            sleep 30
+          done
+          echo "::error::Prod never served $GITHUB_SHA within 20 minutes — the Vercel deploy likely FAILED. Prod is frozen at ${SHA:-unknown}."
+          exit 1
+
+      - name: File issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "in:title Deploy verification failed" --json number --jq 'length')
+          if [ "$EXISTING" = "0" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "🚨 Deploy verification failed — prod is NOT serving main" \
+              --body "Push \`$GITHUB_SHA\` to main was never served by https://www.chessmasti.com/api/version within 20 minutes.
+
+The Vercel deployment most likely failed while CI was green (build/lint error). Prod is frozen on an older commit until this is fixed.
+
+Debug: \`vercel inspect <deployment-url> --logs\` and grep for \`Error:\` (warnings are noise).
+
+Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          else
+            echo "Open deploy-failure issue already exists; not duplicating."
+          fi

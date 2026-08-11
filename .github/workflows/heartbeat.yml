@@ -1,0 +1,94 @@
+# Production heartbeat (usability-detection program, 2026-08-10).
+#
+# Every 30 minutes, probe the endpoints that must never break — the paths
+# whose silent failure has already cost us (signup dead 3 months; deploys
+# frozen a day; homepage white). On any failure, file a GitHub issue
+# (deduplicated) so a human is alerted within minutes, not months.
+#
+# All probes are read-only: bad-credential signin, redirect handoffs,
+# version/health endpoints. Nothing is created or mutated.
+name: Heartbeat
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe production
+        run: |
+          set -u
+          BASE="https://www.chessmasti.com"
+          FAILS=""
+
+          check() { # name, expected, actual
+            if [ "$2" != "$3" ]; then
+              echo "::error::$1 — expected '$2', got '$3'"
+              FAILS="$FAILS\n- **$1**: expected \`$2\`, got \`$3\`"
+            else
+              echo "ok: $1"
+            fi
+          }
+
+          # 1. Version endpoint answers with a SHA
+          V=$(curl -sf --max-time 15 "$BASE/api/version" | grep -oc '"sha":"[a-f0-9]\{40\}"' || echo 0)
+          check "api/version serves a SHA" "1" "$V"
+
+          # 2. Landing renders with the hero copy (dark chrome regression canary)
+          H=$(curl -sf --max-time 20 "$BASE/" | grep -oci "chess coaching" || echo 0)
+          check "landing contains hero copy" "yes" "$([ "$H" -ge 1 ] && echo yes || echo no)"
+
+          # 3. Signin path is alive (bad creds must return 401, not 5xx)
+          S=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -X POST "$BASE/api/auth/signin" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"heartbeat-probe@example.com","password":"definitely-wrong-1!"}')
+          check "signin returns 401 for bad creds" "401" "$S"
+
+          # 4. Google OAuth start hands off to Google
+          L=$(curl -s -o /dev/null -D - --max-time 15 "$BASE/api/auth/google/start?returnTo=/" \
+            | grep -ci "^location: https://accounts.google.com" || echo 0)
+          check "google/start redirects to Google" "1" "$L"
+
+          # 5. Signup API is alive and enforcing the age affirmation
+          G=$(curl -s --max-time 20 -X POST "$BASE/api/auth/signup" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"heartbeat-probe@example.com","password":"Longenough1!pass"}' \
+            | grep -ci "date of birth" || echo 0)
+          check "signup enforces age affirmation" "1" "$G"
+
+          # 6. Env config complete (names-only presence check)
+          C=$(curl -s --max-time 15 "$BASE/api/health/config" | grep -c '"ok":true' || echo 0)
+          check "health/config reports ok" "1" "$C"
+
+          if [ -n "$FAILS" ]; then
+            printf "%b" "$FAILS" > /tmp/fails.md
+            exit 1
+          fi
+
+      - name: File issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "in:title Heartbeat failing" --json number --jq 'length')
+          if [ "$EXISTING" = "0" ]; then
+            BODY="Production heartbeat detected failures on https://www.chessmasti.com:
+
+$(cat /tmp/fails.md 2>/dev/null || echo '(probe step crashed before recording details)')
+
+Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+
+This fires every 30 min; close the issue once prod is healthy again."
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "🚨 Heartbeat failing — production probe errors" \
+              --body "$BODY"
+          else
+            echo "Open heartbeat issue already exists; not duplicating."
+          fi

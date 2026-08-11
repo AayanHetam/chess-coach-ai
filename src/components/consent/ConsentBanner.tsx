@@ -58,7 +58,12 @@ export default function ConsentBanner() {
       elevation={0}
       sx={{
         position: "fixed",
-        zIndex: (t) => t.zIndex.snackbar,
+        // Below the modal layer (was zIndex.snackbar = above it): on phone
+        // viewports the banner physically covered the auth dialog's
+        // Continue/submit buttons and intercepted their taps — signup was
+        // impossible on mobile until the banner was dismissed. Caught by the
+        // E2E mobile journey, 2026-08-10.
+        zIndex: (t) => t.zIndex.modal - 1,
         left: { xs: 12, sm: 16 },
         right: { xs: 12, sm: 16 },
         bottom: { xs: 12, sm: 16 },

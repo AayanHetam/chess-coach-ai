@@ -67,9 +67,37 @@ export type ArmingTable = Record<string, ArmedSeverity>;
  * below is warn (telemetry); enforcement callers must pass an explicit table.
  */
 export const DEFAULT_ARMING_TABLE: ArmingTable = {
-  // Deterministic contract checks (plan §4 checks 2-4) — warn pending re-measure.
-  eval_display: "warn",
-  tactical_keyword: "warn",
+  // ── ARMED 2026-08-11 from the v3 measurement + position-verified adjudication
+  // (contract-referee-fp-30game-v3-*.json, fixtures-real, 30 reviews / 897
+  // claim sentences). Each armed row cleared the plan §9 risk-3 gate: measured
+  // false positives = 0. Founder policy (2026-08-10): unverified tactical
+  // claims are dropped/rewritten, never hedged.
+  //
+  //   eval_display    — 0 fires in v1/v2/v3; pure numeric comparison against
+  //                     contract display strings, no chess judgment.
+  //   tactical_keyword— 22 fires: 19 TRUE_FABRICATION / 3 ambiguous / 0 FP.
+  //                     The round-2 detector work (value-aware fork
+  //                     confirmation, skewer THREATS w/ pawn back-pieces,
+  //                     immobilized-trapped, definitional exemption) turned
+  //                     v2's 6:8 TF:FP into 19:0. The 3 ambiguous are
+  //                     unverified tactical claims that policy drops anyway.
+  //                     Representative catch: "forking the bishop on e7" by a
+  //                     knight on e6 — adjacent squares, geometrically
+  //                     impossible, and stable across all 3 samples.
+  eval_display: "error",
+  tactical_keyword: "error",
+  // ── HELD AT WARN, with the specific blocker named:
+  //   san_whitelist   — 44 strict / 15 widened fires, 100% mechanically
+  //                     licensed by contract-GLOBAL facts. The prose is right;
+  //                     the insight-LOCAL license pool is the bug. Promote
+  //                     after widening the pool to contract-global + a re-run
+  //                     showing 0 residual.
+  //   forbidden_claim — 3 fires: 1 policy-true, 1 FP (a definitional sentence:
+  //                     isDefinitionalSentence() is wired into
+  //                     checkTacticalKeywords but NOT into the
+  //                     USER_VISIBILITY_RE path), 1 board-unfalsifiable
+  //                     ("dominates" — needs Lc0 to adjudicate). Promote after
+  //                     wiring the exemption + re-measure.
   forbidden_claim: "warn",
   san_whitelist: "warn",
   // Stage-9 scanners — their CI-3 gates predate the adjudication's evidence

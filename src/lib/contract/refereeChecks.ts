@@ -35,6 +35,7 @@ import {
   type PvMaterialStep,
 } from "@/lib/tactics/netMaterial";
 import { countSafeMoves } from "@/lib/tactics/motifs/trapped_piece";
+import { rawAttacks } from "@/lib/tactics/utils";
 import { ALL_TACTICAL_KEYWORDS } from "@/lib/grounding/voter";
 import { validateMotifGrounding } from "@/lib/mastermind/validators/motifGrounding";
 import { POSITIONAL_TOKEN_REGEX } from "@/lib/mastermind/validators/positionalClaim";
@@ -689,11 +690,73 @@ export function checkSanWhitelist(
   // Precision-pack license inputs (fixes 1 + 2): board maps + lazy legal moves.
   const pieceMaps = [fenPieceMap(insight.fenBefore), fenPieceMap(insight.fenAfter)];
   const fens = [insight.fenBefore, insight.fenAfter];
+  // ROUND 2 fix 5b — plan-intent legality pool: BOTH colors' legal moves
+  // from fenBefore/fenAfter (turn-flipped clones; illegal flips skipped).
+  // "You wanted the g6-Bg7 setup" names a legal-but-untaken move — a plan,
+  // not a board fabrication (v2 #32 Bg7; also Nxf7/Qxd1 narrations of moves
+  // the game actually reached). SAN tokens only — squares NEVER enter the
+  // claim-square pool this way, so v2 TF #29 ("g6 cuts off h5", refuted by
+  // the legal, uncovered Bh5) still fires.
+  const planIntentFens = [...fens];
+  for (const fen of fens) {
+    const parts = fen.split(" ");
+    parts[1] = parts[1] === "w" ? "b" : "w";
+    parts[3] = "-"; // en passant is stale after a turn flip
+    planIntentFens.push(parts.join(" "));
+  }
   const legalCache: LegalMovesCache = new Map();
   const sanLicensed = (rawSpan: string, norm: string): boolean => {
     if (wl.san.has(norm)) return true;
     if (isPieceDesignatorLicensed(rawSpan, pieceMaps)) return true; // fix 1
-    return legalNormalizations(norm, fens, legalCache).some((s) => wl.san.has(s)); // fix 2
+    if (legalNormalizations(norm, fens, legalCache).some((s) => wl.san.has(s))) return true; // fix 2
+    return legalNormalizations(norm, planIntentFens, legalCache).length > 0; // fix 5b
+  };
+  // ROUND 2 fix 5a — attack-map square licensing, sentence-coupled: a square
+  // in a claim sentence is licensed when the SAME SENTENCE names a non-pawn
+  // PV move whose piece, standing on its replayed destination, attacks that
+  // square (v2 #7: "O-O Nf5 … eyeing e3" — the knight on f5 attacks e3).
+  // Restricted to PV-move tokens (piece designators and the bare played move
+  // never qualify) and non-pawn movers, so v2 TF #29's h5 — attacked only by
+  // fenBefore pieces (Bg4) and pawns — stays unlicensed.
+  let pvMoveAttacks: Map<string, Set<string>> | null = null;
+  const buildPvMoveAttacks = (): Map<string, Set<string>> => {
+    if (pvMoveAttacks) return pvMoveAttacks;
+    pvMoveAttacks = new Map();
+    for (const pv of wl.pvs) {
+      let game: Chess;
+      try {
+        game = new Chess(insight.fenBefore);
+      } catch {
+        continue;
+      }
+      for (const san of pv) {
+        let mv: ReturnType<Chess["move"]>;
+        try {
+          mv = game.move(san);
+        } catch {
+          break;
+        }
+        if (!mv) break;
+        if (mv.piece === "p") continue; // pawn attack maps never license (see #29)
+        let set = pvMoveAttacks.get(san);
+        if (!set) {
+          set = new Set();
+          pvMoveAttacks.set(san, set);
+        }
+        for (const sq of rawAttacks(game, mv.to as never)) set.add(sq);
+      }
+    }
+    return pvMoveAttacks;
+  };
+  const squareLicensedByAttackMap = (square: string, sentStart: number, sentEnd: number): boolean => {
+    const attacks = buildPvMoveAttacks();
+    if (attacks.size === 0) return false;
+    for (const t of tokens) {
+      if (t.kind !== "piece_san") continue;
+      if (t.index < sentStart || t.index >= sentEnd) continue;
+      if (attacks.get(t.norm)?.has(square)) return true;
+    }
+    return false;
   };
 
   // ── Pass 1: move sequences (≥2 moves, move-numbers allowed between; a
@@ -790,12 +853,13 @@ export function checkSanWhitelist(
     const { start, end } = sentenceBounds(prose, t.index);
     const sentence = prose.slice(start, end);
     if (CLAIM_VERB_RE.test(sentence)) {
+      if (squareLicensedByAttackMap(t.raw, start, end)) continue; // round-2 fix 5a
       violations.push({
         check: "san_whitelist",
         category: "square_unknown",
         span: t.raw,
         index: t.index,
-        detail: `square "${t.raw}" appears in a claim sentence ("${sentence.trim().slice(0, 80)}…") but is not in the contract's square set`,
+        detail: `square "${t.raw}" appears in a claim sentence ("${sentence.trim().slice(0, 80)}…") but is not in the contract's square set, and no PV move named in the sentence attacks it`,
       });
     }
   }

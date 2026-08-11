@@ -304,13 +304,25 @@ describe("residual FPs (fire, but under the all-warn default table — armingCon
     },
   );
 
-  it.each([16, 22])(
+  it.each([16])(
     "FP #%i 'trapped' beyond the 2-ply motif-license scope still fires",
     (idx) => {
       const fires = firesFor(byIdx(idx)).filter((v) => v.check === "tactical_keyword");
       expect(fires.map((v) => v.span.toLowerCase())).toContain("trapped");
     },
   );
+
+  // ROUND 2 (2026-08-10): #22 ("Your king is trapped with no escape", fixture
+  // 09 — the game ends in the Nd5# smothered mate) was an adjudicated FP that
+  // round 1 had no mechanical license for. The round-2 king-context rule
+  // licenses king-"trapped" prose when the contract knows a mate (fix 4b,
+  // license half) — a mated king IS trapped — so this FP is now CLEARED, not
+  // residual. The zero-mobility TF shape ("knight … no legal moves" with
+  // actual moves on the board) is pinned separately in refereeRound2.test.ts.
+  it("FP #22 king-context 'trapped' is cleared by the round-2 mate license", () => {
+    const fires = firesFor(byIdx(22)).filter((v) => v.check === "tactical_keyword");
+    expect(fires.map((v) => v.span.toLowerCase())).not.toContain("trapped");
+  });
 });
 
 // ── New measurement-only check: mobility_claims (fixture 01's wrong "15") ───

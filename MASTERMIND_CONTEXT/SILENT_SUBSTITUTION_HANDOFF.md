@@ -44,9 +44,25 @@ As of PR #252, `npm run build` **is** in CI. Before that, lint errors passed CI 
 - E2E `webServer` needs a dummy `ANTHROPIC_API_KEY` (the instrumentation hook's `parseEnv()` requires it at boot). `SKIP_ENV_VALIDATION` is set by the build script but **read by nothing** — do not rely on it.
 - **A stray `.env` file can make local runs pass that would fail in CI.** Verify with *all* env files hidden (`.env` and `.env.local`).
 
-### 0.4 The repo has heavy concurrent agent traffic
+### 0.4 The repo has heavy concurrent agent traffic — WORK IN A GIT WORKTREE
 
 Multiple Claude sessions merge PRs daily. During this audit, `route.ts` changed on disk mid-analysis and the working tree's HEAD was switched out from under a commit. **Always `git status` and check HEAD before committing.** Re-verify line numbers before editing.
+
+**Sharing the checkout also breaks `npm run build` in a way that looks like your bug.** While fixing A1/A2 I hit three consecutive build failures with `ENOENT` / `MODULE_NOT_FOUND` on routes I had never touched (`/auth/age`, `/courses`, `/calibrate`, `_ssgManifest.js`) — a different one each run. Cause: another session mutating the shared checkout (its HEAD was switched mid-build, and `.next` is shared state). Nothing was wrong with the code; the same commit built cleanly in isolation.
+
+**Do this instead — it costs about a minute and removes the whole class:**
+
+```bash
+cd ~/Downloads/Inspirit_project/chess-coach-ai
+git fetch origin
+git worktree add -b fix/my-thing ../wt-my-thing origin/main
+ln -s "$PWD/node_modules" ../wt-my-thing/node_modules   # no reinstall needed
+cd ../wt-my-thing
+```
+
+You get your own source tree **and** your own `.next`. Also: `playwright.config.ts` sets `reuseExistingServer: !CI` on port 3210, so check `lsof -ti:3210` is empty before an E2E run — otherwise you silently test **another session's build**.
+
+Finally, branch each PR from `origin/main` (not from another fix branch), and **re-run tsc + tests + build AFTER any rebase**, not just before. Group C and A1 both touched `route.ts`; only a post-rebase run tells you the merge is actually sound.
 
 ---
 
@@ -153,6 +169,8 @@ Each finding gives: evidence → mechanism → why it's silent → fix → **pro
 
 #### A3 · P1 · Player color is asserted as fact when it is a guess
 
+> **Partially addressed already (PR #248).** The "which side were you playing?" flow now exists with inference-first resolution and per-game memory, so `playerSide` is null less often than this finding assumes. **The prompt-side hedge below is still worth doing** — inference can still miss, and when it does the prompt asserts the guess as fact with no qualifier.
+
 **Evidence:** `AnalysisImpl.tsx:6721-6752` (`coachExtras`) — `sideName = playerSide?.color ?? boardOrientation`; `boardOrientation` defaults to `"white"`. `playerSide` is null whenever username→PGN-header matching fails (`:6943-6960`). The "Which side were you playing?" prompt card renders (`:3739`) but does **not** gate the composer (send is gated only on `analysisActive`/`isThinking`, `:3837`, `:3864`).
 Server: `route.ts:647` → `"Player is White."`; `coachChatPrompt.ts:148-157` emits *"Always analyze the game from the perspective of `<username>` playing as White"* with no hedge.
 
@@ -222,6 +240,19 @@ Server: `route.ts:647` → `"Player is White."`; `coachChatPrompt.ts:148-157` em
 **Background:** when the browser Stockfish exceeds its per-position budget (30s, retry at `max(8, depth-4)` = 12), it returns a sentinel `{pv: [], depth: 0, multiPv: 1, cp: 0}` (`src/lib/engine/uciEngine.ts:335-337`). Depth default was raised 14→16 on 2026-07-07, making timeouts more likely — and they occur almost exclusively on low-end devices, i.e. never on the developer's machine.
 
 **The guard exists and is correctly applied in three places** — `route.ts:250-251` (anchor `const compactSentinel =`), `route.ts:282`, `selectInsights.ts:93-95`, `serialize.ts:158-160` — and is **missing in five**. This is copy-paste drift, not a design problem.
+
+> ### ⚠️ Group C is UPSTREAM OF THE REFEREE, and the referee cannot catch it
+>
+> *(Raised by the contract/referee session, 2026-08-11. This changes Group C's priority — see §7.)*
+>
+> The output referee validates coach **prose** against the **contract**. Group C corrupts the contract itself. So when the contract says a timed-out move was a blunder, the coach says *"that was a blunder"*, and the referee marks it **BACKED**.
+>
+> **`cited` means "consistent with the contract". It never means "true".** C3 is the clearest case: it renders `Classification: BLUNDER` three lines above `Eval: engine data unavailable`, and both are in the same block.
+>
+> Two consequences worth stating plainly:
+>
+> 1. **Fabrication measurements do not cover this failure mode.** The referee's measured rate (0.25/100, down from 24.6) is taken on fixtures carrying real Stockfish evals, which contain **no sentinels**. The improvement is real, but real-world fabrication on slow devices is very likely higher than that number implies. Group C should land **before or alongside** the serving flip, not after.
+> 2. **The depth 14→16 raise (#224) traded one for the other.** It improved ground truth on capable devices and made the sentinel bugs bite harder on weak ones — which is the population this product exists for.
 
 #### C1 · P0 · `Current eval: +0.00` fabricated for never-evaluated positions
 
@@ -457,14 +488,30 @@ Related, unverified: `handleAskCoachAboutMove` (`:8068-8072`) does **not** gate 
 
 ---
 
+## §6.5 SHIPPED SO FAR (update this as you go)
+
+| Item | PR | State | Notes |
+|---|---|---|---|
+| **A1 + A2** rating threading | **#272** | **MERGED + DEPLOYED** (`c60a541`, verified on `/api/version`) | See "still open" below — prod telemetry not yet read. |
+| **Group C** sentinel guards (C1–C5) | **#275** | Open | Rebased onto main after #270/#271/#272. |
+
+**Still open on A1 (do not tick it off yet).** The handoff's own definition of done requires production evidence, and only the deploy half is confirmed. `route.ts` now logs a `ratingSource` field per request (`body` | `profile` | `pgn_header` | `none`). **Read one day of production logs.** If it reads `none` for signed-in users who have a rating, the client fix is not reaching them and the number alone would never tell you.
+
+**Two build-gate lessons from these two PRs — both cost real time:**
+
+1. **App Router route modules may only export known Route fields.** Exporting a helper from `app/api/*/route.ts` for testing fails the production build (`"buildCompactGameContext" is not a valid Route export field`) **while `tsc --noEmit` and the entire vitest suite stay green.** If you need to test a route-local helper, move it to `src/lib/` — that is what `src/lib/coach/compactGameContext.ts` is.
+2. **`npm run build` catches things nothing else does.** Both of the above, plus the lint class that froze prod for a day. Run it before every PR, in a worktree.
+
+---
+
 ## §7. Recommended execution order
 
 Ordered by (impact × ease of proof) ÷ risk. **One PR per numbered item.**
 
 | # | Item | Files | Risk | Why here |
 |---|---|---|---|---|
-| 1 | **A1 + A2** rating threading | `AnalysisImpl.tsx`, `puzzles.tsx`, `coachChatPrompt.ts`, `route.ts` | Low | Biggest behavior change per line. Unambiguous proof. **Pilot — validates the whole method end-to-end before harder work.** |
-| 2 | **Group C** sentinel guards (C1–C5) | `positionFacts.ts`, `route.ts`, `serialize.ts`, `selectInsights.ts` | Very low | Pure additive guards on pure functions. Stops fabricated chess content. Table-driven tests. |
+| 1 | ~~**A1 + A2** rating threading~~ **DONE — #272, deployed** | `AnalysisImpl.tsx`, `puzzles.tsx`, `coachChatPrompt.ts`, `route.ts` | Low | Biggest behavior change per line. Unambiguous proof. **Pilot — validates the whole method end-to-end before harder work.** |
+| 2 | **Group C** sentinel guards (C1–C5) — **#275 open** | `positionFacts.ts`, `route.ts`, `serialize.ts`, `selectInsights.ts` | Very low | Pure additive guards on pure functions. Stops fabricated chess content. Table-driven tests. **Priority raised: this is upstream of the referee and the referee cannot catch it — land it before/alongside the serving flip (see the callout in Group C).** ⚠️ Collides with the live contract/referee workstream; rebase and re-verify. |
 | 3 | **T1** request deadline + always-emit-`done` + early `contextId` | `route.ts`, `llmProvider` call site | Medium | Unblocks D1/D4 (corrections are lost when `done` is lost) and kills the cost spiral. |
 | 4 | **Group B** (B1+B2+B3 together) | `AnalysisImpl.tsx`, `chat/route.ts`, `schemas.ts`, `serialize.ts` | Medium | Must ship as one unit. Needs the browser-level harness. |
 | 5 | **Group D** (D1–D4) | `AnalysisImpl.tsx`, `chat/route.ts` | Medium | Stops compounding. D1 depends on item 3. |
@@ -480,7 +527,10 @@ Ordered by (impact × ease of proof) ÷ risk. **One PR per numbered item.**
 ## §8. Other open workstreams (separate handoffs; indexed here so nothing is lost)
 
 1. **P0 legal — AGPL relicense.** This repo is a fork of `GuillaumeSD/Chesskit` (earliest commits are his; `upstream` remote confirms). Root `COPYING.md` still states AGPL-3.0. Commit `cf90060` (2026-04-18) relicensed to CC BY-NC 4.0: *"BREAKING CHANGE: License changed from AGPL-3.0 to CC BY-NC 4.0."* **100 upstream source files remain in `src/`** (37 byte-identical, 63 modified), including `useEngine`, `useChessActions`, `useGameData`. A fork cannot unilaterally relicense upstream's work, and AGPL §13 obliges source disclosure to *network* users — colliding with both the NonCommercial license and the pending $0.99 subscription. **Needs a lawyer + an email to GuillaumeSD before `FREEMIUM_ENABLED` is flipped.** Full detail in the founder's memory file `project_agpl_relicense_exposure.md`.
-2. **P1 privacy — LLM capture has no consent gate.** `recordLLMCallFull` (`src/lib/tracking/llmCapture.ts:64-65`) gates only on `TRACKING_ENABLED`; the three `/api/track*` routes all check `hasTrackingConsent`. It stores full system prompt, messages, response text, FEN and PGN. **Currently dormant** (tracking off in prod) but armed. One-line fix + a retention TTL.
+2. ~~**P1 privacy — LLM capture has no consent gate.**~~ **RESOLVED. Do not re-fix, and do not treat as dormant.**
+   *(Flagged by the contract/referee session 2026-08-11; re-verified independently against `src/lib/tracking/llmCapture.ts` before this edit — a comment is a hypothesis, §0.2.)*
+   This entry was wrong in **both** directions. "Currently dormant (tracking off in prod)" had already stopped being true, so the gap was **live**, not armed-but-idle. It was then closed by **PR #263**: `CaptureInput.consent` is a **required, un-defaultable** field (`llmCapture.ts:36`; module header `:21-23` — *"a route that forgets it fails to compile rather than silently capturing a non-consenting user"*), and `recordLLMCallFull` **fails closed** on it (`:79-80`, `if (!ctx.consent) return;`). Threaded through all four LLM routes plus `contractServing`.
+   **Read the shape, not just the status.** The fix makes the safe behaviour *compile-time mandatory* rather than *remembered*. That is the same move A1 used (`userRating` is a required key with an optional value, so omitting it is a type error at every call site), and it is the only structural defence this codebase has found against silent substitution. Prefer it to a runtime default every single time.
 3. **P1 privacy — deletion promised, not performable.** The privacy page promises deletion within 7 days; `purgeUserData()` only clears tracking tables (its own comment says "call from the account-deletion flow (once one exists)"), and no such flow exists. Needs an ops script now and a self-serve flow + data export later.
 4. **P2 — unauthenticated billed health endpoints.** `/api/health/llm` and `/api/health/anthropic` make real Anthropic calls with no auth and no rate limit.
 5. **COPPA follow-up** — the DOB gate ships, but consider whether counsel wants a stronger posture; question is written into PR #239's body.

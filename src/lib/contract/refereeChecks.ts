@@ -1014,20 +1014,72 @@ function forbiddenClaimClasses(insight: InsightContract): Set<ClaimClass> {
   return classes;
 }
 
+/** Corroborating eval swing threshold — founder's round-2 rule: ≥ 1.5 pawns. */
+const HISTORY_SWING_CP = 150;
+
+/**
+ * ROUND 2 fix 6 — game-history exemption for strong positional words: the
+ * sentence references a move that is IN the game history (exact SAN match
+ * against the move table; piece designators for the insight's own FENs are
+ * board references, not move recaps, and never qualify) AND the move table
+ * shows a corroborating eval swing ≥ +1.5 pawns in the referenced mover's
+ * favor from this insight's own anchor (evalBefore) to the position after
+ * the referenced move. v2 #6: "d5 — pushing the knight off c6 and
+ * dominating the center" — d5 is the game's ply-12 move and the table runs
+ * 0.00 → +1.80+ across it; calling that "dominating" recaps an
+ * engine-corroborated game swing, not a fabricated positional plan.
+ */
+function gameHistoryCorroborates(
+  sentence: string,
+  insight: InsightContract,
+  contract?: CoachContract,
+): boolean {
+  if (!contract) return false;
+  const anchor = insight.evalBefore.sentinel ? null : insight.evalBefore.cp;
+  if (anchor === null) return false;
+  const pieceMaps = [fenPieceMap(insight.fenBefore), fenPieceMap(insight.fenAfter)];
+  const tokens = tokenizeProse(sentence).filter(
+    (t) => t.kind === "piece_san" || t.kind === "pawn_or_square",
+  );
+  for (const t of tokens) {
+    if (!t.norm) continue;
+    // A piece standing on that square in this insight's FENs makes the token
+    // a board designator ("the Nd4"), not a game-move recap.
+    if (isPieceDesignatorLicensed(t.raw, pieceMaps)) continue;
+    for (const row of contract.moveTable) {
+      if (stripSanDecorations(row.san) !== t.norm) continue;
+      // Forward-in-time only: the anchor→after-move swing is meaningless for
+      // moves BEFORE this insight's position (round-1 #2's "eyeing d5"
+      // mentions a ply-7 square-push behind a ply-9 insight — not a recap).
+      if (row.ply < insight.ply) continue;
+      const rowEval = row.evalAfter;
+      if (!rowEval || rowEval.sentinel || rowEval.cp === null) continue;
+      const swing = row.color === "w" ? rowEval.cp - anchor : anchor - rowEval.cp;
+      if (swing >= HISTORY_SWING_CP) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Plan §4 check 5 input (measurement form): claimClassesForbidden from
  * Degraded sources → keyword classes that must not appear. Detectors:
  *   - positional_plan → POSITIONAL_TOKEN_REGEX (imported from the serving
  *     validator), WITH its degraded-mode escape: SF alone decisive
  *     (|cp| ≥ 300 or a mate on the board) passes — mirrors
- *     validatePositionalClaim's lc0-unavailable behavior.
+ *     validatePositionalClaim's lc0-unavailable behavior — and the round-2
+ *     game-history exemption (gameHistoryCorroborates, contract-dependent).
  *   - endgame_wdl → tablebase/theoretical-outcome phrasings.
  *   - user_visibility → "obvious/obviously" (conservative subset; see
  *     module doc).
  * Other classes (tactical_motif, eval_numeric, …) are covered by the
  * dedicated checks above and not double-reported here.
  */
-export function checkForbiddenClaims(prose: string, insight: InsightContract): RefereeViolation[] {
+export function checkForbiddenClaims(
+  prose: string,
+  insight: InsightContract,
+  contract?: CoachContract,
+): RefereeViolation[] {
   const forbidden = forbiddenClaimClasses(insight);
   const violations: RefereeViolation[] = [];
 
@@ -1037,6 +1089,9 @@ export function checkForbiddenClaims(prose: string, insight: InsightContract): R
     const sfDecisive = (cp !== null && Math.abs(cp) >= 300) || mate !== null;
     if (!sfDecisive) {
       for (const m of Array.from(prose.matchAll(clone(POSITIONAL_TOKEN_REGEX)))) {
+        const idx = m.index ?? 0;
+        const { start, end } = sentenceBounds(prose, idx);
+        if (gameHistoryCorroborates(prose.slice(start, end), insight, contract)) continue; // round-2 fix 6
         violations.push({
           check: "forbidden_claim",
           category: "forbidden_claim_present",
@@ -1090,7 +1145,7 @@ export function runInsightChecks(
     ...checkEvalDisplays(prose, insight, contract),
     ...checkSanWhitelist(prose, insight),
     ...checkTacticalKeywords(prose, insight, contract),
-    ...checkForbiddenClaims(prose, insight),
+    ...checkForbiddenClaims(prose, insight, contract),
   ];
 }
 

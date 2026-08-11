@@ -196,7 +196,8 @@ export function refereeInsight(
   // licenses (king-context "trapped" needs the game's mate — fix 4b).
   for (const v of checkTacticalKeywords(prose, insight, opts.contract))
     findings.push(violationToFinding(v));
-  for (const v of checkForbiddenClaims(prose, insight)) findings.push(violationToFinding(v));
+  for (const v of checkForbiddenClaims(prose, insight, opts.contract))
+    findings.push(violationToFinding(v));
 
   // Check 5: Stage-9 scanners on the per-insight contract-derived snapshot.
   const snapshot = buildVoterSnapshotForInsight(insight, opts.userRating);

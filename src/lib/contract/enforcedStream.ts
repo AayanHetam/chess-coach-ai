@@ -27,6 +27,8 @@ import { matchInsightForHeader, parseInsightHeader } from "./insightGrammar";
 import { DEFAULT_LADDER_BUDGETS, runInsightLadder } from "./ladder";
 import type { LadderBudgets, LadderCardResult, LadderDeps, LadderStage } from "./ladder";
 import { isSentinelBearingInsight } from "./sentinelGuard";
+import { refereeOverview } from "./overviewReferee";
+import type { OverviewRefereeResult } from "./overviewReferee";
 import { selectCardInsightsDetailed } from "@/lib/prompts/verbalizerPrompt";
 import type { CoachContract, InsightContract } from "./types";
 
@@ -85,6 +87,15 @@ export interface EnforcedStreamSummary {
   costUsd: number;
   /** ms from stream start to the first card burst reaching the client. */
   firstCardEmitMs: number | null;
+  /**
+   * How a ZERO-CARD review's overview prose was resolved (null when the
+   * review had cards). See overviewReferee.ts — this shape used to bypass
+   * the referee entirely because refereeing is per-card and a zero-card
+   * review is 100% out-of-block text.
+   */
+  overviewOutcome: OverviewRefereeResult["outcome"] | null;
+  /** Contract-global violations found in a zero-card overview. */
+  overviewViolations: number;
 }
 
 export interface EnforcedContractStream {
@@ -133,6 +144,26 @@ export function createEnforcedContractStream(
     if (!text) return;
     finalText += text;
     emit(text);
+  };
+
+  /**
+   * ZERO-CARD REVIEWS (overviewReferee.ts). Refereeing is per-card, so a
+   * review the card plan left empty is 100% out-of-block text and used to
+   * stream straight to the client unrefereed. When the plan is empty we
+   * BUFFER instead of forwarding, referee the whole overview against the
+   * contract-global pools at end(), and emit once. The cost is streaming
+   * smoothness on the one shape that is a couple of sentences long anyway;
+   * the alternative is shipping the least-anchored prose in the product
+   * without a single check on it.
+   */
+  const zeroCardReview = cardPlan.cards.length === 0;
+  let overviewBuffer = "";
+  let overviewOutcome: OverviewRefereeResult["outcome"] | null = null;
+  let overviewViolations = 0;
+  const sink = (text: string) => {
+    if (!text) return;
+    if (zeroCardReview) overviewBuffer += text;
+    else emitTracked(text);
   };
 
   // Strict FIFO: every emission rides this chain, so card order is
@@ -273,7 +304,7 @@ export function createEnforcedContractStream(
       } else {
         const raw = text;
         enqueue(() => {
-          emitTracked(stripper.push(raw));
+          sink(stripper.push(raw));
         });
       }
     },
@@ -292,9 +323,25 @@ export function createEnforcedContractStream(
     async end(): Promise<EnforcedStreamSummary> {
       gate.end();
       enqueue(() => {
-        emitTracked(stripper.flush());
+        sink(stripper.flush());
       });
       await chain;
+
+      if (zeroCardReview) {
+        const reviewed = refereeOverview(overviewBuffer, contract);
+        overviewOutcome = reviewed.outcome;
+        overviewViolations = reviewed.violations.length;
+        emitTracked(reviewed.text);
+        if (reviewed.violations.length > 0) {
+          log.warn("contract_enforce_overview_refereed", {
+            contractId: contract.contractId,
+            correlationId: opts.correlationId,
+            outcome: reviewed.outcome,
+            violations: reviewed.violations.length,
+            checks: reviewed.violations.map((v) => v.check),
+          });
+        }
+      }
 
       const distribution: Record<LadderStage, number> = {
         pass: 0,
@@ -324,6 +371,8 @@ export function createEnforcedContractStream(
         budgets,
         costUsd,
         firstCardEmitMs,
+        overviewOutcome,
+        overviewViolations,
       };
       log.info("contract_enforce_summary", {
         contractId: contract.contractId,

@@ -218,10 +218,14 @@ function contractEvalPools(contract: CoachContract): EvalPools {
  */
 export function checkEvalDisplays(
   prose: string,
-  insight: InsightContract,
+  /** null is legal ONLY with a contract — the zero-card overview referee has
+   * no insight to anchor to and uses the contract-global pool exclusively. */
+  insight: InsightContract | null,
   contract?: CoachContract,
 ): RefereeViolation[] {
-  const pools = contract ? contractEvalPools(contract) : collectEvalPools(insight);
+  const pools = contract
+    ? contractEvalPools(contract)
+    : collectEvalPools(insight as InsightContract);
   const violations: RefereeViolation[] = [];
 
   for (const m of Array.from(prose.matchAll(clone(PAWN_FIGURE_RE)))) {

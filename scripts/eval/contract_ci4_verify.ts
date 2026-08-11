@@ -40,7 +40,9 @@ import type { CoachContract, InsightContract } from "@/lib/contract/types";
 import type { FidelityEntry, FidelityReport } from "@/lib/contract/refereeChecks";
 import type { GameEvalInput, GameHeadersInput } from "@/lib/contract/gameEvalSchema";
 import type { LadderStage } from "@/lib/contract/ladder";
-import { CI5_CANDIDATE_ARMING_TABLE } from "./ci4GateTable";
+// Pure string helpers — no env reads, no side effects, safe before env prep.
+import { splitProseSentences } from "@/lib/contract/sentences";
+import { CI4_GATE_ARMING_TABLE } from "./ci4GateTable";
 
 const REPO_ROOT = process.cwd();
 const FIXTURES_DIR = path.join(REPO_ROOT, "src/lib/contract/__tests__/fixtures");
@@ -204,9 +206,9 @@ function normalizeWs(s: string): string {
 }
 
 function proseSentences(body: string, deps: MeasureDeps): string[] {
-  return deps
-    .stripGrammarTokenLines(deps.stripCitations(body))
-    .split(/(?<=[.!?])\s+|\n+/)
+  // Chess-aware split (src/lib/contract/sentences.ts) — a naive one shredded
+  // quoted engine lines into fragments, deflating the retention denominator.
+  return splitProseSentences(deps.stripGrammarTokenLines(deps.stripCitations(body)))
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 }
@@ -543,9 +545,10 @@ async function runLive(args: Args): Promise<void> {
       citationGranularity: "sentence",
       deadlineAtMs: tContract + 55_000,
       regenSystem: vParts,
-      // See contract_ci4_eval.ts: DEFAULT_ARMING_TABLE is all-warn on main, so
-      // an unarmed verify run would compare raw model prose against itself.
-      armingTable: CI5_CANDIDATE_ARMING_TABLE,
+      // See contract_ci4_eval.ts: an unarmed verify run would compare raw
+      // model prose against itself. This IS the serving table + declared
+      // overrides (scripts/eval/ci4GateTable.ts), never a hand-copied mirror.
+      armingTable: CI4_GATE_ARMING_TABLE,
     });
     for await (const evt of callLLMStream({
       tier: "flagship",

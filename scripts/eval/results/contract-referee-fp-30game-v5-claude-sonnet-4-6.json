@@ -1,0 +1,1632 @@
+{
+  "date": "2026-08-11",
+  "mode": "referee_fp_30game_pre_arming",
+  "planGate": "CONTRACT_INVERSION_PLAN.md §7 PR-CI-3: SAN/square-check false-positive rate measured on a 30-game set before any error-severity arming",
+  "model": {
+    "generator": "claude-sonnet-4-6"
+  },
+  "promptVersion": "3.6",
+  "contractVersion": "1.0",
+  "fixtures": 10,
+  "fixturesSource": "fixtures-real (real-Stockfish gameEvals, generate_fixture_evals.ts)",
+  "samplesPerFixture": 3,
+  "failedSamples": [],
+  "generation": {
+    "tier": "flagship",
+    "temperature": 0.7,
+    "maxTokens": 3000,
+    "userMessage": "analyze my game"
+  },
+  "referees": {
+    "widened": "refereeChecks.runInsightChecks (hypotheticalRule: window, precision-pack + round-2 licenses, contract threaded)",
+    "strict": "referee.refereeInsight (hypotheticalRule: prefix, wouldPassWidenedWindow telemetry, contract threaded)",
+    "measurementOnly": "refereeChecks.runMeasurementOnlyChecks (follow-up fix C pv_truncation G1/G2/G3 + the QUALITATIVE mobility family only — fix D graduated the LITERAL family onto the served/strict graders)"
+  },
+  "summary": {
+    "reviews": 30,
+    "claimSentences": 793,
+    "strictFires": 47,
+    "widenedFires": 24,
+    "strictOnlyFires": 23,
+    "widenedLicensedShare": 1,
+    "recommendation": {
+      "eval_display": "0 fires across the set — no FP evidence; candidate to arm at error in CI-4 (known-bad detection suite must stay green)",
+      "san_whitelist_strict": "all 23 fire(s) mechanically licensed by contract-GLOBAL facts — the insight-LOCAL whitelist over-fires on legitimate cross-insight/game references; do NOT arm insight-local at error, widen the license pool (or keep warn) first",
+      "san_whitelist_widened": "0 fires across the set — no FP evidence; candidate to arm at error in CI-4 (known-bad detection suite must stay green)",
+      "tactical_keyword": "16/17 fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming",
+      "forbidden_claim": "1/1 fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming",
+      "pv_truncation": "2 measurement-only fire(s), all needs-review by construction — adjudicate flaggedSpans before this check may even be PROPOSED for the arming table",
+      "mobility_claims_literal_served": "6 served fire(s): bare-integer / \"no legal moves\" claims chess.js contradicts. These are arithmetic refutations, not unlicensed spans — review confirms the fabrication rather than looking for a license.",
+      "mobility_claims_qualitative": "6 measurement-only fire(s), all needs-review by construction — adjudicate flaggedSpans before this check may even be PROPOSED for the arming table",
+      "hypothetical_line": "strict §4.3 prefix rule over-fires 23× where the widened window licenses the span — keep the widened window (or strict-at-warn) in CI-4; no shared fires need review"
+    }
+  },
+  "perCheck": {
+    "eval_display": {
+      "fires": 0,
+      "adjudications": {},
+      "needsReview": 0,
+      "recommendation": "0 fires across the set — no FP evidence; candidate to arm at error in CI-4 (known-bad detection suite must stay green)"
+    },
+    "san_whitelist_strict": {
+      "fires": 23,
+      "adjudications": {
+        "widened-licensed": 23
+      },
+      "needsReview": 0,
+      "recommendation": "all 23 fire(s) mechanically licensed by contract-GLOBAL facts — the insight-LOCAL whitelist over-fires on legitimate cross-insight/game references; do NOT arm insight-local at error, widen the license pool (or keep warn) first"
+    },
+    "san_whitelist_widened": {
+      "fires": 0,
+      "adjudications": {},
+      "needsReview": 0,
+      "recommendation": "0 fires across the set — no FP evidence; candidate to arm at error in CI-4 (known-bad detection suite must stay green)"
+    },
+    "tactical_keyword": {
+      "fires": 17,
+      "adjudications": {
+        "needs-review": 16,
+        "licensed-elsewhere-in-contract": 1
+      },
+      "needsReview": 16,
+      "recommendation": "16/17 fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming"
+    },
+    "forbidden_claim": {
+      "fires": 1,
+      "adjudications": {
+        "needs-review": 1
+      },
+      "needsReview": 1,
+      "recommendation": "1/1 fire(s) lack any mechanical license — human/CI-4 adjudication of flaggedSpans required before arming"
+    },
+    "pv_truncation": {
+      "fires": 2,
+      "adjudications": {
+        "needs-review": 2
+      },
+      "needsReview": 2,
+      "recommendation": "2 measurement-only fire(s), all needs-review by construction — adjudicate flaggedSpans before this check may even be PROPOSED for the arming table"
+    },
+    "mobility_claims_literal_served": {
+      "fires": 6,
+      "adjudications": {
+        "needs-review": 6
+      },
+      "needsReview": 6,
+      "recommendation": "6 served fire(s): bare-integer / \"no legal moves\" claims chess.js contradicts. These are arithmetic refutations, not unlicensed spans — review confirms the fabrication rather than looking for a license."
+    },
+    "mobility_claims_qualitative": {
+      "fires": 6,
+      "adjudications": {
+        "needs-review": 6
+      },
+      "needsReview": 6,
+      "recommendation": "6 measurement-only fire(s), all needs-review by construction — adjudicate flaggedSpans before this check may even be PROPOSED for the arming table"
+    },
+    "hypothetical_line": {
+      "strictFires": 23,
+      "widenedFires": 0,
+      "strictOnlyFires": 23,
+      "adjudications": {
+        "widened-licensed": 23
+      },
+      "needsReview": 0,
+      "recommendation": "strict §4.3 prefix rule over-fires 23× where the widened window licenses the span — keep the widened window (or strict-at-warn) in CI-4; no shared fires need review"
+    }
+  },
+  "strictByCategory": {
+    "tactical_keyword_unbacked": 17,
+    "mobility_count_wrong": 6,
+    "hypothetical_line_off_contract": 23,
+    "forbidden_claim_present": 1
+  },
+  "widenedByCategory": {
+    "tactical_keyword_unbacked": 17,
+    "mobility_count_wrong": 6,
+    "forbidden_claim_present": 1
+  },
+  "stage9Informational": {
+    "stage9_material_win": 14,
+    "stage9_positional_claim": 2,
+    "stage9_mate_in_n": 2
+  },
+  "measurementOnlyByCheck": {
+    "mobility_claims": 6,
+    "pv_truncation": 2
+  },
+  "perFixture": [
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "samples": [
+        {
+          "fixture": "01_mate_for_white_midgame",
+          "sample": 1,
+          "contractId": "3ef3d01123b95ac7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1114,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 28,
+          "strictFires": 4,
+          "widenedFires": 3,
+          "strictOnlyFires": 1,
+          "strictByCategory": {
+            "tactical_keyword_unbacked": 1,
+            "mobility_count_wrong": 2,
+            "hypothetical_line_off_contract": 1
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 1,
+            "mobility_count_wrong": 2
+          },
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "01_mate_for_white_midgame",
+          "sample": 2,
+          "contractId": "3ef3d01123b95ac7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 981,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 28,
+          "strictFires": 3,
+          "widenedFires": 3,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "tactical_keyword_unbacked": 2,
+            "mobility_count_wrong": 1
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 2,
+            "mobility_count_wrong": 1
+          },
+          "stage9ByCheck": {
+            "stage9_material_win": 1
+          },
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "01_mate_for_white_midgame",
+          "sample": 3,
+          "contractId": "3ef3d01123b95ac7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1101,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 29,
+          "strictFires": 2,
+          "widenedFires": 2,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "tactical_keyword_unbacked": 1,
+            "mobility_count_wrong": 1
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 1,
+            "mobility_count_wrong": 1
+          },
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 85,
+        "strictFires": 9,
+        "widenedFires": 8,
+        "strictOnlyFires": 1
+      }
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "samples": [
+        {
+          "fixture": "02_mate_for_black",
+          "sample": 1,
+          "contractId": "ca1fcf046a0ac035",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 987,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 23,
+          "strictFires": 2,
+          "widenedFires": 1,
+          "strictOnlyFires": 1,
+          "strictByCategory": {
+            "tactical_keyword_unbacked": 1,
+            "hypothetical_line_off_contract": 1
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {
+            "stage9_material_win": 1
+          },
+          "measurementOnlyByCheck": {
+            "mobility_claims": 1
+          },
+          "consistency": []
+        },
+        {
+          "fixture": "02_mate_for_black",
+          "sample": 2,
+          "contractId": "ca1fcf046a0ac035",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1140,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 31,
+          "strictFires": 2,
+          "widenedFires": 2,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "tactical_keyword_unbacked": 1,
+            "mobility_count_wrong": 1
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 1,
+            "mobility_count_wrong": 1
+          },
+          "stage9ByCheck": {
+            "stage9_material_win": 1
+          },
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "02_mate_for_black",
+          "sample": 3,
+          "contractId": "ca1fcf046a0ac035",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1121,
+          "blocksEmitted": 2,
+          "blocksMatched": 2,
+          "unmatchedBlocks": 0,
+          "claimSentences": 24,
+          "strictFires": 4,
+          "widenedFires": 2,
+          "strictOnlyFires": 2,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 2,
+            "tactical_keyword_unbacked": 1,
+            "mobility_count_wrong": 1
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 1,
+            "mobility_count_wrong": 1
+          },
+          "stage9ByCheck": {
+            "stage9_material_win": 1
+          },
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 78,
+        "strictFires": 8,
+        "widenedFires": 5,
+        "strictOnlyFires": 3
+      }
+    },
+    {
+      "fixture": "03_sentinel_timeout",
+      "samples": [
+        {
+          "fixture": "03_sentinel_timeout",
+          "sample": 1,
+          "contractId": "fb417b570bf4d4e7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1043,
+          "blocksEmitted": 2,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 2,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "03_sentinel_timeout",
+          "sample": 2,
+          "contractId": "fb417b570bf4d4e7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 533,
+          "blocksEmitted": 1,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 1,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "03_sentinel_timeout",
+          "sample": 3,
+          "contractId": "fb417b570bf4d4e7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 915,
+          "blocksEmitted": 2,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 2,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 0,
+        "strictFires": 0,
+        "widenedFires": 0,
+        "strictOnlyFires": 0
+      }
+    },
+    {
+      "fixture": "04_invalid_san_truncation",
+      "samples": [
+        {
+          "fixture": "04_invalid_san_truncation",
+          "sample": 1,
+          "contractId": "4e36971c9e392ca8",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 432,
+          "blocksEmitted": 0,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 0,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "04_invalid_san_truncation",
+          "sample": 2,
+          "contractId": "4e36971c9e392ca8",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 436,
+          "blocksEmitted": 0,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 0,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "04_invalid_san_truncation",
+          "sample": 3,
+          "contractId": "4e36971c9e392ca8",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 390,
+          "blocksEmitted": 0,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 0,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 0,
+        "strictFires": 0,
+        "widenedFires": 0,
+        "strictOnlyFires": 0
+      }
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "samples": [
+        {
+          "fixture": "05_long_game_six_mistakes",
+          "sample": 1,
+          "contractId": "c3b77ded2a1a8ad7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 3000,
+          "blocksEmitted": 8,
+          "blocksMatched": 8,
+          "unmatchedBlocks": 0,
+          "claimSentences": 79,
+          "strictFires": 3,
+          "widenedFires": 0,
+          "strictOnlyFires": 3,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 3
+          },
+          "widenedByCategory": {},
+          "stage9ByCheck": {
+            "stage9_material_win": 1
+          },
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "05_long_game_six_mistakes",
+          "sample": 2,
+          "contractId": "c3b77ded2a1a8ad7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 3000,
+          "blocksEmitted": 8,
+          "blocksMatched": 8,
+          "unmatchedBlocks": 0,
+          "claimSentences": 76,
+          "strictFires": 5,
+          "widenedFires": 3,
+          "strictOnlyFires": 2,
+          "strictByCategory": {
+            "tactical_keyword_unbacked": 3,
+            "hypothetical_line_off_contract": 2
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 3
+          },
+          "stage9ByCheck": {
+            "stage9_material_win": 3
+          },
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "05_long_game_six_mistakes",
+          "sample": 3,
+          "contractId": "c3b77ded2a1a8ad7",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 3000,
+          "blocksEmitted": 8,
+          "blocksMatched": 8,
+          "unmatchedBlocks": 0,
+          "claimSentences": 84,
+          "strictFires": 5,
+          "widenedFires": 1,
+          "strictOnlyFires": 4,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 4,
+            "tactical_keyword_unbacked": 1
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {
+            "stage9_material_win": 2
+          },
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 239,
+        "strictFires": 13,
+        "widenedFires": 4,
+        "strictOnlyFires": 9
+      }
+    },
+    {
+      "fixture": "06_short_opening",
+      "samples": [
+        {
+          "fixture": "06_short_opening",
+          "sample": 1,
+          "contractId": "b9d2d9bba32dfe00",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 591,
+          "blocksEmitted": 0,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 0,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "06_short_opening",
+          "sample": 2,
+          "contractId": "b9d2d9bba32dfe00",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 586,
+          "blocksEmitted": 0,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 0,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "06_short_opening",
+          "sample": 3,
+          "contractId": "b9d2d9bba32dfe00",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 466,
+          "blocksEmitted": 0,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 0,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 0,
+        "strictFires": 0,
+        "widenedFires": 0,
+        "strictOnlyFires": 0
+      }
+    },
+    {
+      "fixture": "07_knight_fork",
+      "samples": [
+        {
+          "fixture": "07_knight_fork",
+          "sample": 1,
+          "contractId": "e77977da0afb8d87",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1385,
+          "blocksEmitted": 3,
+          "blocksMatched": 3,
+          "unmatchedBlocks": 0,
+          "claimSentences": 40,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "07_knight_fork",
+          "sample": 2,
+          "contractId": "e77977da0afb8d87",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1415,
+          "blocksEmitted": 3,
+          "blocksMatched": 3,
+          "unmatchedBlocks": 0,
+          "claimSentences": 37,
+          "strictFires": 2,
+          "widenedFires": 1,
+          "strictOnlyFires": 1,
+          "strictByCategory": {
+            "tactical_keyword_unbacked": 1,
+            "hypothetical_line_off_contract": 1
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {
+            "mobility_claims": 1
+          },
+          "consistency": []
+        },
+        {
+          "fixture": "07_knight_fork",
+          "sample": 3,
+          "contractId": "e77977da0afb8d87",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1448,
+          "blocksEmitted": 3,
+          "blocksMatched": 3,
+          "unmatchedBlocks": 0,
+          "claimSentences": 40,
+          "strictFires": 2,
+          "widenedFires": 2,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "forbidden_claim_present": 1,
+            "tactical_keyword_unbacked": 1
+          },
+          "widenedByCategory": {
+            "forbidden_claim_present": 1,
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {
+            "stage9_positional_claim": 1
+          },
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 117,
+        "strictFires": 4,
+        "widenedFires": 3,
+        "strictOnlyFires": 1
+      }
+    },
+    {
+      "fixture": "08_quiet_positional",
+      "samples": [
+        {
+          "fixture": "08_quiet_positional",
+          "sample": 1,
+          "contractId": "18df9f31fb8f2e24",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 955,
+          "blocksEmitted": 2,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 2,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "08_quiet_positional",
+          "sample": 2,
+          "contractId": "18df9f31fb8f2e24",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1188,
+          "blocksEmitted": 2,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 2,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "08_quiet_positional",
+          "sample": 3,
+          "contractId": "18df9f31fb8f2e24",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 752,
+          "blocksEmitted": 0,
+          "blocksMatched": 0,
+          "unmatchedBlocks": 0,
+          "claimSentences": 0,
+          "strictFires": 0,
+          "widenedFires": 0,
+          "strictOnlyFires": 0,
+          "strictByCategory": {},
+          "widenedByCategory": {},
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 0,
+        "strictFires": 0,
+        "widenedFires": 0,
+        "strictOnlyFires": 0
+      }
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "samples": [
+        {
+          "fixture": "09_legal_trap_tactics",
+          "sample": 1,
+          "contractId": "b1c0d5797d616ae2",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1622,
+          "blocksEmitted": 3,
+          "blocksMatched": 3,
+          "unmatchedBlocks": 0,
+          "claimSentences": 44,
+          "strictFires": 2,
+          "widenedFires": 1,
+          "strictOnlyFires": 1,
+          "strictByCategory": {
+            "tactical_keyword_unbacked": 1,
+            "hypothetical_line_off_contract": 1
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {
+            "stage9_material_win": 1
+          },
+          "measurementOnlyByCheck": {
+            "pv_truncation": 1
+          },
+          "consistency": []
+        },
+        {
+          "fixture": "09_legal_trap_tactics",
+          "sample": 2,
+          "contractId": "b1c0d5797d616ae2",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1484,
+          "blocksEmitted": 3,
+          "blocksMatched": 3,
+          "unmatchedBlocks": 0,
+          "claimSentences": 43,
+          "strictFires": 1,
+          "widenedFires": 1,
+          "strictOnlyFires": 0,
+          "strictByCategory": {
+            "tactical_keyword_unbacked": 1
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {},
+          "measurementOnlyByCheck": {
+            "pv_truncation": 1,
+            "mobility_claims": 1
+          },
+          "consistency": []
+        },
+        {
+          "fixture": "09_legal_trap_tactics",
+          "sample": 3,
+          "contractId": "b1c0d5797d616ae2",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1477,
+          "blocksEmitted": 3,
+          "blocksMatched": 3,
+          "unmatchedBlocks": 0,
+          "claimSentences": 41,
+          "strictFires": 2,
+          "widenedFires": 1,
+          "strictOnlyFires": 1,
+          "strictByCategory": {
+            "tactical_keyword_unbacked": 1,
+            "hypothetical_line_off_contract": 1
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {
+            "stage9_mate_in_n": 2
+          },
+          "measurementOnlyByCheck": {
+            "mobility_claims": 3
+          },
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 128,
+        "strictFires": 5,
+        "widenedFires": 3,
+        "strictOnlyFires": 2
+      }
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "samples": [
+        {
+          "fixture": "10_queenless_endgame",
+          "sample": 1,
+          "contractId": "bec671def34f5daf",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 2059,
+          "blocksEmitted": 4,
+          "blocksMatched": 4,
+          "unmatchedBlocks": 0,
+          "claimSentences": 51,
+          "strictFires": 3,
+          "widenedFires": 0,
+          "strictOnlyFires": 3,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 3
+          },
+          "widenedByCategory": {},
+          "stage9ByCheck": {
+            "stage9_material_win": 1
+          },
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "10_queenless_endgame",
+          "sample": 2,
+          "contractId": "bec671def34f5daf",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1909,
+          "blocksEmitted": 4,
+          "blocksMatched": 4,
+          "unmatchedBlocks": 0,
+          "claimSentences": 48,
+          "strictFires": 3,
+          "widenedFires": 0,
+          "strictOnlyFires": 3,
+          "strictByCategory": {
+            "hypothetical_line_off_contract": 3
+          },
+          "widenedByCategory": {},
+          "stage9ByCheck": {
+            "stage9_positional_claim": 1
+          },
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        },
+        {
+          "fixture": "10_queenless_endgame",
+          "sample": 3,
+          "contractId": "bec671def34f5daf",
+          "generatorModel": "claude-sonnet-4-6",
+          "outputTokens": 1936,
+          "blocksEmitted": 4,
+          "blocksMatched": 4,
+          "unmatchedBlocks": 0,
+          "claimSentences": 47,
+          "strictFires": 2,
+          "widenedFires": 1,
+          "strictOnlyFires": 1,
+          "strictByCategory": {
+            "tactical_keyword_unbacked": 1,
+            "hypothetical_line_off_contract": 1
+          },
+          "widenedByCategory": {
+            "tactical_keyword_unbacked": 1
+          },
+          "stage9ByCheck": {
+            "stage9_material_win": 2
+          },
+          "measurementOnlyByCheck": {},
+          "consistency": []
+        }
+      ],
+      "totals": {
+        "claimSentences": 146,
+        "strictFires": 8,
+        "widenedFires": 1,
+        "strictOnlyFires": 7
+      }
+    }
+  ],
+  "flaggedSpans": [
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 1,
+      "factIdPrefix": "I2",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "Outcome: After 8... Ne7, the knight on e7 has no legal moves (it's trapped), and the d5 knight remains under heavy pressure.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 1,
+      "factIdPrefix": "I2",
+      "referee": "both",
+      "check": "mobility_claims",
+      "category": "mobility_count_wrong",
+      "span": "no legal moves",
+      "sentence": "Outcome: After 8... Ne7, the knight on e7 has no legal moves (it's trapped), and the d5 knight remains under heavy pressure.",
+      "adjudication": "needs-review",
+      "detail": "zero-mobility claim \"no legal moves\" for the N on e7 contradicts chess.js (actual: 4 legal move(s) in the scored position(s))"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 1,
+      "factIdPrefix": "I2",
+      "referee": "both",
+      "check": "mobility_claims",
+      "category": "mobility_count_wrong",
+      "span": "no legal moves",
+      "sentence": "- Black's knight on e7: After Ne7, it has no legal moves — effectively a spectator piece.",
+      "adjudication": "needs-review",
+      "detail": "zero-mobility claim \"no legal moves\" for the N on e7 contradicts chess.js (actual: 4 legal move(s) in the scored position(s))"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 1,
+      "factIdPrefix": "I2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "O-O c6 d4",
+      "sentence": "The engine line continues 9. O-O c6 10. d4, where Black at least has some central structure.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"O-O c6 d4\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 2,
+      "factIdPrefix": "I1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "pin",
+      "sentence": "- Black's knight on d5: landed on an active square but walked into a pin later.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"pin\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 2,
+      "factIdPrefix": "I2",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "- Black's knight on e7: newly placed but has zero legal moves — completely trapped.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 2,
+      "factIdPrefix": "I2",
+      "referee": "both",
+      "check": "mobility_claims",
+      "category": "mobility_count_wrong",
+      "span": "zero legal moves",
+      "sentence": "- Black's knight on e7: newly placed but has zero legal moves — completely trapped.",
+      "adjudication": "needs-review",
+      "detail": "zero-mobility claim \"zero legal moves\" for the N on e7 contradicts chess.js (actual: 4 legal move(s) in the scored position(s))"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 3,
+      "factIdPrefix": "I2",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "- Black's knight on e7 is completely trapped with no legal moves.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 3,
+      "factIdPrefix": "I2",
+      "referee": "both",
+      "check": "mobility_claims",
+      "category": "mobility_count_wrong",
+      "span": "no legal moves",
+      "sentence": "- Black's knight on e7 is completely trapped with no legal moves.",
+      "adjudication": "needs-review",
+      "detail": "zero-mobility claim \"no legal moves\" for the N on e7 contradicts chess.js (actual: 4 legal move(s) in the scored position(s))"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "Developing with Nc6 doesn't address either of these urgent concerns — and the knight immediately becomes trapped with no good squares.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "O-O Nf5",
+      "sentence": "The engine line continues with 11. O-O Nf5, repositioning the g4 knight to a much stronger square where it pressures d6 directly.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"O-O Nf5\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "mobility_claims",
+      "category": "mobility_count_wrong",
+      "span": "no good squares",
+      "sentence": "Developing with Nc6 doesn't address either of these urgent concerns — and the knight immediately becomes trapped with no good squares.",
+      "adjudication": "needs-review",
+      "measurementOnly": true,
+      "detail": "zero-mobility claim \"no good squares\" for the N on c6 contradicts chess.js (actual: 5 safe move(s) in the scored position(s))"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "Problem: The knight on c6 turns out to be immediately trapped — it has no legal moves in the resulting position.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "mobility_claims",
+      "category": "mobility_count_wrong",
+      "span": "no legal moves",
+      "sentence": "Problem: The knight on c6 turns out to be immediately trapped — it has no legal moves in the resulting position.",
+      "adjudication": "needs-review",
+      "detail": "zero-mobility claim \"no legal moves\" for the N on c6 contradicts chess.js (actual: 6 legal move(s) in the scored position(s))"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Bxd2 Nbxd2",
+      "sentence": "Solution: 6... Bb4+ forces 7. Bd2, and after 7... Bxd2+ 8. Nbxd2, Black has traded off White's dark-squared bishop — a key attacking piece — while keeping the position balanced at 0.00.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Bxd2 Nbxd2\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "- Nc6 (after the move): attacks d6 but is immediately trapped with no legal moves, adding to Black's coordination problems",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "mobility_claims",
+      "category": "mobility_count_wrong",
+      "span": "no legal moves",
+      "sentence": "- Nc6 (after the move): attacks d6 but is immediately trapped with no legal moves, adding to Black's coordination problems",
+      "adjudication": "needs-review",
+      "detail": "zero-mobility claim \"no legal moves\" for the N on c6 contradicts chess.js (actual: 6 legal move(s) in the scored position(s))"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "O-O Nf5",
+      "sentence": "The engine line continues 11. O-O Nf5, repositioning the knight to a much better square — active, not passive — and 12. Nc3 shows White still pressing, but Black is at least coordinated and not bleeding further material.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"O-O Nf5\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Ke8 Nxf7",
+      "sentence": "Solution: 19. Nxc8+ picks up a free bishop, then after 19... Ke8 20. Nxf7 the queen on f7 falls as well — a double knight raid that wins decisive material.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Ke8 Nxf7\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Ke8 Nxf7",
+      "sentence": "Solution: 20. Nxc8+ takes the free bishop, and after 20... Ke8 21. Nxf7 the queen falls.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Ke8 Nxf7\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 1,
+      "factIdPrefix": "M4",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Kf8 Nxf7",
+      "sentence": "22. Nxc8+ picks it up with check, and after 22... Kf8 23. Nxf7 the queen falls again — the same double-knight pattern that was available three moves earlier.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Kf8 Nxf7\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M7",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "discovered",
+      "sentence": "Solution: 10. Qa3+ forces the black king to d8, and then 11. Nd6 traps the queen on e7 — a devastating discovered attack that wins material immediately.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"discovered\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M5",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Qxe8 Kxe8",
+      "sentence": "Solution: 17. Qf7+ forces 17... Kd8, and after 18. Qxe8+ Kxe8, White has traded queens but kept a massive material edge with the knights still active.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Qxe8 Kxe8\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "fork",
+      "sentence": "Solution: 19. Nxc8+ forks the king and wins the bishop for free, then 20. Nxf7 follows up winning the queen — a two-move sequence that nets massive material.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M6",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "fork",
+      "sentence": "Solution: 27. Nxf6+ forks the king on e8 and wins the bishop on f6 for free, keeping White in a dominant position.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 2,
+      "factIdPrefix": "M6",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Kd8 Bd5",
+      "sentence": "After 27... Kd8 28. Bd5, the position remains highly favorable.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Kd8 Bd5\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 3,
+      "factIdPrefix": "M5",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Kd8 Qxe8 Kxe8",
+      "sentence": "Solution: 17. Qf7+ forces 17... Kd8 18. Qxe8+ Kxe8 — you trade queens but Black's king is exposed, your knights are dominant, and you're up material.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Kd8 Qxe8 Kxe8\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "fork",
+      "sentence": "Nxc8+ followed by Nxf7 is a two-knight combination — one knight forks with check while the other collects the queen.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Ke8 Nxf7",
+      "sentence": "Solution: 19. Nxc8+ wins a free bishop with check, then after 19... Ke8 20. Nxf7 you win the queen too — a two-for-one sequence hiding in plain sight.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Ke8 Nxf7\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Ke8 Nxf7",
+      "sentence": "Solution: 20. Nxc8+ wins the bishop immediately, and after 20... Ke8 21. Nxf7 you win the queen — the same two-knight sequence as the previous move.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Ke8 Nxf7\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 3,
+      "factIdPrefix": "M3",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Bxg3 Kd1 Rxh4",
+      "sentence": "After 21... Bxg3+ 22. Kd1 Rxh4, you're up significant material even accounting for the complications.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Bxg3 Kd1 Rxh4\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "- Knight on a3: Misplaced immediately — it went to the rim to \"trap\" a queen that wasn't trapped.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "mobility_claims",
+      "category": "mobility_count_wrong",
+      "span": "no escape",
+      "sentence": "The bishop on c1 attacks the queen on b2, and there's no escape — that's a 9-pawn swing in your favor.",
+      "adjudication": "needs-review",
+      "measurementOnly": true,
+      "detail": "zero-mobility claim \"no escape\" for the Q on b2 contradicts chess.js (actual: 4/6 safe move(s) in the scored position(s))"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 2,
+      "factIdPrefix": "M3",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Nxa8 Qxd1",
+      "sentence": "Outcome: After 9. Nxa8 Qxd1+, your queen is gone and the knight on a8 is completely trapped with no escape.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Nxa8 Qxd1\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "forbidden_claim",
+      "category": "forbidden_claim_present",
+      "span": "completely winning",
+      "sentence": "After that, your material advantage is massive and the position is completely winning.",
+      "adjudication": "needs-review",
+      "detail": "strong positional claim \"completely winning\" while positional_plan is forbidden (Lc0 unavailable) and SF is not decisive (cp=284)"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 3,
+      "factIdPrefix": "M3",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "fork",
+      "sentence": "Idea: Your knight on c7 forked the king and rook, so taking the rook on a8 feels like the whole point of the fork.",
+      "adjudication": "licensed-elsewhere-in-contract",
+      "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "But developing with Nf6 solves multiple problems at once: it attacks e4, defends against tactics, and keeps your bishop from being trapped.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "h3 Bxf3 Qxf3",
+      "sentence": "After 5. h3 Bxf3 6. Qxf3, you've traded your misplaced bishop for a knight and the position stays manageable.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"h3 Bxf3 Qxf3\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 1,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "pv_truncation",
+      "category": "pv_truncation_suspect",
+      "span": "dxe5",
+      "sentence": "Solution: 5... dxe5 wins the knight on e5 for free — it's attacked by your d6 pawn and has no defenders.",
+      "adjudication": "needs-review",
+      "measurementOnly": true,
+      "detail": "quoted line \"dxe5\" stops one ply before Qxg4 in the contract PV while asserting a favorable outcome (\"Solution: 5... dxe5 wins the knight on e5 for free — it's attacked by your d6 pawn and has no defend…\") — material quiescence violated: Qxg4 takes back 3 vs 3 banked in the window"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 2,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "pv_truncation",
+      "category": "pv_truncation_suspect",
+      "span": "dxe5",
+      "sentence": "Solution: 5... dxe5 wins the knight on e5 for free.",
+      "adjudication": "needs-review",
+      "measurementOnly": true,
+      "detail": "quoted line \"dxe5\" stops one ply before Qxg4 in the contract PV while asserting a favorable outcome (\"Solution: 5... dxe5 wins the knight on e5 for free.…\") — material quiescence violated: Qxg4 takes back 3 vs 3 banked in the window"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "The concept delta here is that the bishop on g4 became more vulnerable after g6 — it's now somewhat trapped with limited escape routes.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "mobility_claims",
+      "category": "mobility_count_wrong",
+      "span": "no safe retreat",
+      "sentence": "Playing 4... g6 doesn't address the real issue: your bishop on g4 has no safe retreat square, and White can start threatening it.",
+      "adjudication": "needs-review",
+      "measurementOnly": true,
+      "detail": "zero-mobility claim \"no safe retreat\" for the B on g4 contradicts chess.js (actual: 4/4 safe move(s) in the scored position(s))"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "trapped",
+      "sentence": "Outcome: With 4... g6, the bishop on g4 becomes trapped, and White is now ready to spring the Légal Trap.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"trapped\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "h3 Bxf3 Qxf3",
+      "sentence": "Problem: Playing 4... g6 traps your own bishop on g4 — after White plays h3, the bishop has no safe square.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"h3 Bxf3 Qxf3\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "mobility_claims",
+      "category": "mobility_count_wrong",
+      "span": "no safe square",
+      "sentence": "Problem: Playing 4... g6 traps your own bishop on g4 — after White plays h3, the bishop has no safe square.",
+      "adjudication": "needs-review",
+      "measurementOnly": true,
+      "detail": "zero-mobility claim \"no safe square\" for the B on g4 contradicts chess.js (actual: 4/4 safe move(s) in the scored position(s))"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "mobility_claims",
+      "category": "mobility_count_wrong",
+      "span": "no safe retreat",
+      "sentence": "- The bishop on g4 has no safe retreat after h3.",
+      "adjudication": "needs-review",
+      "measurementOnly": true,
+      "detail": "zero-mobility claim \"no safe retreat\" for the B on g4 contradicts chess.js (actual: 4/4 safe move(s) in the scored position(s))"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 3,
+      "factIdPrefix": "M2",
+      "referee": "both",
+      "check": "mobility_claims",
+      "category": "mobility_count_wrong",
+      "span": "no escape",
+      "sentence": "Before moving a piece, always check: \"Does it have a safe square to retreat to?\" The bishop on g4 had no escape after g6 was played, making it a sitting target.",
+      "adjudication": "needs-review",
+      "measurementOnly": true,
+      "detail": "zero-mobility claim \"no escape\" for the B on g4 contradicts chess.js (actual: 4/4 safe move(s) in the scored position(s))"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 1,
+      "factIdPrefix": "M4",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Kd8 Nxe7 Kxe7",
+      "sentence": "After 17... Kd8 18. Nxe7 Kxe7, you've won the bishop and maintained a significant structural advantage.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Kd8 Nxe7 Kxe7\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 1,
+      "factIdPrefix": "M3",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "f5 Bh5 Bf7",
+      "sentence": "After 19... f5 20. Bh5 Bf7, you at least maintain some practical chances by keeping the position tense.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"f5 Bh5 Bf7\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 1,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Rdg8 Rde1 Kd8",
+      "sentence": "After 20... Rdg8 21. Rde1 Kd8, you've at least forced Black to react and kept your bishop active on a threatening diagonal.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Rdg8 Rde1 Kd8\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 2,
+      "factIdPrefix": "M4",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Kd8 Nxe7 Kxe7",
+      "sentence": "The engine line continues 17... Kd8 18. Nxe7 Kxe7, winning a piece or forcing major concessions.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Kd8 Nxe7 Kxe7\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 2,
+      "factIdPrefix": "M3",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "f5 Bh5 Bf7",
+      "sentence": "Solution: 19. Rdf1 keeps the f-file rook active and prepares to contest the position with 19... f5 20. Bh5 Bf7, maintaining some tension.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"f5 Bh5 Bf7\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 2,
+      "factIdPrefix": "M2",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Rdg8 Rde1 Kd8",
+      "sentence": "The engine continues 20... Rdg8 21. Rde1 Kd8, keeping the position messy.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Rdg8 Rde1 Kd8\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M1",
+      "referee": "both",
+      "check": "tactical_keyword",
+      "category": "tactical_keyword_unbacked",
+      "span": "fork",
+      "sentence": "Idea: You wanted to plant the knight on e6, forking the bishop and disrupting Black's structure — a natural-looking outpost.",
+      "adjudication": "needs-review",
+      "detail": "tactical keyword \"fork\" without a confirmed motif of that type in the contract"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 3,
+      "factIdPrefix": "M4",
+      "referee": "strict-only",
+      "check": "san_whitelist",
+      "category": "hypothetical_line_off_contract",
+      "span": "Kd8 Nxe7 Kxe7",
+      "sentence": "After 17... Kd8 18. Nxe7 Kxe7, you've won the bishop pair and maintained a significant advantage.",
+      "adjudication": "widened-licensed",
+      "wouldPassWidenedWindow": true,
+      "detail": "move sequence \"Kd8 Nxe7 Kxe7\" is not a prefix of any contract PV (plan §4.3 strict hypothetical-line rule)"
+    }
+  ]
+}

@@ -74,3 +74,57 @@ export function splitLineSentences(line: string): string[] {
     .split(/(?<=[.!?])\s+/)
     .map(unmaskMoveNumberDots);
 }
+
+/**
+ * The offset-preserving form of {@link splitProseSentences}: the bounds of the
+ * sentence containing `index`, as `[start, end)` into the ORIGINAL string.
+ *
+ * The referee's sentence-coupled licensing (attack-map squares, claim-verb
+ * coupling, the definitional-sentence exemption, per-sentence dedup) needs
+ * bounds rather than pieces, and it carried its own scan that terminated on any
+ * bare `.` — so it inherited BOTH bugs the split functions fix:
+ *
+ *   move numbers  "the line shows 8... Ba5+ 9. Bd2 Bb4" read as three
+ *                 sentences, so a check judging the span at "Bb4" could not
+ *                 see "Ba5+" named earlier in the true sentence;
+ *   decimals      "the eval shifts from +0.50 to +1.40" broke at "0.", so a
+ *                 claim about +1.40 was judged against the fragment
+ *                 "50 to +1.40".
+ *
+ * TERMINATOR RULE — identical to the split functions, so bounds and pieces
+ * always agree: `\n`, or one of `.!?` FOLLOWED BY WHITESPACE, with move-number
+ * dots masked out first. `start` is the index just past the terminator (a
+ * leading space is kept, exactly as the old scan did, so callers computing
+ * `index - start` keep their offset arithmetic); `end` is inclusive of the
+ * terminator character.
+ */
+export function sentenceBoundsAt(
+  text: string,
+  index: number,
+): { start: number; end: number } {
+  const masked = maskMoveNumberDots(text); // length-preserving ⇒ offsets hold
+  const isTerminatorAt = (i: number): boolean => {
+    const ch = masked[i];
+    if (ch === "\n") return true;
+    if (ch !== "." && ch !== "!" && ch !== "?") return false;
+    // A sentence terminator is followed by whitespace (or ends the text).
+    const next = masked[i + 1];
+    return next === undefined || /\s/.test(next);
+  };
+
+  let start = 0;
+  for (let i = Math.min(index, masked.length) - 1; i >= 0; i--) {
+    if (isTerminatorAt(i)) {
+      start = i + 1;
+      break;
+    }
+  }
+  let end = masked.length;
+  for (let i = Math.max(index, 0); i < masked.length; i++) {
+    if (isTerminatorAt(i)) {
+      end = i + 1;
+      break;
+    }
+  }
+  return { start, end };
+}

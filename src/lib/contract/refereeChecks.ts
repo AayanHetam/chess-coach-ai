@@ -40,6 +40,7 @@ import { ALL_TACTICAL_KEYWORDS } from "@/lib/grounding/voter";
 import { validateMotifGrounding } from "@/lib/mastermind/validators/motifGrounding";
 import { POSITIONAL_TOKEN_REGEX } from "@/lib/mastermind/validators/positionalClaim";
 import type { ThreatNode } from "@/lib/mastermind/threatTree";
+import { sentenceBoundsAt, splitProseSentences } from "./sentences";
 import type { ClaimClass, CoachContract, EvalFact, InsightContract } from "./types";
 
 // ── Violation types ─────────────────────────────────────────────────────────
@@ -634,26 +635,18 @@ export function isPvPrefix(seq: string[], pvs: string[][]): boolean {
   );
 }
 
-function sentenceBounds(prose: string, index: number): { start: number; end: number } {
-  // Sentence = text between terminators (.!?) or newlines.
-  let start = 0;
-  for (let i = index - 1; i >= 0; i--) {
-    const ch = prose[i];
-    if (ch === "." || ch === "!" || ch === "?" || ch === "\n") {
-      start = i + 1;
-      break;
-    }
-  }
-  let end = prose.length;
-  for (let i = index; i < prose.length; i++) {
-    const ch = prose[i];
-    if (ch === "." || ch === "!" || ch === "?" || ch === "\n") {
-      end = i + 1;
-      break;
-    }
-  }
-  return { start, end };
-}
+/**
+ * Sentence bounds for the sentence-coupled checks.
+ *
+ * This USED to be a local scan that terminated on any bare `.`, which made
+ * every chess move number ("9. Bd2") and every eval decimal ("+0.50") a
+ * sentence boundary — the false-fire source flagged when the chess-aware
+ * splitter landed for citations + the ladder. It now delegates to that same
+ * splitter's bounds form so the referee, the citation coverage denominator and
+ * the ladder's sentence-drop all agree on what a sentence is. Do not fork it
+ * again.
+ */
+const sentenceBounds = sentenceBoundsAt;
 
 // ── PRECISION PACK fixes 1 + 2: designator license + legal-move normalization ─
 /** Square → FEN piece char (case carries color) for a placement string. */
@@ -1312,9 +1305,9 @@ export function isClaimSentence(sentence: string): boolean {
 }
 
 export function countClaimSentences(prose: string): number {
-  return prose
-    .split(/(?<=[.!?])\s+|\n+/)
-    .filter((s) => isClaimSentence(s)).length;
+  // Chess-aware split — a naive one counted "8... Ba5+ 9. Bd2 Bb4" as three
+  // claim sentences, inflating the fabrication-rate denominator.
+  return splitProseSentences(prose).filter((s) => isClaimSentence(s)).length;
 }
 
 // NOTE: pv_truncation is deliberately absent — it never runs through

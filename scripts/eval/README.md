@@ -34,16 +34,24 @@ uv venv .evalvenv && uv pip install --python .evalvenv/bin/python -r scripts/eva
 
 ### Arming (read before trusting a contract-mode number)
 
-`DEFAULT_ARMING_TABLE` in `src/lib/contract/armingConfig.ts` is **all-`warn`**
-while the referee workstream re-measures false positives. A contract-mode
-harness that does not pass an explicit `armingTable` therefore measures *no
-enforcement at all*: every card reports `pass`, shipped prose equals raw model
-prose, and any fabrication gate is vacuous. `contract_ci4_eval.ts`,
-`contract_ci4_verify.ts`, `contract_ci4_gates.ts` and the offline replay all
-pass `CI5_CANDIDATE_ARMING_TABLE` (`scripts/eval/ci4GateTable.ts`), which
-mirrors the `PROPOSED_ARMING_TABLE` sketch in `armingConfig.ts`. If that
-proposal changes, change `ci4GateTable.ts` and re-run — do not edit
-`armingConfig.ts` from the eval side.
+The enforced stream applies **no arming at all** unless a table is passed: every
+card reports `pass`, shipped prose equals raw model prose, and any fabrication
+gate is vacuous. So `contract_ci4_eval.ts`, `contract_ci4_verify.ts`,
+`contract_ci4_gates.ts` and the offline replay all pass an explicit
+`CI4_GATE_ARMING_TABLE` (`scripts/eval/ci4GateTable.ts`).
+
+**That table IS the serving table.** It is
+`{...DEFAULT_ARMING_TABLE, ...CI4_GATE_ARMING_OVERRIDES}` — derived from
+`src/lib/contract/armingConfig.ts`, never retyped. It used to be a
+hand-maintained mirror, which meant the gate measured a stricter posture than
+serving would ever apply; `scripts/eval/__tests__/ci4GateTable.test.ts` now
+fails if a literal duplicate is reintroduced, if an override is undeclared, or
+if an override no longer differs from the serving value.
+
+To measure a *proposed* arming change without shipping it, add the row to
+`CI4_GATE_ARMING_OVERRIDES` with a comment naming why, add it to the test's
+`DECLARED_OVERRIDES` allowlist, and re-run. Do not edit `armingConfig.ts` from
+the eval side.
 
 ### Measurement discipline
 

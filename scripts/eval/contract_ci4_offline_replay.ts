@@ -75,8 +75,8 @@ async function main() {
     throw new Error("network disabled");
   });
   const { runInsightLadder } = await import("@/lib/contract/ladder");
-  const { CI5_CANDIDATE_ARMING_TABLE } = await import("./ci4GateTable");
-  const table = process.env.ARM === "0" ? undefined : CI5_CANDIDATE_ARMING_TABLE;
+  const { CI4_GATE_ARMING_TABLE } = await import("./ci4GateTable");
+  const table = process.env.ARM === "0" ? undefined : CI4_GATE_ARMING_TABLE;
   const { aggregateFidelity } = await import("@/lib/contract/refereeChecks");
   const { stripGrammarTokenLines, stripCitations } = await import("@/lib/contract/citations");
 

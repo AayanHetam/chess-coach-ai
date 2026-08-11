@@ -105,6 +105,10 @@ export interface ContractDoneMetadata {
   ladderDistribution: Record<LadderStage, number>;
   /** Cards refused by the CI-5 sentinel guard (fabricated classification). */
   sentinelCardsRefused: number;
+  /** How a ZERO-CARD review's overview resolved; null when it had cards. */
+  overviewOutcome: "pass" | "sentence_drop" | "templated" | null;
+  /** Contract-global violations found in that overview. */
+  overviewViolations: number;
   /** Generation was cut by CONTRACT_GENERATION_BUDGET_MS (review is short). */
   generationTruncated: boolean;
   cached: boolean;
@@ -185,6 +189,10 @@ export async function serveContractAnalysis(
           passthrough_footnoted: 0,
         },
         sentinelCardsRefused: 0,
+        // A zero-card review is never cached (allVerified requires cards), so
+        // a cache hit is by construction a carded one.
+        overviewOutcome: null,
+        overviewViolations: 0,
         generationTruncated: false,
         cached: true,
       },
@@ -310,6 +318,10 @@ export async function serveContractAnalysis(
       citationCoverage: summary.citationCoverageMean,
       ladderDistribution: summary.ladderDistribution,
       sentinelCardsRefused: summary.sentinelCardsRefused,
+      // Zero-card reviews: how the (now refereed) overview resolved, so a
+      // dogfood flag on a card-less review is triageable. null = had cards.
+      overviewOutcome: summary.overviewOutcome,
+      overviewViolations: summary.overviewViolations,
       generationTruncated,
       cached: false,
     },

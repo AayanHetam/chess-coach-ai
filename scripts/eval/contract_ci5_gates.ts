@@ -232,6 +232,22 @@ interface InterventionFire {
   adjudication: FpAdjudication;
   /** true ⇒ the fire is PROVABLY a false positive (licensed elsewhere). */
   isFalse: boolean;
+  /**
+   * The CARRIER SENTENCE, and the board it is about.
+   *
+   * The plan §14 standard is POSITION-VERIFIED adjudication, not the
+   * mechanical adjudicator's verdict — and the 2026-08-11 run could not be
+   * re-verified after the fact, because a fire whose sentence the ladder
+   * dropped survives only as a bare keyword ("trapped") in the artifact.
+   * Every fire now ships with the sentence that produced it and the FENs it
+   * was scored against, so the hand check is reproducible from the artifact
+   * alone.
+   */
+  sentence: string;
+  fenBefore: string;
+  fenAfter: string;
+  playedSan: string;
+  allowedTacticalKeywords: string[];
 }
 
 /**
@@ -248,7 +264,7 @@ async function interventionsForCard(
   insight: InsightContract,
   contract: CoachContract,
   pools: Awaited<ReturnType<typeof buildFpPools>>,
-): Promise<ServingFinding[]> {
+): Promise<{ errors: ServingFinding[]; prose: string }> {
   const { refereeInsight } = await import("@/lib/contract/referee");
   const { checkCitations, stripGrammarTokenLines } = await import("@/lib/contract/citations");
   const { armFindings } = await import("@/lib/contract/armingConfig");
@@ -261,7 +277,21 @@ async function interventionsForCard(
     playerPerspective: contract.game.playerColor === "b" ? "black" : "white",
     contract,
   });
-  return armFindings([...citation.findings, ...det.findings], CI4_GATE_ARMING_TABLE).errors;
+  return {
+    errors: armFindings([...citation.findings, ...det.findings], CI4_GATE_ARMING_TABLE).errors,
+    prose,
+  };
+}
+
+/** The sentence a fire's span sits in — the unit a human adjudicates. */
+function carrierSentence(prose: string, span: string): string {
+  const at = prose.indexOf(span);
+  if (at < 0) return prose.replace(/\s+/g, " ").trim().slice(0, 300);
+  let start = at;
+  while (start > 0 && !".!?\n".includes(prose[start - 1])) start--;
+  let end = at + span.length;
+  while (end < prose.length && !".!?\n".includes(prose[end])) end++;
+  return prose.slice(start, Math.min(prose.length, end + 1)).replace(/\s+/g, " ").trim();
 }
 
 // ── Dry-run: zero-network smoke ────────────────────────────────────────────
@@ -629,9 +659,21 @@ async function runLive(args: Args): Promise<void> {
         }
 
         // ── The CI-5 measurement: every armed fire, adjudicated ───────────
-        const errors = await interventionsForCard(rawBlock.body, insight, contract, pools);
+        const { errors, prose } = await interventionsForCard(
+          rawBlock.body,
+          insight,
+          contract,
+          pools,
+        );
         for (const f of errors) {
-          const adjudication = adjudicateFp(f, pools, { stripSanDecorations, isPvWindow });
+          const sentence = carrierSentence(prose, f.span);
+          const adjudication = adjudicateFp(f, pools, {
+            stripSanDecorations,
+            isPvWindow,
+            // Board context for the trapped-class check (see fpAdjudication).
+            sentence,
+            fens: [insight.fenBefore, insight.fenAfter],
+          });
           const isFalse = adjudication !== "needs-review";
           armedFires++;
           if (isFalse) falseFires++;
@@ -645,6 +687,11 @@ async function runLive(args: Args): Promise<void> {
             span: f.span,
             adjudication,
             isFalse,
+            sentence,
+            fenBefore: insight.fenBefore,
+            fenAfter: insight.fenAfter,
+            playedSan: insight.playedSan,
+            allowedTacticalKeywords: insight.allowedTacticalKeywords,
           });
         }
       }

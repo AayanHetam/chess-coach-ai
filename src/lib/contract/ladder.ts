@@ -30,6 +30,7 @@ import { armFindings } from "./armingConfig";
 import type { ArmingTable, ServingFinding } from "./armingConfig";
 import { checkCitations, stripCitations, stripGrammarTokenLines } from "./citations";
 import { INSIGHT_CLOSE_TOKEN, renderInsightHeader } from "./insightGrammar";
+import { splitLineSentences } from "./sentences";
 import { refereeInsight, refereeInsightRelational } from "./referee";
 import type { RefereeInsightOpts, RefereeRelationalOpts } from "./referee";
 import { renderTemplateCardBody } from "./templateCard";
@@ -189,10 +190,67 @@ async function evaluateBody(
 // ── Internal: sentence-drop (stage a — deterministic span excision) ─────────
 const GRAMMAR_LINE_RE = /^\s*\[\/?[A-Z_]+(?::[^\]]*)?\]\s*$/;
 
-/** Drop every sentence containing an error span. Returns null when the drop
- * would leave no substantive prose (the whole body was the violation). */
-export function dropViolatingSentences(body: string, spans: string[]): string | null {
-  if (spans.length === 0) return body;
+/** A teaching-spine label with nothing left after it ("Idea:", "- Problem:"). */
+const ORPHAN_LABEL_RE =
+  /^\s*(?:[-*]\s*)?(?:idea|problem|solution|outcome|why|what happened|key idea|takeaway|straight talk|the fix|result)\s*:?\s*$/i;
+/** A bullet or connective stub left dangling by an excision. */
+const ORPHAN_STUB_RE = /^\s*(?:[-*]\s*)?(?:and|but|so|then|because|which|after|before|,|—|-)?\s*$/i;
+/** A line whose visible remainder is a bare move number ("Solution: ... 9."). */
+const TRAILING_MOVE_NUMBER_RE = /\b\d{1,3}\.(\.\.)?\s*$/;
+
+/**
+ * Remove sections whose body became empty, and label/bullet stubs left behind
+ * by an excision.
+ *
+ * The 2026-08-10 verification run shipped cards containing literal
+ * "[THREATS]\n[/THREATS]" and orphan lines like "Idea: White pushed 8." — the
+ * single most visible cause of the persona miss. A section is removed only
+ * when NOTHING is left inside it (not even a widget line), so [WHY] blocks
+ * that still carry a [CONTINUATION:...] widget survive intact.
+ */
+export function tidyAfterDrop(body: string): string {
+  // 1. drop orphan label / stub lines (prose lines only, never grammar lines).
+  const lines = body.split("\n").filter((line) => {
+    if (GRAMMAR_LINE_RE.test(line)) return true;
+    const t = line.trim();
+    if (!t) return true;
+    if (ORPHAN_LABEL_RE.test(t)) return false;
+    if (ORPHAN_STUB_RE.test(t)) return false;
+    // A remnant that ends on a bare move number is a fragment, not a sentence.
+    if (TRAILING_MOVE_NUMBER_RE.test(t) && t.replace(/[^A-Za-z]/g, "").length < 40) return false;
+    return true;
+  });
+  // 2. drop sections that are now completely empty.
+  let text = lines.join("\n");
+  for (const section of ["WHY", "THREATS", "ROLES", "CONCEPT"]) {
+    text = text.replace(
+      new RegExp(`^[ \\t]*\\[${section}(?::[^\\]]*)?\\][ \\t]*\\n(?:[ \\t]*\\n)*[ \\t]*\\[/${section}\\][ \\t]*\\n?`, "gm"),
+      "",
+    );
+  }
+  return text.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+export interface SentenceDropResult {
+  text: string;
+  /** Prose characters removed / prose characters in the original body. */
+  removedFraction: number;
+}
+
+/**
+ * Drop every sentence containing an error span, then tidy the wreckage.
+ * Returns null when the drop would leave no substantive prose (the whole body
+ * was the violation).
+ *
+ * Sentence boundaries are CHESS-AWARE (see ./sentences.ts): "8. e5" is one
+ * sentence, so excising a violating span removes the whole clause instead of
+ * leaving "Idea: White pushed 8." stranded mid-card.
+ */
+export function dropViolatingSentencesDetailed(
+  body: string,
+  spans: string[],
+): SentenceDropResult | null {
+  if (spans.length === 0) return { text: body, removedFraction: 0 };
   const lines = body.split("\n");
   const kept: string[] = [];
   let droppedAny = false;
@@ -202,15 +260,27 @@ export function dropViolatingSentences(body: string, spans: string[]): string | 
       continue;
     }
     // Split the line into sentences; drop only the offending ones.
-    const sentences = line.split(/(?<=[.!?])\s+/);
+    const sentences = splitLineSentences(line);
     const keptSentences = sentences.filter((sen) => !spans.some((s) => s && sen.includes(s)));
     droppedAny = true;
     if (keptSentences.length > 0) kept.push(keptSentences.join(" "));
   }
   if (!droppedAny) return null; // spans not locatable line-wise — can't excise
-  const result = kept.join("\n");
+  const result = tidyAfterDrop(kept.join("\n"));
+  const proseChars = (t: string) => stripGrammarTokenLines(t).replace(/\s+/g, " ").trim().length;
+  const before = proseChars(body);
+  const after = proseChars(result);
   const substantive = result.replace(/\[[^\]]*\]/g, "").trim();
-  return substantive.length >= 40 ? result : null;
+  if (substantive.length < 40) return null;
+  return {
+    text: result,
+    removedFraction: before > 0 ? (before - after) / before : 0,
+  };
+}
+
+/** Back-compat wrapper (tests + callers that only want the text). */
+export function dropViolatingSentences(body: string, spans: string[]): string | null {
+  return dropViolatingSentencesDetailed(body, spans)?.text ?? null;
 }
 
 function findingsToIssues(findings: ServingFinding[]): ValidatorIssue[] {
@@ -354,17 +424,32 @@ export async function runInsightLadder(
   const priorRelational = initial.errors.filter((f) => f.check === "relational_claim");
 
   // ── (a) deterministic sentence-drop ───────────────────────────────────────
-  const dropped = dropViolatingSentences(
+  const dropped = dropViolatingSentencesDetailed(
     modelBody.trim(),
     initial.errors.map((f) => f.span),
   );
-  if (dropped !== null) {
+  // GUTTING GUARD (gate recovery): excision is the cheap stage, but a drop
+  // that takes most of the card leaves a stub — measurably the persona
+  // killer. When the drop would remove more than HEAVY_DROP_FRACTION of the
+  // prose AND a Haiku surgical edit still fits, try the EDIT first (it
+  // rewrites the claim instead of deleting the paragraph around it) and fall
+  // back to the drop only if the edit fails to clear the referee. Enforcement
+  // is untouched: every candidate still re-validates through the same
+  // referee, and the template floor still catches everything else.
+  const HEAVY_DROP_FRACTION = 0.5;
+  const dropWouldGut =
+    dropped !== null &&
+    dropped.removedFraction > HEAVY_DROP_FRACTION &&
+    opts.budgets.editsRemaining > 0 &&
+    now() + EDIT_ESTIMATE_MS < opts.deadlineAtMs;
+
+  if (dropped !== null && !dropWouldGut) {
     try {
-      const check = await evaluateBody(dropped, opts, armingTable, now, "recheck", priorRelational);
+      const check = await evaluateBody(dropped.text, opts, armingTable, now, "recheck", priorRelational);
       relationalParsesUsed += check.relationalParsesUsed;
       costUsd += check.costUsd;
       if (check.errors.length === 0) {
-        return finish("sentence_drop", wrapBlock(insight, dropped), initial);
+        return finish("sentence_drop", wrapBlock(insight, dropped.text), initial);
       }
     } catch {
       /* fall through the ladder */
@@ -399,6 +484,21 @@ export async function runInsightLadder(
     }
   } else if (now() + EDIT_ESTIMATE_MS >= opts.deadlineAtMs) {
     deadlineBreached = true;
+  }
+
+  // ── (a′) the deferred heavy drop — the edit was preferred and did not
+  // clear; excision still beats the template card for content retention. ────
+  if (dropWouldGut && dropped !== null) {
+    try {
+      const check = await evaluateBody(dropped.text, opts, armingTable, now, "recheck", priorRelational);
+      relationalParsesUsed += check.relationalParsesUsed;
+      costUsd += check.costUsd;
+      if (check.errors.length === 0) {
+        return finish("sentence_drop", wrapBlock(insight, dropped.text), initial);
+      }
+    } catch {
+      /* fall through the ladder */
+    }
   }
 
   // ── (c) ONE per-insight Sonnet regen (≤3/review) ─────────────────────────

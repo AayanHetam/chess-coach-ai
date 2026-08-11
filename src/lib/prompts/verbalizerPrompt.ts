@@ -29,6 +29,8 @@ import { renderInsightHeader } from "@/lib/contract/insightGrammar";
 import { serializeForVerbalizer } from "@/lib/contract/serialize";
 import { partitionSentinelCards } from "@/lib/contract/sentinelGuard";
 import type { CardPartition } from "@/lib/contract/sentinelGuard";
+import { selectWorthyCards } from "@/lib/contract/cardWorthiness";
+import type { CardWorthinessSelection } from "@/lib/contract/cardWorthiness";
 import type { CoachContract, InsightContract } from "@/lib/contract/types";
 
 /**
@@ -130,12 +132,45 @@ function orderedCardCandidates(contract: CoachContract): InsightContract[] {
  * Scan 1 skips sentinels already.
  */
 export function selectCardInsights(contract: CoachContract): InsightContract[] {
-  return partitionSentinelCards(orderedCardCandidates(contract)).cards;
+  return selectCardInsightsDetailed(contract).cards;
 }
 
-/** Same plan, with the refusals exposed for telemetry/tests. */
+/**
+ * Same plan, with every refusal exposed for telemetry/tests.
+ *
+ * Two independent filters, in this order:
+ *  1. SENTINEL refusal (PR-CI-5) — a card whose severity is fabricated.
+ *  2. CARD-WORTHINESS (founder, 2026-08-11) — the quality floor and the
+ *     5-card cap. See cardWorthiness.ts for the rule and why a flat
+ *     centipawn bar is the wrong question.
+ *
+ * Both are monotone: they can only REMOVE cards from the legacy-ordered
+ * candidate list, never add or reorder, so the pedagogical order the enforced
+ * stream asserts is preserved by construction.
+ *
+ * NOTE ON LAYER (documented deviation): the cap lives HERE, in the card plan,
+ * not in `selectInsights.ts`'s `.slice(0, 10)`. `selectInsights` feeds the
+ * CONTRACT — which also renders the legacy 3.6 prompt through
+ * `renderLegacyPrompt`, byte-pinned by the CI-1 snapshots. Capping there
+ * would silently rewrite the legacy prompt (and delete facts the verbalizer
+ * is still allowed to cite in prose). Capping here changes exactly what the
+ * founder asked to change: how many CARDS a review carries.
+ */
 export function selectCardInsightsDetailed(contract: CoachContract): CardPartition {
-  return partitionSentinelCards(orderedCardCandidates(contract));
+  const sentinel = partitionSentinelCards(orderedCardCandidates(contract));
+  const worthy = selectWorthyCards(sentinel.cards);
+  return {
+    cards: worthy.kept,
+    droppedSentinel: sentinel.droppedSentinel,
+    droppedBelowFloor: worthy.droppedBelowFloor,
+    droppedOverCap: worthy.droppedOverCap,
+    headlineRestored: worthy.headlineRestored,
+  };
+}
+
+/** The card-worthiness partition alone (tests + the per-fixture count probe). */
+export function cardWorthinessFor(contract: CoachContract): CardWorthinessSelection {
+  return selectWorthyCards(partitionSentinelCards(orderedCardCandidates(contract)).cards);
 }
 
 /**

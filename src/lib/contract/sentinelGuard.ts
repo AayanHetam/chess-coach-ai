@@ -61,6 +61,13 @@ export interface CardPartition {
   cards: InsightContract[];
   /** Refused: sentinel-derived severity/classification (telemetry + tests). */
   droppedSentinel: InsightContract[];
+  /** Refused by the card-worthiness floor (cardWorthiness.ts). Absent from
+   * the raw sentinel partition, which knows nothing about worthiness. */
+  droppedBelowFloor?: InsightContract[];
+  /** Cleared the floor, lost the 5-card cap. */
+  droppedOverCap?: InsightContract[];
+  /** The floor emptied the plan and the single best moment was restored. */
+  headlineRestored?: boolean;
 }
 
 /**

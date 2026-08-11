@@ -113,7 +113,7 @@ export default function PuzzleSessionsPage() {
           px: { xs: 2, md: 3 },
         }}
       >
-        <NavPill active="practice" badge={{ label: "Sessions" }} />
+        <NavPill active="practice" />
 
         <Box sx={{ maxWidth: 920, mx: "auto", mt: 3 }}>
           <Stack

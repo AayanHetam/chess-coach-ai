@@ -1355,7 +1355,7 @@ export default function PreviewPuzzlesPage() {
           px: { xs: 2, md: 3 },
         }}
       >
-        <NavPill active="practice" badge={{ label: "Puzzle Coach" }} />
+        <NavPill active="practice" />
 
         {/* Widened from 1500 for the three-region layout — at 1500 the rail's
             240px minimum ate into the board column. */}

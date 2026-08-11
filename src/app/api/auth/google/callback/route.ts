@@ -218,7 +218,13 @@ export async function GET(request: Request) {
     const isIntern = await isAllowlistedIntern(user.email);
     const isAdmin = isDashboardAdminEmail(user.email);
 
-    const target = new URL(stateCookie.returnTo ?? "/", env.appBaseUrl);
+    // Signed-in users land on their programme, not the marketing homepage.
+    // An explicit returnTo still wins — if you were sent to sign in from a
+    // specific page, you go back to that page. Only the *default* changed
+    // (program-first restructure, 2026-08-10): it used to be "/", which put
+    // returning users on a landing page whose main CTA is "Analyze a game"
+    // and gave them no route to /plan at all.
+    const target = new URL(stateCookie.returnTo ?? "/plan", env.appBaseUrl);
     const response = NextResponse.redirect(target);
     await setSessionCookieOnResponse(response, {
       uid: user.uid,

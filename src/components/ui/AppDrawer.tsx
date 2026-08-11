@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import { useEffect } from "react";
 import {
   BookOpen,
+  CalendarCheck,
   Crosshair,
   Crown,
   Home,
@@ -19,6 +20,7 @@ import { Logo } from "./Logo";
 
 export type NavId =
   | "launch"
+  | "plan"
   | "analysis"
   | "play"
   | "practice"
@@ -41,6 +43,10 @@ interface NavItem {
 // legacy /practice still resolves for old bookmarks but isn't navigated to.
 const NAV_ITEMS: NavItem[] = [
   { id: "launch", label: "Home", icon: Home, href: "/" },
+  // Plan sits directly under Home: it is the product's centre of gravity,
+  // not a side feature. Before 2026-08-10 it appeared in NO navigation at
+  // all and was reachable only by typing the URL.
+  { id: "plan", label: "Plan", icon: CalendarCheck, href: "/plan" },
   { id: "analysis", label: "Analyze", icon: Zap, href: "/analysis" },
   { id: "play", label: "Play", icon: Crown, href: "/play" },
   { id: "practice", label: "Practice", icon: Puzzle, href: "/puzzles" },

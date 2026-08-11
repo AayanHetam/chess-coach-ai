@@ -22,7 +22,6 @@ import { useAuthDialog } from "@/contexts/AuthDialogContext";
 
 interface NavPillProps {
   active?: NavId;
-  badge?: { label: string };
 }
 
 // Five primary nav links across the production surfaces. Order tells the
@@ -35,7 +34,14 @@ interface NavPillProps {
 // feed is the canonical Practice surface. Old /practice (fixture board +
 // theme grid + stats strip) still works at the URL for existing bookmarks
 // but is no longer surfaced in the nav.
+//
+// 2026-08-10 (program-first restructure): Plan leads. The product is a
+// learning programme that happens to contain a coach, not a coach that
+// happens to have a plan — and until now /plan was in NO navigation
+// anywhere, reachable only by typing the URL. Everything after it is a
+// tool you reach for; Plan is the thing you come back to.
 const NAV_LINKS: { id: NavId; label: string; href: string }[] = [
+  { id: "plan", label: "Plan", href: "/plan" },
   { id: "play", label: "Play", href: "/play" },
   { id: "analysis", label: "Analyze", href: "/analysis" },
   { id: "practice", label: "Practice", href: "/puzzles" },

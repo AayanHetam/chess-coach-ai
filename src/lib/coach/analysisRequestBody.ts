@@ -53,6 +53,12 @@ export interface AnalysisRequestBodyInput {
    * caused A1, and it type-checked because the key used to be `?`-optional.
    */
   userRating: number | undefined;
+  /**
+   * Half-moves on the board the user is viewing, or `undefined` when they are
+   * at the end of the game. Required key / optional value, same reasoning as
+   * `userRating`: forgetting it is how B3 happened.
+   */
+  viewedPly: number | undefined;
   playerColor?: "w" | "b";
   playerColorName?: "white" | "black";
   boardOrientation?: "white" | "black";
@@ -80,6 +86,7 @@ export function buildAnalysisRequestBody(
     // when the value is undefined, which is what keeps the server's profile →
     // PGN-header fallbacks reachable. Never reintroduce a `?? 1500` here.
     userRating: input.userRating,
+    viewedPly: input.viewedPly,
     // Personalization. All optional server-side; the system prompt only gets
     // richer with each one present.
     playerColor: input.playerColor,

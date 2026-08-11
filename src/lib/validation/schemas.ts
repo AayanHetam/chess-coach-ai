@@ -151,6 +151,15 @@ export const enhancedAnalysisSchema = z.object({
   playerColor: z.string().optional(),
   username: z.string().optional(),
   userRating: z.number().int().min(0).max(4000).optional(),
+  /**
+   * B3 (SILENT_SUBSTITUTION_HANDOFF §3 Group B): how many half-moves are on
+   * the board the user is actually looking at. The deep path used to have NO
+   * field for this at all, so `handleAskCoachAboutMove` — which deliberately
+   * computes the FEN at the clicked ply — had its work discarded whenever that
+   * click was the session's first coach message (the common entry: click a
+   * mistake row, coach opens). Absent means "the end of the game".
+   */
+  viewedPly: z.number().int().min(0).max(1024).optional(),
   boardOrientation: z.any().optional(),
   personalityId: z
     .string()

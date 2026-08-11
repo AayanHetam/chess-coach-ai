@@ -58,6 +58,11 @@ import {
 } from "@/lib/mastermind/routeHelpers";
 import { buildCurrentPositionFacts } from "@/lib/mastermind/positionFacts";
 import { buildCompactGameContext } from "@/lib/coach/compactGameContext";
+import { buildPositionUnderDiscussion } from "@/lib/coach/positionUnderDiscussion";
+import {
+  createRequestDeadline,
+  PUZZLE_RECS_BUDGET_MS,
+} from "@/lib/coach/requestDeadline";
 import { detectMotifs, motifsToPropmt } from "@/lib/tactics";
 import type { AnyMotif } from "@/lib/tactics";
 import {
@@ -274,10 +279,12 @@ async function generatePuzzleRecommendations(
     // out on one of the two positions.
     if (evalBefore.lines[0].depth === 0 || evalAfter.lines[0].depth === 0) continue;
 
-    const cpBefore = evalBefore.lines[0].mate !== undefined
+    // C6: a null mate must not flatten to -9999 and manufacture a "mistake"
+    // we would then build real training puzzles from.
+    const cpBefore = typeof evalBefore.lines[0].mate === "number"
       ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
       : (evalBefore.lines[0].cp ?? 0);
-    const cpAfter = evalAfter.lines[0].mate !== undefined
+    const cpAfter = typeof evalAfter.lines[0].mate === "number"
       ? (evalAfter.lines[0].mate! > 0 ? 9999 : -9999)
       : (evalAfter.lines[0].cp ?? 0);
     const drop = i % 2 === 0 ? cpBefore - cpAfter : cpAfter - cpBefore;
@@ -346,6 +353,13 @@ export async function POST(request: NextRequest) {
   const requestId = extractRequestId(request.headers);
 
   return withRequestContext(requestId, async () => {
+  // T1 (SILENT_SUBSTITUTION_HANDOFF §4): ONE wall-clock budget for the whole
+  // request. Every other timeout here is a COMPONENT timeout, so the stages
+  // could each be inside their own budget while their sum blew vercel.json's
+  // 60s ceiling. A killed function emits no `done`, which makes the client
+  // render a truncated answer as a complete one and loses the contextId — so
+  // the NEXT turn re-runs the full flagship analysis. One overrun, a spiral.
+  const deadline = createRequestDeadline();
   // Local helper so each fatal catch block can fire one structured Sentry
   // event without re-deriving the abort-vs-real-error guard or rebuilding
   // the {route, requestId, phase} envelope at every site. AbortError fires
@@ -400,6 +414,7 @@ export async function POST(request: NextRequest) {
       // which is what makes the profile → header-Elo fallbacks live code.
       // Do not reintroduce a default in the body.
       userRating: userRatingFromBody,
+      viewedPly,
       boardOrientation,
       conversationHistory,
       personalityId,
@@ -548,6 +563,12 @@ export async function POST(request: NextRequest) {
         { fen, playerColor: playerColor || "w" }
       );
       gameContext = built.prompt;
+      // B3 (SILENT_SUBSTITUTION_HANDOFF §3 Group B): if the user is looking at
+      // an earlier move, say which board the question is about. Prepended so it
+      // precedes the FINAL POSITION section it overrides. Empty string when the
+      // user is at the end of the game, so the common case is byte-unchanged.
+      const viewedBlock = buildPositionUnderDiscussion(moveHistory, viewedPly);
+      if (viewedBlock) gameContext = `${viewedBlock}\n\n${gameContext}`;
       // PR-CI-4/CI-5: the contract also rides along when enforcement is armed
       // for any category (CONTRACT_CATEGORIES non-empty) OR for any dogfood
       // uid (CONTRACT_UIDS non-empty). With all flags at their defaults this
@@ -829,6 +850,7 @@ export async function POST(request: NextRequest) {
             userMessage: messageText,
             moveHistory,
             fen,
+            viewedPly,
             gameEval,
             playerPerspective,
             correlationId: requestId,
@@ -896,6 +918,13 @@ export async function POST(request: NextRequest) {
                 recordLLMCall(serving.llmResult);
               }
               const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
+              // T1 (SILENT_SUBSTITUTION_HANDOFF §4): ship the contextId as its own
+              // EARLY event, not only inside `done`. When the platform kills the
+              // function mid-stream the client never sees `done`, so it never learns
+              // the contextId — and the next turn falls back to a full flagship
+              // re-analysis instead of the cached fast path. That is the cost
+              // spiral; this breaks it.
+              send({ type: "context", contextId });
               storeAnalysisContext({
                 contextId,
                 gameContext,
@@ -919,11 +948,21 @@ export async function POST(request: NextRequest) {
               });
               let puzzleRecommendations: unknown = undefined;
               try {
-                puzzleRecommendations = await generatePuzzleRecommendations(
-                  moveHistory,
-                  gameEval,
-                  userRating,
-                );
+                // T1: puzzle recs are a serial Neo4j loop with no internal timeout and
+                // no concurrency cap, awaited BEFORE `done` is emitted — the documented
+                // worst-case overrun. The client does not read them today, so they must
+                // never be the reason a real answer fails to reach the user.
+                if (!deadline.hasBudgetFor(PUZZLE_RECS_BUDGET_MS)) {
+                  log.warn("skipping puzzle recs — request deadline", {
+                    remainingMs: deadline.remainingMs(),
+                  });
+                } else {
+                  puzzleRecommendations = await generatePuzzleRecommendations(
+                    moveHistory,
+                    gameEval,
+                    userRating,
+                  );
+                }
               } catch (err) {
                 log.warn("puzzle recs failed in stream (contract mode)", {
                   err: err instanceof Error ? err.message : String(err),
@@ -1039,6 +1078,10 @@ export async function POST(request: NextRequest) {
             });
             try {
               for await (const evt of callLLMStream({
+                // T1: this path passed NO AbortSignal, so a navigated-away or
+                // timed-out request left a billed flagship stream running to
+                // completion with nobody reading it.
+                signal: deadline.signal,
                 tier: "flagship",
                 system: claudeSystemParts.stable,
                 systemSuffix: claudeSystemParts.perUser,
@@ -1189,6 +1232,13 @@ export async function POST(request: NextRequest) {
             }
             setCachedResponse(cacheKey, analysisContent, validation.score);
             const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
+            // T1 (SILENT_SUBSTITUTION_HANDOFF §4): ship the contextId as its own
+            // EARLY event, not only inside `done`. When the platform kills the
+            // function mid-stream the client never sees `done`, so it never learns
+            // the contextId — and the next turn falls back to a full flagship
+            // re-analysis instead of the cached fast path. That is the cost
+            // spiral; this breaks it.
+            send({ type: "context", contextId });
             const compactGameContext = buildCompactGameContext(
               moveHistory ?? [],
               gameEval,
@@ -1213,11 +1263,21 @@ export async function POST(request: NextRequest) {
             });
             let puzzleRecommendations: unknown = undefined;
             try {
-              puzzleRecommendations = await generatePuzzleRecommendations(
-                moveHistory,
-                gameEval,
-                userRating,
-              );
+              // T1: puzzle recs are a serial Neo4j loop with no internal timeout and
+              // no concurrency cap, awaited BEFORE `done` is emitted — the documented
+              // worst-case overrun. The client does not read them today, so they must
+              // never be the reason a real answer fails to reach the user.
+              if (!deadline.hasBudgetFor(PUZZLE_RECS_BUDGET_MS)) {
+                log.warn("skipping puzzle recs — request deadline", {
+                  remainingMs: deadline.remainingMs(),
+                });
+              } else {
+                puzzleRecommendations = await generatePuzzleRecommendations(
+                  moveHistory,
+                  gameEval,
+                  userRating,
+                );
+              }
             } catch (err) {
               log.warn("puzzle recs failed in stream (flagoff-fallback)", {
                 err: err instanceof Error ? err.message : String(err),
@@ -1456,6 +1516,13 @@ export async function POST(request: NextRequest) {
             setCachedResponse(cacheKey, analysisContent, validation.score);
           }
           const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
+          // T1 (SILENT_SUBSTITUTION_HANDOFF §4): ship the contextId as its own
+          // EARLY event, not only inside `done`. When the platform kills the
+          // function mid-stream the client never sees `done`, so it never learns
+          // the contextId — and the next turn falls back to a full flagship
+          // re-analysis instead of the cached fast path. That is the cost
+          // spiral; this breaks it.
+          send({ type: "context", contextId });
           const compactGameContext = buildCompactGameContext(
             moveHistory ?? [],
             gameEval,
@@ -1481,11 +1548,21 @@ export async function POST(request: NextRequest) {
 
           let puzzleRecommendations: unknown = undefined;
           try {
-            puzzleRecommendations = await generatePuzzleRecommendations(
-              moveHistory,
-              gameEval,
-              userRating,
-            );
+            // T1: puzzle recs are a serial Neo4j loop with no internal timeout and
+            // no concurrency cap, awaited BEFORE `done` is emitted — the documented
+            // worst-case overrun. The client does not read them today, so they must
+            // never be the reason a real answer fails to reach the user.
+            if (!deadline.hasBudgetFor(PUZZLE_RECS_BUDGET_MS)) {
+              log.warn("skipping puzzle recs — request deadline", {
+                remainingMs: deadline.remainingMs(),
+              });
+            } else {
+              puzzleRecommendations = await generatePuzzleRecommendations(
+                moveHistory,
+                gameEval,
+                userRating,
+              );
+            }
           } catch (err) {
             log.warn("puzzle recs failed in stream (flag-on)", {
               err: err instanceof Error ? err.message : String(err),
@@ -1611,6 +1688,8 @@ export async function POST(request: NextRequest) {
           });
           try {
             for await (const evt of callLLMStream({
+              // T1: see above — no signal meant no way to stop a billed stream.
+              signal: deadline.signal,
               tier: "flagship",
               system: claudeSystemParts.stable,
               systemSuffix: claudeSystemParts.perUser,
@@ -1720,6 +1799,13 @@ export async function POST(request: NextRequest) {
 
           setCachedResponse(cacheKey, analysisContent, validation.score);
           const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
+          // T1 (SILENT_SUBSTITUTION_HANDOFF §4): ship the contextId as its own
+          // EARLY event, not only inside `done`. When the platform kills the
+          // function mid-stream the client never sees `done`, so it never learns
+          // the contextId — and the next turn falls back to a full flagship
+          // re-analysis instead of the cached fast path. That is the cost
+          // spiral; this breaks it.
+          send({ type: "context", contextId });
           const compactGameContext = buildCompactGameContext(
             moveHistory ?? [],
             gameEval,
@@ -1745,11 +1831,21 @@ export async function POST(request: NextRequest) {
 
           let puzzleRecommendations: unknown = undefined;
           try {
-            puzzleRecommendations = await generatePuzzleRecommendations(
-              moveHistory,
-              gameEval,
-              userRating
-            );
+            // T1: puzzle recs are a serial Neo4j loop with no internal timeout and
+            // no concurrency cap, awaited BEFORE `done` is emitted — the documented
+            // worst-case overrun. The client does not read them today, so they must
+            // never be the reason a real answer fails to reach the user.
+            if (!deadline.hasBudgetFor(PUZZLE_RECS_BUDGET_MS)) {
+              log.warn("skipping puzzle recs — request deadline", {
+                remainingMs: deadline.remainingMs(),
+              });
+            } else {
+              puzzleRecommendations = await generatePuzzleRecommendations(
+                moveHistory,
+                gameEval,
+                userRating,
+              );
+            }
           } catch (err) {
             log.warn("puzzle recs failed in stream", { err: err instanceof Error ? err.message : String(err) });
           }
@@ -1797,6 +1893,7 @@ export async function POST(request: NextRequest) {
         userMessage: messageText,
         moveHistory,
         fen,
+        viewedPly,
         gameEval,
         playerPerspective,
         correlationId: requestId,

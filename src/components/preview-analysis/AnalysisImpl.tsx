@@ -107,6 +107,8 @@ import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useViewer } from "@/hooks/useViewer";
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { buildAnalysisRequestBody } from "@/lib/coach/analysisRequestBody";
+import { buildChatRequestBody } from "@/lib/coach/chatRequestBody";
+import { buildConversationHistory } from "@/lib/coach/conversationHistory";
 import type { GameEval } from "@/types/eval";
 import { FlagButton } from "@/components/intern/FlagButton";
 import {
@@ -552,6 +554,18 @@ async function streamCoachReply(params: {
    *  and merges the persona's tone-and-style block into the prompt. */
   personalityId?: string;
   onDelta: (chunk: string) => void;
+  /**
+   * D1: fired when the server shipped a CORRECTED analysis. The caller must
+   * replace the streamed text with it, otherwise the raw (uncorrected) copy is
+   * what gets replayed to the model on the next turn as its own last word.
+   */
+  onCorrected?: (correctedText: string) => void;
+  /**
+   * D4: fired when the stream ended without a `done` event. The caller must
+   * mark the message `incomplete` so it renders as truncated and is kept out
+   * of conversationHistory.
+   */
+  onTruncated?: () => void;
   signal?: AbortSignal;
 }): Promise<string> {
   const {
@@ -573,15 +587,14 @@ async function streamCoachReply(params: {
     lichessUsername,
     personalityId,
     onDelta,
+    onCorrected,
+    onTruncated,
     signal,
   } = params;
 
-  const conversationHistory = prevMessages
-    .filter((m) => m.role === "user" || m.role === "coach")
-    .map((m) => ({
-      role: m.role === "coach" ? ("assistant" as const) : ("user" as const),
-      content: m.content,
-    }));
+  // Group D: synthetic (UI-authored) and incomplete (truncated) turns are
+  // filtered out here, in the ONE place history is assembled.
+  const conversationHistory = buildConversationHistory(prevMessages);
 
   const hasContext =
     contextIdRef.current !== null &&
@@ -593,11 +606,18 @@ async function streamCoachReply(params: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({
-        contextId: contextIdRef.current,
-        userMessage: userText,
-        conversationHistory,
-      }),
+      body: JSON.stringify(
+        // B1 (SILENT_SUBSTITUTION_HANDOFF §3 Group B): assembled by the shared
+        // builder so the "forward the board the user is actually looking at"
+        // contract is unit-tested against the code that ships.
+        buildChatRequestBody({
+          contextId: contextIdRef.current!,
+          userMessage: userText,
+          conversationHistory,
+          fen,
+          currentPly,
+        })
+      ),
       signal,
     });
     if (chatRes.status === 404) {
@@ -690,6 +710,7 @@ async function streamCoachReply(params: {
     gameEval: gameEvalPayload,
     conversationHistory,
     userRating,
+    viewedPly: currentPly,
     playerColor,
     playerColorName,
     boardOrientation,
@@ -739,6 +760,12 @@ async function streamCoachReply(params: {
   const decoder = new TextDecoder();
   let buffer = "";
   let accumulated = "";
+  // D4 (SILENT_SUBSTITUTION_HANDOFF §3 Group D): the loop used to exit on the
+  // reader's `done` with no check that a `type:"done"` EVENT ever arrived. A
+  // Vercel 60s kill, a dropped connection, or a proxy cutting the SSE body all
+  // yield a partial answer that renders as finished and enters history as a
+  // completed turn.
+  let sawDoneEvent = false;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -755,11 +782,35 @@ async function streamCoachReply(params: {
         if (parsed.type === "text" && typeof parsed.delta === "string") {
           accumulated += parsed.delta;
           onDelta(parsed.delta);
+        } else if (
+          parsed.type === "context" &&
+          typeof parsed.contextId === "string"
+        ) {
+          // T1: the server now ships the contextId as its own EARLY event so a
+          // function killed mid-stream doesn't cost the client its cached
+          // context (which would make the next turn a full flagship
+          // re-analysis). Emitting it server-side is inert without this branch
+          // — the reader only understood text/done/metadata/error.
+          contextIdRef.current = parsed.contextId;
         } else if (parsed.type === "done" || parsed.type === "metadata") {
           // Final event carries contextId + validation + puzzle recs
+          sawDoneEvent = true;
           if (parsed.contextId) contextIdRef.current = parsed.contextId;
           if (parsed.metadata?.contextId)
             contextIdRef.current = parsed.metadata.contextId;
+          // D1: the server stores the CORRECTED analysis as canonical and
+          // re-injects it as the first assistant message on every follow-up —
+          // but the client kept the raw streamed text and re-sent THAT in
+          // conversationHistory, where it landed as the model's most recent
+          // statement. The model then defends the uncorrected line and the
+          // corrected copy reads as superseded. Swap it in.
+          if (
+            parsed.metadata?.corrected &&
+            typeof parsed.metadata?.analysis === "string" &&
+            parsed.metadata.analysis.trim().length > 0
+          ) {
+            onCorrected?.(parsed.metadata.analysis);
+          }
         } else if (parsed.type === "error") {
           throw new CoachApiError(502);
         }
@@ -769,6 +820,8 @@ async function streamCoachReply(params: {
       }
     }
   }
+  // D4: reaching here without a `done` event means the answer is a fragment.
+  if (!sawDoneEvent) onTruncated?.();
   return accumulated;
 }
 
@@ -977,6 +1030,20 @@ const DEMO_PUZZLE_PACK: PuzzlePack = {
 interface CoachMessage {
   role: "user" | "coach";
   content: string;
+  /**
+   * D2/D3 (SILENT_SUBSTITUTION_HANDOFF §3 Group D): this turn was authored by
+   * the UI, not by the model or the user. Seeded demo content, load greetings,
+   * error banners, and the suggestion pill's fabricated exchange all set it.
+   * Synthetic turns still RENDER — they are just never replayed to the model
+   * as things it said.
+   */
+  synthetic?: boolean;
+  /**
+   * D4: the stream ended without a `done` event, so this text is a fragment.
+   * Excluded from conversationHistory — a half-finished sentence replayed as a
+   * completed thought is worse than no history at all.
+   */
+  incomplete?: boolean;
   ply?: number; // links message to a board position
   insight?: { tag: string; eval?: string; classification?: string };
   // When set, a puzzle pack card renders below the bubble with a
@@ -984,20 +1051,30 @@ interface CoachMessage {
   puzzlePack?: PuzzlePack;
 }
 
+// D2 (SILENT_SUBSTITUTION_HANDOFF §3 Group D): every turn here is
+// `synthetic` because a HUMAN wrote it — including the eval numbers
+// ("+2.4 to +4.7", "Kasparov calculated 15+ ply"). Without the flag these were
+// replayed to the model as its own analysis, and it would defend those
+// figures. Blast radius was the default first-visit path: /analysis shows this
+// demo on arrival, so any question asked before loading a real PGN carried
+// them.
 const SEED_MESSAGES: CoachMessage[] = [
   {
     role: "coach",
+    synthetic: true,
     content:
       "Loaded **Kasparov vs Topalov, 1999** — one of the most famous games of all time. Want me to walk you through it, or jump to a specific moment? **24.Rxd4** is the most analyzed move in chess history if you want to start there.",
     ply: 0,
   },
   {
     role: "user",
+    synthetic: true,
     content: "Why is 24.Rxd4 considered brilliant?",
     ply: 47,
   },
   {
     role: "coach",
+    synthetic: true,
     content:
       "Stockfish 17 sees it as the only winning move — eval jumps from +2.4 to +4.7 after **24.Rxd4 cxd4 25.Re7+!** The rook is *lost* but the second rook delivers check, and after **25...Kb6 26.Qxd4+** the black king walks into a mating net on a4 with no defenders. Kasparov calculated 15+ ply to see this would work.\n\nWant to drill the underlying patterns? I picked three mating-net positions in the same family — you can solve them right here, or move any one onto the big board.",
     ply: 47,
@@ -6887,6 +6964,8 @@ export default function AnalysisPage() {
       ? [
           {
             role: "coach",
+            // D3: UI-authored greeting, not model output.
+            synthetic: true,
             content: solutionParam
               ? `Loaded a puzzle position. Solution: **${solutionParam.replace("-", " → ")}**. Ask me anything about the tactical idea, or try alternatives on the board.`
               : `Loaded a puzzle position. Ask me to walk through the tactical idea.`,
@@ -7007,7 +7086,10 @@ export default function AnalysisPage() {
                 newHeaders.Date ? ` (${newHeaders.Date.split(".")[0]})` : ""
               }. Stockfish is running in the background; once it's done the Moves tab will light up with classifications. Ask me about any move.`
             : `Loaded a new game. Stockfish is running in the background. Ask me anything about the position or a specific move.`);
-        setMessages([{ role: "coach", content: greeting, ply: 0 }]);
+        setMessages([
+          // D3: UI-authored greeting, not model output.
+          { role: "coach", content: greeting, ply: 0, synthetic: true },
+        ]);
       }
     },
     []
@@ -7598,6 +7680,29 @@ export default function AnalysisPage() {
               ];
             });
           },
+          // D1: the server's corrected text replaces the raw stream, so the
+          // corrected copy is what gets replayed on the next turn.
+          onCorrected: (correctedText) => {
+            accumulated = correctedText;
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [
+                ...prev.slice(0, -1),
+                { ...last, content: correctedText },
+              ];
+            });
+          },
+          // D4: no `done` event arrived — the answer is a fragment.
+          onTruncated: () => {
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [...prev.slice(0, -1), { ...last, incomplete: true }];
+            });
+          },
         });
       } catch (err) {
         const errorText =
@@ -7612,7 +7717,10 @@ export default function AnalysisPage() {
           if (last.role !== "coach") return prev;
           return [
             ...prev.slice(0, -1),
-            { ...last, content: errorText },
+            // D3: the banner overwrites the streamed text in place. Without
+            // this flag the model reads "**Coach is offline** (HTTP 502)" as
+            // something IT said on its previous turn.
+            { ...last, content: errorText, synthetic: true, incomplete: undefined },
           ];
         });
       } finally {
@@ -8126,6 +8234,29 @@ export default function AnalysisPage() {
               ];
             });
           },
+          // D1: the server's corrected text replaces the raw stream, so the
+          // corrected copy is what gets replayed on the next turn.
+          onCorrected: (correctedText) => {
+            accumulated = correctedText;
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [
+                ...prev.slice(0, -1),
+                { ...last, content: correctedText },
+              ];
+            });
+          },
+          // D4: no `done` event arrived — the answer is a fragment.
+          onTruncated: () => {
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [...prev.slice(0, -1), { ...last, incomplete: true }];
+            });
+          },
         });
         const tags = extractPracticeTags(accumulated).tags;
         if (tags.length > 0) {
@@ -8153,7 +8284,8 @@ export default function AnalysisPage() {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
           if (last.role !== "coach") return prev;
-          return [...prev.slice(0, -1), { ...last, content: errorText }];
+          // D3: see above — a UI banner is not model output.
+          return [...prev.slice(0, -1), { ...last, content: errorText, synthetic: true, incomplete: undefined }];
         });
       } finally {
         setIsThinking(false);
@@ -8230,6 +8362,29 @@ export default function AnalysisPage() {
             ];
           });
         },
+        // D1: the server's corrected text replaces the raw stream, so the
+        // corrected copy is what gets replayed on the next turn.
+        onCorrected: (correctedText) => {
+          accumulated = correctedText;
+          setMessages((prev) => {
+            if (prev.length === 0) return prev;
+            const last = prev[prev.length - 1];
+            if (last.role !== "coach") return prev;
+            return [
+              ...prev.slice(0, -1),
+              { ...last, content: correctedText },
+            ];
+          });
+        },
+        // D4: no `done` event arrived — the answer is a fragment.
+        onTruncated: () => {
+          setMessages((prev) => {
+            if (prev.length === 0) return prev;
+            const last = prev[prev.length - 1];
+            if (last.role !== "coach") return prev;
+            return [...prev.slice(0, -1), { ...last, incomplete: true }];
+          });
+        },
       });
       // After stream completes, scan for [PRACTICE:...] tags and trigger
       // a real /api/similar-puzzles fetch per tag. The coach's tag persists
@@ -8270,7 +8425,11 @@ export default function AnalysisPage() {
         if (prev.length === 0) return prev;
         const last = prev[prev.length - 1];
         if (last.role !== "coach") return prev;
-        return [...prev.slice(0, -1), { ...last, content: errorText }];
+        // D3: see above — a UI banner is not model output.
+        return [
+          ...prev.slice(0, -1),
+          { ...last, content: errorText, synthetic: true, incomplete: undefined },
+        ];
       });
     } finally {
       setIsThinking(false);
@@ -8318,11 +8477,16 @@ export default function AnalysisPage() {
         const msgIdx = messages.length + 1; // index of the coach msg we push
         setMessages((prev) => [
           ...prev,
-          { role: "user", content: s, ply: currentPly },
+          // D3: this pill fabricates a WHOLE exchange with no API call behind
+          // it. Both halves are synthetic — dropping only the coach turn would
+          // leave a question the model never answered, which reads as an
+          // ignored user.
+          { role: "user", content: s, ply: currentPly, synthetic: true },
           {
             role: "coach",
             content: `Pulled three positions in the same family from the master puzzle index — solve them inline, or move any one onto the big board.`,
             ply: currentPly,
+            synthetic: true,
           },
         ]);
         // Defer one tick so the message lands in state before the fetch trigger

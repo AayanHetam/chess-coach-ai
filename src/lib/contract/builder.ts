@@ -428,6 +428,10 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
         fenBefore,
         fenAfter,
         pvSans: lines.map((l) => (l.pv && l.pv.length > 0 ? convertPvToSan(fenBefore, l.pv) : [])),
+        // ROUND 2: the game's own next 2 plies — real continuation tactics
+        // ("Nxf7 with a strong fork" narrating what actually happened next)
+        // are contract-known facts, not fabrications (v2 spans #1/#3).
+        gameSans: moveHistory.slice(ply + 1, ply + 3),
       });
     } catch {
       motifLicense = [];

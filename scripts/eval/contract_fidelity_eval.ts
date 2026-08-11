@@ -844,10 +844,15 @@ async function refereeReviewDual(input: {
     matched++;
     claimSentences += countClaimSentences(block.prose);
 
-    const widened = runInsightChecks(block.prose, insight);
+    // ROUND 2: both graders get the full contract — the eval-display check
+    // licenses contract-globally (precision-pack fix 7) and the round-2
+    // game-history licenses (king-context "trapped", forbidden-claim
+    // history exemption) need the move table / game moves.
+    const widened = runInsightChecks(block.prose, insight, input.contract);
     const strictAll = refereeInsight(block.prose, insight, {
       userRating: input.userRating,
       correlationId: `fp30:${input.fixture}:s${input.sample}:${insight.factIdPrefix}`,
+      contract: input.contract,
     }).findings;
     const strictContract = strictAll.filter((f) => FP_CONTRACT_CHECKS.has(f.check));
     const strictOnly = strictContract.filter(
@@ -1157,9 +1162,12 @@ async function runFpMeasure(args: Args): Promise<void> {
     failedSamples,
     generation: { tier: "flagship", temperature: 0.7, maxTokens: 3000, userMessage: "analyze my game" },
     referees: {
-      widened: "refereeChecks.runInsightChecks (hypotheticalRule: window, precision-pack licenses)",
-      strict: "referee.refereeInsight (hypotheticalRule: prefix, wouldPassWidenedWindow telemetry)",
-      measurementOnly: "refereeChecks.runMeasurementOnlyChecks (pv_truncation + mobility_claims)",
+      widened:
+        "refereeChecks.runInsightChecks (hypotheticalRule: window, precision-pack + round-2 licenses, contract threaded)",
+      strict:
+        "referee.refereeInsight (hypotheticalRule: prefix, wouldPassWidenedWindow telemetry, contract threaded)",
+      measurementOnly:
+        "refereeChecks.runMeasurementOnlyChecks (pv_truncation quiescence rewrite + mobility_claims incl. zero-mobility cross-check)",
     },
     summary: agg.summary,
     perCheck: agg.perCheck,

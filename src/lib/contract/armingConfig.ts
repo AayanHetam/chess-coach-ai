@@ -85,17 +85,37 @@ export const DEFAULT_ARMING_TABLE: ArmingTable = {
 };
 
 /**
- * POST-PRECISION-PACK PROPOSED table — COMMENTED OUT ON PURPOSE. This is the
- * arming candidate set to confirm against the v2 measurement
- * (contract-referee-fp-30game-v2-*.json, real-engine fixtures): flip a row
- * to error ONLY if that check measures 0 FP there (plan §9 risk 3's
- * 0-false-fire control gate).
+ * POST-ROUND-2 PROPOSED table — COMMENTED OUT ON PURPOSE; the v3 measurement
+ * (contract-referee-fp-30game-v3-*.json, fixtures-real) decides. Supersedes
+ * the post-precision-pack proposal: the v2 measurement adjudicated its 37
+ * needs-review fires as 8 TRUE_FABRICATION / 24 FALSE_POSITIVE / 5
+ * ambiguous, and the ROUND-2 refinements (founder's own rules, 2026-08-10)
+ * mechanically clear all 24 FPs while keeping all 8 TFs firing:
+ *   - pv_truncation: net-material quiescence + end-eval contradiction
+ *     (13 FPs cleared, TF #31 kept) — measurement-only, still not armable
+ *     until it graduates out of runMeasurementOnlyChecks;
+ *   - tactical_keyword: value-aware fork confirmation, skewer THREATS with
+ *     pawn back-pieces, immobilized-piece trapped license, king-context
+ *     mate license, definitional-sentence exemption (10 FPs cleared; the
+ *     refuting "no legal moves" TF shape moved to the mobility cross-check,
+ *     which fires on all 5 of the v2 mobility TFs + #33);
+ *   - san_whitelist: sentence-coupled attack-map squares + plan-intent
+ *     legality pool (3 FPs cleared, TF #29 kept);
+ *   - forbidden_claim: game-history + eval-swing exemption (1 FP cleared).
+ * Flip a row to error ONLY if the v3 run measures 0 FP for it (plan §9 risk
+ * 3's 0-false-fire control gate) — under the founder's hard-line policy
+ * (drop/rewrite unverified tactical claims), a check whose residual fires
+ * are all TF-or-mechanically-excludable qualifies; anything with a
+ * non-adjudicable residual stays warn.
  *
  * export const PROPOSED_ARMING_TABLE: ArmingTable = {
- *   eval_display: "error",        // contract-global pool: v1's only 2 fires were licensed
- *   san_whitelist: "error",       // after designator license + legal-move normalization + punctuation fix
- *   tactical_keyword: "warn",     // even with motif-scope extension, TF/FP split needs the re-measure
- *   forbidden_claim: "warn",      // "dominates" class is not mechanically adjudicable yet
+ *   eval_display: "error",        // contract-global pool: v1+v2 fires all licensed
+ *   san_whitelist: "error",       // v2 residue after round-2 = 2 TFs (#29 h5, plus
+ *                                 //   game-history-licensed spans the harness
+ *                                 //   adjudicates mechanically) — v3 must confirm 0 FP
+ *   tactical_keyword: "warn",     // fork-idea prose (v2 #9/#14/#23 ambiguous class)
+ *                                 //   still fires; not 0-FP yet — needs v3 + founder call
+ *   forbidden_claim: "warn",      // definitional "obvious/dominates" residue remains
  *   stage9_positional_claim: "error",
  *   stage9_mate_in_n: "error",
  *   stage9_material_win: "error",

@@ -1,5 +1,5 @@
 import { Chess, type Square, type Color } from "chess.js";
-import { squareToCoord, coordToSquare, pieceValue, rayLabel } from "../utils";
+import { squareToCoord, coordToSquare, pieceValue, rayLabel, attackersOf, see } from "../utils";
 import type { SkewerMotif } from "../types";
 
 const SLIDER_DIRS: Record<string, [number, number][]> = {
@@ -60,5 +60,74 @@ export function detectSkewers(
     }
   }
 
+  return result;
+}
+
+/**
+ * ROUND 2 (referee license pool ONLY — never called by detectMotifs, so the
+ * voter/prompt inputs and the CI-1 byte-pinned snapshots are untouched):
+ * skewer THREATS with PAWN back-pieces, scanned for every slider of
+ * `movingColor` in the given position.
+ *
+ * The shipped detectSkewers requires the FRONT piece to be worth >= the
+ * skewerer (or be the king), which misses the adjudicated v2 #34-36 class:
+ * Bh5 attacks the g6-knight with the f7-PAWN behind it on the same ray — a
+ * verified x-ray ("skewer-like" in the coach's own words) where the front
+ * piece (knight 300) is cheaper than the skewerer (bishop 330). The
+ * relaxation is deliberately restricted to PAWN back-pieces (the founder's
+ * round-2 scope) so this stays a narrow license, and the threat is only
+ * emitted when the skewerer is not capturable for free (same SEE guard as
+ * escapability).
+ */
+export function detectSkewerThreats(gameAfter: Chess, movingColor: Color): SkewerMotif[] {
+  const opponentColor: Color = movingColor === "w" ? "b" : "w";
+  const result: SkewerMotif[] = [];
+  for (const row of gameAfter.board()) {
+    for (const sq of row) {
+      if (!sq || sq.color !== movingColor) continue;
+      if (!["b", "r", "q"].includes(sq.type)) continue;
+      const from = sq.square as Square;
+      // Skewerer must not hang for free (SEE from the opponent's side).
+      const atks = attackersOf(gameAfter, from, opponentColor);
+      if (atks.length > 0 && see(gameAfter, from, opponentColor) > 0) continue;
+      const dirs = SLIDER_DIRS[sq.type]!;
+      const [px, py] = squareToCoord(from);
+      for (const [dx, dy] of dirs) {
+        let x = px + dx,
+          y = py + dy;
+        let front: { square: Square; piece: import("chess.js").PieceSymbol } | null = null;
+        while (x >= 0 && x <= 7 && y >= 0 && y <= 7) {
+          const raySq = coordToSquare(x, y)!;
+          const p = gameAfter.get(raySq);
+          if (p) {
+            if (p.color === movingColor) break;
+            if (!front) {
+              // Threat form: ANY enemy piece may stand in front (the attack
+              // still demands a response) — except a pawn (a pawn in front
+              // is a plain blocked ray, not an x-ray story).
+              if (p.type === "p") break;
+              front = { square: raySq, piece: p.type };
+            } else {
+              // Back piece: PAWN ONLY (founder's round-2 scope).
+              if (p.type === "p") {
+                result.push({
+                  motif: "skewer",
+                  skewerer: { square: from, piece: sq.type },
+                  front,
+                  back: { square: raySq, piece: p.type },
+                  ray: rayLabel(from, raySq),
+                  confirmed: true, // geometry verified + SEE-guarded; license-only
+                  refutation: null,
+                });
+              }
+              break;
+            }
+          }
+          x += dx;
+          y += dy;
+        }
+      }
+    }
+  }
   return result;
 }

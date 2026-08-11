@@ -29,6 +29,13 @@
  */
 import { Chess } from "chess.js";
 import type { AnyMotif } from "@/lib/tactics/types";
+import {
+  netForClaimant,
+  replayPvMaterial,
+  type PvMaterialStep,
+} from "@/lib/tactics/netMaterial";
+import { countSafeMoves } from "@/lib/tactics/motifs/trapped_piece";
+import { rawAttacks } from "@/lib/tactics/utils";
 import { ALL_TACTICAL_KEYWORDS } from "@/lib/grounding/voter";
 import { validateMotifGrounding } from "@/lib/mastermind/validators/motifGrounding";
 import { POSITIONAL_TOKEN_REGEX } from "@/lib/mastermind/validators/positionalClaim";
@@ -350,6 +357,47 @@ export interface Whitelist {
   pvs: string[][];
 }
 
+/**
+ * ROUND 2 — a contract PV with its END eval attached (the engine's verdict
+ * for the line, White-centric). Engine lines carry their LineFact eval;
+ * branch-point reconstructions and threat-tree lines carry null (no engine
+ * number is attached to them in the contract). One enumerator feeds BOTH
+ * buildWhitelist().pvs and checkPvTruncation — one grammar, never
+ * copy-pasted (same discipline as the tokenizer).
+ */
+export interface PvSource {
+  /** Normalized SANs (decorations stripped), same filtering as the old
+   * buildWhitelist addPv (falsy entries dropped BEFORE stripping). */
+  sans: string[];
+  evalCp: number | null;
+  evalMate: number | null;
+}
+
+export function buildPvSources(insight: InsightContract): PvSource[] {
+  const out: PvSource[] = [];
+  const push = (line: (string | null | undefined)[], ev?: EvalFact | null) => {
+    const sans = line.filter((s): s is string => !!s).map(stripSanDecorations);
+    if (sans.length === 0) return;
+    const usable = ev && !ev.sentinel ? ev : null;
+    out.push({
+      sans,
+      evalCp: usable ? usable.cp : null,
+      evalMate: usable ? usable.mate : null,
+    });
+  };
+  for (const line of insight.lines) push(line.san, line.eval);
+  if (insight.branchPoint) {
+    push([...insight.branchPoint.sharedSan, insight.branchPoint.bestContinues]);
+    push([...insight.branchPoint.sharedSan, insight.branchPoint.playedGoes]);
+  }
+  if (insight.intelBranchPoint) {
+    push([...insight.intelBranchPoint.sharedSan, insight.intelBranchPoint.bestContinues]);
+    push([...insight.intelBranchPoint.sharedSan, insight.intelBranchPoint.altContinues]);
+  }
+  for (const line of threatSanLines(insight.threats)) push(line);
+  return out;
+}
+
 /** Exported (PR-CI-3) — one whitelist builder for measurement AND blocking. */
 export function buildWhitelist(insight: InsightContract): Whitelist {
   const san = new Set<string>();
@@ -365,27 +413,18 @@ export function buildWhitelist(insight: InsightContract): Whitelist {
     // ("the knight lands on d5" after PV ...Nd5).
     for (const sq of norm.match(clone(SQUARE_RE)) ?? []) squares.add(sq);
   };
-  const addPv = (line: (string | null | undefined)[]) => {
-    const filtered = line.filter((s): s is string => !!s).map(stripSanDecorations);
-    if (filtered.length > 0) pvs.push(filtered);
-    for (const s of filtered) addSan(s);
-  };
 
   addSan(insight.playedSan);
   addSan(insight.bestSan);
+  // PV enumeration shared with checkPvTruncation (buildPvSources) — identical
+  // content and order to the pre-round-2 addPv sequence.
+  for (const src of buildPvSources(insight)) {
+    pvs.push(src.sans);
+    for (const s of src.sans) addSan(s);
+  }
   for (const line of insight.lines) {
-    addPv(line.san);
     for (const uci of line.pvUci) for (const sq of uciSquares(uci)) squares.add(sq);
   }
-  if (insight.branchPoint) {
-    addPv([...insight.branchPoint.sharedSan, insight.branchPoint.bestContinues]);
-    addPv([...insight.branchPoint.sharedSan, insight.branchPoint.playedGoes]);
-  }
-  if (insight.intelBranchPoint) {
-    addPv([...insight.intelBranchPoint.sharedSan, insight.intelBranchPoint.bestContinues]);
-    addPv([...insight.intelBranchPoint.sharedSan, insight.intelBranchPoint.altContinues]);
-  }
-  for (const line of threatSanLines(insight.threats)) addPv(line);
   for (const t of insight.threats ?? []) {
     if (t.capturedSquare) squares.add(t.capturedSquare);
     for (const sq of uciSquares(t.threatUci)) squares.add(sq);
@@ -651,11 +690,73 @@ export function checkSanWhitelist(
   // Precision-pack license inputs (fixes 1 + 2): board maps + lazy legal moves.
   const pieceMaps = [fenPieceMap(insight.fenBefore), fenPieceMap(insight.fenAfter)];
   const fens = [insight.fenBefore, insight.fenAfter];
+  // ROUND 2 fix 5b — plan-intent legality pool: BOTH colors' legal moves
+  // from fenBefore/fenAfter (turn-flipped clones; illegal flips skipped).
+  // "You wanted the g6-Bg7 setup" names a legal-but-untaken move — a plan,
+  // not a board fabrication (v2 #32 Bg7; also Nxf7/Qxd1 narrations of moves
+  // the game actually reached). SAN tokens only — squares NEVER enter the
+  // claim-square pool this way, so v2 TF #29 ("g6 cuts off h5", refuted by
+  // the legal, uncovered Bh5) still fires.
+  const planIntentFens = [...fens];
+  for (const fen of fens) {
+    const parts = fen.split(" ");
+    parts[1] = parts[1] === "w" ? "b" : "w";
+    parts[3] = "-"; // en passant is stale after a turn flip
+    planIntentFens.push(parts.join(" "));
+  }
   const legalCache: LegalMovesCache = new Map();
   const sanLicensed = (rawSpan: string, norm: string): boolean => {
     if (wl.san.has(norm)) return true;
     if (isPieceDesignatorLicensed(rawSpan, pieceMaps)) return true; // fix 1
-    return legalNormalizations(norm, fens, legalCache).some((s) => wl.san.has(s)); // fix 2
+    if (legalNormalizations(norm, fens, legalCache).some((s) => wl.san.has(s))) return true; // fix 2
+    return legalNormalizations(norm, planIntentFens, legalCache).length > 0; // fix 5b
+  };
+  // ROUND 2 fix 5a — attack-map square licensing, sentence-coupled: a square
+  // in a claim sentence is licensed when the SAME SENTENCE names a non-pawn
+  // PV move whose piece, standing on its replayed destination, attacks that
+  // square (v2 #7: "O-O Nf5 … eyeing e3" — the knight on f5 attacks e3).
+  // Restricted to PV-move tokens (piece designators and the bare played move
+  // never qualify) and non-pawn movers, so v2 TF #29's h5 — attacked only by
+  // fenBefore pieces (Bg4) and pawns — stays unlicensed.
+  let pvMoveAttacks: Map<string, Set<string>> | null = null;
+  const buildPvMoveAttacks = (): Map<string, Set<string>> => {
+    if (pvMoveAttacks) return pvMoveAttacks;
+    pvMoveAttacks = new Map();
+    for (const pv of wl.pvs) {
+      let game: Chess;
+      try {
+        game = new Chess(insight.fenBefore);
+      } catch {
+        continue;
+      }
+      for (const san of pv) {
+        let mv: ReturnType<Chess["move"]>;
+        try {
+          mv = game.move(san);
+        } catch {
+          break;
+        }
+        if (!mv) break;
+        if (mv.piece === "p") continue; // pawn attack maps never license (see #29)
+        let set = pvMoveAttacks.get(san);
+        if (!set) {
+          set = new Set();
+          pvMoveAttacks.set(san, set);
+        }
+        for (const sq of rawAttacks(game, mv.to as never)) set.add(sq);
+      }
+    }
+    return pvMoveAttacks;
+  };
+  const squareLicensedByAttackMap = (square: string, sentStart: number, sentEnd: number): boolean => {
+    const attacks = buildPvMoveAttacks();
+    if (attacks.size === 0) return false;
+    for (const t of tokens) {
+      if (t.kind !== "piece_san") continue;
+      if (t.index < sentStart || t.index >= sentEnd) continue;
+      if (attacks.get(t.norm)?.has(square)) return true;
+    }
+    return false;
   };
 
   // ── Pass 1: move sequences (≥2 moves, move-numbers allowed between; a
@@ -752,12 +853,13 @@ export function checkSanWhitelist(
     const { start, end } = sentenceBounds(prose, t.index);
     const sentence = prose.slice(start, end);
     if (CLAIM_VERB_RE.test(sentence)) {
+      if (squareLicensedByAttackMap(t.raw, start, end)) continue; // round-2 fix 5a
       violations.push({
         check: "san_whitelist",
         category: "square_unknown",
         span: t.raw,
         index: t.index,
-        detail: `square "${t.raw}" appears in a claim sentence ("${sentence.trim().slice(0, 80)}…") but is not in the contract's square set`,
+        detail: `square "${t.raw}" appears in a claim sentence ("${sentence.trim().slice(0, 80)}…") but is not in the contract's square set, and no PV move named in the sentence attacks it`,
       });
     }
   }
@@ -785,7 +887,45 @@ function scrubConceptTags(prose: string): string {
   return prose.replace(/\[CONCEPT:[^\]\n]*\]/g, (m) => " ".repeat(m.length));
 }
 
-export function checkTacticalKeywords(prose: string, insight: InsightContract): RefereeViolation[] {
+/** Piece-name-on-square reference ("queen on f3", "knight to e7"). */
+const PIECE_NAME_ON_SQUARE_RE = /\b(?:queen|rook|bishop|knight|king|pawn)\s+(?:on|at|to)\s+[a-h][1-8]\b/i;
+
+/**
+ * ROUND 2 fix 3 — definitional-sentence test: a sentence with NO square
+ * token, NO SAN token, and NO piece-on-square reference is teaching a
+ * CONCEPT, not claiming a board fact ("When you move one piece and it
+ * reveals an attack…, that's a discovered attack" — v2 span #13). Tactical
+ * keywords in such sentences are exempt.
+ */
+export function isDefinitionalSentence(sentence: string): boolean {
+  if (clone(SQUARE_RE).test(sentence)) return false;
+  if (clone(SAN_PIECE_RE).test(sentence)) return false;
+  if (PIECE_NAME_ON_SQUARE_RE.test(sentence)) return false;
+  return true;
+}
+
+/** Does the contract know a mate? Insight-local PVs/played/best plus (when
+ * the full contract is provided) the actual game moves. chess.js-notated
+ * mates only — a "#" suffix — no judgment involved. */
+function contractHasMate(insight: InsightContract, contract?: CoachContract): boolean {
+  const hasHash = (s: string | null | undefined) => !!s && s.includes("#");
+  if (hasHash(insight.playedSan) || hasHash(insight.bestSan)) return true;
+  // NOTE: raw line sans (not buildPvSources) — decoration stripping would
+  // erase the "#" this check looks for.
+  for (const line of insight.lines) if (line.san.some(hasHash)) return true;
+  for (const t of insight.threats ?? []) if (hasHash(t.threatSan)) return true;
+  if (contract) {
+    if (contract.game.moveHistory.some(hasHash)) return true;
+    if (contract.game.resultText === "Checkmate") return true;
+  }
+  return false;
+}
+
+export function checkTacticalKeywords(
+  prose: string,
+  insight: InsightContract,
+  contract?: CoachContract,
+): RefereeViolation[] {
   const scrubbed = scrubConceptTags(prose); // fix 5
   // PRECISION PACK fix 4 (consumer side): the license pool is the insight's
   // own played-move motifs PLUS the scope-extended motifLicense the builder
@@ -801,7 +941,6 @@ export function checkTacticalKeywords(prose: string, insight: InsightContract): 
     correlationId: `fidelity:${insight.factIdPrefix}`,
   });
   const allowed = new Set(insight.allowedTacticalKeywords.map((k) => k.toLowerCase()));
-  const lower = scrubbed.toLowerCase();
   const seen = new Set<string>(); // fix 6 — dedup identical (keyword) double-fires
   return result.issues
     .map((issue) => ({
@@ -811,14 +950,6 @@ export function checkTacticalKeywords(prose: string, insight: InsightContract): 
       keyword: issue.llm_span.replace(/^tactical_claim_ungrounded:/, ""),
     }))
     .filter(({ keyword }) => !allowed.has(keyword.toLowerCase()))
-    // Measurement-precision post-filter: the serving validator matches raw
-    // substrings, so "developing" fires its "pin" keyword. Require the
-    // keyword to START at a word boundary (suffixed forms like "pins",
-    // "pinned" still count; mid-word hits don't). Real serving false-fire
-    // class — worth CI-3's attention when these checks move into the ladder.
-    .filter(({ keyword }) =>
-      new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&")}`, "i").test(scrubbed),
-    )
     // PRECISION PACK fix 6 — dedup: TACTICAL_CLAIM_KEYWORDS lists "fork"
     // twice, so one ungrounded "forking" produced two identical
     // (sentence, keyword) fires (adjudicated span pairs #11/#12, #31/#32,
@@ -829,11 +960,44 @@ export function checkTacticalKeywords(prose: string, insight: InsightContract): 
       seen.add(key);
       return true;
     })
-    .map(({ keyword }) => ({
+    // ROUND 2 — occurrence-level licensing. The validator fires per KEYWORD
+    // over the whole prose; round 2 judges each OCCURRENCE's sentence:
+    //   - word-boundary start (precision-pack post-filter, unchanged in
+    //     effect: "developing" never counts as "pin");
+    //   - fix 3, definitional sentences exempt (v2 #13);
+    //   - fix 4b, king-context "trapped" exempt when the contract knows a
+    //     mate — a mated king IS trapped, that is what mate means (v2 #30).
+    // The keyword fires iff at least one occurrence is a non-exempt claim;
+    // the fire's index points at the first such occurrence.
+    .map(({ keyword }) => {
+      const kwRe = new RegExp(
+        `\\b${keyword.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&")}`,
+        "gi",
+      );
+      let firstClaimIndex = -1;
+      for (const m of Array.from(scrubbed.matchAll(kwRe))) {
+        const idx = m.index ?? 0;
+        const { start, end } = sentenceBounds(scrubbed, idx);
+        const sentence = scrubbed.slice(start, end);
+        if (isDefinitionalSentence(sentence)) continue; // fix 3
+        if (
+          keyword.toLowerCase() === "trapped" &&
+          /\bking\b/i.test(sentence) &&
+          contractHasMate(insight, contract)
+        ) {
+          continue; // fix 4b — king-context license
+        }
+        firstClaimIndex = idx;
+        break;
+      }
+      return { keyword, firstClaimIndex };
+    })
+    .filter(({ firstClaimIndex }) => firstClaimIndex >= 0)
+    .map(({ keyword, firstClaimIndex }) => ({
       check: "tactical_keyword" as const,
       category: "tactical_keyword_unbacked" as const,
       span: keyword,
-      index: lower.indexOf(keyword.toLowerCase()),
+      index: firstClaimIndex,
       detail: `tactical keyword "${keyword}" without a confirmed motif of that type in the contract`,
     }));
 }
@@ -850,20 +1014,72 @@ function forbiddenClaimClasses(insight: InsightContract): Set<ClaimClass> {
   return classes;
 }
 
+/** Corroborating eval swing threshold — founder's round-2 rule: ≥ 1.5 pawns. */
+const HISTORY_SWING_CP = 150;
+
+/**
+ * ROUND 2 fix 6 — game-history exemption for strong positional words: the
+ * sentence references a move that is IN the game history (exact SAN match
+ * against the move table; piece designators for the insight's own FENs are
+ * board references, not move recaps, and never qualify) AND the move table
+ * shows a corroborating eval swing ≥ +1.5 pawns in the referenced mover's
+ * favor from this insight's own anchor (evalBefore) to the position after
+ * the referenced move. v2 #6: "d5 — pushing the knight off c6 and
+ * dominating the center" — d5 is the game's ply-12 move and the table runs
+ * 0.00 → +1.80+ across it; calling that "dominating" recaps an
+ * engine-corroborated game swing, not a fabricated positional plan.
+ */
+function gameHistoryCorroborates(
+  sentence: string,
+  insight: InsightContract,
+  contract?: CoachContract,
+): boolean {
+  if (!contract) return false;
+  const anchor = insight.evalBefore.sentinel ? null : insight.evalBefore.cp;
+  if (anchor === null) return false;
+  const pieceMaps = [fenPieceMap(insight.fenBefore), fenPieceMap(insight.fenAfter)];
+  const tokens = tokenizeProse(sentence).filter(
+    (t) => t.kind === "piece_san" || t.kind === "pawn_or_square",
+  );
+  for (const t of tokens) {
+    if (!t.norm) continue;
+    // A piece standing on that square in this insight's FENs makes the token
+    // a board designator ("the Nd4"), not a game-move recap.
+    if (isPieceDesignatorLicensed(t.raw, pieceMaps)) continue;
+    for (const row of contract.moveTable) {
+      if (stripSanDecorations(row.san) !== t.norm) continue;
+      // Forward-in-time only: the anchor→after-move swing is meaningless for
+      // moves BEFORE this insight's position (round-1 #2's "eyeing d5"
+      // mentions a ply-7 square-push behind a ply-9 insight — not a recap).
+      if (row.ply < insight.ply) continue;
+      const rowEval = row.evalAfter;
+      if (!rowEval || rowEval.sentinel || rowEval.cp === null) continue;
+      const swing = row.color === "w" ? rowEval.cp - anchor : anchor - rowEval.cp;
+      if (swing >= HISTORY_SWING_CP) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Plan §4 check 5 input (measurement form): claimClassesForbidden from
  * Degraded sources → keyword classes that must not appear. Detectors:
  *   - positional_plan → POSITIONAL_TOKEN_REGEX (imported from the serving
  *     validator), WITH its degraded-mode escape: SF alone decisive
  *     (|cp| ≥ 300 or a mate on the board) passes — mirrors
- *     validatePositionalClaim's lc0-unavailable behavior.
+ *     validatePositionalClaim's lc0-unavailable behavior — and the round-2
+ *     game-history exemption (gameHistoryCorroborates, contract-dependent).
  *   - endgame_wdl → tablebase/theoretical-outcome phrasings.
  *   - user_visibility → "obvious/obviously" (conservative subset; see
  *     module doc).
  * Other classes (tactical_motif, eval_numeric, …) are covered by the
  * dedicated checks above and not double-reported here.
  */
-export function checkForbiddenClaims(prose: string, insight: InsightContract): RefereeViolation[] {
+export function checkForbiddenClaims(
+  prose: string,
+  insight: InsightContract,
+  contract?: CoachContract,
+): RefereeViolation[] {
   const forbidden = forbiddenClaimClasses(insight);
   const violations: RefereeViolation[] = [];
 
@@ -873,6 +1089,9 @@ export function checkForbiddenClaims(prose: string, insight: InsightContract): R
     const sfDecisive = (cp !== null && Math.abs(cp) >= 300) || mate !== null;
     if (!sfDecisive) {
       for (const m of Array.from(prose.matchAll(clone(POSITIONAL_TOKEN_REGEX)))) {
+        const idx = m.index ?? 0;
+        const { start, end } = sentenceBounds(prose, idx);
+        if (gameHistoryCorroborates(prose.slice(start, end), insight, contract)) continue; // round-2 fix 6
         violations.push({
           check: "forbidden_claim",
           category: "forbidden_claim_present",
@@ -925,8 +1144,8 @@ export function runInsightChecks(
   return [
     ...checkEvalDisplays(prose, insight, contract),
     ...checkSanWhitelist(prose, insight),
-    ...checkTacticalKeywords(prose, insight),
-    ...checkForbiddenClaims(prose, insight),
+    ...checkTacticalKeywords(prose, insight, contract),
+    ...checkForbiddenClaims(prose, insight, contract),
   ];
 }
 
@@ -1042,21 +1261,49 @@ export function aggregateFidelity(entries: FidelityEntry[], contract: CoachContr
 const FAVORABLE_OUTCOME_RE =
   /\b(?:you(?:'ve|’ve| have)?\s+(?:won|win)|wins?|winning|won)\b[^.!?\n]{0,60}?\b(?:material|the exchange|an exchange|a piece|the piece|a pawn|the pawn|the queen|the rook|the bishop|the knight)\b/i;
 
+/** End-of-line eval contradiction threshold (founder rule: ±1.5 pawns). */
+const PV_OUTCOME_CONTRA_CP = 150;
+
 /**
- * Fix 9 — pv_truncation: prose that quotes a contract PV but stops exactly
- * one ply before a recapture/refutation in that PV while asserting a
- * favorable outcome. The adjudicated true-fabrication class of span #28
- * ("cxd3, you've won material while your knight dominates the board" — the
- * PV continues Bxf5, winning the material straight back): every quoted move
- * is contract-licensed, yet the claim inverts the line's meaning. Caught on
- * merit, not by whitelist accident.
+ * Fix 9, ROUND-2 REWRITE (the founder's material-quiescence rule,
+ * 2026-08-10): prose that quotes a contract PV window and stops one ply
+ * before an OPPONENT capture, while asserting a favorable outcome, fires
+ * ONLY when
+ *  (i)  material quiescence is violated — the truncating capture takes back
+ *       equal-or-greater value than the claimant banked inside the quoted
+ *       window (chess.js replay, standard piece values — netMaterial.ts), OR
+ *  (ii) the outcome claim contradicts the line's END eval from the
+ *       claimant's perspective (≤ −1.5 pawns, or a mate against the
+ *       claimant; engine lines only — branch/threat reconstructions carry no
+ *       eval and are judged by (i) alone).
+ *
+ * The v2 adjudication drove both arms: 13 FPs were lesser-value give-backs
+ * after queen harvests (net +2..+12 banked, end evals +4..+8 agreeing) —
+ * they must NOT fire; the one TF (09/s2/M1 "dxe5 … winning a piece cleanly"
+ * → Qxg4 takes the bishop straight back, net 0, end +1.89 for the opponent)
+ * violates BOTH arms and must fire. Round-1's span #28 class (praised piece
+ * captured later with net ≤ 0) keeps firing via arm (i).
+ *
+ * Claimant = the mover of the FIRST quoted ply. A truncating capture by the
+ * claimant themselves is never a violation (it extends the harvest), and an
+ * unreplayable PV ply makes the match unverifiable — skipped, never fired
+ * on (precision first).
  */
 export function checkPvTruncation(prose: string, insight: InsightContract): RefereeViolation[] {
-  const wl = buildWhitelist(insight);
-  if (wl.pvs.length === 0) return [];
+  const sources = buildPvSources(insight);
+  if (sources.length === 0) return [];
   const tokens = tokenizeProse(prose);
   const violations: RefereeViolation[] = [];
   const reported = new Set<string>();
+  const replayCache = new Map<PvSource, PvMaterialStep[]>();
+  const stepsFor = (src: PvSource): PvMaterialStep[] => {
+    let steps = replayCache.get(src);
+    if (!steps) {
+      steps = replayPvMaterial(insight.fenBefore, src.sans);
+      replayCache.set(src, steps);
+    }
+    return steps;
+  };
 
   // Collect quoted move runs (same run grammar as the whitelist pass,
   // including the fix-3 clause-separator break).
@@ -1081,24 +1328,46 @@ export function checkPvTruncation(prose: string, insight: InsightContract): Refe
     if (moveIdx.length >= 1 && hasPieceSan) {
       const seq = moveIdx.map((k) => tokens[k].norm);
       const lastTok = tokens[moveIdx[moveIdx.length - 1]];
-      // Find a PV window ending at pv[e] with a capture at pv[e+1].
-      let truncatedBefore: string | null = null;
-      for (const pv of wl.pvs) {
-        if (pv.length < seq.length + 1) continue;
-        for (let off = 0; off + seq.length < pv.length; off++) {
-          if (!seq.every((s, k) => pv[off + k] === s)) continue;
-          const next = pv[off + seq.length];
-          if (next.includes("x")) {
-            truncatedBefore = next;
-            break;
+      const { start, end } = sentenceBounds(prose, lastTok.index);
+      const sentence = prose.slice(start, end);
+      if (FAVORABLE_OUTCOME_RE.test(sentence)) {
+        let verdict: string | null = null;
+        for (const src of sources) {
+          if (verdict) break;
+          for (let off = 0; off + seq.length <= src.sans.length; off++) {
+            if (!seq.every((s, k) => src.sans[off + k] === s)) continue;
+            const e = off + seq.length - 1;
+            if (e + 1 >= src.sans.length) continue; // full-tail quote — nothing truncated
+            const steps = stepsFor(src);
+            if (steps.length < e + 2) continue; // unreplayable ply — unverifiable, never fire
+            const claimant = steps[off].mover;
+            const next = steps[e + 1];
+            if (next.capturedValue === 0) continue; // quiet continuation
+            if (next.mover === claimant) continue; // claimant's own follow-up capture
+            const banked = netForClaimant(steps, claimant, off, e);
+            const quiescenceViolated = next.capturedValue >= banked;
+            let endContradicts = false;
+            let endNote = "";
+            if (src.evalMate !== null) {
+              const mateForClaimant = claimant === "w" ? src.evalMate : -src.evalMate;
+              endContradicts = mateForClaimant < 0;
+              endNote = `line end eval M${src.evalMate > 0 ? "+" : ""}${src.evalMate} (claimant ${claimant})`;
+            } else if (src.evalCp !== null) {
+              const cpForClaimant = claimant === "w" ? src.evalCp : -src.evalCp;
+              endContradicts = cpForClaimant <= -PV_OUTCOME_CONTRA_CP;
+              endNote = `line end eval ${(src.evalCp / 100).toFixed(2)} → ${(cpForClaimant / 100).toFixed(2)} for the claimant`;
+            }
+            if (quiescenceViolated || endContradicts) {
+              verdict =
+                `quoted line "${seq.join(" ")}" stops one ply before ${next.san} in the contract PV while asserting a favorable outcome ("${sentence.trim().slice(0, 100)}…") — ` +
+                (quiescenceViolated
+                  ? `material quiescence violated: ${next.san} takes back ${next.capturedValue} vs ${banked} banked in the window`
+                  : `outcome contradicts the ${endNote}`);
+              break;
+            }
           }
         }
-        if (truncatedBefore) break;
-      }
-      if (truncatedBefore) {
-        const { start, end } = sentenceBounds(prose, lastTok.index);
-        const sentence = prose.slice(start, end);
-        if (FAVORABLE_OUTCOME_RE.test(sentence)) {
+        if (verdict) {
           const key = `${seq.join(" ")}@${lastTok.index}`;
           if (!reported.has(key)) {
             reported.add(key);
@@ -1107,7 +1376,7 @@ export function checkPvTruncation(prose: string, insight: InsightContract): Refe
               category: "pv_truncation_suspect",
               span: seq.join(" "),
               index: tokens[moveIdx[0]].index,
-              detail: `quoted line "${seq.join(" ")}" stops one ply before ${truncatedBefore} in the contract PV while asserting a favorable outcome ("${sentence.trim().slice(0, 100)}…")`,
+              detail: verdict,
             });
           }
         }
@@ -1120,8 +1389,24 @@ export function checkPvTruncation(prose: string, insight: InsightContract): Refe
 
 /** "15 legal moves" / "15 active squares" style bare-integer mobility claims. */
 const MOBILITY_CLAIM_RE = /\b(\d{1,2})\s+(?:legal moves?|active squares?|available (?:moves?|squares?)|squares? of activity)\b/gi;
-/** Piece references: "queen on f3" / "knight at d4" / designator "Qf3". */
-const PIECE_ON_SQUARE_RE = /\b(queen|rook|bishop|knight|king|pawn)\s+(?:on|at)\s+([a-h][1-8])\b/i;
+/** Piece references: "queen on f3" / "knight at d4" / "knight to e7" /
+ * designator "Qf3". ROUND 2 added "to" — "moving the knight TO e7 leaves it
+ * with zero legal moves" (v2 #2) references the piece at its destination. */
+const PIECE_ON_SQUARE_RE = /\b(queen|rook|bishop|knight|king|pawn)\s+(?:on|at|to)\s+([a-h][1-8])\b/i;
+/**
+ * ROUND 2 fix 4b — zero-mobility / zero-safe-square claims ("trapped with no
+ * legal moves", "it has no good squares", "nowhere to go"). The literal
+ * forms ("legal moves"/"moves") are checked against raw chess.js move
+ * counts; the safe-square forms against countSafeMoves (flight squares not
+ * covered by the enemy — same arithmetic as the immobilized-piece
+ * detector). The v2 TF class #0/#2/#4/#5/#8 (knights with 4-6 legal moves,
+ * or safe squares, called trapped-with-no-moves) fires here even when a
+ * genuinely trapped piece elsewhere licenses the "trapped" keyword; the FP
+ * class #27 (Na8, both flight squares covered) does not — the claim is
+ * board-true.
+ */
+const ZERO_MOBILITY_RE =
+  /\b(?:(?:no|zero)\s+legal\s+moves?|no\s+moves|no\s+good\s+squares?|no\s+safe\s+(?:squares?|retreats?)|no\s+safe\s+square\s+to\s+retreat|nowhere\s+to\s+go|no\s+escape)\b/gi;
 const PIECE_DESIGNATOR_IN_SENTENCE_RE = /\b([KQRBN])([a-h][1-8])\b/;
 const PIECE_NAME_TO_LETTER: Record<string, string> = {
   king: "k",
@@ -1152,6 +1437,27 @@ function mobilityCount(fen: string, square: string, pieceLetter: string): number
   }
 }
 
+/** ROUND 2 fix 4b — SAFE-move count (flight squares not covered by the
+ * enemy; countSafeMoves in the trapped-piece detector), turn-corrected the
+ * same way as mobilityCount. */
+function safeMobilityCount(fen: string, square: string, pieceLetter: string): number | null {
+  try {
+    const parts = fen.split(" ");
+    const map = fenPieceMap(fen);
+    const onBoard = map.get(square);
+    if (!onBoard || onBoard.toLowerCase() !== pieceLetter) return null;
+    const color = onBoard === onBoard.toUpperCase() ? "w" : "b";
+    if (parts[1] !== color) {
+      parts[1] = color;
+      parts[3] = "-"; // en passant is stale after a turn flip
+    }
+    const game = new Chess(parts.join(" "));
+    return countSafeMoves(game, square as never);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Fix 10 — mobility_claims: bare-integer mobility/square-count claims
  * verified against chess.js counts from the insight FENs. The adjudicated
@@ -1163,28 +1469,27 @@ function mobilityCount(fen: string, square: string, pieceLetter: string): number
  */
 export function checkMobilityClaims(prose: string, insight: InsightContract): RefereeViolation[] {
   const violations: RefereeViolation[] = [];
+  const resolvePiece = (sentence: string): { pieceLetter: string; square: string } | null => {
+    const named = sentence.match(PIECE_ON_SQUARE_RE);
+    if (named) {
+      const pieceLetter = PIECE_NAME_TO_LETTER[named[1].toLowerCase()] ?? null;
+      return pieceLetter ? { pieceLetter, square: named[2] } : null;
+    }
+    const desig = sentence.match(PIECE_DESIGNATOR_IN_SENTENCE_RE);
+    if (desig) return { pieceLetter: desig[1].toLowerCase(), square: desig[2] };
+    return null;
+  };
+
   for (const m of Array.from(prose.matchAll(clone(MOBILITY_CLAIM_RE)))) {
     const claimed = Number.parseInt(m[1], 10);
     if (!Number.isFinite(claimed)) continue;
     const idx = m.index ?? 0;
     const { start, end } = sentenceBounds(prose, idx);
     const sentence = prose.slice(start, end);
-    let pieceLetter: string | null = null;
-    let square: string | null = null;
-    const named = sentence.match(PIECE_ON_SQUARE_RE);
-    if (named) {
-      pieceLetter = PIECE_NAME_TO_LETTER[named[1].toLowerCase()] ?? null;
-      square = named[2];
-    } else {
-      const desig = sentence.match(PIECE_DESIGNATOR_IN_SENTENCE_RE);
-      if (desig) {
-        pieceLetter = desig[1].toLowerCase();
-        square = desig[2];
-      }
-    }
-    if (!pieceLetter || !square) continue; // unverifiable — skip, never guess
+    const ref = resolvePiece(sentence);
+    if (!ref) continue; // unverifiable — skip, never guess
     const counts = [insight.fenBefore, insight.fenAfter]
-      .map((fen) => mobilityCount(fen, square!, pieceLetter!))
+      .map((fen) => mobilityCount(fen, ref.square, ref.pieceLetter))
       .filter((c): c is number => c !== null);
     if (counts.length === 0) continue; // piece not on that square in either FEN
     if (counts.some((c) => c === claimed)) continue; // board backs the number
@@ -1193,9 +1498,38 @@ export function checkMobilityClaims(prose: string, insight: InsightContract): Re
       category: "mobility_count_wrong",
       span: m[0],
       index: idx,
-      detail: `mobility claim "${m[0]}" for the ${pieceLetter.toUpperCase()} on ${square} contradicts chess.js (actual: ${counts.join("/")} legal move(s) in fenBefore/fenAfter)`,
+      detail: `mobility claim "${m[0]}" for the ${ref.pieceLetter.toUpperCase()} on ${ref.square} contradicts chess.js (actual: ${counts.join("/")} legal move(s) in fenBefore/fenAfter)`,
     });
   }
+
+  // ROUND 2 fix 4b — zero-mobility / zero-safe-square claims tied to a
+  // resolvable piece: "trapped with no legal moves" prose is checked against
+  // the ACTUAL chess.js counts (raw for the literal move phrasings, safe
+  // flight squares for the "no good/safe square" ones). Fires only when NO
+  // insight FEN backs a zero count; a piece that truly has 0 (raw or safe)
+  // moves licenses the claim (v2 FP #27 — Na8, both flights covered).
+  for (const m of Array.from(prose.matchAll(clone(ZERO_MOBILITY_RE)))) {
+    const idx = m.index ?? 0;
+    const { start, end } = sentenceBounds(prose, idx);
+    const sentence = prose.slice(start, end);
+    const ref = resolvePiece(sentence);
+    if (!ref || ref.pieceLetter === "k") continue; // unverifiable / king-context (mate territory)
+    const literal = /\bmoves?\b/i.test(m[0]);
+    const counter = literal ? mobilityCount : safeMobilityCount;
+    const counts = [insight.fenBefore, insight.fenAfter]
+      .map((fen) => counter(fen, ref.square, ref.pieceLetter))
+      .filter((c): c is number => c !== null);
+    if (counts.length === 0) continue; // piece not on that square in either FEN
+    if (counts.some((c) => c === 0)) continue; // the board backs the zero claim
+    violations.push({
+      check: "mobility_claims",
+      category: "mobility_count_wrong",
+      span: m[0],
+      index: idx,
+      detail: `zero-mobility claim "${m[0]}" for the ${ref.pieceLetter.toUpperCase()} on ${ref.square} contradicts chess.js (actual: ${counts.join("/")} ${literal ? "legal" : "safe"} move(s) in fenBefore/fenAfter)`,
+    });
+  }
+
   return violations;
 }
 

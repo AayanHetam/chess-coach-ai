@@ -81,6 +81,8 @@ export interface ContractServingArgs {
   promptInput: CoachChatPromptInput;
   correlationId: string;
   uid: string;
+  /** hasTrackingConsent(request) — conversation capture is consent-gated. */
+  trackingConsent: boolean;
   requestStartMs: number;
   cacheInputs: {
     currentFen: string;
@@ -181,6 +183,7 @@ export async function serveContractAnalysis(
       cacheSystem: true,
       capture: {
         feature: "enhanced-analysis",
+        consent: args.trackingConsent,
         uid: args.uid,
         requestId: args.correlationId,
         promptVersion: VERBALIZER_PROMPT_VERSION,

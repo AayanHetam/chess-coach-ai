@@ -822,7 +822,45 @@ function scrubConceptTags(prose: string): string {
   return prose.replace(/\[CONCEPT:[^\]\n]*\]/g, (m) => " ".repeat(m.length));
 }
 
-export function checkTacticalKeywords(prose: string, insight: InsightContract): RefereeViolation[] {
+/** Piece-name-on-square reference ("queen on f3", "knight to e7"). */
+const PIECE_NAME_ON_SQUARE_RE = /\b(?:queen|rook|bishop|knight|king|pawn)\s+(?:on|at|to)\s+[a-h][1-8]\b/i;
+
+/**
+ * ROUND 2 fix 3 — definitional-sentence test: a sentence with NO square
+ * token, NO SAN token, and NO piece-on-square reference is teaching a
+ * CONCEPT, not claiming a board fact ("When you move one piece and it
+ * reveals an attack…, that's a discovered attack" — v2 span #13). Tactical
+ * keywords in such sentences are exempt.
+ */
+export function isDefinitionalSentence(sentence: string): boolean {
+  if (clone(SQUARE_RE).test(sentence)) return false;
+  if (clone(SAN_PIECE_RE).test(sentence)) return false;
+  if (PIECE_NAME_ON_SQUARE_RE.test(sentence)) return false;
+  return true;
+}
+
+/** Does the contract know a mate? Insight-local PVs/played/best plus (when
+ * the full contract is provided) the actual game moves. chess.js-notated
+ * mates only — a "#" suffix — no judgment involved. */
+function contractHasMate(insight: InsightContract, contract?: CoachContract): boolean {
+  const hasHash = (s: string | null | undefined) => !!s && s.includes("#");
+  if (hasHash(insight.playedSan) || hasHash(insight.bestSan)) return true;
+  // NOTE: raw line sans (not buildPvSources) — decoration stripping would
+  // erase the "#" this check looks for.
+  for (const line of insight.lines) if (line.san.some(hasHash)) return true;
+  for (const t of insight.threats ?? []) if (hasHash(t.threatSan)) return true;
+  if (contract) {
+    if (contract.game.moveHistory.some(hasHash)) return true;
+    if (contract.game.resultText === "Checkmate") return true;
+  }
+  return false;
+}
+
+export function checkTacticalKeywords(
+  prose: string,
+  insight: InsightContract,
+  contract?: CoachContract,
+): RefereeViolation[] {
   const scrubbed = scrubConceptTags(prose); // fix 5
   // PRECISION PACK fix 4 (consumer side): the license pool is the insight's
   // own played-move motifs PLUS the scope-extended motifLicense the builder
@@ -838,7 +876,6 @@ export function checkTacticalKeywords(prose: string, insight: InsightContract): 
     correlationId: `fidelity:${insight.factIdPrefix}`,
   });
   const allowed = new Set(insight.allowedTacticalKeywords.map((k) => k.toLowerCase()));
-  const lower = scrubbed.toLowerCase();
   const seen = new Set<string>(); // fix 6 — dedup identical (keyword) double-fires
   return result.issues
     .map((issue) => ({
@@ -848,14 +885,6 @@ export function checkTacticalKeywords(prose: string, insight: InsightContract): 
       keyword: issue.llm_span.replace(/^tactical_claim_ungrounded:/, ""),
     }))
     .filter(({ keyword }) => !allowed.has(keyword.toLowerCase()))
-    // Measurement-precision post-filter: the serving validator matches raw
-    // substrings, so "developing" fires its "pin" keyword. Require the
-    // keyword to START at a word boundary (suffixed forms like "pins",
-    // "pinned" still count; mid-word hits don't). Real serving false-fire
-    // class — worth CI-3's attention when these checks move into the ladder.
-    .filter(({ keyword }) =>
-      new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&")}`, "i").test(scrubbed),
-    )
     // PRECISION PACK fix 6 — dedup: TACTICAL_CLAIM_KEYWORDS lists "fork"
     // twice, so one ungrounded "forking" produced two identical
     // (sentence, keyword) fires (adjudicated span pairs #11/#12, #31/#32,
@@ -866,11 +895,44 @@ export function checkTacticalKeywords(prose: string, insight: InsightContract): 
       seen.add(key);
       return true;
     })
-    .map(({ keyword }) => ({
+    // ROUND 2 — occurrence-level licensing. The validator fires per KEYWORD
+    // over the whole prose; round 2 judges each OCCURRENCE's sentence:
+    //   - word-boundary start (precision-pack post-filter, unchanged in
+    //     effect: "developing" never counts as "pin");
+    //   - fix 3, definitional sentences exempt (v2 #13);
+    //   - fix 4b, king-context "trapped" exempt when the contract knows a
+    //     mate — a mated king IS trapped, that is what mate means (v2 #30).
+    // The keyword fires iff at least one occurrence is a non-exempt claim;
+    // the fire's index points at the first such occurrence.
+    .map(({ keyword }) => {
+      const kwRe = new RegExp(
+        `\\b${keyword.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&")}`,
+        "gi",
+      );
+      let firstClaimIndex = -1;
+      for (const m of Array.from(scrubbed.matchAll(kwRe))) {
+        const idx = m.index ?? 0;
+        const { start, end } = sentenceBounds(scrubbed, idx);
+        const sentence = scrubbed.slice(start, end);
+        if (isDefinitionalSentence(sentence)) continue; // fix 3
+        if (
+          keyword.toLowerCase() === "trapped" &&
+          /\bking\b/i.test(sentence) &&
+          contractHasMate(insight, contract)
+        ) {
+          continue; // fix 4b — king-context license
+        }
+        firstClaimIndex = idx;
+        break;
+      }
+      return { keyword, firstClaimIndex };
+    })
+    .filter(({ firstClaimIndex }) => firstClaimIndex >= 0)
+    .map(({ keyword, firstClaimIndex }) => ({
       check: "tactical_keyword" as const,
       category: "tactical_keyword_unbacked" as const,
       span: keyword,
-      index: lower.indexOf(keyword.toLowerCase()),
+      index: firstClaimIndex,
       detail: `tactical keyword "${keyword}" without a confirmed motif of that type in the contract`,
     }));
 }
@@ -962,7 +1024,7 @@ export function runInsightChecks(
   return [
     ...checkEvalDisplays(prose, insight, contract),
     ...checkSanWhitelist(prose, insight),
-    ...checkTacticalKeywords(prose, insight),
+    ...checkTacticalKeywords(prose, insight, contract),
     ...checkForbiddenClaims(prose, insight),
   ];
 }

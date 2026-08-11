@@ -192,7 +192,10 @@ export function refereeInsight(
   for (const v of checkEvalDisplays(prose, insight, opts.contract)) findings.push(violationToFinding(v));
   for (const v of checkSanWhitelist(prose, insight, { hypotheticalRule: "prefix" }))
     findings.push(violationToFinding(v));
-  for (const v of checkTacticalKeywords(prose, insight)) findings.push(violationToFinding(v));
+  // ROUND 2: contract threading gives the keyword check its game-history
+  // licenses (king-context "trapped" needs the game's mate — fix 4b).
+  for (const v of checkTacticalKeywords(prose, insight, opts.contract))
+    findings.push(violationToFinding(v));
   for (const v of checkForbiddenClaims(prose, insight)) findings.push(violationToFinding(v));
 
   // Check 5: Stage-9 scanners on the per-insight contract-derived snapshot.

@@ -764,6 +764,16 @@ async function streamCoachReply(params: {
         if (parsed.type === "text" && typeof parsed.delta === "string") {
           accumulated += parsed.delta;
           onDelta(parsed.delta);
+        } else if (
+          parsed.type === "context" &&
+          typeof parsed.contextId === "string"
+        ) {
+          // T1: the server now ships the contextId as its own EARLY event so a
+          // function killed mid-stream doesn't cost the client its cached
+          // context (which would make the next turn a full flagship
+          // re-analysis). Emitting it server-side is inert without this branch
+          // — the reader only understood text/done/metadata/error.
+          contextIdRef.current = parsed.contextId;
         } else if (parsed.type === "done" || parsed.type === "metadata") {
           // Final event carries contextId + validation + puzzle recs
           if (parsed.contextId) contextIdRef.current = parsed.contextId;

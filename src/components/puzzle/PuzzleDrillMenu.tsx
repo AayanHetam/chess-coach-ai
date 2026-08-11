@@ -7,6 +7,7 @@ import { ChevronDown, Target } from "lucide-react";
 import { motion } from "framer-motion";
 import type { PuzzleContext } from "@/lib/validation/puzzleChatSchemas";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
+import { prettyTheme } from "@/components/puzzle/prettyTheme";
 
 /**
  * PuzzleDrillMenu — the "drill more like this" set, as an opt-in drag-down
@@ -37,16 +38,6 @@ function studentStartFen(puzzle: PuzzleContext): string {
   } catch {
     return puzzle.fen;
   }
-}
-
-function prettyTheme(themes: string[] | undefined): string {
-  if (!themes || themes.length === 0) return "Tactics";
-  const t = themes.find((x) => !["short", "oneMove", "crushing"].includes(x)) ??
-    themes[0];
-  // camelCase → "Title Case"
-  return t
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/^./, (c) => c.toUpperCase());
 }
 
 interface PuzzleDrillMenuProps {

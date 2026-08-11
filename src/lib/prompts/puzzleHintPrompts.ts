@@ -22,6 +22,7 @@
 
 import { Chess } from "chess.js";
 import { parseSolutionMoves } from "@/lib/puzzleSolution";
+import { analyzeMateClaim, describeMateTruth } from "@/lib/tactics/mateClaim";
 import type {
   HintStage,
   PuzzleHintRequest,
@@ -76,6 +77,12 @@ export function buildPuzzleHintSuffix(req: PuzzleHintRequest): string {
     ? `Student's wrong attempt: ${userAttemptSan}.`
     : "Student's wrong attempt: (none — student is asking from a solved state).";
 
+  // Deterministic mate truth — the base prompt's structured vocabulary invites
+  // the model to emit `checkmate`, so give it the verified answer up front.
+  const mateTruthLine = describeMateTruth(
+    analyzeMateClaim(puzzle.fen, puzzle.solution),
+  );
+
   const contextBlock = `# Puzzle context (private — do not echo verbatim)
 
 Starting FEN (student's turn to move):
@@ -88,7 +95,7 @@ ${solutionSans
 
 ${ratingLine}
 ${themeLine}
-${attemptLine}`;
+${attemptLine}${mateTruthLine ? `\n\nEngine-verified, outranks your own reading:\n${mateTruthLine}` : ""}`;
 
   return `${contextBlock}\n\n${stagePrompt(stage, {
     solutionSans,

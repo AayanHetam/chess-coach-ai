@@ -11,6 +11,7 @@ import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
 import { requireSession } from "@/lib/auth/session";
 import { gateFeature } from "@/lib/billing/gate";
 import { isFreemiumEnabled } from "@/lib/billing/access";
+import { analyzeMateClaim, applyMateCorrection } from "@/lib/tactics/mateClaim";
 
 /**
  * Puzzle Coach chat endpoint — scoped, interactive, multi-turn coach for
@@ -130,6 +131,9 @@ export async function POST(request: NextRequest) {
       const startedAt = Date.now();
       let firstTokenAt: number | null = null;
       let totalChars = 0;
+      // Full text, kept so the mate-claim check has something to inspect at
+      // the end of the stream. Deltas alone can split a SAN token in half.
+      let accumulated = "";
       try {
         for await (const ev of callLLMStream({
           tier,
@@ -152,12 +156,31 @@ export async function POST(request: NextRequest) {
           if (ev.type === "text") {
             if (firstTokenAt === null) firstTokenAt = Date.now();
             totalChars += ev.delta.length;
+            accumulated += ev.delta;
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({ type: "text", delta: ev.delta })}\n\n`,
               ),
             );
           } else if (ev.type === "done") {
+            // Mate-claim enforcement. Deltas already went out — we can't
+            // un-send them — so the correction rides the terminal meta event
+            // and the client swaps the bubble's text on completion. Same shape
+            // as correctStreamedAnalysis on the analysis path, minus the LLM
+            // rewrite: the `#` → `+` swap is deterministic, so a second model
+            // call would only add latency and a second chance to be wrong.
+            const { text: correctedText, corrections } = applyMateCorrection(
+              accumulated,
+              analyzeMateClaim(puzzle.fen, puzzle.solution),
+            );
+            if (corrections.length > 0) {
+              log.warn("puzzle-chat false mate claim corrected", {
+                requestId,
+                puzzleId: puzzle.id,
+                turnIndex,
+                claimed: corrections.map((c) => c.claimed),
+              });
+            }
             // Surface model + token-count to the client for telemetry.
             controller.enqueue(
               encoder.encode(
@@ -173,6 +196,9 @@ export async function POST(request: NextRequest) {
                   ttftMs: firstTokenAt
                     ? firstTokenAt - startedAt
                     : ev.result.elapsedMs,
+                  // Only sent when something actually changed, so the client
+                  // can treat its presence as "replace the bubble".
+                  ...(corrections.length > 0 ? { correctedText } : {}),
                 })}\n\n`,
               ),
             );

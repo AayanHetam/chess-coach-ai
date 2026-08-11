@@ -25,6 +25,8 @@ import {
 } from "./PuzzleCoachBubble";
 import { HintStageRow } from "./HintStageRow";
 import { PuzzleDrillMenu } from "./PuzzleDrillMenu";
+import { Logo } from "@/components/ui/Logo";
+import { SERIF_DISPLAY } from "@/theme/fonts";
 import type {
   PuzzleContext,
   PuzzleOutcome,
@@ -246,6 +248,8 @@ export function PuzzleCoachPanel({
         const decoder = new TextDecoder();
         let buffer = "";
         let accumulated = "";
+        // Set only when the server's post-stream mate check rewrote something.
+        let corrected = "";
         let streamDone = false;
 
         while (!streamDone) {
@@ -293,8 +297,16 @@ export function PuzzleCoachPanel({
                 });
               } else if (parsed.type === "error") {
                 throw new Error(parsed.error || "stream error");
+              } else if (
+                parsed.type === "meta" &&
+                typeof parsed.correctedText === "string"
+              ) {
+                // The server caught a false mate claim after the tokens had
+                // already streamed out. Swap in the corrected text on
+                // completion — the deltas can't be recalled, but the message
+                // the user is left reading must be the true one.
+                corrected = parsed.correctedText;
               }
-              // type === "meta" — we ignore for now (telemetry hook later).
             }
           }
         }
@@ -308,7 +320,8 @@ export function PuzzleCoachPanel({
             if (last.role === "coach") {
               next[next.length - 1] = {
                 ...last,
-                content: accumulated || last.content || "(no response)",
+                content:
+                  corrected || accumulated || last.content || "(no response)",
                 streaming: false,
               };
             }
@@ -581,20 +594,22 @@ export function PuzzleCoachPanel({
               px: 2,
             }}
           >
-            <Target size={28} color="#FF7A1A" style={{ opacity: 0.5 }} />
+            <Logo size={46} color="#FF7A1A" />
             <Typography
               sx={{
-                mt: 1.5,
-                fontSize: "0.92rem",
-                fontWeight: 600,
-                color: "rgba(255,240,224,0.72)",
+                mt: 2,
+                fontFamily: SERIF_DISPLAY,
+                fontSize: "1.28rem",
+                fontWeight: 500,
+                letterSpacing: "0.01em",
+                color: "rgba(255,240,224,0.92)",
               }}
             >
-              Solve the puzzle to start coaching
+              Chess Masti Puzzle AI
             </Typography>
             <Typography
               sx={{
-                mt: 0.75,
+                mt: 1,
                 fontSize: "0.82rem",
                 lineHeight: 1.5,
                 color: "rgba(255,240,224,0.45)",

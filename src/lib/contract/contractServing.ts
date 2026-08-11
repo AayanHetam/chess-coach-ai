@@ -67,6 +67,8 @@ export interface ContractDoneMetadata {
   citedFactIds: string[];
   citationCoverage: number | null;
   ladderDistribution: Record<LadderStage, number>;
+  /** Cards refused by the CI-5 sentinel guard (fabricated classification). */
+  sentinelCardsRefused: number;
   cached: boolean;
 }
 
@@ -144,6 +146,7 @@ export async function serveContractAnalysis(
           templated: 0,
           passthrough_footnoted: 0,
         },
+        sentinelCardsRefused: 0,
         cached: true,
       },
       summary: null,
@@ -235,6 +238,7 @@ export async function serveContractAnalysis(
       citedFactIds: summary.citedFactIds,
       citationCoverage: summary.citationCoverageMean,
       ladderDistribution: summary.ladderDistribution,
+      sentinelCardsRefused: summary.sentinelCardsRefused,
       cached: false,
     },
     summary,

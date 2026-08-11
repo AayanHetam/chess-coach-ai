@@ -26,7 +26,8 @@ import { CitationStripper, stripCitations } from "./citations";
 import { matchInsightForHeader, parseInsightHeader } from "./insightGrammar";
 import { DEFAULT_LADDER_BUDGETS, runInsightLadder } from "./ladder";
 import type { LadderBudgets, LadderCardResult, LadderDeps, LadderStage } from "./ladder";
-import { selectCardInsights } from "@/lib/prompts/verbalizerPrompt";
+import { isSentinelBearingInsight } from "./sentinelGuard";
+import { selectCardInsightsDetailed } from "@/lib/prompts/verbalizerPrompt";
 import type { CoachContract, InsightContract } from "./types";
 
 const log = logger.child({ module: "contract-enforce" });
@@ -36,6 +37,16 @@ export const TRUNCATION_FOOTNOTE =
 
 const UNVERIFIED_CARD_FOOTNOTE =
   "\n\n*Engine check unavailable for this card — it could not be matched to the verified analysis and was served unverified.*";
+
+/**
+ * Replaces a card the model wrote about a ply whose engine analysis timed
+ * out. Honest register (plan §12 A1 + the founder's 2026-08-10 policy:
+ * unverified claims are dropped or rewritten, never hedged) — the card's
+ * severity and classification would both have been derived from the timeout
+ * sentinel's fake cp:0. See sentinelGuard.ts.
+ */
+export const SENTINEL_REFUSAL_NOTE =
+  "\n\n*One moment in this game couldn't be checked — the engine analysis timed out on that move, so I've left it out rather than guess at it.*\n\n";
 
 export interface EnforcedStreamOpts {
   contract: CoachContract;
@@ -64,6 +75,12 @@ export interface EnforcedStreamSummary {
   warnsInitialTotal: number;
   unclosedBlock: boolean;
   unanchoredBlocks: number;
+  /** Cards refused because their severity/classification came from a
+   * client-timeout sentinel (PR-CI-5 sentinel guard). */
+  sentinelCardsRefused: number;
+  /** Model-emitted blocks that named a refused sentinel ply and were
+   * replaced by SENTINEL_REFUSAL_NOTE rather than shipped. */
+  sentinelBlocksRefused: number;
   budgets: LadderBudgets;
   costUsd: number;
   /** ms from stream start to the first card burst reaching the client. */
@@ -89,11 +106,23 @@ export function createEnforcedContractStream(
   let finalText = "";
   let unclosedBlock = false;
   let unanchoredBlocks = 0;
+  /** Blocks the model wrote for a refused sentinel ply (replaced by the note). */
+  let sentinelBlocksRefused = 0;
   let costUsd = 0;
   let firstCardEmitMs: number | null = null;
 
-  /** Insights not yet claimed by a header match — order fallback anchor. */
-  const expectedQueue: InsightContract[] = selectCardInsights(contract);
+  /** Insights not yet claimed by a header match — order fallback anchor.
+   * Sentinel-bearing insights are already refused by the card plan. */
+  const cardPlan = selectCardInsightsDetailed(contract);
+  const expectedQueue: InsightContract[] = cardPlan.cards;
+  const sentinelCardsRefused = cardPlan.droppedSentinel.length;
+  if (sentinelCardsRefused > 0) {
+    log.warn("contract_enforce_sentinel_cards_refused", {
+      contractId: contract.contractId,
+      correlationId: opts.correlationId,
+      refused: cardPlan.droppedSentinel.map((i) => i.factIdPrefix),
+    });
+  }
   const claimed = new Set<string>();
 
   const userRating = contract.game.userRating;
@@ -120,13 +149,41 @@ export function createEnforcedContractStream(
     });
   };
 
-  const anchorBlock = (block: CompletedBlock): InsightContract | null => {
+  /**
+   * "sentinel_refused" — the block is about a ply whose engine data timed
+   * out; its severity/classification are fabricated, so neither a
+   * server-authoritative header nor the model's own copy of one may ship.
+   * "unanchored" — an off-plan card the model invented: fail-visible raw.
+   */
+  type BlockAnchor =
+    | { kind: "insight"; insight: InsightContract }
+    | { kind: "sentinel_refused"; factIdPrefix: string }
+    | { kind: "unanchored" };
+
+  const anchorBlock = (block: CompletedBlock): BlockAnchor => {
     const fields = parseInsightHeader(block.headerRaw);
     if (fields) {
       const match = matchInsightForHeader(fields, contract);
+      // SENTINEL REFUSAL (PR-CI-5): matchInsightForHeader searches EVERY
+      // contract insight, including the sentinel-bearing ones the card plan
+      // refused. Anchoring to one would hand the block a server-authoritative
+      // header carrying a fabricated classification — the exact thing the
+      // guard exists to prevent. Falling through to the expected queue is not
+      // safe either: the model wrote this body ABOUT the sentinel ply, so
+      // re-heading it as a different card would mislabel real prose. The
+      // block is therefore replaced by an honest one-line note.
+      // See sentinelGuard.ts.
+      if (match && isSentinelBearingInsight(match.insight)) {
+        log.warn("contract_enforce_sentinel_anchor_refused", {
+          contractId: contract.contractId,
+          correlationId: opts.correlationId,
+          factIdPrefix: match.insight.factIdPrefix,
+        });
+        return { kind: "sentinel_refused", factIdPrefix: match.insight.factIdPrefix };
+      }
       if (match && !claimed.has(match.insight.factIdPrefix)) {
         claimed.add(match.insight.factIdPrefix);
-        return match.insight;
+        return { kind: "insight", insight: match.insight };
       }
     }
     // Malformed or unmatched header — fall back to the next expected card
@@ -140,9 +197,9 @@ export function createEnforcedContractStream(
         headerRaw: block.headerRaw.slice(0, 120),
         anchoredTo: next.factIdPrefix,
       });
-      return next;
+      return { kind: "insight", insight: next };
     }
-    return null;
+    return { kind: "unanchored" };
   };
 
   let pendingBlock: CompletedBlock | null = null;
@@ -157,15 +214,24 @@ export function createEnforcedContractStream(
       if (pendingBlock && text === pendingBlock.text) {
         const block = pendingBlock;
         pendingBlock = null;
-        const insight = anchorBlock(block);
+        const anchor = anchorBlock(block);
         enqueue(async () => {
           // Flush any held stripper tail BEFORE the card burst (order).
           emitTracked(stripper.flush());
-          if (!insight) {
+          if (anchor.kind === "sentinel_refused") {
+            sentinelBlocksRefused += 1;
+            // Honest register (plan §12 A1): say what happened, ship no
+            // fabricated classification, and never re-head the prose as a
+            // different card.
+            emitTracked(SENTINEL_REFUSAL_NOTE);
+            return;
+          }
+          if (anchor.kind === "unanchored") {
             unanchoredBlocks += 1;
             emitTracked(stripCitations(block.text) + UNVERIFIED_CARD_FOOTNOTE);
             return;
           }
+          const insight = anchor.insight;
           const result = await runInsightLadder(
             block.body,
             {
@@ -253,6 +319,8 @@ export function createEnforcedContractStream(
         warnsInitialTotal: cards.reduce((a, c) => a + c.warnsInitial, 0),
         unclosedBlock,
         unanchoredBlocks,
+        sentinelCardsRefused,
+        sentinelBlocksRefused,
         budgets,
         costUsd,
         firstCardEmitMs,
@@ -266,6 +334,8 @@ export function createEnforcedContractStream(
         errorsInitialTotal: summary.errorsInitialTotal,
         unclosedBlock,
         unanchoredBlocks,
+        sentinelCardsRefused,
+        sentinelBlocksRefused,
         costUsd: Number(costUsd.toFixed(4)),
         firstCardEmitMs,
       });

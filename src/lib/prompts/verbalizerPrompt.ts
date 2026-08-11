@@ -27,6 +27,8 @@ import type { CoachChatPromptInput } from "./coachChatPrompt";
 import { formatVerbalizerExamples } from "./verbalizerGoldExamples";
 import { renderInsightHeader } from "@/lib/contract/insightGrammar";
 import { serializeForVerbalizer } from "@/lib/contract/serialize";
+import { partitionSentinelCards } from "@/lib/contract/sentinelGuard";
+import type { CardPartition } from "@/lib/contract/sentinelGuard";
 import type { CoachContract, InsightContract } from "@/lib/contract/types";
 
 /**
@@ -105,7 +107,7 @@ export function getVerbalizerSystemPromptParts(
 /** Card order: legacy render order — top-mistake rank, then intel-only by
  * rank; insights in neither list are not carded (selectInsights already
  * decided coverage — the LLM gets zero discretion, plan §2). */
-export function selectCardInsights(contract: CoachContract): InsightContract[] {
+function orderedCardCandidates(contract: CoachContract): InsightContract[] {
   const top = contract.insights
     .filter((i) => i.topMistakeRank !== null)
     .sort((a, b) => a.topMistakeRank! - b.topMistakeRank!);
@@ -113,6 +115,27 @@ export function selectCardInsights(contract: CoachContract): InsightContract[] {
     .filter((i) => i.topMistakeRank === null && i.intelligenceRank !== null)
     .sort((a, b) => a.intelligenceRank! - b.intelligenceRank!);
   return [...top, ...intelOnly];
+}
+
+/**
+ * The card plan, with sentinel-bearing insights REFUSED (PR-CI-5).
+ *
+ * An insight whose evalBefore/evalAfter is a client-timeout sentinel carries a
+ * fabricated `classification` and `severityDropCp` (both derived from the
+ * sentinel's fake `cp: 0`) — and `renderInsightHeader` would print that
+ * fabricated classification as server-authoritative truth. The referee checks
+ * prose against the contract, so it would faithfully certify prose repeating
+ * it. See sentinelGuard.ts for the full rationale; the drop is monotone
+ * (cards can only be removed) and only ever removes intel-only cards, since
+ * Scan 1 skips sentinels already.
+ */
+export function selectCardInsights(contract: CoachContract): InsightContract[] {
+  return partitionSentinelCards(orderedCardCandidates(contract)).cards;
+}
+
+/** Same plan, with the refusals exposed for telemetry/tests. */
+export function selectCardInsightsDetailed(contract: CoachContract): CardPartition {
+  return partitionSentinelCards(orderedCardCandidates(contract));
 }
 
 /**

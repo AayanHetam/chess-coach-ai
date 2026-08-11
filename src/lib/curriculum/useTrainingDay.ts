@@ -3,6 +3,7 @@
 import { useCallback, useRef } from "react";
 import { useAtom } from "jotai";
 import { bumpStreak, dayKey, streakAtom } from "./streak";
+import { dailyLogAtom, pruneDailyLog, recordDay } from "./dailyLog";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
@@ -26,30 +27,40 @@ import { useAuth } from "@/contexts/AuthContext";
  * that bumps the local streak without mirroring would make the user's own
  * activity invisible to their reminders.
  */
-export function useRecordTrainingDay(): () => void {
+export function useRecordTrainingDay(): (theme?: string) => void {
   const [streak, setStreak] = useAtom(streakAtom);
+  const [, setDailyLog] = useAtom(dailyLogAtom);
   const { updateProfile } = useAuth();
   const mirroredForDay = useRef<string | null>(null);
 
-  return useCallback(() => {
-    const today = dayKey(new Date());
-    if (mirroredForDay.current === today) return;
-    mirroredForDay.current = today;
+  return useCallback(
+    (theme?: string) => {
+      const today = dayKey(new Date());
 
-    const next = bumpStreak(streak, today);
-    setStreak(next);
+      // The per-puzzle tally runs on EVERY call — it's what "3 of 5 done
+      // today" and the week grid's completed days are counted from. Only the
+      // streak and the profile mirror are once-per-day.
+      setDailyLog((prev) => pruneDailyLog(recordDay(prev, today, theme), today));
 
-    // Always refresh lastActiveAt even when the streak itself didn't move
-    // (second session of the same day) — the cron uses it to decide whether
-    // the user still needs a nudge tonight.
-    const at = Date.now();
-    void updateProfile({
-      lastActiveAt: at,
-      currentStreak: next.current,
-      streakUpdatedAt: at,
-    }).catch(() => {
-      // Best-effort mirror. A failed write must never break training, and the
-      // local streak has already been updated.
-    });
-  }, [streak, setStreak, updateProfile]);
+      if (mirroredForDay.current === today) return;
+      mirroredForDay.current = today;
+
+      const next = bumpStreak(streak, today);
+      setStreak(next);
+
+      // Always refresh lastActiveAt even when the streak itself didn't move
+      // (second session of the same day) — the cron uses it to decide whether
+      // the user still needs a nudge tonight.
+      const at = Date.now();
+      void updateProfile({
+        lastActiveAt: at,
+        currentStreak: next.current,
+        streakUpdatedAt: at,
+      }).catch(() => {
+        // Best-effort mirror. A failed write must never break training, and
+        // the local streak has already been updated.
+      });
+    },
+    [streak, setStreak, setDailyLog, updateProfile],
+  );
 }

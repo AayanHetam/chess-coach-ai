@@ -175,7 +175,7 @@ export default function SessionRunner({ onExit }: { onExit: () => void }) {
       // Streak + server mirror. Shared with /puzzles via useRecordTrainingDay
       // so both surfaces count toward the same habit metric and neither can
       // drift from the other.
-      recordTrainingDay();
+      recordTrainingDay(theme);
 
       if (firstTry) setSolvedCount((c) => c + 1);
       seenRef.current = [...seenRef.current, puzzle.id];

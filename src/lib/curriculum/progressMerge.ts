@@ -1,6 +1,7 @@
 import type { PuzzleStats } from "@/lib/puzzleRating";
 import type { ThemeSrsCard } from "@/lib/curriculum/puzzleThemeSrs";
 import type { StreakState } from "@/lib/curriculum/streak";
+import { mergeDailyLog, type DailyLog } from "@/lib/curriculum/dailyLog";
 
 /**
  * Merging local (localStorage) progress with the server copy.
@@ -22,6 +23,9 @@ export interface StoredProgress {
   streak: StreakState;
   stats: PuzzleStats;
   srs: Record<string, ThemeSrsCard>;
+  /** Per-day training record. Optional for back-compat: snapshots written
+   *  before daily tracking existed have no `daily` key. */
+  daily?: DailyLog;
   /** Epoch ms of the last write. Diagnostic only — not the merge key. */
   updatedAt: number;
 }
@@ -88,6 +92,7 @@ export function mergeProgress(
     streak: mergeStreak(a.streak, b.streak),
     stats: mergeStats(a.stats, b.stats),
     srs: mergeSrs(a.srs, b.srs),
+    daily: mergeDailyLog(a.daily ?? {}, b.daily ?? {}),
     updatedAt: Math.max(a.updatedAt, b.updatedAt),
   };
 }

@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { puzzleStatsAtom } from "@/lib/puzzleRating";
 import { puzzleThemeSrsAtom } from "@/lib/curriculum/puzzleThemeSrs";
 import { streakAtom } from "@/lib/curriculum/streak";
+import { dailyLogAtom } from "@/lib/curriculum/dailyLog";
 import { mergeProgress, type StoredProgress } from "./progressMerge";
 
 /**
@@ -35,13 +36,14 @@ export function useProgressSync(): void {
   const [streak, setStreak] = useAtom(streakAtom);
   const [stats, setStats] = useAtom(puzzleStatsAtom);
   const [srs, setSrs] = useAtom(puzzleThemeSrsAtom);
+  const [daily, setDaily] = useAtom(dailyLogAtom);
 
   const hydratedFor = useRef<string | null>(null);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Live mirror so the debounced push always sends current state rather than
   // whatever was captured when the timer was armed.
-  const latest = useRef({ streak, stats, srs });
-  latest.current = { streak, stats, srs };
+  const latest = useRef({ streak, stats, srs, daily });
+  latest.current = { streak, stats, srs, daily };
 
   // ── Hydrate: merge the server copy into local, once per signed-in user ──
   useEffect(() => {
@@ -67,6 +69,7 @@ export function useProgressSync(): void {
             streak: latest.current.streak,
             stats: latest.current.stats,
             srs: latest.current.srs,
+            daily: latest.current.daily,
             updatedAt: Date.now(),
           },
           data.progress,
@@ -74,6 +77,7 @@ export function useProgressSync(): void {
         setStreak(merged.streak);
         setStats(merged.stats);
         setSrs(merged.srs);
+        setDaily(merged.daily ?? {});
       } catch {
         // Offline or server down — the local copy is still authoritative for
         // this session, so training continues uninterrupted.
@@ -83,7 +87,7 @@ export function useProgressSync(): void {
     return () => {
       cancelled = true;
     };
-  }, [user, setStreak, setStats, setSrs]);
+  }, [user, setStreak, setStats, setSrs, setDaily]);
 
   // ── Push: debounced snapshot on change ──
   useEffect(() => {
@@ -94,6 +98,7 @@ export function useProgressSync(): void {
         streak: latest.current.streak,
         stats: latest.current.stats,
         srs: latest.current.srs,
+        daily: latest.current.daily,
         updatedAt: Date.now(),
       };
       void fetch("/api/progress", {
@@ -110,5 +115,5 @@ export function useProgressSync(): void {
     return () => {
       if (pushTimer.current) clearTimeout(pushTimer.current);
     };
-  }, [user, streak, stats, srs]);
+  }, [user, streak, stats, srs, daily]);
 }

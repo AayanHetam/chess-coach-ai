@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { horizontalOverflow } from "../helpers";
 
 /**
  * Answer modes on /puzzles, driven for real.
@@ -136,6 +137,17 @@ test.describe("puzzle answer modes", () => {
       page.getByText(/Solved|Try again|to move/).first(),
     ).toBeVisible({ timeout: 15_000 });
     expect(crashes).toEqual([]);
+  });
+
+  test("choice mode does not push the page sideways", async ({ page }) => {
+    // The rows sit under the board inside an already-constrained card, and
+    // the mobile project runs this at phone width. A four-row answer block
+    // that overflows would be the most visible possible regression.
+    await page.goto("/puzzles");
+    await waitForPuzzle(page);
+    await page.getByRole("button", { name: "Answer: on the board" }).click();
+    await expect(page.getByRole("radiogroup", { name: "Choose a move" })).toBeVisible();
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
   });
 
   test("switching back to the board restores board answering", async ({

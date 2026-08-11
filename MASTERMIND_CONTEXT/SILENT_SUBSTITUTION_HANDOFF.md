@@ -490,17 +490,84 @@ Related, unverified: `handleAskCoachAboutMove` (`:8068-8072`) does **not** gate 
 
 ## §6.5 SHIPPED SO FAR (update this as you go)
 
-| Item | PR | State | Notes |
+Every item below was reproduced RED first, fixed, and re-verified with
+`npx tsc --noEmit` + `npm test` + `npm run build` + E2E, in an isolated git
+worktree (§0.4).
+
+| # | Item | PR | State |
 |---|---|---|---|
-| **A1 + A2** rating threading | **#272** | **MERGED + DEPLOYED** (`c60a541`, verified on `/api/version`) | See "still open" below — prod telemetry not yet read. |
-| **Group C** sentinel guards (C1–C5) | **#275** | Open | Rebased onto main after #270/#271/#272. |
+| 1 | **A1 + A2** rating threading | **#272** | **MERGED + DEPLOYED** |
+| 2 | **Group C** sentinel guards (C1–C5) | **#275** | **MERGED + DEPLOYED** |
+| 4 | **Group B** viewed position (B1+B2+B3) | **#277** | **MERGED + DEPLOYED** |
+| 9 | **C6** `mate: null` hardening | **#280** | **MERGED + DEPLOYED** |
+| 6 | **T2 + T4** breaker + grounding telemetry | **#276** | MERGED |
+| 7 | **T9** context-cache measurement | **#278** | MERGED |
+| 3 | **T1** request deadline | **#282** | open |
+| 5 | **Group D** history contamination (D1–D4) | **#284** | open |
+| 8 | **Group E** — E1 + E3 only | **#285** | open (E2/E4 deferred — see below) |
 
-**Still open on A1 (do not tick it off yet).** The handoff's own definition of done requires production evidence, and only the deploy half is confirmed. `route.ts` now logs a `ratingSource` field per request (`body` | `profile` | `pgn_header` | `none`). **Read one day of production logs.** If it reads `none` for signed-in users who have a rating, the client fix is not reaching them and the number alone would never tell you.
+### What is NOT done, stated plainly
 
-**Two build-gate lessons from these two PRs — both cost real time:**
+**A1 is deployed but not confirmed working.** The definition of done requires
+production evidence and only the deploy half is confirmed. `route.ts` now logs
+`ratingSource` per request (`body` | `profile` | `pgn_header` | `none`).
+**Read one day of production logs.** If it says `none` for signed-in users who
+have a rating, the client fix is not reaching them — and the rating value alone
+would never tell you that.
 
-1. **App Router route modules may only export known Route fields.** Exporting a helper from `app/api/*/route.ts` for testing fails the production build (`"buildCompactGameContext" is not a valid Route export field`) **while `tsc --noEmit` and the entire vitest suite stay green.** If you need to test a route-local helper, move it to `src/lib/` — that is what `src/lib/coach/compactGameContext.ts` is.
-2. **`npm run build` catches things nothing else does.** Both of the above, plus the lint class that froze prod for a day. Run it before every PR, in a worktree.
+**T9 is a measurement, not a fix.** Read `analysis_context_lookup` for a day.
+A miss with `cacheSize: 0` is a cold start; a miss with `cacheSize > 0` is
+cross-function isolation and the only shape that justifies shared storage.
+**Do not add KV before reading it.**
+
+**T1 shipped without the always-emit-`done` wrapper.** The deadline, the
+AbortSignal, the puzzle-rec budget gate and the early `contextId` all landed —
+those remove the CAUSES of the overrun. The wrapper handles the residual case
+and needs the close/return flow restructured across five streaming branches;
+it wants a quieter moment in `route.ts`.
+
+**E2 and E4 are deliberately deferred.** Both change EVERY rendered prompt
+(E2 adds relational blocks to seven more positions per game; E4 adds negative
+rules per unavailable source). That is 37 grounding blocks across the 10
+byte-equality fixtures, and `scripts/eval/contract_ci4_{eval,gates}.ts` measure
+fabrication against exactly those prompts. Shipping them mid-flip would move
+the ground under the referee's numbers and the snapshot churn would bury the
+signal the byte-equality suite exists to give. **Sequence them with the
+contract workstream; do not race them.**
+
+**T5, T6, T7, T8, T10 are untouched.** T7 in particular is now partly load
+bearing for the E2E harness: the coach composer unlocks with no engine data,
+which is what lets the browser tests pin it open by blocking `/engines/**`.
+
+### Lessons that cost real time — read these before writing a test
+
+1. **A green test proves nothing until you have watched it fail.** Two of mine
+   passed for the wrong reason. The C4 fixture put a sentinel where the
+   `drop > 50` filter discarded it for unrelated reasons, so "no phantom
+   mistake" was vacuously true; a control assertion caught it. A B1 browser
+   test compared two identical FENs because the demo game starts at ply 0 where
+   `ArrowLeft` is a no-op. Add a control that asserts the fixture really does
+   reproduce the bug.
+2. **App Router route modules may only export known Route fields.** Exporting a
+   helper from `app/api/*/route.ts` for testing fails the production build
+   (`"buildCompactGameContext" is not a valid Route export field`) while
+   `tsc --noEmit` AND the entire vitest suite stay green. Move it to
+   `src/lib/` — that is what `src/lib/coach/compactGameContext.ts` is.
+3. **`npm run build` catches what nothing else does.** Both of the above, plus
+   the lint class that froze prod for a day.
+4. **Run BOTH Playwright projects.** `local-desktop-light` alone is not the
+   gate. A spec passed on desktop and timed out on mobile in CI because the
+   coach composer's PLACEHOLDER changes when `analysisActive` flips as
+   Stockfish boots — a placeholder locator silently stops matching. Block
+   `**/engines/**` to pin the state.
+5. **Never patch source with substring `replace`.** The 10-space-indented
+   `const contextId = …` line is a suffix substring of the 16-space one, so
+   `str.replace` patched already-patched sites and produced three stacked
+   `send` calls per branch. Anchor on `line.strip()`.
+6. **Fix BOTH halves of a boundary.** T1's first commit made the server emit an
+   early `{type:"context"}` event that the client's reader had no branch for —
+   inert. That is the same bug class this whole document is about, introduced
+   while fixing it.
 
 ---
 

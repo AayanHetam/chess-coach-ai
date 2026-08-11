@@ -26,6 +26,28 @@ async function fulfillStub(route: Route) {
   });
 }
 
+
+/**
+ * Keep the coach composer in ONE state for the whole test.
+ *
+ * `analysisActive = engine !== null && enginePositions === null` gates the
+ * composer, and its placeholder text changes with it. Stockfish boots
+ * asynchronously, so on a slow runner that flips mid-test and a
+ * placeholder-based locator silently stops matching — which is exactly how
+ * these specs passed locally and timed out in CI.
+ *
+ * Blocking the engine assets pins `engine` to null, so `analysisActive` stays
+ * false and the composer stays open. That is not a contrivance: the coach
+ * genuinely accepts questions with no engine data (finding T7), and none of
+ * these assertions are about engine output — they are about which fields the
+ * browser puts in the request body.
+ */
+async function pinComposerOpen(page: Page) {
+  await page.route("**/engines/**", (route) => route.abort());
+}
+
+const COMPOSER = "Ask anything about this position...";
+
 /** The board card can take a moment to get its first puzzle from the feed. */
 async function waitForPuzzle(page: Page) {
   await expect(page.getByRole("button", { name: /^Answer:/ })).toBeVisible({
@@ -103,13 +125,14 @@ test.describe("A1 — the analysis coach never invents a rating", () => {
       await fulfillStub(route);
     });
 
+    await pinComposerOpen(page);
     await page.goto("/analysis");
 
     // The composer is disabled while Stockfish is mid-analysis, and whether
     // that window is open on arrival depends on machine speed — so drive the
     // request from the page's own send path once it is enabled, and skip
     // rather than flake if the engine never frees it in time.
-    const composer = page.getByPlaceholder("Ask anything about this position...");
+    const composer = page.getByPlaceholder(COMPOSER);
     const appeared = await composer
       .waitFor({ state: "visible", timeout: 60_000 })
       .then(() => true)
@@ -168,9 +191,10 @@ test.describe("B1 — follow-ups are grounded on the board the user is viewing",
       });
     });
 
+    await pinComposerOpen(page);
     await page.goto("/analysis");
 
-    const composer = page.getByPlaceholder("Ask anything about this position...");
+    const composer = page.getByPlaceholder(COMPOSER);
     const appeared = await composer
       .waitFor({ state: "visible", timeout: 60_000 })
       .then(() => true)

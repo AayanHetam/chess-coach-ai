@@ -238,7 +238,7 @@ This line is the **last line of the first block** in every follow-up context (un
 
 #### C3 · P0 · Same, deep path — "Classification: BLUNDER" printed above "engine data unavailable"
 
-`src/lib/contract/serialize.ts:153` — anchor `if (e.classification) {` — rendered unconditionally, immediately above `:158-160` which correctly prints `Eval: engine data unavailable for this move (analysis timed out)`. The same block asserts both.
+`src/lib/contract/serialize.ts:153` — anchor `Classification: ${e.classification.toUpperCase()}` — rendered unconditionally, immediately above `:158-160` which correctly prints `Eval: engine data unavailable for this move (analysis timed out)`. The same block asserts both.
 Source: `builder.ts:331` `classification: evalAfter?.moveClassification ?? null`. The producer has no sentinel handling either — `moveClassification.ts:33` maps every position through `getPositionWinPercentage`, so a `{cp:0, depth:0}` ply scores 50% and corrupts **two** moves (its own and the next, via `positionsWinPercentage[index-1]` at `:73`).
 **Fix:** `if (e.classification && !e.evalAfter?.sentinel)`. Consider also guarding in `moveClassification.ts`.
 
@@ -399,12 +399,17 @@ Related, unverified: `handleAskCoachAboutMove` (`:8068-8072`) does **not** gate 
 
 ## §5. What already exists — do not redo
 
-### 5.1 A failing reproduction test for Group B (in the working tree, uncommitted)
+### 5.1 An executable reproduction for Group B (committed alongside this doc)
 
-- `src/lib/coach/chatRequestBody.ts` — a faithful extraction of the fast-path body builder. **It currently reproduces the bug on purpose** (returns no `fen`/`moveIndex`).
-- `src/lib/coach/__tests__/chatRequestBody.test.ts` — 5 tests; **3 fail today** with `expected undefined to be 'r1bqkb1r/...'` (correct failure mode: field absent, not wrong).
+- `src/lib/coach/chatRequestBody.ts` — a faithful extraction of the fast-path body builder. **It reproduces the bug on purpose** (returns no `fen`/`moveIndex`).
+- `src/lib/coach/__tests__/chatRequestBody.test.ts` — 5 tests. The three bug-demonstrating ones use **`it.fails()`**, so vitest passes them *because* the bug is live: `Tests 2 passed | 3 expected fail (5)`. CI stays green while the reproduction stays executable.
 
-**Important limitation, stated honestly:** this helper is **not yet wired into `AnalysisImpl`**. Making it green proves nothing about the real page. Step 1 of Group B must be to wire it in (behavior-preserving), confirm the full suite still passes, and only then add the fields.
+**How to use it when you fix Group B:**
+1. Wire `buildChatRequestBody` into `AnalysisImpl`'s fast path **first**, behaviour-preserving (it currently returns the exact body the inline code builds). Confirm `npm test` still passes. Only now do the assertions cover real code.
+2. Add `fen`/`moveIndex` to the returned object.
+3. Flip `it.fails` → `it`. **If a flip does not go green, the fix is incomplete — do not delete the assertion.**
+
+**Limitation, stated honestly:** until step 1 is done this helper is not on any live code path, so a green result would prove only that the helper satisfies its own test. It is a reproduction, not coverage. The browser-level assertion in Group B's proof obligation is the one that actually protects the user-facing behaviour.
 
 ### 5.2 The usability-detection program (shipped, PRs #252 + #255)
 

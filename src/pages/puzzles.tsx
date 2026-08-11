@@ -61,6 +61,7 @@ import { SessionRecapDialog } from "@/components/puzzle/SessionRecapDialog";
 import { PuzzleSessionRail } from "@/components/puzzle/PuzzleSessionRail";
 import { confirmMovesAtom } from "@/lib/puzzlePrefs";
 import { stepDifficulty } from "@/lib/puzzleDifficulty";
+import { useRecordTrainingDay } from "@/lib/curriculum/useTrainingDay";
 import {
   type SessionResult,
   type SessionEndReason,
@@ -282,6 +283,7 @@ export default function PreviewPuzzlesPage() {
   const { user, profile, updateProfile, loading: authLoading } = useAuth();
   const router = useRouter();
   const [confirmMoves, setConfirmMoves] = useAtom(confirmMovesAtom);
+  const recordTrainingDay = useRecordTrainingDay();
   const [stats, setStats] = useAtom(puzzleStatsAtom);
   const [resume, setResume] = useAtom(puzzleResumeAtom);
   const pieceSet = useAtomValue(pieceSetAtom);
@@ -616,6 +618,11 @@ export default function PreviewPuzzlesPage() {
           timestamp: Date.now(),
         }),
       );
+      // A graded puzzle here is real training and must count toward the daily
+      // streak. Before the program-first restructure, bumpStreak fired ONLY in
+      // SessionRunner — so solving fifty puzzles on this page advanced nothing
+      // and /plan's streak tile disagreed with what the user had just done.
+      recordTrainingDay();
       setSessionResults((prev) => [
         ...prev,
         {
@@ -629,7 +636,7 @@ export default function PreviewPuzzlesPage() {
         },
       ]);
     },
-    [puzzle, setStats],
+    [puzzle, setStats, recordTrainingDay],
   );
 
   // Grade the rating on solve (first-try only counts as solved, mirroring

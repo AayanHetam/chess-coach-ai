@@ -16,6 +16,7 @@ import QuizPersistenceFlush from "@/components/auth/QuizPersistenceFlush";
 import OnboardingNudge from "@/components/onboarding/OnboardingNudge";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 import ConsentBanner from "@/components/consent/ConsentBanner";
+import ProgressSync from "@/components/curriculum/ProgressSync";
 
 const queryClient = new QueryClient();
 
@@ -83,6 +84,11 @@ export default function MyApp({ Component, pageProps }: AppProps) {
             <OnboardingNudge />
             {/* Registers the push service worker (no-op where unsupported). */}
             <ServiceWorkerRegistrar />
+            {/* Makes training progress durable: merges the server copy in on
+                sign-in, then pushes a debounced snapshot. localStorage stays
+                the working copy, so signed-out and offline training is
+                unaffected. */}
+            <ProgressSync />
             {/* Cookie-consent banner. App Router pages get it from
                 src/app/layout.tsx; this mount covers every Pages Router route
                 (/, /preview/*, /analysis, ...). Fixed-position and self-styled,

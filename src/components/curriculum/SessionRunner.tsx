@@ -15,7 +15,7 @@ import {
   dueThemes,
   qualityFromOutcome,
 } from "@/lib/curriculum/puzzleThemeSrs";
-import { streakAtom, bumpStreak, dayKey } from "@/lib/curriculum/streak";
+import { useRecordTrainingDay } from "@/lib/curriculum/useTrainingDay";
 import {
   buildDailySession,
   type TimeCommitment,
@@ -44,10 +44,9 @@ async function fetchOne(
 }
 
 export default function SessionRunner({ onExit }: { onExit: () => void }) {
-  const { profile, updateProfile } = useAuth();
+  const { profile } = useAuth();
   const [stats, setStats] = useAtom(puzzleStatsAtom);
   const [srs, setSrs] = useAtom(puzzleThemeSrsAtom);
-  const [streak, setStreak] = useAtom(streakAtom);
 
   // Snapshot the plan + queue ONCE so solving (which changes the live rating)
   // doesn't reshuffle the session mid-way.
@@ -81,7 +80,7 @@ export default function SessionRunner({ onExit }: { onExit: () => void }) {
   const startTimeRef = useRef<number>(Date.now());
   const firstTryWrongRef = useRef(false);
   const gradedRef = useRef(false);
-  const streakBumpedRef = useRef(false);
+  const recordTrainingDay = useRecordTrainingDay();
 
   const loadSlot = useCallback(
     async (i: number) => {
@@ -173,19 +172,10 @@ export default function SessionRunner({ onExit }: { onExit: () => void }) {
         ),
       }));
 
-      // Streak: first completed item of the day. Also mirror streak +
-      // last-active to the profile so the reminder cron can read it server-side.
-      if (!streakBumpedRef.current) {
-        streakBumpedRef.current = true;
-        const newStreak = bumpStreak(streak, dayKey(new Date()));
-        setStreak(newStreak);
-        const at = Date.now();
-        void updateProfile({
-          lastActiveAt: at,
-          currentStreak: newStreak.current,
-          streakUpdatedAt: at,
-        }).catch(() => {});
-      }
+      // Streak + server mirror. Shared with /puzzles via useRecordTrainingDay
+      // so both surfaces count toward the same habit metric and neither can
+      // drift from the other.
+      recordTrainingDay();
 
       if (firstTry) setSolvedCount((c) => c + 1);
       seenRef.current = [...seenRef.current, puzzle.id];
@@ -198,9 +188,7 @@ export default function SessionRunner({ onExit }: { onExit: () => void }) {
       idx,
       setStats,
       setSrs,
-      setStreak,
-      streak,
-      updateProfile,
+      recordTrainingDay,
       advance,
     ]
   );

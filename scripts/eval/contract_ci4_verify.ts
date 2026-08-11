@@ -40,6 +40,8 @@ import type { CoachContract, InsightContract } from "@/lib/contract/types";
 import type { FidelityEntry, FidelityReport } from "@/lib/contract/refereeChecks";
 import type { GameEvalInput, GameHeadersInput } from "@/lib/contract/gameEvalSchema";
 import type { LadderStage } from "@/lib/contract/ladder";
+// Pure string helpers — no env reads, no side effects, safe before env prep.
+import { splitProseSentences } from "@/lib/contract/sentences";
 import { CI4_GATE_ARMING_TABLE } from "./ci4GateTable";
 
 const REPO_ROOT = process.cwd();
@@ -204,9 +206,9 @@ function normalizeWs(s: string): string {
 }
 
 function proseSentences(body: string, deps: MeasureDeps): string[] {
-  return deps
-    .stripGrammarTokenLines(deps.stripCitations(body))
-    .split(/(?<=[.!?])\s+|\n+/)
+  // Chess-aware split (src/lib/contract/sentences.ts) — a naive one shredded
+  // quoted engine lines into fragments, deflating the retention denominator.
+  return splitProseSentences(deps.stripGrammarTokenLines(deps.stripCitations(body)))
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 }

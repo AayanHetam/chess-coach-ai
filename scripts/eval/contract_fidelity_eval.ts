@@ -76,6 +76,8 @@ import * as path from "node:path";
 import type { CoachContract, InsightContract } from "@/lib/contract/types";
 import type { FidelityEntry, FidelityReport, RefereeViolationCategory } from "@/lib/contract/refereeChecks";
 import type { GameEvalInput, GameHeadersInput } from "@/lib/contract/gameEvalSchema";
+// Pure string helpers — no env reads, no side effects, safe before env prep.
+import { sentenceBoundsAt } from "@/lib/contract/sentences";
 
 const REPO_ROOT = process.cwd();
 const FIXTURES_DIR = path.join(REPO_ROOT, "src/lib/contract/__tests__/fixtures");
@@ -751,22 +753,12 @@ function sentenceContext(prose: string, span: string, index?: number): string {
     idx = tok ? prose.indexOf(tok) : -1;
   }
   if (idx < 0) return "";
-  let start = 0;
-  for (let i = idx - 1; i >= 0; i--) {
-    const ch = prose[i];
-    if (ch === "." || ch === "!" || ch === "?" || ch === "\n") {
-      start = i + 1;
-      break;
-    }
-  }
-  let end = prose.length;
-  for (let i = idx; i < prose.length; i++) {
-    const ch = prose[i];
-    if (ch === "." || ch === "!" || ch === "?" || ch === "\n") {
-      end = i + 1;
-      break;
-    }
-  }
+  // Chess-aware bounds — the same function the referee's sentence-coupled
+  // checks use. The local scan this replaced terminated on any bare ".", so
+  // v4's flaggedSpans shipped adjudication context like "Bxd2+ 7." and
+  // "Kd8 18.": a move number read as a sentence end, and a human adjudicator
+  // handed a fragment instead of the claim.
+  const { start, end } = sentenceBoundsAt(prose, idx);
   return prose.slice(start, end).trim().slice(0, 300);
 }
 

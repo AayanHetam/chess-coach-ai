@@ -1375,9 +1375,88 @@ export function aggregateFidelity(entries: FidelityEntry[], contract: CoachContr
 // discipline: every new check gets a 0-false-fire control gate + a measured
 // FP rate before it can even be PROPOSED for the serving table.
 
-/** Favorable-outcome assertion ("you've won material", "wins the exchange"). */
+/**
+ * Favorable-outcome assertion ("you've won material", "wins the exchange").
+ *
+ * FOLLOW-UP PACK fix C: the window is capped at 40 chars AND must not cross a
+ * clause/purpose break. v3 fire #1 read "winning a tempo to recapture the
+ * queen" as a queen-win claim — the "to <verb>" makes the queen the object of
+ * the SUBORDINATE clause, not of "winning". The break list is the same
+ * grammar-free device the tokenizer uses for move runs: punctuation plus the
+ * conjunctions/prepositions that start a new clause.
+ */
 const FAVORABLE_OUTCOME_RE =
-  /\b(?:you(?:'ve|’ve| have)?\s+(?:won|win)|wins?|winning|won)\b[^.!?\n]{0,60}?\b(?:material|the exchange|an exchange|a piece|the piece|a pawn|the pawn|the queen|the rook|the bishop|the knight)\b/i;
+  /\b(?:you(?:'ve|’ve| have)?\s+(?:won|win)|wins?|winning|won)\b([^.!?\n]{0,40}?)\b(?:material|the exchange|an exchange|a piece|the piece|a pawn|the pawn|the queen|the rook|the bishop|the knight)\b/gi;
+const OUTCOME_WINDOW_BREAK_RE = /[,;:—–]|\b(?:to|and|but|while|after|before|because|so|then|unless|instead|if|when|once)\b/i;
+
+/** True when the sentence carries an UNBROKEN favorable-outcome assertion. */
+function assertsFavorableOutcome(sentence: string): boolean {
+  for (const m of Array.from(sentence.matchAll(clone(FAVORABLE_OUTCOME_RE)))) {
+    if (!OUTCOME_WINDOW_BREAK_RE.test(m[1] ?? "")) return true;
+  }
+  return false;
+}
+
+/** Capture/gain verbs — the "in words" half of the fix-C G1 disclosure test. */
+const CAPTURE_VERB_RE =
+  /\b(?:tak(?:e|es|en|ing)|took|captur(?:e|es|ed|ing)|recaptur(?:e|es|ed|ing)|win(?:s|ning)?|won|grab(?:s|bed|bing)?|snag(?:s|ged|ging)?|collect(?:s|ed|ing)?|pick(?:s|ed|ing)?\s+(?:it\s+)?up)\b/gi;
+/** Clause boundary — the disclosure must be the capture verb's OWN object,
+ * not a noun that happens to appear later in the sentence. Same break list as
+ * the favorable-outcome window. */
+const CLAUSE_BREAK_RE = OUTCOME_WINDOW_BREAK_RE;
+
+const PIECE_SYMBOL_WORD: Record<string, string> = {
+  p: "pawn",
+  n: "knight",
+  b: "bishop",
+  r: "rook",
+  q: "queen",
+  k: "king",
+};
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
+}
+
+/**
+ * fix C, GAP 1 — same-sentence continuation. A "truncation" only exists when
+ * the prose HIDES the reply; a sentence that names it — as SAN or in words —
+ * has disclosed it, and the reader is not being misled.
+ *
+ * v3 #1: "- Ne6+ forces fxe6, opening the f-file…" quotes fxe6 outright.
+ * v3 #3: "Ne6+ forces Black to capture with the f-pawn, and then White can
+ * take the queen on c1…" spells both replies out in words. Both were scored
+ * as concealed truncations.
+ *
+ * Mechanical test (no judgment): the ply's SAN appears verbatim, OR a capture
+ * verb's OWN CLAUSE (verb → next clause break) names the ply's destination
+ * square, its captured piece, or its mover ("the f-pawn" / "the queen" / …).
+ * The clause restriction is load-bearing: "you've won material while your
+ * knight dominates the board" (precision-pack TF #28) mentions a knight, but
+ * not as the object of the capture — that span must keep firing.
+ */
+function plyDisclosedInSentence(sentence: string, step: PvMaterialStep): boolean {
+  const san = stripSanDecorations(step.san);
+  if (san && new RegExp(`(?:^|[^A-Za-z0-9])${escapeRe(san)}(?![A-Za-z0-9])`).test(sentence)) {
+    return true;
+  }
+  const capturedWord = step.captured ? PIECE_SYMBOL_WORD[step.captured] : null;
+  const moverPattern =
+    step.piece === "p"
+      ? /^[a-h]$/.test(san[0] ?? "")
+        ? new RegExp(`\\b${san[0]}[- ]pawn\\b`, "i")
+        : /\bpawns?\b/i
+      : new RegExp(`\\b${PIECE_SYMBOL_WORD[step.piece] ?? "\\0"}s?\\b`, "i");
+  for (const m of Array.from(sentence.matchAll(clone(CAPTURE_VERB_RE)))) {
+    const after = sentence.slice((m.index ?? 0) + m[0].length);
+    const brk = after.search(CLAUSE_BREAK_RE);
+    const clause = brk >= 0 ? after.slice(0, brk) : after;
+    if (new RegExp(`\\b${step.to}\\b`).test(clause)) return true;
+    if (capturedWord && new RegExp(`\\b${capturedWord}s?\\b`, "i").test(clause)) return true;
+    if (moverPattern.test(clause)) return true;
+  }
+  return false;
+}
 
 /** End-of-line eval contradiction threshold (founder rule: ±1.5 pawns). */
 const PV_OUTCOME_CONTRA_CP = 150;
@@ -1402,17 +1481,29 @@ const PV_OUTCOME_CONTRA_CP = 150;
  * violates BOTH arms and must fire. Round-1's span #28 class (praised piece
  * captured later with net ≤ 0) keeps firing via arm (i).
  *
- * Claimant = the mover of the FIRST quoted ply. A truncating capture by the
- * claimant themselves is never a violation (it extends the harvest), and an
- * unreplayable PV ply makes the match unverifiable — skipped, never fired
- * on (precision first).
+ * A truncating capture by the claimant themselves is never a violation (it
+ * extends the harvest), and an unreplayable PV ply makes the match
+ * unverifiable — skipped, never fired on (precision first).
+ *
+ * FOLLOW-UP PACK fix C (v3: 5 fires, 0 TF / 4 FP by adjudication) closed three
+ * implementation gaps — see the inline GAP 1/2/3 notes:
+ *   G1  same-sentence continuation: a reply the sentence already names, as SAN
+ *       or in words, is disclosed, not truncated (v3 #1/#3);
+ *   G2  claimant attribution: the claimant is the SENTENCE's asserting side —
+ *       an opponent reply quoted mid-sentence opens no window of its own, and
+ *       the check fires at most once per sentence (v3 #2);
+ *   G3  PV occurrence selection: judge the line where the quote is the FIRST
+ *       ply, else the highest-ranked line containing it, instead of the first
+ *       arbitrary match and its unrelated end eval (v3 #4).
+ * Plus a tightened FAVORABLE_OUTCOME_RE window (assertsFavorableOutcome).
+ * Still MEASUREMENT-ONLY: 0 measured true fabrications means no arming
+ * evidence in either direction.
  */
 export function checkPvTruncation(prose: string, insight: InsightContract): RefereeViolation[] {
   const sources = buildPvSources(insight);
   if (sources.length === 0) return [];
   const tokens = tokenizeProse(prose);
   const violations: RefereeViolation[] = [];
-  const reported = new Set<string>();
   const replayCache = new Map<PvSource, PvMaterialStep[]>();
   const stepsFor = (src: PvSource): PvMaterialStep[] => {
     let steps = replayCache.get(src);
@@ -1423,8 +1514,14 @@ export function checkPvTruncation(prose: string, insight: InsightContract): Refe
     return steps;
   };
 
-  // Collect quoted move runs (same run grammar as the whitelist pass,
-  // including the fix-3 clause-separator break).
+  // ── Collect quoted move runs (same run grammar as the whitelist pass,
+  //    including the fix-3 clause-separator break) ─────────────────────────
+  interface Run {
+    seq: string[];
+    firstIndex: number;
+    lastIndex: number;
+  }
+  const runs: Run[] = [];
   let i = 0;
   while (i < tokens.length) {
     const kindOk = (k: ProseToken["kind"]) =>
@@ -1442,65 +1539,98 @@ export function checkPvTruncation(prose: string, insight: InsightContract): Refe
       if (endsRun) break;
     }
     const moveIdx = runIdx.filter((k) => tokens[k].kind !== "move_number");
-    const hasPieceSan = moveIdx.some((k) => tokens[k].kind === "piece_san");
-    if (moveIdx.length >= 1 && hasPieceSan) {
-      const seq = moveIdx.map((k) => tokens[k].norm);
-      const lastTok = tokens[moveIdx[moveIdx.length - 1]];
-      const { start, end } = sentenceBounds(prose, lastTok.index);
-      const sentence = prose.slice(start, end);
-      if (FAVORABLE_OUTCOME_RE.test(sentence)) {
-        let verdict: string | null = null;
-        for (const src of sources) {
-          if (verdict) break;
-          for (let off = 0; off + seq.length <= src.sans.length; off++) {
-            if (!seq.every((s, k) => src.sans[off + k] === s)) continue;
-            const e = off + seq.length - 1;
-            if (e + 1 >= src.sans.length) continue; // full-tail quote — nothing truncated
-            const steps = stepsFor(src);
-            if (steps.length < e + 2) continue; // unreplayable ply — unverifiable, never fire
-            const claimant = steps[off].mover;
-            const next = steps[e + 1];
-            if (next.capturedValue === 0) continue; // quiet continuation
-            if (next.mover === claimant) continue; // claimant's own follow-up capture
-            const banked = netForClaimant(steps, claimant, off, e);
-            const quiescenceViolated = next.capturedValue >= banked;
-            let endContradicts = false;
-            let endNote = "";
-            if (src.evalMate !== null) {
-              const mateForClaimant = claimant === "w" ? src.evalMate : -src.evalMate;
-              endContradicts = mateForClaimant < 0;
-              endNote = `line end eval M${src.evalMate > 0 ? "+" : ""}${src.evalMate} (claimant ${claimant})`;
-            } else if (src.evalCp !== null) {
-              const cpForClaimant = claimant === "w" ? src.evalCp : -src.evalCp;
-              endContradicts = cpForClaimant <= -PV_OUTCOME_CONTRA_CP;
-              endNote = `line end eval ${(src.evalCp / 100).toFixed(2)} → ${(cpForClaimant / 100).toFixed(2)} for the claimant`;
-            }
-            if (quiescenceViolated || endContradicts) {
-              verdict =
-                `quoted line "${seq.join(" ")}" stops one ply before ${next.san} in the contract PV while asserting a favorable outcome ("${sentence.trim().slice(0, 100)}…") — ` +
-                (quiescenceViolated
-                  ? `material quiescence violated: ${next.san} takes back ${next.capturedValue} vs ${banked} banked in the window`
-                  : `outcome contradicts the ${endNote}`);
-              break;
-            }
-          }
-        }
-        if (verdict) {
-          const key = `${seq.join(" ")}@${lastTok.index}`;
-          if (!reported.has(key)) {
-            reported.add(key);
-            violations.push({
-              check: "pv_truncation",
-              category: "pv_truncation_suspect",
-              span: seq.join(" "),
-              index: tokens[moveIdx[0]].index,
-              detail: verdict,
-            });
-          }
-        }
-      }
+    if (moveIdx.length >= 1 && moveIdx.some((k) => tokens[k].kind === "piece_san")) {
+      runs.push({
+        seq: moveIdx.map((k) => tokens[k].norm),
+        firstIndex: tokens[moveIdx[0]].index,
+        lastIndex: tokens[moveIdx[moveIdx.length - 1]].index,
+      });
     }
     i = j;
+  }
+
+  // ── fix C, GAP 2 — claimant attribution + per-sentence dedup ────────────
+  // The claimant is the SENTENCE's asserting side, not "the mover of the
+  // first ply of whatever run we happen to be looking at". v3 #2: inside
+  // "- Ne6+ forces fxe6, …", Black's reply fxe6 opened its OWN claim window
+  // with Black as claimant, and the White continuation Qxc1 then read as a
+  // 9-for-3 give-back against Black — a second fire on the same sentence
+  // asserting the same thing. Only the sentence's FIRST quoted run may open a
+  // window, which also caps the check at one fire per sentence.
+  const firstRunOfSentence = new Map<number, Run>();
+  for (const run of runs) {
+    const { start } = sentenceBounds(prose, run.firstIndex);
+    if (!firstRunOfSentence.has(start)) firstRunOfSentence.set(start, run);
+  }
+
+  for (const [sentStart, run] of Array.from(firstRunOfSentence.entries())) {
+    const { start, end } = sentenceBounds(prose, run.lastIndex);
+    // A run that spills past its sentence terminator is judged on the
+    // sentence it STARTS in (sentStart) — same anchor the dedup used.
+    const sentence = prose.slice(Math.min(start, sentStart), end);
+    if (!assertsFavorableOutcome(sentence)) continue;
+
+    // ── fix C, GAP 3 — PV occurrence selection ────────────────────────────
+    // A quoted move can appear in several contract lines. v3 #4 ("Qxc1
+    // simply wins the queen") matched Qxc1 deep inside MultiPV-2 and imported
+    // THAT branch's −1.71 end eval, while MultiPV-1 — where Qxc1 is the first
+    // ply — supports the claim outright. Prefer the line where the quote
+    // STARTS the line; otherwise the highest-ranked line containing it
+    // (buildPvSources order = engine MultiPV rank, then branch points, then
+    // threats). Exactly one occurrence is judged.
+    let best: { src: PvSource; off: number; rank: number } | null = null;
+    for (let rank = 0; rank < sources.length; rank++) {
+      const src = sources[rank];
+      for (let off = 0; off + run.seq.length <= src.sans.length; off++) {
+        if (!run.seq.every((s, k) => src.sans[off + k] === s)) continue;
+        const better =
+          best === null ||
+          (off === 0 ? 0 : 1) < (best.off === 0 ? 0 : 1) ||
+          ((off === 0 ? 0 : 1) === (best.off === 0 ? 0 : 1) && rank < best.rank);
+        if (better) best = { src, off, rank };
+        break; // first offset within this line is enough (earliest occurrence)
+      }
+    }
+    if (!best) continue;
+
+    const { src, off } = best;
+    const e = off + run.seq.length - 1;
+    if (e + 1 >= src.sans.length) continue; // full-tail quote — nothing truncated
+    const steps = stepsFor(src);
+    if (steps.length < e + 2) continue; // unreplayable ply — unverifiable, never fire
+    const claimant = steps[off].mover;
+    const next = steps[e + 1];
+    if (next.capturedValue === 0) continue; // quiet continuation
+    if (next.mover === claimant) continue; // claimant's own follow-up capture
+    // fix C, GAP 1 — the reply is disclosed in the same sentence.
+    if (plyDisclosedInSentence(sentence, next)) continue;
+
+    const banked = netForClaimant(steps, claimant, off, e);
+    const quiescenceViolated = next.capturedValue >= banked;
+    let endContradicts = false;
+    let endNote = "";
+    if (src.evalMate !== null) {
+      const mateForClaimant = claimant === "w" ? src.evalMate : -src.evalMate;
+      endContradicts = mateForClaimant < 0;
+      endNote = `line end eval M${src.evalMate > 0 ? "+" : ""}${src.evalMate} (claimant ${claimant})`;
+    } else if (src.evalCp !== null) {
+      const cpForClaimant = claimant === "w" ? src.evalCp : -src.evalCp;
+      endContradicts = cpForClaimant <= -PV_OUTCOME_CONTRA_CP;
+      endNote = `line end eval ${(src.evalCp / 100).toFixed(2)} → ${(cpForClaimant / 100).toFixed(2)} for the claimant`;
+    }
+    if (!quiescenceViolated && !endContradicts) continue;
+
+    violations.push({
+      check: "pv_truncation",
+      category: "pv_truncation_suspect",
+      span: run.seq.join(" "),
+      index: run.firstIndex,
+      detail:
+        `quoted line "${run.seq.join(" ")}" stops one ply before ${next.san} in the contract PV while asserting a favorable outcome ("${sentence.trim().slice(0, 100)}…") — ` +
+        (quiescenceViolated
+          ? `material quiescence violated: ${next.san} takes back ${next.capturedValue} vs ${banked} banked in the window`
+          : `outcome contradicts the ${endNote}`),
+    });
   }
   return violations;
 }

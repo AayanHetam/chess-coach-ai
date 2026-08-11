@@ -421,3 +421,103 @@ The 7-card fixture ran **76–83s of generation alone**, with the ladder passing
 **Recommendation:** `CONTRACT_UIDS=<Aayan's uid>` is safe to flip now — the accuracy gates pass comfortably, the failure mode is a short review, and dogfood is exactly where a 20%-of-10 false-intervention estimate gets a real denominator. `CONTRACT_CATEGORIES+=game_review` is **NOT** ready: the first-card regression and the 60s ceiling are both user-visible, and the false-intervention gate is failed.
 
 **Not built (remaining CI-5 plan scope):** `done.metadata.contract` is populated but is NOT wired into the CMIP `intern_flags` payload — `captureFlagContext` carries no contract fields, and adding them needs a Supabase migration (founder/DB-gated).
+
+---
+
+## 16. Card cap, trapped-piece fix, and the cap-5 re-measurement (2026-08-11)
+
+Branch `feat/card-cap-and-trapped-fix`, off main @`eac70b8` (CI-5 merged as #279). Serving stays DARK in the committed default.
+
+### 16.1 Card cap 5 — a MAXIMUM, with a quality floor
+
+**Founder decision:** "cap at 5 — but it is important to keep in mind that in some cases only 1 or 2 should be given." The second half is the load-bearing half. A fixed card count is fabrication pressure with a number on it: the verbalizer is handed a plan and told to write every card in it, so a plan of five on a game with one real mistake asks for four manufactured lessons — and the referee cannot save that, because a padded card IS in the contract.
+
+`drop > 50` is a mistake-DETECTION threshold and is right for the contract (every mistake stays a citable fact). It is the wrong question for card-worthiness: 50cp means different things in different positions. `cardWorthiness.ts` scores the drop against what it cost in OUTCOME terms — mover-perspective evals bucketed into five bands (LOST ≤ −300 < WORSE < −100 < LEVEL < +100 < BETTER < +300 ≤ WINNING) — and an insight earns a card iff the mover was **not already LOST** and the move **either dropped a band or was a ≥300cp blunder**. Selection among qualifiers is severity-first with teachability (confirmed motifs + concepts) breaking near-ties (§12 A6), then the cap. If nothing clears the floor the single best moment is restored, so the floor can never mute a game that had one.
+
+**Per-fixture card counts** (vendored fixture set; was → now):
+
+| fixture | was | now | kept | floored (reason) |
+|---|---|---|---|---|
+| 01 mate_for_white_midgame | 1 | **1** | I1 | — |
+| 02 mate_for_black | 4 | **3** | M1 M2 I1 | I3 already_lost |
+| 03 sentinel_timeout | 2 | **1** | M1 | I2 immaterial |
+| 04 invalid_san_truncation | 1 | **1** | M1 | — (headline restored) |
+| 05 long_game_six_mistakes | 7 | **5** | M1 M2 M3 M5 I2 | M4, M6 immaterial |
+| 06 short_opening | 0 | **0** | — | — |
+| 07 knight_fork | 3 | **1** | M1 | M2 already_lost, M3 immaterial |
+| 08 quiet_positional | 1 | **1** | M1 | — (headline restored) |
+| 09 legal_trap_tactics | 2 | **2** | M1 M2 | — |
+| 10 queenless_endgame | 3 | **3** | M1 M2 I2 | — |
+| **total** | **24** | **18** | max 5 · five 1-card reviews · one 0-card | |
+
+Five 1-card games and a 0-card game: the floor is real, not a cap that pads to 5.
+
+**Layer (documented deviation).** The cap is applied in the CARD PLAN (`verbalizerPrompt.selectCardInsightsDetailed`), NOT in `selectInsights`'s `.slice(0, 10)`. `selectInsights` feeds the contract, which also renders the legacy 3.6 prompt through `renderLegacyPrompt` — byte-pinned by the CI-1 snapshots. Capping there would silently rewrite the legacy prompt and delete facts the verbalizer may still cite in prose.
+
+**Zero-card reviews were shipping RAW** (audit finding, now closed). Refereeing is per-CARD, so a review with no cards is 100% out-of-block text and bypassed the referee entirely — while the prompt explicitly tells the model to free-write there. `overviewReferee.ts` runs the checks that survive the loss of a board anchor, all contract-GLOBAL and all mechanical: eval figures vs `collectContractEvalPools`, SAN/claim-sentence squares vs `collectContractWhitelist`, tactical vocabulary vs the union of `allowedTacticalKeywords` (usually EMPTY on a card-less game, which is the correct answer). Violating sentences are dropped with the ladder's own stage-(a) mechanic; under 40 substantive characters left ⇒ a deterministic contract-derived overview. The floor does **not** make this shape more common — it restores the headline — so a zero-card review still means exactly what it always meant: no mistake over 50cp in the whole game.
+
+### 16.2 The trapped-piece false alarm
+
+§15 recorded CI-5's 2 false fires as the word "trapped" on a knight with "3 legal moves, 0 safe — the claim is TRUE". **That adjudication does not hold.** `countSafeMoves` on 05/M1's a7 knight is **1**, not 0: the Nb5 retreat is defended by the a4 pawn, so `flightIsCovered` clears it. Delete that one pawn and the same knight is 3 legal / 0 safe — the shape the adjudication believed it was looking at.
+
+The recall gap it named is real, and structural: `detectTrappedPieces`/`detectImmobilizedPieces` only ever scan the OPPONENT's pieces, so a player walking their OWN piece into a cage — the commonest game_review blunder narrative — can never license the word. `checkTacticalKeywords` now grants the trapped class an OCCURRENCE-level exemption from the arithmetic the mobility check already computes (`resolveClaimPiece` + `resolveClaimFens` + `countSafeMoves`): zero safe moves licenses the word even with legal moves available. Unresolvable pieces, unresolvable positions and pieces with a safe square all still fire. "No legal moves"/"N legal moves" are COUNTS and `checkMobilityLiteralClaims` still refutes them against raw chess.js — a piece with 3 legal and 0 safe moves is "trapped" (allowed) but does not have "no legal moves" (still caught). Pinned both ways in `refereeCi5TrappedLicense.test.ts` against the real 05/M1 position.
+
+### 16.3 Cap-5 gate run
+
+`scripts/eval/contract_ci5_gates.ts`, 10 fixtures × 3 samples = 30 reviews, 666 claim sentences, `refereeMode: full`, real `DEFAULT_ARMING_TABLE` (via `CI4_GATE_ARMING_TABLE`), request "analyze my game". Artifact `scripts/eval/results/contract-ci5-gates-cap5-2026-08-11.json`, $0.19 ladder cost.
+
+| gate | pooled | per-run | bar | verdict |
+|---|---|---|---|---|
+| persona | **4.10** | 3.9 / 3.9 / 4.5 | ≥3.55 pooled, ≥3.5 per-run | PASS (legacy same-day 3.90) |
+| citation coverage (sentence) | **0.906** (pooled-sentence 0.917) | 0.905 / 0.877 / 0.935 | ≥0.80 | PASS |
+| fabrication | **0.00/100** (0/666) | 0 / 0 / 0 | ≤1/100 | PASS |
+| false-intervention, **position-verified** | **0.00** (0/12) | 0 / 0 / 0 | <0.15 | **PASS** |
+| false-intervention, mechanical adjudicator as run | 0.25 (3/12) | 0.50 / 0.17 / 0.25 | <0.15 | FAIL — instrument defect, see below |
+| prose retention | 0.987 | — | — | reported |
+| every planned card shipped | 54/54 | — | — | PASS |
+
+Ladder: 45 pass / 9 sentence_drop / 0 edited / 0 regenerated / 0 templated / 0 deadline breaches / 0 sentinel refusals. Raw intervention rate 23.3% of reviews, touching 1.8% of claim sentences.
+
+**All 12 armed fires, position-verified by hand — 12/12 TRUE catches, 0 false positives.** Every fire now carries its carrier sentence and the FENs it was scored against, so this is reproducible from the artifact.
+
+| # | fixture/sample/insight | check | span | board truth (chess.js) | verdict |
+|---|---|---|---|---|---|
+| 0 | 01 s1 I1 | mobility | "15 legal moves" | Qf3 has 17 before / 18 after | TRUE |
+| 1 | 05 s0 M1 | tactical | "trapped" (knight on a7, "no good squares") | Na7: 3 legal, **1 safe** (Nb5, defended by a4) | TRUE |
+| 2 | 05 s1 M1 | tactical | "trapped" (a8 B, a7 N, d2 B, "no legal moves") | 1/1, 3/1, 1/1 legal/safe | TRUE |
+| 3 | 05 s1 M1 | mobility | "no legal moves" | same three pieces all have legal moves | TRUE |
+| 4 | 05 s2 M1 | tactical | "trapped" (same three-piece claim) | same | TRUE |
+| 5 | 05 s2 M1 | mobility | "no legal moves" | same | TRUE |
+| 6 | 05 s2 M2 | mobility | "no legal moves" (a8 B, b5 N, h2 R) | 1, 4, **6** legal moves | TRUE |
+| 7 | 05 s2 I2 | mobility | "no legal moves" (a6 N, e6 Q, e5 B) | 4, 9, 8 legal moves | TRUE |
+| 8 | 09 s0 M1 | tactical | "trapped" (bishop to d1) | Bd1: 5 legal, 2 safe | TRUE |
+| 9 | 09 s1 M1 | tactical | "trapped" (bishop on d1) | same | TRUE |
+| 10 | 09 s1 M1 | mobility | "no legal moves" | same | TRUE |
+| 11 | 10 s1 M1 | tactical | "fork" (Ne6 "forks the bishop on e7") | e6→e7 is not a knight move | TRUE |
+
+**The mechanical adjudicator was the defect, not the referee.** Its `tactical_keyword_unbacked` rule was contract-GLOBAL and board-blind: any fire whose keyword appeared in ANY insight's `allowedTacticalKeywords` was certified a false positive. Sound for relational vocabulary; unsound for the trapped class, whose truth condition is arithmetic about one named piece on one board. All 3 "false" fires were "trapped" on 05/M1, certified because insight M2's list contains the word — while the board refutes every clause of the prose. **This is the same rule that produced §15's 2/10, so that FAIL was also an artifact of the instrument.** The license is now conditioned on the board (every named piece must have zero safe moves); re-adjudicating the stored artifact takes the false count **3 → 0 of 12**, matching the hand verification exactly. Pinned in `scripts/eval/__tests__/fpAdjudication.test.ts`.
+
+### 16.4 Latency — the cap did not buy enough
+
+| | legacy 3.6 | contract 4.0 (cap 5) | contract 4.0 (7 cards, §15) |
+|---|---|---|---|
+| TTFT p50 | 1312ms | **1366ms** (+54ms; per-fixture delta p50 −59ms) | 1659ms |
+| first card p50 | 15604ms | **19386ms** (delta p50 +3782ms) | 19750ms |
+| total p50 | 20600ms | **20104ms** (now FASTER than legacy) | 26336ms |
+| total p95 | 57649ms | **59412ms** | 78286ms |
+
+Cards → wall clock, measured: 0 cards 10.8–12.2s · 1 card 15.3–21.7s · 2 cards 28.2–37.4s · 3 cards 39.2–47.2s · **5 cards 59.2–60.4s**. About +10.5s per card after the first.
+
+**Does it fit `maxDuration: 60s`? No — not at 5.** The three 5-card samples ran 59.2s, 60.4s and 59.4s; one exceeded the ceiling outright and all three blow the 55s ladder budget, so in production `CONTRACT_GENERATION_BUDGET_MS` (45s) would cut a 5-card review short. This is **not a contract-mode regression**: legacy 3.6 on the same fixture takes 57.6s, so a wide game_review is at the ceiling either way and contract adds ~+2s. Everything at **≤3 cards is comfortably inside** (≤47.2s), and **4 cards projects to ~49s** with ~11s of headroom.
+
+The **first-card** bar (≤+500ms vs legacy) still FAILS at +3782ms, improved from +4394ms. It is a whole-card-burst cost (founder-approved Q2), not referee latency — the ladder passed 45 of 54 cards untouched.
+
+**Zero-card reviews now pay their referee up front.** TTFT for fixture 06 is 10.8–12.2s (== total), because the overview is buffered and refereed as one unit before anything ships. A deliberate trade — an unrefereed free-write is the least-anchored prose in the product — but a real UX cost on that shape; the alternative (stream, then post-stream surgical correction, as PR #211 does on the streamed path) is available if the founder prefers it.
+
+### 16.5 Recommendation
+
+**Enable `game_review` for ALL users at a 4-card cap, or at 5 with `maxDuration` raised to 120s. Not at 5 on the current 60s ceiling.**
+
+Every accuracy gate now passes, several comfortably: fabrication 0/666, persona 4.10 vs legacy 3.90, citation coverage 0.906, prose retention 0.987, 54/54 planned cards shipped, and a position-verified false-intervention rate of **0%** on 12 fires — the gate §14 defined, and the first time it has been measured with the carrier sentences needed to check it. Total p50 is now *faster* than legacy. The two open items are both latency and both bounded: the 5-card tail sits on the 60s ceiling (where legacy also sits), and first-card is +3.8s by design.
+
+Founder call remains #1 or #2 from §15 — `maxDuration` 60s→120s, and/or the cap. The measurement says **4** is the value that fits today's ceiling.

@@ -47,6 +47,8 @@ import {
   runMeasurementOnlyChecks,
   checkPvTruncation,
   checkMobilityClaims,
+  checkMobilityLiteralClaims,
+  checkMobilityQualitativeClaims,
   checkTacticalKeywords,
   isDefinitionalSentence,
 } from "@/lib/contract/refereeChecks";
@@ -389,21 +391,36 @@ describe("round-2 controls", () => {
     expect(spansOf(fires, "san_whitelist")).toContain("h5");
   });
 
-  it("measurement-only checks never leak into runInsightChecks", () => {
+  // FOLLOW-UP fix D (2026-08-11): the LITERAL mobility family is served now
+  // (v3: 9 fires / 9 TRUE_FABRICATION / 0 FP). pv_truncation and the
+  // QUALITATIVE mobility family stay measurement-only.
+  it("pv_truncation never leaks into runInsightChecks", () => {
     for (const s of SPANS) {
       const { insight, contract } = insightFor(s);
-      const leaked = runInsightChecks(s.sentence, insight, contract).filter(
-        (v) => v.check === "pv_truncation" || v.check === "mobility_claims",
-      );
-      expect(leaked).toEqual([]);
+      expect(
+        runInsightChecks(s.sentence, insight, contract).filter((v) => v.check === "pv_truncation"),
+      ).toEqual([]);
     }
   });
 
-  it("runMeasurementOnlyChecks emits ONLY the two measurement-only checks", () => {
+  it("runInsightChecks only ever emits the LITERAL mobility family", () => {
+    for (const s of SPANS) {
+      const { insight, contract } = insightFor(s);
+      const served = runInsightChecks(s.sentence, insight, contract).filter(
+        (v) => v.check === "mobility_claims",
+      );
+      expect(served).toEqual(checkMobilityLiteralClaims(s.sentence, insight));
+    }
+  });
+
+  it("runMeasurementOnlyChecks emits ONLY pv_truncation + the QUALITATIVE mobility family", () => {
     for (const s of SPANS) {
       const { insight } = insightFor(s);
       for (const v of runMeasurementOnlyChecks(s.sentence, insight)) {
         expect(["pv_truncation", "mobility_claims"]).toContain(v.check);
+        if (v.check === "mobility_claims") {
+          expect(checkMobilityQualitativeClaims(s.sentence, insight)).toContainEqual(v);
+        }
       }
     }
   });

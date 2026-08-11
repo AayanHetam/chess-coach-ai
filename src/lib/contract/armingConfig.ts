@@ -100,6 +100,17 @@ export const DEFAULT_ARMING_TABLE: ArmingTable = {
   //     Bh5 is legal + uncovered) still fires, pinned in refereeFollowups.test.ts.
   "san_whitelist:san_unknown": "error",
   "san_whitelist:square_unknown": "error",
+  //   mobility_claims — the LITERAL family only ("no/zero legal moves", "no
+  //     moves", bare-integer move/square counts). v3 measured 9 such fires and
+  //     all 9 adjudicated TRUE_FABRICATION (knights called "trapped with no
+  //     legal moves" that chess.js gives 4-6 moves), 0 FP. It is chess.js
+  //     arithmetic end to end — no engine number, no judgment. The QUALITATIVE
+  //     family ("no good squares", "no safe retreat") is a countSafeMoves
+  //     proxy for a quality judgment and stays measurement-only: it is
+  //     unreachable from runInsightChecks / refereeInsight by construction, so
+  //     this row cannot arm it (checkMobilityQualitativeClaims runs only in
+  //     runMeasurementOnlyChecks).
+  mobility_claims: "error",
   // hypothetical_line_off_contract stays WARN: every v3 fire in that category
   // (29) was strict-only with wouldPassWidenedWindow — armSeverity's structural
   // clamp 2 holds those at warn anyway, so the category has NO adjudicated

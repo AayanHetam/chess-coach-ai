@@ -48,10 +48,15 @@ export type RefereeCheckName =
   | "san_whitelist"
   | "tactical_keyword"
   | "forbidden_claim"
-  // PRECISION-PACK measurement-only checks — wired into the --fp-measure
-  // harness ONLY, never into runInsightChecks / refereeInsight, never armed.
-  | "pv_truncation"
-  | "mobility_claims";
+  // FOLLOW-UP fix D: the LITERAL mobility family runs on the serving path and
+  // is armed at error; the QUALITATIVE family stays measurement-only. Both
+  // report under this one check name (see checkMobilityLiteralClaims /
+  // checkMobilityQualitativeClaims) — only the literal one is ever reachable
+  // from runInsightChecks / refereeInsight.
+  | "mobility_claims"
+  // MEASUREMENT-ONLY — wired into the --fp-measure harness ONLY, never into
+  // runInsightChecks / refereeInsight, never armed.
+  | "pv_truncation";
 
 export type RefereeViolationCategory =
   | "eval_unbacked" // signed pawn figure with no contract eval within ±0.3
@@ -1264,6 +1269,9 @@ export function runInsightChecks(
     ...checkSanWhitelist(prose, insight, { contract }),
     ...checkTacticalKeywords(prose, insight, contract),
     ...checkForbiddenClaims(prose, insight, contract),
+    // FOLLOW-UP fix D: the LITERAL mobility family (counts, not judgments)
+    // graduated onto the serving path — 9/9 TRUE_FABRICATION, 0 FP in v3.
+    ...checkMobilityLiteralClaims(prose, insight),
   ];
 }
 
@@ -1309,14 +1317,16 @@ export function countClaimSentences(prose: string): number {
     .filter((s) => isClaimSentence(s)).length;
 }
 
-// NOTE: the measurement-only precision-pack checks (pv_truncation /
-// mobility_claims) are deliberately absent — they never run through
+// NOTE: pv_truncation is deliberately absent — it never runs through
 // runInsightChecks/aggregateFidelity, only through the --fp-measure harness.
+// mobility_claims IS here since fix D put its literal family on the serving
+// path (the qualitative family stays measurement-only).
 const CHECK_NAMES: RefereeCheckName[] = [
   "eval_display",
   "san_whitelist",
   "tactical_keyword",
   "forbidden_claim",
+  "mobility_claims",
 ];
 const CATEGORY_NAMES: RefereeViolationCategory[] = [
   "eval_unbacked",
@@ -1326,6 +1336,7 @@ const CATEGORY_NAMES: RefereeViolationCategory[] = [
   "hypothetical_line_off_contract",
   "tactical_keyword_unbacked",
   "forbidden_claim_present",
+  "mobility_count_wrong",
 ];
 
 /**
@@ -1642,20 +1653,33 @@ const MOBILITY_CLAIM_RE = /\b(\d{1,2})\s+(?:legal moves?|active squares?|availab
  * with zero legal moves" (v2 #2) references the piece at its destination. */
 const PIECE_ON_SQUARE_RE = /\b(queen|rook|bishop|knight|king|pawn)\s+(?:on|at|to)\s+([a-h][1-8])\b/i;
 /**
- * ROUND 2 fix 4b — zero-mobility / zero-safe-square claims ("trapped with no
- * legal moves", "it has no good squares", "nowhere to go"). The literal
- * forms ("legal moves"/"moves") are checked against raw chess.js move
- * counts; the safe-square forms against countSafeMoves (flight squares not
- * covered by the enemy — same arithmetic as the immobilized-piece
- * detector). The v2 TF class #0/#2/#4/#5/#8 (knights with 4-6 legal moves,
- * or safe squares, called trapped-with-no-moves) fires here even when a
- * genuinely trapped piece elsewhere licenses the "trapped" keyword; the FP
- * class #27 (Na8, both flight squares covered) does not — the claim is
- * board-true.
+ * ROUND 2 fix 4b — zero-mobility claims, split into two FAMILIES by the
+ * follow-up pack (fix D) because they carry different evidence:
+ *
+ *  LITERAL — "no/zero legal moves", "no moves", and the bare-integer counts
+ *  above. These are COUNTS: chess.js either agrees or it does not, and there
+ *  is nothing to argue about. v3 measured 9 fires, adjudicated 9
+ *  TRUE_FABRICATION / 0 FALSE_POSITIVE, so this family graduated onto the
+ *  serving path (runInsightChecks) and arms at error. Judgment phrasings
+ *  ("no GOOD squares") are deliberately absent: an armed check may only ever
+ *  refute arithmetic.
+ *
+ *  QUALITATIVE — "no good squares", "no safe retreat/square", "nowhere to
+ *  go", "no escape". These are scored against countSafeMoves (flight squares
+ *  not covered by the enemy — the immobilized-piece detector's arithmetic),
+ *  which is a REASONABLE proxy for the claim but not the claim itself; v3 #10
+ *  ("no good squares", 5 safe moves available) shows the gap. Stays
+ *  MEASUREMENT-ONLY.
+ *
+ * The v2 TF class #0/#2/#4/#5/#8 (knights with 4-6 legal moves, or safe
+ * squares, called trapped-with-no-moves) fires in one family or the other
+ * even when a genuinely trapped piece elsewhere licenses the "trapped"
+ * keyword; the FP class #27 (Na8, both flight squares covered) does not — the
+ * claim is board-true.
  */
-const ZERO_MOBILITY_RE =
-  /\b(?:(?:no|zero)\s+legal\s+moves?|no\s+moves|no\s+good\s+squares?|no\s+safe\s+(?:squares?|retreats?)|no\s+safe\s+square\s+to\s+retreat|nowhere\s+to\s+go|no\s+escape)\b/gi;
-const PIECE_DESIGNATOR_IN_SENTENCE_RE = /\b([KQRBN])([a-h][1-8])\b/;
+const ZERO_MOBILITY_LITERAL_RE = /\b(?:(?:no|zero)\s+legal\s+moves?|no\s+moves)\b/gi;
+const ZERO_MOBILITY_QUALITATIVE_RE =
+  /\b(?:no\s+good\s+squares?|no\s+safe\s+(?:squares?|retreats?)|no\s+safe\s+square\s+to\s+retreat|nowhere\s+to\s+go|no\s+escape)\b/gi;
 const PIECE_NAME_TO_LETTER: Record<string, string> = {
   king: "k",
   queen: "q",
@@ -1706,27 +1730,158 @@ function safeMobilityCount(fen: string, square: string, pieceLetter: string): nu
   }
 }
 
+// ── fix D, soundness gap (a): piece attribution ─────────────────────────────
+/** A piece reference inside a sentence, with its offset. */
+interface SentencePieceRef {
+  pieceLetter: string;
+  square: string;
+  index: number;
+}
+
+/** "queen on f3" / "knight at d4" / "knight to e7". */
+const PIECE_ON_SQUARE_G_RE = /\b(queen|rook|bishop|knight|king|pawn)\s+(?:on|at|to)\s+([a-h][1-8])\b/gi;
+/** "Ne7→c6" / "Ne7-c6" / "Ne7 to c6" — a MOVE description: the piece is being
+ * named at its DESTINATION, not at its origin (v3 #6). */
+const PIECE_MOVE_TO_RE = /\b([KQRBN])[a-h][1-8]\s*(?:→|-{1,2}>|–|—|-|\bto\b)\s*([a-h][1-8])\b/g;
+/** Bare designator "Qf3", "Nc6". */
+const PIECE_DESIGNATOR_G_RE = /\b([KQRBN])([a-h][1-8])\b/g;
+
 /**
- * Fix 10 — mobility_claims: bare-integer mobility/square-count claims
- * verified against chess.js counts from the insight FENs. The adjudicated
- * class: fixture 01's thrice-repeated "queen on f3 … 15 active squares /
- * 15 legal moves" (spans #2/#4/#7 context) — a concrete number the board
- * contradicts. Fires ONLY when a piece+square reference is resolvable in
- * the same sentence and the claimed count matches NEITHER fenBefore nor
- * fenAfter; unverifiable claims are skipped (precision first).
+ * Every piece reference in the sentence, in offset order. Arrow/"to" move
+ * descriptions are consumed first so their ORIGIN designator cannot be
+ * re-read as a standing-piece reference.
  */
-export function checkMobilityClaims(prose: string, insight: InsightContract): RefereeViolation[] {
-  const violations: RefereeViolation[] = [];
-  const resolvePiece = (sentence: string): { pieceLetter: string; square: string } | null => {
-    const named = sentence.match(PIECE_ON_SQUARE_RE);
-    if (named) {
-      const pieceLetter = PIECE_NAME_TO_LETTER[named[1].toLowerCase()] ?? null;
-      return pieceLetter ? { pieceLetter, square: named[2] } : null;
+function collectSentencePieceRefs(sentence: string): SentencePieceRef[] {
+  const refs: SentencePieceRef[] = [];
+  const consumed: Array<[number, number]> = [];
+  const overlaps = (start: number, end: number) =>
+    consumed.some(([s, e]) => start < e && end > s);
+
+  for (const m of Array.from(sentence.matchAll(clone(PIECE_MOVE_TO_RE)))) {
+    const start = m.index ?? 0;
+    consumed.push([start, start + m[0].length]);
+    refs.push({
+      pieceLetter: m[1].toLowerCase(),
+      square: m[2],
+      index: start,
+    });
+  }
+  for (const m of Array.from(sentence.matchAll(clone(PIECE_ON_SQUARE_G_RE)))) {
+    const start = m.index ?? 0;
+    if (overlaps(start, start + m[0].length)) continue;
+    const letter = PIECE_NAME_TO_LETTER[m[1].toLowerCase()];
+    if (!letter) continue;
+    refs.push({ pieceLetter: letter, square: m[2], index: start });
+  }
+  for (const m of Array.from(sentence.matchAll(clone(PIECE_DESIGNATOR_G_RE)))) {
+    const start = m.index ?? 0;
+    if (overlaps(start, start + m[0].length)) continue;
+    refs.push({ pieceLetter: m[1].toLowerCase(), square: m[2], index: start });
+  }
+  return refs.sort((a, b) => a.index - b.index);
+}
+
+/**
+ * fix D, gap (a): the claim is about the piece the sentence was TALKING ABOUT
+ * when it made the claim — the nearest reference at or before the claim span,
+ * falling back to the nearest one after it. v3 scored two spans against the
+ * wrong piece by taking the sentence's first `piece on square` match:
+ *   #9 "Nc6, the knight is immediately trapped with no legal moves, the
+ *       bishop on b6 is equally immobile…" → scored the B on b6;
+ *   #6 "- Ne7→c6: … finds itself immediately trapped with no legal moves." →
+ *       scored the N on e7 (its ORIGIN) instead of c6.
+ */
+function resolveClaimPiece(sentence: string, claimIndex: number): SentencePieceRef | null {
+  const refs = collectSentencePieceRefs(sentence);
+  if (refs.length === 0) return null;
+  let before: SentencePieceRef | null = null;
+  for (const r of refs) {
+    if (r.index <= claimIndex) before = r;
+    else break;
+  }
+  return before ?? refs[0];
+}
+
+// ── fix D, soundness gap (b): claims about a LATER position ─────────────────
+/** "by move 10", "on move 24" — a future ply with no FEN in the contract. */
+const FUTURE_MOVE_NUMBER_RE = /\b(?:by|on|until|after|before|around|past)\s+move\s+\d+\b/i;
+/** "after White plays h3", "once Black takes on e5", "after g6" — the claim is
+ * about the position AFTER the named move. */
+const CONDITIONING_MOVE_RE =
+  /\b(?:after|once|when|if)\s+(?:white|black|you|your opponent|they|he|she)?\s*(?:plays?|played|pushes|pushed|goes|takes|captures|recaptures)?\s*([A-Za-z][A-Za-z0-9=+#-]*)(?![A-Za-z0-9])/gi;
+
+/** FENs reachable by playing `san` from any of `fens` (turn-flipped clones
+ * included — a hypothetical reply may be out of turn in the quoted FEN). */
+function fensAfterSan(san: string, fens: string[]): string[] {
+  const out: string[] = [];
+  for (const fen of fens) {
+    const candidates = [fen];
+    const parts = fen.split(" ");
+    if (parts.length >= 4) {
+      parts[1] = parts[1] === "w" ? "b" : "w";
+      parts[3] = "-";
+      candidates.push(parts.join(" "));
     }
-    const desig = sentence.match(PIECE_DESIGNATOR_IN_SENTENCE_RE);
-    if (desig) return { pieceLetter: desig[1].toLowerCase(), square: desig[2] };
-    return null;
-  };
+    for (const c of candidates) {
+      try {
+        const game = new Chess(c);
+        if (!game.move(san)) continue;
+        out.push(game.fen());
+        break;
+      } catch {
+        /* illegal from this base — try the next */
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * fix D, gap (b): which board a mobility claim should be scored against.
+ * Returns the insight FENs by default, the FENs after a named conditioning
+ * move when the sentence anchors the claim to one, or null when the
+ * referenced position cannot be resolved — in which case the claim is SKIPPED
+ * rather than scored against the wrong board. v3:
+ *   #7  "…with no legal moves by move 10"        → unresolvable future ply;
+ *   #12 "…no safe retreat after White plays h3"  → resolvable, score there.
+ * A conditioning move equal to the insight's own played move needs no
+ * override — fenAfter already IS that position (v3 #14, "after g6 closes the
+ * diagonal", where g6 is the played move).
+ */
+function resolveClaimFens(sentence: string, insight: InsightContract): string[] | null {
+  if (FUTURE_MOVE_NUMBER_RE.test(sentence)) return null;
+  const played = stripSanDecorations(insight.playedSan ?? "");
+  const base = [insight.fenBefore, insight.fenAfter];
+  for (const m of Array.from(sentence.matchAll(clone(CONDITIONING_MOVE_RE)))) {
+    const raw = m[1] ?? "";
+    if (!SEQ_MOVE_RE.test(raw)) continue; // not a move token — no conditioning
+    const norm = stripSanDecorations(raw);
+    if (!norm || norm === played) continue; // fenAfter already is that position
+    const derived = fensAfterSan(norm, base);
+    return derived.length > 0 ? derived : null;
+  }
+  return base;
+}
+
+/**
+ * Fix 10 — mobility_claims, LITERAL family (follow-up fix D): bare-integer
+ * mobility/square-count claims and "no/zero legal moves" phrasings verified
+ * against raw chess.js move counts from the position the claim is about. The
+ * adjudicated class: fixture 01's thrice-repeated "queen on f3 … 15 active
+ * squares / 15 legal moves" (spans #2/#4/#7 context) and v3's six
+ * "trapped with no legal moves" knights that chess.js gives 4-6 moves — a
+ * concrete number the board contradicts. Fires ONLY when a piece+square
+ * reference is resolvable in the same sentence and the claimed count matches
+ * NO scored position; unverifiable claims are skipped (precision first).
+ *
+ * v3: 9 fires / 9 TRUE_FABRICATION / 0 FALSE_POSITIVE → this family runs on
+ * the SERVING path (runInsightChecks) and is armed at error.
+ */
+export function checkMobilityLiteralClaims(
+  prose: string,
+  insight: InsightContract,
+): RefereeViolation[] {
+  const violations: RefereeViolation[] = [];
 
   for (const m of Array.from(prose.matchAll(clone(MOBILITY_CLAIM_RE)))) {
     const claimed = Number.parseInt(m[1], 10);
@@ -1734,57 +1889,98 @@ export function checkMobilityClaims(prose: string, insight: InsightContract): Re
     const idx = m.index ?? 0;
     const { start, end } = sentenceBounds(prose, idx);
     const sentence = prose.slice(start, end);
-    const ref = resolvePiece(sentence);
+    const ref = resolveClaimPiece(sentence, idx - start);
     if (!ref) continue; // unverifiable — skip, never guess
-    const counts = [insight.fenBefore, insight.fenAfter]
+    const fens = resolveClaimFens(sentence, insight);
+    if (!fens) continue; // claim is about an unresolvable position — skip
+    const counts = fens
       .map((fen) => mobilityCount(fen, ref.square, ref.pieceLetter))
       .filter((c): c is number => c !== null);
-    if (counts.length === 0) continue; // piece not on that square in either FEN
+    if (counts.length === 0) continue; // piece not on that square in any scored FEN
     if (counts.some((c) => c === claimed)) continue; // board backs the number
     violations.push({
       check: "mobility_claims",
       category: "mobility_count_wrong",
       span: m[0],
       index: idx,
-      detail: `mobility claim "${m[0]}" for the ${ref.pieceLetter.toUpperCase()} on ${ref.square} contradicts chess.js (actual: ${counts.join("/")} legal move(s) in fenBefore/fenAfter)`,
+      detail: `mobility claim "${m[0]}" for the ${ref.pieceLetter.toUpperCase()} on ${ref.square} contradicts chess.js (actual: ${counts.join("/")} legal move(s) in the scored position(s))`,
     });
   }
 
-  // ROUND 2 fix 4b — zero-mobility / zero-safe-square claims tied to a
-  // resolvable piece: "trapped with no legal moves" prose is checked against
-  // the ACTUAL chess.js counts (raw for the literal move phrasings, safe
-  // flight squares for the "no good/safe square" ones). Fires only when NO
-  // insight FEN backs a zero count; a piece that truly has 0 (raw or safe)
-  // moves licenses the claim (v2 FP #27 — Na8, both flights covered).
-  for (const m of Array.from(prose.matchAll(clone(ZERO_MOBILITY_RE)))) {
-    const idx = m.index ?? 0;
-    const { start, end } = sentenceBounds(prose, idx);
-    const sentence = prose.slice(start, end);
-    const ref = resolvePiece(sentence);
-    if (!ref || ref.pieceLetter === "k") continue; // unverifiable / king-context (mate territory)
-    const literal = /\bmoves?\b/i.test(m[0]);
-    const counter = literal ? mobilityCount : safeMobilityCount;
-    const counts = [insight.fenBefore, insight.fenAfter]
-      .map((fen) => counter(fen, ref.square, ref.pieceLetter))
-      .filter((c): c is number => c !== null);
-    if (counts.length === 0) continue; // piece not on that square in either FEN
-    if (counts.some((c) => c === 0)) continue; // the board backs the zero claim
-    violations.push({
-      check: "mobility_claims",
-      category: "mobility_count_wrong",
-      span: m[0],
-      index: idx,
-      detail: `zero-mobility claim "${m[0]}" for the ${ref.pieceLetter.toUpperCase()} on ${ref.square} contradicts chess.js (actual: ${counts.join("/")} ${literal ? "legal" : "safe"} move(s) in fenBefore/fenAfter)`,
-    });
+  for (const m of Array.from(prose.matchAll(clone(ZERO_MOBILITY_LITERAL_RE)))) {
+    const v = judgeZeroMobility(prose, insight, m, mobilityCount, "legal");
+    if (v) violations.push(v);
   }
 
   return violations;
 }
 
-/** The --fp-measure harness's entry for the measurement-only checks. */
+/**
+ * mobility_claims, QUALITATIVE family (follow-up fix D): "no good squares",
+ * "no safe retreat/square", "nowhere to go", "no escape" — scored against
+ * countSafeMoves (flight squares not covered by the enemy). A reasonable
+ * proxy, not the claim itself, so this family stays MEASUREMENT-ONLY: v3 #10
+ * ("Nc6 looks active, but the knight has no good squares") was refuted with a
+ * safe-move count, which is an argument about quality, not arithmetic.
+ */
+export function checkMobilityQualitativeClaims(
+  prose: string,
+  insight: InsightContract,
+): RefereeViolation[] {
+  const violations: RefereeViolation[] = [];
+  for (const m of Array.from(prose.matchAll(clone(ZERO_MOBILITY_QUALITATIVE_RE)))) {
+    const v = judgeZeroMobility(prose, insight, m, safeMobilityCount, "safe");
+    if (v) violations.push(v);
+  }
+  return violations;
+}
+
+/** Shared zero-claim judgement for both families (ROUND 2 fix 4b semantics:
+ * fires only when NO scored position backs a zero count — a piece that truly
+ * has 0 moves licenses the claim, v2 FP #27's Na8). */
+function judgeZeroMobility(
+  prose: string,
+  insight: InsightContract,
+  m: RegExpMatchArray,
+  counter: (fen: string, square: string, pieceLetter: string) => number | null,
+  label: "legal" | "safe",
+): RefereeViolation | null {
+  const idx = m.index ?? 0;
+  const { start, end } = sentenceBounds(prose, idx);
+  const sentence = prose.slice(start, end);
+  const ref = resolveClaimPiece(sentence, idx - start);
+  if (!ref || ref.pieceLetter === "k") return null; // unverifiable / king-context (mate territory)
+  const fens = resolveClaimFens(sentence, insight);
+  if (!fens) return null; // claim is about an unresolvable position — skip
+  const counts = fens
+    .map((fen) => counter(fen, ref.square, ref.pieceLetter))
+    .filter((c): c is number => c !== null);
+  if (counts.length === 0) return null; // piece not on that square in any scored FEN
+  if (counts.some((c) => c === 0)) return null; // the board backs the zero claim
+  return {
+    check: "mobility_claims",
+    category: "mobility_count_wrong",
+    span: m[0],
+    index: idx,
+    detail: `zero-mobility claim "${m[0]}" for the ${ref.pieceLetter.toUpperCase()} on ${ref.square} contradicts chess.js (actual: ${counts.join("/")} ${label} move(s) in the scored position(s))`,
+  };
+}
+
+/** Both mobility families — the historical entry point (round-2 suite, and
+ * anything that wants the full picture regardless of arming status). */
+export function checkMobilityClaims(prose: string, insight: InsightContract): RefereeViolation[] {
+  return [
+    ...checkMobilityLiteralClaims(prose, insight),
+    ...checkMobilityQualitativeClaims(prose, insight),
+  ];
+}
+
+/** The --fp-measure harness's entry for the checks that are still
+ * MEASUREMENT-ONLY. The mobility LITERAL family graduated out of here in the
+ * follow-up pack (fix D) and now runs in runInsightChecks. */
 export function runMeasurementOnlyChecks(
   prose: string,
   insight: InsightContract,
 ): RefereeViolation[] {
-  return [...checkPvTruncation(prose, insight), ...checkMobilityClaims(prose, insight)];
+  return [...checkPvTruncation(prose, insight), ...checkMobilityQualitativeClaims(prose, insight)];
 }

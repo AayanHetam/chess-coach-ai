@@ -37,6 +37,10 @@ describe("DEFAULT_ARMING_TABLE — precision-pack correction: NOTHING arms at er
       ["tactical_keyword", "tactical_keyword_unbacked"],
       ["san_whitelist", "san_unknown"],
       ["san_whitelist", "square_unknown"],
+      // mobility_claims — the LITERAL family measured 9 fires / 9
+      // TRUE_FABRICATION / 0 FP in v3 and now runs on the serving path; the
+      // qualitative family stays measurement-only and cannot reach the ladder.
+      ["mobility_claims", "mobility_count_wrong"],
     ] as const) {
       expect(armSeverity(finding({ check, category, severity: "error" }))).toBe("error");
     }

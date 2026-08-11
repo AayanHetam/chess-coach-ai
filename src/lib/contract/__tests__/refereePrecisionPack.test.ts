@@ -43,6 +43,8 @@ import {
   checkEvalDisplays,
   checkPvTruncation,
   checkMobilityClaims,
+  checkMobilityLiteralClaims,
+  checkMobilityQualitativeClaims,
   collectContractEvalPools,
 } from "@/lib/contract/refereeChecks";
 import type { RefereeViolation } from "@/lib/contract/refereeChecks";
@@ -366,20 +368,32 @@ describe("measurement-only mobility_claims (fixture 01's thrice-repeated wrong '
 
 // ── Isolation: measurement-only checks never leak into the serving path ─────
 describe("measurement-only isolation", () => {
-  it("runInsightChecks never emits pv_truncation / mobility_claims", () => {
+  // FOLLOW-UP fix D (2026-08-11): the LITERAL mobility family (bare-integer
+  // counts, "no/zero legal moves") graduated onto the serving path after v3
+  // measured 9 fires / 9 TRUE_FABRICATION / 0 FP, so runInsightChecks DOES
+  // emit mobility_claims now. pv_truncation remains measurement-only.
+  it("runInsightChecks never emits pv_truncation", () => {
     for (const s of SPANS) {
-      const leaked = firesFor(s).filter(
-        (v) => v.check === "pv_truncation" || v.check === "mobility_claims",
-      );
-      expect(leaked).toEqual([]);
+      expect(firesFor(s).filter((v) => v.check === "pv_truncation")).toEqual([]);
     }
   });
 
-  it("runMeasurementOnlyChecks emits ONLY the two new checks", () => {
+  it("runInsightChecks only ever emits the LITERAL mobility family", () => {
+    for (const s of SPANS) {
+      const { insight } = insightFor(s);
+      const served = firesFor(s).filter((v) => v.check === "mobility_claims");
+      expect(served).toEqual(checkMobilityLiteralClaims(s.sentence, insight));
+    }
+  });
+
+  it("runMeasurementOnlyChecks emits ONLY pv_truncation + the QUALITATIVE mobility family", () => {
     for (const s of SPANS) {
       const { insight } = insightFor(s);
       for (const v of runMeasurementOnlyChecks(s.sentence, insight)) {
         expect(["pv_truncation", "mobility_claims"]).toContain(v.check);
+        if (v.check === "mobility_claims") {
+          expect(checkMobilityQualitativeClaims(s.sentence, insight)).toContainEqual(v);
+        }
       }
     }
   });

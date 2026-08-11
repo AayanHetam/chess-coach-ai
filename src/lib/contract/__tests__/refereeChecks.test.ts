@@ -241,6 +241,7 @@ describe("aggregateFidelity", () => {
     expect(report.fabricationCount).toBe(4);
     expect(report.violationsByCheck).toEqual({
       eval_display: 1,
+      mobility_claims: 0, // fix D put the literal family on the served path
       san_whitelist: 1,
       tactical_keyword: 1,
       forbidden_claim: 1,

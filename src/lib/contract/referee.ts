@@ -48,6 +48,7 @@ import type { ParserCall } from "@/lib/mastermind/validators/evalClaim";
 import {
   checkEvalDisplays,
   checkForbiddenClaims,
+  checkMobilityLiteralClaims,
   checkSanWhitelist,
   checkTacticalKeywords,
 } from "./refereeChecks";
@@ -65,6 +66,7 @@ export interface RefereeFinding {
     | "san_whitelist"
     | "tactical_keyword"
     | "forbidden_claim"
+    | "mobility_claims"
     | "stage9_user_visibility"
     | "stage9_positional_claim"
     | "stage9_mate_in_n"
@@ -137,9 +139,9 @@ function severityForViolation(v: RefereeViolation): RefereeSeverity {
 
 function violationToFinding(v: RefereeViolation): RefereeFinding {
   return {
-    // The blocking referee only ever feeds violations from checks 2-5; the
-    // measurement-only precision-pack checks (pv_truncation/mobility_claims)
-    // never reach it, so the narrowing cast is sound.
+    // The blocking referee only ever feeds violations from checks 2-5 plus
+    // the literal mobility family (fix D); pv_truncation never reaches it, so
+    // the narrowing cast is sound.
     check: v.check as RefereeFinding["check"],
     severity: severityForViolation(v),
     category: v.category,
@@ -206,6 +208,11 @@ export function refereeInsight(
     findings.push(violationToFinding(v));
   for (const v of checkForbiddenClaims(prose, insight, opts.contract))
     findings.push(violationToFinding(v));
+  // FOLLOW-UP fix D: the LITERAL mobility family (bare-integer counts and
+  // "no/zero legal moves") is pure chess.js arithmetic — v3 measured 9 fires,
+  // 9 TRUE_FABRICATION, 0 FP. The QUALITATIVE family ("no good squares", "no
+  // safe retreat") is a judgment proxy and stays measurement-only.
+  for (const v of checkMobilityLiteralClaims(prose, insight)) findings.push(violationToFinding(v));
 
   // Check 5: Stage-9 scanners on the per-insight contract-derived snapshot.
   const snapshot = buildVoterSnapshotForInsight(insight, opts.userRating);

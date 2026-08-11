@@ -74,6 +74,44 @@ describe("dropViolatingSentences", () => {
     expect(out).toContain("[/WHY]");
     expect(out).not.toContain("-9.50");
   });
+
+  // ── gate recovery: the drop must not leave the wreckage the persona judge
+  // marked down on the 2026-08-10 verification run ─────────────────────────
+  it("excises the WHOLE clause around a move number, not a fragment of it", () => {
+    const body =
+      "Idea: White pushed 8. e5 hoping to attack the knight, which is fine.\n" +
+      "Solution: This is a long and perfectly clean coaching sentence about the plan.";
+    const out = dropViolatingSentences(body, ["hoping to attack the knight"]);
+    // The naive splitter left "Idea: White pushed 8." stranded here.
+    expect(out).not.toContain("Idea: White pushed 8.");
+    expect(out).toContain("Solution: This is a long");
+  });
+
+  it("removes a section whose body was entirely excised", () => {
+    const body =
+      "[WHY]\nA perfectly clean coaching sentence that survives the excision here.\n[/WHY]\n" +
+      "[THREATS]\nBad -9.50 claim.\n[/THREATS]";
+    const out = dropViolatingSentences(body, ["-9.50"]);
+    expect(out).not.toContain("[THREATS]");
+    expect(out).not.toContain("[/THREATS]");
+    expect(out).toContain("[WHY]");
+  });
+
+  it("keeps a section that still carries a widget line", () => {
+    const body =
+      "[WHY]\nA perfectly clean coaching sentence that survives the excision here.\n" +
+      "Bad -9.50 claim.\n[CONTINUATION:12:w]\n[/WHY]";
+    const out = dropViolatingSentences(body, ["-9.50"]);
+    expect(out).toContain("[CONTINUATION:12:w]");
+    expect(out).toContain("[WHY]");
+  });
+
+  it("removes an orphan teaching label left with nothing after it", () => {
+    const body =
+      "A perfectly clean coaching sentence that survives the excision here.\nProblem: Bad -9.50 claim.";
+    const out = dropViolatingSentences(body, ["Bad -9.50 claim."]);
+    expect(out).not.toMatch(/Problem:\s*$/m);
+  });
 });
 
 describe("runInsightLadder — stages", () => {

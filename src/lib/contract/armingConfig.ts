@@ -87,18 +87,17 @@ export const DEFAULT_ARMING_TABLE: ArmingTable = {
   eval_display: "error",
   tactical_keyword: "error",
   // ── ARMED 2026-08-11 (FOLLOW-UP PACK fix A + the v4 re-measurement).
-  //   san_whitelist:san_unknown / :square_unknown — v3 measured 15 widened +
-  //     44 strict fires and the harness adjudicated ALL of them as
-  //     contract-globally licensed ("licensed-elsewhere-in-contract" /
-  //     "widened-licensed"): zero were fabrications, the insight-LOCAL license
-  //     pool was the bug. Fix A widens the serving pool to exactly the pool
-  //     the harness adjudicates with (collectContractWhitelist: every
-  //     insight's whitelist + the game moves + the move table's FEN squares
-  //     and bestWas lines), and the v4 re-run measures 0 residual fires in
-  //     both categories. The widening is monotone — it can only remove fires —
-  //     and the v2 TF control ("g6 cuts off its retreat square on h5", false:
-  //     Bh5 is legal + uncovered) still fires, pinned in refereeFollowups.test.ts.
-  "san_whitelist:san_unknown": "error",
+  //   san_whitelist:square_unknown — v3 measured 11 square_unknown fires and
+  //     the harness adjudicated ALL of them as contract-globally licensed
+  //     ("licensed-elsewhere-in-contract"): zero were fabrications, the
+  //     insight-LOCAL license pool was the bug. Fix A widens the serving pool
+  //     to exactly the pool the harness adjudicates with
+  //     (collectContractWhitelist: every insight's whitelist + the game moves
+  //     + the move table's FEN squares and bestWas lines) and the v4 re-run
+  //     measures 0 square_unknown fires. The widening is monotone — it can
+  //     only remove fires — and the v2 TF control ("g6 cuts off its retreat
+  //     square on h5", false: Bh5 is legal + uncovered) still fires, pinned in
+  //     refereeFollowups.test.ts.
   "san_whitelist:square_unknown": "error",
   //   mobility_claims — the LITERAL family only ("no/zero legal moves", "no
   //     moves", bare-integer move/square counts). v3 measured 9 such fires and
@@ -111,11 +110,21 @@ export const DEFAULT_ARMING_TABLE: ArmingTable = {
   //     this row cannot arm it (checkMobilityQualitativeClaims runs only in
   //     runMeasurementOnlyChecks).
   mobility_claims: "error",
-  // hypothetical_line_off_contract stays WARN: every v3 fire in that category
-  // (29) was strict-only with wouldPassWidenedWindow — armSeverity's structural
-  // clamp 2 holds those at warn anyway, so the category has NO adjudicated
-  // 0-FP evidence of its own. It arms when a measurement produces
-  // window-failing sequences and they adjudicate clean.
+  // ── HELD AT WARN inside san_whitelist, with the blockers named:
+  //   san_unknown — v4 measured ONE residual: fixture 10/M2 "…if it stays,
+  //     Bxg6 wins a piece", where Bxg6 is legal only AFTER the engine-best
+  //     Bh5. That is the FUTURE-OPTION SAN class (same shape as
+  //     precision-pack residuals #17/#18/#20, "Bc3 or Ba5" after a
+  //     hypothetical Bd2): real coaching prose one ply beyond the
+  //     plan-intent legality pool, which only reaches fenBefore/fenAfter.
+  //     Not 0-FP ⇒ does not arm. Unblocking it needs a PV-continuation
+  //     legality license (moves legal after N plies of a contract PV) plus
+  //     its own measurement.
+  //   hypothetical_line_off_contract — 13 of v4's 15 fires were strict-only
+  //     with wouldPassWidenedWindow (structural clamp 2 holds those at warn
+  //     regardless); the 2 shared fires were both prose-list artifacts where a
+  //     move run crossed a sentence terminator ("…eyeing f7." + "Nc6…"). No
+  //     0-FP evidence, and a tokenizer bug to fix first.
   san_whitelist: "warn",
   // ── HELD AT WARN, with the specific blocker named:
   //   forbidden_claim — v3's 3 fires were 1 definitional-prose FP (cleared by

@@ -453,6 +453,17 @@ describe("fix D — mobility_claims: LITERAL family graduates to the serving pat
     ).toEqual([]);
   });
 
+  it("attribution also reads the reversed prose form ('the e7 knight'), v4 span 01/s1/I2", () => {
+    const { insight } = insightFor(V3_MOBILITY_LITERAL[0]); // fixture 01, I2
+    const sentence =
+      "Ne7, Black's knight on d5 is pinned by your Bc4, attacked by Qf3 and Nc3, and the e7 knight is trapped with no moves.";
+    const fires = checkMobilityClaims(sentence, insight);
+    expect(fires).toHaveLength(1);
+    // v4 attributed this to the Nc3 designator earlier in the sentence.
+    expect(fires[0].detail).toContain("N on e7");
+    expect(fires[0].detail).not.toContain("N on c3");
+  });
+
   it("control: an unverifiable claim (no resolvable piece) is skipped, never guessed", () => {
     const { insight } = insightFor(V3_MOBILITY_LITERAL[0]);
     expect(checkMobilityClaims("You have no legal moves here.", insight)).toEqual([]);

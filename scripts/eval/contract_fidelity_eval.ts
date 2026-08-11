@@ -606,6 +606,11 @@ interface FpFlaggedSpan {
   sentence: string;
   adjudication: FpAdjudication;
   wouldPassWidenedWindow?: boolean;
+  /** Emitted by runMeasurementOnlyChecks rather than by either grader.
+   * mobility_claims fires on BOTH sides since fix D (served literal family +
+   * measurement-only qualitative family), so the category tallies have to be
+   * able to tell them apart. */
+  measurementOnly?: boolean;
   detail: string;
 }
 
@@ -931,6 +936,7 @@ async function refereeReviewDual(input: {
         span: v.span,
         sentence: sentenceContext(block.prose, v.span, v.index),
         adjudication: "needs-review",
+        measurementOnly: true,
         detail: v.detail.slice(0, 300),
       });
     }
@@ -986,6 +992,7 @@ function summarizeFp(samples: FpSample[], flagged: FpFlaggedSpan[]) {
     const adjudications: Record<string, number> = {};
     let needsReview = 0;
     for (const f of flagged) {
+      if (f.measurementOnly) continue; // never a grader fire (fix D)
       if (!cats.includes(f.category)) continue;
       if (side === "widened" && f.referee !== "both") continue;
       adjudications[f.adjudication] = (adjudications[f.adjudication] ?? 0) + 1;

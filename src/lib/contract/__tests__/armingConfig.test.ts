@@ -29,13 +29,13 @@ describe("DEFAULT_ARMING_TABLE — precision-pack correction: NOTHING arms at er
   it("arms ONLY the checks with a measured 0-false-positive record (v3)", () => {
     // eval_display: 0 fires across v1/v2/v3 — pure numeric comparison.
     // tactical_keyword: v3 22 fires = 19 TRUE_FABRICATION / 3 ambiguous / 0 FP.
-    // san_whitelist:san_unknown/:square_unknown — v3 fires were 100%
-    // contract-globally licensed (0 fabrications); the follow-up pack widened
-    // the serving pool to that same pool and v4 measures 0 residual.
+    // san_whitelist:square_unknown — v3's 11 fires were 100% contract-globally
+    // licensed (0 fabrications); the follow-up pack widened the serving pool
+    // to that same pool and v4 measures 0 square_unknown fires. san_unknown is
+    // NOT armed: v4 kept one future-option-SAN residual (see armingConfig).
     for (const [check, category] of [
       ["eval_display", "eval_unbacked"],
       ["tactical_keyword", "tactical_keyword_unbacked"],
-      ["san_whitelist", "san_unknown"],
       ["san_whitelist", "square_unknown"],
       // mobility_claims — the LITERAL family measured 9 fires / 9
       // TRUE_FABRICATION / 0 FP in v3 and now runs on the serving path; the
@@ -54,6 +54,7 @@ describe("DEFAULT_ARMING_TABLE — precision-pack correction: NOTHING arms at er
     //  stage9_*/relational/citation — no v3 evidence of their own yet.
     for (const [check, category] of [
       ["forbidden_claim", "forbidden_claim_present"],
+      ["san_whitelist", "san_unknown"], // v4 residual: future-option SAN
       ["citation_invalid", "citation_unresolvable"],
       ["relational_claim", "relational_claim_contradicted"],
       ["stage9_positional_claim", "positional_claim"],
@@ -125,7 +126,7 @@ describe("armFindings partition", () => {
       finding({}), // eval_display — armed
       finding({ check: "stage9_user_visibility", severity: "warn" }), // never error
       finding({ check: "tactical_keyword", category: "tactical_keyword_unbacked" }), // armed
-      finding({ check: "san_whitelist", category: "san_unknown" }), // armed (fix A)
+      finding({ check: "san_whitelist", category: "square_unknown" }), // armed (fix A)
       finding({ check: "forbidden_claim", category: "forbidden_claim_present" }), // held at warn
     ];
     const armed = armFindings(fs);

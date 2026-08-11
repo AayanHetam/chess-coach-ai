@@ -1745,6 +1745,10 @@ const PIECE_ON_SQUARE_G_RE = /\b(queen|rook|bishop|knight|king|pawn)\s+(?:on|at|
 const PIECE_MOVE_TO_RE = /\b([KQRBN])[a-h][1-8]\s*(?:→|-{1,2}>|–|—|-|\bto\b)\s*([a-h][1-8])\b/g;
 /** Bare designator "Qf3", "Nc6". */
 const PIECE_DESIGNATOR_G_RE = /\b([KQRBN])([a-h][1-8])\b/g;
+/** Reversed prose form: "the e7 knight", "the d5-knight" (v4 span 01/s1/I2 —
+ * "…and the e7 knight is trapped with no moves" was attributed to the Nc3
+ * designator earlier in the sentence). */
+const SQUARE_THEN_PIECE_RE = /\b([a-h][1-8])[-\s](queen|rook|bishop|knight|king|pawn)\b/gi;
 
 /**
  * Every piece reference in the sentence, in offset order. Arrow/"to" move
@@ -1772,6 +1776,14 @@ function collectSentencePieceRefs(sentence: string): SentencePieceRef[] {
     const letter = PIECE_NAME_TO_LETTER[m[1].toLowerCase()];
     if (!letter) continue;
     refs.push({ pieceLetter: letter, square: m[2], index: start });
+  }
+  for (const m of Array.from(sentence.matchAll(clone(SQUARE_THEN_PIECE_RE)))) {
+    const start = m.index ?? 0;
+    if (overlaps(start, start + m[0].length)) continue;
+    const letter = PIECE_NAME_TO_LETTER[m[2].toLowerCase()];
+    if (!letter) continue;
+    consumed.push([start, start + m[0].length]);
+    refs.push({ pieceLetter: letter, square: m[1], index: start });
   }
   for (const m of Array.from(sentence.matchAll(clone(PIECE_DESIGNATOR_G_RE)))) {
     const start = m.index ?? 0;

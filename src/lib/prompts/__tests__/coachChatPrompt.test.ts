@@ -191,6 +191,43 @@ describe("3.5 — sub-1400 beginner band split (perUser line, no 4th tier)", () 
   });
 });
 
+describe("A1 — an absent rating is declared absent, never fabricated", () => {
+  // SILENT_SUBSTITUTION_HANDOFF §3 A1. The route used to pass
+  // `userRating ?? 1500`, so the prompt asserted "- User rating: 1500" as
+  // fact for every user who had never set one. The builder now accepts
+  // `undefined` and says so out loud.
+  const noRating: CoachChatPromptInput = { ...baseInput, userRating: undefined };
+
+  it("does not assert a numeric rating when none was supplied", () => {
+    const out = getCoachChatSystemPrompt(noRating);
+    expect(out).not.toContain("- User rating: 1500");
+    expect(out).not.toMatch(/- User rating: \d/);
+  });
+
+  it("states explicitly that no rating is available", () => {
+    expect(getCoachChatSystemPrompt(noRating)).toContain(
+      "- User rating: not provided"
+    );
+  });
+
+  it("still calibrates to INTERMEDIATE so the coach has a usable default", () => {
+    expect(getCoachChatSystemPrompt(noRating)).toContain(
+      "Skill calibration tier: INTERMEDIATE"
+    );
+  });
+
+  it("emits no sub-1400 band line when the rating is unknown", () => {
+    // `undefined < 1200` is false in JS, but assert it so a future refactor
+    // to `(input.userRating ?? 0) < 1200` can't silently label every
+    // unknown-rating user a sub-800 beginner.
+    expect(getCoachChatSystemPrompt(noRating)).not.toContain("Band focus");
+  });
+
+  it("leaves the rendered prompt unchanged when a rating IS supplied", () => {
+    expect(getCoachChatSystemPrompt(baseInput)).toContain("- User rating: 1500");
+  });
+});
+
 describe("getCoachChatSystemPrompt — personality fallback", () => {
   it("falls back to the default personality for an unknown id", () => {
     const unknown = getCoachChatSystemPrompt({

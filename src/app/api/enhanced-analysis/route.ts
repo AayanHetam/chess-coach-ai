@@ -25,6 +25,7 @@ import { getReinforcements } from "@/lib/concept/conceptRetrieval";
 import { requireSession } from "@/lib/auth/session";
 import { gateFeature } from "@/lib/billing/gate";
 import { getUserById } from "@/lib/server/users";
+import { isPlausibleRating, resolveUserRating } from "@/lib/coach/userRating";
 // ── Stage B (PR 1.C) Mastermind validator pipeline imports ──────────
 // All flag-gated by getMastermindEnv().validatorsEnabled. When false, none
 // of these symbols execute. See PR_1C_STAGE_B_PLAN.md §3.7 for the audit
@@ -534,12 +535,17 @@ export async function POST(request: NextRequest) {
       gameEval,
       playerColor,
       username,
-      // Rename on destructure so we can override with the Firestore-stored
-      // selfReportedRating after the profile read below. AnalysisImpl already
-      // sends profile.selfReportedRating in the body (PR #64), but the
-      // legacy AICoachChat callers and future surfaces may not — when they
-      // don't, the value the LLM sees should still be the user's true rating
-      // instead of silently defaulting to 1500.
+      // Rename on destructure so the Firestore profile read below can supply
+      // the value when the body has none.
+      //
+      // A1 (SILENT_SUBSTITUTION_HANDOFF, fixed 2026-08-11): the previous
+      // comment here claimed "AnalysisImpl already sends
+      // profile.selfReportedRating (PR #64)". It did not — it sent a
+      // hardcoded `userRating ?? 1500`, and because the body wins this
+      // chain, everything below was unreachable and every user was coached
+      // as a 1500. The client now sends the real rating or nothing at all,
+      // which is what makes the profile → header-Elo fallbacks live code.
+      // Do not reintroduce a default in the body.
       userRating: userRatingFromBody,
       boardOrientation,
       conversationHistory,
@@ -602,10 +608,9 @@ export async function POST(request: NextRequest) {
         };
         // Single-rating model: prefer the live mirror (tracks improvement),
         // then the placement-measured rating, then the self-reported prior.
-        profileRating =
-          profile.liveRatingSnapshot ??
-          profile.measuredRating ??
-          profile.selfReportedRating;
+        // Shared with the browser via resolveUserRating so the two copies of
+        // this chain cannot drift (A1).
+        profileRating = resolveUserRating(profile);
       }
     } catch (err) {
       log.warn("could not load coaching prefs", {
@@ -621,12 +626,13 @@ export async function POST(request: NextRequest) {
     // skew skill calibration.
     const headerEloRaw = playerColor === "b" ? gameHeaders?.blackElo : gameHeaders?.whiteElo;
     const headerElo = headerEloRaw ? Number.parseInt(headerEloRaw, 10) : NaN;
+    // Body value is range-guarded like the header Elo below it: a client
+    // sending junk (or a legacy client still sending a placeholder) must not
+    // beat a real profile rating.
     const userRating =
-      userRatingFromBody ??
+      (isPlausibleRating(userRatingFromBody) ? userRatingFromBody : undefined) ??
       profileRating ??
-      (Number.isFinite(headerElo) && headerElo >= 100 && headerElo <= 3500
-        ? headerElo
-        : undefined);
+      (isPlausibleRating(headerElo) ? headerElo : undefined);
 
     log.info("Enhanced analysis started", {
       hasMessage: !!messageText,
@@ -634,6 +640,16 @@ export async function POST(request: NextRequest) {
       hasEval: !!gameEval,
       playerColor,
       skillLevel: userRating ? (userRating < 1000 ? "beginner" : userRating < 1600 ? "intermediate" : "advanced") : "intermediate",
+      // A1 proof-of-life: which source actually supplied the rating. If this
+      // reads "none" for every request in production, the client fix is not
+      // deployed — the number alone cannot tell you that.
+      ratingSource: isPlausibleRating(userRatingFromBody)
+        ? "body"
+        : profileRating !== undefined
+          ? "profile"
+          : isPlausibleRating(headerElo)
+            ? "pgn_header"
+            : "none",
     });
 
     // API-key presence is now validated inside callLLM(); both Anthropic and
@@ -735,7 +751,7 @@ export async function POST(request: NextRequest) {
     // a single self-contained prompt blob.
     const claudeSystemParts = getCoachChatSystemPromptParts({
       personalityId: personalityId ?? "friendly",
-      userRating: userRating ?? 1500,
+      userRating,
       username,
       playerColorName,
       chesscomUsername,
@@ -813,9 +829,17 @@ export async function POST(request: NextRequest) {
       (coachingPrefs?.studyGoals ?? []).slice().sort().join(","),
       (coachingPrefs?.favoriteOpenings ?? []).slice().sort().join(","),
     ].join("|");
+    // A1: "no rating on file" is a distinct prompt from "rating 1300", even
+    // though both calibrate to INTERMEDIATE — the unrated prompt tells the
+    // model to state its assumptions rather than speak to a known level. Give
+    // it its own bucket so an unrated visitor can't be served a reply written
+    // for a rated player (and vice versa). Before A1 every caller was 1500, so
+    // this bucket did not exist.
+    const cacheSkillBucket =
+      userRating === undefined ? `${skillLevel}:unrated` : skillLevel;
     const cacheKey = generateCacheKey(
       currentFen,
-      skillLevel,
+      cacheSkillBucket,
       messageText || "analyze",
       personaSignature,
       moveHistory
@@ -983,7 +1007,7 @@ export async function POST(request: NextRequest) {
                 priorMessages: claudeMessages.slice(0, -1),
                 promptInput: {
                   personalityId: personalityId ?? "friendly",
-                  userRating: userRating ?? 1500,
+                  userRating,
                   username,
                   playerColorName,
                   chesscomUsername,

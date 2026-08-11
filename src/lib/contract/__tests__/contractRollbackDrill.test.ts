@@ -11,6 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { __resetContractEnvCacheForTests, getContractEnv } from "@/env";
+import { isContractServingArmed } from "@/lib/contract/servingGate";
 import { createEnforcedContractStream } from "@/lib/contract/enforcedStream";
 import { renderInsightBlock } from "@/lib/contract/insightGrammar";
 import type { CoachContract } from "@/lib/contract/types";
@@ -28,12 +29,21 @@ afterEach(() => {
   __resetContractEnvCacheForTests();
 });
 
+/** The CI-5 dogfood uid — an arbitrary stand-in for the founder's session uid. */
+const DOGFOOD_UID = "AayanUid123";
+const OTHER_UID = "someoneElseUid";
+
 /**
  * Mirrors route.ts: the contract branch is entered ONLY when a contract
- * exists AND the classified category is listed (route.ts flag-on wing).
+ * exists AND the serving gate arms the request — the classified category is
+ * listed (everyone) or the session uid is listed (that user, every category).
  */
-function contractBranchArmed(contract: CoachContract | null, category: string): boolean {
-  return !!contract && getContractEnv().categories.includes(category);
+function contractBranchArmed(
+  contract: CoachContract | null,
+  category: string,
+  uid: string | null = null,
+): boolean {
+  return !!contract && isContractServingArmed({ category, uid });
 }
 
 /** Route-shaped SSE emission — the LEGACY loop, byte for byte. */
@@ -56,8 +66,9 @@ async function serveStreaming(
   category: string,
   contract: CoachContract,
   armingTable?: import("@/lib/contract/armingConfig").ArmingTable,
+  uid: string | null = null,
 ): Promise<Buffer> {
-  if (!contractBranchArmed(contract, category)) {
+  if (!contractBranchArmed(contract, category, uid)) {
     return legacySse(deltas); // legacy branches — untouched
   }
   const encoder = new TextEncoder();
@@ -162,5 +173,107 @@ describe("rollback drill: CONTRACT_CATEGORIES empty ⇒ byte-identical legacy se
     // flag-off/empty-list cases above: no category armed ⇒ byte-identical.
     expect(served.toString()).not.toContain("mate in 3");
     expect(served.toString()).toContain("Let's walk th");
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// PR-CI-5: the same drill for game_review + the CONTRACT_UIDS dogfood lever.
+//
+// game_review is the highest-traffic surface and the exact path the 24.6/100
+// fabrication baseline was measured on, so its rollback story has to be
+// mechanically proven, not argued: with neither the category nor the uid
+// armed, serving must be legacy to the BYTE.
+// ───────────────────────────────────────────────────────────────────────────
+describe("rollback drill: game_review", () => {
+  it("committed default (CONTRACT_CATEGORIES=position_analysis, no uids) ⇒ game_review is byte-identical legacy", async () => {
+    vi.stubEnv("CONTRACT_CATEGORIES", "position_analysis");
+    __resetContractEnvCacheForTests();
+    const { deltas, contract } = fixtureDeltas();
+    const legacy = legacySse(deltas);
+    const served = await serveStreaming(deltas, "game_review", contract, undefined, DOGFOOD_UID);
+    expect(served.equals(legacy)).toBe(true);
+    // ...and the position_analysis path is still armed (non-vacuous).
+    expect(contractBranchArmed(contract, "position_analysis", DOGFOOD_UID)).toBe(true);
+  });
+
+  it("CONTRACT_UIDS arms game_review for the LISTED uid only", async () => {
+    vi.stubEnv("CONTRACT_CATEGORIES", "position_analysis");
+    vi.stubEnv("CONTRACT_UIDS", DOGFOOD_UID);
+    __resetContractEnvCacheForTests();
+    const { deltas, contract } = fixtureDeltas();
+    const legacy = legacySse(deltas);
+
+    // The dogfood uid gets enforced serving on game_review...
+    const dogfood = await serveStreaming(
+      deltas,
+      "game_review",
+      contract,
+      { eval_display: "error" },
+      DOGFOOD_UID,
+    );
+    expect(dogfood.equals(legacy)).toBe(false);
+    expect(dogfood.toString()).not.toContain("mate in 3");
+
+    // ...and EVERY other user still gets byte-identical legacy.
+    const everyoneElse = await serveStreaming(
+      deltas,
+      "game_review",
+      contract,
+      { eval_display: "error" },
+      OTHER_UID,
+    );
+    expect(everyoneElse.equals(legacy)).toBe(true);
+    const anonymous = await serveStreaming(
+      deltas,
+      "game_review",
+      contract,
+      { eval_display: "error" },
+      null,
+    );
+    expect(anonymous.equals(legacy)).toBe(true);
+  });
+
+  it("emptying CONTRACT_UIDS is the CI-5 rollback — game_review returns to byte-identical legacy", async () => {
+    vi.stubEnv("CONTRACT_CATEGORIES", "position_analysis");
+    vi.stubEnv("CONTRACT_UIDS", "");
+    __resetContractEnvCacheForTests();
+    const { deltas, contract } = fixtureDeltas();
+    expect(getContractEnv().uids).toEqual([]);
+    const served = await serveStreaming(
+      deltas,
+      "game_review",
+      contract,
+      { eval_display: "error" },
+      DOGFOOD_UID,
+    );
+    expect(served.equals(legacySse(deltas))).toBe(true);
+  });
+
+  it("uid arming survives the Vercel trailing-\\n save and stays case-EXACT", async () => {
+    vi.stubEnv("CONTRACT_UIDS", ` ${DOGFOOD_UID} ,\n`);
+    __resetContractEnvCacheForTests();
+    expect(getContractEnv().uids).toEqual([DOGFOOD_UID]);
+    const { contract } = fixtureDeltas();
+    expect(contractBranchArmed(contract, "game_review", DOGFOOD_UID)).toBe(true);
+    // A different-case uid is a DIFFERENT user and must not be armed.
+    expect(contractBranchArmed(contract, "game_review", DOGFOOD_UID.toLowerCase())).toBe(false);
+  });
+
+  it("general rollout: CONTRACT_CATEGORIES=game_review arms every uid, and emptying it rolls back", async () => {
+    const { deltas, contract } = fixtureDeltas();
+    const legacy = legacySse(deltas);
+
+    vi.stubEnv("CONTRACT_CATEGORIES", "position_analysis,game_review");
+    __resetContractEnvCacheForTests();
+    for (const uid of [DOGFOOD_UID, OTHER_UID, null]) {
+      expect(contractBranchArmed(contract, "game_review", uid)).toBe(true);
+    }
+
+    vi.stubEnv("CONTRACT_CATEGORIES", "position_analysis");
+    __resetContractEnvCacheForTests();
+    for (const uid of [DOGFOOD_UID, OTHER_UID, null]) {
+      const served = await serveStreaming(deltas, "game_review", contract, undefined, uid);
+      expect(served.equals(legacy)).toBe(true);
+    }
   });
 });

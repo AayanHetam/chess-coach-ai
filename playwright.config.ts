@@ -67,5 +67,12 @@ export default defineConfig({
         url: "http://127.0.0.1:3210",
         reuseExistingServer: !process.env.CI,
         timeout: 90_000,
+        env: {
+          ...process.env,
+          // Same posture as `npm run build`: the journeys are secrets-free by
+          // design, and in CI there is no .env — without this the
+          // instrumentation hook's env validation kills `next start`.
+          SKIP_ENV_VALIDATION: "true",
+        },
       },
 });

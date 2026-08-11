@@ -78,17 +78,18 @@ export interface PuzzleBoardSurfaceProps {
   /** Pieces are draggable/clickable + legal dots show when true. */
   interactive: boolean;
   /**
-   * Take-back handler for a non-interactive board that is showing an
-   * uncommitted move. When set, tapping any square calls this instead of
-   * doing nothing.
+   * Tap handler for a board that is not accepting moves. When set, tapping a
+   * square calls this instead of doing nothing.
    *
-   * Exists because confirm-move mode renders the STAGED position and must
-   * therefore drop interactivity — a second drag would report squares that
-   * don't exist in the real position. Without this, changing your mind meant
-   * hunting for a button; with it, tapping the board just undoes it, which is
-   * what everyone tries first.
+   * Two callers, both of which need the board inert for moves but live:
+   *   - confirm-move renders the STAGED position, so a second drag would
+   *     report squares that don't exist in the real position — a tap takes
+   *     the move back instead, which is what everyone tries first;
+   *   - Eliminate mode marks squares as ruled out rather than moving.
+   *
+   * The parent decides which meaning applies; the board just reports the tap.
    */
-  onCancel?: () => void;
+  onInactiveSquareTap?: (square: Square) => void;
   /**
    * Move sink. The board calls this with every attempted move (drag or click);
    * the parent applies/validates it and returns true to keep the visual
@@ -128,7 +129,7 @@ export function PuzzleBoardSurface({
   fen,
   orientation,
   interactive,
-  onCancel,
+  onInactiveSquareTap,
   onPieceDrop,
   lastMove,
   wrongSquare,
@@ -215,9 +216,9 @@ export function PuzzleBoardSurface({
   const onSquareClick = useCallback(
     (square: Square, piece: Piece | undefined) => {
       if (!interactive) {
-        // A non-interactive board that is showing something take-back-able
-        // treats any tap as "undo that".
-        onCancel?.();
+        // Inert for moves, but the parent may still want the tap (take-back,
+        // or marking the square as ruled out).
+        onInactiveSquareTap?.(square);
         return;
       }
       if (selected) {
@@ -237,7 +238,7 @@ export function PuzzleBoardSurface({
       }
       if (piece && isOwnPiece(piece)) setSelected(square);
     },
-    [interactive, onCancel, selected, isOwnPiece, onPieceDrop, game],
+    [interactive, onInactiveSquareTap, selected, isOwnPiece, onPieceDrop, game],
   );
 
   const onPieceDragBegin = useCallback((_p: Piece, sq: Square) => {

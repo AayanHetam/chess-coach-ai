@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hasTrackingConsent } from "@/lib/tracking/consent";
 import { callLLM, LLMError } from "@/lib/llmProvider";
 import { puzzleHintRequestSchema } from "@/lib/validation/puzzleHintSchemas";
 import type {
@@ -44,6 +45,9 @@ import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
 const log = logger.child({ module: "puzzle-hint" });
 
 export async function POST(request: NextRequest) {
+  // Conversation capture is consent-gated (privacy policy: AI-conversation
+  // records are stored only with consent). Resolved once per request.
+  const trackingConsent = hasTrackingConsent(request);
   const requestId = extractRequestId(request.headers);
 
   let body: unknown;
@@ -120,6 +124,7 @@ export async function POST(request: NextRequest) {
       cacheSystem: true,
       capture: {
         feature: "puzzle-hint",
+        consent: trackingConsent,
         requestId,
         promptVersion: PUZZLE_HINT_PROMPT_VERSION,
         fen: puzzle.fen,
@@ -157,6 +162,7 @@ export async function POST(request: NextRequest) {
         maxTokens,
         capture: {
           feature: "puzzle-hint",
+          consent: trackingConsent,
           requestId,
           promptVersion: PUZZLE_HINT_PROMPT_VERSION,
           fen: puzzle.fen,

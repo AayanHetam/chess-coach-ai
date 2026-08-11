@@ -174,10 +174,30 @@ export async function POST(request: NextRequest) {
       // Prior conversation turns (excluding the initial analysis which is
       // already injected above).
       if (conversationHistory && Array.isArray(conversationHistory)) {
-        let skippedFirst = false;
+        // D1 (SILENT_SUBSTITUTION_HANDOFF §3 Group D): this used to skip the
+        // FIRST assistant entry positionally, on the assumption that it was the
+        // initial analysis already injected above. On the live client the first
+        // assistant entry is a GREETING, not the analysis — so the greeting was
+        // dropped and the raw, uncorrected analysis sailed through and landed
+        // as the model's most recent statement, directly after the corrected
+        // copy. The model then defends the uncorrected line.
+        //
+        // De-dupe on content identity instead: drop whichever entry actually IS
+        // the initial analysis, wherever it sits, and only once. The client now
+        // swaps in the corrected text (D1 client half), so a matching entry is
+        // the corrected one — this is belt-and-braces for older clients and for
+        // any entry that slipped through unchanged.
+        const canonical = context.initialAnalysis?.trim();
+        let droppedCanonical = false;
         for (const msg of conversationHistory) {
-          if (msg.role === "assistant" && !skippedFirst) {
-            skippedFirst = true;
+          if (
+            !droppedCanonical &&
+            msg.role === "assistant" &&
+            canonical &&
+            typeof msg.content === "string" &&
+            msg.content.trim() === canonical
+          ) {
+            droppedCanonical = true;
             continue;
           }
           if (msg.role && msg.content) {

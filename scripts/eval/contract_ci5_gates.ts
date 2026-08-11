@@ -282,18 +282,21 @@ async function runDryRun(): Promise<void> {
     selectCardInsights,
     selectCardInsightsDetailed,
   } = await import("@/lib/prompts/verbalizerPrompt");
+  const { isSentinelBearingInsight } = await import("@/lib/contract/sentinelGuard");
 
   const fixtures = loadFixtures(null);
   console.log(`\n=== CI-5 dry-run: game_review composition over ${fixtures.length} fixtures ===`);
   check("fixture count is 10", fixtures.length === 10, fixtures.length);
 
   let sentinelRefusalsSeen = 0;
+  let sentinelCardsInPlan = 0;
   let biggest: { name: string; contract: CoachContract; cards: number } | null = null;
   for (const { name, fixture } of fixtures) {
     chessdb.__clearChessdbCache();
     const c = await buildContractFor(name, fixture);
     const detailed = selectCardInsightsDetailed(c);
     sentinelRefusalsSeen += detailed.droppedSentinel.length;
+    sentinelCardsInPlan += detailed.cards.filter(isSentinelBearingInsight).length;
     const turn = buildVerbalizerUserTurn({ contract: c, messageText: USER_MESSAGE });
     console.log(
       `  ${name}: cards=${detailed.cards.length} (refused ${detailed.droppedSentinel.length}) ` +
@@ -311,9 +314,18 @@ async function runDryRun(): Promise<void> {
       biggest = { name, contract: c, cards: detailed.cards.length };
     }
   }
-  check("the fixture corpus exercises the sentinel guard at least once", sentinelRefusalsSeen > 0, {
-    sentinelRefusalsSeen,
-  });
+  // The guard is DEFENCE IN DEPTH since PR #275 landed the upstream fix (C4:
+  // selectInsights Scan 2 now skips timeout sentinels, so no sentinel-bearing
+  // insight is born). Before that, this corpus produced one — fixture 03's I3
+  // — and the 2026-08-11 gate run measured the guard refusing it 3 times. So
+  // the assertion is now "the serving path emits no such card", which holds
+  // whichever layer is doing the work, instead of a count that silently
+  // depended on an upstream bug still existing.
+  check(
+    "no sentinel-bearing card survives to the enforced card plan on any fixture",
+    sentinelRefusalsSeen >= 0 && sentinelCardsInPlan === 0,
+    { sentinelRefusalsSeen, sentinelCardsInPlan },
+  );
   check("a multi-card game_review fixture exists (>3 cards)", (biggest?.cards ?? 0) > 3, biggest?.cards);
   if (!biggest) process.exit(1);
 

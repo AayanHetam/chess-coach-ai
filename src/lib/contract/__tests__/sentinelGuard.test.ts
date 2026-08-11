@@ -86,36 +86,47 @@ describe("isSentinelBearingInsight", () => {
   });
 });
 
-describe("card plan refuses sentinel-bearing insights (real fixture)", () => {
-  it("03_sentinel_timeout: the contract HAS a sentinel insight and it is NOT carded", async () => {
+describe("card plan is sentinel-free on the real fixtures", () => {
+  /**
+   * HISTORY — read before "simplifying" this file.
+   *
+   * When this guard was written (2026-08-11, on main @704947e) fixture 03 DID
+   * build a sentinel-bearing card: `I3`, classification "inaccuracy",
+   * severityDropCp 80, from an `evalBefore` sentinel — reached the enforced
+   * card plan, and the CI-5 gate run measured the guard refusing it 3 times
+   * (once per sample).
+   *
+   * PR #275 (`fix/group-c-sentinel-guards`) then landed the upstream fix: C4
+   * added the sentinel skip to `selectInsights` Scan 2, which is where those
+   * insights were born. So the corpus no longer produces one, and this guard
+   * is now DEFENCE IN DEPTH rather than the only thing standing between a
+   * client timeout and a "BLUNDER" label.
+   *
+   * Both layers stay tested. This block pins the UPSTREAM property (Scan 2
+   * skips sentinels — a regression here is C4 being reverted); the synthetic
+   * blocks below pin the guard's OWN behaviour, which the fixtures can no
+   * longer exercise.
+   */
+  it("03_sentinel_timeout: no sentinel-bearing insight survives selection (pins C4)", async () => {
     const contract = await buildFixtureContract("03_sentinel_timeout.json");
-    const sentinelInsights = sentinelBearingInsights(contract);
-    // The exposure is real upstream — if this ever becomes 0 the Group-C fix
-    // landed and this guard has become belt-and-braces (good; update the doc).
-    expect(sentinelInsights.length).toBeGreaterThan(0);
-    // Every sentinel insight is INTEL-ONLY: Scan 1 skips sentinels, so the
-    // guard can never cost a top mistake.
-    for (const i of sentinelInsights) expect(i.topMistakeRank).toBeNull();
-
-    const detailed = selectCardInsightsDetailed(contract);
-    expect(detailed.droppedSentinel.length).toBe(sentinelInsights.length);
-    expect(detailed.cards.some(isSentinelBearingInsight)).toBe(false);
-    expect(selectCardInsights(contract).some(isSentinelBearingInsight)).toBe(false);
+    // The fixture still contains timeout sentinels...
+    expect(contract.evalIntegrity.sentinelPlies.length).toBeGreaterThan(0);
+    // ...but Scan 2 now skips them, so none becomes an insight at all.
+    expect(sentinelBearingInsights(contract)).toEqual([]);
+    // Every sentinel insight would be INTEL-ONLY anyway (Scan 1 always
+    // skipped them), so neither layer can ever cost a top mistake.
+    for (const i of sentinelBearingInsights(contract)) expect(i.topMistakeRank).toBeNull();
   });
 
-  it("the refused card's header would have carried a fabricated classification", async () => {
-    const contract = await buildFixtureContract("03_sentinel_timeout.json");
-    const [refused] = selectCardInsightsDetailed(contract).droppedSentinel;
-    expect(refused).toBeDefined();
-    const header = renderInsightHeader(refused);
-    // This is the exact "cited ≠ true" shape: an honest "engine data
-    // unavailable" eval field sitting next to a classification derived from
-    // the sentinel's fake cp:0.
-    expect(header).toContain("engine data unavailable");
-    expect(["blunder", "mistake", "inaccuracy"]).toContain(refused.classification);
+  it("the guard is a no-op on the current corpus — and says so", async () => {
+    for (const f of ["03_sentinel_timeout.json", "09_legal_trap_tactics.json"]) {
+      const detailed = selectCardInsightsDetailed(await buildFixtureContract(f));
+      expect(detailed.droppedSentinel).toEqual([]);
+      expect(detailed.cards.some(isSentinelBearingInsight)).toBe(false);
+    }
   });
 
-  it("the refused card never reaches the verbalizer CARD PLAN", async () => {
+  it("no sentinel-bearing card can reach the verbalizer CARD PLAN", async () => {
     const contract = await buildFixtureContract("03_sentinel_timeout.json");
     const detailed = selectCardInsightsDetailed(contract);
     const turn = buildVerbalizerUserTurn({ contract, messageText: "analyze my game" });
@@ -125,11 +136,44 @@ describe("card plan refuses sentinel-bearing insights (real fixture)", () => {
     for (const kept of detailed.cards) {
       expect(turn).toContain(renderInsightHeader(kept));
     }
+    expect(selectCardInsights(contract).some(isSentinelBearingInsight)).toBe(false);
+  });
+});
+
+describe("if the upstream skip regressed, the guard still refuses the card", () => {
+  /** The exact shape fixture 03 produced before PR #275: an intel-only
+   * insight whose evalBefore is a timeout sentinel, so its classification and
+   * severity are derived from a fake cp:0. */
+  const asIfC4Reverted = makeInsight({
+    factIdPrefix: "I3",
+    moveNumber: 12,
+    color: "b",
+    playedSan: "Nf6",
+    topMistakeRank: null,
+    intelligenceRank: 3,
+    classification: "inaccuracy",
+    evalBefore: evalFact({ sentinel: true, cp: 0, depth: 0, display: "engine data unavailable" }),
   });
 
-  it("a clean fixture loses no cards to the guard", async () => {
-    const contract = await buildFixtureContract("09_legal_trap_tactics.json");
-    expect(selectCardInsightsDetailed(contract).droppedSentinel).toEqual([]);
+  it("refuses it, and its header WOULD have carried a fabricated classification", () => {
+    const good = makeInsight({ factIdPrefix: "M1", topMistakeRank: 1 });
+    const contract = makeContract([good, asIfC4Reverted]);
+    const detailed = selectCardInsightsDetailed(contract);
+
+    expect(detailed.droppedSentinel.map((i) => i.factIdPrefix)).toEqual(["I3"]);
+    expect(detailed.cards.map((i) => i.factIdPrefix)).toEqual(["M1"]);
+
+    // The "cited ≠ true" shape the guard exists to prevent: an honest
+    // "engine data unavailable" eval field beside a classification computed
+    // from the sentinel's fake cp:0 — which the referee would have certified.
+    const header = renderInsightHeader(asIfC4Reverted);
+    expect(header).toContain("engine data unavailable");
+    expect(header).toContain("inaccuracy");
+
+    // ...and it never reaches the prompt.
+    const turn = buildVerbalizerUserTurn({ contract, messageText: "analyze my game" });
+    expect(turn).not.toContain(header);
+    expect(turn).toContain(renderInsightHeader(good));
   });
 });
 

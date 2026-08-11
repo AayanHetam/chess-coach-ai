@@ -24,3 +24,24 @@ export const confirmMovesAtom = atomWithStorage<boolean>(
   "cm_puzzle_confirm_moves",
   true,
 );
+
+/**
+ * How the user answers a puzzle.
+ *
+ * Only TWO modes, deliberately. Dragging a piece and tapping from-square then
+ * to-square are both already supported by PuzzleBoardSurface and always will
+ * be — every chess site supports both without asking, so making "tap" a
+ * separate mode would add a setting that buys the user nothing. "Board" means
+ * either input; "choice" is the genuinely different question shape.
+ *
+ * Multiple choice is a scaffold for players who can't yet generate a candidate
+ * move from a blank position. It is opt-in and never the default: picking from
+ * four options trains recognition, and the board trains the thing that
+ * actually transfers to a game.
+ */
+export type PuzzleAnswerMode = "board" | "choice";
+
+export const answerModeAtom = atomWithStorage<PuzzleAnswerMode>(
+  "cm_puzzle_answer_mode",
+  "board",
+);

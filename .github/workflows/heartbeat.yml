@@ -79,13 +79,14 @@ jobs:
           EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
             --search "in:title Heartbeat failing" --json number --jq 'length')
           if [ "$EXISTING" = "0" ]; then
-            BODY="Production heartbeat detected failures on https://www.chessmasti.com:
-
-$(cat /tmp/fails.md 2>/dev/null || echo '(probe step crashed before recording details)')
-
-Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
-
-This fires every 30 min; close the issue once prod is healthy again."
+            BODY=$(printf '%s\n' \
+              "Production heartbeat detected failures on https://www.chessmasti.com:" \
+              "" \
+              "$(cat /tmp/fails.md 2>/dev/null || echo '(probe step crashed before recording details)')" \
+              "" \
+              "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+              "" \
+              "This fires every 30 min; close the issue once prod is healthy again.")
             gh issue create --repo "$GITHUB_REPOSITORY" \
               --title "🚨 Heartbeat failing — production probe errors" \
               --body "$BODY"

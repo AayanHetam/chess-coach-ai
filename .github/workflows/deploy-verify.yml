@@ -55,15 +55,17 @@ jobs:
           EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
             --search "in:title Deploy verification failed" --json number --jq 'length')
           if [ "$EXISTING" = "0" ]; then
+            BODY=$(printf '%s\n' \
+              "Push \`$GITHUB_SHA\` to main was never served by https://www.chessmasti.com/api/version within 20 minutes." \
+              "" \
+              "The Vercel deployment most likely failed while CI was green (build/lint error). Prod is frozen on an older commit until this is fixed." \
+              "" \
+              "Debug: \`vercel inspect <deployment-url> --logs\` and grep for \`Error:\` (warnings are noise)." \
+              "" \
+              "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID")
             gh issue create --repo "$GITHUB_REPOSITORY" \
               --title "🚨 Deploy verification failed — prod is NOT serving main" \
-              --body "Push \`$GITHUB_SHA\` to main was never served by https://www.chessmasti.com/api/version within 20 minutes.
-
-The Vercel deployment most likely failed while CI was green (build/lint error). Prod is frozen on an older commit until this is fixed.
-
-Debug: \`vercel inspect <deployment-url> --logs\` and grep for \`Error:\` (warnings are noise).
-
-Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+              --body "$BODY"
           else
             echo "Open deploy-failure issue already exists; not duplicating."
           fi

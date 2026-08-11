@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { Chess } from "chess.js";
 import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { selectExamples, formatExamplesForPrompt } from "@/data/goldStandardExamples";
-import { generateCacheKey, getCachedResponse, setCachedResponse } from "@/lib/responseCache";
+import {
+  generateCacheKey,
+  getCachedResponse,
+  setCachedResponse,
+  evalFingerprint,
+} from "@/lib/responseCache";
 import { findMistakePuzzles } from "@/lib/mistakePuzzles";
 import { recordLLMCall } from "@/lib/llmStatsAggregator";
 import {
@@ -712,12 +717,19 @@ export async function POST(request: NextRequest) {
     // this bucket did not exist.
     const cacheSkillBucket =
       userRating === undefined ? `${skillLevel}:unrated` : skillLevel;
+    // T6 (SILENT_SUBSTITUTION_HANDOFF §4): the engine data an answer was
+    // produced FROM is part of its identity. An engine-blind or
+    // sentinel-riddled analysis reads exactly like a fully-grounded one, so
+    // without this the first caller on a position decides what everyone else
+    // gets for 24h — and the coach accepts questions while Stockfish is still
+    // booting (T7), which is the common case on a slow device.
     const cacheKey = generateCacheKey(
       currentFen,
       cacheSkillBucket,
       messageText || "analyze",
       personaSignature,
-      moveHistory
+      moveHistory,
+      evalFingerprint(gameEval)
     );
     const cachedResponse = getCachedResponse(cacheKey);
 
@@ -1230,7 +1242,20 @@ export async function POST(request: NextRequest) {
                 branch: "stream-flagon-fallback",
               });
             }
-            setCachedResponse(cacheKey, analysisContent, validation.score);
+            // T6 (SILENT_SUBSTITUTION_HANDOFF §4): this branch runs BECAUSE the
+            // four-source fetch failed (`fallbackReason: "fd_failed"` in the
+            // done metadata below), so the answer was produced without the
+            // grounding the healthy path has. The pipeline path already refuses
+            // to cache its degraded artifacts, with a comment explaining why;
+            // this one cached them for 24h and replayed them to every later
+            // caller asking the same question on the same position.
+            if (prep.dataSources) {
+              setCachedResponse(cacheKey, analysisContent, validation.score);
+            } else {
+              log.info("skipping response cache — degraded (fd_failed)", {
+                correlationId: requestId,
+              });
+            }
             const contextId = generateContextId(moveHistory, fen, playerColor || "w", session.uid);
             // T1 (SILENT_SUBSTITUTION_HANDOFF §4): ship the contextId as its own
             // EARLY event, not only inside `done`. When the platform kills the

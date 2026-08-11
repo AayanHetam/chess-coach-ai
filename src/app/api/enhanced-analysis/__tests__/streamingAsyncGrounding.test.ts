@@ -103,6 +103,9 @@ vi.mock("@/lib/responseCache", () => ({
   generateCacheKey: () => "test-cache-key",
   getCachedResponse: mockGetCachedResponse,
   setCachedResponse: mockSetCachedResponse,
+  // T6: the route keys the cache on an engine-data fingerprint. A partial
+  // module mock throws at import time on any export it omits.
+  evalFingerprint: () => "test-eval-fp",
 }));
 vi.mock("@/lib/analysisContextCache", () => ({
   generateContextId: mockGenerateContextId,

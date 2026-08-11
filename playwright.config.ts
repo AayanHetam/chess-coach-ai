@@ -69,10 +69,13 @@ export default defineConfig({
         timeout: 90_000,
         env: {
           ...process.env,
-          // Same posture as `npm run build`: the journeys are secrets-free by
-          // design, and in CI there is no .env — without this the
-          // instrumentation hook's env validation kills `next start`.
-          SKIP_ENV_VALIDATION: "true",
+          // The instrumentation hook's parseEnv() requires ANTHROPIC_API_KEY
+          // at server boot (fail-fast for the AI routes). CI has no secrets
+          // and the journeys never invoke the LLM, so a dummy satisfies boot
+          // without enabling anything. (SKIP_ENV_VALIDATION is set by `npm
+          // run build` but read by nothing — it does not help here.)
+          ANTHROPIC_API_KEY:
+            process.env.ANTHROPIC_API_KEY ?? "e2e-dummy-key-never-called",
         },
       },
 });

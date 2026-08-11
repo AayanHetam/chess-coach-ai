@@ -286,14 +286,26 @@ describe("true fabrications still caught (#9, #10, #28, #31, #32, #35, #36)", ()
 
 // ── Residual FPs: no mechanical license exists — they stay, as warn-only ────
 describe("residual FPs (fire, but under the all-warn default table — armingConfig.test.ts)", () => {
-  it.each([2, 4, 7, 8, 14, 19, 33])(
-    "FP #%i forbidden_claim definitional/positional prose still fires (not mechanically adjudicable)",
+  it.each([2, 4, 7, 14, 33])(
+    "FP #%i forbidden_claim positional prose still fires (board-unfalsifiable without Lc0)",
     (idx) => {
       const s = byIdx(idx);
       const fires = firesFor(s).filter((v) => v.check === "forbidden_claim");
       expect(fires.map((v) => v.span.toLowerCase())).toContain(s.span.toLowerCase());
     },
   );
+
+  // FOLLOW-UP fix B (2026-08-11): #8 and #19 ("A quiet move is one with no
+  // capture, no check, and no obvious threat…") are DEFINITIONS — no square,
+  // no SAN, no piece-on-square reference. isDefinitionalSentence was wired
+  // into checkTacticalKeywords in round 2 but not into the USER_VISIBILITY_RE
+  // path; the follow-up pack closes that, so these two adjudicated FPs are
+  // now CLEARED, not residual. #14 ("Ba6 works precisely because…something
+  // obvious") keeps firing — it is board-anchored.
+  it.each([8, 19])("FP #%i definitional 'obvious' prose is cleared by fix B", (idx) => {
+    const fires = firesFor(byIdx(idx)).filter((v) => v.check === "forbidden_claim");
+    expect(fires.map((v) => v.span.toLowerCase())).not.toContain("obvious");
+  });
 
   it.each([17, 18, 20])(
     "FP #%i future-option SAN (Bc3/Ba5 after a hypothetical Bd2) still fires — beyond fenBefore/fenAfter legality",

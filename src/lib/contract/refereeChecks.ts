@@ -1177,7 +1177,8 @@ function gameHistoryCorroborates(
  *     game-history exemption (gameHistoryCorroborates, contract-dependent).
  *   - endgame_wdl → tablebase/theoretical-outcome phrasings.
  *   - user_visibility → "obvious/obviously" (conservative subset; see
- *     module doc).
+ *     module doc), EXEMPTING definitional sentences (follow-up fix B —
+ *     isDefinitionalSentence, shared with the keyword path).
  * Other classes (tactical_motif, eval_numeric, …) are covered by the
  * dedicated checks above and not double-reported here.
  */
@@ -1225,6 +1226,17 @@ export function checkForbiddenClaims(
 
   if (forbidden.has("user_visibility")) {
     for (const m of Array.from(prose.matchAll(clone(USER_VISIBILITY_RE)))) {
+      // FOLLOW-UP PACK fix B — definitional-sentence exemption, the SAME test
+      // checkTacticalKeywords has used since round 2 (fix 3). A sentence with
+      // no square token, no SAN token and no piece-on-square reference is
+      // teaching a CONCEPT, not asserting what THIS user could see. v3 FP:
+      // «An "intermezzo" (or zwischenzug) is an in-between move — instead of
+      // doing the obvious thing, you insert a forcing move first…». The
+      // omission was an oversight: isDefinitionalSentence was wired into the
+      // keyword path only, so the visibility path re-fired on the same
+      // sentence shape the keyword path had already exempted.
+      const { start, end } = sentenceBounds(prose, m.index ?? 0);
+      if (isDefinitionalSentence(prose.slice(start, end))) continue;
       violations.push({
         check: "forbidden_claim",
         category: "forbidden_claim_present",

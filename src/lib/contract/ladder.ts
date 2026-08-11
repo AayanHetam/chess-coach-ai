@@ -57,6 +57,37 @@ const EDIT_ESTIMATE_MS = 10_000; // streamCorrection's own timeout
 const REGEN_ESTIMATE_MS = 15_000;
 const RELATIONAL_ESTIMATE_MS = 4_000;
 
+/**
+ * Turn the review deadline into an ENFORCED bound for one LLM stage
+ * (PR-CI-5).
+ *
+ * Before this, the deadline was purely ADVISORY: each stage checked
+ * `now() + ESTIMATE < deadlineAtMs` before starting, but nothing stopped a
+ * started stage from running long. `callLLM` has no default timeout, so a
+ * regen admitted with 15.1s of budget left could run 40s and carry the route
+ * past `maxDuration: 60s` — Vercel then kills the function mid-stream and the
+ * user gets a truncated review instead of the template card the design
+ * promises ("never a timeout", tech-lead decision #4 / plan §9 risk 7).
+ *
+ * At position_analysis scale (1–3 cards) the deadline was rarely reached, so
+ * this never bit. game_review runs up to 13 cards through the same shared
+ * per-review budgets, which is exactly when the tail gets hit — so the bound
+ * has to be real before game_review arms.
+ *
+ * Aborting is safe: every ladder stage already catches and falls through to
+ * the next rung, and the floor (the deterministic template card) needs no LLM
+ * at all.
+ */
+function stageBudgetMs(now: () => number, deadlineAtMs: number, estimateMs: number): number {
+  return Math.max(0, Math.min(estimateMs, deadlineAtMs - now()));
+}
+
+function deadlineSignal(budgetMs: number): { signal: AbortSignal; done: () => void } {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), budgetMs);
+  return { signal: controller.signal, done: () => clearTimeout(timer) };
+}
+
 export type LadderStage =
   | "pass"
   | "sentence_drop"
@@ -158,16 +189,24 @@ async function evaluateBody(
     ) {
       opts.budgets.relationalRemaining -= 1;
       relationalParsesUsed = 1;
+      // Deadline is ENFORCED, not advisory (see stageBudgetMs).
+      const bound = deadlineSignal(
+        stageBudgetMs(now, opts.deadlineAtMs, RELATIONAL_ESTIMATE_MS),
+      );
       try {
         const rel = await refereeInsightRelational(prose, opts.insight, {
           correlationId: opts.refereeOpts.correlationId,
           parseCall: opts.deps?.relationalParseCall,
+          signal: bound.signal,
         });
         findings.push(...rel.findings);
         costUsd += rel.costUsd;
       } catch {
-        // Referee-infra failure on the optional Haiku check: fail OPEN here
-        // (the deterministic floor already ran); never block the card on it.
+        // Referee-infra failure (or the deadline abort) on the optional Haiku
+        // check: fail OPEN here (the deterministic floor already ran); never
+        // block the card on it.
+      } finally {
+        bound.done();
       }
     }
   } else {
@@ -472,6 +511,10 @@ export async function runInsightLadder(
         issues: findingsToIssues(initial.errors),
         correlationId: opts.refereeOpts.correlationId,
         maxTokens: 2000,
+        // streamCorrection self-times-out at 10s; clamp it to whatever is
+        // actually left so the LAST admitted edit cannot overrun the route
+        // budget (see stageBudgetMs).
+        timeoutMs: stageBudgetMs(now, opts.deadlineAtMs, EDIT_ESTIMATE_MS),
       });
       costUsd += correction.costUsd;
       // "footnoted" means the edit itself failed — a confirmed violation
@@ -511,8 +554,14 @@ export async function runInsightLadder(
   if (opts.budgets.regensRemaining > 0 && now() + REGEN_ESTIMATE_MS < opts.deadlineAtMs) {
     opts.budgets.regensRemaining -= 1;
     regensUsed += 1;
+    // callLLM has NO default timeout — without this bound an admitted regen
+    // can run past maxDuration and take the whole stream with it.
+    const bound = deadlineSignal(stageBudgetMs(now, opts.deadlineAtMs, REGEN_ESTIMATE_MS));
     try {
-      const result = await callLLM(buildRegenRequest(opts, modelBody.trim(), initial.errors));
+      const result = await callLLM({
+        ...buildRegenRequest(opts, modelBody.trim(), initial.errors),
+        signal: bound.signal,
+      });
       costUsd += result.inputTokens * SONNET_IN + result.outputTokens * SONNET_OUT;
       const regenBody = result.content.trim();
       if (regenBody.length > 0) {
@@ -524,7 +573,9 @@ export async function runInsightLadder(
         }
       }
     } catch {
-      /* fall through to the template floor */
+      /* fall through to the template floor (includes the deadline abort) */
+    } finally {
+      bound.done();
     }
   } else if (now() + REGEN_ESTIMATE_MS >= opts.deadlineAtMs) {
     deadlineBreached = true;

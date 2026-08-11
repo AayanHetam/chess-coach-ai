@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { waitForStableFen } from "../helpers";
 
 /**
  * Eliminate mode: marking squares you've ruled out.
@@ -19,29 +20,6 @@ test.describe("eliminate mode", () => {
       "true",
       { timeout: 30_000 },
     );
-  }
-
-  /**
-   * Wait until the board stops changing puzzle.
-   *
-   * /puzzles can render a resumed puzzle first and then swap in the feed's
-   * first batch, so the position is not stable the instant the board becomes
-   * interactive. Without this the "position never changes" assertion compares
-   * two different PUZZLES and fails for a reason that has nothing to do with
-   * what it is testing — which is exactly how it failed on CI while passing
-   * locally, where the feed resolves faster.
-   */
-  async function waitForStableFen(page: Page): Promise<string> {
-    const board = page.locator("[data-board-fen]");
-    let last = await board.getAttribute("data-board-fen");
-    for (let i = 0; i < 20; i++) {
-      await page.waitForTimeout(400);
-      const now = await board.getAttribute("data-board-fen");
-      if (now && now === last) return now;
-      last = now;
-    }
-    expect(last, "board never settled on a puzzle").toBeTruthy();
-    return last as string;
   }
 
   test("toggling it suspends move input and restores it", async ({ page }) => {

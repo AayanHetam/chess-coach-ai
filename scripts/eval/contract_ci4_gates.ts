@@ -19,10 +19,14 @@
  *    (runInsightChecks consults the contract-global eval-display licence
  *    pool, so entries from different games must not be pooled into one call).
  *
- * ARMING: DEFAULT_ARMING_TABLE on main is all-`warn` while the referee
- * workstream's FP re-measurement runs, which would make every card `pass` and
- * the fabrication gate vacuous. The gate run passes the explicit
- * CI5_CANDIDATE_ARMING_TABLE (scripts/eval/ci4GateTable.ts).
+ * ARMING: the gate run measures the REAL serving table. It passes
+ * CI4_GATE_ARMING_TABLE (scripts/eval/ci4GateTable.ts), which is
+ * `DEFAULT_ARMING_TABLE` plus a declared, enumerated override set — currently
+ * empty, so the gate verdict describes exactly the posture a
+ * CONTRACT_CATEGORIES flip would apply. An explicit table must still be passed
+ * (the enforced stream defaults to no arming, which would make every card
+ * `pass` and the fabrication gate vacuous); what it must never be is a
+ * hand-copied mirror of the serving severities.
  *
  * Run from the repo root:
  *   npx tsx scripts/eval/contract_ci4_gates.ts --dry-run
@@ -36,7 +40,7 @@ import type { CoachContract, InsightContract } from "@/lib/contract/types";
 import type { FidelityEntry } from "@/lib/contract/refereeChecks";
 import type { GameEvalInput, GameHeadersInput } from "@/lib/contract/gameEvalSchema";
 import type { LadderStage } from "@/lib/contract/ladder";
-import { CI5_CANDIDATE_ARMING_TABLE } from "./ci4GateTable";
+import { CI4_GATE_ARMING_TABLE } from "./ci4GateTable";
 
 const REPO_ROOT = process.cwd();
 const FIXTURES_DIR = path.join(REPO_ROOT, "src/lib/contract/__tests__/fixtures");
@@ -240,7 +244,7 @@ async function runDryRun(): Promise<void> {
       budgets: { editsRemaining: 0, regensRemaining: 0, relationalRemaining: 0 },
       regenSystem: { stable: "", perUser: "" },
     },
-    CI5_CANDIDATE_ARMING_TABLE,
+    CI4_GATE_ARMING_TABLE,
   );
   check("ladder returns a card with the server header", res.finalText.startsWith("[INSIGHT:"));
   check("ladder strips citations from shipped text", !res.finalText.includes("[F:"));
@@ -300,7 +304,7 @@ async function runLive(args: Args): Promise<void> {
   const fixtures = loadFixtures(args.only);
   console.log(
     `\n=== CI-4 gate run: ${fixtures.length} fixtures x ${args.samples} samples ` +
-      `(arming = CI5_CANDIDATE_ARMING_TABLE) ===`,
+      `(arming = CI4_GATE_ARMING_TABLE) ===`,
   );
 
   const samples: SampleResult[] = [];
@@ -381,7 +385,7 @@ async function runLive(args: Args): Promise<void> {
         citationGranularity: "sentence",
         deadlineAtMs: t0 + 55_000,
         regenSystem: vParts,
-        armingTable: CI5_CANDIDATE_ARMING_TABLE,
+        armingTable: CI4_GATE_ARMING_TABLE,
       });
       for await (const evt of callLLMStream({
         tier: "flagship",
@@ -590,7 +594,7 @@ async function runLive(args: Args): Promise<void> {
     samplesPerFixture: args.samples,
     userMessage: USER_MESSAGE,
     refereeMode: "full",
-    armingTable: CI5_CANDIDATE_ARMING_TABLE,
+    armingTable: CI4_GATE_ARMING_TABLE,
     gateThresholds: {
       personaPooled: GATE_PERSONA_POOLED,
       personaPerRun: GATE_PERSONA_PER_RUN,

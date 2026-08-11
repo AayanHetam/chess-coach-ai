@@ -37,7 +37,7 @@ import type { CoachContract } from "@/lib/contract/types";
 import type { FidelityEntry } from "@/lib/contract/refereeChecks";
 import type { GameEvalInput, GameHeadersInput } from "@/lib/contract/gameEvalSchema";
 import type { LadderStage } from "@/lib/contract/ladder";
-import { CI5_CANDIDATE_ARMING_TABLE } from "./ci4GateTable";
+import { CI4_GATE_ARMING_TABLE } from "./ci4GateTable";
 
 const REPO_ROOT = process.cwd();
 const FIXTURES_DIR = path.join(REPO_ROOT, "src/lib/contract/__tests__/fixtures");
@@ -191,16 +191,12 @@ async function runDryRun(): Promise<void> {
     citationGranularity: "sentence",
     deadlineAtMs: Date.now() + 1, // deadline already breached ⇒ no LLM stages
     regenSystem: sys,
-    // The DEFAULT arming table is all-warn since the precision-pack
-    // correction (30-game FP adjudication) — this smoke exercises the
-    // ENFORCEMENT machinery, so it arms explicitly.
-    armingTable: {
-      eval_display: "error",
-      san_whitelist: "error",
-      tactical_keyword: "error",
-      forbidden_claim: "error",
-      citation_invalid: "error",
-    },
+    // SECOND hand-copied mirror, removed 2026-08-11: this used to arm five
+    // rows by hand. The enforced stream applies no arming unless a table is
+    // passed, so the smoke must pass one — but it passes the SAME shared table
+    // the live gate runs use, so the deterministic smoke and the billed
+    // measurement can never disagree about what "armed" means.
+    armingTable: CI4_GATE_ARMING_TABLE,
   });
   for (let i = 0; i < message.length; i += 17) stream.push(message.slice(i, i + 17));
   const summary = await stream.end();
@@ -392,12 +388,12 @@ async function runLive(args: Args): Promise<void> {
       citationGranularity: "sentence",
       deadlineAtMs: tContract + 55_000,
       regenSystem: vParts,
-      // Without an explicit table this measured NOTHING: DEFAULT_ARMING_TABLE
-      // is all-warn while the referee workstream re-measures false positives,
-      // so every card would `pass`, shipped prose would equal raw model prose,
-      // and the fabrication gate below would be vacuous. Same table the
-      // multi-sample gate run uses (scripts/eval/ci4GateTable.ts).
-      armingTable: CI5_CANDIDATE_ARMING_TABLE,
+      // The REAL serving table (DEFAULT_ARMING_TABLE) plus a declared,
+      // enumerated override set — see scripts/eval/ci4GateTable.ts. Passing it
+      // explicitly is still required: the enforced stream defaults to no
+      // arming, which would make every card `pass` and the fabrication gate
+      // vacuous. What it must never be again is a hand-copied mirror.
+      armingTable: CI4_GATE_ARMING_TABLE,
     });
     for await (const evt of callLLMStream({
       tier: "flagship",

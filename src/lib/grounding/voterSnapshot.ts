@@ -35,10 +35,25 @@ import {
   fetch_lichess_tablebase,
   isTablebaseEligible,
   type TablebaseResult,
+  FETCH_TIMEOUT_MS as TABLEBASE_TIMEOUT_MS,
 } from "@/lib/mastermind/lichessTablebase";
-import { queryChessdb, type ChessdbResult } from "./chessdb";
-import { queryLc0, shouldCallLc0, type Lc0Result } from "./lc0";
-import { queryMaiaAtRating, shouldCallMaia, type MaiaProbResult } from "./maia";
+import {
+  queryChessdb,
+  FETCH_TIMEOUT_MS as CHESSDB_TIMEOUT_MS,
+  type ChessdbResult,
+} from "./chessdb";
+import {
+  queryLc0,
+  shouldCallLc0,
+  FETCH_TIMEOUT_MS as LC0_TIMEOUT_MS,
+  type Lc0Result,
+} from "./lc0";
+import {
+  queryMaiaAtRating,
+  shouldCallMaia,
+  FETCH_TIMEOUT_MS as MAIA_TIMEOUT_MS,
+  type MaiaProbResult,
+} from "./maia";
 import { compileVoterResult } from "./voter";
 import { detectMotifs } from "@/lib/tactics";
 import type { VoterSnapshot } from "@/lib/mastermind/validators";
@@ -218,14 +233,46 @@ interface FetchOutcome<T> {
  *
  * Telemetry "fail" covers both a throw and a clean null (gate wanted grounding,
  * none came back) — that's the existing dashboard semantic. The breaker, by
- * contrast, only counts THROWS: a source that resolves null (unconfigured, or a
- * genuine "no data for this FEN") is responding cheaply and must not be tripped
- * out, only one that is actually eating its timeout should be.
+ * contrast, only counts real failures: a source that resolves null CHEAPLY
+ * (unconfigured, or a genuine "no data for this FEN") is responding and must
+ * not be tripped out; only one that is actually eating its timeout should be.
+ *
+ * T2 (SILENT_SUBSTITUTION_HANDOFF §4): that distinction used to be drawn as
+ * "threw vs resolved", which made the breaker unreachable. Every client wraps
+ * its aborting fetch in `catch { return null }` (chessdb.ts, lc0.ts, maia.ts,
+ * lichessTablebase.ts), so a TIMEOUT arrives here as a *successfully resolved
+ * null* — `recordSuccess` ran, the consecutive-failure counter reset, and the
+ * breaker could never open. During an outage every turn paid the full ~8s
+ * ceiling, forever. The unit test that "proved" the breaker worked mocked a
+ * rejection: a shape production cannot produce.
+ *
+ * So classify on ELAPSED TIME instead of on how the value arrived.
  */
+
+/**
+ * Should this outcome count as a breaker failure?
+ *
+ * A null that consumed essentially the whole timeout budget is a timeout,
+ * whatever wrapper swallowed it. A null that came back fast is a healthy
+ * "no data". Pure, so the rule is testable without simulating a network.
+ */
+export function isBreakerFailure(
+  value: unknown,
+  elapsedMs: number,
+  timeoutMs: number,
+): boolean {
+  if (value != null) return false;
+  return elapsedMs >= timeoutMs * TIMEOUT_ATTRIBUTION_RATIO;
+}
+
+/** How much of the budget a null must consume to be read as a timeout. */
+const TIMEOUT_ATTRIBUTION_RATIO = 0.9;
+
 async function fetchWithBreaker<T>(
   key: string,
   gated: boolean,
   nowMs: number,
+  timeoutMs: number,
   fetchFn: () => Promise<T | null>,
 ): Promise<FetchOutcome<T>> {
   if (!gated) return { value: null, status: "skipped", ms: 0 };
@@ -233,8 +280,10 @@ async function fetchWithBreaker<T>(
   const start = Date.now();
   try {
     const value = await fetchFn();
-    recordSuccess(key);
-    return { value, status: value == null ? "fail" : "ok", ms: Date.now() - start };
+    const ms = Date.now() - start;
+    if (isBreakerFailure(value, ms, timeoutMs)) recordFailure(key, nowMs);
+    else recordSuccess(key);
+    return { value, status: value == null ? "fail" : "ok", ms };
   } catch {
     recordFailure(key, nowMs);
     return { value: null, status: "fail", ms: Date.now() - start };
@@ -301,12 +350,16 @@ export async function buildAsyncSnapshotForMove(
   const tablebaseGated = isTablebaseEligible(input.fenBefore);
 
   const [chessdb, lc0, maia, tablebase] = await Promise.all([
-    fetchWithBreaker("chessdb", true, now, () => queryChessdb(input.fenBefore)),
-    fetchWithBreaker("lc0", lc0Gated, now, () => queryLc0(input.fenBefore)),
-    fetchWithBreaker("maia", maiaGated, now, () =>
+    fetchWithBreaker("chessdb", true, now, CHESSDB_TIMEOUT_MS, () =>
+      queryChessdb(input.fenBefore),
+    ),
+    fetchWithBreaker("lc0", lc0Gated, now, LC0_TIMEOUT_MS, () =>
+      queryLc0(input.fenBefore),
+    ),
+    fetchWithBreaker("maia", maiaGated, now, MAIA_TIMEOUT_MS, () =>
       queryMaiaAtRating(input.fenBefore, input.userRating!, bestMoveUci!),
     ),
-    fetchWithBreaker("tablebase", tablebaseGated, now, () =>
+    fetchWithBreaker("tablebase", tablebaseGated, now, TABLEBASE_TIMEOUT_MS, () =>
       fetch_lichess_tablebase(input.fenBefore),
     ),
   ]);

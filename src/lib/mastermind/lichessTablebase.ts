@@ -8,7 +8,7 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 // endpoint can't answer — now hot per-move via buildAsyncSnapshotForMove, those
 // were guaranteed-failing fetches eating the per-source timeout every turn.
 const MAX_NON_KING_PIECES = 5;
-const FETCH_TIMEOUT_MS = 5000;
+export const FETCH_TIMEOUT_MS = 5000;
 
 export type TablebaseCategory =
   | "win"

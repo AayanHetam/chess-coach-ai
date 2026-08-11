@@ -305,6 +305,50 @@ describe("buildAsyncSnapshotForMove", () => {
     expect(mockQueryChessdb).toHaveBeenCalledTimes(BREAKER_THRESHOLD + 2);
   });
 
+  it("opens the breaker when the source TIMES OUT — the shape production actually produces", async () => {
+    // T2 (SILENT_SUBSTITUTION_HANDOFF §4). This is the case the suite was
+    // missing. The neighbouring test mocks a REJECTION, but no grounding
+    // client can reject: each one wraps its aborting fetch in
+    // `catch { return null }`. So in production a timeout arrives as a
+    // resolved null, `recordSuccess` ran, the counter reset, and the breaker
+    // could never open — every turn paid the full timeout for the whole
+    // outage.
+    //
+    // Simulated by advancing the clock across the fetch rather than really
+    // waiting 6s: the breaker classifies on ELAPSED TIME, so that is the only
+    // thing the test needs to control. Other sources are gated off to keep
+    // the Date.now() call sequence deterministic.
+    mockShouldCallLc0.mockReturnValue(false);
+    mockShouldCallMaia.mockReturnValue(false);
+    mockIsTablebaseEligible.mockReturnValue(false);
+    const CHESSDB_TIMEOUT_MS = 6000;
+
+    // Model what actually happens: time passes DURING the fetch, and the
+    // client hands back a null when its own AbortController fires. Advancing
+    // a fake clock inside the mock keeps this independent of how many times
+    // Date.now() happens to be called, and keeps the turn's `now` (read before
+    // the fetch) well inside the breaker cooldown window.
+    let clock = 1_000_000;
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => clock);
+    mockQueryChessdb.mockImplementation(async () => {
+      clock += CHESSDB_TIMEOUT_MS;
+      return null;
+    });
+
+    try {
+      for (let i = 0; i < BREAKER_THRESHOLD; i++) {
+        await buildAsyncSnapshotForMove(baseInput());
+      }
+      expect(mockQueryChessdb).toHaveBeenCalledTimes(BREAKER_THRESHOLD);
+
+      // Breaker must now be open: the next turn must not call chessdb at all.
+      await buildAsyncSnapshotForMove(baseInput());
+      expect(mockQueryChessdb).toHaveBeenCalledTimes(BREAKER_THRESHOLD);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
   it("opens the breaker after repeated throws and skips the source (circuit_open)", async () => {
     mockQueryChessdb.mockRejectedValue(new Error("chessdb.cn down"));
     for (let i = 0; i < BREAKER_THRESHOLD; i++) {

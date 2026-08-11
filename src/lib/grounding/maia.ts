@@ -26,7 +26,7 @@ import { Chess } from "chess.js";
 import type { ConfidenceLevel } from "./voter";
 
 const MAIA_API_URL = process.env.MAIA_API_URL;
-const FETCH_TIMEOUT_MS = 6000;
+export const FETCH_TIMEOUT_MS = 6000;
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 min — Maia is deterministic per (fen, rating)
 
 // Visibility thresholds — derived from Maia-2 paper distribution norms.

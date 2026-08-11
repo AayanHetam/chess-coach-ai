@@ -15,6 +15,9 @@
 import { Chess } from "chess.js";
 import { annotatePosition, annotationToPromptContext } from "@/lib/positionAnnotator";
 import { detectMotifs } from "@/lib/tactics";
+import { logger } from "@/lib/logging";
+
+const log = logger.child({ module: "contract-builder" });
 import type { AnyMotif } from "@/lib/tactics";
 import { buildMotifLicense } from "./motifScope";
 import { queryChessdb, type ChessdbResult } from "@/lib/grounding/chessdb";
@@ -385,12 +388,35 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
   }
 
   const tFetchStart = Date.now();
-  await Promise.all([
-    ...Array.from(chessdbByFen.values()),
-    ...Array.from(lc0ByFen.values()),
-    ...Array.from(maiaByKey.values()),
+  const [chessdbSettled, lc0Settled, maiaSettled] = await Promise.all([
+    Promise.all(Array.from(chessdbByFen.values())),
+    Promise.all(Array.from(lc0ByFen.values())),
+    Promise.all(Array.from(maiaByKey.values())),
   ]);
   const fetchWaitMs = Date.now() - tFetchStart;
+
+  // T4 (SILENT_SUBSTITUTION_HANDOFF §4): until this line existed, the
+  // prompt-side grounding path was completely unobservable. Every fetch above
+  // is `.catch(() => null)`, so if chessdb started failing 100% tomorrow,
+  // nothing in the logs would change, the prompt would just quietly get
+  // thinner, and the measured +70pp tactical-accuracy result could not be
+  // re-verified. (`stage9_async_grounding_fetched` covers only the VALIDATOR
+  // path — a different set of fetches.)
+  //
+  // A null here is not necessarily a failure: it is also how "no data for this
+  // FEN" and "source not configured" arrive. The point is that a *change* in
+  // the ok/null ratio becomes visible at all.
+  const hitRate = (vals: Array<unknown>) => ({
+    requested: vals.length,
+    ok: vals.filter((v) => v != null).length,
+  });
+  log.info("contract_grounding_fetched", {
+    fetchWaitMs,
+    plies: unionPlies.length,
+    chessdb: hitRate(chessdbSettled),
+    lc0: hitRate(lc0Settled),
+    maia: hitRate(maiaSettled),
+  });
 
   // --- Build each insight ---
   const insights: InsightContract[] = [];

@@ -2,6 +2,7 @@
 
 import { Box, Button, TextField, Typography } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
+import { Check } from "lucide-react";
 import QuizProgress from "./QuizProgress";
 import QuizStep from "./QuizStep";
 import QuizOption from "./QuizOption";
@@ -171,6 +172,81 @@ export default function OnboardingQuiz({
                 onClick={() => q.setTime(o.key)}
               />
             ))}
+
+            {/* Reminder opt-in. Deliberately a VISIBLE, pre-checked choice on
+                the last question rather than a silent default at signup: a
+                daily nudge is the mechanism that makes the plan a plan, but
+                turning notifications on without the user seeing it is a dark
+                pattern — and this product gates under-13 users. Unchecking is
+                recorded as an explicit false so we never re-ask. */}
+            <Box
+              onClick={() => q.setDailyReminder(!q.answers.dailyReminder)}
+              role="checkbox"
+              aria-checked={q.answers.dailyReminder}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === " " || e.key === "Enter") {
+                  e.preventDefault();
+                  q.setDailyReminder(!q.answers.dailyReminder);
+                }
+              }}
+              sx={{
+                mt: 2.5,
+                p: 1.75,
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 1.5,
+                cursor: "pointer",
+                borderRadius: "12px",
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                transition: "background 180ms ease-out",
+                "&:hover": { background: "rgba(255,255,255,0.06)" },
+              }}
+            >
+              <Box
+                sx={{
+                  mt: "2px",
+                  width: 20,
+                  height: 20,
+                  flexShrink: 0,
+                  borderRadius: "6px",
+                  display: "grid",
+                  placeItems: "center",
+                  background: q.answers.dailyReminder
+                    ? "linear-gradient(135deg, #F97316, #EA580C)"
+                    : "transparent",
+                  border: q.answers.dailyReminder
+                    ? "none"
+                    : "2px solid rgba(255,255,255,0.3)",
+                }}
+              >
+                {q.answers.dailyReminder && (
+                  <Check size={13} color="#0A0907" strokeWidth={3.5} />
+                )}
+              </Box>
+              <Box>
+                <Typography
+                  sx={{
+                    color: "rgba(255,255,255,0.92)",
+                    fontWeight: 600,
+                    fontSize: "0.92rem",
+                  }}
+                >
+                  Email me a daily nudge
+                </Typography>
+                <Typography
+                  sx={{
+                    color: "rgba(255,255,255,0.5)",
+                    fontSize: "0.8rem",
+                    mt: 0.25,
+                  }}
+                >
+                  One short reminder so you don&apos;t break your streak. Turn
+                  it off anytime.
+                </Typography>
+              </Box>
+            </Box>
           </QuizStep>
         );
 

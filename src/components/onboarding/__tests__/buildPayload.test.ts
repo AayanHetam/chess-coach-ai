@@ -167,4 +167,29 @@ describe("buildPayload", () => {
     // rating is always derived
     expect(p.selfReportedRating).toBe(1500);
   });
+
+  // Reminder consent. This field turns notifications on for a real person, so
+  // it must be carried exactly as answered — never inferred, never dropped.
+  it("opts the user in when the pre-checked box is left alone", () => {
+    const p = buildPayload(answers({ playStyle: "new", dailyReminder: true }));
+    expect(p.reminderPrefs).toEqual({ enabled: true });
+  });
+
+  it("records an explicit decline rather than leaving it undefined", () => {
+    // Undefined would read as "never asked" and get the user re-prompted,
+    // which is exactly what unchecking the box is meant to prevent.
+    const p = buildPayload(answers({ playStyle: "new", dailyReminder: false }));
+    expect(p.reminderPrefs).toEqual({ enabled: false });
+  });
+
+  it("always emits reminderPrefs, on every quiz path", () => {
+    const online = buildPayload(
+      answers({ playStyle: "lichess", rating: 1500, dailyReminder: true }),
+    );
+    const selfAssessed = buildPayload(
+      answers({ playStyle: "otb", dailyReminder: true }),
+    );
+    expect(online.reminderPrefs).toBeDefined();
+    expect(selfAssessed.reminderPrefs).toBeDefined();
+  });
 });

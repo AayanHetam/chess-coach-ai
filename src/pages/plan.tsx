@@ -339,7 +339,7 @@ function PlanShell({ children }: { children: React.ReactNode }) {
       </Head>
       <GradientBackdrop />
       <Box sx={{ minHeight: "100vh", pt: 2, pb: 6, px: { xs: 2, md: 3 } }}>
-        <NavPill badge={{ label: "Your plan" }} />
+        <NavPill active="plan" />
         <Box
           sx={{
             maxWidth: 760,

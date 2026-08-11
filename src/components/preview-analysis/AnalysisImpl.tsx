@@ -8545,7 +8545,7 @@ export default function AnalysisPage() {
           px: { xs: 2, md: 3 },
         }}
       >
-        <SharedNavPill active="analysis" badge={{ label: "Analysis" }} />
+        <SharedNavPill active="analysis" />
 
         {/* Lc0DownloadBanner — was previously injected by the legacy
             chrome (sections/layout/index.tsx) which the cutover dropped

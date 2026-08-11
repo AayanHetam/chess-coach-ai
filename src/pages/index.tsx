@@ -426,8 +426,12 @@ function Hero() {
           }}
         >
           <Stack direction="row" spacing={2} sx={{ mt: 4.5, flexWrap: "wrap" }}>
-            <PrimaryCTA href="/analysis">Analyze a game</PrimaryCTA>
-            <GhostCTA href="/puzzles">Try a puzzle</GhostCTA>
+            {/* Program-first (2026-08-10): the plan is the product, so it
+                leads. "Analyze a game" stays as the secondary action — it is
+                the conversion path for AEO traffic arriving on coach queries
+                and must not be removed. */}
+            <PrimaryCTA href="/onboarding">Start your plan</PrimaryCTA>
+            <GhostCTA href="/analysis">Analyze a game</GhostCTA>
           </Stack>
         </motion.div>
 
@@ -2266,8 +2270,8 @@ function FinalCTA() {
           justifyContent="center"
           sx={{ flexWrap: "wrap" }}
         >
-          <PrimaryCTA href="/analysis">Analyze a game</PrimaryCTA>
-          <GhostCTA href="/play">Or just play</GhostCTA>
+          <PrimaryCTA href="/onboarding">Start your plan</PrimaryCTA>
+          <GhostCTA href="/analysis">Analyze a game</GhostCTA>
         </Stack>
       </Box>
     </Box>
@@ -2430,7 +2434,7 @@ export default function LandingPage() {
           px: { xs: 2, md: 4 },
         }}
       >
-        <NavPill active="launch" badge={{ label: "Launch" }} />
+        <NavPill active="launch" />
         <Box sx={{ maxWidth: 1200, mx: "auto" }}>
           {/* Renders only for logged-in CMIP interns; renders nothing for customers. */}
           <InternalHomeCard />

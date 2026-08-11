@@ -45,3 +45,15 @@ export const answerModeAtom = atomWithStorage<PuzzleAnswerMode>(
   "cm_puzzle_answer_mode",
   "board",
 );
+
+/**
+ * Hide the solve clock.
+ *
+ * A visible timer motivates some players and rattles others, and the ones it
+ * rattles are disproportionately the beginners this trainer is for. Per-device
+ * like the other input preferences.
+ */
+export const hideSolveTimerAtom = atomWithStorage<boolean>(
+  "cm_puzzle_hide_timer",
+  false,
+);

@@ -40,6 +40,7 @@ import type { CoachContract, InsightContract } from "@/lib/contract/types";
 import type { FidelityEntry, FidelityReport } from "@/lib/contract/refereeChecks";
 import type { GameEvalInput, GameHeadersInput } from "@/lib/contract/gameEvalSchema";
 import type { LadderStage } from "@/lib/contract/ladder";
+import { CI5_CANDIDATE_ARMING_TABLE } from "./ci4GateTable";
 
 const REPO_ROOT = process.cwd();
 const FIXTURES_DIR = path.join(REPO_ROOT, "src/lib/contract/__tests__/fixtures");
@@ -386,9 +387,18 @@ async function runDryRun(): Promise<void> {
 
   const original = measureFabrication(text, contract, "original", deps);
   const stripped = measureFabrication(text, contract, "stripped", deps);
+  // STALE ASSERTION REPAIRED 2026-08-11 (CI-4 gate recovery). This used to
+  // require original.fabricationCount > stripped.fabricationCount — i.e. that
+  // a [CONCEPT:fork:...] widget line ADDS a violation when it is refereed.
+  // The referee round-2 work licensed concept-widget keyword text (it is a
+  // practice-button label, not a claim), so the widget line no longer fires
+  // in EITHER footprint and the counts are equal. That is the intended
+  // behaviour, not a regression: what still separates the two footprints is
+  // the DENOMINATOR (widget lines counted as claim sentences), which the next
+  // check pins. Verified pre-existing on main @010818b before this branch.
   check(
-    "original footprint referees the widget line (violations > stripped)",
-    original.fabricationCount > stripped.fabricationCount,
+    "original footprint never UNDER-counts violations vs stripped",
+    original.fabricationCount >= stripped.fabricationCount,
     { original, stripped },
   );
   check(
@@ -533,6 +543,9 @@ async function runLive(args: Args): Promise<void> {
       citationGranularity: "sentence",
       deadlineAtMs: tContract + 55_000,
       regenSystem: vParts,
+      // See contract_ci4_eval.ts: DEFAULT_ARMING_TABLE is all-warn on main, so
+      // an unarmed verify run would compare raw model prose against itself.
+      armingTable: CI5_CANDIDATE_ARMING_TABLE,
     });
     for await (const evt of callLLMStream({
       tier: "flagship",

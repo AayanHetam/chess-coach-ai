@@ -86,6 +86,32 @@ describe("checkCitations", () => {
     expect(r.claimSentences).toBe(1);
     expect(r.coverage).toBe(1);
   });
+
+  // ── gate recovery (2026-08-11) ────────────────────────────────────────────
+  it("a move number does not fragment one cited sentence into three", () => {
+    const prose = "The engine line runs 8... Ba5+ 9. Bd2 Bb4 [F:M1.pv0].";
+    const r = checkCitations(prose, insight);
+    expect(r.claimSentences).toBe(1);
+    expect(r.coverage).toBe(1);
+  });
+
+  it("generic [CONCEPT] pedagogy leaves the denominator; concrete concept prose does not", () => {
+    const generic =
+      "Ne6 wins material [F:M1.pv0].\n" +
+      "[CONCEPT:fork:Knight Fork Tactics]\n" +
+      "Knight forks punish pieces that stand a hop apart — one move, two targets.\n" +
+      "[/CONCEPT]";
+    expect(checkCitations(generic, insight).claimSentences).toBe(1);
+
+    const concrete =
+      "Ne6 wins material [F:M1.pv0].\n" +
+      "[CONCEPT:fork:Knight Fork Tactics]\n" +
+      "Here the knight landing on e6 is exactly that pattern.\n" +
+      "[/CONCEPT]";
+    const r = checkCitations(concrete, insight);
+    expect(r.claimSentences).toBe(2);
+    expect(r.coverage).toBeCloseTo(0.5);
+  });
 });
 
 describe("stripGrammarTokenLines", () => {

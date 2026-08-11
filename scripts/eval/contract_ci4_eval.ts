@@ -37,6 +37,7 @@ import type { CoachContract } from "@/lib/contract/types";
 import type { FidelityEntry } from "@/lib/contract/refereeChecks";
 import type { GameEvalInput, GameHeadersInput } from "@/lib/contract/gameEvalSchema";
 import type { LadderStage } from "@/lib/contract/ladder";
+import { CI5_CANDIDATE_ARMING_TABLE } from "./ci4GateTable";
 
 const REPO_ROOT = process.cwd();
 const FIXTURES_DIR = path.join(REPO_ROOT, "src/lib/contract/__tests__/fixtures");
@@ -391,6 +392,12 @@ async function runLive(args: Args): Promise<void> {
       citationGranularity: "sentence",
       deadlineAtMs: tContract + 55_000,
       regenSystem: vParts,
+      // Without an explicit table this measured NOTHING: DEFAULT_ARMING_TABLE
+      // is all-warn while the referee workstream re-measures false positives,
+      // so every card would `pass`, shipped prose would equal raw model prose,
+      // and the fabrication gate below would be vacuous. Same table the
+      // multi-sample gate run uses (scripts/eval/ci4GateTable.ts).
+      armingTable: CI5_CANDIDATE_ARMING_TABLE,
     });
     for await (const evt of callLLMStream({
       tier: "flagship",

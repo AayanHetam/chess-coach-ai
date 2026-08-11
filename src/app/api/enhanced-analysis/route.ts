@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hasTrackingConsent } from "@/lib/tracking/consent";
 import { Chess } from "chess.js";
 import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { selectExamples, formatExamplesForPrompt } from "@/data/goldStandardExamples";

@@ -26,9 +26,10 @@ import { currentAppVersion } from "./track";
  * GAME, i.e. AI-conversation content. That is covered by the live privacy
  * policy's consent-gated section, so this writer takes an explicit per-request
  * `consent` decision (hasTrackingConsent: `cm_consent=accepted` and no
- * `Sec-GPC: 1`) and drops the row without it. Note this is STRICTER than
- * llmCapture, which gates on TRACKING_ENABLED alone and leaves consent to the
- * /api/track* route boundary it never passes through — see the CI-5 notes.
+ * `Sec-GPC: 1`) and drops the row without it. Note: llmCapture gated on
+ * TRACKING_ENABLED alone until 2026-08-11 — a live privacy
+ * gap this work surfaced, closed in PR #263; both writers now consent-gate,
+ * since neither passes through the /api/track* boundary that enforces it.
  * Identifiers are the existing uid/anon_id convention and nothing more: no
  * IP, no user agent, no session id.
  */

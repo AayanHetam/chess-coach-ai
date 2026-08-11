@@ -666,7 +666,14 @@ async function runLive(args: Args): Promise<void> {
           pools,
         );
         for (const f of errors) {
-          const adjudication = adjudicateFp(f, pools, { stripSanDecorations, isPvWindow });
+          const sentence = carrierSentence(prose, f.span);
+          const adjudication = adjudicateFp(f, pools, {
+            stripSanDecorations,
+            isPvWindow,
+            // Board context for the trapped-class check (see fpAdjudication).
+            sentence,
+            fens: [insight.fenBefore, insight.fenAfter],
+          });
           const isFalse = adjudication !== "needs-review";
           armedFires++;
           if (isFalse) falseFires++;
@@ -680,10 +687,7 @@ async function runLive(args: Args): Promise<void> {
             span: f.span,
             adjudication,
             isFalse,
-            // ServingFinding carries no offset, so the span is located by
-            // search — sound here because a fire's span always occurs in the
-            // prose it was computed from.
-            sentence: carrierSentence(prose, f.span),
+            sentence,
             fenBefore: insight.fenBefore,
             fenAfter: insight.fenAfter,
             playedSan: insight.playedSan,

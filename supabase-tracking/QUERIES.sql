@@ -64,3 +64,109 @@ with this_week as (select distinct coalesce(uid, anon_id) a from events where ts
      prior as (select distinct coalesce(uid, anon_id) a from events where ts <= now() - interval '7 days' and ts > now() - interval '35 days')
 select (select count(*) from this_week) as active_this_week,
        (select count(*) from this_week t join prior p on t.a = p.a) as returning;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- CI-5: shadow-referee outcomes (referee_outcomes)
+--
+-- These three are what the morning report runs. Read them with the arming
+-- caveat in mind: `armed_errors` counts fires the CURRENT arming table would
+-- have ENFORCED, and `arming_fingerprint` names that table. Always group or
+-- filter by arming_fingerprint when a window spans a re-arming, or you are
+-- averaging two different measurements.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ── HEADLINE: real-traffic fabrication rate ──────────────────────────────────
+-- Share of real user reviews with at least one would-be-ENFORCED fire.
+-- Denominator is reviews the referee actually graded (matched > 0): a review
+-- where no block anchored to its contract was never checked, so counting it
+-- as clean would silently deflate the rate.
+select arming_fingerprint,
+       count(*)                                            as reviews,
+       count(*) filter (where armed_errors > 0)            as reviews_with_error,
+       round(100.0 * count(*) filter (where armed_errors > 0)
+             / nullif(count(*), 0), 2)                     as fabrication_rate_pct,
+       round(avg(armed_errors)::numeric, 3)                as mean_armed_errors_per_review,
+       sum(armed_errors)                                   as armed_error_fires,
+       sum(armed_warns)                                    as armed_warn_fires
+from referee_outcomes
+where ts > now() - interval '7 days'
+  and matched > 0
+group by arming_fingerprint
+order by reviews desc;
+
+-- Same number as a daily trend (single arming table assumed; add
+-- arming_fingerprint to the group-by if a re-arming lands mid-window).
+select date_trunc('day', ts)                               as day,
+       count(*)                                            as reviews,
+       round(100.0 * count(*) filter (where armed_errors > 0)
+             / nullif(count(*), 0), 2)                     as fabrication_rate_pct
+from referee_outcomes
+where ts > now() - interval '30 days' and matched > 0
+group by 1 order by 1;
+
+-- ── Per-check fire distribution (where the fabrication actually lives) ───────
+-- check_counts is {check -> fires}; unroll it. `reviews_touched` is how many
+-- distinct reviews the check fired in, which is the number that matters for
+-- precision work — one review spraying 6 fires is not 6 bad reviews.
+select kv.key                                              as check_name,
+       sum(kv.value::int)                                  as fires,
+       count(*)                                            as reviews_touched,
+       round(100.0 * count(*) / nullif((select count(*) from referee_outcomes
+                                        where ts > now() - interval '7 days'
+                                          and matched > 0), 0), 2) as pct_of_reviews
+from referee_outcomes ro,
+     lateral jsonb_each_text(ro.check_counts) kv
+where ro.ts > now() - interval '7 days' and ro.matched > 0
+group by kv.key
+order by fires desc;
+
+-- Same cut by referee category (finer than check — e.g. square_unknown vs
+-- san_unknown inside san_whitelist).
+select kv.key as category, sum(kv.value::int) as fires, count(*) as reviews_touched
+from referee_outcomes ro, lateral jsonb_each_text(ro.category_counts) kv
+where ro.ts > now() - interval '7 days' and ro.matched > 0
+group by kv.key order by fires desc;
+
+-- ── SPAN SAMPLER for adjudication ────────────────────────────────────────────
+-- Span-level review is how every arming decision has been made. This pulls a
+-- random sample of ARMED-ERROR spans (the ones that would have been enforced)
+-- with the sentence they sit in. Change the `s->>'armed'` filter to 'warn' to
+-- adjudicate a candidate before arming it, and set `check_name` to focus on
+-- one check.
+select ro.ts,
+       ro.contract_id,
+       ro.request_id,                    -- join to llm_calls for the full prose
+       ro.model,
+       ro.verbalizer_version,
+       s->>'check'          as check_name,
+       s->>'category'       as category,
+       s->>'severity'       as referee_severity,
+       s->>'armed'          as armed,
+       s->>'factIdPrefix'   as fact_id,
+       s->>'span'           as span,
+       s->>'sentence'       as sentence
+from referee_outcomes ro,
+     lateral jsonb_array_elements(ro.spans) s
+where ro.ts > now() - interval '7 days'
+  and s->>'armed' = 'error'
+  -- and s->>'check' = 'tactical_keyword'
+order by random()
+limit 50;
+
+-- ── Referee cost + coverage (is the shadow gate healthy?) ────────────────────
+-- Unanchored blocks are blind spots: an unmatched or malformed block is prose
+-- the referee never graded, so a rising share here means the headline rate is
+-- measured over less and less of the traffic.
+select count(*)                                            as reviews,
+       sum(blocks_seen)                                    as blocks,
+       sum(matched)                                        as matched,
+       sum(unmatched)                                      as unmatched,
+       sum(malformed_headers)                              as malformed,
+       round(100.0 * sum(unmatched + malformed_headers)
+             / nullif(sum(blocks_seen), 0), 2)             as unanchored_pct,
+       max(max_hold_ms)                                    as worst_hold_ms,
+       round(avg(p95_hold_ms)::numeric, 2)                 as avg_p95_hold_ms,
+       sum(relational_launched)                            as haiku_parses
+from referee_outcomes
+where ts > now() - interval '7 days';

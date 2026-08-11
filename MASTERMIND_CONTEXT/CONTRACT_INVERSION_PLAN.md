@@ -345,3 +345,22 @@ Even on mid-program abandonment, the permanent wins are banked: the typed contra
 **In flight:** referee precision pack (8 FP fixes + pv_truncation + mobility_claims measurement checks + fixtures-real/ with real Stockfish evals + armingConfig all-warn) + v2 30-game re-measurement on branch `feat/referee-precision-pack`.
 
 **CI-5 remaining gates:** arming table from v2 data · citation-coverage decision (70.4% vs ≥80; paragraph-granularity lever built dark) · first-card latency mode decision · preview-env flip + manual smoke · `CONTRACT_UIDS` intern dogfood week · referee-intervention <15% (80–96% pre-precision-pack, FP-driven) · fabrication ≤1/100 multi-sample. Tracking is LIVE and e2e-verified (events + llm_calls), so dogfood traffic is measurable. The migration is complete only after CI-6's ramp and legacy retirement.
+
+---
+
+## 14. Arming decision + CI-5 gate redefinition (2026-08-11)
+
+**Armed at error** (v3 measurement on `fixtures-real`, 30 reviews / 897 claim sentences, position-verified adjudication; plan §9 risk-3 0-false-fire gate satisfied):
+
+| check | evidence |
+|---|---|
+| `tactical_keyword` | 22 fires = **19 TRUE_FABRICATION / 3 ambiguous / 0 FP**. The round-2 refinements (value-aware fork confirmation, skewer threats with pawn back-pieces, immobilized-trapped, definitional exemption) turned v2's 6:8 TF:FP into 19:0. The 3 ambiguous are unverified tactical claims, which founder policy drops anyway. |
+| `eval_display` | 0 fires across v1/v2/v3; pure numeric comparison against contract display strings. |
+
+**Held at warn, blocker named:** `san_whitelist` (every v3 fire is licensed by contract-GLOBAL facts — the insight-local pool is the defect, not the prose), `forbidden_claim` (`isDefinitionalSentence` is wired into the keyword path but not the visibility path; the "dominates" positional class is board-unfalsifiable until Lc0 feeds `positional_plan`). `pv_truncation` stays measurement-only (0 TF / 4 FP; gaps: same-sentence continuation, claimant attribution, PV-occurrence selection). `mobility_claims` literal family measured 9/9 TF / 0 FP and is a graduation candidate. `userVisibility` is permanently warn (standing prohibition, clamped in code).
+
+**Gate redefinition (founder-approved 2026-08-11).** CI-5's original gate — "referee-intervention <15%" — measures the wrong quantity. Under the armed table, 15/30 reviews (50%) contain at least one armed-check fire, but that is the **fabrication rate**, not a false-alarm rate: the measured **false**-intervention rate is **0/30**, and only 3.0% of claim sentences are touched. Satisfying the old gate would require disarming the referee and shipping the fabrications. The gate is therefore restated as:
+
+> **CI-5 gate: false-intervention rate < 15%** (position-verified false positives ÷ total armed fires). Currently **0%**. Intervention rate remains a reported metric, not a pass/fail bar.
+
+**Founder policy governing the ladder** (2026-08-10): unverified tactical claims are dropped or rewritten — never hedged, never shipped. "Consumers who see the coach being wrong will leave much faster than a user thinking the explanation is bare."

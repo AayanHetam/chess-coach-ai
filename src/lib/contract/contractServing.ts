@@ -44,6 +44,42 @@ import type { CoachContract } from "./types";
 /** Route budget for the whole enforced review (maxDuration 60s − 5s). */
 export const CONTRACT_DEADLINE_BUDGET_MS = 55_000;
 
+/**
+ * Budget for FLAGSHIP GENERATION alone (PR-CI-5).
+ *
+ * The ladder deadline above bounds the referee. It does NOT bound the model,
+ * and at game_review scale the model is the long pole: the CI-5 gate run
+ * measured 16-20s for a 1-card review, ~53s for 4 cards, and **76-83s for the
+ * 7-card fixture** — generation only, with the ladder passing every card.
+ * Past `maxDuration: 60s` Vercel kills the function mid-stream: no `done`
+ * event, no metadata, no cache write, and a client left hanging on a partial
+ * review. That is the one failure mode the plan's "never a timeout"
+ * guarantee (§9 risks 7/8) is supposed to exclude, and the ladder deadline
+ * cannot prevent it because the time is spent before the ladder is reached.
+ *
+ * So generation gets its own abort. On expiry the stream closes normally:
+ * completed cards have already been refereed and flushed, an unclosed block
+ * flushes with the existing truncation footnote (plan risk #5 — content is
+ * never swallowed), a `done` event is still sent, and the review is marked
+ * NOT cacheable. A short honest review beats a killed request.
+ *
+ * 45s leaves ~10s inside the 55s ladder budget for the final card's referee
+ * tail, the done metadata, and puzzle recommendations.
+ *
+ * This is a SAFETY NET, not the fix. A 7-card game review genuinely does not
+ * fit 60s; making it fit is a `maxDuration` bump or a card-count decision,
+ * both founder-gated (plan §7 CI-5 open item / tech-lead decision #4).
+ */
+export const CONTRACT_GENERATION_BUDGET_MS = 45_000;
+
+/**
+ * Appended when generation was cut by the budget between cards (an unclosed
+ * block already gets enforcedStream's TRUNCATION_FOOTNOTE). Honest register,
+ * per the founder's 2026-08-10 policy.
+ */
+export const GENERATION_BUDGET_NOTE =
+  "\n\n*I ran out of time before I could cover the rest of this game — the moments above are the ones that mattered most.*";
+
 /** Stages whose shipped content is referee-verified (cacheable). */
 const VERIFIED_STAGES: ReadonlySet<LadderStage> = new Set<LadderStage>([
   "pass",
@@ -69,6 +105,8 @@ export interface ContractDoneMetadata {
   ladderDistribution: Record<LadderStage, number>;
   /** Cards refused by the CI-5 sentinel guard (fabricated classification). */
   sentinelCardsRefused: number;
+  /** Generation was cut by CONTRACT_GENERATION_BUDGET_MS (review is short). */
+  generationTruncated: boolean;
   cached: boolean;
 }
 
@@ -147,6 +185,7 @@ export async function serveContractAnalysis(
           passthrough_footnoted: 0,
         },
         sentinelCardsRefused: 0,
+        generationTruncated: false,
         cached: true,
       },
       summary: null,
@@ -175,6 +214,20 @@ export async function serveContractAnalysis(
 
   const callLLMStream = args.callLLMStreamImpl ?? defaultCallLLMStream;
   let llmResult: LLMResult | null = null;
+  // Generation budget (see CONTRACT_GENERATION_BUDGET_MS): abort the model,
+  // not the request, so an over-long game review degrades into a short honest
+  // review with a proper `done` event instead of a Vercel-killed stream.
+  const generationController = new AbortController();
+  const generationBudgetLeftMs =
+    args.requestStartMs + CONTRACT_GENERATION_BUDGET_MS - Date.now();
+  let generationTruncated = false;
+  const generationTimer = setTimeout(
+    () => {
+      generationTruncated = true;
+      generationController.abort();
+    },
+    Math.max(0, generationBudgetLeftMs),
+  );
   try {
     for await (const evt of callLLMStream({
       tier: "flagship",
@@ -184,6 +237,7 @@ export async function serveContractAnalysis(
       temperature: 0.7,
       maxTokens: maxTokensForInsights(cardCount),
       cacheSystem: true,
+      signal: generationController.signal,
       capture: {
         feature: "enhanced-analysis",
         consent: args.trackingConsent,
@@ -200,20 +254,37 @@ export async function serveContractAnalysis(
       }
     }
   } catch (err) {
-    // Fail-visible: drain what was already held (never blank), then let the
-    // route's uniform error handling take over (same contract as legacy).
-    await stream.end();
-    throw err;
+    if (!generationTruncated) {
+      // Fail-visible: drain what was already held (never blank), then let the
+      // route's uniform error handling take over (same contract as legacy).
+      clearTimeout(generationTimer);
+      await stream.end();
+      throw err;
+    }
+    // Deliberate budget cut — NOT an error. Fall through to the normal end:
+    // held cards flush, an unclosed block gets its truncation footnote, and
+    // the route still sends `done`.
+  } finally {
+    clearTimeout(generationTimer);
   }
 
   const summary = await stream.end();
-  const analysisContent = summary.finalText || "No analysis generated.";
+  let analysisContent = summary.finalText || "No analysis generated.";
+  if (generationTruncated && !summary.unclosedBlock) {
+    // Cut cleanly between cards — the block gate had nothing to footnote, so
+    // say it here rather than end mid-review with no signal.
+    args.emitText(GENERATION_BUDGET_NOTE);
+    analysisContent += GENERATION_BUDGET_NOTE;
+  }
 
   const allVerified =
     summary.cards.length > 0 &&
     summary.cards.every((c) => VERIFIED_STAGES.has(c.stage)) &&
     !summary.unclosedBlock &&
-    summary.unanchoredBlocks === 0;
+    summary.unanchoredBlocks === 0 &&
+    // A truncated review is an incomplete artifact — never cache it, or the
+    // next identical request serves a permanently short game review.
+    !generationTruncated;
   if (allVerified) {
     // Referee-verified content — full score under the cache's ≥0.8 gate.
     setCachedResponse(cacheKey, analysisContent, 1.0);
@@ -239,6 +310,7 @@ export async function serveContractAnalysis(
       citationCoverage: summary.citationCoverageMean,
       ladderDistribution: summary.ladderDistribution,
       sentinelCardsRefused: summary.sentinelCardsRefused,
+      generationTruncated,
       cached: false,
     },
     summary,

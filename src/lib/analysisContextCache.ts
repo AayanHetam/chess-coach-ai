@@ -10,7 +10,10 @@
  */
 
 import { createHash } from "crypto";
+import { logger } from "@/lib/logging";
 import type { MastermindGameEval } from "./mastermind/routeHelpers";
+
+const log = logger.child({ module: "analysis-context-cache" });
 
 export interface AnalysisContext {
   contextId: string;
@@ -60,6 +63,56 @@ const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 // In-memory cache keyed by contextId
 const contextCache = new Map<string, AnalysisContext>();
+
+/**
+ * T9 (SILENT_SUBSTITUTION_HANDOFF §4) — INSTRUMENTATION ONLY. Do not "fix"
+ * anything based on the hypothesis below; measure first.
+ *
+ * `contextCache` is a module-level Map with no Redis/KV behind it, so it lives
+ * per warm serverless instance. Per-route `.nft.json` traces plus vercel.json's
+ * per-source-file `functions` glob suggest /api/chat and /api/enhanced-analysis
+ * are SEPARATE functions — in which case /api/chat could never see an entry
+ * written by /api/enhanced-analysis, the fast path would never hit, and every
+ * follow-up would silently be a full flagship re-analysis. It works perfectly
+ * in local dev (one process), which is exactly why nobody would notice.
+ *
+ * That is a hypothesis, not a finding. These counters exist to settle it with
+ * production traffic rather than with reasoning about build output.
+ *
+ * How to read one day of logs:
+ *   - `outcome: "hit"` appearing at all  → the cache DOES work cross-request.
+ *   - only "miss_absent", with `cacheSize: 0` and small `instanceAgeMs`
+ *     → cold starts; the instance simply had not served the write yet.
+ *   - only "miss_absent" with a NON-ZERO cacheSize → the instance holds other
+ *     entries but not this one: that is the cross-function isolation case, and
+ *     the one that would justify shared storage.
+ *   - "miss_expired" → genuine TTL expiry (2h); unrelated to the hypothesis.
+ */
+const instanceStartedAtMs = Date.now();
+let lookupHits = 0;
+let lookupMissesAbsent = 0;
+let lookupMissesExpired = 0;
+let writes = 0;
+
+/** Test/ops read-only view of the counters. */
+export function __getContextCacheStats() {
+  return {
+    hits: lookupHits,
+    missesAbsent: lookupMissesAbsent,
+    missesExpired: lookupMissesExpired,
+    writes,
+    cacheSize: contextCache.size,
+  };
+}
+
+/** Test-only: reset counters and cache so suites don't leak into each other. */
+export function __resetContextCacheStats(): void {
+  lookupHits = 0;
+  lookupMissesAbsent = 0;
+  lookupMissesExpired = 0;
+  writes = 0;
+  contextCache.clear();
+}
 
 /**
  * Generate a unique context ID from the game state.
@@ -114,6 +167,15 @@ export function storeAnalysisContext(context: AnalysisContext): void {
   }
 
   contextCache.set(context.contextId, context);
+  writes++;
+  // T9: pairs with analysis_context_lookup. If writes are happening on one
+  // instance and lookups only ever miss on another, the two routes are not
+  // sharing memory — which is the whole question.
+  log.info("analysis_context_stored", {
+    cacheSize: contextCache.size,
+    instanceAgeMs: Date.now() - instanceStartedAtMs,
+    writesThisInstance: writes,
+  });
 }
 
 /**
@@ -122,13 +184,37 @@ export function storeAnalysisContext(context: AnalysisContext): void {
  */
 export function getAnalysisContext(contextId: string): AnalysisContext | null {
   const entry = contextCache.get(contextId);
-  if (!entry) return null;
 
-  if (Date.now() - entry.createdAt > CACHE_TTL_MS) {
-    contextCache.delete(contextId);
+  // T9: one line per lookup. `cacheSize` and `instanceAgeMs` are the two
+  // fields that separate "cold start" from "this instance cannot see the
+  // writer's memory at all" — the number alone cannot.
+  const emit = (outcome: "hit" | "miss_absent" | "miss_expired") => {
+    log.info("analysis_context_lookup", {
+      outcome,
+      cacheSize: contextCache.size,
+      instanceAgeMs: Date.now() - instanceStartedAtMs,
+      writesThisInstance: writes,
+      hits: lookupHits,
+      missesAbsent: lookupMissesAbsent,
+      missesExpired: lookupMissesExpired,
+    });
+  };
+
+  if (!entry) {
+    lookupMissesAbsent++;
+    emit("miss_absent");
     return null;
   }
 
+  if (Date.now() - entry.createdAt > CACHE_TTL_MS) {
+    contextCache.delete(contextId);
+    lookupMissesExpired++;
+    emit("miss_expired");
+    return null;
+  }
+
+  lookupHits++;
+  emit("hit");
   return entry;
 }
 

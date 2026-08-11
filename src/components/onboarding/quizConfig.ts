@@ -31,10 +31,17 @@ export interface QuizAnswers {
   goals: string[];
   // Daily time budget:
   time?: TimeCommitment;
+  /**
+   * Daily reminder opt-in. Pre-checked (see `emptyAnswers`), shown as a visible
+   * choice on the final step rather than defaulted silently at signup — this
+   * product gates under-13 users and a hidden default-on would be a dark
+   * pattern. Aayan's call, 2026-08-10.
+   */
+  dailyReminder: boolean;
 }
 
 export function emptyAnswers(): QuizAnswers {
-  return { selfAssess: {}, goals: [] };
+  return { selfAssess: {}, goals: [], dailyReminder: true };
 }
 
 // Step 1 — how do you currently play? ──────────────────────────────────────
@@ -197,6 +204,10 @@ export function buildPayload(answers: QuizAnswers): UserProfileUpdates {
   if (studyGoals.length > 0) payload.studyGoals = studyGoals;
 
   if (answers.time) payload.dailyTimeCommitment = answers.time;
+
+  // Always written, both ways: an explicit false is the user declining, which
+  // must be recorded rather than left undefined and re-asked.
+  payload.reminderPrefs = { enabled: answers.dailyReminder !== false };
 
   return payload;
 }

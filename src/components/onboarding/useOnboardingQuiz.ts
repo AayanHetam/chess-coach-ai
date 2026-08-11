@@ -86,6 +86,7 @@ export interface OnboardingQuizApi {
   setSelfAssess: (key: SelfAssessKey, score: SelfAssessScore) => void;
   toggleGoal: (key: string) => void;
   setTime: (v: TimeCommitment) => void;
+  setDailyReminder: (v: boolean) => void;
 }
 
 export function useOnboardingQuiz(): OnboardingQuizApi {
@@ -211,6 +212,9 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
   const setTime = useCallback((v: TimeCommitment) => {
     setAnswers((a) => ({ ...a, time: v }));
   }, []);
+  const setDailyReminder = useCallback((v: boolean) => {
+    setAnswers((a) => ({ ...a, dailyReminder: v }));
+  }, []);
 
   return {
     answers,
@@ -232,5 +236,6 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
     setSelfAssess,
     toggleGoal,
     setTime,
+    setDailyReminder,
   };
 }

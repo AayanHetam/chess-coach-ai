@@ -4,6 +4,10 @@ import { sendDailyReminderEmail } from "@/lib/server/email";
 import { unsubscribeUrl } from "@/lib/server/reminderToken";
 import { sendPush, isPushConfigured } from "@/lib/server/webpush";
 import { updateUser, type StoredUser } from "@/lib/server/users";
+import {
+  decideReminder,
+  INACTIVE_CUTOFF_MS,
+} from "@/lib/reminders/eligibility";
 
 /**
  * Daily training-reminder cron (Phases 3–4 of the learning engine).
@@ -22,7 +26,7 @@ import { updateUser, type StoredUser } from "@/lib/server/users";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const MAX_PER_RUN = 1000;
-const INACTIVE_CUTOFF_MS = 20 * 60 * 60 * 1000; // don't nag someone who trained <20h ago
+
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -68,16 +72,20 @@ export async function GET(req: Request) {
       const subs = u.pushSubscriptions ?? [];
       const hasPush = pushReady && subs.length > 0;
 
-      // Need at least one channel.
-      if (!u.email && !hasPush) {
-        skipped += 1;
-        continue;
-      }
-      // Don't nag someone who trained recently.
-      if (
-        typeof u.lastActiveAt === "number" &&
-        now - u.lastActiveAt < INACTIVE_CUTOFF_MS
-      ) {
+      // Eligibility lives in src/lib/reminders/eligibility.ts so it can be
+      // tested — this route runs unattended and returns 200 even when every
+      // send fails, so a regression in the decision would be silent.
+      const decision = decideReminder(
+        {
+          email: u.email,
+          lastActiveAt: u.lastActiveAt,
+          pushSubscriptionCount: subs.length,
+        },
+        now,
+        pushReady,
+        INACTIVE_CUTOFF_MS,
+      );
+      if (!decision.send) {
         skipped += 1;
         continue;
       }

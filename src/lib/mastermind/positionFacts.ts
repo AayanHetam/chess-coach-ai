@@ -138,9 +138,22 @@ export function buildCurrentPositionFacts(
     );
   }
 
+  // B2 (SILENT_SUBSTITUTION_HANDOFF §3 Group B): this block is built by
+  // replaying the WHOLE game, so it is the FINAL position — and it is baked
+  // into the cached compact context and re-sent verbatim on every follow-up.
+  // It used to be headed "CURRENT POSITION (the board you are commenting on)",
+  // which was already misleading and became actively harmful once B1 started
+  // forwarding the viewed board: the per-turn "CURRENTLY VIEWED POSITION"
+  // block would sit next to this one, both claiming to be the board in
+  // question, describing different positions, with this one asserting equal
+  // or greater authority. Fixing B1 alone would have looked like a fix and
+  // left the bug live — which is why B1/B2/B3 ship together.
   return (
-    "## CURRENT POSITION (the board you are commenting on — use these exact " +
-    "facts; do NOT reconstruct the board from the move list)\n" +
+    "## FINAL POSITION (the position at the END of the game — use these exact " +
+    "facts; do NOT reconstruct the board from the move list). If a " +
+    "CURRENTLY VIEWED POSITION block is also present, THAT is the board the " +
+    "user is looking at and the one to answer about; this block is only the " +
+    "game's final state.\n" +
     lines.join("\n")
   );
 }

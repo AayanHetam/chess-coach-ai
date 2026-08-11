@@ -31,28 +31,24 @@ const base = {
 
 describe("coach follow-up request body", () => {
   // ─────────────────────────────────────────────────────────────────────────
-  // The next three use `it.fails` — they are EXPECTED TO FAIL and vitest
-  // passes them precisely because the bug is still live. That keeps CI green
-  // while preserving an executable reproduction.
-  //
-  // WHEN YOU FIX Group B (see MASTERMIND_CONTEXT/SILENT_SUBSTITUTION_HANDOFF.md):
-  //   1. Wire buildChatRequestBody into AnalysisImpl's fast path FIRST
-  //      (behaviour-preserving), so these assertions cover real code.
-  //   2. Then add fen/moveIndex to the returned object.
-  //   3. Then flip `it.fails` → `it` here. If a flip does NOT go green, the
-  //      fix is incomplete — do not delete the assertion.
+  // FIXED (Group B, SILENT_SUBSTITUTION_HANDOFF §3). These three were
+  // `it.fails` — vitest passed them BECAUSE the bug was live, which kept CI
+  // green while preserving an executable reproduction. `buildChatRequestBody`
+  // is now wired into AnalysisImpl's fast path (so these assertions cover
+  // shipping code, not a copy) and forwards the viewed position, so they are
+  // ordinary passing tests. Do not delete them: they are the regression gate.
   // ─────────────────────────────────────────────────────────────────────────
-  it.fails("forwards the viewed position so the server grounds on the right board", () => {
+  it("forwards the viewed position so the server grounds on the right board", () => {
     const body = buildChatRequestBody({ ...base, fen: VIEWED, currentPly: 24 });
     expect(body.fen).toBe(VIEWED);
   });
 
-  it.fails("forwards the ply cursor alongside the FEN", () => {
+  it("forwards the ply cursor alongside the FEN", () => {
     const body = buildChatRequestBody({ ...base, fen: VIEWED, currentPly: 24 });
     expect(body.moveIndex).toBe(24);
   });
 
-  it.fails("never silently substitutes a different position", () => {
+  it("never silently substitutes a different position", () => {
     const body = buildChatRequestBody({ ...base, fen: START, currentPly: 0 });
     expect(body.fen).not.toBeUndefined();
     expect(body.fen).toBe(START);

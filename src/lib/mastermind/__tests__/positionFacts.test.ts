@@ -24,10 +24,10 @@ describe("buildCurrentPositionFacts", () => {
     expect(buildCurrentPositionFacts(undefined)).toBe("");
   });
 
-  it("emits the CURRENT POSITION block with FEN, piece map, side-to-move, last move", () => {
+  it("emits the FINAL POSITION block with FEN, piece map, side-to-move, last move", () => {
     // 1.e4 e5 2.Nf3 — White's knight on f3, Black to move.
     const out = buildCurrentPositionFacts(["e4", "e5", "Nf3"]);
-    expect(out).toContain("## CURRENT POSITION");
+    expect(out).toContain("## FINAL POSITION");
     expect(out).toMatch(/FEN: .+ b /); // black to move in the FEN
     expect(out).toContain("Black to move. Last move played: Nf3.");
     // piece map names pieces by square (White knight now on f3, not g1).
@@ -59,7 +59,7 @@ describe("buildCurrentPositionFacts", () => {
 
   it("stops cleanly at an illegal move rather than throwing", () => {
     const out = buildCurrentPositionFacts(["e4", "e5", "Qz9"]);
-    expect(out).toContain("## CURRENT POSITION");
+    expect(out).toContain("## FINAL POSITION");
     // replayed only the two legal moves; White to move after e4 e5.
     expect(out).toContain("White to move.");
   });

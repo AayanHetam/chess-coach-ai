@@ -67,11 +67,78 @@ export type ArmingTable = Record<string, ArmedSeverity>;
  * below is warn (telemetry); enforcement callers must pass an explicit table.
  */
 export const DEFAULT_ARMING_TABLE: ArmingTable = {
-  // Deterministic contract checks (plan §4 checks 2-4) — warn pending re-measure.
-  eval_display: "warn",
-  tactical_keyword: "warn",
-  forbidden_claim: "warn",
+  // ── ARMED 2026-08-11 from the v3 measurement + position-verified adjudication
+  // (contract-referee-fp-30game-v3-*.json, fixtures-real, 30 reviews / 897
+  // claim sentences). Each armed row cleared the plan §9 risk-3 gate: measured
+  // false positives = 0. Founder policy (2026-08-10): unverified tactical
+  // claims are dropped/rewritten, never hedged.
+  //
+  //   eval_display    — 0 fires in v1/v2/v3; pure numeric comparison against
+  //                     contract display strings, no chess judgment.
+  //   tactical_keyword— 22 fires: 19 TRUE_FABRICATION / 3 ambiguous / 0 FP.
+  //                     The round-2 detector work (value-aware fork
+  //                     confirmation, skewer THREATS w/ pawn back-pieces,
+  //                     immobilized-trapped, definitional exemption) turned
+  //                     v2's 6:8 TF:FP into 19:0. The 3 ambiguous are
+  //                     unverified tactical claims that policy drops anyway.
+  //                     Representative catch: "forking the bishop on e7" by a
+  //                     knight on e6 — adjacent squares, geometrically
+  //                     impossible, and stable across all 3 samples.
+  eval_display: "error",
+  tactical_keyword: "error",
+  // ── ARMED 2026-08-11 (FOLLOW-UP PACK fix A + the v4 re-measurement).
+  //   san_whitelist:square_unknown — v3 measured 11 square_unknown fires and
+  //     the harness adjudicated ALL of them as contract-globally licensed
+  //     ("licensed-elsewhere-in-contract"): zero were fabrications, the
+  //     insight-LOCAL license pool was the bug. Fix A widens the serving pool
+  //     to exactly the pool the harness adjudicates with
+  //     (collectContractWhitelist: every insight's whitelist + the game moves
+  //     + the move table's FEN squares and bestWas lines) and the v4 re-run
+  //     measures 0 square_unknown fires. The widening is monotone — it can
+  //     only remove fires — and the v2 TF control ("g6 cuts off its retreat
+  //     square on h5", false: Bh5 is legal + uncovered) still fires, pinned in
+  //     refereeFollowups.test.ts.
+  "san_whitelist:square_unknown": "error",
+  //   mobility_claims — the LITERAL family only ("no/zero legal moves", "no
+  //     moves", bare-integer move/square counts). v3 measured 9 such fires and
+  //     all 9 adjudicated TRUE_FABRICATION (knights called "trapped with no
+  //     legal moves" that chess.js gives 4-6 moves), 0 FP. It is chess.js
+  //     arithmetic end to end — no engine number, no judgment. The QUALITATIVE
+  //     family ("no good squares", "no safe retreat") is a countSafeMoves
+  //     proxy for a quality judgment and stays measurement-only: it is
+  //     unreachable from runInsightChecks / refereeInsight by construction, so
+  //     this row cannot arm it (checkMobilityQualitativeClaims runs only in
+  //     runMeasurementOnlyChecks).
+  mobility_claims: "error",
+  // ── HELD AT WARN inside san_whitelist, with the blockers named:
+  //   san_unknown — the FUTURE-OPTION SAN class is unresolved: real coaching
+  //     prose naming a move that is legal one ply past the plan-intent
+  //     legality pool (which only reaches fenBefore/fenAfter). Pinned as a
+  //     live residual in refereePrecisionPack.test.ts (#17/#18/#20, "Bc3 or
+  //     Ba5" after a hypothetical Bd2) and observed again in a v4 sampling run
+  //     (fixture 10/M2, "…if it stays, Bxg6 wins a piece" — Bxg6 is legal only
+  //     after the engine-best Bh5). The committed v4 artifact happens to
+  //     sample 0 of them (generation is temperature 0.7), which is exactly why
+  //     the pinned test, not one run, governs. Not 0-FP ⇒ does not arm.
+  //     Unblocking needs a PV-continuation legality license (moves legal after
+  //     N plies of a contract PV) plus its own measurement.
+  //   hypothetical_line_off_contract — 13 of v4's 15 fires were strict-only
+  //     with wouldPassWidenedWindow (structural clamp 2 holds those at warn
+  //     regardless); the 2 shared fires were both prose-list artifacts where a
+  //     move run crossed a sentence terminator ("…eyeing f7." + "Nc6…"). No
+  //     0-FP evidence, and a tokenizer bug to fix first.
   san_whitelist: "warn",
+  // ── HELD AT WARN, with the specific blocker named:
+  //   forbidden_claim — v3's 3 fires were 1 definitional-prose FP (cleared by
+  //                     fix B: isDefinitionalSentence is now wired into the
+  //                     USER_VISIBILITY_RE path too), 1 "obvious"-class
+  //                     visibility fire (structurally clamped to warn forever
+  //                     — standing prohibition), and 1 board-UNFALSIFIABLE
+  //                     positional claim ("dominates", needs Lc0 to
+  //                     adjudicate). The positional class cannot be
+  //                     adjudicated with chess.js + SF alone, so this check
+  //                     does not arm in this pack.
+  forbidden_claim: "warn",
   // Stage-9 scanners — their CI-3 gates predate the adjudication's evidence
   // standard; held at warn with everything else until the v2 measurement.
   stage9_positional_claim: "warn",

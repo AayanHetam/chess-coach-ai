@@ -150,13 +150,17 @@ describe("rollback drill: CONTRACT_CATEGORIES empty ⇒ byte-identical legacy se
     expect(armed.toString()).not.toContain("mate in 3");
   });
 
-  it("precision-pack default (all-warn): the contract branch never suppresses content", async () => {
+  it("v3-armed default: a fabricated claim is suppressed on the contract branch", async () => {
     vi.stubEnv("CONTRACT_CATEGORIES", "position_analysis");
     __resetContractEnvCacheForTests();
     const { deltas, contract } = fixtureDeltas();
     const served = await serveStreaming(deltas, "position_analysis", contract);
-    // Findings are telemetry-only under the default table: the (fabricated)
-    // prose still ships untouched — arming stays a deliberate config act.
-    expect(served.toString()).toContain("mate in 3");
+    // Since the 2026-08-11 arming (v3 measurement: 0 measured false positives
+    // on the armed checks), the fabricated mate claim in this fixture no
+    // longer reaches the client — this assertion IS the enforcement proof.
+    // The rollback guarantee is unaffected and is asserted by the
+    // flag-off/empty-list cases above: no category armed ⇒ byte-identical.
+    expect(served.toString()).not.toContain("mate in 3");
+    expect(served.toString()).toContain("Let's walk th");
   });
 });

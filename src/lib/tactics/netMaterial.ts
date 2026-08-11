@@ -34,6 +34,12 @@ export interface PvMaterialStep {
   mover: Color;
   /** Value captured by this ply in pawn units (0 for quiet moves). */
   capturedValue: number;
+  /** Destination square. */
+  to: string;
+  /** Moving piece type. */
+  piece: PieceSymbol;
+  /** Captured piece type, or null for a quiet move. */
+  captured: PieceSymbol | null;
 }
 
 /**
@@ -58,6 +64,9 @@ export function replayPvMaterial(fen: string, sans: string[]): PvMaterialStep[] 
         san,
         mover: mv.color,
         capturedValue: mv.captured ? PIECE_UNITS[mv.captured as PieceSymbol] ?? 0 : 0,
+        to: mv.to,
+        piece: mv.piece as PieceSymbol,
+        captured: (mv.captured as PieceSymbol | undefined) ?? null,
       });
     } catch {
       break;

@@ -225,7 +225,9 @@ describe("refereeInsight — userVisibility stays warn-only (standing prohibitio
     // Default insight: visibility unavailable ⇒ user_visibility is a
     // forbidden claim class — but per the standing prohibition it reports
     // at warn, never error.
-    const r = refereeInsight("Obviously this loses on the spot.", makeInsight(), OPTS);
+    // Board-anchored on purpose: bare definitional prose is exempt from the
+    // visibility path since follow-up fix B (isDefinitionalSentence).
+    const r = refereeInsight("Obviously the rook on a1 loses on the spot.", makeInsight(), OPTS);
     const hits = r.findings.filter(
       (f) => f.check === "forbidden_claim" && f.category === "forbidden_claim_present",
     );

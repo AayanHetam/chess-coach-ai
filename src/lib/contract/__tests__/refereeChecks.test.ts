@@ -200,9 +200,15 @@ describe("checkForbiddenClaims", () => {
   });
 
   it("fires on 'obvious' when Maia was not consulted", () => {
-    const v = checkForbiddenClaims("The fork was obvious once you look.", makeInsight());
+    // Board-anchored: the sentence names a square, so it is a claim about
+    // what THIS user could see, not a definition (follow-up fix B).
+    const v = checkForbiddenClaims("The fork on d5 was obvious once you look.", makeInsight());
     expect(v).toHaveLength(1);
     expect(v[0].claimClass).toBe("user_visibility");
+  });
+
+  it("FOLLOW-UP fix B: a definitional 'obvious' sentence (no square/SAN/piece ref) is exempt", () => {
+    expect(checkForbiddenClaims("The fork was obvious once you look.", makeInsight())).toEqual([]);
   });
 
   it("control: benign prose fires nothing", () => {
@@ -235,6 +241,7 @@ describe("aggregateFidelity", () => {
     expect(report.fabricationCount).toBe(4);
     expect(report.violationsByCheck).toEqual({
       eval_display: 1,
+      mobility_claims: 0, // fix D put the literal family on the served path
       san_whitelist: 1,
       tactical_keyword: 1,
       forbidden_claim: 1,

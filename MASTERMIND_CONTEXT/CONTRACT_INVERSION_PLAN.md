@@ -364,3 +364,59 @@ Even on mid-program abandonment, the permanent wins are banked: the typed contra
 > **CI-5 gate: false-intervention rate < 15%** (position-verified false positives ÷ total armed fires). Currently **0%**. Intervention rate remains a reported metric, not a pass/fail bar.
 
 **Founder policy governing the ladder** (2026-08-10): unverified tactical claims are dropped or rewritten — never hedged, never shipped. "Consumers who see the coach being wrong will leave much faster than a user thinking the explanation is bare."
+
+---
+
+## 15. PR-CI-5 build + `game_review` measurement (2026-08-11)
+
+**Built** (branch `feat/contract-ci-5-game-review`, shipped DARK — `CONTRACT_CATEGORIES` stays `position_analysis` in the committed default):
+
+- **`CONTRACT_UIDS`** — comma-separated session-uid allowlist. Precedence is a plain OR in `src/lib/contract/servingGate.ts`: category listed (everyone) OR uid listed (that user, EVERY category). Trim/newline/quote-hardened; case is **preserved**, not folded (uids are case-sensitive; folding would let an allowlist match uids it was never given). Emptying it is the CI-5 rollback. `done.metadata.pipeline.contractArmedBy` separates dogfood from rollout traffic.
+- **Sentinel guard (`sentinelGuard.ts`)** — closes the "cited ≠ true" class on the serving side. Verified exposure, not theoretical: fixture `03_sentinel_timeout` builds card **I3** (`classification: "inaccuracy"`, `severityDropCp: 80`) from an `evalBefore` sentinel, and it reached the enforced card plan. `classification`/`severityDropCp`/`cpBefore|AfterFlat` are all derived from the sentinel's fake `cp: 0`, and `renderInsightHeader` printed that classification as server-authoritative truth beside the honest "engine data unavailable". No enforced card is now built from a sentinel-bearing insight (either end — the drop is a difference), a model block naming one cannot anchor to it, and the omission ships as an honest note. Only ever drops INTEL-ONLY cards (Scan 1 already skips sentinels). **Upstream Group C (`serialize.ts`'s unconditional `Classification:` line, `selectInsights.ts` Scan 2) deliberately untouched — still exposed on the legacy path.**
+- **Deadline made real.** It was ADVISORY: stages checked `now() + ESTIMATE < deadline` before starting, but `callLLM` has no default timeout and got no signal. Regen/relational now carry deadline-bounded `AbortSignal`s and the edit's self-timeout is clamped.
+- **Generation budget (`CONTRACT_GENERATION_BUDGET_MS = 45s`)** — the new one. See the latency finding below.
+
+**Gate run** (`scripts/eval/contract_ci5_gates.ts`, 10 fixtures × 3 samples = 30 reviews, 903 claim sentences, `refereeMode: full`, real `DEFAULT_ARMING_TABLE`, request "analyze my game"; artifact `scripts/eval/results/contract-ci5-gates-2026-08-11.json`, $0.20 ladder cost):
+
+| gate | pooled | per-run | bar | verdict |
+|---|---|---|---|---|
+| persona | **4.28** | 4.5 / 4.1 / 4.25 | ≥3.55 pooled, ≥3.5 per-run | PASS (legacy same-day 4.05) |
+| citation coverage (sentence) | **0.928** | 0.915 / 0.942 / 0.926 | ≥0.80 | PASS |
+| fabrication | **0.00/100** (0/903) | 0 / 0 / 0 | ≤1/100 | PASS |
+| **false-intervention** | **0.20** (2/10) | 0.20 / 0.00 / 0.25 | <0.15 | **FAIL** |
+| prose retention | 0.987 | — | — | reported |
+| every planned card shipped | 72/72 | — | — | PASS |
+
+Ladder: 64 pass / 8 sentence_drop / 0 edited / 0 regenerated / 0 templated / 0 deadline breaches. Sentinel guard refused 3 cards (one per sample of fixture 03). Raw intervention rate 26.7% of reviews, touching 1.1% of claim sentences.
+
+**All 10 armed fires, position-verified** (the §14 standard, not just the mechanical adjudicator):
+
+| fires | span | check | board truth | verdict |
+|---|---|---|---|---|
+| 3 | "15 legal moves" (01/I1) | mobility_claims | actual 7 before / 44 after | TRUE catch |
+| 1 | "no legal moves" (05/M1) | mobility_claims | knight on a7 has 3 legal moves | TRUE catch |
+| 2 | "trapped" (05/M1) | tactical_keyword | knight on a7: 3 legal moves, **0 safe** — the claim is TRUE | **FALSE POSITIVE** |
+| 4 | "fork" / "discovered" (02/I3, 10/M1) | tactical_keyword | unverified tactical claims — founder policy drops these regardless | not-false |
+
+**The gate fails on one cause, and it is detector recall, not referee logic.** Both false fires are the word "trapped" on the same insight in 2 of 3 samples: the position is a textbook trapped knight, but `detectMotifs` did not put "trapped" in that insight's `allowedTacticalKeywords` (it IS in a neighbouring insight's). This is plan §9 risk 2 — "the deterministic detector layer's own recall has NEVER been measured" — arriving exactly where it was predicted. The fix is detector-side (a trapped-piece confirmation from `countSafeMoves`, which the mobility check already computes), not a disarming.
+
+⚠️ **n = 10 fires.** A 2/10 point estimate carries a 95% CI of roughly 3%–56%: the interval spans the 15% bar in both directions. The gate is FAILED on the evidence available, and is not *resolvable* at this denominator either way. A re-measure after the trapped-piece detector fix, on a denominator large enough to matter, is the honest next step.
+
+**Latency — the blocking finding.** game_review does not fit `maxDuration: 60s` at 7 cards:
+
+| | legacy 3.6 | contract 4.0 | delta |
+|---|---|---|---|
+| TTFT p50 | 1305ms | 1659ms | **+433ms** (bar ≤+500ms — PASS) |
+| first card p50 | 14681ms | 19750ms | **+4394ms** (bar ≤+500ms — **FAIL**) |
+| total p50 | 19539ms | 26336ms | +8559ms |
+| total p95 | 55475ms | **78286ms** | +28018ms |
+
+The 7-card fixture ran **76–83s of generation alone**, with the ladder passing every card — the referee is not the cost. Legacy survives only because it caps `maxTokens` at 3000 and truncates; contract mode budgets 4800 at 7 cards and finishes the job. Rough shape: ~17–20s for the first card, ~+8–9s per additional card ⇒ **the 60s ceiling is ~4–5 cards**. `CONTRACT_GENERATION_BUDGET_MS` converts the failure from "Vercel kills the function, no `done` event, client hangs" into "short honest review that closes properly and is never cached" — a safety net, not a fix.
+
+**Founder decisions this needs** (neither is Claude's to make — both are coverage/latency product calls):
+1. **`maxDuration` 60s → 120s** (tech-lead decision #4 called a bump "a follow-up, not a dependency"; for game_review it IS a dependency), and/or
+2. **a game_review card cap** (~5) — a WHAT-TO-COVER change, so Aayan's call per §12 A6.
+
+**Recommendation:** `CONTRACT_UIDS=<Aayan's uid>` is safe to flip now — the accuracy gates pass comfortably, the failure mode is a short review, and dogfood is exactly where a 20%-of-10 false-intervention estimate gets a real denominator. `CONTRACT_CATEGORIES+=game_review` is **NOT** ready: the first-card regression and the 60s ceiling are both user-visible, and the false-intervention gate is failed.
+
+**Not built (remaining CI-5 plan scope):** `done.metadata.contract` is populated but is NOT wired into the CMIP `intern_flags` payload — `captureFlagContext` carries no contract fields, and adding them needs a Supabase migration (founder/DB-gated).

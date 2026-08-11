@@ -59,7 +59,9 @@ import {
 } from "@/lib/puzzleRating";
 import { SessionRecapDialog } from "@/components/puzzle/SessionRecapDialog";
 import { PuzzleSessionRail } from "@/components/puzzle/PuzzleSessionRail";
-import { confirmMovesAtom } from "@/lib/puzzlePrefs";
+import { answerModeAtom, confirmMovesAtom } from "@/lib/puzzlePrefs";
+import { buildMoveChoices } from "@/lib/puzzle/moveChoices";
+import { MoveChoiceList } from "@/components/puzzle/MoveChoiceList";
 import { stepDifficulty } from "@/lib/puzzleDifficulty";
 import { useRecordTrainingDay } from "@/lib/curriculum/useTrainingDay";
 import {
@@ -283,6 +285,7 @@ export default function PreviewPuzzlesPage() {
   const { user, profile, updateProfile, loading: authLoading } = useAuth();
   const router = useRouter();
   const [confirmMoves, setConfirmMoves] = useAtom(confirmMovesAtom);
+  const [answerMode, setAnswerMode] = useAtom(answerModeAtom);
   const recordTrainingDay = useRecordTrainingDay();
   const [stats, setStats] = useAtom(puzzleStatsAtom);
   const [resume, setResume] = useAtom(puzzleResumeAtom);
@@ -440,6 +443,10 @@ export default function PreviewPuzzlesPage() {
   } | null>(null);
   const [difficultyAnchor, setDifficultyAnchor] =
     useState<HTMLElement | null>(null);
+  // SAN of the choice-mode option tried and rejected for the CURRENT ply.
+  // Cleared whenever the position advances so a stale red row can't bleed onto
+  // the next question.
+  const [wrongChoiceSan, setWrongChoiceSan] = useState<string | null>(null);
   const [similarLoading, setSimilarLoading] = useState(false);
   // Non-empty when the graph lookup couldn't be honoured — surfaced in a
   // snackbar so we never silently pass a CSV puzzle off as a graph match.
@@ -525,6 +532,7 @@ export default function PreviewPuzzlesPage() {
     setActiveDemo(null);
     setCoachHighlights(null);
     setStaged(null);
+    setWrongChoiceSan(null);
   }, [studentStartFen]);
 
   // Cancel a pending opponent reply on unmount.
@@ -971,6 +979,23 @@ export default function PreviewPuzzlesPage() {
   // FEN the board renders. During an active demo, walks through the SAN
   // sequence in real time (react-chessboard animates each transition).
   // Outside of demo mode, this is just the user's attempt position.
+  // Multiple-choice options for the move the user owes right now. Rebuilt per
+  // ply so multi-move puzzles keep asking a real question rather than only
+  // quizzing the first move.
+  const expectedMove = parsedMoves[moveIdx];
+  const moveChoices = useMemo(() => {
+    if (answerMode !== "choice" || !expectedMove) return [];
+    return buildMoveChoices(
+      game.fen(),
+      `${expectedMove.from}${expectedMove.to}${expectedMove.promotion ?? ""}`,
+    );
+  }, [answerMode, expectedMove, game]);
+
+  // A position we cannot build a sound question for (no legal moves, or the
+  // solution isn't legal from here) falls back to the board instead of
+  // rendering an empty or unanswerable question.
+  const choiceModeActive = answerMode === "choice" && moveChoices.length > 0;
+
   const displayFen = useMemo(() => {
     // A staged move is shown on the board even though it hasn't been graded —
     // that preview IS the "you picked this, now commit" affordance. Demo
@@ -1112,6 +1137,7 @@ export default function PreviewPuzzlesPage() {
     setCorrectSquare(null);
     setFlash("idle");
     setStaged(null);
+    setWrongChoiceSan(null);
   }, [studentStartFen]);
 
   const handleNextPuzzle = useCallback(() => {
@@ -1269,7 +1295,11 @@ export default function PreviewPuzzlesPage() {
   // position, so a second drag would report squares that don't exist in the
   // real position and get rejected confusingly. "Change move" unstages first.
   const interactive =
-    status !== "solved" && !!puzzle && !activeDemo && !staged;
+    status !== "solved" &&
+    !!puzzle &&
+    !activeDemo &&
+    !staged &&
+    !choiceModeActive;
   const boardWrongSquare =
     !activeDemo && wrongSquare && status === "wrong" ? wrongSquare : null;
 
@@ -1313,6 +1343,12 @@ export default function PreviewPuzzlesPage() {
     [game, handleMove, confirmMoves, bumpActivity],
   );
 
+  // A new ply is a new question: the previous ply's rejected option must not
+  // stay painted red under a fresh set of choices.
+  useEffect(() => {
+    setWrongChoiceSan(null);
+  }, [moveIdx]);
+
   // Turning confirm-mode off mid-puzzle must not leave a move stranded on the
   // board with no Submit button to commit it.
   useEffect(() => {
@@ -1329,6 +1365,19 @@ export default function PreviewPuzzlesPage() {
 
   // Take it back before committing. Returns the board to the real position.
   const handleUnstageMove = useCallback(() => setStaged(null), []);
+
+  // Choice mode: tapping a row IS the deliberate act confirm-move exists to
+  // create, so it grades immediately and never stages. Asking the user to
+  // confirm a tap they just made would be friction with no safety gained.
+  const handlePickChoice = useCallback(
+    (choice: { san: string; uci: string; isSolution: boolean }) => {
+      if (status === "solved" || activeDemo) return;
+      bumpActivity();
+      setWrongChoiceSan(choice.isSolution ? null : choice.san);
+      handleMove(choice.uci.slice(0, 2), choice.uci.slice(2, 4));
+    },
+    [status, activeDemo, handleMove, bumpActivity],
+  );
 
   return (
     <ThemeProvider theme={puzzleTheme}>
@@ -1674,6 +1723,16 @@ export default function PreviewPuzzlesPage() {
                       )}
                     </Box>
 
+                    {choiceModeActive && (
+                      <MoveChoiceList
+                        choices={moveChoices}
+                        wrongSan={wrongChoiceSan}
+                        revealed={status === "solved" || !!activeDemo}
+                        disabled={status === "solved" || !!activeDemo}
+                        onPick={handlePickChoice}
+                      />
+                    )}
+
                     {/* Status row */}
                     <Stack
                       direction="row"
@@ -1804,7 +1863,10 @@ export default function PreviewPuzzlesPage() {
                         flexWrap: "wrap",
                       }}
                     >
-                      {confirmMoves && (
+                      {/* Board-only. In choice mode a tap grades
+                          immediately, so a Submit button would be a dead
+                          control sitting next to the real answer. */}
+                      {confirmMoves && !choiceModeActive && (
                         <>
                           <Button
                             onClick={handleSubmitMove}
@@ -1983,6 +2045,30 @@ export default function PreviewPuzzlesPage() {
                       }}
                     >
                       <Button
+                        onClick={() =>
+                          setAnswerMode((m) =>
+                            m === "choice" ? "board" : "choice",
+                          )
+                        }
+                        sx={{
+                          px: 1,
+                          py: 0.25,
+                          minHeight: 0,
+                          color: "rgba(255,240,224,0.4)",
+                          fontSize: "0.74rem",
+                          fontWeight: 600,
+                          "&:hover": {
+                            color: "rgba(255,240,224,0.75)",
+                            background: "transparent",
+                          },
+                        }}
+                      >
+                        {answerMode === "choice"
+                          ? "Answer: multiple choice"
+                          : "Answer: on the board"}
+                      </Button>
+                      {!choiceModeActive && (
+                      <Button
                         onClick={() => setConfirmMoves((v) => !v)}
                         sx={{
                           px: 1,
@@ -2001,6 +2087,7 @@ export default function PreviewPuzzlesPage() {
                           ? "Confirm each move: on"
                           : "Confirm each move: off"}
                       </Button>
+                      )}
                     </Box>
                   </>
                 ) : (

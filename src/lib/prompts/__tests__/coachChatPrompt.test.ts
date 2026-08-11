@@ -241,3 +241,56 @@ describe("getCoachChatSystemPrompt — personality fallback", () => {
     expect(unknown).toBe(fallback);
   });
 });
+
+describe("A3 — the player's colour is asserted only when it is known", () => {
+  // SILENT_SUBSTITUTION_HANDOFF §3 Group A. `playerColorName` reaches the
+  // builder ONLY when the side is confirmed (the user picked it, or the PGN
+  // header matched their username). When it is absent the side is a guess
+  // derived from board orientation, which defaults to white — and asserting
+  // that is not a small error: for a Black-side game whose header did not
+  // match, the coach reviews the OPPONENT's moves as the user's and frames
+  // them as "your mistakes".
+  const unconfirmed: CoachChatPromptInput = {
+    ...baseInput,
+    playerColorName: undefined,
+  };
+
+  it("does not claim a side when the side is unconfirmed", () => {
+    const out = getCoachChatSystemPrompt(unconfirmed);
+    expect(out).not.toContain("The user is playing as: White");
+    expect(out).not.toContain("The user is playing as: Black");
+    expect(out).not.toContain("playing as White");
+    expect(out).not.toContain("playing as Black");
+  });
+
+  it("says the side is unknown rather than staying silent about it", () => {
+    // Silence would let the model infer from move order or the eval sign.
+    const out = getCoachChatSystemPrompt(unconfirmed);
+    expect(out).toContain("is NOT confirmed");
+    expect(out).toContain("do NOT attribute either side's moves");
+  });
+
+  it("still names the user so the coach can address them", () => {
+    // The minimal fix (skip the whole identity block) would have dropped the
+    // username too; there is no reason to lose a fact we actually know.
+    expect(getCoachChatSystemPrompt(unconfirmed)).toContain(
+      "The user's in-game username is: alice"
+    );
+  });
+
+  it("asserts the side normally once it IS confirmed", () => {
+    const out = getCoachChatSystemPrompt(baseInput);
+    expect(out).toContain("The user is playing as: White");
+    expect(out).not.toContain("is NOT confirmed");
+  });
+
+  it("emits neither block when there is no username at all", () => {
+    const out = getCoachChatSystemPrompt({
+      ...baseInput,
+      username: undefined,
+      playerColorName: undefined,
+    });
+    expect(out).not.toContain("is NOT confirmed");
+    expect(out).not.toContain("in-game username");
+  });
+});

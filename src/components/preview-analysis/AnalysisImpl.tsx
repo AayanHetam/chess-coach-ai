@@ -6804,6 +6804,18 @@ export default function AnalysisPage() {
     // The user's side. An explicit/inferred answer (playerSide) wins; the
     // board orientation is only the last-resort assumption when the side
     // is still ambiguous (user hasn't answered the inline ask yet).
+    // A3 (SILENT_SUBSTITUTION_HANDOFF §3 Group A): `playerSide` is null
+    // whenever username→PGN-header matching failed and the user has not
+    // answered the "which side were you playing?" card. Board orientation is
+    // then a GUESS (and defaults to white).
+    //
+    // `playerColor` still falls back to the guess because the mechanics need a
+    // side to filter mistakes by. `playerColorName` does NOT: it is what the
+    // prompt turns into "Always analyze the game from the perspective of
+    // <user> playing as White", asserted as fact. Sending it unconfirmed is
+    // how a Black-side player gets their opponent's moves reviewed as their
+    // own. Confirmed side → assert it; guess → say it is unknown.
+    const sideConfirmed = playerSide != null;
     const sideName: "white" | "black" = playerSide?.color ?? boardOrientation;
     const playerColor: "w" | "b" = sideName === "white" ? "w" : "b";
     let chesscomUsername: string | undefined;
@@ -6824,7 +6836,7 @@ export default function AnalysisPage() {
     }
     return {
       playerColor,
-      playerColorName: sideName,
+      playerColorName: sideConfirmed ? sideName : undefined,
       boardOrientation,
       // A1 (SILENT_SUBSTITUTION_HANDOFF): the real rating, or `undefined` when
       // the user has none. Never a default — the request body used to hardcode

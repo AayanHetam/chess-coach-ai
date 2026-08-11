@@ -1126,10 +1126,12 @@ export async function POST(request: NextRequest) {
             // below stays the sole emitter, so client bytes are untouched.
             // Null unless CONTRACT_REFEREE_SHADOW is on AND this is a
             // game-review request with a contract.
-            // Reuse the live-stream loop from the flag-off path inline.
+            //
+            // Reuse the live-stream loop from the flag-off path inline. Both
+            // accumulators are declared BEFORE the gate so the onReview sink
+            // can read the model off llmDone — end() runs after the loop, so
+            // it is populated by then.
             let fullText = "";
-            // Declared BEFORE the gate so the onReview sink below can read the
-            // model off it — end() runs after the loop, so it is populated.
             let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
             const refereeGate = maybeCreateShadowRefereeGate({
               contract: contractForShadowReferee,
@@ -1702,9 +1704,9 @@ export async function POST(request: NextRequest) {
           }
 
           // PR-CI-3 shadow referee (DARK): observer only — see the flag-on
-          // wing note; null unless CONTRACT_REFEREE_SHADOW is on.
+          // wing note; null unless CONTRACT_REFEREE_SHADOW is on. Accumulators
+          // declared first for the same reason as that wing.
           let fullText = "";
-          // Declared BEFORE the gate — see the flag-on wing's note.
           let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
           const refereeGate = maybeCreateShadowRefereeGate({
             contract: contractForShadowReferee,

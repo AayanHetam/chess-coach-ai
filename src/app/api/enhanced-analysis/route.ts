@@ -275,10 +275,12 @@ async function generatePuzzleRecommendations(
     // out on one of the two positions.
     if (evalBefore.lines[0].depth === 0 || evalAfter.lines[0].depth === 0) continue;
 
-    const cpBefore = evalBefore.lines[0].mate !== undefined
+    // C6: a null mate must not flatten to -9999 and manufacture a "mistake"
+    // we would then build real training puzzles from.
+    const cpBefore = typeof evalBefore.lines[0].mate === "number"
       ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
       : (evalBefore.lines[0].cp ?? 0);
-    const cpAfter = evalAfter.lines[0].mate !== undefined
+    const cpAfter = typeof evalAfter.lines[0].mate === "number"
       ? (evalAfter.lines[0].mate! > 0 ? 9999 : -9999)
       : (evalAfter.lines[0].cp ?? 0);
     const drop = i % 2 === 0 ? cpBefore - cpAfter : cpAfter - cpBefore;

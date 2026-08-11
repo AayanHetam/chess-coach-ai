@@ -57,7 +57,8 @@ export function buildCompactGameContext(
   const mistakes: Mistake[] = [];
 
   const formatCp = (cp: number, mate?: number): string => {
-    if (mate !== undefined) return `M${mate > 0 ? "+" : ""}${mate}`;
+    // C6: null mate would print the literal string "Mnull".
+    if (typeof mate === "number") return `M${mate > 0 ? "+" : ""}${mate}`;
     if (Math.abs(cp) >= 9000) return cp > 0 ? "M+" : "M-";
     return `${cp >= 0 ? "+" : ""}${(cp / 100).toFixed(2)}`;
   };
@@ -89,10 +90,11 @@ export function buildCompactGameContext(
     let cpBefore: number | null = null;
     let cpAfter: number | null = null;
     if (evalBefore?.lines?.[0] && evalAfter?.lines?.[0] && !compactSentinel) {
-      cpBefore = evalBefore.lines[0].mate !== undefined
+      // C6: see selectInsights.flattenEval — null must not flatten to -9999.
+      cpBefore = typeof evalBefore.lines[0].mate === "number"
         ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
         : (evalBefore.lines[0].cp ?? 0);
-      cpAfter = evalAfter.lines[0].mate !== undefined
+      cpAfter = typeof evalAfter.lines[0].mate === "number"
         ? (evalAfter.lines[0].mate! > 0 ? 9999 : -9999)
         : (evalAfter.lines[0].cp ?? 0);
       drop = isWhite ? (cpBefore - cpAfter) : (cpAfter - cpBefore);

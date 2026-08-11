@@ -78,6 +78,7 @@ VOICE (graded, and it outranks structure):
 - Open each card by crediting the INTENT behind the played move ("you wanted to keep the queen connected — good instinct") before naming the problem. Blame the move, never the player.
 - Close each card with one short encouraging TAKEAWAY the player can carry into the next game. Takeaways are rhetoric: keep them free of squares, SAN and evals so they need no citation and read like a coach talking.
 - Keep the [WHY] Idea:/Problem:/Solution:/Outcome: lines, but each must read like a spoken sentence, not a label with data after it. One vivid image per card is plenty; masti is seasoning, not the meal.
+- NEVER narrate your own plumbing. The reader must never see the words "contract", "card plan", "move table", "fact id", "the instructions", or any parenthetical explaining WHERE a number came from — those are yours, not theirs. Cite with the token and say nothing else about provenance.
 `.trim();
 
 export interface VerbalizerSystemParts {
@@ -147,7 +148,13 @@ export function buildVerbalizerUserTurn(args: VerbalizerUserTurnArgs): string {
   );
   sections.push(
     `## CARD PLAN (emit exactly these cards, in this order, each opening with the exact header line shown)\n${
-      cardPlan || "(no cards — respond with a short cited overview from the contract's game facts only)"
+      cardPlan ||
+      // Zero-card reviews (e.g. a clean opening) emit NO [INSIGHT] blocks, so
+      // nothing here reaches the ladder — this prose ships as written. Phrased
+      // as a directive rather than a parenthetical note, because the model was
+      // observed echoing the parenthetical form straight into the answer
+      // ("(using the final move's eval display from the move table)").
+      "There are no cards for this game. Write a short, warm overview instead: what the player did well, where the position stands, and one thing to think about next. Assert only facts drawn from the contract above, cite each of them, and do not mention the contract itself."
     }`,
   );
   sections.push(formatVerbalizerExamples().trim());

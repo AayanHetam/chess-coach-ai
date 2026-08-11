@@ -21,6 +21,29 @@ test.describe("eliminate mode", () => {
     );
   }
 
+  /**
+   * Wait until the board stops changing puzzle.
+   *
+   * /puzzles can render a resumed puzzle first and then swap in the feed's
+   * first batch, so the position is not stable the instant the board becomes
+   * interactive. Without this the "position never changes" assertion compares
+   * two different PUZZLES and fails for a reason that has nothing to do with
+   * what it is testing — which is exactly how it failed on CI while passing
+   * locally, where the feed resolves faster.
+   */
+  async function waitForStableFen(page: Page): Promise<string> {
+    const board = page.locator("[data-board-fen]");
+    let last = await board.getAttribute("data-board-fen");
+    for (let i = 0; i < 20; i++) {
+      await page.waitForTimeout(400);
+      const now = await board.getAttribute("data-board-fen");
+      if (now && now === last) return now;
+      last = now;
+    }
+    expect(last, "board never settled on a puzzle").toBeTruthy();
+    return last as string;
+  }
+
   test("toggling it suspends move input and restores it", async ({ page }) => {
     const crashes: string[] = [];
     page.on("pageerror", (e) => crashes.push(String(e)));
@@ -55,7 +78,7 @@ test.describe("eliminate mode", () => {
     await waitForBoard(page);
 
     const board = page.locator("[data-board-fen]");
-    const before = await board.getAttribute("data-board-fen");
+    const before = await waitForStableFen(page);
 
     await page.getByRole("button", { name: "Eliminate" }).click();
     for (const sq of ["e4", "d5", "a1"]) {

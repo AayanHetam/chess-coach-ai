@@ -111,7 +111,7 @@ export function maybeCreateShadowRefereeGate(
         userRating,
         correlationId,
         playerPerspective,
-        contract, // contract-global eval_display pool (precision-pack fix 7)
+        contract, // contract-global eval_display (fix 7) + SAN/square (fix A) pools
       });
       totalErrors += result.errorCount;
       totalWarns += result.warnCount;

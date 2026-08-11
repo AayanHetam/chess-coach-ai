@@ -86,20 +86,37 @@ export const DEFAULT_ARMING_TABLE: ArmingTable = {
   //                     impossible, and stable across all 3 samples.
   eval_display: "error",
   tactical_keyword: "error",
-  // ── HELD AT WARN, with the specific blocker named:
-  //   san_whitelist   — 44 strict / 15 widened fires, 100% mechanically
-  //                     licensed by contract-GLOBAL facts. The prose is right;
-  //                     the insight-LOCAL license pool is the bug. Promote
-  //                     after widening the pool to contract-global + a re-run
-  //                     showing 0 residual.
-  //   forbidden_claim — 3 fires: 1 policy-true, 1 FP (a definitional sentence:
-  //                     isDefinitionalSentence() is wired into
-  //                     checkTacticalKeywords but NOT into the
-  //                     USER_VISIBILITY_RE path), 1 board-unfalsifiable
-  //                     ("dominates" — needs Lc0 to adjudicate). Promote after
-  //                     wiring the exemption + re-measure.
-  forbidden_claim: "warn",
+  // ── ARMED 2026-08-11 (FOLLOW-UP PACK fix A + the v4 re-measurement).
+  //   san_whitelist:san_unknown / :square_unknown — v3 measured 15 widened +
+  //     44 strict fires and the harness adjudicated ALL of them as
+  //     contract-globally licensed ("licensed-elsewhere-in-contract" /
+  //     "widened-licensed"): zero were fabrications, the insight-LOCAL license
+  //     pool was the bug. Fix A widens the serving pool to exactly the pool
+  //     the harness adjudicates with (collectContractWhitelist: every
+  //     insight's whitelist + the game moves + the move table's FEN squares
+  //     and bestWas lines), and the v4 re-run measures 0 residual fires in
+  //     both categories. The widening is monotone — it can only remove fires —
+  //     and the v2 TF control ("g6 cuts off its retreat square on h5", false:
+  //     Bh5 is legal + uncovered) still fires, pinned in refereeFollowups.test.ts.
+  "san_whitelist:san_unknown": "error",
+  "san_whitelist:square_unknown": "error",
+  // hypothetical_line_off_contract stays WARN: every v3 fire in that category
+  // (29) was strict-only with wouldPassWidenedWindow — armSeverity's structural
+  // clamp 2 holds those at warn anyway, so the category has NO adjudicated
+  // 0-FP evidence of its own. It arms when a measurement produces
+  // window-failing sequences and they adjudicate clean.
   san_whitelist: "warn",
+  // ── HELD AT WARN, with the specific blocker named:
+  //   forbidden_claim — v3's 3 fires were 1 definitional-prose FP (cleared by
+  //                     fix B: isDefinitionalSentence is now wired into the
+  //                     USER_VISIBILITY_RE path too), 1 "obvious"-class
+  //                     visibility fire (structurally clamped to warn forever
+  //                     — standing prohibition), and 1 board-UNFALSIFIABLE
+  //                     positional claim ("dominates", needs Lc0 to
+  //                     adjudicate). The positional class cannot be
+  //                     adjudicated with chess.js + SF alone, so this check
+  //                     does not arm in this pack.
+  forbidden_claim: "warn",
   // Stage-9 scanners — their CI-3 gates predate the adjudication's evidence
   // standard; held at warn with everything else until the v2 measurement.
   stage9_positional_claim: "warn",

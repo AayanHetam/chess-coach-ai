@@ -303,13 +303,14 @@ describe("FP — king-context 'trapped' mate license (#30)", () => {
     expect(spansOf(allFiresFor(byIdx(30)), "tactical_keyword")).toEqual([]);
   });
 
-  it("documented residue: the bare e7 square fire remains insight-locally but is game-history-licensed at the harness level", () => {
-    // Ke7 is a game move; the --fp-measure mechanical adjudicator licenses
-    // the square from contract-global pools ("licensed-elsewhere-in-
-    // contract"), so it never reaches needs-review. The insight-LOCAL
-    // whitelist is narrower by design (plan §4.3).
+  it("the bare e7 square no longer fires — FOLLOW-UP fix A moved the license pool contract-global", () => {
+    // Ke7 is a game move. Round 2 documented this as insight-local residue
+    // that only the --fp-measure adjudicator licensed ("licensed-elsewhere-
+    // in-contract"). The follow-up pack gives the SERVING check that same
+    // pool (collectContractWhitelist), so the residue is gone at the source
+    // rather than being written off at measurement time.
     const sanFires = spansOf(allFiresFor(byIdx(30)), "san_whitelist");
-    expect(sanFires).toEqual(["e7"]); // Nd5# itself is plan-intent licensed (legal from fenAfter)
+    expect(sanFires).toEqual([]);
   });
 });
 

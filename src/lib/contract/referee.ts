@@ -171,10 +171,12 @@ export interface RefereeInsightOpts {
   correlationId: string;
   playerPerspective?: "white" | "black";
   /**
-   * PRECISION PACK fix 7: when provided, the eval-display check licenses
-   * against contract-GLOBAL facts (all insights + move table) instead of the
-   * insight-local pools — the 30-game FP measurement adjudicated 2/2
-   * insight-local eval_display fires as licensed by another insight's facts.
+   * PRECISION PACK fix 7 + FOLLOW-UP fix A: when provided, the eval-display
+   * AND SAN/square checks license against contract-GLOBAL facts (all insights
+   * + game moves + move table) instead of the insight-local pools — the
+   * 30-game FP measurement adjudicated 2/2 eval_display and 59/59
+   * san_whitelist insight-local fires as licensed by another insight's or the
+   * game's own facts.
    */
   contract?: CoachContract;
 }
@@ -190,7 +192,13 @@ export function refereeInsight(
   // Checks 2–4 (plan §4): eval displays, SAN/square whitelist (STRICT
   // hypothetical-line prefix rule), tactical keywords, forbidden claims.
   for (const v of checkEvalDisplays(prose, insight, opts.contract)) findings.push(violationToFinding(v));
-  for (const v of checkSanWhitelist(prose, insight, { hypotheticalRule: "prefix" }))
+  // FOLLOW-UP fix A: contract-global SAN/square license pool when threaded —
+  // the v3 measurement adjudicated 59/59 insight-local fires as licensed by
+  // contract-global facts (see collectContractWhitelist).
+  for (const v of checkSanWhitelist(prose, insight, {
+    hypotheticalRule: "prefix",
+    contract: opts.contract,
+  }))
     findings.push(violationToFinding(v));
   // ROUND 2: contract threading gives the keyword check its game-history
   // licenses (king-context "trapped" needs the game's mate — fix 4b).

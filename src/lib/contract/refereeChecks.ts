@@ -400,6 +400,17 @@ export function buildPvSources(insight: InsightContract): PvSource[] {
 
 /** Exported (PR-CI-3) — one whitelist builder for measurement AND blocking. */
 export function buildWhitelist(insight: InsightContract): Whitelist {
+  let cached = insightWhitelistCache.get(insight);
+  if (!cached) {
+    cached = buildWhitelistUncached(insight);
+    insightWhitelistCache.set(insight, cached);
+  }
+  return cached;
+}
+
+const insightWhitelistCache = new WeakMap<InsightContract, Whitelist>();
+
+function buildWhitelistUncached(insight: InsightContract): Whitelist {
   const san = new Set<string>();
   const squares = new Set<string>();
   const pvs: string[][] = [];
@@ -454,6 +465,85 @@ export function buildWhitelist(insight: InsightContract): Whitelist {
   for (const sq of fenPieceSquares(insight.fenAfter)) squares.add(sq);
 
   return { san, squares, pvs };
+}
+
+/** SAN-embedded squares, no word boundaries ("Nf3" → f3). SQUARE_RE's \b
+ * anchors do NOT fire inside a piece-lettered SAN. */
+const SAN_EMBEDDED_SQUARE_RE = /[a-h][1-8]/g;
+
+/**
+ * FOLLOW-UP PACK fix A — contract-GLOBAL SAN/square license pool.
+ *
+ * v3 evidence (contract-referee-fp-30game-v3-*.json, 30 reviews): 44 strict /
+ * 15 widened san_whitelist fires, and the harness adjudicated 100% of them as
+ * `widened-licensed` or `licensed-elsewhere-in-contract` — i.e. every single
+ * fire was mechanically backed by facts the SAME contract carries, just not by
+ * the insight the prose block was mapped to. The prose is right; the
+ * insight-LOCAL pool (plan §4.3) was the bug, exactly as the eval_display pool
+ * was in precision-pack fix 7.
+ *
+ * This mirrors the harness's own buildFpPools() pool construction so the
+ * serving check and the measurement adjudicator can never drift:
+ *   - every insight's buildWhitelist (san + squares + PVs),
+ *   - the actual game moves (SANs, their embedded squares, and the move list
+ *     itself as a quotable line — the harness's "game-history-recap" license),
+ *   - each move-table row's fenBefore/fenAfter piece squares,
+ *   - each row's bestWas move and its PV.
+ *
+ * It is a strict WIDENING: it only ever adds licenses, so no true fabrication
+ * that fired insight-locally can start passing unless the contract itself
+ * backs the span. v2 TF #29 ("g6 cuts off its retreat square on h5" — false,
+ * Bh5 is legal and uncovered) is the pinned control: h5 is absent from
+ * fixture 09's contract-global square pool too, so it keeps firing.
+ */
+export function collectContractWhitelist(contract: CoachContract): Whitelist {
+  const san = new Set<string>();
+  const squares = new Set<string>();
+  const pvs: string[][] = [];
+  const addSanToken = (raw: string | null | undefined) => {
+    if (!raw) return;
+    const s = stripSanDecorations(raw);
+    if (!s) return;
+    san.add(s);
+    for (const sq of s.match(clone(SAN_EMBEDDED_SQUARE_RE)) ?? []) squares.add(sq);
+  };
+
+  for (const ins of contract.insights) {
+    const wl = buildWhitelist(ins);
+    wl.san.forEach((s) => san.add(s));
+    wl.squares.forEach((sq) => squares.add(sq));
+    pvs.push(...wl.pvs);
+  }
+
+  const gameMoves = contract.game.moveHistory.map(stripSanDecorations).filter(Boolean);
+  for (const m of gameMoves) addSanToken(m);
+  if (gameMoves.length > 0) pvs.push(gameMoves);
+
+  for (const row of contract.moveTable) {
+    for (const fen of [row.fenBefore, row.fenAfter]) {
+      if (fen) for (const sq of fenPieceSquares(fen)) squares.add(sq);
+    }
+    if (row.bestWas) {
+      addSanToken(row.bestWas.san);
+      const line = (row.bestWas.line?.san ?? []).map(stripSanDecorations).filter(Boolean);
+      if (line.length > 0) {
+        pvs.push(line);
+        for (const s of line) addSanToken(s);
+      }
+    }
+  }
+
+  return { san, squares, pvs };
+}
+
+const contractWhitelistCache = new WeakMap<CoachContract, Whitelist>();
+function contractWhitelist(contract: CoachContract): Whitelist {
+  let wl = contractWhitelistCache.get(contract);
+  if (!wl) {
+    wl = collectContractWhitelist(contract);
+    contractWhitelistCache.set(contract, wl);
+  }
+  return wl;
 }
 
 export interface ProseToken {
@@ -666,6 +756,16 @@ export interface SanWhitelistOpts {
    *    wouldPassWidenedWindow=true for the CI-4/5 arming measurement.
    */
   hypotheticalRule?: "window" | "prefix";
+  /**
+   * FOLLOW-UP PACK fix A: when provided, SAN/square/PV licensing runs against
+   * contract-GLOBAL facts (collectContractWhitelist) instead of the
+   * insight-local pool — the v3 measurement adjudicated 59/59 san_whitelist
+   * fires as licensed by exactly those facts. Position-specific licenses
+   * (piece designators, legal-move normalization, plan-intent legality,
+   * sentence-coupled attack maps) stay INSIGHT-local by construction: they are
+   * statements about this card's board, not about the contract.
+   */
+  contract?: CoachContract;
 }
 
 /**
@@ -683,7 +783,10 @@ export function checkSanWhitelist(
   opts: SanWhitelistOpts = {},
 ): RefereeViolation[] {
   const rule = opts.hypotheticalRule ?? "window";
-  const wl = buildWhitelist(insight);
+  const localWl = buildWhitelist(insight);
+  // Licence pool: contract-global when a contract is threaded (fix A), else
+  // the historical insight-local pool.
+  const wl = opts.contract ? contractWhitelist(opts.contract) : localWl;
   const violations: RefereeViolation[] = [];
   const tokens = tokenizeProse(prose);
   const consumed = new Set<number>(); // token indices already judged in a sequence
@@ -722,7 +825,10 @@ export function checkSanWhitelist(
   const buildPvMoveAttacks = (): Map<string, Set<string>> => {
     if (pvMoveAttacks) return pvMoveAttacks;
     pvMoveAttacks = new Map();
-    for (const pv of wl.pvs) {
+    // INSIGHT-local PVs only: the attack map replays from THIS insight's
+    // fenBefore, so another insight's line has no meaning here (fix A keeps
+    // position-specific licensing insight-local).
+    for (const pv of localWl.pvs) {
       let game: Chess;
       try {
         game = new Chess(insight.fenBefore);
@@ -1134,8 +1240,8 @@ export function checkForbiddenClaims(
 }
 
 // ── Convenience: all checks over one insight ────────────────────────────────
-/** `contract`, when provided, widens the eval_display license pool to
- * contract-global facts (precision-pack fix 7). */
+/** `contract`, when provided, widens the eval_display (precision-pack fix 7)
+ * AND SAN/square (follow-up fix A) license pools to contract-global facts. */
 export function runInsightChecks(
   prose: string,
   insight: InsightContract,
@@ -1143,7 +1249,7 @@ export function runInsightChecks(
 ): RefereeViolation[] {
   return [
     ...checkEvalDisplays(prose, insight, contract),
-    ...checkSanWhitelist(prose, insight),
+    ...checkSanWhitelist(prose, insight, { contract }),
     ...checkTacticalKeywords(prose, insight, contract),
     ...checkForbiddenClaims(prose, insight, contract),
   ];

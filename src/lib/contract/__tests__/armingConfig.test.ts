@@ -29,23 +29,27 @@ describe("DEFAULT_ARMING_TABLE — precision-pack correction: NOTHING arms at er
   it("arms ONLY the checks with a measured 0-false-positive record (v3)", () => {
     // eval_display: 0 fires across v1/v2/v3 — pure numeric comparison.
     // tactical_keyword: v3 22 fires = 19 TRUE_FABRICATION / 3 ambiguous / 0 FP.
+    // san_whitelist:san_unknown/:square_unknown — v3 fires were 100%
+    // contract-globally licensed (0 fabrications); the follow-up pack widened
+    // the serving pool to that same pool and v4 measures 0 residual.
     for (const [check, category] of [
       ["eval_display", "eval_unbacked"],
       ["tactical_keyword", "tactical_keyword_unbacked"],
+      ["san_whitelist", "san_unknown"],
+      ["san_whitelist", "square_unknown"],
     ] as const) {
       expect(armSeverity(finding({ check, category, severity: "error" }))).toBe("error");
     }
     // Held at warn with a named blocker (see armingConfig comments):
-    //  san_whitelist   — v3 fires 100% licensed by contract-GLOBAL facts;
-    //                    the insight-LOCAL pool is the bug, not the prose.
-    //  forbidden_claim — v3 3 fires incl. 1 definitional-sentence FP
-    //                    (isDefinitionalSentence not wired into the
-    //                    USER_VISIBILITY_RE path) + 1 unfalsifiable.
+    //  forbidden_claim — v3's residue is the board-UNFALSIFIABLE positional
+    //                    class ("dominates" — needs Lc0) plus the
+    //                    structurally-clamped user_visibility class.
+    //  san_whitelist:hypothetical_line_off_contract — every v3 fire was
+    //                    strict-only/widened-licensed, so the category has no
+    //                    0-FP evidence of its own.
     //  stage9_*/relational/citation — no v3 evidence of their own yet.
     for (const [check, category] of [
       ["forbidden_claim", "forbidden_claim_present"],
-      ["san_whitelist", "san_unknown"],
-      ["san_whitelist", "square_unknown"],
       ["citation_invalid", "citation_unresolvable"],
       ["relational_claim", "relational_claim_contradicted"],
       ["stage9_positional_claim", "positional_claim"],
@@ -117,12 +121,14 @@ describe("armFindings partition", () => {
       finding({}), // eval_display — armed
       finding({ check: "stage9_user_visibility", severity: "warn" }), // never error
       finding({ check: "tactical_keyword", category: "tactical_keyword_unbacked" }), // armed
-      finding({ check: "san_whitelist", category: "san_unknown" }), // held at warn
+      finding({ check: "san_whitelist", category: "san_unknown" }), // armed (fix A)
+      finding({ check: "forbidden_claim", category: "forbidden_claim_present" }), // held at warn
     ];
     const armed = armFindings(fs);
-    expect(armed.errors).toHaveLength(2);
+    expect(armed.errors).toHaveLength(3);
     expect(armed.errors.map((f) => f.check).sort()).toEqual([
       "eval_display",
+      "san_whitelist",
       "tactical_keyword",
     ]);
     expect(armed.warns).toHaveLength(2);

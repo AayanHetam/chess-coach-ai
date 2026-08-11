@@ -22,12 +22,28 @@ describe("DEFAULT_ARMING_TABLE — precision-pack correction: NOTHING arms at er
   // The 30-game FP adjudication (contract-referee-fp-30game, 2026-08-10)
   // found 30/37 contested fires were false positives — including on
   // tactical_keyword and forbidden_claim, which CI-4 had armed at error.
-  // Until the precision-pack re-measure lands, every check is warn.
-  it("every check — including tactical_keyword and forbidden_claim — defaults to warn", () => {
+  // ARMED 2026-08-11 from the v3 measurement (fixtures-real, 30 reviews):
+  // only checks with a position-verified 0-FP record may sit at error.
+  // Each row below is pinned to its evidence so a future edit that arms a
+  // check without a measurement has to delete a named assertion.
+  it("arms ONLY the checks with a measured 0-false-positive record (v3)", () => {
+    // eval_display: 0 fires across v1/v2/v3 — pure numeric comparison.
+    // tactical_keyword: v3 22 fires = 19 TRUE_FABRICATION / 3 ambiguous / 0 FP.
     for (const [check, category] of [
       ["eval_display", "eval_unbacked"],
-      ["forbidden_claim", "forbidden_claim_present"],
       ["tactical_keyword", "tactical_keyword_unbacked"],
+    ] as const) {
+      expect(armSeverity(finding({ check, category, severity: "error" }))).toBe("error");
+    }
+    // Held at warn with a named blocker (see armingConfig comments):
+    //  san_whitelist   — v3 fires 100% licensed by contract-GLOBAL facts;
+    //                    the insight-LOCAL pool is the bug, not the prose.
+    //  forbidden_claim — v3 3 fires incl. 1 definitional-sentence FP
+    //                    (isDefinitionalSentence not wired into the
+    //                    USER_VISIBILITY_RE path) + 1 unfalsifiable.
+    //  stage9_*/relational/citation — no v3 evidence of their own yet.
+    for (const [check, category] of [
+      ["forbidden_claim", "forbidden_claim_present"],
       ["san_whitelist", "san_unknown"],
       ["san_whitelist", "square_unknown"],
       ["citation_invalid", "citation_unresolvable"],
@@ -96,15 +112,20 @@ describe("structural clamps (cannot be overridden by config)", () => {
 });
 
 describe("armFindings partition", () => {
-  it("all-warn default: nothing lands in errors", () => {
+  it("default table: v3-armed checks land in errors, the rest in warns", () => {
     const fs: ServingFinding[] = [
-      finding({}),
-      finding({ check: "stage9_user_visibility", severity: "warn" }),
-      finding({ check: "tactical_keyword", category: "tactical_keyword_unbacked" }),
+      finding({}), // eval_display — armed
+      finding({ check: "stage9_user_visibility", severity: "warn" }), // never error
+      finding({ check: "tactical_keyword", category: "tactical_keyword_unbacked" }), // armed
+      finding({ check: "san_whitelist", category: "san_unknown" }), // held at warn
     ];
     const armed = armFindings(fs);
-    expect(armed.errors).toHaveLength(0);
-    expect(armed.warns).toHaveLength(3);
+    expect(armed.errors).toHaveLength(2);
+    expect(armed.errors.map((f) => f.check).sort()).toEqual([
+      "eval_display",
+      "tactical_keyword",
+    ]);
+    expect(armed.warns).toHaveLength(2);
   });
 
   it("splits errors/warns per an explicit enforcement table and drops 'off'", () => {

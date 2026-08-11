@@ -111,15 +111,17 @@ export const DEFAULT_ARMING_TABLE: ArmingTable = {
   //     runMeasurementOnlyChecks).
   mobility_claims: "error",
   // ── HELD AT WARN inside san_whitelist, with the blockers named:
-  //   san_unknown — v4 measured ONE residual: fixture 10/M2 "…if it stays,
-  //     Bxg6 wins a piece", where Bxg6 is legal only AFTER the engine-best
-  //     Bh5. That is the FUTURE-OPTION SAN class (same shape as
-  //     precision-pack residuals #17/#18/#20, "Bc3 or Ba5" after a
-  //     hypothetical Bd2): real coaching prose one ply beyond the
-  //     plan-intent legality pool, which only reaches fenBefore/fenAfter.
-  //     Not 0-FP ⇒ does not arm. Unblocking it needs a PV-continuation
-  //     legality license (moves legal after N plies of a contract PV) plus
-  //     its own measurement.
+  //   san_unknown — the FUTURE-OPTION SAN class is unresolved: real coaching
+  //     prose naming a move that is legal one ply past the plan-intent
+  //     legality pool (which only reaches fenBefore/fenAfter). Pinned as a
+  //     live residual in refereePrecisionPack.test.ts (#17/#18/#20, "Bc3 or
+  //     Ba5" after a hypothetical Bd2) and observed again in a v4 sampling run
+  //     (fixture 10/M2, "…if it stays, Bxg6 wins a piece" — Bxg6 is legal only
+  //     after the engine-best Bh5). The committed v4 artifact happens to
+  //     sample 0 of them (generation is temperature 0.7), which is exactly why
+  //     the pinned test, not one run, governs. Not 0-FP ⇒ does not arm.
+  //     Unblocking needs a PV-continuation legality license (moves legal after
+  //     N plies of a contract PV) plus its own measurement.
   //   hypothetical_line_off_contract — 13 of v4's 15 fires were strict-only
   //     with wouldPassWidenedWindow (structural clamp 2 holds those at warn
   //     regardless); the 2 shared fires were both prose-list artifacts where a

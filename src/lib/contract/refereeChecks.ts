@@ -1678,6 +1678,14 @@ const PIECE_ON_SQUARE_RE = /\b(queen|rook|bishop|knight|king|pawn)\s+(?:on|at|to
  * claim is board-true.
  */
 const ZERO_MOBILITY_LITERAL_RE = /\b(?:(?:no|zero)\s+legal\s+moves?|no\s+moves)\b/gi;
+/**
+ * A hedge in front of the phrase turns an absolute count into an estimate:
+ * "the knight on a8 has ALMOST no legal moves" (v4-a span 07/s2/M3, 2 legal
+ * moves) is fair prose, not a fabricated zero. An armed check must not
+ * enforce against hedged language.
+ */
+const ZERO_MOBILITY_HEDGE_RE =
+  /\b(?:almost|nearly|virtually|practically|effectively|essentially|hardly|next to)\s*$/i;
 const ZERO_MOBILITY_QUALITATIVE_RE =
   /\b(?:no\s+good\s+squares?|no\s+safe\s+(?:squares?|retreats?)|no\s+safe\s+square\s+to\s+retreat|nowhere\s+to\s+go|no\s+escape)\b/gi;
 const PIECE_NAME_TO_LETTER: Record<string, string> = {
@@ -1958,6 +1966,7 @@ function judgeZeroMobility(
   label: "legal" | "safe",
 ): RefereeViolation | null {
   const idx = m.index ?? 0;
+  if (ZERO_MOBILITY_HEDGE_RE.test(prose.slice(Math.max(0, idx - 24), idx))) return null; // hedged
   const { start, end } = sentenceBounds(prose, idx);
   const sentence = prose.slice(start, end);
   const ref = resolveClaimPiece(sentence, idx - start);

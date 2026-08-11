@@ -464,6 +464,14 @@ describe("fix D — mobility_claims: LITERAL family graduates to the serving pat
     expect(fires[0].detail).not.toContain("N on c3");
   });
 
+  it("control: a HEDGED count is not an absolute zero claim (v4-a span 07/s2/M3)", () => {
+    const { insight } = insightFor(V3_MOBILITY_LITERAL[0]);
+    const absolute = "The knight on e7 has no legal moves.";
+    const hedged = "The knight on e7 has almost no legal moves.";
+    expect(checkMobilityClaims(absolute, insight)).toHaveLength(1);
+    expect(checkMobilityClaims(hedged, insight)).toEqual([]);
+  });
+
   it("control: an unverifiable claim (no resolvable piece) is skipped, never guessed", () => {
     const { insight } = insightFor(V3_MOBILITY_LITERAL[0]);
     expect(checkMobilityClaims("You have no legal moves here.", insight)).toEqual([]);

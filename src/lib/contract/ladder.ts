@@ -195,8 +195,14 @@ const ORPHAN_LABEL_RE =
   /^\s*(?:[-*]\s*)?(?:idea|problem|solution|outcome|why|what happened|key idea|takeaway|straight talk|the fix|result)\s*:?\s*$/i;
 /** A bullet or connective stub left dangling by an excision. */
 const ORPHAN_STUB_RE = /^\s*(?:[-*]\s*)?(?:and|but|so|then|because|which|after|before|,|—|-)?\s*$/i;
-/** A line whose visible remainder is a bare move number ("Solution: ... 9."). */
-const TRAILING_MOVE_NUMBER_RE = /\b\d{1,3}\.(\.\.)?\s*$/;
+/**
+ * A line truncated mid-line ("Solution: The engine line shows 8... Ba5+ 9.").
+ * Deliberately narrow: a trailing "4." is only a fragment when the line ALSO
+ * quotes SAN, because "This is a forced mate in 4." is a perfectly good
+ * sentence that ends the same way and must survive.
+ */
+const TRUNCATED_LINE_RE = /\b\d{1,3}\.(\.\.)?\s*$/;
+const SAN_IN_LINE_RE = /(?:\b[KQRBN][a-h]?[1-8]?x?[a-h][1-8]|\b[a-h]x[a-h][1-8]|\bO-O(?:-O)?)/;
 
 /**
  * Remove sections whose body became empty, and label/bullet stubs left behind
@@ -216,8 +222,8 @@ export function tidyAfterDrop(body: string): string {
     if (!t) return true;
     if (ORPHAN_LABEL_RE.test(t)) return false;
     if (ORPHAN_STUB_RE.test(t)) return false;
-    // A remnant that ends on a bare move number is a fragment, not a sentence.
-    if (TRAILING_MOVE_NUMBER_RE.test(t) && t.replace(/[^A-Za-z]/g, "").length < 40) return false;
+    // A SAN-quoting line cut off on a bare move number is a truncated line.
+    if (TRUNCATED_LINE_RE.test(t) && SAN_IN_LINE_RE.test(t)) return false;
     return true;
   });
   // 2. drop sections that are now completely empty.

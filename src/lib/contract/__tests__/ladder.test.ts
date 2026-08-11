@@ -106,6 +106,14 @@ describe("dropViolatingSentences", () => {
     expect(out).toContain("[WHY]");
   });
 
+  it("keeps a legitimate sentence that merely ends on a number", () => {
+    const body =
+      "A perfectly clean coaching sentence that survives the excision here.\n" +
+      "This is a forced mate in 4.\nBad -9.50 claim.";
+    const out = dropViolatingSentences(body, ["-9.50"]);
+    expect(out).toContain("This is a forced mate in 4.");
+  });
+
   it("removes an orphan teaching label left with nothing after it", () => {
     const body =
       "A perfectly clean coaching sentence that survives the excision here.\nProblem: Bad -9.50 claim.";

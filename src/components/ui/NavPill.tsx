@@ -352,12 +352,20 @@ export function NavPill({ active }: NavPillProps) {
               </>
             ) : (
               <Stack
+                // Semantic button (a11y): this was a plain styled Box —
+                // no role, unreachable by keyboard/screen readers. Found by
+                // the 2026-08-10 stranger-crawl audit.
+                component="button"
+                type="button"
+                aria-label="Sign in"
                 onClick={() => openAuthDialog()}
                 direction="row"
                 spacing={0.75}
                 alignItems="center"
                 sx={{
                   cursor: "pointer",
+                  border: "none",
+                  font: "inherit",
                   px: 1.75,
                   py: 0.85,
                   borderRadius: "999px",

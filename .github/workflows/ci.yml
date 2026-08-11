@@ -40,3 +40,20 @@ jobs:
       # the live BEFORE/AFTER baseline runs stay manual (API-billed).
       - name: Contract fidelity smoke (--dry-run, no network)
         run: npx tsx scripts/eval/contract_fidelity_eval.ts --dry-run
+
+      # Vercel-parity gate. Vercel runs `next build` (which runs eslint with
+      # error-level rules) — CI didn't, so lint errors could pass CI, get
+      # merged, and silently freeze every prod deploy (happened 2026-08-10,
+      # citations.ts no-useless-escape, prod frozen ~a day). Verified to pass
+      # with no .env file present.
+      - name: Production build (Vercel parity)
+        run: npm run build
+
+      # Critical-journey E2E against the production build we just made.
+      # Secrets-free by design: journeys are client-side (dark chrome, auth
+      # dialog, COPPA DOB gate, core pages) and never create accounts.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E critical journeys
+        run: npx playwright test --project=local-desktop-light --project=local-mobile-light

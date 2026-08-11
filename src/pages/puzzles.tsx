@@ -2283,6 +2283,14 @@ export default function PreviewPuzzlesPage() {
                 <PuzzleCoachPanel
                   puzzle={puzzle}
                   outcome={coachOutcome}
+                  // A2 (SILENT_SUBSTITUTION_HANDOFF): the puzzle is picked for
+                  // this exact rating (±150, see ratingMin/ratingMax above) —
+                  // omitting it here made both prompt builders fall to their
+                  // "Student rating: unknown. Default to club-player depth."
+                  // branch, so a puzzle chosen for the user's band was then
+                  // explained at a generic level. Same atom, same pattern as
+                  // ConceptLessonCard.
+                  userRating={stats.rating}
                   userAttemptSan={lastWrongSan}
                   onRequestMorePuzzles={handleNextPuzzle}
                   drillPuzzles={feed.upcoming}

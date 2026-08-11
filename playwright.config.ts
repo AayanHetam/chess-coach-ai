@@ -21,6 +21,14 @@ export default defineConfig({
   testDir: "tests/e2e",
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
+  // Capped deliberately. Playwright's default is cores/2, but every spec here
+  // drives a server-rendered page and /puzzles additionally boots Stockfish
+  // WASM and parses a 100k-row CSV, so the workers starve each other rather
+  // than sharing. Measured on a 10-core machine: default parallelism gave
+  // 3 failures in 3.4 min (all timeouts, in specs unrelated to whatever was
+  // being changed); 2 workers gave 48 passed in 1.3 min. Fewer is both faster
+  // and honest — a timeout under self-inflicted load is a false red.
+  workers: 2,
   reporter: process.env.CI ? [["list"], ["github"]] : [["list"]],
   use: {
     trace: "retain-on-failure",

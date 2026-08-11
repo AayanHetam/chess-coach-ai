@@ -79,6 +79,10 @@ import { CONTRACT_VERSION } from "@/lib/contract/types";
 // PR-CI-4: contract-mode enforced serving (verbalizer 4.0 + failure ladder).
 // Dead code until CONTRACT_CATEGORIES lists a category.
 import { serveContractAnalysis } from "@/lib/contract/contractServing";
+import {
+  contractServingDecision,
+  isContractServingConfigured,
+} from "@/lib/contract/servingGate";
 import { VERBALIZER_PROMPT_VERSION } from "@/lib/prompts/verbalizerPrompt";
 import type { CoachContract } from "@/lib/contract/types";
 import { fetch_lichess_tablebase } from "@/lib/mastermind/lichessTablebase";
@@ -679,12 +683,13 @@ export async function POST(request: NextRequest) {
         { fen, playerColor: playerColor || "w" }
       );
       gameContext = built.prompt;
-      // PR-CI-4: the contract also rides along when enforcement is armed for
-      // any category (CONTRACT_CATEGORIES non-empty). With both flags at
-      // their defaults this stays null and the legacy path is untouched.
+      // PR-CI-4/CI-5: the contract also rides along when enforcement is armed
+      // for any category (CONTRACT_CATEGORIES non-empty) OR for any dogfood
+      // uid (CONTRACT_UIDS non-empty). With all flags at their defaults this
+      // stays null and the legacy path is untouched.
       if (
         getContractEnv().refereeShadowEnabled ||
-        getContractEnv().categories.length > 0
+        isContractServingConfigured()
       ) {
         contractForShadowReferee = built.contract;
       }
@@ -960,17 +965,21 @@ export async function POST(request: NextRequest) {
             opponentPlatform,
           });
 
-          // ── PR-CI-4: contract-mode ENFORCED serving ────────────────────
-          // Live ONLY when this request's classified category is listed in
-          // CONTRACT_CATEGORIES (default "" ⇒ dead branch, legacy bytes
-          // identical — pinned by contractRollbackDrill.test.ts) AND a
-          // CoachContract was built (game path). Verbalizer 4.0 + block-
-          // gated referee + failure ladder; cache reads/writes only c4.0|
-          // keys (generateContractCacheKey) — legacy 3.6 keys untouched.
-          if (
-            contractForShadowReferee &&
-            getContractEnv().categories.includes(prep.category)
-          ) {
+          // ── PR-CI-4/CI-5: contract-mode ENFORCED serving ───────────────
+          // Live ONLY when a CoachContract was built (game path) AND the
+          // serving gate arms this request: the classified category is listed
+          // in CONTRACT_CATEGORIES (everyone) or the session uid is listed in
+          // CONTRACT_UIDS (that user, every category — the CI-5 founder /
+          // intern dogfood lever). With both env vars empty this is a dead
+          // branch and legacy bytes are identical (pinned by
+          // contractRollbackDrill.test.ts). Verbalizer 4.0 + block-gated
+          // referee + failure ladder; cache reads/writes only c4.0| keys
+          // (generateContractCacheKey) — legacy 3.6 keys untouched.
+          const servingGate = contractServingDecision({
+            category: prep.category,
+            uid: session.uid,
+          });
+          if (contractForShadowReferee && servingGate.armed) {
             try {
               const serving = await serveContractAnalysis({
                 contract: contractForShadowReferee,
@@ -1070,6 +1079,10 @@ export async function POST(request: NextRequest) {
                     classifierConfidence: prep.classifierConfidence,
                     prepMs: prep.prepMs,
                     contractMode: true,
+                    // CI-5: which lever armed this request — so dogfood
+                    // traffic is separable from general-rollout traffic in
+                    // CMIP triage and in the tracking tables.
+                    contractArmedBy: servingGate.reason,
                   },
                 },
               });

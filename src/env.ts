@@ -162,6 +162,19 @@ export function __resetMastermindEnvCacheForTests(): void {
  * pre-built persona fallback (plan §3): paragraph mode counts a claim
  * sentence as cited when its PARAGRAPH carries a [F:] token. Dark by
  * default; flip only if sentence-level citation tanks the persona rubric.
+ *
+ * PR-CI-5 addition:
+ *
+ * CONTRACT_UIDS — comma-separated session-uid allowlist (founder + CMIP
+ * interns). A request from a listed uid serves through the ENFORCED path for
+ * EVERY category, regardless of CONTRACT_CATEGORIES. This is the dogfood
+ * lever that lets `game_review` — the highest-traffic surface — be armed for
+ * Aayan alone before any general rollout, and emptying it is the rollback
+ * (plan §7 PR-CI-5: "Rollback: empty the UID allowlist").
+ *
+ * Precedence is a plain OR (isContractServingArmed in
+ * src/lib/contract/servingGate.ts): category listed (everyone) OR uid listed
+ * (that user, all categories). Neither ⇒ legacy, byte-identical.
  */
 export type ContractRefereeMode = "full" | "deterministic";
 export type ContractCitationGranularity = "sentence" | "paragraph";
@@ -171,6 +184,11 @@ export interface ContractEnv {
   refereeShadowEnabled: boolean;
   /** Lowercased, trimmed, deduped category list; [] = enforcement dark. */
   categories: string[];
+  /**
+   * Trimmed, deduped, CASE-PRESERVING uid allowlist; [] = no dogfood arming.
+   * Case is preserved on purpose — see parseContractUids.
+   */
+  uids: string[];
   refereeMode: ContractRefereeMode;
   citationGranularity: ContractCitationGranularity;
 }
@@ -182,6 +200,36 @@ export function parseContractCategories(raw: string | undefined): string[] {
       raw
         .split(",")
         .map((s) => s.trim().toLowerCase())
+        .filter((s) => s.length > 0),
+    ),
+  );
+}
+
+/**
+ * Parse CONTRACT_UIDS (PR-CI-5).
+ *
+ * Hardening, in order of the hazards that actually bit this codebase:
+ *  - `.trim()` per entry AND newline/tab tolerance — Vercel's env UI appends
+ *    a trailing "\n" to saved values (the MASTERMIND_VALIDATORS_ENABLED
+ *    "true\n" incident); a pasted allowlist also tends to arrive with spaces
+ *    and line breaks between entries, so newlines split like commas do.
+ *  - surrounding quotes stripped — a value pasted as `"uid1,uid2"` is the
+ *    other common paste artifact.
+ *  - dedupe, empties dropped.
+ *
+ * CASE IS **NOT** FOLDED, unlike parseContractCategories. Firebase/session
+ * uids are case-SENSITIVE 28-char mixed-case tokens: lowercasing them would
+ * make the allowlist match uids it was never given (and fail to match the one
+ * it was). An allowlist that matches more than it was told to is a security
+ * bug, so matching stays exact.
+ */
+export function parseContractUids(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return Array.from(
+    new Set(
+      raw
+        .split(/[,\n\r\t]+/)
+        .map((s) => s.trim().replace(/^["']|["']$/g, "").trim())
         .filter((s) => s.length > 0),
     ),
   );
@@ -199,6 +247,7 @@ export function getContractEnv(): ContractEnv {
     shadowEnabled: parseBoolEnv(process.env.CONTRACT_SHADOW),
     refereeShadowEnabled: parseBoolEnv(process.env.CONTRACT_REFEREE_SHADOW),
     categories: parseContractCategories(process.env.CONTRACT_CATEGORIES),
+    uids: parseContractUids(process.env.CONTRACT_UIDS),
     refereeMode: modeRaw === "deterministic" ? "deterministic" : "full",
     citationGranularity: granularityRaw === "paragraph" ? "paragraph" : "sentence",
   };

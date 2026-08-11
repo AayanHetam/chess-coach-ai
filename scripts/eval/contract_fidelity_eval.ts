@@ -261,7 +261,12 @@ async function runDryRun(): Promise<void> {
   const bad1 =
     "You are down M+7 after this — the eval crashed to -12.50. " +
     "Your rook on a5 cuts the defense, a classic skewer. " +
-    "Obviously this loses and White is completely winning.";
+    // FOLLOW-UP fix B: the visibility clause is board-ANCHORED on purpose.
+    // isDefinitionalSentence now exempts the user_visibility path too, and a
+    // bare "Obviously this loses…" carries no square/SAN/piece reference — it
+    // would read as concept prose. "the bishop on d1" is the square Bxd1
+    // landed on, so it is contract-licensed and adds no square_unknown fire.
+    "Obviously the bishop on d1 loses and White is completely winning.";
   const bad1Violations = runInsightChecks(bad1, bxd1);
   const bad1Cats = countByCategory(bad1Violations);
   check("bad1: 6 violations total", bad1Violations.length === 6, bad1Cats);
@@ -601,6 +606,11 @@ interface FpFlaggedSpan {
   sentence: string;
   adjudication: FpAdjudication;
   wouldPassWidenedWindow?: boolean;
+  /** Emitted by runMeasurementOnlyChecks rather than by either grader.
+   * mobility_claims fires on BOTH sides since fix D (served literal family +
+   * measurement-only qualitative family), so the category tallies have to be
+   * able to tell them apart. */
+  measurementOnly?: boolean;
   detail: string;
 }
 
@@ -760,7 +770,17 @@ function sentenceContext(prose: string, span: string, index?: number): string {
   return prose.slice(start, end).trim().slice(0, 300);
 }
 
-const FP_CONTRACT_CHECKS = new Set(["eval_display", "san_whitelist", "tactical_keyword", "forbidden_claim"]);
+/** Checks that run on BOTH graders (widened runInsightChecks + strict
+ * refereeInsight) and therefore feed the strict-vs-widened consistency
+ * invariant. FOLLOW-UP fix D added mobility_claims: its LITERAL family
+ * graduated onto the serving path, so it now fires on both sides. */
+const FP_CONTRACT_CHECKS = new Set([
+  "eval_display",
+  "san_whitelist",
+  "tactical_keyword",
+  "forbidden_claim",
+  "mobility_claims",
+]);
 
 interface FpSample {
   fixture: string;
@@ -916,6 +936,7 @@ async function refereeReviewDual(input: {
         span: v.span,
         sentence: sentenceContext(block.prose, v.span, v.index),
         adjudication: "needs-review",
+        measurementOnly: true,
         detail: v.detail.slice(0, 300),
       });
     }
@@ -971,6 +992,7 @@ function summarizeFp(samples: FpSample[], flagged: FpFlaggedSpan[]) {
     const adjudications: Record<string, number> = {};
     let needsReview = 0;
     for (const f of flagged) {
+      if (f.measurementOnly) continue; // never a grader fire (fix D)
       if (!cats.includes(f.category)) continue;
       if (side === "widened" && f.referee !== "both") continue;
       adjudications[f.adjudication] = (adjudications[f.adjudication] ?? 0) + 1;
@@ -1009,18 +1031,29 @@ function summarizeFp(samples: FpSample[], flagged: FpFlaggedSpan[]) {
     hypoRec = `prefix and window agree on all ${hypoStrictFires} fire(s) (no widening pressure observed); adjudicate the needs-review spans before arming`;
   }
 
-  // PRECISION PACK measurement-only checks: evidence tallies only — every
-  // fire is a needs-review flagged span; adjudicate before ANY arming talk.
+  // Measurement-only checks: evidence tallies only — every fire is a
+  // needs-review span by construction; adjudicate before ANY arming talk.
+  // NOTE (fix D): counted from measurementOnlyByCheck, not from `flagged`,
+  // because mobility_claims now also emits SERVED fires into `flagged` via the
+  // widened grader — mixing the two would double-count.
   const measurementOnlyTally = (check: string): FpClassTally => {
-    const mine = flagged.filter((f) => f.check === check);
+    const fires = measurementOnlyByCheck[check] ?? 0;
     return {
-      fires: measurementOnlyByCheck[check] ?? 0,
-      adjudications: mine.length > 0 ? { "needs-review": mine.length } : {},
-      needsReview: mine.length,
+      fires,
+      adjudications: fires > 0 ? { "needs-review": fires } : {},
+      needsReview: fires,
     };
   };
   const pvTruncation = measurementOnlyTally("pv_truncation");
-  const mobilityClaims = measurementOnlyTally("mobility_claims");
+  const mobilityQualitative = measurementOnlyTally("mobility_claims");
+  // FOLLOW-UP fix D: the LITERAL mobility family is a served, ARMED check now.
+  // Its fires are chess.js arithmetic refutations, so "needs-review" here
+  // means "confirm the fabrication", not "no license found".
+  const mobilityServed = tallyFor(["mobility_count_wrong"], "strict");
+  const mobilityServedRec = (t: FpClassTally): string =>
+    t.fires === 0
+      ? "0 served fires — the armed LITERAL mobility family found nothing to refute on this set"
+      : `${t.fires} served fire(s): bare-integer / "no legal moves" claims chess.js contradicts. These are arithmetic refutations, not unlicensed spans — review confirms the fabrication rather than looking for a license.`;
   const measurementOnlyRec = (t: FpClassTally): string =>
     t.fires === 0
       ? "0 fires — measurement-only check gathered no evidence on this set; keep measuring before proposing"
@@ -1033,7 +1066,14 @@ function summarizeFp(samples: FpSample[], flagged: FpFlaggedSpan[]) {
     tactical_keyword: { ...tactical, recommendation: recFor(tactical) },
     forbidden_claim: { ...forbidden, recommendation: recFor(forbidden) },
     pv_truncation: { ...pvTruncation, recommendation: measurementOnlyRec(pvTruncation) },
-    mobility_claims: { ...mobilityClaims, recommendation: measurementOnlyRec(mobilityClaims) },
+    mobility_claims_literal_served: {
+      ...mobilityServed,
+      recommendation: mobilityServedRec(mobilityServed),
+    },
+    mobility_claims_qualitative: {
+      ...mobilityQualitative,
+      recommendation: measurementOnlyRec(mobilityQualitative),
+    },
     hypothetical_line: {
       strictFires: hypoStrictFires,
       widenedFires: hypoWidenedFires,
@@ -1167,7 +1207,7 @@ async function runFpMeasure(args: Args): Promise<void> {
       strict:
         "referee.refereeInsight (hypotheticalRule: prefix, wouldPassWidenedWindow telemetry, contract threaded)",
       measurementOnly:
-        "refereeChecks.runMeasurementOnlyChecks (pv_truncation quiescence rewrite + mobility_claims incl. zero-mobility cross-check)",
+        "refereeChecks.runMeasurementOnlyChecks (follow-up fix C pv_truncation G1/G2/G3 + the QUALITATIVE mobility family only — fix D graduated the LITERAL family onto the served/strict graders)",
     },
     summary: agg.summary,
     perCheck: agg.perCheck,
@@ -1301,8 +1341,8 @@ async function runFpSmoke(): Promise<void> {
   );
   check("summary: widenedLicensedShare = 1", agg.summary.widenedLicensedShare === 1, agg.summary);
   check(
-    "summary: all eight per-check recommendations present (incl. the 2 measurement-only)",
-    Object.keys(agg.summary.recommendation).length === 8,
+    "summary: all nine per-check recommendations present (fix D split mobility into served + qualitative)",
+    Object.keys(agg.summary.recommendation).length === 9,
     agg.summary.recommendation,
   );
   check(

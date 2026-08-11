@@ -1645,6 +1645,10 @@ export default function PreviewPuzzlesPage() {
                         fen={displayFen}
                         orientation={orientation}
                         interactive={interactive}
+                        // Tapping the board takes back an uncommitted move.
+                        // Only wired while something IS staged, so a tap
+                        // during a demo or on a solved board stays inert.
+                        onCancel={staged ? handleUnstageMove : undefined}
                         onPieceDrop={onBoardMove}
                         lastMove={
                           displayLastMove

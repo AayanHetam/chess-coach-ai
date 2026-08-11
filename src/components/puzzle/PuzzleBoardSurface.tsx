@@ -78,6 +78,18 @@ export interface PuzzleBoardSurfaceProps {
   /** Pieces are draggable/clickable + legal dots show when true. */
   interactive: boolean;
   /**
+   * Take-back handler for a non-interactive board that is showing an
+   * uncommitted move. When set, tapping any square calls this instead of
+   * doing nothing.
+   *
+   * Exists because confirm-move mode renders the STAGED position and must
+   * therefore drop interactivity — a second drag would report squares that
+   * don't exist in the real position. Without this, changing your mind meant
+   * hunting for a button; with it, tapping the board just undoes it, which is
+   * what everyone tries first.
+   */
+  onCancel?: () => void;
+  /**
    * Move sink. The board calls this with every attempted move (drag or click);
    * the parent applies/validates it and returns true to keep the visual
    * position or false to snap back. The board itself does NOT judge legality
@@ -116,6 +128,7 @@ export function PuzzleBoardSurface({
   fen,
   orientation,
   interactive,
+  onCancel,
   onPieceDrop,
   lastMove,
   wrongSquare,
@@ -201,7 +214,12 @@ export function PuzzleBoardSurface({
 
   const onSquareClick = useCallback(
     (square: Square, piece: Piece | undefined) => {
-      if (!interactive) return;
+      if (!interactive) {
+        // A non-interactive board that is showing something take-back-able
+        // treats any tap as "undo that".
+        onCancel?.();
+        return;
+      }
       if (selected) {
         if (square === selected) {
           setSelected(null);
@@ -219,7 +237,7 @@ export function PuzzleBoardSurface({
       }
       if (piece && isOwnPiece(piece)) setSelected(square);
     },
-    [interactive, selected, isOwnPiece, onPieceDrop, game],
+    [interactive, onCancel, selected, isOwnPiece, onPieceDrop, game],
   );
 
   const onPieceDragBegin = useCallback((_p: Piece, sq: Square) => {
@@ -257,6 +275,14 @@ export function PuzzleBoardSurface({
 
   return (
     <Box
+      // The rendered position and whether it accepts input, exposed for
+      // end-to-end tests. The puzzle feed is random, so a test otherwise has
+      // no way to know which piece is movable — it would have to guess by
+      // clicking squares and watching for a repaint, which the board gives it
+      // no reliable signal for. Two attributes make the board fully drivable
+      // and are also the first thing you want in a bug report.
+      data-board-fen={fen}
+      data-board-interactive={interactive ? "true" : "false"}
       sx={{
         position: "relative",
         width: boardWidth ?? "100%",

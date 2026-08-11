@@ -139,6 +139,15 @@ export function deriveMastermindMoveContext(
   moveHistory: string[] | undefined,
   fen: string | undefined,
   gameEval: MastermindGameEval | undefined,
+  /**
+   * B3 (SILENT_SUBSTITUTION_HANDOFF §3 Group B): half-moves on the board under
+   * discussion. Defaults to the end of the game, which is what this function
+   * always assumed. When the user asks about an earlier move, the validators
+   * MUST anchor to the same board the prompt describes — otherwise they would
+   * check a correct statement about ply 12 against the position at ply 40 and
+   * "correct" it into something false.
+   */
+  anchorPly?: number,
 ): MastermindMoveContext {
   if (NON_MOVE_FOCUS_CATEGORIES.has(category)) {
     const anchor =
@@ -156,7 +165,10 @@ export function deriveMastermindMoveContext(
   }
 
   if (moveHistory && moveHistory.length > 0) {
-    const lastIdx = moveHistory.length;
+    const lastIdx =
+      anchorPly !== undefined && anchorPly > 0 && anchorPly <= moveHistory.length
+        ? anchorPly
+        : moveHistory.length;
     const fenBefore = fenAtHalfMove(moveHistory, lastIdx - 1);
     const fenAfter = fenAtHalfMove(moveHistory, lastIdx);
     const evalAfter = gameEval?.positions?.[lastIdx];
@@ -212,6 +224,8 @@ export interface PrepareMastermindOpts {
   moveHistory?: string[];
   fen?: string;
   gameEval?: MastermindGameEval;
+  /** B3: half-moves on the board under discussion; defaults to end-of-game. */
+  viewedPly?: number;
   pv?: string[];
   playerPerspective: "white" | "black";
   correlationId: string;
@@ -314,6 +328,7 @@ export async function prepareMastermindContext(
     opts.moveHistory,
     opts.fen,
     opts.gameEval,
+    opts.viewedPly,
   );
 
   const dataSources = await fetchDataSources({

@@ -107,6 +107,7 @@ import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useViewer } from "@/hooks/useViewer";
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { buildAnalysisRequestBody } from "@/lib/coach/analysisRequestBody";
+import { buildChatRequestBody } from "@/lib/coach/chatRequestBody";
 import type { GameEval } from "@/types/eval";
 import { FlagButton } from "@/components/intern/FlagButton";
 import {
@@ -593,11 +594,18 @@ async function streamCoachReply(params: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({
-        contextId: contextIdRef.current,
-        userMessage: userText,
-        conversationHistory,
-      }),
+      body: JSON.stringify(
+        // B1 (SILENT_SUBSTITUTION_HANDOFF §3 Group B): assembled by the shared
+        // builder so the "forward the board the user is actually looking at"
+        // contract is unit-tested against the code that ships.
+        buildChatRequestBody({
+          contextId: contextIdRef.current!,
+          userMessage: userText,
+          conversationHistory,
+          fen,
+          currentPly,
+        })
+      ),
       signal,
     });
     if (chatRes.status === 404) {
@@ -690,6 +698,7 @@ async function streamCoachReply(params: {
     gameEval: gameEvalPayload,
     conversationHistory,
     userRating,
+    viewedPly: currentPly,
     playerColor,
     playerColorName,
     boardOrientation,

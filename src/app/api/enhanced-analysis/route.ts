@@ -58,6 +58,7 @@ import {
 } from "@/lib/mastermind/routeHelpers";
 import { buildCurrentPositionFacts } from "@/lib/mastermind/positionFacts";
 import { buildCompactGameContext } from "@/lib/coach/compactGameContext";
+import { buildPositionUnderDiscussion } from "@/lib/coach/positionUnderDiscussion";
 import { detectMotifs, motifsToPropmt } from "@/lib/tactics";
 import type { AnyMotif } from "@/lib/tactics";
 import {
@@ -400,6 +401,7 @@ export async function POST(request: NextRequest) {
       // which is what makes the profile → header-Elo fallbacks live code.
       // Do not reintroduce a default in the body.
       userRating: userRatingFromBody,
+      viewedPly,
       boardOrientation,
       conversationHistory,
       personalityId,
@@ -548,6 +550,12 @@ export async function POST(request: NextRequest) {
         { fen, playerColor: playerColor || "w" }
       );
       gameContext = built.prompt;
+      // B3 (SILENT_SUBSTITUTION_HANDOFF §3 Group B): if the user is looking at
+      // an earlier move, say which board the question is about. Prepended so it
+      // precedes the FINAL POSITION section it overrides. Empty string when the
+      // user is at the end of the game, so the common case is byte-unchanged.
+      const viewedBlock = buildPositionUnderDiscussion(moveHistory, viewedPly);
+      if (viewedBlock) gameContext = `${viewedBlock}\n\n${gameContext}`;
       // PR-CI-4/CI-5: the contract also rides along when enforcement is armed
       // for any category (CONTRACT_CATEGORIES non-empty) OR for any dogfood
       // uid (CONTRACT_UIDS non-empty). With all flags at their defaults this
@@ -829,6 +837,7 @@ export async function POST(request: NextRequest) {
             userMessage: messageText,
             moveHistory,
             fen,
+            viewedPly,
             gameEval,
             playerPerspective,
             correlationId: requestId,
@@ -1797,6 +1806,7 @@ export async function POST(request: NextRequest) {
         userMessage: messageText,
         moveHistory,
         fen,
+        viewedPly,
         gameEval,
         playerPerspective,
         correlationId: requestId,

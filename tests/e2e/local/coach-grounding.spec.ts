@@ -132,3 +132,85 @@ test.describe("A1 — the analysis coach never invents a rating", () => {
     expect("userRating" in body).toBe(false);
   });
 });
+
+test.describe("B1 — follow-ups are grounded on the board the user is viewing", () => {
+  test("navigating back changes the FEN the follow-up request carries", async ({
+    page,
+  }) => {
+    // The whole finding: the fast path sent only {contextId, userMessage,
+    // conversationHistory}. The server then fell back to `context.fen` — the
+    // position after the ENTIRE game is replayed — and presented it to the
+    // model as "the board the user is looking at RIGHT NOW". Navigate to move
+    // 12, ask "what should I play here?", get an answer about move 40.
+    //
+    // Driven through the real page. The deep call is stubbed with just enough
+    // SSE to hand the client a contextId, which is what unlocks the fast path;
+    // no LLM is involved.
+    const deepBodies: Array<Record<string, unknown>> = [];
+    const chatBodies: Array<Record<string, unknown>> = [];
+
+    await page.route("**/api/enhanced-analysis", async (route) => {
+      deepBodies.push(JSON.parse(route.request().postData() ?? "{}"));
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+        body:
+          'data: {"type":"text","delta":"stub analysis"}\n\n' +
+          'data: {"type":"done","metadata":{"contextId":"e2e-ctx-1"}}\n\n',
+      });
+    });
+    await page.route("**/api/chat", async (route) => {
+      chatBodies.push(JSON.parse(route.request().postData() ?? "{}"));
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: "stub follow-up" }),
+      });
+    });
+
+    await page.goto("/analysis");
+
+    const composer = page.getByPlaceholder("Ask anything about this position...");
+    const appeared = await composer
+      .waitFor({ state: "visible", timeout: 60_000 })
+      .then(() => true)
+      .catch(() => false);
+    test.skip(
+      !appeared,
+      "coach composer never unlocked on this machine — unit tests cover buildChatRequestBody"
+    );
+
+    // Sit at the END of the game first — that is the board the server would
+    // fall back to, so starting there makes the later assertion meaningful.
+    // The key handler ignores events raised inside inputs, so blur first.
+    await composer.blur();
+    await page.keyboard.press("End");
+
+    // Turn 1 goes down the deep path and yields the contextId.
+    await composer.fill("analyse this game");
+    await composer.press("Enter");
+    await expect.poll(() => deepBodies.length, { timeout: 30_000 }).toBe(1);
+    const deepFen = deepBodies[0].fen as string;
+    expect(deepFen, "deep request should carry a position").toBeTruthy();
+
+    // Now navigate back to an early move — the exact user action in the
+    // finding: "navigate to move 12, ask what I should play here".
+    await composer.blur();
+    await page.keyboard.press("Home");
+    for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowRight");
+
+    // Turn 2 takes the fast path — the one that used to carry no position.
+    await composer.fill("what should I play here?");
+    await composer.press("Enter");
+    await expect.poll(() => chatBodies.length, { timeout: 30_000 }).toBe(1);
+
+    const body = chatBodies[0];
+    expect(
+      body.fen,
+      "follow-up carried no FEN — the server will silently answer about the final position"
+    ).toBeTruthy();
+    expect(typeof body.moveIndex).toBe("number");
+    // Having stepped back, the viewed board must not be the one turn 1 sent.
+    expect(body.fen).not.toBe(deepFen);
+  });
+});

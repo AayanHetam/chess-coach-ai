@@ -40,5 +40,13 @@ export function buildChatRequestBody(
     contextId: input.contextId,
     userMessage: input.userMessage,
     conversationHistory: input.conversationHistory,
+    // B1: forward the board the user is actually looking at. The server
+    // already accepts both (`chat/route.ts` re-derives `activeFen` from `fen`
+    // and slices `effectiveMoveHistory` by `moveIndex`); it was only ever the
+    // client that dropped them. Omitted when the caller has no position —
+    // absence is recoverable (the server falls back to the stored context),
+    // a wrong FEN is not.
+    fen: input.fen,
+    moveIndex: input.currentPly,
   };
 }

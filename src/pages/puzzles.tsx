@@ -59,7 +59,15 @@ import {
 } from "@/lib/puzzleRating";
 import { SessionRecapDialog } from "@/components/puzzle/SessionRecapDialog";
 import { PuzzleSessionRail } from "@/components/puzzle/PuzzleSessionRail";
-import { answerModeAtom, confirmMovesAtom } from "@/lib/puzzlePrefs";
+import {
+  answerModeAtom,
+  confirmMovesAtom,
+  hideSolveTimerAtom,
+} from "@/lib/puzzlePrefs";
+import { useSolveClock } from "@/lib/puzzle/useSolveClock";
+import { findThemeReference } from "@/lib/puzzle/themeReference";
+import { PuzzleToolbar } from "@/components/puzzle/PuzzleToolbar";
+import { PuzzleReferenceCard } from "@/components/puzzle/PuzzleReferenceCard";
 import { buildMoveChoices } from "@/lib/puzzle/moveChoices";
 import { MoveChoiceList } from "@/components/puzzle/MoveChoiceList";
 import { stepDifficulty } from "@/lib/puzzleDifficulty";
@@ -286,6 +294,9 @@ export default function PreviewPuzzlesPage() {
   const router = useRouter();
   const [confirmMoves, setConfirmMoves] = useAtom(confirmMovesAtom);
   const [answerMode, setAnswerMode] = useAtom(answerModeAtom);
+  const [hideTimer, setHideTimer] = useAtom(hideSolveTimerAtom);
+  const [referenceOpen, setReferenceOpen] = useState(false);
+  const [puzzleStartedAt, setPuzzleStartedAt] = useState(() => Date.now());
   const recordTrainingDay = useRecordTrainingDay();
   const [stats, setStats] = useAtom(puzzleStatsAtom);
   const [resume, setResume] = useAtom(puzzleResumeAtom);
@@ -544,9 +555,14 @@ export default function PreviewPuzzlesPage() {
   );
 
   // Reset the grading clock + guard whenever a new puzzle is shown.
+  // `puzzleStartedAt` mirrors the ref as state so the visible clock re-renders;
+  // both are set from the same instant so the displayed time and the recorded
+  // time can never disagree.
   useEffect(() => {
     gradedRef.current = null;
-    startTimeRef.current = Date.now();
+    const now = Date.now();
+    startTimeRef.current = now;
+    setPuzzleStartedAt(now);
   }, [puzzle?.id]);
 
   // Resume the last puzzle (independent of auth) so we never flash a different
@@ -995,6 +1011,17 @@ export default function PreviewPuzzlesPage() {
   // solution isn't legal from here) falls back to the board instead of
   // rendering an empty or unanswerable question.
   const choiceModeActive = answerMode === "choice" && moveChoices.length > 0;
+
+  // Solve clock. Anchored to the same per-puzzle start the grader uses, so the
+  // number on screen is the number that gets recorded. Stops on solve.
+  const clockRunning = !!puzzle && status !== "solved" && !activeDemo;
+  const elapsedMs = useSolveClock(puzzleStartedAt, clockRunning);
+
+  // Reference is static-only and stays null for the themes nothing covers.
+  const themeReference = useMemo(
+    () => findThemeReference(puzzle?.themes),
+    [puzzle],
+  );
 
   const displayFen = useMemo(() => {
     // A staged move is shown on the board even though it hasn't been graded —
@@ -1618,17 +1645,24 @@ export default function PreviewPuzzlesPage() {
               >
                 {puzzle && studentStartFen ? (
                   <>
-                    {/* Session HUD — pinned to the board's top-right so it
-                        stays in view while solving. */}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        mb: 1.5,
-                      }}
-                    >
-                      {sessionHud}
-                    </Box>
+                    {/* Toolbar — solve clock on the left, tools on the right,
+                        session HUD trailing. Replaces the bare HUD row. */}
+                    <PuzzleToolbar
+                      elapsedMs={elapsedMs}
+                      timerHidden={hideTimer}
+                      onToggleTimer={() => setHideTimer((v) => !v)}
+                      referenceOpen={referenceOpen}
+                      referenceDisabledReason={
+                        themeReference
+                          ? undefined
+                          : "No reference for this puzzle's theme yet"
+                      }
+                      onToggleReference={() => setReferenceOpen((v) => !v)}
+                      trailing={sessionHud}
+                    />
+                    {referenceOpen && themeReference && (
+                      <PuzzleReferenceCard reference={themeReference} />
+                    )}
                     <Box
                       sx={{
                         position: "relative",

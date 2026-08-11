@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hasTrackingConsent } from "@/lib/tracking/consent";
 import { Chess } from "chess.js";
 import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { selectExamples, formatExamplesForPrompt } from "@/data/goldStandardExamples";
@@ -70,6 +69,13 @@ import {
   type GameEvalInput,
 } from "@/lib/contract/legacyGameContext";
 import { maybeCreateShadowRefereeGate } from "@/lib/contract/shadowReferee";
+// CI-5: persist what the shadow referee WOULD have caught somewhere queryable.
+// Consent- and TRACKING_ENABLED-gated, fire-and-forget; see refereeOutcomes.ts.
+import { captureRefereeOutcome } from "@/lib/tracking/refereeOutcomes";
+import type { RefereeOutcomeContext } from "@/lib/tracking/refereeOutcomes";
+import { hasTrackingConsent } from "@/lib/tracking/consent";
+import { readAnonIdFromRequest } from "@/lib/tracking/anonId";
+import { CONTRACT_VERSION } from "@/lib/contract/types";
 // PR-CI-4: contract-mode enforced serving (verbalizer 4.0 + failure ladder).
 // Dead code until CONTRACT_CATEGORIES lists a category.
 import { serveContractAnalysis } from "@/lib/contract/contractServing";
@@ -640,6 +646,22 @@ export async function POST(request: NextRequest) {
     // gate code entirely out of the path (the streaming branches see null
     // and their `refereeGate?.push` sites are no-ops).
     let contractForShadowReferee: CoachContract | null = null;
+    // CI-5: request-scoped context for the referee-outcome row. Read the
+    // consent decision + anon id HERE, off the live request, because the
+    // shadow gate's end() runs deep inside the stream controller where the
+    // request object is long out of reach. Consent is resolved once and is
+    // fail-closed: no `cm_consent=accepted` (or a `Sec-GPC: 1` header) means
+    // no row, since the spans are coach prose about the user's game.
+    const refereeOutcomeBase: Omit<RefereeOutcomeContext, "model" | "category"> = {
+      consent: hasTrackingConsent(request),
+      uid: session.uid,
+      anonId: readAnonIdFromRequest(request),
+      isIntern: session.isIntern === true,
+      requestId,
+      promptVersion: PROMPT_VERSION,
+      verbalizerPromptVersion: VERBALIZER_PROMPT_VERSION,
+      contractVersion: CONTRACT_VERSION,
+    };
     if (moveHistory && moveHistory.length > 0) {
       const built = await buildGameContextWithContract(
         moveHistory,
@@ -1108,14 +1130,27 @@ export async function POST(request: NextRequest) {
             // below stays the sole emitter, so client bytes are untouched.
             // Null unless CONTRACT_REFEREE_SHADOW is on AND this is a
             // game-review request with a contract.
+            //
+            // Reuse the live-stream loop from the flag-off path inline. Both
+            // accumulators are declared BEFORE the gate so the onReview sink
+            // can read the model off llmDone — end() runs after the loop, so
+            // it is populated by then.
+            let fullText = "";
+            let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
             const refereeGate = maybeCreateShadowRefereeGate({
               contract: contractForShadowReferee,
               correlationId: requestId,
               branch: "stream-flagon-fallback",
+              onReview: (review) =>
+                captureRefereeOutcome({
+                  review,
+                  ctx: {
+                    ...refereeOutcomeBase,
+                    category: prep.category,
+                    model: llmDone?.model ?? null,
+                  },
+                }),
             });
-            // Reuse the live-stream loop from the flag-off path inline.
-            let fullText = "";
-            let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
             try {
               for await (const evt of callLLMStream({
                 tier: "flagship",
@@ -1674,14 +1709,20 @@ export async function POST(request: NextRequest) {
           }
 
           // PR-CI-3 shadow referee (DARK): observer only — see the flag-on
-          // wing note; null unless CONTRACT_REFEREE_SHADOW is on.
+          // wing note; null unless CONTRACT_REFEREE_SHADOW is on. Accumulators
+          // declared first for the same reason as that wing.
+          let fullText = "";
+          let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
           const refereeGate = maybeCreateShadowRefereeGate({
             contract: contractForShadowReferee,
             correlationId: requestId,
             branch: "stream-flagoff",
+            onReview: (review) =>
+              captureRefereeOutcome({
+                review,
+                ctx: { ...refereeOutcomeBase, category: null, model: llmDone?.model ?? null },
+              }),
           });
-          let fullText = "";
-          let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
           try {
             for await (const evt of callLLMStream({
               tier: "flagship",

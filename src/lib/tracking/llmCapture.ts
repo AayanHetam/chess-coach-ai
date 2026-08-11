@@ -59,7 +59,7 @@ interface CaptureInput {
  * outside a request (tests, scripts) after() throws — fall back to a detached
  * fire-and-forget that can't surface.
  */
-function safeAfter(fn: () => Promise<void> | void): void {
+export function safeAfter(fn: () => Promise<void> | void): void {
   try {
     after(fn);
   } catch {

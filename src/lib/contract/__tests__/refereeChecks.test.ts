@@ -130,9 +130,19 @@ describe("checkSanWhitelist", () => {
 // ── checkTacticalKeywords ───────────────────────────────────────────────────
 describe("checkTacticalKeywords", () => {
   it("fires on a tactical keyword with no confirmed motif of that type", () => {
-    const v = checkTacticalKeywords("This pins the queen against the king.", makeInsight());
+    // ROUND 2: keyword fires need a board-anchored sentence (square/SAN/
+    // piece-on-square) — anchor on the licensed d8 square so ONLY the
+    // keyword fires. Un-anchored variants are the definitional-exemption
+    // class, pinned below.
+    const v = checkTacticalKeywords("This pins the queen on d8 against the king.", makeInsight());
     expect(v).toHaveLength(1);
     expect(v[0]).toMatchObject({ category: "tactical_keyword_unbacked", span: "pin" });
+  });
+
+  it("round-2 control: the same claim WITHOUT any board anchor is definitional-exempt", () => {
+    expect(checkTacticalKeywords("This pins the queen against the king.", makeInsight())).toEqual(
+      [],
+    );
   });
 
   it("control: keywords licensed by allowedTacticalKeywords/confirmed motifs pass", () => {
@@ -147,7 +157,12 @@ describe("checkTacticalKeywords", () => {
 
   it("full ban when nothing is confirmed", () => {
     const insight = makeInsight({ motifs: [], allowedTacticalKeywords: [] });
-    const v = checkTacticalKeywords("That knight is now trapped and the rook is hanging.", insight);
+    // Board-anchored (d4/e4 are occupied fixture squares) — see the round-2
+    // definitional-exemption note above.
+    const v = checkTacticalKeywords(
+      "The knight on d4 is now trapped and the pawn on e4 is hanging.",
+      insight,
+    );
     expect(v.map((x) => x.span).sort()).toEqual(["hanging", "trapped"]);
   });
 });

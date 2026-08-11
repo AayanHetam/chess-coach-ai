@@ -68,9 +68,32 @@ describe("renderTemplateCard — referee-safe by construction", () => {
     expect(renderTemplateCardBody(other)).not.toBe(renderTemplateCardBody(insight));
   });
 
-  it("prunes optional lines that would re-introduce a violation", () => {
-    // A concept whose definition names an UNCONFIRMED tactic keyword must
-    // not survive into the card.
+  it("prunes optional lines that would re-introduce a violation (board-anchored keyword)", () => {
+    // A concept whose definition makes a BOARD-ANCHORED claim with an
+    // unconfirmed tactic keyword must not survive into the card.
+    const insight = makeInsight({
+      motifs: [],
+      allowedTacticalKeywords: [],
+      concepts: [
+        {
+          id: "skewer",
+          name: "Skewer Awareness",
+          tier: "tactical",
+          confidence: 0.9,
+          definition: "A skewer on d8 forces a valuable piece to move.",
+          evidence: "n/a",
+        },
+      ],
+    });
+    const body = renderTemplateCardBody(insight);
+    expect(body.toLowerCase()).not.toContain("skewer");
+    expect(runInsightChecks(body, insight)).toHaveLength(0);
+  });
+
+  it("round-2: a purely DEFINITIONAL concept line survives (no board anchor — the exempt teaching class)", () => {
+    // Founder round-2 rule (v2 #13): keyword sentences with no square/SAN/
+    // piece-on-square reference teach a concept and are not violations, so
+    // the pruner keeps them and the card still referees clean.
     const insight = makeInsight({
       motifs: [],
       allowedTacticalKeywords: [],
@@ -86,7 +109,7 @@ describe("renderTemplateCard — referee-safe by construction", () => {
       ],
     });
     const body = renderTemplateCardBody(insight);
-    expect(body.toLowerCase()).not.toContain("skewer");
+    expect(body.toLowerCase()).toContain("skewer");
     expect(runInsightChecks(body, insight)).toHaveLength(0);
   });
 });

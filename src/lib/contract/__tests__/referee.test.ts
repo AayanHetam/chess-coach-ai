@@ -29,8 +29,10 @@ function errors(findings: RefereeFinding[]): RefereeFinding[] {
 // ── Known-bad fixture suite: 100% detection at error severity ───────────────
 describe("refereeInsight — known-bad fixtures (plan CI-3 gate)", () => {
   it("bad 1 — invented pin (tactical keyword without a pin motif)", () => {
+    // ROUND 2: board-anchored (d4/d8 occupied) — un-anchored keyword prose
+    // is the definitional-exemption class (refereeChecks.test.ts control).
     const r = refereeInsight(
-      "Your bishop pins the knight against the queen — a devastating pin.",
+      "Your bishop pins the knight on d4 against the queen on d8 — a devastating pin.",
       makeInsight(),
       OPTS,
     );
@@ -70,19 +72,31 @@ describe("refereeInsight — known-bad fixtures (plan CI-3 gate)", () => {
   });
 
   it("bad 5 — unconfirmed tactical keyword (skewer never detected)", () => {
-    const r = refereeInsight("This skewer wins the game on the spot.", makeInsight(), OPTS);
+    // ROUND 2: board-anchored on the licensed d8 square (see bad 1 note).
+    const r = refereeInsight("This skewer of the queen on d8 wins the game on the spot.", makeInsight(), OPTS);
     const hits = errors(r.findings).filter((f) => f.check === "tactical_keyword");
     expect(hits.length).toBeGreaterThanOrEqual(1);
     expect(hits[0].span.toLowerCase()).toContain("skewer");
   });
 
-  it("bad 6 — stale suggestion (recommended move not derivable from the contract)", () => {
-    const r = refereeInsight("You should have played Qh4 instead.", makeInsight(), OPTS);
+  it("bad 6 — impossible suggestion (recommended move neither contract-backed nor legal)", () => {
+    // ROUND 2 NARROWING (arming PR must know): the plan-intent legality pool
+    // (fix 5b) licenses recommendations of moves that are LEGAL from the
+    // insight's FENs ("You should have played Qh4" — Qd8-h4 is legal for
+    // Black — no longer fires). The san_unknown class this fixture pins is
+    // now the IMPOSSIBLE recommendation: Qh5 is reachable by no piece from
+    // either FEN under either side to move.
+    const r = refereeInsight("You should have played Qh5 instead.", makeInsight(), OPTS);
     const hits = errors(r.findings).filter(
       (f) => f.check === "san_whitelist" && f.category === "san_unknown",
     );
     expect(hits).toHaveLength(1);
-    expect(hits[0].span).toBe("Qh4");
+    expect(hits[0].span).toBe("Qh5");
+  });
+
+  it("bad 6 control — a LEGAL uncontracted recommendation is plan-intent licensed (round-2 fix 5b)", () => {
+    const r = refereeInsight("You should have played Qh4 instead.", makeInsight(), OPTS);
+    expect(r.findings.filter((f) => f.check === "san_whitelist")).toEqual([]);
   });
 
   it("bad 7 — illegitimate hypothetical line (invented continuation)", () => {

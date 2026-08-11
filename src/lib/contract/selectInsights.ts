@@ -121,13 +121,21 @@ export function selectInsights(
     .sort((a, b) => b.dropCp - a.dropCp)
     .slice(0, 10);
 
-  // ── Scan 2: CHESS INTELLIGENCE top-3 (no sentinel skip, no color filter) ─
+  // ── Scan 2: CHESS INTELLIGENCE top-3 (sentinel-skipping, no color filter) ─
+  //
+  // C4 (SILENT_SUBSTITUTION_HANDOFF): this scan used to omit the sentinel skip
+  // that Scan 1 above performs. A `cp: 0` timeout next to a winning position
+  // fabricates a multi-hundred-centipawn swing TWICE — once as the collapse
+  // into it, once as the recovery out of it — and since this list is sorted by
+  // drop size, the phantom sorts straight to rank 1 and is rendered under a
+  // header describing it as pre-computed verified analysis.
   const intelCandidates: IntelCandidate[] = [];
   if (positions) {
     for (let i = 0; i < moveHistory.length; i++) {
       const evalBefore = positions[i];
       const evalAfter = positions[i + 1];
       if (!evalBefore?.lines?.[0] || !evalAfter?.lines?.[0]) continue;
+      if (evalBefore.lines[0].depth === 0 || evalAfter.lines[0].depth === 0) continue;
       const cpBefore = flattenEval(evalBefore.lines[0]);
       const cpAfter = flattenEval(evalAfter.lines[0]);
       const drop = i % 2 === 0 ? cpBefore - cpAfter : cpAfter - cpBefore;

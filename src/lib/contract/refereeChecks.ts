@@ -29,6 +29,11 @@
  */
 import { Chess } from "chess.js";
 import type { AnyMotif } from "@/lib/tactics/types";
+import {
+  netForClaimant,
+  replayPvMaterial,
+  type PvMaterialStep,
+} from "@/lib/tactics/netMaterial";
 import { ALL_TACTICAL_KEYWORDS } from "@/lib/grounding/voter";
 import { validateMotifGrounding } from "@/lib/mastermind/validators/motifGrounding";
 import { POSITIONAL_TOKEN_REGEX } from "@/lib/mastermind/validators/positionalClaim";
@@ -350,6 +355,47 @@ export interface Whitelist {
   pvs: string[][];
 }
 
+/**
+ * ROUND 2 — a contract PV with its END eval attached (the engine's verdict
+ * for the line, White-centric). Engine lines carry their LineFact eval;
+ * branch-point reconstructions and threat-tree lines carry null (no engine
+ * number is attached to them in the contract). One enumerator feeds BOTH
+ * buildWhitelist().pvs and checkPvTruncation — one grammar, never
+ * copy-pasted (same discipline as the tokenizer).
+ */
+export interface PvSource {
+  /** Normalized SANs (decorations stripped), same filtering as the old
+   * buildWhitelist addPv (falsy entries dropped BEFORE stripping). */
+  sans: string[];
+  evalCp: number | null;
+  evalMate: number | null;
+}
+
+export function buildPvSources(insight: InsightContract): PvSource[] {
+  const out: PvSource[] = [];
+  const push = (line: (string | null | undefined)[], ev?: EvalFact | null) => {
+    const sans = line.filter((s): s is string => !!s).map(stripSanDecorations);
+    if (sans.length === 0) return;
+    const usable = ev && !ev.sentinel ? ev : null;
+    out.push({
+      sans,
+      evalCp: usable ? usable.cp : null,
+      evalMate: usable ? usable.mate : null,
+    });
+  };
+  for (const line of insight.lines) push(line.san, line.eval);
+  if (insight.branchPoint) {
+    push([...insight.branchPoint.sharedSan, insight.branchPoint.bestContinues]);
+    push([...insight.branchPoint.sharedSan, insight.branchPoint.playedGoes]);
+  }
+  if (insight.intelBranchPoint) {
+    push([...insight.intelBranchPoint.sharedSan, insight.intelBranchPoint.bestContinues]);
+    push([...insight.intelBranchPoint.sharedSan, insight.intelBranchPoint.altContinues]);
+  }
+  for (const line of threatSanLines(insight.threats)) push(line);
+  return out;
+}
+
 /** Exported (PR-CI-3) — one whitelist builder for measurement AND blocking. */
 export function buildWhitelist(insight: InsightContract): Whitelist {
   const san = new Set<string>();
@@ -365,27 +411,18 @@ export function buildWhitelist(insight: InsightContract): Whitelist {
     // ("the knight lands on d5" after PV ...Nd5).
     for (const sq of norm.match(clone(SQUARE_RE)) ?? []) squares.add(sq);
   };
-  const addPv = (line: (string | null | undefined)[]) => {
-    const filtered = line.filter((s): s is string => !!s).map(stripSanDecorations);
-    if (filtered.length > 0) pvs.push(filtered);
-    for (const s of filtered) addSan(s);
-  };
 
   addSan(insight.playedSan);
   addSan(insight.bestSan);
+  // PV enumeration shared with checkPvTruncation (buildPvSources) — identical
+  // content and order to the pre-round-2 addPv sequence.
+  for (const src of buildPvSources(insight)) {
+    pvs.push(src.sans);
+    for (const s of src.sans) addSan(s);
+  }
   for (const line of insight.lines) {
-    addPv(line.san);
     for (const uci of line.pvUci) for (const sq of uciSquares(uci)) squares.add(sq);
   }
-  if (insight.branchPoint) {
-    addPv([...insight.branchPoint.sharedSan, insight.branchPoint.bestContinues]);
-    addPv([...insight.branchPoint.sharedSan, insight.branchPoint.playedGoes]);
-  }
-  if (insight.intelBranchPoint) {
-    addPv([...insight.intelBranchPoint.sharedSan, insight.intelBranchPoint.bestContinues]);
-    addPv([...insight.intelBranchPoint.sharedSan, insight.intelBranchPoint.altContinues]);
-  }
-  for (const line of threatSanLines(insight.threats)) addPv(line);
   for (const t of insight.threats ?? []) {
     if (t.capturedSquare) squares.add(t.capturedSquare);
     for (const sq of uciSquares(t.threatUci)) squares.add(sq);
@@ -1042,21 +1079,49 @@ export function aggregateFidelity(entries: FidelityEntry[], contract: CoachContr
 const FAVORABLE_OUTCOME_RE =
   /\b(?:you(?:'ve|’ve| have)?\s+(?:won|win)|wins?|winning|won)\b[^.!?\n]{0,60}?\b(?:material|the exchange|an exchange|a piece|the piece|a pawn|the pawn|the queen|the rook|the bishop|the knight)\b/i;
 
+/** End-of-line eval contradiction threshold (founder rule: ±1.5 pawns). */
+const PV_OUTCOME_CONTRA_CP = 150;
+
 /**
- * Fix 9 — pv_truncation: prose that quotes a contract PV but stops exactly
- * one ply before a recapture/refutation in that PV while asserting a
- * favorable outcome. The adjudicated true-fabrication class of span #28
- * ("cxd3, you've won material while your knight dominates the board" — the
- * PV continues Bxf5, winning the material straight back): every quoted move
- * is contract-licensed, yet the claim inverts the line's meaning. Caught on
- * merit, not by whitelist accident.
+ * Fix 9, ROUND-2 REWRITE (the founder's material-quiescence rule,
+ * 2026-08-10): prose that quotes a contract PV window and stops one ply
+ * before an OPPONENT capture, while asserting a favorable outcome, fires
+ * ONLY when
+ *  (i)  material quiescence is violated — the truncating capture takes back
+ *       equal-or-greater value than the claimant banked inside the quoted
+ *       window (chess.js replay, standard piece values — netMaterial.ts), OR
+ *  (ii) the outcome claim contradicts the line's END eval from the
+ *       claimant's perspective (≤ −1.5 pawns, or a mate against the
+ *       claimant; engine lines only — branch/threat reconstructions carry no
+ *       eval and are judged by (i) alone).
+ *
+ * The v2 adjudication drove both arms: 13 FPs were lesser-value give-backs
+ * after queen harvests (net +2..+12 banked, end evals +4..+8 agreeing) —
+ * they must NOT fire; the one TF (09/s2/M1 "dxe5 … winning a piece cleanly"
+ * → Qxg4 takes the bishop straight back, net 0, end +1.89 for the opponent)
+ * violates BOTH arms and must fire. Round-1's span #28 class (praised piece
+ * captured later with net ≤ 0) keeps firing via arm (i).
+ *
+ * Claimant = the mover of the FIRST quoted ply. A truncating capture by the
+ * claimant themselves is never a violation (it extends the harvest), and an
+ * unreplayable PV ply makes the match unverifiable — skipped, never fired
+ * on (precision first).
  */
 export function checkPvTruncation(prose: string, insight: InsightContract): RefereeViolation[] {
-  const wl = buildWhitelist(insight);
-  if (wl.pvs.length === 0) return [];
+  const sources = buildPvSources(insight);
+  if (sources.length === 0) return [];
   const tokens = tokenizeProse(prose);
   const violations: RefereeViolation[] = [];
   const reported = new Set<string>();
+  const replayCache = new Map<PvSource, PvMaterialStep[]>();
+  const stepsFor = (src: PvSource): PvMaterialStep[] => {
+    let steps = replayCache.get(src);
+    if (!steps) {
+      steps = replayPvMaterial(insight.fenBefore, src.sans);
+      replayCache.set(src, steps);
+    }
+    return steps;
+  };
 
   // Collect quoted move runs (same run grammar as the whitelist pass,
   // including the fix-3 clause-separator break).
@@ -1081,24 +1146,46 @@ export function checkPvTruncation(prose: string, insight: InsightContract): Refe
     if (moveIdx.length >= 1 && hasPieceSan) {
       const seq = moveIdx.map((k) => tokens[k].norm);
       const lastTok = tokens[moveIdx[moveIdx.length - 1]];
-      // Find a PV window ending at pv[e] with a capture at pv[e+1].
-      let truncatedBefore: string | null = null;
-      for (const pv of wl.pvs) {
-        if (pv.length < seq.length + 1) continue;
-        for (let off = 0; off + seq.length < pv.length; off++) {
-          if (!seq.every((s, k) => pv[off + k] === s)) continue;
-          const next = pv[off + seq.length];
-          if (next.includes("x")) {
-            truncatedBefore = next;
-            break;
+      const { start, end } = sentenceBounds(prose, lastTok.index);
+      const sentence = prose.slice(start, end);
+      if (FAVORABLE_OUTCOME_RE.test(sentence)) {
+        let verdict: string | null = null;
+        for (const src of sources) {
+          if (verdict) break;
+          for (let off = 0; off + seq.length <= src.sans.length; off++) {
+            if (!seq.every((s, k) => src.sans[off + k] === s)) continue;
+            const e = off + seq.length - 1;
+            if (e + 1 >= src.sans.length) continue; // full-tail quote — nothing truncated
+            const steps = stepsFor(src);
+            if (steps.length < e + 2) continue; // unreplayable ply — unverifiable, never fire
+            const claimant = steps[off].mover;
+            const next = steps[e + 1];
+            if (next.capturedValue === 0) continue; // quiet continuation
+            if (next.mover === claimant) continue; // claimant's own follow-up capture
+            const banked = netForClaimant(steps, claimant, off, e);
+            const quiescenceViolated = next.capturedValue >= banked;
+            let endContradicts = false;
+            let endNote = "";
+            if (src.evalMate !== null) {
+              const mateForClaimant = claimant === "w" ? src.evalMate : -src.evalMate;
+              endContradicts = mateForClaimant < 0;
+              endNote = `line end eval M${src.evalMate > 0 ? "+" : ""}${src.evalMate} (claimant ${claimant})`;
+            } else if (src.evalCp !== null) {
+              const cpForClaimant = claimant === "w" ? src.evalCp : -src.evalCp;
+              endContradicts = cpForClaimant <= -PV_OUTCOME_CONTRA_CP;
+              endNote = `line end eval ${(src.evalCp / 100).toFixed(2)} → ${(cpForClaimant / 100).toFixed(2)} for the claimant`;
+            }
+            if (quiescenceViolated || endContradicts) {
+              verdict =
+                `quoted line "${seq.join(" ")}" stops one ply before ${next.san} in the contract PV while asserting a favorable outcome ("${sentence.trim().slice(0, 100)}…") — ` +
+                (quiescenceViolated
+                  ? `material quiescence violated: ${next.san} takes back ${next.capturedValue} vs ${banked} banked in the window`
+                  : `outcome contradicts the ${endNote}`);
+              break;
+            }
           }
         }
-        if (truncatedBefore) break;
-      }
-      if (truncatedBefore) {
-        const { start, end } = sentenceBounds(prose, lastTok.index);
-        const sentence = prose.slice(start, end);
-        if (FAVORABLE_OUTCOME_RE.test(sentence)) {
+        if (verdict) {
           const key = `${seq.join(" ")}@${lastTok.index}`;
           if (!reported.has(key)) {
             reported.add(key);
@@ -1107,7 +1194,7 @@ export function checkPvTruncation(prose: string, insight: InsightContract): Refe
               category: "pv_truncation_suspect",
               span: seq.join(" "),
               index: tokens[moveIdx[0]].index,
-              detail: `quoted line "${seq.join(" ")}" stops one ply before ${truncatedBefore} in the contract PV while asserting a favorable outcome ("${sentence.trim().slice(0, 100)}…")`,
+              detail: verdict,
             });
           }
         }

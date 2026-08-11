@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import { useEffect } from "react";
 import {
   BookOpen,
+  Briefcase,
   CalendarCheck,
   Crosshair,
   Crown,
@@ -17,6 +18,9 @@ import {
   Zap,
 } from "lucide-react";
 import { Logo } from "./Logo";
+import ChatHistoryList from "@/components/chat/ChatHistoryList";
+import { EmployeePill } from "@/components/intern/EmployeePill";
+import { useViewer } from "@/hooks/useViewer";
 
 export type NavId =
   | "launch"
@@ -26,7 +30,8 @@ export type NavId =
   | "practice"
   | "scout"
   | "profile"
-  | "openings";
+  | "openings"
+  | "intern";
 
 interface NavItem {
   id: NavId;
@@ -55,6 +60,16 @@ const NAV_ITEMS: NavItem[] = [
   { id: "openings", label: "Learn", icon: BookOpen, href: "/openings" },
 ];
 
+// Appended for CMIP interns only. Replaces the <InternalNavLinks /> button that
+// lived in the deleted legacy NavBar — without this, deleting that bar would
+// have left /intern reachable only by typing the URL.
+const INTERN_NAV_ITEM: NavItem = {
+  id: "intern",
+  label: "Intern dashboard",
+  icon: Briefcase,
+  href: "/intern",
+};
+
 interface AppDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -64,6 +79,7 @@ interface AppDrawerProps {
 export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
   const router = useRouter();
   const currentPath = router.pathname;
+  const { isIntern } = useViewer();
 
   // ESC to close
   useEffect(() => {
@@ -75,9 +91,11 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  const items = isIntern ? [...NAV_ITEMS, INTERN_NAV_ITEM] : NAV_ITEMS;
+
   // Auto-resolve active item from current path if not passed explicitly
   const resolvedActiveId =
-    activeId ?? NAV_ITEMS.find((i) => i.href === currentPath)?.id;
+    activeId ?? items.find((i) => i.href === currentPath)?.id;
 
   return (
     <AnimatePresence>
@@ -156,18 +174,27 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                 >
                   Chess Masti
                 </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "0.7rem",
-                    color: "rgba(255,255,255,0.5)",
-                    mt: 0.25,
-                    letterSpacing: "0.12em",
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  chessmasti.com
-                </Typography>
+                {/* Interns get the EMPLOYEE badge here. It used to live in the
+                    legacy NavBar; this drawer is its home now that there is
+                    only one nav surface. */}
+                {isIntern ? (
+                  <Box sx={{ mt: 0.4 }}>
+                    <EmployeePill />
+                  </Box>
+                ) : (
+                  <Typography
+                    sx={{
+                      fontSize: "0.7rem",
+                      color: "rgba(255,255,255,0.5)",
+                      mt: 0.25,
+                      letterSpacing: "0.12em",
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    chessmasti.com
+                  </Typography>
+                )}
               </Box>
               <Box sx={{ flex: 1 }} />
               <IconButton
@@ -205,7 +232,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                 Navigation
               </Typography>
               <Stack spacing={0.5}>
-                {NAV_ITEMS.map((item, i) => {
+                {items.map((item, i) => {
                   const targetHref = item.href;
                   const active = resolvedActiveId === item.id;
                   const Icon = item.icon;
@@ -308,6 +335,21 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                   );
                 })}
               </Stack>
+
+              {/* Saved coach conversations. This list had exactly one mount in
+                  the app — the legacy NavMenu drawer — so deleting that bar
+                  would have made past chats unreachable. It self-hides when
+                  signed out, and only mounts (and fetches) while the drawer is
+                  open, since AnimatePresence unmounts the whole aside. */}
+              <Box
+                sx={{
+                  mt: 2,
+                  pt: 1,
+                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                <ChatHistoryList onNavigate={onClose} />
+              </Box>
             </Box>
 
           </motion.aside>

@@ -180,9 +180,11 @@ export default function Profile() {
             Your Progress Dashboard
           </Typography>
 
-          {/* Personalize your coaching — the entry point to the (now opt-in)
-              personalization quiz. Shows a CTA until completed, then a summary
-              + retake. Only meaningful for signed-in users. */}
+          {/* Personalize your coaching — the ONLY entry point into the quiz for
+              a signed-in user. Shows a CTA until completed, then a read-only
+              summary: the quiz is one-time, so there is no retake affordance
+              here or anywhere else (/onboarding redirects a completed user to
+              /plan). Only meaningful for signed-in users. */}
           {user && (
             <Paper
               sx={{
@@ -243,13 +245,15 @@ export default function Profile() {
                     </Typography>
                   )}
                 </Box>
-                <Button
-                  variant={personalized ? "outlined" : "contained"}
-                  onClick={() => router.push("/onboarding")}
-                  sx={{ textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}
-                >
-                  {personalized ? "Retake quiz" : "Start personalization test"}
-                </Button>
+                {!personalized && (
+                  <Button
+                    variant="contained"
+                    onClick={() => router.push("/onboarding")}
+                    sx={{ textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}
+                  >
+                    Start personalization test
+                  </Button>
+                )}
               </Box>
             </Paper>
           )}

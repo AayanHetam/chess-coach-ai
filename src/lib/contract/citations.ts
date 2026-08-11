@@ -36,7 +36,8 @@
  */
 import type { ServingFinding } from "./armingConfig";
 import type { ContractCitationGranularity } from "@/env";
-import { isClaimSentence } from "./refereeChecks";
+import { isClaimSentence, isDefinitionalSentence } from "./refereeChecks";
+import { splitProseSentences } from "./sentences";
 import type { InsightContract } from "./types";
 
 /** [F:id] token — id charset covers "M3.pv0"-style dotted ids. */
@@ -115,8 +116,14 @@ export interface CitationReport {
   coverage: number;
 }
 
+/**
+ * Sentence split for the coverage denominator. Chess-aware (see
+ * ./sentences.ts): "8. e5" / "31... h5" / "9. Bd2 Bb4" are ONE sentence, not
+ * three — the naive split inflated the denominator with uncitable fragments
+ * and cost ~6pp of measured coverage on the CI-4 verification run.
+ */
 function splitSentences(text: string): string[] {
-  return text.split(/(?<=[.!?])\s+|\n+/);
+  return splitProseSentences(text);
 }
 
 /**
@@ -138,6 +145,50 @@ export function stripGrammarTokenLines(text: string): string {
     .split("\n")
     .filter((line) => !GRAMMAR_TOKEN_LINE_RE.test(line))
     .join("\n");
+}
+
+/** Any eval / mate figure — the one claim family isDefinitionalSentence
+ * does not look for. */
+const FIGURE_RE = /[+-]\s?\d+\.\d+|\bM[+-]?\d+\b|\bmate in \d+\b/i;
+
+/**
+ * The [CONCEPT:id:Title] widget body is GENERIC PATTERN PEDAGOGY, not a claim
+ * about this game ("Knight forks punish pieces standing two squares apart —
+ * one hop, two targets."). The charter tells the model those widget bodies
+ * carry no citation, and all three founder-approved gold examples show them
+ * uncited — so counting them in the coverage denominator measured the model
+ * following instructions as a citation miss. It was ~8% of the whole
+ * denominator (0/20 cited on the 2026-08-10 run) and is the single largest
+ * block of "uncited claims" there.
+ *
+ * The exemption is deliberately narrow: only concept-body lines that name NO
+ * square, NO SAN, and NO eval/mate figure are exempt. A concept body that
+ * reaches back into the position ("here Ba5+ is that move") still counts and
+ * still must be cited — and the referee still sees the whole body for
+ * fabrication either way, so this changes measurement, never enforcement.
+ */
+export function stripGenericConceptPedagogy(
+  text: string,
+  isDefinitional: (s: string) => boolean,
+): string {
+  const out: string[] = [];
+  let inConcept = false;
+  for (const line of text.split("\n")) {
+    const t = line.trim();
+    if (/^\[CONCEPT:/.test(t)) {
+      inConcept = true;
+      out.push(line);
+      continue;
+    }
+    if (/^\[\/CONCEPT\]/.test(t)) {
+      inConcept = false;
+      out.push(line);
+      continue;
+    }
+    if (inConcept && t && isDefinitional(t) && !FIGURE_RE.test(t)) continue;
+    out.push(line);
+  }
+  return out.join("\n");
 }
 
 /**
@@ -173,7 +224,10 @@ export function checkCitations(
 
   let claimSentences = 0;
   let citedClaimSentences = 0;
-  const paragraphs = prose.split(/\n{2,}/);
+  // Coverage is measured over the CITE-REQUIRED text: generic concept-widget
+  // pedagogy is excluded (see stripGenericConceptPedagogy). Token validity
+  // above still ran over the full prose.
+  const paragraphs = stripGenericConceptPedagogy(prose, isDefinitionalSentence).split(/\n{2,}/);
   for (const para of paragraphs) {
     const paraCited = clone(CITATION_TOKEN_RE).test(para);
     for (const sentence of splitSentences(para)) {

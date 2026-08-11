@@ -132,6 +132,93 @@ export const VERBALIZER_GOLD_EXAMPLES: VerbalizerGoldExample[] = [
       "[/INSIGHT]",
     ].join("\n"),
   },
+  {
+    // ADDED 2026-08-10 (CI-4 gate recovery). Examples 1-3 are founder-approved
+    // and BYTE-UNTOUCHED. They all verbalize as flowing paragraphs, but the
+    // model in production emits the legacy [WHY] Idea:/Problem:/Solution:/
+    // Outcome: scaffold — and that is exactly where citation coverage leaked
+    // (79.7% inside [WHY] vs 96-98% in [THREATS]/[ROLES], measured on the
+    // 2026-08-10 verification generations). This example teaches the target
+    // density INSIDE the scaffold the model actually uses: one token per
+    // sentence, the same id repeated when the same fact carries two sentences,
+    // cited section bullets, an UNCITED encouraging takeaway, and a [CONCEPT]
+    // body kept general enough to need no citation.
+    id: "v4-scaffold-citation-density",
+    scenario:
+      "Mistake inside the full [WHY]/[THREATS]/[ROLES] scaffold — per-sentence citation density, cited bullets, uncited takeaway",
+    contractSlice: JSON.stringify({
+      factIdPrefix: "M4",
+      moveNumber: 22,
+      color: "w",
+      playedSan: "Rfd1",
+      bestSan: "Bxf6",
+      classification: "mistake",
+      evalBefore: { display: "+1.60" },
+      evalAfter: { display: "+0.10" },
+      severityDropPawns: 1.5,
+      lines: [{ id: "M4.pv0", san: ["Bxf6", "gxf6", "Qh6"], eval: { display: "+1.60" } }],
+      motifs: [
+        {
+          // Geometry-verified: a bishop on g5 attacks f6, and g5-f6-e7-d8 is a
+          // single diagonal, so the pin of the f6 knight against the d8 queen
+          // is board-true (pinned by a bishop ⇒ relative, not absolute).
+          motif: "pin",
+          confirmed: true,
+          by_piece: "b",
+          by_square: "g5",
+          targets: [{ square: "f6", piece: "n" }],
+          against: { square: "d8", piece: "q" },
+          absolute: false,
+        },
+      ],
+      relational: {
+        captures: [],
+        hanging: [],
+        pins: [
+          {
+            pinnedSquare: "f6",
+            pinnedPiece: "n",
+            bySquare: "g5",
+            byPiece: "b",
+            againstSquare: "d8",
+            againstPiece: "q",
+            isAbsolute: false,
+          },
+        ],
+      },
+      threats: [{ threatSan: "h6", capturedSquare: null, isCheck: false, isMate: false }],
+      sayables: {
+        motifs: ["Confirmed: relative pin — the b on g5 pins the n on f6 to the q on d8."],
+        relationalPins: ["The n on f6 is pinned to the q on d8 by the b on g5."],
+      },
+      concepts: [{ name: "Cashing In a Pin" }],
+      engineIdea: "Take the pin before Black can unpin with ...h6.",
+    }),
+    idealProse: [
+      "[INSIGHT:22:w:mistake:+1.60:+0.10:Rfd1:Bxf6]",
+      "Bringing the last rook to the party is usually excellent advice — here it handed Black the one thing they needed.",
+      "[WHY]",
+      "Idea: You wanted every piece in the attack before cashing anything in, and 22. Rfd1 is the most natural way to do that [F:M4].",
+      "Problem: Your bishop on g5 was already pinning the knight on f6 to the queen on d8 [F:M4.motif0], and that knight cannot step aside while the pin holds [F:M4.rel0]. Spending a move elsewhere gives Black time to play ...h6 and shove the bishop away [F:M4.threat0], which is why the eval slides from +1.60 to +0.10 [F:M4].",
+      "Solution: The engine cashes in at once with 22. Bxf6, meeting gxf6 with the queen swinging to h6 [F:M4.pv0] — White keeps the whole edge at +1.60 [F:M4.pv0]. The engine's idea is simply to take the pin before Black can unpin [F:M4.idea].",
+      "Outcome: Same pieces, same squares, half the advantage [F:M4].",
+      "Nothing wrong with the plan — only the order. Collect what you have already earned, then bring up the reserves.",
+      "[CONTINUATION:22:w]",
+      "[MAIA_CONTINUATION:22:w]",
+      "[/WHY]",
+      "[THREATS]",
+      "- Black can play ...h6, hitting the bishop on g5 and breaking the pin [F:M4.threat0].",
+      "[/THREATS]",
+      "[ROLES]",
+      "- Your bishop on g5 is doing all the work here — it is the piece holding the knight on f6 still [F:M4.motif0].",
+      "- Black's knight on f6 is frozen while the pin lasts, tied to the queen on d8 behind it [F:M4.rel0].",
+      "[/ROLES]",
+      "[CONCEPT:pin:Cashing In a Pin]",
+      "A pin is a loan, not a gift — the moment your opponent can chase the pinning piece away, all that pressure evaporates.",
+      "[/CONCEPT]",
+      "[/INSIGHT]",
+    ].join("\n"),
+  },
 ];
 
 /** Prompt-injectable rendering (mirrors formatExamplesForPrompt's framing). */
@@ -139,7 +226,10 @@ export function formatVerbalizerExamples(): string {
   let out =
     "\n\n=== CONTRACT→PROSE EXAMPLES (match this citation discipline and voice) ===\n" +
     "Each example shows an abridged fact contract and the ideal verbalization. " +
-    "Note: every chess-fact sentence ends with its [F:id] citation; rhetoric and encouragement carry none.\n\n";
+    "Note: every chess-fact sentence ends with its [F:id] citation — including each " +
+    "Idea:/Problem:/Solution:/Outcome: line and each [THREATS]/[ROLES] bullet, and " +
+    "including consecutive sentences that repeat the same id. Rhetoric, the closing " +
+    "takeaway, and the general [CONCEPT] body carry none.\n\n";
   VERBALIZER_GOLD_EXAMPLES.forEach((ex, i) => {
     out += `EXAMPLE ${i + 1} — ${ex.scenario}:\nCONTRACT (abridged):\n${ex.contractSlice}\nIDEAL RESPONSE:\n${ex.idealProse}\n\n`;
   });

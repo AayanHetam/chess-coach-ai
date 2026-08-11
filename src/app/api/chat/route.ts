@@ -1,4 +1,5 @@
 import { Chess } from "chess.js";
+import { hasTrackingConsent } from "@/lib/tracking/consent";
 import { NextRequest, NextResponse } from "next/server";
 import {
   getAnalysisContext,
@@ -53,6 +54,9 @@ const log = logger.child({ module: "chat" });
  * 2. **Without contextId** (fallback): Plain passthrough to OpenAI, same as before.
  */
 export async function POST(request: NextRequest) {
+  // Conversation capture is consent-gated (privacy policy: AI-conversation
+  // records are stored only with consent). Resolved once per request.
+  const trackingConsent = hasTrackingConsent(request);
   const guard = await requireSession();
   if ("response" in guard) return guard.response;
   // Same `reportFatal` helper as /api/enhanced-analysis: fire a structured
@@ -373,6 +377,7 @@ export async function POST(request: NextRequest) {
           cacheSystem: true,
           capture: {
             feature: "chat",
+            consent: trackingConsent,
             uid: guard.session.uid,
             isIntern: guard.session.isIntern,
             fen: activeFen,
@@ -448,6 +453,7 @@ export async function POST(request: NextRequest) {
       maxTokens: parsed.data.max_tokens ?? 3000,
       capture: {
         feature: "chat",
+        consent: trackingConsent,
         uid: guard.session.uid,
         isIntern: guard.session.isIntern,
         props: { path: "fallback" },

@@ -14,6 +14,13 @@ import { getTrackingSupabase } from "./supabase";
  *
  * Same hard rules as the event firehose: gated on TRACKING_ENABLED, and the
  * write can never throw or reject into the AI hot path.
+ *
+ * CONSENT (2026-08-11): these rows hold full conversation content, which the
+ * published privacy policy promises is stored "only with your consent". The
+ * /api/track* endpoints enforce that at their boundary, but this hook does not
+ * sit behind them — so every caller must resolve consent itself and pass it in.
+ * `consent` is REQUIRED and un-defaulted on purpose: a route that forgets it
+ * fails to compile rather than silently capturing a non-consenting user.
  */
 
 const log = logger.child({ module: "tracking-llm" });
@@ -22,6 +29,11 @@ const log = logger.child({ module: "tracking-llm" });
 export interface LLMCaptureContext {
   /** 'enhanced-analysis' | 'chat' | 'puzzle-hint' | 'puzzle-chat' | ... */
   feature: string;
+  /**
+   * Result of hasTrackingConsent(request) for THIS request. Required: no
+   * default, so omitting it is a type error rather than a silent capture.
+   */
+  consent: boolean;
   uid?: string | null;
   anonId?: string | null;
   isIntern?: boolean;
@@ -64,6 +76,8 @@ export function safeAfter(fn: () => Promise<void> | void): void {
 export async function recordLLMCallFull(input: CaptureInput): Promise<void> {
   if (!getTrackingEnv().enabled) return;
   const { ctx, opts, result, status, errorMessage } = input;
+  // Conversation content is consent-gated (see the module header). Fail closed.
+  if (!ctx.consent) return;
   try {
     const systemPrompt = opts.systemSuffix
       ? `${opts.system}\n\n${opts.systemSuffix}`

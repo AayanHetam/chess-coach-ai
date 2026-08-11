@@ -44,7 +44,7 @@ describe("recordLLMCallFull: kill switch", () => {
   it("no-ops when TRACKING_ENABLED is off", async () => {
     mockEnv.mockReturnValue({ enabled: false } as never);
     await recordLLMCallFull({
-      ctx: { feature: "chat" },
+      ctx: { feature: "chat", consent: true },
       opts,
       result: okResult,
       status: "ok",
@@ -61,6 +61,7 @@ describe("recordLLMCallFull: ok row", () => {
     await recordLLMCallFull({
       ctx: {
         feature: "enhanced-analysis",
+        consent: true,
         uid: "u1",
         requestId: "req1",
         promptVersion: "3.3",
@@ -74,6 +75,9 @@ describe("recordLLMCallFull: ok row", () => {
 
     expect(fk.from).toHaveBeenCalledWith("llm_calls");
     const row = fk.insert.mock.calls[0][0];
+    // NB: `consent` is a capture GATE, not a stored column — it must not
+    // appear on the row.
+    expect(row).not.toHaveProperty("consent");
     expect(row).toMatchObject({
       feature: "enhanced-analysis",
       uid: "u1",
@@ -96,7 +100,7 @@ describe("recordLLMCallFull: ok row", () => {
     const fk = fakeClient({ error: null });
     mockGetClient.mockResolvedValue(fk.client);
     await recordLLMCallFull({
-      ctx: { feature: "chat" },
+      ctx: { feature: "chat", consent: true },
       opts: { tier: "fast", system: "ONLY", messages: [] },
       result: okResult,
       status: "ok",
@@ -111,7 +115,7 @@ describe("recordLLMCallFull: error row", () => {
     mockGetClient.mockResolvedValue(fk.client);
 
     await recordLLMCallFull({
-      ctx: { feature: "chat" },
+      ctx: { feature: "chat", consent: true },
       opts,
       result: null,
       status: "error",
@@ -134,14 +138,14 @@ describe("recordLLMCallFull: never breaks the AI call", () => {
     const fk = fakeClient({ error: { message: "db boom" } });
     mockGetClient.mockResolvedValue(fk.client);
     await expect(
-      recordLLMCallFull({ ctx: { feature: "chat" }, opts, result: okResult, status: "ok" }),
+      recordLLMCallFull({ ctx: { feature: "chat", consent: true }, opts, result: okResult, status: "ok" }),
     ).resolves.toBeUndefined();
   });
 
   it("swallows a thrown client", async () => {
     mockGetClient.mockRejectedValue(new Error("supabase down"));
     await expect(
-      recordLLMCallFull({ ctx: { feature: "chat" }, opts, result: okResult, status: "ok" }),
+      recordLLMCallFull({ ctx: { feature: "chat", consent: true }, opts, result: okResult, status: "ok" }),
     ).resolves.toBeUndefined();
   });
 });

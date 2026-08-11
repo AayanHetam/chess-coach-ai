@@ -70,7 +70,9 @@ describe("card plan (server-dictated headers)", () => {
     expect(order).toEqual(["M1", "M2", "I1"]);
     // Gold examples ride along, clearly draft-marked at the module level.
     expect(turn).toContain("CONTRACT→PROSE EXAMPLES");
-    expect(VERBALIZER_GOLD_EXAMPLES).toHaveLength(3);
+    // 3 founder-approved (2026-08-10) + 1 added by the CI-4 gate recovery to
+    // teach per-sentence citation density inside the [WHY] scaffold.
+    expect(VERBALIZER_GOLD_EXAMPLES).toHaveLength(4);
   });
 });
 

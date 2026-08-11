@@ -27,8 +27,33 @@ uv venv .evalvenv && uv pip install --python .evalvenv/bin/python -r scripts/eva
 | `factual_error_eval.py --n 12` | Factual accuracy 2×2: {Sonnet,Haiku} × {grounded,ungrounded} | ~8 calls/item |
 | `gcceval_hedge_eval.py` | ARCHIVED — hedging A/B (CH-1a); answered and reverted, needs a v3.2 prompt snapshot to reproduce |
 | `stage9-live-test.ts` | 5 live fixtures through the real flagship + validators | ~10 flagship calls |
+| `contract_ci4_gates.ts --samples 3 [--legacy]` | The CI-4 gate verdict: persona / citation coverage / shipped fabrication, **per run AND pooled** | ~4 flagship + 2 Haiku calls per fixture-sample |
+| `contract_ci4_offline_replay.ts [results.json]` | Replays the ladder over already-committed generations — free A/B of ladder/citation changes | $0, no network |
 
 `--dry-run` on the python harnesses builds prompts/engine context with zero API calls.
+
+### Arming (read before trusting a contract-mode number)
+
+`DEFAULT_ARMING_TABLE` in `src/lib/contract/armingConfig.ts` is **all-`warn`**
+while the referee workstream re-measures false positives. A contract-mode
+harness that does not pass an explicit `armingTable` therefore measures *no
+enforcement at all*: every card reports `pass`, shipped prose equals raw model
+prose, and any fabrication gate is vacuous. `contract_ci4_eval.ts`,
+`contract_ci4_verify.ts`, `contract_ci4_gates.ts` and the offline replay all
+pass `CI5_CANDIDATE_ARMING_TABLE` (`scripts/eval/ci4GateTable.ts`), which
+mirrors the `PROPOSED_ARMING_TABLE` sketch in `armingConfig.ts`. If that
+proposal changes, change `ci4GateTable.ts` and re-run — do not edit
+`armingConfig.ts` from the eval side.
+
+### Measurement discipline
+
+`contract_ci4_gates.ts` exists because the first CI-4 pass reported a persona
+figure pooled post-hoc across runs, which fell below the gate on every
+single-run re-measurement. It takes N independent generations per fixture,
+reports every gate per-run *and* pooled, and asserts both. Citation coverage
+is emitted at both granularities from the same generations — granularity
+changes only the reported coverage, never a referee finding and never
+enforcement (asserted in `--dry-run`).
 
 ## CI
 

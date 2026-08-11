@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hasTrackingConsent } from "@/lib/tracking/consent";
 import { callLLMStream, LLMError, type LLMMessage } from "@/lib/llmProvider";
 import { puzzleChatSchema } from "@/lib/validation/puzzleChatSchemas";
 import {
@@ -33,6 +34,9 @@ import { analyzeMateClaim, applyMateCorrection } from "@/lib/tactics/mateClaim";
 const log = logger.child({ module: "puzzle-chat" });
 
 export async function POST(request: NextRequest) {
+  // Conversation capture is consent-gated (privacy policy: AI-conversation
+  // records are stored only with consent). Resolved once per request.
+  const trackingConsent = hasTrackingConsent(request);
   const requestId = extractRequestId(request.headers);
 
   // Premium gate (pricing pivot). The puzzle coach is a premium feature. When
@@ -147,6 +151,7 @@ export async function POST(request: NextRequest) {
           cacheSystem: true,
           capture: {
             feature: "puzzle-chat",
+            consent: trackingConsent,
             requestId,
             promptVersion: PUZZLE_COACH_PROMPT_VERSION,
             fen: puzzle.fen,

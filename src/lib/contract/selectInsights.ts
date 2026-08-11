@@ -60,8 +60,15 @@ export interface InsightSelection {
   intelligenceTop3: IntelCandidate[];
 }
 
-function flattenEval(line: { cp?: number; mate?: number }): number {
-  return line.mate !== undefined ? (line.mate > 0 ? 9999 : -9999) : (line.cp ?? 0);
+function flattenEval(line: { cp?: number | null; mate?: number | null }): number {
+  // C6 (SILENT_SUBSTITUTION_HANDOFF §3): `mate !== undefined` is TRUE for
+  // `null`, and `null > 0` is false — so a null mate flattened to -9999, a
+  // forced loss for White, out of a position that has no mate at all.
+  return typeof line.mate === "number"
+    ? line.mate > 0
+      ? 9999
+      : -9999
+    : (line.cp ?? 0);
 }
 
 export function selectInsights(

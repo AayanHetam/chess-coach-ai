@@ -477,11 +477,12 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     // Mate-flattened numbers + drop, exactly as the legacy loops computed.
     const cpBeforeFlat =
       topCand?.cpBeforeFlat ??
-      (lines[0].mate !== undefined ? (lines[0].mate > 0 ? 9999 : -9999) : (lines[0].cp ?? 0));
+      // C6: null mate is "no mate", not a forced loss.
+      (typeof lines[0].mate === "number" ? (lines[0].mate > 0 ? 9999 : -9999) : (lines[0].cp ?? 0));
     const evalAfterLine = positions?.[ply + 1]?.lines?.[0];
     const cpAfterFlat =
       topCand?.cpAfterFlat ??
-      (evalAfterLine?.mate !== undefined
+      (typeof evalAfterLine?.mate === "number"
         ? (evalAfterLine.mate > 0 ? 9999 : -9999)
         : (evalAfterLine?.cp ?? 0));
     const dropCp = cand.dropCp;

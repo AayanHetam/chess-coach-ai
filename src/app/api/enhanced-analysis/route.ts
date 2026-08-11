@@ -735,7 +735,11 @@ export async function POST(request: NextRequest) {
     // a single self-contained prompt blob.
     const claudeSystemParts = getCoachChatSystemPromptParts({
       personalityId: personalityId ?? "friendly",
-      userRating: userRating ?? 1500,
+      // Pass absence through. The builder now says "not provided — use
+      // INTERMEDIATE default calibration" rather than asserting a number, and
+      // its tier derivation resolves an absent rating to intermediate
+      // explicitly (an untyped comparison silently yielded "advanced").
+      userRating,
       username,
       playerColorName,
       chesscomUsername,

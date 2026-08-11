@@ -678,7 +678,10 @@ async function streamCoachReply(params: {
     fen,
     gameEval: gameEvalPayload,
     conversationHistory,
-    userRating: userRating ?? 1500,
+    // No `?? 1500`: a genuinely absent rating must reach the server so its
+    // own fallback chain can run, and failing that so the prompt can say
+    // "not provided" instead of asserting a number nobody supplied.
+    userRating,
     // Production-parity personalization fields (AICoachChat:2459-2487).
     // All are optional server-side and round-trip via the enhanced-analysis
     // zod schema; the LLM's system prompt only gets richer with each one.
@@ -6749,6 +6752,15 @@ export default function AnalysisPage() {
       chesscomUsername,
       lichessUsername,
       personalityId: personality.id,
+      // Finding A1: this was the one personalization field coachExtras never
+      // supplied, so the request body's `userRating ?? 1500` always took the
+      // fallback and the server's real chain (Firestore rating -> PGN header
+      // Elo) was unreachable. Ordered most-trusted first: a measured or live
+      // rating beats what the user typed about themselves.
+      userRating:
+        profile?.liveRatingSnapshot ??
+        profile?.measuredRating ??
+        profile?.selfReportedRating,
     };
   }, [
     playerSide,
@@ -6756,6 +6768,12 @@ export default function AnalysisPage() {
     user?.displayName,
     user?.email,
     personality.id,
+    // Without these the memo would keep serving the rating from whenever the
+    // component mounted — which for a profile that loads async is `undefined`,
+    // i.e. exactly the bug this fix exists to remove.
+    profile?.liveRatingSnapshot,
+    profile?.measuredRating,
+    profile?.selfReportedRating,
   ]);
 
   // In puzzle mode, prepopulate the coach with a contextual seed message

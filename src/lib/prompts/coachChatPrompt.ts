@@ -56,7 +56,9 @@ export interface CoachingPrefs {
 
 export interface CoachChatPromptInput {
   personalityId: string;
-  userRating: number;
+  /** Absent when the client genuinely has no rating for this user. Never
+   *  defaulted to a plausible number — see deriveSkillTier. */
+  userRating?: number;
   username?: string;
   playerColorName?: "white" | "black";
   chesscomUsername?: string;
@@ -115,7 +117,19 @@ function renderCoachingPrefs(prefs: CoachingPrefs | undefined): string | null {
   return ["PERSONALIZATION (user-set preferences):", ...lines].join("\n");
 }
 
-function deriveSkillTier(rating: number): SkillTier {
+/**
+ * Map a rating to a calibration tier.
+ *
+ * An ABSENT rating must resolve to intermediate, explicitly. The naive form
+ * (`rating < 1000` / `rating < 1600`) returns "advanced" for undefined, since
+ * both comparisons are false — so a user we know nothing about would have been
+ * coached as an expert. That is the silent-substitution failure mode in
+ * miniature, and it sat one line away from the bug it would have masked.
+ */
+function deriveSkillTier(rating: number | undefined): SkillTier {
+  if (typeof rating !== "number" || !Number.isFinite(rating)) {
+    return "intermediate";
+  }
   if (rating < 1000) return "beginner";
   if (rating < 1600) return "intermediate";
   return "advanced";
@@ -169,7 +183,13 @@ export function getCoachChatSystemPromptParts(
     );
   }
 
-  userContextLines.push(`- User rating: ${input.userRating}`);
+  // Say "not provided" rather than printing a number we invented. The model
+  // treats this line as fact, and so does anyone reading the prompt.
+  userContextLines.push(
+    typeof input.userRating === "number" && Number.isFinite(input.userRating)
+      ? `- User rating: ${input.userRating}`
+      : "- User rating: not provided — use INTERMEDIATE default calibration",
+  );
   userContextLines.push(
     `- Skill calibration tier: ${tierUpper} — use the ${tierUpper} calibration from the SKILL-LEVEL CALIBRATION section above`
   );
@@ -182,7 +202,11 @@ export function getCoachChatSystemPromptParts(
   // Gate on the rating RANGE, not tier: the 800-1200 "hope chess" band spans the
   // beginner tier (<1000) AND low-intermediate (1000-1199). Gating on
   // tier==="beginner" missed 1000-1199 — the research's highest-leverage band.
-  if (input.userRating < 1200) {
+  if (
+    typeof input.userRating === "number" &&
+    Number.isFinite(input.userRating) &&
+    input.userRating < 1200
+  ) {
     const subBand =
       input.userRating < 800
         ? "Band focus (<800): board vision and the 'is it safe?' check. Before any move, count the attackers vs defenders on the target square. Most mistakes at this level are simply leaving a piece where it can be taken for free."

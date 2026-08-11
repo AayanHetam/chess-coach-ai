@@ -2284,6 +2284,13 @@ export default function PreviewPuzzlesPage() {
                   puzzle={puzzle}
                   outcome={coachOutcome}
                   userAttemptSan={lastWrongSan}
+                  // Finding A2: this prop was never passed, so both the
+                  // turn-0 explanation and all four hint stages were built
+                  // from "Student rating: unknown. Default to club-player
+                  // depth." The puzzle itself is chosen for this exact
+                  // rating +/-150 a few hundred lines above, then explained
+                  // to nobody in particular.
+                  userRating={stats.rating}
                   onRequestMorePuzzles={handleNextPuzzle}
                   drillPuzzles={feed.upcoming}
                   onPickDrillPuzzle={handlePickDrillPuzzle}

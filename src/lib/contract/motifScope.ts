@@ -27,7 +27,7 @@ import { detectMotifs } from "@/lib/tactics";
 import type { AnyMotif, ForkMotif } from "@/lib/tactics";
 import { detectPinsAfterMove } from "@/lib/tactics/motifs/pin";
 import { detectHangingPieces } from "@/lib/tactics/motifs/hanging_piece";
-import { detectTrappedPieces } from "@/lib/tactics/motifs/trapped_piece";
+import { detectTrappedPieces, detectImmobilizedPieces } from "@/lib/tactics/motifs/trapped_piece";
 import { detectSkewerThreats } from "@/lib/tactics/motifs/skewer";
 import { applyEscapability } from "@/lib/tactics/escapability";
 import { PIECE_UNITS, netForClaimant, replayPvMaterial } from "@/lib/tactics/netMaterial";
@@ -72,6 +72,9 @@ export function detectStaticMotifs(fen: string): AnyMotif[] {
       motifs.push(...detectPinsAfterMove(game, color));
       motifs.push(...detectHangingPieces(game, color));
       motifs.push(...detectTrappedPieces(game, color));
+      // ROUND 2 fix 4a: unattacked-but-immobilized pieces (all flight
+      // squares covered — v2 #27 Na8) count as trapped. License-only.
+      motifs.push(...detectImmobilizedPieces(game, color));
       try {
         applyEscapability(game, motifs, color);
       } catch {

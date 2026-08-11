@@ -34,6 +34,7 @@ import {
   replayPvMaterial,
   type PvMaterialStep,
 } from "@/lib/tactics/netMaterial";
+import { countSafeMoves } from "@/lib/tactics/motifs/trapped_piece";
 import { ALL_TACTICAL_KEYWORDS } from "@/lib/grounding/voter";
 import { validateMotifGrounding } from "@/lib/mastermind/validators/motifGrounding";
 import { POSITIONAL_TOKEN_REGEX } from "@/lib/mastermind/validators/positionalClaim";
@@ -1269,8 +1270,24 @@ export function checkPvTruncation(prose: string, insight: InsightContract): Refe
 
 /** "15 legal moves" / "15 active squares" style bare-integer mobility claims. */
 const MOBILITY_CLAIM_RE = /\b(\d{1,2})\s+(?:legal moves?|active squares?|available (?:moves?|squares?)|squares? of activity)\b/gi;
-/** Piece references: "queen on f3" / "knight at d4" / designator "Qf3". */
-const PIECE_ON_SQUARE_RE = /\b(queen|rook|bishop|knight|king|pawn)\s+(?:on|at)\s+([a-h][1-8])\b/i;
+/** Piece references: "queen on f3" / "knight at d4" / "knight to e7" /
+ * designator "Qf3". ROUND 2 added "to" — "moving the knight TO e7 leaves it
+ * with zero legal moves" (v2 #2) references the piece at its destination. */
+const PIECE_ON_SQUARE_RE = /\b(queen|rook|bishop|knight|king|pawn)\s+(?:on|at|to)\s+([a-h][1-8])\b/i;
+/**
+ * ROUND 2 fix 4b — zero-mobility / zero-safe-square claims ("trapped with no
+ * legal moves", "it has no good squares", "nowhere to go"). The literal
+ * forms ("legal moves"/"moves") are checked against raw chess.js move
+ * counts; the safe-square forms against countSafeMoves (flight squares not
+ * covered by the enemy — same arithmetic as the immobilized-piece
+ * detector). The v2 TF class #0/#2/#4/#5/#8 (knights with 4-6 legal moves,
+ * or safe squares, called trapped-with-no-moves) fires here even when a
+ * genuinely trapped piece elsewhere licenses the "trapped" keyword; the FP
+ * class #27 (Na8, both flight squares covered) does not — the claim is
+ * board-true.
+ */
+const ZERO_MOBILITY_RE =
+  /\b(?:(?:no|zero)\s+legal\s+moves?|no\s+moves|no\s+good\s+squares?|no\s+safe\s+(?:squares?|retreats?)|no\s+safe\s+square\s+to\s+retreat|nowhere\s+to\s+go|no\s+escape)\b/gi;
 const PIECE_DESIGNATOR_IN_SENTENCE_RE = /\b([KQRBN])([a-h][1-8])\b/;
 const PIECE_NAME_TO_LETTER: Record<string, string> = {
   king: "k",
@@ -1301,6 +1318,27 @@ function mobilityCount(fen: string, square: string, pieceLetter: string): number
   }
 }
 
+/** ROUND 2 fix 4b — SAFE-move count (flight squares not covered by the
+ * enemy; countSafeMoves in the trapped-piece detector), turn-corrected the
+ * same way as mobilityCount. */
+function safeMobilityCount(fen: string, square: string, pieceLetter: string): number | null {
+  try {
+    const parts = fen.split(" ");
+    const map = fenPieceMap(fen);
+    const onBoard = map.get(square);
+    if (!onBoard || onBoard.toLowerCase() !== pieceLetter) return null;
+    const color = onBoard === onBoard.toUpperCase() ? "w" : "b";
+    if (parts[1] !== color) {
+      parts[1] = color;
+      parts[3] = "-"; // en passant is stale after a turn flip
+    }
+    const game = new Chess(parts.join(" "));
+    return countSafeMoves(game, square as never);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Fix 10 — mobility_claims: bare-integer mobility/square-count claims
  * verified against chess.js counts from the insight FENs. The adjudicated
@@ -1312,28 +1350,27 @@ function mobilityCount(fen: string, square: string, pieceLetter: string): number
  */
 export function checkMobilityClaims(prose: string, insight: InsightContract): RefereeViolation[] {
   const violations: RefereeViolation[] = [];
+  const resolvePiece = (sentence: string): { pieceLetter: string; square: string } | null => {
+    const named = sentence.match(PIECE_ON_SQUARE_RE);
+    if (named) {
+      const pieceLetter = PIECE_NAME_TO_LETTER[named[1].toLowerCase()] ?? null;
+      return pieceLetter ? { pieceLetter, square: named[2] } : null;
+    }
+    const desig = sentence.match(PIECE_DESIGNATOR_IN_SENTENCE_RE);
+    if (desig) return { pieceLetter: desig[1].toLowerCase(), square: desig[2] };
+    return null;
+  };
+
   for (const m of Array.from(prose.matchAll(clone(MOBILITY_CLAIM_RE)))) {
     const claimed = Number.parseInt(m[1], 10);
     if (!Number.isFinite(claimed)) continue;
     const idx = m.index ?? 0;
     const { start, end } = sentenceBounds(prose, idx);
     const sentence = prose.slice(start, end);
-    let pieceLetter: string | null = null;
-    let square: string | null = null;
-    const named = sentence.match(PIECE_ON_SQUARE_RE);
-    if (named) {
-      pieceLetter = PIECE_NAME_TO_LETTER[named[1].toLowerCase()] ?? null;
-      square = named[2];
-    } else {
-      const desig = sentence.match(PIECE_DESIGNATOR_IN_SENTENCE_RE);
-      if (desig) {
-        pieceLetter = desig[1].toLowerCase();
-        square = desig[2];
-      }
-    }
-    if (!pieceLetter || !square) continue; // unverifiable — skip, never guess
+    const ref = resolvePiece(sentence);
+    if (!ref) continue; // unverifiable — skip, never guess
     const counts = [insight.fenBefore, insight.fenAfter]
-      .map((fen) => mobilityCount(fen, square!, pieceLetter!))
+      .map((fen) => mobilityCount(fen, ref.square, ref.pieceLetter))
       .filter((c): c is number => c !== null);
     if (counts.length === 0) continue; // piece not on that square in either FEN
     if (counts.some((c) => c === claimed)) continue; // board backs the number
@@ -1342,9 +1379,38 @@ export function checkMobilityClaims(prose: string, insight: InsightContract): Re
       category: "mobility_count_wrong",
       span: m[0],
       index: idx,
-      detail: `mobility claim "${m[0]}" for the ${pieceLetter.toUpperCase()} on ${square} contradicts chess.js (actual: ${counts.join("/")} legal move(s) in fenBefore/fenAfter)`,
+      detail: `mobility claim "${m[0]}" for the ${ref.pieceLetter.toUpperCase()} on ${ref.square} contradicts chess.js (actual: ${counts.join("/")} legal move(s) in fenBefore/fenAfter)`,
     });
   }
+
+  // ROUND 2 fix 4b — zero-mobility / zero-safe-square claims tied to a
+  // resolvable piece: "trapped with no legal moves" prose is checked against
+  // the ACTUAL chess.js counts (raw for the literal move phrasings, safe
+  // flight squares for the "no good/safe square" ones). Fires only when NO
+  // insight FEN backs a zero count; a piece that truly has 0 (raw or safe)
+  // moves licenses the claim (v2 FP #27 — Na8, both flights covered).
+  for (const m of Array.from(prose.matchAll(clone(ZERO_MOBILITY_RE)))) {
+    const idx = m.index ?? 0;
+    const { start, end } = sentenceBounds(prose, idx);
+    const sentence = prose.slice(start, end);
+    const ref = resolvePiece(sentence);
+    if (!ref || ref.pieceLetter === "k") continue; // unverifiable / king-context (mate territory)
+    const literal = /\bmoves?\b/i.test(m[0]);
+    const counter = literal ? mobilityCount : safeMobilityCount;
+    const counts = [insight.fenBefore, insight.fenAfter]
+      .map((fen) => counter(fen, ref.square, ref.pieceLetter))
+      .filter((c): c is number => c !== null);
+    if (counts.length === 0) continue; // piece not on that square in either FEN
+    if (counts.some((c) => c === 0)) continue; // the board backs the zero claim
+    violations.push({
+      check: "mobility_claims",
+      category: "mobility_count_wrong",
+      span: m[0],
+      index: idx,
+      detail: `zero-mobility claim "${m[0]}" for the ${ref.pieceLetter.toUpperCase()} on ${ref.square} contradicts chess.js (actual: ${counts.join("/")} ${literal ? "legal" : "safe"} move(s) in fenBefore/fenAfter)`,
+    });
+  }
+
   return violations;
 }
 

@@ -28,8 +28,25 @@ import type { AnyMotif, ForkMotif } from "@/lib/tactics";
 import { detectPinsAfterMove } from "@/lib/tactics/motifs/pin";
 import { detectHangingPieces } from "@/lib/tactics/motifs/hanging_piece";
 import { detectTrappedPieces } from "@/lib/tactics/motifs/trapped_piece";
+import { detectSkewerThreats } from "@/lib/tactics/motifs/skewer";
 import { applyEscapability } from "@/lib/tactics/escapability";
 import { PIECE_UNITS, netForClaimant, replayPvMaterial } from "@/lib/tactics/netMaterial";
+
+/**
+ * ROUND 2 — both-color skewer-THREAT scan (pawn back-pieces; see
+ * detectSkewerThreats). Board-inspection only (no move generation), so no
+ * turn-flip gymnastics are needed. License pool only.
+ */
+function detectSkewerThreatsBothColors(fen: string): AnyMotif[] {
+  const out: AnyMotif[] = [];
+  try {
+    const game = new Chess(fen);
+    out.push(...detectSkewerThreats(game, "w"), ...detectSkewerThreats(game, "b"));
+  } catch {
+    // unloadable position — license-only, fail quiet
+  }
+  return out;
+}
 
 /**
  * Position-level motifs of `fen`, scanned from BOTH colors' perspectives.
@@ -126,6 +143,7 @@ export function buildMotifLicense(args: {
 }): AnyMotif[] {
   const out: AnyMotif[] = [];
   out.push(...detectStaticMotifs(args.fenAfter));
+  out.push(...detectSkewerThreatsBothColors(args.fenAfter)); // round 2 (v2 #34-36 class)
   const walkLine = (startFen: string, sans: string[], maxPlies: number) => {
     let fen = startFen;
     for (let i = 0; i < Math.min(maxPlies, sans.length); i++) {
@@ -139,6 +157,9 @@ export function buildMotifLicense(args: {
       } catch {
         break;
       }
+      // ROUND 2: x-ray/skewer THREATS live in the positions the line reaches
+      // (the Bh5 -> Ng6 -> f7 class sits after PV ply 1) — scan them too.
+      out.push(...detectSkewerThreatsBothColors(fen));
     }
   };
   for (const pv of args.pvSans) walkLine(args.fenBefore, pv, 2);

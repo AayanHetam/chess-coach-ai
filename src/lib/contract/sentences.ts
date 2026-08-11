@@ -48,7 +48,7 @@ const MOVE_NUMBER_DOTS_RE = /\b(\d{1,3})(\.\.\.|\.)(?=\s+[KQRBNOa-h0])/g;
 export function maskMoveNumberDots(text: string): string {
   return text.replace(
     MOVE_NUMBER_DOTS_RE,
-    (_m, num: string, dots: string) => `${num}${DOT_MASK.repeat(dots.length)}`,
+    (_m, num: string, dots: string) => `${num}${DOT_MASK.repeat(dots.length)}`
   );
 }
 

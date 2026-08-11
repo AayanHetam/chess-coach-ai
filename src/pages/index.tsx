@@ -50,6 +50,8 @@ import { NavPill } from "@/components/ui/NavPill";
 import { NumberTicker } from "@/components/ui/NumberTicker";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { InternalHomeCard } from "@/components/intern/InternalHomeCard";
+import { useAuth } from "@/contexts/AuthContext";
+import { startPlanHref } from "@/lib/onboarding/quizGate";
 import { homePageJsonLd } from "@/app/_seo/JsonLd";
 
 const HOME_TITLE =
@@ -148,6 +150,27 @@ function PrimaryCTA({ href, children }: { href: string; children: ReactNode }) {
       {children}
     </Button>
   );
+}
+
+/**
+ * The "Start your plan" hero CTA, routed by onboarding state.
+ *
+ * Visitors and not-yet-personalized users go into the quiz; anyone who has
+ * already answered it goes straight to /plan. Before this, both landing CTAs
+ * pointed at /onboarding unconditionally, so a returning user's most obvious
+ * click re-ran the quiz they had already completed.
+ *
+ * SSR renders the /onboarding href (auth is still `loading` on first paint),
+ * which is also the right target for the crawlers that index this page.
+ */
+function StartPlanCTA() {
+  const { user, profile, loading } = useAuth();
+  const href = startPlanHref({
+    loading,
+    hasUser: !!user,
+    onboardingCompletedAt: profile?.onboardingCompletedAt,
+  });
+  return <PrimaryCTA href={href}>Start your plan</PrimaryCTA>;
 }
 
 function GhostCTA({ href, children }: { href: string; children: ReactNode }) {
@@ -430,7 +453,7 @@ function Hero() {
                 leads. "Analyze a game" stays as the secondary action — it is
                 the conversion path for AEO traffic arriving on coach queries
                 and must not be removed. */}
-            <PrimaryCTA href="/onboarding">Start your plan</PrimaryCTA>
+            <StartPlanCTA />
             <GhostCTA href="/analysis">Analyze a game</GhostCTA>
           </Stack>
         </motion.div>
@@ -2270,7 +2293,7 @@ function FinalCTA() {
           justifyContent="center"
           sx={{ flexWrap: "wrap" }}
         >
-          <PrimaryCTA href="/onboarding">Start your plan</PrimaryCTA>
+          <StartPlanCTA />
           <GhostCTA href="/analysis">Analyze a game</GhostCTA>
         </Stack>
       </Box>

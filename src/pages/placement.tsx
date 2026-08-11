@@ -1,6 +1,7 @@
 import Head from "next/head";
 import { Box } from "@mui/material";
 import PlacementTest from "@/components/placement/PlacementTest";
+import { NavPill } from "@/components/ui/NavPill";
 
 const PAGE_TITLE = "Find your chess rating — Chess Masti AI";
 const PAGE_DESC =
@@ -27,10 +28,13 @@ export default function PlacementPage() {
         sx={{
           minHeight: "100vh",
           width: "100%",
+          pt: 2,
+          px: { xs: 2, md: 3 },
           background:
             "radial-gradient(1200px 600px at 50% -10%, rgba(249,115,22,0.12), transparent 60%), linear-gradient(180deg, #0A0B0F 0%, #0E1016 100%)",
         }}
       >
+        <NavPill />
         <PlacementTest />
       </Box>
     </>

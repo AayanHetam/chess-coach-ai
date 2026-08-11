@@ -13,7 +13,32 @@
 import { Chess } from "chess.js";
 
 interface GameEvalLike {
-  positions?: Array<{ lines?: Array<{ cp?: number | null; mate?: number | null }> }>;
+  positions?: Array<{
+    lines?: Array<{ cp?: number | null; mate?: number | null; depth?: number }>;
+  }>;
+}
+
+/**
+ * C1 (SILENT_SUBSTITUTION_HANDOFF §3 Group C): is this line a real evaluation?
+ *
+ * The client Stockfish emits `{pv: [], depth: 0, multiPv: 1, cp: 0}` when it
+ * blows its per-position budget. That is a "no answer" marker shaped exactly
+ * like a real "dead equal" eval, and the old `if (curEval)` guard passed it
+ * straight through — so a position that is actually +6.20 was presented to the
+ * model as balanced, and "am I winning?" got answered "it's level".
+ *
+ * Note this keys on `depth === 0` and on absence, NOT on the value being zero:
+ * a genuine 0.00 at real depth is a legitimate, useful fact.
+ */
+function isRealEval(
+  line: { cp?: number | null; mate?: number | null; depth?: number } | undefined,
+): boolean {
+  if (!line) return false;
+  if (line.depth === 0) return false; // client timeout sentinel
+  // `cp ?? 0` used to render a line carrying neither field as a confident +0.00.
+  const hasCp = line.cp !== undefined && line.cp !== null;
+  const hasMate = line.mate !== undefined && line.mate !== null;
+  return hasCp || hasMate;
 }
 
 const PIECE_LETTER: Record<string, string> = {
@@ -104,9 +129,12 @@ export function buildCurrentPositionFacts(
   ];
 
   const curEval = gameEval?.positions?.[played]?.lines?.[0];
-  if (curEval) {
+  // Omit the line entirely rather than fabricate a number. This is the last
+  // line of the FIRST block in every follow-up context, so a wrong value here
+  // is the most prominent number in the whole prompt (C1).
+  if (isRealEval(curEval)) {
     lines.push(
-      `Current eval: ${formatCp(curEval.cp ?? 0, curEval.mate)} (pawns, White's perspective).`,
+      `Current eval: ${formatCp(curEval!.cp ?? 0, curEval!.mate)} (pawns, White's perspective).`,
     );
   }
 

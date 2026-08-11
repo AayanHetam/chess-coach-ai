@@ -68,6 +68,10 @@ import { useSolveClock } from "@/lib/puzzle/useSolveClock";
 import { findThemeReference } from "@/lib/puzzle/themeReference";
 import { PuzzleToolbar } from "@/components/puzzle/PuzzleToolbar";
 import { PuzzleReferenceCard } from "@/components/puzzle/PuzzleReferenceCard";
+import {
+  eliminatedUnderlay,
+  toggleEliminated,
+} from "@/lib/puzzle/eliminate";
 import { buildMoveChoices } from "@/lib/puzzle/moveChoices";
 import { MoveChoiceList } from "@/components/puzzle/MoveChoiceList";
 import { stepDifficulty } from "@/lib/puzzleDifficulty";
@@ -296,6 +300,12 @@ export default function PreviewPuzzlesPage() {
   const [answerMode, setAnswerMode] = useAtom(answerModeAtom);
   const [hideTimer, setHideTimer] = useAtom(hideSolveTimerAtom);
   const [referenceOpen, setReferenceOpen] = useState(false);
+  const [eliminateMode, setEliminateMode] = useState(false);
+  // Squares the solver has ruled out. Scratch state for ONE position — not
+  // persisted, because carrying it to the next puzzle would be misleading.
+  const [eliminated, setEliminated] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
+  );
   const [puzzleStartedAt, setPuzzleStartedAt] = useState(() => Date.now());
   const recordTrainingDay = useRecordTrainingDay();
   const [stats, setStats] = useAtom(puzzleStatsAtom);
@@ -544,6 +554,7 @@ export default function PreviewPuzzlesPage() {
     setCoachHighlights(null);
     setStaged(null);
     setWrongChoiceSan(null);
+    setEliminated(new Set<string>());
   }, [studentStartFen]);
 
   // Cancel a pending opponent reply on unmount.
@@ -1326,7 +1337,9 @@ export default function PreviewPuzzlesPage() {
     !!puzzle &&
     !activeDemo &&
     !staged &&
-    !choiceModeActive;
+    !choiceModeActive &&
+    // While eliminating, a tap marks a square rather than moving a piece.
+    !eliminateMode;
   const boardWrongSquare =
     !activeDemo && wrongSquare && status === "wrong" ? wrongSquare : null;
 
@@ -1343,6 +1356,15 @@ export default function PreviewPuzzlesPage() {
     }
     return styles;
   }, [activeDemo, coachHighlights]);
+
+  // Coach highlights and elimination marks share the board's one underlay
+  // seam. Elimination is painted last so the solver's own marks always win.
+  const boardUnderlay = useMemo(() => {
+    const marks = eliminatedUnderlay(eliminated);
+    if (!coachUnderlay) return Object.keys(marks).length > 0 ? marks : undefined;
+    return { ...coachUnderlay, ...marks };
+  }, [coachUnderlay, eliminated]);
+
 
   // Board → page move sink. The shared board doesn't judge legality (each
   // surface owns its own move semantics), so we replicate the legality probe
@@ -1392,6 +1414,22 @@ export default function PreviewPuzzlesPage() {
 
   // Take it back before committing. Returns the board to the real position.
   const handleUnstageMove = useCallback(() => setStaged(null), []);
+
+  // The board reports taps it can't turn into moves. Staging takes precedence
+  // over elimination: if a move is waiting to be committed, a tap means "undo
+  // that", which is the more urgent of the two intents.
+  const handleInactiveSquareTap = useCallback(
+    (square: string) => {
+      if (staged) {
+        setStaged(null);
+        return;
+      }
+      if (eliminateMode) {
+        setEliminated((prev) => toggleEliminated(prev, square));
+      }
+    },
+    [staged, eliminateMode],
+  );
 
   // Choice mode: tapping a row IS the deliberate act confirm-move exists to
   // create, so it grades immediately and never stages. Asking the user to
@@ -1658,6 +1696,19 @@ export default function PreviewPuzzlesPage() {
                           : "No reference for this puzzle's theme yet"
                       }
                       onToggleReference={() => setReferenceOpen((v) => !v)}
+                      eliminateOn={eliminateMode}
+                      onToggleEliminate={() => {
+                        // Leaving elimination clears the marks: they are
+                        // working notes for a calculation you just finished,
+                        // and stale hatching over a live board misleads.
+                        setEliminateMode((on) => {
+                          if (on) setEliminated(new Set<string>());
+                          return !on;
+                        });
+                        // A staged move and elimination mode are mutually
+                        // exclusive intents; entering one drops the other.
+                        setStaged(null);
+                      }}
                       trailing={sessionHud}
                     />
                     {referenceOpen && themeReference && (
@@ -1679,10 +1730,11 @@ export default function PreviewPuzzlesPage() {
                         fen={displayFen}
                         orientation={orientation}
                         interactive={interactive}
-                        // Tapping the board takes back an uncommitted move.
-                        // Only wired while something IS staged, so a tap
-                        // during a demo or on a solved board stays inert.
-                        onCancel={staged ? handleUnstageMove : undefined}
+                        // One tap seam, two meanings — take back a staged
+                        // move, or mark a square as ruled out. Staging wins
+                        // when both are live so a tap never does the
+                        // surprising one.
+                        onInactiveSquareTap={handleInactiveSquareTap}
                         onPieceDrop={onBoardMove}
                         lastMove={
                           displayLastMove
@@ -1697,7 +1749,7 @@ export default function PreviewPuzzlesPage() {
                         flash={
                           activeDemo ? null : { state: flash, flashKey }
                         }
-                        underlaySquareStyles={coachUnderlay}
+                        underlaySquareStyles={boardUnderlay}
                         pieceSet={pieceSet}
                       />
                       {activeDemo && (
@@ -2231,6 +2283,14 @@ export default function PreviewPuzzlesPage() {
                 <PuzzleCoachPanel
                   puzzle={puzzle}
                   outcome={coachOutcome}
+                  // A2 (SILENT_SUBSTITUTION_HANDOFF): the puzzle is picked for
+                  // this exact rating (±150, see ratingMin/ratingMax above) —
+                  // omitting it here made both prompt builders fall to their
+                  // "Student rating: unknown. Default to club-player depth."
+                  // branch, so a puzzle chosen for the user's band was then
+                  // explained at a generic level. Same atom, same pattern as
+                  // ConceptLessonCard.
+                  userRating={stats.rating}
                   userAttemptSan={lastWrongSan}
                   onRequestMorePuzzles={handleNextPuzzle}
                   drillPuzzles={feed.upcoming}

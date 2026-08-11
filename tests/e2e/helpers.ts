@@ -25,3 +25,27 @@ export function dobYearsAgo(years: number): string {
   d.setDate(d.getDate() - 1); // safely past the birthday
   return d.toISOString().slice(0, 10);
 }
+
+/**
+ * Wait until /puzzles stops swapping the puzzle, then return the settled FEN.
+ *
+ * The page can render a resumed puzzle first and then swap in the feed's first
+ * batch, so the position is NOT stable the moment the board turns interactive.
+ * Any test that reads `data-board-fen` and then acts on it — comparing it
+ * later, or computing a legal move from it — must settle first, or it will
+ * silently be working with a position the board has already replaced.
+ *
+ * This is not hypothetical: it failed exactly this way on CI while passing
+ * locally, because the feed resolves faster on a dev machine than on a runner.
+ */
+export async function waitForStableFen(page: Page): Promise<string> {
+  const board = page.locator("[data-board-fen]");
+  let last = await board.getAttribute("data-board-fen");
+  for (let i = 0; i < 20; i++) {
+    await page.waitForTimeout(400);
+    const now = await board.getAttribute("data-board-fen");
+    if (now && now === last) return now;
+    last = now;
+  }
+  throw new Error("board never settled on a puzzle");
+}

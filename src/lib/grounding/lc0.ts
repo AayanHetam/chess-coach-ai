@@ -8,7 +8,7 @@
 // the voter upgrades material_win and positional_plan confidence MED → HIGH.
 
 const LC0_API_URL = process.env.LC0_API_URL;
-const FETCH_TIMEOUT_MS = 8000;
+export const FETCH_TIMEOUT_MS = 8000;
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 min — Lc0 is deterministic per position
 const DEFAULT_NODES = 800;
 

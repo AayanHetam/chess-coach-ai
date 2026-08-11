@@ -101,17 +101,30 @@ describe("selectInsights (legacy policy)", () => {
     ]);
   });
 
-  it("03: sentinel plies are skipped by the top-10 scan but NOT by the intelligence scan", () => {
+  it("03: sentinel plies are skipped by BOTH the top-10 scan and the intelligence scan", () => {
     const f = loadFixture("03_sentinel_timeout");
     const sel = selectInsights(f.moveHistory, f.gameEval, f.playerColor);
     expect(sel.topMistakes.map((m) => [m.ply, m.dropCp])).toEqual([[10, 180]]);
-    // ply 8's "mistake" is manufactured by comparing against the {cp:0,
-    // depth:0} sentinel — the legacy intelligence scan has no sentinel skip,
-    // and this suite pins that discrepancy rather than fixing it (CI-4).
+
+    // CHANGED by the Group C fix (SILENT_SUBSTITUTION_HANDOFF §3 C4).
+    //
+    // This assertion previously ENDED with `[8, "White", 80]` and a comment
+    // saying the intelligence scan "has no sentinel skip, and this suite pins
+    // that discrepancy rather than fixing it (CI-4)". It is now fixed, so the
+    // pin is updated rather than deleted.
+    //
+    // Why exactly one entry goes, hand-derived from the fixture (position 8 is
+    // the `{cp: 0, depth: 0}` sentinel):
+    //   ply 8  — evalBefore IS the sentinel; its 80cp "drop" is measured
+    //            against a position the engine never scored. PHANTOM → gone.
+    //   ply 9  — positions 9 (-80) → 10 (+40); Black, drop 120. Touches no
+    //            sentinel. REAL → kept.
+    //   ply 10 — positions 10 (+40) → 11 (-140); White, drop 180. REAL → kept.
+    // ply 7 straddles the sentinel too but yields a NEGATIVE drop, so the
+    // `drop > 50` filter already excluded it for unrelated reasons.
     expect(sel.intelligenceTop3.map((m) => [m.ply, m.colorName, m.dropCp])).toEqual([
       [10, "White", 180],
       [9, "Black", 120],
-      [8, "White", 80],
     ]);
   });
 

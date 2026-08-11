@@ -6,7 +6,7 @@
 //   "queue"       — request the server to compute a position; call fire-and-forget after a queryscore miss
 
 const CHESSDB_BASE = "http://www.chessdb.cn/cdb.php";
-const FETCH_TIMEOUT_MS = 6000;
+export const FETCH_TIMEOUT_MS = 6000;
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h
 const QUEUE_COOLDOWN_MS = 30 * 1000; // don't re-queue the same position for 30s
 

@@ -105,6 +105,8 @@ import { getMovesClassification } from "@/lib/engine/helpers/moveClassification"
 import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useViewer } from "@/hooks/useViewer";
+import { resolveUserRating } from "@/lib/coach/userRating";
+import { buildAnalysisRequestBody } from "@/lib/coach/analysisRequestBody";
 import type { GameEval } from "@/types/eval";
 import { FlagButton } from "@/components/intern/FlagButton";
 import {
@@ -520,7 +522,17 @@ async function streamCoachReply(params: {
    *  generic. */
   gameEvalFull?: GameEval | null;
   contextIdRef: { current: string | null };
-  userRating?: number;
+  /**
+   * The user's real rating, or `undefined` when they have none.
+   *
+   * Deliberately a REQUIRED key with an optional value (`number | undefined`,
+   * not `userRating?: number`). A1 happened because this was `?`-optional:
+   * `coachExtras` simply never included it, that type-checked, and the body's
+   * `?? 1500` filled the hole with a plausible lie. With the key required,
+   * dropping it from `coachExtras` is a compile error at all three call sites.
+   * Do not soften this back to `?`.
+   */
+  userRating: number | undefined;
   /** "w" | "b" — production's playerColor field, lifted into the system
    *  prompt as "You're coaching <White|Black>". Derived from board
    *  orientation when no explicit picker exists. */
@@ -668,20 +680,16 @@ async function streamCoachReply(params: {
         : undefined),
     timeControl: pickHeader("TimeControl"),
   };
-  const hasAnyHeader = Object.values(gameHeaders).some(
-    (v) => v !== undefined
-  );
-
-  const requestBody: Record<string, unknown> = {
+  // Assembled by the shared builder so the personalization contract (notably
+  // "an absent rating is omitted, never defaulted" — A1) is unit-tested
+  // against the code that actually ships. See lib/coach/analysisRequestBody.ts.
+  const requestBody = buildAnalysisRequestBody({
     userMessage: userText,
     moveHistory,
     fen,
     gameEval: gameEvalPayload,
     conversationHistory,
-    userRating: userRating ?? 1500,
-    // Production-parity personalization fields (AICoachChat:2459-2487).
-    // All are optional server-side and round-trip via the enhanced-analysis
-    // zod schema; the LLM's system prompt only gets richer with each one.
+    userRating,
     playerColor,
     playerColorName,
     boardOrientation,
@@ -689,11 +697,8 @@ async function streamCoachReply(params: {
     chesscomUsername,
     lichessUsername,
     personalityId,
-    ...(hasAnyHeader ? { gameHeaders } : {}),
-    stream: true,
-  };
-  // Personality / username left undefined — server falls back gracefully
-  // and the new page hasn't surfaced the personality picker yet.
+    gameHeaders,
+  });
 
   const res = await fetch("/api/enhanced-analysis", {
     method: "POST",
@@ -6744,6 +6749,11 @@ export default function AnalysisPage() {
       playerColor,
       playerColorName: sideName,
       boardOrientation,
+      // A1 (SILENT_SUBSTITUTION_HANDOFF): the real rating, or `undefined` when
+      // the user has none. Never a default — the request body used to hardcode
+      // 1500, which made the server's profile/PGN-header fallbacks dead code
+      // and coached every user in the product as a 1500.
+      userRating: resolveUserRating(profile),
       username:
         user?.displayName ?? user?.email?.split("@")[0] ?? undefined,
       chesscomUsername,
@@ -6753,6 +6763,7 @@ export default function AnalysisPage() {
   }, [
     playerSide,
     boardOrientation,
+    profile,
     user?.displayName,
     user?.email,
     personality.id,
@@ -8719,7 +8730,7 @@ export default function AnalysisPage() {
                           setShareDialog({ msg: m, fen: displayFen })
                         }
                         mistakeContext={mistakeContext}
-                        userRating={profile?.selfReportedRating ?? 1500}
+                        userRating={resolveUserRating(profile) ?? 1500}
                         coachContextIdProp={coachContextIdRef.current}
                         enginePositions={enginePositions}
                         loadedGame={loadedGame}

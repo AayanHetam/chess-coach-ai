@@ -27,6 +27,10 @@ import type { CoachContract, ConceptFact, InsightContract, LineFact } from "./ty
 // ── Site-specific eval formatting (legacy-faithful, see module doc) ────────
 function candidateEval(lf: LineFact): string {
   const e = lf.eval;
+  // C5: the builder already flagged client-timeout lines and precomputed the
+  // honest rendering. Reading cp/mate directly published "+0.00" for a line
+  // the engine never scored.
+  if (e.sentinel) return "engine data unavailable";
   if (e.mate !== null) return `M${e.mate > 0 ? "+" : ""}${e.mate}`;
   if (e.cp !== null) return `${e.cp >= 0 ? "+" : ""}${(e.cp / 100).toFixed(2)}`;
   return "?";
@@ -149,7 +153,16 @@ function renderMoveByMoveLine(e: CoachContract["moveTable"][number]): string {
   line += `\n    FEN before: ${e.fenBefore}`;
   line += `\n    FEN after:  ${e.fenAfter}`;
 
-  if (e.classification) {
+  // C3 (SILENT_SUBSTITUTION_HANDOFF): this used to render unconditionally,
+  // three lines above "Eval: engine data unavailable" — the same block
+  // asserting both that the engine never scored the move and that the move was
+  // a BLUNDER. The classification is derived from the eval, so when the eval
+  // is a timeout sentinel (or absent entirely) the label has no basis.
+  //
+  // This one is load-bearing beyond the prompt: the output referee validates
+  // coach prose against the contract, so a fabricated classification HERE is
+  // reported as a *backed* claim. The referee cannot catch it; only this guard can.
+  if (e.classification && e.evalAfter && !e.evalAfter.sentinel) {
     line += `\n    Classification: ${e.classification.toUpperCase()}`;
   }
 
@@ -176,7 +189,11 @@ function renderMoveByMoveLine(e: CoachContract["moveTable"][number]): string {
             ? `${le.cp >= 0 ? "+" : ""}${(le.cp / 100).toFixed(2)}`
             : "";
       const fullPvLine = formatPvAsMoveList(e.bestWas.line.san, e.moveNumber, e.ply % 2 === 0);
-      line += `\n    Best was: ${e.bestWas.san} (${pvEvalStr}, depth ${le.depth}) — Engine line: ${fullPvLine}`;
+      // C5: naming the better move is still useful; attaching "(+0.00, depth 0)"
+      // to it is a fabricated engine score for a line that was never searched.
+      line += le.sentinel
+        ? `\n    Best was: ${e.bestWas.san} (engine data unavailable) — Engine line: ${fullPvLine}`
+        : `\n    Best was: ${e.bestWas.san} (${pvEvalStr}, depth ${le.depth}) — Engine line: ${fullPvLine}`;
     } else {
       line += `\n    Best was: ${e.bestWas.san}`;
     }

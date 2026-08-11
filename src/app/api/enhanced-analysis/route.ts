@@ -25,6 +25,7 @@ import { getReinforcements } from "@/lib/concept/conceptRetrieval";
 import { requireSession } from "@/lib/auth/session";
 import { gateFeature } from "@/lib/billing/gate";
 import { getUserById } from "@/lib/server/users";
+import { isPlausibleRating, resolveUserRating } from "@/lib/coach/userRating";
 // ── Stage B (PR 1.C) Mastermind validator pipeline imports ──────────
 // All flag-gated by getMastermindEnv().validatorsEnabled. When false, none
 // of these symbols execute. See PR_1C_STAGE_B_PLAN.md §3.7 for the audit
@@ -56,6 +57,7 @@ import {
   type MastermindPrepResult,
 } from "@/lib/mastermind/routeHelpers";
 import { buildCurrentPositionFacts } from "@/lib/mastermind/positionFacts";
+import { buildCompactGameContext } from "@/lib/coach/compactGameContext";
 import { detectMotifs, motifsToPropmt } from "@/lib/tactics";
 import type { AnyMotif } from "@/lib/tactics";
 import {
@@ -185,163 +187,6 @@ function detectTacticalMotifs(fenBefore: string, moveSan: string, pvSan: string[
   return motifs;
 }
 
-/**
- * Compact game context used on follow-up chat turns.
- *
- * Cheaper than `buildGameContext` (no per-move FEN, no full PV trees, no motifs)
- * but rich enough that the LLM can ground answers like "why was move 6 a
- * mistake?" or "what was my first error?" in real moves and evals.
- *
- * Each half-move gets one prose sentence so the LLM can quote pre-narrated
- * facts rather than synthesize them — the synthesis step is where hallucination
- * crept in (e.g., inventing "13. Bh7+" when there was no move list at all).
- *
- * Sections:
- *   - MOVES PLAYED (PGN)
- *   - MOVE-BY-MOVE NARRATIVE  (one sentence per half-move)
- *   - TOP MISTAKES            (eval drops >= 0.5 pawns, sorted, capped)
- */
-function buildCompactGameContext(
-  moveHistory: string[],
-  gameEval: GameEvalInput | undefined,
-  playerColor: string
-): string {
-  if (!moveHistory || moveHistory.length === 0) return "";
-
-  const sections: string[] = [];
-
-  sections.push(`## MOVES PLAYED (PGN)\n${buildPgnFromMoves(moveHistory)}`);
-
-  const evalSentences: string[] = [];
-  type Mistake = {
-    moveNum: number;
-    color: string;
-    moveSan: string;
-    cpBefore: number;
-    cpAfter: number;
-    drop: number;
-    bestSan?: string;
-  };
-  const mistakes: Mistake[] = [];
-
-  const formatCp = (cp: number, mate?: number): string => {
-    if (mate !== undefined) return `M${mate > 0 ? "+" : ""}${mate}`;
-    if (Math.abs(cp) >= 9000) return cp > 0 ? "M+" : "M-";
-    return `${cp >= 0 ? "+" : ""}${(cp / 100).toFixed(2)}`;
-  };
-
-  for (let i = 0; i < moveHistory.length; i++) {
-    const moveSan = moveHistory[i];
-    const moveNum = Math.floor(i / 2) + 1;
-    const isWhite = i % 2 === 0;
-    const colorWord = isWhite ? "White" : "Black";
-
-    const evalBefore = gameEval?.positions?.[i];
-    const evalAfter = gameEval?.positions?.[i + 1];
-
-    // Stockfish's preferred move from the position before this one was played
-    let bestSan: string | undefined;
-    if (evalBefore?.bestMove && evalBefore.bestMove !== "N/A") {
-      const fenBefore = getFenAtHalfMove(moveHistory, i);
-      const candidate = uciToSan(fenBefore, evalBefore.bestMove);
-      if (candidate && candidate !== moveSan) bestSan = candidate;
-    }
-
-    // Eval drop from the player's perspective
-    // Client timeout sentinels ({cp: 0, depth: 0}) are not real evals — skip
-    // swing computation entirely so a stalled position can't narrate as a
-    // fabricated blunder (or mask a real one) on the Haiku follow-up path.
-    const compactSentinel =
-      evalBefore?.lines?.[0]?.depth === 0 || evalAfter?.lines?.[0]?.depth === 0;
-    let drop = 0;
-    let cpBefore: number | null = null;
-    let cpAfter: number | null = null;
-    if (evalBefore?.lines?.[0] && evalAfter?.lines?.[0] && !compactSentinel) {
-      cpBefore = evalBefore.lines[0].mate !== undefined
-        ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
-        : (evalBefore.lines[0].cp ?? 0);
-      cpAfter = evalAfter.lines[0].mate !== undefined
-        ? (evalAfter.lines[0].mate! > 0 ? 9999 : -9999)
-        : (evalAfter.lines[0].cp ?? 0);
-      drop = isWhite ? (cpBefore - cpAfter) : (cpAfter - cpBefore);
-    }
-
-    // Pick a single label: severity for >50cp drops, otherwise the engine's
-    // moveClassification field (book/good/excellent/etc.) when present.
-    let label = "";
-    if (drop >= 300) label = "BLUNDER";
-    else if (drop >= 150) label = "MISTAKE";
-    else if (drop >= 50) label = "INACCURACY";
-    else if (evalAfter?.moveClassification) label = evalAfter.moveClassification;
-
-    // Build the sentence
-    let sentence = `Move ${moveNum} (${colorWord}): ${moveSan}`;
-    if (label) sentence += ` — ${label}`;
-
-    if (drop >= 50 && cpBefore !== null && cpAfter !== null) {
-      // For mistakes, narrate the eval swing
-      const beforeStr = formatCp(cpBefore, evalBefore?.lines?.[0]?.mate);
-      const afterStr = formatCp(cpAfter, evalAfter?.lines?.[0]?.mate);
-      sentence += `; eval ${beforeStr} → ${afterStr} (lost ${(drop / 100).toFixed(1)} pawns)`;
-    } else if (evalAfter?.lines?.[0] && evalAfter.lines[0].depth !== 0) {
-      // For routine moves, just the resulting eval (skip timeout sentinels —
-      // a fabricated "eval +0.00" is worse than saying nothing)
-      const afterStr = formatCp(evalAfter.lines[0].cp ?? 0, evalAfter.lines[0].mate);
-      sentence += `${label ? ";" : " —"} eval ${afterStr}`;
-    }
-
-    if (bestSan) {
-      sentence += `. Stockfish preferred ${bestSan}.`;
-    } else {
-      sentence += ".";
-    }
-
-    evalSentences.push(sentence);
-
-    if (drop >= 50 && cpBefore !== null && cpAfter !== null) {
-      mistakes.push({
-        moveNum,
-        color: colorWord,
-        moveSan,
-        cpBefore,
-        cpAfter,
-        drop,
-        bestSan,
-      });
-    }
-  }
-
-  sections.push(`## MOVE-BY-MOVE NARRATIVE\n(One sentence per half-move. Eval is in pawns from White's perspective. Quote these sentences directly when asked about specific moves — do not paraphrase or invent.)\n${evalSentences.join("\n")}`);
-
-  // Mirror buildGameContext: filter to the user's color so opponent blunders
-  // don't leak into TOP MISTAKES and contradict the player-perspective rule.
-  const userColorName = playerColor === "w" ? "White" : "Black";
-  const userMistakes = mistakes.filter((m) => m.color === userColorName);
-  if (userMistakes.length > 0) {
-    userMistakes.sort((a, b) => b.drop - a.drop);
-    const top = userMistakes.slice(0, 12);
-    const mistakeLines = top.map((m) => {
-      const severity = m.drop >= 300 ? "BLUNDER" : m.drop >= 150 ? "MISTAKE" : "INACCURACY";
-      const before = formatCp(m.cpBefore);
-      const after = formatCp(m.cpAfter);
-      const lost = (m.drop / 100).toFixed(1);
-      const best = m.bestSan ? `; Stockfish preferred ${m.bestSan}` : "";
-      return `- Move ${m.moveNum} (${m.color}): ${m.moveSan} [${severity}] — eval ${before} → ${after} (lost ${lost} pawns)${best}`;
-    });
-    sections.push(`## TOP MISTAKES (worst eval drops first, max 12)\n${mistakeLines.join("\n")}`);
-  }
-
-  sections.push(`Player is ${playerColor === "w" ? "White" : "Black"}.`);
-
-  // Position-fact grounding (2026-06-13): prepend the CURRENT POSITION board so
-  // the fast (Haiku) follow-up tier reads the board instead of reconstructing it
-  // from the PGN — measured +1.5 factual accuracy. See positionFacts.ts /
-  // POSITION_FACT_GROUNDING_PLAN.md.
-  const positionFacts = buildCurrentPositionFacts(moveHistory, gameEval);
-  if (positionFacts) sections.unshift(positionFacts);
-
-  return sections.join("\n\n");
-}
 
 /**
  * Generate puzzle recommendations for detected mistakes in the game.
@@ -423,6 +268,11 @@ async function generatePuzzleRecommendations(
     const evalBefore = gameEval.positions[i];
     const evalAfter = gameEval.positions[i + 1];
     if (!evalBefore?.lines?.[0] || !evalAfter?.lines?.[0]) continue;
+    // C4 (SILENT_SUBSTITUTION_HANDOFF): same sentinel gap as selectInsights'
+    // Scan 2. Without this we build REAL training puzzles — and tell the user
+    // to drill them — off a mistake that only exists because the engine timed
+    // out on one of the two positions.
+    if (evalBefore.lines[0].depth === 0 || evalAfter.lines[0].depth === 0) continue;
 
     const cpBefore = evalBefore.lines[0].mate !== undefined
       ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
@@ -538,12 +388,17 @@ export async function POST(request: NextRequest) {
       gameEval,
       playerColor,
       username,
-      // Rename on destructure so we can override with the Firestore-stored
-      // selfReportedRating after the profile read below. AnalysisImpl already
-      // sends profile.selfReportedRating in the body (PR #64), but the
-      // legacy AICoachChat callers and future surfaces may not — when they
-      // don't, the value the LLM sees should still be the user's true rating
-      // instead of silently defaulting to 1500.
+      // Rename on destructure so the Firestore profile read below can supply
+      // the value when the body has none.
+      //
+      // A1 (SILENT_SUBSTITUTION_HANDOFF, fixed 2026-08-11): the previous
+      // comment here claimed "AnalysisImpl already sends
+      // profile.selfReportedRating (PR #64)". It did not — it sent a
+      // hardcoded `userRating ?? 1500`, and because the body wins this
+      // chain, everything below was unreachable and every user was coached
+      // as a 1500. The client now sends the real rating or nothing at all,
+      // which is what makes the profile → header-Elo fallbacks live code.
+      // Do not reintroduce a default in the body.
       userRating: userRatingFromBody,
       boardOrientation,
       conversationHistory,
@@ -606,10 +461,9 @@ export async function POST(request: NextRequest) {
         };
         // Single-rating model: prefer the live mirror (tracks improvement),
         // then the placement-measured rating, then the self-reported prior.
-        profileRating =
-          profile.liveRatingSnapshot ??
-          profile.measuredRating ??
-          profile.selfReportedRating;
+        // Shared with the browser via resolveUserRating so the two copies of
+        // this chain cannot drift (A1).
+        profileRating = resolveUserRating(profile);
       }
     } catch (err) {
       log.warn("could not load coaching prefs", {
@@ -625,12 +479,13 @@ export async function POST(request: NextRequest) {
     // skew skill calibration.
     const headerEloRaw = playerColor === "b" ? gameHeaders?.blackElo : gameHeaders?.whiteElo;
     const headerElo = headerEloRaw ? Number.parseInt(headerEloRaw, 10) : NaN;
+    // Body value is range-guarded like the header Elo below it: a client
+    // sending junk (or a legacy client still sending a placeholder) must not
+    // beat a real profile rating.
     const userRating =
-      userRatingFromBody ??
+      (isPlausibleRating(userRatingFromBody) ? userRatingFromBody : undefined) ??
       profileRating ??
-      (Number.isFinite(headerElo) && headerElo >= 100 && headerElo <= 3500
-        ? headerElo
-        : undefined);
+      (isPlausibleRating(headerElo) ? headerElo : undefined);
 
     log.info("Enhanced analysis started", {
       hasMessage: !!messageText,
@@ -638,6 +493,16 @@ export async function POST(request: NextRequest) {
       hasEval: !!gameEval,
       playerColor,
       skillLevel: userRating ? (userRating < 1000 ? "beginner" : userRating < 1600 ? "intermediate" : "advanced") : "intermediate",
+      // A1 proof-of-life: which source actually supplied the rating. If this
+      // reads "none" for every request in production, the client fix is not
+      // deployed — the number alone cannot tell you that.
+      ratingSource: isPlausibleRating(userRatingFromBody)
+        ? "body"
+        : profileRating !== undefined
+          ? "profile"
+          : isPlausibleRating(headerElo)
+            ? "pgn_header"
+            : "none",
     });
 
     // API-key presence is now validated inside callLLM(); both Anthropic and
@@ -740,7 +605,7 @@ export async function POST(request: NextRequest) {
     // a single self-contained prompt blob.
     const claudeSystemParts = getCoachChatSystemPromptParts({
       personalityId: personalityId ?? "friendly",
-      userRating: userRating ?? 1500,
+      userRating,
       username,
       playerColorName,
       chesscomUsername,
@@ -818,9 +683,17 @@ export async function POST(request: NextRequest) {
       (coachingPrefs?.studyGoals ?? []).slice().sort().join(","),
       (coachingPrefs?.favoriteOpenings ?? []).slice().sort().join(","),
     ].join("|");
+    // A1: "no rating on file" is a distinct prompt from "rating 1300", even
+    // though both calibrate to INTERMEDIATE — the unrated prompt tells the
+    // model to state its assumptions rather than speak to a known level. Give
+    // it its own bucket so an unrated visitor can't be served a reply written
+    // for a rated player (and vice versa). Before A1 every caller was 1500, so
+    // this bucket did not exist.
+    const cacheSkillBucket =
+      userRating === undefined ? `${skillLevel}:unrated` : skillLevel;
     const cacheKey = generateCacheKey(
       currentFen,
-      skillLevel,
+      cacheSkillBucket,
       messageText || "analyze",
       personaSignature,
       moveHistory
@@ -992,7 +865,7 @@ export async function POST(request: NextRequest) {
                 priorMessages: claudeMessages.slice(0, -1),
                 promptInput: {
                   personalityId: personalityId ?? "friendly",
-                  userRating: userRating ?? 1500,
+                  userRating,
                   username,
                   playerColorName,
                   chesscomUsername,

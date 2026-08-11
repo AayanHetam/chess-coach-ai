@@ -1025,6 +1025,62 @@ function contractHasMate(insight: InsightContract, contract?: CoachContract): bo
   return false;
 }
 
+/**
+ * The TRAPPED class of tactical keywords — the ones whose truth condition is
+ * "this piece has no safe square to go to", which `countSafeMoves` decides
+ * arithmetically. Every other TACTICAL_CLAIM_KEYWORDS entry (fork, pin,
+ * skewer, …) asserts a relationship the motif detectors own, and keeps its
+ * detector-only license.
+ */
+const TRAPPED_CLASS_KEYWORDS = new Set(["trapped"]);
+
+/**
+ * CI-5 FOLLOW-UP (2026-08-11) — board-truth license for the TRAPPED class.
+ *
+ * The CI-5 gate run failed its false-intervention bar 2/10, and BOTH false
+ * fires were the word "trapped" on a piece whose flight squares were all
+ * covered: prose the board agreed with, refuted because `detectMotifs` had
+ * not put "trapped" in THAT insight's `allowedTacticalKeywords` (it was in a
+ * neighbouring insight's). Plan §9 risk 2 — detector RECALL — arriving where
+ * it was predicted, and the two structural reasons it under-recalls are:
+ *
+ *   1. `detectTrappedPieces`/`detectImmobilizedPieces` only ever scan the
+ *      OPPONENT's pieces (`sq.color !== opponentColor` → skip). A player who
+ *      walks their OWN knight into a cage — the single most common
+ *      game_review blunder narrative — can never license the word.
+ *   2. The detectors are keyed to the played move's own position; a piece
+ *      that is trapped on `fenBefore` but not re-detected on `fenAfter`
+ *      (or vice-versa) falls through.
+ *
+ * So the keyword earns an OCCURRENCE-level exemption from the same arithmetic
+ * the mobility check already computes: resolve the piece the sentence is
+ * talking about (`resolveClaimPiece`), resolve which board the claim is about
+ * (`resolveClaimFens` — the same conditioning-move / future-ply handling), and
+ * license the occurrence when that piece has ZERO safe moves there, EVEN IF it
+ * has legal moves. This never licenses anything the board does not back:
+ * unresolvable pieces, unresolvable positions and pieces with a safe square
+ * all still fire.
+ *
+ * Deliberately NOT weakened: a "no legal moves"/"N legal moves" claim is a
+ * COUNT, and `checkMobilityLiteralClaims` still refutes it against raw
+ * chess.js — a piece with 3 legal moves and 0 safe ones is "trapped" (allowed
+ * here) but does NOT have "no legal moves" (still caught there).
+ */
+function isImmobilized(
+  sentence: string,
+  claimIndexInSentence: number,
+  insight: InsightContract,
+): boolean {
+  const ref = resolveClaimPiece(sentence, claimIndexInSentence);
+  if (!ref || ref.pieceLetter === "k") return false; // unresolvable / mate territory
+  const fens = resolveClaimFens(sentence, insight);
+  if (!fens) return false; // claim is about a position the contract cannot score
+  const counts = fens
+    .map((fen) => safeMobilityCount(fen, ref.square, ref.pieceLetter))
+    .filter((c): c is number => c !== null);
+  return counts.length > 0 && counts.some((c) => c === 0);
+}
+
 export function checkTacticalKeywords(
   prose: string,
   insight: InsightContract,
@@ -1090,6 +1146,10 @@ export function checkTacticalKeywords(
           contractHasMate(insight, contract)
         ) {
           continue; // fix 4b — king-context license
+        }
+        // CI-5 FOLLOW-UP — board-truth license for the TRAPPED class.
+        if (TRAPPED_CLASS_KEYWORDS.has(keyword.toLowerCase()) && isImmobilized(sentence, idx - start, insight)) {
+          continue;
         }
         firstClaimIndex = idx;
         break;

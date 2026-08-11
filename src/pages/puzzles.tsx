@@ -622,7 +622,7 @@ export default function PreviewPuzzlesPage() {
       // streak. Before the program-first restructure, bumpStreak fired ONLY in
       // SessionRunner — so solving fifty puzzles on this page advanced nothing
       // and /plan's streak tile disagreed with what the user had just done.
-      recordTrainingDay();
+      recordTrainingDay(theme);
       setSessionResults((prev) => [
         ...prev,
         {

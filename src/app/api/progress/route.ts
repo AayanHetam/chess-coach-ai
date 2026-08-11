@@ -64,6 +64,21 @@ const progressSchema = z.object({
     recentSolves: z.array(z.record(z.string(), z.unknown())).max(200),
   }),
   srs: z.record(z.string().max(64), srsCardSchema),
+  // Optional so snapshots written before daily tracking existed still
+  // validate. Capped at ~2x the 30-day retention window: a client that
+  // stopped pruning should fail its own write, not silently bloat the doc.
+  daily: z
+    .record(
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      z.object({
+        puzzles: z.number().int().min(0).max(100000),
+        themes: z.array(z.string().max(64)).max(100),
+      }),
+    )
+    .refine((d) => Object.keys(d).length <= 60, {
+      message: "daily log exceeds retention window",
+    })
+    .optional(),
   updatedAt: z.number(),
 });
 

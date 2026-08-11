@@ -161,6 +161,39 @@ alone** — that's the front door (§1).
 
 ---
 
+## 3b. Status (2026-08-10)
+
+- **Tier 0 — reachable: MERGED** (PR #253). Plan leads the nav, post-login
+  lands on /plan, homepage leads with "Start your plan", sw.js opens /plan,
+  dead `NavPill.badge` removed.
+- **Tier 1 — remembers you: IN REVIEW** (PR #254). `useRecordTrainingDay`
+  bumps the streak from every training surface (it previously fired only in
+  SessionRunner, so /puzzles advanced nothing); `/api/progress` + a tested,
+  commutative, idempotent field-wise merge makes streak/stats/SRS durable
+  across devices, with localStorage still the working copy.
+- **Tier 2 — daily tasks: BUILT** (branch `feat/program-daily-tasks`).
+  `dailyLog` records puzzles + themes per day; /plan renders tickable task
+  rows and a live goal counter; the week grid shows completed days.
+- **Tier 3 — reminders: BLOCKED on four founder-gated ops.** See below.
+- **Tier 4 — in-app naming: not started** (correctly — it comes last).
+
+### Open decision before Tier 3 code lands
+
+`reminderPrefs.enabled` defaults to false and the only writer is a switch on
+/plan, so the cron's query returns ~0 users even once the keys exist. The fix
+is an opt-in *ask*, and the shape of that ask is a judgement call with consent
+implications rather than a technical one:
+
+- Silently defaulting email reminders on at signup would maximise opt-in but is
+  a dark pattern, and this product has under-13 gating already.
+- An explicit, pre-checked choice during onboarding is honest, visible, and
+  still converts well. **Recommended.**
+- Push cannot be defaulted at all — it needs a browser permission prompt, so it
+  has to be asked for at a moment the user understands.
+
+Not implementing either until Aayan picks, because turning notifications on for
+existing users is outward-facing and hard to walk back.
+
 ## 4. Sequencing recommendation
 
 Tier 0 first and on its own: it is a few hours of wiring, it is reversible, and

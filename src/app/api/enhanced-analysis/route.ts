@@ -83,7 +83,13 @@ import {
 import { maybeCreateShadowRefereeGate } from "@/lib/contract/shadowReferee";
 // CI-5: persist what the shadow referee WOULD have caught somewhere queryable.
 // Consent- and TRACKING_ENABLED-gated, fire-and-forget; see refereeOutcomes.ts.
-import { captureRefereeOutcome } from "@/lib/tracking/refereeOutcomes";
+// captureEnforcedRefereeOutcome (CI-6) is the enforced-serving path's own
+// writer — the shadow gate is never constructed once a category is armed, so
+// it cannot record what the referee caught on served traffic.
+import {
+  captureRefereeOutcome,
+  captureEnforcedRefereeOutcome,
+} from "@/lib/tracking/refereeOutcomes";
 import type { RefereeOutcomeContext } from "@/lib/tracking/refereeOutcomes";
 import { hasTrackingConsent } from "@/lib/tracking/consent";
 import { readAnonIdFromRequest } from "@/lib/tracking/anonId";
@@ -91,6 +97,9 @@ import { CONTRACT_VERSION } from "@/lib/contract/types";
 // PR-CI-4: contract-mode enforced serving (verbalizer 4.0 + failure ladder).
 // Dead code until CONTRACT_CATEGORIES lists a category.
 import { serveContractAnalysis } from "@/lib/contract/contractServing";
+// PR-CI-6a: the trimmed contract rides into AnalysisContext so /api/chat
+// follow-ups are grounded in the same facts the refereed first turn used.
+import { toCompactContract } from "@/lib/contract/followUp";
 import {
   contractServingDecision,
   isContractServingConfigured,
@@ -923,6 +932,24 @@ export async function POST(request: NextRequest) {
                   moveHistory,
                 },
               });
+              // CI-6: persist what the referee ACTUALLY caught on the served
+              // path. Arming CONTRACT_CATEGORIES routed traffic past the
+              // shadow gate below, which was the only referee_outcomes writer
+              // — so enforcement silently switched off its own measurement.
+              // `summary` is null on a cache-hit serve (nothing was refereed
+              // this request, so there is no outcome to record).
+              if (serving.summary) {
+                captureEnforcedRefereeOutcome({
+                  summary: serving.summary,
+                  contractId: contractForShadowReferee.contractId,
+                  correlationId: requestId,
+                  ctx: {
+                    ...refereeOutcomeBase,
+                    category: prep.category,
+                    model: serving.llmResult?.model ?? null,
+                  },
+                });
+              }
               if (serving.llmResult) {
                 console.log("coach.tokens", {
                   input: serving.llmResult.inputTokens,
@@ -963,6 +990,15 @@ export async function POST(request: NextRequest) {
                 createdAt: Date.now(),
                 initialAnalysis: serving.analysisContent,
                 gameEval,
+                // PR-CI-6a. Set on THIS path only: the user read refereed,
+                // contract-bound prose, so follow-ups may be grounded in the
+                // same contract. `summary` is null on a cache-hit serve — pass
+                // null (unknown), never [] (which would assert every insight
+                // was unseen).
+                compactContract: toCompactContract(
+                  contractForShadowReferee,
+                  serving.summary ? serving.summary.cards.map((c) => c.factIdPrefix) : null,
+                ),
               });
               let puzzleRecommendations: unknown = undefined;
               try {

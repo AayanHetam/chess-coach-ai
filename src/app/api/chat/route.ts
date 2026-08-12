@@ -6,6 +6,7 @@ import {
   buildCondensedContext,
 } from "@/lib/analysisContextCache";
 import { buildFenPositionFacts } from "@/lib/mastermind/positionFacts";
+import { renderContractCompact } from "@/lib/contract/followUp";
 import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
 import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { chatSchema, validateRequest } from "@/lib/validation/schemas";
@@ -154,8 +155,19 @@ export async function POST(request: NextRequest) {
         // oracle failure — proceed without per-turn facts (legacy behavior)
       }
 
+      // PR-CI-6a — follow-up grounding. When the review above was served
+      // through the enforced contract path, the SAME facts that survived the
+      // referee ride into this turn: engine lines behind each verdict, the
+      // tactical vocabulary each insight licenses, and the claim classes a
+      // degraded source forbids. Absent (legacy-served review, or a context
+      // cached before this landed) it renders to "" and the turn behaves
+      // exactly as before.
+      const contractBlock = context.compactContract
+        ? renderContractCompact(context.compactContract)
+        : "";
+
       const cachedSystemPrompt = context.systemPromptStable ?? context.systemPrompt;
-      const condensedContext = [buildCondensedContext(context), perTurnFacts]
+      const condensedContext = [buildCondensedContext(context), contractBlock, perTurnFacts]
         .filter(Boolean)
         .join("\n\n");
       const uncachedSuffix = context.systemPromptStable

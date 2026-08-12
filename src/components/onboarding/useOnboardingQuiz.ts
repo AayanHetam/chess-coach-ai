@@ -7,19 +7,19 @@ import {
   SelfAssessKey,
   SelfAssessScore,
   TimeCommitment,
-  usesRatingPath,
+  usesPlatformPath,
 } from "./quizConfig";
 
 /**
  * Quiz state machine. One question per screen with a branch after step 1
- * (online-rating path vs self-assessment path). Answers are mirrored to a
+ * (platform-username path vs self-assessment path). Answers are mirrored to a
  * localStorage DRAFT so a refresh resumes; the draft is NOT the flush payload
  * (that's written separately by the result screen on "unlock").
  */
 
 export type StepId =
   | "play-style"
-  | "rating"
+  | "username"
   | "sa-years"
   | "sa-spot"
   | "sa-tournaments"
@@ -32,8 +32,8 @@ export type QuizPhase = "questions" | "result";
 function resolveSteps(answers: QuizAnswers): StepId[] {
   const steps: StepId[] = ["play-style"];
   if (!answers.playStyle) return steps;
-  if (usesRatingPath(answers.playStyle)) {
-    steps.push("rating");
+  if (usesPlatformPath(answers.playStyle)) {
+    steps.push("username");
   } else {
     steps.push("sa-years", "sa-spot", "sa-tournaments");
   }
@@ -41,16 +41,23 @@ function resolveSteps(answers: QuizAnswers): StepId[] {
   return steps;
 }
 
-function isRatingValid(r: number | undefined): boolean {
-  return typeof r === "number" && Number.isFinite(r) && r >= 100 && r <= 3500;
+/**
+ * Both platforms allow only these characters in a handle, so anything else is
+ * a typo we can catch before the user leaves the step rather than a confusing
+ * "account not found" after signup.
+ */
+const USERNAME_RE = /^[A-Za-z0-9_-]{1,30}$/;
+
+export function isUsernameValid(u: string | undefined): boolean {
+  return typeof u === "string" && USERNAME_RE.test(u.trim());
 }
 
 function canAdvanceStep(step: StepId, a: QuizAnswers): boolean {
   switch (step) {
     case "play-style":
       return !!a.playStyle;
-    case "rating":
-      return isRatingValid(a.rating);
+    case "username":
+      return isUsernameValid(a.username);
     case "sa-years":
       return a.selfAssess.years !== undefined;
     case "sa-spot":
@@ -81,7 +88,6 @@ export interface OnboardingQuizApi {
   back: () => void;
   startOver: () => void;
   setPlayStyle: (v: PlayStyle) => void;
-  setRating: (v: number | undefined) => void;
   setUsername: (v: string) => void;
   setSelfAssess: (key: SelfAssessKey, score: SelfAssessScore) => void;
   toggleGoal: (key: string) => void;
@@ -186,9 +192,6 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
   const setPlayStyle = useCallback((v: PlayStyle) => {
     setAnswers((a) => ({ ...a, playStyle: v }));
   }, []);
-  const setRating = useCallback((v: number | undefined) => {
-    setAnswers((a) => ({ ...a, rating: v }));
-  }, []);
   const setUsername = useCallback((v: string) => {
     setAnswers((a) => ({ ...a, username: v }));
   }, []);
@@ -231,7 +234,6 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
     back,
     startOver,
     setPlayStyle,
-    setRating,
     setUsername,
     setSelfAssess,
     toggleGoal,

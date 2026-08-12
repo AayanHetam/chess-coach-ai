@@ -45,6 +45,26 @@ export function useQuizPersistence(): void {
           onboardingCompletedAt: Date.now(),
         });
         clearAllQuizStorage();
+
+        // The quiz collected a username instead of asking for a rating, so the
+        // profile has no rating until this runs. Fire it here — the user is
+        // mid-redirect to /plan and the number should be waiting when they
+        // arrive. Deliberately NOT awaited into the guard above: a platform
+        // outage must not make the profile write look like it failed and
+        // trigger the retry path.
+        if (env.payload.lichessUsername || env.payload.chesscomUsername) {
+          void fetch("/api/ratings/lookup", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ force: true }),
+          }).catch((err) => {
+            // Non-fatal by design: the coach simply has no rating yet, which
+            // resolveUserRating already treats as "not provided" rather than
+            // substituting one. Profile → Chess can retry on demand.
+            console.warn("Post-signup rating lookup failed:", err);
+          });
+        }
       } catch (err) {
         // Leave the key in place and allow one retry on the next user tick.
         flushedRef.current = null;

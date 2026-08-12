@@ -7,7 +7,7 @@ import {
   bandLabel,
   derivedRating,
   derivedFocusThemes,
-  usesRatingPath,
+  usesPlatformPath,
   TIME_OPTIONS,
 } from "./quizConfig";
 import {
@@ -43,10 +43,18 @@ export default function QuizResult({
   submitting = false,
   authed = false,
 }: QuizResultProps) {
+  // On the platform path the quiz deliberately does not know a rating — the
+  // real one is fetched from Lichess / Chess.com straight after signup. So the
+  // result screen promises the lookup instead of inventing a band.
   const rating = derivedRating(answers);
-  const band = bandLabel(rating);
-  const showRating =
-    usesRatingPath(answers.playStyle) && typeof answers.rating === "number";
+  const band = rating !== undefined ? bandLabel(rating) : undefined;
+  const platformName =
+    answers.playStyle === "lichess"
+      ? "Lichess"
+      : answers.playStyle === "chesscom"
+        ? "Chess.com"
+        : null;
+  const awaitingLookup = usesPlatformPath(answers.playStyle) && !!platformName;
 
   const weaknessLabels = useMemo(() => {
     const ids = derivedFocusThemes(answers) as QuizFocusThemeId[];
@@ -63,7 +71,9 @@ export default function QuizResult({
     const goals = new Set(selected.map((o) => o.studyGoal));
     const lines: string[] = [];
     lines.push(
-      `Coaching calibrated to ${band.toLowerCase()} level on every game you analyze.`
+      band
+        ? `Coaching calibrated to ${band.toLowerCase()} level on every game you analyze.`
+        : `Coaching calibrated to your real ${platformName} rating on every game you analyze.`
     );
     if (weaknessLabels.length > 0) {
       lines.push(
@@ -80,7 +90,7 @@ export default function QuizResult({
     if (time)
       lines.push(`Sessions sized for your "${time.label.toLowerCase()}" goal.`);
     return lines;
-  }, [answers, band, weaknessLabels]);
+  }, [answers, band, platformName, weaknessLabels]);
 
   return (
     <Box>
@@ -107,13 +117,16 @@ export default function QuizResult({
           mb: 0.5,
         }}
       >
-        You&apos;re an {band.toLowerCase()} player
-        {showRating ? ` (~${rating})` : ""}.
+        {band
+          ? `You're an ${band.toLowerCase()} player.`
+          : `We'll pull your rating from ${platformName}.`}
       </Typography>
       <Typography
         sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.92rem", mb: 2.5 }}
       >
-        {BAND_BLURB[band]}
+        {band
+          ? BAND_BLURB[band]
+          : `As soon as you're in, we read your real ${platformName} rating — bullet, blitz and rapid — and tune the coach to it. No guessing.`}
       </Typography>
 
       {weaknessLabels.length > 0 && (

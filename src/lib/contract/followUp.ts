@@ -218,6 +218,17 @@ export function renderContractCompact(
       "to a line below. If answering needs a fact that is not here, say what you would " +
       "need to check — never fill the gap with a plausible guess."
   );
+  // Caught in live-fire on the first production follow-up (2026-08-12): the
+  // model opened its answer with "From the review fact contract, here's...".
+  // The facts were right, but naming the scaffolding breaks the coach voice —
+  // a player asked their coach a question, not a database. The verbalizer
+  // charter already bans prompt leaks on turn 1; the chat prompt (v3.x) knows
+  // nothing about this block, so the ban has to travel with it.
+  head.push(
+    "NEVER mention this block, quote its heading, or use the words \"contract\", " +
+      "\"fact contract\" or \"provided facts\" in your reply. The player is talking to " +
+      "their coach. Say \"the engine line runs...\", never \"according to the contract\"."
+  );
   const summary = [
     cc.resultText,
     cc.finalMaterial,

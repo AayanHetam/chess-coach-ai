@@ -17,6 +17,9 @@ import {
 } from "./quizConfig";
 import { QUIZ_GOAL_OPTIONS } from "./quizThemes";
 import { isUsernameValid } from "./useOnboardingQuiz";
+import TacticDiagram from "./TacticDiagram";
+import QuizIcon, { type QuizIconName } from "./QuizIcon";
+import { GOAL_DIAGRAMS, GOAL_DIAGRAM_ALT } from "./tacticDiagrams";
 
 const EASE = [0.22, 0.61, 0.36, 1] as const;
 const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
@@ -39,6 +42,29 @@ const ratingInputSx = {
     "&.Mui-focused": { color: "#FB923C" },
   },
 } as const;
+
+/** Play-style option key → its illustration. */
+const PLAY_STYLE_ICON: Record<string, QuizIconName> = {
+  lichess: "online",
+  chesscom: "online",
+  otb: "otb",
+  new: "new",
+};
+const PLAY_STYLE_ICON_ALT: Record<string, string> = {
+  lichess: "A chess board on a screen",
+  chesscom: "A chess board on a screen",
+  otb: "Two players either side of a board",
+  new: "A single pawn, just starting out",
+};
+
+/** Self-assessment score → rank. Mirrors selfAssessScore's 0/1/2. */
+const LEVEL_ALT = ["Pawn — just starting", "Knight — getting there", "Queen — confident"];
+
+const TIME_ICON: Record<string, QuizIconName> = {
+  "under-10": "time-low",
+  "10-30": "time-mid",
+  "30-plus": "time-high",
+};
 
 interface OnboardingQuizProps {
   /** Called when the user unlocks from the result screen. */
@@ -88,6 +114,13 @@ export default function OnboardingQuiz({
                 helper={o.helper}
                 selected={q.answers.playStyle === o.key}
                 onClick={() => q.setPlayStyle(o.key)}
+                visual={
+                  <QuizIcon
+                    name={PLAY_STYLE_ICON[o.key]}
+                    px={64}
+                    title={PLAY_STYLE_ICON_ALT[o.key]}
+                  />
+                }
               />
             ))}
           </QuizStep>
@@ -134,13 +167,33 @@ export default function OnboardingQuiz({
         const question = SELF_ASSESS_QUESTIONS.find((sq) => sq.key === key);
         if (!question) return null;
         return (
-          <QuizStep title={question.question}>
+          <QuizStep
+            title={question.question}
+            /* "Can you spot a fork or a pin?" is unanswerable if you don't know
+               what one looks like. Show it. */
+            aside={
+              key === "spot" ? (
+                <TacticDiagram
+                  spec={GOAL_DIAGRAMS.forks}
+                  px={84}
+                  title={GOAL_DIAGRAM_ALT.forks}
+                />
+              ) : undefined
+            }
+          >
             {question.options.map((opt) => (
               <QuizOption
                 key={opt.label}
                 label={opt.label}
                 selected={q.answers.selfAssess[key] === opt.score}
                 onClick={() => q.setSelfAssess(key, opt.score)}
+                visual={
+                  <QuizIcon
+                    name={`level-${opt.score}` as const}
+                    px={52}
+                    title={LEVEL_ALT[opt.score]}
+                  />
+                }
               />
             ))}
           </QuizStep>
@@ -149,7 +202,10 @@ export default function OnboardingQuiz({
 
       case "goals":
         return (
-          <QuizStep title="What do you want to improve?" helper="Pick a few.">
+          <QuizStep
+            title="What do you want to improve?"
+            helper="Pick a few — each one is shown on the board."
+          >
             {QUIZ_GOAL_OPTIONS.map((o) => (
               <QuizOption
                 key={o.key}
@@ -158,6 +214,15 @@ export default function OnboardingQuiz({
                 multi
                 selected={q.answers.goals.includes(o.key)}
                 onClick={() => q.toggleGoal(o.key)}
+                visual={
+                  GOAL_DIAGRAMS[o.key] ? (
+                    <TacticDiagram
+                      spec={GOAL_DIAGRAMS[o.key]}
+                      px={72}
+                      title={GOAL_DIAGRAM_ALT[o.key]}
+                    />
+                  ) : undefined
+                }
               />
             ))}
           </QuizStep>
@@ -173,6 +238,7 @@ export default function OnboardingQuiz({
                 helper={o.helper}
                 selected={q.answers.time === o.key}
                 onClick={() => q.setTime(o.key)}
+                visual={<QuizIcon name={TIME_ICON[o.key]} px={52} />}
               />
             ))}
 

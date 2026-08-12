@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Box, Typography } from "@mui/material";
 
 interface QuizOptionProps {
@@ -9,6 +10,12 @@ interface QuizOptionProps {
   onClick: () => void;
   /** Checkbox (square) vs radio (circle) indicator. */
   multi?: boolean;
+  /**
+   * Optional illustration shown at the trailing edge — e.g. a mini board
+   * diagram of the tactic this option names. Trailing rather than leading so
+   * the label column stays aligned across options with and without one.
+   */
+  visual?: ReactNode;
 }
 
 /** A selectable glass option row used across every quiz step. */
@@ -18,6 +25,7 @@ export default function QuizOption({
   selected,
   onClick,
   multi = false,
+  visual,
 }: QuizOptionProps) {
   return (
     <Box
@@ -86,7 +94,7 @@ export default function QuizOption({
           />
         )}
       </Box>
-      <Box sx={{ minWidth: 0 }}>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
         <Typography
           sx={{
             color: "rgba(255,255,255,0.94)",
@@ -108,6 +116,23 @@ export default function QuizOption({
           </Typography>
         )}
       </Box>
+      {visual && (
+        <Box
+          aria-hidden
+          sx={{
+            flexShrink: 0,
+            ml: 1,
+            // Unselected diagrams sit back so the row still reads as a list of
+            // labels; selecting one brings its picture forward.
+            opacity: selected ? 1 : 0.8,
+            transform: selected ? "scale(1.04)" : "none",
+            transition:
+              "opacity 180ms ease-out, transform 180ms ease-out",
+          }}
+        >
+          {visual}
+        </Box>
+      )}
     </Box>
   );
 }

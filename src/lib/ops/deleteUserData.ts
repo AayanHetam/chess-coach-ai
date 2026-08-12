@@ -45,6 +45,7 @@ export const UNTOUCHED_SURFACES = [
   "`cmip_applications` — intern applications, keyed by EMAIL not uid. Delete by hand if the person applied.",
   "`intern_allowlist` / `intern_flags` (Supabase) — intern-programme rows, keyed by email.",
   "Promo-code redemptions (Supabase) — kept for billing/audit; contains a uid.",
+  "`anon_id`-only tracking rows — pre-signin activity is not linkable to the uid, so it cannot be targeted; it ages out via the one-year retention job instead.",
   "Stripe customer + subscription — deleting here would orphan billing history. Cancel in Stripe first if the account pays.",
   "Vercel/CDN logs and any third-party analytics — retention is governed by their own policies.",
 ];

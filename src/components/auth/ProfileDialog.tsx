@@ -20,6 +20,7 @@ import {
 } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
+import PlatformRatingCard from "./PlatformRatingCard";
 import type {
   CoachTone,
   PlayingStyle,
@@ -444,15 +445,19 @@ export default function ProfileDialog({
               />
             </Box>
 
+            {/* Real rating, read from the linked account. Ranked above the
+                self-reported number below in resolveUserRating(). */}
+            <PlatformRatingCard />
+
             <TextField
               size="small"
-              label="Self-reported rating"
+              label="Rating (if you have no online account)"
               type="number"
               inputProps={{ min: 0, max: 3500 }}
               value={chess.selfReportedRating}
               onChange={(e) => setChess({ ...chess, selfReportedRating: e.target.value })}
-              sx={{ maxWidth: 200 }}
-              helperText="The coach uses this to calibrate explanations."
+              sx={{ maxWidth: 260 }}
+              helperText="Only used when we can't read a rating from your account above."
             />
 
             <TextField

@@ -44,6 +44,17 @@ export type StoredUser = {
   // recommender; `dailyTimeCommitment` is the self-reported practice budget.
   focusThemes?: string[];
   dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
+
+  // Rating pulled from the user's Lichess / Chess.com account (see
+  // src/lib/rating/platformRatings.ts). `platformRating` is NORMALIZED onto the
+  // common calibration scale so cross-platform comparison is fair;
+  // `platformRatingRaw` is the platform's own number and is what we display.
+  // Absent means "no established rating found" — never a default.
+  platformRating?: number;
+  platformRatingRaw?: number;
+  platformRatingSource?: "lichess" | "chesscom";
+  platformRatingPerf?: string;
+  platformRatingFetchedAt?: number;
   // Set when the user finishes the onboarding quiz. Gates the mandatory-once
   // questionnaire (OnboardingGate) so they're never asked twice.
   onboardingCompletedAt?: number;
@@ -284,6 +295,11 @@ export type UpdateUserPatch = Partial<
     | "favoriteOpenings"
     | "focusThemes"
     | "dailyTimeCommitment"
+    | "platformRating"
+    | "platformRatingRaw"
+    | "platformRatingSource"
+    | "platformRatingPerf"
+    | "platformRatingFetchedAt"
     | "onboardingCompletedAt"
     | "measuredRating"
     | "measuredRatingConfidence"

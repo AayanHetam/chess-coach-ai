@@ -16,6 +16,7 @@ import {
   SelfAssessKey,
 } from "./quizConfig";
 import { QUIZ_GOAL_OPTIONS } from "./quizThemes";
+import { isUsernameValid } from "./useOnboardingQuiz";
 
 const EASE = [0.22, 0.61, 0.36, 1] as const;
 const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
@@ -92,32 +93,34 @@ export default function OnboardingQuiz({
           </QuizStep>
         );
 
-      case "rating": {
+      case "username": {
         const platform =
           q.answers.playStyle === "lichess" ? "Lichess" : "Chess.com";
+        const typed = (q.answers.username ?? "").trim();
+        const malformed = typed.length > 0 && !isUsernameValid(typed);
         return (
           <QuizStep
-            title={`What's your ${platform} rating?`}
-            helper="A rough number is fine — we use it to calibrate your coach."
+            title={`What's your ${platform} username?`}
+            helper={`We'll read your real rating straight off ${platform} — no need to guess.`}
           >
             <TextField
-              type="number"
-              label="Rating"
-              placeholder="e.g. 1200"
+              label={`${platform} username`}
+              placeholder={
+                q.answers.playStyle === "lichess" ? "e.g. DrNykterstein" : "e.g. hikaru"
+              }
               fullWidth
-              value={q.answers.rating ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                q.setRating(v === "" ? undefined : Number(v));
-              }}
-              sx={ratingInputSx}
-              inputProps={{ min: 100, max: 3500, inputMode: "numeric" }}
-            />
-            <TextField
-              label={`${platform} username (optional)`}
-              fullWidth
+              autoFocus
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
               value={q.answers.username ?? ""}
               onChange={(e) => q.setUsername(e.target.value)}
+              error={malformed}
+              helperText={
+                malformed
+                  ? "Letters, numbers, hyphens and underscores only."
+                  : " "
+              }
               sx={ratingInputSx}
             />
           </QuizStep>

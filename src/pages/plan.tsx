@@ -21,6 +21,7 @@ import { bandLabel } from "@/components/onboarding/quizConfig";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
+import RatingTrends from "@/components/plan/RatingTrends";
 import { NumberTicker } from "@/components/ui/NumberTicker";
 import SessionRunner from "@/components/curriculum/SessionRunner";
 import CurriculumMap from "@/components/curriculum/CurriculumMap";
@@ -228,6 +229,12 @@ export default function PlanPage() {
             </Box>
           </StatTile>
         </Box>
+      </Box>
+
+      {/* Bullet / blitz / rapid trends, read from the linked platform account.
+          Self-gating: renders a prompt when no username is linked. */}
+      <Box sx={{ mb: 2.5 }}>
+        <RatingTrends />
       </Box>
 
       {canResume && (

@@ -37,13 +37,21 @@ describe("bandLabel", () => {
 });
 
 describe("derivedRating", () => {
-  it("uses the entered rating on the online path", () => {
-    expect(derivedRating(answers({ playStyle: "lichess", rating: 1850 }))).toBe(
-      1850
-    );
-    expect(derivedRating(answers({ playStyle: "chesscom", rating: 900 }))).toBe(
-      900
-    );
+  it("returns undefined on the platform path — the quiz does not ask for a rating", () => {
+    // We collect a username and read the real rating from Lichess / Chess.com
+    // after signup, so at quiz time there is genuinely nothing to report.
+    expect(derivedRating(answers({ playStyle: "lichess" }))).toBeUndefined();
+    expect(derivedRating(answers({ playStyle: "chesscom" }))).toBeUndefined();
+  });
+
+  it("does NOT fall through to the self-assessment score on the platform path", () => {
+    // The trap this guards: a platform user answers no self-assessment
+    // questions, so selfAssessScore is 0 and scoreToRating(0) is 700. Falling
+    // through would stamp EVERY online player as a 700 beginner — a fabricated
+    // rating indistinguishable from a real one (SILENT_SUBSTITUTION A1).
+    const online = answers({ playStyle: "lichess", selfAssess: {} });
+    expect(derivedRating(online)).not.toBe(700);
+    expect(derivedRating(online)).toBeUndefined();
   });
 
   it("falls back to the self-assessment score off the online path", () => {
@@ -76,17 +84,17 @@ describe("derivedFocusThemes", () => {
 });
 
 describe("buildPayload", () => {
-  it("online path stores rating, platform, and the matching username only", () => {
+  it("platform path stores platform + username and NO rating", () => {
     const p = buildPayload(
       answers({
         playStyle: "lichess",
-        rating: 1450,
         username: "  knightrider  ",
         goals: ["forks"],
         time: "10-30",
       })
     );
-    expect(p.selfReportedRating).toBe(1450);
+    // Absent, not zero, not 700, not 1500 — the lookup supplies the real one.
+    expect("selfReportedRating" in p).toBe(false);
     expect(p.primaryPlatform).toBe("lichess");
     expect(p.lichessUsername).toBe("knightrider"); // trimmed
     expect(p.chesscomUsername).toBeUndefined();
@@ -99,7 +107,6 @@ describe("buildPayload", () => {
     const p = buildPayload(
       answers({
         playStyle: "chesscom",
-        rating: 1200,
         username: "magnus",
         goals: ["endgames"],
       })
@@ -114,7 +121,6 @@ describe("buildPayload", () => {
     const p = buildPayload(
       answers({
         playStyle: "lichess",
-        rating: 1000,
         username: "   ",
         goals: ["forks"],
       })
@@ -160,12 +166,12 @@ describe("buildPayload", () => {
   });
 
   it("omits studyGoals and dailyTimeCommitment when nothing implies them", () => {
-    const p = buildPayload(answers({ playStyle: "lichess", rating: 1500 }));
+    const p = buildPayload(answers({ playStyle: "lichess" }));
     expect("studyGoals" in p).toBe(false);
     expect("dailyTimeCommitment" in p).toBe(false);
     expect("focusThemes" in p).toBe(false);
-    // rating is always derived
-    expect(p.selfReportedRating).toBe(1500);
+    // No rating on the platform path — see derivedRating's contract.
+    expect("selfReportedRating" in p).toBe(false);
   });
 
   // Reminder consent. This field turns notifications on for a real person, so
@@ -184,7 +190,7 @@ describe("buildPayload", () => {
 
   it("always emits reminderPrefs, on every quiz path", () => {
     const online = buildPayload(
-      answers({ playStyle: "lichess", rating: 1500, dailyReminder: true }),
+      answers({ playStyle: "lichess", dailyReminder: true }),
     );
     const selfAssessed = buildPayload(
       answers({ playStyle: "otb", dailyReminder: true }),

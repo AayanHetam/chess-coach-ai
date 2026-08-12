@@ -22,8 +22,12 @@ export type SelfAssessKey = "years" | "spot" | "tournaments";
 
 export interface QuizAnswers {
   playStyle?: PlayStyle;
-  // Online-rating path (playStyle lichess | chesscom):
-  rating?: number;
+  /**
+   * Online path (playStyle lichess | chesscom). We ask for the USERNAME, not a
+   * rating: the user knows their handle exactly and guesses at their rating,
+   * and their real number is one public API call away
+   * (src/lib/rating/platformRatings.ts). The lookup runs right after signup.
+   */
   username?: string;
   // Self-assessment path (playStyle otb | new):
   selfAssess: Partial<Record<SelfAssessKey, SelfAssessScore>>;
@@ -72,8 +76,8 @@ export const PLAY_STYLE_OPTIONS: {
   },
 ];
 
-/** Online platforms ask for a numeric rating; everyone else self-assesses. */
-export function usesRatingPath(playStyle: PlayStyle | undefined): boolean {
+/** Online platforms give us a username to look up; everyone else self-assesses. */
+export function usesPlatformPath(playStyle: PlayStyle | undefined): boolean {
   return playStyle === "lichess" || playStyle === "chesscom";
 }
 
@@ -158,11 +162,21 @@ export function dedupe<T>(arr: T[]): T[] {
   return Array.from(new Set(arr));
 }
 
-/** The skill rating the quiz derives, regardless of branch. */
-export function derivedRating(answers: QuizAnswers): number {
-  if (usesRatingPath(answers.playStyle) && typeof answers.rating === "number") {
-    return answers.rating;
-  }
+/**
+ * The skill rating the quiz can derive on its own.
+ *
+ * Returns `undefined` on the platform path — and that is the whole point. We
+ * no longer ask those users for a number, so the quiz genuinely does not know
+ * one yet; the real rating arrives moments later from the platform lookup.
+ *
+ * Falling through to `scoreToRating(selfAssessScore(...))` here would be a
+ * disaster: an online player answers none of the self-assessment questions, so
+ * the score is 0 and every single one of them would be stamped 700 — a
+ * fabricated beginner rating, indistinguishable from a real one. That is
+ * SILENT_SUBSTITUTION A1 all over again. Absence must stay absence.
+ */
+export function derivedRating(answers: QuizAnswers): number | undefined {
+  if (usesPlatformPath(answers.playStyle)) return undefined;
   return scoreToRating(selfAssessScore(answers));
 }
 
@@ -183,9 +197,15 @@ export function derivedFocusThemes(answers: QuizAnswers): string[] {
 export function buildPayload(answers: QuizAnswers): UserProfileUpdates {
   const payload: UserProfileUpdates = {};
 
-  payload.selfReportedRating = derivedRating(answers);
+  // Only the self-assessment branch produces a rating the quiz itself knows.
+  // The platform branch deliberately writes NOTHING here, leaving the field
+  // absent until /api/ratings/lookup supplies the real number. `undefined`
+  // is safe all the way down: resolveUserRating skips it and the prompt says
+  // "not provided" rather than asserting a guess as fact.
+  const selfAssessed = derivedRating(answers);
+  if (selfAssessed !== undefined) payload.selfReportedRating = selfAssessed;
 
-  if (usesRatingPath(answers.playStyle)) {
+  if (usesPlatformPath(answers.playStyle)) {
     payload.primaryPlatform = answers.playStyle as "lichess" | "chesscom";
     const username = answers.username?.trim();
     if (username) {

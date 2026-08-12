@@ -14,11 +14,28 @@ import { logger } from "@/lib/logging";
 
 const log = logger.child({ module: "tracking-purge" });
 
+/**
+ * Every tracking table carrying a `uid`. If this list drifts from the actual
+ * schema, account deletion silently leaves data behind — and reports success
+ * while doing it, which is worse than failing.
+ *
+ * `referee_outcomes` was missing here until 2026-08-11: it was added by the
+ * CI-5 work with both `uid` and `anon_id`, and this list was not updated.
+ *
+ * TO RE-DERIVE THIS LIST (do it whenever a tracking table is added — the
+ * OpenAPI spec needs no row access, so it touches no personal data):
+ *
+ *   curl -s "$TRACKING_SUPABASE_URL/rest/v1/" \
+ *     -H "apikey: $TRACKING_SUPABASE_SERVICE_ROLE_KEY" \
+ *   | python3 -c "import sys,json; d=json.load(sys.stdin)['definitions']; \
+ *       print([t for t,s in d.items() if 'uid' in s['properties']])"
+ */
 const UID_TABLES = [
   "events",
   "llm_calls",
   "puzzle_attempts",
   "analysis_sessions",
+  "referee_outcomes",
 ] as const;
 
 export interface PurgeResult {

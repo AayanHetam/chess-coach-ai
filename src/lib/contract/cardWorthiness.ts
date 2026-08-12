@@ -55,16 +55,36 @@
 import type { InsightContract } from "./types";
 
 /**
- * Founder decision 2026-08-11: a MAXIMUM, never a target.
+ * Founder decision 2026-08-11, revised on production evidence 2026-08-12:
+ * a MAXIMUM, never a target.
  *
- * Set to 4, not the originally-chosen 5, on measured latency: generation runs
- * ~10.5s per card after the first, so 5 cards took 59.2/60.4/59.4s against the
- * 60s `maxDuration` ceiling (one sample over outright). 4 lands near 49s with
- * ~11s of headroom. Raising the ceiling would need a paid Vercel tier for a
- * shape users would not wait through anyway — the cheaper and better answer is
- * fewer, fully-explained cards. Revisit if `maxDuration` ever changes.
+ * History, because the number has moved twice and the reasoning matters more
+ * than the value:
+ *
+ *   5 → 4  (2026-08-11, FIXTURE latency). Generation runs ~10.5s per card
+ *          after the first, so 5 cards measured 59.2/60.4/59.4s against the
+ *          60s `maxDuration` ceiling — one sample over outright. 4 measured
+ *          ~49s locally, read as ~11s of headroom.
+ *
+ *   4 → 3  (2026-08-12, PRODUCTION evidence). That "11s of headroom" was a
+ *          fixture-bench artifact. Firing all ten real-Stockfish fixtures
+ *          through production measured:
+ *            · 05_long_game_six_mistakes — 4 cards, **58.4s**. 1.6s of margin.
+ *            · 07_knight_fork — hit CONTRACT_GENERATION_BUDGET_MS and shipped
+ *              a TRUNCATED review, despite the same fixture completing in
+ *              50.4s and 53.6s on two other runs.
+ *          Same input, different outcome, is the tell: at 4 the ladder sits
+ *          close enough to the wall that ordinary variance decides whether a
+ *          user gets a whole review or a cut one. A 504 or a truncated review
+ *          is a far worse product than one fewer card.
+ *
+ * Raising the ceiling instead would need a paid Vercel tier for a shape users
+ * would not wait through anyway. Fewer, fully-explained cards is both the
+ * cheaper and the better answer. Revisit if `maxDuration` changes or if
+ * per-card generation gets materially faster — and revisit with PRODUCTION
+ * numbers, not a local bench.
  */
-export const MAX_GAME_REVIEW_CARDS = 4;
+export const MAX_GAME_REVIEW_CARDS = 3;
 
 /** The absolute-severity escape hatch — `builder.ts`'s own "blunder" bar. */
 export const BLUNDER_CP = 300;

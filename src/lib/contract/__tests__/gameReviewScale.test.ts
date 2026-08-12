@@ -99,9 +99,26 @@ describe("card plan scales to game_review size", () => {
     expect(detailed.headlineRestored).toBe(false);
   });
 
+  it("the cap is 3 — pinned to production latency, not preference", () => {
+    // Every other assertion in this file DERIVES from the constant, so the
+    // mechanism is covered but the VALUE was not: setting it back to 5 kept
+    // the whole suite green while restoring the ~60s behaviour that shipped
+    // truncated reviews. This test is the deliberate change-detector.
+    //
+    // The evidence (production, 2026-08-12, all ten real-Stockfish fixtures):
+    //   · 4 cards on a long game       → 58.4s against the 60s maxDuration
+    //   · 07_knight_fork at 4 cards    → hit CONTRACT_GENERATION_BUDGET_MS and
+    //     shipped a TRUNCATED review, while the SAME fixture completed in
+    //     50.4s and 53.6s on other runs
+    // Same input, different outcome = we were close enough to the wall that
+    // variance decided whether a user got a whole review. Raising this without
+    // fresh PRODUCTION numbers re-opens that.
+    expect(MAX_GAME_REVIEW_CARDS).toBe(3);
+  });
+
   it("the token budget grows with cards and never exceeds its ceiling", () => {
     // 1-3 cards (position_analysis) sit on the legacy 3000 floor, and at the
-    // 4-card cap the game_review worst case is still on that floor.
+    // 3-card cap the game_review worst case is still on that floor.
     expect(maxTokensForInsights(1)).toBe(3000);
     expect(maxTokensForInsights(3)).toBe(3000);
     expect(maxTokensForInsights(MAX_GAME_REVIEW_CARDS)).toBe(3000);

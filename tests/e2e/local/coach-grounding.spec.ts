@@ -48,6 +48,25 @@ async function pinComposerOpen(page: Page) {
 
 const COMPOSER = "Ask anything about this position...";
 
+/**
+ * A game for specs that need a board with history to navigate.
+ *
+ * /analysis used to arrive with a demo game already loaded, so specs could
+ * just press Home/End. It now opens empty (the demo's hand-authored eval
+ * curve, key moments and engine-best table were all keyed by ply number and
+ * so were wrong for every game but that one), which made "navigate back"
+ * navigate between two copies of the start position. Loading a game
+ * explicitly is what the spec meant anyway — it no longer depends on the
+ * cold-start state being anything in particular.
+ */
+const NAV_PGN = [
+  '[White "E2E White"]',
+  '[Black "E2E Black"]',
+  '[Result "1-0"]',
+  "",
+  "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 1-0",
+].join("\n");
+
 /** The board card can take a moment to get its first puzzle from the feed. */
 async function waitForPuzzle(page: Page) {
   await expect(page.getByRole("button", { name: /^Answer:/ })).toBeVisible({
@@ -192,7 +211,7 @@ test.describe("B1 — follow-ups are grounded on the board the user is viewing",
     });
 
     await pinComposerOpen(page);
-    await page.goto("/analysis");
+    await page.goto(`/analysis?pgn=${encodeURIComponent(NAV_PGN)}`);
 
     const composer = page.getByPlaceholder(COMPOSER);
     const appeared = await composer
@@ -203,6 +222,11 @@ test.describe("B1 — follow-ups are grounded on the board the user is viewing",
       !appeared,
       "coach composer never unlocked on this machine — unit tests cover buildChatRequestBody"
     );
+
+    // Control: the game really did load. Without it, every ply below is the
+    // start position, both FENs are identical, and the final assertion would
+    // fail for a reason that has nothing to do with B1.
+    await expect(page.getByText("No game loaded")).toHaveCount(0);
 
     // Sit at the END of the game first — that is the board the server would
     // fall back to, so starting there makes the later assertion meaningful.

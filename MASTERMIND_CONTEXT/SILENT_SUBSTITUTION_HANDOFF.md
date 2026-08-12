@@ -506,6 +506,61 @@ worktree (§0.4).
 | 5 | **Group D** history contamination (D1–D4) | **#284** | open |
 | 8 | **Group E** — E1 + E3 only | **#285** | open (E2/E4 deferred — see below) |
 
+### PRODUCTION TELEMETRY — READ 2026-08-11, both open questions SETTLED
+
+Read via `vercel logs --environment production --since 24h --query "..."`. The
+CLI supports historical full-text search (`--query`, `--since`), so this does
+not need a log drain.
+
+**A1 — CONFIRMED WORKING.**
+```
+"message":"Enhanced analysis started","skillLevel":"intermediate","ratingSource":"body"
+```
+Every analysis request in the window reports `ratingSource: "body"` — the
+client IS supplying a real rating and it IS winning the server's chain. The
+failure mode this field existed to detect (`"none"`, meaning the fix never
+reached users) does not appear.
+
+*Honest limit:* traffic is low — n=2 in 24h, both landing in the
+`intermediate` band. So this proves the field is populated from the body and
+never `none`; it does not yet exhibit a beginner or advanced user flowing
+through end-to-end. Re-check after a busier day if you want that.
+
+**T9 — SETTLED, AND THE HYPOTHESIS WAS WRONG. DO NOT ADD KV.**
+```
+outcome:"hit",         cacheSize:1, instanceAgeMs:541898, writesThisInstance:1
+outcome:"miss_absent", cacheSize:0, instanceAgeMs:36
+```
+The hit is on `POST /api/chat` with `writesThisInstance: 1` — the SAME warm
+instance that wrote the context served the follow-up. `/api/chat` and
+`/api/enhanced-analysis` therefore **do share a process**; the fast path works
+and follow-ups are NOT silently re-running the full flagship analysis.
+
+The single miss is on a **36-millisecond-old instance** — a cold start, the
+benign case.
+
+This is exactly why the counters carry `cacheSize` and `instanceAgeMs`. A bare
+hit/miss ratio would have read **50% miss** here and been misinterpreted as
+cross-function isolation, which would have justified adding shared storage
+that is not needed. Keep those fields if you ever refactor this.
+
+**T4 — the previously invisible grounding path is now observable, and healthy.**
+```
+contract_grounding_fetched  chessdb {requested:11, ok:11}
+                            lc0     {requested:2,  ok:2}
+                            maia    {requested:11, ok:11}
+```
+Before this line existed, a source failing 100% of the time looked identical
+to a healthy build.
+
+**Live pipeline timeouts are real, which is what T1/T5 are for.**
+Two `Mastermind pipeline timed out` (`timeout_ms: 25000`) inside roughly one
+hour of a low-traffic day. Those requests serve the "Still analyzing —" non-
+answer, which T5 now marks as partial for the reader and keeps out of
+conversationHistory.
+
+---
+
 ### What is NOT done, stated plainly
 
 **A1 is deployed but not confirmed working.** The definition of done requires

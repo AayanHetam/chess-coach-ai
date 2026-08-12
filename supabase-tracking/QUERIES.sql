@@ -81,7 +81,23 @@ select (select count(*) from this_week) as active_this_week,
 -- Denominator is reviews the referee actually graded (matched > 0): a review
 -- where no block anchored to its contract was never checked, so counting it
 -- as clean would silently deflate the rate.
-select arming_fingerprint,
+--
+-- TWO EXCLUSIONS THAT MATTER (added CI-6, 2026-08-12):
+--
+--  1. `uid not like 'claude-verify%'` — live-fire verification fires real
+--     reviews through production to prove a writer works. Those rows are
+--     genuine referee output but synthetic traffic, and this query is the
+--     "what are real users seeing" number. Excluded by convention on the uid
+--     prefix; keep using that prefix for any future probe.
+--
+--  2. `branch` — read the note in refereeOutcomes.ts before mixing branches.
+--     'contract-enforced' rows come from the SERVED path, where the referee
+--     already ran with the arming table applied, so referee_* and armed_* are
+--     equal by construction. Shadow rows ('stream-flagoff', 'stream-flagon-
+--     fallback') carry two genuinely different numbers. Averaging the two
+--     populations answers no question. Group by branch, or filter to one.
+select branch,
+       arming_fingerprint,
        count(*)                                            as reviews,
        count(*) filter (where armed_errors > 0)            as reviews_with_error,
        round(100.0 * count(*) filter (where armed_errors > 0)
@@ -92,7 +108,8 @@ select arming_fingerprint,
 from referee_outcomes
 where ts > now() - interval '7 days'
   and matched > 0
-group by arming_fingerprint
+  and (uid is null or uid not like 'claude-verify%')
+group by branch, arming_fingerprint
 order by reviews desc;
 
 -- Same number as a daily trend (single arming table assumed; add

@@ -67,7 +67,7 @@ function bigGameReviewContract(cards: number) {
 }
 
 describe("card plan scales to game_review size", () => {
-  it("a 13-candidate review is CAPPED at 5, keeping pedagogical order", () => {
+  it("a 13-candidate review is CAPPED at MAX_GAME_REVIEW_CARDS, keeping pedagogical order", () => {
     const insights: InsightContract[] = [];
     for (let n = 0; n < 10; n++) {
       insights.push(
@@ -90,19 +90,23 @@ describe("card plan scales to game_review size", () => {
     // All 13 candidates carry the factory's identical severity (350cp, a
     // BETTER→WORSE band drop), so every one clears the floor and the CAP is
     // what binds; ties resolve by ply, which is legacy rank order.
-    expect(plan.map((i) => i.factIdPrefix)).toEqual(["M1", "M2", "M3", "M4", "M5"]);
+    expect(plan.map((i) => i.factIdPrefix)).toEqual(
+      Array.from({ length: MAX_GAME_REVIEW_CARDS }, (_, i) => `M${i + 1}`),
+    );
     const detailed = selectCardInsightsDetailed(contract);
     expect(detailed.droppedBelowFloor).toEqual([]);
-    expect(detailed.droppedOverCap).toHaveLength(8);
+    expect(detailed.droppedOverCap).toHaveLength(13 - MAX_GAME_REVIEW_CARDS);
     expect(detailed.headlineRestored).toBe(false);
   });
 
   it("the token budget grows with cards and never exceeds its ceiling", () => {
-    // 1-3 cards (position_analysis) sit on the legacy 3000 floor...
+    // 1-3 cards (position_analysis) sit on the legacy 3000 floor, and at the
+    // 4-card cap the game_review worst case is still on that floor.
     expect(maxTokensForInsights(1)).toBe(3000);
     expect(maxTokensForInsights(3)).toBe(3000);
-    // ...and the capped game_review worst case now tops out here.
-    expect(maxTokensForInsights(MAX_GAME_REVIEW_CARDS)).toBe(3600);
+    expect(maxTokensForInsights(MAX_GAME_REVIEW_CARDS)).toBe(3000);
+    // The 5th card is where the budget starts growing.
+    expect(maxTokensForInsights(5)).toBe(3600);
     // The function itself still scales past the cap (it is not the cap's
     // enforcement point) and stays bounded.
     expect(maxTokensForInsights(7)).toBe(4800);

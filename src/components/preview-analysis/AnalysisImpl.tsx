@@ -103,6 +103,7 @@ import {
   type CommandGroup,
 } from "@/components/ui/CommandPalette";
 import { useEngine } from "@/hooks/useEngine";
+import { isWasmSupported } from "@/lib/engine/shared";
 import { EngineName, MoveClassification } from "@/types/enums";
 import type { PositionEval, LineEval } from "@/types/eval";
 import { getMovesClassification } from "@/lib/engine/helpers/moveClassification";
@@ -2542,6 +2543,39 @@ function EvalSparkline({
 
 type RightTab = "coach" | "masters" | "moves" | "lines";
 
+/**
+ * A position the user has walked to OFF the mainline — by clicking a master
+ * move, a coach recommendation, or by moving a piece on the board.
+ *
+ * `path` and `anchorPly` exist so the user can get back. Exploration used to
+ * carry only the resulting FEN, so once you had clicked a few moves deep
+ * there was nothing on screen saying where you had branched from or how to
+ * return to it — you had to guess a ply and re-navigate.
+ */
+interface ExplorationPreview {
+  fen: string;
+  from: string;
+  to: string;
+  san: string;
+  /** SANs played since leaving the mainline, in order. */
+  path: string[];
+  /** The mainline ply this branch left from. Returning restores it. */
+  anchorPly: number;
+}
+
+/**
+ * Why the Lines tab has nothing to show, when it has nothing to show.
+ * "starting" and "unsupported" are deliberately distinct: `engine === null`
+ * covers both, and conflating them told every visitor for the first seconds
+ * of every page load that the engine had failed.
+ */
+type LinesStatus =
+  | "ready"
+  | "searching"
+  | "starting"
+  | "unsupported"
+  | "terminal";
+
 function TabStrip({
   active,
   onChange,
@@ -3035,35 +3069,159 @@ function MovesListPanel({
 // position. Each line is the engine's best continuation from this point;
 // rendered as evaluation + the first few SAN moves of the principal
 // variation. Empty state when analysis hasn't reached this ply yet.
+/**
+ * "You are off the mainline" — shown above the board whenever an exploration
+ * branch is active, on every tab.
+ *
+ * The board silently showed an explored position with nothing saying so and
+ * no way back: after a few clicks down a master line you had to guess which
+ * ply you had branched from and re-navigate by hand. This names the branch
+ * and restores the anchor in one click (or Escape).
+ */
+function ExplorationBanner({
+  preview,
+  onReturn,
+}: {
+  preview: ExplorationPreview;
+  onReturn: () => void;
+}) {
+  const anchor = plyToMoveDisplay(preview.anchorPly);
+  return (
+    <Box
+      sx={{
+        mb: 1.25,
+        px: 1.5,
+        py: 0.85,
+        borderRadius: "0.9rem",
+        background:
+          "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(20,22,28,0.6))",
+        border: "1px solid rgba(251,191,36,0.32)",
+        display: "flex",
+        alignItems: "center",
+        gap: 1.25,
+        flexWrap: "wrap",
+        rowGap: 0.75,
+      }}
+    >
+      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ flexShrink: 0 }}>
+        <GitBranch size={13} color="#FBBF24" />
+        <Typography
+          sx={{
+            fontSize: "0.66rem",
+            fontWeight: 700,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: "#FBBF24",
+          }}
+        >
+          Exploring
+        </Typography>
+      </Stack>
+
+      <Typography
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          fontFamily: "Monaco, Menlo, monospace",
+          fontSize: "0.78rem",
+          color: "rgba(255,255,255,0.82)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+        title={preview.path.join(" ")}
+      >
+        {preview.path.join(" ")}
+      </Typography>
+
+      <Tooltip title="Leave this line and put the board back where you branched off (Esc)">
+        <Button
+          onClick={onReturn}
+          startIcon={<ArrowLeft size={13} />}
+          sx={{
+            flexShrink: 0,
+            px: 1.25,
+            py: 0.4,
+            minWidth: 0,
+            borderRadius: "8px",
+            fontSize: "0.75rem",
+            fontWeight: 700,
+            textTransform: "none",
+            whiteSpace: "nowrap",
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.14)",
+            color: "rgba(255,255,255,0.88)",
+            "&:hover": {
+              background: "rgba(251,191,36,0.16)",
+              borderColor: "rgba(251,191,36,0.45)",
+              color: "#FBBF24",
+            },
+          }}
+        >
+          {anchor.color === null
+            ? "Back to start"
+            : `Back to move ${anchor.moveNum}`}
+        </Button>
+      </Tooltip>
+    </Box>
+  );
+}
+
+/**
+ * Stockfish's top lines FOR THE POSITION ON THE BOARD.
+ *
+ * `position` must be the evaluation OF `fen`. It used to be handed
+ * `enginePositions[currentPly]` — the game-wide pass indexed by ply — while
+ * `fen` was the displayed board, so the moment the user explored off the
+ * mainline the two disagreed and this panel replayed one position's
+ * principal variation on another. chess.js rejected the moves, the SAN list
+ * came out empty or truncated, and the tab showed lines that had nothing to
+ * do with what was on screen. Both now come from the same FEN-keyed source.
+ */
 function EngineLinesPanel({
   position,
   fen,
   engineName,
+  status = "searching",
+  exploring,
+  onReturnToAnchor,
 }: {
   position: PositionEval | null;
   fen: string;
   engineName: EngineName;
+  status?: LinesStatus;
+  /** Non-null while the board is off the mainline. */
+  exploring?: ExplorationPreview | null;
+  onReturnToAnchor?: () => void;
 }) {
+  const analyzing = status === "searching" || status === "starting";
   const lines = position?.lines ?? [];
+  // Guard: only render a line whose moves are actually legal from `fen`. A
+  // stale eval arriving for the previous position would otherwise print a
+  // plausible-looking but wrong variation.
   const sanLines = useMemo(() => {
-    return lines.slice(0, 3).map((line) => {
-      try {
+    return lines
+      .slice(0, 3)
+      .map((line) => {
         const g = new Chess(fen);
         const sans: string[] = [];
         for (const uci of line.pv.slice(0, 8)) {
-          const mv = g.move({
-            from: uci.slice(0, 2),
-            to: uci.slice(2, 4),
-            promotion: uci.length >= 5 ? uci[4] : "q",
-          });
+          let mv;
+          try {
+            mv = g.move({
+              from: uci.slice(0, 2),
+              to: uci.slice(2, 4),
+              promotion: uci.length >= 5 ? uci[4] : "q",
+            });
+          } catch {
+            break;
+          }
           if (!mv) break;
           sans.push(mv.san);
         }
         return { line, sans };
-      } catch {
-        return { line, sans: line.pv.slice(0, 8) };
-      }
-    });
+      })
+      .filter((l) => l.sans.length > 0);
   }, [lines, fen]);
 
   const formatEval = (line: LineEval): string => {
@@ -3076,6 +3234,39 @@ function EngineLinesPanel({
     }
     return "—";
   };
+
+  // Whose move it is, so the variation reads "13.Bg5 Nbd7" rather than a bare
+  // move list the reader has to count out.
+  const startPly = useMemo(() => {
+    try {
+      const g = new Chess(fen);
+      const full = Number(fen.split(" ")[5] ?? 1);
+      return g.turn() === "w" ? full * 2 - 1 : full * 2;
+    } catch {
+      return 1;
+    }
+  }, [fen]);
+
+  const renderVariation = (sans: string[]) =>
+    sans
+      .map((san, i) => {
+        const ply = startPly + i;
+        const moveNum = Math.ceil(ply / 2);
+        if (ply % 2 === 1) return `${moveNum}.${san}`;
+        return i === 0 ? `${moveNum}...${san}` : san;
+      })
+      .join(" ");
+
+  const emptyMessage =
+    status === "terminal"
+      ? "Game over in this position — nothing to search."
+      : status === "unsupported"
+      ? "This browser can't run Stockfish (WebAssembly is unavailable here)."
+      : status === "starting"
+      ? "Starting Stockfish…"
+      : status === "searching"
+      ? "Stockfish is searching this position…"
+      : "No lines for this position yet.";
 
   return (
     <Box
@@ -3095,6 +3286,7 @@ function EngineLinesPanel({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 1,
           mb: 1.5,
         }}
       >
@@ -3108,17 +3300,97 @@ function EngineLinesPanel({
         >
           Engine lines
         </Box>
+        <Stack direction="row" spacing={1} alignItems="center">
+          {analyzing && (
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#F97316",
+                animation: "pulse 1.4s ease-in-out infinite",
+                "@keyframes pulse": {
+                  "0%, 100%": { opacity: 0.4, transform: "scale(0.85)" },
+                  "50%": { opacity: 1, transform: "scale(1)" },
+                },
+              }}
+            />
+          )}
+          <Box
+            sx={{
+              color: "rgba(255,255,255,0.42)",
+              fontSize: "0.72rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {engineName}
+          </Box>
+        </Stack>
+      </Box>
+
+      {/* Which position these lines describe. Without it, an explored branch
+          and its anchor look identical here — the complaint that started
+          this: it was hard to tell where you were, let alone get back. */}
+      {exploring && (
         <Box
           sx={{
-            color: "rgba(255,255,255,0.42)",
-            fontSize: "0.72rem",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
+            mb: 1.5,
+            px: 1.25,
+            py: 0.85,
+            borderRadius: "0.6rem",
+            background: "rgba(251,191,36,0.08)",
+            border: "1px solid rgba(251,191,36,0.28)",
           }}
         >
-          {engineName}
+          <Typography
+            sx={{
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "#FBBF24",
+              mb: 0.4,
+            }}
+          >
+            Off the mainline
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: "Monaco, Menlo, monospace",
+              fontSize: "0.76rem",
+              color: "rgba(255,255,255,0.8)",
+              wordBreak: "break-word",
+            }}
+          >
+            {exploring.path.join(" ")}
+          </Typography>
+          {onReturnToAnchor && (
+            <Box
+              component="button"
+              type="button"
+              onClick={onReturnToAnchor}
+              sx={{
+                mt: 0.75,
+                cursor: "pointer",
+                border: "none",
+                background: "none",
+                p: 0,
+                font: "inherit",
+                fontSize: "0.74rem",
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.6)",
+                textDecoration: "underline",
+                "&:hover": { color: "#FBBF24" },
+              }}
+            >
+              Back to move {Math.max(1, Math.ceil(exploring.anchorPly / 2))} (Esc)
+            </Box>
+          )}
         </Box>
-      </Box>
+      )}
+
       {sanLines.length === 0 ? (
         <Box
           sx={{
@@ -3128,7 +3400,7 @@ function EngineLinesPanel({
             textAlign: "center",
           }}
         >
-          Stockfish hasn't reached this position yet.
+          {emptyMessage}
         </Box>
       ) : (
         <Stack spacing={1.25}>
@@ -3171,7 +3443,7 @@ function EngineLinesPanel({
                   lineHeight: 1.5,
                 }}
               >
-                {sans.join(" ")}
+                {renderVariation(sans)}
               </Box>
               <Box
                 sx={{
@@ -7267,12 +7539,9 @@ export default function AnalysisPage() {
   const takeoverMode = rightTab === "masters"; // legacy alias kept for board props
   // Optional previewed move while exploring with Masters tab open — replays
   // from currentFen so the live candidate list updates on the new position.
-  const [takeoverPreview, setTakeoverPreview] = useState<{
-    fen: string;
-    from: string;
-    to: string;
-    san: string;
-  } | null>(null);
+  const [takeoverPreview, setTakeoverPreview] = useState<ExplorationPreview | null>(
+    null
+  );
 
   // Desync fix (companion to the ae4cf45 replay fix): navigating game history
   // (arrows / move-history strip) advances `currentPly` → `currentFen`, but the
@@ -7455,14 +7724,32 @@ export default function AnalysisPage() {
     engineSettings.depth,
   ]);
 
+  /**
+   * The engine's evaluation OF THE POSITION ON THE BOARD — the single source
+   * both the eval bar and the Lines tab read.
+   *
+   * Keyed by FEN, never by ply. The Lines tab used to be handed
+   * `enginePositions[currentPly]` while being told the board was
+   * `displayFen`; the moment you explored off the mainline those were two
+   * different positions, so it replayed the mainline's principal variation
+   * on the explored board — the SAN conversion silently broke and the tab
+   * showed moves that did not belong to what you were looking at. It also
+   * ignored `liveEval` entirely, so an explored position reported "Stockfish
+   * hasn't reached this position yet" while the eval bar beside it displayed
+   * a number for that exact position.
+   */
+  const displayPositionEval = useMemo<PositionEval | null>(() => {
+    const saved = savedEvals[displayFen];
+    if (saved?.lines?.length) return saved;
+    if (liveEval?.fen === displayFen && liveEval.position.lines.length) {
+      return liveEval.position;
+    }
+    return null;
+  }, [savedEvals, displayFen, liveEval]);
+
   const evalBarData = useMemo<EvalBarData>(() => {
     if (displayTerminal) return { ...displayTerminal, pending: false };
-    const saved = savedEvals[displayFen];
-    const position = saved?.lines?.length
-      ? saved
-      : liveEval?.fen === displayFen && liveEval.position.lines.length
-        ? liveEval.position
-        : null;
+    const position = displayPositionEval;
     if (!position) return { whitePercentage: 50, label: null, pending: true };
     try {
       const bar = getEvaluationBarValue(position);
@@ -7477,7 +7764,7 @@ export default function AnalysisPage() {
       // Line with neither cp nor mate — treat as not-yet-evaluated.
       return { whitePercentage: 50, label: null, pending: true };
     }
-  }, [displayTerminal, savedEvals, displayFen, liveEval]);
+  }, [displayTerminal, displayPositionEval]);
 
   // Computed arrow shapes from toggles + takeover state
   const displayShapes = useMemo<DrawShape[]>(() => {
@@ -7599,8 +7886,14 @@ export default function AnalysisPage() {
     (next: RightTab) => {
       setRightTab(next);
       if (next !== "masters") {
-        // Leaving the Masters tab → clear exploration preview + candidates
-        setTakeoverPreview(null);
+        // Candidates are Masters-specific — drop them.
+        //
+        // The exploration preview is NOT: it describes the board, which every
+        // tab shares. Clearing it here meant walking a line in Masters and
+        // then opening Lines to see what the engine thought of it silently
+        // threw the line away and snapped the board back, so the two tabs
+        // could never be used together. Staleness is already handled by the
+        // [currentPly] effect, and the banner offers an explicit way out.
         setTakeoverCandidates([]);
       }
     },
@@ -7617,10 +7910,16 @@ export default function AnalysisPage() {
       if (played) {
         // Trust the caller's SAN (it comes from the candidate list) but fall
         // back to the derived SAN if it was omitted.
-        setTakeoverPreview({ ...played, san: san || played.san });
+        const sanPlayed = san || played.san;
+        setTakeoverPreview((prev) => ({
+          ...played,
+          san: sanPlayed,
+          path: [...(prev?.path ?? []), sanPlayed],
+          anchorPly: prev?.anchorPly ?? currentPly,
+        }));
       }
     },
-    [displayFen]
+    [displayFen, currentPly]
   );
 
   // Coach move-reference clicks. Two shapes:
@@ -7647,6 +7946,8 @@ export default function AnalysisPage() {
             from: preview.from,
             to: preview.to,
             san: preview.san,
+            path: [preview.san],
+            anchorPly: preview.anchorPly,
           });
           return;
         }
@@ -7655,7 +7956,11 @@ export default function AnalysisPage() {
         // already previewing the line) — continue the preview in place.
         const continued = playSanOnFen(displayFen, playSan);
         if (continued) {
-          setTakeoverPreview(continued);
+          setTakeoverPreview((prev) => ({
+            ...continued,
+            path: [...(prev?.path ?? []), continued.san],
+            anchorPly: prev?.anchorPly ?? currentPly,
+          }));
           return;
         }
       }
@@ -7672,10 +7977,52 @@ export default function AnalysisPage() {
     (orig: string, dest: string) => {
       // Replay from the currently displayed position (preview or canonical)
       const played = replayPreviewMove(displayFen, `${orig}${dest}`);
-      if (played) setTakeoverPreview(played);
+      if (played) {
+        setTakeoverPreview((prev) => ({
+          ...played,
+          path: [...(prev?.path ?? []), played.san],
+          anchorPly: prev?.anchorPly ?? currentPly,
+        }));
+      }
     },
-    [displayFen]
+    [displayFen, currentPly]
   );
+
+  /**
+   * Leave the exploration branch and put the board back on the mainline
+   * position it started from.
+   *
+   * The state to do this always existed — clearing the preview restores
+   * `currentFen` — but nothing on screen offered it, so walking a few moves
+   * into a line left you guessing which ply you had branched from. Also
+   * restores the cursor when a coach recommendation moved it.
+   */
+  /**
+   * What the Lines tab should say when it has nothing to show.
+   *
+   * `engine === null` means EITHER "the worker is still booting" (the usual
+   * case, for the first seconds of every visit) OR "this browser cannot run
+   * it at all". Telling a user mid-boot that Stockfish isn't running and they
+   * should reload is worse than saying nothing, so the two are separated by
+   * the only signal that actually distinguishes them.
+   */
+  const linesStatus = useMemo<LinesStatus>(() => {
+    if (displayTerminal) return "terminal";
+    if (displayPositionEval) return "ready";
+    if (typeof window !== "undefined" && !isWasmSupported()) {
+      return "unsupported";
+    }
+    if (!engine) return "starting";
+    return "searching";
+  }, [displayTerminal, displayPositionEval, engine]);
+
+  const returnToAnchor = useCallback(() => {
+    if (!takeoverPreview) return;
+    const { anchorPly } = takeoverPreview;
+    setTakeoverPreview(null);
+    if (anchorPly !== currentPly) setCurrentPly(anchorPly);
+  }, [takeoverPreview, currentPly]);
+
   const handleTakeoverSendToCoach = useCallback(
     async (message: string, candidate?: MasterCandidate) => {
       const prevForApi = messages;
@@ -8572,6 +8919,13 @@ export default function AnalysisPage() {
       const inInput =
         target.tagName === "INPUT" || target.tagName === "TEXTAREA";
       if (inInput) return;
+      // Escape leaves an exploration branch before it means anything else —
+      // it is the keyboard half of the "back to move N" control.
+      if (e.key === "Escape" && takeoverPreview) {
+        e.preventDefault();
+        returnToAnchor();
+        return;
+      }
       if (e.key === "ArrowLeft") setCurrentPly((p) => Math.max(0, p - 1));
       else if (e.key === "ArrowRight")
         setCurrentPly((p) => Math.min(allMoves.length, p + 1));
@@ -8582,7 +8936,7 @@ export default function AnalysisPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [allMoves.length]);
+  }, [allMoves.length, takeoverPreview, returnToAnchor]);
 
   // Command palette groups — recomputed when ply/moments change
   const commandGroups: CommandGroup[] = useMemo(
@@ -8904,6 +9258,12 @@ export default function AnalysisPage() {
                   onSkip={advanceDrill}
                 />
               )}
+              {!drillState && takeoverPreview && (
+                <ExplorationBanner
+                  preview={takeoverPreview}
+                  onReturn={returnToAnchor}
+                />
+              )}
               <ErrorBoundary name="preview-analysis-board">
                 <BoardArea
                   fen={displayFen}
@@ -9152,11 +9512,12 @@ export default function AnalysisPage() {
                       style={{ position: "absolute", inset: 0 }}
                     >
                       <EngineLinesPanel
-                        position={
-                          enginePositions?.[currentPly] ?? null
-                        }
+                        position={displayPositionEval}
                         fen={displayFen}
                         engineName={engineSettings.engineName}
+                        status={linesStatus}
+                        exploring={takeoverPreview}
+                        onReturnToAnchor={returnToAnchor}
                       />
                     </motion.div>
                   )}

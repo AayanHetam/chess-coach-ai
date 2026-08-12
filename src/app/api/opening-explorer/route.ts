@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import {
   lookupCuratedPosition,
   curatedPositionCount,
+  masterCorpusMeta,
 } from "@/data/master-openings";
 
 /**
@@ -68,27 +69,12 @@ function parseChessdb(text: string): ChessdbMove[] {
   return moves;
 }
 
-// chessdb's note field looks like "! (20-05)" = "depth 20, popularity tier 5".
-// IMPORTANT: lower popularity number = MORE popular (more queried). The most
-// common moves at the starting position (1.e4, 1.d4) sit at tier 5; rare
-// moves like 1.h4 sit at tier 14+. So invert when synthesizing a count:
-// tier 1 → ~40M, tier 5 → ~1M, tier 10 → ~16K, tier 14 → ~300.
-function synthCount(popularity: number): number {
-  if (popularity <= 0 || popularity > 20) return 0;
-  return Math.round(10 ** (8 - popularity * 0.4));
-}
-
-function uciToColors(winrate: number): { white: number; draws: number; black: number } {
-  // winrate is white's expected score (0..100). Split synthetically into
-  // white-win / draw / black-win bands using a 25% draw rate assumption.
-  // Use 1000 as the scale so the bar widths render meaningfully.
-  const wr = Math.max(0, Math.min(100, winrate)) / 100;
-  const draws = 250;
-  const remaining = 750;
-  const white = Math.round(remaining * wr);
-  const black = remaining - white;
-  return { white, draws, black };
-}
+// Removed with the rest of the fabricated statistics: synthCount() turned
+// chessdb's "popularity tier" — how often a position has been QUERIED on
+// chessdb.cn — into a game count via `10 ** (8 - tier * 0.4)`, so tier 5
+// became "1M games". It was already unused by the time this route stopped
+// synthesizing color splits; both invented game statistics out of engine
+// metadata. chessdb rows are now labelled as engine analysis instead.
 
 async function queryChessdb(fen: string, limit: number) {
   const url = new URL("https://www.chessdb.cn/cdb.php");
@@ -114,30 +100,30 @@ async function queryChessdb(fen: string, limit: number) {
   });
   const top = parsed.slice(0, limit);
 
-  // chessdb has no SAN — client computes via chess.js. We pass UCI only.
-  // No synthesized game counts — the client uses eval/rank/winrate instead.
-  const moves = top.map((m) => {
-    const { white, draws, black } = uciToColors(m.winrate);
-    return {
-      uci: m.uci,
-      san: "",
-      white,
-      draws,
-      black,
-      eval: m.score,
-      rank: m.rank,
-      winrate: m.winrate,
-      popularity: m.popularity,
-    };
-  });
+  // chessdb is an ENGINE database — positions and scores, not games. It has
+  // no game counts at all.
+  //
+  // This used to synthesize `white`/`draws`/`black` from chessdb's winrate on
+  // a fixed 750/250 scale, so every off-tree position rendered win/draw/loss
+  // bars reading ~375/250/375 as if ~1000 master games had been played there.
+  // They were a rounding of an engine's evaluation dressed as game
+  // statistics. The client now renders this source as engine data, so the
+  // fields are gone rather than faked.
+  const moves = top.map((m) => ({
+    uci: m.uci,
+    san: "",
+    eval: m.score,
+    rank: m.rank,
+    winrate: m.winrate,
+    popularity: m.popularity,
+  }));
 
   return {
-    white: 0,
-    draws: 0,
-    black: 0,
     moves,
     topGames: [] as unknown[],
     source: "chessdb" as const,
+    /** No game counts exist for this source — the client must not imply any. */
+    hasGameCounts: false,
   };
 }
 
@@ -166,20 +152,19 @@ export async function GET(req: NextRequest) {
 
   if (!fen) return Response.json({ error: "Missing fen" }, { status: 400 });
 
-  // 1. CURATED first — hand-vetted real Lichess Masters numbers for the
-  //    ~80 most common positions. Always wins when present because the data
-  //    is correct, player-attributed, and works offline.
-  const curated = lookupCuratedPosition(fen);
-  if (curated && curated.moves.length > 0) {
+  // 1. The generated master tree — real, monotonic game counts from a single
+  //    corpus. `corpus` travels with the payload so the UI can name what the
+  //    numbers are drawn from instead of implying all of chess history.
+  const indexed = lookupCuratedPosition(fen);
+  if (indexed && indexed.moves.length > 0) {
     return Response.json(
       {
-        white: 0,
-        draws: 0,
-        black: 0,
-        moves: curated.moves.slice(0, limit),
+        moves: indexed.moves.slice(0, limit),
         topGames: [],
-        source: "curated" as const,
+        source: "tree" as const,
+        hasGameCounts: true,
         indexedPositions: curatedPositionCount(),
+        corpus: masterCorpusMeta(),
       },
       {
         headers: { "cache-control": "public, max-age=600, s-maxage=600" },
@@ -187,16 +172,27 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // 2. Lichess — REAL master-game counts + top games with player attribution.
-  //    Currently 401-blocked from most networks; kept here so production
-  //    deploys that can reach Lichess use it automatically.
-  try {
-    const data = await queryLichess(fen, limit);
-    return Response.json(data, {
-      headers: { "cache-control": "public, max-age=300, s-maxage=300" },
-    });
-  } catch (err) {
-    // fall through to chessdb
+  // 2. Lichess masters — real counts + player attribution, and the source we
+  //    would prefer. OFF by default: explorer.lichess.ovh returns a bare
+  //    nginx 401 to every request — masters, lichess and player endpoints,
+  //    any User-Agent, IPv4 or IPv6, from this network AND from Vercel
+  //    (re-verified 2026-08-12). Leaving it in the hot path bought nothing
+  //    and spent up to 6s of its timeout before every single off-tree
+  //    position could fall through to chessdb, which is a large part of why
+  //    this tab felt broken.
+  //
+  //    Set MASTERS_TRY_LICHESS=1 to put it back in the path if they ever
+  //    unblock; the parsing below is unchanged and ready.
+  if (process.env.MASTERS_TRY_LICHESS === "1") {
+    try {
+      const data = await queryLichess(fen, limit);
+      return Response.json(
+        { ...data, hasGameCounts: true },
+        { headers: { "cache-control": "public, max-age=300, s-maxage=300" } }
+      );
+    } catch {
+      // fall through to chessdb
+    }
   }
 
   try {
@@ -206,8 +202,8 @@ export async function GET(req: NextRequest) {
         headers: { "cache-control": "public, max-age=300, s-maxage=300" },
       });
     }
-  } catch (err) {
-    // both failed
+  } catch {
+    // Off the tree AND chessdb unreachable — nothing to show.
   }
 
   return Response.json(

@@ -60,15 +60,57 @@ function normalizeFen(fen) {
 }
 
 async function main() {
-  const [, , input, output, maxPliesArg] = process.argv;
+  const [, , input, output, maxPliesArg, minGamesArg] = process.argv;
   if (!input || !output) {
-    console.error("Usage: node scripts/process-master-pgn.mjs <in.pgn> <out.json> [maxPlies=12]");
+    console.error(
+      "Usage: node scripts/process-master-pgn.mjs <in.pgn|-> <out.json> [maxPlies=12] [minGames=3]"
+    );
     process.exit(1);
   }
   const maxPlies = parseInt(maxPliesArg ?? "12", 10);
+  // Pruning threshold. Scales with corpus size: at 280K games ≥3 keeps the
+  // tree honest; at 3M+ games ≥3 admits a huge tail of positions seen twice,
+  // ballooning the artifact past what the runtime can load. Pass a number, or
+  // "auto:<N>" to pick the lowest threshold that lands at ≤N positions.
+  const minGamesRaw = minGamesArg ?? "3";
+  const autoTarget = minGamesRaw.startsWith("auto")
+    ? parseInt(minGamesRaw.split(":")[1] ?? "90000", 10)
+    : null;
+  const minGames = autoTarget ? 1 : parseInt(minGamesRaw, 10);
 
-  // Stream-read the PGN so we don't blow memory on 5GB files
-  const stream = fs.createReadStream(input);
+  /**
+   * Memory ceiling for the aggregation pass.
+   *
+   * 3.4M games × 14 plies generates tens of millions of distinct positions
+   * before pruning, the overwhelming majority seen exactly once — enough to
+   * OOM Node even at --max-old-space-size=8192. Every SWEEP_EVERY games we
+   * drop the singletons, which are precisely what the final threshold
+   * discards anyway.
+   *
+   * The honest caveat: a position seen once before a sweep and once after
+   * loses the first sighting, so counts in the rare tail can undercount by a
+   * few. It cannot affect anything near the threshold we actually ship at
+   * (hundreds of games), and positions in the tail are pruned regardless.
+   */
+  const SWEEP_EVERY = 400_000;
+  const sweepSingletons = () => {
+    let dropped = 0;
+    for (const [fen, moves] of tree) {
+      let total = 0;
+      for (const m of moves.values()) total += m.count;
+      if (total <= 1) {
+        tree.delete(fen);
+        dropped++;
+      }
+    }
+    return dropped;
+  };
+
+  // Stream-read the PGN so we don't blow memory on multi-GB inputs. "-" reads
+  // stdin, which is how several monthly dumps are fed through in one pass:
+  //   for z in *.zip; do unzip -p "$z"; done | node this.mjs - out.json
+  // Concatenating on stdin avoids ever materialising the ~9GB of unzipped PGN.
+  const stream = input === "-" ? process.stdin : fs.createReadStream(input);
   const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
 
   const tree = new Map(); // normalizedFen → Map<san, { count, players: Map<key, {rank,count}>, w, d, b }>
@@ -139,6 +181,13 @@ async function main() {
       }
     }
     gamesProcessed++;
+    if (gamesProcessed % SWEEP_EVERY === 0) {
+      const before = tree.size;
+      const dropped = sweepSingletons();
+      console.error(
+        `  sweep @${gamesProcessed.toLocaleString()} games: ${before.toLocaleString()} → ${tree.size.toLocaleString()} positions (-${dropped.toLocaleString()} singletons)`
+      );
+    }
     if (Date.now() - lastReport > 5000) {
       console.error(
         `…${gamesProcessed.toLocaleString()} games · ${tree.size.toLocaleString()} positions`
@@ -169,16 +218,33 @@ async function main() {
     `\nProcessed ${gamesProcessed.toLocaleString()} games into ${tree.size.toLocaleString()} positions.`
   );
 
-  // Convert to output shape, keeping only positions with ≥3 master games
-  // (cuts down noise; tweak this threshold)
-  const MIN_GAMES_AT_POSITION = 3;
+  // Precompute each position's total once — used by both the auto-threshold
+  // search and the emit loop below.
+  const totals = new Map();
+  for (const [fen, moves] of tree) {
+    let t = 0;
+    for (const m of moves.values()) t += m.count;
+    totals.set(fen, t);
+  }
+
+  let MIN_GAMES_AT_POSITION = minGames;
+  if (autoTarget) {
+    // Lowest threshold that lands at or under the target position count —
+    // i.e. the deepest coverage that still fits the artifact budget.
+    const sorted = Array.from(totals.values()).sort((a, b) => b - a);
+    MIN_GAMES_AT_POSITION =
+      sorted.length <= autoTarget ? 1 : sorted[autoTarget] + 1;
+    console.error(
+      `\nauto threshold: ${MIN_GAMES_AT_POSITION} games (target ≤${autoTarget.toLocaleString()} positions, have ${sorted.length.toLocaleString()})`
+    );
+  }
+  let prunedPositions = 0;
   const out = {};
   for (const [fen, moves] of tree) {
-    const totalAtPos = Array.from(moves.values()).reduce(
-      (acc, m) => acc + m.count,
-      0
-    );
-    if (totalAtPos < MIN_GAMES_AT_POSITION) continue;
+    if (totals.get(fen) < MIN_GAMES_AT_POSITION) {
+      prunedPositions++;
+      continue;
+    }
 
     const candidates = Array.from(moves.entries())
       .map(([san, info]) => {
@@ -211,16 +277,33 @@ async function main() {
     out[fen] = { moves: candidates };
   }
 
-  fs.writeFileSync(output, JSON.stringify(out));
+  // Emit corpus provenance alongside the tree. The UI states how many games
+  // back the numbers it shows; without this it can only claim a total, which
+  // is how the old hand-typed "8.4M master games" ended up on screen next to
+  // counts from a corpus a fraction of that size.
+  const payload = {
+    meta: {
+      games: gamesProcessed,
+      positions: Object.keys(out).length,
+      maxPlies,
+      minGames: MIN_GAMES_AT_POSITION,
+      prunedPositions,
+      source: process.env.CORPUS_LABEL ?? "Lichess Elite (2300+)",
+      generatedAt: new Date().toISOString().slice(0, 10),
+    },
+    positions: out,
+  };
+
+  fs.writeFileSync(output, JSON.stringify(payload));
   const stats = fs.statSync(output);
   console.error(
     `\nWrote ${Object.keys(out).length.toLocaleString()} positions to ${output} (${(stats.size / 1024 / 1024).toFixed(1)} MB).`
   );
   console.error(
-    "\nNext step: drop the file at src/data/master-openings.json and"
+    `Pruned ${prunedPositions.toLocaleString()} positions under the ${MIN_GAMES_AT_POSITION}-game threshold.`
   );
   console.error(
-    "wire it as a higher-priority source in the opening-explorer route."
+    `Corpus: ${gamesProcessed.toLocaleString()} games · maxPlies ${maxPlies}`
   );
 }
 

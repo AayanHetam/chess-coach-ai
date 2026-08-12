@@ -158,6 +158,20 @@ export function getCoachChatSystemPromptParts(
 
   const userContextLines: string[] = ["USER CONTEXT:"];
 
+  // A3 (SILENT_SUBSTITUTION_HANDOFF §3 Group A): `playerColorName` is present
+  // ONLY when the side is confirmed — either the user picked it or the PGN
+  // header matched their username. When it is absent the side is a GUESS
+  // (board orientation, which defaults to white), and asserting it is not a
+  // small error: for a Black-side game whose header did not match, the coach
+  // reviews the OPPONENT's moves as the user's and frames them as "your
+  // mistakes". Name the user, say the side is unknown, and let the model ask.
+  if (input.username && !input.playerColorName) {
+    userContextLines.push(
+      `- The user's in-game username is: ${input.username}`,
+      `- Which side ${input.username} played is NOT confirmed. Do NOT state or assume they were White or Black, and do NOT attribute either side's moves to them as "your move" until they say which side they were. If it matters to the answer, ask.`
+    );
+  }
+
   if (input.username && input.playerColorName) {
     const colorCap = input.playerColorName === "white" ? "White" : "Black";
     userContextLines.push(

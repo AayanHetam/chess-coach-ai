@@ -50,6 +50,7 @@ import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
 import {
   Activity,
+  AlertTriangle,
   ArrowLeft,
   BookOpen,
   Check,
@@ -798,6 +799,19 @@ async function streamCoachReply(params: {
           if (parsed.contextId) contextIdRef.current = parsed.contextId;
           if (parsed.metadata?.contextId)
             contextIdRef.current = parsed.metadata.contextId;
+          // T5 (SILENT_SUBSTITUTION_HANDOFF §4): the server already reports
+          // when the deep-validation pass timed out or fell back — the client
+          // just never read it, so the placeholder ("Still analyzing — the
+          // deep-validation pass took longer than expected") rendered
+          // IDENTICALLY to a real answer and entered history as one. Reuse
+          // D4's `incomplete` flag: it both marks the bubble and keeps the
+          // non-answer out of what the model is told it said.
+          if (
+            parsed.metadata?.pipeline?.timedOut === true ||
+            parsed.metadata?.pipeline?.finalOutcome === "fallback_used"
+          ) {
+            onTruncated?.();
+          }
           // D1: the server stores the CORRECTED analysis as canonical and
           // re-injects it as the first assistant message on every follow-up —
           // but the client kept the raw streamed text and re-sent THAT in
@@ -6102,6 +6116,37 @@ function CoachBubble({
           </Tooltip>
         )}
       </Box>
+      {msg.incomplete && !isUser && (
+        // D4 / T5 (SILENT_SUBSTITUTION_HANDOFF §3 Group D, §4): this answer is
+        // a fragment — the stream ended with no `done` event, or the server
+        // reported the deep-validation pass timed out. Both used to render
+        // EXACTLY like a finished answer, so the user had no way to tell an
+        // incomplete analysis from a complete one. Excluding it from the
+        // model's history (already done) protects the model; this is what
+        // protects the reader.
+        <Box
+          sx={{
+            mt: 1,
+            px: 1.25,
+            py: 0.75,
+            borderRadius: "0.6rem",
+            display: "flex",
+            alignItems: "center",
+            gap: 0.75,
+            background: "rgba(249,115,22,0.08)",
+            border: "1px solid rgba(249,115,22,0.25)",
+            color: "rgba(255,237,213,0.85)",
+            fontSize: "0.78rem",
+            lineHeight: 1.4,
+          }}
+        >
+          <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+          <span>
+            This answer was cut off before it finished — treat it as partial,
+            and ask again for the full explanation.
+          </span>
+        </Box>
+      )}
       {msg.insight && !isUser && (
         <Box
           sx={{
@@ -6804,6 +6849,18 @@ export default function AnalysisPage() {
     // The user's side. An explicit/inferred answer (playerSide) wins; the
     // board orientation is only the last-resort assumption when the side
     // is still ambiguous (user hasn't answered the inline ask yet).
+    // A3 (SILENT_SUBSTITUTION_HANDOFF §3 Group A): `playerSide` is null
+    // whenever username→PGN-header matching failed and the user has not
+    // answered the "which side were you playing?" card. Board orientation is
+    // then a GUESS (and defaults to white).
+    //
+    // `playerColor` still falls back to the guess because the mechanics need a
+    // side to filter mistakes by. `playerColorName` does NOT: it is what the
+    // prompt turns into "Always analyze the game from the perspective of
+    // <user> playing as White", asserted as fact. Sending it unconfirmed is
+    // how a Black-side player gets their opponent's moves reviewed as their
+    // own. Confirmed side → assert it; guess → say it is unknown.
+    const sideConfirmed = playerSide != null;
     const sideName: "white" | "black" = playerSide?.color ?? boardOrientation;
     const playerColor: "w" | "b" = sideName === "white" ? "w" : "b";
     let chesscomUsername: string | undefined;
@@ -6824,7 +6881,7 @@ export default function AnalysisPage() {
     }
     return {
       playerColor,
-      playerColorName: sideName,
+      playerColorName: sideConfirmed ? sideName : undefined,
       boardOrientation,
       // A1 (SILENT_SUBSTITUTION_HANDOFF): the real rating, or `undefined` when
       // the user has none. Never a default — the request body used to hardcode

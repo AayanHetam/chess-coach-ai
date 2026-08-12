@@ -555,7 +555,13 @@ export async function POST(request: NextRequest) {
       const built = await buildGameContextWithContract(
         moveHistory,
         gameEval,
-        playerColor || (boardOrientation ? "w" : "b"),
+        // A3 landmine (SILENT_SUBSTITUTION_HANDOFF §3): this was
+        // `boardOrientation ? "w" : "b"` — and boardOrientation is the STRING
+        // "white" | "black", so "black" is truthy and a black-oriented board
+        // resolved to White. Masked until now only because playerColor is
+        // always sent explicitly; the moment a caller omits it, every
+        // black-side game would be analysed from White's perspective.
+        playerColor || (boardOrientation === "black" ? "b" : "w"),
         username,
         userRating,
         gameHeaders,

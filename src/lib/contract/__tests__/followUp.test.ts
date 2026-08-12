@@ -179,6 +179,26 @@ describe("renderContractCompact — budget and honesty", () => {
     expect(rendered).toContain("DO NOT CLAIM");
   });
 
+  it("tells the model not to name the block (live-fire leak, 2026-08-12)", () => {
+    // The first production follow-up answered "From the review fact contract,
+    // here's the engine's line..." — facts correct, voice broken. The chat
+    // prompt is v3.x and knows nothing about this block, so the anti-leak
+    // instruction has to travel inside the block itself.
+    const rendered = renderContractCompact(
+      toCompactContract(makeContract([makeInsight({})]), ["M1"]),
+    );
+    expect(rendered).toMatch(/NEVER mention this block/);
+    expect(rendered).toMatch(/never "according to the contract"/);
+  });
+
+  it("keeps the anti-leak instruction even at the tightest budget", () => {
+    // It lives in the header, which is never dropped — pin that, because a
+    // truncation that sheds the instruction reintroduces the leak silently.
+    const many = Array.from({ length: 10 }, (_, i) => makeInsight({ factIdPrefix: `M${i}` }));
+    const rendered = renderContractCompact(toCompactContract(makeContract(many), []), 900);
+    expect(rendered).toMatch(/NEVER mention this block/);
+  });
+
   it("renders move numbers correctly for a black-to-move line", () => {
     const contract = makeContract([
       makeInsight({

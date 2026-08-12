@@ -61,7 +61,9 @@ const progressSchema = z.object({
         recentRatings: z.array(z.number()).max(50).optional(),
       }),
     ),
-    recentSolves: z.array(z.record(z.string(), z.unknown())).max(200),
+    // Headroom over the client's 500-record retention so a client that is
+    // one release ahead can still sync.
+    recentSolves: z.array(z.record(z.string(), z.unknown())).max(520),
   }),
   srs: z.record(z.string().max(64), srsCardSchema),
   // Optional so snapshots written before daily tracking existed still

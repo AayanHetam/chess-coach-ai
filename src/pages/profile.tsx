@@ -1,85 +1,64 @@
-import { useMemo, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Box,
-  Typography,
-  Paper,
-  Grid,
-  Chip,
-  Divider,
-  LinearProgress,
   Button,
+  Chip,
   IconButton,
   Tooltip,
+  Typography,
 } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
 import Head from "next/head";
-import { useAtomValue } from "jotai";
-import { PageTitle } from "@/components/pageTitle";
-import { chessMastiDarkTheme } from "@/theme/chessMasti";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
-import { NavPill } from "@/components/ui/NavPill";
-import { puzzleStatsAtom, getSolveRate } from "@/lib/puzzleRating";
-import { gameRecordsAtom, buildProfile, generateRecommendations } from "@/lib/playerProfile";
-import { drillProgressAtom } from "@/lib/spacedRepetition";
-import { useGameDatabase } from "@/hooks/useGameDatabase";
-import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/router";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
-import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  BarChart,
-  Bar,
-  Cell,
-  PieChart,
-  Pie,
-} from "recharts";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import SchoolIcon from "@mui/icons-material/School";
-import WarningIcon from "@mui/icons-material/Warning";
-import ExtensionIcon from "@mui/icons-material/Extension";
-import HistoryIcon from "@mui/icons-material/History";
-import MenuBookIcon from "@mui/icons-material/MenuBook";
-import LightbulbIcon from "@mui/icons-material/Lightbulb";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import { useRouter } from "next/router";
+import { PageTitle } from "@/components/pageTitle";
+import { chessMastiDarkTheme } from "@/theme/chessMasti";
+import { SERIF_DISPLAY } from "@/theme/fonts";
+import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
+import { NavPill } from "@/components/ui/NavPill";
+import ProfileDialog from "@/components/auth/ProfileDialog";
+import { PanelCard } from "@/components/performance/PanelCard";
+import { PuzzlePerformanceCard } from "@/components/performance/PuzzlePerformanceCard";
+import { RatingTrendCard } from "@/components/performance/RatingTrendCard";
+import { RecentGamesCard } from "@/components/performance/RecentGamesCard";
+import { useGameDatabase } from "@/hooks/useGameDatabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 
+/**
+ * /profile — the performance dashboard.
+ *
+ * Rebuilt 2026-08-11 around one rule: every number on this page comes from a
+ * store something actually writes to.
+ *
+ * What was removed and why: the old page read `gameRecordsAtom`, which has no
+ * writer anywhere in the codebase. Four sections depended on it — "Games
+ * Analyzed" (permanently 0), the win/draw/loss pie, the phase-accuracy bar
+ * chart, and "Training Recommendations", which was generating generic advice
+ * from an empty profile under a heading that claimed it was personalised. The
+ * record and win rate now come from games fetched live from the user's linked
+ * platforms, so they are real. Phase accuracy has no source at all and is gone
+ * until one exists.
+ *
+ * Opening-drill progress moved off this page too — it is real (written by
+ * /openings) but out of scope here, which is games and puzzles.
+ */
 export default function Profile() {
   const router = useRouter();
-  const puzzleStats = useAtomValue(puzzleStatsAtom);
-  const gameRecords = useAtomValue(gameRecordsAtom);
-  const drillProgress = useAtomValue(drillProgressAtom);
-  // Saved games + their (optional) coach transcripts. Pass true so the
-  // hook actually triggers the cloud sync + atom population — without it
-  // `games` stays empty and the tile section renders empty for signed-in
-  // users who have games waiting in Firestore.
-  const { games: savedGames, deleteGame } = useGameDatabase(true);
   const { user, profile: account, loading: authLoading } = useAuth();
-  // Personalization quiz is now opt-in (no forced redirect) — this page is its
-  // home. `personalized` drives the CTA vs summary state of the card below.
+  const { games: savedGames, deleteGame } = useGameDatabase(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   const personalized = !!account?.onboardingCompletedAt;
 
-  const handleOpenSavedGame = useCallback(
-    (gameId: number) => {
-      router.push(`/analysis?gameId=${gameId}`);
-    },
-    [router],
-  );
   const handleDeleteSavedGame = useCallback(
     async (gameId: number) => {
-      // Hard-delete with a confirm — saved games include the coach
-      // transcript, which the user might not realise dies with them.
       if (
         typeof window !== "undefined" &&
         !window.confirm(
-          "Delete this saved game and its coach conversation? This can't be undone.",
+          "Delete this saved game and its coach conversation? This can't be undone."
         )
       ) {
         return;
@@ -90,62 +69,23 @@ export default function Profile() {
         console.warn("[profile] delete saved game failed:", err);
       }
     },
-    [deleteGame],
+    [deleteGame]
   );
+
   const sortedSavedGames = useMemo(
     () =>
       [...(savedGames ?? [])].sort((a, b) => {
-        // Most recently-played first. Some imports leave date undefined;
-        // fall back to id (autoincrement = chronological in IndexedDB).
         const da = (a.date ?? "").replace(/\./g, "-");
         const db = (b.date ?? "").replace(/\./g, "-");
         if (da && db && da !== db) return db.localeCompare(da);
         return (b.id ?? 0) - (a.id ?? 0);
       }),
-    [savedGames],
+    [savedGames]
   );
-
-  const profile = useMemo(() => buildProfile(gameRecords), [gameRecords]);
-  const recommendations = useMemo(() => generateRecommendations(profile), [profile]);
-  const solveRate = getSolveRate(puzzleStats);
-
-  // Puzzle rating chart data
-  const ratingChartData = puzzleStats.ratingHistory.map((pt) => ({
-    time: new Date(pt.timestamp).toLocaleDateString(),
-    rating: pt.rating,
-  }));
-
-  // Phase accuracy chart data
-  const phaseData = [
-    { phase: "Opening", accuracy: profile.avgOpeningAccuracy, fill: "#42a5f5" },
-    { phase: "Middlegame", accuracy: profile.avgMiddlegameAccuracy, fill: "#ffa726" },
-    { phase: "Endgame", accuracy: profile.avgEndgameAccuracy, fill: "#66bb6a" },
-  ];
-
-  // Win/Draw/Loss data
-  const resultData = [
-    { name: "Wins", value: profile.wins, fill: "#66bb6a" },
-    { name: "Draws", value: profile.draws, fill: "#bdbdbd" },
-    { name: "Losses", value: profile.losses, fill: "#ef5350" },
-  ].filter((d) => d.value > 0);
-
-  // Opening drill progress
-  const drillEntries = Object.values(drillProgress);
-  const totalDrilled = drillEntries.filter((d) => d.attempts > 0).length;
-  const avgDrillAccuracy =
-    drillEntries.length > 0
-      ? Math.round(
-          (drillEntries
-            .filter((d) => d.attempts > 0)
-            .reduce((acc, d) => acc + (d.correctFirstTry / d.attempts) * 100, 0) /
-            Math.max(1, drillEntries.filter((d) => d.attempts > 0).length)) *
-            10
-        ) / 10
-      : 0;
 
   return (
     <ThemeProvider theme={chessMastiDarkTheme}>
-      <PageTitle title="Chess Masti AI - Player Profile" />
+      <PageTitle title="Chess Masti AI - Performance" />
       <Head>
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content="#08090C" />
@@ -159,768 +99,397 @@ export default function Profile() {
           minHeight: "100vh",
           color: "rgba(255,255,255,0.94)",
           pt: 2,
-          pb: 4,
+          pb: 6,
           px: { xs: 2, md: 3 },
         }}
       >
         <NavPill active="profile" />
-        <Box sx={{ maxWidth: 1100, mx: "auto" }}>
-          <Typography
-            variant="h5"
-            sx={{
-              fontWeight: 800,
-              letterSpacing: "-0.025em",
-              mb: 3,
-              background: "linear-gradient(135deg, #F97316, #FB923C, #FBBF24)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            Your Progress Dashboard
-          </Typography>
 
-          {/* Personalize your coaching — the ONLY entry point into the quiz for
-              a signed-in user. Shows a CTA until completed, then a read-only
-              summary: the quiz is one-time, so there is no retake affordance
-              here or anywhere else (/onboarding redirects a completed user to
-              /plan). Only meaningful for signed-in users. */}
+        <Box
+          sx={{
+            maxWidth: 1120,
+            mx: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2.5,
+          }}
+        >
+          {/* Header. Serif for the page name, sans for everything else — the
+              same content/chrome split the puzzle screen uses. */}
+          <Box sx={{ mb: 0.5 }}>
+            <Typography
+              component="h1"
+              sx={{
+                fontFamily: SERIF_DISPLAY,
+                fontSize: { xs: "1.9rem", md: "2.3rem" },
+                fontWeight: 500,
+                letterSpacing: "-0.02em",
+                color: "rgba(255,255,255,0.96)",
+                lineHeight: 1.15,
+              }}
+            >
+              Performance
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: "0.86rem",
+                color: "rgba(255,255,255,0.45)",
+                mt: 0.5,
+              }}
+            >
+              How you&apos;re playing now — not how you played a year ago. Every
+              panel windows to your recent work.
+            </Typography>
+          </Box>
+
+          <PuzzlePerformanceCard />
+          <RatingTrendCard />
+          <RecentGamesCard onLinkAccount={() => setSettingsOpen(true)} />
+
+          {/* Saved games — analysed games with their coach transcript intact.
+              Distinct from Recent games above: these are yours on our side,
+              those are pulled from the platforms. */}
           {user && (
-            <Paper
-              sx={{
-                p: 2.5,
-                mb: 3,
-                borderRadius: 2,
-                ...(personalized
-                  ? { bgcolor: "grey.900", border: "1px solid rgba(255,255,255,0.06)" }
-                  : {
-                      background:
-                        "linear-gradient(180deg, rgba(249,115,22,0.12), rgba(20,22,28,0.97))",
-                      border: "1px solid rgba(249,115,22,0.3)",
-                    }),
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 1.5,
-                  flexWrap: "wrap",
-                }}
-              >
-                <AutoAwesomeIcon sx={{ color: "primary.main", mt: 0.3 }} />
-                <Box sx={{ flex: 1, minWidth: 240 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100" }}>
-                    {personalized ? "Your coaching profile" : "Personalize your coaching"}
-                  </Typography>
-                  {personalized ? (
-                    <>
-                      <Typography variant="body2" sx={{ color: "grey.400", mt: 0.5 }}>
-                        Your coach is tuned to your level, goals, and focus areas.
-                      </Typography>
-                      {!!account?.focusThemes?.length && (
-                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1.25 }}>
-                          {account.focusThemes.slice(0, 6).map((t) => (
-                            <Chip
-                              key={t}
-                              size="small"
-                              label={
-                                FOCUS_THEME_LABELS[t as keyof typeof FOCUS_THEME_LABELS] ?? t
-                              }
-                              sx={{
-                                bgcolor: "rgba(249,115,22,0.12)",
-                                color: "primary.light",
-                                fontSize: "0.72rem",
-                              }}
-                            />
-                          ))}
-                        </Box>
-                      )}
-                    </>
-                  ) : (
-                    <Typography variant="body2" sx={{ color: "grey.300", mt: 0.5 }}>
-                      Take a 2-minute quiz so your coach knows your level, goals, and
-                      weak spots — it tailors your analysis, puzzles, and training
-                      plan.
-                    </Typography>
-                  )}
-                </Box>
-                {!personalized && (
-                  <Button
-                    variant="contained"
-                    onClick={() => router.push("/onboarding")}
-                    sx={{ textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}
-                  >
-                    Start personalization test
-                  </Button>
-                )}
-              </Box>
-            </Paper>
-          )}
-
-          {/* Top Stats Row */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            {/* Puzzle Rating */}
-            <Grid size={{ xs: 6, sm: 3 }}>
-              <Paper
-                sx={{
-                  p: 2.5,
-                  textAlign: "center",
-                  borderRadius: "1rem",
-                  background: "rgba(20,22,28,0.5)",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
-                }}
-              >
-                <ExtensionIcon sx={{ color: "primary.main", mb: 0.5 }} />
-                <Typography variant="h4" sx={{ fontWeight: 800, color: "primary.light" }}>
-                  {puzzleStats.rating}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "grey.500" }}>
-                  Puzzle Rating
-                </Typography>
-              </Paper>
-            </Grid>
-
-            {/* Games Played */}
-            <Grid size={{ xs: 6, sm: 3 }}>
-              <Paper
-                sx={{
-                  p: 2.5,
-                  textAlign: "center",
-                  borderRadius: "1rem",
-                  background: "rgba(20,22,28,0.5)",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
-                }}
-              >
-                <EmojiEventsIcon sx={{ color: "warning.main", mb: 0.5 }} />
-                <Typography variant="h4" sx={{ fontWeight: 800, color: "grey.100" }}>
-                  {profile.totalGames}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "grey.500" }}>
-                  Games Analyzed
-                </Typography>
-              </Paper>
-            </Grid>
-
-            {/* Puzzles Solved */}
-            <Grid size={{ xs: 6, sm: 3 }}>
-              <Paper
-                sx={{
-                  p: 2.5,
-                  textAlign: "center",
-                  borderRadius: "1rem",
-                  background: "rgba(20,22,28,0.5)",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
-                }}
-              >
-                <TrendingUpIcon sx={{ color: "success.main", mb: 0.5 }} />
-                <Typography variant="h4" sx={{ fontWeight: 800, color: "success.light" }}>
-                  {puzzleStats.totalSolved}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "grey.500" }}>
-                  Puzzles Solved ({solveRate}%)
-                </Typography>
-              </Paper>
-            </Grid>
-
-            {/* Opening Lines */}
-            <Grid size={{ xs: 6, sm: 3 }}>
-              <Paper
-                sx={{
-                  p: 2.5,
-                  textAlign: "center",
-                  borderRadius: "1rem",
-                  background: "rgba(20,22,28,0.5)",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
-                }}
-              >
-                <MenuBookIcon sx={{ color: "info.main", mb: 0.5 }} />
-                <Typography variant="h4" sx={{ fontWeight: 800, color: "info.light" }}>
-                  {totalDrilled}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "grey.500" }}>
-                  Opening Lines Learned
-                </Typography>
-              </Paper>
-            </Grid>
-          </Grid>
-
-          {/* Charts Row */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            {/* Puzzle Rating History */}
-            <Grid size={{ xs: 12, md: 8 }}>
-              <Paper
-                sx={{
-                  p: 2.5,
-                  height: "100%",
-                  borderRadius: "1.5rem",
-                  background: "rgba(20,22,28,0.55)",
-                  backdropFilter: "blur(14px) saturate(140%)",
-                  WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  boxShadow:
-                    "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-                  overflow: "hidden",
-                }}
-              >
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100", mb: 1 }}>
-                  Puzzle Rating Over Time
-                </Typography>
-                {ratingChartData.length > 2 ? (
-                  <Box sx={{ width: "100%", height: 200 }}>
-                    <ResponsiveContainer>
-                      <LineChart data={ratingChartData}>
-                        <XAxis dataKey="time" tick={{ fontSize: 10, fill: "#777" }} />
-                        <YAxis domain={["dataMin - 50", "dataMax + 50"]} tick={{ fontSize: 10, fill: "#777" }} />
-                        <RechartsTooltip
-                          contentStyle={{ backgroundColor: "rgba(20,22,28,0.92)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12, color: "rgba(255,255,255,0.94)" }}
-                        />
-                        <Line type="monotone" dataKey="rating" stroke="#42a5f5" strokeWidth={2} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </Box>
-                ) : (
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200 }}>
-                    <Typography variant="body2" sx={{ color: "grey.500" }}>
-                      Solve more puzzles to see your rating chart
-                    </Typography>
-                  </Box>
-                )}
-              </Paper>
-            </Grid>
-
-            {/* Win/Draw/Loss */}
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Paper
-                sx={{
-                  p: 2.5,
-                  height: "100%",
-                  borderRadius: "1.5rem",
-                  background: "rgba(20,22,28,0.55)",
-                  backdropFilter: "blur(14px) saturate(140%)",
-                  WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  boxShadow:
-                    "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-                  overflow: "hidden",
-                }}
-              >
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100", mb: 1 }}>
-                  Game Results
-                </Typography>
-                {resultData.length > 0 ? (
-                  <>
-                    <Box sx={{ width: "100%", height: 160, display: "flex", justifyContent: "center" }}>
-                      <ResponsiveContainer>
-                        <PieChart>
-                          <Pie
-                            data={resultData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={40}
-                            outerRadius={65}
-                            paddingAngle={3}
-                            dataKey="value"
-                          >
-                            {resultData.map((entry, i) => (
-                              <Cell key={i} fill={entry.fill} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip
-                            contentStyle={{ backgroundColor: "rgba(20,22,28,0.92)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12, color: "rgba(255,255,255,0.94)" }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                    <Box sx={{ display: "flex", justifyContent: "center", gap: 2 }}>
-                      <Typography variant="caption" sx={{ color: "#66bb6a" }}>W: {profile.wins}</Typography>
-                      <Typography variant="caption" sx={{ color: "#bdbdbd" }}>D: {profile.draws}</Typography>
-                      <Typography variant="caption" sx={{ color: "#ef5350" }}>L: {profile.losses}</Typography>
-                    </Box>
-                  </>
-                ) : (
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: 160 }}>
-                    <Typography variant="body2" sx={{ color: "grey.500" }}>
-                      Analyze games to see results
-                    </Typography>
-                  </Box>
-                )}
-              </Paper>
-            </Grid>
-          </Grid>
-
-          {/* Phase Accuracy + Recommendations */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            {/* Phase Accuracy */}
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Paper
-                sx={{
-                  p: 2.5,
-                  height: "100%",
-                  borderRadius: "1.5rem",
-                  background: "rgba(20,22,28,0.55)",
-                  backdropFilter: "blur(14px) saturate(140%)",
-                  WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  boxShadow:
-                    "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-                  overflow: "hidden",
-                }}
-              >
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100", mb: 2 }}>
-                  Phase Accuracy
-                </Typography>
-                {profile.totalGames > 0 ? (
-                  <Box sx={{ width: "100%", height: 180 }}>
-                    <ResponsiveContainer>
-                      <BarChart data={phaseData}>
-                        <XAxis dataKey="phase" tick={{ fontSize: 12, fill: "#aaa" }} />
-                        <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "#777" }} />
-                        <RechartsTooltip
-                          contentStyle={{ backgroundColor: "rgba(20,22,28,0.92)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12, color: "rgba(255,255,255,0.94)" }}
-                          formatter={(value: number) => [`${value}%`, "Accuracy"]}
-                        />
-                        <Bar dataKey="accuracy" radius={[4, 4, 0, 0]}>
-                          {phaseData.map((entry, i) => (
-                            <Cell key={i} fill={entry.fill} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </Box>
-                ) : (
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: 180 }}>
-                    <Typography variant="body2" sx={{ color: "grey.500" }}>
-                      Analyze games to see phase accuracy
-                    </Typography>
-                  </Box>
-                )}
-              </Paper>
-            </Grid>
-
-            {/* Recommendations */}
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Paper
-                sx={{
-                  p: 2.5,
-                  height: "100%",
-                  borderRadius: "1.5rem",
-                  background: "rgba(20,22,28,0.55)",
-                  backdropFilter: "blur(14px) saturate(140%)",
-                  WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  boxShadow:
-                    "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-                  overflow: "hidden",
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                  <LightbulbIcon sx={{ color: "warning.main" }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100" }}>
-                    Training Recommendations
-                  </Typography>
-                </Box>
-                {recommendations.map((rec, i) => (
-                  <Box
-                    key={i}
-                    sx={{
-                      p: 1.5,
-                      mb: 1,
-                      borderRadius: "10px",
-                      background: "rgba(249,115,22,0.08)",
-                      border: "1px solid rgba(249,115,22,0.32)",
-                    }}
-                  >
-                    <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.9)" }}>
-                      {rec}
-                    </Typography>
-                  </Box>
-                ))}
-              </Paper>
-            </Grid>
-          </Grid>
-
-          {/* Puzzle Theme Performance */}
-          {Object.keys(puzzleStats.themeStats).length > 0 && (
-            <Paper
-              sx={{
-                p: 2.5,
-                mb: 3,
-                borderRadius: "1.5rem",
-                background: "rgba(20,22,28,0.55)",
-                backdropFilter: "blur(14px) saturate(140%)",
-                WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow:
-                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-                overflow: "hidden",
-              }}
-            >
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100", mb: 2 }}>
-                Puzzle Theme Performance
-              </Typography>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                {Object.entries(puzzleStats.themeStats)
-                  .sort((a, b) => b[1].attempts - a[1].attempts)
-                  .slice(0, 20)
-                  .map(([theme, data]) => {
-                    const rate = data.attempts > 0 ? Math.round((data.solved / data.attempts) * 100) : 0;
-                    return (
-                      <Chip
-                        key={theme}
-                        label={`${theme}: ${rate}% (${data.solved}/${data.attempts})`}
-                        size="small"
-                        sx={{
-                          bgcolor:
-                            rate >= 70
-                              ? "rgba(34,197,94,0.14)"
-                              : rate >= 40
-                              ? "rgba(251,191,36,0.14)"
-                              : "rgba(239,68,68,0.14)",
-                          border:
-                            rate >= 70
-                              ? "1px solid rgba(34,197,94,0.3)"
-                              : rate >= 40
-                              ? "1px solid rgba(251,191,36,0.3)"
-                              : "1px solid rgba(239,68,68,0.3)",
-                          color:
-                            rate >= 70
-                              ? "#86efac"
-                              : rate >= 40
-                              ? "#FBBF24"
-                              : "#fca5a5",
-                          fontSize: "0.75rem",
-                        }}
-                      />
-                    );
-                  })}
-              </Box>
-            </Paper>
-          )}
-
-          {/* Saved Games — click-to-reopen with coach transcript hydration
-              per feat/coach-transcript-persistence (#76). Hidden for guests
-              since the underlying useGameDatabase + cloud sync require
-              auth. */}
-          {user && (
-            <Paper
-              sx={{
-                position: "relative",
-                p: 2.5,
-                mb: 3,
-                borderRadius: "1.5rem",
-                background: "rgba(20,22,28,0.55)",
-                backdropFilter: "blur(14px) saturate(140%)",
-                WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow:
-                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-                overflow: "hidden",
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100" }}>
-                  Saved Games
-                  {sortedSavedGames.length > 0 && (
-                    <Typography
-                      component="span"
-                      variant="caption"
-                      sx={{ ml: 1, color: "grey.500", fontWeight: 500 }}
-                    >
-                      ({sortedSavedGames.length})
-                    </Typography>
-                  )}
-                </Typography>
+            <PanelCard
+              title="Saved analyses"
+              subtitle={
+                sortedSavedGames.length > 0
+                  ? `${sortedSavedGames.length} saved game${sortedSavedGames.length === 1 ? "" : "s"}, coach conversations included`
+                  : undefined
+              }
+              action={
                 <Button
                   size="small"
-                  variant="text"
                   onClick={() => router.push("/analysis")}
                   sx={{
                     textTransform: "none",
-                    color: "#FB923C",
-                    "&:hover": { color: "#FDBA74", bgcolor: "rgba(249,115,22,0.08)" },
+                    fontSize: "0.78rem",
+                    color: "rgba(255,255,255,0.55)",
+                    "&:hover": {
+                      color: "#FB923C",
+                      background: "rgba(249,115,22,0.06)",
+                    },
                   }}
                 >
-                  Analyse a new game →
+                  Analyse a new game
                 </Button>
-              </Box>
+              }
+            >
               {sortedSavedGames.length === 0 ? (
                 <Box
                   sx={{
                     p: 3,
                     textAlign: "center",
-                    borderRadius: "12px",
+                    borderRadius: "0.9rem",
                     border: "1px dashed rgba(255,255,255,0.12)",
                     background: "rgba(255,255,255,0.02)",
-                    color: "rgba(255,255,255,0.5)",
                   }}
                 >
-                  <Typography variant="body2" sx={{ mb: 0.5 }}>
-                    No games saved yet.
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: "grey.600" }}>
-                    Save a game on /analysis and it'll show up here with the coach conversation intact.
+                  <Typography
+                    sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.5)" }}
+                  >
+                    Nothing saved yet. Hit &ldquo;Analyze now&rdquo; on a game
+                    above, then save it — the PGN, the engine eval, and the
+                    whole coach conversation come back with it.
                   </Typography>
                 </Box>
               ) : (
-                <Grid container spacing={1.5}>
+                <Box sx={{ mx: -1.25 }}>
                   {sortedSavedGames.map((g) => {
-                    const whiteName = g.white?.name || "White";
-                    const blackName = g.black?.name || "Black";
-                    const whiteElo = g.white?.rating;
-                    const blackElo = g.black?.rating;
-                    const transcript = (g as typeof g & {
-                      coachTranscript?: Array<{ role: string; content: string }>;
-                    }).coachTranscript;
+                    const transcript = (
+                      g as typeof g & {
+                        coachTranscript?: Array<{
+                          role: string;
+                          content: string;
+                        }>;
+                      }
+                    ).coachTranscript;
                     const transcriptCount = transcript?.length ?? 0;
                     return (
-                      <Grid size={{ xs: 12, sm: 6 }} key={g.id}>
-                        <Box
-                          sx={{
-                            p: 1.75,
-                            borderRadius: "12px",
-                            border: "1px solid rgba(255,255,255,0.08)",
-                            background: "rgba(20,22,28,0.5)",
-                            backdropFilter: "blur(14px) saturate(140%)",
-                            WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 1,
-                            transition: "all 200ms cubic-bezier(0.22,0.61,0.36,1)",
-                            "&:hover": {
-                              borderColor: "rgba(249,115,22,0.4)",
-                              background:
-                                "linear-gradient(180deg, rgba(249,115,22,0.06), rgba(20,22,28,0.6))",
-                              boxShadow:
-                                "0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(249,115,22,0.18)",
-                            },
-                          }}
-                        >
-                          <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
+                      <Box
+                        key={g.id}
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0,1fr) auto auto",
+                          alignItems: "center",
+                          gap: 1.5,
+                          px: 1.25,
+                          py: 1.1,
+                          borderRadius: "0.75rem",
+                          transition: "background 160ms ease",
+                          "&:hover": { background: "rgba(255,255,255,0.035)" },
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography
+                            sx={{
+                              fontSize: "0.85rem",
+                              color: "rgba(255,255,255,0.88)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {g.white?.name || "White"} vs{" "}
+                            {g.black?.name || "Black"}
+                          </Typography>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.75,
+                              mt: 0.15,
+                            }}
+                          >
                             <Typography
-                              variant="body2"
-                              sx={{ fontWeight: 600, color: "grey.100", lineHeight: 1.35 }}
+                              sx={{
+                                fontSize: "0.7rem",
+                                color: "rgba(255,255,255,0.38)",
+                              }}
                             >
-                              {whiteName}
-                              {whiteElo ? (
-                                <Typography component="span" variant="caption" sx={{ color: "grey.500", ml: 0.5 }}>
-                                  ({whiteElo})
-                                </Typography>
-                              ) : null}
-                              <Typography component="span" sx={{ color: "grey.600", mx: 0.5 }}>
-                                vs
-                              </Typography>
-                              {blackName}
-                              {blackElo ? (
-                                <Typography component="span" variant="caption" sx={{ color: "grey.500", ml: 0.5 }}>
-                                  ({blackElo})
-                                </Typography>
-                              ) : null}
+                              {[g.event, g.date?.replace(/\./g, "-")]
+                                .filter(Boolean)
+                                .join(" · ") || "Saved game"}
                             </Typography>
                             {g.result && g.result !== "*" && (
                               <Chip
                                 label={g.result}
                                 size="small"
                                 sx={{
-                                  height: 18,
-                                  fontSize: "0.65rem",
+                                  height: 16,
+                                  fontSize: "0.62rem",
                                   background: "rgba(255,255,255,0.06)",
-                                  border: "1px solid rgba(255,255,255,0.08)",
-                                  color: "rgba(255,255,255,0.7)",
+                                  color: "rgba(255,255,255,0.6)",
                                   fontFamily: "Monaco, Menlo, monospace",
                                 }}
                               />
                             )}
-                          </Box>
-                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, alignItems: "center" }}>
-                            {g.event && (
-                              <Typography variant="caption" sx={{ color: "grey.500" }}>
-                                {g.event}
-                              </Typography>
-                            )}
-                            {g.date && (
-                              <Typography variant="caption" sx={{ color: "grey.600" }}>
-                                · {g.date.replace(/\./g, "-")}
-                              </Typography>
-                            )}
                             {transcriptCount > 0 && (
-                              <Tooltip title={`${transcriptCount} coach message${transcriptCount === 1 ? "" : "s"} saved`}>
-                                <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.4, ml: "auto" }}>
-                                  <ForumOutlinedIcon sx={{ fontSize: 14, color: "#FB923C" }} />
-                                  <Typography variant="caption" sx={{ color: "#FB923C", fontWeight: 600 }}>
+                              <Tooltip
+                                title={`${transcriptCount} coach message${transcriptCount === 1 ? "" : "s"} saved`}
+                              >
+                                <Box
+                                  sx={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 0.3,
+                                  }}
+                                >
+                                  <ForumOutlinedIcon
+                                    sx={{ fontSize: 12, color: "#FB923C" }}
+                                  />
+                                  <Typography
+                                    sx={{
+                                      fontSize: "0.68rem",
+                                      color: "#FB923C",
+                                      fontWeight: 600,
+                                    }}
+                                  >
                                     {transcriptCount}
                                   </Typography>
                                 </Box>
                               </Tooltip>
                             )}
                           </Box>
-                          <Box sx={{ display: "flex", gap: 0.75, mt: 0.5 }}>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={<PlayArrowIcon sx={{ fontSize: 16 }} />}
-                              onClick={() => handleOpenSavedGame(g.id)}
-                              sx={{
-                                textTransform: "none",
-                                fontSize: "0.78rem",
-                                py: 0.4,
-                                borderRadius: "10px",
-                                color: "#FB923C",
-                                borderColor: "rgba(249,115,22,0.4)",
-                                transition: "all 180ms ease",
-                                "&:hover": {
-                                  borderColor: "rgba(249,115,22,0.6)",
-                                  bgcolor: "rgba(249,115,22,0.08)",
-                                },
-                              }}
-                            >
-                              Open
-                            </Button>
-                            <IconButton
-                              size="small"
-                              aria-label="Delete saved game"
-                              onClick={() => handleDeleteSavedGame(g.id)}
-                              sx={{
-                                color: "rgba(255,255,255,0.5)",
-                                transition: "all 180ms ease",
-                                "&:hover": { color: "#fca5a5", bgcolor: "rgba(239,68,68,0.12)" },
-                              }}
-                            >
-                              <DeleteOutlineIcon sx={{ fontSize: 18 }} />
-                            </IconButton>
-                          </Box>
                         </Box>
-                      </Grid>
+
+                        <Button
+                          size="small"
+                          onClick={() =>
+                            router.push(`/analysis?gameId=${g.id}`)
+                          }
+                          sx={{
+                            textTransform: "none",
+                            fontSize: "0.76rem",
+                            fontWeight: 600,
+                            borderRadius: "0.6rem",
+                            px: 1.25,
+                            color: "#FB923C",
+                            border: "1px solid rgba(249,115,22,0.32)",
+                            background: "rgba(249,115,22,0.06)",
+                            "&:hover": {
+                              background: "rgba(249,115,22,0.14)",
+                              borderColor: "rgba(249,115,22,0.5)",
+                            },
+                          }}
+                        >
+                          Open
+                        </Button>
+
+                        <IconButton
+                          size="small"
+                          aria-label="Delete saved game"
+                          onClick={() => handleDeleteSavedGame(g.id)}
+                          sx={{
+                            color: "rgba(255,255,255,0.35)",
+                            "&:hover": {
+                              color: "#FCA5A5",
+                              background: "rgba(239,68,68,0.1)",
+                            },
+                          }}
+                        >
+                          <DeleteOutlineIcon sx={{ fontSize: 17 }} />
+                        </IconButton>
+                      </Box>
                     );
                   })}
-                </Grid>
+                </Box>
               )}
-            </Paper>
-          )}
-          {!user && !authLoading && (
-            <Paper
-              sx={{
-                p: 2.5,
-                mb: 3,
-                textAlign: "center",
-                borderRadius: "1.5rem",
-                background: "rgba(20,22,28,0.55)",
-                backdropFilter: "blur(14px) saturate(140%)",
-                WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow:
-                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-                overflow: "hidden",
-              }}
-            >
-              <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.9)", mb: 1 }}>
-                Sign in to save analyzed games and their coach conversations.
-              </Typography>
-              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
-                Each save persists the PGN, Stockfish eval, and the full chat — so you can pick up where you left off on any device.
-              </Typography>
-            </Paper>
+            </PanelCard>
           )}
 
-          {/* Quick Actions */}
-          <Paper
+          {!user && !authLoading && (
+            <PanelCard>
+              <Typography
+                sx={{
+                  fontSize: "0.85rem",
+                  color: "rgba(255,255,255,0.8)",
+                  mb: 0.5,
+                }}
+              >
+                Sign in to sync this dashboard across devices.
+              </Typography>
+              <Typography
+                sx={{ fontSize: "0.76rem", color: "rgba(255,255,255,0.45)" }}
+              >
+                Your puzzle history is saved locally on this device either way.
+                Signing in also lets us pull your chess.com and Lichess games in
+                automatically.
+              </Typography>
+            </PanelCard>
+          )}
+
+          {/* Personalisation — moved to the bottom. It configures the coach
+              rather than reporting performance, so it should not be the first
+              thing between the user and their numbers. */}
+          {user && (
+            <PanelCard>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  flexWrap: "wrap",
+                }}
+              >
+                <AutoAwesomeIcon sx={{ color: "#FB923C", fontSize: 20 }} />
+                <Box sx={{ flex: 1, minWidth: 220 }}>
+                  <Typography
+                    sx={{
+                      fontSize: "0.9rem",
+                      fontWeight: 700,
+                      color: "rgba(255,255,255,0.9)",
+                    }}
+                  >
+                    {personalized
+                      ? "Your coaching profile"
+                      : "Personalize your coaching"}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.78rem",
+                      color: "rgba(255,255,255,0.45)",
+                      mt: 0.25,
+                    }}
+                  >
+                    {personalized
+                      ? "Your coach is tuned to your level, goals, and focus areas."
+                      : "A 2-minute quiz tunes your analysis, puzzles, and training plan."}
+                  </Typography>
+                  {personalized && !!account?.focusThemes?.length && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 0.6,
+                        mt: 1,
+                      }}
+                    >
+                      {account.focusThemes.slice(0, 6).map((t) => (
+                        <Chip
+                          key={t}
+                          size="small"
+                          label={
+                            FOCUS_THEME_LABELS[
+                              t as keyof typeof FOCUS_THEME_LABELS
+                            ] ?? t
+                          }
+                          sx={{
+                            height: 22,
+                            bgcolor: "rgba(249,115,22,0.12)",
+                            color: "#FDBA74",
+                            fontSize: "0.7rem",
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+                {/* No retake affordance. The quiz is one-time — /onboarding
+                    redirects a completed user straight to /plan — so a
+                    "Retake quiz" button would be a dead end. Carried over
+                    from the behaviour main settled on in #290. */}
+                {!personalized && (
+                  <Button
+                    onClick={() => router.push("/onboarding")}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 600,
+                      fontSize: "0.8rem",
+                      borderRadius: "0.6rem",
+                      px: 2,
+                      whiteSpace: "nowrap",
+                      color: "#FB923C",
+                      border: "1px solid rgba(249,115,22,0.4)",
+                      "&:hover": { background: "rgba(249,115,22,0.1)" },
+                    }}
+                  >
+                    Start quiz
+                  </Button>
+                )}
+              </Box>
+            </PanelCard>
+          )}
+
+          {/* Quick actions, as quiet links rather than four heavy buttons. */}
+          <Box
             sx={{
-              p: 2.5,
-              borderRadius: "1.5rem",
-              background: "rgba(20,22,28,0.55)",
-              backdropFilter: "blur(14px) saturate(140%)",
-              WebkitBackdropFilter: "blur(14px) saturate(140%)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              boxShadow:
-                "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-              overflow: "hidden",
+              display: "flex",
+              gap: 2.5,
+              flexWrap: "wrap",
+              justifyContent: "center",
+              pt: 0.5,
             }}
           >
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "grey.100", mb: 2 }}>
-              Quick Actions
-            </Typography>
-            <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+            {[
+              { label: "Train puzzles", href: "/puzzles" },
+              { label: "Puzzle sessions", href: "/puzzles/sessions" },
+              { label: "Today's plan", href: "/plan" },
+              { label: "Analyse a game", href: "/analysis" },
+            ].map((a) => (
               <Button
-                variant="outlined"
-                startIcon={<ExtensionIcon />}
-                onClick={() => router.push("/practice")}
+                key={a.href}
+                onClick={() => router.push(a.href)}
                 sx={{
                   textTransform: "none",
-                  borderRadius: "12px",
-                  color: "#FB923C",
-                  borderColor: "rgba(249,115,22,0.4)",
-                  transition: "all 180ms ease",
-                  "&:hover": {
-                    borderColor: "rgba(249,115,22,0.6)",
-                    bgcolor: "rgba(249,115,22,0.08)",
-                  },
+                  fontSize: "0.8rem",
+                  color: "rgba(255,255,255,0.45)",
+                  minWidth: 0,
+                  "&:hover": { color: "#FB923C", background: "transparent" },
                 }}
               >
-                Practice Puzzles
+                {a.label}
               </Button>
-              <Button
-                variant="outlined"
-                startIcon={<HistoryIcon />}
-                onClick={() => router.push("/puzzles/sessions")}
-                sx={{
-                  textTransform: "none",
-                  borderRadius: "12px",
-                  color: "#FB923C",
-                  borderColor: "rgba(249,115,22,0.4)",
-                  transition: "all 180ms ease",
-                  "&:hover": {
-                    borderColor: "rgba(249,115,22,0.6)",
-                    bgcolor: "rgba(249,115,22,0.08)",
-                  },
-                }}
-              >
-                Puzzle Sessions
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<MenuBookIcon />}
-                onClick={() => router.push("/openings")}
-                sx={{
-                  textTransform: "none",
-                  borderRadius: "12px",
-                  color: "#FB923C",
-                  borderColor: "rgba(249,115,22,0.4)",
-                  transition: "all 180ms ease",
-                  "&:hover": {
-                    borderColor: "rgba(249,115,22,0.6)",
-                    bgcolor: "rgba(249,115,22,0.08)",
-                  },
-                }}
-              >
-                Drill Openings
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<SchoolIcon />}
-                onClick={() => router.push("/analysis")}
-                sx={{
-                  textTransform: "none",
-                  borderRadius: "12px",
-                  color: "#FB923C",
-                  borderColor: "rgba(249,115,22,0.4)",
-                  transition: "all 180ms ease",
-                  "&:hover": {
-                    borderColor: "rgba(249,115,22,0.6)",
-                    bgcolor: "rgba(249,115,22,0.08)",
-                  },
-                }}
-              >
-                Analyze a Game
-              </Button>
-            </Box>
-          </Paper>
+            ))}
+          </Box>
         </Box>
       </Box>
+
+      <ProfileDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        initialTab="chess"
+      />
     </ThemeProvider>
   );
 }

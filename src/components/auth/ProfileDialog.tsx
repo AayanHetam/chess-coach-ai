@@ -28,12 +28,18 @@ import type {
   PieceSet,
 } from "@/lib/firestoreUsers";
 
+type TabKey = "account" | "chess" | "coaching" | "appearance";
+
 interface ProfileDialogProps {
   open: boolean;
   onClose: () => void;
+  /**
+   * Tab to land on. Defaults to "account". /profile's "Add your username" CTA
+   * passes "chess" so the user arrives at the field they were sent for rather
+   * than having to find it.
+   */
+  initialTab?: TabKey;
 }
-
-type TabKey = "account" | "chess" | "coaching" | "appearance";
 
 const COACH_TONES: { value: CoachTone; label: string; hint: string }[] = [
   { value: "friendly", label: "Friendly", hint: "Warm, encouraging coach voice." },
@@ -66,9 +72,13 @@ const PIECE_SETS: { value: PieceSet; label: string }[] = [
   { value: "alpha", label: "Alpha" },
 ];
 
-export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
+export default function ProfileDialog({
+  open,
+  onClose,
+  initialTab = "account",
+}: ProfileDialogProps) {
   const { user, profile, updateProfile } = useAuth();
-  const [tab, setTab] = useState<TabKey>("account");
+  const [tab, setTab] = useState<TabKey>(initialTab);
 
   // Per-tab dirty state. Each tab saves independently.
   const [account, setAccount] = useState({ displayName: "", bio: "" });
@@ -98,6 +108,13 @@ export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
   const [saving, setSaving] = useState(false);
   const [savedTab, setSavedTab] = useState<TabKey | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Re-seed the tab each time the dialog opens. Without this, a dialog kept
+  // mounted (as /profile does) would remember the tab the user last browsed to
+  // and ignore the `initialTab` the CTA asked for.
+  useEffect(() => {
+    if (open) setTab(initialTab);
+  }, [open, initialTab]);
 
   // Hydrate forms from profile when it loads / changes.
   useEffect(() => {

@@ -28,8 +28,14 @@ export type StepId =
 
 export type QuizPhase = "questions" | "result";
 
-/** The ordered, branch-resolved step list for the current answers. */
-function resolveSteps(answers: QuizAnswers): StepId[] {
+/**
+ * The ordered, branch-resolved step list for the current answers.
+ *
+ * Exported so the branch and CTA rules can be unit-tested as plain functions —
+ * the alternative was pulling in a React-hook testing library purely to observe
+ * them, which is a dependency this repo does not need.
+ */
+export function resolveSteps(answers: QuizAnswers): StepId[] {
   const steps: StepId[] = ["play-style"];
   if (!answers.playStyle) return steps;
   if (usesPlatformPath(answers.playStyle)) {
@@ -52,7 +58,21 @@ export function isUsernameValid(u: string | undefined): boolean {
   return typeof u === "string" && USERNAME_RE.test(u.trim());
 }
 
-function canAdvanceStep(step: StepId, a: QuizAnswers): boolean {
+/**
+ * Whether `stepIndex` is genuinely the final question.
+ *
+ * Before a play style is picked the branch is unresolved, so `resolveSteps` can
+ * only return the one step it knows about — which made step 1 look like the
+ * last step and rendered the CTA as "See my results" on the very first screen
+ * of the acquisition funnel. The branch must be resolved before "last" means
+ * anything.
+ */
+export function isLastStep(answers: QuizAnswers, stepIndex: number): boolean {
+  if (!answers.playStyle) return false;
+  return stepIndex === resolveSteps(answers).length - 1;
+}
+
+export function canAdvanceStep(step: StepId, a: QuizAnswers): boolean {
   switch (step) {
     case "play-style":
       return !!a.playStyle;
@@ -146,7 +166,7 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
   const steps = useMemo(() => resolveSteps(answers), [answers]);
   const currentStep = phase === "result" ? null : (steps[stepIndex] ?? null);
   const canAdvance = currentStep ? canAdvanceStep(currentStep, answers) : true;
-  const isLastQuestion = stepIndex === steps.length - 1;
+  const isLastQuestion = isLastStep(answers, stepIndex);
   const isFirstStep = stepIndex === 0 && phase === "questions";
 
   // Progress: estimate the denominator before the branch is known (online path

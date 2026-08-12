@@ -15,18 +15,21 @@ import { memo } from "react";
  * fill colour rather than by glyph, which is legible on any surface.
  */
 
-export type Glyph = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
+import {
+  GLYPH,
+  LIGHT_SQ,
+  DARK_SQ,
+  WHITE_PIECE,
+  BLACK_PIECE,
+  EMBER,
+  DANGER,
+  QUIET,
+  type Glyph,
+} from "./diagramTokens";
+
+export type { Glyph };
 export type Side = "w" | "b";
 export type Square = readonly [number, number]; // [col, row], 0-indexed from top-left
-
-const GLYPH: Record<Glyph, string> = {
-  king: "♚",
-  queen: "♛",
-  rook: "♜",
-  bishop: "♝",
-  knight: "♞",
-  pawn: "♟",
-};
 
 export interface DiagramPiece {
   at: Square;
@@ -54,14 +57,6 @@ export interface DiagramSpec {
   arrows?: DiagramArrow[];
   marks?: DiagramMark[];
 }
-
-const LIGHT_SQ = "rgba(255,255,255,0.13)";
-const DARK_SQ = "rgba(255,255,255,0.045)";
-const WHITE_PIECE = "#F4F4F1";
-const BLACK_PIECE = "#98A2B3";
-const EMBER = "#F97316";
-const DANGER = "#F87171";
-const QUIET = "rgba(255,255,255,0.35)";
 
 interface TacticDiagramProps {
   spec: DiagramSpec;

@@ -15,8 +15,6 @@ import { test, expect, type Page } from "@playwright/test";
  * hand-written SSE, which is also how truncation is simulated.
  */
 
-/** Text a human wrote into SEED_MESSAGES, including invented eval numbers. */
-const SEEDED_FABRICATION = "Kasparov calculated 15+ ply";
 const CORRECTED = "CORRECTED-ANALYSIS-SENTINEL: the knight was defended.";
 const RAW_STREAMED = "RAW-STREAMED-SENTINEL: the knight hangs.";
 
@@ -43,11 +41,20 @@ function sse(events: string[]) {
 }
 
 test.describe("Group D — what the coach is told it previously said", () => {
-  test("the seeded demo fabrication never reaches the model", async ({ page }) => {
-    // /analysis shows the Kasparov demo on arrival with SEED_MESSAGES already
-    // in state, so this is the DEFAULT first-time-visitor path: ask anything
-    // before loading your own PGN and the request used to carry a human's
-    // invented evals as the model's own prior analysis.
+  test("the cold-start greeting never reaches the model", async ({ page }) => {
+    // /analysis opens on an empty board with one UI-authored coach greeting
+    // in state. This is the DEFAULT first-time-visitor path: ask anything
+    // before loading a PGN and the request must not carry that greeting as
+    // the model's own prior turn.
+    //
+    // The far worse version of this — a three-turn seeded exchange about a
+    // Kasparov demo game, with hand-written eval numbers ("+2.4 to +4.7",
+    // "Kasparov calculated 15+ ply") replayed as the model's own analysis —
+    // is gone with the demo itself. Both sentinels are asserted: the live
+    // greeting, and the retired fabrication, so a revert of either the demo
+    // or the `synthetic` flag fails here.
+    const GREETING = "Board's empty";
+    const RETIRED_FABRICATION = "Kasparov calculated 15+ ply";
     const bodies: Array<Record<string, unknown>> = [];
     await page.route("**/api/enhanced-analysis", async (route) => {
       bodies.push(JSON.parse(route.request().postData() ?? "{}"));
@@ -61,16 +68,25 @@ test.describe("Group D — what the coach is told it previously said", () => {
     const { composer, ok } = await openAnalysis(page);
     test.skip(!ok, "composer never unlocked — unit tests cover the builder");
 
-    await composer.fill("what happened in this game?");
+    // Control: the greeting really is on screen, so "absent from history"
+    // below means "filtered", not "was never rendered in the first place".
+    await expect(page.getByText(GREETING, { exact: false }).first()).toBeVisible(
+      { timeout: 15_000 }
+    );
+
+    await composer.fill("what can you tell me?");
     await composer.press("Enter");
     await expect.poll(() => bodies.length, { timeout: 30_000 }).toBe(1);
 
     const history = JSON.stringify(bodies[0].conversationHistory ?? []);
     expect(
       history,
-      "the model was handed a human's invented eval numbers as its own prior analysis"
-    ).not.toContain(SEEDED_FABRICATION);
-    expect(history).not.toContain("24.Rxd4 considered brilliant");
+      "the UI's own greeting was replayed to the model as something it said"
+    ).not.toContain(GREETING);
+    expect(
+      history,
+      "the retired demo seed is back and carrying invented eval numbers"
+    ).not.toContain(RETIRED_FABRICATION);
   });
 
   test("a corrected answer replaces the raw one in what gets replayed", async ({

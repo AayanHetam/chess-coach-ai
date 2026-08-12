@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cachedProbe } from "@/lib/health/probeCache";
 
 /**
  * Anthropic health check / connectivity diagnostic.
@@ -21,6 +22,86 @@ export const dynamic = "force-dynamic";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const ANTHROPIC_BASE_URL =
   process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com";
+
+/**
+ * The billed half of this endpoint, split out so it can be cached.
+ *
+ * Returns the probe verdict only — `diagnostics` is env-derived, free, and
+ * per-request, so it is merged in at response time rather than frozen into the
+ * cache alongside a result that may be a minute old.
+ */
+async function probeAnthropic(): Promise<{
+  status: number;
+  body: Record<string, unknown>;
+}> {
+  const startedAt = Date.now();
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+
+    const response = await fetch(`${ANTHROPIC_BASE_URL}/v1/messages`, {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY as string,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        messages: [{ role: "user", content: "ping" }],
+        max_tokens: 5,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    const elapsedMs = Date.now() - startedAt;
+    const bodyText = await response.text().catch(() => "");
+
+    if (!response.ok) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(bodyText);
+      } catch {
+        parsed = bodyText.slice(0, 200);
+      }
+      return {
+        status: 502,
+        body: {
+          ok: false,
+          stage: "anthropic_error",
+          status: response.status,
+          elapsedMs,
+          anthropicResponse: parsed,
+        },
+      };
+    }
+
+    const data = JSON.parse(bodyText);
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        stage: "live",
+        elapsedMs,
+        model: data.model,
+        inputTokens: data.usage?.input_tokens,
+        outputTokens: data.usage?.output_tokens,
+        sampleOutput: data.content?.[0]?.text ?? null,
+      },
+    };
+  } catch (error) {
+    return {
+      status: 502,
+      body: {
+        ok: false,
+        stage: "network_error",
+        elapsedMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+}
 
 export async function GET() {
   const diagnostics: Record<string, unknown> = {
@@ -55,71 +136,19 @@ export async function GET() {
     );
   }
 
-  const startedAt = Date.now();
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
+  // Cached because this endpoint is UNAUTHENTICATED and every call bills a
+  // real Anthropic request — anyone who finds the URL could loop it. A cache
+  // rather than a secret header keeps the external uptime monitor working with
+  // no configuration change. See lib/health/probeCache.ts.
+  const probed = await cachedProbe("health:anthropic", probeAnthropic);
 
-    const response = await fetch(`${ANTHROPIC_BASE_URL}/v1/messages`, {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        messages: [{ role: "user", content: "ping" }],
-        max_tokens: 5,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-
-    const elapsedMs = Date.now() - startedAt;
-    const bodyText = await response.text().catch(() => "");
-
-    if (!response.ok) {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(bodyText);
-      } catch {
-        parsed = bodyText.slice(0, 200);
-      }
-      return NextResponse.json(
-        {
-          ok: false,
-          stage: "anthropic_error",
-          status: response.status,
-          elapsedMs,
-          anthropicResponse: parsed,
-          diagnostics,
-        },
-        { status: 502 }
-      );
-    }
-
-    const data = JSON.parse(bodyText);
-    return NextResponse.json({
-      ok: true,
-      stage: "live",
-      elapsedMs,
-      model: data.model,
-      inputTokens: data.usage?.input_tokens,
-      outputTokens: data.usage?.output_tokens,
-      sampleOutput: data.content?.[0]?.text ?? null,
+  return NextResponse.json(
+    {
+      ...probed.value.body,
+      // So a human debugging an outage is never shown a stale verdict as live.
+      probeCache: { cached: probed.cached, ageMs: probed.ageMs },
       diagnostics,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        ok: false,
-        stage: "network_error",
-        elapsedMs: Date.now() - startedAt,
-        error: error instanceof Error ? error.message : String(error),
-        diagnostics,
-      },
-      { status: 502 }
-    );
-  }
+    },
+    { status: probed.value.status }
+  );
 }

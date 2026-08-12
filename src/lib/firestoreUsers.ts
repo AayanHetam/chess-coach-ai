@@ -35,6 +35,13 @@ export interface UserProfile {
   // Onboarding-quiz output (see StoredUser in lib/server/users.ts). Both flow
   // through UserProfileUpdates automatically since they aren't in the Omit.
   focusThemes?: string[];
+  /** Normalized platform rating used for coach calibration (see rating/platformRatings.ts). */
+  platformRating?: number;
+  /** The platform's own number — what we show the user. */
+  platformRatingRaw?: number;
+  platformRatingSource?: "lichess" | "chesscom";
+  platformRatingPerf?: string;
+  platformRatingFetchedAt?: number;
   dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
   onboardingCompletedAt?: number;
 

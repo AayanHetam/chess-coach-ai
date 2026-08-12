@@ -117,6 +117,16 @@ export const profilePatchSchema = z.object({
   liveRatingSnapshot: z.number().int().min(0).max(3500).optional(),
   liveRatingSnapshotAt: z.number().int().min(0).optional(),
 
+  // Rating pulled from the user's linked Lichess / Chess.com account. Written
+  // only by /api/ratings/lookup, which derives them server-side from the
+  // platform APIs — a client PATCH carrying these is accepted but pointless,
+  // since the next lookup overwrites them from the source of truth.
+  platformRating: z.number().int().min(0).max(3500).optional(),
+  platformRatingRaw: z.number().int().min(0).max(3500).optional(),
+  platformRatingSource: z.enum(["lichess", "chesscom"]).optional(),
+  platformRatingPerf: z.enum(["bullet", "blitz", "rapid", "classical"]).optional(),
+  platformRatingFetchedAt: z.number().int().min(0).optional(),
+
   // User-set learning goals (target rating is a self-chosen aspiration only).
   goals: z
     .object({

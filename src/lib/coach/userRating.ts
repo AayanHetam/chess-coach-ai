@@ -21,6 +21,15 @@ export interface RatingBearingProfile {
   liveRatingSnapshot?: number;
   /** Result of the placement test. */
   measuredRating?: number;
+  /**
+   * Highest established rating from the user's linked Lichess / Chess.com
+   * account, normalized onto the common calibration scale
+   * (src/lib/rating/platformRatings.ts). Ranked above `selfReportedRating`
+   * because it is measured over hundreds of real games rather than guessed,
+   * and below the two in-product signals because those track what the user is
+   * doing HERE, now.
+   */
+  platformRating?: number;
   /** What the user told us at onboarding. */
   selfReportedRating?: number;
 }
@@ -57,6 +66,7 @@ export function resolveUserRating(
   const candidates = [
     profile.liveRatingSnapshot,
     profile.measuredRating,
+    profile.platformRating,
     profile.selfReportedRating,
   ];
   return candidates.find(isPlausibleRating);

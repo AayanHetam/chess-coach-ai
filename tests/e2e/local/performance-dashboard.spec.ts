@@ -129,11 +129,30 @@ test("Analyze now hands the real game to /analysis", async ({ page }) => {
   }, PGN);
   await page.goto("/analysis?handoff=1");
 
-  await expect(page.getByText("Aayan").first()).toBeVisible({ timeout: 30000 });
-  // Anchored on the header's "Opening ·" prefix: a bare /Ruy Lopez/ also
-  // matches the coach's suggested-prompt chip, which is present regardless of
-  // whether a game loaded and would make this assertion meaningless.
-  await expect(page.getByText(/Opening · Ruy Lopez/)).toBeVisible();
+  // The players come from the PGN headers, so naming them proves the handoff
+  // payload was parsed rather than the page merely rendering.
+  //
+  // `.first()` is wrong here: the first match is the nav bar's game-identity
+  // slot, which is display:none on a phone (the pill has room for the burger,
+  // Load game and Sign in, and nothing else). Asserting the FIRST match is
+  // visible therefore failed on local-mobile-light while passing on desktop.
+  // What the spec means is "some surface names the players" — on desktop the
+  // nav bar, on a phone the coach's greeting.
+  await expect(
+    page.getByText("Aayan vs Rival").filter({ visible: true }).first()
+  ).toBeVisible({ timeout: 30000 });
+  // ...and the empty-board state is gone.
+  await expect(page.getByText("No game loaded")).toHaveCount(0);
+
+  // Opening detection. This used to anchor on the header's "Opening ·" prefix
+  // because a bare /Ruy Lopez/ also matched the coach's suggested-prompt chip,
+  // which was present whether or not a game had loaded. That is no longer
+  // true: with the demo game gone, an empty board offers only load-oriented
+  // prompts, so an opening-named chip is itself proof that a real game parsed
+  // AND that its opening was recognised. The header's own opening label
+  // renders only at xl, so the chip is also the one anchor visible to both the
+  // desktop and mobile projects.
+  await expect(page.getByText(/Tell me about the Ruy Lopez/)).toBeVisible();
 
   // The flag is dropped and the payload consumed, so a refresh cannot reload
   // a game the user has already moved past.

@@ -111,8 +111,14 @@ export interface MasterCandidate {
   source?: MasterSource;
 }
 
-// Hardcoded fallback for the Pirc/Kasparov demo when the Lichess API is
-// unreachable. Keyed by ply so we can still demo offline.
+// Offline fallback for when the Lichess masters API is unreachable, keyed by
+// ply. Only ply 0 is here: the start position is the same in every game, so
+// these five first moves are true no matter what is loaded.
+//
+// The ply-1 entry (e5/c5/e6/c6/d6) was removed alongside the /analysis demo
+// game. It is Black's reply set after 1.e4, and it was correct only because
+// the demo opened 1.e4 — on any d4/Nf3/c4 game it listed replies to a move
+// that was never played, as master statistics.
 const HARDCODED_FALLBACK_BY_PLY: Record<number, MasterCandidate[]> = {
   0: [
     { san: "e4", uci: "e2e4", count: 8400000, topPlayer: TOP_PLAYERS.carlsen },
@@ -120,13 +126,6 @@ const HARDCODED_FALLBACK_BY_PLY: Record<number, MasterCandidate[]> = {
     { san: "Nf3", uci: "g1f3", count: 2300000, topPlayer: TOP_PLAYERS.nakamura },
     { san: "c4", uci: "c2c4", count: 1700000, topPlayer: TOP_PLAYERS.giri },
     { san: "g3", uci: "g2g3", count: 240000 },
-  ],
-  1: [
-    { san: "e5", uci: "e7e5", count: 2800000, topPlayer: TOP_PLAYERS.carlsen },
-    { san: "c5", uci: "c7c5", count: 2400000, topPlayer: TOP_PLAYERS.nepo },
-    { san: "e6", uci: "e7e6", count: 890000 },
-    { san: "c6", uci: "c7c6", count: 540000 },
-    { san: "d6", uci: "d7d6", count: 420000, topPlayer: TOP_PLAYERS.topalov },
   ],
 };
 
@@ -549,7 +548,7 @@ export function MasterGamesTakeover({
   }, [fen]);
 
   // Build the candidate list. Use API data if available, fall back to
-  // hardcoded for the Pirc demo positions, otherwise empty (out of book).
+  // hardcoded for the start position, otherwise empty (out of book).
   const candidates = useMemo<MasterCandidate[]>(() => {
     if (apiData) return buildCandidatesFromApi(apiData, fen);
     return HARDCODED_FALLBACK_BY_PLY[ply] ?? [];

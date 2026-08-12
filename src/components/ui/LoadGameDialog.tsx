@@ -432,7 +432,7 @@ function PastePgnTab({ onLoad }: { onLoad: (game: Chess) => void }) {
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Saved games tab — Firestore/IndexedDB-backed via useGameDatabase. Surfaces
-// every game the user has saved via the GameHeader "Save game" button (G4
+// every game the user has saved via the nav bar's "Save" button (G4
 // in the cutover-gaps PR). Smoke test on 2026-05-29 found the data path
 // worked but no UI consumed it; this tab is the missing surface.
 // ───────────────────────────────────────────────────────────────────────────────
@@ -509,8 +509,8 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
           >
             Save game
           </Box>{" "}
-          in the analysis header — Kasparov-Topalov 1999 is loaded by
-          default if you just want to try it.
+          in the analysis header once you&apos;ve loaded a game, and it&apos;ll
+          show up here.
         </Typography>
       </Stack>
     );

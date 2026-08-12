@@ -26,6 +26,7 @@ import { RecentGamesCard } from "@/components/performance/RecentGamesCard";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
+import { describeSavedGamesList } from "@/lib/performance/savedGamesList";
 
 /**
  * /profile — the performance dashboard.
@@ -50,6 +51,7 @@ export default function Profile() {
   const { user, profile: account, loading: authLoading } = useAuth();
   const { games: savedGames, deleteGame } = useGameDatabase(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showAllSaved, setShowAllSaved] = useState(false);
 
   const personalized = !!account?.onboardingCompletedAt;
 
@@ -82,6 +84,19 @@ export default function Profile() {
       }),
     [savedGames]
   );
+
+  // Only the 10 most recent get a row. A heavy user had every saved game
+  // rendered, each with its own Open button — a wall of near-identical
+  // controls that buried the performance panels below it.
+  //
+  // The rest stay reachable behind one toggle rather than being dropped:
+  // saved games carry the coach transcript, and silently making an old
+  // conversation unreachable is data loss the user never agreed to.
+  const savedList = describeSavedGamesList(
+    sortedSavedGames.length,
+    showAllSaved
+  );
+  const visibleSavedGames = sortedSavedGames.slice(0, savedList.visibleCount);
 
   return (
     <ThemeProvider theme={chessMastiDarkTheme}>
@@ -152,11 +167,7 @@ export default function Profile() {
           {user && (
             <PanelCard
               title="Saved analyses"
-              subtitle={
-                sortedSavedGames.length > 0
-                  ? `${sortedSavedGames.length} saved game${sortedSavedGames.length === 1 ? "" : "s"}, coach conversations included`
-                  : undefined
-              }
+              subtitle={savedList.subtitle}
               action={
                 <Button
                   size="small"
@@ -195,7 +206,7 @@ export default function Profile() {
                 </Box>
               ) : (
                 <Box sx={{ mx: -1.25 }}>
-                  {sortedSavedGames.map((g) => {
+                  {visibleSavedGames.map((g) => {
                     const transcript = (
                       g as typeof g & {
                         coachTranscript?: Array<{
@@ -333,6 +344,28 @@ export default function Profile() {
                       </Box>
                     );
                   })}
+
+                  {savedList.toggleLabel && (
+                    <Box sx={{ px: 1.25, pt: 1 }}>
+                      <Button
+                        size="small"
+                        onClick={() => setShowAllSaved((v) => !v)}
+                        sx={{
+                          textTransform: "none",
+                          fontSize: "0.76rem",
+                          color: "rgba(255,255,255,0.45)",
+                          px: 0,
+                          minWidth: 0,
+                          "&:hover": {
+                            color: "#FB923C",
+                            background: "transparent",
+                          },
+                        }}
+                      >
+                        {savedList.toggleLabel}
+                      </Button>
+                    </Box>
+                  )}
                 </Box>
               )}
             </PanelCard>

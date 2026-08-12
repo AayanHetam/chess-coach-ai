@@ -184,3 +184,69 @@ test.describe("Group D — what the coach is told it previously said", () => {
     ).not.toContain(FRAGMENT);
   });
 });
+
+test.describe("T5 — a pipeline-timeout non-answer is not passed off as an answer", () => {
+  test("the timeout placeholder is marked partial and kept out of history", async ({
+    page,
+  }) => {
+    // The server already reports `pipeline.timedOut`; the client just never
+    // read it. So "Still analyzing — the deep-validation pass took longer than
+    // expected" rendered IDENTICALLY to a real analysis and was replayed to
+    // the model as its own prior answer.
+    const PLACEHOLDER =
+      "Still analyzing — the deep-validation pass took longer than expected.";
+    const secondTurnBodies: Array<Record<string, unknown>> = [];
+    let deepCalls = 0;
+    await page.route("**/api/enhanced-analysis", async (route) => {
+      deepCalls += 1;
+      if (deepCalls > 1) {
+        secondTurnBodies.push(JSON.parse(route.request().postData() ?? "{}"));
+      }
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+        body: sse([
+          JSON.stringify({ type: "text", delta: PLACEHOLDER }),
+          JSON.stringify({
+            type: "done",
+            metadata: { contextId: "e2e-ctx-t5", pipeline: { timedOut: true } },
+          }),
+        ]),
+      });
+    });
+    await page.route("**/api/chat", async (route) => {
+      secondTurnBodies.push(JSON.parse(route.request().postData() ?? "{}"));
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: "ok" }),
+      });
+    });
+
+    const { composer, ok } = await openAnalysis(page);
+    test.skip(!ok, "composer never unlocked — unit tests cover the builder");
+
+    await composer.fill("analyse this game");
+    await composer.press("Enter");
+    await expect(page.getByText(PLACEHOLDER)).toBeVisible({ timeout: 30_000 });
+
+    // The reader must be told this is not a finished answer.
+    await expect(page.getByText(/cut off before it finished/i)).toBeVisible({
+      timeout: 10_000,
+    });
+
+    await composer.fill("and then?");
+    await composer.press("Enter");
+    await expect
+      .poll(() => secondTurnBodies.length, { timeout: 30_000 })
+      .toBeGreaterThan(0);
+
+    const history = JSON.stringify(
+      secondTurnBodies[0].conversationHistory ?? []
+    );
+    expect(
+      history,
+      "a non-answer was replayed to the model as its own prior analysis"
+    ).not.toContain("Still analyzing");
+  });
+});

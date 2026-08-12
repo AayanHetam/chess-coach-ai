@@ -14,6 +14,7 @@ import { Chess } from "chess.js";
 import { detectOpening } from "@/lib/unifiedOpeningDetector";
 import { logger } from "@/lib/logging";
 import type { MastermindGameEval } from "./mastermind/routeHelpers";
+import type { CompactContract } from "./contract/followUp";
 
 const log = logger.child({ module: "analysis-context-cache" });
 
@@ -58,6 +59,20 @@ export interface AnalysisContext {
   // emits a no_stockfish_eval telemetry event rather than firing false-positive
   // eval_mismatch_* events.
   gameEval?: MastermindGameEval;
+  /**
+   * PR-CI-6a: the trimmed fact contract behind the review the user is looking
+   * at, so `/api/chat` follow-ups are grounded in the SAME facts the refereed
+   * first turn was built from (engine lines, licensed tactical vocabulary,
+   * forbidden claim classes) instead of only the PGN + eval list.
+   *
+   * Set ONLY on the contract-mode serving path. A legacy-served review must
+   * leave this undefined: grounding a follow-up in a contract whose prose the
+   * user never saw would have the model referring to cards that do not exist.
+   *
+   * Trimmed at store time (see toCompactContract) — the full CoachContract is
+   * far too large to hold 50 of in a serverless instance's memory.
+   */
+  compactContract?: CompactContract;
 }
 
 const MAX_CACHE_SIZE = 50;

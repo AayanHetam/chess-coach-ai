@@ -91,6 +91,9 @@ import { CONTRACT_VERSION } from "@/lib/contract/types";
 // PR-CI-4: contract-mode enforced serving (verbalizer 4.0 + failure ladder).
 // Dead code until CONTRACT_CATEGORIES lists a category.
 import { serveContractAnalysis } from "@/lib/contract/contractServing";
+// PR-CI-6a: the trimmed contract rides into AnalysisContext so /api/chat
+// follow-ups are grounded in the same facts the refereed first turn used.
+import { toCompactContract } from "@/lib/contract/followUp";
 import {
   contractServingDecision,
   isContractServingConfigured,
@@ -963,6 +966,15 @@ export async function POST(request: NextRequest) {
                 createdAt: Date.now(),
                 initialAnalysis: serving.analysisContent,
                 gameEval,
+                // PR-CI-6a. Set on THIS path only: the user read refereed,
+                // contract-bound prose, so follow-ups may be grounded in the
+                // same contract. `summary` is null on a cache-hit serve — pass
+                // null (unknown), never [] (which would assert every insight
+                // was unseen).
+                compactContract: toCompactContract(
+                  contractForShadowReferee,
+                  serving.summary ? serving.summary.cards.map((c) => c.factIdPrefix) : null,
+                ),
               });
               let puzzleRecommendations: unknown = undefined;
               try {

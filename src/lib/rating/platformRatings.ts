@@ -22,9 +22,13 @@
  * be worse, because it would arrive wearing the authority of "fetched from your
  * account".
  *
- * So: a perf counts ONLY if it is non-provisional AND has real games behind it.
- * Everything else is discarded, and a user with no established rating resolves
- * to `undefined` — never to a number. Same contract as `resolveUserRating`.
+ * So: a perf counts only if it has real games behind it. Everything else is
+ * discarded, and a user with no established rating resolves to `undefined` —
+ * never to a number. Same contract as `resolveUserRating`.
+ *
+ * (Note that the games count, NOT Lichess's `prov` flag, is what decides this.
+ * See `parseLichessRatings` for why — filtering on `prov` silently discards
+ * real ratings belonging to players who have taken a break.)
  */
 
 export type Platform = "lichess" | "chesscom";
@@ -52,6 +56,14 @@ export interface PlatformRatings {
  * closer to the seed than to the player.
  */
 export const MIN_ESTABLISHED_GAMES = 10;
+
+/**
+ * How long a fetched rating is reused before a refresh re-reads the platform.
+ * Lives here rather than in the route because a Next App Router route file may
+ * only export its handlers plus a fixed set of config names — exporting this
+ * from there fails `next build` while passing `tsc` clean.
+ */
+export const RATING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Time controls we calibrate from. Variants (chess960, atomic, crazyhouse…)

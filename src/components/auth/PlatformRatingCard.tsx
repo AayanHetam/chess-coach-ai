@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Button, Chip, CircularProgress, Stack, Typography } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
+import { RATING_TTL_MS } from "@/lib/rating/platformRatings";
 
 /**
  * "We found your account" card for the Profile → Chess tab.
@@ -39,8 +40,7 @@ const PLATFORM_LABEL: Record<string, string> = {
   chesscom: "Chess.com",
 };
 
-/** Refresh in the background once the stored value is older than this. */
-const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+
 
 export default function PlatformRatingCard() {
   const { profile, refresh } = useAuth();
@@ -80,7 +80,7 @@ export default function PlatformRatingCard() {
   useEffect(() => {
     if (autoRanRef.current || !profile || !hasUsername) return;
     const age = Date.now() - (profile.platformRatingFetchedAt ?? 0);
-    if (profile.platformRating && age < STALE_AFTER_MS) return;
+    if (profile.platformRating && age < RATING_TTL_MS) return;
     autoRanRef.current = true;
     void lookup(false);
   }, [profile, hasUsername, lookup]);

@@ -19,13 +19,11 @@ import { getUserById, updateUser } from "@/lib/server/users";
 import { fetchRatingsFor } from "@/lib/rating/fetchPlatformRatings";
 import {
   selectCalibrationRating,
+  RATING_TTL_MS,
   type PlatformRatings,
 } from "@/lib/rating/platformRatings";
 
 export const runtime = "nodejs";
-
-/** A successful lookup is reusable for this long before a refresh re-fetches. */
-export const RATING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function POST(request: Request) {
   const guard = await requireSession();

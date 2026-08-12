@@ -83,7 +83,13 @@ import {
 import { maybeCreateShadowRefereeGate } from "@/lib/contract/shadowReferee";
 // CI-5: persist what the shadow referee WOULD have caught somewhere queryable.
 // Consent- and TRACKING_ENABLED-gated, fire-and-forget; see refereeOutcomes.ts.
-import { captureRefereeOutcome } from "@/lib/tracking/refereeOutcomes";
+// captureEnforcedRefereeOutcome (CI-6) is the enforced-serving path's own
+// writer — the shadow gate is never constructed once a category is armed, so
+// it cannot record what the referee caught on served traffic.
+import {
+  captureRefereeOutcome,
+  captureEnforcedRefereeOutcome,
+} from "@/lib/tracking/refereeOutcomes";
 import type { RefereeOutcomeContext } from "@/lib/tracking/refereeOutcomes";
 import { hasTrackingConsent } from "@/lib/tracking/consent";
 import { readAnonIdFromRequest } from "@/lib/tracking/anonId";
@@ -926,6 +932,24 @@ export async function POST(request: NextRequest) {
                   moveHistory,
                 },
               });
+              // CI-6: persist what the referee ACTUALLY caught on the served
+              // path. Arming CONTRACT_CATEGORIES routed traffic past the
+              // shadow gate below, which was the only referee_outcomes writer
+              // — so enforcement silently switched off its own measurement.
+              // `summary` is null on a cache-hit serve (nothing was refereed
+              // this request, so there is no outcome to record).
+              if (serving.summary) {
+                captureEnforcedRefereeOutcome({
+                  summary: serving.summary,
+                  contractId: contractForShadowReferee.contractId,
+                  correlationId: requestId,
+                  ctx: {
+                    ...refereeOutcomeBase,
+                    category: prep.category,
+                    model: serving.llmResult?.model ?? null,
+                  },
+                });
+              }
               if (serving.llmResult) {
                 console.log("coach.tokens", {
                   input: serving.llmResult.inputTokens,

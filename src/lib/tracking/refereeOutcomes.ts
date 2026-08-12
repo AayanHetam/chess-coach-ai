@@ -187,6 +187,14 @@ export interface EnforcedRefereeSummaryLike {
   warnsInitialTotal: number;
   unanchoredBlocks: number;
   sentinelCardsRefused: number;
+  /**
+   * How a ZERO-CARD review's overview resolved; null when the review had
+   * cards. Refereeing is per-card, so a card-less review is 100% out-of-block
+   * prose and gets its own referee pass (overviewReferee.ts).
+   */
+  overviewOutcome?: "pass" | "sentence_drop" | "templated" | null;
+  /** Contract-global violations found in that overview. */
+  overviewViolations?: number;
 }
 
 export interface EnforcedRefereeOutcomeInput {
@@ -237,6 +245,32 @@ export async function recordEnforcedRefereeOutcome(
       }
     }
 
+    // ── ZERO-CARD REVIEWS (found in the CI-6 consolidation battery) ─────────
+    // A card-less review is 100% out-of-block prose, so it gets its own
+    // referee pass (overviewReferee.ts). Recording only per-card findings made
+    // those catches invisible: a review whose overview had a sentence DELETED
+    // wrote armed_errors=0, spans=0 — byte-identical to a clean one — and
+    // `matched = 0` then excluded it from the headline's `matched > 0`
+    // denominator entirely. The metric we intend to retire the legacy path on
+    // was systematically undercounting.
+    //
+    // So the overview counts as ONE graded unit: it keeps `matched > 0`
+    // meaning "the referee actually graded something here", and its violations
+    // join the armed totals, because they ARE armed fires that resolved.
+    const overviewGraded = summary.overviewOutcome != null ? 1 : 0;
+    const overviewViolations = summary.overviewViolations ?? 0;
+    if (overviewGraded && spans.length < MAX_SPANS) {
+      spans.push({
+        check: "overview",
+        category: "contract_global",
+        span: null,
+        factIdPrefix: "overview",
+        stage: summary.overviewOutcome,
+        severity: overviewViolations > 0 ? "error" : "none",
+        armed: overviewViolations > 0,
+      });
+    }
+
     const supabase = await getTrackingSupabase();
     const { error } = await supabase.from("referee_outcomes").insert({
       uid: ctx.uid ?? null,
@@ -255,16 +289,16 @@ export async function recordEnforcedRefereeOutcome(
       arming_fingerprint: armingFingerprint(),
       app_version: ctx.appVersion ?? currentAppVersion(),
       // A card IS an anchored block; unanchored blocks were never graded.
-      blocks_seen: summary.cards.length + summary.unanchoredBlocks,
-      matched: summary.cards.length,
+      blocks_seen: summary.cards.length + summary.unanchoredBlocks + overviewGraded,
+      matched: summary.cards.length + overviewGraded,
       unmatched: summary.unanchoredBlocks,
       // Header malformation is resolved upstream by the block gate on this
       // path, so it is structurally zero rather than unmeasured.
       malformed_headers: 0,
-      referee_errors: summary.errorsInitialTotal,
+      referee_errors: summary.errorsInitialTotal + overviewViolations,
       referee_warns: summary.warnsInitialTotal,
       // Equal by construction on this path — see the header note.
-      armed_errors: summary.errorsInitialTotal,
+      armed_errors: summary.errorsInitialTotal + overviewViolations,
       armed_warns: summary.warnsInitialTotal,
       check_counts: checkCounts,
       category_counts: categoryCounts,

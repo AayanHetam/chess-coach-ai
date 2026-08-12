@@ -191,6 +191,82 @@ describe("recordEnforcedRefereeOutcome", () => {
   });
 });
 
+describe("zero-card reviews — the overview referee must be visible", () => {
+  // Found by the CI-6 consolidation battery: 08_quiet_positional produced no
+  // cards, its overview WAS refereed, and a sentence was DELETED — yet the row
+  // read armed_errors=0, spans=0, matched=0. Byte-identical to a clean review,
+  // and `matched > 0` then dropped it from the headline denominator. The
+  // metric we intend to retire the legacy path on was undercounting.
+  const zeroCard: EnforcedRefereeSummaryLike = {
+    cards: [],
+    errorsInitialTotal: 0,
+    warnsInitialTotal: 0,
+    unanchoredBlocks: 0,
+    sentinelCardsRefused: 0,
+    overviewOutcome: "sentence_drop",
+    overviewViolations: 2,
+  };
+
+  it("counts a refereed overview as graded, so the headline cannot drop it", async () => {
+    const { client, insert } = fakeClient();
+    mockGetClient.mockResolvedValue(client);
+    await recordEnforcedRefereeOutcome({
+      summary: zeroCard,
+      contractId: "c",
+      correlationId: "x",
+      ctx,
+    });
+    const row = insert.mock.calls[0][0];
+    // The headline filters `matched > 0`. Without this the review vanishes.
+    expect(row.matched).toBe(1);
+    expect(row.armed_errors).toBe(2);
+    expect(row.referee_errors).toBe(2);
+  });
+
+  it("records the overview's ladder stage as its own span", async () => {
+    const { client, insert } = fakeClient();
+    mockGetClient.mockResolvedValue(client);
+    await recordEnforcedRefereeOutcome({
+      summary: zeroCard,
+      contractId: "c",
+      correlationId: "x",
+      ctx,
+    });
+    expect(insert.mock.calls[0][0].spans).toContainEqual(
+      expect.objectContaining({ factIdPrefix: "overview", stage: "sentence_drop", armed: true }),
+    );
+  });
+
+  it("a CLEAN overview is graded but contributes no errors", async () => {
+    const { client, insert } = fakeClient();
+    mockGetClient.mockResolvedValue(client);
+    await recordEnforcedRefereeOutcome({
+      summary: { ...zeroCard, overviewOutcome: "pass", overviewViolations: 0 },
+      contractId: "c",
+      correlationId: "x",
+      ctx,
+    });
+    const row = insert.mock.calls[0][0];
+    expect(row.matched).toBe(1);
+    expect(row.armed_errors).toBe(0);
+    expect(row.spans).toContainEqual(
+      expect.objectContaining({ factIdPrefix: "overview", armed: false }),
+    );
+  });
+
+  it("a carded review is unaffected — overviewOutcome is null there", async () => {
+    const { client, insert } = fakeClient();
+    mockGetClient.mockResolvedValue(client);
+    await recordEnforcedRefereeOutcome({ summary, contractId: "c", correlationId: "x", ctx });
+    const row = insert.mock.calls[0][0];
+    expect(row.matched).toBe(2);
+    expect(row.armed_errors).toBe(1);
+    expect(row.spans.some((s: { factIdPrefix: string }) => s.factIdPrefix === "overview")).toBe(
+      false,
+    );
+  });
+});
+
 describe("STRUCTURAL GUARD — the write lives inside the enforced branch", () => {
   it("route.ts records an outcome between arming the gate and closing the stream", () => {
     const src = readFileSync("src/app/api/enhanced-analysis/route.ts", "utf8");

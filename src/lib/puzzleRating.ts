@@ -147,8 +147,13 @@ export function updatePuzzleStats(
     { rating: newRating, timestamp: record.timestamp },
   ].slice(-100);
 
-  // Keep last 50 recent solves
-  const recentSolves = [...stats.recentSolves, record].slice(-50);
+  // Keep the last 500 solves. Raised from 50 so the performance dashboard's
+  // "last N puzzles" windows (20/50/100/500) can actually mean what they say —
+  // at 50, both the 100 and 500 windows silently returned the same 50 records
+  // and looked like real data. ~500 records is ~50KB of JSON: fine for
+  // localStorage, and comfortably inside Firestore's 1MiB document limit for
+  // the synced progress blob.
+  const recentSolves = [...stats.recentSolves, record].slice(-500);
 
   return {
     rating: newRating,

@@ -3,6 +3,10 @@
 import { Chess, type Move } from "chess.js";
 import { triggerPaywall } from "@/contexts/PaywallDialogContext";
 import {
+  ANALYSIS_HANDOFF_PARAM,
+  consumeStagedGame,
+} from "@/lib/analysis/handoff";
+import {
   Box,
   Button,
   IconButton,
@@ -7159,6 +7163,7 @@ export default function AnalysisPage() {
   const fenLoadedRef = useRef(false);
   const lichessReviewLoadedRef = useRef(false);
   const insightLoadedRef = useRef(false);
+  const handoffLoadedRef = useRef(false);
 
   // ?pgn=<url-encoded PGN>
   useEffect(() => {
@@ -7214,6 +7219,27 @@ export default function AnalysisPage() {
       console.warn("[preview/analysis] malformed lichess-review payload:", err);
     }
   }, [router.isReady, router.query.lichessReview, loadNewGame, router]);
+
+  // ?handoff=1 + sessionStorage — "Analyze now" from /profile. The PGN travels
+  // in storage rather than the URL because a chess.com PGN with per-move clock
+  // comments url-encodes to several KB, and /analysis has getServerSideProps so
+  // that would be re-sent to the server on every navigation.
+  useEffect(() => {
+    if (!router.isReady || handoffLoadedRef.current) return;
+    if (router.query[ANALYSIS_HANDOFF_PARAM] !== "1") return;
+    const staged = consumeStagedGame();
+    if (!staged) return;
+    try {
+      const g = new Chess();
+      g.loadPgn(staged);
+      handoffLoadedRef.current = true;
+      loadNewGame(g);
+      // Drop the flag so a refresh doesn't look for a PGN that's been consumed.
+      router.replace(router.pathname, undefined, { shallow: true });
+    } catch (err) {
+      console.warn("[analysis] malformed handoff payload:", err);
+    }
+  }, [router.isReady, router.query, loadNewGame, router]);
 
   // ?insightId=<id> — permalink to a saved coach insight. Fetches
   // /api/insights/{id} and hydrates the chat with the saved transcript.

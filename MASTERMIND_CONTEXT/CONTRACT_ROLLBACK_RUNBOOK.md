@@ -107,11 +107,50 @@ contract-generated response, and a warm cache is safe to leave in place.
 **The code-level rollback is pinned by test**
 (`contractRollbackDrill.test.ts` — flag-off output is byte-identical to legacy).
 
-**The operational drill has NOT been executed in production.** Doing so means
-deliberately serving the legacy coach for the duration of a build, which is a
-founder call rather than something to run unattended. It is worth doing once
-while things are calm: an untested rollback is not a rollback. Preview
-deployments cannot stand in for it — `CONTRACT_CATEGORIES` is Production-scoped
-(so previews already run flag-off, which is useful evidence the code path works)
-but previews sit behind Vercel Authentication and cannot be probed without a
-bypass token.
+**The operational drill WAS EXECUTED in production on 2026-08-12** (founder-
+authorised). It works. Measured timeline, UTC:
+
+| time | step |
+|---|---|
+| 14:35:56 | `vercel env rm CONTRACT_CATEGORIES production` |
+| 14:37:41 | probe: **still `contractMode: true`** — see below |
+| 14:38:02 | empty commit pushed **directly to `main`** |
+| 14:42:43 | rollback deploy live (**4m41s** from push) |
+| 14:44:05 | legacy serve **verified**: no `contract` in `done`, `refereeMode` undefined, `fallbackReason: "game_review_realtime_stream"`, all routes 200 |
+| 14:44:23 | env restored, value diffed byte-identical against the pre-drill pull |
+| 14:53:53 | restore deploy live; `contractMode: true`, `refereeMode: full` confirmed |
+
+**Rollback: 6m47s** from decision to legacy live, **8m09s** to verified.
+**Restore: 9m30s.** **Total legacy exposure: 11m10s.**
+
+Note the asymmetry — coming back took longer than going down, because the
+rollback deploy had a warm build cache and the restore did not. Plan for the
+return leg to be the slower one; the emergency direction is the fast one, which
+is the right way round.
+
+### The finding worth keeping
+
+**Removing the env var alone changed nothing.** At 14:37:41 — 105 seconds after
+the variable was deleted from Vercel — production still answered
+`contractMode: true, contractArmedBy: "category"`. This had been reasoned from
+code (`getContractEnv` memoises; Vercel snapshots env at build). It is now an
+observed fact.
+
+Operationally: someone who deletes the variable in a panic and then checks the
+site will conclude they have rolled back **and they will be wrong**. The
+redeploy is not optional.
+
+### Two things the drill taught that the plan did not say
+
+1. **`git push origin HEAD:main` works directly — there is no branch
+   protection.** In an incident, skip the PR: a pull request adds ~11 minutes of
+   CI before the deploy can even start. Direct push → live in **under 5
+   minutes**.
+2. **Read the value before you delete it.** `vercel env pull` returns
+   `CONTRACT_CATEGORIES` in plaintext (it is Encrypted-at-rest but not marked
+   Sensitive), so the exact restore string is recoverable. Do that pull FIRST
+   and keep the file — restoring from memory is how a two-category lever comes
+   back as one.
+
+**End-to-end: 8 minutes from decision to verified-legacy.** Budget 10 for the
+rollback, and another 10 for the return.

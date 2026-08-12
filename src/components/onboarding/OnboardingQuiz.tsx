@@ -17,6 +17,8 @@ import {
 } from "./quizConfig";
 import { QUIZ_GOAL_OPTIONS } from "./quizThemes";
 import { isUsernameValid } from "./useOnboardingQuiz";
+import TacticDiagram from "./TacticDiagram";
+import { GOAL_DIAGRAMS, GOAL_DIAGRAM_ALT } from "./tacticDiagrams";
 
 const EASE = [0.22, 0.61, 0.36, 1] as const;
 const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
@@ -149,7 +151,10 @@ export default function OnboardingQuiz({
 
       case "goals":
         return (
-          <QuizStep title="What do you want to improve?" helper="Pick a few.">
+          <QuizStep
+            title="What do you want to improve?"
+            helper="Pick a few — each one is shown on the board."
+          >
             {QUIZ_GOAL_OPTIONS.map((o) => (
               <QuizOption
                 key={o.key}
@@ -158,6 +163,15 @@ export default function OnboardingQuiz({
                 multi
                 selected={q.answers.goals.includes(o.key)}
                 onClick={() => q.toggleGoal(o.key)}
+                visual={
+                  GOAL_DIAGRAMS[o.key] ? (
+                    <TacticDiagram
+                      spec={GOAL_DIAGRAMS[o.key]}
+                      px={72}
+                      title={GOAL_DIAGRAM_ALT[o.key]}
+                    />
+                  ) : undefined
+                }
               />
             ))}
           </QuizStep>

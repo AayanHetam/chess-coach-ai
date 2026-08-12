@@ -1,80 +1,72 @@
 -- Tracking retention — the mechanism behind the /privacy sentence:
 --   "these records are deleted automatically after at most one year."
 --
--- WHY THIS FILE EXISTS
--- The retention job was scheduled by hand in the Supabase dashboard. That
--- worked, but it was not in version control: nobody could verify it was still
+-- THIS FILE CAPTURES WHAT IS ALREADY RUNNING IN PRODUCTION. It is not a new
+-- design. The function and schedule below were read back from the live
+-- database on 2026-08-12 and reproduced verbatim, so applying this is a NO-OP
+-- against current state.
+--
+-- WHY IT EXISTS AT ALL
+-- The job was created by hand in the Supabase dashboard. It works — verified
+-- below — but it was not in version control: nobody could confirm it was still
 -- scheduled, a project restore would not recreate it, and a reviewer had no way
--- to check the promise against the code. This declares the intended state, so
--- applying it converges whatever is currently scheduled onto this definition.
+-- to check the privacy promise against anything in the repo. That was the gap;
+-- the job itself was already correct.
 --
--- IDEMPOTENT. Safe to run repeatedly, and safe to run when a job of this name
--- already exists — it is unscheduled first.
+-- VERIFIED IN PRODUCTION 2026-08-12 (project chess-masti-tracking):
+--   cron.job                → jobid 1, 'purge-old-tracking-rows', '0 3 * * *', active
+--   cron.job_run_details    → 2 runs, both 'succeeded' (2026-08-11, 2026-08-12)
+--   pg_available_extensions → pg_cron 1.6.4 installed
 --
--- SCOPE. This is the RETENTION promise only ("deleted after at most one year").
--- The other promise — "email us and we'll delete your account and saved games
--- within seven days" — covers Firestore, which pg_cron cannot reach. That one
--- is served by scripts/ops/delete-user.ts. Two promises, two mechanisms.
+-- NOTE ON VALIDATING THIS: tracking only went live in August 2026, so nothing
+-- is a year old yet and the job legitimately deletes zero rows on every run.
+-- For roughly the next 11 months, "it deleted nothing" is the EXPECTED result
+-- and is not evidence either way. The run-status check above is what actually
+-- tells you it works.
+--
+-- SCOPE. This serves the one-year RETENTION promise only. The other promise —
+-- "email us and we'll delete your account and saved games within seven days" —
+-- covers Firestore, which pg_cron cannot reach; that one is served by
+-- scripts/ops/delete-user.ts. Two promises, two mechanisms.
+--
+-- IDEMPOTENT: safe to apply repeatedly and safe when the job already exists.
 
 create extension if not exists pg_cron;
 
--- Column names differ per table and are NOT guessable — they were read from the
--- live schema, not assumed. `analysis_sessions` uses `started_at`; everything
--- else uses `ts`. Getting this wrong silently deletes nothing (unknown column
--- would error) or, worse, the wrong rows.
-create or replace function public.purge_expired_tracking(retain_days int default 365)
-returns table (table_name text, deleted bigint)
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  cutoff timestamptz := now() - make_interval(days => retain_days);
-  n bigint;
-begin
-  delete from public.events where ts < cutoff;
-  get diagnostics n = row_count; table_name := 'events'; deleted := n; return next;
+-- Verbatim from production. Column names differ per table and are not
+-- guessable: analysis_sessions uses `started_at`, the other four use `ts`.
+create or replace function public.purge_old_tracking_rows()
+returns void
+language sql
+as $function$
+  delete from events            where ts < now() - interval '1 year';
+  delete from llm_calls         where ts < now() - interval '1 year';
+  delete from puzzle_attempts   where ts < now() - interval '1 year';
+  delete from analysis_sessions where started_at < now() - interval '1 year';
+  delete from referee_outcomes  where ts < now() - interval '1 year';
+$function$;
 
-  delete from public.llm_calls where ts < cutoff;
-  get diagnostics n = row_count; table_name := 'llm_calls'; deleted := n; return next;
+comment on function public.purge_old_tracking_rows() is
+  'Deletes tracking rows older than one year. Backs the /privacy retention promise. If a new tracking table with a timestamp is added, add it here AND to UID_TABLES in src/lib/tracking/purge.ts.';
 
-  delete from public.puzzle_attempts where ts < cutoff;
-  get diagnostics n = row_count; table_name := 'puzzle_attempts'; deleted := n; return next;
-
-  delete from public.referee_outcomes where ts < cutoff;
-  get diagnostics n = row_count; table_name := 'referee_outcomes'; deleted := n; return next;
-
-  -- Different column on purpose — see the note above.
-  delete from public.analysis_sessions where started_at < cutoff;
-  get diagnostics n = row_count; table_name := 'analysis_sessions'; deleted := n; return next;
-end;
-$$;
-
-comment on function public.purge_expired_tracking(int) is
-  'Deletes tracking rows older than retain_days (default 365). Backs the /privacy one-year retention promise. Run manually to test: select * from public.purge_expired_tracking();';
-
--- Replace any existing schedule of the same name so this file is the source of
--- truth rather than one of two competing definitions.
+-- Re-schedule under the SAME name production already uses, so this converges
+-- rather than adding a second, competing job.
 do $$
 begin
-  perform cron.unschedule('purge-expired-tracking');
+  perform cron.unschedule('purge-old-tracking-rows');
 exception when others then
   null; -- not scheduled yet
 end $$;
 
--- 03:30 UTC daily — off-peak, and well inside a one-year window.
 select cron.schedule(
-  'purge-expired-tracking',
-  '30 3 * * *',
-  $$select public.purge_expired_tracking(365);$$
+  'purge-old-tracking-rows',
+  '0 3 * * *',
+  $$select public.purge_old_tracking_rows();$$
 );
 
 -- VERIFY AFTER APPLYING:
---   select jobid, jobname, schedule, active, command from cron.job
---    where jobname = 'purge-expired-tracking';
---   select * from cron.job_run_details
---    where jobid = (select jobid from cron.job where jobname='purge-expired-tracking')
+--   select jobid, jobname, schedule, active from cron.job
+--    where jobname = 'purge-old-tracking-rows';
+--   select status, return_message, start_time from cron.job_run_details
+--    where jobid = (select jobid from cron.job where jobname='purge-old-tracking-rows')
 --    order by start_time desc limit 5;
---
--- DRY-CHECK WITHOUT DELETING (how many rows WOULD go today):
---   select count(*) from public.events where ts < now() - interval '365 days';

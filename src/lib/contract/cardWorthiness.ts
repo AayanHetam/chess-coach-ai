@@ -54,8 +54,17 @@
  */
 import type { InsightContract } from "./types";
 
-/** Founder decision 2026-08-11: a MAXIMUM, never a target. */
-export const MAX_GAME_REVIEW_CARDS = 5;
+/**
+ * Founder decision 2026-08-11: a MAXIMUM, never a target.
+ *
+ * Set to 4, not the originally-chosen 5, on measured latency: generation runs
+ * ~10.5s per card after the first, so 5 cards took 59.2/60.4/59.4s against the
+ * 60s `maxDuration` ceiling (one sample over outright). 4 lands near 49s with
+ * ~11s of headroom. Raising the ceiling would need a paid Vercel tier for a
+ * shape users would not wait through anyway — the cheaper and better answer is
+ * fewer, fully-explained cards. Revisit if `maxDuration` ever changes.
+ */
+export const MAX_GAME_REVIEW_CARDS = 4;
 
 /** The absolute-severity escape hatch — `builder.ts`'s own "blunder" bar. */
 export const BLUNDER_CP = 300;

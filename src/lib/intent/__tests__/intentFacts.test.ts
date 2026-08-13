@@ -414,6 +414,99 @@ describe("prophylaxis", () => {
   });
 });
 
+// ─── the threat the move did NOT deal with ─────────────────────────────────
+// The mirror of prophylaxis, and the reason it exists: across the founder's
+// twelve games the opponent had a forced mate in 53 positions; in 34 the mate
+// survived the move played, and in 30 of those the module said nothing at all.
+
+describe("unaddressed threats", () => {
+  it("reports a forced mate that is STILL forced (real Qxf2 case)", () => {
+    // The founder's own move. Qxf2 wins a pawn while White has Qxh7# — verified
+    // independently with chess.js: after Qxf2, Qxh7# is an immediate mate. The
+    // module used to card this as "you won a pawn" and stop there.
+    const FEN = "5rk1/2p4p/pq2p1pQ/1b6/4P3/P5P1/2B2P2/b2K3R b - - 1 27";
+    const f = computeIntentFacts(
+      probe({
+        fenBefore: FEN,
+        playedSan: "Qxf2",
+        position: buildPositionFacts(FEN, "Qxf2"),
+        rootLines: [line("Qd8", -300), line("Qxf2", -900)],
+        playedScore: { cp: -900, mate: null },
+        threat: line("Qxh7#", null, 1),
+        threatAfter: line("Qxh7#", null, 1),
+        threatStillLegal: true,
+      }),
+    );
+    expect(f.unaddressedThreat).not.toBeNull();
+    expect(f.unaddressedThreat!.threatSan).toBe("Qxh7#");
+    expect(f.unaddressedThreat!.stillMates).toBe(true);
+    expect(f.unaddressedThreat!.mateInMoves).toBe(1);
+    expect(f.unaddressedThreat!.reason).toBe("mate-still-forced");
+    // and it still reports what the move DID do
+    expect(f.purpose).toBe("material");
+  });
+
+  it("reports a threat the move barely changed", () => {
+    const f = computeIntentFacts(
+      probe({
+        rootLines: [line("Rf5", 400)],
+        playedScore: { cp: 400, mate: null },
+        threat: line("Qg4", 300),
+        threatAfter: line("Qg4", 260),
+      }),
+    );
+    expect(f.unaddressedThreat!.reason).toBe("barely-changed");
+    expect(f.quiet).toBe(false);
+  });
+
+  it("reports a threat that is only illegal for one ply because we gave check", () => {
+    const FEN = "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 6 5";
+    const f = computeIntentFacts(
+      probe({
+        fenBefore: FEN,
+        playedSan: "Bxf7+",
+        position: buildPositionFacts(FEN, "Bxf7+"),
+        rootLines: [line("d3", 30)],
+        playedScore: { cp: 20, mate: null },
+        threat: line("Bxf2+", 400),
+        threatAfter: null,
+        threatStillLegal: false,
+        threatPieceCaptured: false,
+      }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.unaddressedThreat!.reason).toBe("only-illegal-due-to-check");
+  });
+
+  it("CONTROL: a threat that WAS stopped is never also reported as unaddressed", () => {
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "h5",
+        threat: line("Qg4", 150),
+        threatAfter: line("Qg4", -969),
+        opponentBestAfter: { cp: 0, mate: null },
+      }),
+    );
+    expect(f.prophylaxis).not.toBeNull();
+    expect(f.unaddressedThreat).toBeNull();
+  });
+
+  it("CONTROL: nothing is reported when the opponent had no real threat", () => {
+    // The null move always returns SOMETHING. Without the tempo gate this
+    // would warn about a threat on essentially every quiet move in chess.
+    const f = computeIntentFacts(
+      probe({
+        rootLines: [line("Nf3", 20)],
+        playedScore: { cp: 20, mate: null },
+        threat: line("Qb7", -136),
+        threatAfter: line("Qb7", -150),
+      }),
+    );
+    expect(f.unaddressedThreat).toBeNull();
+    expect(f.notes.join(" ")).toContain("no threat");
+  });
+});
+
 // ─── cost ──────────────────────────────────────────────────────────────────
 
 describe("cost", () => {

@@ -251,6 +251,43 @@ export interface ProphylaxisFact {
   attributionCp: number | null;
 }
 
+/**
+ * The opponent's threat that the played move did NOT deal with.
+ *
+ * The exact mirror of ProphylaxisFact, and the reason it exists: across the
+ * founder's twelve games there were 53 positions where the opponent had a
+ * forced mate if handed a free move. In 34 the mate survived the move actually
+ * played, and in 30 of those the module said nothing whatsoever — including a
+ * position where Qg6# was mate-in-one before the move and mate-in-one after it.
+ *
+ * Every number here was already being measured and then discarded, because the
+ * module had vocabulary for "you stopped it" and none for "it is still coming".
+ */
+export interface UnaddressedThreatFact {
+  /** What the opponent is threatening. */
+  threatSan: string;
+  /** Their score for it if we had passed. Null when that was a mate. */
+  scoreBeforeCp: number | null;
+  /** Their score for it now. Null when it is a mate. */
+  scoreAfterCp: number | null;
+  /** True when the threat is a forced mate that is still forced. */
+  stillMates: boolean;
+  /** Moves to mate, when stillMates. */
+  mateInMoves: number | null;
+  /** True when the move made the threat BETTER for them than passing would have. */
+  madeItWorse: boolean;
+  /**
+   * Why it counts as unaddressed — the same measurements prophylaxis uses,
+   * failing instead of passing.
+   */
+  reason:
+    | "mate-still-forced"
+    | "created-a-mate"
+    | "threat-still-playable"
+    | "barely-changed"
+    | "only-illegal-due-to-check";
+}
+
 /** What a cost looks like when a forced mate is on one side of the comparison. */
 export type MateChange = "gave-up-mate" | "allowed-mate" | "gave-up-mate-and-allowed-mate";
 
@@ -280,6 +317,11 @@ export interface IntentFacts {
   trap: TrapFact | null;
   escape: EscapeFact | null;
   prophylaxis: ProphylaxisFact | null;
+  /**
+   * The opponent threat this move failed to deal with. Never set at the same
+   * time as `prophylaxis` — a threat either died or it did not.
+   */
+  unaddressedThreat: UnaddressedThreatFact | null;
   cost: CostFact | null;
   /** The single thing the move was for, chosen by the ranking. */
   purpose: Purpose;

@@ -12,6 +12,7 @@ import type {
   IntentScore,
   ProphylaxisFact,
   Sharpness,
+  UnaddressedThreatFact,
 } from "./types";
 
 /**
@@ -165,6 +166,31 @@ export const TRAP_MIN_ATTRIBUTION_CP = 100;
 interface AnalysisSignals {
   /** The opponent had a genuine threat, whether or not we claimed prophylaxis. */
   threatWasReal: boolean;
+  /**
+   * The threat the move failed to deal with. Set at exactly the points where a
+   * prophylaxis claim is rejected BECAUSE the threat survived — as opposed to
+   * the points where it is rejected because we could not measure something, or
+   * because someone else's move deserves the credit.
+   */
+  unaddressed: UnaddressedThreatFact | null;
+}
+
+/** Record that the opponent's threat survived the move. */
+function unaddressed(
+  probe: IntentProbe,
+  reason: UnaddressedThreatFact["reason"],
+  opts: { stillMates?: boolean; madeItWorse?: boolean } = {},
+): UnaddressedThreatFact {
+  const after = probe.threatAfter?.score ?? null;
+  return {
+    threatSan: probe.threat!.san,
+    scoreBeforeCp: isMate(probe.threat!.score) ? null : toCp(probe.threat!.score),
+    scoreAfterCp: isMate(after) ? null : toCp(after),
+    stillMates: opts.stillMates ?? false,
+    mateInMoves: opts.stillMates && after?.mate != null ? Math.abs(after.mate) : null,
+    madeItWorse: opts.madeItWorse ?? false,
+    reason,
+  };
 }
 
 /** Convert a WHITE-relative engine score to mover-relative. See types.ts. */
@@ -327,6 +353,7 @@ function computeProphylaxis(
     }
     if (probe.position.givesCheck) {
       notes.push("threat is only illegal because the move gives check — not prevention");
+      signals.unaddressed = unaddressed(probe, "only-illegal-due-to-check");
       return null;
     }
   }
@@ -353,6 +380,7 @@ function computeProphylaxis(
   if (threatMates) {
     if (isMateFor(probe.threatAfter.score)) {
       notes.push("threatened mate survives the move");
+      signals.unaddressed = unaddressed(probe, "mate-still-forced", { stillMates: true });
       return null;
     }
     return {
@@ -373,6 +401,7 @@ function computeProphylaxis(
   // byte-identical output.
   if (isMateFor(probe.threatAfter.score)) {
     notes.push("the move turned the threat into a forced mate against us — not prophylaxis");
+    signals.unaddressed = unaddressed(probe, "created-a-mate", { stillMates: true, madeItWorse: true });
     return null;
   }
   if (isMateAgainst(probe.threatAfter.score)) {
@@ -405,6 +434,7 @@ function computeProphylaxis(
   }
   if (swing < PROPHYLAXIS_MIN_SWING_CP) {
     notes.push(`threat swing ${swing}cp below ${PROPHYLAXIS_MIN_SWING_CP}cp`);
+    signals.unaddressed = unaddressed(probe, "barely-changed", { madeItWorse: swing < 0 });
     return null;
   }
 
@@ -437,6 +467,7 @@ function computeProphylaxis(
       (specific === null ? "" : ` and is only ${specific}cp off their best`) +
       ` — playable, so it was not stopped`,
     );
+    signals.unaddressed = unaddressed(probe, "threat-still-playable");
     return null;
   }
 
@@ -754,7 +785,7 @@ function computeEscape(probe: IntentProbe): EscapeFact | null {
  */
 export function computeIntentFacts(probe: IntentProbe): IntentFacts {
   const notes: string[] = [];
-  const signals: AnalysisSignals = { threatWasReal: false };
+  const signals: AnalysisSignals = { threatWasReal: false, unaddressed: null };
   const mate = computeMate(probe);
   const material = computeMaterial(probe, notes);
   const trap = computeTrap(probe, notes);
@@ -801,6 +832,9 @@ export function computeIntentFacts(probe: IntentProbe): IntentFacts {
   if (!playedReadable) notes.push("played move not scored — cannot claim the position is quiet");
   if (!boardKnown) notes.push("board facts unavailable — cannot claim the position is quiet");
   const threatLeftUnsaid = signals.threatWasReal && prophylaxis === null;
+  if (signals.unaddressed) {
+    notes.push(`the opponent still threatens ${signals.unaddressed.threatSan}`);
+  }
   if (threatLeftUnsaid) {
     notes.push("a real threat was found but not narrated — cannot claim the position is quiet");
   }
@@ -817,6 +851,12 @@ export function computeIntentFacts(probe: IntentProbe): IntentFacts {
     escape,
     purpose,
     prophylaxis,
+    // Belt and braces. Every site that sets signals.unaddressed returns null
+    // immediately after, so a successful prophylaxis claim cannot coexist with
+    // one today — this guard is deliberately unreachable and exists to keep the
+    // invariant true if a future rejection path stops returning early. It is
+    // NOT covered by a mutation test, because there is no way to reach it.
+    unaddressedThreat: prophylaxis ? null : signals.unaddressed,
     cost,
     sharpness,
     quiet: foundNothing && sharpness === "flat" && probe.moverHasPieces,

@@ -398,10 +398,17 @@ export class UciEngine {
     depth = 16,
     multiPv = this.multiPv,
     setPartialEval,
+    allowCloud = true,
   }: EvaluatePositionWithUpdateParams): Promise<PositionEval> {
     this.throwErrorIfNotReady();
 
-    const lichessEvalPromise = getLichessEval(fen, multiPv);
+    // Lichess's cloud eval is usually deeper than anything this WASM engine
+    // will reach, so it wins by default. `allowCloud: false` lets a caller
+    // insist on THIS engine — the point of an engine selector is that picking
+    // one changes what you get.
+    const lichessEvalPromise = allowCloud
+      ? getLichessEval(fen, multiPv)
+      : Promise.resolve<PositionEval>({ bestMove: "", lines: [] });
 
     await this.stopAllCurrentJobs();
     await this.setMultiPv(multiPv);
@@ -409,7 +416,7 @@ export class UciEngine {
     const onNewMessage = (messages: string[]) => {
       if (!setPartialEval) return;
       const parsedResults = parseEvaluationResults(messages, fen);
-      setPartialEval(parsedResults);
+      setPartialEval({ ...parsedResults, source: "local" });
     };
 
     console.log(`Evaluating position: ${fen}`);
@@ -429,7 +436,7 @@ export class UciEngine {
       onNewMessage
     );
 
-    return parseEvaluationResults(results, fen);
+    return { ...parseEvaluationResults(results, fen), source: "local" };
   }
 
   public async getEngineNextMove(

@@ -104,6 +104,10 @@ import {
 } from "@/components/ui/CommandPalette";
 import { useEngine } from "@/hooks/useEngine";
 import { isWasmSupported } from "@/lib/engine/shared";
+import {
+  pickDisplayEval,
+  satisfiesRequest,
+} from "@/lib/engine/pickDisplayEval";
 import { EngineName, MoveClassification } from "@/types/enums";
 import type { PositionEval, LineEval } from "@/types/eval";
 import { getMovesClassification } from "@/lib/engine/helpers/moveClassification";
@@ -2576,6 +2580,32 @@ type LinesStatus =
   | "unsupported"
   | "terminal";
 
+/**
+ * How hard the user wants the engine to think about the position in front of
+ * them, and which engine should do it.
+ *
+ * Separate from the whole-game review settings: this applies to one position,
+ * so it can afford depth the review pass cannot.
+ */
+interface LinesSettings {
+  /** Search depth for the current position. */
+  depth: number;
+  /** How many candidate lines to show (MultiPV — the engine allows 2–10). */
+  count: number;
+  /**
+   * Force the selected local engine even when Lichess's cloud holds a deeper
+   * answer. Off by default: the cloud result is usually far deeper (60+) and
+   * instant. On, for anyone who wants the engine they picked to be the one
+   * actually answering.
+   */
+  preferLocalEngine: boolean;
+}
+
+/** Depth choices for a single position. */
+const LINES_DEPTHS = [14, 18, 22, 26] as const;
+/** Candidate-line counts. Engine accepts 2–10; more is slower per search. */
+const LINES_COUNTS = [2, 3, 5] as const;
+
 function TabStrip({
   active,
   onChange,
@@ -3178,6 +3208,298 @@ function ExplorationBanner({
  * came out empty or truncated, and the tab showed lines that had nothing to
  * do with what was on screen. Both now come from the same FEN-keyed source.
  */
+/**
+ * Accuracy controls for the position on the board.
+ *
+ * These existed only behind the small "d16" chip in the nav bar, which set
+ * the WHOLE-GAME review depth — so there was no way to ask for a harder look
+ * at the one position you were staring at without also making every future
+ * game review slower. Depth and line count here apply to the current
+ * position only.
+ */
+function LinesControls({
+  settings,
+  onChange,
+  engineName,
+  onEngineNameChange,
+  reachedDepth,
+  analyzing,
+  fromCloud,
+}: {
+  settings: LinesSettings;
+  onChange: (next: LinesSettings) => void;
+  engineName: EngineName;
+  onEngineNameChange?: (n: EngineName) => void;
+  reachedDepth: number;
+  analyzing: boolean;
+  fromCloud: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const chip = (
+    label: string,
+    active: boolean,
+    onClick: () => void,
+    title?: string
+  ) => (
+    // describeChild, because MUI's Tooltip otherwise sets aria-label to the
+    // tooltip text and REPLACES the child's own name: d22 and d26 both
+    // announced as "Deeper and slower — seconds per position in a browser",
+    // indistinguishable to a screen reader and to any name-based query.
+    <Tooltip
+      title={title ?? ""}
+      describeChild
+      disableHoverListener={!title}
+      key={label}
+    >
+      <Box
+        component="button"
+        type="button"
+        onClick={onClick}
+        sx={{
+          cursor: "pointer",
+          font: "inherit",
+          px: 1,
+          py: 0.35,
+          borderRadius: "7px",
+          fontFamily: "Monaco, Menlo, monospace",
+          fontSize: "0.72rem",
+          fontWeight: 700,
+          lineHeight: 1.4,
+          background: active
+            ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(251,146,60,0.14))"
+            : "rgba(255,255,255,0.04)",
+          border: active
+            ? "1px solid rgba(249,115,22,0.45)"
+            : "1px solid rgba(255,255,255,0.1)",
+          color: active ? "#FB923C" : "rgba(255,255,255,0.7)",
+          transition: "all 150ms ease",
+          "&:hover": {
+            borderColor: active
+              ? "rgba(249,115,22,0.65)"
+              : "rgba(255,255,255,0.24)",
+            color: active ? "#FB923C" : "rgba(255,255,255,0.95)",
+          },
+        }}
+      >
+        {label}
+      </Box>
+    </Tooltip>
+  );
+
+  const label = (text: string) => (
+    <Typography
+      sx={{
+        fontSize: "0.64rem",
+        fontWeight: 700,
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        color: "rgba(255,255,255,0.4)",
+        minWidth: 44,
+      }}
+    >
+      {text}
+    </Typography>
+  );
+
+  return (
+    <Box
+      sx={{
+        mb: 1.5,
+        borderRadius: "0.6rem",
+        background: "rgba(0,0,0,0.22)",
+        border: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      {/* Collapsed summary — the settings that are in force right now. */}
+      <Box
+        component="button"
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        sx={{
+          width: "100%",
+          cursor: "pointer",
+          font: "inherit",
+          background: "none",
+          border: "none",
+          px: 1.25,
+          py: 0.85,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          color: "rgba(255,255,255,0.7)",
+          "&:hover": { color: "rgba(255,255,255,0.95)" },
+        }}
+      >
+        <Activity size={13} color="#FB923C" />
+        <Typography
+          sx={{
+            fontSize: "0.74rem",
+            fontWeight: 600,
+            fontFamily: "Monaco, Menlo, monospace",
+            color: "inherit",
+          }}
+        >
+          {settings.count} lines · target d{settings.depth}
+          {analyzing && reachedDepth > 0 ? ` · at d${reachedDepth}` : ""}
+        </Typography>
+        <Box sx={{ flex: 1 }} />
+        <Typography
+          sx={{
+            fontSize: "0.68rem",
+            color: "rgba(255,255,255,0.45)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {open ? "Hide" : "Accuracy"}
+        </Typography>
+        <ChevronRight
+          size={13}
+          style={{
+            transform: open ? "rotate(90deg)" : "none",
+            transition: "transform 160ms ease",
+          }}
+        />
+      </Box>
+
+      {open && (
+        <Box
+          sx={{
+            px: 1.25,
+            pb: 1.25,
+            pt: 0.25,
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+          }}
+        >
+          <Stack direction="row" spacing={0.6} alignItems="center" sx={{ flexWrap: "wrap", rowGap: 0.6 }}>
+            {label("Depth")}
+            {LINES_DEPTHS.map((d) =>
+              chip(
+                `d${d}`,
+                settings.depth === d,
+                () => onChange({ ...settings, depth: d }),
+                d >= 22
+                  ? "Deeper and slower — seconds per position in a browser"
+                  : undefined
+              )
+            )}
+          </Stack>
+
+          <Stack direction="row" spacing={0.6} alignItems="center" sx={{ flexWrap: "wrap", rowGap: 0.6 }}>
+            {label("Lines")}
+            {LINES_COUNTS.map((n) =>
+              chip(String(n), settings.count === n, () =>
+                onChange({ ...settings, count: n })
+              )
+            )}
+          </Stack>
+
+          <Stack direction="row" spacing={0.6} alignItems="center" sx={{ flexWrap: "wrap", rowGap: 0.6 }}>
+            {label("Engine")}
+            {chip(
+              "17 Lite",
+              engineName === EngineName.Stockfish17Lite,
+              () => onEngineNameChange?.(EngineName.Stockfish17Lite),
+              "Single-threaded — fastest to start, works on restricted networks"
+            )}
+            {chip(
+              "17 Full",
+              engineName === EngineName.Stockfish17,
+              () => onEngineNameChange?.(EngineName.Stockfish17),
+              "NNUE — stronger per depth, heavier to load"
+            )}
+          </Stack>
+
+          {/* The honest part. Without this the engine buttons above are
+              decorative on any position Lichess already knows. */}
+          <Box
+            component="button"
+            type="button"
+            onClick={() =>
+              onChange({
+                ...settings,
+                preferLocalEngine: !settings.preferLocalEngine,
+              })
+            }
+            sx={{
+              mt: 0.25,
+              cursor: "pointer",
+              font: "inherit",
+              textAlign: "left",
+              px: 1,
+              py: 0.75,
+              borderRadius: "7px",
+              background: settings.preferLocalEngine
+                ? "rgba(249,115,22,0.1)"
+                : "rgba(255,255,255,0.03)",
+              border: settings.preferLocalEngine
+                ? "1px solid rgba(249,115,22,0.35)"
+                : "1px solid rgba(255,255,255,0.08)",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 1,
+            }}
+          >
+            <Box
+              sx={{
+                mt: "2px",
+                width: 13,
+                height: 13,
+                flexShrink: 0,
+                borderRadius: "4px",
+                border: settings.preferLocalEngine
+                  ? "1px solid #FB923C"
+                  : "1px solid rgba(255,255,255,0.3)",
+                background: settings.preferLocalEngine ? "#FB923C" : "transparent",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#0A0A0A",
+                fontSize: "0.6rem",
+                fontWeight: 900,
+                lineHeight: 1,
+              }}
+            >
+              {settings.preferLocalEngine ? "✓" : ""}
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                sx={{
+                  fontSize: "0.74rem",
+                  fontWeight: 700,
+                  color: settings.preferLocalEngine
+                    ? "#FB923C"
+                    : "rgba(255,255,255,0.85)",
+                  lineHeight: 1.3,
+                }}
+              >
+                Use my engine, not the cloud
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: "0.7rem",
+                  color: "rgba(255,255,255,0.5)",
+                  lineHeight: 1.45,
+                  mt: 0.2,
+                }}
+              >
+                {settings.preferLocalEngine
+                  ? `Every line is computed here by ${engineName} at your depth.`
+                  : fromCloud
+                  ? "These lines came from Lichess's cloud, which is deeper than this browser reaches."
+                  : "Lichess's cloud answers when it has a deeper result; otherwise your engine does."}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 function EngineLinesPanel({
   position,
   fen,
@@ -3185,6 +3507,9 @@ function EngineLinesPanel({
   status = "searching",
   exploring,
   onReturnToAnchor,
+  settings,
+  onSettingsChange,
+  onEngineNameChange,
 }: {
   position: PositionEval | null;
   fen: string;
@@ -3193,15 +3518,23 @@ function EngineLinesPanel({
   /** Non-null while the board is off the mainline. */
   exploring?: ExplorationPreview | null;
   onReturnToAnchor?: () => void;
+  settings: LinesSettings;
+  onSettingsChange: (next: LinesSettings) => void;
+  onEngineNameChange?: (n: EngineName) => void;
 }) {
   const analyzing = status === "searching" || status === "starting";
   const lines = position?.lines ?? [];
+  const fromCloud = position?.source === "cloud";
+  // Depth actually reached, which is not necessarily the depth requested —
+  // a search still running reports a lower one, and a cloud answer usually
+  // reports a much higher one.
+  const reachedDepth = lines[0]?.depth ?? 0;
   // Guard: only render a line whose moves are actually legal from `fen`. A
   // stale eval arriving for the previous position would otherwise print a
   // plausible-looking but wrong variation.
   const sanLines = useMemo(() => {
     return lines
-      .slice(0, 3)
+      .slice(0, settings.count)
       .map((line) => {
         const g = new Chess(fen);
         const sans: string[] = [];
@@ -3222,7 +3555,7 @@ function EngineLinesPanel({
         return { line, sans };
       })
       .filter((l) => l.sans.length > 0);
-  }, [lines, fen]);
+  }, [lines, fen, settings.count]);
 
   const formatEval = (line: LineEval): string => {
     if (typeof line.mate === "number") {
@@ -3316,19 +3649,46 @@ function EngineLinesPanel({
               }}
             />
           )}
-          <Box
-            sx={{
-              color: "rgba(255,255,255,0.42)",
-              fontSize: "0.72rem",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              whiteSpace: "nowrap",
-            }}
+          {/* Who actually answered.
+              This used to be a static `{engineName}` label, which was wrong
+              whenever the number came from Lichess's cloud eval — and for
+              common positions it usually does, because the cloud holds depth
+              60 and the code takes it whenever it beats the requested depth.
+              An engine selector is meaningless if the panel can't say which
+              engine the numbers in front of you came from. */}
+          <Tooltip
+            describeChild
+            title={
+              fromCloud
+                ? `Lichess cloud analysis, depth ${reachedDepth} — deeper than this browser would reach. Turn on "Use my engine" below to force ${engineName}.`
+                : `Computed in your browser by ${engineName}`
+            }
           >
-            {engineName}
-          </Box>
+            <Box
+              sx={{
+                color: fromCloud ? "#93C5FD" : "rgba(255,255,255,0.42)",
+                fontSize: "0.72rem",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                whiteSpace: "nowrap",
+                cursor: "help",
+              }}
+            >
+              {fromCloud ? `Lichess cloud · d${reachedDepth}` : engineName}
+            </Box>
+          </Tooltip>
         </Stack>
       </Box>
+
+      <LinesControls
+        settings={settings}
+        onChange={onSettingsChange}
+        engineName={engineName}
+        onEngineNameChange={onEngineNameChange}
+        reachedDepth={reachedDepth}
+        analyzing={analyzing}
+        fromCloud={fromCloud}
+      />
 
       {/* Which position these lines describe. Without it, an explored branch
           and its anchor look identical here — the complaint that started
@@ -6800,6 +7160,22 @@ export default function AnalysisPage() {
     engineName: EngineName;
   }>({ depth: 16, engineName: EngineName.Stockfish17Lite });
   const engine = useEngine(engineSettings.engineName);
+
+  /**
+   * How hard to think about the ONE position on the board, as opposed to
+   * `engineSettings.depth`, which is the whole-game review pass.
+   *
+   * They have to be separate. The review pass evaluates every ply, so depth
+   * there is multiplied by the length of the game — pushing it to 22 turns a
+   * 40-move game into minutes of work. The Lines tab is a single position, so
+   * it can afford depth the review never could, which is the whole point of
+   * letting someone dial in the accuracy they want.
+   */
+  const [linesSettings, setLinesSettings] = useState<LinesSettings>({
+    depth: 18,
+    count: 3,
+    preferLocalEngine: false,
+  });
   const [enginePositions, setEnginePositions] = useState<PositionEval[] | null>(
     null
   );
@@ -7684,8 +8060,23 @@ export default function AnalysisPage() {
   useEffect(() => {
     if (!engine || gameAnalysisRunning || displayTerminal) return;
     const fen = displayFen;
-    if (savedEvals[fen]?.lines?.length) return;
-    const liveCacheKey = `${fen}|d${engineSettings.depth}`;
+    // Only skip the search if what we already have is as deep and as wide as
+    // the user asked for. This used to skip on the mere EXISTENCE of a saved
+    // eval, so asking for more depth or more lines than the review pass
+    // produced changed nothing — the stale, shallower answer kept being
+    // served and the controls looked broken.
+    if (
+      satisfiesRequest(
+        savedEvals[fen],
+        linesSettings.depth,
+        linesSettings.count
+      )
+    ) {
+      return;
+    }
+    const liveCacheKey = `${fen}|d${linesSettings.depth}|n${linesSettings.count}|${
+      linesSettings.preferLocalEngine ? engineSettings.engineName : "cloud-ok"
+    }`;
     const cached = liveEvalCacheRef.current.get(liveCacheKey);
     if (cached) {
       setLiveEval({ fen, position: cached });
@@ -7697,7 +8088,9 @@ export default function AnalysisPage() {
       engine
         .evaluatePositionWithUpdate({
           fen,
-          depth: engineSettings.depth,
+          depth: linesSettings.depth,
+          multiPv: linesSettings.count,
+          allowCloud: !linesSettings.preferLocalEngine,
           setPartialEval: (ev) => {
             if (!cancelled && ev.lines.length) setLiveEval({ fen, position: ev });
           },
@@ -7721,7 +8114,10 @@ export default function AnalysisPage() {
     displayTerminal,
     displayFen,
     savedEvals,
-    engineSettings.depth,
+    linesSettings.depth,
+    linesSettings.count,
+    linesSettings.preferLocalEngine,
+    engineSettings.engineName,
   ]);
 
   /**
@@ -7738,14 +8134,14 @@ export default function AnalysisPage() {
    * hasn't reached this position yet" while the eval bar beside it displayed
    * a number for that exact position.
    */
-  const displayPositionEval = useMemo<PositionEval | null>(() => {
-    const saved = savedEvals[displayFen];
-    if (saved?.lines?.length) return saved;
-    if (liveEval?.fen === displayFen && liveEval.position.lines.length) {
-      return liveEval.position;
-    }
-    return null;
-  }, [savedEvals, displayFen, liveEval]);
+  const displayPositionEval = useMemo<PositionEval | null>(
+    () =>
+      pickDisplayEval(
+        savedEvals[displayFen],
+        liveEval?.fen === displayFen ? liveEval.position : null
+      ),
+    [savedEvals, displayFen, liveEval]
+  );
 
   const evalBarData = useMemo<EvalBarData>(() => {
     if (displayTerminal) return { ...displayTerminal, pending: false };
@@ -8008,13 +8404,30 @@ export default function AnalysisPage() {
    */
   const linesStatus = useMemo<LinesStatus>(() => {
     if (displayTerminal) return "terminal";
-    if (displayPositionEval) return "ready";
+    if (displayPositionEval) {
+      // Lines exist, but a shallower or narrower answer than was asked for
+      // is still work in progress — that distinction is what makes the depth
+      // control feel connected to anything.
+      return satisfiesRequest(
+        displayPositionEval,
+        linesSettings.depth,
+        linesSettings.count
+      )
+        ? "ready"
+        : "searching";
+    }
     if (typeof window !== "undefined" && !isWasmSupported()) {
       return "unsupported";
     }
     if (!engine) return "starting";
     return "searching";
-  }, [displayTerminal, displayPositionEval, engine]);
+  }, [
+    displayTerminal,
+    displayPositionEval,
+    engine,
+    linesSettings.depth,
+    linesSettings.count,
+  ]);
 
   const returnToAnchor = useCallback(() => {
     if (!takeoverPreview) return;
@@ -9518,6 +9931,11 @@ export default function AnalysisPage() {
                         status={linesStatus}
                         exploring={takeoverPreview}
                         onReturnToAnchor={returnToAnchor}
+                        settings={linesSettings}
+                        onSettingsChange={setLinesSettings}
+                        onEngineNameChange={(n) =>
+                          setEngineSettings((s) => ({ ...s, engineName: n }))
+                        }
                       />
                     </motion.div>
                   )}

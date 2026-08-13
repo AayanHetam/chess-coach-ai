@@ -1,5 +1,6 @@
-import { Box, Grid, Paper, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Grid, Stack, Tooltip, Typography } from '@mui/material';
 import { Icon } from '@iconify/react';
+import { DossierPanel, FieldLabel } from './dossier';
 import { PsychologySnapshot, RecentFormBucket } from '@/types/scout';
 
 export interface PsychologyPanelProps {
@@ -60,25 +61,7 @@ export default function PsychologyPanel({ psychology, recentBuckets }: Psycholog
   ];
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2.5,
-        borderRadius: '1.5rem',
-        border: '1px solid rgba(255,255,255,0.08)',
-        background: 'rgba(20,22,28,0.55)',
-        backdropFilter: 'blur(14px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-        overflow: 'hidden',
-        height: '100%',
-      }}
-    >
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <Icon icon="mdi:brain" width={20} style={{ color: '#FB923C' }} />
-        <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>Psychology & Recent</Typography>
-      </Stack>
-
+    <DossierPanel label="Psychology & recent form">
       <Grid container spacing={1} sx={{ mb: 2 }}>
         {rows.map(r => (
           <Grid size={{ xs: 6 }} key={r.label}>
@@ -152,6 +135,6 @@ export default function PsychologyPanel({ psychology, recentBuckets }: Psycholog
           </Stack>
         )}
       </Box>
-    </Paper>
+    </DossierPanel>
   );
 }

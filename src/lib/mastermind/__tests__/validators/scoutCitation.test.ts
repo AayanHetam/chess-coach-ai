@@ -31,7 +31,7 @@ function emptyScout(): ScoutAnalytics {
       archetype: "",
       phaseElo: { baseline: 1500, opening: 1500, middle: 1500, endgame: 1500 },
     },
-    stalker: { total: 0, predictability: "Low", factors: [] },
+    tells: { total: 0, predictability: "Low", factors: [] },
     prep: {
       asWhite: { weaknesses: [], strengths: [] },
       asBlack: { weaknesses: [], strengths: [] },
@@ -74,7 +74,7 @@ function richScout(): ScoutAnalytics {
       lowRating: 1750,
       phaseElo: { baseline: 1820, opening: 1900, middle: 1820, endgame: 1620 },
     },
-    stalker: {
+    tells: {
       total: 72,
       predictability: "High",
       factors: [
@@ -552,49 +552,49 @@ describe("scoutCitation: profile claims", () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────
-// §3.3 Stalker — 2 claim types × 3 tests = 6
+// §3.3 Tells — 2 claim types × 3 tests = 6
 // ──────────────────────────────────────────────────────────────────────────
 
-describe("scoutCitation: stalker claims", () => {
-  describe("stalker_total", () => {
+describe("scoutCitation: tells claims", () => {
+  describe("tells_total", () => {
     it("matches within ±5", async () => {
       // total 72, claim 75
       const r = await runValidator(richScout(), [
-        factualClaim("stalker_total", { stated_value: 75 }),
+        factualClaim("tells_total", { stated_value: 75 }),
       ]);
       expect(r.passed).toBe(true);
     });
     it("fires on out-of-tolerance", async () => {
       const r = await runValidator(richScout(), [
-        factualClaim("stalker_total", { stated_value: 95 }),
+        factualClaim("tells_total", { stated_value: 95 }),
       ]);
       expect(r.passed).toBe(false);
     });
     it("fires when no value is stated", async () => {
       const r = await runValidator(richScout(), [
-        factualClaim("stalker_total", {}),
+        factualClaim("tells_total", {}),
       ]);
       expect(r.passed).toBe(false);
     });
   });
 
-  describe("stalker_factor", () => {
+  describe("tells_factor", () => {
     it("matches factor by id + score", async () => {
       // tilts factor score 80, claim 78
       const r = await runValidator(richScout(), [
-        factualClaim("stalker_factor", { factor_id: "tilts", stated_value: 78 }),
+        factualClaim("tells_factor", { factor_id: "tilts", stated_value: 78 }),
       ]);
       expect(r.passed).toBe(true);
     });
     it("fires when factor is absent from the array", async () => {
       const r = await runValidator(richScout(), [
-        factualClaim("stalker_factor", { factor_id: "limited_rep", stated_value: 60 }),
+        factualClaim("tells_factor", { factor_id: "limited_rep", stated_value: 60 }),
       ]);
       expect(r.passed).toBe(false);
     });
     it("matches existence-only when no value is stated", async () => {
       const r = await runValidator(richScout(), [
-        factualClaim("stalker_factor", { factor_id: "tilts" }),
+        factualClaim("tells_factor", { factor_id: "tilts" }),
       ]);
       expect(r.passed).toBe(true);
     });
@@ -886,15 +886,15 @@ describe("scoutCitation: cross-cutting integration", () => {
     }
   });
 
-  it("stalker factor id dispatch: each factor id reads the right factor entry", async () => {
+  it("tells factor id dispatch: each factor id reads the right factor entry", async () => {
     const scout = richScout();
     // tilts=80, time_trouble=65
     const r1 = await runValidator(scout, [
-      factualClaim("stalker_factor", { factor_id: "tilts", stated_value: 80 }),
+      factualClaim("tells_factor", { factor_id: "tilts", stated_value: 80 }),
     ]);
     expect(r1.passed).toBe(true);
     const r2 = await runValidator(scout, [
-      factualClaim("stalker_factor", { factor_id: "time_trouble", stated_value: 65 }),
+      factualClaim("tells_factor", { factor_id: "time_trouble", stated_value: 65 }),
     ]);
     expect(r2.passed).toBe(true);
   });
@@ -1021,7 +1021,7 @@ describe("countScoutOpportunities", () => {
     const opps = countScoutOpportunities(richScout(), richCollisions());
     // At minimum: 4 opening entries × ~2 claim types each (plays + strength/weakness)
     //           + 1 archetype + multiple profile dimensions + ratings + phaseElo
-    //           + stalker total + 2 factors + 6 psychology rates above thresholds
+    //           + tells total + 2 factors + 6 psychology rates above thresholds
     //           + 2 streak entries + avg_game_length
     //           + 2 rivals + 1 novelty + 2 checklist + 2 recent buckets
     //           + 2 collisions
@@ -1062,16 +1062,16 @@ describe("countScoutOpportunities", () => {
     expect(dimOpps).toHaveLength(1);
   });
 
-  it("stalker factors with score > 0 each contribute one opp", () => {
+  it("tells factors with score > 0 each contribute one opp", () => {
     const scout = emptyScout();
-    scout.stalker.total = 60;
-    scout.stalker.factors = [
+    scout.tells.total = 60;
+    scout.tells.factors = [
       { id: "tilts", label: "x", score: 80 },
       { id: "limited_rep", label: "y", score: 0 },
     ];
     const opps = countScoutOpportunities(scout);
-    expect(opps.filter((o) => o.claim_type === "stalker_total")).toHaveLength(1);
-    expect(opps.filter((o) => o.claim_type === "stalker_factor")).toHaveLength(1);
+    expect(opps.filter((o) => o.claim_type === "tells_total")).toHaveLength(1);
+    expect(opps.filter((o) => o.claim_type === "tells_factor")).toHaveLength(1);
   });
 
   it("collisions contribute one opp per line", () => {

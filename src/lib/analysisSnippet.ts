@@ -23,7 +23,7 @@ export interface AnalysisSnippetData {
 
 // Exported so the rasterizer below (and any external caller) uses the
 // snippet's actual dimensions. shareCard.ts's renderSvgToPng hardcodes
-// the Stalker card's 720×1024 and is unsuitable for this landscape card.
+// the scout card's 720×1024 and is unsuitable for this landscape card.
 export const CARD_W = 1200;
 export const CARD_H = 675;
 const TRUNCATE_CHARS = 240;
@@ -335,8 +335,8 @@ export function buildSnippetRedditShareUrl(
 // Snippet-specific SVG → PNG rasterizer.
 //
 // Parallel to renderSvgToPng in shareCard.ts but parameterized with the
-// snippet's 1200×675 dimensions instead of the Stalker card's 720×1024.
-// Reusing the Stalker rasterizer would squash this card into the wrong
+// snippet's 1200×675 dimensions instead of the scout card's 720×1024.
+// Reusing the scout-card rasterizer would squash this card into the wrong
 // aspect ratio at render time.
 // ─────────────────────────────────────────────────────────────────────────────
 

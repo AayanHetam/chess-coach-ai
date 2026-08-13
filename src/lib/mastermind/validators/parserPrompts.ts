@@ -165,7 +165,7 @@ OUTPUT: a JSON array. Each element is one distinct scouting claim found in the p
       "opponent_plays_opening","opponent_strength_opening","opponent_weakness_opening",
       "archetype","profile_dimension","rating_by_timeclass",
       "peak_rating","low_rating","latest_rating","recent_form_trend","phase_elo",
-      "stalker_total","stalker_factor",
+      "tells_total","tells_factor",
       "tilt_pattern","timeout_pattern","resign_pattern","checkmate_rate",
       "quick_loss_pattern","long_game_pattern","streak_claim","avg_game_length",
       "rival_record","collision_edge","novelty_finding","checklist_item","recent_form_bucket"
@@ -231,11 +231,11 @@ CLAIM-TYPE DEFINITIONS:
   Example: "Middlegame ELO 1850" →
     expected_in_data: { phase: "middle", stated_rating: 1850 }
 
-[Stalker]
-- "stalker_total" — overall stalker score 0-100 + predictability.
-  Example: "Stalker Score 72 — highly exploitable" →
+[Tells]
+- "tells_total" — overall tells score 0-100 + predictability.
+  Example: "Tells 72/100 — highly readable" →
     expected_in_data: { stated_value: 72 }
-- "stalker_factor" — named stalker factor + its score.
+- "tells_factor" — named tells factor + its score.
   Example: "Tilts hard after a loss (factor score 80)" →
     expected_in_data: { factor_id: "tilts", stated_value: 80 }
 

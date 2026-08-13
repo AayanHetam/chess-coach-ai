@@ -293,8 +293,8 @@ export default function HowItWorksPage() {
           </li>
           <li>
             <strong style={{ color: "#fff" }}>Opponent scouting</strong> ingests a Lichess or
-            Chess.com username and returns opening trees, repertoire collisions, a Stalker Score
-            exploitability index, tilt and timeout psychology profiles, and a shareable SVG card.
+            Chess.com username and returns opening trees, repertoire collisions, a Tells
+            readability index, tilt and timeout psychology profiles, and a shareable SVG card.
           </li>
         </Box>
       </Box>

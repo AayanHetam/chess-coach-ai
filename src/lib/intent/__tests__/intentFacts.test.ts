@@ -6,6 +6,7 @@ import {
   MATE_CP,
   PROPHYLAXIS_MIN_SWING_CP,
   PROPHYLAXIS_MIN_SPECIFIC_CP,
+  PROPHYLAXIS_THREAT_MUST_END_BELOW_CP,
   DECISIVE_CP,
 } from "../intentFacts";
 import type { EngineLine, IntentProbe } from "../types";
@@ -281,44 +282,92 @@ describe("prophylaxis", () => {
   it("fires exactly at the threshold and not one centipawn below", () => {
     // opponentBestAfter is set so specificity clears its own bar exactly, which
     // isolates the swing threshold as the thing under test.
-    const baseline = { cp: PROPHYLAXIS_MIN_SPECIFIC_CP, mate: null };
-    const at = computeIntentFacts(
-      probe({ threat: line("Qg4", PROPHYLAXIS_MIN_SWING_CP), threatAfter: line("Qg4", 0), opponentBestAfter: baseline }),
-    );
-    expect(at.prophylaxis).not.toBeNull();
-    const below = computeIntentFacts(
-      probe({ threat: line("Qg4", PROPHYLAXIS_MIN_SWING_CP - 1), threatAfter: line("Qg4", 0), opponentBestAfter: baseline }),
-    );
-    expect(below.prophylaxis).toBeNull();
-  });
-
-  it("specificity fires exactly at its threshold and not one centipawn below", () => {
+    // threatAfter sits well below the absolute bar, and the root score is high
+    // enough that the tempo gate passes, so this isolates SWING alone.
+    const after = -200;
+    const roots = [line("Rf5", 400)];
     const at = computeIntentFacts(
       probe({
-        threat: line("Qg4", 400),
-        threatAfter: line("Qg4", 0),
-        opponentBestAfter: { cp: PROPHYLAXIS_MIN_SPECIFIC_CP, mate: null },
+        rootLines: roots, playedScore: { cp: 400, mate: null },
+        threat: line("Qg4", PROPHYLAXIS_MIN_SWING_CP + after), threatAfter: line("Qg4", after),
       }),
     );
     expect(at.prophylaxis).not.toBeNull();
     const below = computeIntentFacts(
       probe({
-        threat: line("Qg4", 400),
-        threatAfter: line("Qg4", 0),
-        opponentBestAfter: { cp: PROPHYLAXIS_MIN_SPECIFIC_CP - 1, mate: null },
+        rootLines: roots, playedScore: { cp: 400, mate: null },
+        threat: line("Qg4", PROPHYLAXIS_MIN_SWING_CP - 1 + after), threatAfter: line("Qg4", after),
       }),
     );
     expect(below.prophylaxis).toBeNull();
   });
 
-  it("says nothing at all when the opponent's best reply was never measured", () => {
-    // Silence, not a guess: without a baseline there is no way to tell a
-    // defended threat from a position that simply got better for us.
+  it("a threat that now LOSES counts, even with no relative margin", () => {
+    // The absolute route, with opponentBestAfter deliberately level so the
+    // relative route cannot be what carries it.
+    const at = computeIntentFacts(
+      probe({
+        threat: line("Qg4", 400),
+        threatAfter: line("Qg4", PROPHYLAXIS_THREAT_MUST_END_BELOW_CP),
+        opponentBestAfter: { cp: PROPHYLAXIS_THREAT_MUST_END_BELOW_CP, mate: null },
+      }),
+    );
+    expect(at.prophylaxis).not.toBeNull();
+  });
+
+  it("CONTROL: neither route satisfied means the threat is still playable (real Qxd5)", () => {
+    // Ends at -21 (not losing) and 56cp off their best (not inferior). This is
+    // the recapture, and it must fail BOTH routes or the pair is pointless.
     const f = computeIntentFacts(
-      probe({ threat: line("Qg4", 400), threatAfter: line("Qg4", 0), opponentBestAfter: null }),
+      probe({
+        playedSan: "Qxd5",
+        rootLines: [line("exd5", -22), line("Qxd5", -25)],
+        playedScore: { cp: -25, mate: null },
+        threat: line("Bb5+", 242),
+        threatAfter: line("Bb5+", -21),
+        opponentBestAfter: { cp: 35, mate: null },
+      }),
     );
     expect(f.prophylaxis).toBeNull();
-    expect(f.notes.join(" ")).toContain("not measured");
+    expect(f.notes.join(" ")).toContain("playable, so it was not stopped");
+  });
+
+  it("a threat merely INFERIOR to their alternatives counts too (real f5 case)", () => {
+    // The relative route. hxg5 ends at -80 — 20cp short of the absolute bar —
+    // but sits 301cp adrift of Black's best. The founder confirmed this one,
+    // and an absolute-only gate rejected it by those 20 centipawns.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "f5",
+        rootLines: [line("Nf3", -57), line("Nh3", -113)],
+        playedScore: { cp: -241, mate: null },
+        threat: line("hxg5", 406),
+        threatAfter: line("hxg5", -80),
+        opponentBestAfter: { cp: 221, mate: null },
+      }),
+    );
+    expect(f.prophylaxis).not.toBeNull();
+    expect(f.prophylaxis!.threatSan).toBe("hxg5");
+  });
+
+  it("a crushing move is not punished for crushing everything else too (real g6 case)", () => {
+    // g6 drove Bxd8 from +467 to -464 — 931cp — and the founder confirmed it.
+    // But because g6 also wrecks White's whole position, their best reply is
+    // -325, so Bxd8 is only 139cp "specifically" worse. A relative gate
+    // rejected this real prophylaxis on the same arithmetic that correctly
+    // rejects a recapture.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "g6",
+        rootLines: [line("Bg6", 443), line("Qc7", 399)],
+        playedScore: { cp: 399, mate: null },
+        threat: line("Bxd8", 467),
+        threatAfter: line("Bxd8", -464),
+        opponentBestAfter: { cp: -325, mate: null },
+      }),
+    );
+    expect(f.prophylaxis).not.toBeNull();
+    expect(f.prophylaxis!.threatSan).toBe("Bxd8");
   });
 
   it("reports nothing when no threat was probed", () => {

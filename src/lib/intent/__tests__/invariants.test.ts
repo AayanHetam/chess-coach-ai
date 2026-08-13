@@ -191,6 +191,26 @@ describe("property tests over real master games", () => {
     expect(bad.slice(0, 5)).toEqual([]);
   });
 
+  it("no note or fact ever contains an absurd number", () => {
+    // A sentinel (Number.MAX_SAFE_INTEGER) meaning "incomparable" reached both a
+    // stored fact and a user-facing note: "moves we did not play answer Qg4
+    // 9007199254740991cp better". Any number a student could read must stay
+    // inside the range where centipawns mean material.
+    const bad: string[] = [];
+    for (const { p, out: f } of DERIVED) {
+      if (!f) continue;
+      const attrib = f.prophylaxis?.attributionCp;
+      if (typeof attrib === "number" && Math.abs(attrib) > 5000) {
+        bad.push(`${p.game} ${p.san} attributionCp=${attrib}`);
+      }
+      for (const note of f.notes) {
+        const m = note.match(/(\d{5,})/);
+        if (m) bad.push(`${p.game} ${p.san} note contains ${m[1]}: ${note.slice(0, 60)}`);
+      }
+    }
+    expect(bad.slice(0, 5)).toEqual([]);
+  });
+
   it("isTemptingReply never throws, on any legal reply or on rubbish", () => {
     const crashes: string[] = [];
     for (const p of POSITIONS.slice(0, 200)) {

@@ -67,6 +67,28 @@ export const THREAT_MIN_TEMPO_VALUE_CP = 150;
 export const PROPHYLAXIS_MIN_SPECIFIC_CP = 150;
 
 /**
+ * How BAD the threat must be for the opponent after our move.
+ *
+ * Specificity — "is the threat worse than their best reply" — turned out to
+ * punish exactly the moves that work best. A crushing move drags every one of
+ * the opponent's options down together, so the RELATIVE gap collapses even as
+ * the threat is comprehensively refuted. Measured: g6 drove Bxd8 from +467 to
+ * -464, a 931cp collapse the founder confirmed as real prophylaxis, yet it
+ * scored only 139cp against White's best reply and was rejected — the same
+ * arithmetic that correctly rejects a recapture, applied to the opposite chess.
+ *
+ * Absolute position separates them where relative position cannot:
+ *
+ *   g6   (confirmed)   threat ends at -464  — playing it now loses
+ *   Re1  (confirmed)   threat ends at -384  — playing it now loses
+ *   h5   (confirmed)   threat ends at -969  — playing it now loses badly
+ *   Qxd5 (a recapture) threat ends at  -21  — still perfectly playable
+ *
+ * One pawn, matching the other "worth mentioning" floors in this file.
+ */
+export const PROPHYLAXIS_THREAT_MUST_END_BELOW_CP = -100;
+
+/**
  * How much WORSE our move may answer the threat than the best move we passed
  * over, before the claim stops being about our move at all.
  *
@@ -78,8 +100,13 @@ export const PROPHYLAXIS_MIN_SPECIFIC_CP = 150;
  * Deliberately a tolerance and not a demand for uniqueness: h5 is a real
  * prophylactic move that does NOT uniquely answer Qg4 (f6 also mates), and a
  * gate requiring uniqueness would reject it.
+ *
+ * Set from the positions the founder ruled on: Kd8, which they rejected, sits
+ * 377cp worse than the best move passed over; Re1, which they confirmed, sits
+ * 161cp worse. Only those two points bracket this bar — it is the
+ * least-evidenced number in this file and should move as ground truth grows.
  */
-export const PROPHYLAXIS_MAX_ATTRIBUTION_CP = 100;
+export const PROPHYLAXIS_MAX_ATTRIBUTION_CP = 250;
 
 /** Spread between best and second-best that separates the sharpness buckets. */
 export const SHARPNESS_ONLY_MOVE_CP = 150;
@@ -313,7 +340,7 @@ function computeProphylaxis(
       defusedMate: threatMates,
       // No centipawn comparison exists when the threat is gone from the board.
       specificCp: null,
-      attributionCp: attributionOf(probe),
+      attributionCp: attributionMargin(probe),
     };
   }
 
@@ -336,7 +363,7 @@ function computeProphylaxis(
       preventedOutright: false,
       defusedMate: true,
       specificCp: null,
-      attributionCp: attributionOf(probe),
+      attributionCp: attributionMargin(probe),
     };
   }
 
@@ -367,7 +394,7 @@ function computeProphylaxis(
       preventedOutright: false,
       defusedMate: false,
       specificCp: null,
-      attributionCp: attributionOf(probe),
+      attributionCp: attributionMargin(probe),
     };
   }
   const swing = diffCp(probe.threat.score, probe.threatAfter.score);
@@ -384,15 +411,31 @@ function computeProphylaxis(
   // Did the threat get worse than the ALTERNATIVES, or did the opponent's whole
   // position simply get worse? Winning material does the latter to every option
   // they have, and the arithmetic cannot tell the two apart without a baseline.
-  const specific = diffCp(probe.opponentBestAfter, probe.threatAfter.score);
-  if (specific === null) {
-    notes.push("opponent's best reply not measured — cannot tell defence from a general gain");
+  // A threat can die in two different ways, and each catches cases the other
+  // misses — measured on positions the founder ruled on:
+  //
+  //   ABSOLUTE  playing it now simply loses.   g6 drove Bxd8 to -464.
+  //   RELATIVE  it is now clearly worse than   f5 left hxg5 301cp adrift of
+  //             anything else they have.        Black's best.
+  //
+  // Requiring ABSOLUTE alone rejected f5 by 20cp. Requiring RELATIVE alone
+  // rejected g6, because a crushing move drags every opponent option down
+  // together and the relative gap collapses. Either is sufficient; a recapture
+  // that restored material (Qxd5: threat ends at -21, only 56cp off their best)
+  // satisfies neither, which is what separates it from both of the above.
+  const threatEndsAt = toCp(probe.threatAfter.score);
+  if (threatEndsAt === null) {
+    notes.push("post-move threat score unreadable");
     return null;
   }
-  if (specific < PROPHYLAXIS_MIN_SPECIFIC_CP) {
+  const specific = diffCp(probe.opponentBestAfter, probe.threatAfter.score);
+  const nowLoses = threatEndsAt <= PROPHYLAXIS_THREAT_MUST_END_BELOW_CP;
+  const nowInferior = specific !== null && specific >= PROPHYLAXIS_MIN_SPECIFIC_CP;
+  if (!nowLoses && !nowInferior) {
     notes.push(
-      `threat is only ${specific}cp worse than the opponent's best reply — not stopped, ` +
-      `the whole position changed`,
+      `the threat still scores ${threatEndsAt}cp for them` +
+      (specific === null ? "" : ` and is only ${specific}cp off their best`) +
+      ` — playable, so it was not stopped`,
     );
     return null;
   }
@@ -401,9 +444,9 @@ function computeProphylaxis(
   // the same? Only a move that answers the threat at least as well as its
   // alternatives can claim the credit.
   const attribution = attributionOf(probe);
-  if (attribution !== null && attribution > PROPHYLAXIS_MAX_ATTRIBUTION_CP) {
+  if (attribution.kind === "measured" && attribution.marginCp > PROPHYLAXIS_MAX_ATTRIBUTION_CP) {
     notes.push(
-      `moves we did not play answer ${probe.threat.san} ${attribution}cp better — ` +
+      `moves we did not play answer ${probe.threat.san} ${attribution.marginCp}cp better — ` +
       `the threat's decline is not this move's doing`,
     );
     return null;
@@ -417,7 +460,7 @@ function computeProphylaxis(
     preventedOutright: false,
     defusedMate: false,
     specificCp: specific,
-    attributionCp: attribution,
+    attributionCp: attribution.kind === "measured" ? attribution.marginCp : null,
   };
 }
 
@@ -433,6 +476,12 @@ function computeProphylaxis(
 type Answer = { rank: 0 | 1 | 2; cp: number | null };
 const ANSWER_UNRANKED: Answer = { rank: 2, cp: null };
 
+/** The margin as a plain number for the fact, or null when incomparable. */
+function attributionMargin(probe: IntentProbe): number | null {
+  const a = attributionOf(probe);
+  return a.kind === "measured" ? a.marginCp : null;
+}
+
 function answerQuality(score: IntentScore | null | undefined, stillLegal: boolean): Answer {
   if (!stillLegal) return { rank: 0, cp: null }; // threat is impossible: perfect answer
   if (isMateAgainst(score)) return { rank: 0, cp: null }; // playing it now loses to mate
@@ -445,33 +494,45 @@ function answerQuality(score: IntentScore | null | undefined, stillLegal: boolea
  * Attribution: how much WORSE our move answers the threat than the best move we
  * passed over. Positive means alternatives did it better.
  *
- * Returns null when there is nothing comparable to measure against — silence,
- * not a guess.
+ * Returns a VERDICT, never a sentinel number. An earlier version returned
+ * Number.MAX_SAFE_INTEGER to mean "an alternative answered it categorically
+ * better", and that value reached both a stored fact and a user-facing note —
+ * "moves we did not play answer Qg4 9007199254740991cp better". Producing
+ * absurd numbers in text a student reads is the exact failure this module
+ * exists to prevent, so the incomparable cases are now a separate case of the
+ * return type rather than a magic value.
+ *
+ * Answers are only compared arithmetically when they are on the SAME scale.
+ * Our move making the threat score -926 and an alternative making it illegal
+ * are both effective answers; ranking one categorically above the other killed
+ * h5, a genuine prophylactic move, because f6 happened to refute Qg4 outright.
  */
-function attributionOf(probe: IntentProbe): number | null {
+type Attribution =
+  | { kind: "measured"; marginCp: number }
+  | { kind: "incomparable" }
+  | { kind: "unknown" };
+
+function attributionOf(probe: IntentProbe): Attribution {
   const alts = probe.threatAfterAlternatives;
-  if (!alts || alts.length === 0) return null;
+  if (!alts || alts.length === 0) return { kind: "unknown" };
 
   const played = answerQuality(probe.threatAfter?.score, probe.threatStillLegal);
+  if (played.rank === 2) return { kind: "unknown" };
 
-  let best: Answer | null = null;
+  // Only alternatives on the same scale as our move can be subtracted from it.
+  let best: number | null = null;
+  let sawOtherScale = false;
   for (const a of alts) {
     if (a.ourSan === probe.playedSan) continue;
     const q = answerQuality(a.score, a.stillLegal);
     if (q.rank === 2) continue;
-    if (best === null || q.rank < best.rank || (q.rank === best.rank && (q.cp ?? 0) < (best.cp ?? 0))) {
-      best = q;
-    }
+    if (q.rank !== played.rank) { sawOtherScale = true; continue; }
+    if (q.cp === null) continue;
+    if (best === null || q.cp < best) best = q.cp;
   }
-  if (best === null || played.rank === 2) return null;
-
-  // An alternative answers it categorically better (kills it outright) while we
-  // merely made it worse: the claim belongs to the move we did not play.
-  if (best.rank < played.rank) return Number.MAX_SAFE_INTEGER;
-  // We answer it categorically better than anything else: unambiguously ours.
-  if (played.rank < best.rank) return -1;
-  if (played.cp === null || best.cp === null) return null;
-  return played.cp - best.cp;
+  if (best === null) return sawOtherScale ? { kind: "incomparable" } : { kind: "unknown" };
+  if (played.cp === null) return { kind: "unknown" };
+  return { kind: "measured", marginCp: played.cp - best };
 }
 
 /**

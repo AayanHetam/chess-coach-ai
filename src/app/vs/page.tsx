@@ -90,7 +90,7 @@ const COMPARISON_ROWS = [
   ["FEN-similarity puzzle re-ranking", "Yes (49-d cosine)", "Not publicly documented", "n/a", "Not publicly documented", "n/a", "No"],
   ["Adaptive recommendations from your mistakes", "Yes (graph + cosine)", "Theme-based", "n/a", "Theme-based", "n/a", "Personalized but theme-led"],
   ["Live play in-app", "Yes (Lichess OAuth)", "No", "Yes", "No", "No", "Yes (own platform)"],
-  ["Opponent scouting / scout reports", "Yes (Stalker Score, tilt/timeout)", "No", "No", "No", "No", "Limited"],
+  ["Opponent scouting / scout reports", "Yes (Tells, tilt/timeout)", "No", "No", "No", "No", "Limited"],
   ["Inline puzzles inside chat replies", "Yes", "No", "n/a", "No", "n/a", "No"],
 ];
 
@@ -237,7 +237,7 @@ export default function VsPage() {
           </li>
           <li>
             <strong style={{ color: "#fff" }}>You want to scout an opponent before a match.</strong>{" "}
-            The Stalker Score / tilt-profile dashboard isn&apos;t replicated elsewhere.
+            The Tells / tilt-profile dashboard isn&apos;t replicated elsewhere.
           </li>
           <li>
             <strong style={{ color: "#fff" }}>You&apos;re in India or Southeast Asia.</strong>{" "}

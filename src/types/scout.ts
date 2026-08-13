@@ -116,16 +116,16 @@ export interface ProfileSnapshot {
   phaseElo: PhaseElo;
 }
 
-export interface StalkerFactor {
+export interface Tell {
   id: 'time_trouble' | 'tilts' | 'limited_rep' | 'repetitive';
   label: string;
   score: number; // 0-100 (higher = more exploitable)
 }
 
-export interface StalkerScore {
+export interface TellsProfile {
   total: number; // 0-100
   predictability: Predictability;
-  factors: StalkerFactor[];
+  factors: Tell[];
 }
 
 export interface OpeningSummary {
@@ -239,7 +239,7 @@ export interface Collisions {
 
 export interface ScoutAnalytics {
   profile: ProfileSnapshot;
-  stalker: StalkerScore;
+  tells: TellsProfile;
   prep: TargetedPrep;
   checklist: ChecklistItem[];
   rivals: FrequentRival[];

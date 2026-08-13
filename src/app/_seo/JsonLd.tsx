@@ -75,7 +75,7 @@ export const homeSoftwareApplication = {
     "Adaptive puzzles from a 100,000+ position Neo4j graph",
     "FEN cosine-similarity puzzle re-ranking",
     "Lichess OAuth 2.0 PKCE live play",
-    "Opponent scouting with Stalker Score",
+    "Opponent scouting with a Tells readout",
   ],
   creator: { "@type": "Person", name: "Aayan Hetamsaria" },
   publisher: { "@id": ORGANIZATION_ID },

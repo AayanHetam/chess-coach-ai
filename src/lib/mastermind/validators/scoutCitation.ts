@@ -24,7 +24,7 @@ import type {
   ChecklistItem,
   NoveltyFinding,
   RecentFormBucket,
-  StalkerFactor,
+  Tell,
 } from "@/types/scout";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -40,9 +40,9 @@ export const SCOUT_TOLERANCE = {
   rating: 25,
   /** ±50 cp for phase-vs-phase ELO delta claims. */
   phaseDelta: 50,
-  /** ±10 for stalker factor scores (0-100 scale). */
+  /** ±10 for tells factor scores (0-100 scale). */
   factorScore: 10,
-  /** ±5 for stalker total + profile dimensions (0-100 scale). */
+  /** ±5 for tells total + profile dimensions (0-100 scale). */
   scoreOutOfHundred: 5,
   /** ±1 for streak counts and recent-form W/D/L counts. */
   count: 1,
@@ -310,16 +310,16 @@ function matchScoutClaim(
       return { matched: false };
     }
 
-    // §3.3 Stalker ────────────────────────────────────────────────────
-    case "stalker_total": {
+    // §3.3 Tells ────────────────────────────────────────────────────
+    case "tells_total": {
       if (ex.stated_value === undefined) return { matched: false };
-      const ok = Math.abs(ex.stated_value - scout.stalker.total) <= SCOUT_TOLERANCE.scoreOutOfHundred;
-      return { matched: ok, matchedEntry: { total: scout.stalker.total } };
+      const ok = Math.abs(ex.stated_value - scout.tells.total) <= SCOUT_TOLERANCE.scoreOutOfHundred;
+      return { matched: ok, matchedEntry: { total: scout.tells.total } };
     }
-    case "stalker_factor": {
+    case "tells_factor": {
       const fid = ex.factor_id;
       if (!fid) return { matched: false };
-      const factor = scout.stalker.factors.find((f) => f.id === fid);
+      const factor = scout.tells.factors.find((f) => f.id === fid);
       if (!factor) return { matched: false };
       if (ex.stated_value === undefined) {
         // Existence-only claim ("they tilt") matches if the factor is present.
@@ -505,10 +505,10 @@ export function countScoutOpportunities(
     }
   });
 
-  // §3.3 Stalker
-  if (scout.stalker.total > 0) push("stalker_total", { total: scout.stalker.total });
-  scout.stalker.factors.forEach((f) => {
-    if (f.score > 0) push("stalker_factor", { id: f.id, score: f.score });
+  // §3.3 Tells
+  if (scout.tells.total > 0) push("tells_total", { total: scout.tells.total });
+  scout.tells.factors.forEach((f) => {
+    if (f.score > 0) push("tells_factor", { id: f.id, score: f.score });
   });
 
   // §3.4 Psychology — threshold-based

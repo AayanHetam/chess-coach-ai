@@ -81,7 +81,7 @@ const QA: { q: string; a: string }[] = [
   },
   {
     q: "What does opponent scouting do?",
-    a: "Paste a Lichess or Chess.com username and the dashboard returns opening trees, repertoire collisions against yours, a Stalker Score exploitability index, tilt and timeout psychology profiles, and a shareable SVG player card.",
+    a: "Paste a Lichess or Chess.com username and the dashboard returns opening trees, repertoire collisions against yours, a Tells readability index, tilt and timeout psychology profiles, and a shareable SVG player card.",
   },
   {
     q: "What's the inline-puzzle thing?",

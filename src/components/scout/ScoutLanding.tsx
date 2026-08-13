@@ -1,5 +1,17 @@
-import { Box, Button, Chip, Grid, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Grid, Stack, Typography } from '@mui/material';
 import { Icon } from '@iconify/react';
+import {
+  DossierPanel,
+  EMBER,
+  EMBER_LIGHT,
+  FieldLabel,
+  MONO,
+  MeterRow,
+  SegmentedMeter,
+  VerdictPill,
+  strengthColor,
+  tellColor,
+} from './dossier';
 
 export interface ScoutLandingProps {
   onFocusSearch: () => void;
@@ -7,316 +19,227 @@ export interface ScoutLandingProps {
 
 const STEPS = [
   {
-    n: 1,
-    icon: 'mdi:magnify',
-    title: 'Search your rival',
-    body: 'Enter any username from Lichess or Chess.com.',
+    n: '01',
+    icon: 'mdi:account-search-outline',
+    title: 'Name the opponent',
+    body: 'Any public Chess.com or Lichess handle. No signup, no account linking.',
   },
   {
-    n: 2,
-    icon: 'mdi:dna',
-    title: 'Get their chess DNA',
-    body: 'Analyzes thousands of games to surface their patterns.',
+    n: '02',
+    icon: 'mdi:file-document-multiple-outline',
+    title: 'We read their games',
+    body: 'Up to two years of history — openings, clock habits, and how they behave after a loss.',
   },
   {
-    n: 3,
-    icon: 'mdi:target',
-    title: 'Prepare & dominate',
-    body: 'Personalized scouting report with exploitable lines.',
+    n: '03',
+    icon: 'mdi:target-variant',
+    title: 'Play the lines that hurt',
+    body: 'Prep against their actual repertoire, plus a practice bot that mimics them.',
   },
+];
+
+// Verifiable properties of the product — not usage numbers.
+const CAPABILITIES = [
+  { icon: 'mdi:chess-pawn', label: 'Chess.com + Lichess' },
+  { icon: 'mdi:calendar-range', label: 'Up to 2 years of games' },
+  { icon: 'mdi:account-off-outline', label: 'No signup' },
 ];
 
 export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
   return (
     <Box sx={{ py: { xs: 3, md: 6 } }}>
-      <Grid container spacing={4} alignItems="center">
+      <Grid container spacing={{ xs: 4, md: 6 }} alignItems="center">
         <Grid size={{ xs: 12, md: 7 }}>
-          <Chip
-            icon={<Icon icon="mdi:star-four-points" width={14} />}
-            label="NEW · Scout reports · 8 tools"
+          {/* Eyebrow */}
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
             sx={{
-              bgcolor: 'rgba(249,115,22,0.18)',
-              color: '#FB923C',
-              border: '1px solid rgba(249,115,22,0.4)',
-              fontWeight: 700,
-              fontSize: '0.72rem',
+              display: 'inline-flex',
+              px: 1.25,
+              py: 0.5,
               mb: 3,
-              '& .MuiChip-icon': { color: '#FB923C' },
-            }}
-          />
-
-          <Typography
-            variant="h2"
-            sx={{
-              fontSize: { xs: '2.2rem', sm: '3rem', md: '3.6rem' },
-              fontWeight: 800,
-              lineHeight: 1.05,
-              letterSpacing: '-0.02em',
-              color: 'text.primary',
-              mb: 2,
+              borderRadius: '5px',
+              border: '1px solid rgba(249,115,22,0.38)',
+              bgcolor: 'rgba(249,115,22,0.1)',
             }}
           >
-            Decode your{' '}
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                bgcolor: EMBER,
+                boxShadow: `0 0 8px ${EMBER}`,
+              }}
+            />
+            <FieldLabel color={EMBER_LIGHT} size="0.62rem">
+              Opponent dossier
+            </FieldLabel>
+          </Stack>
+
+          <Typography
+            variant="h1"
+            sx={{
+              fontSize: { xs: '2.4rem', sm: '3.1rem', md: '3.9rem' },
+              fontWeight: 800,
+              lineHeight: 1.02,
+              letterSpacing: '-0.035em',
+              color: 'rgba(255,255,255,0.96)',
+              mb: 2.5,
+            }}
+          >
+            Read your opponent
+            <br />
             <Box
               component="span"
               sx={{
-                background: 'linear-gradient(135deg, #F97316 0%, #FB923C 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                position: 'relative',
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  bottom: -4,
-                  height: 4,
-                  borderRadius: 2,
-                  background: 'linear-gradient(135deg, #F97316 0%, #FB923C 100%)',
-                  opacity: 0.35,
-                },
+                color: EMBER_LIGHT,
+                textShadow: '0 0 40px rgba(249,115,22,0.35)',
               }}
             >
-              opponent&apos;s
-            </Box>{' '}
-            chess DNA
+              before move one.
+            </Box>
           </Typography>
 
           <Typography
             sx={{
-              color: 'text.secondary',
-              fontSize: '1.05rem',
-              mb: 3.5,
-              maxWidth: 560,
-              lineHeight: 1.55,
+              color: 'rgba(255,255,255,0.62)',
+              fontSize: '1.06rem',
+              mb: 4,
+              maxWidth: 540,
+              lineHeight: 1.6,
             }}
           >
-            Your next opponent has patterns, weaknesses, and secrets. We find them before you sit down to play.
+            Every player leaks patterns — a narrow repertoire, a clock that runs
+            dry, a slide after the first loss. We read them out of their public
+            games and hand you the lines to play.
           </Typography>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
             <Button
               variant="contained"
               size="large"
               startIcon={<Icon icon="mdi:binoculars" />}
               onClick={onFocusSearch}
               sx={{
-                px: 3,
-                py: 1.25,
+                px: 3.25,
+                py: 1.35,
                 fontWeight: 700,
                 fontSize: '0.95rem',
                 textTransform: 'none',
-                borderRadius: 2.5,
-                bgcolor: '#F97316',
+                borderRadius: 2,
+                bgcolor: EMBER,
                 color: '#0A0A0A',
-                boxShadow: '0 6px 18px rgba(249,115,22,0.32)',
+                boxShadow: '0 8px 24px rgba(249,115,22,0.34)',
+                transition: 'transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease',
                 '&:hover': {
-                  bgcolor: '#FB923C',
-                  boxShadow: '0 10px 28px rgba(249,115,22,0.45)',
-                },
-                '&.Mui-disabled': {
-                  bgcolor: 'rgba(255,255,255,0.06)',
-                  color: 'rgba(255,255,255,0.3)',
+                  bgcolor: EMBER_LIGHT,
+                  boxShadow: '0 12px 32px rgba(249,115,22,0.46)',
+                  transform: 'translateY(-1px)',
                 },
               }}
             >
-              Stalk your first opponent
+              Scout your first opponent
             </Button>
-            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary' }}>
-              <Icon icon="mdi:check-circle" style={{ color: '#FB923C' }} width={16} />
-              <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                Free · No signup required
+            <Stack direction="row" spacing={0.75} alignItems="center">
+              <Icon icon="mdi:check-circle" style={{ color: '#34d399' }} width={16} />
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.62)' }}
+              >
+                Free · no account needed
               </Typography>
             </Stack>
           </Stack>
 
-          <Stack direction="row" spacing={{ xs: 2, sm: 4 }} sx={{ mt: 5, flexWrap: 'wrap', gap: 2 }}>
-            <StatPill value="165K+" label="Scout reports" />
-            <StatPill value="11M+" label="Games analyzed" />
-            <StatPill value="2" label="Platforms supported" />
+          {/* Capability strip */}
+          <Stack
+            direction="row"
+            spacing={3}
+            sx={{ mt: 4.5, flexWrap: 'wrap', gap: 2, rowGap: 1.5 }}
+          >
+            {CAPABILITIES.map(c => (
+              <Stack key={c.label} direction="row" spacing={0.85} alignItems="center">
+                <Box sx={{ color: 'rgba(255,255,255,0.35)', display: 'flex' }}>
+                  <Icon icon={c.icon} width={15} />
+                </Box>
+                <FieldLabel color="rgba(255,255,255,0.45)" size="0.63rem">
+                  {c.label}
+                </FieldLabel>
+              </Stack>
+            ))}
           </Stack>
         </Grid>
 
+        {/* Sample dossier — same components as the real report, so the preview
+            is an honest promise of what lands after a search. */}
         <Grid size={{ xs: 12, md: 5 }}>
           <Box sx={{ position: 'relative' }}>
-            <Chip
-              size="small"
-              label="Live example"
+            <Box
               sx={{
                 position: 'absolute',
-                top: -14,
-                right: 16,
-                bgcolor: 'rgba(20,22,28,0.85)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
-                color: '#FB923C',
-                fontWeight: 700,
-                border: '1px solid rgba(249,115,22,0.4)',
-                zIndex: 2,
-                '&::before': {
-                  content: '""',
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  bgcolor: '#22c55e',
-                  display: 'inline-block',
-                  marginRight: 6,
-                },
+                inset: -30,
+                background:
+                  'radial-gradient(circle at 60% 30%, rgba(249,115,22,0.16), transparent 68%)',
+                pointerEvents: 'none',
+                zIndex: 0,
               }}
             />
-
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2.5,
-                borderRadius: '1.5rem',
-                border: '1px solid rgba(255,255,255,0.08)',
-                background:
-                  'linear-gradient(135deg, rgba(249,115,22,0.08), rgba(20,22,28,0.6))',
-                backdropFilter: 'blur(14px) saturate(140%)',
-                WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-                boxShadow:
-                  '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-                overflow: 'hidden',
-              }}
-            >
-              <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-                <Box
-                  sx={{
-                    width: 54,
-                    height: 54,
-                    borderRadius: 2,
-                    background:
-                      'linear-gradient(135deg, rgba(40,44,55,0.9) 0%, rgba(20,22,28,0.9) 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#FB923C',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon icon="mdi:chess-king" width={30} />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', color: 'rgba(255,255,255,0.94)' }}>
-                    DragonSlayer99
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    6,527 games · 3 months
-                  </Typography>
-                </Box>
-                <OvrRing value={73} />
-              </Stack>
-
-              <Chip
-                icon={<Icon icon="mdi:fire" width={14} />}
-                label="The Berserker"
-                size="small"
-                sx={{
-                  bgcolor: 'rgba(249,115,22,0.18)',
-                  color: '#FB923C',
-                  border: '1px solid rgba(249,115,22,0.4)',
-                  fontWeight: 700,
-                  mb: 2,
-                  '& .MuiChip-icon': { color: '#FB923C' },
-                }}
-              />
-
-              <Grid container spacing={1.5} sx={{ mb: 2 }}>
-                <StatMini label="ATK" value={79} color="#22c55e" />
-                <StatMini label="DEF" value={73} color="#22c55e" />
-                <StatMini label="TIME" value={73} color="#f59e0b" />
-                <StatMini label="MIND" value={68} color="#ef4444" />
-              </Grid>
-
-              <Stack spacing={0.75}>
-                <RatingRow icon="mdi:lightning-bolt" label="Bullet" rating={2183} />
-                <RatingRow icon="mdi:fire" label="Blitz" rating={2172} />
-                <RatingRow icon="mdi:timer-outline" label="Rapid" rating={2291} />
-                <RatingRow icon="mdi:chess-queen" label="Classical" rating={1850} />
-              </Stack>
-            </Paper>
+            <Box sx={{ position: 'relative', zIndex: 1 }}>
+              <SampleDossier />
+            </Box>
           </Box>
         </Grid>
       </Grid>
 
       {/* How it works */}
-      <Box sx={{ mt: { xs: 6, md: 10 }, textAlign: 'center' }}>
-        <Typography variant="overline" sx={{ letterSpacing: '0.14em', color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
-          HOW IT WORKS
-        </Typography>
-        <Typography sx={{ color: 'text.secondary', mb: 4 }}>
-          Three steps to know your opponent better than they know themselves
-        </Typography>
-        <Grid container spacing={2.5} justifyContent="center">
-          {STEPS.map((s, i) => (
+      <Box sx={{ mt: { xs: 8, md: 12 } }}>
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
+          <FieldLabel color="rgba(255,255,255,0.4)">How it works</FieldLabel>
+          <Box sx={{ flex: 1, height: '1px', bgcolor: 'rgba(255,255,255,0.09)' }} />
+        </Stack>
+
+        <Grid container spacing={2.5}>
+          {STEPS.map(s => (
             <Grid size={{ xs: 12, sm: 4 }} key={s.n}>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  height: '100%',
-                  borderRadius: '1.5rem',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  background: 'rgba(20,22,28,0.55)',
-                  backdropFilter: 'blur(14px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-                  boxShadow:
-                    '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-                  overflow: 'hidden',
-                  position: 'relative',
-                  transition: 'all 180ms ease',
-                  '&:hover': {
-                    border: '1px solid rgba(249,115,22,0.35)',
-                    transform: 'translateY(-2px)',
-                    boxShadow:
-                      '0 12px 28px rgba(0,0,0,0.4), 0 0 0 1px rgba(249,115,22,0.18), inset 0 1px 0 rgba(255,255,255,0.06)',
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: 16,
-                    right: 16,
-                    width: 30,
-                    height: 30,
-                    borderRadius: '50%',
-                    bgcolor: '#F97316',
-                    color: '#0A0A0A',
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 14,
-                  }}
-                >
-                  {s.n}
-                </Box>
-                <Box sx={{ color: '#FB923C', mb: 1.5 }}>
-                  <Icon icon={s.icon} width={36} />
-                </Box>
-                <Typography sx={{ fontWeight: 800, fontSize: '1rem', mb: 0.5, color: 'rgba(255,255,255,0.94)' }}>
-                  {s.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                  {s.body}
-                </Typography>
-                {i < STEPS.length - 1 && (
-                  <Box
+              <DossierPanel sx={{ height: '100%' }}>
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.75 }}>
+                  <Typography
                     sx={{
-                      position: 'absolute',
-                      right: -18,
-                      top: '50%',
-                      display: { xs: 'none', sm: 'block' },
-                      color: '#FB923C',
-                      opacity: 0.5,
+                      fontFamily: MONO,
+                      fontSize: '1.6rem',
+                      fontWeight: 700,
+                      color: 'rgba(249,115,22,0.42)',
+                      lineHeight: 1,
                     }}
                   >
-                    <Icon icon="mdi:arrow-right" width={28} />
+                    {s.n}
+                  </Typography>
+                  <Box sx={{ flex: 1, height: '1px', bgcolor: 'rgba(255,255,255,0.08)' }} />
+                  <Box sx={{ color: EMBER_LIGHT, display: 'flex' }}>
+                    <Icon icon={s.icon} width={22} />
                   </Box>
-                )}
-              </Paper>
+                </Stack>
+                <Typography
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: '1.02rem',
+                    mb: 0.85,
+                    color: 'rgba(255,255,255,0.94)',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  {s.title}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'rgba(255,255,255,0.58)', lineHeight: 1.55 }}
+                >
+                  {s.body}
+                </Typography>
+              </DossierPanel>
             </Grid>
           ))}
         </Grid>
@@ -325,112 +248,154 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
   );
 }
 
-function StatPill({ value, label }: { value: string; label: string }) {
-  return (
-    <Box>
-      <Typography sx={{ fontSize: '1.5rem', fontWeight: 800, color: '#FB923C', lineHeight: 1, fontFamily: 'Monaco, Menlo, monospace' }}>
-        {value}
-      </Typography>
-      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-        {label}
-      </Typography>
-    </Box>
-  );
-}
+// ─── Sample dossier ─────────────────────────────────────────────────────────
 
-function OvrRing({ value }: { value: number }) {
-  const circumference = 2 * Math.PI * 22;
-  const offset = circumference * (1 - value / 100);
-  return (
-    <Box sx={{ position: 'relative', width: 54, height: 54, flexShrink: 0 }}>
-      <svg width={54} height={54} viewBox="0 0 54 54">
-        <circle cx="27" cy="27" r="22" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="4" />
-        <circle
-          cx="27"
-          cy="27"
-          r="22"
-          fill="none"
-          stroke="#FB923C"
-          strokeWidth="4"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          transform="rotate(-90 27 27)"
-        />
-      </svg>
-      <Box
-        sx={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)', letterSpacing: 1.2 }}>
-          OVR
-        </Typography>
-        <Typography sx={{ fontWeight: 800, fontSize: 14, color: '#FB923C', lineHeight: 1, fontFamily: 'Monaco, Menlo, monospace' }}>
-          {value}
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
+const SAMPLE_DIMS = [
+  { label: 'Attack', value: 79 },
+  { label: 'Defence', value: 73 },
+  { label: 'Clock', value: 61 },
+  { label: 'Composure', value: 48 },
+];
 
-function StatMini({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <Grid size={3}>
-      <Box sx={{ textAlign: 'center' }}>
-        <Box sx={{ color }}>
-          <Icon
-            icon={
-              label === 'ATK'
-                ? 'mdi:sword-cross'
-                : label === 'DEF'
-                ? 'mdi:shield'
-                : label === 'TIME'
-                ? 'mdi:timer-outline'
-                : 'mdi:brain'
-            }
-            width={14}
-          />
-        </Box>
-        <Typography sx={{ fontSize: '1.15rem', fontWeight: 800, color, lineHeight: 1.1, fontFamily: 'Monaco, Menlo, monospace' }}>
-          {value}
-        </Typography>
-        <Typography variant="caption" sx={{ fontSize: '0.6rem', letterSpacing: 1.2, color: 'text.secondary', fontWeight: 700 }}>
-          {label}
-        </Typography>
-        <Box sx={{ mt: 0.5, height: 2, borderRadius: 1, bgcolor: color, opacity: 0.6 }} />
-      </Box>
-    </Grid>
-  );
-}
+const SAMPLE_TELLS = [
+  { label: 'Limited repertoire', value: 80 },
+  { label: 'Time trouble', value: 71 },
+];
 
-function RatingRow({ icon, label, rating }: { icon: string; label: string; rating: number }) {
+function SampleDossier() {
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        px: 1.25,
-        py: 0.75,
-        borderRadius: 1.5,
-        bgcolor: 'rgba(255,255,255,0.04)',
-      }}
+    <DossierPanel
+      label="Sample dossier"
+      emphasis
+      action={<VerdictPill label="Example" color="rgba(255,255,255,0.45)" />}
     >
-      <Stack direction="row" spacing={1} alignItems="center">
-        <Box sx={{ color: '#FB923C' }}>
-          <Icon icon={icon} width={14} />
+      <Stack direction="row" alignItems="flex-start" sx={{ mb: 2.25 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography
+            sx={{
+              fontWeight: 800,
+              fontSize: '1.5rem',
+              lineHeight: 1.05,
+              letterSpacing: '-0.02em',
+              color: 'rgba(255,255,255,0.96)',
+              mb: 0.85,
+            }}
+          >
+            DragonSlayer99
+          </Typography>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Stack
+              direction="row"
+              spacing={0.6}
+              alignItems="center"
+              sx={{
+                px: 1,
+                py: 0.3,
+                borderRadius: '4px',
+                border: '1px solid rgba(249,115,22,0.42)',
+                bgcolor: 'rgba(249,115,22,0.12)',
+              }}
+            >
+              <Box sx={{ color: EMBER_LIGHT, display: 'flex' }}>
+                <Icon icon="mdi:fire" width={12} />
+              </Box>
+              <FieldLabel color={EMBER_LIGHT} size="0.6rem">
+                The Berserker
+              </FieldLabel>
+            </Stack>
+            <FieldLabel color="rgba(255,255,255,0.4)" size="0.6rem">
+              6,527 games
+            </FieldLabel>
+          </Stack>
         </Box>
-        <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.72rem' }}>
-          {label}
-        </Typography>
+
+        <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+          <Typography
+            sx={{
+              fontFamily: MONO,
+              fontSize: '2.3rem',
+              fontWeight: 700,
+              lineHeight: 0.85,
+              color: strengthColor(66),
+              letterSpacing: '-0.04em',
+            }}
+          >
+            66
+          </Typography>
+          <Box sx={{ mt: 0.5 }}>
+            <FieldLabel color="rgba(255,255,255,0.38)" size="0.57rem">
+              Overall
+            </FieldLabel>
+          </Box>
+        </Box>
       </Stack>
-      <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: 'rgba(255,255,255,0.94)', fontFamily: 'Monaco, Menlo, monospace' }}>{rating}</Typography>
-    </Box>
+
+      <Stack spacing={1.35} sx={{ mb: 2.5 }}>
+        {SAMPLE_DIMS.map(d => (
+          <MeterRow
+            key={d.label}
+            label={d.label}
+            value={d.value}
+            color={strengthColor(d.value)}
+            note={d.label === 'Composure' ? 'weakest link — play here' : undefined}
+          />
+        ))}
+      </Stack>
+
+      <Box sx={{ pt: 2, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1.5 }}>
+          <FieldLabel color={EMBER_LIGHT} size="0.62rem">
+            Tells
+          </FieldLabel>
+          <Box sx={{ flex: 1, height: '1px', bgcolor: 'rgba(249,115,22,0.2)' }} />
+          <Stack direction="row" alignItems="baseline" spacing={0.25}>
+            <Typography
+              sx={{
+                fontFamily: MONO,
+                fontSize: '1.35rem',
+                fontWeight: 700,
+                color: tellColor(73),
+                lineHeight: 1,
+              }}
+            >
+              73
+            </Typography>
+            <Typography
+              sx={{ fontFamily: MONO, fontSize: '0.7rem', color: 'rgba(255,255,255,0.34)' }}
+            >
+              /100
+            </Typography>
+          </Stack>
+        </Stack>
+
+        <Stack spacing={1.25}>
+          {SAMPLE_TELLS.map(t => (
+            <Box key={t.label}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ mb: 0.5 }}
+              >
+                <FieldLabel color="rgba(255,255,255,0.72)" size="0.63rem">
+                  {t.label}
+                </FieldLabel>
+                <Typography
+                  sx={{
+                    fontFamily: MONO,
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    color: tellColor(t.value),
+                  }}
+                >
+                  {t.value}
+                </Typography>
+              </Stack>
+              <SegmentedMeter value={t.value} color={tellColor(t.value)} segments={24} height={8} />
+            </Box>
+          ))}
+        </Stack>
+      </Box>
+    </DossierPanel>
   );
 }

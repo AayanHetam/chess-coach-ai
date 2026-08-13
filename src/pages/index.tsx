@@ -1038,7 +1038,7 @@ function BentoSection() {
                   component="span"
                   sx={{ color: "rgba(255,255,255,0.5)", fontWeight: 500 }}
                 >
-                  Stalker Score™ tells you what to play.
+                  Tells show you what to play.
                 </Box>
               </Typography>
               <Typography

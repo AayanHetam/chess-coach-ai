@@ -45,7 +45,7 @@ import type {
 import AnalyzingModal, { AnalyzingStage } from '@/components/scout/AnalyzingModal';
 import ScoutLanding from '@/components/scout/ScoutLanding';
 import ProfileCard from '@/components/scout/ProfileCard';
-import StalkerScoreCard from '@/components/scout/StalkerScoreCard';
+import TellsCard from '@/components/scout/TellsCard';
 import TargetedPrepPanel from '@/components/scout/TargetedPrep';
 import PreGameChecklist from '@/components/scout/PreGameChecklist';
 import RivalsPanel from '@/components/scout/RivalsPanel';
@@ -313,7 +313,7 @@ function ScoutSearchBar({
           },
         }}
       >
-        {loading ? 'Stalking…' : 'Stalk'}
+        {loading ? 'Scouting…' : 'Scout'}
       </Button>
     </Paper>
   );
@@ -1080,7 +1080,7 @@ export default function ScoutPage() {
               />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
-              <StalkerScoreCard stalker={analytics.stalker} />
+              <TellsCard tells={analytics.tells} />
             </Grid>
           </Grid>
 
@@ -1355,7 +1355,7 @@ export default function ScoutPage() {
             username: scoutResult.username,
             platform: scoutResult.platform,
             profile: analytics.profile,
-            stalker: analytics.stalker,
+            tells: analytics.tells,
             topOpening: topOpeningFor(analytics),
           }}
           snapshotId={scoutSnapshotId}

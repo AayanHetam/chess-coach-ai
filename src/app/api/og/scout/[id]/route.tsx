@@ -16,7 +16,7 @@ const EDGE = "rgba(255,255,255,0.08)";
  * Server-rendered OG image for a shared scout snapshot.
  *
  * Visual: player name + platform + the four key profile stats (OVR, ATK,
- * DEF, TIME) as a chart-of-rings. The Stalker Score gets its own large
+ * DEF, TIME) as a chart-of-rings. The Tells readout gets its own large
  * numeric callout on the right. Same Obsidian Glass + Ember Core palette
  * as the insight and game-share OG cards.
  */
@@ -28,7 +28,7 @@ export async function GET(
 
   let username = "Opponent";
   let platform = "chess.com";
-  let stalkerTotal = 0;
+  let tellsTotal = 0;
   let predictability = "—";
   let ovr = 0;
   let atk = 0;
@@ -44,8 +44,8 @@ export async function GET(
       if (snap) {
         username = snap.username;
         platform = snap.platform;
-        stalkerTotal = snap.analytics.stalker.total;
-        predictability = snap.analytics.stalker.predictability;
+        tellsTotal = snap.analytics.tells.total;
+        predictability = snap.analytics.tells.predictability;
         ovr = snap.analytics.profile.ovr;
         atk = snap.analytics.profile.atk;
         def = snap.analytics.profile.def;
@@ -142,7 +142,7 @@ export async function GET(
           )}
         </div>
 
-        {/* Two columns: stats + stalker */}
+        {/* Two columns: stats + tells */}
         <div style={{ display: "flex", flex: 1, gap: 28 }}>
           {/* Profile stats */}
           <div
@@ -174,7 +174,7 @@ export async function GET(
             ))}
           </div>
 
-          {/* Stalker score */}
+          {/* Tells */}
           <div
             style={{
               display: "flex",
@@ -196,7 +196,7 @@ export async function GET(
                 marginBottom: 4,
               }}
             >
-              STALKER SCORE
+              TELLS
             </div>
             <div
               style={{
@@ -206,7 +206,7 @@ export async function GET(
               }}
             >
               <span style={{ fontSize: 110, fontWeight: 800, color: FG, lineHeight: 1, letterSpacing: -3 }}>
-                {Math.round(stalkerTotal)}
+                {Math.round(tellsTotal)}
               </span>
               <span style={{ color: MUTED, fontSize: 28 }}>/100</span>
             </div>

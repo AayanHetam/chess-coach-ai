@@ -2,7 +2,7 @@
 // Scout Analytics
 //
 // Consumes a fully-normalised game list from /api/scout and produces the full
-// dashboard bundle the UI renders: profile (OVR + ATK/DEF/TIME/MIND), Stalker
+// dashboard bundle the UI renders: profile (strength dimensions), Tells
 // Score, targeted prep by color, pre-game checklist, frequent rivals,
 // psychology, and recent-form buckets.
 //
@@ -17,8 +17,8 @@ import {
   OpeningTreeNode,
   OpeningSummary,
   ProfileSnapshot,
-  StalkerScore,
-  StalkerFactor,
+  TellsProfile,
+  Tell,
   TargetedPrep,
   ChecklistItem,
   FrequentRival,
@@ -398,7 +398,7 @@ function computePsychology(games: ScoutGame[], target: string): PsychologySnapsh
   };
 }
 
-// ─── Stalker score ──────────────────────────────────────────────────────────
+// ─── Tells ──────────────────────────────────────────────────────────
 
 function repertoireDiversity(games: ScoutGame[], target: string): {
   uniqueFirstMoves: number;
@@ -429,12 +429,12 @@ function repertoireDiversity(games: ScoutGame[], target: string): {
   };
 }
 
-function computeStalker(
+function computeTells(
   games: ScoutGame[],
   target: string,
   psychology: PsychologySnapshot,
   precomputedRep?: { uniqueFirstMoves: number; topThreeShare: number }
-): StalkerScore {
+): TellsProfile {
   const rep = precomputedRep ?? repertoireDiversity(games, target);
 
   const time_trouble = Math.round(
@@ -452,7 +452,7 @@ function computeStalker(
   const limited_rep = Math.round(clamp(100 - rep.uniqueFirstMoves * 7));
   const repetitive = Math.round(clamp(rep.topThreeShare * 100));
 
-  const factors: StalkerFactor[] = [
+  const factors: Tell[] = [
     { id: 'time_trouble', label: 'Time trouble', score: time_trouble },
     { id: 'tilts', label: 'Tilts easily', score: tilts },
     { id: 'limited_rep', label: 'Limited repertoire', score: limited_rep },
@@ -833,7 +833,7 @@ export function computeAnalytics(games: ScoutGame[], target: string): ScoutAnaly
     { wins, draws, losses, total },
     rep.topThreeShare
   );
-  const stalker = computeStalker(games, target, psychology, rep);
+  const tells = computeTells(games, target, psychology, rep);
   const prep = computeTargetedPrep(games, target, { treeWhite, treeBlack });
   const checklist = computeChecklist(prep, psychology, total);
   const rivals = computeRivals(games, target);
@@ -842,7 +842,7 @@ export function computeAnalytics(games: ScoutGame[], target: string): ScoutAnaly
 
   return {
     profile,
-    stalker,
+    tells,
     prep,
     checklist,
     rivals,

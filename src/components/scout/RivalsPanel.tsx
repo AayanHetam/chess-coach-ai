@@ -1,5 +1,6 @@
-import { Box, Paper, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { Icon } from '@iconify/react';
+import { DossierPanel, FieldLabel } from './dossier';
 import { FrequentRival } from '@/types/scout';
 
 export interface RivalsPanelProps {
@@ -14,28 +15,8 @@ function scoreColor(pct: number): string {
 
 export default function RivalsPanel({ rivals }: RivalsPanelProps) {
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2.5,
-        borderRadius: '1.5rem',
-        border: '1px solid rgba(255,255,255,0.08)',
-        background: 'rgba(20,22,28,0.55)',
-        backdropFilter: 'blur(14px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-        overflow: 'hidden',
-        height: '100%',
-      }}
-    >
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <Icon icon="mdi:account-group" width={20} style={{ color: '#FB923C' }} />
-        <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>Frequent Rivals</Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-          (3+ games)
-        </Typography>
-      </Stack>
-
+    <DossierPanel label="Frequent rivals"
+      action={<FieldLabel color="rgba(255,255,255,0.4)" size="0.6rem">3+ games</FieldLabel>}>
       {rivals.length === 0 ? (
         <Box
           sx={{
@@ -94,7 +75,7 @@ export default function RivalsPanel({ rivals }: RivalsPanelProps) {
           })}
         </Stack>
       )}
-    </Paper>
+    </DossierPanel>
   );
 }
 

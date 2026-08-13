@@ -182,7 +182,7 @@ function emptyScoutAnalytics() {
       archetype: "",
       phaseElo: { baseline: 1500, opening: 1500, middle: 1500, endgame: 1500 },
     },
-    stalker: { total: 0, predictability: "Low" as const, factors: [] },
+    tells: { total: 0, predictability: "Low" as const, factors: [] },
     prep: { asWhite: { weaknesses: [], strengths: [] }, asBlack: { weaknesses: [], strengths: [] } },
     checklist: [],
     rivals: [],

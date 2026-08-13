@@ -33,9 +33,9 @@ test("the quiz walks end to end on the self-assessment branch", async ({ page })
   await dismissConsent(page);
 
   // Q1 — play style. The CTA must NOT claim to be the last step here.
-  await expect(page.getByText("How do you currently play?")).toBeVisible({
-    timeout: 15_000,
-  });
+  await expect(
+    page.getByRole("heading", { name: "How do you currently play?" })
+  ).toBeVisible({ timeout: 15_000 });
   await expect(
     page.getByRole("button", { name: "Continue" }).first()
   ).toBeVisible();
@@ -45,11 +45,15 @@ test("the quiz walks end to end on the self-assessment branch", async ({ page })
   await next(page);
 
   // Q2-Q4 — self assessment.
-  await expect(page.getByText(/How long have you played/i)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /How long have you played/i })
+  ).toBeVisible();
   await page.getByText("1–3 years").first().click();
   await next(page);
 
-  await expect(page.getByText(/spot a fork or a pin/i)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /spot a fork or a pin/i })
+  ).toBeVisible();
   await page.getByText("Sometimes").first().click();
   await next(page);
 
@@ -57,25 +61,35 @@ test("the quiz walks end to end on the self-assessment branch", async ({ page })
   await next(page);
 
   // Q5 — goals. Five phase categories, each with a board diagram.
-  await expect(page.getByText("What do you want to improve?")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "What do you want to improve?" })
+  ).toBeVisible();
   for (const label of ["Tactics", "Openings", "Middlegame", "Endgame"]) {
-    await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: new RegExp(`^${label}`) }).first()
+    ).toBeVisible();
   }
-  await page.getByText("Tactics", { exact: true }).first().click();
+  await page.getByRole("button", { name: /^Tactics/ }).first().click();
   await next(page);
 
   // Q6 — the goal rating, and the projection that made this PR worth checking.
-  await expect(page.getByText(/rating do you want to reach/i)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /rating do you want to reach/i })
+  ).toBeVisible();
   await expect(page.getByRole("slider")).toBeVisible();
   await next(page);
 
   // Q7 — daily time budget.
-  await expect(page.getByText(/How much time can you practise|practice/i)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /How much time can you/i })
+  ).toBeVisible();
   await page.getByText("10–30 min / day").first().click();
   await next(page);
 
   // Q8 — frequency, and the genuinely final step.
-  await expect(page.getByText(/How often can you practise|practice/i)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /How often can you/i })
+  ).toBeVisible();
   await page.getByText("About 4 days").first().click();
   await expect(
     page.getByRole("button", { name: "See my results" })
@@ -96,10 +110,12 @@ test("the goal step renders a projection rather than an empty box", async ({ pag
   await next(page);
   await page.getByText("A few online").first().click();
   await next(page);
-  await page.getByText("Tactics", { exact: true }).first().click();
+  await page.getByRole("button", { name: /^Tactics/ }).first().click();
   await next(page);
 
-  await expect(page.getByText(/rating do you want to reach/i)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /rating do you want to reach/i })
+  ).toBeVisible();
 
   // The self-assessment branch supplies a current rating, so a projection must
   // actually be drawn — chart plus the honest range beside it. An empty panel

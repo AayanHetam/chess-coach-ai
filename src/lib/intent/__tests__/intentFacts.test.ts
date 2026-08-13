@@ -7,6 +7,7 @@ import {
   PROPHYLAXIS_MIN_SWING_CP,
 } from "../intentFacts";
 import type { EngineLine, IntentProbe } from "../types";
+import { buildPositionFacts } from "../positionFacts";
 
 const line = (san: string, cp: number | null, mate: number | null = null, pv: string[] = []): EngineLine => ({
   san,
@@ -27,6 +28,8 @@ function probe(over: Partial<IntentProbe> = {}): IntentProbe {
     threatStillLegal: true,
     playedScore: { cp: 0, mate: null },
     moverHasPieces: true,
+    position: null,
+    opponentReply: null,
     ...over,
   };
 }

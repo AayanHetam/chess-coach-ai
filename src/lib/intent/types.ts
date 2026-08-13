@@ -17,6 +17,8 @@
  * confident nonsense, so the conversion is a named function with its own test.
  */
 
+import type { PositionFacts } from "./positionFacts";
+
 export interface IntentScore {
   /** Centipawns, mover-relative. Null when the line is a forced mate. */
   cp: number | null;
@@ -79,7 +81,72 @@ export interface IntentProbe {
 
   /** Non-pawn, non-king material for the side to move at fenBefore. */
   moverHasPieces: boolean;
+
+  /** Board-derived facts for the played move. See positionFacts.ts. */
+  position: PositionFacts | null;
+
+  /**
+   * What the opponent ACTUALLY did next, and what the engine wanted them to do.
+   * For game review this is known ground truth — no human model needed to say
+   * "they took the bait". Null for the last move of a game.
+   */
+  opponentReply: {
+    san: string;
+    /** Score of their actual reply, for THEM. */
+    actualCp: number | null;
+    bestSan: string;
+    /** Score of their best reply, for THEM. */
+    bestCp: number | null;
+    /** Did their reply look like a free capture or a check? */
+    tempting: boolean;
+  } | null;
 }
+
+export interface MateFact {
+  /** Moves to mate, from the player's side. */
+  inMoves: number;
+  /** The forcing line as SAN, as far as the engine gave it. */
+  line: string[];
+}
+
+export interface MaterialFact {
+  /** Net centipawns won after the exchange sequence. Always positive here. */
+  wonCp: number;
+  /** What was taken outright, if anything. */
+  capturedCp: number;
+}
+
+export interface TrapFact {
+  /** The reply the opponent actually chose. */
+  playedSan: string;
+  /** What the engine wanted them to play instead. */
+  bestSan: string;
+  /** How much their choice cost them, in centipawns. */
+  costCp: number;
+  /** Whether the losing reply looked like a free capture or a check. */
+  tempting: boolean;
+}
+
+export interface EscapeFact {
+  /** The piece that got out, e.g. "b". */
+  piece: string;
+  /** Its value in centipawns. */
+  valueCp: number;
+}
+
+/**
+ * Which single thing the move was FOR. Ranked, because most moves do several
+ * things at once and only one of them is the point — the founder's Bxd1 both
+ * won a queen and incidentally made an opponent move worse, and reporting the
+ * second would be true and useless.
+ */
+export type Purpose =
+  | "mate"
+  | "material"
+  | "trap"
+  | "escape"
+  | "prophylaxis"
+  | "none";
 
 export interface ProphylaxisFact {
   /** The opponent move that the played move defused. */
@@ -118,8 +185,14 @@ export interface CostFact {
 export type Sharpness = "only-move" | "clearly-best" | "slight-edge" | "flat";
 
 export interface IntentFacts {
+  mate: MateFact | null;
+  material: MaterialFact | null;
+  trap: TrapFact | null;
+  escape: EscapeFact | null;
   prophylaxis: ProphylaxisFact | null;
   cost: CostFact | null;
+  /** The single thing the move was for, chosen by the ranking. */
+  purpose: Purpose;
   sharpness: Sharpness | null;
   /**
    * True when nothing concrete was found AND the position is flat: the correct

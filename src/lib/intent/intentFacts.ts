@@ -1,5 +1,10 @@
 import type {
+  EscapeFact,
   MateChange,
+  MaterialFact,
+  MateFact,
+  Purpose,
+  TrapFact,
   CostFact,
   EngineLine,
   IntentFacts,
@@ -59,6 +64,16 @@ export const SHARPNESS_SLIGHT_EDGE_CP = 20;
  * it sits at one pawn.
  */
 export const COST_MIN_LOSS_CP = 100;
+
+/** Net material below a pawn is not what a move was "for". */
+export const MATERIAL_MIN_CP = 100;
+
+/**
+ * How badly the opponent's actual reply must have gone before we call the
+ * position a trap. Two pawns keeps it to errors worth talking about; the real
+ * case (fxg3 in game_02) cost 447cp.
+ */
+export const TRAP_MIN_COST_CP = 200;
 
 /** Convert a WHITE-relative engine score to mover-relative. See types.ts. */
 export function whiteRelativeToMover(score: IntentScore, mover: "w" | "b"): IntentScore {
@@ -278,24 +293,98 @@ function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {
   return { bestSan: best.san, bestCp, playedCp, lossCp: loss, mateChange: null };
 }
 
+/** Did the move force mate? Read from the played move's own score. */
+function computeMate(probe: IntentProbe): MateFact | null {
+  const sc = probe.playedScore;
+  if (!sc || sc.mate === null || sc.mate === undefined || sc.mate <= 0) return null;
+  const line = probe.rootLines.find((l) => l.san === probe.playedSan);
+  return { inMoves: sc.mate, line: line?.pv ?? [] };
+}
+
+/**
+ * Did the move win material?
+ *
+ * Priced from the board, not the engine, and deliberately NOT used to rank a
+ * sacrifice: Philidor's legacy throws a queen and mates, so material is
+ * negative there and the mate rule above has already claimed the move.
+ */
+function computeMaterial(probe: IntentProbe): MaterialFact | null {
+  const p = probe.position;
+  if (!p || p.materialSwingCp < MATERIAL_MIN_CP) return null;
+  return { wonCp: p.materialSwingCp, capturedCp: p.capturedCp };
+}
+
+/**
+ * Did the opponent walk into something?
+ *
+ * No human model needed: for game review the reply is ground truth. We only
+ * call it a trap when the losing reply was TEMPTING — a capture that looks
+ * free, or a check — otherwise it is just an opponent error that happened to
+ * follow our move, and crediting it to the move would be flattery.
+ */
+function computeTrap(probe: IntentProbe, notes: string[]): TrapFact | null {
+  const r = probe.opponentReply;
+  if (!r) return null;
+  if (r.actualCp === null || r.bestCp === null) {
+    notes.push("opponent reply not scored");
+    return null;
+  }
+  const cost = r.bestCp - r.actualCp;
+  if (cost < TRAP_MIN_COST_CP) return null;
+  if (!r.tempting) {
+    notes.push(`opponent erred ${cost}cp but the move was not tempting — not a trap`);
+    return null;
+  }
+  return { playedSan: r.san, bestSan: r.bestSan, costCp: cost, tempting: true };
+}
+
+/** Did the move take a piece out of real danger? */
+function computeEscape(probe: IntentProbe): EscapeFact | null {
+  const p = probe.position;
+  if (!p || !p.escapedAttack || p.escapedValueCp < MATERIAL_MIN_CP) return null;
+  return { piece: p.movedPiece, valueCp: p.escapedValueCp };
+}
+
 /**
  * Derive what a move did. Pure — all engine work happens before this is called.
  */
 export function computeIntentFacts(probe: IntentProbe): IntentFacts {
   const notes: string[] = [];
+  const mate = computeMate(probe);
+  const material = computeMaterial(probe);
+  const trap = computeTrap(probe, notes);
+  const escape = computeEscape(probe);
   const prophylaxis = computeProphylaxis(probe, notes);
   const cost = computeCost(probe, notes);
   const sharpness = classifySharpness(probe.rootLines);
+
+  // Most moves do several things; only one is the point. Ranked highest-stakes
+  // first, so a queen sacrifice that mates is reported as the mate and a
+  // capture that incidentally worsens an opponent option is reported as the
+  // capture. Prophylaxis speaks last because it is the weakest claim and the
+  // one that most easily attaches itself to moves played for other reasons.
+  const purpose: Purpose =
+    mate ? "mate"
+    : material ? "material"
+    : trap ? "trap"
+    : escape ? "escape"
+    : prophylaxis ? "prophylaxis"
+    : "none";
 
   // "Nothing tactical here" is only safe to say when we found nothing AND the
   // position itself is flat. In a king-and-pawn position the comparison that
   // produces flatness inverts under zugzwang, so we decline to claim quiet
   // rather than risk calling a critical pawn ending dull.
-  const foundNothing = prophylaxis === null && cost === null;
+  const foundNothing = purpose === "none" && cost === null;
   const urgencySuppressed = foundNothing && sharpness === "flat" && !probe.moverHasPieces;
   if (urgencySuppressed) notes.push("quiet claim suppressed: zugzwang guard");
 
   return {
+    mate,
+    material,
+    trap,
+    escape,
+    purpose,
     prophylaxis,
     cost,
     sharpness,

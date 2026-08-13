@@ -28,7 +28,7 @@ describe("isLastStep — drives the CTA label", () => {
 
   it("is true on the genuinely final step of each branch", () => {
     const online = answers({ playStyle: "lichess" });
-    expect(resolveSteps(online).at(-1)).toBe("time");
+    expect(resolveSteps(online).at(-1)).toBe("frequency");
     expect(isLastStep(online, resolveSteps(online).length - 1)).toBe(true);
 
     const otb = answers({ playStyle: "otb" });
@@ -52,7 +52,9 @@ describe("branching", () => {
       "sa-spot",
       "sa-tournaments",
       "goals",
+      "goal-rating",
       "time",
+      "frequency",
     ]);
   });
 });
@@ -76,5 +78,39 @@ describe("canAdvanceStep on the username step", () => {
     expect(isUsernameValid("a".repeat(31))).toBe(false);
     expect(isUsernameValid("")).toBe(false);
     expect(isUsernameValid(undefined)).toBe(false);
+  });
+});
+
+describe("the goal-rating step", () => {
+  it("lets someone through without naming a goal", () => {
+    // Not everyone arrives with a number in mind, and forcing one would just
+    // produce a made-up target that the whole plan then gets built around.
+    expect(canAdvanceStep("goal-rating", answers({ playStyle: "lichess" }))).toBe(true);
+  });
+
+  it("rejects a goal outside the plausible rating range", () => {
+    for (const goalRating of [0, 50, 3500, 99999]) {
+      expect(
+        canAdvanceStep("goal-rating", answers({ playStyle: "lichess", goalRating })),
+        `accepted ${goalRating}`
+      ).toBe(false);
+    }
+  });
+
+  it("accepts a sane goal", () => {
+    expect(
+      canAdvanceStep("goal-rating", answers({ playStyle: "lichess", goalRating: 1700 }))
+    ).toBe(true);
+  });
+});
+
+describe("the frequency step", () => {
+  it("defaults to a sensible number of days rather than nothing", () => {
+    expect(emptyAnswers().daysPerWeek).toBeGreaterThan(0);
+  });
+
+  it("requires at least one day a week", () => {
+    expect(canAdvanceStep("frequency", answers({ daysPerWeek: 0 }))).toBe(false);
+    expect(canAdvanceStep("frequency", answers({ daysPerWeek: 1 }))).toBe(true);
   });
 });

@@ -90,7 +90,9 @@ export const profilePatchSchema = z.object({
   coachTone: z.enum(["friendly", "strict", "masti"]).optional(),
   playingStyle: z.enum(["tactical", "positional", "balanced"]).optional(),
   studyGoals: z
-    .array(z.enum(["tactics", "endgames", "openings", "time-management"]))
+    .array(
+      z.enum(["tactics", "endgames", "openings", "middlegame", "time-management"])
+    )
     .max(4)
     .optional(),
   favoriteOpenings: z
@@ -126,6 +128,10 @@ export const profilePatchSchema = z.object({
   platformRatingSource: z.enum(["lichess", "chesscom"]).optional(),
   platformRatingPerf: z.enum(["bullet", "blitz", "rapid", "classical"]).optional(),
   platformRatingFetchedAt: z.number().int().min(0).optional(),
+
+  // Goal-driven planning inputs.
+  goalRating: z.number().int().min(100).max(3000).optional(),
+  practiceDaysPerWeek: z.number().int().min(1).max(7).optional(),
 
   // User-set learning goals (target rating is a self-chosen aspiration only).
   goals: z

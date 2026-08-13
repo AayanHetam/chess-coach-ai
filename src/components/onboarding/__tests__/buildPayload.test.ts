@@ -72,8 +72,19 @@ describe("derivedRating", () => {
 
 describe("derivedFocusThemes", () => {
   it("collects and dedupes canonical kebab ids from selected goals", () => {
-    const themes = derivedFocusThemes(answers({ goals: ["forks", "pins"] }));
-    expect(themes).toEqual(["fork", "double-attack", "pin", "skewer"]);
+    const themes = derivedFocusThemes(answers({ goals: ["tactics", "endgame"] }));
+    expect(themes).toEqual([
+      "hanging-piece",
+      "fork",
+      "double-attack",
+      "pin",
+      "skewer",
+      "discovered-attack",
+      "back-rank",
+      "endgame",
+      "promotion",
+      "advanced-pawn",
+    ]);
   });
 
   it("is empty for non-themed goals (general / openings)", () => {
@@ -89,7 +100,7 @@ describe("buildPayload", () => {
       answers({
         playStyle: "lichess",
         username: "  knightrider  ",
-        goals: ["forks"],
+        goals: ["tactics"],
         time: "10-30",
       })
     );
@@ -98,7 +109,15 @@ describe("buildPayload", () => {
     expect(p.primaryPlatform).toBe("lichess");
     expect(p.lichessUsername).toBe("knightrider"); // trimmed
     expect(p.chesscomUsername).toBeUndefined();
-    expect(p.focusThemes).toEqual(["fork", "double-attack"]);
+    expect(p.focusThemes).toEqual([
+      "hanging-piece",
+      "fork",
+      "double-attack",
+      "pin",
+      "skewer",
+      "discovered-attack",
+      "back-rank",
+    ]);
     expect(p.studyGoals).toEqual(["tactics"]);
     expect(p.dailyTimeCommitment).toBe("10-30");
   });
@@ -108,13 +127,14 @@ describe("buildPayload", () => {
       answers({
         playStyle: "chesscom",
         username: "magnus",
-        goals: ["endgames"],
+        goals: ["endgame"],
       })
     );
     expect(p.chesscomUsername).toBe("magnus");
     expect(p.lichessUsername).toBeUndefined();
     expect(p.studyGoals).toEqual(["endgames"]);
-    expect(p.focusThemes).toEqual(["endgame"]);
+    // The Endgame category seeds all three endgame-family themes.
+    expect(p.focusThemes).toEqual(["endgame", "promotion", "advanced-pawn"]);
   });
 
   it("omits an empty/blank username rather than clobbering with a blank", () => {
@@ -122,7 +142,7 @@ describe("buildPayload", () => {
       answers({
         playStyle: "lichess",
         username: "   ",
-        goals: ["forks"],
+        goals: ["tactics"],
       })
     );
     expect("lichessUsername" in p).toBe(false);
@@ -134,28 +154,31 @@ describe("buildPayload", () => {
       answers({
         playStyle: "new",
         selfAssess: { years: 1, spot: 1, tournaments: 0 },
-        goals: ["blunders"],
+        goals: ["tactics"],
       })
     );
     expect(p.selfReportedRating).toBe(1300); // score 2 -> intermediate
     expect("primaryPlatform" in p).toBe(false);
     expect("lichessUsername" in p).toBe(false);
-    expect(p.focusThemes).toEqual(["hanging-piece"]);
+    expect(p.focusThemes).toContain("hanging-piece");
   });
 
-  it("dedupes studyGoals across multiple tactical selections", () => {
+  it("dedupes studyGoals when several categories share one study goal", () => {
+    // Tactics and General both map to the "tactics" study goal.
     const p = buildPayload(
-      answers({ playStyle: "otb", goals: ["forks", "pins", "blunders"] })
+      answers({ playStyle: "otb", goals: ["tactics", "general"] })
     );
-    expect(p.studyGoals).toEqual(["tactics"]); // three tactics options collapse to one
-    // focusThemes follow QUIZ_GOAL_OPTIONS definition order (blunders, forks, pins),
-    // not selection order — deterministic regardless of how the user clicked.
+    expect(p.studyGoals).toEqual(["tactics"]); // both map to one study goal
+    // General contributes no themes (it is deliberately unseeded), so the
+    // union is exactly the Tactics family, in definition order.
     expect(p.focusThemes).toEqual([
       "hanging-piece",
       "fork",
       "double-attack",
       "pin",
       "skewer",
+      "discovered-attack",
+      "back-rank",
     ]);
   });
 
@@ -197,5 +220,22 @@ describe("buildPayload", () => {
     );
     expect(online.reminderPrefs).toBeDefined();
     expect(selfAssessed.reminderPrefs).toBeDefined();
+  });
+});
+
+describe("goal-driven planning fields", () => {
+  it("carries the goal rating and practice frequency into the profile", () => {
+    const p = buildPayload(
+      answers({ playStyle: "lichess", goalRating: 1700, daysPerWeek: 6 })
+    );
+    expect(p.goalRating).toBe(1700);
+    expect(p.practiceDaysPerWeek).toBe(6);
+  });
+
+  it("omits the goal entirely when the user never set one", () => {
+    // Absent, not zero — a 0 goal would make every projection nonsense, and
+    // "no goal" is a legitimate answer.
+    const p = buildPayload(answers({ playStyle: "lichess", goalRating: undefined }));
+    expect("goalRating" in p).toBe(false);
   });
 });

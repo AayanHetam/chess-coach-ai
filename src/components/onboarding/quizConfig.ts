@@ -35,6 +35,10 @@ export interface QuizAnswers {
   goals: string[];
   // Daily time budget:
   time?: TimeCommitment;
+  /** Target rating — the question the whole plan is built around. */
+  goalRating?: number;
+  /** Days per week they intend to practise (1-7). */
+  daysPerWeek?: number;
   /**
    * Daily reminder opt-in. Pre-checked (see `emptyAnswers`), shown as a visible
    * choice on the final step rather than defaulted silently at signup — this
@@ -45,8 +49,36 @@ export interface QuizAnswers {
 }
 
 export function emptyAnswers(): QuizAnswers {
-  return { selfAssess: {}, goals: [], dailyReminder: true };
+  return { selfAssess: {}, goals: [], dailyReminder: true, daysPerWeek: 4 };
 }
+
+/**
+ * Representative minutes/day for each time band, for the improvement model.
+ *
+ * Midpoints, and the open-ended top band is treated as 45 rather than something
+ * heroic: the projection must not quietly assume the most optimistic reading of
+ * "30+ min" and hand back a timeline the user cannot hit.
+ */
+export const MINUTES_PER_DAY: Record<TimeCommitment, number> = {
+  "under-10": 8,
+  "10-30": 20,
+  "30-plus": 45,
+};
+
+export function minutesPerDayFor(time: TimeCommitment | undefined): number {
+  return time ? MINUTES_PER_DAY[time] : 0;
+}
+
+/** Days-per-week choices for the practice-frequency step. */
+export const FREQUENCY_OPTIONS: {
+  key: number;
+  label: string;
+  helper: string;
+}[] = [
+  { key: 2, label: "A couple of days", helper: "When I get a chance." },
+  { key: 4, label: "About 4 days", helper: "Most weekdays." },
+  { key: 6, label: "Almost every day", helper: "With a rest day." },
+];
 
 // Step 1 — how do you currently play? ──────────────────────────────────────
 export const PLAY_STYLE_OPTIONS: {
@@ -224,6 +256,10 @@ export function buildPayload(answers: QuizAnswers): UserProfileUpdates {
   if (studyGoals.length > 0) payload.studyGoals = studyGoals;
 
   if (answers.time) payload.dailyTimeCommitment = answers.time;
+  if (typeof answers.goalRating === "number") payload.goalRating = answers.goalRating;
+  if (typeof answers.daysPerWeek === "number") {
+    payload.practiceDaysPerWeek = answers.daysPerWeek;
+  }
 
   // Always written, both ways: an explicit false is the user declining, which
   // must be recorded rather than left undefined and re-asked.

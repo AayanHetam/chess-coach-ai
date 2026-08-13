@@ -58,6 +58,7 @@ const STUDY_GOALS: { value: StudyGoal; label: string }[] = [
   { value: "tactics", label: "Tactics" },
   { value: "endgames", label: "Endgames" },
   { value: "openings", label: "Openings" },
+  { value: "middlegame", label: "Middlegame" },
   { value: "time-management", label: "Time management" },
 ];
 

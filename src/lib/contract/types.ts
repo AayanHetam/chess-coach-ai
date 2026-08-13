@@ -27,6 +27,7 @@
  *    receive personalityId today (CI-4 threads it when the verbalizer lands).
  */
 import type { AnyMotif } from "@/lib/tactics/types";
+import type { IntentFacts } from "@/lib/intent/types";
 import type { RelationalFactsBlock } from "@/lib/relational/relationalFactsBuilder";
 import type { ThreatNode } from "@/lib/mastermind/threatTree";
 import type { PositionFeatureDelta } from "@/lib/mastermind/featureDelta";
@@ -256,6 +257,15 @@ export interface MoveTableEntry {
   } | null;
 }
 
+/** One carded ply's intent facts, plus which tier of engine data produced them. */
+export interface IntentSummary {
+  ply: number;
+  playedSan: string;
+  /** "tier0" = gameEval only; "tier1" = a null-move probe was paid for. */
+  tier: "tier0" | "tier1";
+  facts: IntentFacts;
+}
+
 export interface CoachContract {
   version: typeof CONTRACT_VERSION;
   /** === contextId: reuses generateContextId(moveHistory, fen, playerColor,
@@ -295,6 +305,16 @@ export interface CoachContract {
     hasGameEval: boolean;
     moveHistory: string[];
   };
+  /**
+   * What each carded move was FOR — see src/lib/intent.
+   *
+   * DARK by default and gated on INTENT_FACTS_ENABLED. Present for telemetry
+   * and offline comparison only: `serializeForVerbalizer` strips it, so the
+   * verbalizer prompt (and therefore its cache prefix and every byte-equality
+   * snapshot) is identical whether this is populated or absent. Nothing may
+   * render from it until it has been measured against served output.
+   */
+  intent?: IntentSummary[];
   /** Real zod-backed sanity layer over the z.any() gameEval (audit #5):
    * flags, never mutates, never rejects. */
   evalIntegrity: EvalIntegrity;

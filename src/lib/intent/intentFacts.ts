@@ -75,6 +75,14 @@ export const MATERIAL_MIN_CP = 100;
  */
 export const TRAP_MIN_COST_CP = 200;
 
+/**
+ * How much WORSE the opponent's error must be because of our move before we
+ * call it our trap. Without this, a far-wing rook-pawn move was credited with
+ * baiting a blunder that was worth 436cp in the world where it was never
+ * played and 441cp in the world where it was.
+ */
+export const TRAP_MIN_ATTRIBUTION_CP = 100;
+
 /** Convert a WHITE-relative engine score to mover-relative. See types.ts. */
 export function whiteRelativeToMover(score: IntentScore, mover: "w" | "b"): IntentScore {
   if (mover === "w") return { cp: score.cp, mate: score.mate };
@@ -84,7 +92,33 @@ export function whiteRelativeToMover(score: IntentScore, mover: "w" | "b"): Inte
   };
 }
 
-/** Collapse a score to a single comparable centipawn number. */
+/**
+ * THE ONLY WAY TO SUBTRACT TWO SCORES.
+ *
+ * Returns null whenever a mate is on either side, because a mate is not a
+ * quantity of centipawns. An audit found four sites that subtract scores; two
+ * had hand-written mate guards, one had the wrong predicate, and one had none
+ * at all — producing "that reply cost them 30340 centipawns" on Legall's Mate.
+ * Per-site discipline failed at four of four unguarded opportunities, so the
+ * hazard lives here instead of at each call site.
+ */
+export function diffCp(
+  a: IntentScore | null | undefined,
+  b: IntentScore | null | undefined,
+): number | null {
+  if (!a || !b) return null;
+  if (isMate(a) || isMate(b)) return null;
+  if (a.cp === null || a.cp === undefined || b.cp === null || b.cp === undefined) return null;
+  return a.cp - b.cp;
+}
+
+/**
+ * Collapse a score to one comparable number.
+ *
+ * LOSSY and unsafe for subtraction — mate maps into the centipawn range, so a
+ * difference of two collapsed mates is a meaningless number that reads as
+ * pawns. Use it for ordering and display only; use diffCp to subtract.
+ */
 export function toCp(score: IntentScore | null | undefined): number | null {
   if (!score) return null;
   if (score.mate !== null && score.mate !== undefined) {
@@ -96,10 +130,22 @@ export function toCp(score: IntentScore | null | undefined): number | null {
 
 function classifySharpness(rootLines: EngineLine[]): Sharpness | null {
   if (rootLines.length < 2) return null;
-  const a = toCp(rootLines[0].score);
-  const b = toCp(rootLines[1].score);
-  if (a === null || b === null) return null;
-  const gap = a - b;
+  const first = rootLines[0].score;
+  const second = rootLines[1].score;
+
+  // Mate distances are not centipawns. Collapsing them made mate-in-1 beside
+  // mate-in-16 read as "flat" — two positions that are both "mate in 1" got
+  // opposite labels depending on whether the runner-up also happened to mate.
+  if (isMateFor(first)) {
+    if (!isMateFor(second)) return "only-move";
+    const da = Math.abs(first.mate as number);
+    const db = Math.abs(second.mate as number);
+    return db - da >= 2 ? "only-move" : "flat";
+  }
+  if (isMate(first) || isMate(second)) return null;
+
+  const gap = diffCp(first, second);
+  if (gap === null) return null;
   if (gap >= SHARPNESS_ONLY_MOVE_CP) return "only-move";
   if (gap >= SHARPNESS_CLEARLY_BEST_CP) return "clearly-best";
   if (gap >= SHARPNESS_SLIGHT_EDGE_CP) return "slight-edge";
@@ -113,6 +159,10 @@ export function isMate(score: IntentScore | null | undefined): boolean {
 /** A forced mate FOR the side the score belongs to. */
 function isMateFor(score: IntentScore | null | undefined): boolean {
   return isMate(score) && (score!.mate as number) > 0;
+}
+/** A forced mate AGAINST the side the score belongs to. mate 0 = already mated. */
+function isMateAgainst(score: IntentScore | null | undefined): boolean {
+  return isMate(score) && (score!.mate as number) <= 0;
 }
 
 /**
@@ -166,6 +216,15 @@ function computeProphylaxis(probe: IntentProbe, notes: string[]): ProphylaxisFac
   }
 
   // Strongest case: the move made the threat impossible, not merely bad.
+  //
+  // A CHECK makes every opponent non-evasion illegal for exactly one ply, so
+  // this branch used to fire on every check by construction — a royal fork
+  // whose point was winning a rook was reported as "played to stop Bxg2".
+  // Illegality caused by check is not prevention.
+  if (!probe.threatStillLegal && probe.position?.givesCheck) {
+    notes.push("threat is only illegal because the move gives check — not prevention");
+    return null;
+  }
   if (!probe.threatStillLegal) {
     return {
       threatSan: probe.threat.san,
@@ -198,9 +257,16 @@ function computeProphylaxis(probe: IntentProbe, notes: string[]): ProphylaxisFac
     };
   }
 
-  // Neither side is a mate: a plain centipawn difference is meaningful.
-  if (isMate(probe.threatAfter.score)) {
-    // The threat move now mates the OPPONENT — comprehensively defused.
+  // threatAfter is scored FOR THE OPPONENT, so mate > 0 means the threat now
+  // MATES US. Reading it sign-blind reported "Rf8 stopped Qxh7+" about the very
+  // move that makes Qxh7 checkmate — feeding mate +1 and mate -1 produced
+  // byte-identical output.
+  if (isMateFor(probe.threatAfter.score)) {
+    notes.push("the move turned the threat into a forced mate against us — not prophylaxis");
+    return null;
+  }
+  if (isMateAgainst(probe.threatAfter.score)) {
+    // Playing the threat move now loses to mate — comprehensively defused.
     return {
       threatSan: probe.threat.san,
       scoreBeforeCp: before,
@@ -210,12 +276,12 @@ function computeProphylaxis(probe: IntentProbe, notes: string[]): ProphylaxisFac
       defusedMate: false,
     };
   }
-  const after = toCp(probe.threatAfter.score);
-  if (after === null || before === null) {
+  const swing = diffCp(probe.threat.score, probe.threatAfter.score);
+  const after = isMate(probe.threatAfter.score) ? null : toCp(probe.threatAfter.score);
+  if (swing === null || before === null) {
     notes.push("post-move threat score unreadable");
     return null;
   }
-  const swing = before - after;
   if (swing < PROPHYLAXIS_MIN_SWING_CP) {
     notes.push(`threat swing ${swing}cp below ${PROPHYLAXIS_MIN_SWING_CP}cp`);
     return null;
@@ -251,8 +317,17 @@ function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {
   }
 
   const bestMates = isMateFor(best.score);
-  const playedMated = isMate(played) && (played.mate as number) < 0;
+  const bestMated = isMateAgainst(best.score);
+  const playedMated = isMateAgainst(played);
   const playedMates = isMateFor(played);
+
+  // The mate was already forced against us before we moved, so nothing was
+  // "allowed". Playing a move that ties the engine's own best line in a lost
+  // position was being reported as allowing a forced mate.
+  if (bestMated && playedMated) {
+    notes.push("mate was already forced before this move");
+    return null;
+  }
 
   if (bestMates || playedMated) {
     let mateChange: MateChange;
@@ -275,9 +350,10 @@ function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {
     };
   }
 
+  const rawLoss = diffCp(best.score, played);
   const bestCp = toCp(best.score);
   const playedCp = toCp(played);
-  if (bestCp === null || playedCp === null) {
+  if (rawLoss === null || bestCp === null || playedCp === null) {
     notes.push("cost scores unreadable");
     return null;
   }
@@ -285,7 +361,7 @@ function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {
   // If the played move IS the best move, there is nothing given up. Clamp
   // rather than report a move as better than the best line, which search
   // instability can otherwise produce.
-  const loss = Math.max(0, bestCp - playedCp);
+  const loss = Math.max(0, rawLoss);
   if (loss < COST_MIN_LOSS_CP) {
     notes.push(`loss ${loss}cp below ${COST_MIN_LOSS_CP}cp`);
     return null;
@@ -308,9 +384,17 @@ function computeMate(probe: IntentProbe): MateFact | null {
  * sacrifice: Philidor's legacy throws a queen and mates, so material is
  * negative there and the mate rule above has already claimed the move.
  */
-function computeMaterial(probe: IntentProbe): MaterialFact | null {
+function computeMaterial(probe: IntentProbe, notes: string[]): MaterialFact | null {
   const p = probe.position;
   if (!p || p.materialSwingCp < MATERIAL_MIN_CP) return null;
+  // Taking back on the square they just took on restores equality — it does
+  // not win anything. Reading a destination-square exchange value as "material
+  // won" carded 50 of 59 recaptures in a master-game sweep as material wins,
+  // including the Ruy Lopez Exchange dxc6 in a dead-level position.
+  if (p.isRecapture) {
+    notes.push("recapture restores material rather than winning it");
+    return null;
+  }
   return { wonCp: p.materialSwingCp, capturedCp: p.capturedCp };
 }
 
@@ -325,17 +409,37 @@ function computeMaterial(probe: IntentProbe): MaterialFact | null {
 function computeTrap(probe: IntentProbe, notes: string[]): TrapFact | null {
   const r = probe.opponentReply;
   if (!r) return null;
-  if (r.actualCp === null || r.bestCp === null) {
-    notes.push("opponent reply not scored");
-    return null;
+
+  const walkedIntoMate = isMateAgainst(r.actual) && !isMateAgainst(r.best);
+  const costCp = diffCp(r.best, r.actual);
+
+  if (!walkedIntoMate) {
+    if (costCp === null) {
+      notes.push("opponent reply not scored, or a mate makes the difference meaningless");
+      return null;
+    }
+    if (costCp < TRAP_MIN_COST_CP) return null;
   }
-  const cost = r.bestCp - r.actualCp;
-  if (cost < TRAP_MIN_COST_CP) return null;
+
   if (!r.tempting) {
-    notes.push(`opponent erred ${cost}cp but the move was not tempting — not a trap`);
+    notes.push("opponent erred but the move was not tempting — not a trap");
     return null;
   }
-  return { playedSan: r.san, bestSan: r.bestSan, costCp: cost, tempting: true };
+
+  // Did OUR move have anything to do with it? The same blunder may have been
+  // available anyway. Only claim a trap when our move made the mistake
+  // materially worse than it would have been had we passed.
+  if (!walkedIntoMate && costCp !== null && r.counterfactualCostCp !== null) {
+    const attributable = costCp - r.counterfactualCostCp;
+    if (attributable < TRAP_MIN_ATTRIBUTION_CP) {
+      notes.push(
+        `opponent error was worth ${r.counterfactualCostCp}cp without our move too — not our trap`,
+      );
+      return null;
+    }
+  }
+
+  return { playedSan: r.san, bestSan: r.bestSan, costCp, walkedIntoMate, tempting: true };
 }
 
 /** Did the move take a piece out of real danger? */
@@ -351,7 +455,7 @@ function computeEscape(probe: IntentProbe): EscapeFact | null {
 export function computeIntentFacts(probe: IntentProbe): IntentFacts {
   const notes: string[] = [];
   const mate = computeMate(probe);
-  const material = computeMaterial(probe);
+  const material = computeMaterial(probe, notes);
   const trap = computeTrap(probe, notes);
   const escape = computeEscape(probe);
   const prophylaxis = computeProphylaxis(probe, notes);
@@ -375,7 +479,15 @@ export function computeIntentFacts(probe: IntentProbe): IntentFacts {
   // position itself is flat. In a king-and-pawn position the comparison that
   // produces flatness inverts under zugzwang, so we decline to claim quiet
   // rather than risk calling a critical pawn ending dull.
-  const foundNothing = purpose === "none" && cost === null;
+  // "cost === null" carried two incompatible meanings: measured and harmless,
+  // or never measured at all. Only the first justifies calling a position
+  // quiet. Under the natural wiring the played move's score is missing exactly
+  // when the move was bad enough to fall out of the engine's top lines, so the
+  // failure was correlated with the move being a blunder — it said "nothing
+  // tactical here" about a move that hung a bishop.
+  const costMeasured = probe.playedScore !== null && probe.rootLines.length > 0;
+  if (!costMeasured) notes.push("played move not scored — cannot claim the position is quiet");
+  const foundNothing = purpose === "none" && cost === null && costMeasured;
   const urgencySuppressed = foundNothing && sharpness === "flat" && !probe.moverHasPieces;
   if (urgencySuppressed) notes.push("quiet claim suppressed: zugzwang guard");
 

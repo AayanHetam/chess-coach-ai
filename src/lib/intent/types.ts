@@ -92,13 +92,27 @@ export interface IntentProbe {
    */
   opponentReply: {
     san: string;
-    /** Score of their actual reply, for THEM. */
-    actualCp: number | null;
+    /**
+     * Score of their actual reply, for THEM. A full IntentScore rather than a
+     * number: encoded as centipawns, a mate collapsed into a 30000cp "error",
+     * and there was no way for a caller to express "they walked into mate" at
+     * all — so Legall's Mate came back either as 30340 centipawns or as
+     * nothing.
+     */
+    actual: IntentScore | null;
     bestSan: string;
     /** Score of their best reply, for THEM. */
-    bestCp: number | null;
+    best: IntentScore | null;
     /** Did their reply look like a free capture or a check? */
     tempting: boolean;
+    /**
+     * How bad the same error would have been had we played nothing — measured
+     * at the null-move position. A trap is only ours if our move made the
+     * mistake available or more costly; without this, a rook-pawn move on the
+     * far wing was credited with "setting a trap" for a blunder worth 441cp
+     * after it and 436cp without it.
+     */
+    counterfactualCostCp: number | null;
   } | null;
 }
 
@@ -121,8 +135,10 @@ export interface TrapFact {
   playedSan: string;
   /** What the engine wanted them to play instead. */
   bestSan: string;
-  /** How much their choice cost them, in centipawns. */
-  costCp: number;
+  /** How much their choice cost them. Null when a mate is involved. */
+  costCp: number | null;
+  /** Set when the reply walked into a forced mate rather than losing material. */
+  walkedIntoMate: boolean;
   /** Whether the losing reply looked like a free capture or a check. */
   tempting: boolean;
 }

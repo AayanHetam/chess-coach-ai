@@ -95,7 +95,16 @@ describe("purpose ranking", () => {
         rootLines: [line("Bxg3", -175), line("Rd8", -378)],
         playedScore: { cp: -175, mate: null },
         position,
-        opponentReply: { san: "fxg3", actualCp: -253, bestSan: "Rh3", bestCp: 194, tempting: true },
+        opponentReply: {
+          san: "fxg3",
+          actual: { cp: -253, mate: null },
+          bestSan: "Rh3",
+          best: { cp: 194, mate: null },
+          tempting: true,
+          // fxg3 is not even legal until Bxg3 is played, so the error did not
+          // exist in the world where we passed.
+          counterfactualCostCp: 0,
+        },
       }),
     );
     expect(f.purpose).toBe("trap");
@@ -107,7 +116,14 @@ describe("purpose ranking", () => {
     // to play immediately before it.
     const f = computeIntentFacts(
       probe({
-        opponentReply: { san: "Ka1", actualCp: -300, bestSan: "Nf3", bestCp: 100, tempting: false },
+        opponentReply: {
+          san: "Ka1",
+          actual: { cp: -300, mate: null },
+          bestSan: "Nf3",
+          best: { cp: 100, mate: null },
+          tempting: false,
+          counterfactualCostCp: 0,
+        },
       }),
     );
     expect(f.trap).toBeNull();

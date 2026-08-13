@@ -15,10 +15,9 @@ const EDGE = "rgba(255,255,255,0.08)";
 /**
  * Server-rendered OG image for a shared scout snapshot.
  *
- * Visual: player name + platform + the four key profile stats (OVR, ATK,
- * DEF, TIME) as a chart-of-rings. The Tells readout gets its own large
- * numeric callout on the right. Same Obsidian Glass + Ember Core palette
- * as the insight and game-share OG cards.
+ * Visual: player name + platform + the profile dimensions as a stat column.
+ * The Tells readout gets its own large numeric callout on the right. Same
+ * Obsidian Glass + Ember Core palette as the insight and game-share OG cards.
  */
 export async function GET(
   _request: Request,
@@ -59,12 +58,14 @@ export async function GET(
     }
   }
 
+  // Full words to match the on-page dossier — the abbreviations were part of
+  // the gamer-card treatment this surface moved away from.
   const stats = [
-    { label: "OVR", value: ovr },
-    { label: "ATK", value: atk },
-    { label: "DEF", value: def },
-    { label: "TIME", value: timeStat },
-    { label: "MIND", value: mind },
+    { label: "OVERALL", value: ovr },
+    { label: "ATTACK", value: atk },
+    { label: "DEFENCE", value: def },
+    { label: "CLOCK", value: timeStat },
+    { label: "COMPOSURE", value: mind },
   ];
 
   return new ImageResponse(

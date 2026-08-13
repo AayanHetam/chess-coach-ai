@@ -120,8 +120,10 @@ export default function TellsCard({ tells }: TellsCardProps) {
         </Box>
       </Stack>
 
-      {/* Numbered findings — the dossier's core gesture. */}
-      <Stack spacing={1.5}>
+      {/* Numbered findings — the dossier's core gesture. The list absorbs any
+          extra height so the panel doesn't end in a void when the Subject card
+          beside it runs taller. */}
+      <Stack spacing={1.5} sx={{ flex: 1, justifyContent: 'space-evenly' }}>
         {ranked.map((tell, i) => {
           const color = tellColor(tell.score);
           return (

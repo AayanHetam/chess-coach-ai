@@ -145,6 +145,11 @@ export function DossierPanel({
           ? '0 12px 40px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.07)'
           : '0 8px 30px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.05)',
         overflow: 'hidden',
+        // Column layout so the body can claim the leftover height when the
+        // panel is stretched by a taller sibling in a grid row. Without this,
+        // a short panel leaves a dead void under its content.
+        display: 'flex',
+        flexDirection: 'column',
         transition: 'border-color 200ms ease, box-shadow 200ms ease',
         '&:hover': {
           borderColor: emphasis
@@ -190,7 +195,18 @@ export function DossierPanel({
         </Stack>
       )}
 
-      <Box sx={{ px: 2.5, py: 2.25 }}>{children}</Box>
+      <Box
+        sx={{
+          px: 2.5,
+          py: 2.25,
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {children}
+      </Box>
     </Box>
   );
 }

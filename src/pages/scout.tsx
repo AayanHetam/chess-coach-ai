@@ -977,7 +977,7 @@ export default function ScoutPage() {
               Scout
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-              Decode opponents · 2 platforms supported
+              Opponent dossiers · Chess.com + Lichess
             </Typography>
           </Box>
         </Stack>

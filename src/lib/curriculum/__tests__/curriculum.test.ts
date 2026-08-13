@@ -175,3 +175,34 @@ describe("daily plan", () => {
     expect(session.coachInsightTheme).toBe(session.newThemes[0]); // coach:1
   });
 });
+
+describe("goal intensity scales the daily session", () => {
+  const common = {
+    dailyTimeCommitment: "10-30" as const,
+    focusThemes: [],
+    liveRating: 1200,
+    stats: statsWith({}, 1200),
+    dueReviewThemes: ["fork", "pin", "skewer", "endgame", "back-rank", "promotion"],
+  };
+
+  it("gives a stretch goal more work than a comfortable one", () => {
+    const steady = buildDailySession({ ...common, intensityTier: "steady" });
+    const hard = buildDailySession({ ...common, intensityTier: "hard" });
+    expect(hard.newThemes.length).toBeGreaterThan(steady.newThemes.length);
+    expect(hard.totalPuzzles).toBeGreaterThan(steady.totalPuzzles);
+  });
+
+  it("defaults to steady when no goal has been set", () => {
+    expect(buildDailySession(common)).toEqual(
+      buildDailySession({ ...common, intensityTier: "steady" })
+    );
+  });
+
+  it("never inflates the session beyond 1.5x what the user agreed to", () => {
+    // Someone chasing +800 points gets the hardest sensible session and an
+    // honest timeline — not a workload they never signed up for.
+    const steady = buildDailySession({ ...common, intensityTier: "steady" });
+    const hard = buildDailySession({ ...common, intensityTier: "hard" });
+    expect(hard.newThemes.length / steady.newThemes.length).toBeLessThanOrEqual(1.5);
+  });
+});

@@ -6,6 +6,7 @@
  * `by_rating` puzzle endpoint. No network / React here so it unit-tests cleanly.
  */
 
+import { sessionSizeMultiplier, type IntensityTier } from "./improvementModel";
 import type { PuzzleStats } from "@/lib/puzzleRating";
 import { SYLLABUS, unitForTheme, unitById } from "./syllabus";
 import { computeCurriculumProgress, isUnitMastered } from "./mastery";
@@ -30,6 +31,15 @@ export function sessionSizeFor(tc?: TimeCommitment): SessionSize {
 
 const RATING_WINDOW = 120;
 
+/**
+ * Goal-driven intensity. Scales the session when the user's target rating is
+ * further ahead than their stated schedule comfortably supports.
+ *
+ * Capped hard at 1.5x by `sessionSizeMultiplier`. Someone chasing +800 points
+ * does not silently get an eight-times-longer session than the one they agreed
+ * to — they get the hardest sensible session and an honest timeline. Quietly
+ * inflating a commitment past what someone signed up for is how people quit.
+ */
 export interface DailySession {
   /** Themes to drill new puzzles from (length === newConcept count). */
   newThemes: string[];
@@ -44,6 +54,8 @@ export interface DailySession {
 
 export interface DailyPlanInput {
   dailyTimeCommitment?: TimeCommitment;
+  /** Set from the user's goal rating vs their schedule; defaults to "steady". */
+  intensityTier?: IntensityTier;
   focusThemes?: string[];
   liveRating: number;
   stats: PuzzleStats;
@@ -82,7 +94,17 @@ function pickNewThemeCandidates(input: DailyPlanInput): string[] {
 }
 
 export function buildDailySession(input: DailyPlanInput): DailySession {
-  const size = sessionSizeFor(input.dailyTimeCommitment);
+  const base = sessionSizeFor(input.dailyTimeCommitment);
+  const mult = sessionSizeMultiplier(input.intensityTier ?? "steady");
+  // FLOOR, not round: Math.round(5 * 1.5) is 8, which is 1.6x the base and
+  // quietly breaks the cap the multiplier exists to enforce. Rounding a
+  // workload UP past a documented ceiling is the exact over-commitment this is
+  // meant to prevent.
+  const size = {
+    newConcept: Math.max(1, Math.floor(base.newConcept * mult)),
+    reviews: Math.floor(base.reviews * mult),
+    coach: base.coach,
+  };
   const newThemes = roundRobin(pickNewThemeCandidates(input), size.newConcept);
   const reviewThemes = input.dueReviewThemes.slice(0, size.reviews);
   const coachInsightTheme =

@@ -45,7 +45,12 @@ export type SkillTier = "beginner" | "intermediate" | "advanced";
 
 export type CoachTone = "friendly" | "strict" | "masti";
 export type PlayingStyle = "tactical" | "positional" | "balanced";
-export type StudyGoal = "tactics" | "endgames" | "openings" | "time-management";
+export type StudyGoal =
+  | "tactics"
+  | "endgames"
+  | "openings"
+  | "middlegame"
+  | "time-management";
 
 export interface CoachingPrefs {
   coachTone?: CoachTone;
@@ -94,6 +99,7 @@ const GOAL_LABELS: Record<StudyGoal, string> = {
   tactics: "tactical pattern recognition",
   endgames: "endgame technique",
   openings: "opening understanding",
+  middlegame: "middlegame planning — finding a plan when nothing is forced",
   "time-management": "clock and time-management discipline",
 };
 

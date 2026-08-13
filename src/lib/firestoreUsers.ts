@@ -9,7 +9,12 @@
 
 export type CoachTone = "friendly" | "strict" | "masti";
 export type PlayingStyle = "tactical" | "positional" | "balanced";
-export type StudyGoal = "tactics" | "endgames" | "openings" | "time-management";
+export type StudyGoal =
+  | "tactics"
+  | "endgames"
+  | "openings"
+  | "middlegame"
+  | "time-management";
 export type BoardTheme = "classic" | "wood" | "neon";
 export type PieceSet = "default" | "merida" | "alpha";
 
@@ -42,6 +47,10 @@ export interface UserProfile {
   platformRatingSource?: "lichess" | "chesscom";
   platformRatingPerf?: string;
   platformRatingFetchedAt?: number;
+  /** Target rating, on the same calibration scale as platformRating. */
+  goalRating?: number;
+  /** Days per week the user plans to practise (1-7). */
+  practiceDaysPerWeek?: number;
   dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
   onboardingCompletedAt?: number;
 

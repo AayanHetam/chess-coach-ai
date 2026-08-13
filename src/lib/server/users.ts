@@ -10,7 +10,12 @@ const BCRYPT_COST = 12;
 
 export type CoachTone = "friendly" | "strict" | "masti";
 export type PlayingStyle = "tactical" | "positional" | "balanced";
-export type StudyGoal = "tactics" | "endgames" | "openings" | "time-management";
+export type StudyGoal =
+  | "tactics"
+  | "endgames"
+  | "openings"
+  | "middlegame"
+  | "time-management";
 export type BoardTheme = "classic" | "wood" | "neon";
 export type PieceSet = "default" | "merida" | "alpha";
 
@@ -55,6 +60,12 @@ export type StoredUser = {
   platformRatingSource?: "lichess" | "chesscom";
   platformRatingPerf?: string;
   platformRatingFetchedAt?: number;
+
+  // Goal-driven planning. `goalRating` is on the same calibration scale as
+  // platformRating; `practiceDaysPerWeek` combines with dailyTimeCommitment to
+  // give the weekly hours the improvement model needs.
+  goalRating?: number;
+  practiceDaysPerWeek?: number;
   // Set when the user finishes the onboarding quiz. Gates the mandatory-once
   // questionnaire (OnboardingGate) so they're never asked twice.
   onboardingCompletedAt?: number;
@@ -300,6 +311,8 @@ export type UpdateUserPatch = Partial<
     | "platformRatingSource"
     | "platformRatingPerf"
     | "platformRatingFetchedAt"
+    | "goalRating"
+    | "practiceDaysPerWeek"
     | "onboardingCompletedAt"
     | "measuredRating"
     | "measuredRatingConfidence"

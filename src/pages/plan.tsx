@@ -17,7 +17,9 @@ import {
 } from "@/lib/curriculum/dailyPlan";
 import { buildWeekPlan, type DayPlan } from "@/lib/curriculum/weekPlan";
 import { puzzleResumeAtom, isResumeFresh } from "@/lib/curriculum/resume";
-import { bandLabel } from "@/components/onboarding/quizConfig";
+import { bandLabel, minutesPerDayFor } from "@/components/onboarding/quizConfig";
+import { projectToGoal, intensityTier } from "@/lib/curriculum/improvementModel";
+import { resolveUserRating } from "@/lib/coach/userRating";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
@@ -89,6 +91,29 @@ export default function PlanPage() {
 
   const nowMs = Date.now();
 
+  /**
+   * How stretching the user's goal is for the schedule they signed up to.
+   * Undefined goal or schedule resolves to "steady" — the plan never escalates
+   * off the back of a number the user never gave us.
+   */
+  const goalIntensityTier = useMemo(() => {
+    const goal = profile?.goalRating;
+    const current = resolveUserRating(profile ?? undefined) ?? stats.rating;
+    const minutes = minutesPerDayFor(
+      profile?.dailyTimeCommitment as TimeCommitment | undefined,
+    );
+    const days = profile?.practiceDaysPerWeek;
+    if (!goal || !minutes || !days) return "steady" as const;
+    return intensityTier(
+      projectToGoal({
+        currentRating: current,
+        goalRating: goal,
+        minutesPerDay: minutes,
+        daysPerWeek: days,
+      }).intensity,
+    );
+  }, [profile, stats.rating]);
+
   const plan = useMemo(
     () =>
       buildDailySession({
@@ -99,8 +124,12 @@ export default function PlanPage() {
         liveRating: stats.rating,
         stats,
         dueReviewThemes: dueThemes(srs, nowMs),
+        // A goal further ahead than the stated schedule comfortably supports
+        // turns the daily session up — within the 1.5x cap. No goal set means
+        // "steady", never a silent escalation.
+        intensityTier: goalIntensityTier,
       }),
-    [profile, stats, srs, nowMs],
+    [profile, stats, srs, nowMs, goalIntensityTier],
   );
 
   // Today's plan as discrete, tickable rows. A theme counts as done once ANY

@@ -12,14 +12,18 @@ import {
   PLAY_STYLE_OPTIONS,
   SELF_ASSESS_QUESTIONS,
   TIME_OPTIONS,
+  FREQUENCY_OPTIONS,
+  minutesPerDayFor,
   QuizAnswers,
   SelfAssessKey,
 } from "./quizConfig";
 import { QUIZ_GOAL_OPTIONS } from "./quizThemes";
+import GoalRatingPicker from "./GoalRatingPicker";
+import { useQuizCurrentRating } from "./useQuizCurrentRating";
 import { isUsernameValid } from "./useOnboardingQuiz";
 import TacticDiagram from "./TacticDiagram";
 import QuizIcon, { type QuizIconName } from "./QuizIcon";
-import { GOAL_DIAGRAMS, GOAL_DIAGRAM_ALT } from "./tacticDiagrams";
+import { GOAL_DIAGRAMS, GOAL_DIAGRAM_ALT, SPOT_DIAGRAMS } from "./tacticDiagrams";
 
 const EASE = [0.22, 0.61, 0.36, 1] as const;
 const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
@@ -60,6 +64,13 @@ const PLAY_STYLE_ICON_ALT: Record<string, string> = {
 /** Self-assessment score → rank. Mirrors selfAssessScore's 0/1/2. */
 const LEVEL_ALT = ["Pawn — just starting", "Knight — getting there", "Queen — confident"];
 
+/** Days-per-week option → clock fill, reusing the time-budget iconography. */
+const FREQUENCY_ICON: Record<number, QuizIconName> = {
+  2: "time-low",
+  4: "time-mid",
+  6: "time-high",
+};
+
 const TIME_ICON: Record<string, QuizIconName> = {
   "under-10": "time-low",
   "10-30": "time-mid",
@@ -80,6 +91,10 @@ export default function OnboardingQuiz({
   authed,
 }: OnboardingQuizProps) {
   const q = useOnboardingQuiz();
+  // Reads the visitor's real rating so the goal projection is anchored to them
+  // rather than to a guess. Resolves to undefined when unknown, which the
+  // picker renders honestly instead of substituting a number.
+  const { currentRating, status: ratingStatus } = useQuizCurrentRating(q.answers);
 
   // Avoid a flash of empty/then-restored content before the draft hydrates.
   if (!q.hydrated) {
@@ -174,9 +189,9 @@ export default function OnboardingQuiz({
             aside={
               key === "spot" ? (
                 <TacticDiagram
-                  spec={GOAL_DIAGRAMS.forks}
+                  spec={SPOT_DIAGRAMS.fork}
                   px={84}
-                  title={GOAL_DIAGRAM_ALT.forks}
+                  title="A knight attacking a king and a rook at the same time"
                 />
               ) : undefined
             }
@@ -223,6 +238,46 @@ export default function OnboardingQuiz({
                     />
                   ) : undefined
                 }
+              />
+            ))}
+          </QuizStep>
+        );
+
+      case "goal-rating":
+        return (
+          <QuizStep
+            title="What rating do you want to reach?"
+            helper={
+              currentRating
+                ? `You're around ${currentRating} today.`
+                : "We'll estimate how long it takes."
+            }
+          >
+            <GoalRatingPicker
+              currentRating={currentRating}
+              value={q.answers.goalRating}
+              onChange={q.setGoalRating}
+              minutesPerDay={minutesPerDayFor(q.answers.time) || 20}
+              daysPerWeek={q.answers.daysPerWeek ?? 4}
+              ratingStatus={ratingStatus}
+            />
+          </QuizStep>
+        );
+
+      case "frequency":
+        return (
+          <QuizStep
+            title="How often can you practise?"
+            helper="Little and often beats one long session."
+          >
+            {FREQUENCY_OPTIONS.map((o) => (
+              <QuizOption
+                key={o.key}
+                label={o.label}
+                helper={o.helper}
+                selected={q.answers.daysPerWeek === o.key}
+                onClick={() => q.setDaysPerWeek(o.key)}
+                visual={<QuizIcon name={FREQUENCY_ICON[o.key]} px={52} />}
               />
             ))}
           </QuizStep>

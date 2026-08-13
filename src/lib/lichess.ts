@@ -44,6 +44,7 @@ export const getLichessEval = async (
     return {
       bestMove,
       lines: linesToKeep,
+      source: "cloud",
     };
   } catch (error) {
     logErrorToSentry(error, { fen, multiPv });

@@ -73,7 +73,11 @@ function allPositions(): Position[] {
 const POSITIONS = allPositions();
 
 /** A plausible probe for a position, so the engine-side rules get exercised too. */
-function probeFor(p: Position, score: IntentScore = { cp: 20, mate: null }): IntentProbe {
+function probeForWith(
+  p: Position,
+  position: ReturnType<typeof buildPositionFacts>,
+  score: IntentScore = { cp: 20, mate: null },
+): IntentProbe {
   const line = (san: string, s: IntentScore): EngineLine => ({ san, score: s, pv: [san], depth: 16 });
   return {
     fenBefore: p.fenBefore,
@@ -83,13 +87,47 @@ function probeFor(p: Position, score: IntentScore = { cp: 20, mate: null }): Int
     threat: null,
     threatAfter: null,
     threatAlternative: null,
+    opponentBestAfter: null,
+    threatAfterAlternatives: [],
     threatStillLegal: true,
+    threatPieceCaptured: null,
     playedScore: score,
     moverHasPieces: true,
-    position: buildPositionFacts(p.fenBefore, p.san, p.lastCaptureSquare),
+    position,
     opponentReply: null,
   };
 }
+
+/**
+ * Board facts for every position, computed ONCE.
+ *
+ * Five separate assertions each used to sweep all 716 moves independently, so
+ * buildPositionFacts ran five times over the same input. That made this file
+ * take 20-40s, which under full-suite parallelism starved unrelated tests into
+ * 20s timeouts — the property suite was turning the whole repo red. Sharing the
+ * work costs no coverage: every position is still exercised.
+ */
+interface Computed {
+  p: Position;
+  facts: ReturnType<typeof buildPositionFacts>;
+  buildError: string | null;
+}
+const COMPUTED: Computed[] = POSITIONS.map((p) => {
+  try {
+    return { p, facts: buildPositionFacts(p.fenBefore, p.san, p.lastCaptureSquare), buildError: null };
+  } catch (e) {
+    return { p, facts: null, buildError: (e as Error).message };
+  }
+});
+
+/** Derived intent for every position, likewise computed once. */
+const DERIVED = COMPUTED.map(({ p, facts }) => {
+  try {
+    return { p, out: computeIntentFacts(probeForWith(p, facts)), error: null as string | null };
+  } catch (e) {
+    return { p, out: null, error: (e as Error).message };
+  }
+});
 
 describe("property tests over real master games", () => {
   it("has games to test", () => {
@@ -99,26 +137,14 @@ describe("property tests over real master games", () => {
   it("buildPositionFacts NEVER throws on a legal move", () => {
     // 17 of 716 moves crashed an earlier version out of a function documented
     // to return null — all of them king moves out of check.
-    const crashes: string[] = [];
-    for (const p of POSITIONS) {
-      try {
-        buildPositionFacts(p.fenBefore, p.san, p.lastCaptureSquare);
-      } catch (e) {
-        crashes.push(`${p.game} ply${p.ply} ${p.san}: ${(e as Error).message}`);
-      }
-    }
+    const crashes = COMPUTED.filter((c) => c.buildError)
+      .map((c) => `${c.p.game} ply${c.p.ply} ${c.p.san}: ${c.buildError}`);
     expect(crashes.slice(0, 5)).toEqual([]);
   });
 
   it("computeIntentFacts NEVER throws", () => {
-    const crashes: string[] = [];
-    for (const p of POSITIONS) {
-      try {
-        computeIntentFacts(probeFor(p));
-      } catch (e) {
-        crashes.push(`${p.game} ply${p.ply} ${p.san}: ${(e as Error).message}`);
-      }
-    }
+    const crashes = DERIVED.filter((d) => d.error)
+      .map((d) => `${d.p.game} ply${d.p.ply} ${d.p.san}: ${d.error}`);
     expect(crashes.slice(0, 5)).toEqual([]);
   });
 
@@ -126,8 +152,7 @@ describe("property tests over real master games", () => {
     // PIECE_VALUE_CP.k is a 99999 sentinel meaning "never trade this". Reading
     // it as material priced every check evasion at 999.99 pawns.
     const bad: string[] = [];
-    for (const p of POSITIONS) {
-      const f = buildPositionFacts(p.fenBefore, p.san, p.lastCaptureSquare);
+    for (const { p, facts: f } of COMPUTED) {
       if (!f) continue;
       if (Math.abs(f.materialSwingCp) > 2000) bad.push(`${p.game} ${p.san} swing=${f.materialSwingCp}`);
       if (f.escapedValueCp > PIECE_VALUE_CP.q) bad.push(`${p.game} ${p.san} escaped=${f.escapedValueCp}`);
@@ -137,11 +162,9 @@ describe("property tests over real master games", () => {
   });
 
   it("a king move is never reported as escaping material", () => {
-    const bad: string[] = [];
-    for (const p of POSITIONS) {
-      const f = buildPositionFacts(p.fenBefore, p.san, p.lastCaptureSquare);
-      if (f && f.movedPiece === "k" && f.escapedAttack) bad.push(`${p.game} ply${p.ply} ${p.san}`);
-    }
+    const bad = COMPUTED
+      .filter(({ facts: f }) => f && f.movedPiece === "k" && f.escapedAttack)
+      .map(({ p }) => `${p.game} ply${p.ply} ${p.san}`);
     expect(bad.slice(0, 5)).toEqual([]);
   });
 
@@ -149,8 +172,8 @@ describe("property tests over real master games", () => {
     // Every field a student could be shown, checked against a bound far below
     // MATE_CP. This is the invariant that "COST 30929cp" violated.
     const bad: string[] = [];
-    for (const p of POSITIONS) {
-      const f = computeIntentFacts(probeFor(p));
+    for (const { p, out: f } of DERIVED) {
+      if (!f) continue;
       const checks: [string, number | null | undefined][] = [
         ["cost.lossCp", f.cost?.lossCp],
         ["material.wonCp", f.material?.wonCp],
@@ -220,6 +243,9 @@ describe("property tests over real master games", () => {
           rootLines: [line(p.san, bestScore), line(p.san, { cp: 0, mate: null })],
           threat: line("Qh5", { cp: 300, mate: null }),
           threatAfter: line("Qh5", { cp: null, mate: -3 }),
+          threatPieceCaptured: null,
+          opponentBestAfter: { cp: 250, mate: null },
+          threatAfterAlternatives: [],
           threatAlternative: line("Nf3", { cp: 10, mate: null }),
           threatStillLegal: true,
           playedScore,
@@ -231,6 +257,7 @@ describe("property tests over real master games", () => {
             bestSan: p.san,
             best: { cp: 250, mate: null },
             tempting: true,
+            replyExistedBefore: true,
             counterfactualCostCp: 0,
           },
         };

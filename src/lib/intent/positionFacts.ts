@@ -49,11 +49,23 @@ export interface PositionFacts {
   givesCheck: boolean;
   /**
    * True when this move recaptures on the square the opponent just captured on.
-   * A recapture restores equality; it does not win material. Reading a
-   * destination-square exchange value as "material won" carded 50 of 59
-   * recaptures in a master-game sweep as material wins.
+   * A recapture usually restores equality rather than winning material: reading
+   * a destination-square exchange value as "material won" carded 50 of 59
+   * recaptures in a master-game sweep as wins.
    */
   isRecapture: boolean;
+  /**
+   * Net material across BOTH plies of an exchange: what we just took, minus
+   * what they took from us to provoke it, minus what they can win back.
+   *
+   * Suppressing every recapture outright was the first fix and it was too
+   * blunt. A recapture is usually even — but when the opponent takes a pawn
+   * with their queen, taking the queen back is a genuine 800cp win, and the
+   * blanket suppression reported it as nothing at all and then went on to call
+   * the position quiet. Null when the value of their capture is unknown, in
+   * which case no material claim is made either way.
+   */
+  recaptureNetCp: number | null;
 }
 
 /** Value of a piece, with the king's sentinel kept out of material maths. */
@@ -110,15 +122,19 @@ function exchangeValue(position: Chess, target: Square, side: Color, depth = 0):
   }
   if (captures.length === 0) return 0;
 
-  // Least valuable attacker; and when that attacker is a promoting pawn, take
-  // the BEST promotion. chess.js emits promotions as [n, b, r, q], so a naive
-  // first match models an underpromotion to a knight.
-  captures.sort((a, b) => {
-    const av = valueOf(a.piece);
-    const bv = valueOf(b.piece);
-    if (av !== bv) return av - bv;
-    return promotionBonus(b.promotion) - promotionBonus(a.promotion);
-  });
+  // Least valuable attacker — but ranked by what the capture is WORTH to the
+  // recapturing side, not by the bare piece value. Two traps here, both of
+  // which produced sign-flipped material claims:
+  //
+  //  - valueOf() maps the king to 0 so that a king is never counted as material
+  //    won. Reused as a sort key that made the king the cheapest attacker, so a
+  //    king recapture was always chosen over a pawn that captures and PROMOTES.
+  //    Because the promotion tie-break only ran on an exact value tie, it never
+  //    fired: a move losing 400cp was reported as winning 400cp.
+  //  - The promotion bonus belongs in the key itself, not in the tie-break.
+  const cost = (m: { piece: PieceSymbol; promotion?: string }) =>
+    (m.piece === "k" ? PIECE_VALUE_CP.q + 1 : valueOf(m.piece)) - promotionBonus(m.promotion);
+  captures.sort((a, b) => cost(a) - cost(b));
   const chosen = captures[0];
   const gained = valueOf(occupant.type) + promotionBonus(chosen.promotion);
 
@@ -177,6 +193,8 @@ export function buildPositionFacts(
   fenBefore: string,
   playedSan: string,
   opponentLastCaptureSquare?: string | null,
+  /** Centipawn value of the piece the opponent took on that square, if known. */
+  opponentLastCaptureValueCp?: number | null,
 ): PositionFacts | null {
   try {
     const before = new Chess(fenBefore);
@@ -211,6 +229,7 @@ export function buildPositionFacts(
 
     // A king is never "losing material by standing there" — it is in check,
     // which is a different fact, and its moves are forced rather than chosen.
+    const isRecapture = !!opponentLastCaptureSquare && move.to === opponentLastCaptureSquare;
     const isKing = move.piece === "k";
     const standingLoss = !isKing && wasAttacked ? exchangeValue(before, from, opponent) : 0;
     const movedValue = Math.min(valueOf(move.piece), MAX_PIECE_CP);
@@ -225,11 +244,91 @@ export function buildPositionFacts(
       escapedAttack,
       escapedValueCp: escapedAttack ? movedValue : 0,
       givesCheck: after.isCheck(),
-      isRecapture: !!opponentLastCaptureSquare && move.to === opponentLastCaptureSquare,
+      isRecapture,
+      recaptureNetCp:
+        isRecapture && typeof opponentLastCaptureValueCp === "number"
+          ? materialSwingCp - opponentLastCaptureValueCp
+          : null,
     };
   } catch {
     // Any unexpected chess.js behaviour degrades to "we do not know" — never a
     // throw, and never a confident number.
+    return null;
+  }
+}
+
+/**
+ * The position with the move handed to the opponent — "what if we passed?".
+ * Null when passing is not a position: you cannot pass out of check.
+ */
+export function nullMoveFen(fen: string): string | null {
+  try {
+    const g = new Chess(fen);
+    if (g.isCheck()) return null;
+    const parts = fen.split(" ");
+    parts[1] = parts[1] === "w" ? "b" : "w";
+    parts[3] = "-";
+    const flipped = parts.join(" ");
+    const probe = new Chess(flipped);
+    return probe.moves().length > 0 ? flipped : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Is this SAN move legal in this position? Never throws. */
+export function isLegalSan(fen: string, san: string): boolean {
+  try {
+    const g = new Chess(fen);
+    g.move(san);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Did the played move CAPTURE the piece that would have delivered the threat?
+ *
+ * The threat is a move the opponent would play if handed a free tempo, so its
+ * origin square is where the threatening piece stands. Taking that piece
+ * prevents the threat permanently — as opposed to a check, which merely makes
+ * every non-evasion illegal for a single ply.
+ *
+ * Returns null when either move cannot be read, so callers can tell "no" from
+ * "we could not tell".
+ */
+export function didCaptureThreatPiece(
+  fenBefore: string,
+  playedSan: string,
+  threatSan: string,
+): boolean | null {
+  try {
+    const passed = nullMoveFen(fenBefore);
+    if (!passed) return null;
+    const threatBoard = new Chess(passed);
+    let threatMove;
+    try {
+      threatMove = threatBoard.move(threatSan);
+    } catch {
+      return null;
+    }
+    const ourBoard = new Chess(fenBefore);
+    let ourMove;
+    try {
+      ourMove = ourBoard.move(playedSan);
+    } catch {
+      return null;
+    }
+    if (!ourMove.captured) return false;
+    // An en passant capture removes a pawn that is NOT on the landing square:
+    // it sits on the destination FILE at the capturing pawn's ORIGIN rank,
+    // which holds for both colours without a side test.
+    const takenSquare = ourMove.flags.includes("e")
+      ? `${ourMove.to[0]}${ourMove.from[1]}`
+      : ourMove.to;
+    return takenSquare === threatMove.from;
+  } catch {
     return null;
   }
 }

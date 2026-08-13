@@ -5,6 +5,8 @@ import {
   whiteRelativeToMover,
   MATE_CP,
   PROPHYLAXIS_MIN_SWING_CP,
+  PROPHYLAXIS_MIN_SPECIFIC_CP,
+  DECISIVE_CP,
 } from "../intentFacts";
 import type { EngineLine, IntentProbe } from "../types";
 import { buildPositionFacts } from "../positionFacts";
@@ -16,6 +18,17 @@ const line = (san: string, cp: number | null, mate: number | null = null, pv: st
   depth: 16,
 });
 
+/**
+ * Real positions for the fixtures that need board facts. "quiet" and the
+ * prevention guard are both assertions about the board, and the module now
+ * refuses to make either one when probe.position is null — an audit found it
+ * calling positions dull while holding no board information at all.
+ */
+// 1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5, White to move: nothing whatsoever going on.
+const QUIET_FEN = "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
+// King and pawn only, where the flatness comparison inverts under zugzwang.
+const KP_FEN = "8/8/4k3/8/4P3/4K3/8/8 w - - 0 1";
+
 /** A probe with everything switched off; each test turns on only what it means to test. */
 function probe(over: Partial<IntentProbe> = {}): IntentProbe {
   return {
@@ -25,7 +38,11 @@ function probe(over: Partial<IntentProbe> = {}): IntentProbe {
     rootLines: [line("Kb1", 0)],
     threat: null,
     threatAfter: null,
+    threatAlternative: null,
+    opponentBestAfter: null,
+    threatAfterAlternatives: [],
     threatStillLegal: true,
+    threatPieceCaptured: null,
     playedScore: { cp: 0, mate: null },
     moverHasPieces: true,
     position: null,
@@ -63,20 +80,132 @@ describe("score conventions", () => {
 
 describe("prophylaxis", () => {
   it("detects the real h5 case with the measured numbers", () => {
-    // Measured: White's best free move at the pre-h5 position was Qg4 at +180.
-    // Forced after h5 it scores -966. Both are from White's side.
+    // Depth 16, all three from White's side: a free tempo gets White +150 with
+    // Qg4; forced after h5 it scores -969; and White's actual best reply after
+    // h5 is Rh2 at 0. So Qg4 is 969cp worse than anything else they have —
+    // that gap, not the raw fall, is what "h5 stopped it" means.
     const f = computeIntentFacts(
       probe({
         playedSan: "h5",
-        threat: line("Qg4", 180),
-        threatAfter: line("Qg4", -966),
+        threat: line("Qg4", 150),
+        threatAfter: line("Qg4", -969),
+        opponentBestAfter: { cp: 0, mate: null },
         threatStillLegal: true,
       }),
     );
     expect(f.prophylaxis).not.toBeNull();
     expect(f.prophylaxis!.threatSan).toBe("Qg4");
-    expect(f.prophylaxis!.swingCp).toBe(1146);
+    expect(f.prophylaxis!.swingCp).toBe(1119);
+    expect(f.prophylaxis!.specificCp).toBe(969);
     expect(f.prophylaxis!.preventedOutright).toBe(false);
+  });
+
+  // ── the move must be why the threat died ─────────────────────────────────
+  // Both fixtures below are real positions measured at depth 16, and both were
+  // carded as prophylaxis by the version of this module that only looked at
+  // how far the threat's score fell.
+
+  it("rejects a RECAPTURE that merely won the material back (real Qxd5 case)", () => {
+    // Black recaptures a pawn on d5. The 'threat' Bb5+ falls 263cp — but only
+    // because White is no longer a pawn up. White's best reply after Qxd5 is
+    // Nf3 at +35, and Bb5+ still scores -21, so Bb5+ is 56cp off their best:
+    // entirely playable. Nothing was stopped.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Qxd5",
+        rootLines: [line("exd5", -22), line("Qxd5", -25)],
+        playedScore: { cp: -25, mate: null },
+        threat: line("Bb5+", 242),
+        threatAfter: line("Bb5+", -21),
+        opponentBestAfter: { cp: 35, mate: null },
+      }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.notes.join(" ")).toContain("not stopped");
+  });
+
+  it("rejects a move that answers the threat WORSE than the moves we passed over (real Kd8 case)", () => {
+    // The founder on this exact position: "I would not say playing Kd8 stops
+    // this, there is probably just another move that does the same thing that
+    // stockfish prefers." Measured: Kd8 answers Be2 to -189, while a6 reaches
+    // -423 and Qxe4+ -515. Kd8 is the worst answer of the lot.
+    //
+    // It clears BOTH earlier gates — swing 333, and 230cp worse than White's
+    // best reply — so only attribution catches it.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Kd8",
+        rootLines: [line("Qxe4+", 394), line("Nxd4", 182)],
+        playedScore: { cp: 16, mate: null },
+        threat: line("Be2", 144),
+        threatAfter: line("Be2", -189),
+        opponentBestAfter: { cp: 41, mate: null },
+        threatAfterAlternatives: [
+          { ourSan: "Qxe4+", score: { cp: -515, mate: null }, stillLegal: true },
+          { ourSan: "Nxd4", score: { cp: -241, mate: null }, stillLegal: true },
+          { ourSan: "a6", score: { cp: -423, mate: null }, stillLegal: true },
+          { ourSan: "Kd8", score: { cp: -189, mate: null }, stillLegal: true },
+        ],
+      }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.notes.join(" ")).toContain("not this move's doing");
+  });
+
+  it("CONTROL: a move need not be the UNIQUE answer — h5 shares the job with f6", () => {
+    // A gate demanding uniqueness would reject real prophylaxis. h5 answers Qg4
+    // with a forced mate; so does f6. h5 must still earn the claim.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "h5",
+        threat: line("Qg4", 150),
+        threatAfter: line("Qg4", null, -3),
+        opponentBestAfter: { cp: 0, mate: null },
+        threatAfterAlternatives: [
+          { ourSan: "f6", score: { cp: null, mate: -4 }, stillLegal: true },
+          { ourSan: "Rf5", score: { cp: -1109, mate: null }, stillLegal: true },
+          { ourSan: "h5", score: { cp: null, mate: -3 }, stillLegal: true },
+        ],
+      }),
+    );
+    expect(f.prophylaxis).not.toBeNull();
+    expect(f.prophylaxis!.threatSan).toBe("Qg4");
+  });
+
+  it("does not claim prophylaxis when the opponent is being mated whatever they play", () => {
+    // Real, from a dead king-and-pawn ending in game_11: a3 was carded as
+    // stopping Kg5 while White was mated in 20 regardless. This branch returns
+    // BEFORE the specificity gate, so it was the one path where "their whole
+    // position is lost" still read as "our move stopped this".
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "a3",
+        // Real root score, so the tempo gate genuinely passes and execution
+        // reaches the branch under test rather than bailing out earlier.
+        rootLines: [line("Ke7", 8308), line("a3", 795)],
+        playedScore: { cp: 795, mate: null },
+        threat: line("Kg5", -4714),
+        threatAfter: line("Kg5", null, -17),
+        opponentBestAfter: { cp: null, mate: -20 },
+      }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.notes.join(" ")).toContain("mated whatever they play");
+  });
+
+  it("CONTROL: still comprehensive defusal when the opponent HAD a way out", () => {
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "a3",
+        rootLines: [line("Ke7", 400), line("a3", 100)],
+        playedScore: { cp: 100, mate: null },
+        threat: line("Kg5", 300),
+        threatAfter: line("Kg5", null, -17),
+        opponentBestAfter: { cp: -50, mate: null },
+      }),
+    );
+    expect(f.prophylaxis).not.toBeNull();
+    expect(f.prophylaxis!.threatSan).toBe("Kg5");
   });
 
   it("CONTROL: a threat that barely moves is NOT reported", () => {
@@ -90,8 +219,18 @@ describe("prophylaxis", () => {
   });
 
   it("treats a threat the move made illegal as prevention outright", () => {
+    // Real board facts are required: without them the module cannot tell
+    // permanent prevention from a threat that is illegal for one ply because
+    // the move gave check, and it must say nothing rather than guess.
     const f = computeIntentFacts(
-      probe({ threat: line("Qxh7#", null, 1), threatAfter: null, threatStillLegal: false }),
+      probe({
+        fenBefore: QUIET_FEN,
+        playedSan: "d3",
+        position: buildPositionFacts(QUIET_FEN, "d3"),
+        threat: line("Qxh7#", null, 1),
+        threatAfter: null,
+        threatStillLegal: false,
+      }),
     );
     expect(f.prophylaxis!.preventedOutright).toBe(true);
     expect(f.prophylaxis!.scoreAfterCp).toBeNull();
@@ -99,15 +238,87 @@ describe("prophylaxis", () => {
     expect(f.prophylaxis!.defusedMate).toBe(true);
   });
 
+  // ── the check guard, and its two failure directions ──────────────────────
+  // A check makes every opponent non-evasion illegal for one ply, so "the
+  // threat is now illegal" proves nothing on a checking move. The guard that
+  // rejects those was optional-chained through probe.position, so it silently
+  // vanished when board facts were missing and the false claim came back.
+
+  it("says nothing when it cannot tell prevention from a one-ply check", () => {
+    const f = computeIntentFacts(
+      probe({
+        position: null,
+        threat: line("Bxg2", 400),
+        threatAfter: null,
+        threatStillLegal: false,
+        threatPieceCaptured: null,
+      }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.notes.join(" ")).toContain("board facts missing");
+  });
+
+  it("a check that CAPTURES the threatening piece is real prevention", () => {
+    // The guard over-fired the other way too, silencing 7 of 190 sampled
+    // positions with a note that was factually false: the piece is gone, so the
+    // threat stays illegal for the rest of the game, check or no check.
+    const fen = "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
+    const f = computeIntentFacts(
+      probe({
+        fenBefore: fen,
+        playedSan: "Nxe5",
+        position: buildPositionFacts(fen, "Nxe5"),
+        threat: line("Nxe4", 400),
+        threatAfter: null,
+        threatStillLegal: false,
+        threatPieceCaptured: true,
+      }),
+    );
+    expect(f.prophylaxis).not.toBeNull();
+    expect(f.prophylaxis!.preventedOutright).toBe(true);
+  });
+
   it("fires exactly at the threshold and not one centipawn below", () => {
+    // opponentBestAfter is set so specificity clears its own bar exactly, which
+    // isolates the swing threshold as the thing under test.
+    const baseline = { cp: PROPHYLAXIS_MIN_SPECIFIC_CP, mate: null };
     const at = computeIntentFacts(
-      probe({ threat: line("Qg4", PROPHYLAXIS_MIN_SWING_CP), threatAfter: line("Qg4", 0) }),
+      probe({ threat: line("Qg4", PROPHYLAXIS_MIN_SWING_CP), threatAfter: line("Qg4", 0), opponentBestAfter: baseline }),
     );
     expect(at.prophylaxis).not.toBeNull();
     const below = computeIntentFacts(
-      probe({ threat: line("Qg4", PROPHYLAXIS_MIN_SWING_CP - 1), threatAfter: line("Qg4", 0) }),
+      probe({ threat: line("Qg4", PROPHYLAXIS_MIN_SWING_CP - 1), threatAfter: line("Qg4", 0), opponentBestAfter: baseline }),
     );
     expect(below.prophylaxis).toBeNull();
+  });
+
+  it("specificity fires exactly at its threshold and not one centipawn below", () => {
+    const at = computeIntentFacts(
+      probe({
+        threat: line("Qg4", 400),
+        threatAfter: line("Qg4", 0),
+        opponentBestAfter: { cp: PROPHYLAXIS_MIN_SPECIFIC_CP, mate: null },
+      }),
+    );
+    expect(at.prophylaxis).not.toBeNull();
+    const below = computeIntentFacts(
+      probe({
+        threat: line("Qg4", 400),
+        threatAfter: line("Qg4", 0),
+        opponentBestAfter: { cp: PROPHYLAXIS_MIN_SPECIFIC_CP - 1, mate: null },
+      }),
+    );
+    expect(below.prophylaxis).toBeNull();
+  });
+
+  it("says nothing at all when the opponent's best reply was never measured", () => {
+    // Silence, not a guess: without a baseline there is no way to tell a
+    // defended threat from a position that simply got better for us.
+    const f = computeIntentFacts(
+      probe({ threat: line("Qg4", 400), threatAfter: line("Qg4", 0), opponentBestAfter: null }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.notes.join(" ")).toContain("not measured");
   });
 
   it("reports nothing when no threat was probed", () => {
@@ -145,6 +356,7 @@ describe("prophylaxis", () => {
         playedScore: { cp: 0, mate: null },
         threat: line("Qg4", 166),
         threatAfter: line("Qg4", -917),
+        opponentBestAfter: { cp: 0, mate: null },
       }),
     );
     expect(f.prophylaxis).not.toBeNull();
@@ -164,7 +376,10 @@ describe("cost", () => {
         playedScore: { cp: 0, mate: null },
       }),
     );
-    expect(f.cost).toEqual({ bestSan: "f6", bestCp: 599, playedCp: 0, lossCp: 599, mateChange: null });
+    expect(f.cost).toEqual({
+      bestSan: "f6", bestCp: 599, playedCp: 0, lossCp: 599,
+      mateChange: null, beyondMeasurement: false,
+    });
   });
 
   it("reports nothing when the played move IS the best move", () => {
@@ -209,6 +424,18 @@ describe("cost", () => {
     expect(f.cost).toBeNull();
   });
 
+  it("reports an unmeasurably large gap as decisive rather than as pawns", () => {
+    // Stockfish reports +8308 in won king-and-pawn endings. Subtracted, that
+    // produced "this cost you 7513 centipawns" — 75 pawns, on a board holding
+    // two. Over 2,196 root evaluations from the founder's games the 99th
+    // percentile is 1281cp, so the bound discards almost nothing.
+    const f = computeIntentFacts(
+      probe({ rootLines: [line("Ke7", 8308)], playedScore: { cp: 795, mate: null } }),
+    );
+    expect(f.cost!.beyondMeasurement).toBe(true);
+    expect(f.cost!.lossCp).toBe(DECISIVE_CP);
+  });
+
   it("CONTROL: no lossCp is ever a mate-sized number", () => {
     // The defect this whole block exists for: any lossCp above a few thousand
     // centipawns means a mate score leaked into the subtraction.
@@ -226,17 +453,83 @@ describe("cost", () => {
 describe("quiet positions and the zugzwang guard", () => {
   it("says quiet when nothing was found and the position is flat", () => {
     const f = computeIntentFacts(
-      probe({ rootLines: [line("Nf3", 27), line("d4", 26), line("e4", 22)], playedScore: { cp: 27, mate: null } }),
+      probe({
+        fenBefore: QUIET_FEN,
+        playedSan: "d3",
+        position: buildPositionFacts(QUIET_FEN, "d3"),
+        rootLines: [line("d3", 27), line("d4", 26), line("Nc3", 22)],
+        playedScore: { cp: 27, mate: null },
+      }),
     );
     expect(f.sharpness).toBe("flat");
     expect(f.quiet).toBe(true);
     expect(f.urgencySuppressed).toBe(false);
   });
 
+  // ── "nothing tactical here" is an assertion, so it needs evidence ────────
+  // An adversarial audit rated these CRITICAL: the gate tested only that a
+  // finding was absent, so every way of ending up empty-handed — unreadable
+  // scores, missing board facts, a threat we declined to narrate — was read as
+  // "the position is dull".
+
+  it("refuses to claim quiet when the board facts were never derived", () => {
+    // material, escape and the check guard are ALL derived from probe.position.
+    // With it null the module has no board information whatsoever.
+    const f = computeIntentFacts(
+      probe({
+        position: null,
+        rootLines: [line("Nf3", 27), line("d4", 26)],
+        playedScore: { cp: 27, mate: null },
+      }),
+    );
+    expect(f.quiet).toBe(false);
+    expect(f.notes.join(" ")).toContain("board facts unavailable");
+  });
+
+  it("refuses to claim quiet when the played move's score is present but unreadable", () => {
+    // The gate tested the CONTAINER (`playedScore !== null`), so this object
+    // sailed through and a move that was never really scored was called quiet.
+    const f = computeIntentFacts(
+      probe({
+        fenBefore: QUIET_FEN,
+        playedSan: "d3",
+        position: buildPositionFacts(QUIET_FEN, "d3"),
+        rootLines: [line("d3", 27), line("d4", 26)],
+        playedScore: { cp: null, mate: null },
+      }),
+    );
+    expect(f.quiet).toBe(false);
+    expect(f.notes.join(" ")).toContain("not scored");
+  });
+
+  it("refuses to claim quiet when a real threat was found but not narrated", () => {
+    // The tempo gate has already confirmed the opponent has something going on.
+    // Bailing out of the claim afterwards means we could not describe it — the
+    // opposite of there being nothing to describe.
+    const f = computeIntentFacts(
+      probe({
+        fenBefore: QUIET_FEN,
+        playedSan: "d3",
+        position: buildPositionFacts(QUIET_FEN, "d3"),
+        rootLines: [line("d3", 27), line("d4", 26)],
+        playedScore: { cp: 27, mate: null },
+        threat: line("Qh5", 400),
+        threatAfter: line("Qh5", 380), // swing of 20: real threat, not defused
+        opponentBestAfter: { cp: 390, mate: null },
+      }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.quiet).toBe(false);
+    expect(f.notes.join(" ")).toContain("not narrated");
+  });
+
   it("refuses to call a king-and-pawn position quiet", () => {
     const f = computeIntentFacts(
       probe({
-        rootLines: [line("Kd4", 10), line("Kd5", 8)],
+        fenBefore: KP_FEN,
+        playedSan: "Kd3",
+        position: buildPositionFacts(KP_FEN, "Kd3"),
+        rootLines: [line("Kd3", 10), line("Kf3", 8)],
         playedScore: { cp: 10, mate: null },
         moverHasPieces: false,
       }),
@@ -253,6 +546,7 @@ describe("quiet positions and the zugzwang guard", () => {
         playedScore: { cp: 10, mate: null },
         threat: line("Qg4", 180),
         threatAfter: line("Qg4", -966),
+        opponentBestAfter: { cp: 0, mate: null },
       }),
     );
     expect(f.sharpness).toBe("flat");

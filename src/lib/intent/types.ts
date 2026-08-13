@@ -76,6 +76,51 @@ export interface IntentProbe {
   /** Whether the threat move is still legal in fenAfter. */
   threatStillLegal: boolean;
 
+  /**
+   * Did the played move CAPTURE the piece that would have made the threat?
+   *
+   * A check makes every opponent non-evasion illegal for one ply, so
+   * "the threat is now illegal" is worthless evidence on a checking move —
+   * hence the guard that rejects it. But a check that captures the threatening
+   * piece prevents the threat permanently, and that guard was silencing those,
+   * producing empty cards on 7 of 190 sampled positions under a note that was
+   * factually false. Computed with chess.js by the caller; null when unknown.
+   */
+  threatPieceCaptured: boolean | null;
+
+  /**
+   * The opponent's BEST move at fenAfter, scored for THEM — the baseline the
+   * threat has to be measured against.
+   *
+   * Without this, "the threat's score fell" cannot be told apart from "the
+   * opponent's whole position got worse", and those are different claims. Any
+   * move that wins material drags every opponent option down with it. Measured
+   * on a recapture (Qxd5 answering a pawn grab): the threat Bb5+ fell 263cp,
+   * which cleared the swing bar comfortably — but the opponent's best reply was
+   * only 56cp better than the "stopped" threat, i.e. it was never stopped at
+   * all. The move won a pawn back and the arithmetic credited it with defence.
+   *
+   * Null when not measured, in which case no swing-based claim is made.
+   */
+  opponentBestAfter: IntentScore | null;
+
+  /**
+   * The threat replayed after each of OUR plausible alternatives, scored for
+   * the OPPONENT.
+   *
+   * The founder's rejection of "Kd8 stops Be2" was not that Be2 stayed good —
+   * it was "there is probably just another move that does the same thing that
+   * stockfish prefers in that position". Measured: Kd8 answered Be2 to -189
+   * while a6 reached -423 and Qxe4+ -515. Kd8 was the WORST of the candidates;
+   * the threat's decline was not its doing.
+   *
+   * A move need not be the UNIQUE answer to earn the claim — h5, a genuine
+   * prophylactic move, shares the honour with f6, and both answer Qg4 with a
+   * forced mate. It must merely not be a worse answer than the moves we passed
+   * over. Empty when not measured.
+   */
+  threatAfterAlternatives: Array<{ ourSan: string; score: IntentScore | null; stillLegal: boolean }>;
+
   /** Score of the move actually played, measured at fenBefore, for the PLAYER. */
   playedScore: IntentScore | null;
 
@@ -105,6 +150,14 @@ export interface IntentProbe {
     best: IntentScore | null;
     /** Did their reply look like a free capture or a check? */
     tempting: boolean;
+    /**
+     * Was that same reply even LEGAL before we moved (at the null-move
+     * position)? False means our move created the opportunity outright, which
+     * is the strongest attribution there is — it is why Bxg3 counts as a trap
+     * when the opponent grabs with fxg3, a move that does not exist until the
+     * bishop lands on g3. Null when not determined.
+     */
+    replyExistedBefore: boolean | null;
     /**
      * How bad the same error would have been had we played nothing — measured
      * at the null-move position. A trap is only ours if our move made the
@@ -181,6 +234,21 @@ export interface ProphylaxisFact {
   preventedOutright: boolean;
   /** True when the opponent's free move was a forced mate that the move defused. */
   defusedMate: boolean;
+  /**
+   * How much worse the threat now is than the opponent's BEST reply.
+   *
+   * This is the claim's real strength. `swingCp` says the threat got worse;
+   * this says the threat got worse THAN THE ALTERNATIVES, which is what
+   * "stopped it" means. Null when the opponent's best reply was not measured.
+   */
+  specificCp: number | null;
+  /**
+   * How much worse OUR move answers the threat than the best move we did not
+   * play. Negative or near zero means our move is among the best answers;
+   * clearly positive means the threat's decline was not our doing.
+   * Null when our alternatives were not measured.
+   */
+  attributionCp: number | null;
 }
 
 /** What a cost looks like when a forced mate is on one side of the comparison. */
@@ -190,6 +258,12 @@ export interface CostFact {
   bestSan: string;
   /** Null when the best line was a forced mate. */
   bestCp: number | null;
+  /**
+   * True when the gap was so large that the engine was scoring a decided game
+   * rather than counting material; lossCp is then clamped to DECISIVE_CP and
+   * must be narrated as "this loses", never as a pawn count.
+   */
+  beyondMeasurement?: boolean;
   /** Null when the played move led to a forced mate either way. */
   playedCp: number | null;
   /** best - played, always >= 0. Null when a mate is involved — see mateChange. */

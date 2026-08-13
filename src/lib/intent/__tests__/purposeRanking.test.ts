@@ -30,7 +30,10 @@ function probe(over: Partial<IntentProbe> = {}): IntentProbe {
     threat: null,
     threatAfter: null,
     threatAlternative: null,
+    opponentBestAfter: null,
+    threatAfterAlternatives: [],
     threatStillLegal: true,
+    threatPieceCaptured: null,
     playedScore: { cp: 0, mate: null },
     moverHasPieces: true,
     position: null,
@@ -101,8 +104,9 @@ describe("purpose ranking", () => {
           bestSan: "Rh3",
           best: { cp: 194, mate: null },
           tempting: true,
-          // fxg3 is not even legal until Bxg3 is played, so the error did not
-          // exist in the world where we passed.
+          // fxg3 is not even legal until Bxg3 is played: our move created the
+          // opportunity outright, which is the strongest attribution there is.
+          replyExistedBefore: false,
           counterfactualCostCp: 0,
         },
       }),
@@ -122,12 +126,79 @@ describe("purpose ranking", () => {
           bestSan: "Nf3",
           best: { cp: 100, mate: null },
           tempting: false,
+          replyExistedBefore: true,
           counterfactualCostCp: 0,
         },
       }),
     );
     expect(f.trap).toBeNull();
     expect(f.notes.join(" ")).toContain("not tempting");
+  });
+
+  // ── trap attribution must FAIL CLOSED ────────────────────────────────────
+  // The gate read `counterfactualCostCp !== null`, so it silently vanished
+  // whenever the field was absent — reverting to exactly the flattery it was
+  // added to prevent. walkedIntoMate skipped it unconditionally.
+
+  it("CONTROL: no trap when there is no counterfactual for the opponent's error", () => {
+    const f = computeIntentFacts(
+      probe({
+        opponentReply: {
+          san: "Qxb2",
+          actual: { cp: -300, mate: null },
+          bestSan: "Rc8",
+          best: { cp: 141, mate: null },
+          tempting: true,
+          replyExistedBefore: true,
+          counterfactualCostCp: null,
+        },
+      }),
+    );
+    expect(f.trap).toBeNull();
+    expect(f.notes.join(" ")).toContain("no counterfactual");
+  });
+
+  it("CONTROL: a mate that was already coming is not our trap", () => {
+    // A far-wing pawn move credited with baiting a mate that the opponent walks
+    // into with or without it. walkedIntoMate bypassed attribution entirely, so
+    // no centipawn counterfactual could ever block this.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "a3",
+        opponentReply: {
+          san: "Rxc3",
+          actual: { cp: null, mate: -2 },
+          bestSan: "Nc6",
+          best: { cp: -120, mate: null },
+          tempting: true,
+          replyExistedBefore: true,
+          // The same reply was already a 450cp error before we played.
+          counterfactualCostCp: 450,
+        },
+      }),
+    );
+    expect(f.trap).toBeNull();
+    expect(f.notes.join(" ")).toContain("already cost");
+  });
+
+  it("CONTROL: no trap when the opponent's best reply was never scored", () => {
+    // Without a baseline, "their move was an error" is unsupported — they may
+    // have been losing whatever they played.
+    const f = computeIntentFacts(
+      probe({
+        opponentReply: {
+          san: "Nxe5",
+          actual: { cp: null, mate: -3 },
+          bestSan: "Kf8",
+          best: null,
+          tempting: true,
+          replyExistedBefore: true,
+          counterfactualCostCp: 0,
+        },
+      }),
+    );
+    expect(f.trap).toBeNull();
+    expect(f.notes.join(" ")).toContain("no baseline");
   });
 
   it("moving an attacked piece to safety is an ESCAPE", () => {
@@ -161,6 +232,8 @@ describe("purpose ranking", () => {
         position,
         threat: line("Qg4", 161),
         threatAfter: line("Qg4", -926),
+        // White's best reply after h5 is Rh2 at 0, so Qg4 is 926cp off it.
+        opponentBestAfter: { cp: 0, mate: null },
       }),
     );
     expect(f.purpose).toBe("prophylaxis");

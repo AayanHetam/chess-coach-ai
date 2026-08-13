@@ -49,6 +49,38 @@ export const PROPHYLAXIS_MIN_SWING_CP = 150;
  */
 export const THREAT_MIN_TEMPO_VALUE_CP = 150;
 
+/**
+ * How much worse the threat must be than the opponent's BEST reply before we
+ * say the move stopped it.
+ *
+ * A falling threat score is not evidence on its own. Winning material drags
+ * every one of the opponent's options down together, so the threat "falls"
+ * while remaining exactly as good as anything else they have. Measured at
+ * depth 16 on the founder's games:
+ *
+ *   h5   (real prophylaxis)      threat 969cp worse than their best reply
+ *   Qxd5 (a recapture)           threat  56cp worse — i.e. still fine for them
+ *
+ * The recapture cleared the 150cp swing bar with 263cp and was carded as
+ * "played to stop Bb5+". It was played to take a pawn back.
+ */
+export const PROPHYLAXIS_MIN_SPECIFIC_CP = 150;
+
+/**
+ * How much WORSE our move may answer the threat than the best move we passed
+ * over, before the claim stops being about our move at all.
+ *
+ * The founder's rejection of "Kd8 stops Be2": "there is probably just another
+ * move that does the same thing that stockfish prefers in that position."
+ * Measured — Kd8 answers Be2 to -189; a6 reaches -423 and Qxe4+ -515. Kd8 is
+ * the worst answer of the lot, so Be2's decline is not its doing.
+ *
+ * Deliberately a tolerance and not a demand for uniqueness: h5 is a real
+ * prophylactic move that does NOT uniquely answer Qg4 (f6 also mates), and a
+ * gate requiring uniqueness would reject it.
+ */
+export const PROPHYLAXIS_MAX_ATTRIBUTION_CP = 100;
+
 /** Spread between best and second-best that separates the sharpness buckets. */
 export const SHARPNESS_ONLY_MOVE_CP = 150;
 export const SHARPNESS_CLEARLY_BEST_CP = 50;
@@ -69,6 +101,19 @@ export const COST_MIN_LOSS_CP = 100;
 export const MATERIAL_MIN_CP = 100;
 
 /**
+ * Above this the engine is describing a decided game, not a material count.
+ *
+ * Stockfish happily reports +8308 in a won king-and-pawn ending. Subtracted,
+ * that produced "this move cost you 7513 centipawns" — seventy-five pawns,
+ * about a move in a position with two pawns on the board. Measured over 2,196
+ * root evaluations from the founder's twelve games: the 99th percentile is
+ * 1281cp and only 0.14% exceed 2000, so the bound discards almost nothing while
+ * keeping every number the coach says inside the range where centipawns still
+ * mean material.
+ */
+export const DECISIVE_CP = 2000;
+
+/**
  * How badly the opponent's actual reply must have gone before we call the
  * position a trap. Two pawns keeps it to errors worth talking about; the real
  * case (fxg3 in game_02) cost 447cp.
@@ -82,6 +127,18 @@ export const TRAP_MIN_COST_CP = 200;
  * played and 441cp in the world where it was.
  */
 export const TRAP_MIN_ATTRIBUTION_CP = 100;
+
+/**
+ * Side-channel from the analysis passes to the "is this position quiet" gate.
+ *
+ * A pass can decline to make a claim for two very different reasons: it looked
+ * and there was nothing there, or it found something real and could not narrate
+ * it safely. Only the first justifies telling a student the position is dull.
+ */
+interface AnalysisSignals {
+  /** The opponent had a genuine threat, whether or not we claimed prophylaxis. */
+  threatWasReal: boolean;
+}
 
 /** Convert a WHITE-relative engine score to mover-relative. See types.ts. */
 export function whiteRelativeToMover(score: IntentScore, mover: "w" | "b"): IntentScore {
@@ -176,7 +233,11 @@ function isMateAgainst(score: IntentScore | null | undefined): boolean {
  * The two positions differ only in what the player did — pass versus play the
  * move — which is exactly the counterfactual we want.
  */
-function computeProphylaxis(probe: IntentProbe, notes: string[]): ProphylaxisFact | null {
+function computeProphylaxis(
+  probe: IntentProbe,
+  notes: string[],
+  signals: AnalysisSignals,
+): ProphylaxisFact | null {
   if (!probe.threat) {
     notes.push("no threat probe");
     return null;
@@ -214,6 +275,9 @@ function computeProphylaxis(probe: IntentProbe, notes: string[]): ProphylaxisFac
       return null;
     }
   }
+  // Past this point the opponent genuinely had something. Every later return is
+  // "we will not narrate it", never "there was nothing here".
+  signals.threatWasReal = true;
 
   // Strongest case: the move made the threat impossible, not merely bad.
   //
@@ -221,9 +285,23 @@ function computeProphylaxis(probe: IntentProbe, notes: string[]): ProphylaxisFac
   // this branch used to fire on every check by construction — a royal fork
   // whose point was winning a rook was reported as "played to stop Bxg2".
   // Illegality caused by check is not prevention.
-  if (!probe.threatStillLegal && probe.position?.givesCheck) {
-    notes.push("threat is only illegal because the move gives check — not prevention");
-    return null;
+  //
+  // But a check that CAPTURES the threatening piece prevents the threat
+  // permanently, and the guard was silencing those: it fired on 7 of 190 sampled
+  // positions, in each case emitting an empty card under a note that was
+  // factually false. Capturing the piece that would have made the move is real,
+  // durable prevention no matter what else the move does.
+  if (!probe.threatStillLegal && probe.threatPieceCaptured !== true) {
+    if (probe.position === null) {
+      // The guard cannot tell a check from a capture without board facts, and
+      // optional-chaining through a null position quietly disabled it.
+      notes.push("cannot tell whether the threat is only illegal due to check — board facts missing");
+      return null;
+    }
+    if (probe.position.givesCheck) {
+      notes.push("threat is only illegal because the move gives check — not prevention");
+      return null;
+    }
   }
   if (!probe.threatStillLegal) {
     return {
@@ -233,6 +311,9 @@ function computeProphylaxis(probe: IntentProbe, notes: string[]): ProphylaxisFac
       swingCp: null,
       preventedOutright: true,
       defusedMate: threatMates,
+      // No centipawn comparison exists when the threat is gone from the board.
+      specificCp: null,
+      attributionCp: attributionOf(probe),
     };
   }
 
@@ -254,6 +335,8 @@ function computeProphylaxis(probe: IntentProbe, notes: string[]): ProphylaxisFac
       swingCp: null,
       preventedOutright: false,
       defusedMate: true,
+      specificCp: null,
+      attributionCp: attributionOf(probe),
     };
   }
 
@@ -266,7 +349,16 @@ function computeProphylaxis(probe: IntentProbe, notes: string[]): ProphylaxisFac
     return null;
   }
   if (isMateAgainst(probe.threatAfter.score)) {
-    // Playing the threat move now loses to mate — comprehensively defused.
+    // Playing the threat move now loses to mate — but only if the opponent had
+    // some way to avoid being mated. This branch returns BEFORE the specificity
+    // gate, so it was the one path where "their whole position is lost" still
+    // read as "our move stopped this". Found in a dead king-and-pawn ending: a3
+    // was carded as stopping Kg5 while White was mated in 20 whatever they
+    // played.
+    if (isMateAgainst(probe.opponentBestAfter)) {
+      notes.push("the opponent is being mated whatever they play — the move did not stop this");
+      return null;
+    }
     return {
       threatSan: probe.threat.san,
       scoreBeforeCp: before,
@@ -274,6 +366,8 @@ function computeProphylaxis(probe: IntentProbe, notes: string[]): ProphylaxisFac
       swingCp: null,
       preventedOutright: false,
       defusedMate: false,
+      specificCp: null,
+      attributionCp: attributionOf(probe),
     };
   }
   const swing = diffCp(probe.threat.score, probe.threatAfter.score);
@@ -286,6 +380,35 @@ function computeProphylaxis(probe: IntentProbe, notes: string[]): ProphylaxisFac
     notes.push(`threat swing ${swing}cp below ${PROPHYLAXIS_MIN_SWING_CP}cp`);
     return null;
   }
+
+  // Did the threat get worse than the ALTERNATIVES, or did the opponent's whole
+  // position simply get worse? Winning material does the latter to every option
+  // they have, and the arithmetic cannot tell the two apart without a baseline.
+  const specific = diffCp(probe.opponentBestAfter, probe.threatAfter.score);
+  if (specific === null) {
+    notes.push("opponent's best reply not measured — cannot tell defence from a general gain");
+    return null;
+  }
+  if (specific < PROPHYLAXIS_MIN_SPECIFIC_CP) {
+    notes.push(
+      `threat is only ${specific}cp worse than the opponent's best reply — not stopped, ` +
+      `the whole position changed`,
+    );
+    return null;
+  }
+
+  // Was it OUR move that did it, or would the moves we passed over have done
+  // the same? Only a move that answers the threat at least as well as its
+  // alternatives can claim the credit.
+  const attribution = attributionOf(probe);
+  if (attribution !== null && attribution > PROPHYLAXIS_MAX_ATTRIBUTION_CP) {
+    notes.push(
+      `moves we did not play answer ${probe.threat.san} ${attribution}cp better — ` +
+      `the threat's decline is not this move's doing`,
+    );
+    return null;
+  }
+
   return {
     threatSan: probe.threat.san,
     scoreBeforeCp: before,
@@ -293,7 +416,62 @@ function computeProphylaxis(probe: IntentProbe, notes: string[]): ProphylaxisFac
     swingCp: swing,
     preventedOutright: false,
     defusedMate: false,
+    specificCp: specific,
+    attributionCp: attribution,
   };
+}
+
+/**
+ * How well a move answers the threat, as a rank plus a score.
+ *
+ * Scores here are the OPPONENT's, so LOWER is a better answer. Some answers are
+ * not on the centipawn scale at all — making the threat illegal, or meeting it
+ * with a forced mate — and collapsing those into centipawns to subtract them is
+ * the mistake `diffCp` exists to prevent. So answers are compared by rank
+ * first and only by arithmetic within the same rank.
+ */
+type Answer = { rank: 0 | 1 | 2; cp: number | null };
+const ANSWER_UNRANKED: Answer = { rank: 2, cp: null };
+
+function answerQuality(score: IntentScore | null | undefined, stillLegal: boolean): Answer {
+  if (!stillLegal) return { rank: 0, cp: null }; // threat is impossible: perfect answer
+  if (isMateAgainst(score)) return { rank: 0, cp: null }; // playing it now loses to mate
+  if (isMate(score)) return ANSWER_UNRANKED; // mate FOR them — not an answer at all
+  const cp = toCp(score ?? null);
+  return cp === null ? ANSWER_UNRANKED : { rank: 1, cp };
+}
+
+/**
+ * Attribution: how much WORSE our move answers the threat than the best move we
+ * passed over. Positive means alternatives did it better.
+ *
+ * Returns null when there is nothing comparable to measure against — silence,
+ * not a guess.
+ */
+function attributionOf(probe: IntentProbe): number | null {
+  const alts = probe.threatAfterAlternatives;
+  if (!alts || alts.length === 0) return null;
+
+  const played = answerQuality(probe.threatAfter?.score, probe.threatStillLegal);
+
+  let best: Answer | null = null;
+  for (const a of alts) {
+    if (a.ourSan === probe.playedSan) continue;
+    const q = answerQuality(a.score, a.stillLegal);
+    if (q.rank === 2) continue;
+    if (best === null || q.rank < best.rank || (q.rank === best.rank && (q.cp ?? 0) < (best.cp ?? 0))) {
+      best = q;
+    }
+  }
+  if (best === null || played.rank === 2) return null;
+
+  // An alternative answers it categorically better (kills it outright) while we
+  // merely made it worse: the claim belongs to the move we did not play.
+  if (best.rank < played.rank) return Number.MAX_SAFE_INTEGER;
+  // We answer it categorically better than anything else: unambiguously ours.
+  if (played.rank < best.rank) return -1;
+  if (played.cp === null || best.cp === null) return null;
+  return played.cp - best.cp;
 }
 
 /**
@@ -366,7 +544,20 @@ function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {
     notes.push(`loss ${loss}cp below ${COST_MIN_LOSS_CP}cp`);
     return null;
   }
-  return { bestSan: best.san, bestCp, playedCp, lossCp: loss, mateChange: null };
+  // Past DECISIVE_CP the engine is scoring a decided game rather than counting
+  // material, and the difference stops being a number a student can use.
+  if (loss > DECISIVE_CP) {
+    notes.push(`loss ${loss}cp is beyond measurement — reported as decisive`);
+    return {
+      bestSan: best.san,
+      bestCp,
+      playedCp,
+      lossCp: DECISIVE_CP,
+      mateChange: null,
+      beyondMeasurement: true,
+    };
+  }
+  return { bestSan: best.san, bestCp, playedCp, lossCp: loss, mateChange: null, beyondMeasurement: false };
 }
 
 /** Did the move force mate? Read from the played move's own score. */
@@ -386,15 +577,26 @@ function computeMate(probe: IntentProbe): MateFact | null {
  */
 function computeMaterial(probe: IntentProbe, notes: string[]): MaterialFact | null {
   const p = probe.position;
-  if (!p || p.materialSwingCp < MATERIAL_MIN_CP) return null;
-  // Taking back on the square they just took on restores equality — it does
-  // not win anything. Reading a destination-square exchange value as "material
-  // won" carded 50 of 59 recaptures in a master-game sweep as material wins,
-  // including the Ruy Lopez Exchange dxc6 in a dead-level position.
+  if (!p) return null;
+
+  // A recapture must be priced across BOTH plies of the exchange. Pricing only
+  // our side of it carded 50 of 59 recaptures in a master-game sweep as
+  // material wins; suppressing recaptures outright then went too far the other
+  // way and reported taking a queen back as nothing at all, on a position it
+  // went on to call quiet.
   if (p.isRecapture) {
-    notes.push("recapture restores material rather than winning it");
-    return null;
+    if (p.recaptureNetCp === null) {
+      notes.push("recapture with the previous capture's value unknown — cannot price it");
+      return null;
+    }
+    if (p.recaptureNetCp < MATERIAL_MIN_CP) {
+      notes.push(`recapture nets ${p.recaptureNetCp}cp — restores material rather than winning it`);
+      return null;
+    }
+    return { wonCp: p.recaptureNetCp, capturedCp: p.capturedCp };
   }
+
+  if (p.materialSwingCp < MATERIAL_MIN_CP) return null;
   return { wonCp: p.materialSwingCp, capturedCp: p.capturedCp };
 }
 
@@ -409,6 +611,14 @@ function computeMaterial(probe: IntentProbe, notes: string[]): MaterialFact | nu
 function computeTrap(probe: IntentProbe, notes: string[]): TrapFact | null {
   const r = probe.opponentReply;
   if (!r) return null;
+
+  // Without a score for their BEST reply there is no baseline, so "their move
+  // was an error" is unsupported — they may have been losing whatever they
+  // played. walkedIntoMate used to reach the trap claim on `actual` alone.
+  if (!r.best) {
+    notes.push("opponent's best reply not scored — no baseline to call their move an error");
+    return null;
+  }
 
   const walkedIntoMate = isMateAgainst(r.actual) && !isMateAgainst(r.best);
   const costCp = diffCp(r.best, r.actual);
@@ -427,9 +637,38 @@ function computeTrap(probe: IntentProbe, notes: string[]): TrapFact | null {
   }
 
   // Did OUR move have anything to do with it? The same blunder may have been
-  // available anyway. Only claim a trap when our move made the mistake
-  // materially worse than it would have been had we passed.
-  if (!walkedIntoMate && costCp !== null && r.counterfactualCostCp !== null) {
+  // available anyway — a far-wing rook-pawn move was once credited with baiting
+  // a blunder worth 436cp in the world where it was never played.
+  //
+  // This gate must FAIL CLOSED. Written as `counterfactualCostCp !== null` it
+  // silently vanished whenever the field was absent or the comparison involved
+  // a mate, reverting to exactly the flattery it was added to stop — including
+  // on `walkedIntoMate`, which skipped it unconditionally and so credited our
+  // move with a mate that was already forced before we played.
+  if (r.replyExistedBefore === false) {
+    // Our move created the opportunity: the reply was not even legal until we
+    // played. That is the strongest possible attribution and needs no
+    // arithmetic — it is why the real Bxg3/fxg3 trap qualifies.
+    return { playedSan: r.san, bestSan: r.bestSan, costCp, walkedIntoMate, tempting: true };
+  }
+  if (r.counterfactualCostCp === null || r.counterfactualCostCp === undefined) {
+    notes.push(
+      "no counterfactual for the opponent's error — cannot tell our trap from a blunder " +
+      "they would have made anyway",
+    );
+    return null;
+  }
+  if (walkedIntoMate) {
+    // A mate is not a quantity of centipawns, so the cp counterfactual cannot
+    // price it. What it CAN tell us is whether the same reply was already a
+    // serious error before our move; if it was, the mate was coming regardless.
+    if (r.counterfactualCostCp >= TRAP_MIN_COST_CP) {
+      notes.push(
+        `their reply already cost ${r.counterfactualCostCp}cp without our move — not our trap`,
+      );
+      return null;
+    }
+  } else if (costCp !== null) {
     const attributable = costCp - r.counterfactualCostCp;
     if (attributable < TRAP_MIN_ATTRIBUTION_CP) {
       notes.push(
@@ -454,11 +693,12 @@ function computeEscape(probe: IntentProbe): EscapeFact | null {
  */
 export function computeIntentFacts(probe: IntentProbe): IntentFacts {
   const notes: string[] = [];
+  const signals: AnalysisSignals = { threatWasReal: false };
   const mate = computeMate(probe);
   const material = computeMaterial(probe, notes);
   const trap = computeTrap(probe, notes);
   const escape = computeEscape(probe);
-  const prophylaxis = computeProphylaxis(probe, notes);
+  const prophylaxis = computeProphylaxis(probe, notes, signals);
   const cost = computeCost(probe, notes);
   const sharpness = classifySharpness(probe.rootLines);
 
@@ -479,15 +719,33 @@ export function computeIntentFacts(probe: IntentProbe): IntentFacts {
   // position itself is flat. In a king-and-pawn position the comparison that
   // produces flatness inverts under zugzwang, so we decline to claim quiet
   // rather than risk calling a critical pawn ending dull.
-  // "cost === null" carried two incompatible meanings: measured and harmless,
-  // or never measured at all. Only the first justifies calling a position
-  // quiet. Under the natural wiring the played move's score is missing exactly
-  // when the move was bad enough to fall out of the engine's top lines, so the
-  // failure was correlated with the move being a blunder — it said "nothing
-  // tactical here" about a move that hung a bishop.
-  const costMeasured = probe.playedScore !== null && probe.rootLines.length > 0;
-  if (!costMeasured) notes.push("played move not scored — cannot claim the position is quiet");
-  const foundNothing = purpose === "none" && cost === null && costMeasured;
+  // "Nothing tactical here" is an ASSERTION, so it needs positive evidence that
+  // we looked and found nothing — never merely the absence of a finding. Every
+  // clause below is a way the module can end up empty-handed while the position
+  // is in fact sharp, and each one was observed:
+  //
+  //  - playedScore present but unreadable. The gate tested the CONTAINER
+  //    (`!== null`), so `{cp: null, mate: null}` sailed through and a move that
+  //    was never really scored was called quiet.
+  //  - board facts missing entirely. material, escape and the check guard are
+  //    ALL derived from probe.position; with it null the module has no board
+  //    information at all, yet still claimed the position was dull.
+  //  - a real threat that we declined to narrate. Bailing out of a prophylaxis
+  //    claim after the tempo gate has already confirmed a genuine threat means
+  //    something IS happening — saying "nothing tactical here" is then the
+  //    opposite of the truth.
+  const playedReadable = probe.playedScore !== null && toCp(probe.playedScore) !== null;
+  const rootReadable = probe.rootLines.length > 0 && toCp(probe.rootLines[0]?.score) !== null;
+  const boardKnown = probe.position !== null;
+  if (!playedReadable) notes.push("played move not scored — cannot claim the position is quiet");
+  if (!boardKnown) notes.push("board facts unavailable — cannot claim the position is quiet");
+  const threatLeftUnsaid = signals.threatWasReal && prophylaxis === null;
+  if (threatLeftUnsaid) {
+    notes.push("a real threat was found but not narrated — cannot claim the position is quiet");
+  }
+
+  const evidenceComplete = playedReadable && rootReadable && boardKnown && !threatLeftUnsaid;
+  const foundNothing = purpose === "none" && cost === null && evidenceComplete;
   const urgencySuppressed = foundNothing && sharpness === "flat" && !probe.moverHasPieces;
   if (urgencySuppressed) notes.push("quiet claim suppressed: zugzwang guard");
 

@@ -117,6 +117,115 @@ function computeRatings(games: ScoutGame[], target: string): {
   };
 }
 
+// ─── Strength ───────────────────────────────────────────────────────────────
+//
+// The headline number has to answer "how strong is this opponent", and the
+// only signal that carries that is rating. Win/loss ratios cannot: rating
+// pools are self-equilibrating, so a 3200 and a 1200 both hover near a 50%
+// score against their own opposition. Scoring off ratios alone put Carlsen
+// five points clear of a club player.
+
+/**
+ * Rating → 0-100, by interpolation between anchor points.
+ *
+ * Anchors rather than a formula because the mapping is a judgement call about
+ * what each band should *feel* like, and judgement calls should be legible and
+ * tunable. Roughly calibrated to chess.com/Lichess blitz.
+ */
+const STRENGTH_ANCHORS: Array<[rating: number, score: number]> = [
+  [400, 4],
+  [800, 14],
+  [1000, 22],
+  [1200, 30],
+  [1400, 38],
+  [1600, 47],
+  [1800, 56],
+  [2000, 65],
+  [2200, 74],
+  [2400, 82],
+  [2600, 88],
+  [2800, 93],
+  [3000, 96],
+  [3200, 98],
+  [3400, 100],
+];
+
+export function strengthFromRating(rating: number): number {
+  const first = STRENGTH_ANCHORS[0];
+  const last = STRENGTH_ANCHORS[STRENGTH_ANCHORS.length - 1];
+  if (rating <= first[0]) return first[1];
+  if (rating >= last[0]) return last[1];
+
+  for (let i = 0; i < STRENGTH_ANCHORS.length - 1; i += 1) {
+    const [r0, s0] = STRENGTH_ANCHORS[i];
+    const [r1, s1] = STRENGTH_ANCHORS[i + 1];
+    if (rating >= r0 && rating <= r1) {
+      const t = (rating - r0) / (r1 - r0);
+      return s0 + t * (s1 - s0);
+    }
+  }
+  return last[1];
+}
+
+/** Human-readable band for the strength score — explains the number instead of asserting it. */
+export function strengthBand(rating: number): string {
+  if (rating >= 2900) return 'World elite';
+  if (rating >= 2600) return 'Super-GM level';
+  if (rating >= 2400) return 'Master level';
+  if (rating >= 2200) return 'Expert';
+  if (rating >= 1900) return 'Advanced';
+  if (rating >= 1600) return 'Intermediate';
+  if (rating >= 1300) return 'Improver';
+  if (rating >= 1000) return 'Casual';
+  return 'Beginner';
+}
+
+/**
+ * The rating the strength score is anchored to: the player's best across time
+ * classes, which is the ceiling they have actually demonstrated. Falls back to
+ * peak, then latest, then undefined when the archive carries no ratings at all.
+ */
+function anchorRating(
+  ratings: RatingsByTimeClass,
+  peak?: number,
+  latest?: number
+): number | undefined {
+  const values = Object.values(ratings).filter(
+    (r): r is number => typeof r === 'number' && r > 0
+  );
+  if (values.length > 0) return Math.max(...values);
+  return peak ?? latest;
+}
+
+/**
+ * Longest losing streak expected by chance, given n games at loss rate p.
+ *
+ * Raw streak length grows with archive size, so penalising it directly scores
+ * "how many games did we fetch" rather than "does this player tilt". Comparing
+ * observed against expected removes the sample-size dependence.
+ */
+function expectedMaxLossStreak(n: number, p: number): number {
+  if (n <= 1 || p <= 0.01) return 1;
+  if (p >= 0.99) return n;
+  return Math.max(1, Math.log(n * (1 - p)) / Math.log(1 / p));
+}
+
+/**
+ * How much worse than chance the player's worst slide was: 1 = exactly as
+ * expected, >1 = streakier than chance, <1 = steadier.
+ */
+function streakExcess(maxLossStreak: number, n: number, lossRate: number): number {
+  const expected = expectedMaxLossStreak(n, lossRate);
+  if (expected <= 0) return 1;
+  return maxLossStreak / expected;
+}
+
+/** How much more often they lose after a loss than they lose in general. */
+function tiltLift(tiltAfterLossLossRate: number, lossRate: number): number {
+  if (lossRate <= 0.01) return 1;
+  return tiltAfterLossLossRate / lossRate;
+}
+
 function computeRecentResults(games: ScoutGame[], target: string, n = 20): RecentResult[] {
   const sorted = [...games].sort((a, b) => a.date - b.date);
   const out: RecentResult[] = [];
@@ -143,48 +252,56 @@ function computeProfile(
   const drawRate = total ? draws / total : 0;
   const lossRate = total ? losses / total : 0;
 
-  // ATK — attacking aggression: win rate + mate-finishing bonus + quick wins.
-  // Scale so a 50% win rate + decent mate rate lands around 60-70.
+  const ratingInfo = computeRatings(games, target);
+
+  // Absolute strength, from rating. This is the spine of the profile: every
+  // dimension is a deviation around it, so a 3200 cannot read as a 1200 no
+  // matter how their results-against-peers happen to fall.
+  const anchor = anchorRating(ratingInfo.ratings, ratingInfo.peak, ratingInfo.latest);
+  const baseline = anchor === undefined ? 50 : strengthFromRating(anchor);
+
+  // Behavioural signals, each expressed as a deviation in roughly [-1, +1]
+  // around typical play. These describe *style*, not strength.
   const quickWinRate = clamp01(1 - psychology.avgGameLength / 80);
-  const atk = clamp(
-    25 +
-      60 * winRate +
-      20 * psychology.checkmateRate +
-      10 * quickWinRate
-  );
+  const atkDev =
+    1.6 * (winRate - 0.5) + 0.8 * (psychology.checkmateRate - 0.25) + 0.4 * (quickWinRate - 0.3);
 
-  // DEF — ability to not-lose: inverse loss rate + draw solidity + short-games-with-loss bonus
-  // (losing quickly hurts defense score).
-  const quickLossPenalty = clamp01(psychology.quickLossRate);
-  const def = clamp(
-    30 +
-      55 * (1 - lossRate) +
-      20 * drawRate -
-      20 * quickLossPenalty
-  );
+  const defDev =
+    1.6 * (0.5 - lossRate) + 0.8 * (drawRate - 0.1) - 0.8 * (clamp01(psychology.quickLossRate) - 0.2);
 
-  // TIME — time management: heavily penalise timeouts; slight penalty for very long games.
-  const timeScore = clamp(
-    100 -
-      120 * psychology.timeoutRate -
-      15 * clamp01((psychology.avgGameLength - 60) / 40)
-  );
+  const timeDev = -2.5 * (psychology.timeoutRate - 0.1) - 0.4 * clamp01((psychology.avgGameLength - 60) / 40);
 
-  // MIND — psychological composure: penalise tilt & long losing streaks.
-  const streakPenalty = clamp(psychology.maxLossStreak * 5, 0, 40);
-  const tiltPenalty = clamp(psychology.tiltAfterLossLossRate * 60, 0, 40);
-  const mind = clamp(100 - streakPenalty - tiltPenalty);
+  // Both composure inputs are normalised against what chance alone produces at
+  // this sample size and loss rate, so a longer archive no longer drags the
+  // score toward the floor.
+  const excess = streakExcess(psychology.maxLossStreak, total, lossRate);
+  const lift = tiltLift(psychology.tiltAfterLossLossRate, lossRate);
+  const mindDev = -0.9 * (excess - 1) - 1.1 * (lift - 1);
 
-  const atkR = Math.round(atk);
-  const defR = Math.round(def);
-  const timeR = Math.round(timeScore);
-  const mindR = Math.round(mind);
+  // Spread controls how far style can move a dimension off the strength
+  // baseline. Scaled by the headroom on the side it is moving toward, so an
+  // elite profile shows its relative weaknesses without every strength pinning
+  // flat at 100 — saturation there would throw away the signal the panel exists
+  // to show.
+  const SPREAD = 14;
+  const dim = (dev: number) => {
+    const d = Math.max(-1.2, Math.min(1.2, dev));
+    const headroom = d >= 0 ? 100 - baseline : baseline;
+    const factor = Math.min(1, headroom / 30);
+    return clamp(baseline + SPREAD * d * factor, 1, 100);
+  };
 
-  const ovr = Math.round((atkR + defR + timeR + mindR) / 4);
+  const atkR = Math.round(dim(atkDev));
+  const defR = Math.round(dim(defDev));
+  const timeR = Math.round(dim(timeDev));
+  const mindR = Math.round(dim(mindDev));
+
+  // OVR is the strength score itself, not the average of the dimensions — it
+  // means one thing and the reader can check it against the rating shown
+  // beside it.
+  const ovr = Math.round(baseline);
 
   const archetype = computeArchetype({ atk: atkR, def: defR, time: timeR, mind: mindR });
-
-  const ratingInfo = computeRatings(games, target);
 
   const recent = computeRecentResults(games, target, 20);
   const recentAccuracy =
@@ -444,10 +561,23 @@ function computeTells(
         25 * clamp01((psychology.avgGameLength - 70) / 40)
     )
   );
+  // Normalised against chance for this sample size — the raw streak length
+  // grows with archive size, which made every long-history player look tilty.
+  let played = 0;
+  let lost = 0;
+  for (const g of games) {
+    const c = playerColor(g, target);
+    if (!c) continue;
+    const o = outcomeFor(g, c);
+    if (!o) continue;
+    played += 1;
+    if (o === 'loss') lost += 1;
+  }
+  const lossRate = played > 0 ? lost / played : 0;
+  const excess = streakExcess(psychology.maxLossStreak, played, lossRate);
+  const lift = tiltLift(psychology.tiltAfterLossLossRate, lossRate);
   const tilts = Math.round(
-    clamp(
-      15 + 9 * psychology.maxLossStreak + 80 * psychology.tiltAfterLossLossRate
-    )
+    clamp(30 + 45 * (excess - 1) + 55 * (lift - 1))
   );
   const limited_rep = Math.round(clamp(100 - rep.uniqueFirstMoves * 7));
   const repetitive = Math.round(clamp(rep.topThreeShare * 100));

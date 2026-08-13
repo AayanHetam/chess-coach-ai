@@ -1,6 +1,7 @@
 import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import { Icon } from '@iconify/react';
 import { ProfileSnapshot, Platform } from '@/types/scout';
+import { strengthBand } from '@/lib/scoutAnalytics';
 import {
   DossierPanel,
   EMBER,
@@ -79,6 +80,14 @@ export default function ProfileCard({
 
   const overallColor = strengthColor(profile.ovr);
 
+  // The rating the strength score is anchored to — shown so the number is
+  // checkable rather than asserted.
+  const ratingValues = Object.values(profile.ratings).filter(
+    (r): r is number => typeof r === 'number' && r > 0
+  );
+  const anchor = ratingValues.length ? Math.max(...ratingValues) : profile.peakRating;
+  const band = anchor !== undefined ? strengthBand(anchor) : undefined;
+
   return (
     <DossierPanel
       label="Subject"
@@ -131,7 +140,8 @@ export default function ProfileCard({
           </Stack>
         </Box>
 
-        {/* Overall — typographic, not a ring. */}
+        {/* Overall — typographic, not a ring. Captioned with the band it came
+            from, because a bare "98" invites "says who?". */}
         <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
           <Typography
             sx={{
@@ -152,12 +162,19 @@ export default function ProfileCard({
               Overall
             </FieldLabel>
           </Box>
+          {band && (
+            <Box sx={{ mt: 0.35 }}>
+              <FieldLabel color={overallColor} size="0.55rem">
+                {band}
+              </FieldLabel>
+            </Box>
+          )}
         </Box>
       </Stack>
 
       {/* Strength profile — stacked meters share a baseline, so the shape of the
           player is legible at a glance instead of four isolated numbers. */}
-      <Stack spacing={1.35} sx={{ mb: 2.25 }}>
+      <Stack spacing={1.35} sx={{ mb: 1.25 }}>
         {DIMENSIONS.map(d => (
           <Tooltip key={d.key} title={d.tip} placement="left" arrow>
             <Box sx={{ cursor: 'help' }}>
@@ -165,11 +182,22 @@ export default function ProfileCard({
                 label={d.label}
                 value={profile[d.key]}
                 color={strengthColor(profile[d.key])}
-                note={d.key === weakest.key ? 'weakest link — play here' : undefined}
+                highlight={d.key === weakest.key}
               />
             </Box>
           </Tooltip>
         ))}
+      </Stack>
+
+      {/* One caption for the whole block, outside the meter grid, so the four
+          rows keep an even rhythm. */}
+      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 2.25 }}>
+        <Box sx={{ color: EMBER_LIGHT, display: 'flex' }}>
+          <Icon icon="mdi:target" width={12} />
+        </Box>
+        <FieldLabel color={EMBER_LIGHT} size="0.58rem">
+          Weakest link · {weakest.label} — play here
+        </FieldLabel>
       </Stack>
 
       {/* Ratings strip */}

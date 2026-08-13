@@ -337,7 +337,7 @@ function SampleDossier() {
             label={d.label}
             value={d.value}
             color={strengthColor(d.value)}
-            note={d.label === 'Composure' ? 'weakest link — play here' : undefined}
+            highlight={d.label === 'Composure'}
           />
         ))}
       </Stack>

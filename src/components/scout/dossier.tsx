@@ -12,6 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { Box, Stack, Typography } from '@mui/material';
+import { Icon } from '@iconify/react';
 import type { ReactNode } from 'react';
 
 // Ember accent, per the Chess Masti design OS: glow / voice / focus, never fill.
@@ -276,48 +277,53 @@ export function MeterRow({
   label,
   value,
   color,
-  note,
+  highlight = false,
   labelWidth = 92,
 }: {
   label: string;
   value: number;
   color: string;
-  /** Optional trailing annotation, e.g. "weakest link". */
-  note?: string;
+  /**
+   * Marks this row as the one to act on. Rendered inline — an extra caption
+   * line under the row would break the shared meter grid, and the grid is the
+   * whole reason four dimensions are comparable at a glance.
+   */
+  highlight?: boolean;
   labelWidth?: number;
 }) {
   return (
-    <Box>
-      <Stack direction="row" alignItems="center" spacing={1.5}>
-        <Box sx={{ width: labelWidth, flexShrink: 0 }}>
-          <FieldLabel color="rgba(255,255,255,0.66)">{label}</FieldLabel>
-        </Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <SegmentedMeter value={value} color={color} />
-        </Box>
-        <Typography
-          sx={{
-            fontFamily: MONO,
-            fontSize: '0.9rem',
-            fontWeight: 700,
-            color,
-            width: 30,
-            textAlign: 'right',
-            flexShrink: 0,
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {Math.round(value)}
-        </Typography>
-      </Stack>
-      {note && (
-        <Box sx={{ pl: `${labelWidth + 12}px`, mt: 0.4 }}>
-          <FieldLabel color={EMBER_LIGHT} size="0.58rem">
-            ▲ {note}
-          </FieldLabel>
-        </Box>
-      )}
-    </Box>
+    <Stack direction="row" alignItems="center" spacing={1.5}>
+      <Box sx={{ width: labelWidth, flexShrink: 0 }}>
+        <FieldLabel color={highlight ? EMBER_LIGHT : 'rgba(255,255,255,0.66)'}>
+          {label}
+        </FieldLabel>
+      </Box>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <SegmentedMeter value={value} color={color} />
+      </Box>
+      <Typography
+        sx={{
+          fontFamily: MONO,
+          fontSize: '0.9rem',
+          fontWeight: 700,
+          color,
+          width: 30,
+          textAlign: 'right',
+          flexShrink: 0,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {Math.round(value)}
+      </Typography>
+      {/* Fixed-width gutter so rows stay aligned whether or not they're marked. */}
+      <Box sx={{ width: 14, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+        {highlight && (
+          <Box sx={{ color: EMBER_LIGHT, display: 'flex', lineHeight: 1 }} aria-hidden>
+            <Icon icon="mdi:target" width={13} />
+          </Box>
+        )}
+      </Box>
+    </Stack>
   );
 }
 

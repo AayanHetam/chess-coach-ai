@@ -12,6 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { ProfileSnapshot, TellsProfile } from '@/types/scout';
+import { strengthBand } from '@/lib/scoutAnalytics';
 
 export interface ShareCardData {
   username: string;
@@ -163,6 +164,13 @@ export function buildShareCardSvg(data: ShareCardData): string {
   const ranked = [...tells.factors].sort((a, b) => b.score - a.score).slice(0, 4);
 
   const ovrColor = strengthColor(profile.ovr);
+
+  // Name the strength band alongside the number, matching the on-page card.
+  const ratingValues = Object.values(profile.ratings).filter(
+    (r): r is number => typeof r === 'number' && r > 0
+  );
+  const anchor = ratingValues.length ? Math.max(...ratingValues) : profile.peakRating;
+  const band = anchor !== undefined ? strengthBand(anchor) : '';
   const tellsColor = tellColor(tells.total);
 
   // Vertical rhythm: each block declares its own top edge so the layout stays
@@ -170,8 +178,8 @@ export function buildShareCardSvg(data: ShareCardData): string {
   const yHeaderRule = 108;
   const ySubject = 168;
   const yScores = 292;
-  const yStrengthLabel = 410;
-  const yStrengthRows = 442;
+  const yStrengthLabel = 424;
+  const yStrengthRows = 456;
   const yTellsLabel = 646;
   const yTellsRows = 678;
   const yFooter = 952;
@@ -225,6 +233,7 @@ export function buildShareCardSvg(data: ShareCardData): string {
   ${label(M, yScores + 14, 'Overall', 'rgba(255,255,255,0.34)', 12)}
   <text x="${M}" y="${yScores + 76}" font-family="${MONO}" font-size="62" font-weight="700"
         fill="${ovrColor}" letter-spacing="-3">${profile.ovr}</text>
+  ${band ? label(M, yScores + 98, band, ovrColor, 11) : ''}
 
   ${label(CARD_W / 2 + 34, yScores + 14, 'Tells', '#FB923C', 12)}
   <text x="${CARD_W / 2 + 34}" y="${yScores + 76}" font-family="${MONO}" font-size="62"

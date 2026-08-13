@@ -50,10 +50,15 @@ export const SHARPNESS_CLEARLY_BEST_CP = 50;
 export const SHARPNESS_SLIGHT_EDGE_CP = 20;
 
 /**
- * Below this the played move did not give up anything worth narrating. Half a
- * pawn is roughly where a coach would start calling a move a mistake.
+ * Below this the played move did not give up anything worth narrating.
+ *
+ * Measured across 77 real positions: the 50-99cp band contained EIGHT ordinary
+ * moves (castling at 61cp, a developing Bb5 at 98cp) and ZERO of the 25 moves
+ * the coach actually carded as mistakes — every one of those cost a full pawn
+ * or more. A half-pawn floor therefore bought nothing and cost credibility, so
+ * it sits at one pawn.
  */
-export const COST_MIN_LOSS_CP = 50;
+export const COST_MIN_LOSS_CP = 100;
 
 /** Convert a WHITE-relative engine score to mover-relative. See types.ts. */
 export function whiteRelativeToMover(score: IntentScore, mover: "w" | "b"): IntentScore {

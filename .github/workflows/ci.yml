@@ -5,6 +5,29 @@ on:
     branches: [main, "audit/**"]
   pull_request:
 
+# Stop paying for runs nobody will read.
+#
+# Without this, pushing a follow-up commit to a PR leaves the previous run
+# going to completion — a full 8.6-minute pipeline (install, tsc, 2622 unit
+# tests, validator gate, contract smoke, production build, Playwright on two
+# projects) whose result is superseded before it finishes. A PR with three
+# review iterations burned four runs to learn one answer.
+#
+# This repo is private, so those minutes come out of a monthly allowance, and
+# CI was ~79% of it: 165 runs at ~8.6 min = ~1,423 of ~1,796 minutes used in
+# the first twelve days of August 2026 — enough to exhaust the 2,000-minute
+# quota mid-month and have GitHub refuse to start any further job.
+#
+# Grouping:
+#   • pull_request  → keyed by PR number, so a new push cancels the old run.
+#   • push (main)   → keyed by SHA, which is unique per commit, so main runs
+#     neither cancel each other nor queue behind one another. Every commit
+#     that lands still gets verified in full — the point is to drop answers
+#     nobody is waiting for, not to skip verification.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
 jobs:
   typecheck-and-test:
     runs-on: ubuntu-latest

@@ -51,6 +51,8 @@ export interface UserProfile {
   goalRating?: number;
   /** Days per week the user plans to practise (1-7). */
   practiceDaysPerWeek?: number;
+  /** Epoch ms the goal rating is projected for. */
+  goalTargetDate?: number;
   dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
   onboardingCompletedAt?: number;
 

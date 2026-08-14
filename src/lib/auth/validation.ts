@@ -132,6 +132,7 @@ export const profilePatchSchema = z.object({
   // Goal-driven planning inputs.
   goalRating: z.number().int().min(100).max(3000).optional(),
   practiceDaysPerWeek: z.number().int().min(1).max(7).optional(),
+  goalTargetDate: z.number().int().min(0).optional(),
 
   // User-set learning goals (target rating is a self-chosen aspiration only).
   goals: z

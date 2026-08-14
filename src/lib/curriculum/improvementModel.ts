@@ -196,6 +196,18 @@ export interface Projection {
   /** The honest band around the central estimate. */
   fastMonths?: number;
   slowMonths?: number;
+  /**
+   * The date we tell the user to aim for — epoch ms.
+   *
+   * A target, not a prediction. `earliestDate`/`latestDate` carry the same
+   * fast/slow band expressed as dates, and callers should keep showing them:
+   * practice explains ~40% of rating variance, so a bare date implies a
+   * precision nobody has. Deliberate product decision (Aayan, 2026-08-14) —
+   * a goal you can put in a calendar beats a range you can't act on.
+   */
+  targetDate?: number;
+  earliestDate?: number;
+  latestDate?: number;
   /** Curve for the chart: rating over time, up to the central estimate. */
   curve: ProjectionPoint[];
   /**
@@ -214,9 +226,26 @@ export interface ProjectionInput {
   daysPerWeek: number;
   /** Points to plot. */
   curvePoints?: number;
+  /**
+   * "Now", for the target date. Injected rather than read from the clock so
+   * the model stays pure and the dates are testable.
+   */
+  nowMs?: number;
 }
 
 const WEEKS_PER_MONTH = 52 / 12;
+
+function daysInMonth(year: number, monthIndex: number): number {
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+/** "March 2027" — the granularity the estimate can actually support. */
+export function formatTargetDate(ms: number): string {
+  return new Date(ms).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+  });
+}
 
 export function projectToGoal(input: ProjectionInput): Projection {
   const { currentRating, goalRating, minutesPerDay, daysPerWeek } = input;
@@ -246,6 +275,18 @@ export function projectToGoal(input: ProjectionInput): Projection {
     return { ...base, status: "unrealistic", weeks, months, intensity };
   }
 
+  const now = input.nowMs ?? Date.now();
+  const addMonths = (mo: number) => {
+    const d = new Date(now);
+    // setMonth handles year rollover and clamps day-of-month, so a 31st never
+    // silently becomes the 1st of the following month.
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + Math.round(mo));
+    d.setDate(Math.min(day, daysInMonth(d.getFullYear(), d.getMonth())));
+    return d.getTime();
+  };
+
   const n = Math.max(2, input.curvePoints ?? 24);
   const curve: ProjectionPoint[] = [];
   for (let i = 0; i <= n; i++) {
@@ -260,6 +301,9 @@ export function projectToGoal(input: ProjectionInput): Projection {
     months,
     fastMonths: months * MODEL.FAST_MULTIPLIER,
     slowMonths: months * MODEL.SLOW_MULTIPLIER,
+    targetDate: addMonths(months),
+    earliestDate: addMonths(months * MODEL.FAST_MULTIPLIER),
+    latestDate: addMonths(months * MODEL.SLOW_MULTIPLIER),
     curve,
     intensity,
   };

@@ -66,6 +66,8 @@ export type StoredUser = {
   // give the weekly hours the improvement model needs.
   goalRating?: number;
   practiceDaysPerWeek?: number;
+  /** The date the goal was projected for, so /plan can track against it. */
+  goalTargetDate?: number;
   // Set when the user finishes the onboarding quiz. Gates the mandatory-once
   // questionnaire (OnboardingGate) so they're never asked twice.
   onboardingCompletedAt?: number;
@@ -313,6 +315,7 @@ export type UpdateUserPatch = Partial<
     | "platformRatingFetchedAt"
     | "goalRating"
     | "practiceDaysPerWeek"
+    | "goalTargetDate"
     | "onboardingCompletedAt"
     | "measuredRating"
     | "measuredRatingConfidence"

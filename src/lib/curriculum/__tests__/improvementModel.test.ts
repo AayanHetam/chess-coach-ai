@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   hoursPer100,
   hoursBetween,
+  guidedHoursBetween,
   effectiveWeeklyHours,
   spacingFactor,
   ratingAfterWeeks,
@@ -64,10 +65,21 @@ describe("cost rises with rating — the whole premise", () => {
 });
 
 describe("effectiveWeeklyHours", () => {
-  it("counts hours linearly up to the reference", () => {
-    // A concave curve through the reference would rate 2 h/week as worth MORE
-    // than two hours, flattering small commitments. This estimate must not.
-    expect(effectiveWeeklyHours(60, 2)).toBeCloseTo(2 * spacingFactor(2), 5);
+  it("counts a normal-length session at face value", () => {
+    // Under the session reference there is no discount at all — a concave
+    // curve here would rate 30 minutes as worth more than 30 minutes, which
+    // flatters small commitments and this estimate must not do that.
+    expect(effectiveWeeklyHours(30, 4)).toBeCloseTo((30 * 4) / 60 * spacingFactor(4), 5);
+  });
+
+  it("discounts the SESSION, not the week — daily practice is not cramming", () => {
+    // The bug this replaces: the concave discount was applied to the weekly
+    // TOTAL, so an hour every day was taxed exactly like seven hours crammed
+    // into one Sunday. The cited rationale is about long SESSIONS, and spacing
+    // already separates the two cases.
+    const daily = effectiveWeeklyHours(60, 7); // 7 short-ish sittings
+    const crammed = effectiveWeeklyHours(420, 1); // same 7 raw hours, one go
+    expect(daily).toBeGreaterThan(crammed * 1.5);
   });
 
   it("discounts marathon weeks", () => {
@@ -103,9 +115,11 @@ describe("effectiveWeeklyHours", () => {
 });
 
 describe("ratingAfterWeeks is the exact inverse of hoursBetween", () => {
-  it("round-trips", () => {
+  it("round-trips against the GUIDED hours the product actually quotes", () => {
+    // The curve and the headline must agree; if ratingAfterWeeks inverted the
+    // unguided baseline the chart would end short of the goal it promises.
     const weekly = effectiveWeeklyHours(60, 5);
-    const weeks = hoursBetween(1200, 1600) / weekly;
+    const weeks = guidedHoursBetween(1200, 1600) / weekly;
     expect(ratingAfterWeeks(1200, weeks, weekly)).toBeCloseTo(1600, 0);
   });
 
@@ -220,3 +234,36 @@ describe("the documented constants are the ones actually in use", () => {
   });
 });
 
+
+describe("guided practice is faster than the unguided literature baseline", () => {
+  it("applies the multiplier, and never silently drops it", () => {
+    expect(guidedHoursBetween(1300, 1600)).toBeCloseTo(
+      hoursBetween(1300, 1600) * MODEL.GUIDED_PRACTICE_MULTIPLIER,
+      6
+    );
+    expect(MODEL.GUIDED_PRACTICE_MULTIPLIER).toBeLessThan(1);
+  });
+
+  it("reproduces the founder's calibration anchor: 1300 → 1600 in ~4 months of daily practice", () => {
+    // Aayan's coaching experience, and the reason the multiplier exists. The
+    // unguided curve says ~9.6 months for the same schedule; the published
+    // rates it is fitted to all measure SELF-DIRECTED players, which is not
+    // what this product delivers. If someone retunes the constants, this is
+    // the test that says the product claim changed.
+    const p = projectToGoal({
+      currentRating: 1300,
+      goalRating: 1600,
+      minutesPerDay: 60,
+      daysPerWeek: 7,
+    });
+    expect(p.months!).toBeGreaterThan(3);
+    expect(p.months!).toBeLessThan(5);
+  });
+
+  it("keeps the higher bands slow — the curve still bites above 1800", () => {
+    const club = projectToGoal({ currentRating: 1300, goalRating: 1600, minutesPerDay: 60, daysPerWeek: 7 });
+    const expert = projectToGoal({ currentRating: 1800, goalRating: 2100, minutesPerDay: 60, daysPerWeek: 7 });
+    // Same 300 points, far more expensive higher up, guided or not.
+    expect(expert.months!).toBeGreaterThan(club.months! * 3);
+  });
+});

@@ -111,7 +111,7 @@ export default function GoalProjection({
       <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.8rem", mt: 0.25 }}>
         Most players land between {formatMonths(p.fastMonths!)} and{" "}
         {formatMonths(p.slowMonths!)} — around {Math.round(p.totalHours)} hours of
-        focused practice.
+        guided practice.
       </Typography>
 
       <Box sx={{ height: 132, mt: 1.5, mx: -0.5 }}>
@@ -158,8 +158,8 @@ export default function GoalProjection({
       </Box>
 
       <Typography sx={{ color: "rgba(255,255,255,0.38)", fontSize: "0.72rem", mt: 0.5 }}>
-        An estimate from typical improvement rates, not a promise — how fast you
-        actually move depends on you.
+        An estimate from typical improvement rates with guided practice, not a
+        promise — how fast you actually move depends on you.
       </Typography>
     </Box>
   );

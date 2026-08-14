@@ -51,13 +51,39 @@ export const MODEL = {
   /** Cost multiplies by e for every S rating points gained. */
   E_FOLDING_POINTS: 380,
   /**
-   * Weekly hours above this are discounted: consistent moderate practice beats
-   * marathon sessions. Below it, hours count linearly — a concave curve through
-   * the reference would credit 2 h/week as worth more than 2 hours, which
-   * flatters small commitments and this estimate must not do that.
+   * Minutes in a SESSION beyond which returns diminish — attention and recall
+   * fall off inside one sitting.
+   *
+   * This used to be applied to the WEEKLY total, which was simply wrong: the
+   * cited rationale is "very long study SESSIONS vs consistent moderate
+   * practice", and taxing the weekly total penalises the person doing an hour
+   * every day exactly like the person cramming seven hours on Sunday. Those are
+   * not the same and the spacing factor already separates them.
    */
-  REFERENCE_WEEKLY_HOURS: 5,
+  REFERENCE_SESSION_MINUTES: 45,
   LONG_SESSION_EXPONENT: 0.75,
+  /**
+   * Guided-practice efficiency.
+   *
+   * ⚠️ THIS IS A PRODUCT CLAIM, NOT A RESEARCH FINDING — flagged so nobody
+   * mistakes it for one later.
+   *
+   * Every published improvement rate measures SELF-DIRECTED players: someone
+   * choosing their own puzzles, without a measured weakness map, without
+   * spaced repetition, without feedback on why a move failed. Charness et al.
+   * found 80% of masters used a coach and that coached practice correlated
+   * MORE strongly with skill than solo study did — but the hours-per-point
+   * figures in circulation are drawn from the unguided population.
+   *
+   * This product is adaptive puzzles aimed at measured weaknesses, plus a
+   * coach, plus SRS. That it beats unguided study is its entire premise.
+   *
+   * 0.4 is calibrated to Aayan's coaching experience — a 1300 practising daily
+   * reaching 1600 in about four months — which this reproduces at 3.8 months
+   * for an hour a day. Isolated here so it is one line to tune, and so the
+   * literature-calibrated base curve underneath stays honest and testable.
+   */
+  GUIDED_PRACTICE_MULTIPLIER: 0.4,
   /** Multipliers on the central estimate. Derived from the variance above. */
   FAST_MULTIPLIER: 0.65,
   SLOW_MULTIPLIER: 1.75,
@@ -99,13 +125,26 @@ export function spacingFactor(daysPerWeek: number): number {
 
 /**
  * Convert a stated schedule into effective weekly practice hours.
- * Linear up to the reference, concave above it.
+ *
+ * The concave discount applies to the SESSION, not the week, so consistent
+ * daily practice is not taxed as though it were cramming. Spacing is handled
+ * separately by `spacingFactor`.
  */
 export function effectiveWeeklyHours(minutesPerDay: number, daysPerWeek: number): number {
-  const raw = (Math.max(0, minutesPerDay) * Math.max(0, daysPerWeek)) / 60;
-  const { REFERENCE_WEEKLY_HOURS: REF, LONG_SESSION_EXPONENT: P } = MODEL;
-  const discounted = raw <= REF ? raw : REF + Math.pow(raw - REF, P);
-  return discounted * spacingFactor(daysPerWeek);
+  const mins = Math.max(0, minutesPerDay);
+  const days = Math.max(0, daysPerWeek);
+  const { REFERENCE_SESSION_MINUTES: REF, LONG_SESSION_EXPONENT: P } = MODEL;
+  const effectiveMinutes = mins <= REF ? mins : REF + Math.pow(mins - REF, P);
+  return ((effectiveMinutes * days) / 60) * spacingFactor(days);
+}
+
+/**
+ * Hours of GUIDED practice to get from `from` to `to` — what this product
+ * actually delivers, and what every user-facing estimate must use.
+ * `hoursBetween` remains the unguided, literature-calibrated baseline.
+ */
+export function guidedHoursBetween(from: number, to: number): number {
+  return hoursBetween(from, to) * MODEL.GUIDED_PRACTICE_MULTIPLIER;
 }
 
 /**
@@ -122,7 +161,11 @@ export function ratingAfterWeeks(
   const { HOURS_PER_100_AT_REF: H0, REFERENCE_RATING: R0, E_FOLDING_POINTS: S } = MODEL;
   if (weeks <= 0 || effectiveWeekly <= 0) return current;
   const base = Math.exp((current - R0) / S);
-  const gained = (100 * effectiveWeekly * weeks) / (S * H0);
+  // Divided by the guided multiplier so the curve and the headline agree: an
+  // hour of practice buys more rating here than the unguided baseline assumes.
+  const gained =
+    (100 * effectiveWeekly * weeks) /
+    (S * H0 * MODEL.GUIDED_PRACTICE_MULTIPLIER);
   return R0 + S * Math.log(base + gained);
 }
 
@@ -178,7 +221,7 @@ const WEEKS_PER_MONTH = 52 / 12;
 export function projectToGoal(input: ProjectionInput): Projection {
   const { currentRating, goalRating, minutesPerDay, daysPerWeek } = input;
   const weeklyHours = effectiveWeeklyHours(minutesPerDay, daysPerWeek);
-  const totalHours = hoursBetween(currentRating, goalRating);
+  const totalHours = guidedHoursBetween(currentRating, goalRating);
 
   const base: Projection = {
     status: "ok",

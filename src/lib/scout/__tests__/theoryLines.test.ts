@@ -197,12 +197,17 @@ describe("generateTheoryLines", () => {
     expect(res.lines[0].moves.length).toBeGreaterThan(4);
   });
 
-  it("honours the ply cap", async () => {
+  it("honours the ply cap, allowing one ply for the closing reply", async () => {
     const cfg = { ...configFor("lite"), maxPly: 6 };
     const providers = makeProviders({ maiaFor: forcedMaia() });
     const res = await generateTheoryLines(START, "white", providers, cfg);
 
-    expect(res.lines[0].moves).toHaveLength(6);
+    // The walk stops at the cap; if that leaves the line on THEIR move, one
+    // more ply is added so the reader gets your answer. The cap is a safety
+    // net, not a hard contract on output length.
+    expect(res.lines[0].moves.length).toBeGreaterThanOrEqual(6);
+    expect(res.lines[0].moves.length).toBeLessThanOrEqual(7);
+    expect(res.lines[0].moves[res.lines[0].moves.length - 1].side).toBe("you");
     expect(res.lines[0].stoppedBy).toBe("depth");
   });
 
@@ -312,7 +317,14 @@ describe("budget must never destroy coverage", () => {
   // discarded the dropped children's probability mass, so asking for MORE
   // lines returned WORSE prep (lite 0.556 → hardcore 0.247). Either fork
   // completely or not at all.
-  it("does not lose coverage as the line budget grows", async () => {
+  //
+  // Note the fixture: three equal moves, so τ=0.70 takes ALL of them and no
+  // mass is pruned. That isolates budget truncation, which is the bug under
+  // test. Coverage is NOT monotone in general — with a 0.50/0.35/0.15 opponent
+  // the 0.15 branch is deliberately dropped at every node, so deeper prep
+  // legitimately sheds reach. Do not generalise this test into "more lines
+  // always covers more".
+  it("does not lose coverage to budget truncation as the budget grows", async () => {
     const providers = () => makeProviders({ maiaFor: spreadMaia(3) });
 
     const lite = await generateTheoryLines(START, "white", providers(), configFor("lite"));
@@ -356,5 +368,62 @@ describe("budget must never destroy coverage", () => {
     // Refusing the fork must not cost coverage — the line still stands for
     // everything that flows through it.
     expect(res.coverage).toBeCloseTo(1, 6);
+  });
+});
+
+describe("lines end at the last fork, not at a fixed depth", () => {
+  it("always ends on your move, so the reader gets the answer", async () => {
+    for (const dist of [spreadMaia(3), splitMaia(0.5, 0.35)]) {
+      const res = await generateTheoryLines(
+        START,
+        "white",
+        makeProviders({ maiaFor: dist }),
+        configFor("recommended")
+      );
+      expect(res.lines.length).toBeGreaterThan(1);
+      for (const line of res.lines) {
+        expect(line.moves[line.moves.length - 1].side).toBe("you");
+      }
+    }
+  });
+
+  it("produces variable-length lines rather than one fixed depth", async () => {
+    // Length is emergent from where branching happened — 8 moves or 20, per
+    // the spec. A single uniform length would mean depth, not branching, is
+    // driving termination.
+    const res = await generateTheoryLines(
+      START,
+      "white",
+      makeProviders({ maiaFor: splitMaia(0.5, 0.35) }),
+      configFor("hardcore")
+    );
+
+    const lengths = new Set(res.lines.map(l => l.moves.length));
+    expect(lengths.size).toBeGreaterThan(1);
+  });
+
+  it("spends no model call on a node that can no longer fork", async () => {
+    const budgeted = makeProviders({ maiaFor: spreadMaia(3) });
+    await generateTheoryLines(START, "white", budgeted, configFor("lite"));
+
+    const unbudgeted = makeProviders({ maiaFor: spreadMaia(3) });
+    await generateTheoryLines(START, "white", unbudgeted, configFor("hardcore"));
+
+    // A smaller budget must not cost MORE Maia calls — once no fork can be
+    // funded the walk stops instead of following forced moves to the cap.
+    expect(budgeted.maiaCalls.length).toBeLessThan(unbudgeted.maiaCalls.length);
+  });
+
+  it("still runs deep when the opponent is entirely predictable", async () => {
+    // Nothing to distinguish, so depth is the only value left; the cap applies.
+    const res = await generateTheoryLines(
+      START,
+      "white",
+      makeProviders({ maiaFor: forcedMaia() }),
+      configFor("recommended")
+    );
+
+    expect(res.lines).toHaveLength(1);
+    expect(res.lines[0].moves.length).toBeGreaterThanOrEqual(20);
   });
 });

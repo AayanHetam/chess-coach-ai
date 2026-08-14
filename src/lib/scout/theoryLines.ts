@@ -52,7 +52,13 @@ export interface TheoryConfig {
   tau: number;
   /** k — Maia's prior strength, priced in games of observed history. */
   kShrink: number;
-  /** D — maximum line length in plies. */
+  /**
+   * D — safety cap on line length in plies.
+   *
+   * Not the termination condition: lines normally end at their last fork (see
+   * generateTheoryLines), so length is emergent and varies. A line may run one
+   * ply past this cap when the closing reply is appended.
+   */
   maxPly: number;
   /** ε — minimum reach probability for a line to be worth keeping. */
   minReach: number;
@@ -243,6 +249,18 @@ export async function generateTheoryLines(
     }
 
     // Their turn — this is the only place lines branch.
+    //
+    // A line exists to teach one decision: "they play X, you answer Y". Once
+    // the budget can fund no further fork, walking deeper adds no distinctness
+    // — it just follows a single forced continuation — so the line ends at its
+    // last fork, capped off by your reply below. That is also where most of the
+    // latency saving comes from: no Maia call is spent on a node that can no
+    // longer branch.
+    if (open.length + closed.length >= config.lineBudget) {
+      closed.push({ ...node, stoppedBy: 'budget' });
+      continue;
+    }
+
     const history = providers.history(node.fen);
     const maia = await providers.maia(node.fen);
     const blended = blendDistribution(history, maia, config.kShrink);
@@ -298,14 +316,37 @@ export async function generateTheoryLines(
     open.push(...children);
   }
 
-  const lines: TheoryLine[] = closed
-    .filter(f => f.moves.length > 0)
-    .map(f => ({
-      moves: f.moves,
+  // Every line ends on YOUR move. A line that stops on their move leaves the
+  // reader at the decision without the answer, which is the one thing the line
+  // exists to deliver — so cap each off with the engine's reply.
+  const finished: TheoryLine[] = [];
+  for (const f of closed) {
+    if (f.moves.length === 0) continue;
+
+    let moves = f.moves;
+    const endsOnTheirMove = moves[moves.length - 1].side === 'them';
+    if (endsOnTheirMove && f.stoppedBy !== 'terminal') {
+      const chess = new Chess(f.fen);
+      if (!chess.isGameOver()) {
+        const san = await providers.bestMove(f.fen);
+        const applied = tryMove(f.fen, san);
+        if (applied) {
+          moves = [
+            ...moves,
+            { san: applied.san, side: 'you', probability: 1, fen: applied.fen },
+          ];
+        }
+      }
+    }
+
+    finished.push({
+      moves,
       reach: f.reach,
       stoppedBy: f.stoppedBy ?? 'terminal',
-    }))
-    .sort((a, b) => b.reach - a.reach);
+    });
+  }
+
+  const lines = finished.sort((a, b) => b.reach - a.reach);
 
   return {
     lines,

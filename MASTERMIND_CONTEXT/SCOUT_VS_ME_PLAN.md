@@ -104,7 +104,21 @@ Line reach probability:
 Best-first expansion: repeatedly expand the frontier leaf with the largest
 `R(ℓ)`; splitting into `c` children costs `c − 1` from the budget.
 
-Terminate on: `N` lines, depth `D = 20` plies, or `R(ℓ) < ε`.
+**Termination (Aayan, 2026-08-14):** a line ends at its **last fork**, capped
+off by your engine reply — not at a fixed depth. Keep splitting under τ/ε/Kmax
+until the budget can fund no further fork, then stop. Line length is therefore
+emergent and varies: 8 plies or 20, whichever the branching produces. Once no
+fork can be funded, walking deeper adds no distinctness, so the search stops
+rather than following a forced continuation — which is also where most of the
+latency saving comes from, since no Maia call is spent on a node that can no
+longer branch.
+
+`D = 20` is a safety cap, not the goal. A line may run one ply past it when the
+closing reply is appended; every line must end on YOUR move, because the line
+exists to deliver "they play X, you answer Y".
+
+Also terminate on: `R(ℓ) < ε`, an off-model position (no history and no Maia —
+stop rather than invent), or a finished game.
 
 `N` is chosen by the user, and ε scales with it — a user asking for 20 lines is
 explicitly asking to go further down the tail, and a fixed ε would silently
@@ -128,8 +142,23 @@ recommendation per position.
 
 ### 5.5 Output stat
 
-`Σ R(ℓ)` over the chosen lines = "this prep covers 78% of what they actually
-play". Falls straight out of the math; display it.
+`Σ R(ℓ)` = the probability their real game stays inside one of your lines **all
+the way to that line's end**.
+
+Careful with the wording: this is NOT monotone in `N`, and that is correct
+rather than a defect. At τ = 0.70 the tail beyond the threshold is deliberately
+unprepped, so each extra level of depth sheds that share. Measured on a
+0.50/0.35/0.15 opponent: lite 0.561, recommended 0.517, hardcore 0.406. More
+lines buys **depth**, not breadth — staying in book for 13 plies is genuinely
+less likely than for 5.
+
+So do not label it "how much of their play we cover", which reads as a quality
+score that gets worse when the user pays more attention. Label it as what it
+is: how likely they are to follow a full line.
+
+(Coverage IS required to be monotone with respect to *budget truncation* — see
+the regression tests. Losing mass because a fork was half-taken is a bug;
+losing it to τ is the spec.)
 
 ---
 

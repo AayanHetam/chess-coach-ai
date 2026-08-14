@@ -76,14 +76,14 @@ test("the quiz walks end to end on the self-assessment branch", async ({ page })
   await expect(
     page.getByRole("heading", { name: /How much time can you/i })
   ).toBeVisible();
-  await page.getByText("10–30 min / day").first().click();
+  await page.getByRole("button", { name: /min \/ day/ }).first().click();
   await next(page);
 
   // Q7 — frequency.
   await expect(
     page.getByRole("heading", { name: /How often can you/i })
   ).toBeVisible();
-  await page.getByText("About 4 days").first().click();
+  await page.getByRole("button", { name: /days|every day/i }).first().click();
   await next(page);
 
   // Q8 — the goal, asked LAST so its projection uses the real schedule.
@@ -112,9 +112,9 @@ test("the goal step renders a projection rather than an empty box", async ({ pag
   await next(page);
   await page.getByRole("button", { name: /^Tactics/ }).first().click();
   await next(page);
-  await page.getByText("10–30 min / day").first().click();
+  await page.getByRole("button", { name: /min \/ day/ }).first().click();
   await next(page);
-  await page.getByText("About 4 days").first().click();
+  await page.getByRole("button", { name: /days|every day/i }).first().click();
   await next(page);
 
   await expect(

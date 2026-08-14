@@ -257,7 +257,7 @@ export default function OnboardingQuiz({
               currentRating={currentRating}
               value={q.answers.goalRating}
               onChange={q.setGoalRating}
-              minutesPerDay={minutesPerDayFor(q.answers.time) || 20}
+              minutesPerDay={minutesPerDayFor(q.answers.time)}
               daysPerWeek={q.answers.daysPerWeek ?? 4}
               ratingStatus={ratingStatus}
             />

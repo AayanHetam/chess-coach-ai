@@ -7,6 +7,7 @@
 
 import type { UserProfileUpdates } from "@/lib/firestoreUsers";
 import { QUIZ_GOAL_OPTIONS } from "./quizThemes";
+import { projectToGoal } from "@/lib/curriculum/improvementModel";
 
 // localStorage keys ───────────────────────────────────────────────────────────
 // Draft = in-progress answers (resumable, never persisted to Firestore).
@@ -259,6 +260,26 @@ export function buildPayload(answers: QuizAnswers): UserProfileUpdates {
   if (typeof answers.goalRating === "number") payload.goalRating = answers.goalRating;
   if (typeof answers.daysPerWeek === "number") {
     payload.practiceDaysPerWeek = answers.daysPerWeek;
+  }
+
+  // The promised date, computed once at signup from the goal and the schedule
+  // the user actually agreed to. Stored so /plan can hold them to it rather
+  // than silently recomputing a softer target every time they visit.
+  if (
+    typeof answers.goalRating === "number" &&
+    answers.time &&
+    typeof answers.daysPerWeek === "number"
+  ) {
+    const currentRating = derivedRating(answers);
+    if (typeof currentRating === "number") {
+      const projection = projectToGoal({
+        currentRating,
+        goalRating: answers.goalRating,
+        minutesPerDay: minutesPerDayFor(answers.time),
+        daysPerWeek: answers.daysPerWeek,
+      });
+      if (projection.targetDate) payload.goalTargetDate = projection.targetDate;
+    }
   }
 
   // Always written, both ways: an explicit false is the user declining, which

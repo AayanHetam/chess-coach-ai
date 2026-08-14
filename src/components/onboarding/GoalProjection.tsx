@@ -10,7 +10,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { projectToGoal, type Projection } from "@/lib/curriculum/improvementModel";
+import {
+  projectToGoal,
+  formatTargetDate,
+  type Projection,
+} from "@/lib/curriculum/improvementModel";
 import { EMBER } from "./diagramTokens";
 
 /**
@@ -100,18 +104,21 @@ export default function GoalProjection({
         At {Math.round(minutesPerDay)} min a day, {daysPerWeek} days a week
       </Typography>
 
+      {/* A DATE, deliberately (Aayan, 2026-08-14): a goal you can put in a
+          calendar beats a range you can't act on. The band still ships
+          directly underneath — practice explains only ~40% of rating variance,
+          so the date is a target to aim at, not a prediction. */}
       <Typography
-        sx={{ color: "#fff", fontWeight: 800, fontSize: "1.35rem", lineHeight: 1.2, mt: 0.25 }}
+        sx={{ color: "#fff", fontWeight: 800, fontSize: "1.45rem", lineHeight: 1.2, mt: 0.25 }}
       >
-        {currentRating} → {goalRating} in {formatMonths(p.months!)}
+        {goalRating} by {formatTargetDate(p.targetDate!)}
       </Typography>
 
-      {/* The band is the honest part, so it sits with the headline rather than
-          in a footnote. */}
-      <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.8rem", mt: 0.25 }}>
-        Most players land between {formatMonths(p.fastMonths!)} and{" "}
-        {formatMonths(p.slowMonths!)} — around {Math.round(p.totalHours)} hours of
-        focused practice.
+      <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.8rem", mt: 0.35 }}>
+        That&apos;s {formatMonths(p.months!)} of guided practice — about{" "}
+        {Math.round(p.totalHours)} hours. Keep it up and you could get there by{" "}
+        {formatTargetDate(p.earliestDate!)}; miss sessions and it slips towards{" "}
+        {formatTargetDate(p.latestDate!)}.
       </Typography>
 
       <Box sx={{ height: 132, mt: 1.5, mx: -0.5 }}>
@@ -158,8 +165,8 @@ export default function GoalProjection({
       </Box>
 
       <Typography sx={{ color: "rgba(255,255,255,0.38)", fontSize: "0.72rem", mt: 0.5 }}>
-        An estimate from typical improvement rates, not a promise — how fast you
-        actually move depends on you.
+        An estimate from typical improvement rates with guided practice, not a
+        promise — how fast you actually move depends on you.
       </Typography>
     </Box>
   );

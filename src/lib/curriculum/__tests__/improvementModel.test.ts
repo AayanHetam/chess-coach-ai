@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   hoursPer100,
   hoursBetween,
+  guidedHoursBetween,
+  formatTargetDate,
   effectiveWeeklyHours,
   spacingFactor,
   ratingAfterWeeks,
@@ -64,10 +66,21 @@ describe("cost rises with rating — the whole premise", () => {
 });
 
 describe("effectiveWeeklyHours", () => {
-  it("counts hours linearly up to the reference", () => {
-    // A concave curve through the reference would rate 2 h/week as worth MORE
-    // than two hours, flattering small commitments. This estimate must not.
-    expect(effectiveWeeklyHours(60, 2)).toBeCloseTo(2 * spacingFactor(2), 5);
+  it("counts a normal-length session at face value", () => {
+    // Under the session reference there is no discount at all — a concave
+    // curve here would rate 30 minutes as worth more than 30 minutes, which
+    // flatters small commitments and this estimate must not do that.
+    expect(effectiveWeeklyHours(30, 4)).toBeCloseTo((30 * 4) / 60 * spacingFactor(4), 5);
+  });
+
+  it("discounts the SESSION, not the week — daily practice is not cramming", () => {
+    // The bug this replaces: the concave discount was applied to the weekly
+    // TOTAL, so an hour every day was taxed exactly like seven hours crammed
+    // into one Sunday. The cited rationale is about long SESSIONS, and spacing
+    // already separates the two cases.
+    const daily = effectiveWeeklyHours(60, 7); // 7 short-ish sittings
+    const crammed = effectiveWeeklyHours(420, 1); // same 7 raw hours, one go
+    expect(daily).toBeGreaterThan(crammed * 1.5);
   });
 
   it("discounts marathon weeks", () => {
@@ -103,9 +116,11 @@ describe("effectiveWeeklyHours", () => {
 });
 
 describe("ratingAfterWeeks is the exact inverse of hoursBetween", () => {
-  it("round-trips", () => {
+  it("round-trips against the GUIDED hours the product actually quotes", () => {
+    // The curve and the headline must agree; if ratingAfterWeeks inverted the
+    // unguided baseline the chart would end short of the goal it promises.
     const weekly = effectiveWeeklyHours(60, 5);
-    const weeks = hoursBetween(1200, 1600) / weekly;
+    const weeks = guidedHoursBetween(1200, 1600) / weekly;
     expect(ratingAfterWeeks(1200, weeks, weekly)).toBeCloseTo(1600, 0);
   });
 
@@ -220,3 +235,102 @@ describe("the documented constants are the ones actually in use", () => {
   });
 });
 
+
+describe("guided practice is faster than the unguided literature baseline", () => {
+  it("applies the multiplier, and never silently drops it", () => {
+    expect(guidedHoursBetween(1300, 1600)).toBeCloseTo(
+      hoursBetween(1300, 1600) * MODEL.GUIDED_PRACTICE_MULTIPLIER,
+      6
+    );
+    expect(MODEL.GUIDED_PRACTICE_MULTIPLIER).toBeLessThan(1);
+  });
+
+  it("reproduces the founder's calibration anchor: 1300 → 1600 in ~4 months of daily practice", () => {
+    // Aayan's coaching experience, and the reason the multiplier exists. The
+    // unguided curve says ~9.6 months for the same schedule; the published
+    // rates it is fitted to all measure SELF-DIRECTED players, which is not
+    // what this product delivers. If someone retunes the constants, this is
+    // the test that says the product claim changed.
+    const p = projectToGoal({
+      currentRating: 1300,
+      goalRating: 1600,
+      minutesPerDay: 60,
+      daysPerWeek: 7,
+    });
+    expect(p.months!).toBeGreaterThan(3);
+    expect(p.months!).toBeLessThan(5);
+  });
+
+  it("keeps the higher bands slow — the curve still bites above 1800", () => {
+    const club = projectToGoal({ currentRating: 1300, goalRating: 1600, minutesPerDay: 60, daysPerWeek: 7 });
+    const expert = projectToGoal({ currentRating: 1800, goalRating: 2100, minutesPerDay: 60, daysPerWeek: 7 });
+    // Same 300 points, far more expensive higher up, guided or not.
+    expect(expert.months!).toBeGreaterThan(club.months! * 3);
+  });
+});
+
+describe("the target date", () => {
+  // A fixed "now" so these assert dates, not the clock.
+  const NOW = new Date(2026, 7, 14).getTime(); // 14 Aug 2026
+  const base = { minutesPerDay: 60, daysPerWeek: 7, nowMs: NOW };
+
+  it("puts the goal on a real calendar date", () => {
+    const p = projectToGoal({ currentRating: 1300, goalRating: 1600, ...base });
+    // ~3.8 months out → December 2026.
+    expect(formatTargetDate(p.targetDate!)).toBe("December 2026");
+  });
+
+  it("brackets it with the same fast/slow band, as dates", () => {
+    const p = projectToGoal({ currentRating: 1300, goalRating: 1600, ...base });
+    expect(p.earliestDate!).toBeLessThan(p.targetDate!);
+    expect(p.latestDate!).toBeGreaterThan(p.targetDate!);
+    // The band must survive the conversion — a date is a target, not a claim
+    // to precision nobody has.
+    expect(formatTargetDate(p.earliestDate!)).not.toBe(formatTargetDate(p.latestDate!));
+  });
+
+  it("moves the date closer when the user commits more", () => {
+    const light = projectToGoal({ currentRating: 1300, goalRating: 1600, minutesPerDay: 20, daysPerWeek: 3, nowMs: NOW });
+    const heavy = projectToGoal({ currentRating: 1300, goalRating: 1600, minutesPerDay: 90, daysPerWeek: 6, nowMs: NOW });
+    expect(heavy.targetDate!).toBeLessThan(light.targetDate!);
+  });
+
+  it("rolls over the year rather than producing a 14th month", () => {
+    const p = projectToGoal({
+      currentRating: 1500,
+      goalRating: 1800,
+      minutesPerDay: 30,
+      daysPerWeek: 4,
+      nowMs: new Date(2026, 10, 20).getTime(), // 20 Nov 2026
+    });
+    const d = new Date(p.targetDate!);
+    expect(d.getMonth()).toBeGreaterThanOrEqual(0);
+    expect(d.getMonth()).toBeLessThanOrEqual(11);
+    expect(d.getFullYear()).toBeGreaterThan(2026);
+  });
+
+  it("does not emit a date when there is nothing to promise", () => {
+    // already_there / unrealistic / no_schedule must not hand back a date, or
+    // the UI would print a deadline for a goal we just said we can't project.
+    for (const p of [
+      projectToGoal({ currentRating: 1600, goalRating: 1500, ...base }),
+      projectToGoal({ currentRating: 1200, goalRating: 1500, minutesPerDay: 0, daysPerWeek: 0, nowMs: NOW }),
+      projectToGoal({ currentRating: 1000, goalRating: 2900, minutesPerDay: 15, daysPerWeek: 2, nowMs: NOW }),
+    ]) {
+      expect(p.targetDate).toBeUndefined();
+    }
+  });
+
+  it("survives a month-end start without slipping a month", () => {
+    // 31 Jan + 1 month is 28/29 Feb, not 3 March. Naive setMonth overflows.
+    const p = projectToGoal({
+      currentRating: 1300,
+      goalRating: 1330,
+      minutesPerDay: 60,
+      daysPerWeek: 7,
+      nowMs: new Date(2027, 0, 31).getTime(), // 31 Jan 2027
+    });
+    const d = new Date(p.targetDate!);
+    expect(d.getMonth()).not.toBe(2); // must not land in March
+  });
+});

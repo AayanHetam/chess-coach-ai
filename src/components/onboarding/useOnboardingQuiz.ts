@@ -45,7 +45,12 @@ export function resolveSteps(answers: QuizAnswers): StepId[] {
   } else {
     steps.push("sa-years", "sa-spot", "sa-tournaments");
   }
-  steps.push("goals", "goal-rating", "time", "frequency");
+  // Goal-rating is LAST on purpose. It draws a projection, and a projection
+  // needs the schedule: asking it earlier meant falling back to a default of
+  // 20min x 4 days and telling a 1300 they'd reach 1600 in "about 4 years" —
+  // the most discouraging plausible number, at the moment of peak motivation.
+  // With time and frequency already answered the same user sees ~4 months.
+  steps.push("goals", "time", "frequency", "goal-rating");
   return steps;
 }
 

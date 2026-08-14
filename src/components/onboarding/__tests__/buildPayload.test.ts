@@ -239,3 +239,38 @@ describe("goal-driven planning fields", () => {
     expect("goalRating" in p).toBe(false);
   });
 });
+
+describe("the promised target date", () => {
+  it("is computed and stored when goal, time and frequency are all known", () => {
+    const p = buildPayload(
+      answers({
+        playStyle: "otb",
+        selfAssess: { years: 2, spot: 2, tournaments: 2 }, // → 1750
+        goalRating: 1900,
+        time: "30-plus",
+        daysPerWeek: 6,
+      })
+    );
+    expect(typeof p.goalTargetDate).toBe("number");
+    expect(p.goalTargetDate!).toBeGreaterThan(Date.now());
+  });
+
+  it("is omitted when any input is missing, rather than guessed", () => {
+    // A date built on a schedule the user never gave would be a deadline we
+    // invented for them.
+    const noGoal = buildPayload(answers({ playStyle: "otb", time: "30-plus", daysPerWeek: 6 }));
+    expect("goalTargetDate" in noGoal).toBe(false);
+
+    const noTime = buildPayload(answers({ playStyle: "otb", goalRating: 1900, daysPerWeek: 6 }));
+    expect("goalTargetDate" in noTime).toBe(false);
+  });
+
+  it("is omitted on the platform path, where the quiz has no current rating yet", () => {
+    // The real rating arrives from the platform lookup after signup; until
+    // then there is no anchor to project from.
+    const p = buildPayload(
+      answers({ playStyle: "lichess", username: "x", goalRating: 1900, time: "30-plus", daysPerWeek: 6 })
+    );
+    expect("goalTargetDate" in p).toBe(false);
+  });
+});

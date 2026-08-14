@@ -88,11 +88,12 @@ which is not a real distinction in this data.
 Sort by `P` descending. Take the smallest prefix clearing the coverage
 threshold, capped:
 
-    c(v) = min( Kmax, min{ c : Σᵢ₌₁ᶜ pᵢ ≥ τ } )      τ = 0.90, Kmax = 3
+    c(v) = min( Kmax, min{ c : Σᵢ₌₁ᶜ pᵢ ≥ τ } )      τ = 0.70, Kmax = 3
 
-Reproduces both stated rules from one threshold:
+τ = 0.70 (Aayan, 2026-08-13). Lower τ branches *less*, so the budget goes
+deeper rather than wider. Both originally stated rules still hold:
 - top move 0.92 → `c = 1`, no split
-- 0.50 / 0.40 → 0.50 < 0.90, +0.40 → 0.90 ≥ 0.90 → `c = 2`, split
+- 0.50 / 0.40 → 0.50 < 0.70, +0.40 → 0.89 ≥ 0.70 → `c = 2`, split
 
 ### 5.3 Budget allocation
 
@@ -103,7 +104,15 @@ Line reach probability:
 Best-first expansion: repeatedly expand the frontier leaf with the largest
 `R(ℓ)`; splitting into `c` children costs `c − 1` from the budget.
 
-Terminate on: `N = 10` lines, depth `D = 14` plies, or `R(ℓ) < ε = 0.02`.
+Terminate on: `N` lines, depth `D = 20` plies, or `R(ℓ) < ε`.
+
+`N` is chosen by the user, and ε scales with it — a user asking for 20 lines is
+explicitly asking to go further down the tail, and a fixed ε would silently
+hand them fewer lines than they picked:
+
+    lite         N = 5   ε = 0.05
+    recommended  N = 10  ε = 0.02
+    hardcore     N = 20  ε = 0.01
 
 Maximising `Σ R(ℓ)` under a cardinality constraint is monotone submodular, so
 greedy is within `1 − 1/e` of optimal — and, more usefully, is legible to
@@ -111,8 +120,11 @@ anyone reading the code.
 
 ### 5.4 Your moves
 
-Stockfish best move at fixed depth. No branching — one recommendation per
-position.
+Stockfish at search depth 20, on **your side only** — their replies come from
+Maia and their history, so no position needs engine evaluation on their move.
+That halves the engine work per line (≈10 evals across 20 plies, not 20) and is
+the main reason the latency budget in §3 below is reachable. No branching: one
+recommendation per position.
 
 ### 5.5 Output stat
 

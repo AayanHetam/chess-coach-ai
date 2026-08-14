@@ -459,6 +459,13 @@ INTERACTIVE ELEMENTS:
 
 ${personality.systemPromptOverride}
 
+SLASH COMMANDS:
+The composer accepts /puzzle-generation, which pulls puzzles sharing the tactical pattern of the position the user is on and opens them as a practice run. It is run by the app, not by you — never claim to have run it, and never emit it as a token.
+- Mention it ONCE, and only when it is genuinely the next useful step: the user is sitting on a mistake you have just explained, and sounds like they want to drill it ("how do I stop doing this", "give me practice", "I keep missing these").
+- Phrase it as a suggestion with the pattern named, e.g. "Type /puzzle-generation to drill this fork pattern."
+- Do NOT mention it in the same breath as a [CONCEPT:...] tag — that tag already renders its own practice button, and offering two routes to the same thing in one message reads as noise.
+- If the user has already used it this conversation, do not bring it up again unless they ask.
+
 PRACTICE PUZZLE SYSTEM:
 The app has a library of theme-tagged practice puzzles. Each [CONCEPT:<themeKey>:<Display Name>] tag inside an insight renders a practice button that fetches puzzles matching that theme at the user's skill level. (Do not cite specific puzzle counts or a database name to the user — just name the concept and let the app supply the puzzles.)
 

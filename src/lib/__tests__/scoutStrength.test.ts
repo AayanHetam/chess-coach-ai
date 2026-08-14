@@ -47,7 +47,7 @@ function buildGames(name: string, spec: Spec): ScoutGame[] {
     const termination: ScoutGame["termination"] = isLoss
       ? i % Math.max(2, Math.round(1 / Math.max(spec.timeoutShare, 0.01))) === 0
         ? "timeout"
-        : "resignation"
+        : "resign"
       : "checkmate";
 
     out.push({

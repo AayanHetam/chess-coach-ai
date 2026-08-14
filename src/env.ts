@@ -10,7 +10,15 @@ export const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().min(1, "required for /api/enhanced-analysis"),
 });
 
-export function parseEnv(source: NodeJS.ProcessEnv = process.env) {
+/**
+ * `EnvSource` rather than NodeJS.ProcessEnv: Next augments ProcessEnv to make
+ * NODE_ENV REQUIRED, so a caller — or a test — cannot pass a plain bag of
+ * variables without inventing one. This function only ever zod-parses what it
+ * is given.
+ */
+export type EnvSource = Record<string, string | undefined>;
+
+export function parseEnv(source: EnvSource = process.env) {
   const result = envSchema.safeParse(source);
   if (!result.success) {
     const issues = result.error.issues

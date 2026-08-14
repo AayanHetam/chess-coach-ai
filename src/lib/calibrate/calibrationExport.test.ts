@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  type RatingsState,
   buildExport,
   CalibrationItem,
   cleanCoachText,
@@ -55,7 +56,7 @@ describe("isItemFullyRated", () => {
 
 describe("buildExport", () => {
   it("includes only fully-rated items and counts the excluded", () => {
-    const ratings = { a: { ...full }, b: { d1: 1 } };
+    const ratings: RatingsState = { a: { ...full }, b: { d1: 1 } };
     const { payload, excludedCount } = buildExport("Casey", items, ratings);
     expect(excludedCount).toBe(1);
     expect(payload.rater).toBe("Casey");
@@ -65,7 +66,7 @@ describe("buildExport", () => {
   });
 
   it("never zero-fills a partially-rated item", () => {
-    const ratings = { a: { d1: 2, d2: 1 } };
+    const ratings: RatingsState = { a: { d1: 2, d2: 1 } };
     const { payload, excludedCount } = buildExport("Casey", items, ratings);
     expect(payload.ratings).toHaveLength(0);
     expect(excludedCount).toBe(2);

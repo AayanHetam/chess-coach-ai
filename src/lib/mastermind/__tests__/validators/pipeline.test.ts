@@ -377,7 +377,8 @@ describe("runValidationPipeline: signal propagation (fix-orphan-pipeline-cancell
         model: "claude-sonnet-4-test",
         inputTokens: 1,
         outputTokens: 1,
-      } as LLMResult;
+        elapsedMs: 0,
+      };
     };
     await runValidationPipeline({
       initialRequest,
@@ -418,7 +419,8 @@ describe("runValidationPipeline: signal propagation (fix-orphan-pipeline-cancell
         model: "claude-sonnet-4-test",
         inputTokens: 1,
         outputTokens: 1,
-      } as LLMResult;
+        elapsedMs: 0,
+      };
     };
     await runValidationPipeline({
       initialRequest,
@@ -678,6 +680,7 @@ describe("runValidationPipeline: position-anchored validator scope (2026-05-26)"
         model: "claude-sonnet-4-test",
         inputTokens: 100,
         outputTokens: 50,
+        elapsedMs: 0,
       };
     };
     const r = await runValidationPipeline({

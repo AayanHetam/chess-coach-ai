@@ -30,11 +30,11 @@ const MOVES = ["e4", "e5", "Nf3"];
 
 describe("isIntentFactsEnabled", () => {
   it("is OFF unless explicitly set to the string true", () => {
-    expect(isIntentFactsEnabled({} as NodeJS.ProcessEnv)).toBe(false);
-    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "" } as NodeJS.ProcessEnv)).toBe(false);
-    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "1" } as NodeJS.ProcessEnv)).toBe(false);
-    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "TRUE" } as NodeJS.ProcessEnv)).toBe(false);
-    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "true" } as NodeJS.ProcessEnv)).toBe(true);
+    expect(isIntentFactsEnabled({})).toBe(false);
+    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "" })).toBe(false);
+    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "1" })).toBe(false);
+    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "TRUE" })).toBe(false);
+    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "true" })).toBe(true);
   });
 });
 

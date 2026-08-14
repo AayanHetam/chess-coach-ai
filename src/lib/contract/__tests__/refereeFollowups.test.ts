@@ -269,7 +269,7 @@ describe("fix A — san_whitelist pool insight-local → contract-global", () =>
   });
 
   it("the widening is monotone — the global pool is a superset of every insight-local pool", () => {
-    for (const contract of contracts.values()) {
+    for (const contract of Array.from(contracts.values())) {
       const global = collectContractWhitelist(contract);
       for (const ins of contract.insights) {
         const local = checkSanWhitelist("", ins); // no prose: exercises the builder only

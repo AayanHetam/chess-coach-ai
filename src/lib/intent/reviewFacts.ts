@@ -59,6 +59,10 @@ export function intentFactsForPlies(params: {
 }
 
 /** Is the dark intent computation switched on? Off unless explicitly enabled. */
-export function isIntentFactsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isIntentFactsEnabled(
+  // Not NodeJS.ProcessEnv: Next augments it to require NODE_ENV, so a caller
+  // could not pass a bare { INTENT_FACTS_ENABLED } without inventing one.
+  env: Record<string, string | undefined> = process.env,
+): boolean {
   return env.INTENT_FACTS_ENABLED === "true";
 }

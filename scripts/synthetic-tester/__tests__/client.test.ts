@@ -92,7 +92,7 @@ function buildGameEval(positionCount: number): GameEval {
       lines: [{ pv: [], cp: 0, depth: 14, multiPv: 1 }],
     })),
     accuracy: { white: 0, black: 0 },
-  } as GameEval;
+  } as unknown as GameEval;
 }
 
 function baseAnalyzeArgs(overrides: {

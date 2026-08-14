@@ -63,7 +63,11 @@ describe("evalFingerprint", () => {
 });
 
 describe("generateCacheKey — engine data is part of an answer's identity", () => {
-  const args = ["8/8/8/8/8/8/8/8 w - - 0 1", "intermediate", "why?", "persona", ["e4"]] as const;
+  // A mutable tuple, not `as const`: generateCacheKey takes `string[]`, and a
+  // readonly tuple is not assignable to it.
+  const args: [string, string, string, string, string[]] = [
+    "8/8/8/8/8/8/8/8 w - - 0 1", "intermediate", "why?", "persona", ["e4"],
+  ];
 
   it("separates an engine-blind answer from a graded one", () => {
     const blind = generateCacheKey(...args, evalFingerprint(undefined));

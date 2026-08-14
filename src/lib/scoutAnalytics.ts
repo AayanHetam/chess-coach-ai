@@ -19,6 +19,8 @@ import {
   ProfileSnapshot,
   TellsProfile,
   Tell,
+  ClockWindows,
+  TimeBucket,
   TargetedPrep,
   ChecklistItem,
   FrequentRival,
@@ -115,6 +117,138 @@ function computeRatings(games: ScoutGame[], target: string): {
     peak: peak === -Infinity ? undefined : peak,
     low: low === Infinity ? undefined : low,
   };
+}
+
+// ─── Clock windows ──────────────────────────────────────────────────────────
+//
+// Every game carries an absolute timestamp and nothing read it. Bucketing the
+// record by hour and weekday answers the one question a scouting report should
+// answer right before you click "play": is now a good time to catch them?
+
+/**
+ * Minimum games in a bucket before its rate is reportable.
+ *
+ * Without a floor a single 3 AM loss renders as "0% at 3 AM" — a confident
+ * claim built on n=1. Eight is enough that a bucket has to be genuinely bad
+ * rather than unlucky.
+ */
+export const TIME_BUCKET_MIN_GAMES = 8;
+
+/**
+ * Wilson score interval for a proportion — the standard answer to "rank things
+ * by rate when the sample sizes differ wildly".
+ *
+ * Exported for the tests, which pin the small-sample behaviour that motivated it.
+ */
+export function wilsonBounds(
+  p: number,
+  n: number,
+  z = 1.96
+): { lower: number; upper: number } {
+  if (n <= 0) return { lower: 0, upper: 1 };
+  const z2 = z * z;
+  const denom = 1 + z2 / n;
+  const centre = (p + z2 / (2 * n)) / denom;
+  const margin = (z * Math.sqrt((p * (1 - p) + z2 / (4 * n)) / n)) / denom;
+  return {
+    lower: Math.max(0, centre - margin),
+    upper: Math.min(1, centre + margin),
+  };
+}
+
+function emptyBucket(index: number): TimeBucket {
+  return {
+    index,
+    games: 0,
+    wins: 0,
+    draws: 0,
+    losses: 0,
+    scorePct: 0,
+    timeoutPct: 0,
+    reliable: false,
+  };
+}
+
+function finalizeBucket(b: TimeBucket, timeouts: number): TimeBucket {
+  const games = b.games;
+  const scorePct = games > 0 ? ((b.wins + 0.5 * b.draws) / games) * 100 : 0;
+  return {
+    ...b,
+    scorePct: Math.round(scorePct * 10) / 10,
+    timeoutPct: b.losses > 0 ? Math.round((timeouts / b.losses) * 1000) / 10 : 0,
+    reliable: games >= TIME_BUCKET_MIN_GAMES,
+  };
+}
+
+function computeClockWindows(games: ScoutGame[], target: string): ClockWindows {
+  const hours = Array.from({ length: 24 }, (_, i) => emptyBucket(i));
+  const weekdays = Array.from({ length: 7 }, (_, i) => emptyBucket(i));
+  const hourTimeouts = new Array(24).fill(0);
+  const weekdayTimeouts = new Array(7).fill(0);
+  let sampled = 0;
+
+  for (const g of games) {
+    // A missing or zero date is "unknown", not 1970 — dropping it is the only
+    // honest option, and `sampled` reports how much survived.
+    if (!g.date || g.date <= 0) continue;
+    const c = playerColor(g, target);
+    if (!c) continue;
+    const o = outcomeFor(g, c);
+    if (!o) continue;
+
+    const d = new Date(g.date);
+    const h = d.getHours();
+    const wd = d.getDay();
+    if (!Number.isFinite(h) || !Number.isFinite(wd)) continue;
+
+    sampled += 1;
+    for (const b of [hours[h], weekdays[wd]]) {
+      b.games += 1;
+      if (o === 'win') b.wins += 1;
+      else if (o === 'draw') b.draws += 1;
+      else b.losses += 1;
+    }
+    if (o === 'loss' && g.termination === 'timeout') {
+      hourTimeouts[h] += 1;
+      weekdayTimeouts[wd] += 1;
+    }
+  }
+
+  const byHour = hours.map((b, i) => finalizeBucket(b, hourTimeouts[i]));
+  const byWeekday = weekdays.map((b, i) => finalizeBucket(b, weekdayTimeouts[i]));
+
+  // Rank the extremes by Wilson score bounds, not raw rate.
+  //
+  // Raw rate lets the smallest buckets hijack both ends, because small samples
+  // produce the loudest rates — a 10-game hour at 60% would outrank a 96-game
+  // hour at 50% and get printed as advice. Wilson asks "what can we actually
+  // defend at 95% confidence", which penalises thin samples in *both*
+  // directions while still respecting a small sample that is genuinely extreme.
+  //
+  // Strongest ranks on the lower bound (confidently high); weakest ranks on the
+  // upper bound (confidently low).
+  const reliableHours = byHour.filter(b => b.reliable);
+  const weakestHour = reliableHours.length
+    ? reliableHours.reduce((lo, b) =>
+        wilsonBounds(b.scorePct / 100, b.games).upper <
+        wilsonBounds(lo.scorePct / 100, lo.games).upper
+          ? b
+          : lo
+      )
+    : undefined;
+  const strongestHour = reliableHours.length
+    ? reliableHours.reduce((hi, b) =>
+        wilsonBounds(b.scorePct / 100, b.games).lower >
+        wilsonBounds(hi.scorePct / 100, hi.games).lower
+          ? b
+          : hi
+      )
+    : undefined;
+  const busiestHour = byHour.some(b => b.games > 0)
+    ? byHour.reduce((mx, b) => (b.games > mx.games ? b : mx))
+    : undefined;
+
+  return { byHour, byWeekday, weakestHour, strongestHour, busiestHour, sampled };
 }
 
 // ─── Strength ───────────────────────────────────────────────────────────────
@@ -964,6 +1098,7 @@ export function computeAnalytics(games: ScoutGame[], target: string): ScoutAnaly
     rep.topThreeShare
   );
   const tells = computeTells(games, target, psychology, rep);
+  const clockWindows = computeClockWindows(games, target);
   const prep = computeTargetedPrep(games, target, { treeWhite, treeBlack });
   const checklist = computeChecklist(prep, psychology, total);
   const rivals = computeRivals(games, target);
@@ -973,6 +1108,7 @@ export function computeAnalytics(games: ScoutGame[], target: string): ScoutAnaly
   return {
     profile,
     tells,
+    clockWindows,
     prep,
     checklist,
     rivals,

@@ -46,6 +46,7 @@ import AnalyzingModal, { AnalyzingStage } from '@/components/scout/AnalyzingModa
 import ScoutLanding from '@/components/scout/ScoutLanding';
 import ProfileCard from '@/components/scout/ProfileCard';
 import TellsCard from '@/components/scout/TellsCard';
+import ClockWindowsPanel from '@/components/scout/ClockWindowsPanel';
 import TargetedPrepPanel from '@/components/scout/TargetedPrep';
 import PreGameChecklist from '@/components/scout/PreGameChecklist';
 import RivalsPanel from '@/components/scout/RivalsPanel';
@@ -1083,6 +1084,11 @@ export default function ScoutPage() {
               <TellsCard tells={analytics.tells} />
             </Grid>
           </Grid>
+
+          <ClockWindowsPanel
+            windows={analytics.clockWindows}
+            username={scoutResult.username}
+          />
 
           <TwinBanner
             username={scoutResult.username}

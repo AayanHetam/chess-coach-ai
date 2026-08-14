@@ -198,3 +198,56 @@ budget are both proven against the live service.
 
 The 10-line budget, `τ = 0.90`, and `D = 14` are the tunable knobs. They are all
 one-line constants. Worth a look at real output before they are fixed.
+
+
+---
+
+## Live-fire probe results (2026-08-14)
+
+Probed the real Maia service at the configured `MAIA_API_URL`, request shape
+matching what the client sends (`{fen, rating, opponent_rating}`).
+
+**Service health.** Up, warm, and fast: `GET /` 200 in 0.48s, `/predict` 0.44-0.52s
+per call warm, ~2.4s on the first call. No cold-start problem observed, so the
+latency risk flagged in §3 does not materialise on the Maia side.
+
+**Response shape.** Returns **SAN**, not UCI (the resolver tries SAN first, so
+this is the fast path). Always 5 moves: `humanLikeMove` + 4 `alternativeMoves`.
+
+**Probabilities do NOT sum to 1** — measured 0.669, 0.712, 0.885, 0.909 across
+four positions. Roughly 10-33% of the real distribution is in the unreturned
+tail. This drove two corrections:
+
+  - Maia's output is no longer renormalised. Scaling a top-5 to 1.0 asserts
+    they always play a top-5 move and inflates every reach figure downstream.
+  - τ is applied to the *known* mass (`cumulative / Σp`), so branching responds
+    to the opponent's unpredictability rather than the model's reticence.
+    Testing raw cumulative against τ = 0.70 would have driven nearly every node
+    to the Kmax cap.
+
+**End-to-end, against the live service:**
+
+    LITE         1.2-1.6s   6 Maia calls   3 lines   Σ R = 0.302   7 engine calls (6 unique)
+    RECOMMENDED  1.5s      11 Maia calls   6 lines   Σ R = 0.175  16 engine calls (11 unique)
+    HARDCORE     2.2-2.4s  17 Maia calls  10 lines   Σ R = 0.154  29 engine calls (17 unique)
+
+**The bottleneck is Stockfish, not Maia — the opposite of the assumption in §3.**
+Maia costs ~17 calls at 0.5s, and memoisation collapses ~29 engine requests to
+17 unique positions. But those 17 run in browser WASM at depth 20, which is
+seconds each in an opening position where the best move is usually obvious.
+Before the UI ships, `engineDepth` should be reconsidered — depth 12-14 is
+near-identical in the opening at a fraction of the cost — and progress should
+be reported against *engine* calls, not Maia calls.
+
+**Repetition bug found by this probe.** With a shuffling engine stand-in the
+search produced `1.Na3 Nf6 2.Nb1 Ng8 3.Na3 Nf6…` — prep that teaches nothing.
+Lines now carry the set of positions they have visited and refuse to revisit
+one. A real engine would rarely shuffle, but prep that can walk in circles is
+a defect regardless of how it is triggered.
+
+**Open question — coverage optics.** Σ R lands at 0.15-0.30 against live Maia,
+because per-node known mass is ~0.7 and compounds with depth (0.7³ ≈ 0.34).
+That number is *honest* but reads as a failing grade for prep that is fine.
+Do not ship "covers 15% of their play". Options: report coverage conditional on
+the model's known mass, report in-book depth instead, or report coverage at the
+first branch point only. Needs a product call before the UI lands.

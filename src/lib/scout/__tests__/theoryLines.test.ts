@@ -133,9 +133,9 @@ function makeProviders(opts: {
     bestMove: async (fen: string) => {
       engineCalls.push(fen);
       if (opts.engine) return opts.engine(fen);
-      // Deterministic stand-in for Stockfish: first legal move in SAN order.
-      const legal = new Chess(fen).moves();
-      return legal.sort()[0];
+      // Deterministic stand-in for Stockfish, preferring irreversible moves so
+      // the stub does not walk in circles.
+      return legalMoves(fen)[0];
     },
   };
 }
@@ -143,7 +143,16 @@ function makeProviders(opts: {
 // Stubs must stay legal at every depth — a fixed SAN string is only legal at
 // ply 1, which silently truncates every line and makes depth assertions pass
 // or fail for the wrong reason.
-const legalMoves = (fen: string) => new Chess(fen).moves().sort();
+// Pawn moves first. A stub that picks the alphabetically-first legal move
+// shuffles a knight (Na3, Nb1, Na3…), which the repetition guard correctly
+// truncates — making every depth assertion fail for a reason that has nothing
+// to do with the code under test. Pawn moves are irreversible, so the stub
+// makes real progress the way an engine would.
+const legalMoves = (fen: string) => {
+  const all = new Chess(fen).moves().sort();
+  const isPawnMove = (m: string) => /^[a-h]/.test(m);
+  return [...all.filter(isPawnMove), ...all.filter(m => !isPawnMove(m))];
+};
 
 /** Overwhelmingly prefers one reply, so τ is always cleared: never branches. */
 const forcedMaia = () => (fen: string) => [
@@ -425,5 +434,92 @@ describe("lines end at the last fork, not at a fixed depth", () => {
 
     expect(res.lines).toHaveLength(1);
     expect(res.lines[0].moves.length).toBeGreaterThanOrEqual(20);
+  });
+});
+
+describe("incomplete model output (measured against the live service)", () => {
+  // Maia returns a top-5 summing to ~0.71, not 1. Probed 2026-08-14:
+  //   1...  Nf6 .278  Nc6 .244  e5 .082  e6 .063  Nh6 .044   Σ = 0.712
+  const REAL_MAIA = [
+    { move: "Nf6", probability: 0.2777 },
+    { move: "Nc6", probability: 0.2442 },
+    { move: "e5", probability: 0.0824 },
+    { move: "e6", probability: 0.0632 },
+    { move: "Nh6", probability: 0.0443 },
+  ];
+
+  it("preserves the true mass rather than scaling the tail away", () => {
+    const out = blendDistribution(null, REAL_MAIA, 5);
+    const total = out.reduce((s, c) => s + c.probability, 0);
+
+    // ~29% of their behaviour is unaccounted for, and that must stay visible.
+    expect(total).toBeCloseTo(0.7118, 4);
+    expect(out[0].probability).toBeCloseTo(0.2777, 4);
+  });
+
+  it("branches on their unpredictability, not on the model's reticence", () => {
+    // Raw cumulative never reaches 0.70 until the 5th move, so testing against
+    // the unscaled total would drive every node to the Kmax cap.
+    expect(branchCount(REAL_MAIA, 0.7, 3)).toBe(2);
+  });
+
+  it("keeps reach honest end to end", async () => {
+    const cfg = { ...configFor("recommended"), maxPly: 2, minReach: 0 };
+    const res = await generateTheoryLines(
+      START,
+      "white",
+      makeProviders({ maiaFor: () => REAL_MAIA }),
+      cfg
+    );
+
+    // Two branches taken, and their reach is the TRUE probability — so the
+    // coverage figure states what it can defend, not 1.0.
+    expect(res.coverage).toBeCloseTo(0.2777 + 0.2442, 3);
+    expect(res.coverage).toBeLessThan(0.6);
+  });
+
+  it("still trusts a complete history over a reticent model", () => {
+    const out = blendDistribution(
+      { games: 100, moves: [{ move: "c5", probability: 100 }] },
+      REAL_MAIA,
+      5
+    );
+    // w = 100/105 ≈ 0.952 of a complete distribution, plus Maia's thin share.
+    expect(out.find(c => c.move === "c5")!.probability).toBeGreaterThan(0.95);
+  });
+});
+
+describe("a line never walks in circles", () => {
+  // Found by live-fire probe: with a shuffling engine the search happily
+  // produced "1.Na3 Nf6 2.Nb1 Ng8 3.Na3 Nf6..." — prep that teaches nothing.
+  const shuffler = (fen: string) => new Chess(fen).moves().sort()[0];
+
+  it("stops rather than repeating a position", async () => {
+    const providers = {
+      history: () => null,
+      maia: async (fen: string) => [
+        { move: new Chess(fen).moves().sort()[0], probability: 0.95 },
+      ],
+      bestMove: async (fen: string) => shuffler(fen),
+    };
+
+    const res = await generateTheoryLines(
+      START,
+      "white",
+      providers,
+      configFor("recommended")
+    );
+
+    for (const line of res.lines) {
+      const keys = new Set<string>();
+      const board = new Chess();
+      keys.add(board.fen().split(" ").slice(0, 4).join(" "));
+      for (const m of line.moves) {
+        board.move(m.san);
+        const key = board.fen().split(" ").slice(0, 4).join(" ");
+        expect(keys.has(key)).toBe(false);
+        keys.add(key);
+      }
+    }
   });
 });

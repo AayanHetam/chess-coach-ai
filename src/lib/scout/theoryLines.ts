@@ -35,10 +35,14 @@ export interface TheoryProviders {
   /**
    * Maia's predicted distribution for them at this position.
    *
-   * Must already be renormalised over the moves it returns — the service only
-   * returns a top-K, so the raw probabilities do not sum to 1 and the tail is
-   * unknown. Returning an empty array means "no opinion"; the caller must then
-   * fall back to history alone, and if there is no history either, stop.
+   * Pass the probabilities through RAW — do not renormalise. The service
+   * returns only a top-K summing to ~0.67-0.91 (measured against the live
+   * service), and that shortfall is meaningful: it is the share of their real
+   * behaviour the model did not tell us about. Scaling it away would inflate
+   * every reach figure downstream.
+   *
+   * An empty array means "no opinion"; the search then falls back to history
+   * alone, and stops the line if there is no history either.
    */
   maia(fen: string): Promise<MoveCandidate[]>;
   /** Your move: Stockfish best move in SAN. Only ever called on your turn. */
@@ -137,45 +141,73 @@ export function blendDistribution(
   const hasMaia = maia.length > 0;
 
   if (!hasHistory && !hasMaia) return [];
-  if (!hasMaia) return normalize(history!.moves);
-  if (!hasHistory) return normalize(maia);
+
+  // History arrives as raw game counts and IS complete — every game they played
+  // made some move — so it normalises to a true distribution.
+  //
+  // Maia does NOT. The live service returns only its top 5, whose probabilities
+  // sum to 0.67-0.91 depending on the position; the rest of the distribution is
+  // real behaviour we simply were not told about. Renormalising it to 1 would
+  // assert they always play a top-5 move and silently inflate every downstream
+  // reach figure, so it is deliberately left as-is: the shortfall is the honest
+  // measure of what we do not know.
+  if (!hasMaia) return sortDesc(normalize(history!.moves));
+  if (!hasHistory) return sortDesc(maia);
 
   const w = n / (n + k);
   const empirical = normalize(history!.moves);
-  const predicted = normalize(maia);
 
   const merged = new Map<string, number>();
   for (const c of empirical) merged.set(c.move, w * c.probability);
-  for (const c of predicted) {
+  for (const c of maia) {
     merged.set(c.move, (merged.get(c.move) ?? 0) + (1 - w) * c.probability);
   }
 
-  return normalize(
-    Array.from(merged, ([move, probability]) => ({ move, probability }))
-  );
+  return sortDesc(Array.from(merged, ([move, probability]) => ({ move, probability })));
 }
 
 /**
- * c(v) = min( Kmax, smallest c with p₁+…+p_c ≥ τ )
+ * c(v) = min( Kmax, smallest c with (p₁+…+p_c) / Σp ≥ τ )
+ *
+ * τ is measured against the mass we actually KNOW ABOUT, not against 1. Maia
+ * returns only a top-5 summing to ~0.7, so testing the raw cumulative against
+ * τ = 0.70 would force nearly every node to the Kmax cap purely because the
+ * model is reticent — branching on the model's ignorance rather than on the
+ * opponent's unpredictability.
+ *
+ * Dividing by Σp asks the intended question: among the moves we know they
+ * might play, how many cover τ of that likelihood? The user's stated cases are
+ * unaffected, since a complete distribution has Σp = 1.
  *
  * Expects `sorted` descending. Always returns at least 1 for a non-empty list,
  * so a node can never expand into nothing.
  */
 export function branchCount(sorted: MoveCandidate[], tau: number, maxBranch: number): number {
   if (sorted.length === 0) return 0;
+  const total = sorted.reduce((s, m) => s + m.probability, 0);
+  if (total <= 0) return Math.min(maxBranch, sorted.length);
+
   let cumulative = 0;
   for (let i = 0; i < sorted.length && i < maxBranch; i += 1) {
     cumulative += sorted[i].probability;
-    if (cumulative >= tau) return i + 1;
+    if (cumulative / total >= tau) return i + 1;
   }
   return Math.min(maxBranch, sorted.length);
 }
 
+/** Scale a count vector to a distribution summing to 1. */
 function normalize(moves: MoveCandidate[]): MoveCandidate[] {
   const total = moves.reduce((s, m) => s + Math.max(0, m.probability), 0);
   if (total <= 0) return [];
-  return moves
-    .map(m => ({ move: m.move, probability: Math.max(0, m.probability) / total }))
+  return moves.map(m => ({
+    move: m.move,
+    probability: Math.max(0, m.probability) / total,
+  }));
+}
+
+function sortDesc(moves: MoveCandidate[]): MoveCandidate[] {
+  return [...moves]
+    .filter(m => m.probability > 0)
     .sort((a, b) => b.probability - a.probability);
 }
 
@@ -185,8 +217,19 @@ interface Frontier {
   moves: TheoryMove[];
   reach: number;
   fen: string;
+  /**
+   * Positions already visited on this line, so it cannot walk in circles.
+   * Keyed without the move counters, matching how positions are compared
+   * everywhere else.
+   */
+  seen: Set<string>;
   /** Set once the node can no longer grow. */
   stoppedBy?: TheoryLine['stoppedBy'];
+}
+
+/** Position identity for repetition and transposition purposes. */
+function positionKey(fen: string): string {
+  return fen.split(' ').slice(0, 4).join(' ');
 }
 
 /**
@@ -204,7 +247,12 @@ export async function generateTheoryLines(
   providers: TheoryProviders,
   config: TheoryConfig
 ): Promise<TheoryResult> {
-  const root: Frontier = { moves: [], reach: 1, fen: startFen };
+  const root: Frontier = {
+    moves: [],
+    reach: 1,
+    fen: startFen,
+    seen: new Set([positionKey(startFen)]),
+  };
   let open: Frontier[] = [root];
   const closed: Frontier[] = [];
 
@@ -237,9 +285,16 @@ export async function generateTheoryLines(
         closed.push({ ...node, stoppedBy: 'no-model' });
         continue;
       }
+      // A line that returns to a position it already held is teaching nothing,
+      // and prep that shuffles in place is worse than shorter prep.
+      if (node.seen.has(positionKey(applied.fen))) {
+        closed.push({ ...node, stoppedBy: 'terminal' });
+        continue;
+      }
       open.push({
         fen: applied.fen,
         reach: node.reach,
+        seen: new Set(node.seen).add(positionKey(applied.fen)),
         moves: [
           ...node.moves,
           { san: applied.san, side: 'you', probability: 1, fen: applied.fen },
@@ -279,9 +334,11 @@ export async function generateTheoryLines(
       if (reach < config.minReach) continue;
       const applied = tryMove(node.fen, candidate.move);
       if (!applied) continue;
+      if (node.seen.has(positionKey(applied.fen))) continue;
       children.push({
         fen: applied.fen,
         reach,
+        seen: new Set(node.seen).add(positionKey(applied.fen)),
         moves: [
           ...node.moves,
           {

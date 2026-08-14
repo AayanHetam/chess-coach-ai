@@ -38,6 +38,7 @@ function probe(over: Partial<IntentProbe> = {}): IntentProbe {
     fenAfter: "8/8/8/8/8/8/8/1K5k b - - 1 1",
     rootLines: [line("Kb1", 0)],
     threat: null,
+    opponentBestAfterProbed: null,
     threatAfter: null,
     threatAlternative: null,
     opponentBestAfter: null,
@@ -81,23 +82,28 @@ describe("score conventions", () => {
 
 describe("prophylaxis", () => {
   it("detects the real h5 case with the measured numbers", () => {
-    // Depth 16, all three from White's side: a free tempo gets White +150 with
-    // Qg4; forced after h5 it scores -969; and White's actual best reply after
-    // h5 is Rh2 at 0. So Qg4 is 969cp worse than anything else they have —
-    // that gap, not the raw fall, is what "h5 stopped it" means.
+    // game_02 move 23, depth 16, all three from White's side and ALL THREE
+    // MEASURED BY THE SAME ENGINE: a free tempo gets White +176 with Qg4;
+    // forced after h5 it scores -936; and White's best reply after h5 is 0. So
+    // Qg4 is 936cp worse than anything else they have — that gap, not the raw
+    // fall, is what "h5 stopped it" means.
+    //
+    // The numbers moved (150/-969/1119/969 -> 176/-936/1112/936) when the sweep
+    // stopped letting null-move searches share a transposition table with the
+    // real ones. The old ones do not reproduce.
     const f = computeIntentFacts(
       probe({
         playedSan: "h5",
-        threat: line("Qg4", 150),
-        threatAfter: line("Qg4", -969),
-        opponentBestAfter: { cp: 0, mate: null },
+        threat: line("Qg4", 176),
+        threatAfter: line("Qg4", -936),
+        opponentBestAfterProbed: { cp: 0, mate: null },
         threatStillLegal: true,
       }),
     );
     expect(f.prophylaxis).not.toBeNull();
     expect(f.prophylaxis!.threatSan).toBe("Qg4");
-    expect(f.prophylaxis!.swingCp).toBe(1119);
-    expect(f.prophylaxis!.specificCp).toBe(969);
+    expect(f.prophylaxis!.swingCp).toBe(1112);
+    expect(f.prophylaxis!.specificCp).toBe(936);
     expect(f.prophylaxis!.preventedOutright).toBe(false);
   });
 
@@ -334,21 +340,66 @@ describe("prophylaxis", () => {
   });
 
   it("a threat merely INFERIOR to their alternatives counts too (real f5 case)", () => {
-    // The relative route. hxg5 ends at -80 — 20cp short of the absolute bar —
-    // but sits 301cp adrift of Black's best. The founder confirmed this one,
-    // and an absolute-only gate rejected it by those 20 centipawns.
+    // The relative route. game_07 move 16, re-measured in one regime: hxg5 ends
+    // at -73 — 27cp short of the absolute bar — but sits 288cp adrift of
+    // Black's best. The founder confirmed this one, and an absolute-only gate
+    // rejected it by those few centipawns.
     const f = computeIntentFacts(
       probe({
         playedSan: "f5",
         rootLines: [line("Nf3", -57), line("Nh3", -113)],
         playedScore: { cp: -241, mate: null },
-        threat: line("hxg5", 406),
-        threatAfter: line("hxg5", -80),
-        opponentBestAfter: { cp: 221, mate: null },
+        threat: line("hxg5", 425),
+        threatAfter: line("hxg5", -73),
+        opponentBestAfterProbed: { cp: 215, mate: null },
       }),
     );
     expect(f.prophylaxis).not.toBeNull();
     expect(f.prophylaxis!.threatSan).toBe("hxg5");
+  });
+
+  // ── the cross-regime guard ───────────────────────────────────────────────
+  //
+  // These two run the SAME position through the relative route and differ in
+  // one field only: whether the baseline was measured by the same engine as
+  // `threatAfter`. The founder caught this by asking why one move scored two
+  // different numbers in the same position; the answer was that gameEval reads
+  // a warm transposition table and a Tier 1 prober reads a cold one. Across 768
+  // plies of their games those two readings of the same position agree closely
+  // in the middle (median 15cp), but 4.2% differ by more than the 150cp bar the
+  // subtraction has to clear and 3.3% disagree about whether a forced mate
+  // exists — so about one such claim in twenty-four was measuring the engine
+  // rather than the move.
+  describe("never subtracts across measurement regimes", () => {
+    // Deliberately built so the ABSOLUTE route cannot fire: the threat still
+    // ends at -60, above PROPHYLAXIS_THREAT_MUST_END_BELOW_CP. Only the
+    // relative route can produce a claim here, so it is the thing under test.
+    const base = {
+      playedSan: "f5",
+      rootLines: [line("f5", -50), line("Nf3", -57)],
+      playedScore: { cp: -50, mate: null },
+      threat: line("hxg5", 400),
+      threatAfter: line("hxg5", -60),
+      threatStillLegal: true,
+    };
+
+    it("makes NO claim when only the cross-regime baseline is available", () => {
+      const f = computeIntentFacts(
+        probe({ ...base, opponentBestAfter: { cp: 200, mate: null }, opponentBestAfterProbed: null }),
+      );
+      // 200 - (-60) = 260, comfortably past the 150cp bar — and refused anyway,
+      // because those two numbers came from different engines.
+      expect(f.prophylaxis).toBeNull();
+      expect(f.notes.join(" ")).toContain("no same-regime baseline");
+    });
+
+    it("CONTROL: the same numbers measured in one regime do produce the claim", () => {
+      const f = computeIntentFacts(
+        probe({ ...base, opponentBestAfter: null, opponentBestAfterProbed: { cp: 200, mate: null } }),
+      );
+      expect(f.prophylaxis).not.toBeNull();
+      expect(f.prophylaxis!.specificCp).toBe(260);
+    });
   });
 
   it("a crushing move is not punished for crushing everything else too (real g6 case)", () => {
@@ -459,7 +510,57 @@ describe("unaddressed threats", () => {
       }),
     );
     expect(f.unaddressedThreat!.reason).toBe("barely-changed");
+    expect(f.unaddressedThreat!.madeItWorse).toBe(false);
     expect(f.quiet).toBe(false);
+  });
+
+  // ── a threat made WORSE is not a threat "barely changed" ─────────────────
+  //
+  // These two exist because a mutation proved nothing distinguished the two
+  // labels: collapsing `made-it-worse` back into `barely-changed` left the
+  // whole suite green. The label shipped in #323 on the strength of numbers
+  // (2196 -> 2706) that came from a corrupted sweep and do not reproduce. It
+  // is the right label; it just had no evidence and no test.
+  //
+  // Real position, re-measured in one regime — game_11 move 40, and the move
+  // the founder asked about. White is DRAWN: Rc7+, Rc3 and Rc1 all hold at
+  // 0.00. Ra6 loses at -527 and leaves Black's Re6+ slightly BETTER for Black
+  // than it already was, 521 -> 542.
+  it("distinguishes a threat the move made WORSE from one it barely changed", () => {
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Ra6",
+        rootLines: [line("Rc7+", 0), line("Rc3", 0)],
+        playedScore: { cp: -527, mate: null },
+        threat: line("Re6+", 521),
+        threatAfter: line("Re6+", 542),
+        opponentBestAfter: { cp: 556, mate: null },
+        opponentBestAfterProbed: { cp: 556, mate: null },
+      }),
+    );
+    expect(f.unaddressedThreat).not.toBeNull();
+    expect(f.unaddressedThreat!.reason).toBe("made-it-worse");
+    expect(f.unaddressedThreat!.madeItWorse).toBe(true);
+    expect(f.unaddressedThreat!.scoreBeforeCp).toBe(521);
+    expect(f.unaddressedThreat!.scoreAfterCp).toBe(542);
+  });
+
+  it("CONTROL: the same position with the threat nudged DOWN is barely-changed", () => {
+    // Identical but for the sign of the swing: 521 -> 500 instead of 521 -> 542.
+    // If this and the test above ever agree, the two labels are not separated.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Ra6",
+        rootLines: [line("Rc7+", 0), line("Rc3", 0)],
+        playedScore: { cp: -527, mate: null },
+        threat: line("Re6+", 521),
+        threatAfter: line("Re6+", 500),
+        opponentBestAfter: { cp: 556, mate: null },
+        opponentBestAfterProbed: { cp: 556, mate: null },
+      }),
+    );
+    expect(f.unaddressedThreat!.reason).toBe("barely-changed");
+    expect(f.unaddressedThreat!.madeItWorse).toBe(false);
   });
 
   it("reports a threat that is only illegal for one ply because we gave check", () => {

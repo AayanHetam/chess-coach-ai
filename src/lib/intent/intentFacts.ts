@@ -486,8 +486,17 @@ function computeProphylaxis(
     notes.push(`threat swing ${swing}cp below ${PROPHYLAXIS_MIN_SWING_CP}cp`);
     // A negative swing means the move made their threat BETTER for them, which
     // is a different card from "nothing much changed" and was being filed under
-    // the same label: Ra6 took a level position to -1735 and lifted the threat
-    // against it from 2196 to 2706.
+    // the same label.
+    //
+    // Real, re-measured in a single regime — game_11 move 40, the position the
+    // founder asked about. White is DRAWN: Rc7+, Rc3 and Rc1 all hold at 0.00.
+    // Ra6 loses at -527 AND leaves Black's Re6+ slightly better for Black than
+    // it already was, 521 → 542. "Barely changed" would file that beside a move
+    // that improved nothing; it is worse than nothing.
+    //
+    // The numbers this comment used to quote (2196 → 2706) came from a sweep
+    // whose null-move searches shared a transposition table with the real ones.
+    // The label was right and the evidence was not; 2706 does not reproduce.
     signals.unaddressed = swing < 0
       ? unaddressed(probe, "made-it-worse", { madeItWorse: true })
       : unaddressed(probe, "barely-changed");
@@ -514,9 +523,21 @@ function computeProphylaxis(
     notes.push("post-move threat score unreadable");
     return null;
   }
-  const specific = diffCp(probe.opponentBestAfter, probe.threatAfter.score);
+  // The baseline MUST be the one measured alongside threatAfter. gameEval's
+  // copy of this number is depth 16 on a warm transposition table; a Tier 1
+  // prober reads depth 16 on a cold one. Across 768 plies of the founder's
+  // games those two readings of the SAME position agree closely in the middle
+  // (median 15cp), but 4.2% differ by more than the 150cp bar below and 3.3%
+  // disagree about whether a forced mate exists — so a mixed subtraction is
+  // sometimes measuring the engine rather than the move. When the
+  // same-regime baseline was not paid for, the relative route is skipped
+  // entirely rather than run on mixed operands.
+  const specific = diffCp(probe.opponentBestAfterProbed, probe.threatAfter.score);
   const nowLoses = threatEndsAt <= PROPHYLAXIS_THREAT_MUST_END_BELOW_CP;
   const nowInferior = specific !== null && specific >= PROPHYLAXIS_MIN_SPECIFIC_CP;
+  if (probe.opponentBestAfterProbed === null && probe.opponentBestAfter !== null) {
+    notes.push("relative threat test skipped — no same-regime baseline was measured");
+  }
   if (!nowLoses && !nowInferior) {
     notes.push(
       `the threat still scores ${threatEndsAt}cp for them` +

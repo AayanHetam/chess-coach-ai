@@ -282,6 +282,23 @@ export class UciEngine {
     this.isReady = false;
     setEvaluationProgress?.(1);
 
+    // ONE `ucinewgame`, HERE — not per position. Every ply below is then
+    // searched on a transposition table warmed by the plies before it, which is
+    // deliberate: consecutive positions in a game genuinely share structure.
+    //
+    // DO NOT send any other position through this engine while a sweep is in
+    // flight, and do not reuse this instance for hypothetical positions. A null
+    // move (one side moving twice) is not reachable by legal play, and mixing
+    // such searches into this table corrupts the REAL evaluations that follow.
+    // Measured offline on a 12-game corpus: a position worth ~600cp came back
+    // as mate-in-17 purely from that carryover, and 3.1% of positions gained or
+    // lost a forced mate outright. Those numbers are the eval bar, the accuracy
+    // score and every card the review shows.
+    //
+    // Anything that needs a hypothetical position — the Tier 1 intent prober in
+    // src/lib/intent is the live example — must own a SEPARATE engine and clear
+    // its table before each search. See `NullMoveProbe` in
+    // src/lib/intent/fromGameEval.ts.
     await this.setMultiPv(multiPv);
     await this.sendCommandsToEachWorker(["ucinewgame", "isready"], "readyok");
     this.setWorkersNb(workersNb);

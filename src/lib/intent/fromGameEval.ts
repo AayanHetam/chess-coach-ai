@@ -80,6 +80,24 @@ function pvToSan(fen: string, pv: string[] | undefined, max = 8): string[] {
  * The null-move measurements for one ply, when a caller has paid for them.
  * Scores are the OPPONENT's, exactly as the engine reports them at the flipped
  * position — no conversion, because there the opponent IS the side to move.
+ *
+ * ── MEASUREMENT REGIME ─────────────────────────────────────────────────────
+ * These do NOT come from the same engine state as gameEval, and the difference
+ * is not small. `uciEngine.evaluateGame` sends `ucinewgame` ONCE and then walks
+ * every ply on a warm transposition table (uciEngine.ts:286, :412) — so a
+ * gameEval score is depth 16 plus whatever the table already knew. A Tier 1
+ * prober cannot share that engine (see `opponentBestAfter` below), so its
+ * scores are depth 16 from a cold table.
+ *
+ * Measured across all 768 plies of the founder's twelve games where both
+ * readings exist, the SAME position scored both ways disagrees by a median of
+ * only 15cp (p90 80cp) — but the tail is what matters: p99 367cp, max 996cp,
+ * 4.2% differ by more than 150cp, and 3.3% disagree about whether a forced
+ * mate exists at all.
+ *
+ * The consequence is a rule: NEVER subtract a Tier 1 score from a Tier 0 one.
+ * About one comparison in twenty-four would be decided by which engine did the
+ * measuring rather than by the move.
  */
 export interface NullMoveProbe {
   threat: EngineLine | null;
@@ -88,6 +106,20 @@ export interface NullMoveProbe {
   threatStillLegal: boolean;
   threatAfterAlternatives: IntentProbe["threatAfterAlternatives"];
   counterfactualCostCp: number | null;
+  /**
+   * The opponent's best reply at `fenAfter`, re-measured by THIS prober.
+   *
+   * gameEval already carries this number, and reusing it was the original
+   * design. It is wrong: `computeProphylaxis` subtracts it from `threatAfter`
+   * to ask "is the threat now clearly worse than their alternatives?", and
+   * `threatAfter` is a Tier 1 measurement. Mixing the two decided roughly one
+   * comparison in twenty-four by which engine did the measuring.
+   *
+   * Costs one extra search on Tier 1 plies only. Null when a caller has not
+   * supplied it, in which case the Tier 0 value is used and the module is told
+   * the comparison is cross-regime.
+   */
+  opponentBestAfter: EngineLine | null;
 }
 
 export interface ProbeFromEval {
@@ -225,6 +257,10 @@ export function intentProbesFromGameEval(params: {
         ? didCaptureThreatPiece(fenBefore, mv.san, t1.threat.san)
         : null,
       opponentBestAfter,
+      // Same-regime baseline: present only when the Tier 1 prober measured it
+      // itself. Never falls back to the Tier 0 number above — that fallback is
+      // exactly the cross-regime subtraction this field exists to prevent.
+      opponentBestAfterProbed: t1?.opponentBestAfter?.score ?? null,
       threatAfterAlternatives: t1?.threatAfterAlternatives ?? [],
       playedScore,
       moverHasPieces,
@@ -247,6 +283,7 @@ function emptyProbe(fenBefore: string, playedSan: string, fenAfter: string): Int
     playedSan,
     fenAfter,
     rootLines: [],
+    opponentBestAfterProbed: null,
     threat: null,
     threatAfter: null,
     threatAlternative: null,

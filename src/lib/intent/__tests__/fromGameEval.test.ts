@@ -148,6 +148,7 @@ describe("intentProbesFromGameEval", () => {
           threatAfter: { san: "Qxh7#", score: { cp: null, mate: 1 }, pv: ["Qxh7#"], depth: 16 },
           threatAlternative: null,
           threatStillLegal: true,
+          opponentBestAfter: null,
           threatAfterAlternatives: [],
           counterfactualCostCp: null,
         }],

@@ -28,6 +28,7 @@ function probe(over: Partial<IntentProbe> = {}): IntentProbe {
     fenAfter: "8/8/8/8/8/8/8/1K5k b - - 1 1",
     rootLines: [line("Kb1", 0)],
     threat: null,
+    opponentBestAfterProbed: null,
     threatAfter: null,
     threatAlternative: null,
     opponentBestAfter: null,

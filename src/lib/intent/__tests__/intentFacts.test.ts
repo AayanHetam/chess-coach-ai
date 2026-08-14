@@ -181,11 +181,12 @@ describe("prophylaxis", () => {
     const f = computeIntentFacts(
       probe({
         playedSan: "a3",
-        // Real root score, so the tempo gate genuinely passes and execution
-        // reaches the branch under test rather than bailing out earlier.
-        rootLines: [line("Ke7", 8308), line("a3", 795)],
-        playedScore: { cp: 795, mate: null },
-        threat: line("Kg5", -4714),
+        // The threat must be worth something to them BEFORE the move, or the
+        // opponent-already-lost gate rejects it first and this branch is never
+        // reached — which is exactly what happened when that gate was added.
+        rootLines: [line("Ke7", 400), line("a3", 100)],
+        playedScore: { cp: 100, mate: null },
+        threat: line("Kg5", 200),
         threatAfter: line("Kg5", null, -17),
         opponentBestAfter: { cp: null, mate: -20 },
       }),
@@ -430,8 +431,10 @@ describe("unaddressed threats", () => {
         fenBefore: FEN,
         playedSan: "Qxf2",
         position: buildPositionFacts(FEN, "Qxf2"),
-        rootLines: [line("Qd8", -300), line("Qxf2", -900)],
-        playedScore: { cp: -900, mate: null },
+        // Measured, not invented: Black had Qd4+, a forced mate in 17. That is
+        // what makes this worth saying — the game was not decided before it.
+        rootLines: [line("Qd4+", null, 17), line("Qxf2", null, -1)],
+        playedScore: { cp: null, mate: -1 },
         threat: line("Qxh7#", null, 1),
         threatAfter: line("Qxh7#", null, 1),
         threatStillLegal: true,

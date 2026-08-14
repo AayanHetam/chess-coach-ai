@@ -137,7 +137,7 @@ describe("intentProbesFromGameEval", () => {
     const probes = intentProbesFromGameEval({
       startFen: FEN,
       gameEval: evalOf([
-        { lines: [line(["b6d4"], 900)] },
+        { lines: [line(["b6d4"], null, -17)] },
         { lines: [line(["h6h7"], null, 1)] },
       ]),
       moves: ["Qxf2"],

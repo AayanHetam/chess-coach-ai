@@ -68,6 +68,17 @@ export type StoredUser = {
   practiceDaysPerWeek?: number;
   /** The date the goal was projected for, so /plan can track against it. */
   goalTargetDate?: number;
+
+  /**
+   * Weaknesses MEASURED by the placement test, replaced wholesale on each run.
+   *
+   * Split out from `focusThemes` because the two are different kinds of data:
+   * `focusThemes` is what the user SAID they want to work on and should
+   * persist, while this is an OBSERVATION and must be replaceable. Unioning
+   * them meant placement could add a weakness but never retract one, so a
+   * theme you had since improved at stayed a training target forever.
+   */
+  measuredWeaknesses?: string[];
   // Set when the user finishes the onboarding quiz. Gates the mandatory-once
   // questionnaire (OnboardingGate) so they're never asked twice.
   onboardingCompletedAt?: number;
@@ -316,6 +327,7 @@ export type UpdateUserPatch = Partial<
     | "goalRating"
     | "practiceDaysPerWeek"
     | "goalTargetDate"
+    | "measuredWeaknesses"
     | "onboardingCompletedAt"
     | "measuredRating"
     | "measuredRatingConfidence"

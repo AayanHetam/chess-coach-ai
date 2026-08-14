@@ -132,13 +132,15 @@ export default function PlacementTest() {
         ].slice(-100),
       }));
 
-      // Durable snapshot + merged weakness themes (don't clobber the user's
-      // self-chosen onboarding focus — union, capped, enum-safe).
+      // Durable snapshot. The measured weaknesses REPLACE the previous
+      // measurement rather than unioning with it: a union could add a weakness
+      // but never retract one, so a theme the player had since improved at
+      // stayed a training target forever, and repeated placements drifted
+      // everyone toward "weak at everything". The user's self-chosen
+      // `focusThemes` is untouched — it is a stated preference, not an
+      // observation, and readers combine the two at read time.
       if (user && res.itemsCompleted >= PLACEMENT_MIN_TO_FINALIZE) {
-        const merged = dedupe([
-          ...res.focusThemes,
-          ...(profile?.focusThemes ?? []),
-        ]).slice(0, MAX_FOCUS_THEMES);
+        const measured = dedupe(res.focusThemes).slice(0, MAX_FOCUS_THEMES);
         try {
           await updateProfile({
             measuredRating: res.finalRating,
@@ -146,7 +148,7 @@ export default function PlacementTest() {
             measuredAt: Date.now(),
             liveRatingSnapshot: res.finalRating,
             liveRatingSnapshotAt: Date.now(),
-            ...(merged.length > 0 ? { focusThemes: merged } : {}),
+            measuredWeaknesses: measured,
           });
         } catch (e) {
           console.error("Placement save failed:", e);

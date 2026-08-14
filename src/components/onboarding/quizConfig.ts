@@ -56,14 +56,16 @@ export function emptyAnswers(): QuizAnswers {
 /**
  * Representative minutes/day for each time band, for the improvement model.
  *
- * Midpoints, and the open-ended top band is treated as 45 rather than something
- * heroic: the projection must not quietly assume the most optimistic reading of
- * "30+ min" and hand back a timeline the user cannot hit.
+ * Midpoints. The top band is a hard 30, matching what the option now promises —
+ * the projection must not assume more practice than we asked for.
  */
 export const MINUTES_PER_DAY: Record<TimeCommitment, number> = {
   "under-10": 8,
-  "10-30": 20,
-  "30-plus": 45,
+  "10-30": 15,
+  // 30 rather than 45: the top band is now "about 30 min", because expecting
+  // more than half an hour a day from a self-directed learner is how plans get
+  // abandoned. The projection must assume what we actually ask for.
+  "30-plus": 30,
 };
 
 export function minutesPerDayFor(time: TimeCommitment | undefined): number {
@@ -155,9 +157,13 @@ export const TIME_OPTIONS: {
   label: string;
   helper: string;
 }[] = [
+  // Capped at 30 minutes on purpose. Asking for more than half an hour a day
+  // sets a bar most people miss, and a plan you miss is a plan you abandon.
+  // The stored keys are unchanged so existing profiles need no migration —
+  // only the labels and the minutes they map to have moved.
   { key: "under-10", label: "Under 10 min / day", helper: "Quick daily reps." },
-  { key: "10-30", label: "10–30 min / day", helper: "A steady habit." },
-  { key: "30-plus", label: "30+ min / day", helper: "I'm here to grind." },
+  { key: "10-30", label: "About 15 min / day", helper: "A steady habit." },
+  { key: "30-plus", label: "About 30 min / day", helper: "I want to move fast." },
 ];
 
 // Rating + band helpers ──────────────────────────────────────────────────────

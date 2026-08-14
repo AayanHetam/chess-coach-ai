@@ -246,6 +246,8 @@ describe("guided practice is faster than the unguided literature baseline", () =
   });
 
   it("reproduces the founder's calibration anchor: 1300 → 1600 in ~4 months of daily practice", () => {
+    // Anchored at the 30-MINUTE cap the quiz now asks for, not the hour it
+    // used to assume. If the time bands move, this is the test that notices.
     // Aayan's coaching experience, and the reason the multiplier exists. The
     // unguided curve says ~9.6 months for the same schedule; the published
     // rates it is fitted to all measure SELF-DIRECTED players, which is not
@@ -254,7 +256,7 @@ describe("guided practice is faster than the unguided literature baseline", () =
     const p = projectToGoal({
       currentRating: 1300,
       goalRating: 1600,
-      minutesPerDay: 60,
+      minutesPerDay: 30,
       daysPerWeek: 7,
     });
     expect(p.months!).toBeGreaterThan(3);
@@ -276,8 +278,8 @@ describe("the target date", () => {
 
   it("puts the goal on a real calendar date", () => {
     const p = projectToGoal({ currentRating: 1300, goalRating: 1600, ...base });
-    // ~3.8 months out → December 2026.
-    expect(formatTargetDate(p.targetDate!)).toBe("December 2026");
+    // ~2.3 months out at an hour a day → October 2026.
+    expect(formatTargetDate(p.targetDate!)).toBe("October 2026");
   });
 
   it("brackets it with the same fast/slow band, as dates", () => {

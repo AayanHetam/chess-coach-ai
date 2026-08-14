@@ -78,12 +78,20 @@ export const MODEL = {
    * This product is adaptive puzzles aimed at measured weaknesses, plus a
    * coach, plus SRS. That it beats unguided study is its entire premise.
    *
-   * 0.4 is calibrated to Aayan's coaching experience — a 1300 practising daily
-   * reaching 1600 in about four months — which this reproduces at 3.8 months
-   * for an hour a day. Isolated here so it is one line to tune, and so the
-   * literature-calibrated base curve underneath stays honest and testable.
+   * 0.24 is calibrated to Aayan's coaching experience — a 1300 practising
+   * daily reaching 1600 in about four months — held against the 30-minute cap
+   * the quiz now asks for rather than the hour it used to assume. It
+   * reproduces 4.0 months at 30 min daily and 4.6 at 30 min x 6 days.
+   *
+   * This is the OPTIMISTIC end of what is defensible, and that is a deliberate
+   * founder call. The band and the "not a promise" line ship alongside it for
+   * exactly that reason: the estimate leans forward, so the uncertainty has to
+   * stay visible rather than being quietly dropped.
+   *
+   * Isolated here so it is one line to tune, and so the literature-calibrated
+   * base curve underneath stays honest and independently testable.
    */
-  GUIDED_PRACTICE_MULTIPLIER: 0.4,
+  GUIDED_PRACTICE_MULTIPLIER: 0.24,
   /** Multipliers on the central estimate. Derived from the variance above. */
   FAST_MULTIPLIER: 0.65,
   SLOW_MULTIPLIER: 1.75,

@@ -31,6 +31,10 @@ export function sessionSizeFor(tc?: TimeCommitment): SessionSize {
 
 const RATING_WINDOW = 120;
 
+function dedupeThemes(themes: string[]): string[] {
+  return Array.from(new Set(themes));
+}
+
 /**
  * Goal-driven intensity. Scales the session when the user's target rating is
  * further ahead than their stated schedule comfortably supports.
@@ -56,6 +60,8 @@ export interface DailyPlanInput {
   dailyTimeCommitment?: TimeCommitment;
   /** Set from the user's goal rating vs their schedule; defaults to "steady". */
   intensityTier?: IntensityTier;
+  /** Placement-measured weaknesses. Take priority over stated focusThemes. */
+  measuredWeaknesses?: string[];
   focusThemes?: string[];
   liveRating: number;
   stats: PuzzleStats;
@@ -73,10 +79,16 @@ function roundRobin(themes: string[], count: number): string[] {
 
 /** Weakness-first theme selection, falling back to the linear syllabus path. */
 function pickNewThemeCandidates(input: DailyPlanInput): string[] {
-  const { focusThemes, stats, liveRating } = input;
+  const { focusThemes, measuredWeaknesses, stats, liveRating } = input;
+
+  // Measured weaknesses lead: they are an observation of how the player is
+  // doing NOW, where focusThemes is what they said they wanted months ago.
+  // Combined at READ time so each source keeps its own write semantics —
+  // measurements get replaced, preferences persist.
+  const combined = dedupeThemes([...(measuredWeaknesses ?? []), ...(focusThemes ?? [])]);
 
   // 1) Measured/declared weaknesses that map to a not-yet-mastered unit.
-  const weak = (focusThemes ?? []).filter((t) => {
+  const weak = combined.filter((t) => {
     const unit = unitForTheme(t);
     return unit && !isUnitMastered(unit, stats, liveRating);
   });

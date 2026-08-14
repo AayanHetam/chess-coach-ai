@@ -121,6 +121,7 @@ export default function PlanPage() {
           | TimeCommitment
           | undefined,
         focusThemes: profile?.focusThemes,
+        measuredWeaknesses: profile?.measuredWeaknesses,
         liveRating: stats.rating,
         stats,
         dueReviewThemes: dueThemes(srs, nowMs),

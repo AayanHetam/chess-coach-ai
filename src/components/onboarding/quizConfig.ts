@@ -284,7 +284,14 @@ export function buildPayload(answers: QuizAnswers): UserProfileUpdates {
         minutesPerDay: minutesPerDayFor(answers.time),
         daysPerWeek: answers.daysPerWeek,
       });
-      if (projection.targetDate) payload.goalTargetDate = projection.targetDate;
+      if (projection.targetDate) {
+        payload.goalTargetDate = projection.targetDate;
+        // The baseline the promise was made from. Without these /plan can only
+        // re-derive a fresh (and always flattering) projection from wherever
+        // the user happens to be today, which would make "ahead" impossible.
+        payload.goalStartRating = currentRating;
+        payload.goalSetAt = Date.now();
+      }
     }
   }
 

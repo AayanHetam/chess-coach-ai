@@ -133,6 +133,8 @@ export const profilePatchSchema = z.object({
   goalRating: z.number().int().min(100).max(3000).optional(),
   practiceDaysPerWeek: z.number().int().min(1).max(7).optional(),
   goalTargetDate: z.number().int().min(0).optional(),
+  goalStartRating: z.number().int().min(0).max(3500).optional(),
+  goalSetAt: z.number().int().min(0).optional(),
   // Measured weaknesses are replaced wholesale by the placement test, unlike
   // focusThemes which carries the user's stated preference.
   measuredWeaknesses: z

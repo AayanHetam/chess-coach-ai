@@ -79,6 +79,14 @@ export type StoredUser = {
    * theme you had since improved at stayed a training target forever.
    */
   measuredWeaknesses?: string[];
+
+  /**
+   * Where the goal projection started, and when. Stored rather than derived so
+   * /plan can say "you're 3 weeks ahead" against the ORIGINAL promise instead
+   * of quietly re-baselining to a softer target every time the user visits.
+   */
+  goalStartRating?: number;
+  goalSetAt?: number;
   // Set when the user finishes the onboarding quiz. Gates the mandatory-once
   // questionnaire (OnboardingGate) so they're never asked twice.
   onboardingCompletedAt?: number;
@@ -328,6 +336,8 @@ export type UpdateUserPatch = Partial<
     | "practiceDaysPerWeek"
     | "goalTargetDate"
     | "measuredWeaknesses"
+    | "goalStartRating"
+    | "goalSetAt"
     | "onboardingCompletedAt"
     | "measuredRating"
     | "measuredRatingConfidence"

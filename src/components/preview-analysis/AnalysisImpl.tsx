@@ -139,7 +139,12 @@ import {
 import { useAtomValue, useSetAtom } from "jotai";
 import { savedEvalsAtom } from "@/sections/analysis/states";
 import type { SavedEvals } from "@/types/eval";
-import { getEvaluateGameParams, getEvaluationBarValue } from "@/lib/chess";
+import {
+  getEvaluateGameParams,
+  getEvaluationBarValue,
+  getRootFen,
+  replayFromRoot,
+} from "@/lib/chess";
 import { detectOpening } from "@/lib/unifiedOpeningDetector";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
@@ -5229,15 +5234,16 @@ function InsightContinuationInline({
     const pv = posEval?.lines?.[0];
     if (!pv?.pv || pv.pv.length === 0) return null;
 
-    // Get FEN before this move by replaying loadedGame's history.
+    // Get FEN before this move by replaying loadedGame's history from its
+    // ROOT — a FEN-loaded game does not start from the standard position.
     let fenBefore: string | null = null;
     try {
-      const tempGame = new Chess();
-      const history = loadedGame.history();
-      for (let i = 0; i < halfMoveIdx && i < history.length; i++) {
-        tempGame.move(history[i]);
-      }
-      fenBefore = tempGame.fen();
+      const { board } = replayFromRoot(
+        loadedGame.history(),
+        halfMoveIdx,
+        getRootFen(loadedGame)
+      );
+      fenBefore = board.fen();
     } catch {
       return null;
     }
@@ -7119,6 +7125,13 @@ export default function AnalysisPage() {
     () => loadedGame.history({ verbose: true }) as Move[],
     [loadedGame]
   );
+  /**
+   * The position this game starts from — a FEN when it was loaded from one
+   * (?fen=, ?puzzleFen=, a pasted FEN, a position-only coach insight),
+   * undefined for an ordinary PGN. Everything that replays the move list has
+   * to start here; see getRootFen.
+   */
+  const rootFen = useMemo(() => getRootFen(loadedGame), [loadedGame]);
   // False until something is actually loaded — the cold-start board is the
   // start position with no history, and a bare-FEN load has no history
   // either, so move count alone can't tell the two apart. Drives the page's
@@ -7552,11 +7565,8 @@ export default function AnalysisPage() {
     const correctMove =
       bestUci.length >= 4 ? bestUci.slice(0, 2) + bestUci.slice(2, 4) : "";
 
-    // FEN at the position BEFORE the mistake.
-    const g = new Chess();
-    for (let i = 0; i < currentPly - 1 && i < allMoves.length; i++) {
-      g.move(allMoves[i]);
-    }
+    // FEN at the position BEFORE the mistake, from the game's root.
+    const { board: g } = replayFromRoot(allMoves, currentPly - 1, rootFen);
     const fenAtMistake = g.fen();
 
     const evalBefore = prev.lines[0].cp ?? 0;
@@ -7616,18 +7626,22 @@ export default function AnalysisPage() {
 
   // Derived: current FEN + last move + check by replaying moves up to currentPly
   const { currentFen, lastMove, isInCheck } = useMemo(() => {
-    const g = new Chess();
-    let last: Move | null = null;
-    for (let i = 0; i < currentPly; i++) {
-      const result = g.move(allMoves[i]);
-      if (result) last = result;
-    }
+    // Replay from the game's ROOT, not from a fresh board. For a game loaded
+    // from a FEN there are no moves to replay, so `new Chess()` handed the
+    // whole page the standard start position — board, eval bar, Lines tab and
+    // coach context all described a position the user never asked for, under a
+    // greeting that said "Loaded a custom position".
+    const { board, lastMove: last } = replayFromRoot(
+      allMoves,
+      currentPly,
+      rootFen
+    );
     return {
-      currentFen: g.fen(),
+      currentFen: board.fen(),
       lastMove: last,
-      isInCheck: g.inCheck(),
+      isInCheck: board.inCheck(),
     };
-  }, [allMoves, currentPly]);
+  }, [allMoves, currentPly, rootFen]);
 
   // Command palette state
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -8331,7 +8345,12 @@ export default function AnalysisPage() {
   const handleCoachMoveRef = useCallback(
     (ply: number, playSan?: string) => {
       if (playSan) {
-        const preview = buildRecommendedPreview(allMoves, ply, playSan);
+        const preview = buildRecommendedPreview(
+          allMoves,
+          ply,
+          playSan,
+          rootFen
+        );
         if (preview) {
           if (preview.anchorPly !== currentPly) {
             keepPreviewOnPlySyncRef.current = true;
@@ -8365,7 +8384,7 @@ export default function AnalysisPage() {
       setTakeoverPreview(null);
       setCurrentPly(ply);
     },
-    [allMoves, currentPly, displayFen]
+    [allMoves, currentPly, displayFen, rootFen]
   );
 
   // User makes a move on the board directly (interactive in takeover mode)
@@ -9028,9 +9047,9 @@ export default function AnalysisPage() {
       ]);
       setIsThinking(true);
 
-      // Compute the FEN AT this ply (not at the current display position)
-      const g = new Chess();
-      for (let i = 0; i < ply && i < allMoves.length; i++) g.move(allMoves[i]);
+      // Compute the FEN AT this ply (not at the current display position),
+      // replaying from the game's root so FEN-loaded games are correct.
+      const { board: g } = replayFromRoot(allMoves, ply, rootFen);
       const fenAtPly = g.fen();
 
       let accumulated = "";

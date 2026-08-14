@@ -78,12 +78,20 @@ export const MODEL = {
    * This product is adaptive puzzles aimed at measured weaknesses, plus a
    * coach, plus SRS. That it beats unguided study is its entire premise.
    *
-   * 0.4 is calibrated to Aayan's coaching experience — a 1300 practising daily
-   * reaching 1600 in about four months — which this reproduces at 3.8 months
-   * for an hour a day. Isolated here so it is one line to tune, and so the
-   * literature-calibrated base curve underneath stays honest and testable.
+   * 0.24 is calibrated to Aayan's coaching experience — a 1300 practising
+   * daily reaching 1600 in about four months — held against the 30-minute cap
+   * the quiz now asks for rather than the hour it used to assume. It
+   * reproduces 4.0 months at 30 min daily and 4.6 at 30 min x 6 days.
+   *
+   * This is the OPTIMISTIC end of what is defensible, and that is a deliberate
+   * founder call. The band and the "not a promise" line ship alongside it for
+   * exactly that reason: the estimate leans forward, so the uncertainty has to
+   * stay visible rather than being quietly dropped.
+   *
+   * Isolated here so it is one line to tune, and so the literature-calibrated
+   * base curve underneath stays honest and independently testable.
    */
-  GUIDED_PRACTICE_MULTIPLIER: 0.4,
+  GUIDED_PRACTICE_MULTIPLIER: 0.24,
   /** Multipliers on the central estimate. Derived from the variance above. */
   FAST_MULTIPLIER: 0.65,
   SLOW_MULTIPLIER: 1.75,
@@ -335,4 +343,94 @@ export function sessionSizeMultiplier(tier: IntensityTier): number {
     case "hard":
       return 1.5;
   }
+}
+
+
+// ─── Progress against a promise ─────────────────────────────────────────────
+
+export type GoalPace = "ahead" | "on_track" | "behind" | "reached";
+
+export interface GoalProgress {
+  pace: GoalPace;
+  /** Rating the original plan expected by now. */
+  expectedRating: number;
+  currentRating: number;
+  goalRating: number;
+  /** Points ahead (+) or behind (-) the plan. */
+  pointsVsPlan: number;
+  /**
+   * Weeks ahead (+) or behind (-): the gap between when the plan said you'd
+   * reach today's rating and when you actually did. More meaningful than
+   * points, because points are not linear — 20 points at 1900 is a month's
+   * work, 20 points at 1200 is an afternoon.
+   */
+  weeksVsPlan: number;
+  /** Fraction of the journey covered, 0-1, for a progress bar. */
+  fractionComplete: number;
+}
+
+export interface GoalProgressInput {
+  startRating: number;
+  goalRating: number;
+  currentRating: number;
+  goalSetAt: number;
+  minutesPerDay: number;
+  daysPerWeek: number;
+  nowMs?: number;
+}
+
+/** Weeks the plan allots to get from `startRating` to `rating`. */
+function plannedWeeksTo(
+  startRating: number,
+  rating: number,
+  weeklyHours: number
+): number {
+  if (weeklyHours <= 0) return Infinity;
+  return guidedHoursBetween(startRating, rating) / weeklyHours;
+}
+
+/**
+ * How the user is doing against the promise they were given at signup.
+ *
+ * Measured against the ORIGINAL baseline, never re-derived from where they
+ * are today: re-baselining would silently move the goalposts every visit and
+ * make "behind" impossible to ever report, which would make the whole thing
+ * decorative.
+ */
+export function goalProgress(input: GoalProgressInput): GoalProgress {
+  const { startRating, goalRating, currentRating, goalSetAt } = input;
+  const now = input.nowMs ?? Date.now();
+  const weeklyHours = effectiveWeeklyHours(input.minutesPerDay, input.daysPerWeek);
+
+  const weeksElapsed = Math.max(0, (now - goalSetAt) / (7 * 24 * 60 * 60 * 1000));
+  const expectedRating = Math.round(
+    ratingAfterWeeks(startRating, weeksElapsed, weeklyHours)
+  );
+
+  // Where the plan said today's rating would arrive, vs when it actually did.
+  const plannedWeeksForCurrent = plannedWeeksTo(startRating, currentRating, weeklyHours);
+  const weeksVsPlan = Number.isFinite(plannedWeeksForCurrent)
+    ? plannedWeeksForCurrent - weeksElapsed
+    : 0;
+
+  const span = goalRating - startRating;
+  const fractionComplete =
+    span > 0 ? Math.max(0, Math.min(1, (currentRating - startRating) / span)) : 1;
+
+  let pace: GoalPace;
+  if (currentRating >= goalRating) pace = "reached";
+  // A week either side is noise, not a trend — puzzle ratings move daily.
+  else if (weeksVsPlan > 1) pace = "ahead";
+  else if (weeksVsPlan < -1) pace = "behind";
+  else pace = "on_track";
+
+  return {
+    pace,
+    expectedRating,
+    currentRating,
+    goalRating,
+    pointsVsPlan: currentRating - expectedRating,
+    weeksVsPlan,
+    fractionComplete,
+  };
 }

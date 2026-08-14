@@ -206,3 +206,55 @@ describe("goal intensity scales the daily session", () => {
     expect(hard.newThemes.length / steady.newThemes.length).toBeLessThanOrEqual(1.5);
   });
 });
+
+describe("measured weaknesses vs stated preferences", () => {
+  const base = {
+    dailyTimeCommitment: "10-30" as const,
+    liveRating: 1200,
+    stats: statsWith({}, 1200),
+    dueReviewThemes: [],
+  };
+
+  it("trains a freshly measured weakness even if it was never a stated goal", () => {
+    const s = buildDailySession({ ...base, focusThemes: [], measuredWeaknesses: ["back-rank"] });
+    expect(s.newThemes.every((t) => t === "back-rank")).toBe(true);
+  });
+
+  it("still honours a stated preference when nothing has been measured", () => {
+    const s = buildDailySession({ ...base, focusThemes: ["fork"], measuredWeaknesses: [] });
+    expect(s.newThemes.every((t) => t === "fork")).toBe(true);
+  });
+
+  it("puts the measurement FIRST when the two disagree", () => {
+    // What the player is weak at today outranks what they picked months ago.
+    const s = buildDailySession({
+      ...base,
+      focusThemes: ["fork"],
+      measuredWeaknesses: ["endgame"],
+    });
+    expect(s.newThemes[0]).toBe("endgame");
+  });
+
+  it("does not resurrect a weakness a later placement dropped", () => {
+    // THE BUG THIS FIXES: placement used to union its result onto the existing
+    // list, so a theme could be added but never retracted — everyone drifted
+    // toward "weak at everything" and targeting quietly stopped meaning
+    // anything. A re-measure now replaces, so "pin" is simply gone.
+    const afterRemeasure = buildDailySession({
+      ...base,
+      focusThemes: [],
+      measuredWeaknesses: ["endgame"], // previous run said ["pin"]
+    });
+    expect(afterRemeasure.newThemes).not.toContain("pin");
+  });
+
+  it("dedupes when a theme is both stated and measured", () => {
+    const s = buildDailySession({
+      ...base,
+      focusThemes: ["fork"],
+      measuredWeaknesses: ["fork"],
+      dueReviewThemes: [],
+    });
+    expect(new Set(s.newThemes).size).toBe(1);
+  });
+});

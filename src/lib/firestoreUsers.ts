@@ -53,6 +53,11 @@ export interface UserProfile {
   practiceDaysPerWeek?: number;
   /** Epoch ms the goal rating is projected for. */
   goalTargetDate?: number;
+  /** Placement-measured weaknesses, REPLACED each run (see server/users.ts). */
+  measuredWeaknesses?: string[];
+  /** Rating when the goal was set, and when — the baseline /plan tracks against. */
+  goalStartRating?: number;
+  goalSetAt?: number;
   dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
   onboardingCompletedAt?: number;
 

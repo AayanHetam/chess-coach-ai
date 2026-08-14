@@ -4,6 +4,7 @@ import {
   hoursBetween,
   guidedHoursBetween,
   formatTargetDate,
+  goalProgress,
   effectiveWeeklyHours,
   spacingFactor,
   ratingAfterWeeks,
@@ -246,6 +247,8 @@ describe("guided practice is faster than the unguided literature baseline", () =
   });
 
   it("reproduces the founder's calibration anchor: 1300 → 1600 in ~4 months of daily practice", () => {
+    // Anchored at the 30-MINUTE cap the quiz now asks for, not the hour it
+    // used to assume. If the time bands move, this is the test that notices.
     // Aayan's coaching experience, and the reason the multiplier exists. The
     // unguided curve says ~9.6 months for the same schedule; the published
     // rates it is fitted to all measure SELF-DIRECTED players, which is not
@@ -254,7 +257,7 @@ describe("guided practice is faster than the unguided literature baseline", () =
     const p = projectToGoal({
       currentRating: 1300,
       goalRating: 1600,
-      minutesPerDay: 60,
+      minutesPerDay: 30,
       daysPerWeek: 7,
     });
     expect(p.months!).toBeGreaterThan(3);
@@ -276,8 +279,8 @@ describe("the target date", () => {
 
   it("puts the goal on a real calendar date", () => {
     const p = projectToGoal({ currentRating: 1300, goalRating: 1600, ...base });
-    // ~3.8 months out → December 2026.
-    expect(formatTargetDate(p.targetDate!)).toBe("December 2026");
+    // ~2.3 months out at an hour a day → October 2026.
+    expect(formatTargetDate(p.targetDate!)).toBe("October 2026");
   });
 
   it("brackets it with the same fast/slow band, as dates", () => {
@@ -332,5 +335,67 @@ describe("the target date", () => {
     });
     const d = new Date(p.targetDate!);
     expect(d.getMonth()).not.toBe(2); // must not land in March
+  });
+});
+
+describe("goalProgress — tracking against the original promise", () => {
+  const WEEK = 7 * 24 * 60 * 60 * 1000;
+  const SET_AT = new Date(2026, 7, 1).getTime();
+  const base = {
+    startRating: 1300,
+    goalRating: 1600,
+    goalSetAt: SET_AT,
+    minutesPerDay: 30,
+    daysPerWeek: 6,
+  };
+
+  it("says on track when the user is where the plan expected", () => {
+    const eightWeeksIn = SET_AT + 8 * WEEK;
+    const expected = goalProgress({ ...base, currentRating: 1300, nowMs: eightWeeksIn })
+      .expectedRating;
+    const p = goalProgress({ ...base, currentRating: expected, nowMs: eightWeeksIn });
+    expect(p.pace).toBe("on_track");
+    expect(Math.abs(p.pointsVsPlan)).toBeLessThanOrEqual(1);
+  });
+
+  it("says ahead when they have outrun the plan", () => {
+    const p = goalProgress({ ...base, currentRating: 1520, nowMs: SET_AT + 4 * WEEK });
+    expect(p.pace).toBe("ahead");
+    expect(p.weeksVsPlan).toBeGreaterThan(1);
+    expect(p.pointsVsPlan).toBeGreaterThan(0);
+  });
+
+  it("says behind when they have not moved at all", () => {
+    const p = goalProgress({ ...base, currentRating: 1300, nowMs: SET_AT + 10 * WEEK });
+    expect(p.pace).toBe("behind");
+    expect(p.weeksVsPlan).toBeLessThan(-1);
+  });
+
+  it("treats a week either side as noise, not a trend", () => {
+    // Puzzle ratings move every day; flipping between "ahead" and "behind" on
+    // a single session would make the badge meaningless.
+    const eight = SET_AT + 8 * WEEK;
+    const expected = goalProgress({ ...base, currentRating: 1300, nowMs: eight }).expectedRating;
+    expect(goalProgress({ ...base, currentRating: expected + 5, nowMs: eight }).pace).toBe("on_track");
+    expect(goalProgress({ ...base, currentRating: expected - 5, nowMs: eight }).pace).toBe("on_track");
+  });
+
+  it("reports reached once the goal is hit, whatever the schedule said", () => {
+    const p = goalProgress({ ...base, currentRating: 1600, nowMs: SET_AT + 2 * WEEK });
+    expect(p.pace).toBe("reached");
+    expect(p.fractionComplete).toBe(1);
+  });
+
+  it("measures against the ORIGINAL baseline, not today's rating", () => {
+    // Re-baselining would move the goalposts every visit and make "behind"
+    // unreportable — the badge would always say on track and mean nothing.
+    const behind = goalProgress({ ...base, currentRating: 1305, nowMs: SET_AT + 20 * WEEK });
+    expect(behind.pace).toBe("behind");
+    expect(behind.expectedRating).toBeGreaterThan(1400);
+  });
+
+  it("clamps the progress fraction rather than going negative on a dip", () => {
+    const dipped = goalProgress({ ...base, currentRating: 1250, nowMs: SET_AT + 4 * WEEK });
+    expect(dipped.fractionComplete).toBe(0);
   });
 });

@@ -24,6 +24,7 @@ import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import RatingTrends from "@/components/plan/RatingTrends";
+import GoalProgressCard from "@/components/plan/GoalProgressCard";
 import { NumberTicker } from "@/components/ui/NumberTicker";
 import SessionRunner from "@/components/curriculum/SessionRunner";
 import CurriculumMap from "@/components/curriculum/CurriculumMap";
@@ -121,6 +122,7 @@ export default function PlanPage() {
           | TimeCommitment
           | undefined,
         focusThemes: profile?.focusThemes,
+        measuredWeaknesses: profile?.measuredWeaknesses,
         liveRating: stats.rating,
         stats,
         dueReviewThemes: dueThemes(srs, nowMs),
@@ -259,6 +261,18 @@ export default function PlanPage() {
           </StatTile>
         </Box>
       </Box>
+
+      {/* The promise the quiz made, and whether they're keeping to it. Renders
+          nothing when no goal was set. */}
+      <GoalProgressCard
+        goalRating={profile?.goalRating}
+        goalStartRating={profile?.goalStartRating}
+        goalSetAt={profile?.goalSetAt}
+        goalTargetDate={profile?.goalTargetDate}
+        dailyTimeCommitment={profile?.dailyTimeCommitment as TimeCommitment | undefined}
+        practiceDaysPerWeek={profile?.practiceDaysPerWeek}
+        currentRating={stats.rating}
+      />
 
       {/* Bullet / blitz / rapid trends, read from the linked platform account.
           Self-gating: renders a prompt when no username is linked. */}

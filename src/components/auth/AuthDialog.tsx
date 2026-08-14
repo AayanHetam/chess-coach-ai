@@ -7,9 +7,15 @@ import React, { useState, useEffect, FormEvent } from "react";
 // — so React warns "Invalid prop `children` supplied to ForwardRef(Modal).
 // Expected an element that can hold a ref." This forwardRef'd div is a
 // neutral container Modal can attach to. Same fix in LoadGameDialog.
+// tabIndex -1 so MUI's focus trap has something it can actually focus. Without
+// it the trap has no anchor when the focused element unmounts.
 const ModalChild = React.forwardRef<HTMLDivElement, { children: React.ReactNode }>(
   function ModalChild({ children }, ref) {
-    return <div ref={ref}>{children}</div>;
+    return (
+      <div ref={ref} tabIndex={-1} style={{ outline: "none" }}>
+        {children}
+      </div>
+    );
   }
 );
 import {
@@ -68,6 +74,25 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
   useEffect(() => {
     if (open) setAgeBlocked(isAgeGateBlocked());
   }, [open]);
+
+  // The lockout notice replaces the form outright, which unmounts whatever
+  // was focused (the Continue button, or the DOB field). Focus then falls to
+  // <body> — outside the modal — and stays there until MUI's focus trap
+  // notices and pulls it back, measured at ~100ms. Escape pressed inside that
+  // window never reaches the Modal's keydown handler, so the dialog does not
+  // close and the only remaining exit is a mouse click on the backdrop.
+  //
+  // Moving focus to the notice ourselves closes the window and is what a
+  // screen reader needs anyway: the panel is the thing that just changed, so
+  // it should be what gets announced.
+  const blockedNoticeRef = React.useRef<HTMLDivElement>(null);
+  const showingBlockedNotice =
+    open && step === "auth" && mode === "signup" && ageBlocked;
+
+  useEffect(() => {
+    if (!showingBlockedNotice) return;
+    blockedNoticeRef.current?.focus();
+  }, [showingBlockedNotice]);
 
   const [chesscomUsername, setChesscomUsername] = useState("");
   const [lichessUsername, setLichessUsername] = useState("");
@@ -281,6 +306,12 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                 }}
               >
                 <Box
+                  // A div with onClick is not reachable by Tab and does not
+                  // fire on Enter/Space, so this was invisible to keyboard and
+                  // assistive tech — the dialog had no accessible exit at all
+                  // once Escape was swallowed (see blockedNoticeRef above).
+                  component="button"
+                  type="button"
                   onClick={handleClose}
                   aria-label="Close"
                   sx={{
@@ -288,6 +319,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                     top: 16,
                     right: 16,
                     cursor: "pointer",
+                    border: "none",
+                    background: "transparent",
+                    padding: 0,
+                    font: "inherit",
                     width: 28,
                     height: 28,
                     borderRadius: "8px",
@@ -445,7 +480,14 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                 {step === "auth" && mode === "signup" && ageBlocked ? (
                   /* COPPA: neutral under-13 lockout. No account exists and no
                      personal data was stored — the DOB never left the browser. */
-                  <Box sx={{ textAlign: "center", py: 3, px: 1 }}>
+                  <Box
+                    ref={blockedNoticeRef}
+                    // tabIndex -1: focusable programmatically (see the effect
+                    // above) without adding a stop to the tab order.
+                    tabIndex={-1}
+                    role="alert"
+                    sx={{ textAlign: "center", py: 3, px: 1, outline: "none" }}
+                  >
                     <AlertTriangle
                       size={28}
                       color="rgba(255,255,255,0.45)"

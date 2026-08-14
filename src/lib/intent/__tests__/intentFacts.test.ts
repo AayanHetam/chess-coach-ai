@@ -430,8 +430,10 @@ describe("unaddressed threats", () => {
         fenBefore: FEN,
         playedSan: "Qxf2",
         position: buildPositionFacts(FEN, "Qxf2"),
-        rootLines: [line("Qd8", -300), line("Qxf2", -900)],
-        playedScore: { cp: -900, mate: null },
+        // Measured, not invented: Black had Qd4+, a forced mate in 17. That is
+        // what makes this worth saying — the game was not decided before it.
+        rootLines: [line("Qd4+", null, 17), line("Qxf2", null, -1)],
+        playedScore: { cp: null, mate: -1 },
         threat: line("Qxh7#", null, 1),
         threatAfter: line("Qxh7#", null, 1),
         threatStillLegal: true,

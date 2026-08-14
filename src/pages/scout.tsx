@@ -33,6 +33,7 @@ import { NavPill } from '@/components/ui/NavPill';
 import {
   OpeningTreeNode,
   Platform,
+  ProfileSnapshot,
   ScoutAnalytics,
   ScoutGame,
   ScoutResult,
@@ -47,6 +48,7 @@ import ScoutLanding from '@/components/scout/ScoutLanding';
 import ProfileCard from '@/components/scout/ProfileCard';
 import TellsCard from '@/components/scout/TellsCard';
 import ClockWindowsPanel from '@/components/scout/ClockWindowsPanel';
+import HeadToHeadPanel from '@/components/scout/HeadToHeadPanel';
 import TargetedPrepPanel from '@/components/scout/TargetedPrep';
 import PreGameChecklist from '@/components/scout/PreGameChecklist';
 import RivalsPanel from '@/components/scout/RivalsPanel';
@@ -60,6 +62,13 @@ import ShareCardDialog from '@/components/scout/ShareCardDialog';
 import { parsePlatformCode } from '@/lib/shareCard';
 import { buildOpeningTree } from '@/lib/scoutService';
 import { computeCollisions } from '@/lib/collisionAnalysis';
+import { computeAnalytics } from '@/lib/scoutAnalytics';
+import {
+  buildHeadToHead,
+  buildRatingSeries,
+  compareProfiles,
+} from '@/lib/scout/headToHead';
+import { useViewer } from '@/hooks/useViewer';
 import type { Collisions } from '@/types/scout';
 import { getAuthHeader } from '@/lib/auth/getAuthHeader';
 
@@ -440,6 +449,7 @@ function TwinBanner({
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function ScoutPage() {
+  const { profile: viewerProfile } = useViewer();
   const pieceSet = useAtomValue(pieceSetAtom);
   const screenSize = useScreenSize();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -471,6 +481,9 @@ export default function ScoutPage() {
 
   // You-vs-them comparison
   const [collisions, setCollisions] = useState<Collisions | null>(null);
+  // Your own profile, derived from the games already fetched for collisions —
+  // a rating you actually played to, rather than one you typed in.
+  const [yourProfile, setYourProfile] = useState<ProfileSnapshot | null>(null);
   const [collisionsLoading, setCollisionsLoading] = useState(false);
   const [collisionsError, setCollisionsError] = useState<string | null>(null);
 
@@ -764,6 +777,7 @@ export default function ScoutPage() {
     if (!yn) {
       setCollisions(null);
       setCollisionsError(null);
+      setYourProfile(null);
       return;
     }
     if (yn.toLowerCase() === scoutResult.username.toLowerCase()) {
@@ -799,6 +813,12 @@ export default function ScoutPage() {
           scoutResult.username
         );
         setCollisions(result);
+        // Same payload also gives us your side of the head-to-head.
+        try {
+          setYourProfile(computeAnalytics(data.games, yn).profile);
+        } catch {
+          setYourProfile(null);
+        }
       } catch (e: any) {
         if (cancelled) return;
         setCollisionsError(e?.message || 'Failed to load your games');
@@ -811,6 +831,31 @@ export default function ScoutPage() {
       clearTimeout(t);
     };
   }, [scoutResult, yourUsername]);
+
+  // Head-to-head. Prefer a rating you actually played to; fall back to the
+  // self-reported one on the profile, and label it as such so the odds are not
+  // read as harder evidence than they are.
+  const headToHead = useMemo(() => {
+    if (!analytics) return null;
+    const playedRatings = Object.values(yourProfile?.ratings ?? {}).filter(
+      (r): r is number => typeof r === 'number' && r > 0
+    );
+    const played = playedRatings.length ? Math.max(...playedRatings) : undefined;
+    const selfReported = viewerProfile?.selfReportedRating;
+    const rating = played ?? selfReported;
+    if (!rating) return null;
+    return buildHeadToHead({
+      yourRating: rating,
+      yourRatingSource: played ? 'played' : 'self-reported',
+      theirProfile: analytics.profile,
+    });
+  }, [analytics, yourProfile, viewerProfile]);
+
+  const theirRatingSeries = useMemo(
+    () =>
+      scoutResult ? buildRatingSeries(scoutResult.games, scoutResult.username) : [],
+    [scoutResult]
+  );
 
   // Rebuild tree when color filter or minGames changes — analytics stay cached.
   useEffect(() => {
@@ -1089,6 +1134,16 @@ export default function ScoutPage() {
             windows={analytics.clockWindows}
             username={scoutResult.username}
           />
+
+          {headToHead && yourProfile && (
+            <HeadToHeadPanel
+              h2h={headToHead}
+              comparison={compareProfiles(yourProfile, analytics.profile)}
+              series={theirRatingSeries}
+              yourName={yourUsername.trim() || 'You'}
+              theirName={scoutResult.username}
+            />
+          )}
 
           <TwinBanner
             username={scoutResult.username}

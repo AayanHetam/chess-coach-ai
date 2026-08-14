@@ -11,6 +11,14 @@
 #
 # All probes are read-only: bad-credential signin, redirect handoffs,
 # version/health endpoints. Nothing is created or mutated.
+#
+# DRIFT CHECK (folded in 2026-08-14, was its own deploy-drift.yml). That
+# workflow ran on its own */30 schedule, which at one billed minute per run
+# would have added back roughly the ~322 minutes a month the cadence cut above
+# had just saved. The check itself is two API calls and a curl — it does not
+# deserve a job of its own, and riding the heartbeat means the one scheduled
+# run GitHub actually delivers performs both checks instead of them being
+# throttled independently.
 name: Heartbeat
 
 on:
@@ -19,6 +27,12 @@ on:
   workflow_dispatch:
 
 permissions:
+  # `contents: read` is load-bearing for the drift step, which reads main's
+  # HEAD and the compare endpoint. Naming any permission sets every unlisted
+  # scope to none, so omitting it does not fall back to a default — the API
+  # calls fail, the step takes its "cannot assess drift" branch and exits 0,
+  # and the check goes quietly dead while still reporting success.
+  contents: read
   issues: write
 
 jobs:
@@ -74,6 +88,111 @@ jobs:
             printf "%b" "$FAILS" > /tmp/fails.md
             exit 1
           fi
+
+      # `deploy-verify` triggers on `push: branches: [main]`, so it is
+      # structurally blind to the case where the PUSH EVENT ITSELF never
+      # arrives. Not hypothetical: on 2026-08-14 a GitHub 502 during a merge
+      # completed the merge server-side but delivered no push event. No Vercel
+      # build ran, deploy-verify never ran, and prod sat frozen with nothing
+      # alerting — the exact outcome deploy-verify exists to prevent, reached
+      # through the one door it cannot see.
+      #
+      # This rides the heartbeat's timer instead, so it depends on nothing that
+      # can go missing. `always()` so a failing probe above does not mask it —
+      # a broken prod is when drift matters most. It never exits non-zero
+      # itself; it reports through `drifted` so the two alarms stay separate
+      # and one cannot be mistaken for the other.
+      #
+      # Comparison is done over the API rather than `actions/checkout`: this
+      # repo carries 682MB of history, and cloning it hourly to answer "is
+      # prod's SHA an ancestor of main" would cost more than the check.
+      - name: Compare prod against main HEAD
+        id: drift
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+          PROD_SHA=$(curl -sf --max-time 15 https://www.chessmasti.com/api/version \
+            | sed -E 's/.*"sha":"([^"]+)".*/\1/') || PROD_SHA=""
+
+          if [ -z "$PROD_SHA" ]; then
+            echo "::warning::/api/version unreachable — cannot assess drift this run."
+            exit 0
+          fi
+
+          MAIN=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" 2>/dev/null) || MAIN=""
+          if [ -z "$MAIN" ]; then
+            echo "::warning::could not read main's HEAD — cannot assess drift this run."
+            exit 0
+          fi
+          HEAD_SHA=$(printf '%s' "$MAIN" | jq -r .sha)
+          HEAD_DATE=$(printf '%s' "$MAIN" | jq -r .commit.committer.date)
+
+          echo "main:  $HEAD_SHA"
+          echo "prod:  $PROD_SHA"
+
+          # "dev" means a deployment was made outside the git integration (a
+          # CLI upload), so VERCEL_GIT_COMMIT_SHA was never injected. Prod may
+          # well be current, but nothing can verify it — which is its own
+          # failure, because every deploy check downstream is now blind.
+          # Checked explicitly rather than left to fall through to the
+          # unknown-SHA branch below: that branch would still fire, but would
+          # report the wrong reason, sending whoever reads the issue after a
+          # phantom commit instead of a CLI deploy.
+          if [ "$PROD_SHA" = "dev" ]; then
+            echo "reason=Prod reports sha \"dev\": it was deployed outside the git integration, so deploy verification is blind." >> "$GITHUB_OUTPUT"
+            echo "drifted=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$PROD_SHA" = "$HEAD_SHA" ]; then
+            echo "In sync."
+            exit 0
+          fi
+
+          BEHIND=$(gh api "repos/$GITHUB_REPOSITORY/compare/$PROD_SHA...$HEAD_SHA" --jq .ahead_by 2>/dev/null) || BEHIND=""
+          if [ -z "$BEHIND" ]; then
+            echo "reason=Prod is serving $PROD_SHA, which does not exist in this repository." >> "$GITHUB_OUTPUT"
+            echo "drifted=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Grace period: a deploy legitimately takes a few minutes, so only
+          # complain once main's HEAD has been sitting undeployed for a while.
+          HEAD_AGE=$(( $(date +%s) - $(date -d "$HEAD_DATE" +%s) ))
+          echo "prod is $BEHIND commit(s) behind; HEAD is ${HEAD_AGE}s old"
+
+          if [ "$HEAD_AGE" -gt 2400 ]; then
+            echo "reason=Prod is $BEHIND commit(s) behind main. HEAD $HEAD_SHA has been undeployed for $((HEAD_AGE/60)) minutes." >> "$GITHUB_OUTPUT"
+            echo "drifted=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: File an issue when prod has drifted
+        if: always() && steps.drift.outputs.drifted == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REASON: ${{ steps.drift.outputs.reason }}
+        run: |
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "in:title Prod has drifted from main" --json number --jq 'length')
+          if [ "$EXISTING" != "0" ]; then
+            echo "Issue already open — not filing a duplicate."
+            exit 0
+          fi
+          BODY=$(printf '%s\n' \
+            "$REASON" \
+            "" \
+            "This check runs on the heartbeat's timer rather than on \`push\`, so it catches the case \`deploy-verify\` cannot: a push event that was never delivered at all (GitHub 502 during a merge, a dropped webhook), where no build runs and no verification fires." \
+            "" \
+            "Likely fixes:" \
+            "- Push an empty commit to main to regenerate the push event." \
+            "- Check the Vercel dashboard for a failed or missing production build." \
+            "" \
+            "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID")
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "🚨 Prod has drifted from main" \
+            --body "$BODY"
 
       - name: File issue on failure
         if: failure()

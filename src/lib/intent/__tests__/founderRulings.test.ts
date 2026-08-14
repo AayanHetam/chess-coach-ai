@@ -150,6 +150,58 @@ describe("the founder's rulings on unaddressed mate threats", () => {
     expect(kept.map((r) => r.id)).toEqual(["game_04 27… Qxf2"]);
   });
 
+  // ── the same rule, applied to the other side ────────────────────────────
+  // The founder's principle is symmetric and only one half was implemented.
+
+  it("says nothing about a threat from an opponent who is already lost", () => {
+    // Real: game_12 move 49. The player is +1631 and the module reported they
+    // had failed to deal with Kg4 — a move worth -1429 TO THE OPPONENT. The
+    // null move always returns something; in a won position that something is
+    // just the least-bad way to keep losing.
+    const f = computeIntentFacts(
+      probeFor({
+        ...RULINGS[0],
+        best: line("Bc1", cp(1631)),
+        playedScore: cp(1374),
+        threat: line("Kg4", cp(-1429)),
+        threatAfter: line("Kg4", cp(-1360)),
+      }),
+    );
+    expect(f.unaddressedThreat).toBeNull();
+    expect(f.notes.join(" ")).toContain("lost anyway");
+  });
+
+  it("CONTROL: a live opponent threat in a winning position still speaks", () => {
+    // The gate must key on THEIR position, not on ours being good.
+    const f = computeIntentFacts(
+      probeFor({
+        ...RULINGS[0],
+        best: line("Bc1", cp(1631)),
+        playedScore: cp(1374),
+        threat: line("Qg4", cp(200)),
+        threatAfter: line("Qg4", cp(180)),
+      }),
+    );
+    expect(f.unaddressedThreat).not.toBeNull();
+  });
+
+  it("a move that makes the threat STRONGER is not filed as 'barely changed'", () => {
+    // Real: game_11 move 40 Ra6. Level beforehand (Rc3 +2), the move scores
+    // -1735, and their threat rises from 2196 to 2706. Calling that "barely
+    // changed" undersold it into the weakest category in the module.
+    const f = computeIntentFacts(
+      probeFor({
+        ...RULINGS[0],
+        best: line("Rc3", cp(2)),
+        playedScore: cp(-1735),
+        threat: line("Re6+", cp(2196)),
+        threatAfter: line("Re6+", cp(2706)),
+      }),
+    );
+    expect(f.unaddressedThreat!.reason).toBe("made-it-worse");
+    expect(f.unaddressedThreat!.madeItWorse).toBe(true);
+  });
+
   it("the boundary is the repo's existing LOST band, to the centipawn", () => {
     const at = (best: number) =>
       computeIntentFacts(

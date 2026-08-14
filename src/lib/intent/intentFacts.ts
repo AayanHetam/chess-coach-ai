@@ -166,6 +166,21 @@ export const DECISIVE_CP = 2000;
 export const ALREADY_LOST_CP = -300;
 
 /**
+ * The SAME bar, applied to the opponent.
+ *
+ * The founder's rule — "the game is already decided, not much can be done" —
+ * cuts both ways, and only one direction was implemented. Measured on their
+ * games: at move 49 of game_12 the player was +1631 and the module reported
+ * they had failed to deal with Kg4, a move worth -1429 TO THE OPPONENT. Naming
+ * a threat by somebody who is already lost is the mirror of naming one against
+ * a player who is already lost, and it is just as useless to a student.
+ *
+ * The null move always returns SOMETHING; in a won position that something is
+ * simply the least-bad way to keep losing.
+ */
+export const OPPONENT_ALREADY_LOST_CP = -300;
+
+/**
  * How badly the opponent's actual reply must have gone before we call the
  * position a trap. Two pawns keeps it to errors worth talking about; the real
  * case (fxg3 in game_02) cost 447cp.
@@ -352,6 +367,17 @@ function computeProphylaxis(
       return null;
     }
   }
+  // Is the OPPONENT already lost? Then their best try is not a threat, it is
+  // the least-bad way to keep losing, and the tempo arithmetic above cannot
+  // tell the difference: a player who is +16 makes every opponent option look
+  // like it "gains" a tempo.
+  if (!threatMates && before !== null && before <= OPPONENT_ALREADY_LOST_CP) {
+    notes.push(
+      `the opponent is lost anyway (${before}cp with a free move) — their best try is not a threat`,
+    );
+    return null;
+  }
+
   // Past this point the opponent genuinely had something. Every later return is
   // "we will not narrate it", never "there was nothing here".
   signals.threatWasReal = true;
@@ -458,7 +484,13 @@ function computeProphylaxis(
   }
   if (swing < PROPHYLAXIS_MIN_SWING_CP) {
     notes.push(`threat swing ${swing}cp below ${PROPHYLAXIS_MIN_SWING_CP}cp`);
-    signals.unaddressed = unaddressed(probe, "barely-changed", { madeItWorse: swing < 0 });
+    // A negative swing means the move made their threat BETTER for them, which
+    // is a different card from "nothing much changed" and was being filed under
+    // the same label: Ra6 took a level position to -1735 and lifted the threat
+    // against it from 2196 to 2706.
+    signals.unaddressed = swing < 0
+      ? unaddressed(probe, "made-it-worse", { madeItWorse: true })
+      : unaddressed(probe, "barely-changed");
     return null;
   }
 

@@ -285,6 +285,7 @@ export interface UnaddressedThreatFact {
     | "created-a-mate"
     | "threat-still-playable"
     | "barely-changed"
+    | "made-it-worse"
     | "only-illegal-due-to-check";
 }
 

@@ -78,8 +78,16 @@ const TIME_ICON: Record<string, QuizIconName> = {
 };
 
 interface OnboardingQuizProps {
-  /** Called when the user unlocks from the result screen. */
-  onUnlock: (answers: QuizAnswers) => void;
+  /**
+   * Called when the user unlocks from the result screen.
+   *
+   * `currentRating` is the anchor the goal projection was displayed from — the
+   * live platform number when they gave a username. It has to travel with the
+   * answers: buildPayload cannot re-derive it, because the derivation returns
+   * undefined on the platform path, and the promise would be shown on screen
+   * and then quietly not stored.
+   */
+  onUnlock: (answers: QuizAnswers, currentRating?: number) => void;
   submitting?: boolean;
   /** True when the viewer is already signed in (mandatory-onboarding flow). */
   authed?: boolean;
@@ -109,7 +117,7 @@ export default function OnboardingQuiz({
       return (
         <QuizResult
           answers={q.answers}
-          onUnlock={() => onUnlock(q.answers)}
+          onUnlock={() => onUnlock(q.answers, currentRating)}
           onBack={q.back}
           submitting={submitting}
           authed={authed}

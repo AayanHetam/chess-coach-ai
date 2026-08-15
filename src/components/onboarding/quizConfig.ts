@@ -232,8 +232,19 @@ export function derivedFocusThemes(answers: QuizAnswers): string[] {
  * handleSaveUsernames discipline: omit empty/undefined keys so we never clobber
  * an existing value with a blank, and only include studyGoals when the quiz
  * actually derived some (a theme-only re-take won't wipe manually-set goals).
+ *
+ * `currentRating` is the anchor the goal projection was DISPLAYED from — the
+ * live platform number on the platform path, the derived one otherwise. It has
+ * to be passed in rather than re-derived here: `derivedRating` returns
+ * undefined for the platform path, so re-deriving silently dropped the anchor
+ * for every user who gave a username, which is the majority flow. The quiz
+ * promised them a date on screen and then stored nothing, leaving /plan with
+ * no goal to hold them to.
  */
-export function buildPayload(answers: QuizAnswers): UserProfileUpdates {
+export function buildPayload(
+  answers: QuizAnswers,
+  currentRating?: number
+): UserProfileUpdates {
   const payload: UserProfileUpdates = {};
 
   // Only the self-assessment branch produces a rating the quiz itself knows.
@@ -276,10 +287,13 @@ export function buildPayload(answers: QuizAnswers): UserProfileUpdates {
     answers.time &&
     typeof answers.daysPerWeek === "number"
   ) {
-    const currentRating = derivedRating(answers);
-    if (typeof currentRating === "number") {
+    // Prefer the anchor the projection was actually shown from; fall back to
+    // the self-assessed one. Never fabricate: if neither exists (lookup 404'd,
+    // or no established rating) the promise is omitted entirely.
+    const anchor = currentRating ?? derivedRating(answers);
+    if (typeof anchor === "number") {
       const projection = projectToGoal({
-        currentRating,
+        currentRating: anchor,
         goalRating: answers.goalRating,
         minutesPerDay: minutesPerDayFor(answers.time),
         daysPerWeek: answers.daysPerWeek,
@@ -289,7 +303,12 @@ export function buildPayload(answers: QuizAnswers): UserProfileUpdates {
         // The baseline the promise was made from. Without these /plan can only
         // re-derive a fresh (and always flattering) projection from wherever
         // the user happens to be today, which would make "ahead" impossible.
-        payload.goalStartRating = currentRating;
+        // `anchor`, not `currentRating` — on the self-assessment path the
+        // parameter is undefined and only the fallback has a number, so
+        // storing the parameter would write an undefined baseline while the
+        // date computed fine, and /plan would drop the card for exactly the
+        // users whose rating the quiz derived itself.
+        payload.goalStartRating = anchor;
         payload.goalSetAt = Date.now();
       }
     }

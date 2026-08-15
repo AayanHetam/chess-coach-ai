@@ -9,6 +9,7 @@ import {
   type GoalPace,
 } from "@/lib/curriculum/improvementModel";
 import { minutesPerDayFor } from "@/components/onboarding/quizConfig";
+import { hasCompleteGoal } from "@/lib/curriculum/goalPatch";
 import type { TimeCommitment } from "@/components/onboarding/quizConfig";
 
 /**
@@ -26,10 +27,26 @@ import type { TimeCommitment } from "@/components/onboarding/quizConfig";
  */
 
 const TONE: Record<GoalPace, { color: string; bg: string; border: string }> = {
-  ahead: { color: "#4ADE80", bg: "rgba(74,222,128,0.10)", border: "rgba(74,222,128,0.35)" },
-  on_track: { color: "#FB923C", bg: "rgba(249,115,22,0.08)", border: "rgba(249,115,22,0.28)" },
-  behind: { color: "#FBBF24", bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.30)" },
-  reached: { color: "#4ADE80", bg: "rgba(74,222,128,0.12)", border: "rgba(74,222,128,0.4)" },
+  ahead: {
+    color: "#4ADE80",
+    bg: "rgba(74,222,128,0.10)",
+    border: "rgba(74,222,128,0.35)",
+  },
+  on_track: {
+    color: "#FB923C",
+    bg: "rgba(249,115,22,0.08)",
+    border: "rgba(249,115,22,0.28)",
+  },
+  behind: {
+    color: "#FBBF24",
+    bg: "rgba(251,191,36,0.08)",
+    border: "rgba(251,191,36,0.30)",
+  },
+  reached: {
+    color: "#4ADE80",
+    bg: "rgba(74,222,128,0.12)",
+    border: "rgba(74,222,128,0.4)",
+  },
 };
 
 function paceLabel(pace: GoalPace, weeks: number): string {
@@ -68,18 +85,36 @@ export default function GoalProgressCard({
   currentRating,
 }: GoalProgressCardProps) {
   const progress = useMemo(() => {
-    if (!goalRating || !goalStartRating || !goalSetAt || !practiceDaysPerWeek) return null;
-    const minutesPerDay = minutesPerDayFor(dailyTimeCommitment);
-    if (!minutesPerDay) return null;
-    return goalProgress({
-      startRating: goalStartRating,
+    // The SAME predicate /plan uses to decide whether to offer the goal setter
+    // instead of this card. Two hand-written copies would eventually disagree,
+    // and the failure is silent in the worst direction: the page believes a
+    // goal exists, this card refuses to draw one, and the user gets a blank
+    // space with no way to set it.
+    const fields = {
       goalRating,
-      currentRating,
+      goalStartRating,
       goalSetAt,
-      minutesPerDay,
-      daysPerWeek: practiceDaysPerWeek,
+      practiceDaysPerWeek,
+      dailyTimeCommitment,
+    };
+    if (!hasCompleteGoal(fields)) return null;
+
+    return goalProgress({
+      startRating: fields.goalStartRating,
+      goalRating: fields.goalRating,
+      currentRating,
+      goalSetAt: fields.goalSetAt,
+      minutesPerDay: minutesPerDayFor(fields.dailyTimeCommitment),
+      daysPerWeek: fields.practiceDaysPerWeek,
     });
-  }, [goalRating, goalStartRating, goalSetAt, dailyTimeCommitment, practiceDaysPerWeek, currentRating]);
+  }, [
+    goalRating,
+    goalStartRating,
+    goalSetAt,
+    dailyTimeCommitment,
+    practiceDaysPerWeek,
+    currentRating,
+  ]);
 
   // No goal set — render nothing rather than an empty promise.
   if (!progress || !goalRating) return null;
@@ -104,22 +139,47 @@ export default function GoalProgressCard({
         border: `1px solid ${tone.border}`,
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, flexWrap: "wrap" }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 1,
+          flexWrap: "wrap",
+        }}
+      >
         <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: "1.1rem" }}>
           {goalRating}
           {goalTargetDate ? ` by ${formatTargetDate(goalTargetDate)}` : ""}
         </Typography>
         <Box sx={{ flex: 1 }} />
-        <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color: tone.color }}>
+        <Box
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.5,
+            color: tone.color,
+          }}
+        >
           <Icon size={14} strokeWidth={2.5} />
-          <Typography component="span" sx={{ fontSize: "0.8rem", fontWeight: 700, color: "inherit" }}>
+          <Typography
+            component="span"
+            sx={{ fontSize: "0.8rem", fontWeight: 700, color: "inherit" }}
+          >
             {paceLabel(progress.pace, progress.weeksVsPlan)}
           </Typography>
         </Box>
       </Box>
 
       {/* Journey bar: start → now → goal. */}
-      <Box sx={{ mt: 1.25, position: "relative", height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)" }}>
+      <Box
+        sx={{
+          mt: 1.25,
+          position: "relative",
+          height: 6,
+          borderRadius: 3,
+          background: "rgba(255,255,255,0.08)",
+        }}
+      >
         <Box
           sx={{
             position: "absolute",
@@ -133,19 +193,35 @@ export default function GoalProgressCard({
       </Box>
 
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.75 }}>
-        <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem" }}>
+        <Typography
+          sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem" }}
+        >
           {goalStartRating} at the start
         </Typography>
-        <Typography sx={{ color: "rgba(255,255,255,0.75)", fontSize: "0.75rem", fontWeight: 700 }}>
+        <Typography
+          sx={{
+            color: "rgba(255,255,255,0.75)",
+            fontSize: "0.75rem",
+            fontWeight: 700,
+          }}
+        >
           now {currentRating}
         </Typography>
-        <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem" }}>
+        <Typography
+          sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem" }}
+        >
           {goalRating}
         </Typography>
       </Box>
 
       {progress.pace !== "reached" && (
-        <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.75rem", mt: 0.75 }}>
+        <Typography
+          sx={{
+            color: "rgba(255,255,255,0.45)",
+            fontSize: "0.75rem",
+            mt: 0.75,
+          }}
+        >
           The plan expected {progress.expectedRating} by now.
         </Typography>
       )}

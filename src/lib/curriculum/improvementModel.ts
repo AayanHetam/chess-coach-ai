@@ -104,7 +104,11 @@ export const MAX_GOAL_RATING = 3000;
 
 /** Hours of deliberate practice to gain 100 rating points, starting from `rating`. */
 export function hoursPer100(rating: number): number {
-  const { HOURS_PER_100_AT_REF: H0, REFERENCE_RATING: R0, E_FOLDING_POINTS: S } = MODEL;
+  const {
+    HOURS_PER_100_AT_REF: H0,
+    REFERENCE_RATING: R0,
+    E_FOLDING_POINTS: S,
+  } = MODEL;
   return H0 * Math.exp((rating - R0) / S);
 }
 
@@ -115,7 +119,11 @@ export function hoursPer100(rating: number): number {
  */
 export function hoursBetween(from: number, to: number): number {
   if (to <= from) return 0;
-  const { HOURS_PER_100_AT_REF: H0, REFERENCE_RATING: R0, E_FOLDING_POINTS: S } = MODEL;
+  const {
+    HOURS_PER_100_AT_REF: H0,
+    REFERENCE_RATING: R0,
+    E_FOLDING_POINTS: S,
+  } = MODEL;
   return (S / 100) * H0 * (Math.exp((to - R0) / S) - Math.exp((from - R0) / S));
 }
 
@@ -138,7 +146,10 @@ export function spacingFactor(daysPerWeek: number): number {
  * daily practice is not taxed as though it were cramming. Spacing is handled
  * separately by `spacingFactor`.
  */
-export function effectiveWeeklyHours(minutesPerDay: number, daysPerWeek: number): number {
+export function effectiveWeeklyHours(
+  minutesPerDay: number,
+  daysPerWeek: number
+): number {
   const mins = Math.max(0, minutesPerDay);
   const days = Math.max(0, daysPerWeek);
   const { REFERENCE_SESSION_MINUTES: REF, LONG_SESSION_EXPONENT: P } = MODEL;
@@ -166,7 +177,11 @@ export function ratingAfterWeeks(
   weeks: number,
   effectiveWeekly: number
 ): number {
-  const { HOURS_PER_100_AT_REF: H0, REFERENCE_RATING: R0, E_FOLDING_POINTS: S } = MODEL;
+  const {
+    HOURS_PER_100_AT_REF: H0,
+    REFERENCE_RATING: R0,
+    E_FOLDING_POINTS: S,
+  } = MODEL;
   if (weeks <= 0 || effectiveWeekly <= 0) return current;
   const base = Math.exp((current - R0) / S);
   // Divided by the guided multiplier so the curve and the headline agree: an
@@ -270,6 +285,15 @@ export function projectToGoal(input: ProjectionInput): Projection {
     intensity: 0,
   };
 
+  // A non-finite input must never travel as `status: "ok"`. It used to: an
+  // undefined currentRating produced NaN arithmetic all the way through and
+  // still reported "ok", so a caller trusting the status rendered
+  // `formatTargetDate(NaN)` — the string "Invalid Date", presented as a
+  // promise. Only an upstream guard in GoalRatingPicker kept it off screen.
+  if (!Number.isFinite(currentRating) || !Number.isFinite(goalRating)) {
+    return { ...base, status: "no_schedule" };
+  }
+
   if (goalRating <= currentRating) return { ...base, status: "already_there" };
   if (weeklyHours <= 0) return { ...base, status: "no_schedule" };
 
@@ -299,7 +323,10 @@ export function projectToGoal(input: ProjectionInput): Projection {
   const curve: ProjectionPoint[] = [];
   for (let i = 0; i <= n; i++) {
     const w = (weeks * i) / n;
-    curve.push({ weeks: w, rating: Math.round(ratingAfterWeeks(currentRating, w, weeklyHours)) });
+    curve.push({
+      weeks: w,
+      rating: Math.round(ratingAfterWeeks(currentRating, w, weeklyHours)),
+    });
   }
 
   return {
@@ -344,7 +371,6 @@ export function sessionSizeMultiplier(tier: IntensityTier): number {
       return 1.5;
   }
 }
-
 
 // ─── Progress against a promise ─────────────────────────────────────────────
 
@@ -400,22 +426,34 @@ function plannedWeeksTo(
 export function goalProgress(input: GoalProgressInput): GoalProgress {
   const { startRating, goalRating, currentRating, goalSetAt } = input;
   const now = input.nowMs ?? Date.now();
-  const weeklyHours = effectiveWeeklyHours(input.minutesPerDay, input.daysPerWeek);
+  const weeklyHours = effectiveWeeklyHours(
+    input.minutesPerDay,
+    input.daysPerWeek
+  );
 
-  const weeksElapsed = Math.max(0, (now - goalSetAt) / (7 * 24 * 60 * 60 * 1000));
+  const weeksElapsed = Math.max(
+    0,
+    (now - goalSetAt) / (7 * 24 * 60 * 60 * 1000)
+  );
   const expectedRating = Math.round(
     ratingAfterWeeks(startRating, weeksElapsed, weeklyHours)
   );
 
   // Where the plan said today's rating would arrive, vs when it actually did.
-  const plannedWeeksForCurrent = plannedWeeksTo(startRating, currentRating, weeklyHours);
+  const plannedWeeksForCurrent = plannedWeeksTo(
+    startRating,
+    currentRating,
+    weeklyHours
+  );
   const weeksVsPlan = Number.isFinite(plannedWeeksForCurrent)
     ? plannedWeeksForCurrent - weeksElapsed
     : 0;
 
   const span = goalRating - startRating;
   const fractionComplete =
-    span > 0 ? Math.max(0, Math.min(1, (currentRating - startRating) / span)) : 1;
+    span > 0
+      ? Math.max(0, Math.min(1, (currentRating - startRating) / span))
+      : 1;
 
   let pace: GoalPace;
   if (currentRating >= goalRating) pace = "reached";

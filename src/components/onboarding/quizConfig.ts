@@ -7,7 +7,7 @@
 
 import type { UserProfileUpdates } from "@/lib/firestoreUsers";
 import { QUIZ_GOAL_OPTIONS } from "./quizThemes";
-import { projectToGoal } from "@/lib/curriculum/improvementModel";
+import { buildGoalPatch } from "@/lib/curriculum/goalPatch";
 
 // localStorage keys ───────────────────────────────────────────────────────────
 // Draft = in-progress answers (resumable, never persisted to Firestore).
@@ -163,7 +163,11 @@ export const TIME_OPTIONS: {
   // only the labels and the minutes they map to have moved.
   { key: "under-10", label: "Under 10 min / day", helper: "Quick daily reps." },
   { key: "10-30", label: "About 15 min / day", helper: "A steady habit." },
-  { key: "30-plus", label: "About 30 min / day", helper: "I want to move fast." },
+  {
+    key: "30-plus",
+    label: "About 30 min / day",
+    helper: "I want to move fast.",
+  },
 ];
 
 // Rating + band helpers ──────────────────────────────────────────────────────
@@ -274,7 +278,8 @@ export function buildPayload(
   if (studyGoals.length > 0) payload.studyGoals = studyGoals;
 
   if (answers.time) payload.dailyTimeCommitment = answers.time;
-  if (typeof answers.goalRating === "number") payload.goalRating = answers.goalRating;
+  if (typeof answers.goalRating === "number")
+    payload.goalRating = answers.goalRating;
   if (typeof answers.daysPerWeek === "number") {
     payload.practiceDaysPerWeek = answers.daysPerWeek;
   }
@@ -282,37 +287,22 @@ export function buildPayload(
   // The promised date, computed once at signup from the goal and the schedule
   // the user actually agreed to. Stored so /plan can hold them to it rather
   // than silently recomputing a softer target every time they visit.
-  if (
-    typeof answers.goalRating === "number" &&
-    answers.time &&
-    typeof answers.daysPerWeek === "number"
-  ) {
-    // Prefer the anchor the projection was actually shown from; fall back to
-    // the self-assessed one. Never fabricate: if neither exists (lookup 404'd,
-    // or no established rating) the promise is omitted entirely.
-    const anchor = currentRating ?? derivedRating(answers);
-    if (typeof anchor === "number") {
-      const projection = projectToGoal({
-        currentRating: anchor,
-        goalRating: answers.goalRating,
-        minutesPerDay: minutesPerDayFor(answers.time),
-        daysPerWeek: answers.daysPerWeek,
-      });
-      if (projection.targetDate) {
-        payload.goalTargetDate = projection.targetDate;
-        // The baseline the promise was made from. Without these /plan can only
-        // re-derive a fresh (and always flattering) projection from wherever
-        // the user happens to be today, which would make "ahead" impossible.
-        // `anchor`, not `currentRating` — on the self-assessment path the
-        // parameter is undefined and only the fallback has a number, so
-        // storing the parameter would write an undefined baseline while the
-        // date computed fine, and /plan would drop the card for exactly the
-        // users whose rating the quiz derived itself.
-        payload.goalStartRating = anchor;
-        payload.goalSetAt = Date.now();
-      }
-    }
-  }
+  //
+  // Delegated to buildGoalPatch, which the /plan goal setter also calls. Two
+  // hand-written copies of this is what produced the bug above: the anchor was
+  // re-derived here and disagreed with the number already on screen. One
+  // implementation, so they cannot drift apart again.
+  //
+  // Prefer the anchor the projection was actually SHOWN from; fall back to the
+  // self-assessed one. Never fabricate — if neither exists (lookup 404'd, or
+  // no established rating) buildGoalPatch returns null and nothing is written.
+  const goalPatch = buildGoalPatch({
+    currentRating: currentRating ?? derivedRating(answers),
+    goalRating: answers.goalRating,
+    time: answers.time,
+    daysPerWeek: answers.daysPerWeek,
+  });
+  if (goalPatch) Object.assign(payload, goalPatch);
 
   // Always written, both ways: an explicit false is the user declining, which
   // must be recorded rather than left undefined and re-asked.

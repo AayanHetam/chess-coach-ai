@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEnsurePlatformRating } from "@/lib/rating/useEnsurePlatformRating";
 import { puzzleStatsAtom } from "@/lib/puzzleRating";
 import { streakAtom, dayKey } from "@/lib/curriculum/streak";
 import { dailyLogAtom, puzzlesOn, trainedOn } from "@/lib/curriculum/dailyLog";
@@ -97,7 +98,7 @@ function GlassCard({
 
 export default function PlanPage() {
   const router = useRouter();
-  const { user, profile, updateProfile } = useAuth();
+  const { user, profile, updateProfile, refresh } = useAuth();
   // Open when they ask to change an existing goal. A user with no goal at
   // all gets the setter unconditionally — see the mount below.
   const [editingGoal, setEditingGoal] = useState(false);
@@ -116,6 +117,9 @@ export default function PlanPage() {
     },
     [updateProfile]
   );
+  // Without this the goal is scored against the puzzle rating's 1200 default
+  // for anyone who never opened the profile dialog.
+  useEnsurePlatformRating(profile, refresh);
   const stats = useAtomValue(puzzleStatsAtom);
   const streak = useAtomValue(streakAtom);
   const srs = useAtomValue(puzzleThemeSrsAtom);

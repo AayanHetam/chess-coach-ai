@@ -23,18 +23,18 @@ const HERE = "Free Chess Coach for Beginners";
 export const metadata: Metadata = {
   title: { absolute: "Free Chess Coach for Beginners | Stockfish + AI Explanations" },
   description:
-    "A free chess coach for beginners: paste your game, get plain-language explanations of your mistakes, and drill the patterns you keep missing. Free to start, no credit card to begin.",
+    "A completely free chess coach for beginners: paste your game, get plain-language explanations of your mistakes, and drill the patterns you keep missing.",
   alternates: { canonical: URL },
   openGraph: {
     title: "Free Chess Coach for Beginners | Chess Masti AI",
-    description: "Plain-language game review and mistake drills. Free to start, no card to begin.",
+    description: "Completely free plain-language game review and mistake drills.",
     url: URL,
     images: [{ url: "/og/free-ai-chess-coach" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Free Chess Coach for Beginners | Chess Masti AI",
-    description: "Plain-language game review and mistake drills. Free to start, no card to begin.",
+    description: "Completely free plain-language game review and mistake drills.",
     images: ["/og/free-ai-chess-coach"],
   },
 };
@@ -67,10 +67,9 @@ export default function FreeChessCoachForBeginnersPage() {
 
       <AnswerBlock>
         The best free chess coach for beginners is one that explains things in plain language and
-        doesn&apos;t assume you already speak engine. Chess Masti AI is free to start with a
-        generous free tier, and explains your mistakes the way a patient teacher would: what you
-        were trying to do, what went wrong, and exactly what to try next time. Paste a game and
-        start in under a minute &mdash; no credit card to begin.
+        doesn&apos;t assume you already speak engine. Chess Masti AI is completely free and explains
+        your mistakes the way a patient teacher would: what you were trying to do, what went wrong,
+        and exactly what to try next time. Paste a game and start in under a minute.
       </AnswerBlock>
 
       <CtaRow>
@@ -97,8 +96,8 @@ export default function FreeChessCoachForBeginnersPage() {
               desc: "Understanding a mistake once doesn't fix it. Practicing the exact pattern five times does. Chess Masti turns each blunder into a puzzle automatically so you can drill the exact position that confused you.",
             },
             {
-              title: "No surprise wall mid-lesson",
-              desc: "Most chess sites have free tiers that hit a wall right when the coaching gets useful. Chess Masti gives beginners a genuinely generous free tier — real game review and mistake drills without a credit card. A low-cost Premium tier unlocks unlimited AI coaching when you outgrow it, with a free 7-day trial to try it first.",
+              title: "Complete coaching access",
+              desc: "Chess Masti gives beginners free access to game review, mistake drills, and AI coaching, so they can keep learning without feature limits.",
             },
           ].map((item) => (
             <Box key={item.title} sx={glassCard}>
@@ -139,7 +138,7 @@ export default function FreeChessCoachForBeginnersPage() {
         cta="Open the free AI chess coach page"
       />
 
-      <FooterCta title="Get a coach that explains things clearly" sub="Paste a PGN. Free to start, no credit card. Built to work for beginners." />
+      <FooterCta title="Get a coach that explains things clearly" sub="Paste a PGN. Completely free and built for beginners." />
     </PageShell>
   );
 }

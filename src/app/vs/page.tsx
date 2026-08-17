@@ -82,7 +82,7 @@ const COMPARISON_HEADERS = [
 ];
 
 const COMPARISON_ROWS = [
-  ["Free, no paid tier", "Yes", "Freemium", "Freemium", "Freemium", "Paid", "Paid (Diamond)"],
+  ["Completely free", "Yes", "Freemium", "Freemium", "Freemium", "Paid", "Paid (Diamond)"],
   ["Engine evaluates before the LLM speaks", "Yes (Stockfish 17 WASM)", "Partial", "Engine-driven, no LLM coach", "LLM-led", "Yes (proprietary engine)", "Yes"],
   ["LLM output validated against live board", "Yes (chess.js validator)", "Not publicly documented", "n/a", "Not publicly documented", "n/a", "Partial"],
   ["Humanlike opponent (Maia-style)", "Yes (Maia-2, NeurIPS 2024)", "No", "Yes (their core product)", "No", "No", "Bots feature, not Maia"],
@@ -186,8 +186,8 @@ export default function VsPage() {
             <Typography sx={{ fontWeight: 700, color: "#fff", mb: 1 }}>DecodeChess</Typography>
             <Typography sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.8, fontSize: "0.95rem" }}>
               Detailed, narrative engine analysis with extensive variation explanation. They&apos;ve
-              been at this longer than almost anyone, and their analyses are deep. Their pricing
-              model is paid; ours is free. Different tier of customer.
+              been at this longer than almost anyone, and their analyses are deep. Chess Masti
+              takes a different approach by making its full coaching loop free.
             </Typography>
           </Box>
 
@@ -224,8 +224,8 @@ export default function VsPage() {
         <SectionHeading>Where Chess Masti AI is the better pick</SectionHeading>
         <Box component="ol" sx={ulSx}>
           <li>
-            <strong style={{ color: "#fff" }}>You don&apos;t want to pay.</strong> No tier of ours
-            sits behind a wall.
+            <strong style={{ color: "#fff" }}>You want complete free access.</strong> Every Chess
+            Masti coaching feature is available to everyone.
           </li>
           <li>
             <strong style={{ color: "#fff" }}>You distrust LLM hallucinations.</strong>{" "}

@@ -307,7 +307,7 @@ export default function LandingHero() {
               {[
                 { icon: "mdi:engine-outline", text: "Engine-grounded" },
                 { icon: "mdi:shield-check-outline", text: "Validated against chess.js" },
-                { icon: "mdi:currency-usd-off", text: "Free, no paid tier" },
+                { icon: "mdi:currency-usd-off", text: "Completely free" },
               ].map((item) => (
                 <Box
                   key={item.text}

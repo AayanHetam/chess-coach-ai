@@ -44,7 +44,6 @@ export interface RouteContext {
   userId?: string;
   sessionId?: string;
   responseId: string;
-  userTier: "free";
   category: QuestionCategory;
   finalOutcome: FinalOutcome | "pipeline_timed_out" | null;
   retryCount: number;
@@ -143,7 +142,6 @@ function emitValidatorEvent(event: TelemetryEvent, ctx: RouteContext): void {
     session_id: ctx.sessionId,
     response_id: ctx.responseId,
     route: ctx.route,
-    user_tier: ctx.userTier,
     category: ctx.category,
     expected: event.expected,
     actual: event.actual,
@@ -177,7 +175,6 @@ function emitCitationRateSummary(
     correlation_id: ctx.responseId,
     response_id: ctx.responseId,
     route: ctx.route,
-    user_tier: ctx.userTier,
     user_id: ctx.userId,
     session_id: ctx.sessionId,
     category: ctx.category,

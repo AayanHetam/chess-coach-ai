@@ -531,7 +531,7 @@ The flag-on wing branches at six places. Each is gated by `if (validatorsEnabled
 | **C** | After L1186 (cache-hit non-stream return) | No new code on the flag-on cache-hit path per §8 (no cutover). **Open question §3.7.10 (A):** decide whether to still emit a "cached" citation_rate_summary marker. | §8 says cache hits stay unchanged. If we skip telemetry here, Stage C analytics will undercount turns (cache-hit turns disappear from the denominator). Surface for tech-lead decision. |
 | **D** | L1193 (streaming branch start, `if (streamRequested) {`) | Wrap entire branch: `if (validatorsEnabled) { /* new buffer-then-restream + pipeline */ } else { /* existing live-stream code */ }`. New branch implements §4 — emits `validating` SSE events during buffer, runs `runValidationPipeline({...dataSources, ...callLLMOpts})`, synthetic re-streams the final pipeline text via `send({type:"text",...})` in paced chunks, emits `done` with `pipeline.{finalOutcome, citationRate, telemetry, retryCount, totalCostUsd}` metadata appended to the existing fields. | §4 streaming gotcha is fully here. Pipeline buffers because retries can replace the response — live-streaming and then retracting is bad UX. |
 | **E** | L1324 (non-streaming branch start, `// Call the unified LLM provider`) | Wrap callLLM: `if (validatorsEnabled) { llmResult = await runValidationPipeline({initialRequest: {tier,system,messages,...}, dataSources, ...}); /* extract content from RegenerateResult */ } else { /* existing callLLM */ }`. Tail of the branch (L1354 onward) consumes `analysisContent` the same way. | Non-stream is the easier path — no buffering needed since there's no stream to disrupt. The pipeline handles retries and fallback internally; the route just sees a final RegenerateResult. |
-| **F** | Between L1404 and L1407 (after `storeAnalysisContext`, before puzzle recs) | If `validatorsEnabled`: build `RouteContext`, call `computeCitationRate({...})`, then `forwardTelemetry(pipelineResult.telemetry, ctx, {citationRate, userHistoryGameCount})`. Same logic in both streaming (synth-restream done) and non-streaming branches — extract into a small `forwardPipelineTelemetry(pipelineResult, dataSources, classifierResult, ctx)` helper that both branches call. | §13 / T13 ratified: citationRate fires post-pipeline, pre-forwardTelemetry. The route assembles the RouteContext (route, userId from session, sessionId=contextId, responseId, userTier, category, finalOutcome, retryCount, totalCostUsd) and hands events + summary to the forwarder. |
+| **F** | Between L1404 and L1407 (after `storeAnalysisContext`, before puzzle recs) | If `validatorsEnabled`: build `RouteContext`, call `computeCitationRate({...})`, then `forwardTelemetry(pipelineResult.telemetry, ctx, {citationRate, userHistoryGameCount})`. Same logic in both streaming (synth-restream done) and non-streaming branches — extract into a small `forwardPipelineTelemetry(pipelineResult, dataSources, classifierResult, ctx)` helper that both branches call. | §13 / T13 ratified: citationRate fires post-pipeline, pre-forwardTelemetry. The route assembles the RouteContext (route, userId from session, sessionId=contextId, responseId, category, finalOutcome, retryCount, totalCostUsd) and hands events + summary to the forwarder. |
 
 **Source fetch placement (the `fetchDataSources(...)` call from 1.C.B.1):** fits between B (classifier) and D/E (LLM/pipeline call). Both stream and non-stream paths need it. Extract a small `prepareMastermindContext(opts, session)` helper that calls classifier + fetchDataSources concurrently (the classifier is one Haiku call, fetchDataSources is the four-source fetch — both are independent of the LLM); reduces total pre-LLM latency. Helper returns `{category, dataSources, classifierMs, fetchMs}` for telemetry.
 
@@ -686,7 +686,6 @@ export interface RouteContext {
   userId?: string;       // from session cookie; undefined on anon
   sessionId?: string;    // analysisContext.contextId or new per-turn ID
   responseId: string;    // generated per-turn (uuid)
-  userTier: "free";      // populated as "free" today; "paid" hook for Phase 5.E
   category: QuestionCategory;  // populated by Stage B's classifier wiring (§3.6) — always set
   finalOutcome: FinalOutcome | "pipeline_timed_out" | null;
   retryCount: number;
@@ -716,7 +715,6 @@ Per [PR_1B_PLAN.md §3.1](PR_1B_PLAN.md) plus route-level additions:
   "session_id": "sess-...",               // route adds from context
   "response_id": "resp-...",              // route generates per turn
   "route": "/api/enhanced-analysis",      // route adds
-  "user_tier": "free",                    // route adds
   "category": "opponent_prep",            // always populated post-Stage-B per §3.6 classifier wiring
   "expected": { "band": "slightly_better", "cp": 70 },
   "actual": { "band": "winning", "cp": null },
@@ -791,7 +789,7 @@ Pre-1.C.B.2 verification of how this codebase's logger + Sentry actually behave.
 
 ### 6.6 ISEF dataset extraction
 
-Same query shape as [PR_1C_PLAN.md §3.3](PR_1C_PLAN.md). Route's additions to the schema (`response_id`, `category`, `user_tier`) are forward-compatible — the ISEF query pattern already accommodates missing tags as nulls.
+Same query shape as [PR_1C_PLAN.md §3.3](PR_1C_PLAN.md). Route's additions to the schema (`response_id`, `category`) are forward-compatible — the ISEF query pattern already accommodates missing tags as nulls.
 
 ---
 
@@ -965,7 +963,7 @@ Stage B introduces route-level integration testing — first time the existing P
 | Case | What it asserts |
 |---|---|
 | Each fire_reason maps to correct Sentry level | passed=info, parser_*=info, fire_*=warn, fallback_used=error |
-| Route context fields are present on every emitted event | route, user_id, session_id, response_id, user_tier |
+| Route context fields are present on every emitted event | route, user_id, session_id, response_id |
 | llm_span truncated to ≤200 chars | inbound 1000-char span → outbound 200-char |
 | User input messages never logged | mock event with user message → assert message not in log payload |
 | Sentry tags applied | module=mastermind-validator, fire_reason=<value>, route=<value> |
@@ -1173,7 +1171,7 @@ Surfaced so the boundaries are explicit:
 
 - **`feature_delta` opportunity counter.** Deferred per [PR_1C_PLAN.md §11.7](PR_1C_PLAN.md) + [`cleanup_followups.md`](cleanup_followups.md). game_review and position_analysis categories' citation rates report null perSource bucket; Stage C treats null as "not measured" + pass-by-default. Hallucination ceiling still applies.
 - **Removing footnote-append.** Coexistence is intentional (§8). Removal is a separate decision after 30+ days of prod stability post-PR-1.C promotion.
-- **Per-user feature-flag overrides** (beta cohort gets it on prod ahead of promotion). Skip in Stage B; revisit if a paid-tier launch lands before promotion criteria fire.
+- **Per-user feature-flag overrides** (beta cohort gets it on prod ahead of promotion). Skip in Stage B; use environment-level rollout criteria.
 - **`/api/puzzle-stats`** (PR 1.E precursor). Aayan-triggered, separate workstream. Restoring the three deferred user-history claim types (rating_trajectory, puzzle_stats_claim, puzzle_rating_trajectory) lives in PR 1.E.
 - **Jhamtani wire-up.** PR 1.D, Aayan-triggered, separate workstream. `dataSources.jhamtani` slot reserved in PR 1.B-extended signature but consumed by no validator yet.
 - **Cross-source claim coordinator** (PR 1.F). Conditional on Stage C sweep showing ≥5% composite-claim rate; Aayan-triggered.

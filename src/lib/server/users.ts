@@ -3,7 +3,6 @@ import bcrypt from "bcryptjs";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminFirestore } from "./firebaseAdmin";
 import { withFirestoreTimeout } from "./withFirestoreTimeout";
-import type { PlanTier, SubscriptionStatus } from "../billing/config";
 
 const COLLECTION = "users";
 const BCRYPT_COST = 12;
@@ -86,25 +85,6 @@ export type StoredUser = {
 
   passwordResetHash?: string;
   passwordResetExpiresAt?: Timestamp;
-
-  // ─── Subscription / entitlement (pricing pivot, 2026-06) ───────────────────
-  // Stripe is the billing source of truth; these mirror current state so
-  // entitlement can be computed without a Stripe round-trip on every request.
-  // Written ONLY server-side — signup (trial start), the Stripe webhook, and
-  // promo redemption — never through the client PATCH /api/users/me path
-  // (deliberately absent from profilePatchSchema so a user cannot self-grant
-  // premium). Entitlement is derived live via lib/billing/entitlement.ts.
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
-  subscriptionStatus?: SubscriptionStatus;
-  plan?: PlanTier;
-  trialStartedAt?: Timestamp;
-  trialEndsAt?: Timestamp;
-  currentPeriodEnd?: Timestamp;
-  cancelAtPeriodEnd?: boolean;
-  /** e.g. "promo:AKANKSHA2026" — when set, the user is comped (free forever). */
-  compedReason?: string;
-  compedAt?: Timestamp;
 
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -285,40 +265,6 @@ export type UpdateUserPatch = Partial<
     | "timezone"
     | "googleId"
     | "emailVerified"
-    // Subscription fields — server-only writers (signup/webhook/promo). Allowed
-    // on the type so updateUser/updateSubscription accept them; the client PATCH
-    // route gates on profilePatchSchema, which omits these by design.
-    | "stripeCustomerId"
-    | "stripeSubscriptionId"
-    | "subscriptionStatus"
-    | "plan"
-    | "trialStartedAt"
-    | "trialEndsAt"
-    | "currentPeriodEnd"
-    | "cancelAtPeriodEnd"
-    | "compedReason"
-    | "compedAt"
-  >
->;
-
-/**
- * Narrowed patch for the subscription-only writers (Stripe webhook, promo
- * redeem, signup trial-start). Just a readability wrapper over updateUser — the
- * field allow-list is what keeps callers honest.
- */
-export type SubscriptionPatch = Partial<
-  Pick<
-    StoredUser,
-    | "stripeCustomerId"
-    | "stripeSubscriptionId"
-    | "subscriptionStatus"
-    | "plan"
-    | "trialStartedAt"
-    | "trialEndsAt"
-    | "currentPeriodEnd"
-    | "cancelAtPeriodEnd"
-    | "compedReason"
-    | "compedAt"
   >
 >;
 
@@ -338,39 +284,6 @@ export async function updateUser(
   const fresh = await getUserById(uid);
   if (!fresh) throw new Error("updateUser: user disappeared mid-update");
   return fresh;
-}
-
-/**
- * Subscription-only update. Thin wrapper over updateUser() so billing call
- * sites (webhook/promo/signup) read clearly and share one write path.
- */
-export async function updateSubscription(
-  uid: string,
-  patch: SubscriptionPatch,
-): Promise<StoredUser> {
-  return updateUser(uid, patch);
-}
-
-/**
- * Look up a user by their Stripe customer id. Used by the webhook to resolve
- * the local account for subscription lifecycle events. Returns null if no user
- * has that customer id (e.g. an event for a deleted account).
- */
-export async function getUserByStripeCustomerId(
-  stripeCustomerId: string,
-): Promise<StoredUser | null> {
-  const db = await getAdminFirestore();
-  const snap = await withFirestoreTimeout(
-    db
-      .collection(COLLECTION)
-      .where("stripeCustomerId", "==", stripeCustomerId)
-      .limit(1)
-      .get(),
-    `users.getUserByStripeCustomerId(${stripeCustomerId})`,
-  );
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
-  return { uid: doc.id, ...(doc.data() as Omit<StoredUser, "uid">) };
 }
 
 export async function updateLastLoginAt(uid: string): Promise<void> {

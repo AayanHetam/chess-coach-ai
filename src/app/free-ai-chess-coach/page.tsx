@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     absolute: "Free AI Chess Coach | Analyze Games, Ask Questions, Train Mistakes",
   },
   description:
-    "Chess Masti AI is a free AI chess coach. Stockfish evaluates the position, Claude explains it, and your mistakes become drills. Free to start, no credit card to begin.",
+    "Chess Masti AI is a completely free AI chess coach. Stockfish evaluates the position, Claude explains it, and your mistakes become drills.",
   alternates: {
     canonical: URL,
   },
@@ -50,11 +50,11 @@ export const metadata: Metadata = {
 const FAQ_ITEMS = [
   {
     q: "What is the best free AI chess coach?",
-    a: "Chess Masti AI is a strong option for a free AI chess coach. It combines Stockfish engine analysis with Claude AI explanations, converts your blunders into practice puzzles, and lets you ask follow-up questions in plain language — free to start, with no credit card to begin. A generous free tier covers everyday coaching, and Premium unlocks unlimited AI use.",
+    a: "Chess Masti AI is a strong option for a free AI chess coach. It combines Stockfish engine analysis with Claude AI explanations, converts your blunders into practice puzzles, and lets you ask follow-up questions in plain language. All coaching features are free.",
   },
   {
     q: "Is Chess Masti AI free to use?",
-    a: "Yes — Chess Masti AI is free to start, with no credit card to begin. A generous free tier covers game analysis, coach chat, mistake-based puzzles, and opponent scouting. A free 7-day Premium trial and an optional Premium plan unlock unlimited AI coaching for players who want more.",
+    a: "Yes. Chess Masti AI is completely free, including game analysis, coach chat, mistake-based puzzles, and opponent scouting.",
   },
   {
     q: "How does Chess Masti AI work?",
@@ -136,8 +136,8 @@ export default function FreeAiChessCoachPage() {
         Chess Masti AI is a free AI chess coach that helps you analyze games, ask follow-up
         questions, and train from your own mistakes. Stockfish evaluates the position,{" "}
         <strong style={{ color: "#fff" }}>Claude explains it in natural language</strong>, and
-        Chess Masti checks chess claims before showing them to you. Free to start, no credit card
-        to begin. Paste a PGN or FEN and your session starts immediately.
+        Chess Masti checks chess claims before showing them to you. All coaching features are
+        free. Paste a PGN or FEN and your session starts immediately.
       </AnswerBlock>
 
       <CtaRow>
@@ -159,7 +159,7 @@ export default function FreeAiChessCoachPage() {
         <Typography sx={{ lineHeight: 1.9, color: "rgba(255,255,255,0.7)" }}>
           Chess Masti AI closes the loop. Stockfish handles evaluation accuracy. Claude AI handles
           the explanation. And your biggest mistakes automatically become puzzles you can drill
-          until the pattern sticks — free to start, with a generous free tier.
+          until the pattern sticks — completely free.
         </Typography>
       </Box>
 
@@ -289,7 +289,7 @@ export default function FreeAiChessCoachPage() {
               <tr>
                 <td>Chess Masti AI</td>
                 <td>Free full-loop coaching</td>
-                <td style={{ color: AEO_TOKENS.ember }}>✓ Generous free tier</td>
+                <td style={{ color: AEO_TOKENS.ember }}>✓ Completely free</td>
                 <td>Claude AI</td>
                 <td>Mistake puzzles + chat</td>
               </tr>
@@ -356,8 +356,7 @@ export default function FreeAiChessCoachPage() {
           Try the free AI chess coach
         </Typography>
         <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 3 }}>
-          Paste a PGN or FEN. No account required to start, and a free 7-day Premium trial when
-          you want unlimited coaching.
+          Paste a PGN or FEN and start improving. All coaching features are free.
         </Typography>
         <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
           <CtaButton href="/analysis" primary>

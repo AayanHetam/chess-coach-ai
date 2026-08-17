@@ -70,7 +70,6 @@ function routeContext(overrides: Partial<RouteContext> = {}): RouteContext {
     userId: "uid-test",
     sessionId: "sess-test",
     responseId: "resp-test",
-    userTier: "free",
     category: "opponent_prep",
     finalOutcome: "passed_initial",
     retryCount: 0,
@@ -233,7 +232,6 @@ describe("forwardTelemetry: payload shape (§6.2)", () => {
       session_id: "sess-X",
       response_id: "resp-X",
       category: "improvement_strategy",
-      user_tier: "free",
     });
   });
 });

@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Chess Masti AI — FAQ",
     description:
-      "Engine-first pipeline, validator, Maia-2, free pricing — common questions answered.",
+      "Engine-first pipeline, validator, Maia-2, and free access — common questions answered.",
     url: "https://chessmasti.com/faq",
     type: "article",
     siteName: "Chess Masti AI",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
 const QA: { q: string; a: string }[] = [
   {
     q: "Is Chess Masti AI free?",
-    a: "Yes. There is no paid tier. No upsell, no premium gate. Built and maintained by Aayan Hetamsaria, a high-school student.",
+    a: "Yes. All Chess Masti coaching features are free. It is built and maintained by Aayan Hetamsaria, a high-school student.",
   },
   {
     q: "Which LLM does it use?",

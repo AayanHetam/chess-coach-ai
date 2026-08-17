@@ -66,8 +66,8 @@ export default function AiChessCoachForKidsPage() {
       <H1>AI Chess Coach for Kids</H1>
 
       <AnswerBlock>
-        Kids need a chess coach that explains things clearly, doesn&apos;t pressure-sell premium
-        upgrades, and turns mistakes into something they can practice. Chess Masti AI is free,
+        Kids need a chess coach that explains things clearly and turns mistakes into something
+        they can practice. Chess Masti AI is free,
         ad-free during analysis, and explains every move in plain language. It works well for
         scholastic players, club kids, and parents who want to help their child review games
         without becoming a chess teacher themselves.
@@ -94,7 +94,7 @@ export default function AiChessCoachForKidsPage() {
             },
             {
               title: "Free, no in-app purchases",
-              desc: "Many chess apps for kids monetize aggressively — pop-ups, locked features, premium upgrades. Chess Masti is fully free with no analysis cap. The product doesn't push subscriptions during a review.",
+              desc: "Chess Masti is fully free with no analysis cap, so kids can focus on learning throughout every review.",
             },
             {
               title: "Parents don't need to be chess players",

@@ -64,7 +64,7 @@ System prompt body: [src/lib/prompts/coachChatPrompt.ts](src/lib/prompts/coachCh
 | Lichess OAuth | ⚠️ configured, flows not exercised recently |
 | Neo4j | ⚠️ env keys (`NEO4J_URI/USERNAME/PASSWORD`) not in `.env.local`, but `/api/chess-puzzles-dataset command:random` returns real data — some puzzle queries use a non-Neo4j store |
 | Supabase (CMIP intern portal) | ✅ live; needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`. Read-only allowlist check at sign-in only (CMIP-1.A) |
-| Stripe / freemium ($0.99/mo) | ⚙️ built, **dark** behind `FREEMIUM_ENABLED` (default false ⇒ everyone premium, nothing gated). Go-live: needs `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRICE_ID` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` + the promo Supabase migration. See [docs/STRIPE_GO_LIVE.md](docs/STRIPE_GO_LIVE.md) + [docs/SUBSCRIPTION.md](docs/SUBSCRIPTION.md). Entitlement is computed live (`src/lib/billing/`), never JWT-stamped; promo codes `AKANKSHA2026`/`GRANDKNIGHTS2026` comp users free-forever |
+| Product access | ✅ all Chess Masti coaching features are free |
 
 Before hitting an endpoint that depends on a service listed as ❌ or ⚠️, sanity-check via `/api/health/llm` or `/api/maia-status` rather than assuming.
 

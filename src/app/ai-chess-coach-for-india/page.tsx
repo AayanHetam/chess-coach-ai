@@ -23,19 +23,19 @@ const HERE = "AI Chess Coach for India";
 export const metadata: Metadata = {
   title: { absolute: "AI Chess Coach for India | Free AI Chess Coaching by an Indian Founder" },
   description:
-    "A free AI chess coach for Indian players: free to start with no credit card, works on low-bandwidth connections, no GST surprise. Built by an Indian founder for Indian club, school, and rated players.",
+    "A completely free AI chess coach for Indian players that works on low-bandwidth connections. Built by an Indian founder for Indian club, school, and rated players.",
   alternates: { canonical: URL },
   openGraph: {
     title: "AI Chess Coach for India | Chess Masti AI",
     description:
-      "Free AI chess coach built by an Indian founder. Free to start, no GST surprise, works on low bandwidth.",
+      "Completely free AI chess coach built by an Indian founder that works on low bandwidth.",
     url: URL,
     images: [{ url: "/og/free-ai-chess-coach" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "AI Chess Coach for India | Chess Masti AI",
-    description: "Free AI chess coach built by an Indian founder. Free to start, no GST.",
+    description: "Completely free AI chess coach built by an Indian founder.",
     images: ["/og/free-ai-chess-coach"],
   },
 };
@@ -66,11 +66,10 @@ export default function AiChessCoachForIndiaPage() {
       <H1>AI Chess Coach for India</H1>
 
       <AnswerBlock>
-        Chess Masti AI is a free-to-start AI chess coach built in India for chess players who want
-        serious analysis on a budget. Engine runs in your browser (Stockfish WASM, no cloud-engine
-        quota). The coach explains every critical move in plain English. A generous free tier covers
-        everyday review — no credit card to begin, no GST surprise — and Premium unlocks unlimited
-        coaching when you want it. Just paste a PGN and start.
+        Chess Masti AI is a completely free AI chess coach built in India for players who want
+        serious analysis. The engine runs in your browser (Stockfish WASM), and the coach explains
+        every critical move in plain English. All coaching features are available for free. Just
+        paste a PGN and start.
       </AnswerBlock>
 
       <CtaRow>
@@ -86,7 +85,7 @@ export default function AiChessCoachForIndiaPage() {
           {[
             {
               title: "Built for the budget that matters",
-              desc: "Most international chess coaching sites charge $10-30/month. That's a real cost for a school student or club player in India. Chess Masti is free to start with a generous free tier and no Diamond-tier maze — and when you want unlimited coaching, Premium is a fraction of that price.",
+              desc: "Chess Masti gives school students and club players in India full access to its coaching tools for free, including game review, practice, and opponent scouting.",
             },
             {
               title: "Works on low bandwidth",
@@ -117,13 +116,12 @@ export default function AiChessCoachForIndiaPage() {
           Chess Masti AI is built by Aayan Hetamsaria, growing up in urban India. The product is
           designed around the gap between Indian chess talent (which is enormous) and Indian access
           to one-on-one coaching (which is expensive). The goal: a serious AI coach for the kid in
-          Pune or the club player in Chennai who can&apos;t justify a pricey monthly subscription
-          but still wants real chess feedback.
+          Pune or the club player in Chennai who wants real chess feedback without cost being a
+          barrier.
         </ProseBlock>
         <ProseBlock>
           The product is live at chessmasti.com — that&apos;s the URL, you&apos;re on it now. The
-          core stays free to use, with a generous free tier and a 7-day Premium trial for anyone
-          who wants unlimited coaching.
+          full product is free to use, including unlimited access to its coaching features.
         </ProseBlock>
       </Box>
 
@@ -153,7 +151,7 @@ export default function AiChessCoachForIndiaPage() {
         cta="Open the free AI chess coach page"
       />
 
-      <FooterCta title="Start coaching your games" sub="Free to start. No credit card. No GST. Paste a PGN." />
+      <FooterCta title="Start coaching your games" sub="Completely free. Paste a PGN." />
     </PageShell>
   );
 }

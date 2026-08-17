@@ -163,7 +163,7 @@ export default function LandingAbout() {
             should be free and accessible to every player on the planet. We combine
             cutting-edge AI with deep chess knowledge to deliver elite-level analysis,
             personalized training, and grandmaster-quality insights — without
-            paywalls, subscriptions, or barriers. Whether you are a beginner learning
+            feature limits or barriers. Whether you are a beginner learning
             your first opening or an advanced player preparing for a tournament,
             ChessMasti is your coach.
           </Typography>

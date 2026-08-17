@@ -407,7 +407,6 @@ export function forwardPipelineTelemetryForRoute(
     userId: args.userId,
     sessionId: args.sessionId,
     responseId: args.responseId,
-    userTier: "free",
     category: args.category,
     finalOutcome: timedOut ? "pipeline_timed_out" : args.pipelineResult.finalOutcome,
     retryCount: args.pipelineResult.retryCount,

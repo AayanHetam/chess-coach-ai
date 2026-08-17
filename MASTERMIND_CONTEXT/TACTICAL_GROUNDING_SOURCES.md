@@ -11,7 +11,7 @@ _Compiled 2026-05-30 after Aayan's directive: "find all possible sources; the le
 | **Stockfish WASM (client-side, already wired)** | GPL-3 (safe as WASM worker) | Currently in browser; Stage 5 adds server-side depth-12 PV for escapability |
 | **Stockfish server-side (Node WASM)** | GPL-3 | One npm dep; Stage 5 |
 | **Lc0 (Leela Chess Zero)** | GPL-3 | Neural net; catches sacrificial lines Stockfish misses; Stage 7 microservice |
-| **Komodo (free version)** | Non-commercial | **KILLED** — can't ship in paid product |
+| **Komodo (free version)** | Non-commercial | **KILLED** — incompatible with the product's distribution terms |
 | **Berserk** | MIT | Stockfish derivative; lower marginal value than Lc0 |
 | **Ethereal** | GPL-3 (?)  | Strong open-source engine; deploy as binary if needed |
 | **Maia-1 (per-rating 1100-1900)** | GPL-3 | Covered by Maia-2 (MIT) which is broader; defer |

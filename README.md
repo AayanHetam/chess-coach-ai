@@ -53,7 +53,7 @@ Detailed walkthrough: **[chessmasti.com/how-it-works](https://chessmasti.com/how
 - **Adaptive puzzle retrieval.** 100,000+ Lichess puzzles in a Neo4j graph, joined with 298,000+ Jhamtani expert-commentary pairs. Recommendations come from graph traversal plus FEN cosine re-ranking against your actual mistake — not a generic theme bucket.
 - **Live Lichess play.** OAuth 2.0 PKCE plus dual-SSE streams. No tab-switching.
 - **Opponent scouting.** Lichess / Chess.com username → opening trees, repertoire collisions, "Stalker Score" exploitability index, tilt and timeout psychology profiles.
-- **Free.** No paid tier, no upsell, no advertising.
+- **Completely free.** All coaching features are available without charge or advertising.
 
 ## Stack
 
@@ -92,7 +92,7 @@ Pre-commit check: `npx tsc --noEmit` (the build's TypeScript and ESLint checks a
 
 ## Maintainer
 
-Built and maintained by **Aayan Hetamsaria**, a high-school student. Priority markets are India and Southeast Asia. There is no paid tier and no plan to introduce one.
+Built and maintained by **Aayan Hetamsaria**, a high-school student. Priority markets are India and Southeast Asia. Chess Masti is completely free.
 
 ## License & contact
 

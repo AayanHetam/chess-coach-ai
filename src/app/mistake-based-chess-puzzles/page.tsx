@@ -91,7 +91,7 @@ export default function MistakeBasedChessPuzzlesPage() {
         in your own games — not a random corpus. Chess Masti AI automatically converts your
         biggest blunders into puzzles, then matches them against a 100,000-puzzle Neo4j graph by
         49-dimensional FEN cosine similarity so you drill the geometry of your specific mistake,
-        not a generic theme bucket. Free, engine-validated, no subscription.
+        not a generic theme bucket. Free and engine-validated.
       </AnswerBlock>
 
       <CtaRow>

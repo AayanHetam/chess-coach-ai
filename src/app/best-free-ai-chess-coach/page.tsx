@@ -48,7 +48,7 @@ const ENTRIES = [
     name: "Chess Masti AI",
     href: "/free-ai-chess-coach",
     pitch: "Best overall free AI chess coach with a training loop",
-    body: "Stockfish engine analysis paired with Claude AI explanations. Your worst mistakes become puzzles automatically. You can ask follow-up questions in plain language. Opponent scouting is included. The validator pipeline checks claims against engine output before showing them to you. Free to start with a generous free tier; a Premium upgrade unlocks unlimited AI coaching.",
+    body: "Stockfish engine analysis paired with Claude AI explanations. Your worst mistakes become puzzles automatically. You can ask follow-up questions in plain language. Opponent scouting is included. The validator pipeline checks claims against engine output before showing them to you. All Chess Masti coaching features are free.",
     bestFor: "Players who want to actually improve, not just understand a single position.",
   },
   {

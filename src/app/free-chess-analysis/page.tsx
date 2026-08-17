@@ -23,7 +23,7 @@ const HERE = "Free Chess Analysis";
 export const metadata: Metadata = {
   title: { absolute: "Free Chess Analysis | Stockfish + AI Explanations from Chess Masti" },
   description:
-    "Free chess analysis means analyzing your games without paying upfront. Chess Masti AI runs Stockfish for accuracy and Claude AI for explanations — free to start, no credit card.",
+    "Chess Masti AI provides completely free chess analysis with Stockfish accuracy and Claude AI explanations.",
   alternates: {
     canonical: "https://chessmasti.com/free-ai-chess-coach",
   },
@@ -47,7 +47,7 @@ export default function FreeChessAnalysisPage() {
       name: "Free Chess Analysis | Stockfish + AI Explanations from Chess Masti",
       url: URL,
       description:
-        "Free chess analysis means analyzing your games without paying upfront. Chess Masti AI runs Stockfish and Claude AI — free to start, no credit card.",
+        "Chess Masti AI provides completely free chess analysis with Stockfish and Claude AI.",
     }),
     buildBreadcrumbJsonLd({ here: HERE, url: URL }),
   ];
@@ -68,12 +68,10 @@ export default function FreeChessAnalysisPage() {
       <H1>Free Chess Analysis</H1>
 
       <AnswerBlock>
-        Free chess analysis means analyzing your games without paying upfront — no credit card to
-        begin. Chess Masti AI gives you a generous free tier powered by Stockfish (the world&apos;s
-        strongest open-source engine) and Claude AI (which explains the engine output in plain
-        language), plus a free 7-day Premium trial if you want unlimited coaching. Paste a PGN from
-        Lichess, Chess.com, or any other source. The engine runs in your browser. The coach explains
-        every critical move.
+        Chess Masti AI provides completely free game analysis powered by Stockfish (the
+        world&apos;s strongest open-source engine) and Claude AI, which explains the engine output
+        in plain language. Paste a PGN from Lichess, Chess.com, or any other source. The engine
+        runs in your browser, and the coach explains every critical move.
       </AnswerBlock>
 
       <CtaRow>

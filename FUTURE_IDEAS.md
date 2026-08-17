@@ -193,7 +193,7 @@ Option 1 is the realistic version; option 2 is a full second product.
 
 - Per-tenant data isolation in Firestore (currently `users/{uid}` is a flat user model — no concept of an academy owning a roster of students).
 - A coach-side surface: roster, assignment, progress views. None of this exists today.
-- A pricing model that doesn't undercut the unit economics of the consumer product.
+- A sustainable operating model for academy-scale usage.
 
 Not a near-term build. Reference for when the strategic question reopens.
 
@@ -270,7 +270,7 @@ If/when the academy pivot reopens (see "B2B pivot" section above), these are the
 
 - Teacher/coach dashboard with assignments and progress reports (ChessKid, Chessity, Chessverse.in, Chesslang)
 - Class / batch / cohort management with rating-segmented enrollment (ProChessTraining, Chessverse.in)
-- Family / group / school per-seat pricing (Chessity)
+- Family / group / school account management (Chessity)
 - COPPA-compliant kids mode + safe-chat moderation (ChessKid)
 - White-label academy branding (Chessverse.in)
 - School workshop kit for non-chess-playing teachers (Chessity)

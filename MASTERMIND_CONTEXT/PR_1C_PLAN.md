@@ -294,7 +294,6 @@ Every event in `result.telemetry` becomes one structured log entry:
   "session_id": "sess-...",             // route adds
   "response_id": "resp-...",            // route generates per turn
   "route": "/api/enhanced-analysis",    // route adds
-  "user_tier": "free" | "paid",         // route adds from user profile (Phase 5.E hook)
   "expected": { "band": "slightly_better", "cp": 70 },
   "actual": { "band": "winning", "cp": null },
   "llm_span": "Black is winning",
@@ -342,9 +341,9 @@ The ISEF appendix references this query pattern directly. **Aayan should review 
 
 | § | Question | Default |
 |---|---|---|
-| 3.1 | `user_tier` field — populate now (placeholder for Phase 5.E) or skip? | Populate now with `"free"` for all (paid tier doesn't exist yet) |
+| 3.1 | Access-level telemetry field | Skip; Chess Masti provides the same free access to every user. |
 | 3.2 | Sentry alert on `final_outcome=fallback_used`? | Yes, low-priority alert (warns when >1% of turns hit fallback) |
-| 3.3 | Dataset retention policy | Indefinite for paid; 90 days for free (matches `MastermindSession` retention from BUILD_PLAN §10) |
+| 3.3 | Dataset retention policy | 90 days for all users (matches `MastermindSession` retention from BUILD_PLAN §10) |
 | 3.4 | Truncate `llm_span` to 200 chars — sufficient for ISEF analysis? | Yes; the citation matching only needs the surrounding clause |
 
 ---
@@ -393,7 +392,7 @@ When all five hold, ops opens a small PR setting `MASTERMIND_VALIDATORS_ENABLED=
 
 | § | Question | Default |
 |---|---|---|
-| 4.3 | Per-user override for preview? (Beta cohort of paid users get it on prod even before promotion criteria met) | Skip in 1.C; revisit if there's a paid-tier launch before promotion criteria fire |
+| 4.3 | Per-user override for preview? | Skip in 1.C; use environment-level rollout criteria. |
 | 4.4 | Promotion criterion 4 — 7-day clean window: too short? too long? | 7 days; tightenable to 14 if pace allows |
 | 4.4 | Promotion criterion 5 — 1.5× latency ceiling, reasonable? | Yes; if real overhead is >1.5× we want to revisit before flipping |
 
@@ -779,7 +778,7 @@ Original §8 open questions resolved. Plan body updated; this section is the aud
 | 3 | Total pipeline budget | **30s** | §2.3 |
 | 4 | Flag name | **`MASTERMIND_VALIDATORS_ENABLED`** (distinct from agent-loop flag) | §4.1 |
 | 5 | "Real regression" definition | **Honor system** — regression introduced unintentionally and caught by the gate before merge | §4.4 |
-| 6 | `user_tier` telemetry field | **Populate as `"free"`** (paid tier doesn't exist yet, but the field shape is ISEF-stable) | §3.5 |
+| 6 | Access-level telemetry field | **Omit** — access is the same for every user | §3.5 |
 | 7 | Stage A rollback procedure | **Pause PR 1.C, ship gate-fix sub-PR, resume** | §1.5 |
 | 8 | Persona fidelity at $1/sweep | **Approved** | §5.5 |
 | 9 | Structural grounding 0.85 | **SUPERSEDED by Revision 1** — replaced with hallucination ≥95% per category + per-category citation floors | §5.3 |

@@ -286,7 +286,7 @@ Rules:
 Acceptance:
 
 - Pages make defensible claims only.
-- No false pricing or feature claims.
+- No false access or feature claims.
 - Link back to `/free-ai-chess-coach`.
 
 ### PR 6 — Internal Link Graph

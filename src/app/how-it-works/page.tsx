@@ -312,7 +312,7 @@ export default function HowItWorksPage() {
           See the architecture and the comparison
         </Typography>
         <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 3 }}>
-          No paid tier. India and Southeast Asia first.
+          Completely free. India and Southeast Asia first.
         </Typography>
         <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
           <CtaButton href="/architecture">Architecture deep-dive</CtaButton>

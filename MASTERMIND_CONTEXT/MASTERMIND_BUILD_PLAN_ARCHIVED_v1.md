@@ -433,9 +433,9 @@ The [Tier 2 priority](../FUTURE_IDEAS.md#tier-2--larger-builds-that-strengthen-t
 
 When Stockfish and the tablebase disagree (rare in normal play — happens at search-horizon edge cases), surface as a **teaching moment**: "the engine evaluates this as +2.5 but the tablebase says it's a draw. Here's why the engine can't see it from here…" This is the kind of insight no competitor ships because no competitor cross-checks. Cheap to add given Phase 1 already wires both.
 
-### 8.5 PR 5.E — Adaptive cost-budget per user
+### 8.5 PR 5.E — Adaptive cost controls
 
-User profile field `coachingCostBudget` (free tier vs paid). Free-tier users get fewer flagship calls per turn (≤2 tool calls before the agent must compose), paid users get up to 8. Same agent loop, parameterized budget. Foundation for the eventual paid-tier monetization without forcing a UX schism today.
+Apply the same cost-control policy to every user. The agent loop may adjust tool-call budgets based on operational capacity, but access remains free and consistent across accounts.
 
 ---
 
@@ -532,7 +532,7 @@ Resolve before the relevant PR ships.
 | 4 | Cache key for `compute_feature_delta` | LRU keyed by `(fenBefore, fenAfter, fenAtResolution)` triple in [responseCache.ts](../src/lib/responseCache.ts) | If memory pressure |
 | 5 | Tablebase rate limit | 24h in-memory cache; assume 30 req/min upstream; backoff = skip block + log | If hitting limits |
 | 6 | Max tool calls per turn | 8 (Phase 2 default). Adjustable per persona / cost budget. | After Phase 2 dogfood |
-| 7 | Cost-budget tier wiring | Phase 5.E. Until then: all users get 8 calls. | When monetization lands |
+| 7 | Cost-budget controls | Phase 5.E. Until then: all users get 8 calls. | If operating costs require it |
 | 8 | Inspector panel visibility | Hidden by default, `?inspector=1` or `Cmd+I` to show. | Never default-on |
 | 9 | Where does the agent loop live — `/api/enhanced-analysis` or new route? | **Existing route.** Feature flag `MASTERMIND_AGENT_LOOP_ENABLED`. Per FUTURE_IDEAS §1 architecture. | Not revisiting |
 | 10 | Auth requirement for agent loop | Required (existing `requireAuth` on the route). Anonymous users hit the cheap single-shot path. | Not revisiting |
@@ -540,7 +540,7 @@ Resolve before the relevant PR ships.
 | 12 | Streaming token-count delivery on OpenAI fallback | OpenAI is non-streaming today (§8 in FAILURE_MODES). Surface a small "loaded fallback" indicator. | If users complain |
 | 13 | Chesstalker rendering — toggle or two-column? | Toggle on mobile (≤768px), two-column on desktop. | After Phase 4.A |
 | 14 | Tier A content licensing — PGN provenance | Chess games are public domain; commentary/annotation prose is original. Document sources in `data/gm-games/PROVENANCE.md`. | Per release |
-| 15 | `MastermindSession` retention | Indefinite for paid; 90 days for free tier. | When paid tier exists |
+| 15 | `MastermindSession` retention | 90 days for all users. | Before session persistence ships |
 
 ---
 

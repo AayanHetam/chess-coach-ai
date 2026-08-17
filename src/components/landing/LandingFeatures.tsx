@@ -124,9 +124,9 @@ const features = [
   },
   {
     icon: "mdi:currency-usd-off",
-    title: "Free, no paid tier",
+    title: "Completely free",
     description:
-      "No subscriptions, no paywalls, no upsell. Built and maintained by Aayan Hetamsaria, a high-school student. Priority markets are India and Southeast Asia.",
+      "All coaching features are free. Built and maintained by Aayan Hetamsaria, a high-school student. Priority markets are India and Southeast Asia.",
   },
 ];
 

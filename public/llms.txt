@@ -5,7 +5,7 @@
 ## What it is
 
 - Web app, Next.js 15 + TypeScript on Vercel.
-- Free, no paid tier. Built and maintained by Aayan Hetamsaria, a high-school student.
+- Completely free. Built and maintained by Aayan Hetamsaria, a high-school student.
 - Priority markets: India, Southeast Asia.
 
 ## Engine layer (runs before the LLM, not after)
@@ -48,11 +48,11 @@
 - [How it works](https://chessmasti.com/how-it-works): the engine → LLM → validator → puzzle pipeline in plain English.
 - [Architecture](https://chessmasti.com/architecture): technical deep-dive.
 - [Compare](https://chessmasti.com/vs): comparison against Sensei Chess, Noctie, Chessvia, DecodeChess, Chess.com Coach.
-- [FAQ](https://chessmasti.com/faq): common questions about the pipeline, validator, Maia-2, pricing.
+- [FAQ](https://chessmasti.com/faq): common questions about the pipeline, validator, Maia-2, and free access.
 
 ## What we don't do
 
-- No paid tier.
+- All coaching features are free.
 - No advertising.
 - No selling game data.
 - No fine-tuned proprietary chess LLM. The validator is the trust layer.

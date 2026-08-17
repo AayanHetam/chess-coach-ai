@@ -273,7 +273,7 @@ export default function ArchitecturePage() {
       <Box component="section" sx={{ mb: 10 }}>
         <SectionHeading>Things we don&apos;t do</SectionHeading>
         <ProseBlock>
-          No paid tier. No advertising. No selling game data. No fine-tuned proprietary chess LLM
+          Completely free. No advertising. No selling game data. No fine-tuned proprietary chess LLM
           (a fine-tuned LLM still hallucinates; the validator is what we trust).
         </ProseBlock>
       </Box>

@@ -105,7 +105,7 @@ A single piece of state, `isIntern: boolean`, derived once at session-creation t
 |---|---|---|
 | Header — left | "ChessMasti" logo | "ChessMasti" logo + **`EMPLOYEE` pill** in deep blue |
 | Header — right | "Sign in" or avatar + name | Avatar + **"Welcome back, [first name] · Chess Masti Team"** |
-| Header — nav | Public links (Home / Analyze / Pricing) | Public links + **internal links** (My Submissions / Quota / Tools) |
+| Header — nav | Public links (Home / Analyze) | Public links + **internal links** (My Submissions / Quota / Tools) |
 | Homepage hero (`/`) | Marketing copy | **Internal landing card**: "You're logged in as an employee. 6 of 10 submissions this week. [Continue dogfooding →] [Author pending submissions →]" |
 | Footer | Standard copy | Standard copy + **`Internal build · v{gitSha.slice(0,7)} · You're seeing what customers don't.`** |
 | **Brand color — site-wide** | **Brand orange** | **Deep blue across every surface — buttons, links, headings, chat bubbles, board move-highlight accents, focus rings.** The intern's *whole* chessmasti.com is blue-themed. Customer view unchanged. |
@@ -133,11 +133,11 @@ Both can coexist; the distinction is by URL and by access control.
 
 - **The chess analysis itself.** Same model, same prompts, same engine. Interns are dogfooding the *real* product; if their view diverged from customer reality, their feedback would be off-distribution.
 - **URL structure.** No `intern.chessmasti.com` subdomain. Same domain, same routes. The reskin is presentational.
-- **Pricing pages, signup flows.** Interns won't see them in normal use, but if they navigate there, the employee chrome persists. They see what a customer sees, framed for an employee.
+- **Signup flows.** Interns won't see them in normal use, but if they navigate there, the employee chrome persists. They see what a customer sees, framed for an employee.
 
 ### 3.4 Anti-goal: don't make it feel like an admin panel
 
-Common failure mode: internal tools end up looking like phpMyAdmin. The CMIP portal must feel like a **premium consumer product that happens to be employees-only**, not like a back-office tool. Apply the same UI-craft bar as the customer-facing surface. This is the [project_ui_as_moat.md](../../memory/project_ui_as_moat.md) discipline applied internally.
+Common failure mode: internal tools end up looking like phpMyAdmin. The CMIP portal must feel like a **polished consumer product that happens to be employees-only**, not like a back-office tool. Apply the same UI-craft bar as the customer-facing surface. This is the [project_ui_as_moat.md](../../memory/project_ui_as_moat.md) discipline applied internally.
 
 ---
 

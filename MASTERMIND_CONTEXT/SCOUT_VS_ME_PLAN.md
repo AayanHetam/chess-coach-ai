@@ -16,6 +16,21 @@ Hard constraint, stated explicitly: **100% machine algorithm, 0% AI.** No LLM
 anywhere in this feature. Stockfish + Maia-2 + the opponent's own game history,
 combined by a stated equation.
 
+### Status (2026-08-17)
+
+| § | state |
+|---|---|
+| 1 Clock windows | built |
+| 2 Format filter | built |
+| 3 Head-to-head + trajectory | built |
+| 4 "Customize vs me" | **not built** — the report UI is the remaining work |
+| 5 Hole finder | built, tested, live-fired; **replaces** the coverage objective |
+
+§5 was rewritten twice. The Maia coverage engine (`theoryLines.ts`, §"Live-fire
+probe results") is still on the branch and still works, but it answers the wrong
+question and is **not** what the report should lead with. Everything below marked
+*superseded* is kept only because that code has not been removed yet.
+
 ---
 
 ## 1. Clock windows
@@ -63,106 +78,153 @@ dimension, as White and as Black separately, and feeds §5.
 
 ---
 
-## 5. Personalized theory lines — the algorithm
+## 5. The hole finder — the algorithm
 
-Generate ~10 lines where **you play the engine move and they play their move**,
-branching only where their behaviour is genuinely uncertain.
+> **Reframed 2026-08-15, and again 2026-08-17.** The original brief was coverage:
+> ten Maia-driven lines spanning their repertoire. Aayan corrected it — the goal
+> is not to learn their openings, it is to find *the hole they keep falling
+> into* and build the line that gets there. He had done exactly this by hand
+> with Stockfish and OpeningTree against `chilllychess`, found a gap in the
+> Caro-Kann, and won against someone ~300 rating points above him.
+>
+> The second reframe came from the data, not from a person. See §5.6.
 
-### 5.1 Their move distribution at a node
+Two signals, because neither works alone.
 
-Blend their actual history with Maia, weighted by how much history exists.
-`n(v)` = their games reaching position `v`; `e(m|v)` = empirical frequency from
-the opening tree; `μ(m|v)` = Maia-2 probability at their rating.
+### 5.1 The engine signal, and why it is not enough
 
-    w(v)   = n(v) / (n(v) + k)                k = 5
-    P(m|v) = w(v)·e(m|v) + (1 − w(v))·μ(m|v)
+The obvious model: find moves they repeat that Stockfish refutes.
 
-`k = 5` encodes the "only lines seen 5+ times" instruction as the half-weight
-point rather than a hard cutoff: at `n = 5` history and Maia weigh equally, at
-`n = 0` it is pure Maia, by `n = 20` history dominates (`w = 0.8`). A cliff at
-exactly 5 would make a line seen 4 times vanish and one seen 6 times dominate,
-which is not a real distinction in this data.
+```
+engineEdge(m) = cp→score( CPLoss(m) )
+```
 
-### 5.2 Branch count at a node
+Swept across all 77 decisions `chilllychess` repeats 30+ times in his Caro-Kann,
+at depth 16, **his worst repeated inaccuracy is 44cp.** There is no blunder to
+find. Strong club players do not hang pieces inside their own repertoire — they
+walk into structures they cannot play, and an engine cannot see that, because it
+evaluates the position rather than the person.
 
-Sort by `P` descending. Take the smallest prefix clearing the coverage
-threshold, capped:
+The engine signal stays in the model. It is just not the headline.
 
-    c(v) = min( Kmax, min{ c : Σᵢ₌₁ᶜ pᵢ ≥ τ } )      τ = 0.70, Kmax = 3
+### 5.2 The results signal
 
-τ = 0.70 (Aayan, 2026-08-13). Lower τ branches *less*, so the budget goes
-deeper rather than wider. Both originally stated rules still hold:
-- top move 0.92 → `c = 1`, no split
-- 0.50 / 0.40 → 0.50 < 0.70, +0.40 → 0.89 ≥ 0.70 → `c = 2`, split
+Their own scoreline sees what the engine cannot.
 
-### 5.3 Budget allocation
+```
+resultsEdge(v) = b − ŝ(v)      b = their weighted score with this colour
+                               ŝ = their score at v, shrunk toward b
+```
 
-Line reach probability:
+### 5.3 One currency
 
-    R(ℓ) = Π P(move_ℓ(v) | v)     over their nodes v on ℓ
+Centipawns and score fractions are combined through Lichess's winning-chances
+curve, rescaled to a score fraction:
 
-Best-first expansion: repeatedly expand the frontier leaf with the largest
-`R(ℓ)`; splitting into `c` children costs `c − 1` from the budget.
+```
+cp→score(cp) = 1/(1 + e^(−0.004·cp)) − 0.5
+```
 
-**Termination (Aayan, 2026-08-14):** a line ends at its **last fork**, capped
-off by your engine reply — not at a fixed depth. Keep splitting under τ/ε/Kmax
-until the budget can fund no further fork, then stop. Line length is therefore
-emergent and varies: 8 plies or 20, whichever the branching produces. Once no
-fork can be funded, walking deeper adds no distinctness, so the search stops
-rather than following a forced continuation — which is also where most of the
-latency saving comes from, since no Maia call is spent on a node that can no
-longer branch.
+which puts +150cp and a 15-point results drop both near 0.15 — close enough that
+comparing them is meaningful.
 
-`D = 20` is a safety cap, not the goal. A line may run one ply past it when the
-closing reply is appended; every line must end on YOUR move, because the line
-exists to deliver "they play X, you answer Y".
+```
+Benefit(ℓ) = Reach(ℓ) × [ max(resultsEdge, engineEdge) − cp→score(Concession) ]
+```
 
-Also terminate on: `R(ℓ) < ε`, an off-model position (no history and no Maia —
-stop rather than invent), or a finished game.
+`max`, not a sum: the two are measurements of one quantity — how bad this is for
+them — not two independent edges. `Reach` is the product of **their** move
+probabilities along ℓ; your own moves are free, because you simply play them.
+`Concession` is what your steering hands back, subtracted rather than capped, so
+paying 30cp to reach a 20-point collapse is worth it and paying it for a 3-point
+wobble is not.
 
-`N` is chosen by the user, and ε scales with it — a user asking for 20 lines is
-explicitly asking to go further down the tail, and a fixed ε would silently
-hand them fewer lines than they picked:
+### 5.4 Concession is measured between siblings
 
-    lite         N = 5   ε = 0.05
-    recommended  N = 10  ε = 0.02
-    hardcore     N = 20  ε = 0.01
+The cost of your move is the difference between the position it leaves and the
+position the engine's move would have left — **both children of the same
+parent**, searched to the same depth:
 
-Maximising `Σ R(ℓ)` under a cardinality constraint is monotone submodular, so
-greedy is within `1 − 1/e` of optimal — and, more usefully, is legible to
-anyone reading the code.
+```
+moveLoss = max(0, eval(after your move) − eval(after engine's move))
+```
 
-### 5.4 Your moves
+Parent-to-child comparison looks equivalent and is not. Two positions one ply
+apart, searched to the same nominal depth, disagree by 20–40cp in the opening
+from search instability alone. Measured that way, `2.d4` and `3.exd5` were billed
+24–47cp — half the concession budget for ordinary developing moves. Between
+siblings the bias is identical on both sides and cancels, and a move that *is*
+the engine's choice scores exactly zero instead of merely near it.
 
-Stockfish at search depth 20, on **your side only** — their replies come from
-Maia and their history, so no position needs engine evaluation on their move.
-That halves the engine work per line (≈10 evals across 20 plies, not 20) and is
-the main reason the latency budget in §3 below is reachable. No branching: one
-recommendation per position.
+### 5.5 Statistics on positions, not move orders
 
-### 5.5 Output stat
+Everything above is measured on a **recency-weighted position index**, not on the
+move tree. Two corrections, both forced by real data:
 
-`Σ R(ℓ)` = the probability their real game stays inside one of your lines **all
-the way to that line's end**.
+**Transpositions pool.** A move tree asks a separate question of every spelling
+of the same idea. The c4 break against `chilllychess`'s Caro appeared as 18 games
+down one order and 31 down another; pooled by position it is one question at
+n_eff 51. FEN keys drop the halfmove and fullmove counters, which never change an
+evaluation.
 
-Careful with the wording: this is NOT monotone in `N`, and that is correct
-rather than a defect. At τ = 0.70 the tail beyond the threshold is deliberately
-unprepped, so each extra level of depth sheds that share. Measured on a
-0.50/0.35/0.15 opponent: lite 0.561, recommended 0.517, hardcore 0.406. More
-lines buys **depth**, not breadth — staying in book for 13 plies is genuinely
-less likely than for 5.
+**Games decay.** Weight `w = 0.5^(age / halfLife)`, half-life 365 days, anchored
+at their most recent game rather than at today. He answered 1.e4 with c6 in
+**58.6%** of all his games and in **96.3%** of his most recent 1,500. An
+unweighted archive describes a player who no longer exists.
 
-So do not label it "how much of their play we cover", which reads as a quality
-score that gets worse when the user pays more attention. Label it as what it
-is: how likely they are to follow a full line.
+Sample size is then Kish's effective N, `(Σw)² / Σw²`, so recency weighting
+cannot manufacture confidence it has not earned.
 
-(Coverage IS required to be monotone with respect to *budget truncation* — see
-the regression tests. Losing mass because a fork was half-taken is a bug;
-losing it to τ is the spec.)
+### 5.6 The correction, and why the second reframe happened
+
+An early run reported: *"the Panov, 26.6% over 32 games against his 46.9%
+baseline — Wilson-confirmed."* It was wrong, and it was wrong in the most
+instructive way available.
+
+That line's own **parent**, at 167 games, scores 49.1% — his baseline. The 32-game
+sample was noise. The bug was not the Wilson interval, which was correct in
+isolation; it was running it **1,617 times** and reporting the most extreme
+survivor. At a 95% gate, ~80 of 1,617 lines clear by chance, so essentially every
+headline would have been a mirage.
+
+The screen therefore corrects for its own size:
+
+- Positions below `minNeff` are not tested at all — they cannot fire except on a
+  fluke, and each one added makes the correction harsher for lines that do have
+  evidence.
+- A position whose child carries ≥95% of its weight is one question, not two;
+  collapsing forced continuations cut 229 nominal tests to 160 real ones.
+- **Benjamini-Hochberg** at `q = 0.1`, not Bonferroni. This is a screen, not a
+  confirmatory test. Over 160 nested, heavily correlated positions Bonferroni
+  demanded p ≤ 6e-4 where the strongest available line offered 2.8e-3 — it
+  rejects everything, always. BH controls the share of reported lines that are
+  flukes, which is the guarantee a user actually wants.
+
+A results edge is claimed **only** for positions the screen tested. Below that
+floor nothing is protecting the line, and shrinkage alone still turns an
+unscreened 7-game 4.5% sample into a 14-point "edge" — the same fluke-promotion
+one layer down.
+
+### 5.7 Three tiers, because most opponents have no hole
+
+| tier | meaning |
+|---|---|
+| `confirmed` | Survived BH. A real, defensible weakness. |
+| `signal` | Screened, below baseline, did not clear the bar. Real evidence, unproven. |
+| `prep` | Not screened. Best available line; **not a claim about their play.** |
+
+Power: at a 19-point deficit the gate needs n_eff ≈ 73. `chilllychess`'s best line
+has n_eff 51 — genuinely close, genuinely not proven. So `confirmedWeakness:
+false` is the *normal* outcome against a solid opponent, not a failure, and the
+UI must not dress the prep tier up as a discovery.
 
 ---
 
 ## Feasibility constraints found while scoping
+
+*Constraints 1, 2 and 4 apply to the Maia coverage engine only — the hole
+finder does not call Maia at all, so it has no fail-closed path to get wrong and
+runs on the anonymous scout path. Constraint 3 still binds.*
 
 1. **Maia returns top-5 only.** `/api/maia-predict` proxies
    `{humanLikeMove, confidence, alternativeMoves[]}`. Cumulative mass will not
@@ -194,7 +256,7 @@ losing it to τ is the spec.)
 §4 then §5, with §5 behind a flag until the fail-closed path and the latency
 budget are both proven against the live service.
 
-## Open question for Aayan
+## Open question for Aayan — *superseded*
 
 The 10-line budget, `τ = 0.90`, and `D = 14` are the tunable knobs. They are all
 one-line constants. Worth a look at real output before they are fixed.
@@ -202,7 +264,10 @@ one-line constants. Worth a look at real output before they are fixed.
 
 ---
 
-## Live-fire probe results (2026-08-14)
+## Live-fire probe results (2026-08-14) — *superseded, see §5*
+
+These numbers describe the Maia coverage engine, whose objective was replaced.
+The engine-latency findings below still hold and still constrain §4.
 
 Probed the real Maia service at the configured `MAIA_API_URL`, request shape
 matching what the client sends (`{fen, rating, opponent_rating}`).

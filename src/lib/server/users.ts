@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminFirestore } from "./firebaseAdmin";
 import { withFirestoreTimeout } from "./withFirestoreTimeout";
+import { getUidByHandle } from "./handles";
 import type { PlanTier, SubscriptionStatus } from "../billing/config";
 
 const COLLECTION = "users";
@@ -31,6 +32,10 @@ export type StoredUser = {
   ageAffirmedAt?: Timestamp;
 
   displayName?: string;
+  /** Public handle, in the capitalisation the user chose. */
+  handle?: string;
+  /** Canonical (lowercased, separator-folded) form — the uniqueness key. */
+  handleLower?: string;
   photoURL?: string;
   bio?: string;
 
@@ -311,10 +316,44 @@ export async function verifyPassword(
   return ok ? user : null;
 }
 
+/**
+ * Sign in with EITHER a handle or an email.
+ *
+ * An identifier containing "@" is treated as an email; anything else is
+ * resolved through the handle reservation. Both paths end in the same bcrypt
+ * compare, including the dummy compare on a miss — a handle that does not
+ * exist must take the same time as one that does, or the sign-in form becomes
+ * an oracle for which handles are registered.
+ */
+export async function verifyPasswordByIdentifier(
+  identifier: string,
+  password: string
+): Promise<StoredUser | null> {
+  const id = (identifier ?? "").trim();
+  if (id.includes("@")) return verifyPassword(id, password);
+
+  const uid = await getUidByHandle(id);
+  const user = uid ? await getUserById(uid) : null;
+  if (!user || !user.passwordHash) {
+    await bcrypt.compare(
+      password,
+      "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalid"
+    );
+    return null;
+  }
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  return ok ? user : null;
+}
+
 export type UpdateUserPatch = Partial<
   Pick<
     StoredUser,
     | "displayName"
+    // handle/handleLower are deliberately ABSENT: they may only be written by
+    // claimHandle, inside the transaction that also writes the reservation
+    // document. Allowing them through the generic patch would let a client set
+    // a handle with no reservation behind it — two users could then show the
+    // same name, and one could point handleLower at somebody else's handle.
     | "photoURL"
     | "bio"
     | "chesscomUsername"
@@ -416,7 +455,7 @@ export async function updateUser(
  */
 export async function updateSubscription(
   uid: string,
-  patch: SubscriptionPatch,
+  patch: SubscriptionPatch
 ): Promise<StoredUser> {
   return updateUser(uid, patch);
 }
@@ -427,7 +466,7 @@ export async function updateSubscription(
  * has that customer id (e.g. an event for a deleted account).
  */
 export async function getUserByStripeCustomerId(
-  stripeCustomerId: string,
+  stripeCustomerId: string
 ): Promise<StoredUser | null> {
   const db = await getAdminFirestore();
   const snap = await withFirestoreTimeout(
@@ -436,7 +475,7 @@ export async function getUserByStripeCustomerId(
       .where("stripeCustomerId", "==", stripeCustomerId)
       .limit(1)
       .get(),
-    `users.getUserByStripeCustomerId(${stripeCustomerId})`,
+    `users.getUserByStripeCustomerId(${stripeCustomerId})`
   );
   if (snap.empty) return null;
   const doc = snap.docs[0];

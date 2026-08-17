@@ -16,6 +16,7 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/session";
 import { getUserById } from "@/lib/server/users";
 import { fetchHistoryFor } from "@/lib/rating/fetchRatingHistory";
+import { selectHistoryTarget } from "@/lib/rating/historyTarget";
 import {
   CHARTED_PERFS,
   buildTrend,
@@ -40,7 +41,8 @@ export async function GET(request: Request) {
   if ("response" in guard) return guard.response;
 
   const user = await getUserById(guard.session.uid);
-  if (!user) return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+  if (!user)
+    return NextResponse.json({ error: "Profile not found." }, { status: 404 });
 
   const url = new URL(request.url);
   const requested = Number.parseInt(url.searchParams.get("window") ?? "", 10);
@@ -49,25 +51,22 @@ export async function GET(request: Request) {
       ? Math.min(requested, MAX_WINDOW_DAYS)
       : DEFAULT_WINDOW_DAYS;
 
-  // One platform per request: prefer the one the stored rating came from, then
-  // the declared primary, then whichever username exists. Crawling both would
-  // double the upstream cost for a chart that can only show one scale anyway —
-  // Lichess and Chess.com numbers are not comparable on a shared axis.
-  const platform =
-    user.platformRatingSource ??
-    user.primaryPlatform ??
-    (user.lichessUsername ? "lichess" : user.chesscomUsername ? "chesscom" : null);
+  // One platform per request: crawling both would double the upstream cost for
+  // a chart that can only show one scale anyway — Lichess and Chess.com numbers
+  // are not comparable on a shared axis.
+  //
+  // Selection is delegated because getting it wrong is invisible. This used to
+  // choose a platform from `platformRatingSource`/`primaryPlatform` and only
+  // then look for that platform's username, so a profile whose preference
+  // pointed at a site it had no username for reported `no_username` — three
+  // trend graphs replaced by an "add your username" prompt for a user who had
+  // already added one, on the other site.
+  const target = selectHistoryTarget(user);
 
-  const username =
-    platform === "lichess"
-      ? user.lichessUsername?.trim()
-      : platform === "chesscom"
-        ? user.chesscomUsername?.trim()
-        : undefined;
-
-  if (!platform || !username) {
+  if (!target) {
     return NextResponse.json({ status: "no_username", trends: [] });
   }
+  const { platform, username } = target;
 
   const series = await fetchHistoryFor(platform, username);
   if (!series) {

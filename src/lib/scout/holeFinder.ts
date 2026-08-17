@@ -62,8 +62,19 @@ export interface PositionEval {
 }
 
 export interface HoleFinderProviders {
-  /** Stockfish evaluation. Must be from the perspective of the side to move. */
-  evaluate(fen: string): Promise<PositionEval>;
+  /**
+   * Evaluate a position, in centipawns from the SIDE TO MOVE's perspective.
+   *
+   * Note the perspective: `LineEval.cp` elsewhere in this codebase is
+   * White-relative, so an adapter must negate it when Black is to move. Getting
+   * that backwards silently inverts every concession rather than failing.
+   *
+   * Return null when there is genuinely no answer — a cloud miss, a dead
+   * service. The caller then drops the candidate instead of ranking it, because
+   * a neutral stand-in would read as "this move costs nothing" and let bad
+   * steering through.
+   */
+  evaluate(fen: string): Promise<PositionEval | null>;
 }
 
 export interface HoleFinderConfig {
@@ -351,6 +362,11 @@ export interface HoleReport {
   confirmedWeakness: boolean;
   evaluated: number;
   budgetExhausted: boolean;
+  /**
+   * Positions the engine had no answer for. A high count means the report rests
+   * on results alone, which the UI should say rather than imply engine backing.
+   */
+  unavailable: number;
   noHoleFound: boolean;
 }
 
@@ -501,14 +517,18 @@ export async function findHoles(
   const screen = screenPositions(index, config);
   const candidates = collectCandidates(tree, theirColor, index, screen, config);
 
-  const cache = new Map<string, PositionEval>();
+  // `null` is a real answer here — "asked, and there is none" — so it is cached
+  // alongside the hits. Without that, every unevaluable position is re-requested
+  // once per candidate line that passes through it, and on a cloud miss that is
+  // the slowest path in the search repeated dozens of times.
+  const cache = new Map<string, PositionEval | null>();
   let evaluated = 0;
   let budgetExhausted = false;
+  let unavailable = 0;
 
   const evaluate = async (fen: string): Promise<PositionEval | null> => {
     const key = positionKey(fen);
-    const hit = cache.get(key);
-    if (hit) return hit;
+    if (cache.has(key)) return cache.get(key)!;
     if (evaluated >= config.engineBudget) {
       budgetExhausted = true;
       return null;
@@ -516,6 +536,7 @@ export async function findHoles(
     const res = await providers.evaluate(fen);
     cache.set(key, res);
     evaluated += 1;
+    if (!res) unavailable += 1;
     return res;
   };
 
@@ -644,6 +665,7 @@ export async function findHoles(
     confirmedWeakness: ranked.some(h => h.tier === 'confirmed'),
     evaluated,
     budgetExhausted,
+    unavailable,
     noHoleFound: ranked.length === 0,
   };
 }

@@ -218,6 +218,34 @@ has n_eff 51 — genuinely close, genuinely not proven. So `confirmedWeakness:
 false` is the *normal* outcome against a solid opponent, not a failure, and the
 UI must not dress the prep tier up as a discovery.
 
+### 5.8 Where the evaluations come from
+
+There is no server-side engine in this codebase — evals are computed client-side
+and passed in. So the hole finder runs in the browser, and ~110 WASM searches is
+not a thing anyone will wait for.
+
+Every position it looks at is an opening position inside sixteen plies, which is
+exactly the set Lichess's cloud holds deeply. Probed against the real endpoint,
+on the 120 most-reached positions of a real opponent's archive:
+
+    hit at depth >= 20   90.8%
+    404 miss              0.0%
+    latency               p50 198ms, p90 247ms
+    cloud depth           min 38, median 57, max 70
+
+So cloud-first is not an optimisation, it is the design. Two constraints follow:
+
+  - **Rate limiting is real.** 11 of 120 requests errored at 60ms spacing.
+    Modest concurrency with backoff, not a serial hammer and not a fan-out.
+  - **`LineEval.cp` is White-relative** — the local engine's UCI output is
+    negated for Black to move in `parseResults`, and Lichess is White-relative
+    already. The hole finder wants side-to-move-relative. Getting this backwards
+    throws nothing: concessions simply invert and the output stays plausible.
+    `cpForSideToMove` owns the conversion and is tested for asymmetry.
+
+A miss returns null, which drops the candidate rather than ranking it. A neutral
+stand-in would read as "this move costs nothing" and let bad steering through.
+
 ---
 
 ## Feasibility constraints found while scoping

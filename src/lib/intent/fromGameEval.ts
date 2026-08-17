@@ -120,6 +120,12 @@ export interface NullMoveProbe {
    * the comparison is cross-regime.
    */
   opponentBestAfter: EngineLine | null;
+  /**
+   * The player's best move at fenBefore, measured by THIS prober rather than
+   * read from gameEval. Feeds the free-tempo valuation, which would otherwise
+   * add a cold-table number to a warm-table one. See `rootBestProbed`.
+   */
+  rootBest: EngineLine | null;
 }
 
 export interface ProbeFromEval {
@@ -261,6 +267,7 @@ export function intentProbesFromGameEval(params: {
       // itself. Never falls back to the Tier 0 number above — that fallback is
       // exactly the cross-regime subtraction this field exists to prevent.
       opponentBestAfterProbed: t1?.opponentBestAfter?.score ?? null,
+      rootBestProbed: t1?.rootBest?.score ?? null,
       threatAfterAlternatives: t1?.threatAfterAlternatives ?? [],
       playedScore,
       moverHasPieces,
@@ -283,6 +290,7 @@ function emptyProbe(fenBefore: string, playedSan: string, fenAfter: string): Int
     playedSan,
     fenAfter,
     rootLines: [],
+    rootBestProbed: null,
     opponentBestAfterProbed: null,
     threat: null,
     threatAfter: null,

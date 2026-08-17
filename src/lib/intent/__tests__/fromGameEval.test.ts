@@ -149,6 +149,7 @@ describe("intentProbesFromGameEval", () => {
           threatAlternative: null,
           threatStillLegal: true,
           opponentBestAfter: null,
+          rootBest: null,
           threatAfterAlternatives: [],
           counterfactualCostCp: null,
         }],

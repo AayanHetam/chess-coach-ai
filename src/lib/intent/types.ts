@@ -128,6 +128,26 @@ export interface IntentProbe {
   opponentBestAfterProbed: IntentScore | null;
 
   /**
+   * The player's best move at fenBefore, re-measured by whatever engine
+   * produced `threat`.
+   *
+   * The "is this a threat at all?" gate values the opponent's free tempo as
+   * `threat + rootBest` — one Tier 1 number plus one Tier 0 number. gameEval's
+   * root score is read off a warm transposition table; the null-move probe runs
+   * on a cold one, so the sum carries the difference between the two engines.
+   *
+   * Measured: on 60 plies deliberately sampled NEAR the 150cp bar, 12% of the
+   * threat/no-threat decisions flip when this operand is measured in the same
+   * regime as the threat — about 7.8% of all plies where the gate is live, and
+   * they flip in BOTH directions. That is the engine deciding whether the
+   * student is told about a threat, rather than the position.
+   *
+   * Null when the caller did not pay for the extra search, in which case the
+   * Tier 0 root score is used and a note records the mixed comparison.
+   */
+  rootBestProbed: IntentScore | null;
+
+  /**
    * The threat replayed after each of OUR plausible alternatives, scored for
    * the OPPONENT.
    *

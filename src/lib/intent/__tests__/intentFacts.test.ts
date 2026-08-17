@@ -39,6 +39,7 @@ function probe(over: Partial<IntentProbe> = {}): IntentProbe {
     rootLines: [line("Kb1", 0)],
     threat: null,
     opponentBestAfterProbed: null,
+    rootBestProbed: null,
     threatAfter: null,
     threatAlternative: null,
     opponentBestAfter: null,
@@ -75,6 +76,69 @@ describe("score conventions", () => {
     expect(toCp({ cp: null, mate: 1 })).toBeGreaterThan(toCp({ cp: null, mate: 5 })!);
     expect(toCp({ cp: null, mate: 1 })).toBeGreaterThan(toCp({ cp: 2000, mate: null })!);
     expect(toCp({ cp: null, mate: -2 })).toBe(-(MATE_CP - 2));
+  });
+});
+
+// ─── the free-tempo gate: both operands from one regime ────────────────────
+//
+// "Is there a threat at all?" values the opponent's free tempo as
+// `threat + playerBest`. The threat comes from the null-move prober (cold
+// transposition table); gameEval's root score is read off a warm one. The sum
+// therefore carries the difference between two engines.
+//
+// Sampled on 60 real plies deliberately chosen NEAR the 150cp bar, 12% of the
+// threat/no-threat decisions flip when the root score is measured alongside the
+// threat instead — about 7.8% of every ply where this gate is live, flipping in
+// BOTH directions. Real case, game_06 ply 75 Rxa2: 158 warm, 55 cold.
+
+describe("the free-tempo gate does not mix measurement regimes", () => {
+  const threat = line("Qg4", 100);
+
+  it("uses the same-regime root score when it exists, and stays silent below the bar", () => {
+    // warm root +60 would make the tempo worth 160 and clear the bar; the
+    // same-regime reading is +20, worth 120, and there is no threat to narrate.
+    const f = computeIntentFacts(
+      probe({
+        threat,
+        threatAfter: line("Qg4", -400),
+        rootLines: [line("Rf5", 60)],
+        rootBestProbed: { cp: 20, mate: null },
+        opponentBestAfterProbed: { cp: -390, mate: null },
+      }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.notes.join(" ")).toContain("free tempo worth only 120cp");
+  });
+
+  it("CONTROL: the identical probe WITHOUT the same-regime score falls back, and speaks", () => {
+    // Same numbers, `rootBestProbed` absent. The Tier 0 root score is used —
+    // 160cp, over the bar — and the mixed comparison is recorded in the notes so
+    // it is visible rather than silent.
+    const f = computeIntentFacts(
+      probe({
+        threat,
+        threatAfter: line("Qg4", -400),
+        rootLines: [line("Rf5", 60)],
+        rootBestProbed: null,
+        opponentBestAfterProbed: { cp: -390, mate: null },
+      }),
+    );
+    expect(f.prophylaxis).not.toBeNull();
+    expect(f.notes.join(" ")).toContain("across measurement regimes");
+  });
+
+  it("CONTROL: a same-regime score comfortably OVER the bar still speaks", () => {
+    const f = computeIntentFacts(
+      probe({
+        threat,
+        threatAfter: line("Qg4", -400),
+        rootLines: [line("Rf5", 60)],
+        rootBestProbed: { cp: 300, mate: null },
+        opponentBestAfterProbed: { cp: -390, mate: null },
+      }),
+    );
+    expect(f.prophylaxis).not.toBeNull();
+    expect(f.notes.join(" ")).not.toContain("across measurement regimes");
   });
 });
 

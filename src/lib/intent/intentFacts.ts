@@ -381,7 +381,17 @@ function computeProphylaxis(
       notes.push("opponent is being mated in the null line — no threat of theirs to stop");
       return null;
     }
-    const rootScore = probe.rootLines[0]?.score;
+    // BOTH OPERANDS FROM ONE REGIME. `before` is the null-move probe's number,
+    // measured on a cold transposition table; gameEval's root score is read off
+    // a warm one. Adding them makes the sum carry the difference between two
+    // engines. Sampled on 60 plies near the 150cp bar, 12% of the
+    // threat/no-threat decisions flip when this operand is measured alongside
+    // the threat instead — about 7.8% of all plies where this gate is live, and
+    // in both directions.
+    const rootScore = probe.rootBestProbed ?? probe.rootLines[0]?.score;
+    if (!probe.rootBestProbed && probe.rootLines[0]) {
+      notes.push("free tempo valued across measurement regimes — no same-regime root score");
+    }
     if (!rootScore || isMate(rootScore)) {
       notes.push("cannot value the opponent's tempo against a mate score");
       return null;

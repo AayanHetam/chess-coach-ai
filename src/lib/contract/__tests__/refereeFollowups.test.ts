@@ -96,7 +96,7 @@ const V2_TF_29: V3Span = {
 // ── fix B: forbidden_claim user_visibility definitional FP ──────────────────
 const V3_FORBIDDEN: V3Span[] = [
   { fixture: "07_knight_fork", factIdPrefix: "M3", check: "forbidden_claim", span: "obvious", sentence: "An \"intermezzo\" (or zwischenzug) is an in-between move — instead of doing the obvious thing, you insert a forcing move first that changes the situation." },
-  { fixture: "01_mate_for_white_midgame", factIdPrefix: "I1", check: "forbidden_claim", span: "obvious", sentence: "But Black played the \"obvious\" recapture instead of exploiting it." },
+  { fixture: "01_mate_for_white_midgame", factIdPrefix: "M1", check: "forbidden_claim", span: "obvious", sentence: "But Black played the \"obvious\" recapture instead of exploiting it." },
   { fixture: "10_queenless_endgame", factIdPrefix: "M1", check: "forbidden_claim", span: "dominates", sentence: "It activates the rook along the fifth rank and exploits the pin on h6, while keeping the knight safe on d4 where it dominates." },
 ];
 
@@ -111,10 +111,10 @@ const V3_PV: V3Span[] = [
 
 // ── fix D: the 14 v3 mobility_claims fires, split by family ─────────────────
 const V3_MOBILITY_LITERAL: V3Span[] = [
-  { fixture: "01_mate_for_white_midgame", factIdPrefix: "I2", check: "mobility_claims", span: "no legal moves", sentence: "Black's knight on e7 is also immediately trapped with no legal moves." },
-  { fixture: "01_mate_for_white_midgame", factIdPrefix: "I2", check: "mobility_claims", span: "no legal moves", sentence: "- Black's knight on e7 is completely trapped with no legal moves." },
-  { fixture: "01_mate_for_white_midgame", factIdPrefix: "I2", check: "mobility_claims", span: "zero legal moves", sentence: "Ne7, the knight on e7 has zero legal moves (it's trapped), the d5-knight is pinned, and you have multiple strong threats — including capturing on d5 with check." },
-  { fixture: "01_mate_for_white_midgame", factIdPrefix: "I2", check: "mobility_claims", span: "no legal moves", sentence: "Ne7 does nothing to break that pin and actually traps the knight on e7 with no legal moves." },
+  { fixture: "01_mate_for_white_midgame", factIdPrefix: "M2", check: "mobility_claims", span: "no legal moves", sentence: "Black's knight on e7 is also immediately trapped with no legal moves." },
+  { fixture: "01_mate_for_white_midgame", factIdPrefix: "M2", check: "mobility_claims", span: "no legal moves", sentence: "- Black's knight on e7 is completely trapped with no legal moves." },
+  { fixture: "01_mate_for_white_midgame", factIdPrefix: "M2", check: "mobility_claims", span: "zero legal moves", sentence: "Ne7, the knight on e7 has zero legal moves (it's trapped), the d5-knight is pinned, and you have multiple strong threats — including capturing on d5 with check." },
+  { fixture: "01_mate_for_white_midgame", factIdPrefix: "M2", check: "mobility_claims", span: "no legal moves", sentence: "Ne7 does nothing to break that pin and actually traps the knight on e7 with no legal moves." },
   { fixture: "02_mate_for_black", factIdPrefix: "M2", check: "mobility_claims", span: "no legal moves", sentence: "Problem: The knight on c6 has no future — it's immediately trapped with no legal moves in the resulting position." },
   { fixture: "02_mate_for_black", factIdPrefix: "M2", check: "mobility_claims", span: "no legal moves", sentence: "The knight on c6 has no legal moves the moment it lands there — it's immediately trapped by the pawn on d6." },
 ];

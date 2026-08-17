@@ -170,7 +170,13 @@ describe("daily plan", () => {
       dueReviewThemes: [],
     });
     const firstUnit = unitById(SYLLABUS[0].id)!;
-    expect(session.newThemes.length).toBe(5);
+    // 3, not the 5 this asserted before the session stopped being puzzles-only.
+    // The 15-minute band now also carries one 6-minute secondary task, and that
+    // time is taken OUT of the puzzle allowance rather than added on top — so a
+    // smaller puzzle count here is the budget working, not a regression. If
+    // this ever reads 5 again alongside a secondary task, the session has
+    // quietly grown past the commitment.
+    expect(session.newThemes.length).toBe(3);
     for (const t of session.newThemes) expect(firstUnit.themes).toContain(t);
     expect(session.coachInsightTheme).toBe(session.newThemes[0]); // coach:1
   });

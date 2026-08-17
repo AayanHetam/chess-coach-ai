@@ -31,6 +31,67 @@ function evalOf(positions: Array<{ lines: ReturnType<typeof line>[] }>): GameEva
 }
 
 describe("intentProbesFromGameEval", () => {
+  // ── the opponent's reply is scored in the same search as their best ──────
+  //
+  // `trap` computes `best - actual` and calls the difference the opponent's
+  // error. Taking `actual` from the evaluation of the position their reply
+  // PRODUCED makes the two operands come from different searches, so when they
+  // play the engine's own top reply the difference is not zero. Measured on the
+  // 278 plies in the founder's games where the opponent played `bestSan`:
+  // median 2cp, p99 113cp, max 148cp — over TRAP_MIN_ATTRIBUTION_CP on 1.8%.
+  //
+  // Same fix as `playedScoreOf` for `cost`, on the other side of the board.
+
+  it("scores their reply from the lines at fenAfter, not from the position it produced", () => {
+    // 1.e4 e5 2.Nf3. Black's reply e5 is the SECOND line at fenAfter (-30 for
+    // White), while the evaluation of the position after e5 says +120. The
+    // adapter must take -30, because that is the number measured beside their
+    // best reply.
+    const moves = ["e4", "e5", "Nf3"];
+    const ge = evalOf([
+      { lines: [line(["e2e4"], 20)] },
+      { lines: [line(["b8c6"], 10, null, 1), line(["e7e5"], -30, null, 2)] },
+      { lines: [line(["g1f3"], 120)] },
+      { lines: [line(["b8c6"], 120)] },
+    ]);
+    const [white] = intentProbesFromGameEval({ gameEval: ge, moves });
+    expect(white.probe.opponentReply).not.toBeNull();
+    // fenAfter is Black to move, so White-relative -30 is +30 to them.
+    expect(white.probe.opponentReply!.actual).toEqual({ cp: 30, mate: null });
+    // and their best there, White-relative +10, is -10 to them.
+    expect(white.probe.opponentReply!.best).toEqual({ cp: -10, mate: null });
+  });
+
+  it("CONTROL: falls back to the produced position when the reply is not in the lines", () => {
+    // Identical, except Black's e5 is absent from fenAfter's lines. The
+    // separate measurement is then the only thing available and must be used.
+    const moves = ["e4", "e5", "Nf3"];
+    const ge = evalOf([
+      { lines: [line(["e2e4"], 20)] },
+      { lines: [line(["b8c6"], 10, null, 1), line(["g8f6"], -5, null, 2)] },
+      { lines: [line(["g1f3"], 120)] },
+      { lines: [line(["b8c6"], 120)] },
+    ]);
+    const [white] = intentProbesFromGameEval({ gameEval: ge, moves });
+    expect(white.probe.opponentReply!.actual).toEqual({ cp: -120, mate: null });
+  });
+
+  it("their OWN best reply subtracts to exactly zero", () => {
+    // The invariant the fix exists for: when they play bestSan, `best - actual`
+    // must be 0 no matter what the produced position evaluates to.
+    const moves = ["e4", "e5", "Nf3"];
+    const ge = evalOf([
+      { lines: [line(["e2e4"], 20)] },
+      { lines: [line(["e7e5"], 10, null, 1), line(["b8c6"], -30, null, 2)] },
+      { lines: [line(["g1f3"], 158)] },
+      { lines: [line(["b8c6"], 158)] },
+    ]);
+    const [white] = intentProbesFromGameEval({ gameEval: ge, moves });
+    const r = white.probe.opponentReply!;
+    expect(r.san).toBe(r.bestSan);
+    expect(r.actual).toEqual(r.best);
+  });
+
   it("converts White-relative scores to the MOVER's side, for both colours", () => {
     // 1.e4 (White) then 1...e5 (Black). Both positions are scored +100 for
     // WHITE. That must read as +100 to White on ply 0 and -100 to Black on

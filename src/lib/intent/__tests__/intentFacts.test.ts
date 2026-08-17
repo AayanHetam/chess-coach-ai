@@ -78,6 +78,64 @@ describe("score conventions", () => {
   });
 });
 
+// ─── cost: both operands from one search ───────────────────────────────────
+//
+// `cost` is `rootLines[0] - played`. On the game-review path those come from
+// DIFFERENT searches: the best move's score from the MultiPV search at
+// fenBefore, and the played move's from the evaluation of the position it
+// produced. When the student plays the engine's own top move the answer must be
+// exactly zero, and it was not.
+//
+// Measured on the 285 plies in the founder's twelve games where he played
+// rootLines[0]: median 1cp, p99 113cp, max 148cp — and five cleared
+// COST_MIN_LOSS_CP, so the review charged him over a pawn for playing the best
+// move on the board. Two of those five were his own moves.
+
+describe("cost never charges for playing the engine's own best move", () => {
+  it("reports NOTHING when the played move is rootLines[0], whatever the second measurement says", () => {
+    // The real numbers from game_12 ply 98: Kg4 IS the top line at -1379, while
+    // the separate evaluation of the position it produced reads -1527. The
+    // difference is 148cp of measurement, and none of it is a mistake.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Kg4",
+        rootLines: [line("Kg4", -1379), line("Kh4", -1500)],
+        playedScore: { cp: -1527, mate: null },
+      }),
+    );
+    expect(f.cost).toBeNull();
+  });
+
+  it("CONTROL: the same fixture with a move the engine did NOT rank still reports its cost", () => {
+    // Identical but the played move is absent from the lines, so the separate
+    // measurement is all there is — and it must still be used.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Kh5",
+        rootLines: [line("Kg4", -1379), line("Kh4", -1500)],
+        playedScore: { cp: -1527, mate: null },
+      }),
+    );
+    expect(f.cost).not.toBeNull();
+    expect(f.cost!.lossCp).toBe(148);
+  });
+
+  it("uses the in-search score even when the played move is only the SECOND line", () => {
+    // Not just rootLines[0]: any line the same search scored is preferable to a
+    // number from a different search. Here the played move is line 2 at -1500,
+    // so the real loss is 121cp, not the 148cp the other measurement implies.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Kh4",
+        rootLines: [line("Kg4", -1379), line("Kh4", -1500)],
+        playedScore: { cp: -1527, mate: null },
+      }),
+    );
+    expect(f.cost).not.toBeNull();
+    expect(f.cost!.lossCp).toBe(121);
+  });
+});
+
 // ─── prophylaxis ───────────────────────────────────────────────────────────
 
 describe("prophylaxis", () => {

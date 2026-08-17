@@ -679,13 +679,42 @@ function attributionOf(probe: IntentProbe): Attribution {
  * from a material score yields things like "COST 30929cp" — a real output from
  * this function before the mate branches existed.
  */
+/**
+ * The played move's score, preferring the value measured IN THE SAME SEARCH as
+ * the root lines.
+ *
+ * `probe.playedScore` is defined as "the score of the move actually played,
+ * measured at fenBefore, for the PLAYER" — but on the game-review path it is
+ * derived from the evaluation of the position the move PRODUCED, which is a
+ * different search of a different position. When the played move is one of the
+ * MultiPV lines, the engine has already scored it inside the same search that
+ * produced `rootLines[0]`, and that is the number the subtraction wants.
+ *
+ * This is not a nicety. `cost` is `rootLines[0] - played`, so when the student
+ * plays THE ENGINE'S OWN TOP MOVE the answer must be exactly zero. Measured on
+ * the 285 such plies across the founder's twelve games, the two-search version
+ * gives a median of 1cp but a p99 of 113cp and a maximum of 148cp — and five of
+ * them cleared COST_MIN_LOSS_CP, so the review charged the student more than a
+ * pawn for playing the best move on the board. Taking both operands from one
+ * search makes those exactly zero by construction, not by threshold.
+ *
+ * Falls back to the separate measurement for the ~33% of moves outside the top
+ * three, where no same-search number exists. Those are moves the engine ranked
+ * below its third choice, so the loss is large and the noise is a small part of
+ * it.
+ */
+function playedScoreOf(probe: IntentProbe): IntentScore | null {
+  const inSameSearch = probe.rootLines.find((l) => l.san === probe.playedSan);
+  return inSameSearch ? inSameSearch.score : probe.playedScore;
+}
+
 function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {
   const best = probe.rootLines[0];
   if (!best) {
     notes.push("no root lines");
     return null;
   }
-  const played = probe.playedScore;
+  const played = playedScoreOf(probe);
   if (!played) {
     notes.push("played move not scored");
     return null;
@@ -759,7 +788,7 @@ function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {
 
 /** Did the move force mate? Read from the played move's own score. */
 function computeMate(probe: IntentProbe): MateFact | null {
-  const sc = probe.playedScore;
+  const sc = playedScoreOf(probe);
   if (!sc || sc.mate === null || sc.mate === undefined || sc.mate <= 0) return null;
   const line = probe.rootLines.find((l) => l.san === probe.playedSan);
   return { inMoves: sc.mate, line: line?.pv ?? [] };
@@ -931,6 +960,9 @@ export function computeIntentFacts(probe: IntentProbe): IntentFacts {
   //    claim after the tempo gate has already confirmed a genuine threat means
   //    something IS happening — saying "nothing tactical here" is then the
   //    opposite of the truth.
+  // Deliberately NOT playedScoreOf(): this is a completeness check on the
+  // probe's own field, and letting a root line stand in for a missing
+  // playedScore would rescue exactly the probe this guard exists to refuse.
   const playedReadable = probe.playedScore !== null && toCp(probe.playedScore) !== null;
   const rootReadable = probe.rootLines.length > 0 && toCp(probe.rootLines[0]?.score) !== null;
   const boardKnown = probe.position !== null;

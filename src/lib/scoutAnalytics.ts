@@ -180,6 +180,19 @@ function finalizeBucket(b: TimeBucket, timeouts: number): TimeBucket {
   };
 }
 
+/**
+ * A clock-windows bundle with nothing in it.
+ *
+ * Needed in two places that both predate the field. Snapshots shared before
+ * clock windows existed carry no `clockWindows` key, so the panel would read
+ * `undefined.byHour` on an old share link; and fixtures that construct a
+ * `ScoutAnalytics` by hand should not have to invent an hour histogram to
+ * satisfy a field they never exercise.
+ */
+export function emptyClockWindows(): ClockWindows {
+  return { byHour: [], byWeekday: [], sampled: 0 };
+}
+
 function computeClockWindows(games: ScoutGame[], target: string): ClockWindows {
   const hours = Array.from({ length: 24 }, (_, i) => emptyBucket(i));
   const weekdays = Array.from({ length: 7 }, (_, i) => emptyBucket(i));

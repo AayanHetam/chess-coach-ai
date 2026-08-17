@@ -13,7 +13,7 @@ function game(
   i: number,
   hour: number,
   outcome: "win" | "loss" | "draw",
-  termination: ScoutGame["termination"] = "resignation"
+  termination: ScoutGame["termination"] = "resign"
 ): ScoutGame {
   // Build from local-time parts so the bucket the test asserts is the bucket
   // the code computes — both go through the same local calendar.
@@ -85,7 +85,7 @@ describe("clock windows", () => {
   it("reports the timeout share of losses per bucket", () => {
     const games = [
       ...Array.from({ length: 5 }, (_, i) => game(i, 23, "loss", "timeout")),
-      ...Array.from({ length: 5 }, (_, i) => game(50 + i, 23, "loss", "resignation")),
+      ...Array.from({ length: 5 }, (_, i) => game(50 + i, 23, "loss", "resign")),
     ];
 
     const { clockWindows } = computeAnalytics(games, ME);

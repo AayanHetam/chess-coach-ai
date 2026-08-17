@@ -1,3 +1,4 @@
+import { emptyClockWindows } from "@/lib/scoutAnalytics";
 import { describe, it, expect } from "vitest";
 import { runValidationPipeline } from "../../validators";
 import type { ParserCall } from "../../validators/evalClaim";
@@ -192,6 +193,7 @@ function emptyScoutAnalytics() {
       tiltAfterLossLossRate: 0,
     },
     recentBuckets: [], novelty: [],
+    clockWindows: emptyClockWindows(),
   };
 }
 

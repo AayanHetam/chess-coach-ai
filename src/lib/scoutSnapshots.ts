@@ -10,6 +10,7 @@
 
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminFirestore } from "@/lib/server/firebaseAdmin";
+import { emptyClockWindows } from "@/lib/scoutAnalytics";
 import type { OpeningTreeNode } from "@/types/scout";
 import type {
   ScoutSnapshotCreateRequest,
@@ -90,11 +91,22 @@ export async function createScoutSnapshot(
 export function normalizeLegacyAnalytics(
   analytics: Record<string, unknown> | undefined
 ): ScoutSnapshotRecord["analytics"] {
-  if (analytics && !("tells" in analytics) && "stalker" in analytics) {
-    const { stalker, ...rest } = analytics;
-    return { ...rest, tells: stalker } as unknown as ScoutSnapshotRecord["analytics"];
+  if (!analytics) return analytics as unknown as ScoutSnapshotRecord["analytics"];
+
+  let out = analytics;
+
+  // The metric was renamed; share links minted before that carry the old key.
+  if (!("tells" in out) && "stalker" in out) {
+    const { stalker, ...rest } = out;
+    out = { ...rest, tells: stalker };
   }
-  return analytics as unknown as ScoutSnapshotRecord["analytics"];
+
+  // Clock windows arrived later still, and the panel reads .byHour directly.
+  if (!("clockWindows" in out)) {
+    out = { ...out, clockWindows: emptyClockWindows() };
+  }
+
+  return out as unknown as ScoutSnapshotRecord["analytics"];
 }
 
 export async function getScoutSnapshot(

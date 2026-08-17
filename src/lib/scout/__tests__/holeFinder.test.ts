@@ -38,7 +38,7 @@ function game(moves: string[], result: string, ageDays = 0): ScoutGame {
     blackUsername: 'them',
     whiteRating: 1500,
     blackRating: 1500,
-    result,
+    result: result as ScoutGame['result'],
     timeClass: 'blitz',
     date: NOW - ageDays * DAY,
   };
@@ -317,7 +317,7 @@ describe('screenPositions', () => {
   it('confirms a planted hole', () => {
     const index = buildPositionIndex(plantedHole(), 'them', 'black');
     const screen = screenPositions(index, HOLE_DEFAULTS);
-    const confirmed = [...screen.tested.values()].filter(t => t.confirmed);
+    const confirmed = Array.from(screen.tested.values()).filter(t => t.confirmed);
 
     expect(confirmed.length).toBeGreaterThan(0);
     for (const t of confirmed) expect(t.score).toBeLessThan(index.baseline);
@@ -328,7 +328,7 @@ describe('screenPositions', () => {
     // code that confirms everything it is handed.
     const index = buildPositionIndex(noHole(), 'them', 'black');
     const screen = screenPositions(index, HOLE_DEFAULTS);
-    expect([...screen.tested.values()].filter(t => t.confirmed)).toHaveLength(0);
+    expect(Array.from(screen.tested.values()).filter(t => t.confirmed)).toHaveLength(0);
   });
 
   it('confirms nothing on an opponent who is merely noisy', () => {
@@ -337,14 +337,14 @@ describe('screenPositions', () => {
 
     // The fixture has to be able to fool an uncorrected screen, or this proves
     // nothing: several lines must look significant on their own.
-    const nominallySignificant = [...screen.tested.values()].filter(
+    const nominallySignificant = Array.from(screen.tested.values()).filter(
       t => t.p <= 0.05 && t.score < index.baseline
     );
     expect(screen.tests).toBeGreaterThan(20);
     expect(nominallySignificant.length).toBeGreaterThan(0);
 
     // And yet none of them is a real discovery.
-    expect([...screen.tested.values()].filter(t => t.confirmed)).toHaveLength(0);
+    expect(Array.from(screen.tested.values()).filter(t => t.confirmed)).toHaveLength(0);
   });
 
   it('collapses a forced continuation into one test', () => {
@@ -353,7 +353,7 @@ describe('screenPositions', () => {
     const index = buildPositionIndex(plantedHole(), 'them', 'black');
     const screen = screenPositions(index, HOLE_DEFAULTS);
 
-    const eligible = [...index.positions.values()].filter(
+    const eligible = Array.from(index.positions.values()).filter(
       p => effectiveN(p) >= HOLE_DEFAULTS.minNeff
     );
     expect(screen.tests).toBeLessThan(eligible.length);
@@ -362,7 +362,7 @@ describe('screenPositions', () => {
   it('never tests a position below the effective-sample floor', () => {
     const index = buildPositionIndex(plantedHole(), 'them', 'black');
     const screen = screenPositions(index, HOLE_DEFAULTS);
-    for (const t of screen.tested.values()) {
+    for (const t of Array.from(screen.tested.values())) {
       expect(t.n).toBeGreaterThanOrEqual(HOLE_DEFAULTS.minNeff);
     }
   });

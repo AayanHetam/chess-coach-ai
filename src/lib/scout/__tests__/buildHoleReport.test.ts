@@ -29,7 +29,7 @@ function batch(
       blackUsername: theirColor === 'black' ? 'them' : 'other',
       whiteRating: 1500,
       blackRating: 1500,
-      result: i < wins ? theirWin : theirLoss,
+      result: (i < wins ? theirWin : theirLoss) as ScoutGame['result'],
       timeClass: 'blitz',
       date: Date.UTC(2026, 0, 1),
     });

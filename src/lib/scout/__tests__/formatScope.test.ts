@@ -21,7 +21,7 @@ function game(i: number, timeClass: TimeClass | undefined, rating: number, win: 
     blackRating: rating,
     result: win ? "1-0" : "0-1",
     timeClass,
-    termination: "resignation",
+    termination: "resign",
     date: Date.UTC(2026, 0, 1) + i * 3_600_000,
   };
 }

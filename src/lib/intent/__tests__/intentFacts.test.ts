@@ -514,19 +514,32 @@ describe("unaddressed threats", () => {
     expect(f.quiet).toBe(false);
   });
 
-  // ── a threat made WORSE is not a threat "barely changed" ─────────────────
+  // ── a threat made WORSE needs the same evidence as a threat STOPPED ──────
   //
-  // These two exist because a mutation proved nothing distinguished the two
-  // labels: collapsing `made-it-worse` back into `barely-changed` left the
-  // whole suite green. The label shipped in #323 on the strength of numbers
-  // (2196 -> 2706) that came from a corrupted sweep and do not reproduce. It
-  // is the right label; it just had no evidence and no test.
+  // The label exists because a mutation proved nothing distinguished
+  // "made-it-worse" from "barely-changed": collapsing them left the whole suite
+  // green. But the FIRST version of these tests pinned noise.
   //
-  // Real position, re-measured in one regime — game_11 move 40, and the move
-  // the founder asked about. White is DRAWN: Rc7+, Rc3 and Rc1 all hold at
-  // 0.00. Ra6 loses at -527 and leaves Black's Re6+ slightly BETTER for Black
-  // than it already was, 521 -> 542.
-  it("distinguishes a threat the move made WORSE from one it barely changed", () => {
+  // The founder, shown two cards claiming his move made a threat stronger: "the
+  // evals should be the same because the position that occurs should be the
+  // same a few moves after the move." They were the same, to within measurement
+  // error. Measured like-for-like at increasing depth, the swing behind those
+  // cards does this:
+  //
+  //   game_10 20.Qh3   d14 -29  d16 -28  d18 -12  d20  +7  d22  +6  d24 +13
+  //   game_11 40.Ra6   d14  -8  d16 -25  d18  -3  d20 +43  d22 -151 d24 -333
+  //
+  // The first flips sign at depth 20 and stays flipped. The gate had no
+  // threshold at all — it fired on `swing < 0` — so it was reading a label off
+  // the sign of a quantity that moves ~25cp with legitimate measurement choices
+  // at fixed depth, and changes sign with depth.
+  //
+  // Zero of the 835 plies in the founder's corpus now reach this label. That is
+  // the honest state, and it is why the fixture below is SYNTHETIC: there is no
+  // real instance to quote.
+  it("says nothing about a threat 'strengthened' by less than the noise floor", () => {
+    // The exact Ra6 numbers that used to produce a "you made it stronger" card:
+    // a 21cp swing, whose sign flips by depth 20.
     const f = computeIntentFacts(
       probe({
         playedSan: "Ra6",
@@ -539,28 +552,48 @@ describe("unaddressed threats", () => {
       }),
     );
     expect(f.unaddressedThreat).not.toBeNull();
-    expect(f.unaddressedThreat!.reason).toBe("made-it-worse");
-    expect(f.unaddressedThreat!.madeItWorse).toBe(true);
-    expect(f.unaddressedThreat!.scoreBeforeCp).toBe(521);
-    expect(f.unaddressedThreat!.scoreAfterCp).toBe(542);
+    expect(f.unaddressedThreat!.reason).toBe("barely-changed");
+    expect(f.unaddressedThreat!.madeItWorse).toBe(false);
   });
 
-  it("CONTROL: the same position with the threat nudged DOWN is barely-changed", () => {
-    // Identical but for the sign of the swing: 521 -> 500 instead of 521 -> 542.
-    // If this and the test above ever agree, the two labels are not separated.
+  it("still separates the two labels when the swing clears the bar", () => {
+    // SYNTHETIC, and deliberately so — see above. Same shape as the Ra6 case but
+    // with the threat gaining 300cp, twice the bar, so the sign is not in doubt.
+    // Without this the mutation "made-it-worse collapses into barely-changed"
+    // survives and the label is untested.
     const f = computeIntentFacts(
       probe({
         playedSan: "Ra6",
         rootLines: [line("Rc7+", 0), line("Rc3", 0)],
         playedScore: { cp: -527, mate: null },
         threat: line("Re6+", 521),
-        threatAfter: line("Re6+", 500),
-        opponentBestAfter: { cp: 556, mate: null },
-        opponentBestAfterProbed: { cp: 556, mate: null },
+        threatAfter: line("Re6+", 821),
+        opponentBestAfter: { cp: 830, mate: null },
+        opponentBestAfterProbed: { cp: 830, mate: null },
       }),
     );
-    expect(f.unaddressedThreat!.reason).toBe("barely-changed");
-    expect(f.unaddressedThreat!.madeItWorse).toBe(false);
+    expect(f.unaddressedThreat).not.toBeNull();
+    expect(f.unaddressedThreat!.reason).toBe("made-it-worse");
+    expect(f.unaddressedThreat!.madeItWorse).toBe(true);
+    expect(f.unaddressedThreat!.scoreBeforeCp).toBe(521);
+    expect(f.unaddressedThreat!.scoreAfterCp).toBe(821);
+  });
+
+  it("CONTROL: an equally large swing the OTHER way is not made-it-worse", () => {
+    // 521 -> 221 instead of 521 -> 821. If this and the test above ever agree,
+    // the two labels are not separated.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Ra6",
+        rootLines: [line("Rc7+", 0), line("Rc3", 0)],
+        playedScore: { cp: -527, mate: null },
+        threat: line("Re6+", 521),
+        threatAfter: line("Re6+", 221),
+        opponentBestAfter: { cp: 230, mate: null },
+        opponentBestAfterProbed: { cp: 230, mate: null },
+      }),
+    );
+    expect(f.unaddressedThreat?.reason ?? "no-card").not.toBe("made-it-worse");
   });
 
   it("reports a threat that is only illegal for one ply because we gave check", () => {

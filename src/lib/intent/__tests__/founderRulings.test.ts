@@ -373,16 +373,24 @@ describe("the founder's rulings on prophylaxis", () => {
   });
 
   it("a move that makes the threat STRONGER is not filed as 'barely changed'", () => {
-    // Real: game_11 move 40 Ra6. Level beforehand (Rc3 +2), the move scores
-    // -1735, and their threat rises from 2196 to 2706. Calling that "barely
-    // changed" undersold it into the weakest category in the module.
+    // SYNTHETIC, and it has to be. This fixture used to quote game_11 move 40 as
+    // "level beforehand (Rc3 +2), the move scores -1735, their threat rises from
+    // 2196 to 2706" — every one of those numbers came from the sweep whose
+    // null-move searches shared a transposition table with the real ones. Re-
+    // measured cleanly the position is a DRAW (Rc7+/Rc3/Rc1 all 0.00), Ra6
+    // scores -527, and the threat moves 521 -> 542: a 21cp swing whose sign
+    // flips by search depth 20. It no longer reaches this label, and neither
+    // does anything else in the 835-ply corpus.
+    //
+    // So the label is kept and tested on numbers that are honestly invented,
+    // rather than on real numbers that cannot carry the claim.
     const f = computeIntentFacts(
       probeFor({
         ...RULINGS[0],
         best: line("Rc3", cp(2)),
-        playedScore: cp(-1735),
-        threat: line("Re6+", cp(2196)),
-        threatAfter: line("Re6+", cp(2706)),
+        playedScore: cp(-600),
+        threat: line("Re6+", cp(500)),
+        threatAfter: line("Re6+", cp(900)),
       }),
     );
     expect(f.unaddressedThreat!.reason).toBe("made-it-worse");

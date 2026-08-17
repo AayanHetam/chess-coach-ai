@@ -34,6 +34,36 @@ export const MATE_CP = 30000;
 export const PROPHYLAXIS_MIN_SWING_CP = 150;
 
 /**
+ * How far the threat must move IN THE OPPONENT'S FAVOUR before we say our move
+ * made it stronger.
+ *
+ * Symmetric with PROPHYLAXIS_MIN_SWING_CP above, and for the same reason. The
+ * founder, on two cards claiming his move made a threat stronger: "the evals
+ * should be the same because the position that occurs should be the same a few
+ * moves after the move." They were the same, to within measurement error.
+ *
+ * This label used to fire on `swing < 0` — any negative value at all. The swing
+ * is a difference between two DIFFERENT positions (with and without our move),
+ * each scored by its own search, and it is nothing like stable enough to read a
+ * sign off. Measured like-for-like on the three cards he was shown, at
+ * increasing depth:
+ *
+ *   game_10 20.Qh3    d14 -29   d16 -28   d18 -12   d20  +7   d22  +6   d24 +13
+ *   game_11 40.Ra6    d14  -8   d16 -25   d18  -3   d20 +43   d22 -151  d24 -333
+ *   game_12 14...d5   d14 -20   d16 -43   d18   0   d20 -16   d22  -7   d24 -17
+ *
+ * The first flips sign at depth 20 and stays flipped; the second flips twice.
+ * At fixed depth the same swing moves ~25cp purely from legitimate measurement
+ * choices (MultiPV 1 vs 2, restricted vs unrestricted). Every instance the
+ * module had ever labelled sat between 9 and 43cp — entirely inside that.
+ *
+ * Requiring the same magnitude in both directions is the point: we already
+ * refuse to say "your move stopped this" below 150cp, and saying "your move
+ * STRENGTHENED this" is no cheaper a claim.
+ */
+export const THREAT_STRENGTHENED_MIN_CP = PROPHYLAXIS_MIN_SWING_CP;
+
+/**
  * How much a free tempo must be worth to the opponent before their best
  * null-move reply counts as a THREAT at all.
  *
@@ -484,20 +514,18 @@ function computeProphylaxis(
   }
   if (swing < PROPHYLAXIS_MIN_SWING_CP) {
     notes.push(`threat swing ${swing}cp below ${PROPHYLAXIS_MIN_SWING_CP}cp`);
-    // A negative swing means the move made their threat BETTER for them, which
-    // is a different card from "nothing much changed" and was being filed under
-    // the same label.
+    // A swing far enough NEGATIVE means the move made their threat better for
+    // them — a different card from "nothing much changed". It needs the same
+    // evidence as the positive claim; see THREAT_STRENGTHENED_MIN_CP.
     //
-    // Real, re-measured in a single regime — game_11 move 40, the position the
-    // founder asked about. White is DRAWN: Rc7+, Rc3 and Rc1 all hold at 0.00.
-    // Ra6 loses at -527 AND leaves Black's Re6+ slightly better for Black than
-    // it already was, 521 → 542. "Barely changed" would file that beside a move
-    // that improved nothing; it is worse than nothing.
-    //
-    // The numbers this comment used to quote (2196 → 2706) came from a sweep
-    // whose null-move searches shared a transposition table with the real ones.
-    // The label was right and the evidence was not; 2706 does not reproduce.
-    signals.unaddressed = swing < 0
+    // This comment has now quoted two worked examples that did not survive
+    // measurement, which is itself the lesson. The first (Ra6 2196 → 2706) came
+    // from a sweep whose null-move searches shared a transposition table with
+    // the real ones. The second (the same Ra6, cleanly re-measured at 521 → 542)
+    // was a 21cp difference inside a ±25cp noise floor, and its sign flips with
+    // search depth. No worked example is quoted here now because the corpus
+    // contains none that clears the bar — which is the honest state.
+    signals.unaddressed = swing <= -THREAT_STRENGTHENED_MIN_CP
       ? unaddressed(probe, "made-it-worse", { madeItWorse: true })
       : unaddressed(probe, "barely-changed");
     return null;

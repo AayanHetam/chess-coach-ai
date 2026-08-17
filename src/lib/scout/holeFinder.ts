@@ -505,6 +505,41 @@ function shortlist(candidates: Candidate[], limit: number): Candidate[] {
   return Array.from(picked);
 }
 
+/**
+ * Positions the engine pass will ask about, in the order it will ask.
+ *
+ * The search awaits each evaluation, so against a ~200ms cloud it would spend
+ * twenty seconds doing nothing but waiting. Everything up to this point is pure
+ * and free, so a caller can compute this list, warm its provider's cache
+ * concurrently, and then run `findHoles` against a cache that already has the
+ * answers.
+ *
+ * It is deliberately not exhaustive: the sibling the engine would rather have
+ * played is only knowable once it has answered, so those stay cold. It covers
+ * the line positions, which are the bulk.
+ */
+export function planEngineWork(
+  tree: OpeningTreeNode,
+  theirColor: 'white' | 'black',
+  index: PositionIndex,
+  config: HoleFinderConfig = HOLE_DEFAULTS
+): string[] {
+  const screen = screenPositions(index, config);
+  const candidates = collectCandidates(tree, theirColor, index, screen, config);
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  for (const c of shortlist(candidates, config.topN * 6)) {
+    for (const fen of [tree.fen, ...c.path.map(n => n.fen)]) {
+      const key = positionKey(fen);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(fen);
+    }
+  }
+  return out;
+}
+
 // ── The engine pass ──────────────────────────────────────────────────────────
 
 export async function findHoles(

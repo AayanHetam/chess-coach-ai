@@ -56,6 +56,8 @@ import {
   type FormatScope,
 } from '@/lib/scout/formatScope';
 import HeadToHeadPanel from '@/components/scout/HeadToHeadPanel';
+import PrepLinesPanel from '@/components/scout/PrepLinesPanel';
+import { useHoleReport } from '@/lib/scout/useHoleReport';
 import TargetedPrepPanel from '@/components/scout/TargetedPrep';
 import PreGameChecklist from '@/components/scout/PreGameChecklist';
 import RivalsPanel from '@/components/scout/RivalsPanel';
@@ -666,6 +668,11 @@ export default function ScoutPage() {
     [scoutResult, formatFilter]
   );
 
+  // "Customize vs me" — the prep report. Kept out of the main analytics pass
+  // because it costs ~100 cloud-eval calls, so it runs only when asked for.
+  const [prepColor, setPrepColor] = useState<'white' | 'black'>('white');
+  const holeReport = useHoleReport();
+
   // Derived nodes
   const currentNode = useMemo(() => {
     if (!tree) return null;
@@ -1257,6 +1264,20 @@ export default function ScoutPage() {
               theirName={scoutResult.username}
             />
           )}
+
+          <PrepLinesPanel
+            report={holeReport.report}
+            progress={holeReport.progress}
+            error={holeReport.error}
+            theirName={scoutResult.username}
+            yourColor={prepColor}
+            onColorChange={c => {
+              setPrepColor(c);
+              holeReport.reset();
+            }}
+            onRun={() => holeReport.run(activeGames, scoutResult.username, prepColor)}
+            onExplore={(moves, asColor) => exploreLine(moves, asColor)}
+          />
 
           <TwinBanner
             username={scoutResult.username}

@@ -297,6 +297,23 @@ function TrendPanel({
               )}
               {/* Where the goal itself sits, so the panel answers "does this
                   control get there" rather than only "which way is it going". */}
+              {/* Why there is no forecast. Without this the panels simply render less
+          and look identical to a broken chart — the reader cannot tell "you
+          have not set a goal" from "this feature is not working", and the one
+          thing they could do about it goes unsaid. */}
+              {!projection && (
+                <Typography
+                  sx={{
+                    color: "rgba(255,255,255,0.4)",
+                    fontSize: "0.76rem",
+                    mt: -0.5,
+                    mb: 1.25,
+                  }}
+                >
+                  Set a goal above and these extend to your target date.
+                </Typography>
+              )}
+
               {projection && (
                 <ReferenceLine
                   y={projection.goalRating}

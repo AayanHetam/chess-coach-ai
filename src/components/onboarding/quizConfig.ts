@@ -8,6 +8,15 @@
 import type { UserProfileUpdates } from "@/lib/firestoreUsers";
 import { QUIZ_GOAL_OPTIONS } from "./quizThemes";
 import { buildGoalPatch } from "@/lib/curriculum/goalPatch";
+// Re-exported so the many existing `from "./quizConfig"` imports keep working
+// while the definition itself lives outside the quizConfig/goalPatch cycle.
+export {
+  MINUTES_PER_DAY,
+  minutesPerDayFor,
+  type TimeCommitment,
+} from "@/lib/curriculum/timeCommitment";
+import { minutesPerDayFor } from "@/lib/curriculum/timeCommitment";
+import type { TimeCommitment } from "@/lib/curriculum/timeCommitment";
 
 // localStorage keys ───────────────────────────────────────────────────────────
 // Draft = in-progress answers (resumable, never persisted to Firestore).
@@ -17,7 +26,6 @@ export const FLUSH_STORAGE_KEY = "cm_onboarding_quiz_v1";
 
 // Answer model ──────────────────────────────────────────────────────────────
 export type PlayStyle = "lichess" | "chesscom" | "otb" | "new";
-export type TimeCommitment = "under-10" | "10-30" | "30-plus";
 export type SelfAssessScore = 0 | 1 | 2;
 export type SelfAssessKey = "years" | "spot" | "tournaments";
 
@@ -51,25 +59,6 @@ export interface QuizAnswers {
 
 export function emptyAnswers(): QuizAnswers {
   return { selfAssess: {}, goals: [], dailyReminder: true, daysPerWeek: 4 };
-}
-
-/**
- * Representative minutes/day for each time band, for the improvement model.
- *
- * Midpoints. The top band is a hard 30, matching what the option now promises —
- * the projection must not assume more practice than we asked for.
- */
-export const MINUTES_PER_DAY: Record<TimeCommitment, number> = {
-  "under-10": 8,
-  "10-30": 15,
-  // 30 rather than 45: the top band is now "about 30 min", because expecting
-  // more than half an hour a day from a self-directed learner is how plans get
-  // abandoned. The projection must assume what we actually ask for.
-  "30-plus": 30,
-};
-
-export function minutesPerDayFor(time: TimeCommitment | undefined): number {
-  return time ? MINUTES_PER_DAY[time] : 0;
 }
 
 /** Days-per-week choices for the practice-frequency step. */

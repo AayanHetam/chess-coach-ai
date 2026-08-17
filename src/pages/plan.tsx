@@ -5,7 +5,17 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { Box, Button, Typography } from "@mui/material";
 import { useAtomValue } from "jotai";
-import { Check, Circle, Flame, Play, RotateCcw, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  Circle,
+  ExternalLink,
+  Flame,
+  Microscope,
+  Play,
+  RotateCcw,
+  Sparkles,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { puzzleStatsAtom } from "@/lib/puzzleRating";
 import { streakAtom, dayKey } from "@/lib/curriculum/streak";
@@ -13,6 +23,7 @@ import { dailyLogAtom, puzzlesOn, trainedOn } from "@/lib/curriculum/dailyLog";
 import { puzzleThemeSrsAtom, dueThemes } from "@/lib/curriculum/puzzleThemeSrs";
 import {
   buildDailySession,
+  type DailyTask,
   type TimeCommitment,
 } from "@/lib/curriculum/dailyPlan";
 import { buildWeekPlan, type DayPlan } from "@/lib/curriculum/weekPlan";
@@ -119,13 +130,47 @@ export default function PlanPage() {
   const nowMs = Date.now();
 
   /**
+   * The rating the GOAL is measured against.
+   *
+   * `stats.rating` is the PUZZLE rating and defaults to 1200 for anyone who has
+   * not solved any — it is not the player's chess rating. Feeding it to the
+   * goal cards compared a target anchored to a real 1650 against a puzzle 1200
+   * and reported the user as hundreds of points behind on day one. The goal is
+   * set from the platform rating, so it has to be judged against the same
+   * scale; the puzzle rating is only the fallback when nothing better exists.
+   */
+  const goalCurrentRating =
+    resolveUserRating(profile ?? undefined) ?? stats.rating;
+
+  /**
+   * What the trend panels extend toward. Undefined unless a goal AND the
+   * schedule it was made against both exist — a forecast drawn to a target the
+   * user never set, or at a cadence they never agreed to, is a number we made
+   * up and drew a line to.
+   */
+  const trendProjection = useMemo(() => {
+    const targetDateMs = profile?.goalTargetDate;
+    const goalRating = profile?.goalRating;
+    const minutesPerDay = minutesPerDayFor(
+      profile?.dailyTimeCommitment as TimeCommitment | undefined
+    );
+    const daysPerWeek = profile?.practiceDaysPerWeek;
+    if (!targetDateMs || !goalRating || !minutesPerDay || !daysPerWeek) {
+      return undefined;
+    }
+    // A target date already in the past would draw a forecast backwards.
+    if (targetDateMs <= nowMs) return undefined;
+    return { targetDateMs, goalRating, minutesPerDay, daysPerWeek };
+  }, [profile, nowMs]);
+
+  /**
    * How stretching the user's goal is for the schedule they signed up to.
    * Undefined goal or schedule resolves to "steady" — the plan never escalates
    * off the back of a number the user never gave us.
    */
   const goalIntensityTier = useMemo(() => {
     const goal = profile?.goalRating;
-    const current = resolveUserRating(profile ?? undefined) ?? stats.rating;
+    const current = goalCurrentRating;
     const minutes = minutesPerDayFor(
       profile?.dailyTimeCommitment as TimeCommitment | undefined
     );
@@ -139,7 +184,7 @@ export default function PlanPage() {
         daysPerWeek: days,
       }).intensity
     );
-  }, [profile, stats.rating]);
+  }, [profile, goalCurrentRating]);
 
   const plan = useMemo(
     () =>
@@ -156,6 +201,14 @@ export default function PlanPage() {
         // turns the daily session up — within the 1.5x cap. No goal set means
         // "steady", never a silent escalation.
         intensityTier: goalIntensityTier,
+        // Game review is only offered when we can actually reach their games.
+        hasLinkedAccount: Boolean(
+          profile?.lichessUsername || profile?.chesscomUsername
+        ),
+        wantsOpenings: profile?.studyGoals?.includes("openings"),
+        // Day number, so the secondary task rotates rather than being the same
+        // one every day at the budgets where only one fits.
+        dayIndex: Math.floor(nowMs / 86_400_000),
       }),
     [profile, stats, srs, nowMs, goalIntensityTier]
   );
@@ -305,11 +358,11 @@ export default function PlanPage() {
                 profile?.dailyTimeCommitment as TimeCommitment | undefined
               }
               practiceDaysPerWeek={profile?.practiceDaysPerWeek}
-              currentRating={stats.rating}
+              currentRating={goalCurrentRating}
             />
             {editingGoal ? (
               <GoalSetterCard
-                currentRating={stats.rating}
+                currentRating={goalCurrentRating}
                 initialTime={
                   profile?.dailyTimeCommitment as TimeCommitment | undefined
                 }
@@ -334,7 +387,7 @@ export default function PlanPage() {
           </>
         ) : (
           <GoalSetterCard
-            currentRating={stats.rating}
+            currentRating={goalCurrentRating}
             initialTime={
               profile?.dailyTimeCommitment as TimeCommitment | undefined
             }
@@ -346,7 +399,7 @@ export default function PlanPage() {
       {/* Bullet / blitz / rapid trends, read from the linked platform account.
           Self-gating: renders a prompt when no username is linked. */}
       <Box sx={{ mb: 2.5 }}>
-        <RatingTrends />
+        <RatingTrends projection={trendProjection} />
       </Box>
 
       {canResume && (
@@ -482,6 +535,15 @@ export default function PlanPage() {
               <TaskRow key={task.key} label={task.label} done={task.done} />
             ))
           )}
+
+          {/* Analysis and theory. Rendered WITHOUT a completion circle: we do
+              not observe whether they were done, and an unticked box the user
+              can never tick reads as a chore they are failing. */}
+          {plan.tasks
+            .filter((t) => t.kind === "analyze" || t.kind === "theory")
+            .map((t) => (
+              <SecondaryTaskRow key={t.kind} task={t} />
+            ))}
         </Box>
         <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
           <PrimaryButton
@@ -545,6 +607,66 @@ function dayKeyForIndex(dayIndex: number): string {
   const d = new Date();
   d.setDate(d.getDate() + dayIndex);
   return dayKey(d);
+}
+
+function SecondaryTaskRow({ task }: { task: DailyTask }) {
+  const Icon = task.kind === "analyze" ? Microscope : BookOpen;
+  return (
+    <Box
+      component="a"
+      href={task.href}
+      {...(task.external
+        ? // noopener/noreferrer because target=_blank otherwise hands the
+          // opened page a reference back to ours via window.opener.
+          { target: "_blank", rel: "noopener noreferrer" }
+        : {})}
+      sx={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 1.25,
+        py: 0.85,
+        textDecoration: "none",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        "&:last-of-type": { borderBottom: "none" },
+        "&:hover .task-label": { color: "#fff" },
+      }}
+    >
+      <Box sx={{ mt: "2px", flexShrink: 0 }}>
+        <Icon size={18} color="#FB923C" strokeWidth={2} />
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <Typography
+            className="task-label"
+            sx={{
+              color: "rgba(255,255,255,0.85)",
+              fontSize: "0.92rem",
+              fontWeight: 600,
+            }}
+          >
+            {task.label}
+          </Typography>
+          <Typography
+            sx={{ color: "rgba(255,255,255,0.35)", fontSize: "0.75rem" }}
+          >
+            ~{task.minutes} min
+          </Typography>
+          {task.external && (
+            <ExternalLink size={12} color="rgba(255,255,255,0.35)" />
+          )}
+        </Box>
+        <Typography
+          sx={{
+            color: "rgba(255,255,255,0.45)",
+            fontSize: "0.78rem",
+            mt: 0.25,
+          }}
+        >
+          {task.detail}
+        </Typography>
+      </Box>
+    </Box>
+  );
 }
 
 function TaskRow({ label, done }: { label: string; done: boolean }) {

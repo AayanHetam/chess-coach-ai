@@ -1,8 +1,5 @@
 import { projectToGoal } from "./improvementModel";
-import {
-  minutesPerDayFor,
-  type TimeCommitment,
-} from "@/components/onboarding/quizConfig";
+import { minutesPerDayFor, type TimeCommitment } from "./timeCommitment";
 
 /**
  * The four fields that constitute a goal, built in ONE place.

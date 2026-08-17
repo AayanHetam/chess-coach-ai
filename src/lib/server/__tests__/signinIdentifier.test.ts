@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import bcrypt from "bcryptjs";
+import { verifyPasswordByIdentifier } from "../users";
 
 /**
  * Sign-in resolution: a handle must work exactly as an email does, and a
@@ -51,7 +52,6 @@ vi.mock("../handles", () => ({
     handleToUid.get(h.trim().toLowerCase().replace(/[_-]/g, "")) ?? null,
 }));
 
-const { verifyPasswordByIdentifier } = await import("../users");
 
 const PASSWORD = "correct-horse-1!";
 let hash: string;

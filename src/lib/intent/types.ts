@@ -101,8 +101,31 @@ export interface IntentProbe {
    * all. The move won a pawn back and the arithmetic credited it with defence.
    *
    * Null when not measured, in which case no swing-based claim is made.
+   *
+   * NOTE ON PROVENANCE: this is a Tier 0 number, read out of gameEval, and
+   * gameEval is measured on a warm transposition table. It must not be
+   * subtracted from a Tier 1 score — see `opponentBestAfterProbed`.
    */
   opponentBestAfter: IntentScore | null;
+
+  /**
+   * The same square of information as `opponentBestAfter`, but measured by
+   * whatever engine produced `threatAfter`, under the same conditions.
+   *
+   * Prophylaxis asks whether the threat is now clearly worse than the
+   * opponent's alternatives, which is a subtraction. Both operands have to come
+   * from the same measurement regime, or the difference is decided by the
+   * regime rather than by the move. Across 768 plies of the founder's games,
+   * warm-table and cold-table readings of the SAME position agree closely in
+   * the middle (median 15cp) and diverge in the tail: 4.2% differ by more than
+   * the 150cp bar this subtraction has to clear, and 3.3% disagree about
+   * whether a forced mate exists at all.
+   *
+   * Null when the caller did not pay for the extra search. The relative test is
+   * then skipped rather than run on mixed operands: a missing claim is cheaper
+   * than a fabricated one.
+   */
+  opponentBestAfterProbed: IntentScore | null;
 
   /**
    * The threat replayed after each of OUR plausible alternatives, scored for

@@ -132,8 +132,6 @@ describe('PrepLinesPanel', () => {
           shrunkScore: 0.4,
           baseline: 0.5,
           scoreUpper: 0.6,
-          scoreUpperCorrected: 0.7,
-          confident: false,
           concessionCp: 0,
           reach: 0.5,
           confirmedEdge: 0,

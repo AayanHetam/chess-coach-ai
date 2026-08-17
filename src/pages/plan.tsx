@@ -1,11 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { Box, Button, Typography } from "@mui/material";
 import { useAtomValue } from "jotai";
-import { Check, Circle, Flame, Play, RotateCcw, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  Circle,
+  ExternalLink,
+  Flame,
+  Microscope,
+  Play,
+  RotateCcw,
+  Sparkles,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { puzzleStatsAtom } from "@/lib/puzzleRating";
 import { streakAtom, dayKey } from "@/lib/curriculum/streak";
@@ -13,17 +23,27 @@ import { dailyLogAtom, puzzlesOn, trainedOn } from "@/lib/curriculum/dailyLog";
 import { puzzleThemeSrsAtom, dueThemes } from "@/lib/curriculum/puzzleThemeSrs";
 import {
   buildDailySession,
+  type DailyTask,
   type TimeCommitment,
 } from "@/lib/curriculum/dailyPlan";
 import { buildWeekPlan, type DayPlan } from "@/lib/curriculum/weekPlan";
 import { puzzleResumeAtom, isResumeFresh } from "@/lib/curriculum/resume";
-import { bandLabel, minutesPerDayFor } from "@/components/onboarding/quizConfig";
-import { projectToGoal, intensityTier } from "@/lib/curriculum/improvementModel";
+import {
+  bandLabel,
+  minutesPerDayFor,
+} from "@/components/onboarding/quizConfig";
+import {
+  projectToGoal,
+  intensityTier,
+} from "@/lib/curriculum/improvementModel";
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import RatingTrends from "@/components/plan/RatingTrends";
+import GoalProgressCard from "@/components/plan/GoalProgressCard";
+import GoalSetterCard from "@/components/plan/GoalSetterCard";
+import { buildGoalPatch, hasCompleteGoal } from "@/lib/curriculum/goalPatch";
 import { NumberTicker } from "@/components/ui/NumberTicker";
 import SessionRunner from "@/components/curriculum/SessionRunner";
 import CurriculumMap from "@/components/curriculum/CurriculumMap";
@@ -77,7 +97,25 @@ function GlassCard({
 
 export default function PlanPage() {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
+  // Open when they ask to change an existing goal. A user with no goal at
+  // all gets the setter unconditionally — see the mount below.
+  const [editingGoal, setEditingGoal] = useState(false);
+
+  // MUST match GoalProgressCard's own bail-out condition exactly. If this says
+  // "has a goal" where the card says "not enough to render one", the user gets
+  // neither the progress card nor the setter — a blank space with no way out.
+  // Hence the shared predicate rather than two hand-written checks.
+  const hasGoal = hasCompleteGoal(profile);
+
+  const handleSaveGoal = useCallback(
+    async (patch: ReturnType<typeof buildGoalPatch>) => {
+      if (!patch) return;
+      await updateProfile(patch);
+      setEditingGoal(false);
+    },
+    [updateProfile]
+  );
   const stats = useAtomValue(puzzleStatsAtom);
   const streak = useAtomValue(streakAtom);
   const srs = useAtomValue(puzzleThemeSrsAtom);
@@ -92,15 +130,49 @@ export default function PlanPage() {
   const nowMs = Date.now();
 
   /**
+   * The rating the GOAL is measured against.
+   *
+   * `stats.rating` is the PUZZLE rating and defaults to 1200 for anyone who has
+   * not solved any — it is not the player's chess rating. Feeding it to the
+   * goal cards compared a target anchored to a real 1650 against a puzzle 1200
+   * and reported the user as hundreds of points behind on day one. The goal is
+   * set from the platform rating, so it has to be judged against the same
+   * scale; the puzzle rating is only the fallback when nothing better exists.
+   */
+  const goalCurrentRating =
+    resolveUserRating(profile ?? undefined) ?? stats.rating;
+
+  /**
+   * What the trend panels extend toward. Undefined unless a goal AND the
+   * schedule it was made against both exist — a forecast drawn to a target the
+   * user never set, or at a cadence they never agreed to, is a number we made
+   * up and drew a line to.
+   */
+  const trendProjection = useMemo(() => {
+    const targetDateMs = profile?.goalTargetDate;
+    const goalRating = profile?.goalRating;
+    const minutesPerDay = minutesPerDayFor(
+      profile?.dailyTimeCommitment as TimeCommitment | undefined
+    );
+    const daysPerWeek = profile?.practiceDaysPerWeek;
+    if (!targetDateMs || !goalRating || !minutesPerDay || !daysPerWeek) {
+      return undefined;
+    }
+    // A target date already in the past would draw a forecast backwards.
+    if (targetDateMs <= nowMs) return undefined;
+    return { targetDateMs, goalRating, minutesPerDay, daysPerWeek };
+  }, [profile, nowMs]);
+
+  /**
    * How stretching the user's goal is for the schedule they signed up to.
    * Undefined goal or schedule resolves to "steady" — the plan never escalates
    * off the back of a number the user never gave us.
    */
   const goalIntensityTier = useMemo(() => {
     const goal = profile?.goalRating;
-    const current = resolveUserRating(profile ?? undefined) ?? stats.rating;
+    const current = goalCurrentRating;
     const minutes = minutesPerDayFor(
-      profile?.dailyTimeCommitment as TimeCommitment | undefined,
+      profile?.dailyTimeCommitment as TimeCommitment | undefined
     );
     const days = profile?.practiceDaysPerWeek;
     if (!goal || !minutes || !days) return "steady" as const;
@@ -110,9 +182,9 @@ export default function PlanPage() {
         goalRating: goal,
         minutesPerDay: minutes,
         daysPerWeek: days,
-      }).intensity,
+      }).intensity
     );
-  }, [profile, stats.rating]);
+  }, [profile, goalCurrentRating]);
 
   const plan = useMemo(
     () =>
@@ -121,6 +193,7 @@ export default function PlanPage() {
           | TimeCommitment
           | undefined,
         focusThemes: profile?.focusThemes,
+        measuredWeaknesses: profile?.measuredWeaknesses,
         liveRating: stats.rating,
         stats,
         dueReviewThemes: dueThemes(srs, nowMs),
@@ -128,8 +201,16 @@ export default function PlanPage() {
         // turns the daily session up — within the 1.5x cap. No goal set means
         // "steady", never a silent escalation.
         intensityTier: goalIntensityTier,
+        // Game review is only offered when we can actually reach their games.
+        hasLinkedAccount: Boolean(
+          profile?.lichessUsername || profile?.chesscomUsername
+        ),
+        wantsOpenings: profile?.studyGoals?.includes("openings"),
+        // Day number, so the secondary task rotates rather than being the same
+        // one every day at the budgets where only one fits.
+        dayIndex: Math.floor(nowMs / 86_400_000),
       }),
-    [profile, stats, srs, nowMs, goalIntensityTier],
+    [profile, stats, srs, nowMs, goalIntensityTier]
   );
 
   // Today's plan as discrete, tickable rows. A theme counts as done once ANY
@@ -176,9 +257,9 @@ export default function PlanPage() {
           focusThemes: profile?.focusThemes,
           liveRating: stats.rating,
         },
-        nowMs,
+        nowMs
       ),
-    [stats, srs, profile, nowMs],
+    [stats, srs, profile, nowMs]
   );
 
   const hasPlacement = typeof profile?.measuredRating === "number";
@@ -260,10 +341,65 @@ export default function PlanPage() {
         </Box>
       </Box>
 
+      {/* The promise, and whether they're keeping to it — or the means to make
+          one. A signed-in user with no goal gets the setter: the quiz is
+          one-time by design and was the only place goals were collected, so
+          without this every existing account is permanently unable to set one
+          and the progress card can never appear for them. */}
+      {user &&
+        (hasGoal ? (
+          <>
+            <GoalProgressCard
+              goalRating={profile?.goalRating}
+              goalStartRating={profile?.goalStartRating}
+              goalSetAt={profile?.goalSetAt}
+              goalTargetDate={profile?.goalTargetDate}
+              dailyTimeCommitment={
+                profile?.dailyTimeCommitment as TimeCommitment | undefined
+              }
+              practiceDaysPerWeek={profile?.practiceDaysPerWeek}
+              currentRating={goalCurrentRating}
+            />
+            {editingGoal ? (
+              <GoalSetterCard
+                currentRating={goalCurrentRating}
+                initialTime={
+                  profile?.dailyTimeCommitment as TimeCommitment | undefined
+                }
+                initialDaysPerWeek={profile?.practiceDaysPerWeek}
+                onSave={handleSaveGoal}
+                onCancel={() => setEditingGoal(false)}
+              />
+            ) : (
+              <Box sx={{ mt: -1.5, mb: 2.5, textAlign: "right" }}>
+                <Button
+                  onClick={() => setEditingGoal(true)}
+                  sx={{
+                    textTransform: "none",
+                    fontSize: "0.75rem",
+                    color: "rgba(255,255,255,0.45)",
+                  }}
+                >
+                  Change goal
+                </Button>
+              </Box>
+            )}
+          </>
+        ) : (
+          <GoalSetterCard
+            currentRating={goalCurrentRating}
+            initialTime={
+              profile?.dailyTimeCommitment as TimeCommitment | undefined
+            }
+            initialDaysPerWeek={profile?.practiceDaysPerWeek}
+            onSave={handleSaveGoal}
+          />
+        ))}
+
       {/* Bullet / blitz / rapid trends, read from the linked platform account.
           Self-gating: renders a prompt when no username is linked. */}
       <Box sx={{ mb: 2.5 }}>
-        <RatingTrends />
+        <RatingTrends projection={trendProjection} />
       </Box>
 
       {canResume && (
@@ -399,6 +535,15 @@ export default function PlanPage() {
               <TaskRow key={task.key} label={task.label} done={task.done} />
             ))
           )}
+
+          {/* Analysis and theory. Rendered WITHOUT a completion circle: we do
+              not observe whether they were done, and an unticked box the user
+              can never tick reads as a chore they are failing. */}
+          {plan.tasks
+            .filter((t) => t.kind === "analyze" || t.kind === "theory")
+            .map((t) => (
+              <SecondaryTaskRow key={t.kind} task={t} />
+            ))}
         </Box>
         <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
           <PrimaryButton
@@ -462,6 +607,66 @@ function dayKeyForIndex(dayIndex: number): string {
   const d = new Date();
   d.setDate(d.getDate() + dayIndex);
   return dayKey(d);
+}
+
+function SecondaryTaskRow({ task }: { task: DailyTask }) {
+  const Icon = task.kind === "analyze" ? Microscope : BookOpen;
+  return (
+    <Box
+      component="a"
+      href={task.href}
+      {...(task.external
+        ? // noopener/noreferrer because target=_blank otherwise hands the
+          // opened page a reference back to ours via window.opener.
+          { target: "_blank", rel: "noopener noreferrer" }
+        : {})}
+      sx={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 1.25,
+        py: 0.85,
+        textDecoration: "none",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        "&:last-of-type": { borderBottom: "none" },
+        "&:hover .task-label": { color: "#fff" },
+      }}
+    >
+      <Box sx={{ mt: "2px", flexShrink: 0 }}>
+        <Icon size={18} color="#FB923C" strokeWidth={2} />
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <Typography
+            className="task-label"
+            sx={{
+              color: "rgba(255,255,255,0.85)",
+              fontSize: "0.92rem",
+              fontWeight: 600,
+            }}
+          >
+            {task.label}
+          </Typography>
+          <Typography
+            sx={{ color: "rgba(255,255,255,0.35)", fontSize: "0.75rem" }}
+          >
+            ~{task.minutes} min
+          </Typography>
+          {task.external && (
+            <ExternalLink size={12} color="rgba(255,255,255,0.35)" />
+          )}
+        </Box>
+        <Typography
+          sx={{
+            color: "rgba(255,255,255,0.45)",
+            fontSize: "0.78rem",
+            mt: 0.25,
+          }}
+        >
+          {task.detail}
+        </Typography>
+      </Box>
+    </Box>
+  );
 }
 
 function TaskRow({ label, done }: { label: string; done: boolean }) {
@@ -533,13 +738,13 @@ function DayCell({
         background: done
           ? "linear-gradient(180deg, rgba(74,222,128,0.14), rgba(74,222,128,0.03))"
           : day.isToday
-          ? "linear-gradient(180deg, rgba(249,115,22,0.16), rgba(249,115,22,0.04))"
-          : "rgba(255,255,255,0.03)",
+            ? "linear-gradient(180deg, rgba(249,115,22,0.16), rgba(249,115,22,0.04))"
+            : "rgba(255,255,255,0.03)",
         border: done
           ? "1px solid rgba(74,222,128,0.45)"
           : day.isToday
-          ? "1px solid rgba(249,115,22,0.5)"
-          : "1px solid rgba(255,255,255,0.07)",
+            ? "1px solid rgba(249,115,22,0.5)"
+            : "1px solid rgba(255,255,255,0.07)",
       }}
     >
       <Typography
@@ -551,8 +756,8 @@ function DayCell({
           color: done
             ? "#86efac"
             : day.isToday
-            ? "#FFD1A8"
-            : "rgba(255,255,255,0.45)",
+              ? "#FFD1A8"
+              : "rgba(255,255,255,0.45)",
           display: "flex",
           alignItems: "center",
           gap: 0.5,
@@ -564,15 +769,11 @@ function DayCell({
       <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: "1.15rem" }}>
         {day.totalPuzzles}
       </Typography>
-      <Typography
-        sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.66rem" }}
-      >
+      <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.66rem" }}>
         puzzles
       </Typography>
       <Box sx={{ flex: 1 }} />
-      <Typography
-        sx={{ color: "rgba(255,255,255,0.42)", fontSize: "0.66rem" }}
-      >
+      <Typography sx={{ color: "rgba(255,255,255,0.42)", fontSize: "0.66rem" }}>
         {day.reviewThemes.length > 0
           ? `${day.reviewThemes.length} review${
               day.reviewThemes.length > 1 ? "s" : ""
@@ -639,7 +840,9 @@ function SectionLabel({
   children: React.ReactNode;
 }) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1, ml: 0.5 }}>
+    <Box
+      sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1, ml: 0.5 }}
+    >
       {icon}
       <Typography
         sx={{

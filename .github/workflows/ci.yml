@@ -1,9 +1,26 @@
 name: CI
 
+# Documentation-only commits used to trigger the full ~11-minute job — next
+# build, a Chromium download and the Playwright suite — for a typo. Verified
+# that no build step, test or fixture reads markdown at runtime. paths-ignore
+# only skips when EVERY changed file matches, so any commit that also touches
+# code still runs the full gate.
 on:
   push:
     branches: [main, "audit/**"]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "MASTERMIND_CONTEXT/**"
+      - "LICENSE"
+      - "COPYING.md"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "MASTERMIND_CONTEXT/**"
+      - "LICENSE"
+      - "COPYING.md"
 
 # Stop paying for runs nobody will read.
 #

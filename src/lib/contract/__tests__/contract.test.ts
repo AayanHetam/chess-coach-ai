@@ -76,28 +76,36 @@ function replayedPlies(moveHistory: string[]): number {
 
 // ── selectInsights mirrors the legacy selection ─────────────────────────────
 describe("selectInsights (legacy policy)", () => {
-  it("01: no user-color mistakes but the intelligence layer picks up Black's blunder", () => {
+  it("01: the student's own blunder, in both lists", () => {
+    // This fixture used to be reviewed from White's side, where the student had
+    // NO mistakes and the intelligence layer reached across to card Black's
+    // ply-13 blunder — the whole of "the model goes to the opponent's mistakes
+    // when it cannot find significant mistakes in your own gameplay". The
+    // fixture is now reviewed from Black's side, so the same ply is the
+    // student's own and both scans agree on it.
     const f = loadFixture("01_mate_for_white_midgame");
     const sel = selectInsights(f.moveHistory, f.gameEval, f.playerColor);
-    expect(sel.topMistakes).toEqual([]);
+    expect(f.playerColor).toBe("b");
+    expect(sel.topMistakes.map((m) => [m.ply, m.colorName, m.dropCp])).toEqual([
+      [13, "Black", 9999 - 250],
+    ]);
     expect(sel.intelligenceTop3.map((m) => [m.ply, m.colorName, m.dropCp])).toEqual([
       [13, "Black", 9999 - 250],
     ]);
   });
 
-  it("02: black player top-10 + mixed-color intel ordering (stable sort on equal drops)", () => {
+  it("02: black player top-10, and the intel list stays on Black's moves", () => {
     const f = loadFixture("02_mate_for_black");
     const sel = selectInsights(f.moveHistory, f.gameEval, f.playerColor);
     expect(sel.topMistakes.map((m) => [m.ply, m.dropCp])).toEqual([
       [15, 9699],
       [9, 90],
     ]);
-    // ply14 (10119) first; plies 15 and 16 tie at 9699 — stable sort keeps
-    // scan order (15 before 16).
+    // White's ply 14 (10119) is the biggest drop in the game and White's ply 16
+    // ties Black's 15 — both are the OPPONENT's and neither may appear.
     expect(sel.intelligenceTop3.map((m) => [m.ply, m.colorName, m.dropCp])).toEqual([
-      [14, "White", 10119],
       [15, "Black", 9699],
-      [16, "White", 9699],
+      [9, "Black", 90],
     ]);
   });
 
@@ -122,13 +130,14 @@ describe("selectInsights (legacy policy)", () => {
     //   ply 10 — positions 10 (+40) → 11 (-140); White, drop 180. REAL → kept.
     // ply 7 straddles the sentinel too but yields a NEGATIVE drop, so the
     // `drop > 50` filter already excluded it for unrelated reasons.
+    // Black's ply 9 is the OPPONENT's for this White-side fixture, so the only
+    // survivor is White's ply 10.
     expect(sel.intelligenceTop3.map((m) => [m.ply, m.colorName, m.dropCp])).toEqual([
       [10, "White", 180],
-      [9, "Black", 120],
     ]);
   });
 
-  it("05: six user mistakes sorted by drop; intel top-3 mixes in the opponent blunder", () => {
+  it("05: six user mistakes sorted by drop; the intel top-3 is the worst three of them", () => {
     const f = loadFixture("05_long_game_six_mistakes");
     const sel = selectInsights(f.moveHistory, f.gameEval, f.playerColor);
     expect(sel.topMistakes.map((m) => [m.ply, m.dropCp])).toEqual([
@@ -139,10 +148,11 @@ describe("selectInsights (legacy policy)", () => {
       [30, 90],
       [20, 55],
     ]);
+    // Black's ply 45 (400cp) outranks two of the student's own and is excluded.
     expect(sel.intelligenceTop3.map((m) => [m.ply, m.colorName, m.dropCp])).toEqual([
       [70, "White", 500],
-      [45, "Black", 400],
       [60, "White", 320],
+      [50, "White", 250],
     ]);
   });
 
@@ -238,7 +248,7 @@ describe("builder fetch dedup", () => {
     // Legacy issued one fetch per top-10 entry PLUS one per intel entry
     // (serially, re-fetching FENs the mistake loop already covered).
     const legacySerialCount = sel.topMistakes.length + sel.intelligenceTop3.length;
-    expect(legacySerialCount).toBe(9); // 6 top mistakes + 3 intel
+    expect(legacySerialCount).toBe(9); // 6 top mistakes + 3 intel (a subset of them)
 
     fetchCount = 0;
     await buildCoachContract({
@@ -253,7 +263,10 @@ describe("builder fetch dedup", () => {
     expect(fetchCount).toBe(uniqueFens.size);
     expect(fetchCount).toBeLessThanOrEqual(uniqueFens.size);
     expect(fetchCount).toBeLessThan(legacySerialCount);
-    expect(fetchCount).toBe(7); // {20,30,40,50,60,70} ∪ {70,45,60} = 7 plies
+    // The intel list is now drawn from the student's own mistakes, so it adds
+    // no new FENs: {20,30,40,50,60,70} ∪ {70,60,50} = 6 plies. It was 7 while
+    // the opponent's ply 45 was being carded.
+    expect(fetchCount).toBe(6);
   });
 
   it("06: no insights ⇒ zero grounding fetches", async () => {
@@ -436,20 +449,31 @@ describe("contract assembly + serializeForVerbalizer", () => {
       playerColor: f.playerColor,
       userRating: f.userRating,
     });
-    // 6 top mistakes + 1 intel-only (the opponent blunder at ply 45)
-    expect(contract.insights.length).toBe(7);
+    // 6 top mistakes, and NO intel-only insight. Now that both scans draw from
+    // the same colour-filtered pool, the intel top-3 is always a subset of the
+    // top-10 — so `factIdPrefix`'s `I${rank}` branch is unreachable, and an
+    // insight with a null topMistakeRank can no longer exist. The opponent
+    // blunder at ply 45 that used to be the 7th is gone.
+    expect(contract.insights.length).toBe(6);
+    expect(contract.insights.every((i) => i.topMistakeRank !== null)).toBe(true);
+    expect(contract.insights.some((i) => i.factIdPrefix.startsWith("I"))).toBe(false);
+    expect(contract.insights.some((i) => i.ply === 45)).toBe(false);
     const ply70 = contract.insights.find((i) => i.ply === 70)!;
     expect(ply70.topMistakeRank).toBe(1);
     expect(ply70.intelligenceRank).toBe(1);
     expect(ply70.factIdPrefix).toBe("M1");
-    const ply45 = contract.insights.find((i) => i.ply === 45)!;
-    expect(ply45.topMistakeRank).toBeNull();
-    expect(ply45.intelligenceRank).toBe(2);
-    expect(ply45.factIdPrefix).toBe("I2");
-    // Intel-only insights carry the intelligence-layer facts…
-    expect(ply45.relational).not.toBeNull();
-    // …and never a legacy bestSan (that datum belongs to the top-10 loop).
-    expect(ply45.bestSan).toBeNull();
+    const ply60 = contract.insights.find((i) => i.ply === 60)!;
+    expect(ply60.topMistakeRank).toBe(2);
+    expect(ply60.intelligenceRank).toBe(2);
+    expect(ply60.factIdPrefix).toBe("M2");
+    // It carries the intelligence-layer facts…
+    expect(ply60.relational).not.toBeNull();
+    // …AND the top-10 loop's bestSan. The old assertion here was
+    // `expect(bestSan).toBeNull()`, which held only because this insight was
+    // intel-ONLY — i.e. only because it was the opponent's move. Every insight
+    // now comes through the top-10 loop, so every one has a bestSan.
+    expect(ply60.bestSan).not.toBeNull();
+    expect(contract.insights.every((i) => i.bestSan !== null)).toBe(true);
     // pieceRoleChanges: honest [] on the game path (see types.ts).
     expect(ply70.pieceRoleChanges).toEqual([]);
   });

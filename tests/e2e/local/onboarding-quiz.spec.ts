@@ -72,25 +72,25 @@ test("the quiz walks end to end on the self-assessment branch", async ({ page })
   await page.getByRole("button", { name: /^Tactics/ }).first().click();
   await next(page);
 
-  // Q6 — the goal rating, and the projection that made this PR worth checking.
+  // Q6 — daily time budget.
+  await expect(
+    page.getByRole("heading", { name: /How much time can you/i })
+  ).toBeVisible();
+  await page.getByRole("button", { name: /min \/ day/ }).first().click();
+  await next(page);
+
+  // Q7 — frequency.
+  await expect(
+    page.getByRole("heading", { name: /How often can you/i })
+  ).toBeVisible();
+  await page.getByRole("button", { name: /days|every day/i }).first().click();
+  await next(page);
+
+  // Q8 — the goal, asked LAST so its projection uses the real schedule.
   await expect(
     page.getByRole("heading", { name: /rating do you want to reach/i })
   ).toBeVisible();
   await expect(page.getByRole("slider")).toBeVisible();
-  await next(page);
-
-  // Q7 — daily time budget.
-  await expect(
-    page.getByRole("heading", { name: /How much time can you/i })
-  ).toBeVisible();
-  await page.getByText("10–30 min / day").first().click();
-  await next(page);
-
-  // Q8 — frequency, and the genuinely final step.
-  await expect(
-    page.getByRole("heading", { name: /How often can you/i })
-  ).toBeVisible();
-  await page.getByText("About 4 days").first().click();
   await expect(
     page.getByRole("button", { name: "See my results" })
   ).toBeVisible();
@@ -112,17 +112,22 @@ test("the goal step renders a projection rather than an empty box", async ({ pag
   await next(page);
   await page.getByRole("button", { name: /^Tactics/ }).first().click();
   await next(page);
+  await page.getByRole("button", { name: /min \/ day/ }).first().click();
+  await next(page);
+  await page.getByRole("button", { name: /days|every day/i }).first().click();
+  await next(page);
 
   await expect(
     page.getByRole("heading", { name: /rating do you want to reach/i })
   ).toBeVisible();
 
   // The self-assessment branch supplies a current rating, so a projection must
-  // actually be drawn — chart plus the honest range beside it. An empty panel
-  // here is the failure this test exists to catch.
-  await expect(page.getByText(/Most players land between/i)).toBeVisible({
-    timeout: 10_000,
-  });
+  // actually be drawn: a real target DATE, the chart, and the band. An empty
+  // panel here is the failure this test exists to catch.
+  await expect(
+    page.getByText(/\d{3,4} by (January|February|March|April|May|June|July|August|September|October|November|December) \d{4}/)
+  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/guided practice/i).first()).toBeVisible();
   await expect(page.locator("svg.recharts-surface").first()).toBeVisible();
 
   // And it must never present itself as a promise.

@@ -376,7 +376,12 @@ function sortKeysDeep(value: unknown): unknown {
  * verbalizer user turn later.
  */
 export function serializeForVerbalizer(contract: CoachContract): string {
-  const { builtAtMs: _builtAtMs, buildMs: _buildMs, ...rest } = contract;
+  // `intent` is stripped for the same reason as builtAtMs/buildMs: it is
+  // telemetry, not a sayable fact. Because this function spreads ...rest, an
+  // un-stripped field would silently enter the verbalizer prompt, change its
+  // cache prefix, and break every byte-equality snapshot — so the omission is
+  // asserted directly in serialize's tests rather than left to review.
+  const { builtAtMs: _builtAtMs, buildMs: _buildMs, intent: _intent, ...rest } = contract;
   // PRECISION PACK fix 4: motifLicense is a REFEREE license pool, not a
   // sayable fact — stripping it keeps the verbalizer prompt (and its cache
   // prefix) byte-identical to pre-precision-pack contracts.

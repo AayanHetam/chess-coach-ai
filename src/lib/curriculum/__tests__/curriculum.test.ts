@@ -170,7 +170,13 @@ describe("daily plan", () => {
       dueReviewThemes: [],
     });
     const firstUnit = unitById(SYLLABUS[0].id)!;
-    expect(session.newThemes.length).toBe(5);
+    // 3, not the 5 this asserted before the session stopped being puzzles-only.
+    // The 15-minute band now also carries one 6-minute secondary task, and that
+    // time is taken OUT of the puzzle allowance rather than added on top — so a
+    // smaller puzzle count here is the budget working, not a regression. If
+    // this ever reads 5 again alongside a secondary task, the session has
+    // quietly grown past the commitment.
+    expect(session.newThemes.length).toBe(3);
     for (const t of session.newThemes) expect(firstUnit.themes).toContain(t);
     expect(session.coachInsightTheme).toBe(session.newThemes[0]); // coach:1
   });
@@ -204,5 +210,57 @@ describe("goal intensity scales the daily session", () => {
     const steady = buildDailySession({ ...common, intensityTier: "steady" });
     const hard = buildDailySession({ ...common, intensityTier: "hard" });
     expect(hard.newThemes.length / steady.newThemes.length).toBeLessThanOrEqual(1.5);
+  });
+});
+
+describe("measured weaknesses vs stated preferences", () => {
+  const base = {
+    dailyTimeCommitment: "10-30" as const,
+    liveRating: 1200,
+    stats: statsWith({}, 1200),
+    dueReviewThemes: [],
+  };
+
+  it("trains a freshly measured weakness even if it was never a stated goal", () => {
+    const s = buildDailySession({ ...base, focusThemes: [], measuredWeaknesses: ["back-rank"] });
+    expect(s.newThemes.every((t) => t === "back-rank")).toBe(true);
+  });
+
+  it("still honours a stated preference when nothing has been measured", () => {
+    const s = buildDailySession({ ...base, focusThemes: ["fork"], measuredWeaknesses: [] });
+    expect(s.newThemes.every((t) => t === "fork")).toBe(true);
+  });
+
+  it("puts the measurement FIRST when the two disagree", () => {
+    // What the player is weak at today outranks what they picked months ago.
+    const s = buildDailySession({
+      ...base,
+      focusThemes: ["fork"],
+      measuredWeaknesses: ["endgame"],
+    });
+    expect(s.newThemes[0]).toBe("endgame");
+  });
+
+  it("does not resurrect a weakness a later placement dropped", () => {
+    // THE BUG THIS FIXES: placement used to union its result onto the existing
+    // list, so a theme could be added but never retracted — everyone drifted
+    // toward "weak at everything" and targeting quietly stopped meaning
+    // anything. A re-measure now replaces, so "pin" is simply gone.
+    const afterRemeasure = buildDailySession({
+      ...base,
+      focusThemes: [],
+      measuredWeaknesses: ["endgame"], // previous run said ["pin"]
+    });
+    expect(afterRemeasure.newThemes).not.toContain("pin");
+  });
+
+  it("dedupes when a theme is both stated and measured", () => {
+    const s = buildDailySession({
+      ...base,
+      focusThemes: ["fork"],
+      measuredWeaknesses: ["fork"],
+      dueReviewThemes: [],
+    });
+    expect(new Set(s.newThemes).size).toBe(1);
   });
 });

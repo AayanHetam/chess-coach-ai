@@ -28,7 +28,7 @@ describe("isLastStep — drives the CTA label", () => {
 
   it("is true on the genuinely final step of each branch", () => {
     const online = answers({ playStyle: "lichess" });
-    expect(resolveSteps(online).at(-1)).toBe("frequency");
+    expect(resolveSteps(online).at(-1)).toBe("goal-rating");
     expect(isLastStep(online, resolveSteps(online).length - 1)).toBe(true);
 
     const otb = answers({ playStyle: "otb" });
@@ -52,9 +52,9 @@ describe("branching", () => {
       "sa-spot",
       "sa-tournaments",
       "goals",
-      "goal-rating",
       "time",
       "frequency",
+      "goal-rating",
     ]);
   });
 });

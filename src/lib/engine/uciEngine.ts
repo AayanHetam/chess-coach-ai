@@ -17,8 +17,31 @@ import { computeEstimatedElo } from "./helpers/estimateElo";
 import { EngineWorker, WorkerJob } from "@/types/engine";
 import { getEngineWorker, sendCommandsToWorker } from "./worker";
 import { withTimeout } from "./helpers/withTimeout";
+import { createBestEvalPublisher } from "./helpers/bestEvalPublisher";
+import { satisfiesRequest } from "./pickDisplayEval";
 
 const DEFAULT_PER_POSITION_TIMEOUT_MS = 30_000;
+
+/**
+ * How long an interactive single-position eval pauses for Lichess before it
+ * starts the local engine anyway.
+ *
+ * A warm cloud hit measures ~175ms and saves a whole local search, so a short
+ * pause pays for itself. Past that we stop waiting — but we do NOT cancel:
+ * the request stays in flight and a late answer still upgrades the result.
+ * That is the whole point of the split. While the local search was gated on
+ * the cloud response, the wait budget had to be tiny to keep the UI
+ * responsive, which meant the cloud answer was usually thrown away.
+ */
+const CLOUD_HEAD_START_MS = 350;
+
+/**
+ * The whole-game sweep on a single-worker device genuinely does block on this
+ * — a hit there replaces an entire local search, so it can afford to wait
+ * longer than the interactive path, but not the full request timeout.
+ * Misses are cheap either way: Lichess 404s in ~175ms.
+ */
+const CLOUD_GAME_PASS_TIMEOUT_MS = 800;
 
 export class UciEngine {
   public readonly name: EngineName;
@@ -259,6 +282,23 @@ export class UciEngine {
     this.isReady = false;
     setEvaluationProgress?.(1);
 
+    // ONE `ucinewgame`, HERE — not per position. Every ply below is then
+    // searched on a transposition table warmed by the plies before it, which is
+    // deliberate: consecutive positions in a game genuinely share structure.
+    //
+    // DO NOT send any other position through this engine while a sweep is in
+    // flight, and do not reuse this instance for hypothetical positions. A null
+    // move (one side moving twice) is not reachable by legal play, and mixing
+    // such searches into this table corrupts the REAL evaluations that follow.
+    // Measured offline on a 12-game corpus: a position worth ~600cp came back
+    // as mate-in-17 purely from that carryover, and 3.1% of positions gained or
+    // lost a forced mate outright. Those numbers are the eval bar, the accuracy
+    // score and every card the review shows.
+    //
+    // Anything that needs a hypothetical position — the Tier 1 intent prober in
+    // src/lib/intent is the live example — must own a SEPARATE engine and clear
+    // its table before each search. See `NullMoveProbe` in
+    // src/lib/intent/fromGameEval.ts.
     await this.setMultiPv(multiPv);
     await this.sendCommandsToEachWorker(["ucinewgame", "isready"], "readyok");
     this.setWorkersNb(workersNb);
@@ -376,11 +416,12 @@ export class UciEngine {
     useLichessEval = true
   ): Promise<PositionEval> {
     if (workersNb < 2 && useLichessEval) {
-      const lichessEval = await getLichessEval(fen, this.multiPv);
-      if (
-        lichessEval.lines.length >= this.multiPv &&
-        lichessEval.lines[0].depth >= depth
-      ) {
+      const lichessEval = await getLichessEval(
+        fen,
+        this.multiPv,
+        CLOUD_GAME_PASS_TIMEOUT_MS
+      );
+      if (satisfiesRequest(lichessEval, depth, this.multiPv)) {
         return lichessEval;
       }
     }
@@ -406,29 +447,45 @@ export class UciEngine {
     // will reach, so it wins by default. `allowCloud: false` lets a caller
     // insist on THIS engine — the point of an engine selector is that picking
     // one changes what you get.
-    const lichessEvalPromise = allowCloud
-      ? getLichessEval(fen, multiPv)
-      : Promise.resolve<PositionEval>({ bestMove: "", lines: [] });
+    const cloudPromise = allowCloud ? getLichessEval(fen, multiPv) : null;
 
     await this.stopAllCurrentJobs();
     await this.setMultiPv(multiPv);
 
+    console.log(`Evaluating position: ${fen}`);
+
+    // Pause briefly for the cloud, because a hit means no local search at all.
+    // `withTimeout` gives up waiting without cancelling, so the request is
+    // still alive below.
+    if (cloudPromise) {
+      const quickCloud = await withTimeout(cloudPromise, CLOUD_HEAD_START_MS);
+      if (satisfiesRequest(quickCloud, depth, multiPv)) {
+        setPartialEval?.(quickCloud!);
+        return quickCloud!;
+      }
+    }
+
+    // Slower than the head start — so search locally now, and let the cloud
+    // answer land whenever it lands. This is the fix: the local search used to
+    // wait for this request to settle before it could even begin, which is why
+    // the request timeout had to be set below the endpoint's own median
+    // response time and the deeper answer was routinely discarded.
+    const publisher = createBestEvalPublisher(setPartialEval);
+
+    void cloudPromise?.then(
+      (cloud) => {
+        if (satisfiesRequest(cloud, depth, multiPv)) publisher.offer(cloud);
+      },
+      () => {
+        /* getLichessEval already swallows its own errors; belt and braces. */
+      }
+    );
+
     const onNewMessage = (messages: string[]) => {
       if (!setPartialEval) return;
       const parsedResults = parseEvaluationResults(messages, fen);
-      setPartialEval({ ...parsedResults, source: "local" });
+      publisher.offer({ ...parsedResults, source: "local" });
     };
-
-    console.log(`Evaluating position: ${fen}`);
-
-    const lichessEval = await lichessEvalPromise;
-    if (
-      lichessEval.lines.length >= multiPv &&
-      lichessEval.lines[0].depth >= depth
-    ) {
-      setPartialEval?.(lichessEval);
-      return lichessEval;
-    }
 
     const results = await this.sendCommands(
       [`position fen ${fen}`, `go depth ${depth}`],
@@ -436,7 +493,14 @@ export class UciEngine {
       onNewMessage
     );
 
-    return { ...parseEvaluationResults(results, fen), source: "local" };
+    const localEval: PositionEval = {
+      ...parseEvaluationResults(results, fen),
+      source: "local",
+    };
+    publisher.offer(localEval);
+
+    // The cloud may have won while the local search was still deepening.
+    return publisher.best() ?? localEval;
   }
 
   public async getEngineNextMove(

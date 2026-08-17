@@ -239,3 +239,65 @@ describe("goal-driven planning fields", () => {
     expect("goalRating" in p).toBe(false);
   });
 });
+
+describe("the promised target date", () => {
+  it("is computed and stored when goal, time and frequency are all known", () => {
+    const p = buildPayload(
+      answers({
+        playStyle: "otb",
+        selfAssess: { years: 2, spot: 2, tournaments: 2 }, // → 1750
+        goalRating: 1900,
+        time: "30-plus",
+        daysPerWeek: 6,
+      })
+    );
+    expect(typeof p.goalTargetDate).toBe("number");
+    expect(p.goalTargetDate!).toBeGreaterThan(Date.now());
+    // The baseline must be the derived rating, not the (absent) parameter.
+    // Storing `undefined` here still produces a valid-looking date, so /plan
+    // would bail on the missing baseline and render nothing — a card that
+    // vanishes for the self-assessment path only.
+    expect(p.goalStartRating).toBe(1750);
+    expect(typeof p.goalSetAt).toBe("number");
+  });
+
+  it("is omitted when any input is missing, rather than guessed", () => {
+    // A date built on a schedule the user never gave would be a deadline we
+    // invented for them.
+    const noGoal = buildPayload(answers({ playStyle: "otb", time: "30-plus", daysPerWeek: 6 }));
+    expect("goalTargetDate" in noGoal).toBe(false);
+
+    const noTime = buildPayload(answers({ playStyle: "otb", goalRating: 1900, daysPerWeek: 6 }));
+    expect("goalTargetDate" in noTime).toBe(false);
+  });
+
+  it("anchors the promise to the LIVE platform rating on the platform path", () => {
+    // The bug this replaces: the goal step shows a projection built from the
+    // real rating /api/ratings/preview just fetched, and then buildPayload
+    // re-derived the anchor with derivedRating() — which returns undefined on
+    // the platform path. The date was promised on screen and dropped on the
+    // way to Firestore, so /plan had nothing to hold the user to and rendered
+    // no card at all. The rating the quiz displayed must be the rating it
+    // stores.
+    const p = buildPayload(
+      answers({ playStyle: "lichess", username: "x", goalRating: 1900, time: "30-plus", daysPerWeek: 6 }),
+      1650
+    );
+    expect(p.goalStartRating).toBe(1650);
+    expect(typeof p.goalSetAt).toBe("number");
+    expect(typeof p.goalTargetDate).toBe("number");
+    expect(p.goalTargetDate!).toBeGreaterThan(Date.now());
+    // Still not a self-report: the number came from Lichess, not from them.
+    expect("selfReportedRating" in p).toBe(false);
+  });
+
+  it("is omitted when the platform lookup gave us nothing to anchor to", () => {
+    // Lookup 404'd, or the account has no established rating. Absence stays
+    // absence — a promise projected from a fabricated 1500 is worse than none.
+    const p = buildPayload(
+      answers({ playStyle: "lichess", username: "x", goalRating: 1900, time: "30-plus", daysPerWeek: 6 })
+    );
+    expect("goalTargetDate" in p).toBe(false);
+    expect("goalStartRating" in p).toBe(false);
+  });
+});

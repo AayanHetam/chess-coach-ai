@@ -271,7 +271,7 @@ describe("TRUE catches preserved (the other 8 CI-5 fires)", () => {
       uid: "ci5-trapped-license-01",
       identity: { fen: requestFen, playerColor: f.playerColor || "w" },
     });
-    const i1 = c.insights.find((i) => i.factIdPrefix === "I1")!;
+    const i1 = c.insights.find((i) => i.factIdPrefix === "M1")!;
     const fires = checkMobilityLiteralClaims(
       "The queen on f3 controls 15 legal moves from there.",
       i1,

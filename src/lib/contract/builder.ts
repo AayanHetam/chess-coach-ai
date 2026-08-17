@@ -31,6 +31,8 @@ import {
   type MaiaProbResult,
 } from "@/lib/grounding/maia";
 import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
+import { intentFactsForPlies, isIntentFactsEnabled } from "@/lib/intent/reviewFacts";
+import type { GameEval } from "@/types/eval";
 import type { RelationalFactsBlock } from "@/lib/relational/relationalFactsBuilder";
 import { detectConcepts } from "@/lib/concept/conceptDetector";
 import { getConcept } from "@/lib/concept/conceptTaxonomy";
@@ -668,6 +670,22 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     finalRelational,
     persona: { personalityId: null, ...(username ? { username } : {}) },
   };
+  // INTENT FACTS — dark, additive, and gated on INTENT_FACTS_ENABLED.
+  //
+  // Attached for telemetry and offline comparison only: serializeForVerbalizer
+  // strips `intent`, so the verbalizer prompt, its cache prefix, and every
+  // byte-equality snapshot are identical whether this ran or not. Computed for
+  // carded plies alone (Tier 0 — no extra engine work), because a whole-game
+  // sweep would be waste and the null-move tier is not wired yet.
+  if (isIntentFactsEnabled() && gameEval && insights.length) {
+    const intent = intentFactsForPlies({
+      gameEval: gameEval as unknown as GameEval,
+      moves: moveHistory,
+      plies: insights.map((i) => i.ply),
+    });
+    if (intent.length) contract.intent = intent;
+  }
+
   // Plan §5 gate definition: contract build time is CPU-only, measured OVER
   // the shared grounding fetches (their network wait is excluded — it exists
   // on the legacy path too and is now strictly smaller thanks to the dedup).

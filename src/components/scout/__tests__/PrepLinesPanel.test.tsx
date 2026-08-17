@@ -12,6 +12,7 @@ import { renderToString } from 'react-dom/server';
 import { Chess } from 'chess.js';
 import PrepLinesPanel from '@/components/scout/PrepLinesPanel';
 import { buildHoleReport } from '@/lib/scout/buildHoleReport';
+import { positionKey } from '@/lib/scout/positionStats';
 import type { HoleFinderProviders, HoleReport } from '@/lib/scout/holeFinder';
 import type { HoleProgress } from '@/lib/scout/buildHoleReport';
 import type { ScoutGame } from '@/types/scout';
@@ -114,6 +115,51 @@ describe('PrepLinesPanel', () => {
     const html = render({ report });
     expect(html).toContain('Nothing worth recommending');
     expect(html).not.toContain('Weakness confirmed');
+  });
+
+  it('renders the prepared line and marks where they leave book', async () => {
+    // c5 sits in a sound branch too, so the entry lands on YOUR 2.c3 rather
+    // than on their first reply — the same shape as the real opponent this was
+    // built against.
+    const HOLE = ['e4', 'c5', 'c3', 'Nf6', 'e5', 'Nd5', 'd4', 'cxd4'];
+    const fenAfter = (moves: string[]) => {
+      const b = new Chess();
+      for (const m of moves) b.move(m);
+      return b.fen();
+    };
+    // Plays the moves they have actually met, so the line runs on instead of
+    // stopping at the first arbitrary choice.
+    const scripted: HoleFinderProviders = {
+      async evaluate(fen: string) {
+        const script: Record<string, string> = {
+          [positionKey(fenAfter(['e4', 'c5', 'c3', 'Nf6']))]: 'e5',
+          [positionKey(fenAfter(['e4', 'c5', 'c3', 'Nf6', 'e5', 'Nd5']))]: 'd4',
+        };
+        const key = positionKey(fen);
+        return { bestMove: script[key] ?? new Chess(fen).moves()[0] ?? '', cp: 0 };
+      },
+    };
+
+    const report = await buildHoleReport(
+      [
+        ...batch(['e4', 'e5', 'Nf3', 'Nc6'], 300, 0.5),
+        ...batch(['e4', 'c5', 'Nf3', 'd6', 'd4', 'cxd4'], 200, 0.5),
+        ...batch(HOLE, 140, 0.1),
+      ],
+      'them',
+      'white',
+      { makeProvider: () => scripted }
+    );
+
+    const top = report!.holes[0];
+    expect(top.keyMove).toBe('c3');
+    expect(top.prepared?.length).toBeGreaterThan(0);
+    expect(top.prepared![0].moves.length).toBeGreaterThan(2);
+
+    const html = render({ report });
+    expect(html).toContain('The line from here');
+    // Their forced replies must be on screen, not just the entry.
+    expect(html).toContain('Nd5');
   });
 
   it('survives a hole with every optional field absent', () => {

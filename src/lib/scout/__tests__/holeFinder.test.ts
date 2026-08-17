@@ -541,6 +541,6 @@ describe('dedupeNested', () => {
 
 describe('positionScore', () => {
   it('is a draw-counts-half score', () => {
-    expect(positionScore({ weight: 10, points: 4, weightSq: 10, key: '', ply: 1, games: 10, next: new Set() })).toBe(0.4);
+    expect(positionScore({ weight: 10, points: 4, weightSq: 10, key: '', ply: 1, games: 10, next: new Set(), replies: new Map() })).toBe(0.4);
   });
 });

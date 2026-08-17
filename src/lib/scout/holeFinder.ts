@@ -54,6 +54,11 @@ import {
   type PositionIndex,
   type PositionStat,
 } from '@/lib/scout/positionStats';
+import {
+  buildPreparedLines,
+  PREPARED_DEFAULTS,
+  type PreparedLine,
+} from '@/lib/scout/preparedLine';
 
 /** Evaluation of a position, in centipawns from the side-to-move's view. */
 export interface PositionEval {
@@ -340,6 +345,16 @@ export interface Hole {
   benefit: number;
   /** The last move you choose on the way in — the actionable instruction. */
   keyMove?: string;
+  /**
+   * The continuation from here: what they play, what you answer, and where they
+   * run out of familiar ground.
+   *
+   * Separate from `line` because the two rest on different evidence. `line` is
+   * where to steer and is backed by their results; this is what to play once
+   * there and is backed by their behaviour. Conflating them would let a
+   * ply-twelve move inherit a p-value earned at ply three.
+   */
+  prepared?: PreparedLine[];
 }
 
 export interface HoleReport {
@@ -689,6 +704,18 @@ export async function findHoles(
   }
 
   const ranked = dedupeNested(holes).slice(0, config.topN);
+
+  // Only the lines actually returned get a continuation; each one costs engine
+  // calls and the rest were never going to be shown.
+  for (const hole of ranked) {
+    hole.prepared = await buildPreparedLines(
+      hole.fen,
+      theirColor === 'white' ? 'black' : 'white',
+      index,
+      { evaluate },
+      PREPARED_DEFAULTS
+    );
+  }
 
   return {
     holes: ranked,

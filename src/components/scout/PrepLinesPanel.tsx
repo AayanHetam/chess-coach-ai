@@ -19,6 +19,7 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import type { Hole, HoleReport, HoleTier } from '@/lib/scout/holeFinder';
+import type { PreparedLine, PreparedMove } from '@/lib/scout/preparedLine';
 import type { HoleProgress } from '@/lib/scout/useHoleReport';
 import { DossierPanel, EMBER, EMBER_LIGHT, FieldLabel, MONO, VerdictPill } from './dossier';
 
@@ -327,6 +328,21 @@ function LineRow({
             </Stack>
           )}
 
+          {hole.prepared && hole.prepared.length > 0 && (
+            <Box sx={{ mt: 1.75 }}>
+              <FieldLabel color="rgba(255,255,255,0.35)" size="0.53rem">
+                {hole.prepared.length > 1
+                  ? `The lines from here — they split ${hole.prepared.length} ways`
+                  : 'The line from here'}
+              </FieldLabel>
+              <Stack spacing={1.25} sx={{ mt: 1 }}>
+                {hole.prepared.map((line, i) => (
+                  <PreparedLineBlock key={i} line={line} startPly={hole.line.length} />
+                ))}
+              </Stack>
+            </Box>
+          )}
+
           {hole.cpLoss !== undefined && hole.cpLoss > 0 && hole.betterMove && (
             <Typography sx={{ fontSize: '0.79rem', color: 'rgba(255,255,255,0.55)' }}>
               Their {hole.line[hole.line.length - 1].san} gives up {hole.cpLoss}cp; the engine
@@ -361,6 +377,113 @@ function LineRow({
       )}
     </Box>
   );
+}
+
+/**
+ * One prepared continuation.
+ *
+ * The point of the block is the novelty marker: everything above it is a line
+ * they know, and the marked move is where they stop knowing it. Their moves are
+ * shown with the frequency behind them rather than as assertions — a 36% reply
+ * and a 100% reply are different objects and must not look alike.
+ */
+function PreparedLineBlock({ line, startPly }: { line: PreparedLine; startPly: number }) {
+  if (line.moves.length === 0) return null;
+
+  return (
+    <Box
+      sx={{
+        borderLeft: '1px solid rgba(255,255,255,0.10)',
+        pl: 1.25,
+        py: 0.25,
+      }}
+    >
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 0.5 }}>
+        {line.moves.map((m, i) => (
+          <MoveChip
+            key={i}
+            move={m}
+            ply={startPly + i}
+            novelty={line.noveltyIndex === i}
+          />
+        ))}
+      </Box>
+
+      <Typography sx={{ fontSize: '0.71rem', color: 'rgba(255,255,255,0.42)', mt: 0.75, lineHeight: 1.5 }}>
+        {endNote(line)}
+      </Typography>
+    </Box>
+  );
+}
+
+function MoveChip({ move, ply, novelty }: { move: PreparedMove; ply: number; novelty: boolean }) {
+  const yours = move.side === 'you';
+  const number = ply % 2 === 0 ? `${ply / 2 + 1}.` : '';
+
+  const detail = yours
+    ? move.from > 0
+      ? `You. They have met this ${move.timesFaced} time${move.timesFaced === 1 ? '' : 's'} in ${move.from} games here.` +
+        (move.gainOverCommon
+          ? ` ${move.gainOverCommon}cp better than the ${move.commonReply} they usually see.`
+          : '')
+      : 'You.'
+    : `They play this in ${Math.round((move.probability ?? 0) * 100)}% of ${move.from} games here.` +
+      (move.alternatives?.length
+        ? ` Otherwise ${move.alternatives
+            .map(a => `${a.san} ${Math.round(a.probability * 100)}%`)
+            .join(', ')}.`
+        : '');
+
+  return (
+    <Tooltip arrow title={detail}>
+      <Box
+        component="span"
+        sx={{
+          fontFamily: MONO,
+          fontSize: '0.78rem',
+          cursor: 'help',
+          px: novelty ? 0.75 : 0,
+          py: novelty ? 0.25 : 0,
+          borderRadius: novelty ? '4px' : 0,
+          bgcolor: novelty ? 'rgba(249,115,22,0.16)' : 'transparent',
+          border: novelty ? `1px solid rgba(249,115,22,0.5)` : 'none',
+          color: yours ? EMBER_LIGHT : 'rgba(255,255,255,0.7)',
+          fontWeight: yours ? 700 : 400,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {number}
+        {move.san}
+        {!yours && (move.probability ?? 0) < 0.9 && (
+          <Box component="span" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.66rem' }}>
+            {' '}
+            {Math.round((move.probability ?? 0) * 100)}%
+          </Box>
+        )}
+      </Box>
+    </Tooltip>
+  );
+}
+
+/** Why the line stopped, said plainly. The reason is the useful part. */
+function endNote(line: PreparedLine): string {
+  const last = line.noveltyIndex !== undefined ? line.moves[line.noveltyIndex] : undefined;
+  switch (line.end) {
+    case 'novelty':
+      return last
+        ? `${last.san} is new to them — met ${last.timesFaced} time${last.timesFaced === 1 ? '' : 's'} in ${last.from} games. From here they are on their own.`
+        : 'From here they are on their own.';
+    case 'unpredictable':
+      return 'They split from here — no single reply is likely enough to prepare one line against.';
+    case 'thin':
+      return 'Their games run out here; too few to predict from.';
+    case 'depth':
+      return 'Line cut at depth.';
+    case 'gameover':
+      return 'The game ends here.';
+    case 'noengine':
+      return 'No engine answer for the next move.';
+  }
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {

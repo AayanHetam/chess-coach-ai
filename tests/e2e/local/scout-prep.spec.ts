@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { Chess } from "chess.js";
 
 /**
  * The "Customize vs me" prep report, driven in a real browser.
@@ -54,7 +55,7 @@ function archive() {
   // move you choose rather than one they played, and mirrors the real case
   // this was built from (an opponent who collapses specifically in the Alapin).
   for (let i = 0; i < 140; i++) {
-    games.push(game(id++, ["e4", "c5", "c3", "d5", "exd5", "Qxd5"], i < 14 ? "0-1" : "1-0"));
+    games.push(game(id++, ["e4", "c5", "c3", "Nf6", "e5", "Nd5", "d4", "cxd4"], i < 14 ? "0-1" : "1-0"));
   }
   return {
     username: THEM,
@@ -65,19 +66,40 @@ function archive() {
   };
 }
 
+/** The moves they have actually met, so the prepared line runs on. */
+const SCRIPT: Record<string, string> = {
+  "rnbqkb1r/pp1ppppp/5n2/2p5/4P3/2P5/PP1P1PPP/RNBQKBNR w KQkq -": "e5",
+  "rnbqkb1r/pp1ppppp/8/2pnP3/8/2P5/PP1P1PPP/RNBQKBNR w KQkq -": "d4",
+};
+
 async function stubNetwork(page: Page) {
   await page.route("**/api/scout", route =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(archive()) })
   );
   // Deterministic and offline. A flat evaluation means nothing here can pass on
   // the strength of an engine edge — the results signal has to carry it.
-  await page.route("**/lichess.org/api/cloud-eval**", route =>
-    route.fulfill({
+  //
+  // The move has to be LEGAL in the position asked about, not a fixed string. A
+  // constant reply is illegal everywhere except the opening move, so the
+  // prepared line stops at "no engine answer" on its first ply and the whole
+  // continuation goes untested while the test still passes.
+  await page.route("**/lichess.org/api/cloud-eval**", route => {
+    const fen = decodeURIComponent(new URL(route.request().url()).searchParams.get("fen") ?? "");
+    let uci = "e2e4";
+    try {
+      const board = new Chess(fen);
+      const scripted = SCRIPT[fen.split(" ").slice(0, 4).join(" ")];
+      const move = board.move(scripted ?? board.moves()[0]);
+      if (move) uci = move.from + move.to + (move.promotion ?? "");
+    } catch {
+      /* fall through to the default, which the caller treats as unusable */
+    }
+    return route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ depth: 50, pvs: [{ moves: "e2e4", cp: 20 }] }),
-    })
-  );
+      body: JSON.stringify({ depth: 50, pvs: [{ moves: uci, cp: 20 }] }),
+    });
+  });
 }
 
 async function dismissCookies(page: Page) {
@@ -120,6 +142,11 @@ test.describe("scout prep report", () => {
     // move nobody can act on.
     await expect(page.getByText(/Play\s*c3/i).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/1\.e4\s*c5\s*2\.c3/i).first()).toBeVisible();
+
+    // The continuation, not just the entry. Steering them somewhere is only
+    // half the report; the other half is what to play once there.
+    await expect(page.getByText(/The lines? from here/i).first()).toBeVisible();
+    await expect(page.getByText(/Nd5/).first()).toBeVisible();
 
     // Evidence must be on screen, not behind a disclosure: a claim about a
     // person is not readable without the sample it came from.

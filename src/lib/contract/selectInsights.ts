@@ -10,15 +10,36 @@
  *     ({cp:0, depth:0}), filters to the USER's color, stable-sorts by drop
  *     descending, slices 10.
  *
- *  2. CHESS INTELLIGENCE top-3: an INDEPENDENT scan that does NOT skip
- *     sentinels and does NOT filter by color (legacy route.ts:810-835).
- *     Opponent blunders and sentinel-adjacent fake drops therefore appear
- *     here but not in TOP MISTAKES. This is faithfully reproduced, not
- *     endorsed — fixing it is a WHAT-TO-COVER policy change (CI-4).
+ *  2. CHESS INTELLIGENCE top-3: an INDEPENDENT scan over the same candidates,
+ *     kept because it renders a richer block (concepts, branch points, the
+ *     teaching spine) for the few most severe positions.
  *
- * The `policy` knob exists per plan §12-Q6 (severity-first with a
- * teachability preference among near-equal severities). Only "legacy" is
- * legal in PR-CI-1; the teachability policy lands with CI-4.
+ * Both scans filter to the USER's colour. The intelligence scan did not, and
+ * that was the one asymmetry this module reproduced without endorsing — the
+ * original note here read "fixing it is a WHAT-TO-COVER policy change (CI-4)".
+ *
+ * Aayan made that call after watching real reviews: "the model goes to the
+ * opponent's mistakes when it cannot find significant mistakes in your own
+ * gameplay." It did, and the mechanism was here. `buildCoachContract` cards the
+ * UNION of the two lists, so an unfiltered scan ranked purely by eval drop
+ * promoted the opponent's blunders into the prompt — and the better the student
+ * played, the more completely the opponent took the list over. Measured on
+ * Aayan's twelve games, ordered by his worst move in each:
+ *
+ *     61cp -> opponent took 3 of 3 slots      197cp -> 0 of 3
+ *    114cp -> opponent took 3 of 3 slots      364cp -> 0 of 3
+ *    115cp -> opponent took 3 of 3 slots
+ *
+ * 21 of 111 carded plies were the opponent's, across 10 of the 12 games. The
+ * three games he played BEST are exactly the three the opponent took over.
+ *
+ * It reached the student intact: renderIntelligenceBlock prints the concepts
+ * under "teach by name — this is the principle the student missed", so an
+ * opponent's blunder arrived as the student's own lesson, directly under a
+ * MISTAKES section reading "No significant mistakes detected".
+ *
+ * The `policy` knob exists per plan §12-Q6 (severity-first with a teachability
+ * preference among near-equal severities). Only "legacy" is legal today.
  */
 import { getFenAtHalfMove, uciToSan } from "./chessFormat";
 import type { GameEvalInput } from "./gameEvalSchema";
@@ -128,7 +149,7 @@ export function selectInsights(
     .sort((a, b) => b.dropCp - a.dropCp)
     .slice(0, 10);
 
-  // ── Scan 2: CHESS INTELLIGENCE top-3 (sentinel-skipping, no color filter) ─
+  // ── Scan 2: CHESS INTELLIGENCE top-3 (sentinel-skipping, user-color) ─────
   //
   // C4 (SILENT_SUBSTITUTION_HANDOFF): this scan used to omit the sentinel skip
   // that Scan 1 above performs. A `cp: 0` timeout next to a winning position
@@ -158,7 +179,14 @@ export function selectInsights(
       }
     }
   }
-  const intelligenceTop3 = intelCandidates.sort((a, b) => b.dropCp - a.dropCp).slice(0, 3);
+  // The colour filter is the fix for "it goes to the opponent's mistakes when it
+  // cannot find significant ones in yours" (see module doc). It is applied here
+  // rather than in the scan loop so that `intelCandidates` still holds the
+  // whole-game picture for any future policy that wants it.
+  const intelligenceTop3 = intelCandidates
+    .filter((c) => c.colorName === userColorName)
+    .sort((a, b) => b.dropCp - a.dropCp)
+    .slice(0, 3);
 
   return { topMistakes, intelligenceTop3 };
 }

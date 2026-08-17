@@ -4,7 +4,7 @@ exports[`buildGameContext byte-equality snapshots (PR-CI-1) > renders 01_mate_fo
 "## GAME OVERVIEW
 - Total moves: 8 full moves (16 half-moves)
 - Result: In progress
-- Player: AayanTest playing as White
+- Player: AayanTest playing as Black
 - Player rating: 1450
 - Estimated Elo: White ~1520, Black ~1480
 - White: AayanTest (1450)
@@ -87,8 +87,20 @@ All evals are in pawns from White's perspective (positive = better for White); M
     FEN after:  r1bq1b1r/ppp1n1pp/4k3/3np3/2B5/2N2Q2/PPPP1PPP/R1B1K2R w KQ - 4 9
     Eval: M+2
 
-## MISTAKES
-No significant mistakes detected (all moves within 0.5 pawn of engine best).
+## TOP MISTAKES (sorted by severity — ANALYZE EACH WITH FULL DEPTH)
+### Move 7 (Black): Ke6 [BLUNDER]
+  Eval: 2.50 → M+ (lost 97.5 pawns)
+  What happened: Black king moved from f7 to e6
+  FEN before: r1bq1b1r/ppp2kpp/2n5/3np3/2B5/5Q2/PPPP1PPP/RNB1K2R b KQ - 1 7
+  TACTICAL FACTS: [] — no tactical patterns detected.
+Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
+  CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+  BRANCH POINT: Lines diverge at move 1. Best continues Bf5, played line goes Ke6
+  CANDIDATE MOVES (from Stockfish, best first):
+    ★ BETTER: Bf5 (+2.50) — Line: 7... Bf5 8. Ba6 Ba3 9. Bb5 (depth 13)
+    ⮕ PLAYED: Ke6 (+1.90) — Line: 7... Ke6 8. Ba6 Ba3 (depth 13)
+    ★ BETTER: Ke7 (+1.30) — Line: 7... Ke7 8. Ba6 (depth 13)
+  Best move was: Bf5
 
 ## FINAL POSITION
 FEN: r1bq1b1r/ppp1n1pp/4k3/3np3/2B5/2N2Q2/PPPP1PPP/R1B1K2R w KQ - 4 9
@@ -403,55 +415,6 @@ Do not claim a piece attacks a square unless it is listed here.
 ## CHESS INTELLIGENCE LAYER
 (Pre-computed verified analysis — use this to ground your explanations)
 
-### CRITICAL POSITION: Move 8 (White — BLUNDER)
-TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "hanging_piece",
-    "square": "f6",
-    "piece": "n",
-    "attackers": [
-      {
-        "square": "e5",
-        "piece": "p"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "g7",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 320,
-    "confirmed": true,
-    "refutation": null
-  }
-]
-CANDIDATE RANKING: Only one candidate line available.
-PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
-- Quiet move (tactical, confidence 0.55)
-    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
-    Evidence: Solver plays e5 — no capture, no check, no promotion
-ENGINE IDEA: The key idea: 8... Ba5+ gives check.
-VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
-=== VERIFIED POSITION FACTS (chess.js oracle) ===
-Side to move: White
-
-ATTACKS ON ENEMY PIECES:
-  Black: Ne7→Pd5, Nf6→Pd5, Nf6→Pe4, Bb6→Pf2
-
-HANGING (attacked, inadequately defended):
-  White Pe4: attacked by Nf6; no defenders
-
-ABSOLUTE PINS (pinned to king):
-  (none)
-
-COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
-Do not claim a piece attacks a square unless it is listed here.
-GROUNDED TEACHING SPINE (what the move changed + threats to count):
-CONCEPT DELTA (what the move changed): newly trapped: white bishop on c4
-OPPONENT THREATS TO COUNT: Bxf2+ (check), Ba5+ (check)
-
 ### CRITICAL POSITION: Move 8 (Black — BLUNDER)
 TACTICAL FACTS: [] — no tactical patterns detected.
 Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
@@ -478,35 +441,70 @@ GROUNDED TEACHING SPINE (what the move changed + threats to count):
 CONCEPT DELTA (what the move changed): newly trapped: black knight on e7
 OPPONENT THREATS TO COUNT: exf6 (wins ~3p)
 
-### CRITICAL POSITION: Move 9 (White — BLUNDER)
-TACTICAL FACTS: [] — structural patterns detected but all escapable against best defense.
-Refutations:
-  fork: refuted by c7xd6 (recapture)
-  discovered_attack: refuted by defend-f7 (counter_threat)
-Do not assert: fork, pin, skewer, discovered, hanging, trapped, back rank, mate threat.
-
-UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): fork — refuted by c7xd6; discovered_attack — refuted by defend-f7
-CANDIDATE RANKING: Only one candidate line available.
+### CRITICAL POSITION: Move 5 (Black — INACCURACY)
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "e4",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "f6",
+        "piece": "n"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "c3",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "d4",
+        "piece": "p"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "b2",
+        "piece": "p"
+      },
+      {
+        "square": "b1",
+        "piece": "n"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+BRANCH POINT: Key divergence — best: Ba3 vs alternative: exd4
 PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
-- Pawn fork (tactical, confidence 0.92)
-    Definition: A pawn advance attacks two enemy pieces at once, winning material since at most one can retreat.
-    Evidence: P on d6 attacks P@c7, N@e7
-- Double attack (tactical, confidence 0.80)
-    Definition: A single move creates two distinct threats (not necessarily a fork by one piece); the opponent cannot parry both.
-    Evidence: P on d6 attacks P@c7, N@e7
-- Discovered attack (tactical, confidence 0.80)
-    Definition: Moving one piece uncovers an attack from another piece behind it along the line.
-    Evidence: Move d6 discovers attack on f7
-ENGINE IDEA: The key idea: 9... Ba5+ gives check.
+- Relative pin (tactical, confidence 0.80)
+    Definition: A piece is pinned against a more valuable piece behind it; moving it is legal but loses material.
+    Evidence: P@b2 pinned to B@c1
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays Ba3 — no capture, no check, no promotion
+ENGINE IDEA: The line runs Ba3 Ba6 Bb4 Bb5 — a positional sequence building long-term advantage.
 VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
 === VERIFIED POSITION FACTS (chess.js oracle) ===
-Side to move: White
+Side to move: Black
 
 ATTACKS ON ENEMY PIECES:
-  Black: Ne7→Pd5, Ng4→Pe5, Bb6→Pf2, Ng4→Pf2, Ng4→Ph2
+  White: Bc4→Pf7, Pd4→Bc5, Pd4→Pe5, Nf3→Pe5
+  Black: Nc6→Pd4, Bc5→Pd4, Pe5→Pd4, Nf6→Pe4
 
 HANGING (attacked, inadequately defended):
-  (none)
+  Black Bc5: attacked by Pd4; no defenders
+  White Pe4: attacked by Nf6; no defenders
 
 ABSOLUTE PINS (pinned to king):
   (none)
@@ -514,8 +512,8 @@ ABSOLUTE PINS (pinned to king):
 COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
 Do not claim a piece attacks a square unless it is listed here.
 GROUNDED TEACHING SPINE (what the move changed + threats to count):
-CONCEPT DELTA (what the move changed): newly trapped: white bishop on c4
-OPPONENT THREATS TO COUNT: Bxf2+ (check), Ba5+ (check)
+CONCEPT DELTA (what the move changed): material swung ~1 point(s) toward Black | newly trapped: black knight on c6
+OPPONENT THREATS TO COUNT: Bxf7+ (check), dxc5 (wins ~3p)
 "
 `;
 
@@ -847,35 +845,6 @@ COACHING RULE: Only assert attack/capture/defense/pin relationships that appear 
 Do not claim a piece attacks a square unless it is listed here.
 GROUNDED TEACHING SPINE (what the move changed + threats to count):
 CONCEPT DELTA (what the move changed): newly trapped: white bishop on g5
-
-### CRITICAL POSITION: Move 5 (Black — INACCURACY)
-TACTICAL FACTS: [] — no tactical patterns detected.
-Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
-CANDIDATE RANKING: Only one candidate line available.
-PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
-- Quiet move (tactical, confidence 0.55)
-    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
-    Evidence: Solver plays O-O — no capture, no check, no promotion
-ENGINE IDEA: The line runs O-O Bd3 Ba3 Bb1 — a positional sequence building long-term advantage.
-VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
-=== VERIFIED POSITION FACTS (chess.js oracle) ===
-Side to move: Black
-
-ATTACKS ON ENEMY PIECES:
-  White: Bg5→Nf6, Pc4→Pd5, Nc3→Pd5
-  Black: Pd5→Pc4
-
-HANGING (attacked, inadequately defended):
-  (none)
-
-ABSOLUTE PINS (pinned to king):
-  (none)
-
-COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
-Do not claim a piece attacks a square unless it is listed here.
-GROUNDED TEACHING SPINE (what the move changed + threats to count):
-CONCEPT DELTA (what the move changed): new threat(s): White can capture knight on f6 | newly trapped: black rook on f8
-OPPONENT THREATS TO COUNT: Qa4+ (check), Bxf6 (wins ~3p)
 "
 `;
 
@@ -2038,127 +2007,6 @@ GROUNDED TEACHING SPINE (what the move changed + threats to count):
 CONCEPT DELTA (what the move changed): new threat(s): Black can capture bishop on a8 | newly trapped: white bishop on a8
 OPPONENT THREATS TO COUNT: Qd1+ (check), Rxa8 (wins ~3p), Bxa8 (wins ~3p)
 
-### CRITICAL POSITION: Move 23 (Black — BLUNDER)
-TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "hanging_piece",
-    "square": "h6",
-    "piece": "n",
-    "attackers": [
-      {
-        "square": "g8",
-        "piece": "n"
-      },
-      {
-        "square": "h8",
-        "piece": "r"
-      }
-    ],
-    "defenders": [],
-    "see_value_cp": 320,
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "d4",
-    "piece": "p",
-    "attackers": [
-      {
-        "square": "e5",
-        "piece": "b"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "c3",
-        "piece": "p"
-      },
-      {
-        "square": "e3",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 100,
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "g4",
-    "piece": "p",
-    "attackers": [
-      {
-        "square": "e6",
-        "piece": "q"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "h6",
-        "piece": "n"
-      },
-      {
-        "square": "f3",
-        "piece": "p"
-      },
-      {
-        "square": "g3",
-        "piece": "r"
-      }
-    ],
-    "see_value_cp": 100,
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "g3",
-    "piece": "r",
-    "attackers": [
-      {
-        "square": "e5",
-        "piece": "b"
-      }
-    ],
-    "defenders": [],
-    "see_value_cp": 500,
-    "confirmed": true,
-    "refutation": null
-  }
-]
-CANDIDATE RANKING: Only one candidate line available.
-PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
-- Quiet move (tactical, confidence 0.55)
-    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
-    Evidence: Solver plays Qe6 — no capture, no check, no promotion
-ENGINE IDEA: The line runs Qe6 Bb7 Bb8 Ba8 — a positional sequence building long-term advantage.
-VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
-=== VERIFIED POSITION FACTS (chess.js oracle) ===
-Side to move: Black
-
-ATTACKS ON ENEMY PIECES:
-  White: Na7→Bc8, Nh6→Ng8, Nh6→Qf7, Pd4→Be5, Ba8→Pe4, Pf3→Pe4
-  Black: Ng8→Nh6, Rh8→Nh6, Be5→Pd4, Qf7→Pf3, Pe4→Pf3, Be5→Rg3
-
-HANGING (attacked, inadequately defended):
-  Black Bc8: attacked by Na7; no defenders
-  Black Qf7: attacked by Nh6; defended by e8
-  White Nh6: attacked by Ng8, Rh8; no defenders
-  Black Be5: attacked by Pd4; no defenders
-  Black Pe4: attacked by Ba8, Pf3; no defenders
-  White Rg3: attacked by Be5; no defenders
-
-ABSOLUTE PINS (pinned to king):
-  (none)
-
-COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
-Do not claim a piece attacks a square unless it is listed here.
-GROUNDED TEACHING SPINE (what the move changed + threats to count):
-CONCEPT DELTA (what the move changed): new threat(s): White can capture bishop on c8 | newly trapped: black knight on a6
-OPPONENT THREATS TO COUNT: Nxf7 (wins ~9p), Nxc8 (wins ~3p), dxe5 (wins ~3p)
-
 ### CRITICAL POSITION: Move 31 (White — BLUNDER)
 TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
 [
@@ -2238,6 +2086,57 @@ Do not claim a piece attacks a square unless it is listed here.
 GROUNDED TEACHING SPINE (what the move changed + threats to count):
 CONCEPT DELTA (what the move changed): new threat(s): Black can capture bishop on a8 | newly trapped: white bishop on a8
 OPPONENT THREATS TO COUNT: Nb4+ (check), Bxa8 (wins ~3p)
+
+### CRITICAL POSITION: Move 26 (White — MISTAKE)
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "c8",
+    "piece": "b",
+    "attackers": [
+      {
+        "square": "a7",
+        "piece": "n"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  }
+]
+CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
+BRANCH POINT: Key divergence — best: Bb7 vs alternative: g5
+PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
+- Double attack (tactical, confidence 0.80)
+    Definition: A single move creates two distinct threats (not necessarily a fork by one piece); the opponent cannot parry both.
+    Evidence: B on b7 attacks N@a6, B@c8
+- Quiet move (tactical, confidence 0.55)
+    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
+    Evidence: Solver plays Bb7 — no capture, no check, no promotion
+ENGINE IDEA: The line runs Bb7 Bd8 Ba8 Bb6 — a positional sequence building long-term advantage.
+VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
+=== VERIFIED POSITION FACTS (chess.js oracle) ===
+Side to move: White
+
+ATTACKS ON ENEMY PIECES:
+  White: Na7→Bc8, Ng8→Bf6, Ba8→Pe4, Pf3→Pe4
+  Black: Rh8→Ng8, Qe6→Ng8, Bf6→Pd4, Qe6→Pg4, Rh8→Ph4, Bf6→Ph4, Pe4→Pf3
+
+HANGING (attacked, inadequately defended):
+  Black Bc8: attacked by Na7; no defenders
+  White Ng8: attacked by Rh8, Qe6; no defenders
+  White Ph4: attacked by Rh8, Bf6; no defenders
+
+ABSOLUTE PINS (pinned to king):
+  (none)
+
+COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
+Do not claim a piece attacks a square unless it is listed here.
+GROUNDED TEACHING SPINE (what the move changed + threats to count):
+CONCEPT DELTA (what the move changed): new threat(s): Black can capture knight on g8 | newly trapped: white bishop on a8
+OPPONENT THREATS TO COUNT: Nb4+ (check), Rxg8 (wins ~3p), Qxg8 (wins ~3p)
 "
 `;
 
@@ -3791,56 +3690,6 @@ COACHING RULE: Only assert attack/capture/defense/pin relationships that appear 
 Do not claim a piece attacks a square unless it is listed here.
 GROUNDED TEACHING SPINE (what the move changed + threats to count):
 CONCEPT DELTA (what the move changed): new threat(s): Black can capture knight on e6 | newly trapped: white knight on e6
-
-### CRITICAL POSITION: Move 11 (Black — INACCURACY)
-TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "hanging_piece",
-    "square": "h4",
-    "piece": "b",
-    "attackers": [
-      {
-        "square": "g5",
-        "piece": "p"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "f3",
-        "piece": "n"
-      }
-    ],
-    "see_value_cp": 330,
-    "confirmed": true,
-    "refutation": null
-  }
-]
-CANDIDATE RANKING: IMPORTANT CHOICE — gap between #1 and #2 candidate: 1.20 pawns
-BRANCH POINT: Key divergence — best: a5 vs alternative: g5
-PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
-- Quiet move (tactical, confidence 0.55)
-    Definition: A non-capturing, non-checking move that sets up an unavoidable threat — the hardest class of tactic to see.
-    Evidence: Solver plays a5 — no capture, no check, no promotion
-ENGINE IDEA: The key idea: 12. Bxf6 wins the knight, then 12... Nxf6 wins the bishop.
-VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
-=== VERIFIED POSITION FACTS (chess.js oracle) ===
-Side to move: Black
-
-ATTACKS ON ENEMY PIECES:
-  White: Bh4→Nf6
-
-HANGING (attacked, inadequately defended):
-  (none)
-
-ABSOLUTE PINS (pinned to king):
-  (none)
-
-COACHING RULE: Only assert attack/capture/defense/pin relationships that appear above.
-Do not claim a piece attacks a square unless it is listed here.
-GROUNDED TEACHING SPINE (what the move changed + threats to count):
-CONCEPT DELTA (what the move changed): newly trapped: black knight on d7
-OPPONENT THREATS TO COUNT: Bxf6 (wins ~3p)
 
 ### CRITICAL POSITION: Move 15 (White — INACCURACY)
 TACTICAL FACTS (confirmed by deterministic detector — narrate only these):

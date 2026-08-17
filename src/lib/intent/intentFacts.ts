@@ -34,6 +34,36 @@ export const MATE_CP = 30000;
 export const PROPHYLAXIS_MIN_SWING_CP = 150;
 
 /**
+ * How far the threat must move IN THE OPPONENT'S FAVOUR before we say our move
+ * made it stronger.
+ *
+ * Symmetric with PROPHYLAXIS_MIN_SWING_CP above, and for the same reason. The
+ * founder, on two cards claiming his move made a threat stronger: "the evals
+ * should be the same because the position that occurs should be the same a few
+ * moves after the move." They were the same, to within measurement error.
+ *
+ * This label used to fire on `swing < 0` — any negative value at all. The swing
+ * is a difference between two DIFFERENT positions (with and without our move),
+ * each scored by its own search, and it is nothing like stable enough to read a
+ * sign off. Measured like-for-like on the three cards he was shown, at
+ * increasing depth:
+ *
+ *   game_10 20.Qh3    d14 -29   d16 -28   d18 -12   d20  +7   d22  +6   d24 +13
+ *   game_11 40.Ra6    d14  -8   d16 -25   d18  -3   d20 +43   d22 -151  d24 -333
+ *   game_12 14...d5   d14 -20   d16 -43   d18   0   d20 -16   d22  -7   d24 -17
+ *
+ * The first flips sign at depth 20 and stays flipped; the second flips twice.
+ * At fixed depth the same swing moves ~25cp purely from legitimate measurement
+ * choices (MultiPV 1 vs 2, restricted vs unrestricted). Every instance the
+ * module had ever labelled sat between 9 and 43cp — entirely inside that.
+ *
+ * Requiring the same magnitude in both directions is the point: we already
+ * refuse to say "your move stopped this" below 150cp, and saying "your move
+ * STRENGTHENED this" is no cheaper a claim.
+ */
+export const THREAT_STRENGTHENED_MIN_CP = PROPHYLAXIS_MIN_SWING_CP;
+
+/**
  * How much a free tempo must be worth to the opponent before their best
  * null-move reply counts as a THREAT at all.
  *
@@ -351,7 +381,17 @@ function computeProphylaxis(
       notes.push("opponent is being mated in the null line — no threat of theirs to stop");
       return null;
     }
-    const rootScore = probe.rootLines[0]?.score;
+    // BOTH OPERANDS FROM ONE REGIME. `before` is the null-move probe's number,
+    // measured on a cold transposition table; gameEval's root score is read off
+    // a warm one. Adding them makes the sum carry the difference between two
+    // engines. Sampled on 60 plies near the 150cp bar, 12% of the
+    // threat/no-threat decisions flip when this operand is measured alongside
+    // the threat instead — about 7.8% of all plies where this gate is live, and
+    // in both directions.
+    const rootScore = probe.rootBestProbed ?? probe.rootLines[0]?.score;
+    if (!probe.rootBestProbed && probe.rootLines[0]) {
+      notes.push("free tempo valued across measurement regimes — no same-regime root score");
+    }
     if (!rootScore || isMate(rootScore)) {
       notes.push("cannot value the opponent's tempo against a mate score");
       return null;
@@ -484,20 +524,18 @@ function computeProphylaxis(
   }
   if (swing < PROPHYLAXIS_MIN_SWING_CP) {
     notes.push(`threat swing ${swing}cp below ${PROPHYLAXIS_MIN_SWING_CP}cp`);
-    // A negative swing means the move made their threat BETTER for them, which
-    // is a different card from "nothing much changed" and was being filed under
-    // the same label.
+    // A swing far enough NEGATIVE means the move made their threat better for
+    // them — a different card from "nothing much changed". It needs the same
+    // evidence as the positive claim; see THREAT_STRENGTHENED_MIN_CP.
     //
-    // Real, re-measured in a single regime — game_11 move 40, the position the
-    // founder asked about. White is DRAWN: Rc7+, Rc3 and Rc1 all hold at 0.00.
-    // Ra6 loses at -527 AND leaves Black's Re6+ slightly better for Black than
-    // it already was, 521 → 542. "Barely changed" would file that beside a move
-    // that improved nothing; it is worse than nothing.
-    //
-    // The numbers this comment used to quote (2196 → 2706) came from a sweep
-    // whose null-move searches shared a transposition table with the real ones.
-    // The label was right and the evidence was not; 2706 does not reproduce.
-    signals.unaddressed = swing < 0
+    // This comment has now quoted two worked examples that did not survive
+    // measurement, which is itself the lesson. The first (Ra6 2196 → 2706) came
+    // from a sweep whose null-move searches shared a transposition table with
+    // the real ones. The second (the same Ra6, cleanly re-measured at 521 → 542)
+    // was a 21cp difference inside a ±25cp noise floor, and its sign flips with
+    // search depth. No worked example is quoted here now because the corpus
+    // contains none that clears the bar — which is the honest state.
+    signals.unaddressed = swing <= -THREAT_STRENGTHENED_MIN_CP
       ? unaddressed(probe, "made-it-worse", { madeItWorse: true })
       : unaddressed(probe, "barely-changed");
     return null;
@@ -651,13 +689,42 @@ function attributionOf(probe: IntentProbe): Attribution {
  * from a material score yields things like "COST 30929cp" — a real output from
  * this function before the mate branches existed.
  */
+/**
+ * The played move's score, preferring the value measured IN THE SAME SEARCH as
+ * the root lines.
+ *
+ * `probe.playedScore` is defined as "the score of the move actually played,
+ * measured at fenBefore, for the PLAYER" — but on the game-review path it is
+ * derived from the evaluation of the position the move PRODUCED, which is a
+ * different search of a different position. When the played move is one of the
+ * MultiPV lines, the engine has already scored it inside the same search that
+ * produced `rootLines[0]`, and that is the number the subtraction wants.
+ *
+ * This is not a nicety. `cost` is `rootLines[0] - played`, so when the student
+ * plays THE ENGINE'S OWN TOP MOVE the answer must be exactly zero. Measured on
+ * the 285 such plies across the founder's twelve games, the two-search version
+ * gives a median of 1cp but a p99 of 113cp and a maximum of 148cp — and five of
+ * them cleared COST_MIN_LOSS_CP, so the review charged the student more than a
+ * pawn for playing the best move on the board. Taking both operands from one
+ * search makes those exactly zero by construction, not by threshold.
+ *
+ * Falls back to the separate measurement for the ~33% of moves outside the top
+ * three, where no same-search number exists. Those are moves the engine ranked
+ * below its third choice, so the loss is large and the noise is a small part of
+ * it.
+ */
+function playedScoreOf(probe: IntentProbe): IntentScore | null {
+  const inSameSearch = probe.rootLines.find((l) => l.san === probe.playedSan);
+  return inSameSearch ? inSameSearch.score : probe.playedScore;
+}
+
 function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {
   const best = probe.rootLines[0];
   if (!best) {
     notes.push("no root lines");
     return null;
   }
-  const played = probe.playedScore;
+  const played = playedScoreOf(probe);
   if (!played) {
     notes.push("played move not scored");
     return null;
@@ -731,7 +798,7 @@ function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {
 
 /** Did the move force mate? Read from the played move's own score. */
 function computeMate(probe: IntentProbe): MateFact | null {
-  const sc = probe.playedScore;
+  const sc = playedScoreOf(probe);
   if (!sc || sc.mate === null || sc.mate === undefined || sc.mate <= 0) return null;
   const line = probe.rootLines.find((l) => l.san === probe.playedSan);
   return { inMoves: sc.mate, line: line?.pv ?? [] };
@@ -903,6 +970,9 @@ export function computeIntentFacts(probe: IntentProbe): IntentFacts {
   //    claim after the tempo gate has already confirmed a genuine threat means
   //    something IS happening — saying "nothing tactical here" is then the
   //    opposite of the truth.
+  // Deliberately NOT playedScoreOf(): this is a completeness check on the
+  // probe's own field, and letting a root line stand in for a missing
+  // playedScore would rescue exactly the probe this guard exists to refuse.
   const playedReadable = probe.playedScore !== null && toCp(probe.playedScore) !== null;
   const rootReadable = probe.rootLines.length > 0 && toCp(probe.rootLines[0]?.score) !== null;
   const boardKnown = probe.position !== null;

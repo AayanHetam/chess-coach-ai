@@ -29,6 +29,7 @@ function probe(over: Partial<IntentProbe> = {}): IntentProbe {
     rootLines: [line("Kb1", 0)],
     threat: null,
     opponentBestAfterProbed: null,
+    rootBestProbed: null,
     threatAfter: null,
     threatAlternative: null,
     opponentBestAfter: null,

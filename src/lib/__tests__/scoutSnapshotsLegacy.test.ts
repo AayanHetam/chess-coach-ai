@@ -58,16 +58,43 @@ describe("normalizeLegacyAnalytics", () => {
     expect(out.checklist).toEqual([]);
   });
 
-  it("leaves a post-rename doc untouched", () => {
+  it("leaves a fully modern doc untouched", () => {
     const modern = {
       profile: { ovr: 66 },
       tells: { ...TELLS_BLOCK },
+      clockWindows: { byHour: [], byWeekday: [], sampled: 0 },
     } as unknown as Record<string, unknown>;
 
     const out = normalizeLegacyAnalytics(modern);
 
     expect(out.tells).toEqual(TELLS_BLOCK);
     expect(out).toEqual(modern);
+  });
+
+  // Clock windows landed after the rename, so there are shared links with a
+  // `tells` block and no `clockWindows` at all. ClockWindowsPanel reads
+  // `.byHour` directly, so an absent bundle is a crash on someone else's link,
+  // not a missing section.
+  it("CONTROL: a pre-clock-windows doc has no bundle for the panel to read", () => {
+    expect(legacyDoc().clockWindows).toBeUndefined();
+  });
+
+  it("fills in an empty clock-windows bundle when the doc predates it", () => {
+    const out = normalizeLegacyAnalytics(legacyDoc());
+
+    expect(out.clockWindows).toEqual({ byHour: [], byWeekday: [], sampled: 0 });
+    // Empty, not fabricated — the panel must render nothing, not a fake hour.
+    expect(out.clockWindows.sampled).toBe(0);
+    expect(out.clockWindows.weakestHour).toBeUndefined();
+  });
+
+  it("does not overwrite a bundle the doc already has", () => {
+    const withWindows = {
+      tells: { ...TELLS_BLOCK },
+      clockWindows: { byHour: [{ key: 3, games: 9, scorePct: 22 }], byWeekday: [], sampled: 9 },
+    } as unknown as Record<string, unknown>;
+
+    expect(normalizeLegacyAnalytics(withWindows).clockWindows.sampled).toBe(9);
   });
 
   it("prefers `tells` if a doc somehow carries both keys", () => {

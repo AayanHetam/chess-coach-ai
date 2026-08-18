@@ -1,3 +1,4 @@
+import { emptyClockWindows } from "@/lib/scoutAnalytics";
 import { describe, it, expect } from "vitest";
 import {
   validateScoutCitation,
@@ -51,6 +52,7 @@ function emptyScout(): ScoutAnalytics {
     },
     recentBuckets: [],
     novelty: [],
+    clockWindows: emptyClockWindows(),
   };
 }
 
@@ -138,6 +140,7 @@ function richScout(): ScoutAnalytics {
         variation: "...",
       },
     ],
+    clockWindows: emptyClockWindows(),
   };
 }
 

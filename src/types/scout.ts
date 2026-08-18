@@ -237,6 +237,42 @@ export interface Collisions {
   yourUsername: string;
 }
 
+/**
+ * One time bucket of their record — an hour of the day, or a weekday.
+ *
+ * Times are absolute (UTC epoch rendered in the *viewer's* locale), never an
+ * inferred opponent-local time: we don't know where they are, and we don't need
+ * to. You play someone at a specific instant, so their record at that absolute
+ * hour is the actionable number.
+ */
+export interface TimeBucket {
+  /** 0-23 for hour buckets, 0-6 (Sun-Sat) for weekday buckets. */
+  index: number;
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  /** Score % (win + half draw). Only meaningful when `games >= TIME_BUCKET_MIN_GAMES`. */
+  scorePct: number;
+  /** Share of this bucket's losses that ended on the clock. */
+  timeoutPct: number;
+  /** False when the sample is too thin to report a rate. */
+  reliable: boolean;
+}
+
+export interface ClockWindows {
+  byHour: TimeBucket[];
+  byWeekday: TimeBucket[];
+  /** Their weakest *reliable* hour bucket, if any clears the sample floor. */
+  weakestHour?: TimeBucket;
+  /** Their strongest reliable hour bucket. */
+  strongestHour?: TimeBucket;
+  /** Hour with the most games — when they actually show up. */
+  busiestHour?: TimeBucket;
+  /** Total games that carried a usable timestamp. */
+  sampled: number;
+}
+
 export interface ScoutAnalytics {
   profile: ProfileSnapshot;
   tells: TellsProfile;
@@ -246,4 +282,5 @@ export interface ScoutAnalytics {
   psychology: PsychologySnapshot;
   recentBuckets: RecentFormBucket[];
   novelty: NoveltyFinding[];
+  clockWindows: ClockWindows;
 }

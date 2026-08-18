@@ -33,9 +33,11 @@ import { NavPill } from '@/components/ui/NavPill';
 import {
   OpeningTreeNode,
   Platform,
+  ProfileSnapshot,
   ScoutAnalytics,
   ScoutGame,
   ScoutResult,
+  TimeClass,
 } from '@/types/scout';
 import { getTreeNodeAtPath } from '@/lib/scoutService';
 import type {
@@ -46,6 +48,16 @@ import AnalyzingModal, { AnalyzingStage } from '@/components/scout/AnalyzingModa
 import ScoutLanding from '@/components/scout/ScoutLanding';
 import ProfileCard from '@/components/scout/ProfileCard';
 import TellsCard from '@/components/scout/TellsCard';
+import ClockWindowsPanel from '@/components/scout/ClockWindowsPanel';
+import { FieldLabel } from '@/components/scout/dossier';
+import {
+  availableFormats,
+  scopeGames,
+  type FormatScope,
+} from '@/lib/scout/formatScope';
+import HeadToHeadPanel from '@/components/scout/HeadToHeadPanel';
+import PrepLinesPanel from '@/components/scout/PrepLinesPanel';
+import { useHoleReport } from '@/lib/scout/useHoleReport';
 import TargetedPrepPanel from '@/components/scout/TargetedPrep';
 import PreGameChecklist from '@/components/scout/PreGameChecklist';
 import RivalsPanel from '@/components/scout/RivalsPanel';
@@ -59,6 +71,13 @@ import ShareCardDialog from '@/components/scout/ShareCardDialog';
 import { parsePlatformCode } from '@/lib/shareCard';
 import { buildOpeningTree } from '@/lib/scoutService';
 import { computeCollisions } from '@/lib/collisionAnalysis';
+import { computeAnalytics } from '@/lib/scoutAnalytics';
+import {
+  buildHeadToHead,
+  buildRatingSeries,
+  compareProfiles,
+} from '@/lib/scout/headToHead';
+import { useViewer } from '@/hooks/useViewer';
 import type { Collisions } from '@/types/scout';
 import { getAuthHeader } from '@/lib/auth/getAuthHeader';
 
@@ -319,6 +338,87 @@ function ScoutSearchBar({
   );
 }
 
+// ─── Format filter ──────────────────────────────────────────────────────────
+
+function FormatFilterBar({
+  value,
+  formats,
+  totalGames,
+  scopedGames,
+  onChange,
+}: {
+  value: FormatScope;
+  formats: Array<{ tc: TimeClass; games: number }>;
+  totalGames: number;
+  scopedGames: number;
+  onChange: (v: FormatScope) => void;
+}) {
+  const options: Array<{ key: FormatScope; label: string; games: number }> = [
+    { key: 'all', label: 'All formats', games: totalGames },
+    ...formats.map(f => ({ key: f.tc, label: f.tc, games: f.games })),
+  ];
+
+  return (
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={1.5}
+      sx={{ flexWrap: 'wrap', gap: 1, px: 0.5 }}
+    >
+      <FieldLabel color="rgba(255,255,255,0.38)" size="0.57rem">
+        Scope
+      </FieldLabel>
+      <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+        {options.map(o => {
+          const selected = o.key === value;
+          return (
+            <Box
+              key={o.key}
+              component="button"
+              onClick={() => onChange(o.key)}
+              sx={{
+                px: 1.25,
+                py: 0.5,
+                borderRadius: '5px',
+                cursor: 'pointer',
+                border: selected
+                  ? '1px solid rgba(249,115,22,0.5)'
+                  : '1px solid rgba(255,255,255,0.1)',
+                bgcolor: selected ? 'rgba(249,115,22,0.14)' : 'rgba(255,255,255,0.03)',
+                transition: 'all 160ms ease',
+                '&:hover': { borderColor: 'rgba(249,115,22,0.4)' },
+              }}
+            >
+              <Stack direction="row" spacing={0.75} alignItems="center">
+                <FieldLabel
+                  color={selected ? '#FB923C' : 'rgba(255,255,255,0.6)'}
+                  size="0.58rem"
+                >
+                  {o.label}
+                </FieldLabel>
+                <Typography
+                  sx={{
+                    fontFamily: "'SF Mono', Menlo, monospace",
+                    fontSize: '0.6rem',
+                    color: selected ? 'rgba(251,146,60,0.75)' : 'rgba(255,255,255,0.3)',
+                  }}
+                >
+                  {o.games}
+                </Typography>
+              </Stack>
+            </Box>
+          );
+        })}
+      </Stack>
+      {value !== 'all' && (
+        <FieldLabel color="rgba(255,255,255,0.34)" size="0.55rem">
+          Every number below is from these {scopedGames} games
+        </FieldLabel>
+      )}
+    </Stack>
+  );
+}
+
 // ─── Twin banner ────────────────────────────────────────────────────────────
 
 function TwinBanner({
@@ -439,6 +539,7 @@ function TwinBanner({
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function ScoutPage() {
+  const { profile: viewerProfile } = useViewer();
   const pieceSet = useAtomValue(pieceSetAtom);
   const screenSize = useScreenSize();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -470,11 +571,17 @@ export default function ScoutPage() {
 
   // You-vs-them comparison
   const [collisions, setCollisions] = useState<Collisions | null>(null);
+  // Your own profile, derived from the games already fetched for collisions —
+  // a rating you actually played to, rather than one you typed in.
+  const [yourProfile, setYourProfile] = useState<ProfileSnapshot | null>(null);
   const [collisionsLoading, setCollisionsLoading] = useState(false);
   const [collisionsError, setCollisionsError] = useState<string | null>(null);
 
   // Tree drill-down state
   const [colorFilter, setColorFilter] = useState<'white' | 'black'>('white');
+  // Which time class the whole dossier is scoped to. A blitz scouting report
+  // should not be diluted by their rapid games.
+  const [formatFilter, setFormatFilter] = useState<FormatScope>('all');
   const [minGames, setMinGames] = useState(1);
   const [currentPath, setCurrentPath] = useState<string[]>([]);
   const [history, setHistory] = useState<string[][]>([]);
@@ -550,6 +657,21 @@ export default function ScoutPage() {
     },
     []
   );
+
+  const formatOptions = useMemo(
+    () => (scoutResult ? availableFormats(scoutResult.games) : []),
+    [scoutResult]
+  );
+
+  const activeGames = useMemo(
+    () => (scoutResult ? scopeGames(scoutResult.games, formatFilter) : []),
+    [scoutResult, formatFilter]
+  );
+
+  // "Customize vs me" — the prep report. Kept out of the main analytics pass
+  // because it costs ~100 cloud-eval calls, so it runs only when asked for.
+  const [prepColor, setPrepColor] = useState<'white' | 'black'>('white');
+  const holeReport = useHoleReport();
 
   // Derived nodes
   const currentNode = useMemo(() => {
@@ -763,6 +885,7 @@ export default function ScoutPage() {
     if (!yn) {
       setCollisions(null);
       setCollisionsError(null);
+      setYourProfile(null);
       return;
     }
     if (yn.toLowerCase() === scoutResult.username.toLowerCase()) {
@@ -798,6 +921,12 @@ export default function ScoutPage() {
           scoutResult.username
         );
         setCollisions(result);
+        // Same payload also gives us your side of the head-to-head.
+        try {
+          setYourProfile(computeAnalytics(data.games, yn).profile);
+        } catch {
+          setYourProfile(null);
+        }
       } catch (e: any) {
         if (cancelled) return;
         setCollisionsError(e?.message || 'Failed to load your games');
@@ -811,6 +940,30 @@ export default function ScoutPage() {
     };
   }, [scoutResult, yourUsername]);
 
+  // Head-to-head. Prefer a rating you actually played to; fall back to the
+  // self-reported one on the profile, and label it as such so the odds are not
+  // read as harder evidence than they are.
+  const headToHead = useMemo(() => {
+    if (!analytics) return null;
+    const playedRatings = Object.values(yourProfile?.ratings ?? {}).filter(
+      (r): r is number => typeof r === 'number' && r > 0
+    );
+    const played = playedRatings.length ? Math.max(...playedRatings) : undefined;
+    const selfReported = viewerProfile?.selfReportedRating;
+    const rating = played ?? selfReported;
+    if (!rating) return null;
+    return buildHeadToHead({
+      yourRating: rating,
+      yourRatingSource: played ? 'played' : 'self-reported',
+      theirProfile: analytics.profile,
+    });
+  }, [analytics, yourProfile, viewerProfile]);
+
+  const theirRatingSeries = useMemo(
+    () => (scoutResult ? buildRatingSeries(activeGames, scoutResult.username) : []),
+    [scoutResult, activeGames]
+  );
+
   // Rebuild tree when color filter or minGames changes — analytics stay cached.
   useEffect(() => {
     if (!scoutResult) return;
@@ -821,10 +974,13 @@ export default function ScoutPage() {
     }
     let cancelled = false;
     setBuilding(true);
-    runBuild(scoutResult.games, scoutResult.username, colorFilter, minGames, false)
-      .then(({ tree: openingTree }) => {
+    // Analytics must be recomputed here, not reused: scoping to a format
+    // changes every number on the page, not just the opening tree.
+    runBuild(activeGames, scoutResult.username, colorFilter, minGames, true)
+      .then(({ tree: openingTree, analytics: rebuilt }) => {
         if (cancelled) return;
         setTree(openingTree);
+        if (rebuilt) setAnalytics(rebuilt);
         setCurrentPath(prev => {
           let node: OpeningTreeNode | null = openingTree;
           const valid: string[] = [];
@@ -845,7 +1001,7 @@ export default function ScoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [colorFilter, scoutResult, minGames, runBuild]);
+  }, [colorFilter, scoutResult, minGames, formatFilter, activeGames, runBuild]);
 
   // Navigation callbacks
   const navigateTo = useCallback((newPath: string[]) => {
@@ -1070,6 +1226,16 @@ export default function ScoutPage() {
       {/* Dashboard */}
       {hasResult && analytics && scoutResult && (
         <Stack spacing={2.5}>
+          {formatOptions.length > 1 && (
+            <FormatFilterBar
+              value={formatFilter}
+              formats={formatOptions}
+              totalGames={scoutResult.games.length}
+              scopedGames={activeGames.length}
+              onChange={setFormatFilter}
+            />
+          )}
+
           <Grid container spacing={2} alignItems="stretch">
             <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
               <ProfileCard
@@ -1083,6 +1249,35 @@ export default function ScoutPage() {
               <TellsCard tells={analytics.tells} />
             </Grid>
           </Grid>
+
+          <ClockWindowsPanel
+            windows={analytics.clockWindows}
+            username={scoutResult.username}
+          />
+
+          {headToHead && yourProfile && (
+            <HeadToHeadPanel
+              h2h={headToHead}
+              comparison={compareProfiles(yourProfile, analytics.profile)}
+              series={theirRatingSeries}
+              yourName={yourUsername.trim() || 'You'}
+              theirName={scoutResult.username}
+            />
+          )}
+
+          <PrepLinesPanel
+            report={holeReport.report}
+            progress={holeReport.progress}
+            error={holeReport.error}
+            theirName={scoutResult.username}
+            yourColor={prepColor}
+            onColorChange={c => {
+              setPrepColor(c);
+              holeReport.reset();
+            }}
+            onRun={() => holeReport.run(activeGames, scoutResult.username, prepColor)}
+            onExplore={(moves, asColor) => exploreLine(moves, asColor)}
+          />
 
           <TwinBanner
             username={scoutResult.username}

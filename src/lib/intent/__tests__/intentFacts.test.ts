@@ -819,7 +819,9 @@ describe("unaddressed threats", () => {
     const FEN = "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 6 5";
     const board = new Chess(FEN);
     board.move("Bxf7+");
-    const evasions = threatAfterEvasions(board.fen(), "Bxf2+");
+    // With the baseline: Kxf2 was available in the null world too, so the
+    // threat's price already includes the capture and `met` stays 0.
+    const evasions = threatAfterEvasions(board.fen(), "Bxf2+", FEN);
 
     // CONTROL: the fixture must actually present the branch — a real check,
     // with the threat genuinely returning every time. Without this the

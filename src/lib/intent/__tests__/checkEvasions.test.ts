@@ -58,7 +58,7 @@ function checkingProbe(
     threat: { san: threatSan, score: { cp: 366, mate: null }, pv: [threatSan], depth: 16 },
     threatStillLegal: false,
     threatPieceCaptured: false,
-    threatEvasions: threatAfterEvasions(fenAfter, threatSan),
+    threatEvasions: threatAfterEvasions(fenAfter, threatSan, fenBefore),
     position: buildPositionFacts(fenBefore, playedSan, null, null),
     playedScore: { cp: 407, mate: null },
     rootLines: [{ san: mv.san, score: { cp: 342, mate: null }, pv: [mv.san], depth: 16 }],
@@ -127,15 +127,25 @@ describe("a check that actually answers the threat", () => {
     expect(facts.notes.join(" ")).toContain("ended the game");
   });
 
-  it("CONTROL: still reports the threat when it survives every legal reply", () => {
+  it("CONTROL: still reports the threat when it genuinely survives every legal reply", () => {
     // The fix must stay subtractive, not silence the branch outright.
-    const g = new Chess(G2_BEFORE);
-    g.move("Qxg3+");
-    const ev = threatAfterEvasions(g.fen(), "Qh4");
+    //
+    // This control originally used Qxg3+/Qh4 — the position the FOUNDER then
+    // refuted ("literally playing Qxg3+ stops Qh4 ... it is straight up
+    // WRONG"): Qh4 is legal after every reply but lands into Qxh4, a capture
+    // Qxg3+ itself created. The valid survivor from the same game is Qf3+
+    // three plies later: Qf4 returns after both replies AND its capture
+    // already existed in the world the threat was priced in, so the price
+    // includes it and the claim stands.
+    const QF3 = "2r2rk1/p4p1p/6p1/8/Q7/2P1P1q1/PP1P4/R1B2K1R b - - 1 19";
+    const g = new Chess(QF3);
+    g.move("Qf3+");
+    const ev = threatAfterEvasions(g.fen(), "Qf4", QF3);
     expect(ev!.replies).toBeGreaterThan(0);
     expect(ev!.returns).toBe(ev!.replies);
+    expect(ev!.met).toBe(0);
 
-    const facts = computeIntentFacts(checkingProbe(G2_BEFORE, "Qxg3+", "Qh4"));
+    const facts = computeIntentFacts(checkingProbe(QF3, "Qf3+", "Qf4"));
     expect(facts.unaddressedThreat).not.toBeNull();
     expect(facts.unaddressedThreat!.reason).toBe("only-illegal-due-to-check");
   });
@@ -230,7 +240,7 @@ describe("a sound check that permanently ends the threat is credited", () => {
     const f = computeIntentFacts(
       checkingProbe(G2_BXC6_BEFORE, "Bxc6+", "Bxd5", {
         rootLines: BXC6_LINES,
-        threatEvasions: { replies: 4, returns: 0, unmodelled: 1 },
+        threatEvasions: { replies: 4, returns: 0, met: 0, unmodelled: 1 },
       }),
     );
     expect(f.prophylaxis).toBeNull();
@@ -245,5 +255,108 @@ describe("a sound check that permanently ends the threat is credited", () => {
     expect(f.prophylaxis).toBeNull();
     expect(f.unaddressedThreat).toBeNull();
     expect(f.notes.join(" ")).toContain("returns after 1 of 3");
+  });
+});
+
+/**
+ * LEGAL AGAIN IS NOT THREATENING AGAIN.
+ *
+ * The founder, on game_02 move 18: "literally playing Qxg3+ stops Qh4, so what
+ * you are claiming is not noise or worth saying, it is straight up WRONG."
+ *
+ * He is right, and the flaw is one level below PR #335. That fix upgraded "we
+ * ASSUME the threat comes back" to "we MEASURE that the threat's SAN is legal
+ * again" — and then let legality stand in for still-being-a-threat. Qxg3+
+ * puts the queen on g3, and g3 covers h4: measured, White's Qh4 is met by
+ * Qxh4 the instant it lands, down EVERY one of White's three evasions, while
+ * in the null-move world where Qh4 was priced at +381 Black had no capture on
+ * h4 at all. The played move CREATED the answer to the threat, and the card
+ * said he ignored it.
+ *
+ * So a returning threat now also asks: can the mover capture the arriving
+ * piece without losing material (SEE >= 0), through a capture that did NOT
+ * exist in the world the threat was priced in? If yes in any branch, the
+ * "you did not deal with it" claim dies. The baseline matters — Qf3+ three
+ * plies later keeps its claim precisely because the capture of Qf4 already
+ * existed pre-move, so the threat's price already included it.
+ */
+const G2_QXG3_BEFORE = "2r2rk1/p1q2p1p/6p1/8/Q7/2P1P1P1/PP1P4/R1B1K2R b KQ - 0 18";
+const G2_QF3_BEFORE = "2r2rk1/p4p1p/6p1/8/Q7/2P1P1q1/PP1P4/R1B2K1R b - - 1 19";
+
+describe("a threat that returns into a newly created capture was dealt with", () => {
+  it("CONTROL: the fixture really presents the bug", () => {
+    // In the null world (Black passes), Qh4 lands uncapturable — that is the
+    // world the +381 was measured in. After Qxg3+, every White evasion leaves
+    // Qh4 legal AND capturable by the g3 queen. If any of this stops being
+    // true, the assertions below pass for the wrong reason.
+    const passed = new Chess(G2_QXG3_BEFORE.replace(" b ", " w ").replace(" KQ ", " KQ "));
+    passed.move("Qh4");
+    expect(passed.moves({ verbose: true }).filter((m) => m.to === "h4" && m.captured)).toEqual([]);
+
+    const g = new Chess(G2_QXG3_BEFORE);
+    g.move("Qxg3+");
+    const ev = threatAfterEvasions(g.fen(), "Qh4", G2_QXG3_BEFORE);
+    expect(ev).not.toBeNull();
+    expect(ev!.replies).toBe(3);
+    expect(ev!.returns).toBe(3);
+    expect(ev!.met).toBe(3);
+  });
+
+  it("does not claim Qxg3+ ignored the Qh4 it answers", () => {
+    // The founder's exact position. Failed before the fix: the module kept
+    // "you played Qxg3+ and did not deal with Qh4" because Qh4 is legal after
+    // every evasion.
+    const f = computeIntentFacts(checkingProbe(G2_QXG3_BEFORE, "Qxg3+", "Qh4"));
+    expect(f.unaddressedThreat).toBeNull();
+    expect(f.notes.join(" ")).toContain("meets it with a capture");
+  });
+
+  it("CONTROL: Qf3+ keeps its claim — the capture of Qf4 existed before the move", () => {
+    // Three plies later in the same game. Qf4 returns after both evasions and
+    // the queen on f3 can take it — but she could ALSO have taken it in the
+    // null world where the threat was priced, so the price already includes
+    // the capture and the threat is real. Without the baseline check this
+    // valid claim dies with the invalid one.
+    const g = new Chess(G2_QF3_BEFORE);
+    g.move("Qf3+");
+    const ev = threatAfterEvasions(g.fen(), "Qf4", G2_QF3_BEFORE);
+    expect(ev!.returns).toBe(ev!.replies);
+    expect(ev!.met).toBe(0);
+
+    const f = computeIntentFacts(checkingProbe(G2_QF3_BEFORE, "Qf3+", "Qf4"));
+    expect(f.unaddressedThreat).not.toBeNull();
+    expect(f.unaddressedThreat!.reason).toBe("only-illegal-due-to-check");
+  });
+
+  it("CONTROL: a LOSING capture does not count as meeting the threat", () => {
+    // Qe6+ newly covers e4 — but the knight arriving there is defended by the
+    // f5 pawn, so Qxe4 loses the queen for a knight. A capture you cannot
+    // afford is no answer, and the "you did not deal with Ne4" claim must
+    // SURVIVE. This is the SEE >= 0 half of the criterion: without it, any
+    // touchable square would silence a valid card.
+    const FEN = "6k1/6pp/5n2/5p2/8/8/Q5P1/6K1 w - - 0 1";
+    const g = new Chess(FEN);
+    // fixture control: the queen does NOT see e4 before the move...
+    expect(g.moves({ verbose: true }).some((m) => m.from === "a2" && m.to === "e4")).toBe(false);
+    g.move("Qe6+");
+    // ...and after every evasion the knight lands capturable-but-defended.
+    const ev = threatAfterEvasions(g.fen(), "Ne4", FEN);
+    expect(ev!.replies).toBe(2);
+    expect(ev!.returns).toBe(2);
+    expect(ev!.met).toBe(0);
+
+    const f = computeIntentFacts(checkingProbe(FEN, "Qe6+", "Ne4"));
+    expect(f.unaddressedThreat).not.toBeNull();
+    expect(f.unaddressedThreat!.reason).toBe("only-illegal-due-to-check");
+  });
+
+  it("no baseline position means no claim, not a guessed one", () => {
+    // Without fenBefore the helper cannot tell a new capture from a priced-in
+    // one. The unaddressed claim must fail closed — silence — rather than
+    // default to the assumption that just produced a wrong card.
+    const g = new Chess(G2_QXG3_BEFORE);
+    g.move("Qxg3+");
+    const ev = threatAfterEvasions(g.fen(), "Qh4");
+    expect(ev!.met).toBe(3);
   });
 });

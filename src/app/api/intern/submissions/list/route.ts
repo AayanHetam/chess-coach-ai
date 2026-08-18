@@ -1,3 +1,4 @@
+import { internEmailFor } from "@/lib/intern/allowlist";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { getInternSupabase } from "@/lib/intern/supabase";
@@ -43,6 +44,17 @@ export async function GET() {
     return NextResponse.json({ error: "Intern-only." }, { status: 403 });
   }
 
+  // Interns are keyed by email in Supabase. A session without one cannot
+  // be an intern (isIntern is stamped from an allowlist lookup BY email),
+  // so this is a refusal rather than a non-null assertion.
+  const internEmail = internEmailFor(session);
+  if (!internEmail) {
+    return NextResponse.json(
+      { error: "Intern access required." },
+      { status: 403 }
+    );
+  }
+
   try {
     const supabase = await getInternSupabase();
     const { data, error } = await supabase
@@ -50,23 +62,34 @@ export async function GET() {
       .select(
         "id, flagged_at, flag_category, flagged_message_content, why_wrong, ideal_response, game_pgn"
       )
-      .eq("intern_email", session.email.toLowerCase())
+      .eq("intern_email", internEmail)
       .order("flagged_at", { ascending: false })
       .limit(LIST_LIMIT);
 
     if (error) {
       console.error("[intern/submissions/list] query failed:", error.message);
-      return NextResponse.json({ error: "Could not load submissions." }, { status: 500 });
+      return NextResponse.json(
+        { error: "Could not load submissions." },
+        { status: 500 }
+      );
     }
 
     const items: SubmissionListItem[] = (data ?? []).map((row) => ({
       id: row.id as string,
       flaggedAt: row.flagged_at as string,
       category: row.flag_category as "bad" | "inaccurate" | "incomplete",
-      badResponsePreview: truncate(row.flagged_message_content as string, PREVIEW_CHARS),
+      badResponsePreview: truncate(
+        row.flagged_message_content as string,
+        PREVIEW_CHARS
+      ),
       whyWrongPreview: truncate(row.why_wrong as string, PREVIEW_CHARS),
-      idealResponsePreview: truncate(row.ideal_response as string, PREVIEW_CHARS),
-      gamePgnPreview: row.game_pgn ? truncate(row.game_pgn as string, 80) : null,
+      idealResponsePreview: truncate(
+        row.ideal_response as string,
+        PREVIEW_CHARS
+      ),
+      gamePgnPreview: row.game_pgn
+        ? truncate(row.game_pgn as string, 80)
+        : null,
       hasGame: row.game_pgn != null,
     }));
 

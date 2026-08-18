@@ -26,7 +26,8 @@ import OAuthErrorSnackbar from "@/components/auth/OAuthErrorSnackbar";
 
 export type AppUser = {
   uid: string;
-  email: string;
+  /** Optional: an account can exist with only a handle and a password. */
+  email?: string;
   /** The name the user chose. Resolved through `addressAs`, never read raw. */
   handle?: string;
   displayName?: string;
@@ -46,7 +47,8 @@ interface AuthContextType {
   signInWithGoogle: (opts?: { ageAffirmed?: boolean }) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUp: (input: {
-    email: string;
+    /** Optional — signup asks for a handle and a password. */
+    email?: string;
     password: string;
     /** Required at signup — see signupSchema for why it is fail-closed. */
     handle: string;
@@ -176,7 +178,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signUp = useCallback(
     async (input: {
-      email: string;
+      email?: string;
       password: string;
       handle: string;
       displayName?: string;

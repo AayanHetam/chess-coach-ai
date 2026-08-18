@@ -18,8 +18,7 @@ import { getAuthEnv } from "@/env";
  */
 
 export async function requireAdmin(): Promise<
-  | { session: SessionPayload }
-  | { response: NextResponse }
+  { session: SessionPayload } | { response: NextResponse }
 > {
   const session = await getSession();
   if (!session) {
@@ -34,13 +33,23 @@ export async function requireAdmin(): Promise<
       "[requireAdmin] CMIP_DASHBOARD_ADMIN_EMAIL not set — no admin can reach admin routes."
     );
     return {
-      response: NextResponse.json({ error: "Admin access not configured." }, { status: 403 }),
+      response: NextResponse.json(
+        { error: "Admin access not configured." },
+        { status: 403 }
+      ),
     };
   }
 
-  if (session.email.trim().toLowerCase() !== admin) {
+  // An email-less account can never be the admin. Written as a positive
+  // match rather than `!==` so that `undefined` cannot short-circuit into
+  // anything but a refusal.
+  const claimed = session.email?.trim().toLowerCase();
+  if (!claimed || claimed !== admin) {
     return {
-      response: NextResponse.json({ error: "Not authorized." }, { status: 403 }),
+      response: NextResponse.json(
+        { error: "Not authorized." },
+        { status: 403 }
+      ),
     };
   }
 

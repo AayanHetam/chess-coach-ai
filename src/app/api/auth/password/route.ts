@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 import { assertAuthSecrets } from "@/env";
 import { changePasswordSchema, firstZodError } from "@/lib/auth/validation";
 import { getSession } from "@/lib/auth/session";
-import { setPassword, verifyPassword } from "@/lib/server/users";
+import { setPassword, verifyPasswordForUid } from "@/lib/server/users";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
 
 export const runtime = "nodejs";
@@ -18,7 +18,10 @@ export async function POST(request: Request) {
     assertAuthSecrets({ needsSession: true, needsAdmin: true });
   } catch (err) {
     console.error("[auth/password]", err);
-    return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Authentication service unavailable" },
+      { status: 503 }
+    );
   }
 
   let body: unknown;
@@ -39,23 +42,27 @@ export async function POST(request: Request) {
   }
 
   try {
-    const user = await verifyPassword(session.email, input.currentPassword);
+    const user = await verifyPasswordForUid(session.uid, input.currentPassword);
     if (!user) {
-      return NextResponse.json({ error: "Current password is incorrect." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Current password is incorrect." },
+        { status: 401 }
+      );
     }
-    if (user.uid !== session.uid) {
-      // Session/email mismatch — should never happen, but guard.
-      return NextResponse.json({ error: "Session mismatch." }, { status: 401 });
-    }
-
     await setPassword(user.uid, input.newPassword);
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof AdminConfigError) {
       console.error("[auth/password]", err);
-      return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 });
+      return NextResponse.json(
+        { error: "Authentication service unavailable" },
+        { status: 503 }
+      );
     }
     console.error("[auth/password] unexpected", err);
-    return NextResponse.json({ error: "Password change failed." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Password change failed." },
+      { status: 500 }
+    );
   }
 }

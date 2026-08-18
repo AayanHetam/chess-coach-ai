@@ -47,6 +47,7 @@ import { CHARTED_PERFS, type ChartedPerf } from "@/lib/rating/ratingHistory";
 import GoalProgressCard from "@/components/plan/GoalProgressCard";
 import GoalSetterCard from "@/components/plan/GoalSetterCard";
 import HandleCard from "@/components/plan/HandleCard";
+import EmailCard from "@/components/plan/EmailCard";
 import { buildGoalPatch, hasCompleteGoal } from "@/lib/curriculum/goalPatch";
 import { NumberTicker } from "@/components/ui/NumberTicker";
 import SessionRunner from "@/components/curriculum/SessionRunner";
@@ -360,7 +361,17 @@ export default function PlanPage() {
       {/* Existing accounts predate handles and the quiz is one-time, so
           without this the feature would only ever reach new signups. */}
       {user && (
-        <HandleCard currentHandle={profile?.handle} onClaimed={refresh} />
+        <>
+          <HandleCard currentHandle={profile?.handle} onClaimed={refresh} />
+
+          {/* Above the goal card on purpose: an account you cannot recover is
+              a worse problem than a goal you have not set. */}
+          <EmailCard
+            currentEmail={profile?.email}
+            hasPassword={profile?.hasPassword ?? false}
+            onSaved={refresh}
+          />
+        </>
       )}
 
       {/* The promise, and whether they're keeping to it — or the means to make

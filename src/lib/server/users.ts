@@ -22,7 +22,16 @@ export type PieceSet = "default" | "merida" | "alpha";
 
 export type StoredUser = {
   uid: string;
-  email: string;
+  /**
+   * OPTIONAL. Signup asks for a handle and a password; an email is offered but
+   * skippable, and added later from /plan or the profile. Absent means the
+   * account genuinely has none — never "not loaded".
+   *
+   * Consequence, stated where the field is: with no email there is nowhere to
+   * send a reset link, so the password cannot be recovered. That is why the
+   * signup form says so and /plan nags.
+   */
+  email?: string;
   emailVerified?: boolean;
   passwordHash?: string;
   googleId?: string;
@@ -147,7 +156,16 @@ export type StoredUser = {
 export type SafeUser = Omit<
   StoredUser,
   "passwordHash" | "passwordResetHash" | "passwordResetExpiresAt"
->;
+> & {
+  /**
+   * Whether a password is set — the HASH never leaves the server, but its
+   * existence is not a secret and the client genuinely needs it: an account
+   * with no password arrived through Google (so it already has an email and
+   * must not be nagged for one), and the add-email form has a password field
+   * that would be unanswerable.
+   */
+  hasPassword: boolean;
+};
 
 function toSafe(user: StoredUser): SafeUser {
   const {
@@ -156,10 +174,9 @@ function toSafe(user: StoredUser): SafeUser {
     passwordResetExpiresAt: _pre,
     ...rest
   } = user;
-  void _ph;
   void _prh;
   void _pre;
-  return rest;
+  return { ...rest, hasPassword: Boolean(_ph) };
 }
 
 export function normalizeEmail(email: string): string {
@@ -235,7 +252,8 @@ export async function getUserByPasswordResetHash(
 }
 
 export type CreateUserInput = {
-  email: string;
+  /** Optional since signup stopped requiring one. */
+  email?: string;
   password?: string;
   googleId?: string;
   displayName?: string;
@@ -251,13 +269,17 @@ export type CreateUserInput = {
 };
 
 export async function createUser(input: CreateUserInput): Promise<StoredUser> {
-  const email = normalizeEmail(input.email);
-  const existing = await getUserByEmail(email);
-  if (existing) {
-    throw new UserError(
-      "email_taken",
-      "An account with this email already exists."
-    );
+  // No email is a legitimate account: handle + password is enough to sign up.
+  // The uniqueness check only means anything when there is one to compare.
+  const email = input.email ? normalizeEmail(input.email) : undefined;
+  if (email) {
+    const existing = await getUserByEmail(email);
+    if (existing) {
+      throw new UserError(
+        "email_taken",
+        "An account with this email already exists."
+      );
+    }
   }
 
   const uid = randomUUID();
@@ -266,12 +288,15 @@ export async function createUser(input: CreateUserInput): Promise<StoredUser> {
     : undefined;
 
   const doc: Record<string, unknown> = {
-    email,
     emailVerified: input.emailVerified ?? false,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
     lastLoginAt: FieldValue.serverTimestamp(),
   };
+  // Written only when present. Firestore stores an explicit `undefined` as a
+  // field, and `where("email","==",null)` would then match every email-less
+  // account at once — a lookup that returns "some other user" for anyone.
+  if (email) doc.email = email;
   if (passwordHash) doc.passwordHash = passwordHash;
   if (input.ageAffirmed) doc.ageAffirmedAt = FieldValue.serverTimestamp();
   if (input.googleId) doc.googleId = input.googleId;
@@ -352,6 +377,96 @@ export async function verifyPassword(
  * exist must take the same time as one that does, or the sign-in form becomes
  * an oracle for which handles are registered.
  */
+/**
+ * Verify a password for a KNOWN uid.
+ *
+ * The change-password route used to re-look-up the user by `session.email`,
+ * which silently required every account to have one. It has the uid in hand;
+ * the email round trip bought nothing and broke the moment signup stopped
+ * asking for an address.
+ */
+/**
+ * Attach an email to an account that has none.
+ *
+ * WHY A TRANSACTION AND NOT A QUERY-THEN-WRITE. Firestore has no unique
+ * constraint on a field, so two people adding the same address at the same
+ * moment would both pass a plain pre-check and both write it. Two users
+ * sharing an email is not cosmetic: `getUserByEmail` returns the first match,
+ * so sign-in-by-email and password reset would resolve to whichever document
+ * the index happened to return — one person recovering into another person's
+ * account. The uniqueness query runs INSIDE the transaction, which serialises
+ * the two attempts.
+ *
+ * Only ever ADDS. Changing an existing address is a different operation with
+ * its own confirmation requirements (you would have to prove control of the
+ * new one), and quietly allowing it here would turn a stolen session into an
+ * account takeover.
+ */
+export async function addEmailToUser(
+  uid: string,
+  rawEmail: string
+): Promise<StoredUser> {
+  const email = normalizeEmail(rawEmail);
+  const db = await getAdminFirestore();
+  const userRef = db.collection(COLLECTION).doc(uid);
+
+  await withFirestoreTimeout(
+    db.runTransaction(async (tx) => {
+      // All reads first — Firestore rejects a read issued after a write.
+      const [userSnap, dupeSnap] = await Promise.all([
+        tx.get(userRef),
+        tx.get(db.collection(COLLECTION).where("email", "==", email).limit(1)),
+      ]);
+
+      if (!userSnap.exists) {
+        throw new UserError("not_found", "Account not found.");
+      }
+      const current = (userSnap.data() as { email?: string })?.email;
+      if (current && normalizeEmail(current) !== email) {
+        throw new UserError(
+          "email_already_set",
+          "This account already has an email. Contact support to change it."
+        );
+      }
+      if (!dupeSnap.empty && dupeSnap.docs[0].id !== uid) {
+        throw new UserError(
+          "email_taken",
+          "An account with this email already exists."
+        );
+      }
+
+      tx.update(userRef, {
+        email,
+        emailVerified: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }),
+    "users.addEmail"
+  );
+
+  const updated = await getUserById(uid);
+  if (!updated) throw new Error("addEmailToUser: user vanished mid-update");
+  return updated;
+}
+
+export async function verifyPasswordForUid(
+  uid: string,
+  password: string
+): Promise<StoredUser | null> {
+  const user = await getUserById(uid);
+  if (!user || !user.passwordHash) {
+    // Still hash on a miss, so timing does not distinguish "no such account"
+    // from "wrong password".
+    await bcrypt.compare(
+      password,
+      "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalid"
+    );
+    return null;
+  }
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  return ok ? user : null;
+}
+
 export async function verifyPasswordByIdentifier(
   identifier: string,
   password: string
@@ -488,7 +603,8 @@ export class UserError extends Error {
       | "invalid_credentials"
       | "weak_password"
       | "handle_taken"
-      | "handle_invalid",
+      | "handle_invalid"
+      | "email_already_set",
     message: string
   ) {
     super(message);

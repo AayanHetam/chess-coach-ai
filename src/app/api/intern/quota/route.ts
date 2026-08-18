@@ -1,3 +1,4 @@
+import { internEmailFor } from "@/lib/intern/allowlist";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { getInternSupabase } from "@/lib/intern/supabase";
@@ -29,17 +30,31 @@ export async function GET() {
     return NextResponse.json({ error: "Intern-only." }, { status: 403 });
   }
 
+  // Interns are keyed by email in Supabase. A session without one cannot
+  // be an intern (isIntern is stamped from an allowlist lookup BY email),
+  // so this is a refusal rather than a non-null assertion.
+  const internEmail = internEmailFor(session);
+  if (!internEmail) {
+    return NextResponse.json(
+      { error: "Intern access required." },
+      { status: 403 }
+    );
+  }
+
   try {
     const supabase = await getInternSupabase();
     const { data, error } = await supabase
       .from("intern_flags")
       .select("flagged_at")
-      .eq("intern_email", session.email.toLowerCase())
+      .eq("intern_email", internEmail)
       .order("flagged_at", { ascending: false });
 
     if (error) {
       console.error("[intern/quota] query failed:", error.message);
-      return NextResponse.json({ error: "Could not load quota." }, { status: 500 });
+      return NextResponse.json(
+        { error: "Could not load quota." },
+        { status: 500 }
+      );
     }
 
     const nowMs = Date.now();

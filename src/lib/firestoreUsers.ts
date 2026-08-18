@@ -20,7 +20,10 @@ export type PieceSet = "default" | "merida" | "alpha";
 
 export interface UserProfile {
   uid: string;
-  email: string;
+  /** Optional: signup no longer requires one. See StoredUser.email. */
+  email?: string;
+  /** Derived server-side; the hash itself never leaves the server. */
+  hasPassword?: boolean;
 
   displayName?: string;
   /** Public handle. Written only by the claim transaction, never by PATCH. */

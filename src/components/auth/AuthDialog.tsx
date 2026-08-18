@@ -24,6 +24,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, ArrowLeft, AlertTriangle, Check } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
+import { checkHandle, HANDLE_MAX } from "@/lib/auth/handle";
+import { firstNameOf } from "@/lib/auth/displayIdentity";
 import AgeGate from "@/components/consent/AgeGate";
 import {
   isAgeGateBlocked,
@@ -62,6 +64,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [handle, setHandle] = useState("");
   // COPPA DOB gate: signup mode shows the neutral age screen first; the form
   // (and its Google button) only renders after a 13+ resolution. An under-13
   // resolution sets a persistent lockout (isAgeGateBlocked) so the gate can't
@@ -105,6 +108,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
     setEmail("");
     setPassword("");
     setDisplayName("");
+    setHandle("");
     setAgePassed(false);
     setChesscomUsername("");
     setLichessUsername("");
@@ -128,9 +132,19 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
         await signInWithEmail(email, password);
         handleClose();
       } else if (mode === "signup") {
+        // Checked here as well as on the server so a bad handle costs a
+        // keystroke rather than a round trip — and so the reason is specific
+        // ("that one's reserved") instead of a generic 400.
+        const check = checkHandle(handle);
+        if (!check.ok) {
+          setError(check.message ?? "Pick a different handle.");
+          setSubmitting(false);
+          return;
+        }
         await signUp({
           email,
           password,
+          handle: check.display as string,
           displayName: displayName.trim() || undefined,
           ageAffirmed: true, // only reachable after the DOB gate resolves 13+
         });
@@ -183,7 +197,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
 
   const headerTitle =
     step === "usernames"
-      ? `Welcome, ${user?.displayName?.split(" ")[0] || "Chess Player"}!`
+      ? `Welcome, ${firstNameOf(user)}!`
       : mode === "signup"
         ? "Create your account"
         : mode === "forgot"
@@ -621,6 +635,21 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                                   ? "At least 10 characters with a number or symbol."
                                   : undefined
                               }
+                              sx={inputSx}
+                            />
+                          )}
+
+                          {mode === "signup" && (
+                            <TextField
+                              fullWidth
+                              size="small"
+                              label="Handle"
+                              value={handle}
+                              onChange={(e) => setHandle(e.target.value)}
+                              autoComplete="username"
+                              required
+                              inputProps={{ maxLength: HANDLE_MAX }}
+                              helperText="How we'll address you, and how you can sign in. Other players see this — don't use your full name."
                               sx={inputSx}
                             />
                           )}

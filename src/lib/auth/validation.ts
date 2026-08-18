@@ -37,6 +37,26 @@ export const signupSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   displayName: displayNameSchema.optional(),
+  /**
+   * REQUIRED, and fail-closed on purpose.
+   *
+   * Handles shipped claimable-but-optional in #332, which produced yet another
+   * cohort of accounts that would have to be prompted later — the same trap the
+   * goal and the chess username both fell into, because the onboarding quiz is
+   * one-time and existing accounts are never asked again.
+   *
+   * The cost is that a browser holding a bundle from before this deploy posts
+   * no handle and gets a 400 telling it to pick one; reloading fixes it. That
+   * is a self-healing failure, and the alternative — accepting the signup and
+   * silently minting another handle-less account — is the bug being fixed.
+   *
+   * Shape is validated by `checkHandle` on the server (reserved words, length
+   * after separator folding); this only guarantees a non-empty string arrives.
+   */
+  handle: z
+    .string("Pick a handle to finish signing up.")
+    .trim()
+    .min(1, "Pick a handle to finish signing up."),
   // COPPA: set by the client only after the neutral DOB age gate resolves
   // 13+. Must be literally true — account creation is refused without it,
   // and the server stamps ageAffirmedAt from it. The DOB itself is never

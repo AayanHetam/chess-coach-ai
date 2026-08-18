@@ -38,6 +38,7 @@ import {
   intensityTier,
 } from "@/lib/curriculum/improvementModel";
 import { resolveUserRating } from "@/lib/coach/userRating";
+import { firstNameOf } from "@/lib/auth/displayIdentity";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
@@ -276,7 +277,9 @@ export default function PlanPage() {
   );
 
   const hasPlacement = typeof profile?.measuredRating === "number";
-  const firstName = profile?.displayName?.split(" ")[0] || "there";
+  // The handle wins here — it is the name they chose, and it is what the sign
+  // -in form now accepts. `addressAs` owns that precedence for every surface.
+  const firstName = firstNameOf(profile ?? undefined, "there");
   const canResume = isResumeFresh(resume, nowMs);
 
   // Anonymous visitor — point them into the funnel.

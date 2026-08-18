@@ -95,6 +95,7 @@ import {
   type GameEvalInput,
 } from "@/lib/contract/legacyGameContext";
 import { maybeCreateShadowRefereeGate } from "@/lib/contract/shadowReferee";
+import { isComparableDepthPair, requestedDepth, shallowSearchPlies } from "@/lib/contract/evalDepth";
 // CI-5: persist what the shadow referee WOULD have caught somewhere queryable.
 // Consent- and TRACKING_ENABLED-gated, fire-and-forget; see refereeOutcomes.ts.
 // captureEnforcedRefereeOutcome (CI-6) is the enforced-serving path's own
@@ -331,6 +332,7 @@ async function generatePuzzleRecommendations(
   }
 
   const recommendations = [];
+  const recsDeclaredDepth = requestedDepth(gameEval);
 
   // Detect significant mistakes (drop > 150 centipawns)
   for (let i = 0; i < moveHistory.length; i++) {
@@ -343,6 +345,11 @@ async function generatePuzzleRecommendations(
     // out on one of the two positions.
     if (evalBefore.lines[0].depth === 0 || evalAfter.lines[0].depth === 0)
       continue;
+    // T8: same refusal for the shallower-retry case. A d16 eval minus a d12
+    // one manufactures a swing in the 50-150cp band all by itself, and this
+    // loop's threshold is 150 — so a mixed-depth pair can put a REAL puzzle in
+    // front of the user, drilling them on a mistake they did not make.
+    if (!isComparableDepthPair(evalBefore, evalAfter, recsDeclaredDepth)) continue;
 
     // C6: a null mate must not flatten to -9999 and manufacture a "mistake"
     // we would then build real training puzzles from.
@@ -594,6 +601,29 @@ export async function POST(request: NextRequest) {
             : isPlausibleRating(headerElo)
               ? "pgn_header"
               : "none",
+        // T8 proof-of-life: how much of this sweep the engine actually
+        // finished. `uciEngine` retries a timed-out position 4 plies
+        // shallower and merges it in indistinguishably, so a payload that
+        // LOOKS like a uniform d16 sweep can contain positions that are not.
+        // Every swing scan now refuses those pairs — which means insights
+        // silently disappear on slow devices unless something says so here.
+        //
+        // `declaredDepth: null` is its own signal: that payload came from the
+        // partial `{positions}` fallback (T7), and no depth guard can run on
+        // it because nothing states what depth was asked for.
+        ...(() => {
+          const sweep = shallowSearchPlies(
+            (gameEval as { positions?: unknown[] } | undefined)?.positions as
+              | Array<{ lines?: Array<{ depth?: number }> }>
+              | undefined,
+          );
+          return {
+            declaredDepth: requestedDepth(gameEval as { settings?: { depth?: number } }),
+            shallowPlyCount: sweep.plies.length,
+            sweepMinDepth: sweep.minDepth,
+            sweepMaxDepth: sweep.maxDepth,
+          };
+        })(),
       });
 
       // API-key presence is now validated inside callLLM(); both Anthropic and

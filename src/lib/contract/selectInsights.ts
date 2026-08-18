@@ -43,6 +43,7 @@
  */
 import { getFenAtHalfMove, uciToSan } from "./chessFormat";
 import type { GameEvalInput } from "./gameEvalSchema";
+import { isComparableDepthPair, requestedDepth } from "./evalDepth";
 
 export type InsightSelectionPolicy = "legacy";
 
@@ -115,6 +116,7 @@ export function selectInsights(
   }
 
   const positions = gameEval?.positions;
+  const declaredDepth = requestedDepth(gameEval);
   if (!positions || positions.length === 0) {
     // Legacy computes both lists only inside the gameEval branch; the
     // intelligence scan's weaker `if (gameEval?.positions)` gate yields
@@ -133,6 +135,11 @@ export function selectInsights(
       if (!evalBefore?.lines?.[0] || !evalAfter?.lines?.[0] || beforeIsSentinel || afterIsSentinel) {
         continue;
       }
+      // T8: a retried position comes back 4 plies shallower and merges in
+      // looking exactly like its neighbours. Subtracting a d12 eval from a
+      // d16 one manufactures a 50-150cp "drop" out of the search rather than
+      // the move — squarely inside the band this scan calls a mistake.
+      if (!isComparableDepthPair(evalBefore, evalAfter, declaredDepth)) continue;
       const cpBefore = flattenEval(evalBefore.lines[0]);
       const cpAfter = flattenEval(evalAfter.lines[0]);
       // Unscored line: skipped like the sentinel above, never read as 0.00.
@@ -176,6 +183,11 @@ export function selectInsights(
       const evalAfter = positions[i + 1];
       if (!evalBefore?.lines?.[0] || !evalAfter?.lines?.[0]) continue;
       if (evalBefore.lines[0].depth === 0 || evalAfter.lines[0].depth === 0) continue;
+      // T8: a retried position comes back 4 plies shallower and merges in
+      // looking exactly like its neighbours. Subtracting a d12 eval from a
+      // d16 one manufactures a 50-150cp "drop" out of the search rather than
+      // the move — squarely inside the band this scan calls a mistake.
+      if (!isComparableDepthPair(evalBefore, evalAfter, declaredDepth)) continue;
       const cpBefore = flattenEval(evalBefore.lines[0]);
       const cpAfter = flattenEval(evalAfter.lines[0]);
       // Unscored line: skipped like the sentinel above, never read as 0.00.

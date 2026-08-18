@@ -86,11 +86,25 @@ jobs:
             | grep -ci "^location: https://accounts.google.com" || echo 0)
           check "google/start redirects to Google" "1" "$L"
 
-          # 5. Signup API is alive and enforcing the age affirmation
+          # 5. Signup API is alive and enforcing the age affirmation.
+          #
+          # Wording-tolerant, and NOT by preference: this probe grepped for
+          # "date of birth" and #341 replaced the DOB screen with a 13+
+          # checkbox, changing the copy. The heartbeat then failed every hour
+          # against a perfectly healthy site and filed issue #344. I was
+          # editing this very file the same day to fix the identical staleness
+          # in the signin probe and did not check this one.
+          #
+          # What must hold is that the age affirmation is ENFORCED, not the
+          # sentence it is enforced with. Same pattern prod-smoke settled on.
+          #
+          # `handle` is sent so this isolates the AGE gate: handles became
+          # required at signup in #343, and without one the first error
+          # reported could be about the handle instead.
           G=$(curl -s --max-time 20 -X POST "$BASE/api/auth/signup" \
             -H "Content-Type: application/json" \
-            -d '{"email":"heartbeat-probe@example.com","password":"Longenough1!pass"}' \
-            | grep -ci "date of birth" || echo 0)
+            -d '{"email":"heartbeat-probe@example.com","password":"Longenough1!pass","handle":"heartbeatprobe"}' \
+            | grep -ci "confirm.*to sign up")
           check "signup enforces age affirmation" "1" "$G"
 
           # 6. Env config complete (names-only presence check)

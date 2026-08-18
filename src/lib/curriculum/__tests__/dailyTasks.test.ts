@@ -152,6 +152,74 @@ describe("secondary tasks", () => {
     expect(theory.detail).toMatch(/build(ing)? our own/i);
   });
 
+  it("names the measured line instead, once we have one", () => {
+    const tasks = secondaryTasksFor(
+      input({
+        hasLinkedAccount: false,
+        openingLine: {
+          line: "1.e4 c5 2.c3",
+          score: 0.31,
+          baseline: 0.53,
+          games: 84,
+          betterMove: "Nf3",
+        },
+      }),
+      30
+    );
+    const theory = tasks.find((t) => t.kind === "theory")!;
+
+    // No longer sending them off-site to guess which opening to study.
+    expect(theory.href).toBe("/plan#opening-line");
+    expect(theory.external).toBeUndefined();
+    expect(theory.label).toContain("1.e4 c5 2.c3");
+    // The claim has to carry its evidence: their score, their own average, and
+    // the sample it rests on.
+    expect(theory.detail).toContain("31%");
+    expect(theory.detail).toContain("53%");
+    expect(theory.detail).toContain("84 games");
+    expect(theory.detail).toContain("Nf3");
+  });
+
+  it("says the position is the problem when the engine likes the move", () => {
+    const tasks = secondaryTasksFor(
+      input({
+        hasLinkedAccount: false,
+        openingLine: {
+          line: "1.e4 c5 2.c3",
+          score: 0.31,
+          baseline: 0.53,
+          games: 84,
+          // No betterMove: the engine had no complaint worth naming.
+        },
+      }),
+      30
+    );
+    const theory = tasks.find((t) => t.kind === "theory")!;
+    expect(theory.detail).toMatch(/sound/i);
+    // Must not invent a replacement it was never given.
+    expect(theory.detail).not.toMatch(/would rather/i);
+  });
+
+  it("keeps its budget when the task is the measured one", () => {
+    const withLine = secondaryTasksFor(
+      input({
+        hasLinkedAccount: true,
+        openingLine: {
+          line: "1.d4 Nf6 2.c4 g6",
+          score: 0.3,
+          baseline: 0.5,
+          games: 40,
+        },
+      }),
+      30
+    );
+    const without = secondaryTasksFor(input({ hasLinkedAccount: true }), 30);
+    // Same shape, same cost — swapping the destination must not quietly buy
+    // itself more of the user's day.
+    expect(totalMinutes(withLine)).toBe(totalMinutes(without));
+    expect(withLine.map((t) => t.kind)).toEqual(without.map((t) => t.kind));
+  });
+
   it("fits nothing into a budget that cannot hold it", () => {
     expect(secondaryTasksFor(input({ hasLinkedAccount: true }), 8)).toEqual([]);
     expect(secondaryTasksFor(input({ hasLinkedAccount: true }), 0)).toEqual([]);

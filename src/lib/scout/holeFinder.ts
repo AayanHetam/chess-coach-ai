@@ -412,7 +412,12 @@ export interface HoleReport {
   noHoleFound: boolean;
 }
 
-interface Candidate {
+/**
+ * A reachable line plus everything the index and the screen already know about
+ * where it lands. Exported because the learning programme runs the same walk
+ * over the user's own games.
+ */
+export interface Candidate {
   line: HoleMove[];
   path: OpeningTreeNode[];
   reach: number;
@@ -584,22 +589,40 @@ export function planEngineWork(
 
 // ── The engine pass ──────────────────────────────────────────────────────────
 
-export async function findHoles(
-  tree: OpeningTreeNode,
-  theirColor: 'white' | 'black',
-  index: PositionIndex,
-  providers: HoleFinderProviders,
-  config: HoleFinderConfig = HOLE_DEFAULTS,
+/**
+ * One conversation with the engine: a cache, a budget, and the two questions
+ * the search actually asks.
+ *
+ * Extracted because the learning programme runs the same screen against the
+ * user's OWN games, and a second hand-written copy of `costOfMove` would be a
+ * copy of the sibling-comparison rule — the one measurement in here whose wrong
+ * version looks entirely reasonable. Parent-to-child differs from sibling-to-
+ * sibling by 20–40cp of pure search noise in the opening, which was enough to
+ * bill a developing move for half the concession budget. Two copies of that
+ * rule is one copy too many.
+ *
+ * NOT concurrency-safe, and deliberately so. A provider backed by a single
+ * engine process is a single conversation; issuing two `position`/`go` pairs at
+ * once returns them crossed, which surfaces as a move that is illegal in the
+ * position it came back for. Callers await every call.
+ */
+export interface EngineSession {
+  evaluate(fen: string): Promise<PositionEval | null>;
   /**
-   * Your own games, indexed the same way. Optional: the report degrades to the
-   * one-sided ranking without it rather than refusing to run, because a scout
-   * of a stranger is still useful when you have not linked an account.
+   * What the move from `parentFen` to `childFen` cost, and what the engine
+   * would rather have played. Null when the budget ran out mid-measurement — a
+   * partial answer would understate a cost, so the caller drops the candidate.
    */
-  yourIndex?: PositionIndex
-): Promise<HoleReport> {
-  const screen = screenPositions(index, config);
-  const candidates = collectCandidates(tree, theirColor, index, screen, config);
+  costOfMove(parentFen: string, childFen: string): Promise<{ loss: number; best: string } | null>;
+  readonly evaluated: number;
+  readonly unavailable: number;
+  readonly budgetExhausted: boolean;
+}
 
+export function createEngineSession(
+  providers: HoleFinderProviders,
+  budget: number
+): EngineSession {
   // `null` is a real answer here — "asked, and there is none" — so it is cached
   // alongside the hits. Without that, every unevaluable position is re-requested
   // once per candidate line that passes through it, and on a cloud miss that is
@@ -612,7 +635,7 @@ export async function findHoles(
   const evaluate = async (fen: string): Promise<PositionEval | null> => {
     const key = positionKey(fen);
     if (cache.has(key)) return cache.get(key)!;
-    if (evaluated >= config.engineBudget) {
+    if (evaluated >= budget) {
       budgetExhausted = true;
       return null;
     }
@@ -623,11 +646,6 @@ export async function findHoles(
     return res;
   };
 
-  /**
-   * What the move from `parentFen` to `childFen` cost, and what the engine
-   * would rather have played. Null when the budget ran out mid-measurement — a
-   * partial answer would understate a cost, so the caller drops the candidate.
-   */
   const costOfMove = async (
     parentFen: string,
     childFen: string
@@ -651,6 +669,41 @@ export async function findHoles(
 
     return { loss: moveLoss(played.cp, best.cp), best: parent.bestMove };
   };
+
+  return {
+    evaluate,
+    costOfMove,
+    get evaluated() {
+      return evaluated;
+    },
+    get unavailable() {
+      return unavailable;
+    },
+    get budgetExhausted() {
+      return budgetExhausted;
+    },
+  };
+}
+
+
+export async function findHoles(
+  tree: OpeningTreeNode,
+  theirColor: 'white' | 'black',
+  index: PositionIndex,
+  providers: HoleFinderProviders,
+  config: HoleFinderConfig = HOLE_DEFAULTS,
+  /**
+   * Your own games, indexed the same way. Optional: the report degrades to the
+   * one-sided ranking without it rather than refusing to run, because a scout
+   * of a stranger is still useful when you have not linked an account.
+   */
+  yourIndex?: PositionIndex
+): Promise<HoleReport> {
+  const screen = screenPositions(index, config);
+  const candidates = collectCandidates(tree, theirColor, index, screen, config);
+
+  const engine = createEngineSession(providers, config.engineBudget);
+  const { evaluate, costOfMove } = engine;
 
   const holes: Hole[] = [];
 
@@ -782,9 +835,9 @@ export async function findHoles(
     tests: screen.tests,
     threshold: screen.threshold,
     confirmedWeakness: ranked.some(h => h.tier === 'confirmed'),
-    evaluated,
-    budgetExhausted,
-    unavailable,
+    evaluated: engine.evaluated,
+    budgetExhausted: engine.budgetExhausted,
+    unavailable: engine.unavailable,
     noHoleFound: ranked.length === 0,
   };
 }

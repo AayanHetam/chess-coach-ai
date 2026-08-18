@@ -2,7 +2,7 @@
 # Mutation harness for the scout prep engine.
 #
 #   ./scripts/scout/mutate-holefinder.sh            # everything
-#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master
+#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master | learn
 #
 # A green suite proves nothing until it has been watched to fail. Each mutation
 # breaks exactly one guarantee and names the test that must go red.
@@ -27,16 +27,18 @@ HF=src/lib/scout/holeFinder.ts
 PS=src/lib/scout/positionStats.ts
 PL=src/lib/scout/preparedLine.ts
 MI=src/lib/master/ideas.ts
+RH=src/lib/learn/repertoireHole.ts
 
 T_HOLE=src/lib/scout/__tests__/holeFinder.test.ts
 T_PREP=src/lib/scout/__tests__/preparedLine.test.ts
 T_JOINT=src/lib/scout/__tests__/jointReport.test.ts
 T_IDEAS=src/lib/master/__tests__/ideas.test.ts
+T_LEARN=src/lib/learn/__tests__/repertoireHole.test.ts
 
 GROUP="${1:-all}"
 BAK=$(mktemp -d)
-for f in "$HF" "$PS" "$PL" "$MI"; do cp "$f" "$BAK/$(basename "$f")"; done
-restore() { for f in "$HF" "$PS" "$PL" "$MI"; do cp "$BAK/$(basename "$f")" "$f"; done; }
+for f in "$HF" "$PS" "$PL" "$MI" "$RH"; do cp "$f" "$BAK/$(basename "$f")"; done
+restore() { for f in "$HF" "$PS" "$PL" "$MI" "$RH"; do cp "$BAK/$(basename "$f")" "$f"; done; }
 trap 'restore; rm -rf "$BAK"' EXIT
 
 pass=0; miss=0; stale=0
@@ -85,7 +87,7 @@ mut "$HF" 's/if \(seenPositions\.has\(key\)\) continue;//' "$T_HOLE" \
   "keeps the better of two move orders reaching the same position" "transposed duplicates reported"
 mut "$PS" 's/if \(!seen\.has\(key\)\) \{/if (true) {/' "$T_HOLE" \
   "counts a repeated position once per game" "repetition double-counts"
-mut "$HF" 's/evaluated >= config\.engineBudget/false/' "$T_HOLE" \
+mut "$HF" 's/evaluated >= budget/false/' "$T_HOLE" \
   "stops evaluating once the engine budget is spent" "engine budget ignored"
 fi
 
@@ -129,6 +131,32 @@ mut "$MI" 's/if \(games < config\.minGames\) return null;//' "$T_IDEAS" \
   "returns nothing for a position the corpus barely has" "thin positions reported anyway"
 mut "$MI" 's/games = best\.count;/games = Math.round(share * 1000);/' "$T_IDEAS" \
   "reports the games reaching the end" "principal line reports share as games"
+fi
+
+if want learn; then
+echo "── learn: the same screen pointed at yourself"
+mut "$RH" 's/m\.side === .them./m.side !== \x27them\x27/' "$T_LEARN" \
+  "reports the moves under the right player" "side labels not un-flipped"
+mut "$RH" 's/last\.side !== .them./last.side === \x27them\x27/' "$T_LEARN" \
+  "only ever teaches a line that ends on a move I chose" "teaches a move I did not choose"
+mut "$RH" 's/index\.baselineNeff > 0 \? neff \/ index\.baselineNeff : 0/c.reach/' "$T_LEARN" \
+  "measures frequency from games that happened, not from a reach model" "frequency taken from the reach model"
+mut "$RH" 's/return frequency \* Math\.max\(0, deficit\)/return Math.max(0, deficit)/' "$T_LEARN" \
+  "ranks a frequent moderate leak above a rare severe one" "ranked on deficit alone"
+mut "$RH" 's/shrinkScore\(score, neff, index\.baseline, config\.shrinkK\)/score/' "$T_LEARN" \
+  "pulls a thin sample back toward my own average" "no shrinkage toward my baseline"
+mut "$RH" 's/if \(!c\.test \|\| !c\.stat\) continue;/if (!c.stat) continue;/' "$T_LEARN" \
+  "never teaches a position the screen did not test" "unscreened positions taught"
+mut "$RH" 's/cpLoss >= config\.moveLossCp/cpLoss >= 0/' "$T_LEARN" \
+  "holds its tongue below the centipawn bar rather than dressing up noise" "any centipawn counts as a better move"
+mut "$RH" 's/confirmed\.length > 0 \? confirmed : all/all/' "$T_LEARN" \
+  "prefers a measured line over a larger guess" "a bigger guess outranks a measurement"
+mut "$RH" 's/return empty\(true\)/return empty(false)/' "$T_LEARN" \
+  "separates \"not enough games\" from \"nothing is wrong\"" "thin archive reads as no weakness"
+mut "$RH" 's/path\[lastIndex - 1\]\.fen/path[lastIndex].fen/' "$T_LEARN" \
+  "records the decision point, not just the position after it" "parent position is the position itself"
+mut "$RH" 's/const cost = await engine\.costOfMove\(parentFen, fen\);\s*const here = await engine\.evaluate\(fen\);/const [cost, here] = await Promise.all([engine.costOfMove(parentFen, fen), engine.evaluate(fen)]);/s' "$T_LEARN" \
+  "never issues two evaluations at once" "two evaluations in flight (engine desync)"
 fi
 
 echo

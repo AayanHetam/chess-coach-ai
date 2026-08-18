@@ -53,6 +53,48 @@ export function positionsToAsk(holes: Hole[]): Array<{ fen: string; yourMove?: s
   return out;
 }
 
+export interface MasterTarget {
+  fen: string;
+  yourMove?: string;
+}
+
+/**
+ * Ask the corpus about a handful of positions.
+ *
+ * Separate from the hook because the learning programme asks the same question
+ * about a single position from the user's own games, and the useful part — the
+ * request shape and the fen-keyed pairing of answers back to questions — is the
+ * same either way.
+ *
+ * Returns EMPTY rather than throwing on any failure. Master context is an
+ * enrichment; losing it must never disturb a report that is already complete
+ * and correct.
+ */
+export async function fetchMasterViews(
+  targets: MasterTarget[],
+  yourColor: 'white' | 'black'
+): Promise<MasterContext> {
+  if (targets.length === 0) return EMPTY;
+  try {
+    const res = await fetch('/api/master-ideas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positions: targets, yourColor }),
+    });
+    if (!res.ok) return EMPTY;
+    const data = (await res.json()) as { views: Array<MasterView | null>; corpus: MasterCorpus };
+
+    const byFen = new Map<string, MasterView>();
+    targets.forEach((t, i) => {
+      const view = data.views?.[i];
+      if (view) byFen.set(t.fen, view);
+    });
+    return { byFen, corpus: data.corpus ?? null };
+  } catch {
+    return EMPTY;
+  }
+}
+
 export function useMasterIdeas(
   holes: Hole[] | undefined,
   yourColor: 'white' | 'black'
@@ -61,28 +103,12 @@ export function useMasterIdeas(
   const requestId = useRef(0);
 
   const load = useCallback(
-    async (targets: Array<{ fen: string; yourMove?: string }>) => {
+    async (targets: MasterTarget[]) => {
       const id = ++requestId.current;
-      try {
-        const res = await fetch('/api/master-ideas', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ positions: targets, yourColor }),
-        });
-        if (!res.ok) return;
-        const data = (await res.json()) as { views: Array<MasterView | null>; corpus: MasterCorpus };
-        if (requestId.current !== id) return;
-
-        const byFen = new Map<string, MasterView>();
-        targets.forEach((t, i) => {
-          const view = data.views?.[i];
-          if (view) byFen.set(t.fen, view);
-        });
-        setContext({ byFen, corpus: data.corpus ?? null });
-      } catch {
-        // Master context is an enrichment. Losing it must not disturb a report
-        // that is already complete and correct.
-      }
+      const next = await fetchMasterViews(targets, yourColor);
+      if (requestId.current !== id) return;
+      if (next === EMPTY) return;
+      setContext(next);
     },
     [yourColor]
   );

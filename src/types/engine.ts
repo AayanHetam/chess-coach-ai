@@ -12,6 +12,17 @@ export interface EngineWorker {
    * resolve/reject so an idle worker has no hook set.
    */
   rejectActive?: (err: Error) => void;
+  /**
+   * Resolves/rejects once the underlying `Worker` reports a load or runtime
+   * error (T7). `new Worker(url)` does not throw when the script 404s or is
+   * blocked by a network filter — it fires an `error` event, and nothing was
+   * listening. The `uci` handshake in `addNewWorker` then waited for a
+   * `uciok` that could never come, so `UciEngine.create()` hung FOREVER: no
+   * resolve, no reject, no timeout. `useEngine` sat on `engine === null`
+   * indefinitely, which the coach's composer gate read as "not analyzing" and
+   * unlocked. Awaiting this is what turns that hang into a real failure.
+   */
+  errored: Promise<Error>;
 }
 
 export interface WorkerJob {

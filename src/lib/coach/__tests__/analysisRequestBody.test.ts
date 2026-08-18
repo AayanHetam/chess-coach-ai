@@ -24,6 +24,7 @@ const base: AnalysisRequestBodyInput = {
   gameEval: { positions: [] },
   conversationHistory: [],
   userRating: undefined,
+  engineDataUnavailable: false,
 };
 
 /** What actually crosses the wire — undefined-valued keys do not survive. */
@@ -108,5 +109,27 @@ describe("buildAnalysisRequestBody — the rest of the contract is unchanged", (
       lichessUsername: "alice_lichess",
       personalityId: "grandmaster",
     });
+  });
+});
+
+/**
+ * T7 (SILENT_SUBSTITUTION_HANDOFF §4).
+ *
+ * An absent `gameEval` means three different things server-side — never
+ * computed, still computing, or computed and dropped — and the route cannot
+ * tell them apart. The one that matters, "this browser will never produce
+ * one", is knowable only in the client. So it is sent explicitly, including
+ * when it is `false`: a boolean that vanishes when false would be
+ * indistinguishable from a client that never learned to send it.
+ */
+describe("buildAnalysisRequestBody — engine availability is stated, not inferred", () => {
+  it("says so when no evaluation is ever arriving", () => {
+    expect(wire({ ...base, engineDataUnavailable: true }).engineDataUnavailable).toBe(true);
+  });
+
+  it("sends the false case too, rather than omitting it", () => {
+    const body = wire({ ...base, engineDataUnavailable: false });
+    expect(body).toHaveProperty("engineDataUnavailable");
+    expect(body.engineDataUnavailable).toBe(false);
   });
 });

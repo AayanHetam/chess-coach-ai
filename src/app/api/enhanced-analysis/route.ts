@@ -95,6 +95,7 @@ import {
   type GameEvalInput,
 } from "@/lib/contract/legacyGameContext";
 import { maybeCreateShadowRefereeGate } from "@/lib/contract/shadowReferee";
+import { buildEngineDataNotice } from "@/lib/coach/engineDataNotice";
 import { isComparableDepthPair, requestedDepth, shallowSearchPlies } from "@/lib/contract/evalDepth";
 // CI-5: persist what the shadow referee WOULD have caught somewhere queryable.
 // Consent- and TRACKING_ENABLED-gated, fire-and-forget; see refereeOutcomes.ts.
@@ -489,6 +490,7 @@ export async function POST(request: NextRequest) {
         // Do not reintroduce a default in the body.
         userRating: userRatingFromBody,
         viewedPly,
+        engineDataUnavailable,
         boardOrientation,
         conversationHistory,
         personalityId,
@@ -685,6 +687,15 @@ export async function POST(request: NextRequest) {
           viewedPly
         );
         if (viewedBlock) gameContext = `${viewedBlock}\n\n${gameContext}`;
+        // T7: when the client tells us no evaluation is ever arriving, say so
+        // AT THE TOP — ahead of everything the model would otherwise narrate
+        // as if it were engine-backed. Empty string when evals are present, so
+        // the ordinary prompt is byte-unchanged.
+        const engineNotice = buildEngineDataNotice(
+          engineDataUnavailable,
+          !!gameEval,
+        );
+        if (engineNotice) gameContext = `${engineNotice}\n\n${gameContext}`;
         // PR-CI-4/CI-5: the contract also rides along when enforcement is armed
         // for any category (CONTRACT_CATEGORIES non-empty) OR for any dogfood
         // uid (CONTRACT_UIDS non-empty). With all flags at their defaults this
@@ -700,6 +711,13 @@ export async function POST(request: NextRequest) {
         const fenStr = fen || position;
         const game = new Chess(fenStr);
         gameContext = `## POSITION ANALYSIS\nFEN: ${fenStr}\nTurn: ${game.turn() === "w" ? "White" : "Black"}\nLegal moves: ${game.moves().length}\n${getMaterialBalance(game)}`;
+        // T7: same statement on the position-only path.
+        const posEngineNotice = buildEngineDataNotice(
+          engineDataUnavailable,
+          !!gameEval,
+        );
+        if (posEngineNotice)
+          gameContext = `${posEngineNotice}\n\n${gameContext}`;
         // Stage 1: Syzygy endgame grounding via Lichess tablebase API
         try {
           const tbResult = fenStr

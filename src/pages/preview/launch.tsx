@@ -18,17 +18,14 @@ import {
   Download,
   Flame,
   Globe,
-  GraduationCap,
   Lightbulb,
   Link2,
-  Minus,
   MousePointerClick,
   Puzzle,
   RotateCcw,
   ShieldCheck,
   Sparkles,
   TrendingUp,
-  Wrench,
   X,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
@@ -203,14 +200,18 @@ function GlassChatPreview() {
       }}
     >
       <BorderBeam duration={11} />
-      <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 2.5 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1.25}
+        sx={{ mb: 2.5 }}
+      >
         <Box
           sx={{
             width: 32,
             height: 32,
             borderRadius: "50%",
-            background:
-              "linear-gradient(135deg, #F97316 0%, #A855F7 100%)",
+            background: "linear-gradient(135deg, #F97316 0%, #A855F7 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -282,10 +283,7 @@ function GlassChatPreview() {
                   m.role === "user"
                     ? "1px solid rgba(255,255,255,0.18)"
                     : "1px solid rgba(255,255,255,0.08)",
-                color:
-                  m.role === "user"
-                    ? "#0A0A0A"
-                    : "rgba(255,255,255,0.92)",
+                color: m.role === "user" ? "#0A0A0A" : "rgba(255,255,255,0.92)",
                 fontSize: "0.92rem",
                 fontWeight: m.role === "user" ? 600 : 400,
                 lineHeight: 1.45,
@@ -423,7 +421,9 @@ function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
         >
-          <EyebrowBadge>DEMOCRATIZING HIGH-QUALITY CHESS EDUCATION</EyebrowBadge>
+          <EyebrowBadge>
+            DEMOCRATIZING HIGH-QUALITY CHESS EDUCATION
+          </EyebrowBadge>
         </motion.div>
 
         <motion.div
@@ -477,10 +477,10 @@ function Hero() {
               maxWidth: 560,
             }}
           >
-            World-class chess coaching used to cost $100 an hour and live
-            behind a Grandmaster's calendar — out of reach for almost every
-            player who could benefit. We're changing that. Stockfish 17 + a
-            smart AI coach + a hallucination validator deliver{" "}
+            World-class chess coaching has traditionally depended on access to a
+            Grandmaster&apos;s calendar — out of reach for many players who
+            could benefit. We&apos;re changing that. Stockfish 17 + a smart AI
+            coach + a hallucination validator deliver{" "}
             <Box
               component="span"
               sx={{ color: "rgba(255,255,255,0.92)", fontWeight: 600 }}
@@ -674,8 +674,7 @@ function HowItWorks() {
                     "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
                   p: 4,
                   height: "100%",
-                  transition:
-                    "all 240ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+                  transition: "all 240ms cubic-bezier(0.22, 0.61, 0.36, 1)",
                   "&:hover": {
                     transform: "translateY(-3px)",
                     boxShadow:
@@ -751,41 +750,40 @@ function BentoSection() {
     <Box sx={{ py: { xs: 4, md: 6 } }}>
       <RevealOnScroll>
         <Box sx={{ maxWidth: 720, mb: 6 }}>
-          <EyebrowBadge>WHY THIS REPLACES A $100/HOUR COACH</EyebrowBadge>
-        <Typography
-          variant="h2"
-          sx={{
-            mt: 2.5,
-            fontSize: { xs: "2rem", md: "2.8rem" },
-            color: "rgba(255,255,255,0.96)",
-          }}
-        >
-          GM-caliber coaching,{" "}
-          <Box
-            component="span"
+          <EyebrowBadge>HIGH-QUALITY COACHING FOR EVERYONE</EyebrowBadge>
+          <Typography
+            variant="h2"
             sx={{
-              background:
-                "linear-gradient(135deg, #F97316, #A855F7)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
+              mt: 2.5,
+              fontSize: { xs: "2rem", md: "2.8rem" },
+              color: "rgba(255,255,255,0.96)",
             }}
           >
-            without the bill.
-          </Box>
-        </Typography>
-        <Typography
-          sx={{
-            mt: 2.5,
-            fontSize: "1.05rem",
-            lineHeight: 1.55,
-            color: "rgba(255,255,255,0.6)",
-          }}
-        >
-          A Grandmaster gives you Stockfish-grounded analysis, motif drilling,
-          and opponent prep — for $100 an hour. We give you all of it, on
-          demand, for nothing. Here's the stack that makes it possible.
-        </Typography>
+            GM-caliber coaching,{" "}
+            <Box
+              component="span"
+              sx={{
+                background: "linear-gradient(135deg, #F97316, #A855F7)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              available to everyone.
+            </Box>
+          </Typography>
+          <Typography
+            sx={{
+              mt: 2.5,
+              fontSize: "1.05rem",
+              lineHeight: 1.55,
+              color: "rgba(255,255,255,0.6)",
+            }}
+          >
+            Chess Masti combines Stockfish-grounded analysis, motif drilling,
+            and opponent prep in one free service. Here&apos;s the stack that
+            makes it possible.
+          </Typography>
         </Box>
       </RevealOnScroll>
 
@@ -797,7 +795,11 @@ function BentoSection() {
           gap: 2.5,
         }}
       >
-        <BentoCard gridColumn={{ xs: "1 / -1", md: "span 7" }} beam revealDelay={0}>
+        <BentoCard
+          gridColumn={{ xs: "1 / -1", md: "span 7" }}
+          beam
+          revealDelay={0}
+        >
           <Stack
             sx={{ height: "100%", justifyContent: "space-between" }}
             spacing={3}
@@ -837,8 +839,8 @@ function BentoSection() {
                 }}
               >
                 The world's strongest engine evaluates every move via WASM —
-                locally, no servers, no per-query cost. Coaching commentary
-                always starts from real numbers.
+                locally without sending engine calculations to a server.
+                Coaching commentary always starts from real numbers.
               </Typography>
               <Stack direction="row" spacing={1.5}>
                 {["+1.8", "Best: Nd5", "Depth 22"].map((tag) => (
@@ -863,7 +865,10 @@ function BentoSection() {
           </Stack>
         </BentoCard>
 
-        <BentoCard gridColumn={{ xs: "1 / -1", md: "span 5" }} revealDelay={0.08}>
+        <BentoCard
+          gridColumn={{ xs: "1 / -1", md: "span 5" }}
+          revealDelay={0.08}
+        >
           <Stack
             sx={{ height: "100%", justifyContent: "space-between" }}
             spacing={3}
@@ -889,8 +894,7 @@ function BentoSection() {
                   fontWeight: 800,
                   lineHeight: 1,
                   letterSpacing: "-0.04em",
-                  background:
-                    "linear-gradient(135deg, #22c55e, #16a34a)",
+                  background: "linear-gradient(135deg, #22c55e, #16a34a)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   backgroundClip: "text",
@@ -916,14 +920,17 @@ function BentoSection() {
                   lineHeight: 1.5,
                 }}
               >
-                A chess.js validator checks every move, line, and evaluation
-                the coach mentions. Hallucinations don't reach the page.
+                A chess.js validator checks every move, line, and evaluation the
+                coach mentions. Hallucinations don't reach the page.
               </Typography>
             </Box>
           </Stack>
         </BentoCard>
 
-        <BentoCard gridColumn={{ xs: "1 / -1", md: "span 4" }} revealDelay={0.16}>
+        <BentoCard
+          gridColumn={{ xs: "1 / -1", md: "span 4" }}
+          revealDelay={0.16}
+        >
           <Box
             sx={{
               width: 44,
@@ -972,7 +979,12 @@ function BentoSection() {
           </Typography>
         </BentoCard>
 
-        <BentoCard gridColumn={{ xs: "1 / -1", md: "span 4" }} beam beamDelay={2} revealDelay={0.24}>
+        <BentoCard
+          gridColumn={{ xs: "1 / -1", md: "span 4" }}
+          beam
+          beamDelay={2}
+          revealDelay={0.24}
+        >
           <Box
             sx={{
               width: 44,
@@ -1005,12 +1017,15 @@ function BentoSection() {
               lineHeight: 1.55,
             }}
           >
-            Maia-2 mimics human moves at your rating. No more 3500-Elo
-            crushing — train against your actual ceiling.
+            Maia-2 mimics human moves at your rating. No more 3500-Elo crushing
+            — train against your actual ceiling.
           </Typography>
         </BentoCard>
 
-        <BentoCard gridColumn={{ xs: "1 / -1", md: "span 4" }} revealDelay={0.32}>
+        <BentoCard
+          gridColumn={{ xs: "1 / -1", md: "span 4" }}
+          revealDelay={0.32}
+        >
           <Box
             sx={{
               width: 44,
@@ -1043,12 +1058,15 @@ function BentoSection() {
               lineHeight: 1.55,
             }}
           >
-            OAuth 2.0 PKCE in. Pull your games, push your repertoire, play
-            live — without leaving the coach.
+            OAuth 2.0 PKCE in. Pull your games, push your repertoire, play live
+            — without leaving the coach.
           </Typography>
         </BentoCard>
 
-        <BentoCard gridColumn={{ xs: "1 / -1", md: "span 12" }} revealDelay={0.1}>
+        <BentoCard
+          gridColumn={{ xs: "1 / -1", md: "span 12" }}
+          revealDelay={0.1}
+        >
           <Stack
             direction={{ xs: "column", md: "row" }}
             spacing={4}
@@ -1299,8 +1317,7 @@ function DailyPuzzleSection() {
                   <Box
                     component="span"
                     sx={{
-                      background:
-                        "linear-gradient(135deg, #22c55e, #16a34a)",
+                      background: "linear-gradient(135deg, #22c55e, #16a34a)",
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
                       backgroundClip: "text",
@@ -1323,8 +1340,8 @@ function DailyPuzzleSection() {
                   mb: 3,
                 }}
               >
-                Drag the knight to win material. Wrong moves bounce back —
-                same way the coach guards you mid-game.
+                Drag the knight to win material. Wrong moves bounce back — same
+                way the coach guards you mid-game.
                 {hintShown && (
                   <Box
                     component="span"
@@ -1500,7 +1517,9 @@ function DailyPuzzleSection() {
                   >
                     Ask the coach
                   </Button>
-                  <GhostCTA href="/preview/practice">Skip to full deck</GhostCTA>
+                  <GhostCTA href="/preview/practice">
+                    Skip to full deck
+                  </GhostCTA>
                 </>
               )}
             </Stack>
@@ -1540,12 +1559,13 @@ function DailyPuzzleSection() {
                   status === "solved"
                     ? "0 24px 60px rgba(0,0,0,0.5), 0 0 0 2px rgba(34,197,94,0.45), inset 0 1px 0 rgba(255,255,255,0.04)"
                     : status === "wrong"
-                    ? "0 24px 60px rgba(0,0,0,0.5), 0 0 0 2px rgba(239,68,68,0.5), inset 0 1px 0 rgba(255,255,255,0.04)"
-                    : "0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.04)",
+                      ? "0 24px 60px rgba(0,0,0,0.5), 0 0 0 2px rgba(239,68,68,0.5), inset 0 1px 0 rgba(255,255,255,0.04)"
+                      : "0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.04)",
                 maxWidth: 380,
                 width: "100%",
                 aspectRatio: "1",
-                transition: "box-shadow 240ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+                transition:
+                  "box-shadow 240ms cubic-bezier(0.22, 0.61, 0.36, 1)",
               }}
             >
               <ChessgroundBoard
@@ -1560,367 +1580,6 @@ function DailyPuzzleSection() {
           </Box>
         </Box>
       </RevealOnScroll>
-    </Box>
-  );
-}
-
-function Comparison() {
-  const columns = [
-    {
-      name: "DIY tools",
-      tagline: "Stockfish + textbooks",
-      icon: Wrench,
-      price: "Free",
-      priceDetail: "Your time isn't",
-      highlighted: false,
-      features: [
-        { label: "Engine-grounded analysis", status: "yes" as const, note: "Raw" },
-        { label: "Plain-English explanations", status: "no" as const },
-        { label: "Personalized to your weaknesses", status: "no" as const },
-        { label: "Available 24/7", status: "yes" as const },
-        { label: "Catches AI hallucinations", status: "na" as const },
-      ],
-    },
-    {
-      name: "Chess Masti",
-      tagline: "GM-quality, free",
-      icon: Sparkles,
-      price: "$0",
-      priceDetail: "Forever",
-      highlighted: true,
-      features: [
-        { label: "Engine-grounded analysis", status: "yes" as const, note: "Curated" },
-        { label: "Plain-English explanations", status: "yes" as const },
-        { label: "Personalized to your weaknesses", status: "yes" as const },
-        { label: "Available 24/7", status: "yes" as const },
-        { label: "Catches AI hallucinations", status: "yes" as const, note: "Validator" },
-      ],
-    },
-    {
-      name: "GM coach",
-      tagline: "Human expert",
-      icon: GraduationCap,
-      price: "$100",
-      priceDetail: "Per hour",
-      highlighted: false,
-      features: [
-        { label: "Engine-grounded analysis", status: "partial" as const },
-        { label: "Plain-English explanations", status: "yes" as const },
-        { label: "Personalized to your weaknesses", status: "yes" as const },
-        { label: "Available 24/7", status: "no" as const },
-        { label: "Catches AI hallucinations", status: "na" as const },
-      ],
-    },
-  ];
-
-  const renderStatusIcon = (status: "yes" | "no" | "partial" | "na", highlighted: boolean) => {
-    if (status === "yes") {
-      return (
-        <Box
-          sx={{
-            width: 18,
-            height: 18,
-            borderRadius: "50%",
-            background: highlighted
-              ? "rgba(249,115,22,0.18)"
-              : "rgba(34,197,94,0.15)",
-            border: highlighted
-              ? "1px solid rgba(249,115,22,0.4)"
-              : "1px solid rgba(34,197,94,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <Check
-            size={11}
-            color={highlighted ? "#F97316" : "#22c55e"}
-            strokeWidth={3}
-          />
-        </Box>
-      );
-    }
-    if (status === "no") {
-      return (
-        <Box
-          sx={{
-            width: 18,
-            height: 18,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <X size={11} color="rgba(255,255,255,0.4)" strokeWidth={3} />
-        </Box>
-      );
-    }
-    if (status === "partial") {
-      return (
-        <Box
-          sx={{
-            width: 18,
-            height: 18,
-            borderRadius: "50%",
-            background: "rgba(234,179,8,0.12)",
-            border: "1px solid rgba(234,179,8,0.3)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <Minus size={11} color="#eab308" strokeWidth={3} />
-        </Box>
-      );
-    }
-    return (
-      <Box
-        sx={{
-          width: 18,
-          height: 18,
-          borderRadius: "50%",
-          background: "rgba(255,255,255,0.02)",
-          border: "1px dashed rgba(255,255,255,0.1)",
-          flexShrink: 0,
-        }}
-      />
-    );
-  };
-
-  return (
-    <Box sx={{ py: { xs: 6, md: 10 } }}>
-      <RevealOnScroll>
-        <Box sx={{ maxWidth: 720, mb: 6 }}>
-          <EyebrowBadge>WHY NOT JUST HIRE A COACH?</EyebrowBadge>
-          <Typography
-            variant="h2"
-            sx={{
-              mt: 2.5,
-              fontSize: { xs: "2rem", md: "2.8rem" },
-              color: "rgba(255,255,255,0.96)",
-            }}
-          >
-            The quality of a Grandmaster.{" "}
-            <Box
-              component="span"
-              sx={{
-                background: "linear-gradient(135deg, #F97316, #A855F7)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              The price of nothing.
-            </Box>
-          </Typography>
-        </Box>
-      </RevealOnScroll>
-
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-          gap: 2.5,
-          alignItems: "stretch",
-        }}
-      >
-        {columns.map((col, i) => {
-          const Icon = col.icon;
-          return (
-            <RevealOnScroll
-              key={col.name}
-              delay={i * 0.1}
-              style={{ height: "100%" }}
-            >
-              <Box
-                sx={{
-                  position: "relative",
-                  borderRadius: "1.5rem",
-                  background: col.highlighted
-                    ? "linear-gradient(180deg, rgba(249,115,22,0.08), rgba(20,22,28,0.65))"
-                    : "rgba(20,22,28,0.5)",
-                  backdropFilter: "blur(14px) saturate(140%)",
-                  WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                  border: col.highlighted
-                    ? "1px solid rgba(249,115,22,0.35)"
-                    : "1px solid rgba(255,255,255,0.08)",
-                  boxShadow: col.highlighted
-                    ? "0 16px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(249,115,22,0.18), inset 0 1px 0 rgba(255,255,255,0.08)"
-                    : "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)",
-                  p: 4,
-                  height: "100%",
-                  overflow: "hidden",
-                }}
-              >
-                {col.highlighted && <BorderBeam duration={10} />}
-                <Box sx={{ position: "relative", zIndex: 1 }}>
-                  {col.highlighted && (
-                    <Box
-                      sx={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        px: 1.25,
-                        py: 0.4,
-                        borderRadius: "999px",
-                        background: "rgba(249,115,22,0.18)",
-                        border: "1px solid rgba(249,115,22,0.35)",
-                        mb: 2,
-                      }}
-                    >
-                      <Sparkles size={11} color="#F97316" />
-                      <Typography
-                        sx={{
-                          fontSize: "0.65rem",
-                          fontWeight: 700,
-                          letterSpacing: "0.14em",
-                          color: "#F97316",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        Best value
-                      </Typography>
-                    </Box>
-                  )}
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={1.5}
-                    mb={1.5}
-                  >
-                    <Box
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: "10px",
-                        background: col.highlighted
-                          ? "rgba(249,115,22,0.18)"
-                          : "rgba(255,255,255,0.05)",
-                        border: col.highlighted
-                          ? "1px solid rgba(249,115,22,0.4)"
-                          : "1px solid rgba(255,255,255,0.08)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Icon
-                        size={18}
-                        color={
-                          col.highlighted ? "#F97316" : "rgba(255,255,255,0.7)"
-                        }
-                      />
-                    </Box>
-                    <Box>
-                      <Typography
-                        sx={{
-                          fontSize: "1.2rem",
-                          fontWeight: 700,
-                          color: "rgba(255,255,255,0.96)",
-                          lineHeight: 1.1,
-                        }}
-                      >
-                        {col.name}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: "0.78rem",
-                          color: "rgba(255,255,255,0.5)",
-                          lineHeight: 1.1,
-                          mt: 0.5,
-                        }}
-                      >
-                        {col.tagline}
-                      </Typography>
-                    </Box>
-                  </Stack>
-
-                  <Stack
-                    direction="row"
-                    alignItems="baseline"
-                    spacing={1}
-                    sx={{ mt: 3, mb: 3 }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: "2.6rem",
-                        fontWeight: 800,
-                        lineHeight: 1,
-                        letterSpacing: "-0.03em",
-                        color: col.highlighted
-                          ? "#F97316"
-                          : "rgba(255,255,255,0.94)",
-                      }}
-                    >
-                      {col.price}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: "0.85rem",
-                        color: "rgba(255,255,255,0.5)",
-                      }}
-                    >
-                      {col.priceDetail}
-                    </Typography>
-                  </Stack>
-
-                  <Box
-                    sx={{
-                      height: 1,
-                      background:
-                        "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)",
-                      mb: 3,
-                    }}
-                  />
-
-                  <Stack spacing={1.5}>
-                    {col.features.map((f) => (
-                      <Stack
-                        key={f.label}
-                        direction="row"
-                        alignItems="center"
-                        spacing={1.5}
-                      >
-                        {renderStatusIcon(f.status, col.highlighted)}
-                        <Typography
-                          sx={{
-                            fontSize: "0.92rem",
-                            color:
-                              f.status === "no" || f.status === "na"
-                                ? "rgba(255,255,255,0.42)"
-                                : "rgba(255,255,255,0.85)",
-                            flex: 1,
-                          }}
-                        >
-                          {f.label}
-                        </Typography>
-                        {"note" in f && f.note && (
-                          <Typography
-                            sx={{
-                              fontSize: "0.7rem",
-                              color: "rgba(255,255,255,0.45)",
-                              fontFamily: "Monaco, Menlo, monospace",
-                              letterSpacing: "0.02em",
-                            }}
-                          >
-                            {f.note}
-                          </Typography>
-                        )}
-                      </Stack>
-                    ))}
-                  </Stack>
-                </Box>
-              </Box>
-            </RevealOnScroll>
-          );
-        })}
-      </Box>
     </Box>
   );
 }
@@ -2004,8 +1663,7 @@ function ChromeExtension() {
               <Box
                 component="span"
                 sx={{
-                  background:
-                    "linear-gradient(135deg, #3B82F6, #A855F7)",
+                  background: "linear-gradient(135deg, #3B82F6, #A855F7)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   backgroundClip: "text",
@@ -2106,9 +1764,30 @@ function ChromeExtension() {
                 alignItems="center"
                 sx={{ mb: 2 }}
               >
-                <Box sx={{ width: 10, height: 10, borderRadius: "50%", background: "#ff5f57" }} />
-                <Box sx={{ width: 10, height: 10, borderRadius: "50%", background: "#febc2e" }} />
-                <Box sx={{ width: 10, height: 10, borderRadius: "50%", background: "#28c840" }} />
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: "#ff5f57",
+                  }}
+                />
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: "#febc2e",
+                  }}
+                />
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: "#28c840",
+                  }}
+                />
                 <Box sx={{ flex: 1 }} />
                 <Typography
                   sx={{
@@ -2227,8 +1906,7 @@ function FounderSection() {
               width: { xs: 140, md: 180 },
               height: { xs: 140, md: 180 },
               borderRadius: "50%",
-              background:
-                "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+              background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -2301,10 +1979,10 @@ function FounderSection() {
                   backgroundClip: "text",
                 }}
               >
-                $100/hour chess coach
+                personal chess coach
               </Box>{" "}
-              was never something I could ask my parents for. So I built one
-              every kid like me can afford."
+              was never something I could ask my parents for. So I built a free
+              coaching service every kid like me can use."
             </Typography>
             <Typography
               sx={{
@@ -2315,11 +1993,11 @@ function FounderSection() {
                 textAlign: { xs: "center", md: "left" },
               }}
             >
-              Chess Masti exists because the resources that make GMs aren't
-              just expensive — they're closed. Coaches gate-keep behind a
-              calendar. Books gate-keep behind a price. The engines and AI
-              that can democratize this are public goods, and we're putting
-              them in front of every player who can't afford the alternative.
+              Chess Masti exists because the resources that make GMs aren't not
+              equally accessible. Coaches depend on limited calendars, and books
+              are not interactive. The engines and AI that can democratize this
+              are public goods, and we're putting them in front of every player
+              who can't afford the alternative.
             </Typography>
 
             <Stack
@@ -2347,7 +2025,7 @@ function FounderSection() {
                 </Box>
               </Box>
               <Box>· chessmasti.com</Box>
-              <Box>· 100% free, forever</Box>
+              <Box>· Free for every player</Box>
             </Stack>
           </Box>
         </Box>
@@ -2359,7 +2037,6 @@ function FounderSection() {
 function StatsStrip() {
   const stats = [
     { value: 10000, prefix: "", suffix: "+", label: "Monthly active players" },
-    { value: 100, prefix: "$", suffix: "/hr", label: "GM coach rate · you pay $0" },
     { value: 100000, prefix: "", suffix: "+", label: "Puzzles indexed" },
     { value: 100, prefix: "", suffix: "%", label: "Claims fact-checked" },
   ];
@@ -2382,44 +2059,44 @@ function StatsStrip() {
           sx={{
             display: "grid",
             gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
-          gap: { xs: 4, md: 2 },
-        }}
-      >
-        {stats.map((s) => (
-          <Box key={s.label}>
-            <Typography
-              sx={{
-                fontSize: { xs: "2.2rem", md: "2.8rem" },
-                fontWeight: 800,
-                letterSpacing: "-0.03em",
-                lineHeight: 1,
-                background:
-                  "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.6))",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              <NumberTicker
-                value={s.value}
-                prefix={s.prefix}
-                suffix={s.suffix}
-              />
-            </Typography>
-            <Typography
-              sx={{
-                mt: 1.5,
-                fontSize: "0.84rem",
-                color: "rgba(255,255,255,0.5)",
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                fontWeight: 600,
-              }}
-            >
-              {s.label}
-            </Typography>
-          </Box>
-        ))}
+            gap: { xs: 4, md: 2 },
+          }}
+        >
+          {stats.map((s) => (
+            <Box key={s.label}>
+              <Typography
+                sx={{
+                  fontSize: { xs: "2.2rem", md: "2.8rem" },
+                  fontWeight: 800,
+                  letterSpacing: "-0.03em",
+                  lineHeight: 1,
+                  background:
+                    "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.6))",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                <NumberTicker
+                  value={s.value}
+                  prefix={s.prefix}
+                  suffix={s.suffix}
+                />
+              </Typography>
+              <Typography
+                sx={{
+                  mt: 1.5,
+                  fontSize: "0.84rem",
+                  color: "rgba(255,255,255,0.5)",
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  fontWeight: 600,
+                }}
+              >
+                {s.label}
+              </Typography>
+            </Box>
+          ))}
         </Box>
       </Box>
     </RevealOnScroll>
@@ -2429,84 +2106,84 @@ function StatsStrip() {
 function FinalCTA() {
   return (
     <RevealOnScroll>
-    <Box
-      sx={{
-        my: { xs: 8, md: 12 },
-        position: "relative",
-        borderRadius: "2rem",
-        background:
-          "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(168,85,247,0.12))",
-        border: "1px solid rgba(255,255,255,0.08)",
-        backdropFilter: "blur(16px) saturate(160%)",
-        WebkitBackdropFilter: "blur(16px) saturate(160%)",
-        overflow: "hidden",
-        p: { xs: 5, md: 9 },
-        textAlign: "center",
-        boxShadow:
-          "0 24px 64px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)",
-      }}
-    >
-      <BorderBeam duration={14} />
       <Box
-        aria-hidden
         sx={{
-          position: "absolute",
-          width: "80%",
-          height: "200%",
-          top: "-50%",
-          left: "10%",
+          my: { xs: 8, md: 12 },
+          position: "relative",
+          borderRadius: "2rem",
           background:
-            "radial-gradient(ellipse at center, rgba(249,115,22,0.18), transparent 60%)",
-          pointerEvents: "none",
+            "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(168,85,247,0.12))",
+          border: "1px solid rgba(255,255,255,0.08)",
+          backdropFilter: "blur(16px) saturate(160%)",
+          WebkitBackdropFilter: "blur(16px) saturate(160%)",
+          overflow: "hidden",
+          p: { xs: 5, md: 9 },
+          textAlign: "center",
+          boxShadow:
+            "0 24px 64px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)",
         }}
-      />
-      <Box sx={{ position: "relative" }}>
-        <Typography
-          variant="h2"
+      >
+        <BorderBeam duration={14} />
+        <Box
+          aria-hidden
           sx={{
-            fontSize: { xs: "2rem", md: "3rem" },
-            color: "rgba(255,255,255,0.96)",
-            mb: 2,
+            position: "absolute",
+            width: "80%",
+            height: "200%",
+            top: "-50%",
+            left: "10%",
+            background:
+              "radial-gradient(ellipse at center, rgba(249,115,22,0.18), transparent 60%)",
+            pointerEvents: "none",
           }}
-        >
-          GM-quality chess coaching.{" "}
-          <Box
-            component="span"
+        />
+        <Box sx={{ position: "relative" }}>
+          <Typography
+            variant="h2"
             sx={{
-              background:
-                "linear-gradient(135deg, #F97316, #FB923C, #A855F7)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
+              fontSize: { xs: "2rem", md: "3rem" },
+              color: "rgba(255,255,255,0.96)",
+              mb: 2,
             }}
           >
-            Free, forever.
-          </Box>
-        </Typography>
-        <Typography
-          sx={{
-            fontSize: "1.1rem",
-            color: "rgba(255,255,255,0.66)",
-            maxWidth: 540,
-            mx: "auto",
-            mb: 4.5,
-            lineHeight: 1.55,
-          }}
-        >
-          Join 10,000+ players getting top-tier analysis without the
-          $100/hour bill. No sign-up. In your browser. Free forever.
-        </Typography>
-        <Stack
-          direction="row"
-          spacing={2}
-          justifyContent="center"
-          sx={{ flexWrap: "wrap" }}
-        >
-          <PrimaryCTA href="/analysis">Analyze a game</PrimaryCTA>
-          <GhostCTA href="/play">Or just play</GhostCTA>
-        </Stack>
+            GM-quality chess coaching.{" "}
+            <Box
+              component="span"
+              sx={{
+                background:
+                  "linear-gradient(135deg, #F97316, #FB923C, #A855F7)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              Free, forever.
+            </Box>
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: "1.1rem",
+              color: "rgba(255,255,255,0.66)",
+              maxWidth: 540,
+              mx: "auto",
+              mb: 4.5,
+              lineHeight: 1.55,
+            }}
+          >
+            Join 10,000+ players getting top-tier analysis. No sign-up. Chess
+            calculations run in your browser, and the coaching service is free.
+          </Typography>
+          <Stack
+            direction="row"
+            spacing={2}
+            justifyContent="center"
+            sx={{ flexWrap: "wrap" }}
+          >
+            <PrimaryCTA href="/analysis">Analyze a game</PrimaryCTA>
+            <GhostCTA href="/play">Or just play</GhostCTA>
+          </Stack>
+        </Box>
       </Box>
-    </Box>
     </RevealOnScroll>
   );
 }
@@ -2570,7 +2247,7 @@ export default function LaunchPage() {
         <title>Chess Masti — Democratizing high-quality chess education</title>
         <meta
           name="description"
-          content="World-class chess coaching used to cost $100/hour. We're making it free for everyone. Stockfish 17 + AI coach + hallucination validator. 10,000+ players."
+          content="Free, high-quality chess coaching for everyone. Stockfish 17 + AI coach + hallucination validator. 10,000+ players."
         />
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content="#08090C" />
@@ -2620,7 +2297,6 @@ export default function LaunchPage() {
           <HowItWorks />
           <BentoSection />
           <DailyPuzzleSection />
-          <Comparison />
           <ChromeExtension />
           <FounderSection />
           <StatsStrip />

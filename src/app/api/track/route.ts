@@ -1,5 +1,4 @@
 import { NextResponse, after } from "next/server";
-import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import { getTrackingEnv } from "@/env";
 import { trackEvent, hashIp, currentAppVersion } from "@/lib/tracking/track";
@@ -9,6 +8,7 @@ import {
   anonCookieOptions,
 } from "@/lib/tracking/anonId";
 import { hasTrackingConsent } from "@/lib/tracking/consent";
+import { parseTrackRequestBody } from "@/lib/tracking/eventSchema";
 
 /**
  * POST /api/track — client event ingestion (TRK-1).
@@ -25,20 +25,6 @@ import { hasTrackingConsent } from "@/lib/tracking/consent";
  */
 export const runtime = "nodejs";
 
-const eventSchema = z.object({
-  name: z.string().min(1).max(80),
-  surface: z.string().max(200).optional(),
-  sessionId: z.string().max(64).optional(),
-  requestId: z.string().max(64).optional(),
-  props: z.record(z.string(), z.unknown()).optional(),
-  // Client timestamp — informational for now; server `ts` is authoritative.
-  ts: z.string().max(40).optional(),
-});
-
-const bodySchema = z.object({
-  events: z.array(eventSchema).min(1).max(50),
-});
-
 function clientIp(request: Request): string | null {
   const fwd = request.headers.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0]?.trim() || null;
@@ -50,7 +36,8 @@ export async function POST(request: Request) {
   // Inert when off: 204 so the beacon is satisfied, but nothing is written or set.
   if (!env.enabled) return new NextResponse(null, { status: 204 });
   // Consent-gated (TRK-6): no consent / GPC signaled → no write, no anon cookie.
-  if (!hasTrackingConsent(request)) return new NextResponse(null, { status: 204 });
+  if (!hasTrackingConsent(request))
+    return new NextResponse(null, { status: 204 });
 
   let body: unknown;
   try {
@@ -58,7 +45,7 @@ export async function POST(request: Request) {
   } catch {
     return new NextResponse(null, { status: 400 });
   }
-  const parsed = bodySchema.safeParse(body);
+  const parsed = parseTrackRequestBody(body);
   if (!parsed.success) return new NextResponse(null, { status: 400 });
 
   const session = await getSession();
@@ -83,7 +70,7 @@ export async function POST(request: Request) {
         userAgent,
         referrer,
         appVersion,
-      }),
+      })
     );
   }
 

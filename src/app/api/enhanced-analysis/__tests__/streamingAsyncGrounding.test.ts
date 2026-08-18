@@ -98,6 +98,11 @@ vi.mock("@/lib/llmProvider", () => ({
   callLLM: mockCallLLM,
   callLLMStream: mockCallLLMStream,
   LLMError: class LLMError extends Error {},
+  PUBLIC_LLM_ERROR: {
+    code: "AI_PROVIDER_UNAVAILABLE",
+    message: "AI coaching is temporarily unavailable. Please try again.",
+  },
+  toSafeLLMError: () => new Error("AI provider error: provider_network_error"),
 }));
 vi.mock("@/lib/responseCache", () => ({
   generateCacheKey: () => "test-cache-key",

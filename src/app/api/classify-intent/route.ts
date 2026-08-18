@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { callLLM, LLMError, getProviderStatus } from "@/lib/llmProvider";
+import {
+  callLLM,
+  PUBLIC_LLM_ERROR,
+  getProviderStatus,
+  toSafeLLMError,
+} from "@/lib/llmProvider";
 import { requireSession } from "@/lib/auth/session";
 
 /**
@@ -113,7 +118,10 @@ function parseClassifierOutput(raw: string): ClassifierResult | null {
     }
     return {
       intent: parsed.intent as Intent,
-      theme: typeof parsed.theme === "string" && parsed.theme.trim() ? parsed.theme.trim().toLowerCase() : null,
+      theme:
+        typeof parsed.theme === "string" && parsed.theme.trim()
+          ? parsed.theme.trim().toLowerCase()
+          : null,
       reason: typeof parsed.reason === "string" ? parsed.reason : "",
     };
   } catch {
@@ -156,16 +164,19 @@ export async function POST(request: NextRequest) {
         tier: "fast",
         system: SYSTEM_PROMPT,
         messages: [
-          { role: "user", content: buildUserPrompt(userMessage, recentMessages) },
+          {
+            role: "user",
+            content: buildUserPrompt(userMessage, recentMessages),
+          },
         ],
         temperature: 0, // Deterministic classification
         maxTokens: 150,
       });
     } catch (err) {
-      const e = err instanceof LLMError ? err : new Error(String(err));
+      const e = toSafeLLMError(err);
       console.error("Intent classifier LLM call failed:", e.message);
       return NextResponse.json(
-        { error: `Classifier API error: ${e.message}` },
+        { error: PUBLIC_LLM_ERROR.message, code: PUBLIC_LLM_ERROR.code },
         { status: 502 }
       );
     }

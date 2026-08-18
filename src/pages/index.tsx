@@ -15,8 +15,7 @@ import LandingCTA from "@/components/landing/LandingCTA";
 import LandingFooter from "@/components/landing/LandingFooter";
 import { InternalHomeCard } from "@/components/intern/InternalHomeCard";
 
-const HOME_TITLE =
-  "Chess Masti AI — engine-grounded chess coaching, free";
+const HOME_TITLE = "Chess Masti AI — engine-grounded chess coaching, free";
 const HOME_DESC =
   "AI chess coach: Stockfish 17 evaluates first, Claude explains, a hallucination validator checks every claim. 100,000+ Lichess puzzles in a Neo4j graph. Free.";
 const HOME_OG_IMAGE = "https://chessmasti.com/social-networks-1200x630.png";
@@ -30,7 +29,6 @@ const HOME_JSON_LD = {
   operatingSystem: "Web",
   description:
     "Free conversational chess coaching: Stockfish 17 evaluates, Claude explains, a hallucination validator checks every claim, and adaptive puzzles come from a 100,000+ position Neo4j graph.",
-  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   featureList: [
     "Engine-grounded coaching using Stockfish 17 WASM",
     "Two-tier Anthropic Claude (Sonnet for analysis, Haiku for chat)",
@@ -74,29 +72,21 @@ export default function LandingPage() {
           property="og:description"
           content={HOME_DESC}
         />
-        <meta key="og:url" property="og:url" content="https://chessmasti.com/" />
+        <meta
+          key="og:url"
+          property="og:url"
+          content="https://chessmasti.com/"
+        />
         <meta key="og:image" property="og:image" content={HOME_OG_IMAGE} />
-        <meta
-          key="og:image:width"
-          property="og:image:width"
-          content="1200"
-        />
-        <meta
-          key="og:image:height"
-          property="og:image:height"
-          content="630"
-        />
+        <meta key="og:image:width" property="og:image:width" content="1200" />
+        <meta key="og:image:height" property="og:image:height" content="630" />
 
         <meta
           key="twitter:card"
           name="twitter:card"
           content="summary_large_image"
         />
-        <meta
-          key="twitter:site"
-          name="twitter:site"
-          content="@ChessMastiAI"
-        />
+        <meta key="twitter:site" name="twitter:site" content="@ChessMastiAI" />
         <meta
           key="twitter:creator"
           name="twitter:creator"

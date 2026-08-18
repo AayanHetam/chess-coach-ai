@@ -9,11 +9,31 @@ const { mockRequireAdmin, mockCallLLM } = vi.hoisted(() => ({
 vi.mock("@/lib/auth/requireAdmin", () => ({ requireAdmin: mockRequireAdmin }));
 vi.mock("@/lib/llmProvider", () => ({ callLLM: mockCallLLM }));
 
-import { GET } from "../route";
+import { GET, POST } from "../route";
 
-describe("GET /api/health/llm", () => {
+function request(headers?: Record<string, string>) {
+  return new Request("https://chessmasti.com/api/health/llm", {
+    method: "POST",
+    headers: {
+      origin: "https://chessmasti.com",
+      "sec-fetch-site": "same-origin",
+      ...headers,
+    },
+  });
+}
+
+describe("/api/health/llm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("returns 405 for GET without contacting either provider", () => {
+    const response = GET();
+
+    expect(response.status).toBe(405);
+    expect(response.headers.get("allow")).toBe("POST");
+    expect(mockRequireAdmin).not.toHaveBeenCalled();
+    expect(mockCallLLM).not.toHaveBeenCalled();
   });
 
   it("returns 401 without contacting either provider for an anonymous visitor", async () => {
@@ -21,7 +41,7 @@ describe("GET /api/health/llm", () => {
       response: NextResponse.json({ error: "Not signed in." }, { status: 401 }),
     });
 
-    const response = await GET();
+    const response = await POST(request());
 
     expect(response.status).toBe(401);
     expect(mockCallLLM).not.toHaveBeenCalled();
@@ -35,7 +55,36 @@ describe("GET /api/health/llm", () => {
       ),
     });
 
-    const response = await GET();
+    const response = await POST(request());
+
+    expect(response.status).toBe(403);
+    expect(mockCallLLM).not.toHaveBeenCalled();
+  });
+
+  it("rejects a cross-site administrator request without contacting either provider", async () => {
+    mockRequireAdmin.mockResolvedValue({
+      session: { uid: "admin", email: "admin@example.com" },
+    });
+
+    const response = await POST(
+      request({
+        origin: "https://attacker.example",
+        "sec-fetch-site": "cross-site",
+      })
+    );
+
+    expect(response.status).toBe(403);
+    expect(mockCallLLM).not.toHaveBeenCalled();
+  });
+
+  it("rejects a request with no same-origin provenance", async () => {
+    mockRequireAdmin.mockResolvedValue({
+      session: { uid: "admin", email: "admin@example.com" },
+    });
+
+    const response = await POST(
+      new Request("https://chessmasti.com/api/health/llm", { method: "POST" })
+    );
 
     expect(response.status).toBe(403);
     expect(mockCallLLM).not.toHaveBeenCalled();
@@ -52,7 +101,7 @@ describe("GET /api/health/llm", () => {
       return { content: "pong" };
     });
 
-    const response = await GET();
+    const response = await POST(request());
     const body = await response.json();
 
     expect(response.status).toBe(200);

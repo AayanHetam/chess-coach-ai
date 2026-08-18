@@ -5,14 +5,7 @@
  * fast-path always uses cached analysisContext.
  */
 
-import {
-  describe,
-  it,
-  expect,
-  beforeEach,
-  afterEach,
-  vi,
-} from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const {
@@ -25,6 +18,7 @@ const {
   mockClassifyQuestion,
   mockFetchDataSources,
   mockRunValidationPipeline,
+  mockLogErrorToSentry,
 } = vi.hoisted(() => ({
   mockLog: {
     debug: vi.fn(),
@@ -40,38 +34,55 @@ const {
   mockClassifyQuestion: vi.fn(),
   mockFetchDataSources: vi.fn(),
   mockRunValidationPipeline: vi.fn(),
+  mockLogErrorToSentry: vi.fn(),
 }));
 
 vi.mock("@/lib/logging", () => ({
   logger: { child: vi.fn(() => mockLog) },
   withRequestContext: (_id: string, fn: () => unknown) => fn(),
   extractRequestId: () => "chat-test-request-id",
+  logErrorToSentry: mockLogErrorToSentry,
 }));
 vi.mock("@/lib/auth/session", () => ({ requireSession: mockSession }));
 vi.mock("@/lib/llmProvider", () => ({
   callLLM: mockCallLLM,
   LLMError: class LLMError extends Error {},
+  PUBLIC_LLM_ERROR: {
+    code: "AI_PROVIDER_UNAVAILABLE",
+    message: "AI coaching is temporarily unavailable. Please try again.",
+  },
+  toSafeLLMError: () => new Error("AI provider error: provider_network_error"),
 }));
 vi.mock("@/lib/analysisContextCache", () => ({
   getAnalysisContext: mockGetAnalysisContext,
   buildCondensedContext: mockBuildCondensedContext,
 }));
-vi.mock("@/lib/aiResponseValidator", () => ({ validateAIResponse: mockValidateAIResponse }));
+vi.mock("@/lib/aiResponseValidator", () => ({
+  validateAIResponse: mockValidateAIResponse,
+}));
 vi.mock("@/lib/server/firebaseAdmin", () => ({
   getAdminFirestore: vi.fn(),
   AdminConfigError: class AdminConfigError extends Error {},
   __resetAdminCacheForTests: vi.fn(),
 }));
-vi.mock("@/lib/mastermind/categorization/categoryClassifier", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/mastermind/categorization/categoryClassifier")>();
-  return { ...actual, classifyQuestion: mockClassifyQuestion };
-});
+vi.mock(
+  "@/lib/mastermind/categorization/categoryClassifier",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/lib/mastermind/categorization/categoryClassifier")
+      >();
+    return { ...actual, classifyQuestion: mockClassifyQuestion };
+  }
+);
 vi.mock("@/lib/mastermind/wireValidators", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/mastermind/wireValidators")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/mastermind/wireValidators")>();
   return { ...actual, fetchDataSources: mockFetchDataSources };
 });
 vi.mock("@/lib/mastermind/validators", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/mastermind/validators")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/mastermind/validators")>();
   return {
     ...actual,
     runValidationPipeline: mockRunValidationPipeline,
@@ -87,7 +98,8 @@ import { POST } from "../route";
 // Fixtures
 // ─────────────────────────────────────────────────────────────────────
 
-const CHAT_RESPONSE = "Looking at move 6, the trade simplified into an endgame favorable for Black.";
+const CHAT_RESPONSE =
+  "Looking at move 6, the trade simplified into an endgame favorable for Black.";
 
 function happyContext() {
   return {
@@ -106,7 +118,11 @@ function happyContext() {
   };
 }
 
-function happyPipelineResult(overrides: Partial<import("@/lib/mastermind/validators").RegenerateResult> = {}): import("@/lib/mastermind/validators").RegenerateResult {
+function happyPipelineResult(
+  overrides: Partial<
+    import("@/lib/mastermind/validators").RegenerateResult
+  > = {}
+): import("@/lib/mastermind/validators").RegenerateResult {
   return {
     finalResponse: CHAT_RESPONSE,
     retryCount: 0,
@@ -122,9 +138,15 @@ function happyDataSources(): import("@/lib/mastermind/wireValidators").FetchedDa
   return {
     featureDelta: {} as any,
     pieceRoleDiff: [],
-    scout: undefined,  // §3.4: chat skips scout
+    scout: undefined, // §3.4: chat skips scout
     userHistory: {
-      games: [{ pgn: "1. e4 e5", white: { name: "TestUser" }, black: { name: "Opp" } }] as any,
+      games: [
+        {
+          pgn: "1. e4 e5",
+          white: { name: "TestUser" },
+          black: { name: "Opp" },
+        },
+      ] as any,
       userName: "test-uid",
       nowMs: Date.now(),
     },
@@ -161,7 +183,11 @@ beforeEach(() => {
     issues: [],
     correctedResponse: CHAT_RESPONSE,
   });
-  mockCallLLM.mockResolvedValue({ content: CHAT_RESPONSE, inputTokens: 50, outputTokens: 20 });
+  mockCallLLM.mockResolvedValue({
+    content: CHAT_RESPONSE,
+    inputTokens: 50,
+    outputTokens: 20,
+  });
   mockClassifyQuestion.mockResolvedValue({
     category: "improvement_strategy",
     confidence: 0.85,
@@ -209,15 +235,35 @@ describe("chat route: flag-off invariants", () => {
     disableFlag();
     const res = await POST(
       makeRequest({
-        messages: [
-          { role: "user", content: "hi" },
-        ],
-      }),
+        messages: [{ role: "user", content: "hi" }],
+      })
     );
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.choices?.[0]?.message?.content).toBe(CHAT_RESPONSE);
     expect(mockRunValidationPipeline).not.toHaveBeenCalled();
+  });
+
+  it("does not return provider-controlled error text", async () => {
+    disableFlag();
+    mockCallLLM.mockRejectedValue(
+      new Error("sensitive-provider-response-body")
+    );
+
+    const res = await POST(makeRequest(fastPathBody()));
+    const json = await res.json();
+
+    expect(res.status).toBe(502);
+    expect(json).toEqual({
+      error: "AI coaching is temporarily unavailable. Please try again.",
+      code: "AI_PROVIDER_UNAVAILABLE",
+    });
+    expect(JSON.stringify(json)).not.toContain(
+      "sensitive-provider-response-body"
+    );
+    expect(JSON.stringify(mockLogErrorToSentry.mock.calls)).not.toContain(
+      "sensitive-provider-response-body"
+    );
   });
 });
 
@@ -265,10 +311,12 @@ describe("chat route: flag-on fast path", () => {
 
   it("flag on, pipeline retry → response.pipeline.retryCount=1, finalOutcome=passed_after_retry", async () => {
     enableFlag();
-    mockRunValidationPipeline.mockResolvedValue(happyPipelineResult({
-      retryCount: 1,
-      finalOutcome: "passed_after_retry",
-    }));
+    mockRunValidationPipeline.mockResolvedValue(
+      happyPipelineResult({
+        retryCount: 1,
+        finalOutcome: "passed_after_retry",
+      })
+    );
     const res = await POST(makeRequest(fastPathBody()));
     const json = await res.json();
     expect(json.gameAnalysis.pipeline.retryCount).toBe(1);
@@ -286,7 +334,7 @@ describe("chat route: flag-on edge cases", () => {
     const res = await POST(
       makeRequest({
         messages: [{ role: "user", content: "hi" }],
-      }),
+      })
     );
     expect(res.status).toBe(200);
     expect(mockRunValidationPipeline).not.toHaveBeenCalled();
@@ -315,7 +363,9 @@ describe("chat route: flag-on edge cases", () => {
   it("flag on, request lacks auth → 401 from requireSession; no pipeline", async () => {
     enableFlag();
     mockSession.mockResolvedValue({
-      response: new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 }),
+      response: new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+      }),
     });
     const res = await POST(makeRequest(fastPathBody()));
     expect(res.status).toBe(401);
@@ -354,13 +404,13 @@ describe("chat route: gameEval threading (γ-route, 2026-05-23)", () => {
   function gameEvalForHappyContext() {
     return {
       positions: [
-        { lines: [{ pv: [], cp: 0, depth: 14, multiPv: 1 }] },   // start
-        { lines: [{ pv: [], cp: 30, depth: 14, multiPv: 1 }] },  // 1.e4
-        { lines: [{ pv: [], cp: 25, depth: 14, multiPv: 1 }] },  // 1...e5
-        { lines: [{ pv: [], cp: 35, depth: 14, multiPv: 1 }] },  // 2.Nf3
-        { lines: [{ pv: [], cp: 30, depth: 14, multiPv: 1 }] },  // 2...Nc6
-        { lines: [{ pv: [], cp: 40, depth: 14, multiPv: 1 }] },  // 3.Bb5
-        { lines: [{ pv: [], cp: 45, depth: 14, multiPv: 1 }] },  // 3...a6
+        { lines: [{ pv: [], cp: 0, depth: 14, multiPv: 1 }] }, // start
+        { lines: [{ pv: [], cp: 30, depth: 14, multiPv: 1 }] }, // 1.e4
+        { lines: [{ pv: [], cp: 25, depth: 14, multiPv: 1 }] }, // 1...e5
+        { lines: [{ pv: [], cp: 35, depth: 14, multiPv: 1 }] }, // 2.Nf3
+        { lines: [{ pv: [], cp: 30, depth: 14, multiPv: 1 }] }, // 2...Nc6
+        { lines: [{ pv: [], cp: 40, depth: 14, multiPv: 1 }] }, // 3.Bb5
+        { lines: [{ pv: [], cp: 45, depth: 14, multiPv: 1 }] }, // 3...a6
       ],
     };
   }
@@ -384,7 +434,9 @@ describe("chat route: gameEval threading (γ-route, 2026-05-23)", () => {
 
     let capturedStockfishEval: { cp?: number; mate?: number } | null = null;
     mockRunValidationPipeline.mockImplementation(async (opts: unknown) => {
-      capturedStockfishEval = (opts as { stockfishEval: { cp?: number; mate?: number } }).stockfishEval;
+      capturedStockfishEval = (
+        opts as { stockfishEval: { cp?: number; mate?: number } }
+      ).stockfishEval;
       return happyPipelineResult();
     });
 
@@ -422,7 +474,7 @@ describe("chat route: gameEval threading (γ-route, 2026-05-23)", () => {
             timestamp_ms: Date.now(),
           },
         ],
-      }),
+      })
     );
 
     const res = await POST(makeRequest(fastPathBody()));
@@ -432,13 +484,21 @@ describe("chat route: gameEval threading (γ-route, 2026-05-23)", () => {
     expect(telemetry).toHaveLength(1);
     // Negative: skip path must NOT have fired (regression guard against
     // a future refactor silently dropping gameEval threading).
-    expect(telemetry.some((e: { fire_reason: string }) => e.fire_reason === "no_stockfish_eval")).toBe(false);
+    expect(
+      telemetry.some(
+        (e: { fire_reason: string }) => e.fire_reason === "no_stockfish_eval"
+      )
+    ).toBe(false);
     // Positive: eval_claim fired with a real-comparison fire_reason.
-    const evalClaimEvents = telemetry.filter((e: { check_name: string }) => e.check_name === "eval_claim");
-    expect(evalClaimEvents.length).toBeGreaterThan(0);
-    expect(["passed", "numeric_diff_exceeds_threshold", "qualitative_band_flip"]).toContain(
-      evalClaimEvents[0].fire_reason,
+    const evalClaimEvents = telemetry.filter(
+      (e: { check_name: string }) => e.check_name === "eval_claim"
     );
+    expect(evalClaimEvents.length).toBeGreaterThan(0);
+    expect([
+      "passed",
+      "numeric_diff_exceeds_threshold",
+      "qualitative_band_flip",
+    ]).toContain(evalClaimEvents[0].fire_reason);
   });
 
   it("legacy cache entry (gameEval omitted) → stockfishEval undefined → (β) skip path remains the safety net", async () => {
@@ -456,7 +516,9 @@ describe("chat route: gameEval threading (γ-route, 2026-05-23)", () => {
     // shape as cache entries created before this commit ships.
     let capturedStockfishEval: { cp?: number; mate?: number } | null = null;
     mockRunValidationPipeline.mockImplementation(async (opts: unknown) => {
-      capturedStockfishEval = (opts as { stockfishEval: { cp?: number; mate?: number } }).stockfishEval;
+      capturedStockfishEval = (
+        opts as { stockfishEval: { cp?: number; mate?: number } }
+      ).stockfishEval;
       return happyPipelineResult();
     });
 

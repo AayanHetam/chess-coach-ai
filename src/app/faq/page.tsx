@@ -49,7 +49,7 @@ const QA: { q: string; a: string }[] = [
   },
   {
     q: "Which LLM does it use?",
-    a: "Anthropic Claude. Claude Sonnet for deep game analysis, Claude Haiku for sub-5-second follow-up chat with server-side context caching.",
+    a: "Anthropic Claude normally handles coaching: Claude Sonnet for deep game analysis and Claude Haiku for fast follow-up chat with server-side context caching. OpenAI may process the same coaching request if Anthropic fails or when OpenAI is configured as the provider.",
   },
   {
     q: "Why does the engine run before the LLM, not after?",
@@ -118,8 +118,18 @@ const breadcrumbJsonLd = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   itemListElement: [
-    { "@type": "ListItem", position: 1, name: "Home", item: "https://chessmasti.com/" },
-    { "@type": "ListItem", position: 2, name: "FAQ", item: "https://chessmasti.com/faq" },
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Home",
+      item: "https://chessmasti.com/",
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: "FAQ",
+      item: "https://chessmasti.com/faq",
+    },
   ],
 };
 
@@ -142,8 +152,8 @@ export default function FaqPage() {
       <H1>Frequently asked questions</H1>
 
       <AnswerBlock>
-        Common questions about the engine-first pipeline, the validator, Maia-2, the puzzle graph,
-        and why this is free.
+        Common questions about the engine-first pipeline, the validator, Maia-2,
+        the puzzle graph, and why this is free.
       </AnswerBlock>
 
       <Box component="section" sx={{ mb: 10 }}>
@@ -157,7 +167,11 @@ export default function FaqPage() {
                 {item.q}
               </Typography>
               <Typography
-                sx={{ color: "rgba(255,255,255,0.65)", fontSize: "0.9rem", lineHeight: 1.8 }}
+                sx={{
+                  color: "rgba(255,255,255,0.65)",
+                  fontSize: "0.9rem",
+                  lineHeight: 1.8,
+                }}
               >
                 {item.a}
               </Typography>
@@ -173,13 +187,28 @@ export default function FaqPage() {
           borderColor: `${AEO_TOKENS.ember}22`,
         }}
       >
-        <Typography sx={{ fontWeight: 700, color: "#fff", fontSize: { xs: "1.25rem", md: "1.5rem" }, mb: 1 }}>
+        <Typography
+          sx={{
+            fontWeight: 700,
+            color: "#fff",
+            fontSize: { xs: "1.25rem", md: "1.5rem" },
+            mb: 1,
+          }}
+        >
           Related reading
         </Typography>
         <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 3 }}>
-          Deeper dives on the pipeline, the architecture, and the competitive landscape.
+          Deeper dives on the pipeline, the architecture, and the competitive
+          landscape.
         </Typography>
-        <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            justifyContent: "center",
+            flexWrap: "wrap",
+          }}
+        >
           <CtaButton href="/how-it-works">How the pipeline works</CtaButton>
           <CtaButton href="/architecture">Architecture</CtaButton>
           <CtaButton href="/vs">vs other coaches</CtaButton>

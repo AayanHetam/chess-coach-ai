@@ -16,25 +16,8 @@
  */
 
 import { logger } from "./logging";
-import type { LLMCaptureContext } from "@/lib/tracking/llmCapture";
-import { captureLLMCall } from "@/lib/tracking/llmCapture";
 
 const log = logger.child({ module: "llm-provider" });
-
-/**
- * Fire full prompt/response capture (TRK-2) when the caller supplied a
- * `capture` context. No-op otherwise. Never throws — captureLLMCall schedules
- * the write via after() and swallows everything; it must not touch the hot path.
- */
-function maybeCapture(
-  opts: CallLLMOptions,
-  result: LLMResult | null,
-  status: "ok" | "error",
-  errorMessage?: string,
-): void {
-  if (!opts.capture) return;
-  captureLLMCall({ ctx: opts.capture, opts, result, status, errorMessage });
-}
 
 // ── Env / config ────────────────────────────────────────────────────────────
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -98,13 +81,6 @@ export interface CallLLMOptions {
    * the orphan as an OpenAI request.
    */
   signal?: AbortSignal;
-  /**
-   * Full prompt/response capture context (TRK-2). When set, this call's system
-   * prompt, messages, and response are written to the tracking warehouse's
-   * llm_calls table (gated on TRACKING_ENABLED). Omit for diagnostic/health
-   * calls. The write is fire-and-forget and can never break this call.
-   */
-  capture?: LLMCaptureContext;
 }
 
 export interface LLMResult {
@@ -120,8 +96,20 @@ export interface LLMResult {
   /** How long the provider took (ms). Excludes fallback retry time. */
   elapsedMs: number;
   /** Populated when the primary provider failed and we fell back. */
-  primaryError?: { provider: LLMProvider; status?: number; message: string };
+  primaryError?: { provider: LLMProvider; status?: number; code: LLMErrorCode };
 }
+
+export type LLMErrorCode =
+  | "provider_unconfigured"
+  | "provider_http_error"
+  | "provider_network_error"
+  | "provider_invalid_response"
+  | "providers_unavailable";
+
+export const PUBLIC_LLM_ERROR = {
+  code: "AI_PROVIDER_UNAVAILABLE",
+  message: "AI coaching is temporarily unavailable. Please try again.",
+} as const;
 
 // ── Model mapping ───────────────────────────────────────────────────────────
 const MODELS = {
@@ -151,7 +139,11 @@ function buildAnthropicSystemPayload(opts: CallLLMOptions): unknown {
   if (!hasSuffix && !wantsCache) return opts.system;
   const blocks: Array<Record<string, unknown>> = [
     wantsCache
-      ? { type: "text", text: opts.system, cache_control: { type: "ephemeral" } }
+      ? {
+          type: "text",
+          text: opts.system,
+          cache_control: { type: "ephemeral" },
+        }
       : { type: "text", text: opts.system },
   ];
   if (hasSuffix) {
@@ -160,13 +152,26 @@ function buildAnthropicSystemPayload(opts: CallLLMOptions): unknown {
   return blocks;
 }
 
+async function fetchProvider(
+  provider: LLMProvider,
+  input: string,
+  init: RequestInit
+): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new LLMError(provider, 0, "provider_network_error");
+  }
+}
+
 // ── Anthropic call ──────────────────────────────────────────────────────────
 async function callAnthropic(
   tier: LLMTier,
   opts: CallLLMOptions
 ): Promise<LLMResult> {
   if (!isValidAnthropicKey(ANTHROPIC_API_KEY)) {
-    throw new LLMError("anthropic", 0, "ANTHROPIC_API_KEY not configured or invalid prefix");
+    throw new LLMError("anthropic", 0, "provider_unconfigured");
   }
 
   const model = MODELS.anthropic[tier];
@@ -174,38 +179,41 @@ async function callAnthropic(
 
   const systemPayload = buildAnthropicSystemPayload(opts);
 
-  const response = await fetch(`${ANTHROPIC_BASE_URL}/v1/messages`, {
-    method: "POST",
-    headers: {
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      system: systemPayload,
-      messages: opts.messages,
-      temperature: opts.temperature ?? 0.7,
-      max_tokens: opts.maxTokens ?? 1500,
-      // Sonnet 4.6 defaults effort to "high" (more thinking → higher latency/cost).
-      // Pin it to "medium" for the balanced cost/quality point. Flagship-only:
-      // the fast tier (Haiku 4.5) returns 400 if sent `effort`.
-      ...(tier === "flagship" ? { output_config: { effort: "medium" } } : {}),
-    }),
-    signal: opts.signal,
-  });
+  const response = await fetchProvider(
+    "anthropic",
+    `${ANTHROPIC_BASE_URL}/v1/messages`,
+    {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        system: systemPayload,
+        messages: opts.messages,
+        temperature: opts.temperature ?? 0.7,
+        max_tokens: opts.maxTokens ?? 1500,
+        // Sonnet 4.6 defaults effort to "high" (more thinking → higher latency/cost).
+        // Pin it to "medium" for the balanced cost/quality point. Flagship-only:
+        // the fast tier (Haiku 4.5) returns 400 if sent `effort`.
+        ...(tier === "flagship" ? { output_config: { effort: "medium" } } : {}),
+      }),
+      signal: opts.signal,
+    }
+  );
 
   const elapsedMs = Date.now() - startedAt;
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new LLMError("anthropic", response.status, body.slice(0, 300));
+    throw new LLMError("anthropic", response.status, "provider_http_error");
   }
 
   const data = await response.json();
   const content = data.content?.[0]?.text;
   if (typeof content !== "string") {
-    throw new LLMError("anthropic", 200, "Anthropic returned no text content");
+    throw new LLMError("anthropic", 200, "provider_invalid_response");
   }
 
   return {
@@ -226,7 +234,7 @@ async function callOpenAI(
   opts: CallLLMOptions
 ): Promise<LLMResult> {
   if (!isValidOpenAIKey(OPENAI_API_KEY)) {
-    throw new LLMError("openai", 0, "OPENAI_API_KEY not configured or invalid prefix");
+    throw new LLMError("openai", 0, "provider_unconfigured");
   }
 
   const model = MODELS.openai[tier];
@@ -247,32 +255,35 @@ async function callOpenAI(
     openaiMessages.push({ role: m.role, content: m.content });
   }
 
-  const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: openaiMessages,
-      temperature: opts.temperature ?? 0.7,
-      max_tokens: opts.maxTokens ?? 1500,
-    }),
-    signal: opts.signal,
-  });
+  const response = await fetchProvider(
+    "openai",
+    `${OPENAI_BASE_URL}/chat/completions`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: openaiMessages,
+        temperature: opts.temperature ?? 0.7,
+        max_tokens: opts.maxTokens ?? 1500,
+      }),
+      signal: opts.signal,
+    }
+  );
 
   const elapsedMs = Date.now() - startedAt;
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new LLMError("openai", response.status, body.slice(0, 300));
+    throw new LLMError("openai", response.status, "provider_http_error");
   }
 
   const data = await response.json();
   const content = data.choices?.[0]?.message?.content;
   if (typeof content !== "string") {
-    throw new LLMError("openai", 200, "OpenAI returned no message content");
+    throw new LLMError("openai", 200, "provider_invalid_response");
   }
 
   return {
@@ -300,7 +311,7 @@ async function* callAnthropicStream(
   opts: CallLLMOptions
 ): AsyncGenerator<LLMStreamEvent, void, void> {
   if (!isValidAnthropicKey(ANTHROPIC_API_KEY)) {
-    throw new LLMError("anthropic", 0, "ANTHROPIC_API_KEY not configured or invalid prefix");
+    throw new LLMError("anthropic", 0, "provider_unconfigured");
   }
 
   const model = MODELS.anthropic[tier];
@@ -308,33 +319,36 @@ async function* callAnthropicStream(
 
   const systemPayload = buildAnthropicSystemPayload(opts);
 
-  const response = await fetch(`${ANTHROPIC_BASE_URL}/v1/messages`, {
-    method: "POST",
-    headers: {
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      system: systemPayload,
-      messages: opts.messages,
-      temperature: opts.temperature ?? 0.7,
-      max_tokens: opts.maxTokens ?? 1500,
-      stream: true,
-      // See callAnthropic: pin Sonnet 4.6 effort to "medium"; flagship-only
-      // (Haiku 4.5 on the fast tier returns 400 if sent `effort`).
-      ...(tier === "flagship" ? { output_config: { effort: "medium" } } : {}),
-    }),
-    signal: opts.signal,
-  });
+  const response = await fetchProvider(
+    "anthropic",
+    `${ANTHROPIC_BASE_URL}/v1/messages`,
+    {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        system: systemPayload,
+        messages: opts.messages,
+        temperature: opts.temperature ?? 0.7,
+        max_tokens: opts.maxTokens ?? 1500,
+        stream: true,
+        // See callAnthropic: pin Sonnet 4.6 effort to "medium"; flagship-only
+        // (Haiku 4.5 on the fast tier returns 400 if sent `effort`).
+        ...(tier === "flagship" ? { output_config: { effort: "medium" } } : {}),
+      }),
+      signal: opts.signal,
+    }
+  );
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new LLMError("anthropic", response.status, body.slice(0, 300));
+    throw new LLMError("anthropic", response.status, "provider_http_error");
   }
   if (!response.body) {
-    throw new LLMError("anthropic", 200, "Anthropic streaming response had no body");
+    throw new LLMError("anthropic", 200, "provider_invalid_response");
   }
 
   const reader = response.body.getReader();
@@ -369,7 +383,10 @@ async function* callAnthropicStream(
             continue;
           }
 
-          if (data.type === "content_block_delta" && data.delta?.type === "text_delta") {
+          if (
+            data.type === "content_block_delta" &&
+            data.delta?.type === "text_delta"
+          ) {
             const text: string = data.delta.text || "";
             if (text) {
               fullText += text;
@@ -389,7 +406,11 @@ async function* callAnthropicStream(
       }
     }
   } finally {
-    try { reader.releaseLock(); } catch { /* ignore */ }
+    try {
+      reader.releaseLock();
+    } catch {
+      /* ignore */
+    }
   }
 
   const elapsedMs = Date.now() - startedAt;
@@ -423,39 +444,36 @@ export async function* callLLMStream(
   const openaiAvailable = isValidOpenAIKey(OPENAI_API_KEY);
 
   if (!anthropicAvailable && !openaiAvailable) {
-    throw new LLMError(
-      "anthropic",
-      0,
-      "Neither ANTHROPIC_API_KEY nor OPENAI_API_KEY is configured."
-    );
+    throw new LLMError("anthropic", 0, "providers_unavailable");
   }
 
   if (opts.forceProvider === "openai") {
     const result = await callOpenAI(opts.tier, opts);
     if (result.content) yield { type: "text", delta: result.content };
-    maybeCapture(opts, result, "ok");
     yield { type: "done", result };
     return;
   }
 
   if (anthropicAvailable) {
     try {
-      // Manual forward (vs `yield*`) so we can capture the final result the
-      // stream carries in its `done` event without changing what's emitted.
       for await (const ev of callAnthropicStream(opts.tier, opts)) {
-        if (ev.type === "done") maybeCapture(opts, ev.result, "ok");
         yield ev;
       }
       return;
     } catch (err) {
-      const e = err instanceof LLMError ? err : new LLMError("anthropic", 0, String(err));
-      log.warn("Anthropic streaming failed, falling back to OpenAI non-streaming", {
-        tier: opts.tier,
-        status: e.status,
-        detail: e.detail.slice(0, 200),
-      });
+      const e =
+        err instanceof LLMError
+          ? err
+          : new LLMError("anthropic", 0, "provider_network_error");
+      log.warn(
+        "Anthropic streaming failed, falling back to OpenAI non-streaming",
+        {
+          tier: opts.tier,
+          status: e.status,
+          code: e.code,
+        }
+      );
       if (!openaiAvailable) {
-        maybeCapture(opts, null, "error", e.detail);
         throw e;
       }
       // fall through to OpenAI fallback below
@@ -464,7 +482,6 @@ export async function* callLLMStream(
 
   const result = await callOpenAI(opts.tier, opts);
   if (result.content) yield { type: "text", delta: result.content };
-  maybeCapture(opts, result, "ok");
   yield { type: "done", result };
 }
 
@@ -473,11 +490,20 @@ export class LLMError extends Error {
   constructor(
     public provider: LLMProvider,
     public status: number,
-    public detail: string
+    public code: LLMErrorCode
   ) {
-    super(`[${provider}] ${status ? `HTTP ${status} ` : ""}${detail}`);
+    super(`AI provider error: ${code}`);
     this.name = "LLMError";
   }
+}
+
+export function toSafeLLMError(
+  error: unknown,
+  provider: LLMProvider = "anthropic"
+): LLMError {
+  return error instanceof LLMError
+    ? error
+    : new LLMError(provider, 0, "provider_network_error");
 }
 
 // ── Main entry point ────────────────────────────────────────────────────────
@@ -498,11 +524,7 @@ export async function callLLM(opts: CallLLMOptions): Promise<LLMResult> {
   const openaiAvailable = isValidOpenAIKey(OPENAI_API_KEY);
 
   if (!anthropicAvailable && !openaiAvailable) {
-    throw new LLMError(
-      "anthropic",
-      0,
-      "Neither ANTHROPIC_API_KEY nor OPENAI_API_KEY is configured."
-    );
+    throw new LLMError("anthropic", 0, "providers_unavailable");
   }
 
   // Forced provider (skip fallback — useful for diagnostics).
@@ -526,7 +548,6 @@ export async function callLLM(opts: CallLLMOptions): Promise<LLMResult> {
         cacheReadTokens: result.cacheReadTokens,
         elapsedMs: result.elapsedMs,
       });
-      maybeCapture(opts, result, "ok");
       return result;
     } catch (err) {
       // Belt-and-suspenders abort check: if the caller's signal aborted
@@ -542,11 +563,14 @@ export async function callLLM(opts: CallLLMOptions): Promise<LLMResult> {
         throw err;
       }
 
-      const e = err instanceof LLMError ? err : new LLMError("anthropic", 0, String(err));
+      const e =
+        err instanceof LLMError
+          ? err
+          : new LLMError("anthropic", 0, "provider_network_error");
       log.warn("Anthropic call failed, falling back to OpenAI", {
         tier: opts.tier,
         status: e.status,
-        detail: e.detail.slice(0, 200),
+        code: e.code,
       });
 
       if (!openaiAvailable) {
@@ -557,17 +581,22 @@ export async function callLLM(opts: CallLLMOptions): Promise<LLMResult> {
         const fallback = await callOpenAI(opts.tier, opts);
         const withPrimaryError: LLMResult = {
           ...fallback,
-          primaryError: { provider: "anthropic", status: e.status, message: e.detail },
+          primaryError: {
+            provider: "anthropic",
+            status: e.status,
+            code: e.code,
+          },
         };
-        maybeCapture(opts, withPrimaryError, "ok");
         return withPrimaryError;
       } catch (err2) {
-        const e2 = err2 instanceof LLMError ? err2 : new LLMError("openai", 0, String(err2));
+        const e2 =
+          err2 instanceof LLMError
+            ? err2
+            : new LLMError("openai", 0, "provider_network_error");
         log.error("Both LLM providers failed", {
-          anthropic: { status: e.status, detail: e.detail.slice(0, 100) },
-          openai: { status: e2.status, detail: e2.detail.slice(0, 100) },
+          anthropic: { status: e.status, code: e.code },
+          openai: { status: e2.status, code: e2.code },
         });
-        maybeCapture(opts, null, "error", `anthropic: ${e.detail} | openai: ${e2.detail}`);
         throw e2;
       }
     }
@@ -582,7 +611,6 @@ export async function callLLM(opts: CallLLMOptions): Promise<LLMResult> {
     outputTokens: result.outputTokens,
     elapsedMs: result.elapsedMs,
   });
-  maybeCapture(opts, result, "ok");
   return result;
 }
 

@@ -40,11 +40,6 @@ const softwareApplication = {
   url: BASE,
   description:
     "Free AI chess coach combining Stockfish engine analysis with Claude AI explanations. Analyze games, train from your mistakes, and scout opponents — free.",
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-  },
   creator: {
     "@type": "Person",
     name: "Aayan Hetamsaria",

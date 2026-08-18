@@ -85,7 +85,7 @@ const comparisons = [
   {
     label: "Privacy",
     others: "Data sent to servers",
-    ours: "100% client-side, nothing leaves",
+    ours: "Local chess engine; AI coaching sent securely to Anthropic or OpenAI",
   },
   {
     label: "Puzzle Practice",
@@ -96,11 +96,6 @@ const comparisons = [
     label: "Opponent Scouting",
     others: "Not available",
     ours: "Full opening tree from Chess.com / Lichess",
-  },
-  {
-    label: "Cost",
-    others: "$2\u2013$30/hour",
-    ours: "Completely free",
   },
 ];
 
@@ -159,7 +154,9 @@ export default function LandingComparison() {
               backgroundColor: "#FAFAFA",
             }}
           >
-            <Box sx={{ flex: "1 1 33%", p: 2.5, fontWeight: 700, color: "#333" }} />
+            <Box
+              sx={{ flex: "1 1 33%", p: 2.5, fontWeight: 700, color: "#333" }}
+            />
             <Box
               sx={{
                 flex: "1 1 33%",

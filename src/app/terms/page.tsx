@@ -61,30 +61,30 @@ export default function TermsPage() {
               coach, puzzles, and game review. Use it for your own learning and
               play. Don&apos;t abuse the service (no scraping, reselling, or
               attempts to break or overload it), and don&apos;t use it for
-              anything unlawful. You&apos;re responsible for keeping your account
-              secure.
+              anything unlawful. You&apos;re responsible for keeping your
+              account secure.
             </p>
           </section>
 
           <section>
             <h2>Who can use it</h2>
             <p>
-              Chess Masti is intended for users <strong>13 and older</strong>. If
-              you are under 13, you may use it only with the involvement and
+              Chess Masti is intended for users <strong>13 and older</strong>.
+              If you are under 13, you may use it only with the involvement and
               consent of a parent or guardian, who agrees to these terms on your
-              behalf. If you are a parent
-              and believe a child under 13 has signed up without your consent,
-              email us (below) and we&apos;ll remove the account and its data.
+              behalf. If you are a parent and believe a child under 13 has
+              signed up without your consent, email us (below) and we&apos;ll
+              remove the account and its data.
             </p>
           </section>
 
           <section>
             <h2>Free service</h2>
             <p>
-              Chess Masti is free to use. Its chess coaching features do not
-              are available for free. We may change, add, limit, suspend, or retire
-              features as the service evolves, and we do not guarantee that any
-              particular feature will always be available.
+              Chess Masti is free to use, including its chess coaching features.
+              We may change, add, limit, suspend, or retire features as the
+              service evolves, and we do not guarantee that any particular
+              feature will always be available.
             </p>
           </section>
 

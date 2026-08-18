@@ -1,22 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Chess } from "chess.js";
 import { validateAIResponse } from "@/lib/aiResponseValidator";
-import { annotatePosition, annotationToPromptContext } from "@/lib/positionAnnotator";
-import { selectExamples, formatExamplesForPrompt } from "@/data/goldStandardExamples";
-import { generateCacheKey, getCachedResponse, setCachedResponse } from "@/lib/responseCache";
+import {
+  annotatePosition,
+  annotationToPromptContext,
+} from "@/lib/positionAnnotator";
+import {
+  selectExamples,
+  formatExamplesForPrompt,
+} from "@/data/goldStandardExamples";
+import {
+  generateCacheKey,
+  getCachedResponse,
+  setCachedResponse,
+} from "@/lib/responseCache";
 import { recordLLMCall } from "@/lib/llmStatsAggregator";
 import {
   generateContextId,
   storeAnalysisContext,
 } from "@/lib/analysisContextCache";
-import { enhancedAnalysisSchema, validateRequest } from "@/lib/validation/schemas";
+import {
+  enhancedAnalysisSchema,
+  validateRequest,
+} from "@/lib/validation/schemas";
 import {
   logger,
   logErrorToSentry,
   withRequestContext,
   extractRequestId,
 } from "@/lib/logging";
-import { callLLM, callLLMStream, LLMError } from "@/lib/llmProvider";
+import {
+  callLLM,
+  callLLMStream,
+  LLMError,
+  PUBLIC_LLM_ERROR,
+  toSafeLLMError,
+} from "@/lib/llmProvider";
 import {
   getCoachChatSystemPromptParts,
   PROMPT_VERSION,
@@ -38,7 +57,10 @@ import {
   POSITION_ANCHORED_VALIDATOR_CATEGORIES,
   type VoterSnapshot,
 } from "@/lib/mastermind/validators";
-import { fetchDataSources, type FetchedDataSources } from "@/lib/mastermind/wireValidators";
+import {
+  fetchDataSources,
+  type FetchedDataSources,
+} from "@/lib/mastermind/wireValidators";
 import { computeCitationRate } from "@/lib/mastermind/citationRate";
 import {
   forwardTelemetry,
@@ -121,7 +143,11 @@ function convertPvToSan(fen: string, pvUci: string[]): string[] {
 /**
  * Format a SAN PV array as a numbered move list: "14. Qe2 Nxe5 15. Nxe5 d6"
  */
-function formatPvAsMoveList(pvSan: string[], startMoveNum: number, startsAsWhite: boolean): string {
+function formatPvAsMoveList(
+  pvSan: string[],
+  startMoveNum: number,
+  startsAsWhite: boolean
+): string {
   const parts: string[] = [];
   let moveNum = startMoveNum;
   let isWhite = startsAsWhite;
@@ -162,10 +188,28 @@ function uciToSan(fen: string, uciMove: string): string {
  * Algorithmically detect tactical motifs from a move and its engine PV.
  * Returns verified string tags — so GPT explains a known motif rather than guessing.
  */
-function detectTacticalMotifs(fenBefore: string, moveSan: string, pvSan: string[]): string[] {
+function detectTacticalMotifs(
+  fenBefore: string,
+  moveSan: string,
+  pvSan: string[]
+): string[] {
   const motifs: string[] = [];
-  const pieceValues: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-  const pieceNames: Record<string, string> = { p: "Pawn", n: "Knight", b: "Bishop", r: "Rook", q: "Queen", k: "King" };
+  const pieceValues: Record<string, number> = {
+    p: 1,
+    n: 3,
+    b: 3,
+    r: 5,
+    q: 9,
+    k: 0,
+  };
+  const pieceNames: Record<string, string> = {
+    p: "Pawn",
+    n: "Knight",
+    b: "Bishop",
+    r: "Rook",
+    q: "Queen",
+    k: "King",
+  };
 
   try {
     const gameBefore = new Chess(fenBefore);
@@ -181,13 +225,20 @@ function detectTacticalMotifs(fenBefore: string, moveSan: string, pvSan: string[
       const movingVal = pieceValues[moveObj.piece] ?? 0;
       const capturedVal = pieceValues[moveObj.captured] ?? 0;
       if (movingVal > capturedVal) {
-        motifs.push(`SACRIFICE (${pieceNames[moveObj.piece]} for ${pieceNames[moveObj.captured]})`);
+        motifs.push(
+          `SACRIFICE (${pieceNames[moveObj.piece]} for ${pieceNames[moveObj.captured]})`
+        );
       }
     }
 
     // 2. Check — detect if it's a discovered check by checking if the moved piece itself attacks the king
     if (gameAfter.inCheck()) {
-      const kingSquare = gameAfter.board().flat().find(sq => sq && sq.type === "k" && sq.color === opponentColor)?.square;
+      const kingSquare = gameAfter
+        .board()
+        .flat()
+        .find(
+          (sq) => sq && sq.type === "k" && sq.color === opponentColor
+        )?.square;
       let isDiscovered = false;
       if (kingSquare) {
         try {
@@ -195,10 +246,13 @@ function detectTacticalMotifs(fenBefore: string, moveSan: string, pvSan: string[
           const fenParts = gameAfter.fen().split(" ");
           fenParts[1] = ourColor;
           const tempGame = new Chess(fenParts.join(" "));
-          const canReachKing = tempGame.moves({ square: moveObj.to as any, verbose: true } as any)
+          const canReachKing = tempGame
+            .moves({ square: moveObj.to as any, verbose: true } as any)
             .some((m: any) => m.to === kingSquare);
           isDiscovered = !canReachKing;
-        } catch { /* fallback to plain CHECK */ }
+        } catch {
+          /* fallback to plain CHECK */
+        }
       }
       motifs.push(isDiscovered ? "DISCOVERED CHECK" : "CHECK");
     }
@@ -212,13 +266,17 @@ function detectTacticalMotifs(fenBefore: string, moveSan: string, pvSan: string[
         }
       }
     }
-    const attackedOpponentPieces = opponentPieces.filter(sq => gameAfter.isAttacked(sq as any, ourColor));
+    const attackedOpponentPieces = opponentPieces.filter((sq) =>
+      gameAfter.isAttacked(sq as any, ourColor)
+    );
     if (attackedOpponentPieces.length >= 2) {
-      motifs.push(`FORK / DOUBLE ATTACK (${attackedOpponentPieces.length} pieces under threat)`);
+      motifs.push(
+        `FORK / DOUBLE ATTACK (${attackedOpponentPieces.length} pieces under threat)`
+      );
     }
 
     // 4. Promotion threat in PV
-    if (pvSan.some(san => san.includes("=Q") || san.includes("=R"))) {
+    if (pvSan.some((san) => san.includes("=Q") || san.includes("=R"))) {
       motifs.push("PROMOTION THREAT");
     }
 
@@ -227,13 +285,17 @@ function detectTacticalMotifs(fenBefore: string, moveSan: string, pvSan: string[
       const gameAfterFirst = new Chess(gameAfter.fen());
       const opponentMoves = gameAfterFirst.moves().length;
       if (opponentMoves <= 3) {
-        motifs.push(`FORCED LINE (opponent has ${opponentMoves} response${opponentMoves === 1 ? "" : "s"})`);
+        motifs.push(
+          `FORCED LINE (opponent has ${opponentMoves} response${opponentMoves === 1 ? "" : "s"})`
+        );
       }
     }
 
     // 6. Quiet move — no capture, no check, but high eval gain (often the hardest to explain)
     if (!moveObj.captured && !gameAfter.inCheck() && motifs.length === 0) {
-      motifs.push("QUIET MOVE (positional — requires deep calculation to validate)");
+      motifs.push(
+        "QUIET MOVE (positional — requires deep calculation to validate)"
+      );
     }
   } catch {
     // Non-critical — return what we have
@@ -260,11 +322,26 @@ function computeCandidateGap(lines: PositionEvalInput["lines"]): string {
   if (lines.length < 2) return "Only one candidate line available.";
   const line1 = lines[0];
   const line2 = lines[1];
-  const eval1 = line1.mate !== undefined ? (line1.mate > 0 ? 9999 : -9999) : (line1.cp ?? 0);
-  const eval2 = line2.mate !== undefined ? (line2.mate > 0 ? 9999 : -9999) : (line2.cp ?? 0);
+  const eval1 =
+    line1.mate !== undefined
+      ? line1.mate > 0
+        ? 9999
+        : -9999
+      : (line1.cp ?? 0);
+  const eval2 =
+    line2.mate !== undefined
+      ? line2.mate > 0
+        ? 9999
+        : -9999
+      : (line2.cp ?? 0);
   const gap = Math.abs(eval1 - eval2);
   const gapStr = (gap / 100).toFixed(2);
-  const severity = gap >= 300 ? "CRITICAL JUNCTION" : gap >= 100 ? "IMPORTANT CHOICE" : "CLOSE ALTERNATIVES";
+  const severity =
+    gap >= 300
+      ? "CRITICAL JUNCTION"
+      : gap >= 100
+        ? "IMPORTANT CHOICE"
+        : "CLOSE ALTERNATIVES";
   return `${severity} — gap between #1 and #2 candidate: ${gapStr} pawns`;
 }
 
@@ -272,7 +349,12 @@ function computeCandidateGap(lines: PositionEvalInput["lines"]): string {
  * Generate a deterministic one-sentence explanation seed from the full PV.
  * Summarizes which pieces become active, captured, or threatened along the line.
  */
-function buildExplanationSeed(fenBefore: string, pvSan: string[], moveNum: number, isWhiteMove: boolean): string {
+function buildExplanationSeed(
+  fenBefore: string,
+  pvSan: string[],
+  moveNum: number,
+  isWhiteMove: boolean
+): string {
   if (pvSan.length === 0) return "";
   try {
     const game = new Chess(fenBefore);
@@ -286,8 +368,16 @@ function buildExplanationSeed(fenBefore: string, pvSan: string[], moveNum: numbe
       if (!moveObj) break;
       const moveLabel = isWhite ? `${lastMoveNum}.` : `${lastMoveNum}...`;
       if (moveObj.captured) {
-        const pieceNames: Record<string, string> = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen" };
-        captures.push(`${moveLabel} ${san} wins the ${pieceNames[moveObj.captured] || moveObj.captured}`);
+        const pieceNames: Record<string, string> = {
+          p: "pawn",
+          n: "knight",
+          b: "bishop",
+          r: "rook",
+          q: "queen",
+        };
+        captures.push(
+          `${moveLabel} ${san} wins the ${pieceNames[moveObj.captured] || moveObj.captured}`
+        );
       }
       if (game.inCheck()) checks.push(`${moveLabel} ${san} gives check`);
       if (!isWhite) lastMoveNum++;
@@ -296,10 +386,14 @@ function buildExplanationSeed(fenBefore: string, pvSan: string[], moveNum: numbe
 
     const parts: string[] = [];
     if (captures.length > 0) parts.push(captures.slice(0, 2).join(", then "));
-    if (checks.length > 0 && !captures.some(c => checks[0].includes(c.split(" ")[1]))) {
+    if (
+      checks.length > 0 &&
+      !captures.some((c) => checks[0].includes(c.split(" ")[1]))
+    ) {
       parts.push(checks[0]);
     }
-    if (parts.length === 0) return `The line runs ${pvSan.slice(0, 5).join(" ")} — a positional sequence building long-term advantage.`;
+    if (parts.length === 0)
+      return `The line runs ${pvSan.slice(0, 5).join(" ")} — a positional sequence building long-term advantage.`;
     return `The key idea: ${parts.join("; ")}.`;
   } catch {
     return "";
@@ -317,7 +411,14 @@ function describeMoveChange(fenBefore: string, moveSan: string): string {
     if (!moveObj) return "";
 
     const parts: string[] = [];
-    const pieceName: Record<string, string> = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
+    const pieceName: Record<string, string> = {
+      p: "pawn",
+      n: "knight",
+      b: "bishop",
+      r: "rook",
+      q: "queen",
+      k: "king",
+    };
     const color = moveObj.color === "w" ? "White" : "Black";
     const piece = pieceName[moveObj.piece] || moveObj.piece;
 
@@ -326,7 +427,9 @@ function describeMoveChange(fenBefore: string, moveSan: string): string {
     } else if (moveObj.flags.includes("q")) {
       parts.push(`${color} castled queenside`);
     } else {
-      parts.push(`${color} ${piece} moved from ${moveObj.from} to ${moveObj.to}`);
+      parts.push(
+        `${color} ${piece} moved from ${moveObj.from} to ${moveObj.to}`
+      );
     }
 
     if (moveObj.captured) {
@@ -390,24 +493,33 @@ async function buildGameContext(
   const totalFullMoves = Math.ceil(totalHalfMoves / 2);
   const game = new Chess();
   for (const m of moveHistory) {
-    try { game.move(m); } catch { break; }
+    try {
+      game.move(m);
+    } catch {
+      break;
+    }
   }
 
   let overview = `## GAME OVERVIEW\n`;
   overview += `- Total moves: ${totalFullMoves} full moves (${totalHalfMoves} half-moves)\n`;
   overview += `- Result: ${game.isCheckmate() ? "Checkmate" : game.isStalemate() ? "Stalemate" : game.isDraw() ? "Draw" : "In progress"}\n`;
-  if (username) overview += `- Player: ${username} playing as ${playerColor === "w" ? "White" : "Black"}\n`;
+  if (username)
+    overview += `- Player: ${username} playing as ${playerColor === "w" ? "White" : "Black"}\n`;
   if (userRating) overview += `- Player rating: ${userRating}\n`;
-  if (gameEval?.accuracy) overview += `- Accuracy: White ${gameEval.accuracy.white.toFixed(1)}%, Black ${gameEval.accuracy.black.toFixed(1)}%\n`;
-  if (gameEval?.estimatedElo) overview += `- Estimated Elo: White ~${gameEval.estimatedElo.white}, Black ~${gameEval.estimatedElo.black}\n`;
+  if (gameEval?.accuracy)
+    overview += `- Accuracy: White ${gameEval.accuracy.white.toFixed(1)}%, Black ${gameEval.accuracy.black.toFixed(1)}%\n`;
+  if (gameEval?.estimatedElo)
+    overview += `- Estimated Elo: White ~${gameEval.estimatedElo.white}, Black ~${gameEval.estimatedElo.black}\n`;
   // PGN headers — only emit lines for fields actually present. Chess.com /
   // lichess imports populate most of these; raw FEN-loaded games populate
   // none. The coach uses them to ground references like "your opponent's
   // rapid rating" or "this Najdorf was played in last year's Tata Steel".
   if (gameHeaders) {
     const h = gameHeaders;
-    if (h.white) overview += `- White: ${h.white}${h.whiteElo ? ` (${h.whiteElo})` : ""}\n`;
-    if (h.black) overview += `- Black: ${h.black}${h.blackElo ? ` (${h.blackElo})` : ""}\n`;
+    if (h.white)
+      overview += `- White: ${h.white}${h.whiteElo ? ` (${h.whiteElo})` : ""}\n`;
+    if (h.black)
+      overview += `- Black: ${h.black}${h.blackElo ? ` (${h.blackElo})` : ""}\n`;
     if (h.event) overview += `- Event: ${h.event}\n`;
     if (h.date) overview += `- Date: ${h.date}\n`;
     if (h.timeControl) overview += `- Time control: ${h.timeControl}\n`;
@@ -415,7 +527,8 @@ async function buildGameContext(
       const parts = [h.opening, h.eco ? `ECO ${h.eco}` : null].filter(Boolean);
       overview += `- Opening: ${parts.join(", ")}\n`;
     }
-    if (h.result && h.result !== "*") overview += `- PGN result tag: ${h.result}\n`;
+    if (h.result && h.result !== "*")
+      overview += `- PGN result tag: ${h.result}\n`;
   }
   sections.push(overview);
 
@@ -494,9 +607,12 @@ async function buildGameContext(
           const bestLine = evalBefore.lines?.[0];
           if (bestLine?.pv && bestLine.pv.length > 0) {
             const pvSan = convertPvToSan(fenBefore, bestLine.pv);
-            const pvEvalStr = bestLine.mate !== undefined
-              ? `M${bestLine.mate > 0 ? "+" : ""}${bestLine.mate}`
-              : bestLine.cp !== undefined ? `${bestLine.cp >= 0 ? "+" : ""}${(bestLine.cp / 100).toFixed(2)}` : "";
+            const pvEvalStr =
+              bestLine.mate !== undefined
+                ? `M${bestLine.mate > 0 ? "+" : ""}${bestLine.mate}`
+                : bestLine.cp !== undefined
+                  ? `${bestLine.cp >= 0 ? "+" : ""}${(bestLine.cp / 100).toFixed(2)}`
+                  : "";
             const fullPvLine = formatPvAsMoveList(pvSan, moveNum, i % 2 === 0);
             line += `\n    Best was: ${bestSan} (${pvEvalStr}, depth ${bestLine.depth}) — Engine line: ${fullPvLine}`;
           } else {
@@ -509,12 +625,18 @@ async function buildGameContext(
 
       // Detect mistakes (evaluation drops)
       if (evalBefore?.lines?.[0] && evalAfter?.lines?.[0]) {
-        const cpBefore = evalBefore.lines[0].mate !== undefined
-          ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
-          : (evalBefore.lines[0].cp ?? 0);
-        const cpAfter = evalAfter.lines[0].mate !== undefined
-          ? (evalAfter.lines[0].mate! > 0 ? 9999 : -9999)
-          : (evalAfter.lines[0].cp ?? 0);
+        const cpBefore =
+          evalBefore.lines[0].mate !== undefined
+            ? evalBefore.lines[0].mate! > 0
+              ? 9999
+              : -9999
+            : (evalBefore.lines[0].cp ?? 0);
+        const cpAfter =
+          evalAfter.lines[0].mate !== undefined
+            ? evalAfter.lines[0].mate! > 0
+              ? 9999
+              : -9999
+            : (evalAfter.lines[0].cp ?? 0);
 
         // Calculate eval drop from the player's perspective
         // Positive cp = good for White. For White moves, a drop is cpAfter < cpBefore. For Black, it's cpAfter > cpBefore.
@@ -527,7 +649,8 @@ async function buildGameContext(
           drop = cpAfter - cpBefore;
         }
 
-        if (drop > 50) { // More than 0.5 pawn drop
+        if (drop > 50) {
+          // More than 0.5 pawn drop
           const bestSan = evalBefore.bestMove
             ? uciToSan(fenBefore, evalBefore.bestMove)
             : "N/A";
@@ -549,7 +672,9 @@ async function buildGameContext(
       }
     }
 
-    sections.push(`## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)\n${moveLines.join("\n")}`);
+    sections.push(
+      `## MOVE-BY-MOVE ANALYSIS (with Stockfish evaluations)\n${moveLines.join("\n")}`
+    );
 
     // --- Top mistakes with full PV lines and candidate moves ---
     // System prompt says ONLY analyse the player's mistakes. The mistakes
@@ -565,31 +690,57 @@ async function buildGameContext(
       // Stage 6: pre-fetch chessdb results for all top mistakes in parallel
       // Stage 7: pre-fetch Lc0 results in parallel (only when trigger fires)
       // Stage 8: pre-fetch Maia per-rating visibility (only when userRating present)
-      const [mistakeChessdbResults, mistakeLc0Results, mistakeMaiaResults] = await Promise.all([
-        // Voter at compileVoterResult() below combines chessdb with motifs from
-        // m.fenBefore + stockfish eval from evalBefore. Query chessdb on the
-        // same pre-mistake FEN so all signals describe the same position.
-        Promise.all(topMistakes.map((m) => queryChessdb(m.fenBefore).catch(() => null))),
-        Promise.all(topMistakes.map((m) => {
-          const evalBefore = gameEval!.positions[m.halfMoveIdx];
-          const sfCp = evalBefore?.lines?.[0]?.cp ?? null;
-          return shouldCallLc0(sfCp, evalBefore?.lines ?? [])
-            ? queryLc0(m.fenBefore).catch(() => null)
-            : Promise.resolve(null);
-        })),
-        Promise.all(topMistakes.map((m) => {
-          const evalBefore = gameEval!.positions[m.halfMoveIdx];
-          const bestUci = evalBefore?.lines?.[0]?.pv?.[0] ?? null;
-          return shouldCallMaia(userRating, bestUci)
-            ? queryMaiaAtRating(m.fenBefore, userRating!, bestUci!).catch(() => null)
-            : Promise.resolve(null);
-        })),
-      ]);
+      const [mistakeChessdbResults, mistakeLc0Results, mistakeMaiaResults] =
+        await Promise.all([
+          // Voter at compileVoterResult() below combines chessdb with motifs from
+          // m.fenBefore + stockfish eval from evalBefore. Query chessdb on the
+          // same pre-mistake FEN so all signals describe the same position.
+          Promise.all(
+            topMistakes.map((m) => queryChessdb(m.fenBefore).catch(() => null))
+          ),
+          Promise.all(
+            topMistakes.map((m) => {
+              const evalBefore = gameEval!.positions[m.halfMoveIdx];
+              const sfCp = evalBefore?.lines?.[0]?.cp ?? null;
+              return shouldCallLc0(sfCp, evalBefore?.lines ?? [])
+                ? queryLc0(m.fenBefore).catch(() => null)
+                : Promise.resolve(null);
+            })
+          ),
+          Promise.all(
+            topMistakes.map((m) => {
+              const evalBefore = gameEval!.positions[m.halfMoveIdx];
+              const bestUci = evalBefore?.lines?.[0]?.pv?.[0] ?? null;
+              return shouldCallMaia(userRating, bestUci)
+                ? queryMaiaAtRating(m.fenBefore, userRating!, bestUci!).catch(
+                    () => null
+                  )
+                : Promise.resolve(null);
+            })
+          ),
+        ]);
 
       const mistakeLines = topMistakes.map((m, mi) => {
-        const severity = m.drop >= 300 ? "BLUNDER" : m.drop >= 150 ? "MISTAKE" : m.drop >= 50 ? "INACCURACY" : "MINOR";
-        const evalBeforeStr = Math.abs(m.evalBefore) >= 9000 ? (m.evalBefore > 0 ? "M+" : "M-") : (m.evalBefore / 100).toFixed(2);
-        const evalAfterStr = Math.abs(m.evalAfter) >= 9000 ? (m.evalAfter > 0 ? "M+" : "M-") : (m.evalAfter / 100).toFixed(2);
+        const severity =
+          m.drop >= 300
+            ? "BLUNDER"
+            : m.drop >= 150
+              ? "MISTAKE"
+              : m.drop >= 50
+                ? "INACCURACY"
+                : "MINOR";
+        const evalBeforeStr =
+          Math.abs(m.evalBefore) >= 9000
+            ? m.evalBefore > 0
+              ? "M+"
+              : "M-"
+            : (m.evalBefore / 100).toFixed(2);
+        const evalAfterStr =
+          Math.abs(m.evalAfter) >= 9000
+            ? m.evalAfter > 0
+              ? "M+"
+              : "M-"
+            : (m.evalAfter / 100).toFixed(2);
         const changeDesc = describeMoveChange(m.fenBefore, m.moveSan);
         let line = `### Move ${m.moveNum} (${m.color}): ${m.moveSan} [${severity}]`;
         line += `\n  Eval: ${evalBeforeStr} → ${evalAfterStr} (lost ${(m.drop / 100).toFixed(1)} pawns)`;
@@ -601,8 +752,12 @@ async function buildGameContext(
         if (evalBefore?.lines && evalBefore.lines.length > 0) {
           // Stage 6+7+8: multi-source voter with Lc0 neural eval + Maia visibility
           const bestPvLine = evalBefore.lines[0];
-          const bestPvSan = bestPvLine?.pv ? convertPvToSan(m.fenBefore, bestPvLine.pv) : [];
-          const structuredMotifs = m.moveSan ? detectMotifs(m.fenBefore, m.moveSan) : [];
+          const bestPvSan = bestPvLine?.pv
+            ? convertPvToSan(m.fenBefore, bestPvLine.pv)
+            : [];
+          const structuredMotifs = m.moveSan
+            ? detectMotifs(m.fenBefore, m.moveSan)
+            : [];
           const voterResult = compileVoterResult({
             motifs: structuredMotifs,
             chessdbResult: mistakeChessdbResults[mi],
@@ -619,15 +774,20 @@ async function buildGameContext(
           line += `\n  ${gapAnalysis}`;
 
           // Branch point between best line and played move line
-          const playedPvLine = evalBefore.lines.find(l => {
-            const first = l.pv?.[0] ? convertPvToSan(m.fenBefore, [l.pv[0]])[0] : undefined;
+          const playedPvLine = evalBefore.lines.find((l) => {
+            const first = l.pv?.[0]
+              ? convertPvToSan(m.fenBefore, [l.pv[0]])[0]
+              : undefined;
             return first === m.moveSan;
           });
           if (bestPvSan.length > 0 && playedPvLine?.pv) {
             const playedPvSan = convertPvToSan(m.fenBefore, playedPvLine.pv);
             const branchIdx = findBranchPoint(bestPvSan, playedPvSan);
             if (branchIdx < Math.min(bestPvSan.length, playedPvSan.length)) {
-              const sharedLine = branchIdx > 0 ? `after ${bestPvSan.slice(0, branchIdx).join(" ")} — ` : "";
+              const sharedLine =
+                branchIdx > 0
+                  ? `after ${bestPvSan.slice(0, branchIdx).join(" ")} — `
+                  : "";
               line += `\n  BRANCH POINT: Lines diverge at move ${branchIdx + 1}. ${sharedLine}Best continues ${bestPvSan[branchIdx] ?? "?"}, played line goes ${playedPvSan[branchIdx] ?? "?"}`;
             }
           }
@@ -637,12 +797,19 @@ async function buildGameContext(
             if (!pvLine.pv || pvLine.pv.length === 0) continue;
             // Convert full PV from UCI to SAN
             const pvSan = convertPvToSan(m.fenBefore, pvLine.pv);
-            const pvEval = pvLine.mate !== undefined
-              ? `M${pvLine.mate > 0 ? "+" : ""}${pvLine.mate}`
-              : pvLine.cp !== undefined ? `${pvLine.cp >= 0 ? "+" : ""}${(pvLine.cp / 100).toFixed(2)}` : "?";
+            const pvEval =
+              pvLine.mate !== undefined
+                ? `M${pvLine.mate > 0 ? "+" : ""}${pvLine.mate}`
+                : pvLine.cp !== undefined
+                  ? `${pvLine.cp >= 0 ? "+" : ""}${(pvLine.cp / 100).toFixed(2)}`
+                  : "?";
             const firstMove = pvSan.length > 0 ? pvSan[0] : pvLine.pv[0];
             const isPlayed = firstMove === m.moveSan;
-            const fullLine = formatPvAsMoveList(pvSan, m.moveNum, m.halfMoveIdx % 2 === 0);
+            const fullLine = formatPvAsMoveList(
+              pvSan,
+              m.moveNum,
+              m.halfMoveIdx % 2 === 0
+            );
             line += `\n    ${isPlayed ? "⮕ PLAYED" : "★ BETTER"}: ${firstMove} (${pvEval}) — Line: ${fullLine} (depth ${pvLine.depth})`;
           }
         }
@@ -653,16 +820,24 @@ async function buildGameContext(
         return line;
       });
 
-      sections.push(`## TOP MISTAKES (sorted by severity — ANALYZE EACH WITH FULL DEPTH)\n${mistakeLines.join("\n\n")}`);
+      sections.push(
+        `## TOP MISTAKES (sorted by severity — ANALYZE EACH WITH FULL DEPTH)\n${mistakeLines.join("\n\n")}`
+      );
     } else {
-      sections.push(`## MISTAKES\nNo significant mistakes detected (all moves within 0.5 pawn of engine best).`);
+      sections.push(
+        `## MISTAKES\nNo significant mistakes detected (all moves within 0.5 pawn of engine best).`
+      );
     }
   } else {
-    sections.push(`## NOTE: No Stockfish evaluation data available. The game has not been engine-analyzed yet. Analyze the position and moves based on general chess principles.`);
+    sections.push(
+      `## NOTE: No Stockfish evaluation data available. The game has not been engine-analyzed yet. Analyze the position and moves based on general chess principles.`
+    );
   }
 
   // --- Material balance at end ---
-  sections.push(`## FINAL POSITION\nFEN: ${game.fen()}\n${getMaterialBalance(game)}`);
+  sections.push(
+    `## FINAL POSITION\nFEN: ${game.fen()}\n${getMaterialBalance(game)}`
+  );
 
   // --- Structured position annotation for the final position ---
   try {
@@ -676,15 +851,32 @@ async function buildGameContext(
   // This gives GPT verified tactical tags, explanation seeds, and branch analysis
   // so it explains known truths rather than hallucinating chess ideas.
   if (gameEval?.positions) {
-    const sortedMistakes: Array<{ halfMoveIdx: number; moveNum: number; color: string; moveSan: string; drop: number; fenBefore: string }> = [];
+    const sortedMistakes: Array<{
+      halfMoveIdx: number;
+      moveNum: number;
+      color: string;
+      moveSan: string;
+      drop: number;
+      fenBefore: string;
+    }> = [];
 
     for (let i = 0; i < moveHistory.length; i++) {
       const evalBefore = gameEval.positions[i];
       const evalAfter = gameEval.positions[i + 1];
       if (!evalBefore?.lines?.[0] || !evalAfter?.lines?.[0]) continue;
 
-      const cpBefore = evalBefore.lines[0].mate !== undefined ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999) : (evalBefore.lines[0].cp ?? 0);
-      const cpAfter = evalAfter.lines[0].mate !== undefined ? (evalAfter.lines[0].mate! > 0 ? 9999 : -9999) : (evalAfter.lines[0].cp ?? 0);
+      const cpBefore =
+        evalBefore.lines[0].mate !== undefined
+          ? evalBefore.lines[0].mate! > 0
+            ? 9999
+            : -9999
+          : (evalBefore.lines[0].cp ?? 0);
+      const cpAfter =
+        evalAfter.lines[0].mate !== undefined
+          ? evalAfter.lines[0].mate! > 0
+            ? 9999
+            : -9999
+          : (evalAfter.lines[0].cp ?? 0);
       const drop = i % 2 === 0 ? cpBefore - cpAfter : cpAfter - cpBefore;
 
       if (drop > 50) {
@@ -708,7 +900,10 @@ async function buildGameContext(
         const evalBefore = gameEval.positions[m.halfMoveIdx];
         if (!evalBefore?.lines?.[0]) continue;
 
-        const bestPvSan = convertPvToSan(m.fenBefore, evalBefore.lines[0].pv ?? []);
+        const bestPvSan = convertPvToSan(
+          m.fenBefore,
+          evalBefore.lines[0].pv ?? []
+        );
         const motifs = m.moveSan ? detectMotifs(m.fenBefore, m.moveSan) : [];
         // Stage 6+7+8: all signals describe the same pre-mistake position.
         // Trigger Lc0 when SF is uncertain; trigger Maia when we have a user rating.
@@ -716,9 +911,13 @@ async function buildGameContext(
         const bestUciIntel = evalBefore.lines[0]?.pv?.[0] ?? null;
         const [cdbResult, lc0IntelResult, maiaIntelResult] = await Promise.all([
           queryChessdb(m.fenBefore).catch(() => null),
-          shouldCallLc0(sfCpIntel, evalBefore.lines) ? queryLc0(m.fenBefore).catch(() => null) : Promise.resolve(null),
+          shouldCallLc0(sfCpIntel, evalBefore.lines)
+            ? queryLc0(m.fenBefore).catch(() => null)
+            : Promise.resolve(null),
           shouldCallMaia(userRating, bestUciIntel)
-            ? queryMaiaAtRating(m.fenBefore, userRating!, bestUciIntel!).catch(() => null)
+            ? queryMaiaAtRating(m.fenBefore, userRating!, bestUciIntel!).catch(
+                () => null
+              )
             : Promise.resolve(null),
         ]);
         const voterIntel = compileVoterResult({
@@ -731,8 +930,14 @@ async function buildGameContext(
           stockfishBestMoveMate: evalBefore.lines[0]?.mate ?? null,
         });
         const gapAnalysis = computeCandidateGap(evalBefore.lines);
-        const explanationSeed = buildExplanationSeed(m.fenBefore, bestPvSan, m.moveNum, m.halfMoveIdx % 2 === 0);
-        const severity = m.drop >= 300 ? "BLUNDER" : m.drop >= 150 ? "MISTAKE" : "INACCURACY";
+        const explanationSeed = buildExplanationSeed(
+          m.fenBefore,
+          bestPvSan,
+          m.moveNum,
+          m.halfMoveIdx % 2 === 0
+        );
+        const severity =
+          m.drop >= 300 ? "BLUNDER" : m.drop >= 150 ? "MISTAKE" : "INACCURACY";
 
         let block = `### CRITICAL POSITION: Move ${m.moveNum} (${m.color} — ${severity})\n`;
         block += `${voterIntel.groundingContext}\n`;
@@ -740,9 +945,15 @@ async function buildGameContext(
 
         // Branch point between best and 2nd candidate
         if (evalBefore.lines.length >= 2 && bestPvSan.length > 0) {
-          const pv2San = convertPvToSan(m.fenBefore, evalBefore.lines[1].pv ?? []);
+          const pv2San = convertPvToSan(
+            m.fenBefore,
+            evalBefore.lines[1].pv ?? []
+          );
           const branchIdx = findBranchPoint(bestPvSan, pv2San);
-          const shared = branchIdx > 0 ? `Shared first ${branchIdx} move(s): ${bestPvSan.slice(0, branchIdx).join(" ")}. ` : "";
+          const shared =
+            branchIdx > 0
+              ? `Shared first ${branchIdx} move(s): ${bestPvSan.slice(0, branchIdx).join(" ")}. `
+              : "";
           block += `BRANCH POINT: ${shared}Key divergence — best: ${bestPvSan[branchIdx] ?? "?"} vs alternative: ${pv2San[branchIdx] ?? "?"}\n`;
         }
 
@@ -756,7 +967,9 @@ async function buildGameContext(
       }
 
       if (intelligenceLines.length > 0) {
-        sections.push(`## CHESS INTELLIGENCE LAYER\n(Pre-computed verified analysis — use this to ground your explanations)\n\n${intelligenceLines.join("\n")}`);
+        sections.push(
+          `## CHESS INTELLIGENCE LAYER\n(Pre-computed verified analysis — use this to ground your explanations)\n\n${intelligenceLines.join("\n")}`
+        );
       }
     }
   }
@@ -831,13 +1044,19 @@ function buildCompactGameContext(
     let cpBefore: number | null = null;
     let cpAfter: number | null = null;
     if (evalBefore?.lines?.[0] && evalAfter?.lines?.[0]) {
-      cpBefore = evalBefore.lines[0].mate !== undefined
-        ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
-        : (evalBefore.lines[0].cp ?? 0);
-      cpAfter = evalAfter.lines[0].mate !== undefined
-        ? (evalAfter.lines[0].mate! > 0 ? 9999 : -9999)
-        : (evalAfter.lines[0].cp ?? 0);
-      drop = isWhite ? (cpBefore - cpAfter) : (cpAfter - cpBefore);
+      cpBefore =
+        evalBefore.lines[0].mate !== undefined
+          ? evalBefore.lines[0].mate! > 0
+            ? 9999
+            : -9999
+          : (evalBefore.lines[0].cp ?? 0);
+      cpAfter =
+        evalAfter.lines[0].mate !== undefined
+          ? evalAfter.lines[0].mate! > 0
+            ? 9999
+            : -9999
+          : (evalAfter.lines[0].cp ?? 0);
+      drop = isWhite ? cpBefore - cpAfter : cpAfter - cpBefore;
     }
 
     // Pick a single label: severity for >50cp drops, otherwise the engine's
@@ -846,7 +1065,8 @@ function buildCompactGameContext(
     if (drop >= 300) label = "BLUNDER";
     else if (drop >= 150) label = "MISTAKE";
     else if (drop >= 50) label = "INACCURACY";
-    else if (evalAfter?.moveClassification) label = evalAfter.moveClassification;
+    else if (evalAfter?.moveClassification)
+      label = evalAfter.moveClassification;
 
     // Build the sentence
     let sentence = `Move ${moveNum} (${colorWord}): ${moveSan}`;
@@ -859,7 +1079,10 @@ function buildCompactGameContext(
       sentence += `; eval ${beforeStr} → ${afterStr} (lost ${(drop / 100).toFixed(1)} pawns)`;
     } else if (evalAfter?.lines?.[0]) {
       // For routine moves, just the resulting eval
-      const afterStr = formatCp(evalAfter.lines[0].cp ?? 0, evalAfter.lines[0].mate);
+      const afterStr = formatCp(
+        evalAfter.lines[0].cp ?? 0,
+        evalAfter.lines[0].mate
+      );
       sentence += `${label ? ";" : " —"} eval ${afterStr}`;
     }
 
@@ -884,7 +1107,9 @@ function buildCompactGameContext(
     }
   }
 
-  sections.push(`## MOVE-BY-MOVE NARRATIVE\n(One sentence per half-move. Eval is in pawns from White's perspective. Quote these sentences directly when asked about specific moves — do not paraphrase or invent.)\n${evalSentences.join("\n")}`);
+  sections.push(
+    `## MOVE-BY-MOVE NARRATIVE\n(One sentence per half-move. Eval is in pawns from White's perspective. Quote these sentences directly when asked about specific moves — do not paraphrase or invent.)\n${evalSentences.join("\n")}`
+  );
 
   // Mirror buildGameContext: filter to the user's color so opponent blunders
   // don't leak into TOP MISTAKES and contradict the player-perspective rule.
@@ -894,14 +1119,17 @@ function buildCompactGameContext(
     userMistakes.sort((a, b) => b.drop - a.drop);
     const top = userMistakes.slice(0, 12);
     const mistakeLines = top.map((m) => {
-      const severity = m.drop >= 300 ? "BLUNDER" : m.drop >= 150 ? "MISTAKE" : "INACCURACY";
+      const severity =
+        m.drop >= 300 ? "BLUNDER" : m.drop >= 150 ? "MISTAKE" : "INACCURACY";
       const before = formatCp(m.cpBefore);
       const after = formatCp(m.cpAfter);
       const lost = (m.drop / 100).toFixed(1);
       const best = m.bestSan ? `; Stockfish preferred ${m.bestSan}` : "";
       return `- Move ${m.moveNum} (${m.color}): ${m.moveSan} [${severity}] — eval ${before} → ${after} (lost ${lost} pawns)${best}`;
     });
-    sections.push(`## TOP MISTAKES (worst eval drops first, max 12)\n${mistakeLines.join("\n")}`);
+    sections.push(
+      `## TOP MISTAKES (worst eval drops first, max 12)\n${mistakeLines.join("\n")}`
+    );
   }
 
   sections.push(`Player is ${playerColor === "w" ? "White" : "Black"}.`);
@@ -922,7 +1150,11 @@ function buildCompactGameContext(
 function getFenAtHalfMove(moveHistory: string[], halfMoveIdx: number): string {
   const game = new Chess();
   for (let i = 0; i < halfMoveIdx; i++) {
-    try { game.move(moveHistory[i]); } catch { break; }
+    try {
+      game.move(moveHistory[i]);
+    } catch {
+      break;
+    }
   }
   return game.fen();
 }
@@ -955,13 +1187,19 @@ function getMaterialBalance(game: Chess): string {
     }
   }
   const values: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9 };
-  let whiteScore = 0, blackScore = 0;
+  let whiteScore = 0,
+    blackScore = 0;
   for (const [piece, value] of Object.entries(values)) {
     whiteScore += pieces.w[piece as keyof typeof pieces.w] * value;
     blackScore += pieces.b[piece as keyof typeof pieces.b] * value;
   }
   const diff = whiteScore - blackScore;
-  const balance = diff === 0 ? "Equal material" : diff > 0 ? `White +${diff} material` : `Black +${Math.abs(diff)} material`;
+  const balance =
+    diff === 0
+      ? "Equal material"
+      : diff > 0
+        ? `White +${diff} material`
+        : `Black +${Math.abs(diff)} material`;
   return `Material: ${balance}`;
 }
 
@@ -1059,19 +1297,21 @@ async function generatePuzzleRecommendations(
   moveHistory: string[] | undefined,
   gameEval: any,
   userRating: number = 1500
-): Promise<Array<{
-  moveNumber: number;
-  movePlayed: string;
-  correctMove: string;
-  fen: string;
-  evalBefore: number;
-  evalAfter: number;
-  mistakeSeverity: "blunder" | "mistake" | "inaccuracy";
-  tacticalMotifs: string[];
-  puzzles: any[];
-  explanation: string;
-  reinforcements?: ReinforcementForCoach;
-}>> {
+): Promise<
+  Array<{
+    moveNumber: number;
+    movePlayed: string;
+    correctMove: string;
+    fen: string;
+    evalBefore: number;
+    evalAfter: number;
+    mistakeSeverity: "blunder" | "mistake" | "inaccuracy";
+    tacticalMotifs: string[];
+    puzzles: any[];
+    explanation: string;
+    reinforcements?: ReinforcementForCoach;
+  }>
+> {
   if (!moveHistory || !gameEval?.positions) {
     return [];
   }
@@ -1084,12 +1324,18 @@ async function generatePuzzleRecommendations(
     const evalAfter = gameEval.positions[i + 1];
     if (!evalBefore?.lines?.[0] || !evalAfter?.lines?.[0]) continue;
 
-    const cpBefore = evalBefore.lines[0].mate !== undefined
-      ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
-      : (evalBefore.lines[0].cp ?? 0);
-    const cpAfter = evalAfter.lines[0].mate !== undefined
-      ? (evalAfter.lines[0].mate! > 0 ? 9999 : -9999)
-      : (evalAfter.lines[0].cp ?? 0);
+    const cpBefore =
+      evalBefore.lines[0].mate !== undefined
+        ? evalBefore.lines[0].mate! > 0
+          ? 9999
+          : -9999
+        : (evalBefore.lines[0].cp ?? 0);
+    const cpAfter =
+      evalAfter.lines[0].mate !== undefined
+        ? evalAfter.lines[0].mate! > 0
+          ? 9999
+          : -9999
+        : (evalAfter.lines[0].cp ?? 0);
     const drop = i % 2 === 0 ? cpBefore - cpAfter : cpAfter - cpBefore;
 
     // Only generate puzzles for mistakes/blunders (not minor inaccuracies)
@@ -1102,19 +1348,22 @@ async function generatePuzzleRecommendations(
 
     try {
       // Call the mistake-puzzles API
-      const response = await fetch("http://localhost:3000/api/mistake-puzzles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fen: fenBefore,
-          movePlayed: moveHistory[i],
-          correctMove: bestMove,
-          evalBefore: cpBefore,
-          evalAfter: cpAfter,
-          tacticalMotifs: motifs,
-          userRating,
-        }),
-      });
+      const response = await fetch(
+        "http://localhost:3000/api/mistake-puzzles",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fen: fenBefore,
+            movePlayed: moveHistory[i],
+            correctMove: bestMove,
+            evalBefore: cpBefore,
+            evalAfter: cpAfter,
+            tacticalMotifs: motifs,
+            userRating,
+          }),
+        }
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -1139,7 +1388,10 @@ async function generatePuzzleRecommendations(
         });
       }
     } catch (error) {
-      console.error(`Failed to fetch puzzles for mistake at move ${Math.floor(i / 2) + 1}:`, error);
+      console.error(
+        `Failed to fetch puzzles for mistake at move ${Math.floor(i / 2) + 1}:`,
+        error
+      );
       // Continue with other mistakes even if one fails
     }
 
@@ -1154,479 +1406,832 @@ export async function POST(request: NextRequest) {
   const requestId = extractRequestId(request.headers);
 
   return withRequestContext(requestId, async () => {
-  // Local helper so each fatal catch block can fire one structured Sentry
-  // event without re-deriving the abort-vs-real-error guard or rebuilding
-  // the {route, requestId, phase} envelope at every site. AbortError fires
-  // when the client closes the connection mid-stream — that's the user, not
-  // a bug, so we filter it out. Everything else (LLMError, FD/pipeline
-  // failures, validation explosions) goes to Sentry so the team gets paged
-  // instead of finding the failure in next month's Vercel log search.
-  const reportFatal = (
-    err: unknown,
-    phase: string,
-    extra?: Record<string, unknown>
-  ) => {
-    const e = err instanceof Error ? err : new Error(String(err));
-    if (e.name === "AbortError") return;
-    logErrorToSentry(err, {
-      route: "/api/enhanced-analysis",
-      requestId,
-      phase,
-      ...extra,
-    });
-  };
-  const guard = await requireSession();
-  if ("response" in guard) return guard.response;
-  const session = guard.session;
-  try {
-    const body = await request.json();
-
-    const parsed = validateRequest(enhancedAnalysisSchema, body);
-    if (!parsed.success) return parsed.response;
-    const {
-      userMessage,
-      message,
-      moveHistory,
-      fen,
-      position,
-      gameEval,
-      playerColor,
-      username,
-      // Rename on destructure so we can override with the Firestore-stored
-      // selfReportedRating after the profile read below. AnalysisImpl already
-      // sends profile.selfReportedRating in the body (PR #64), but the
-      // legacy AICoachChat callers and future surfaces may not — when they
-      // don't, the value the LLM sees should still be the user's true rating
-      // instead of silently defaulting to 1500.
-      userRating: userRatingFromBody,
-      boardOrientation,
-      conversationHistory,
-      personalityId,
-      playerColorName,
-      chesscomUsername,
-      lichessUsername,
-      opponentUsername,
-      opponentPlatform,
-      gameHeaders,
-      stream: streamRequested,
-    } = parsed.data;
-    const messageText = userMessage || message || "";
-
-    // Stage B insertion point A (§3.7.9): single env read. No branching cost
-    // when off; flag-off path remains byte-identical to today.
-    const { validatorsEnabled } = getMastermindEnv();
-
-    // Look up the signed-in user's coaching prefs + stored rating from
-    // Firestore so the system prompt, skill calibration, and puzzle
-    // recommendations can all be personalized. Server-side only — never
-    // trust prefs from the client body. Best-effort: if Firestore is
-    // down we proceed without personalization rather than fail the
-    // request.
-    //
-    // userRating resolves request-body-first, Firestore-second. AnalysisImpl
-    // wires profile.selfReportedRating into the body via PR #64; the
-    // Firestore fallback covers the legacy AICoachChat path, the browser
-    // extension, and any future caller that forgets to send the rating.
-    let coachingPrefs:
-      | import("@/lib/prompts/coachChatPrompt").CoachingPrefs
-      | undefined;
-    let profileRating: number | undefined;
-    try {
-      const profile = await getUserById(session.uid);
-      if (profile) {
-        coachingPrefs = {
-          coachTone: profile.coachTone,
-          playingStyle: profile.playingStyle,
-          studyGoals: profile.studyGoals,
-          favoriteOpenings: profile.favoriteOpenings,
-        };
-        // Single-rating model: prefer the live mirror (tracks improvement),
-        // then the placement-measured rating, then the self-reported prior.
-        profileRating =
-          profile.liveRatingSnapshot ??
-          profile.measuredRating ??
-          profile.selfReportedRating;
-      }
-    } catch (err) {
-      log.warn("could not load coaching prefs", {
-        err: err instanceof Error ? err.message : String(err),
+    // Local helper so each fatal catch block can fire one structured Sentry
+    // event without re-deriving the abort-vs-real-error guard or rebuilding
+    // the {route, requestId, phase} envelope at every site. AbortError fires
+    // when the client closes the connection mid-stream — that's the user, not
+    // a bug, so we filter it out. Everything else (LLMError, FD/pipeline
+    // failures, validation explosions) goes to Sentry so the team gets paged
+    // instead of finding the failure in next month's Vercel log search.
+    const reportFatal = (
+      err: unknown,
+      phase: string,
+      extra?: Record<string, unknown>
+    ) => {
+      const e = err instanceof Error ? err : new Error(String(err));
+      if (e.name === "AbortError") return;
+      logErrorToSentry(err, {
+        route: "/api/enhanced-analysis",
+        requestId,
+        phase,
+        ...extra,
       });
-    }
-    // Q5 (async-grounding plan): third fallback — the game's own PGN Elo
-    // header for the user's color. user_history aggregates carry no rating
-    // fields (only latent PGN tags), so the current game's header is the
-    // cheapest reliable source. Keeps Maia visibility grounding live for
-    // users who never set a rating but analyze rated games. Range guard
-    // mirrors shouldCallMaia's [100, 3500] so junk headers ("?", "0") can't
-    // skew skill calibration.
-    const headerEloRaw = playerColor === "b" ? gameHeaders?.blackElo : gameHeaders?.whiteElo;
-    const headerElo = headerEloRaw ? Number.parseInt(headerEloRaw, 10) : NaN;
-    const userRating =
-      userRatingFromBody ??
-      profileRating ??
-      (Number.isFinite(headerElo) && headerElo >= 100 && headerElo <= 3500
-        ? headerElo
-        : undefined);
+    };
+    const guard = await requireSession();
+    if ("response" in guard) return guard.response;
+    const session = guard.session;
+    try {
+      const body = await request.json();
 
-    log.info("Enhanced analysis started", {
-      hasMessage: !!messageText,
-      moveCount: moveHistory?.length,
-      hasEval: !!gameEval,
-      playerColor,
-      skillLevel: userRating ? (userRating < 1000 ? "beginner" : userRating < 1600 ? "intermediate" : "advanced") : "intermediate",
-    });
-
-    // API-key presence is now validated inside callLLM(); both Anthropic and
-    // OpenAI are accepted, with automatic fallback from one to the other.
-
-    // Build game context for the LLM
-    let gameContext = "";
-    if (moveHistory && moveHistory.length > 0) {
-      gameContext = await buildGameContext(
+      const parsed = validateRequest(enhancedAnalysisSchema, body);
+      if (!parsed.success) return parsed.response;
+      const {
+        userMessage,
+        message,
         moveHistory,
+        fen,
+        position,
         gameEval,
-        playerColor || (boardOrientation ? "w" : "b"),
+        playerColor,
         username,
-        userRating,
-        gameHeaders
-      );
-    } else if (fen || position) {
-      // Position-only analysis
-      const fenStr = fen || position;
-      const game = new Chess(fenStr);
-      gameContext = `## POSITION ANALYSIS\nFEN: ${fenStr}\nTurn: ${game.turn() === "w" ? "White" : "Black"}\nLegal moves: ${game.moves().length}\n${getMaterialBalance(game)}`;
-      // Stage 1: Syzygy endgame grounding via Lichess tablebase API
+        // Rename on destructure so we can override with the Firestore-stored
+        // selfReportedRating after the profile read below. AnalysisImpl already
+        // sends profile.selfReportedRating in the body (PR #64), but the
+        // legacy AICoachChat callers and future surfaces may not — when they
+        // don't, the value the LLM sees should still be the user's true rating
+        // instead of silently defaulting to 1500.
+        userRating: userRatingFromBody,
+        boardOrientation,
+        conversationHistory,
+        personalityId,
+        playerColorName,
+        chesscomUsername,
+        lichessUsername,
+        opponentUsername,
+        opponentPlatform,
+        gameHeaders,
+        stream: streamRequested,
+      } = parsed.data;
+      const messageText = userMessage || message || "";
+
+      // Stage B insertion point A (§3.7.9): single env read. No branching cost
+      // when off; flag-off path remains byte-identical to today.
+      const { validatorsEnabled } = getMastermindEnv();
+
+      // Look up the signed-in user's coaching prefs + stored rating from
+      // Firestore so the system prompt, skill calibration, and puzzle
+      // recommendations can all be personalized. Server-side only — never
+      // trust prefs from the client body. Best-effort: if Firestore is
+      // down we proceed without personalization rather than fail the
+      // request.
+      //
+      // userRating resolves request-body-first, Firestore-second. AnalysisImpl
+      // wires profile.selfReportedRating into the body via PR #64; the
+      // Firestore fallback covers the legacy AICoachChat path, the browser
+      // extension, and any future caller that forgets to send the rating.
+      let coachingPrefs:
+        | import("@/lib/prompts/coachChatPrompt").CoachingPrefs
+        | undefined;
+      let profileRating: number | undefined;
       try {
-        const tbResult = fenStr ? await fetch_lichess_tablebase(fenStr) : null;
-        if (tbResult) {
-          let tbBlock = `\n\n## ENDGAME GROUND TRUTH (Syzygy tablebases — mathematically perfect for ≤7 pieces)\n`;
-          tbBlock += `Outcome for side to move: ${tbResult.category}\n`;
-          if (tbResult.dtm !== null) tbBlock += `Distance to mate: ${tbResult.dtm} moves\n`;
-          if (tbResult.dtz !== null) tbBlock += `Distance to zeroing: ${tbResult.dtz}\n`;
-          if (tbResult.moves.length > 0) {
-            const best = tbResult.moves[0];
-            tbBlock += `Best move: ${best.san ?? best.uci} (${best.category})\n`;
-          }
-          tbBlock += `RULE: Endgame outcome claims MUST match the Syzygy result above exactly. Do not assert "winning" if Syzygy says "draw" or "loss".\n`;
-          gameContext += tbBlock;
+        const profile = await getUserById(session.uid);
+        if (profile) {
+          coachingPrefs = {
+            coachTone: profile.coachTone,
+            playingStyle: profile.playingStyle,
+            studyGoals: profile.studyGoals,
+            favoriteOpenings: profile.favoriteOpenings,
+          };
+          // Single-rating model: prefer the live mirror (tracks improvement),
+          // then the placement-measured rating, then the self-reported prior.
+          profileRating =
+            profile.liveRatingSnapshot ??
+            profile.measuredRating ??
+            profile.selfReportedRating;
         }
-      } catch { /* tablebase is non-critical */ }
-    } else {
-      gameContext = "No game data or position provided. The user may be asking a general chess question.";
-    }
-
-    // (moved up) — coaching prefs + rating are now resolved earlier in the
-    // function so downstream telemetry, buildGameContext and prompt
-    // composition all see the Firestore fallback automatically.
-
-    // Build the system prompt for Claude. Server-controlled only — composed
-    // from structured params in the validated body (see AUDIT-PHASE-1.4
-    // hardening note above). personalityId is resolved against a server-side
-    // allowlist via getPersonalityById; unknown ids fall back to the default.
-    //
-    // The prompt comes back split into two parts so the LLM call can put
-    // the stable prefix under an ephemeral cache marker and stream the
-    // per-user tail uncached. Two users sharing the same personalityId hit
-    // the prompt cache even with different username / rating / coaching
-    // prefs — that was the ~4x cost overrun the audit flagged.
-    //
-    // `claudeSystemPrompt` (the concatenated string) is still used by
-    // storeAnalysisContext so /api/chat's contextId lookup keeps returning
-    // a single self-contained prompt blob.
-    const claudeSystemParts = getCoachChatSystemPromptParts({
-      personalityId: personalityId ?? "friendly",
-      userRating: userRating ?? 1500,
-      username,
-      playerColorName,
-      chesscomUsername,
-      lichessUsername,
-      coachingPrefs,
-    });
-    const claudeSystemPrompt = `${claudeSystemParts.stable}\n\n${claudeSystemParts.perUser}`;
-
-    // Per-request LLM telemetry. Captured at whichever branch ends up
-    // serving the response (flag-on pipeline, flag-off direct call, or
-    // FD-fallback) so the non-streaming JSON response can surface token
-    // counts + cache hits to the client. With this in the payload the
-    // cost-per-request claims for the prompt-cache restructure
-    // (PRs #70 + #77) are demonstrable to a reviewer without grepping
-    // Vercel logs.
-    let llmTelemetry:
-      | {
-          provider?: string;
-          model?: string;
-          inputTokens?: number;
-          outputTokens?: number;
-          cacheCreationTokens?: number;
-          cacheReadTokens?: number;
-          elapsedMs?: number;
-        }
-      | undefined;
-
-    // Build the messages for Claude (user/assistant turns only — system is separate)
-    const claudeMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
-
-    // Add conversation history for multi-turn context (prior messages before current)
-    if (conversationHistory && Array.isArray(conversationHistory) && conversationHistory.length > 0) {
-      for (const msg of conversationHistory) {
-        if (msg.content && (msg.role === "user" || msg.role === "assistant")) {
-          claudeMessages.push({ role: msg.role, content: msg.content });
-        }
+      } catch (err) {
+        log.warn("could not load coaching prefs", {
+          err: err instanceof Error ? err.message : String(err),
+        });
       }
-    }
+      // Q5 (async-grounding plan): third fallback — the game's own PGN Elo
+      // header for the user's color. user_history aggregates carry no rating
+      // fields (only latent PGN tags), so the current game's header is the
+      // cheapest reliable source. Keeps Maia visibility grounding live for
+      // users who never set a rating but analyze rated games. Range guard
+      // mirrors shouldCallMaia's [100, 3500] so junk headers ("?", "0") can't
+      // skew skill calibration.
+      const headerEloRaw =
+        playerColor === "b" ? gameHeaders?.blackElo : gameHeaders?.whiteElo;
+      const headerElo = headerEloRaw ? Number.parseInt(headerEloRaw, 10) : NaN;
+      const userRating =
+        userRatingFromBody ??
+        profileRating ??
+        (Number.isFinite(headerElo) && headerElo >= 100 && headerElo <= 3500
+          ? headerElo
+          : undefined);
 
-    // Current user message with full game context appended
-    let userContent = "";
-    if (messageText) {
-      userContent += `## USER REQUEST:\n${messageText}\n\n`;
-    }
-    if (gameContext) {
-      userContent += gameContext;
-    }
+      log.info("Enhanced analysis started", {
+        hasMessage: !!messageText,
+        moveCount: moveHistory?.length,
+        hasEval: !!gameEval,
+        playerColor,
+        skillLevel: userRating
+          ? userRating < 1000
+            ? "beginner"
+            : userRating < 1600
+              ? "intermediate"
+              : "advanced"
+          : "intermediate",
+      });
 
-    // Inject gold-standard few-shot examples for quality benchmarking
-    const skillLevel = userRating
-      ? (userRating < 1000 ? "beginner" : userRating < 1600 ? "intermediate" : "advanced") as "beginner" | "intermediate" | "advanced"
-      : "intermediate" as const;
-    const examples = selectExamples(undefined, skillLevel, 3);
-    const examplesContext = formatExamplesForPrompt(examples);
-    if (examplesContext) {
-      userContent += examplesContext;
-    }
+      // API-key presence is now validated inside callLLM(); both Anthropic and
+      // OpenAI are accepted, with automatic fallback from one to the other.
 
-    claudeMessages.push({ role: "user", content: userContent });
-
-    // Check response cache before calling Claude
-    const currentFen = fen || (moveHistory && moveHistory.length > 0
-      ? getFenAtHalfMove(moveHistory, moveHistory.length)
-      : "startpos");
-    // Persona signature scopes the cache to this caller's coaching prefs +
-    // personality. Without it two users on the same FEN with the same
-    // question would share the same cached response, which leaks the first
-    // user's persona/tone (and occasionally their username) to the second.
-    // userRating is intentionally NOT in this signature — skillLevel is
-    // already derived from it and is part of the cache key separately.
-    const personaSignature = [
-      personalityId ?? "friendly",
-      coachingPrefs?.coachTone ?? "",
-      coachingPrefs?.playingStyle ?? "",
-      (coachingPrefs?.studyGoals ?? []).slice().sort().join(","),
-      (coachingPrefs?.favoriteOpenings ?? []).slice().sort().join(","),
-    ].join("|");
-    const cacheKey = generateCacheKey(
-      currentFen,
-      skillLevel,
-      messageText || "analyze",
-      personaSignature
-    );
-    const cachedResponse = getCachedResponse(cacheKey);
-
-    if (cachedResponse) {
-      // Build game state for metadata even on cache hit
-      const cachedGame = new Chess();
+      // Build game context for the LLM
+      let gameContext = "";
       if (moveHistory && moveHistory.length > 0) {
-        for (const m of moveHistory) {
-          try { cachedGame.move(m); } catch { break; }
+        gameContext = await buildGameContext(
+          moveHistory,
+          gameEval,
+          playerColor || (boardOrientation ? "w" : "b"),
+          username,
+          userRating,
+          gameHeaders
+        );
+      } else if (fen || position) {
+        // Position-only analysis
+        const fenStr = fen || position;
+        const game = new Chess(fenStr);
+        gameContext = `## POSITION ANALYSIS\nFEN: ${fenStr}\nTurn: ${game.turn() === "w" ? "White" : "Black"}\nLegal moves: ${game.moves().length}\n${getMaterialBalance(game)}`;
+        // Stage 1: Syzygy endgame grounding via Lichess tablebase API
+        try {
+          const tbResult = fenStr
+            ? await fetch_lichess_tablebase(fenStr)
+            : null;
+          if (tbResult) {
+            let tbBlock = `\n\n## ENDGAME GROUND TRUTH (Syzygy tablebases — mathematically perfect for ≤7 pieces)\n`;
+            tbBlock += `Outcome for side to move: ${tbResult.category}\n`;
+            if (tbResult.dtm !== null)
+              tbBlock += `Distance to mate: ${tbResult.dtm} moves\n`;
+            if (tbResult.dtz !== null)
+              tbBlock += `Distance to zeroing: ${tbResult.dtz}\n`;
+            if (tbResult.moves.length > 0) {
+              const best = tbResult.moves[0];
+              tbBlock += `Best move: ${best.san ?? best.uci} (${best.category})\n`;
+            }
+            tbBlock += `RULE: Endgame outcome claims MUST match the Syzygy result above exactly. Do not assert "winning" if Syzygy says "draw" or "loss".\n`;
+            gameContext += tbBlock;
+          }
+        } catch {
+          /* tablebase is non-critical */
         }
-      } else if (fen) {
-        try { cachedGame.load(fen); } catch { /* ignore */ }
+      } else {
+        gameContext =
+          "No game data or position provided. The user may be asking a general chess question.";
       }
 
-      const cachedPayload = {
-        gameAnalysis: {
-          analysis: cachedResponse,
-          position: cachedGame.fen(),
-          turn: cachedGame.turn(),
-          moveCount: Math.ceil(cachedGame.history().length / 2),
-          availableMoves: cachedGame.moves().length,
-          validationScore: 1.0,
-          validationIssues: 0,
-          cached: true,
-        },
-      };
+      // (moved up) — coaching prefs + rating are now resolved earlier in the
+      // function so downstream telemetry, buildGameContext and prompt
+      // composition all see the Firestore fallback automatically.
 
-      if (streamRequested) {
-        // Emit the cached response as a single SSE event so the client has
-        // one code path. No real "streaming" benefit here, but keeps the
-        // contract uniform.
+      // Build the system prompt for Claude. Server-controlled only — composed
+      // from structured params in the validated body (see AUDIT-PHASE-1.4
+      // hardening note above). personalityId is resolved against a server-side
+      // allowlist via getPersonalityById; unknown ids fall back to the default.
+      //
+      // The prompt comes back split into two parts so the LLM call can put
+      // the stable prefix under an ephemeral cache marker and stream the
+      // per-user tail uncached. Two users sharing the same personalityId hit
+      // the prompt cache even with different username / rating / coaching
+      // prefs — that was the ~4x cost overrun the audit flagged.
+      //
+      // `claudeSystemPrompt` (the concatenated string) is still used by
+      // storeAnalysisContext so /api/chat's contextId lookup keeps returning
+      // a single self-contained prompt blob.
+      const claudeSystemParts = getCoachChatSystemPromptParts({
+        personalityId: personalityId ?? "friendly",
+        userRating: userRating ?? 1500,
+        username,
+        playerColorName,
+        chesscomUsername,
+        lichessUsername,
+        coachingPrefs,
+      });
+      const claudeSystemPrompt = `${claudeSystemParts.stable}\n\n${claudeSystemParts.perUser}`;
+
+      // Per-request LLM telemetry. Captured at whichever branch ends up
+      // serving the response (flag-on pipeline, flag-off direct call, or
+      // FD-fallback) so the non-streaming JSON response can surface token
+      // counts + cache hits to the client. With this in the payload the
+      // cost-per-request claims for the prompt-cache restructure
+      // (PRs #70 + #77) are demonstrable to a reviewer without grepping
+      // Vercel logs.
+      let llmTelemetry:
+        | {
+            provider?: string;
+            model?: string;
+            inputTokens?: number;
+            outputTokens?: number;
+            cacheCreationTokens?: number;
+            cacheReadTokens?: number;
+            elapsedMs?: number;
+          }
+        | undefined;
+
+      // Build the messages for Claude (user/assistant turns only — system is separate)
+      const claudeMessages: Array<{
+        role: "user" | "assistant";
+        content: string;
+      }> = [];
+
+      // Add conversation history for multi-turn context (prior messages before current)
+      if (
+        conversationHistory &&
+        Array.isArray(conversationHistory) &&
+        conversationHistory.length > 0
+      ) {
+        for (const msg of conversationHistory) {
+          if (
+            msg.content &&
+            (msg.role === "user" || msg.role === "assistant")
+          ) {
+            claudeMessages.push({ role: msg.role, content: msg.content });
+          }
+        }
+      }
+
+      // Current user message with full game context appended
+      let userContent = "";
+      if (messageText) {
+        userContent += `## USER REQUEST:\n${messageText}\n\n`;
+      }
+      if (gameContext) {
+        userContent += gameContext;
+      }
+
+      // Inject gold-standard few-shot examples for quality benchmarking
+      const skillLevel = userRating
+        ? ((userRating < 1000
+            ? "beginner"
+            : userRating < 1600
+              ? "intermediate"
+              : "advanced") as "beginner" | "intermediate" | "advanced")
+        : ("intermediate" as const);
+      const examples = selectExamples(undefined, skillLevel, 3);
+      const examplesContext = formatExamplesForPrompt(examples);
+      if (examplesContext) {
+        userContent += examplesContext;
+      }
+
+      claudeMessages.push({ role: "user", content: userContent });
+
+      // Check response cache before calling Claude
+      const currentFen =
+        fen ||
+        (moveHistory && moveHistory.length > 0
+          ? getFenAtHalfMove(moveHistory, moveHistory.length)
+          : "startpos");
+      // Persona signature scopes the cache to this caller's coaching prefs +
+      // personality. Without it two users on the same FEN with the same
+      // question would share the same cached response, which leaks the first
+      // user's persona/tone (and occasionally their username) to the second.
+      // userRating is intentionally NOT in this signature — skillLevel is
+      // already derived from it and is part of the cache key separately.
+      const personaSignature = [
+        personalityId ?? "friendly",
+        coachingPrefs?.coachTone ?? "",
+        coachingPrefs?.playingStyle ?? "",
+        (coachingPrefs?.studyGoals ?? []).slice().sort().join(","),
+        (coachingPrefs?.favoriteOpenings ?? []).slice().sort().join(","),
+      ].join("|");
+      const cacheKey = generateCacheKey(
+        currentFen,
+        skillLevel,
+        messageText || "analyze",
+        personaSignature
+      );
+      const cachedResponse = getCachedResponse(cacheKey);
+
+      if (cachedResponse) {
+        // Build game state for metadata even on cache hit
+        const cachedGame = new Chess();
+        if (moveHistory && moveHistory.length > 0) {
+          for (const m of moveHistory) {
+            try {
+              cachedGame.move(m);
+            } catch {
+              break;
+            }
+          }
+        } else if (fen) {
+          try {
+            cachedGame.load(fen);
+          } catch {
+            /* ignore */
+          }
+        }
+
+        const cachedPayload = {
+          gameAnalysis: {
+            analysis: cachedResponse,
+            position: cachedGame.fen(),
+            turn: cachedGame.turn(),
+            moveCount: Math.ceil(cachedGame.history().length / 2),
+            availableMoves: cachedGame.moves().length,
+            validationScore: 1.0,
+            validationIssues: 0,
+            cached: true,
+          },
+        };
+
+        if (streamRequested) {
+          // Emit the cached response as a single SSE event so the client has
+          // one code path. No real "streaming" benefit here, but keeps the
+          // contract uniform.
+          const encoder = new TextEncoder();
+          const sseStream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: "text", delta: cachedResponse })}\n\n`
+                )
+              );
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: "done", metadata: cachedPayload.gameAnalysis })}\n\n`
+                )
+              );
+              controller.close();
+            },
+          });
+          return new Response(sseStream, {
+            headers: {
+              "Content-Type": "text/event-stream; charset=utf-8",
+              "Cache-Control": "no-cache, no-transform",
+              Connection: "keep-alive",
+              "X-Accel-Buffering": "no",
+            },
+          });
+        }
+
+        return NextResponse.json(cachedPayload);
+      }
+
+      // ── Stage B insertion point D (§3.7.9): flag-on streaming branch ──
+      // Buffer-then-restream per §4. The pipeline can replace the response
+      // on retry; live-streaming and then retracting would be bad UX. We
+      // open the SSE stream immediately, emit `validating` phase events
+      // while the pipeline buffers, then synthetically re-stream the final
+      // text in paced chunks. If FD throws (per §3.2), we fall back to the
+      // flag-off live-stream loop inside the same already-opened SSE.
+      if (streamRequested && validatorsEnabled) {
+        const game = new Chess();
+        if (moveHistory && moveHistory.length > 0) {
+          for (const m of moveHistory) {
+            try {
+              game.move(m);
+            } catch {
+              break;
+            }
+          }
+        } else if (fen) {
+          try {
+            game.load(fen);
+          } catch {
+            /* ignore */
+          }
+        }
+        const validationFen = game.fen();
+        const playerPerspective: "white" | "black" =
+          playerColor === "b" ? "black" : "white";
+
         const encoder = new TextEncoder();
         const sseStream = new ReadableStream({
-          start(controller) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({ type: "text", delta: cachedResponse })}\n\n`
-              )
-            );
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({ type: "done", metadata: cachedPayload.gameAnalysis })}\n\n`
-              )
-            );
-            controller.close();
-          },
-        });
-        return new Response(sseStream, {
-          headers: {
-            "Content-Type": "text/event-stream; charset=utf-8",
-            "Cache-Control": "no-cache, no-transform",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-          },
-        });
-      }
+          async start(controller) {
+            const send = (obj: unknown) => {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify(obj)}\n\n`)
+              );
+            };
 
-      return NextResponse.json(cachedPayload);
-    }
+            send({ type: "validating", phase: "initial" });
 
-    // ── Stage B insertion point D (§3.7.9): flag-on streaming branch ──
-    // Buffer-then-restream per §4. The pipeline can replace the response
-    // on retry; live-streaming and then retracting would be bad UX. We
-    // open the SSE stream immediately, emit `validating` phase events
-    // while the pipeline buffers, then synthetically re-stream the final
-    // text in paced chunks. If FD throws (per §3.2), we fall back to the
-    // flag-off live-stream loop inside the same already-opened SSE.
-    if (streamRequested && validatorsEnabled) {
-      const game = new Chess();
-      if (moveHistory && moveHistory.length > 0) {
-        for (const m of moveHistory) {
-          try { game.move(m); } catch { break; }
-        }
-      } else if (fen) {
-        try { game.load(fen); } catch { /* ignore */ }
-      }
-      const validationFen = game.fen();
-      const playerPerspective: "white" | "black" =
-        playerColor === "b" ? "black" : "white";
-
-      const encoder = new TextEncoder();
-      const sseStream = new ReadableStream({
-        async start(controller) {
-          const send = (obj: unknown) => {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
-          };
-
-          send({ type: "validating", phase: "initial" });
-
-          const prep = await prepareMastermindContext({
-            userMessage: messageText,
-            moveHistory,
-            fen,
-            gameEval,
-            playerPerspective,
-            correlationId: requestId,
-            uid: session.uid,
-            userName: username ?? session.uid,
-            opponentUsername,
-            opponentPlatform,
-          });
-
-          // §3.2 contract: FD throws → fall back to flag-off path.
-          //
-          // Plus (2026-05-26 game-review-realtime-stream): game_review queries
-          // also take this path. Why: on a 100-move game, the Sonnet flagship
-          // call alone is 50-60s. The blocking heavy-pipeline path below
-          // synthetic-re-streams its result AFTER the call completes, so the
-          // user sees nothing until ~60s in (or hits the timeout fallback).
-          //
-          // For game_review, eval-claim + feature-citation validators ALREADY
-          // skip (POSITION_ANCHORED_VALIDATOR_CATEGORIES = position_analysis
-          // only). The remaining Mastermind validators (scout, userHistory)
-          // add 3-8s for marginal value on multi-position analysis prose.
-          // Routing through the streaming path here trades them for ~1s
-          // time-to-first-token. The chess.js validateAIResponse downstream
-          // still runs as the lightweight hallucination check.
-          if (!prep.dataSources || prep.category === "game_review") {
-            send({
-              type: "validating",
-              phase: !prep.dataSources ? "fallback-to-flagoff" : "realtime-stream",
+            const prep = await prepareMastermindContext({
+              userMessage: messageText,
+              moveHistory,
+              fen,
+              gameEval,
+              playerPerspective,
+              correlationId: requestId,
+              uid: session.uid,
+              userName: username ?? session.uid,
+              opponentUsername,
+              opponentPlatform,
             });
-            // Stage 9 v2: kick off async grounding now so the fetches run in
-            // parallel with the LLM stream below — by stream end the promise
-            // has almost always resolved (fetch ceiling ~8s vs 10s+ stream),
-            // so the post-stream validation pass adds ~no latency before the
-            // done event. Fail-open to undefined: a grounding hiccup must
-            // never break the stream.
-            const stage9SnapPromise: Promise<VoterSnapshot | undefined> =
-              prep.moveCtx.moveSan && prep.moveCtx.fenBefore
-                ? buildAsyncSnapshotForMove({
-                    fenBefore: prep.moveCtx.fenBefore,
-                    moveSan: prep.moveCtx.moveSan,
-                    stockfishEvalCp: prep.moveCtx.stockfishEvalBefore.cp ?? null,
-                    stockfishBestMoveMate: prep.moveCtx.stockfishEvalBefore.mate ?? null,
-                    stockfishLines: prep.moveCtx.stockfishLinesBefore,
-                    userRating: userRating ?? null,
-                    correlationId: requestId,
-                    branch: "stream-flagon-fallback",
-                  }).catch(() => undefined)
-                : Promise.resolve(undefined);
-            // Reuse the live-stream loop from the flag-off path inline.
-            let fullText = "";
-            let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
-            try {
-              for await (const evt of callLLMStream({
-                tier: "flagship",
-                system: claudeSystemParts.stable,
-                systemSuffix: claudeSystemParts.perUser,
-                messages: claudeMessages,
-                temperature: 0.7,
-                maxTokens: 3000,
-                cacheSystem: true,
-                capture: {
-                  feature: "enhanced-analysis",
-                  uid: session.uid,
-                  requestId,
+
+            // §3.2 contract: FD throws → fall back to flag-off path.
+            //
+            // Plus (2026-05-26 game-review-realtime-stream): game_review queries
+            // also take this path. Why: on a 100-move game, the Sonnet flagship
+            // call alone is 50-60s. The blocking heavy-pipeline path below
+            // synthetic-re-streams its result AFTER the call completes, so the
+            // user sees nothing until ~60s in (or hits the timeout fallback).
+            //
+            // For game_review, eval-claim + feature-citation validators ALREADY
+            // skip (POSITION_ANCHORED_VALIDATOR_CATEGORIES = position_analysis
+            // only). The remaining Mastermind validators (scout, userHistory)
+            // add 3-8s for marginal value on multi-position analysis prose.
+            // Routing through the streaming path here trades them for ~1s
+            // time-to-first-token. The chess.js validateAIResponse downstream
+            // still runs as the lightweight hallucination check.
+            if (!prep.dataSources || prep.category === "game_review") {
+              send({
+                type: "validating",
+                phase: !prep.dataSources
+                  ? "fallback-to-flagoff"
+                  : "realtime-stream",
+              });
+              // Stage 9 v2: kick off async grounding now so the fetches run in
+              // parallel with the LLM stream below — by stream end the promise
+              // has almost always resolved (fetch ceiling ~8s vs 10s+ stream),
+              // so the post-stream validation pass adds ~no latency before the
+              // done event. Fail-open to undefined: a grounding hiccup must
+              // never break the stream.
+              const stage9SnapPromise: Promise<VoterSnapshot | undefined> =
+                prep.moveCtx.moveSan && prep.moveCtx.fenBefore
+                  ? buildAsyncSnapshotForMove({
+                      fenBefore: prep.moveCtx.fenBefore,
+                      moveSan: prep.moveCtx.moveSan,
+                      stockfishEvalCp:
+                        prep.moveCtx.stockfishEvalBefore.cp ?? null,
+                      stockfishBestMoveMate:
+                        prep.moveCtx.stockfishEvalBefore.mate ?? null,
+                      stockfishLines: prep.moveCtx.stockfishLinesBefore,
+                      userRating: userRating ?? null,
+                      correlationId: requestId,
+                      branch: "stream-flagon-fallback",
+                    }).catch(() => undefined)
+                  : Promise.resolve(undefined);
+              // Reuse the live-stream loop from the flag-off path inline.
+              let fullText = "";
+              let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
+              try {
+                for await (const evt of callLLMStream({
+                  tier: "flagship",
+                  system: claudeSystemParts.stable,
+                  systemSuffix: claudeSystemParts.perUser,
+                  messages: claudeMessages,
+                  temperature: 0.7,
+                  maxTokens: 3000,
+                  cacheSystem: true,
+                })) {
+                  if (evt.type === "text") {
+                    fullText += evt.delta;
+                    send({ type: "text", delta: evt.delta });
+                  } else {
+                    llmDone = evt.result;
+                  }
+                }
+              } catch (err) {
+                const e = toSafeLLMError(err);
+                log.error(
+                  "LLM streaming failed (flagoff-fallback inside flag-on stream)",
+                  { message: e.message }
+                );
+                reportFatal(e, "stream:flagoff-fallback-inside-flag-on", {
+                  category: prep.category,
+                  provider: e instanceof LLMError ? e.provider : undefined,
+                  status: e instanceof LLMError ? e.status : undefined,
+                });
+                send({
+                  type: "error",
+                  error: PUBLIC_LLM_ERROR.message,
+                  code: PUBLIC_LLM_ERROR.code,
+                });
+                controller.close();
+                return;
+              }
+              if (llmDone) {
+                console.log("coach.tokens", {
+                  input: llmDone.inputTokens,
+                  output: llmDone.outputTokens,
+                  cacheCreation: llmDone.cacheCreationTokens,
+                  cacheRead: llmDone.cacheReadTokens,
                   promptVersion: PROMPT_VERSION,
-                  fen,
-                  props: { branch: "stream-flagon-fallback" },
-                },
-              })) {
-                if (evt.type === "text") {
-                  fullText += evt.delta;
-                  send({ type: "text", delta: evt.delta });
-                } else {
-                  llmDone = evt.result;
+                  streamed: true,
+                  flagOnFallback: true,
+                });
+                recordLLMCall(llmDone);
+              }
+              const rawAnalysis = fullText || "No analysis generated.";
+              const validation = validateAIResponse(
+                rawAnalysis,
+                validationFen,
+                moveHistory
+              );
+              if (validation.issues.length > 0) {
+                log.warn("AI response validation issues (flagoff-fallback)", {
+                  issueCount: validation.issues.length,
+                  score: validation.score,
+                  category: prep.category,
+                });
+              }
+              // Motif grounding parity with non-streaming flag-on branch
+              // (route.ts:2035-2054). Log-only in v1.
+              if (prep.moveCtx.moveSan && prep.moveCtx.fenBefore) {
+                try {
+                  const moveMotifs: AnyMotif[] = detectMotifs(
+                    prep.moveCtx.fenBefore,
+                    prep.moveCtx.moveSan
+                  );
+                  const groundingResult = validateMotifGrounding({
+                    llmResponse: rawAnalysis,
+                    detectedMotifs: moveMotifs,
+                    fen: prep.moveCtx.fenAfter,
+                    moveSan: prep.moveCtx.moveSan,
+                    correlationId: requestId,
+                  });
+                  if (!groundingResult.passed) {
+                    log.warn("motif_grounding_failed", {
+                      issues: groundingResult.issues.map((i) => i.llm_span),
+                      motif_count: moveMotifs.length,
+                      correlationId: requestId,
+                      branch: "stream-flagon-fallback",
+                    });
+                  }
+                  // Stage 9: same log-only pattern for the four claim-class
+                  // validators. The async-grounded snapshot was kicked off
+                  // before the stream started, so this await is ~instant in
+                  // the common case.
+                  const stage9Snap = await stage9SnapPromise;
+                  if (stage9Snap) {
+                    runStreamingStage9Validators({
+                      llmResponse: rawAnalysis,
+                      voterSnapshot: stage9Snap,
+                      fen: prep.moveCtx.fenAfter,
+                      moveSan: prep.moveCtx.moveSan,
+                      playerPerspective,
+                      correlationId: requestId,
+                      branch: "stream-flagon-fallback",
+                      log,
+                    });
+                  }
+                } catch {
+                  /* non-critical */
                 }
               }
-            } catch (err) {
-              const e = err instanceof LLMError ? err : new Error(String(err));
-              log.error("LLM streaming failed (flagoff-fallback inside flag-on stream)", { message: e.message });
-              reportFatal(err, "stream:flagoff-fallback-inside-flag-on", {
-                category: prep.category,
-                provider: e instanceof LLMError ? e.provider : undefined,
-                status: e instanceof LLMError ? e.status : undefined,
+              // Same chess.js disclaimer skip as the successful-pipeline
+              // branch: suppress for non-position-anchored categories where
+              // historical-citation false positives are systematic.
+              const usePositionAnchoredAnnotationFD =
+                POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
+              const analysisContent =
+                usePositionAnchoredAnnotationFD && !validation.isValid
+                  ? validation.correctedResponse
+                  : rawAnalysis;
+              setCachedResponse(cacheKey, analysisContent, validation.score);
+              const contextId = generateContextId(
+                moveHistory,
+                fen,
+                playerColor || "w"
+              );
+              const compactGameContext = buildCompactGameContext(
+                moveHistory ?? [],
+                gameEval,
+                playerColor || "w"
+              );
+              storeAnalysisContext({
+                contextId,
+                gameContext,
+                compactGameContext,
+                playedMoves: moveHistory ?? [],
+                systemPrompt: claudeSystemPrompt,
+                systemPromptStable: claudeSystemParts.stable,
+                systemPromptSuffix: claudeSystemParts.perUser,
+                fewShotExamples: examplesContext,
+                fen: validationFen,
+                skillLevel,
+                playerColor: playerColor || "w",
+                moveCount: Math.ceil(game.history().length / 2),
+                createdAt: Date.now(),
+                initialAnalysis: analysisContent,
+                gameEval,
               });
-              send({ type: "error", error: e.message });
+              let puzzleRecommendations: unknown = undefined;
+              try {
+                puzzleRecommendations = await generatePuzzleRecommendations(
+                  moveHistory,
+                  gameEval,
+                  userRating
+                );
+              } catch (err) {
+                log.warn("puzzle recs failed in stream (flagoff-fallback)", {
+                  err: err instanceof Error ? err.message : String(err),
+                });
+              }
+              send({
+                type: "done",
+                metadata: {
+                  analysis: analysisContent,
+                  position: validationFen,
+                  turn: game.turn(),
+                  moveCount: Math.ceil(game.history().length / 2),
+                  availableMoves: game.moves().length,
+                  validationScore: validation.score,
+                  validationIssues: validation.issues.length,
+                  contextId,
+                  puzzleRecommendations,
+                  corrected:
+                    usePositionAnchoredAnnotationFD && !validation.isValid,
+                  pipeline: {
+                    fallbackReason: !prep.dataSources
+                      ? "fd_failed"
+                      : "game_review_realtime_stream",
+                  },
+                },
+              });
               controller.close();
               return;
             }
-            if (llmDone) {
-              console.log("coach.tokens", {
-                input: llmDone.inputTokens,
-                output: llmDone.outputTokens,
-                cacheCreation: llmDone.cacheCreationTokens,
-                cacheRead: llmDone.cacheReadTokens,
-                promptVersion: PROMPT_VERSION,
-                streamed: true,
-                flagOnFallback: true,
+
+            // Run the validator pipeline against the four-source context,
+            // wrapped in a 30s top-level timer per §10.3.1 case 8 (1.C.B.5
+            // follow-up). On timeout the helper resolves with a graceful
+            // fallback result; the route emits done with pipeline.timedOut=true
+            // rather than an SSE error or 502.
+            //
+            // Capture narrowed dataSources locally so the factory closure
+            // below preserves the non-null type (TS loses control-flow
+            // narrowing across function boundaries).
+            const streamingDataSources = prep.dataSources;
+            // Stage 9 v2: full async-grounding snapshot (chessdb / Lc0 / Maia /
+            // Syzygy) for the four claim-class validators. The await runs
+            // BEFORE withPipelineTimeout so network fetches never eat the
+            // pipeline's regenerate budget (async-grounding plan Q1: ~8s
+            // worst-case ceiling, parallel fetches). Sources that fail or are
+            // gated out leave their snapshot fields null and the validators
+            // degrade to sync-snapshot behavior. Uses the BEFORE-move eval —
+            // the position the grounding sources are fetched for (mixing the
+            // after-move eval here would make lc0AgreesWithSf compare two
+            // different positions).
+            const stage9Snapshot =
+              prep.moveCtx.moveSan && prep.moveCtx.fenBefore
+                ? await buildAsyncSnapshotForMove({
+                    fenBefore: prep.moveCtx.fenBefore,
+                    moveSan: prep.moveCtx.moveSan,
+                    stockfishEvalCp:
+                      prep.moveCtx.stockfishEvalBefore.cp ?? null,
+                    stockfishBestMoveMate:
+                      prep.moveCtx.stockfishEvalBefore.mate ?? null,
+                    stockfishLines: prep.moveCtx.stockfishLinesBefore,
+                    userRating: userRating ?? null,
+                    correlationId: requestId,
+                    branch: "stream-flagon-pipeline",
+                    // Fail-open: the helper is designed never to reject, but a
+                    // grounding bug must degrade to no-snapshot, not error the
+                    // stream.
+                  }).catch(() => undefined)
+                : undefined;
+
+            let pipelineResult: PipelineResultWithTimeout;
+            try {
+              pipelineResult = await withPipelineTimeout(
+                (signal) =>
+                  runValidationPipeline({
+                    initialRequest: {
+                      tier: "flagship",
+                      system: claudeSystemParts.stable,
+                      systemSuffix: claudeSystemParts.perUser,
+                      messages: claudeMessages,
+                      temperature: 0.7,
+                      maxTokens: 3000,
+                      cacheSystem: true,
+                    },
+                    stockfishEval: prep.moveCtx.stockfishEval,
+                    featureDelta: streamingDataSources.featureDelta,
+                    pieceRoleDiff: streamingDataSources.pieceRoleDiff,
+                    threatTree: streamingDataSources.threatTree,
+                    playerPerspective,
+                    fen: validationFen,
+                    moveSan: prep.moveCtx.moveSan,
+                    correlationId: requestId,
+                    category: prep.category,
+                    // 2026-05-30 fix-per-category-retries: game_review gets
+                    // 0 retries; others scale down from the legacy default of 2.
+                    // CH-2 (Q3): on the anchored overclaim path, cap to a single
+                    // hedge-retry, and 0 on a strategic_read position (a retry
+                    // can't add grounding that isn't there).
+                    maxRetries: resolveOverclaimRetries(
+                      readMaxRetries(prep.category),
+                      stage9Snapshot?.positionConfidence,
+                      POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category)
+                    ),
+                    dataSources: {
+                      scout: streamingDataSources.scout,
+                      userHistory: streamingDataSources.userHistory,
+                    },
+                    voterSnapshot: stage9Snapshot,
+                    signal,
+                  }),
+                {
+                  correlationId: requestId,
+                  timeoutMs: readPipelineTimeoutMs(prep.category),
+                  fallbackResponse:
+                    "Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase.",
+                }
+              );
+            } catch (err) {
+              const e =
+                err instanceof Error
+                  ? err
+                  : new Error("Mastermind pipeline failed");
+              log.error("Mastermind pipeline failed in stream", {
+                message: e.message,
               });
-              recordLLMCall(llmDone);
+              reportFatal(err, "stream:mastermind-pipeline", {
+                category: prep.category,
+              });
+              send({
+                type: "error",
+                error: PUBLIC_LLM_ERROR.message,
+                code: PUBLIC_LLM_ERROR.code,
+              });
+              controller.close();
+              return;
             }
-            const rawAnalysis = fullText || "No analysis generated.";
-            const validation = validateAIResponse(rawAnalysis, validationFen, moveHistory);
+
+            if (pipelineResult.timedOut) {
+              send({ type: "validating", phase: "timed-out" });
+            } else if (pipelineResult.retryCount > 0) {
+              send({
+                type: "validating",
+                phase: `retry-${pipelineResult.retryCount}`,
+              });
+            }
+            if (
+              pipelineResult.finalOutcome === "fallback_used" &&
+              !pipelineResult.timedOut
+            ) {
+              send({ type: "validating", phase: "fallback" });
+            }
+
+            // Synthetic re-stream the final pipeline text in paced chunks.
+            const finalText =
+              pipelineResult.finalResponse || "No analysis generated.";
+            const CHUNK_SIZE = 60;
+            const CHUNK_DELAY_MS = 15;
+            for (let i = 0; i < finalText.length; i += CHUNK_SIZE) {
+              send({ type: "text", delta: finalText.slice(i, i + CHUNK_SIZE) });
+              if (i + CHUNK_SIZE < finalText.length) {
+                await new Promise((r) => setTimeout(r, CHUNK_DELAY_MS));
+              }
+            }
+
+            // Post-pipeline: chess.js validator still runs for observability,
+            // but the "may be inaccurate" disclaimer annotation is suppressed
+            // for non-position-anchored categories (2026-05-26
+            // fix-game-review-false-positives, complement of the eval +
+            // featureDelta validator skip in PipelineOpts.category). The
+            // chess.js piece-on-square check resolves against a SINGLE FEN
+            // (validationFen = current position) but the LLM's prose for
+            // game_review queries naturally cites historical positions
+            // ("bishop on c5 was strong earlier"). False-positive disclaimer
+            // appears on legitimate historical citations. Suppress for these
+            // categories; keep for position_analysis where validator + query
+            // align.
+            // 2026-05-30 fix-fallback-prose-disclaimer: when the Mastermind
+            // pipeline used buildFallbackResponse, the resulting prose is
+            // deterministic + ground-truth-derived from featureDelta /
+            // roleChangePhrases. Those phrases cite the PRE-MOVE position
+            // ("bishop on d6 lost its role") while the chess.js validator
+            // resolves against the POST-MOVE FEN — guaranteed false-positive
+            // "may be inaccurate" disclaimer on top of correct content.
+            // Detect fallback_used and gate the annotation off accordingly.
+            // Validator still runs for observability + log signal.
+            const isFallbackUsed =
+              pipelineResult.finalOutcome === "fallback_used";
+            const validation = validateAIResponse(
+              finalText,
+              validationFen,
+              moveHistory
+            );
             if (validation.issues.length > 0) {
-              log.warn("AI response validation issues (flagoff-fallback)", {
+              log.warn("AI response validation issues (post-pipeline)", {
                 issueCount: validation.issues.length,
                 score: validation.score,
+                issues: validation.issues.map((i) => ({
+                  severity: i.severity,
+                  type: i.type,
+                  detail: i.detail,
+                })),
                 category: prep.category,
+                positionAnchored: POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(
+                  prep.category
+                ),
+                fallbackUsed: isFallbackUsed,
               });
             }
             // Motif grounding parity with non-streaming flag-on branch
             // (route.ts:2035-2054). Log-only in v1.
             if (prep.moveCtx.moveSan && prep.moveCtx.fenBefore) {
               try {
-                const moveMotifs: AnyMotif[] = detectMotifs(prep.moveCtx.fenBefore, prep.moveCtx.moveSan);
+                const moveMotifs: AnyMotif[] = detectMotifs(
+                  prep.moveCtx.fenBefore,
+                  prep.moveCtx.moveSan
+                );
                 const groundingResult = validateMotifGrounding({
-                  llmResponse: rawAnalysis,
+                  llmResponse: finalText,
                   detectedMotifs: moveMotifs,
                   fen: prep.moveCtx.fenAfter,
                   moveSan: prep.moveCtx.moveSan,
@@ -1634,46 +2239,52 @@ export async function POST(request: NextRequest) {
                 });
                 if (!groundingResult.passed) {
                   log.warn("motif_grounding_failed", {
-                    issues: groundingResult.issues.map(i => i.llm_span),
+                    issues: groundingResult.issues.map((i) => i.llm_span),
                     motif_count: moveMotifs.length,
                     correlationId: requestId,
-                    branch: "stream-flagon-fallback",
+                    branch: "stream-flagon-pipeline",
                   });
                 }
-                // Stage 9: same log-only pattern for the four claim-class
-                // validators. The async-grounded snapshot was kicked off
-                // before the stream started, so this await is ~instant in
-                // the common case.
-                const stage9Snap = await stage9SnapPromise;
-                if (stage9Snap) {
+                // Stage 9: parity with motifGrounding pattern above. Reuses
+                // the async-grounded snapshot built before the pipeline —
+                // same move context, zero extra fetches (and the module TTL
+                // caches would dedupe anyway). This post-pipeline re-check
+                // matters for fallback/timeout cases where finalText was
+                // never validated inside runValidationPipeline.
+                if (stage9Snapshot) {
                   runStreamingStage9Validators({
-                    llmResponse: rawAnalysis,
-                    voterSnapshot: stage9Snap,
+                    llmResponse: finalText,
+                    voterSnapshot: stage9Snapshot,
                     fen: prep.moveCtx.fenAfter,
                     moveSan: prep.moveCtx.moveSan,
                     playerPerspective,
                     correlationId: requestId,
-                    branch: "stream-flagon-fallback",
+                    branch: "stream-flagon-pipeline",
                     log,
                   });
                 }
-              } catch { /* non-critical */ }
+              } catch {
+                /* non-critical */
+              }
             }
-            // Same chess.js disclaimer skip as the successful-pipeline
-            // branch: suppress for non-position-anchored categories where
-            // historical-citation false positives are systematic.
-            const usePositionAnchoredAnnotationFD =
+            const usePositionAnchoredAnnotation =
+              !isFallbackUsed &&
               POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
             const analysisContent =
-              usePositionAnchoredAnnotationFD && !validation.isValid
+              usePositionAnchoredAnnotation && !validation.isValid
                 ? validation.correctedResponse
-                : rawAnalysis;
+                : finalText;
+
             setCachedResponse(cacheKey, analysisContent, validation.score);
-            const contextId = generateContextId(moveHistory, fen, playerColor || "w");
+            const contextId = generateContextId(
+              moveHistory,
+              fen,
+              playerColor || "w"
+            );
             const compactGameContext = buildCompactGameContext(
               moveHistory ?? [],
               gameEval,
-              playerColor || "w",
+              playerColor || "w"
             );
             storeAnalysisContext({
               contextId,
@@ -1692,18 +2303,31 @@ export async function POST(request: NextRequest) {
               initialAnalysis: analysisContent,
               gameEval,
             });
+
             let puzzleRecommendations: unknown = undefined;
             try {
               puzzleRecommendations = await generatePuzzleRecommendations(
                 moveHistory,
                 gameEval,
-                userRating,
+                userRating
               );
             } catch (err) {
-              log.warn("puzzle recs failed in stream (flagoff-fallback)", {
+              log.warn("puzzle recs failed in stream (flag-on)", {
                 err: err instanceof Error ? err.message : String(err),
               });
             }
+
+            // §3.7.9 insertion point F: forward pipeline telemetry + citationRate.
+            forwardPipelineTelemetryForRoute({
+              pipelineResult,
+              dataSources: prep.dataSources,
+              category: prep.category,
+              routeKind: "/api/enhanced-analysis",
+              userId: session.uid,
+              sessionId: contextId,
+              responseId: requestId,
+            });
+
             send({
               type: "done",
               metadata: {
@@ -1716,57 +2340,339 @@ export async function POST(request: NextRequest) {
                 validationIssues: validation.issues.length,
                 contextId,
                 puzzleRecommendations,
-                corrected: usePositionAnchoredAnnotationFD && !validation.isValid,
+                // `corrected` signals the client to replace the streamedText
+                // with metadata.analysis. We only do so when the disclaimer
+                // is actually applied (position-anchored category + invalid).
+                corrected: usePositionAnchoredAnnotation && !validation.isValid,
                 pipeline: {
-                  fallbackReason: !prep.dataSources
-                    ? "fd_failed"
-                    : "game_review_realtime_stream",
+                  finalOutcome: pipelineResult.finalOutcome,
+                  retryCount: pipelineResult.retryCount,
+                  totalCostUsd: pipelineResult.totalCostUsd,
+                  category: prep.category,
+                  classifierConfidence: prep.classifierConfidence,
+                  prepMs: prep.prepMs,
+                  timedOut: pipelineResult.timedOut,
                 },
               },
             });
             controller.close();
-            return;
-          }
+          },
+        });
 
-          // Run the validator pipeline against the four-source context,
-          // wrapped in a 30s top-level timer per §10.3.1 case 8 (1.C.B.5
-          // follow-up). On timeout the helper resolves with a graceful
-          // fallback result; the route emits done with pipeline.timedOut=true
-          // rather than an SSE error or 502.
-          //
+        return new Response(sseStream, {
+          headers: {
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            Connection: "keep-alive",
+            "X-Accel-Buffering": "no",
+          },
+        });
+      }
+
+      // ── Streaming branch (flag-off) ─────────────────────────────────────
+      // When the client opts into streaming, we forward Claude's incremental
+      // text deltas as Server-Sent Events. Validation, cache write, contextId
+      // generation, and puzzle recommendations all run AFTER the stream ends
+      // and ride on a final `done` event so the client picks them up too.
+      if (streamRequested) {
+        // Compute current FEN/game state up front; the stream's done event
+        // needs them and they're cheap to compute here.
+        const game = new Chess();
+        if (moveHistory && moveHistory.length > 0) {
+          for (const m of moveHistory) {
+            try {
+              game.move(m);
+            } catch {
+              break;
+            }
+          }
+        } else if (fen) {
+          try {
+            game.load(fen);
+          } catch {
+            /* ignore */
+          }
+        }
+        const validationFen = game.fen();
+
+        const encoder = new TextEncoder();
+        const sseStream = new ReadableStream({
+          async start(controller) {
+            const send = (obj: unknown) => {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify(obj)}\n\n`)
+              );
+            };
+
+            // Stage 9 v2: kick off async grounding for the last played move in
+            // parallel with the LLM stream — same overlap pattern as the
+            // flag-on fallback wing. No prep/moveCtx in this flag-off scope, so
+            // derive the before-position from moveHistory + gameEval directly
+            // (positions[i] = eval after i half-moves, so positions[lastIdx]
+            // with lastIdx = length - 1 IS the pre-move position). Fail-open.
+            let stage9SnapPromise: Promise<VoterSnapshot | undefined> =
+              Promise.resolve(undefined);
+            if (moveHistory && moveHistory.length > 0) {
+              try {
+                const lastIdx = moveHistory.length - 1;
+                const evalBeforeLast = gameEval?.positions?.[lastIdx];
+                stage9SnapPromise = buildAsyncSnapshotForMove({
+                  fenBefore: getFenAtHalfMove(moveHistory, lastIdx),
+                  moveSan: moveHistory[lastIdx],
+                  stockfishEvalCp: evalBeforeLast?.lines?.[0]?.cp ?? null,
+                  stockfishBestMoveMate:
+                    evalBeforeLast?.lines?.[0]?.mate ?? null,
+                  stockfishLines: evalBeforeLast?.lines ?? [],
+                  userRating: userRating ?? null,
+                  correlationId: requestId,
+                  branch: "stream-flagoff",
+                }).catch(() => undefined);
+              } catch {
+                /* non-critical — Stage 9 block below skips */
+              }
+            }
+
+            let fullText = "";
+            let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
+            try {
+              for await (const evt of callLLMStream({
+                tier: "flagship",
+                system: claudeSystemParts.stable,
+                systemSuffix: claudeSystemParts.perUser,
+                messages: claudeMessages,
+                temperature: 0.7,
+                maxTokens: 3000,
+                cacheSystem: true,
+              })) {
+                if (evt.type === "text") {
+                  fullText += evt.delta;
+                  send({ type: "text", delta: evt.delta });
+                } else {
+                  llmDone = evt.result;
+                }
+              }
+            } catch (err) {
+              const e = toSafeLLMError(err);
+              log.error("LLM streaming failed for enhanced-analysis", {
+                message: e.message,
+              });
+              reportFatal(e, "stream:flag-off", {
+                provider: e instanceof LLMError ? e.provider : undefined,
+                status: e instanceof LLMError ? e.status : undefined,
+              });
+              send({
+                type: "error",
+                error: PUBLIC_LLM_ERROR.message,
+                code: PUBLIC_LLM_ERROR.code,
+              });
+              controller.close();
+              return;
+            }
+
+            if (llmDone) {
+              console.log("coach.tokens", {
+                input: llmDone.inputTokens,
+                output: llmDone.outputTokens,
+                cacheCreation: llmDone.cacheCreationTokens,
+                cacheRead: llmDone.cacheReadTokens,
+                promptVersion: PROMPT_VERSION,
+                streamed: true,
+              });
+              recordLLMCall(llmDone);
+            }
+
+            // Post-stream: validate, cache, store context, build puzzle recs.
+            const rawAnalysis = fullText || "No analysis generated.";
+            const validation = validateAIResponse(
+              rawAnalysis,
+              validationFen,
+              moveHistory
+            );
+            if (validation.issues.length > 0) {
+              log.warn("AI response validation issues", {
+                issueCount: validation.issues.length,
+                score: validation.score,
+                issues: validation.issues.map((i) => ({
+                  severity: i.severity,
+                  type: i.type,
+                  detail: i.detail,
+                })),
+              });
+            }
+            // Motif grounding parity with non-streaming flag-on branch
+            // (route.ts:2035-2054). Log-only in v1; ALL live user traffic
+            // streams, so without this the validator never fires in prod.
+            if (moveHistory && moveHistory.length > 0) {
+              try {
+                const lastIdx = moveHistory.length - 1;
+                const fenBeforeLast = getFenAtHalfMove(moveHistory, lastIdx);
+                const moveSanLast = moveHistory[lastIdx];
+                const moveMotifs: AnyMotif[] = detectMotifs(
+                  fenBeforeLast,
+                  moveSanLast
+                );
+                const groundingResult = validateMotifGrounding({
+                  llmResponse: rawAnalysis,
+                  detectedMotifs: moveMotifs,
+                  fen: validationFen,
+                  moveSan: moveSanLast,
+                  correlationId: requestId,
+                });
+                if (!groundingResult.passed) {
+                  log.warn("motif_grounding_failed", {
+                    issues: groundingResult.issues.map((i) => i.llm_span),
+                    motif_count: moveMotifs.length,
+                    correlationId: requestId,
+                    branch: "stream-flagoff",
+                  });
+                }
+                // Stage 9: async-grounded snapshot kicked off before the
+                // stream started — the await is ~instant in the common case.
+                const stage9Snap = await stage9SnapPromise;
+                if (stage9Snap) {
+                  // playerPerspective is computed inside the Mastermind branch
+                  // but not in this flag-off scope — derive locally.
+                  const ppLocal: "white" | "black" =
+                    playerColor === "b" ? "black" : "white";
+                  runStreamingStage9Validators({
+                    llmResponse: rawAnalysis,
+                    voterSnapshot: stage9Snap,
+                    fen: validationFen,
+                    moveSan: moveSanLast,
+                    playerPerspective: ppLocal,
+                    correlationId: requestId,
+                    branch: "stream-flagoff",
+                    log,
+                  });
+                }
+              } catch {
+                /* non-critical */
+              }
+            }
+            const analysisContent = validation.isValid
+              ? rawAnalysis
+              : validation.correctedResponse;
+
+            setCachedResponse(cacheKey, analysisContent, validation.score);
+            const contextId = generateContextId(
+              moveHistory,
+              fen,
+              playerColor || "w"
+            );
+            const compactGameContext = buildCompactGameContext(
+              moveHistory ?? [],
+              gameEval,
+              playerColor || "w"
+            );
+            storeAnalysisContext({
+              contextId,
+              gameContext,
+              compactGameContext,
+              playedMoves: moveHistory ?? [],
+              systemPrompt: claudeSystemPrompt,
+              systemPromptStable: claudeSystemParts.stable,
+              systemPromptSuffix: claudeSystemParts.perUser,
+              fewShotExamples: examplesContext,
+              fen: validationFen,
+              skillLevel,
+              playerColor: playerColor || "w",
+              moveCount: Math.ceil(game.history().length / 2),
+              createdAt: Date.now(),
+              initialAnalysis: analysisContent,
+              gameEval,
+            });
+
+            let puzzleRecommendations: unknown = undefined;
+            try {
+              puzzleRecommendations = await generatePuzzleRecommendations(
+                moveHistory,
+                gameEval,
+                userRating
+              );
+            } catch (err) {
+              log.warn("puzzle recs failed in stream", {
+                err: err instanceof Error ? err.message : String(err),
+              });
+            }
+
+            send({
+              type: "done",
+              metadata: {
+                analysis: analysisContent,
+                position: validationFen,
+                turn: game.turn(),
+                moveCount: Math.ceil(game.history().length / 2),
+                availableMoves: game.moves().length,
+                validationScore: validation.score,
+                validationIssues: validation.issues.length,
+                contextId,
+                puzzleRecommendations,
+                corrected: !validation.isValid,
+              },
+            });
+            controller.close();
+          },
+        });
+
+        return new Response(sseStream, {
+          headers: {
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            Connection: "keep-alive",
+            "X-Accel-Buffering": "no",
+          },
+        });
+      }
+
+      // ── Stage B insertion point E (§3.7.9): non-streaming flag-on wing ──
+      // Pipeline replaces callLLM. If FD throws (prep.dataSources === null),
+      // fall back to the existing callLLM path per §3.2.
+      let rawAnalysis: string;
+      let pipelineResultForTelemetry: PipelineResultWithTimeout | null = null;
+      let mastermindPrepForTelemetry: MastermindPrepResult | null = null;
+
+      if (validatorsEnabled) {
+        const playerPerspective: "white" | "black" =
+          playerColor === "b" ? "black" : "white";
+        const prep = await prepareMastermindContext({
+          userMessage: messageText,
+          moveHistory,
+          fen,
+          gameEval,
+          playerPerspective,
+          correlationId: requestId,
+          uid: session.uid,
+          userName: username ?? session.uid,
+          opponentUsername,
+          opponentPlatform,
+        });
+
+        if (prep.dataSources) {
           // Capture narrowed dataSources locally so the factory closure
           // below preserves the non-null type (TS loses control-flow
           // narrowing across function boundaries).
-          const streamingDataSources = prep.dataSources;
-          // Stage 9 v2: full async-grounding snapshot (chessdb / Lc0 / Maia /
-          // Syzygy) for the four claim-class validators. The await runs
-          // BEFORE withPipelineTimeout so network fetches never eat the
-          // pipeline's regenerate budget (async-grounding plan Q1: ~8s
-          // worst-case ceiling, parallel fetches). Sources that fail or are
-          // gated out leave their snapshot fields null and the validators
-          // degrade to sync-snapshot behavior. Uses the BEFORE-move eval —
-          // the position the grounding sources are fetched for (mixing the
-          // after-move eval here would make lc0AgreesWithSf compare two
-          // different positions).
-          const stage9Snapshot = prep.moveCtx.moveSan && prep.moveCtx.fenBefore
-            ? await buildAsyncSnapshotForMove({
-                fenBefore: prep.moveCtx.fenBefore,
-                moveSan: prep.moveCtx.moveSan,
-                stockfishEvalCp: prep.moveCtx.stockfishEvalBefore.cp ?? null,
-                stockfishBestMoveMate: prep.moveCtx.stockfishEvalBefore.mate ?? null,
-                stockfishLines: prep.moveCtx.stockfishLinesBefore,
-                userRating: userRating ?? null,
-                correlationId: requestId,
-                branch: "stream-flagon-pipeline",
-                // Fail-open: the helper is designed never to reject, but a
-                // grounding bug must degrade to no-snapshot, not error the
-                // stream.
-              }).catch(() => undefined)
-            : undefined;
-
-          let pipelineResult: PipelineResultWithTimeout;
+          const nonStreamingDataSources = prep.dataSources;
+          // Stage 9 v2: async-grounded voter snapshot — same wiring as the
+          // streaming pipeline branch above. Awaited BEFORE withPipelineTimeout
+          // so the fetches never eat the pipeline's regenerate budget; uses the
+          // before-move eval per the SyncSnapshotInput contract.
+          const stage9SnapshotNonStream =
+            prep.moveCtx.moveSan && prep.moveCtx.fenBefore
+              ? await buildAsyncSnapshotForMove({
+                  fenBefore: prep.moveCtx.fenBefore,
+                  moveSan: prep.moveCtx.moveSan,
+                  stockfishEvalCp: prep.moveCtx.stockfishEvalBefore.cp ?? null,
+                  stockfishBestMoveMate:
+                    prep.moveCtx.stockfishEvalBefore.mate ?? null,
+                  stockfishLines: prep.moveCtx.stockfishLinesBefore,
+                  userRating: userRating ?? null,
+                  correlationId: requestId,
+                  branch: "non-streaming-flagon",
+                  // Fail-open: degrade to no-snapshot rather than 502 the turn.
+                }).catch(() => undefined)
+              : undefined;
           try {
-            pipelineResult = await withPipelineTimeout(
+            const pipelineResult = await withPipelineTimeout(
               (signal) =>
                 runValidationPipeline({
                   initialRequest: {
@@ -1779,29 +2685,27 @@ export async function POST(request: NextRequest) {
                     cacheSystem: true,
                   },
                   stockfishEval: prep.moveCtx.stockfishEval,
-                  featureDelta: streamingDataSources.featureDelta,
-                  pieceRoleDiff: streamingDataSources.pieceRoleDiff,
-                  threatTree: streamingDataSources.threatTree,
+                  featureDelta: nonStreamingDataSources.featureDelta,
+                  pieceRoleDiff: nonStreamingDataSources.pieceRoleDiff,
+                  threatTree: nonStreamingDataSources.threatTree,
                   playerPerspective,
-                  fen: validationFen,
+                  fen: prep.moveCtx.fenAfter,
                   moveSan: prep.moveCtx.moveSan,
                   correlationId: requestId,
                   category: prep.category,
-                  // 2026-05-30 fix-per-category-retries: game_review gets
-                  // 0 retries; others scale down from the legacy default of 2.
-                  // CH-2 (Q3): on the anchored overclaim path, cap to a single
-                  // hedge-retry, and 0 on a strategic_read position (a retry
-                  // can't add grounding that isn't there).
+                  // 2026-05-30 fix-per-category-retries + CH-2 (Q3)
+                  // confidence-aware single-regen: same as the realtime-stream
+                  // branch above.
                   maxRetries: resolveOverclaimRetries(
                     readMaxRetries(prep.category),
-                    stage9Snapshot?.positionConfidence,
-                    POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category),
+                    stage9SnapshotNonStream?.positionConfidence,
+                    POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category)
                   ),
                   dataSources: {
-                    scout: streamingDataSources.scout,
-                    userHistory: streamingDataSources.userHistory,
+                    scout: nonStreamingDataSources.scout,
+                    userHistory: nonStreamingDataSources.userHistory,
                   },
-                  voterSnapshot: stage9Snapshot,
+                  voterSnapshot: stage9SnapshotNonStream,
                   signal,
                 }),
               {
@@ -1809,265 +2713,87 @@ export async function POST(request: NextRequest) {
                 timeoutMs: readPipelineTimeoutMs(prep.category),
                 fallbackResponse:
                   "Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase.",
-              },
-            );
-          } catch (err) {
-            const e = err instanceof LLMError ? err : new Error(String(err));
-            log.error("Mastermind pipeline failed in stream", { message: e.message });
-            reportFatal(err, "stream:mastermind-pipeline", {
-              category: prep.category,
-            });
-            send({ type: "error", error: e.message });
-            controller.close();
-            return;
-          }
-
-          if (pipelineResult.timedOut) {
-            send({ type: "validating", phase: "timed-out" });
-          } else if (pipelineResult.retryCount > 0) {
-            send({ type: "validating", phase: `retry-${pipelineResult.retryCount}` });
-          }
-          if (pipelineResult.finalOutcome === "fallback_used" && !pipelineResult.timedOut) {
-            send({ type: "validating", phase: "fallback" });
-          }
-
-          // Synthetic re-stream the final pipeline text in paced chunks.
-          const finalText = pipelineResult.finalResponse || "No analysis generated.";
-          const CHUNK_SIZE = 60;
-          const CHUNK_DELAY_MS = 15;
-          for (let i = 0; i < finalText.length; i += CHUNK_SIZE) {
-            send({ type: "text", delta: finalText.slice(i, i + CHUNK_SIZE) });
-            if (i + CHUNK_SIZE < finalText.length) {
-              await new Promise((r) => setTimeout(r, CHUNK_DELAY_MS));
-            }
-          }
-
-          // Post-pipeline: chess.js validator still runs for observability,
-          // but the "may be inaccurate" disclaimer annotation is suppressed
-          // for non-position-anchored categories (2026-05-26
-          // fix-game-review-false-positives, complement of the eval +
-          // featureDelta validator skip in PipelineOpts.category). The
-          // chess.js piece-on-square check resolves against a SINGLE FEN
-          // (validationFen = current position) but the LLM's prose for
-          // game_review queries naturally cites historical positions
-          // ("bishop on c5 was strong earlier"). False-positive disclaimer
-          // appears on legitimate historical citations. Suppress for these
-          // categories; keep for position_analysis where validator + query
-          // align.
-          // 2026-05-30 fix-fallback-prose-disclaimer: when the Mastermind
-          // pipeline used buildFallbackResponse, the resulting prose is
-          // deterministic + ground-truth-derived from featureDelta /
-          // roleChangePhrases. Those phrases cite the PRE-MOVE position
-          // ("bishop on d6 lost its role") while the chess.js validator
-          // resolves against the POST-MOVE FEN — guaranteed false-positive
-          // "may be inaccurate" disclaimer on top of correct content.
-          // Detect fallback_used and gate the annotation off accordingly.
-          // Validator still runs for observability + log signal.
-          const isFallbackUsed =
-            pipelineResult.finalOutcome === "fallback_used";
-          const validation = validateAIResponse(finalText, validationFen, moveHistory);
-          if (validation.issues.length > 0) {
-            log.warn("AI response validation issues (post-pipeline)", {
-              issueCount: validation.issues.length,
-              score: validation.score,
-              issues: validation.issues.map((i) => ({ severity: i.severity, type: i.type, detail: i.detail })),
-              category: prep.category,
-              positionAnchored: POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category),
-              fallbackUsed: isFallbackUsed,
-            });
-          }
-          // Motif grounding parity with non-streaming flag-on branch
-          // (route.ts:2035-2054). Log-only in v1.
-          if (prep.moveCtx.moveSan && prep.moveCtx.fenBefore) {
-            try {
-              const moveMotifs: AnyMotif[] = detectMotifs(prep.moveCtx.fenBefore, prep.moveCtx.moveSan);
-              const groundingResult = validateMotifGrounding({
-                llmResponse: finalText,
-                detectedMotifs: moveMotifs,
-                fen: prep.moveCtx.fenAfter,
-                moveSan: prep.moveCtx.moveSan,
-                correlationId: requestId,
-              });
-              if (!groundingResult.passed) {
-                log.warn("motif_grounding_failed", {
-                  issues: groundingResult.issues.map(i => i.llm_span),
-                  motif_count: moveMotifs.length,
-                  correlationId: requestId,
-                  branch: "stream-flagon-pipeline",
-                });
               }
-              // Stage 9: parity with motifGrounding pattern above. Reuses
-              // the async-grounded snapshot built before the pipeline —
-              // same move context, zero extra fetches (and the module TTL
-              // caches would dedupe anyway). This post-pipeline re-check
-              // matters for fallback/timeout cases where finalText was
-              // never validated inside runValidationPipeline.
-              if (stage9Snapshot) {
-                runStreamingStage9Validators({
-                  llmResponse: finalText,
-                  voterSnapshot: stage9Snapshot,
+            );
+            rawAnalysis =
+              pipelineResult.finalResponse || "No analysis generated.";
+            pipelineResultForTelemetry = pipelineResult;
+            mastermindPrepForTelemetry = prep;
+
+            // Stage 5 post-LLM motif grounding check (log-only in v1; regeneration loop in Stage 6)
+            if (prep.moveCtx.moveSan && prep.moveCtx.fenBefore) {
+              try {
+                const moveMotifs: AnyMotif[] = detectMotifs(
+                  prep.moveCtx.fenBefore,
+                  prep.moveCtx.moveSan
+                );
+                const groundingResult = validateMotifGrounding({
+                  llmResponse: rawAnalysis,
+                  detectedMotifs: moveMotifs,
                   fen: prep.moveCtx.fenAfter,
                   moveSan: prep.moveCtx.moveSan,
-                  playerPerspective,
                   correlationId: requestId,
-                  branch: "stream-flagon-pipeline",
-                  log,
                 });
+                if (!groundingResult.passed) {
+                  log.warn("motif_grounding_failed", {
+                    issues: groundingResult.issues.map((i) => i.llm_span),
+                    motif_count: moveMotifs.length,
+                    correlationId: requestId,
+                  });
+                }
+                // Stage 9: post-pipeline log-only check on the final response.
+                // Important for pipeline-fallback (timeout) cases where the
+                // returned text was deterministic template not validated by
+                // Stage 9 inside runValidationPipeline. Reuses the async
+                // snapshot built before the pipeline — same move context,
+                // zero extra fetches.
+                if (stage9SnapshotNonStream) {
+                  runStreamingStage9Validators({
+                    llmResponse: rawAnalysis,
+                    voterSnapshot: stage9SnapshotNonStream,
+                    fen: prep.moveCtx.fenAfter,
+                    moveSan: prep.moveCtx.moveSan,
+                    playerPerspective,
+                    correlationId: requestId,
+                    branch: "non-streaming-flagon",
+                    log,
+                  });
+                }
+              } catch {
+                /* non-critical */
               }
-            } catch { /* non-critical */ }
-          }
-          const usePositionAnchoredAnnotation =
-            !isFallbackUsed &&
-            POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
-          const analysisContent =
-            usePositionAnchoredAnnotation && !validation.isValid
-              ? validation.correctedResponse
-              : finalText;
+            }
 
-          setCachedResponse(cacheKey, analysisContent, validation.score);
-          const contextId = generateContextId(moveHistory, fen, playerColor || "w");
-          const compactGameContext = buildCompactGameContext(
-            moveHistory ?? [],
-            gameEval,
-            playerColor || "w",
-          );
-          storeAnalysisContext({
-            contextId,
-            gameContext,
-            compactGameContext,
-            playedMoves: moveHistory ?? [],
-            systemPrompt: claudeSystemPrompt,
-            systemPromptStable: claudeSystemParts.stable,
-            systemPromptSuffix: claudeSystemParts.perUser,
-            fewShotExamples: examplesContext,
-            fen: validationFen,
-            skillLevel,
-            playerColor: playerColor || "w",
-            moveCount: Math.ceil(game.history().length / 2),
-            createdAt: Date.now(),
-            initialAnalysis: analysisContent,
-            gameEval,
-          });
-
-          let puzzleRecommendations: unknown = undefined;
-          try {
-            puzzleRecommendations = await generatePuzzleRecommendations(
-              moveHistory,
-              gameEval,
-              userRating,
-            );
-          } catch (err) {
-            log.warn("puzzle recs failed in stream (flag-on)", {
-              err: err instanceof Error ? err.message : String(err),
+            console.log("coach.tokens", {
+              input: undefined, // pipeline-managed; surfaced via pipelineResult.totalCostUsd
+              output: undefined,
+              promptVersion: PROMPT_VERSION,
+              pipelineCostUsd: pipelineResult.totalCostUsd,
+              pipelineFinalOutcome: pipelineResult.finalOutcome,
+              pipelineRetryCount: pipelineResult.retryCount,
+              pipelineTimedOut: pipelineResult.timedOut,
             });
+          } catch (err) {
+            const e =
+              err instanceof Error
+                ? err
+                : new Error("Mastermind pipeline failed");
+            log.error("Mastermind pipeline failed for enhanced-analysis", {
+              message: e.message,
+            });
+            reportFatal(err, "non-stream:mastermind-pipeline", {
+              category: prep.category,
+            });
+            return NextResponse.json(
+              { error: PUBLIC_LLM_ERROR.message, code: PUBLIC_LLM_ERROR.code },
+              { status: 502 }
+            );
           }
-
-          // §3.7.9 insertion point F: forward pipeline telemetry + citationRate.
-          forwardPipelineTelemetryForRoute({
-            pipelineResult,
-            dataSources: prep.dataSources,
-            category: prep.category,
-            routeKind: "/api/enhanced-analysis",
-            userId: session.uid,
-            sessionId: contextId,
-            responseId: requestId,
-          });
-
-          send({
-            type: "done",
-            metadata: {
-              analysis: analysisContent,
-              position: validationFen,
-              turn: game.turn(),
-              moveCount: Math.ceil(game.history().length / 2),
-              availableMoves: game.moves().length,
-              validationScore: validation.score,
-              validationIssues: validation.issues.length,
-              contextId,
-              puzzleRecommendations,
-              // `corrected` signals the client to replace the streamedText
-              // with metadata.analysis. We only do so when the disclaimer
-              // is actually applied (position-anchored category + invalid).
-              corrected: usePositionAnchoredAnnotation && !validation.isValid,
-              pipeline: {
-                finalOutcome: pipelineResult.finalOutcome,
-                retryCount: pipelineResult.retryCount,
-                totalCostUsd: pipelineResult.totalCostUsd,
-                category: prep.category,
-                classifierConfidence: prep.classifierConfidence,
-                prepMs: prep.prepMs,
-                timedOut: pipelineResult.timedOut,
-              },
-            },
-          });
-          controller.close();
-        },
-      });
-
-      return new Response(sseStream, {
-        headers: {
-          "Content-Type": "text/event-stream; charset=utf-8",
-          "Cache-Control": "no-cache, no-transform",
-          "Connection": "keep-alive",
-          "X-Accel-Buffering": "no",
-        },
-      });
-    }
-
-    // ── Streaming branch (flag-off) ─────────────────────────────────────
-    // When the client opts into streaming, we forward Claude's incremental
-    // text deltas as Server-Sent Events. Validation, cache write, contextId
-    // generation, and puzzle recommendations all run AFTER the stream ends
-    // and ride on a final `done` event so the client picks them up too.
-    if (streamRequested) {
-      // Compute current FEN/game state up front; the stream's done event
-      // needs them and they're cheap to compute here.
-      const game = new Chess();
-      if (moveHistory && moveHistory.length > 0) {
-        for (const m of moveHistory) {
-          try { game.move(m); } catch { break; }
-        }
-      } else if (fen) {
-        try { game.load(fen); } catch { /* ignore */ }
-      }
-      const validationFen = game.fen();
-
-      const encoder = new TextEncoder();
-      const sseStream = new ReadableStream({
-        async start(controller) {
-          const send = (obj: unknown) => {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
-          };
-
-          // Stage 9 v2: kick off async grounding for the last played move in
-          // parallel with the LLM stream — same overlap pattern as the
-          // flag-on fallback wing. No prep/moveCtx in this flag-off scope, so
-          // derive the before-position from moveHistory + gameEval directly
-          // (positions[i] = eval after i half-moves, so positions[lastIdx]
-          // with lastIdx = length - 1 IS the pre-move position). Fail-open.
-          let stage9SnapPromise: Promise<VoterSnapshot | undefined> =
-            Promise.resolve(undefined);
-          if (moveHistory && moveHistory.length > 0) {
-            try {
-              const lastIdx = moveHistory.length - 1;
-              const evalBeforeLast = gameEval?.positions?.[lastIdx];
-              stage9SnapPromise = buildAsyncSnapshotForMove({
-                fenBefore: getFenAtHalfMove(moveHistory, lastIdx),
-                moveSan: moveHistory[lastIdx],
-                stockfishEvalCp: evalBeforeLast?.lines?.[0]?.cp ?? null,
-                stockfishBestMoveMate: evalBeforeLast?.lines?.[0]?.mate ?? null,
-                stockfishLines: evalBeforeLast?.lines ?? [],
-                userRating: userRating ?? null,
-                correlationId: requestId,
-                branch: "stream-flagoff",
-              }).catch(() => undefined);
-            } catch { /* non-critical — Stage 9 block below skips */ }
-          }
-
-          let fullText = "";
-          let llmDone: import("@/lib/llmProvider").LLMResult | null = null;
+        } else {
+          // FD failed → flag-off fallback for this turn.
+          let llmResult;
           try {
-            for await (const evt of callLLMStream({
+            llmResult = await callLLM({
               tier: "flagship",
               system: claudeSystemParts.stable,
               systemSuffix: claudeSystemParts.perUser,
@@ -2075,322 +2801,42 @@ export async function POST(request: NextRequest) {
               temperature: 0.7,
               maxTokens: 3000,
               cacheSystem: true,
-              capture: {
-                feature: "enhanced-analysis",
-                uid: session.uid,
-                requestId,
-                promptVersion: PROMPT_VERSION,
-                fen,
-                props: { branch: "stream-flag-off" },
-              },
-            })) {
-              if (evt.type === "text") {
-                fullText += evt.delta;
-                send({ type: "text", delta: evt.delta });
-              } else {
-                llmDone = evt.result;
-              }
-            }
+            });
           } catch (err) {
-            const e = err instanceof LLMError ? err : new Error(String(err));
-            log.error("LLM streaming failed for enhanced-analysis", { message: e.message });
-            reportFatal(err, "stream:flag-off", {
+            const e = toSafeLLMError(err);
+            log.error(
+              "LLM provider failed (flag-on fallback after FD failure)",
+              { message: e.message }
+            );
+            reportFatal(e, "non-stream:fd-fallback", {
               provider: e instanceof LLMError ? e.provider : undefined,
               status: e instanceof LLMError ? e.status : undefined,
             });
-            send({ type: "error", error: e.message });
-            controller.close();
-            return;
-          }
-
-          if (llmDone) {
-            console.log("coach.tokens", {
-              input: llmDone.inputTokens,
-              output: llmDone.outputTokens,
-              cacheCreation: llmDone.cacheCreationTokens,
-              cacheRead: llmDone.cacheReadTokens,
-              promptVersion: PROMPT_VERSION,
-              streamed: true,
-            });
-            recordLLMCall(llmDone);
-          }
-
-          // Post-stream: validate, cache, store context, build puzzle recs.
-          const rawAnalysis = fullText || "No analysis generated.";
-          const validation = validateAIResponse(rawAnalysis, validationFen, moveHistory);
-          if (validation.issues.length > 0) {
-            log.warn("AI response validation issues", {
-              issueCount: validation.issues.length,
-              score: validation.score,
-              issues: validation.issues.map(i => ({ severity: i.severity, type: i.type, detail: i.detail })),
-            });
-          }
-          // Motif grounding parity with non-streaming flag-on branch
-          // (route.ts:2035-2054). Log-only in v1; ALL live user traffic
-          // streams, so without this the validator never fires in prod.
-          if (moveHistory && moveHistory.length > 0) {
-            try {
-              const lastIdx = moveHistory.length - 1;
-              const fenBeforeLast = getFenAtHalfMove(moveHistory, lastIdx);
-              const moveSanLast = moveHistory[lastIdx];
-              const moveMotifs: AnyMotif[] = detectMotifs(fenBeforeLast, moveSanLast);
-              const groundingResult = validateMotifGrounding({
-                llmResponse: rawAnalysis,
-                detectedMotifs: moveMotifs,
-                fen: validationFen,
-                moveSan: moveSanLast,
-                correlationId: requestId,
-              });
-              if (!groundingResult.passed) {
-                log.warn("motif_grounding_failed", {
-                  issues: groundingResult.issues.map(i => i.llm_span),
-                  motif_count: moveMotifs.length,
-                  correlationId: requestId,
-                  branch: "stream-flagoff",
-                });
-              }
-              // Stage 9: async-grounded snapshot kicked off before the
-              // stream started — the await is ~instant in the common case.
-              const stage9Snap = await stage9SnapPromise;
-              if (stage9Snap) {
-                // playerPerspective is computed inside the Mastermind branch
-                // but not in this flag-off scope — derive locally.
-                const ppLocal: "white" | "black" =
-                  playerColor === "b" ? "black" : "white";
-                runStreamingStage9Validators({
-                  llmResponse: rawAnalysis,
-                  voterSnapshot: stage9Snap,
-                  fen: validationFen,
-                  moveSan: moveSanLast,
-                  playerPerspective: ppLocal,
-                  correlationId: requestId,
-                  branch: "stream-flagoff",
-                  log,
-                });
-              }
-            } catch { /* non-critical */ }
-          }
-          const analysisContent = validation.isValid ? rawAnalysis : validation.correctedResponse;
-
-          setCachedResponse(cacheKey, analysisContent, validation.score);
-          const contextId = generateContextId(moveHistory, fen, playerColor || "w");
-          const compactGameContext = buildCompactGameContext(
-            moveHistory ?? [],
-            gameEval,
-            playerColor || "w"
-          );
-          storeAnalysisContext({
-            contextId,
-            gameContext,
-            compactGameContext,
-            playedMoves: moveHistory ?? [],
-            systemPrompt: claudeSystemPrompt,
-            systemPromptStable: claudeSystemParts.stable,
-            systemPromptSuffix: claudeSystemParts.perUser,
-            fewShotExamples: examplesContext,
-            fen: validationFen,
-            skillLevel,
-            playerColor: playerColor || "w",
-            moveCount: Math.ceil(game.history().length / 2),
-            createdAt: Date.now(),
-            initialAnalysis: analysisContent,
-            gameEval,
-          });
-
-          let puzzleRecommendations: unknown = undefined;
-          try {
-            puzzleRecommendations = await generatePuzzleRecommendations(
-              moveHistory,
-              gameEval,
-              userRating
+            return NextResponse.json(
+              { error: PUBLIC_LLM_ERROR.message, code: PUBLIC_LLM_ERROR.code },
+              { status: 502 }
             );
-          } catch (err) {
-            log.warn("puzzle recs failed in stream", { err: err instanceof Error ? err.message : String(err) });
           }
-
-          send({
-            type: "done",
-            metadata: {
-              analysis: analysisContent,
-              position: validationFen,
-              turn: game.turn(),
-              moveCount: Math.ceil(game.history().length / 2),
-              availableMoves: game.moves().length,
-              validationScore: validation.score,
-              validationIssues: validation.issues.length,
-              contextId,
-              puzzleRecommendations,
-              corrected: !validation.isValid,
-            },
-          });
-          controller.close();
-        },
-      });
-
-      return new Response(sseStream, {
-        headers: {
-          "Content-Type": "text/event-stream; charset=utf-8",
-          "Cache-Control": "no-cache, no-transform",
-          "Connection": "keep-alive",
-          "X-Accel-Buffering": "no",
-        },
-      });
-    }
-
-    // ── Stage B insertion point E (§3.7.9): non-streaming flag-on wing ──
-    // Pipeline replaces callLLM. If FD throws (prep.dataSources === null),
-    // fall back to the existing callLLM path per §3.2.
-    let rawAnalysis: string;
-    let pipelineResultForTelemetry: PipelineResultWithTimeout | null = null;
-    let mastermindPrepForTelemetry: MastermindPrepResult | null = null;
-
-    if (validatorsEnabled) {
-      const playerPerspective: "white" | "black" =
-        playerColor === "b" ? "black" : "white";
-      const prep = await prepareMastermindContext({
-        userMessage: messageText,
-        moveHistory,
-        fen,
-        gameEval,
-        playerPerspective,
-        correlationId: requestId,
-        uid: session.uid,
-        userName: username ?? session.uid,
-        opponentUsername,
-        opponentPlatform,
-      });
-
-      if (prep.dataSources) {
-        // Capture narrowed dataSources locally so the factory closure
-        // below preserves the non-null type (TS loses control-flow
-        // narrowing across function boundaries).
-        const nonStreamingDataSources = prep.dataSources;
-        // Stage 9 v2: async-grounded voter snapshot — same wiring as the
-        // streaming pipeline branch above. Awaited BEFORE withPipelineTimeout
-        // so the fetches never eat the pipeline's regenerate budget; uses the
-        // before-move eval per the SyncSnapshotInput contract.
-        const stage9SnapshotNonStream = prep.moveCtx.moveSan && prep.moveCtx.fenBefore
-          ? await buildAsyncSnapshotForMove({
-              fenBefore: prep.moveCtx.fenBefore,
-              moveSan: prep.moveCtx.moveSan,
-              stockfishEvalCp: prep.moveCtx.stockfishEvalBefore.cp ?? null,
-              stockfishBestMoveMate: prep.moveCtx.stockfishEvalBefore.mate ?? null,
-              stockfishLines: prep.moveCtx.stockfishLinesBefore,
-              userRating: userRating ?? null,
-              correlationId: requestId,
-              branch: "non-streaming-flagon",
-              // Fail-open: degrade to no-snapshot rather than 502 the turn.
-            }).catch(() => undefined)
-          : undefined;
-        try {
-          const pipelineResult = await withPipelineTimeout(
-            (signal) =>
-              runValidationPipeline({
-                initialRequest: {
-                  tier: "flagship",
-                  system: claudeSystemParts.stable,
-                  systemSuffix: claudeSystemParts.perUser,
-                  messages: claudeMessages,
-                  temperature: 0.7,
-                  maxTokens: 3000,
-                  cacheSystem: true,
-                },
-                stockfishEval: prep.moveCtx.stockfishEval,
-                featureDelta: nonStreamingDataSources.featureDelta,
-                pieceRoleDiff: nonStreamingDataSources.pieceRoleDiff,
-                threatTree: nonStreamingDataSources.threatTree,
-                playerPerspective,
-                fen: prep.moveCtx.fenAfter,
-                moveSan: prep.moveCtx.moveSan,
-                correlationId: requestId,
-                category: prep.category,
-                // 2026-05-30 fix-per-category-retries + CH-2 (Q3)
-                // confidence-aware single-regen: same as the realtime-stream
-                // branch above.
-                maxRetries: resolveOverclaimRetries(
-                  readMaxRetries(prep.category),
-                  stage9SnapshotNonStream?.positionConfidence,
-                  POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category),
-                ),
-                dataSources: {
-                  scout: nonStreamingDataSources.scout,
-                  userHistory: nonStreamingDataSources.userHistory,
-                },
-                voterSnapshot: stage9SnapshotNonStream,
-                signal,
-              }),
-            {
-              correlationId: requestId,
-              timeoutMs: readPipelineTimeoutMs(prep.category),
-              fallbackResponse:
-                "Still analyzing — the deep-validation pass took longer than expected. Please ask again or rephrase.",
-            },
-          );
-          rawAnalysis = pipelineResult.finalResponse || "No analysis generated.";
-          pipelineResultForTelemetry = pipelineResult;
-          mastermindPrepForTelemetry = prep;
-
-          // Stage 5 post-LLM motif grounding check (log-only in v1; regeneration loop in Stage 6)
-          if (prep.moveCtx.moveSan && prep.moveCtx.fenBefore) {
-            try {
-              const moveMotifs: AnyMotif[] = detectMotifs(prep.moveCtx.fenBefore, prep.moveCtx.moveSan);
-              const groundingResult = validateMotifGrounding({
-                llmResponse: rawAnalysis,
-                detectedMotifs: moveMotifs,
-                fen: prep.moveCtx.fenAfter,
-                moveSan: prep.moveCtx.moveSan,
-                correlationId: requestId,
-              });
-              if (!groundingResult.passed) {
-                log.warn("motif_grounding_failed", {
-                  issues: groundingResult.issues.map(i => i.llm_span),
-                  motif_count: moveMotifs.length,
-                  correlationId: requestId,
-                });
-              }
-              // Stage 9: post-pipeline log-only check on the final response.
-              // Important for pipeline-fallback (timeout) cases where the
-              // returned text was deterministic template not validated by
-              // Stage 9 inside runValidationPipeline. Reuses the async
-              // snapshot built before the pipeline — same move context,
-              // zero extra fetches.
-              if (stage9SnapshotNonStream) {
-                runStreamingStage9Validators({
-                  llmResponse: rawAnalysis,
-                  voterSnapshot: stage9SnapshotNonStream,
-                  fen: prep.moveCtx.fenAfter,
-                  moveSan: prep.moveCtx.moveSan,
-                  playerPerspective,
-                  correlationId: requestId,
-                  branch: "non-streaming-flagon",
-                  log,
-                });
-              }
-            } catch { /* non-critical */ }
-          }
-
           console.log("coach.tokens", {
-            input: undefined,  // pipeline-managed; surfaced via pipelineResult.totalCostUsd
-            output: undefined,
+            input: llmResult.inputTokens,
+            output: llmResult.outputTokens,
             promptVersion: PROMPT_VERSION,
-            pipelineCostUsd: pipelineResult.totalCostUsd,
-            pipelineFinalOutcome: pipelineResult.finalOutcome,
-            pipelineRetryCount: pipelineResult.retryCount,
-            pipelineTimedOut: pipelineResult.timedOut,
+            flagOnFallback: true,
           });
-        } catch (err) {
-          const e = err instanceof LLMError ? err : new Error(String(err));
-          log.error("Mastermind pipeline failed for enhanced-analysis", { message: e.message });
-          reportFatal(err, "non-stream:mastermind-pipeline", {
-            category: prep.category,
-          });
-          return NextResponse.json(
-            { error: "Pipeline request failed", details: e.message },
-            { status: 502 },
-          );
+          llmTelemetry = {
+            provider: llmResult.provider,
+            model: llmResult.model,
+            inputTokens: llmResult.inputTokens,
+            outputTokens: llmResult.outputTokens,
+            cacheCreationTokens: llmResult.cacheCreationTokens,
+            cacheReadTokens: llmResult.cacheReadTokens,
+            elapsedMs: llmResult.elapsedMs,
+          };
+          recordLLMCall(llmResult);
+          rawAnalysis = llmResult.content || "No analysis generated.";
         }
       } else {
-        // FD failed → flag-off fallback for this turn.
+        // Call the unified LLM provider (Anthropic primary, OpenAI fallback).
         let llmResult;
         try {
           llmResult = await callLLM({
@@ -2401,32 +2847,25 @@ export async function POST(request: NextRequest) {
             temperature: 0.7,
             maxTokens: 3000,
             cacheSystem: true,
-            capture: {
-              feature: "enhanced-analysis",
-              uid: session.uid,
-              requestId,
-              promptVersion: PROMPT_VERSION,
-              fen,
-              props: { branch: "nonstream-fd-fallback" },
-            },
           });
         } catch (err) {
-          const e = err instanceof LLMError ? err : new Error(String(err));
-          log.error("LLM provider failed (flag-on fallback after FD failure)", { message: e.message });
-          reportFatal(err, "non-stream:fd-fallback", {
+          const e = toSafeLLMError(err);
+          log.error("LLM provider failed for enhanced-analysis", {
+            message: e.message,
+          });
+          reportFatal(e, "non-stream:flag-off", {
             provider: e instanceof LLMError ? e.provider : undefined,
             status: e instanceof LLMError ? e.status : undefined,
           });
           return NextResponse.json(
-            { error: "LLM request failed", details: e.message },
-            { status: 502 },
+            { error: PUBLIC_LLM_ERROR.message, code: PUBLIC_LLM_ERROR.code },
+            { status: 502 }
           );
         }
         console.log("coach.tokens", {
           input: llmResult.inputTokens,
           output: llmResult.outputTokens,
           promptVersion: PROMPT_VERSION,
-          flagOnFallback: true,
         });
         llmTelemetry = {
           provider: llmResult.provider,
@@ -2440,205 +2879,172 @@ export async function POST(request: NextRequest) {
         recordLLMCall(llmResult);
         rawAnalysis = llmResult.content || "No analysis generated.";
       }
-    } else {
-      // Call the unified LLM provider (Anthropic primary, OpenAI fallback).
-      let llmResult;
-      try {
-        llmResult = await callLLM({
-          tier: "flagship",
-          system: claudeSystemParts.stable,
-          systemSuffix: claudeSystemParts.perUser,
-          messages: claudeMessages,
-          temperature: 0.7,
-          maxTokens: 3000,
-          cacheSystem: true,
-          capture: {
-            feature: "enhanced-analysis",
-            uid: session.uid,
-            requestId,
-            promptVersion: PROMPT_VERSION,
-            fen,
-            props: { branch: "nonstream-flag-off" },
-          },
-        });
-      } catch (err) {
-        const e = err instanceof LLMError ? err : new Error(String(err));
-        log.error("LLM provider failed for enhanced-analysis", {
-          message: e.message,
-        });
-        reportFatal(err, "non-stream:flag-off", {
-          provider: e instanceof LLMError ? e.provider : undefined,
-          status: e instanceof LLMError ? e.status : undefined,
-        });
-        return NextResponse.json(
-          {
-            error: "LLM request failed",
-            details: e.message,
-          },
-          { status: 502 }
-        );
+
+      // Build final game state for response metadata
+      const game = new Chess();
+      if (moveHistory && moveHistory.length > 0) {
+        for (const m of moveHistory) {
+          try {
+            game.move(m);
+          } catch {
+            break;
+          }
+        }
+      } else if (fen) {
+        try {
+          game.load(fen);
+        } catch {
+          /* ignore */
+        }
       }
-      console.log("coach.tokens", {
-        input: llmResult.inputTokens,
-        output: llmResult.outputTokens,
-        promptVersion: PROMPT_VERSION,
-      });
-      llmTelemetry = {
-        provider: llmResult.provider,
-        model: llmResult.model,
-        inputTokens: llmResult.inputTokens,
-        outputTokens: llmResult.outputTokens,
-        cacheCreationTokens: llmResult.cacheCreationTokens,
-        cacheReadTokens: llmResult.cacheReadTokens,
-        elapsedMs: llmResult.elapsedMs,
-      };
-      recordLLMCall(llmResult);
-      rawAnalysis = llmResult.content || "No analysis generated.";
-    }
 
-    // Build final game state for response metadata
-    const game = new Chess();
-    if (moveHistory && moveHistory.length > 0) {
-      for (const m of moveHistory) {
-        try { game.move(m); } catch { break; }
+      // Validate the LLM response against the actual board state
+      const validationFen = game.fen();
+      const validation = validateAIResponse(
+        rawAnalysis,
+        validationFen,
+        moveHistory
+      );
+
+      if (validation.issues.length > 0) {
+        log.warn("AI response validation issues", {
+          issueCount: validation.issues.length,
+          score: validation.score,
+          issues: validation.issues.map((i) => ({
+            severity: i.severity,
+            type: i.type,
+            detail: i.detail,
+          })),
+          category: mastermindPrepForTelemetry?.category,
+        });
       }
-    } else if (fen) {
-      try { game.load(fen); } catch { /* ignore */ }
-    }
 
-    // Validate the LLM response against the actual board state
-    const validationFen = game.fen();
-    const validation = validateAIResponse(rawAnalysis, validationFen, moveHistory);
+      // 2026-05-26 fix-game-review-false-positives: chess.js "may be
+      // inaccurate" disclaimer is suppressed for non-position-anchored
+      // categories (game_review et al.) because the validator's
+      // current-FEN-only check produces false positives on legitimate
+      // historical citations. Disclaimer kept for position_analysis and
+      // for the legacy flag-off path (no category info, preserve prior
+      // behavior).
+      const usePositionAnchoredAnnotation = mastermindPrepForTelemetry
+        ? POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(
+            mastermindPrepForTelemetry.category
+          )
+        : true; // flag-off / pre-Mastermind path: keep historical behavior
+      const analysisContent =
+        usePositionAnchoredAnnotation && !validation.isValid
+          ? validation.correctedResponse
+          : rawAnalysis;
 
-    if (validation.issues.length > 0) {
-      log.warn("AI response validation issues", {
-        issueCount: validation.issues.length,
-        score: validation.score,
-        issues: validation.issues.map(i => ({ severity: i.severity, type: i.type, detail: i.detail })),
-        category: mastermindPrepForTelemetry?.category,
-      });
-    }
+      // Cache the validated response for future identical queries
+      setCachedResponse(cacheKey, analysisContent, validation.score);
 
-    // 2026-05-26 fix-game-review-false-positives: chess.js "may be
-    // inaccurate" disclaimer is suppressed for non-position-anchored
-    // categories (game_review et al.) because the validator's
-    // current-FEN-only check produces false positives on legitimate
-    // historical citations. Disclaimer kept for position_analysis and
-    // for the legacy flag-off path (no category info, preserve prior
-    // behavior).
-    const usePositionAnchoredAnnotation = mastermindPrepForTelemetry
-      ? POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(mastermindPrepForTelemetry.category)
-      : true; // flag-off / pre-Mastermind path: keep historical behavior
-    const analysisContent =
-      usePositionAnchoredAnnotation && !validation.isValid
-        ? validation.correctedResponse
-        : rawAnalysis;
-
-    // Cache the validated response for future identical queries
-    setCachedResponse(cacheKey, analysisContent, validation.score);
-
-    // Store full analysis context for fast follow-up chat via /api/chat
-    const contextId = generateContextId(moveHistory, fen, playerColor || "w");
-    const compactGameContext = buildCompactGameContext(
-      moveHistory ?? [],
-      gameEval,
-      playerColor || "w"
-    );
-    storeAnalysisContext({
-      contextId,
-      gameContext,
-      compactGameContext,
-      playedMoves: moveHistory ?? [],
-      systemPrompt: claudeSystemPrompt,
-      systemPromptStable: claudeSystemParts.stable,
-      systemPromptSuffix: claudeSystemParts.perUser,
-      fewShotExamples: examplesContext,
-      fen: validationFen,
-      skillLevel,
-      playerColor: playerColor || "w",
-      moveCount: Math.ceil(game.history().length / 2),
-      createdAt: Date.now(),
-      initialAnalysis: analysisContent,
-      gameEval,
-    });
-
-    // Generate targeted puzzle recommendations for detected mistakes
-    const puzzleRecommendations = await generatePuzzleRecommendations(
-      moveHistory,
-      gameEval,
-      userRating
-    );
-
-    // Stage B insertion point F: forward pipeline telemetry + citationRate.
-    // Only when the pipeline actually ran (validatorsEnabled + FD succeeded).
-    if (pipelineResultForTelemetry && mastermindPrepForTelemetry?.dataSources) {
-      forwardPipelineTelemetryForRoute({
-        pipelineResult: pipelineResultForTelemetry,
-        dataSources: mastermindPrepForTelemetry.dataSources,
-        category: mastermindPrepForTelemetry.category,
-        routeKind: "/api/enhanced-analysis",
-        userId: session.uid,
-        sessionId: contextId,
-        responseId: requestId,
-      });
-    }
-
-    return NextResponse.json({
-      gameAnalysis: {
-        analysis: analysisContent,
-        position: validationFen,
-        turn: game.turn(),
-        moveCount: Math.ceil(game.history().length / 2),
-        availableMoves: game.moves().length,
-        validationScore: validation.score,
-        validationIssues: validation.issues.length,
+      // Store full analysis context for fast follow-up chat via /api/chat
+      const contextId = generateContextId(moveHistory, fen, playerColor || "w");
+      const compactGameContext = buildCompactGameContext(
+        moveHistory ?? [],
+        gameEval,
+        playerColor || "w"
+      );
+      storeAnalysisContext({
         contextId,
-        puzzleRecommendations, // NEW: Targeted puzzles for each mistake
-        // Per-request token + cache stats from the LLM provider. Lets
-        // callers (the synthetic-tester, demo screenshots, an eventual
-        // cost dashboard) see exactly how many input tokens were served
-        // from the prompt cache vs charged at full rate, without having
-        // to grep Vercel Log Drain for "coach.tokens" lines.
-        ...(llmTelemetry ? { llm: llmTelemetry } : {}),
-        ...(pipelineResultForTelemetry && mastermindPrepForTelemetry
-          ? {
-              pipeline: {
-                finalOutcome: pipelineResultForTelemetry.finalOutcome,
-                retryCount: pipelineResultForTelemetry.retryCount,
-                totalCostUsd: pipelineResultForTelemetry.totalCostUsd,
-                category: mastermindPrepForTelemetry.category,
-                classifierConfidence: mastermindPrepForTelemetry.classifierConfidence,
-                prepMs: mastermindPrepForTelemetry.prepMs,
-                timedOut: pipelineResultForTelemetry.timedOut,
-                // Stage C telemetry expose (Follow-up A, 2026-05-23): preview
-                // env only. Production responses do not include the telemetry
-                // array — see Stage C dispatch design + Pause 4 dry-run
-                // surface for context. The events still emit through the
-                // structured logger to Vercel Log Drain on every env; this
-                // field just additionally inlines them in the response so
-                // the synthetic-tester harness can capture per-turn telemetry
-                // without a separate Log Drain reader.
-                ...(process.env.VERCEL_ENV === "preview"
-                  ? { telemetry: pipelineResultForTelemetry.telemetry }
-                  : {}),
-              },
-            }
-          : {}),
-      },
-    });
-  } catch (error) {
-    log.error("Enhanced analysis failed", {
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-    reportFatal(error, "non-stream:uncaught");
-    return NextResponse.json(
-      {
-        error: "Analysis failed",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
-  }
+        gameContext,
+        compactGameContext,
+        playedMoves: moveHistory ?? [],
+        systemPrompt: claudeSystemPrompt,
+        systemPromptStable: claudeSystemParts.stable,
+        systemPromptSuffix: claudeSystemParts.perUser,
+        fewShotExamples: examplesContext,
+        fen: validationFen,
+        skillLevel,
+        playerColor: playerColor || "w",
+        moveCount: Math.ceil(game.history().length / 2),
+        createdAt: Date.now(),
+        initialAnalysis: analysisContent,
+        gameEval,
+      });
+
+      // Generate targeted puzzle recommendations for detected mistakes
+      const puzzleRecommendations = await generatePuzzleRecommendations(
+        moveHistory,
+        gameEval,
+        userRating
+      );
+
+      // Stage B insertion point F: forward pipeline telemetry + citationRate.
+      // Only when the pipeline actually ran (validatorsEnabled + FD succeeded).
+      if (
+        pipelineResultForTelemetry &&
+        mastermindPrepForTelemetry?.dataSources
+      ) {
+        forwardPipelineTelemetryForRoute({
+          pipelineResult: pipelineResultForTelemetry,
+          dataSources: mastermindPrepForTelemetry.dataSources,
+          category: mastermindPrepForTelemetry.category,
+          routeKind: "/api/enhanced-analysis",
+          userId: session.uid,
+          sessionId: contextId,
+          responseId: requestId,
+        });
+      }
+
+      return NextResponse.json({
+        gameAnalysis: {
+          analysis: analysisContent,
+          position: validationFen,
+          turn: game.turn(),
+          moveCount: Math.ceil(game.history().length / 2),
+          availableMoves: game.moves().length,
+          validationScore: validation.score,
+          validationIssues: validation.issues.length,
+          contextId,
+          puzzleRecommendations, // NEW: Targeted puzzles for each mistake
+          // Per-request token + cache stats from the LLM provider. Lets
+          // callers (the synthetic-tester, demo screenshots, an eventual
+          // cost dashboard) see exactly how many input tokens were served
+          // from the prompt cache vs charged at full rate, without having
+          // to grep Vercel Log Drain for "coach.tokens" lines.
+          ...(llmTelemetry ? { llm: llmTelemetry } : {}),
+          ...(pipelineResultForTelemetry && mastermindPrepForTelemetry
+            ? {
+                pipeline: {
+                  finalOutcome: pipelineResultForTelemetry.finalOutcome,
+                  retryCount: pipelineResultForTelemetry.retryCount,
+                  totalCostUsd: pipelineResultForTelemetry.totalCostUsd,
+                  category: mastermindPrepForTelemetry.category,
+                  classifierConfidence:
+                    mastermindPrepForTelemetry.classifierConfidence,
+                  prepMs: mastermindPrepForTelemetry.prepMs,
+                  timedOut: pipelineResultForTelemetry.timedOut,
+                  // Stage C telemetry expose (Follow-up A, 2026-05-23): preview
+                  // env only. Production responses do not include the telemetry
+                  // array — see Stage C dispatch design + Pause 4 dry-run
+                  // surface for context. The events still emit through the
+                  // structured logger to Vercel Log Drain on every env; this
+                  // field just additionally inlines them in the response so
+                  // the synthetic-tester harness can capture per-turn telemetry
+                  // without a separate Log Drain reader.
+                  ...(process.env.VERCEL_ENV === "preview"
+                    ? { telemetry: pipelineResultForTelemetry.telemetry }
+                    : {}),
+                },
+              }
+            : {}),
+        },
+      });
+    } catch (error) {
+      log.error("Enhanced analysis failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      reportFatal(error, "non-stream:uncaught");
+      return NextResponse.json(
+        {
+          error: "Analysis failed",
+          details: error instanceof Error ? error.message : "Unknown error",
+        },
+        { status: 500 }
+      );
+    }
   });
 }

@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callLLMStream, LLMError, type LLMMessage } from "@/lib/llmProvider";
+import {
+  callLLMStream,
+  LLMError,
+  PUBLIC_LLM_ERROR,
+  toSafeLLMError,
+  type LLMMessage,
+} from "@/lib/llmProvider";
 import { puzzleChatSchema } from "@/lib/validation/puzzleChatSchemas";
 import {
   PUZZLE_COACH_BASE_PROMPT,
@@ -35,7 +41,11 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch (err) {
-    logErrorToSentry(err, { route: "/api/puzzle-chat", phase: "parse-body", requestId });
+    logErrorToSentry(err, {
+      route: "/api/puzzle-chat",
+      phase: "parse-body",
+      requestId,
+    });
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -46,7 +56,7 @@ export async function POST(request: NextRequest) {
         error: "Invalid puzzle-chat request",
         details: parsed.error.issues,
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -65,7 +75,7 @@ export async function POST(request: NextRequest) {
   if (turnIndex >= 1 && (!userMessage || userMessage.trim().length === 0)) {
     return NextResponse.json(
       { error: "userMessage is required on turn ≥ 1" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -125,21 +135,14 @@ export async function POST(request: NextRequest) {
           // explanation gets a bit more headroom; follow-ups are short.
           maxTokens: turnIndex === 0 ? 600 : 350,
           cacheSystem: true,
-          capture: {
-            feature: "puzzle-chat",
-            requestId,
-            promptVersion: PUZZLE_COACH_PROMPT_VERSION,
-            fen: puzzle.fen,
-            props: { puzzleId: puzzle.id, turnIndex, outcome },
-          },
         })) {
           if (ev.type === "text") {
             if (firstTokenAt === null) firstTokenAt = Date.now();
             totalChars += ev.delta.length;
             controller.enqueue(
               encoder.encode(
-                `data: ${JSON.stringify({ type: "text", delta: ev.delta })}\n\n`,
-              ),
+                `data: ${JSON.stringify({ type: "text", delta: ev.delta })}\n\n`
+              )
             );
           } else if (ev.type === "done") {
             // Surface model + token-count to the client for telemetry.
@@ -157,8 +160,8 @@ export async function POST(request: NextRequest) {
                   ttftMs: firstTokenAt
                     ? firstTokenAt - startedAt
                     : ev.result.elapsedMs,
-                })}\n\n`,
-              ),
+                })}\n\n`
+              )
             );
           }
         }
@@ -173,22 +176,22 @@ export async function POST(request: NextRequest) {
           ttftMs: firstTokenAt ? firstTokenAt - startedAt : null,
         });
       } catch (err) {
-        const e = err instanceof LLMError ? err : new Error(String(err));
+        const e = toSafeLLMError(err);
         log.error("puzzle-chat stream failed", {
           requestId,
           message: e.message,
           provider: err instanceof LLMError ? err.provider : undefined,
           status: err instanceof LLMError ? err.status : undefined,
         });
-        logErrorToSentry(err, {
+        logErrorToSentry(e, {
           route: "/api/puzzle-chat",
           phase: "stream",
           requestId,
         });
         controller.enqueue(
           encoder.encode(
-            `data: ${JSON.stringify({ type: "error", error: e.message })}\n\n`,
-          ),
+            `data: ${JSON.stringify({ type: "error", error: PUBLIC_LLM_ERROR.message, code: PUBLIC_LLM_ERROR.code })}\n\n`
+          )
         );
       } finally {
         controller.close();

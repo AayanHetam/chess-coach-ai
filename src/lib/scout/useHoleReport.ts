@@ -20,7 +20,12 @@ export interface UseHoleReportResult {
   progress: HoleProgress;
   error: string | null;
   /** `yourColor` is the colour YOU intend to play. */
-  run: (games: ScoutGame[], username: string, yourColor: 'white' | 'black') => Promise<void>;
+  run: (
+    games: ScoutGame[],
+    username: string,
+    yourColor: 'white' | 'black',
+    pairing?: { yourGames?: ScoutGame[]; yourUsername?: string }
+  ) => Promise<void>;
   reset: () => void;
 }
 
@@ -44,7 +49,12 @@ export function useHoleReport(
   }, []);
 
   const run = useCallback(
-    async (games: ScoutGame[], username: string, yourColor: 'white' | 'black') => {
+    async (
+      games: ScoutGame[],
+      username: string,
+      yourColor: 'white' | 'black',
+      pairing?: { yourGames?: ScoutGame[]; yourUsername?: string }
+    ) => {
       const id = ++runId.current;
       const isStale = () => runId.current !== id;
 
@@ -54,6 +64,7 @@ export function useHoleReport(
       try {
         const result = await buildHoleReport(games, username, yourColor, {
           ...options,
+          ...pairing,
           config,
           isStale,
           onProgress: p => {

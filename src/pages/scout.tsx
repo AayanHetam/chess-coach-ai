@@ -574,6 +574,10 @@ export default function ScoutPage() {
   // Your own profile, derived from the games already fetched for collisions —
   // a rating you actually played to, rather than one you typed in.
   const [yourProfile, setYourProfile] = useState<ProfileSnapshot | null>(null);
+  // The collision fetch already pulls your archive; it was being discarded
+  // after computing a profile. The prep report needs the games themselves to
+  // compare the two of you in the same position.
+  const [yourGames, setYourGames] = useState<ScoutGame[] | null>(null);
   const [collisionsLoading, setCollisionsLoading] = useState(false);
   const [collisionsError, setCollisionsError] = useState<string | null>(null);
 
@@ -886,6 +890,7 @@ export default function ScoutPage() {
       setCollisions(null);
       setCollisionsError(null);
       setYourProfile(null);
+      setYourGames(null);
       return;
     }
     if (yn.toLowerCase() === scoutResult.username.toLowerCase()) {
@@ -921,7 +926,9 @@ export default function ScoutPage() {
           scoutResult.username
         );
         setCollisions(result);
-        // Same payload also gives us your side of the head-to-head.
+        // Same payload also gives us your side of the head-to-head, and the
+        // games behind the prep comparison.
+        setYourGames(data.games ?? null);
         try {
           setYourProfile(computeAnalytics(data.games, yn).profile);
         } catch {
@@ -1275,7 +1282,12 @@ export default function ScoutPage() {
               setPrepColor(c);
               holeReport.reset();
             }}
-            onRun={() => holeReport.run(activeGames, scoutResult.username, prepColor)}
+            onRun={() =>
+              holeReport.run(activeGames, scoutResult.username, prepColor, {
+                yourGames: yourGames ?? undefined,
+                yourUsername: yourUsername.trim() || undefined,
+              })
+            }
             onExplore={(moves, asColor) => exploreLine(moves, asColor)}
           />
 

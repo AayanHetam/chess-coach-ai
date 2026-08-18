@@ -36,6 +36,17 @@ export interface HoleProgress {
 
 export interface BuildHoleReportOptions {
   config?: HoleFinderConfig;
+  /**
+   * Your own games, so the report can compare the two of you in the same
+   * position instead of only describing them.
+   *
+   * Optional on purpose: scouting a stranger without a linked account is still
+   * worth doing, and the ranking degrades to the one-sided version rather than
+   * refusing to run.
+   */
+  yourGames?: ScoutGame[];
+  /** Your handle, needed to pick your side of your own games. */
+  yourUsername?: string;
   /** Injectable for tests; defaults to the Lichess cloud provider. */
   makeProvider?: () => HoleFinderProviders;
   onProgress?: (p: HoleProgress) => void;
@@ -88,6 +99,8 @@ export async function buildHoleReport(
 ): Promise<HoleReport | null> {
   const {
     config = HOLE_DEFAULTS,
+    yourGames,
+    yourUsername,
     makeProvider = () => createCloudProvider({ minDepth: 20 }),
     onProgress = () => {},
     isStale = () => false,
@@ -103,6 +116,12 @@ export async function buildHoleReport(
 
   const tree = buildOpeningTree(games, username, theirColor, config.maxPly, config.minRepeats);
   if (isStale()) return null;
+
+  // Your side of the board, indexed identically so positions pair by FEN.
+  const yourIndex =
+    yourGames && yourUsername && yourGames.length > 0
+      ? buildPositionIndex(yourGames, yourUsername, yourColor)
+      : undefined;
 
   const provider = makeProvider();
   const plan = planEngineWork(tree, theirColor, index, config).slice(0, config.engineBudget);
@@ -130,7 +149,7 @@ export async function buildHoleReport(
   // The provider is warm, so this is mostly cache reads. Its own budget still
   // covers anything the plan could not know about in advance — chiefly the
   // sibling the engine would rather have played.
-  const report = await findHoles(tree, theirColor, index, provider, config);
+  const report = await findHoles(tree, theirColor, index, provider, config, yourIndex);
   if (isStale()) return null;
 
   onProgress({ phase: 'done', fraction: 1, label: '' });

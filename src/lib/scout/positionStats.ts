@@ -37,6 +37,19 @@ export interface PositionStat {
   games: number;
   /** Positions reachable from here in one ply, among those we indexed. */
   next: Set<string>;
+  /**
+   * What was played FROM here, by whoever was to move, pooled across every move
+   * order that arrived at this position.
+   *
+   * This is what makes a deep prepared line possible. Their results fan out
+   * exponentially and stop being testable within about eight plies — on a real
+   * archive the effective sample fell to eight, then four, then three. Their
+   * *behaviour* does not: a reply played in twenty-five of twenty-five games is
+   * a firm prediction on a sample that could never confirm a score deficit.
+   * Keyed by position rather than by path so a transposition strengthens the
+   * prediction instead of splitting it.
+   */
+  replies: Map<string, { games: number; weight: number }>;
 }
 
 export interface PositionIndex {
@@ -131,35 +144,45 @@ export function buildPositionIndex(
     counted += 1;
 
     chess.reset();
-    let prev: string | null = null;
+    // The opening position is indexed too: the first move of the game is a
+    // reply FROM it, and without an entry there is nothing to predict from
+    // before anyone has moved.
+    let prev = ensure(positions, positionKey(chess.fen()), 0);
+    prev.weight += w;
+    prev.weightSq += w * w;
+    prev.points += w * result;
+    prev.games += 1;
+
     // A game that repeats a position must not count it twice — that would let
     // one shuffling game masquerade as several observations.
-    const seen = new Set<string>();
+    const seen = new Set<string>([prev.key]);
 
     for (let i = 0; i < Math.min(game.moves.length, config.maxPly); i++) {
+      const san = game.moves[i];
       try {
-        if (!chess.move(game.moves[i])) break;
+        if (!chess.move(san)) break;
       } catch {
         break;
       }
-      const key = positionKey(chess.fen());
-      if (prev) positions.get(prev)?.next.add(key);
-      if (seen.has(key)) {
-        prev = key;
-        continue;
-      }
-      seen.add(key);
+      // Recorded against the position it was played FROM, before anything else
+      // can `continue` past it.
+      const reply = prev.replies.get(san) ?? { games: 0, weight: 0 };
+      reply.games += 1;
+      reply.weight += w;
+      prev.replies.set(san, reply);
 
-      let stat = positions.get(key);
-      if (!stat) {
-        stat = { key, weight: 0, weightSq: 0, points: 0, ply: i + 1, games: 0, next: new Set() };
-        positions.set(key, stat);
+      const key = positionKey(chess.fen());
+      prev.next.add(key);
+
+      const stat = ensure(positions, key, i + 1);
+      if (!seen.has(key)) {
+        seen.add(key);
+        stat.weight += w;
+        stat.weightSq += w * w;
+        stat.points += w * result;
+        stat.games += 1;
       }
-      stat.weight += w;
-      stat.weightSq += w * w;
-      stat.points += w * result;
-      stat.games += 1;
-      prev = key;
+      prev = stat;
     }
   }
 
@@ -170,6 +193,28 @@ export function buildPositionIndex(
     games: counted,
     halfLifeDays: config.halfLifeDays,
   };
+}
+
+function ensure(
+  positions: Map<string, PositionStat>,
+  key: string,
+  ply: number
+): PositionStat {
+  let stat = positions.get(key);
+  if (!stat) {
+    stat = {
+      key,
+      weight: 0,
+      weightSq: 0,
+      points: 0,
+      ply,
+      games: 0,
+      next: new Set(),
+      replies: new Map(),
+    };
+    positions.set(key, stat);
+  }
+  return stat;
 }
 
 function outcomeFor(game: ScoutGame, color: 'white' | 'black'): number | null {

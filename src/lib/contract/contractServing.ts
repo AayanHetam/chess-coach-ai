@@ -19,7 +19,12 @@
  * maxDuration 60s via requestStartMs + 55s (5s margin).
  */
 import { callLLMStream as defaultCallLLMStream } from "@/lib/llmProvider";
-import type { CallLLMOptions, LLMMessage, LLMResult, LLMStreamEvent } from "@/lib/llmProvider";
+import type {
+  CallLLMOptions,
+  LLMMessage,
+  LLMResult,
+  LLMStreamEvent,
+} from "@/lib/llmProvider";
 import {
   buildVerbalizerUserTurn,
   getVerbalizerSystemPromptParts,
@@ -125,8 +130,6 @@ export interface ContractServingArgs {
   promptInput: CoachChatPromptInput;
   correlationId: string;
   uid: string;
-  /** hasTrackingConsent(request) — conversation capture is consent-gated. */
-  trackingConsent: boolean;
   requestStartMs: number;
   cacheInputs: {
     currentFen: string;
@@ -136,7 +139,9 @@ export interface ContractServingArgs {
     moveHistory: string[] | undefined;
   };
   /** Test seams. */
-  callLLMStreamImpl?: (opts: CallLLMOptions) => AsyncGenerator<LLMStreamEvent, void, void>;
+  callLLMStreamImpl?: (
+    opts: CallLLMOptions
+  ) => AsyncGenerator<LLMStreamEvent, void, void>;
   ladderDeps?: LadderDeps;
   armingTable?: ArmingTable;
 }
@@ -152,7 +157,7 @@ export interface ContractServingResult {
 }
 
 export async function serveContractAnalysis(
-  args: ContractServingArgs,
+  args: ContractServingArgs
 ): Promise<ContractServingResult> {
   const env = getContractEnv();
   const { contract } = args;
@@ -161,7 +166,7 @@ export async function serveContractAnalysis(
     args.cacheInputs.skillLevel,
     args.cacheInputs.userMessage,
     args.cacheInputs.personaSignature,
-    args.cacheInputs.moveHistory,
+    args.cacheInputs.moveHistory
   );
 
   const cachedText = getCachedResponse(cacheKey);
@@ -234,7 +239,7 @@ export async function serveContractAnalysis(
       generationTruncated = true;
       generationController.abort();
     },
-    Math.max(0, generationBudgetLeftMs),
+    Math.max(0, generationBudgetLeftMs)
   );
   try {
     for await (const evt of callLLMStream({
@@ -246,14 +251,6 @@ export async function serveContractAnalysis(
       maxTokens: maxTokensForInsights(cardCount),
       cacheSystem: true,
       signal: generationController.signal,
-      capture: {
-        feature: "enhanced-analysis",
-        consent: args.trackingConsent,
-        uid: args.uid,
-        requestId: args.correlationId,
-        promptVersion: VERBALIZER_PROMPT_VERSION,
-        props: { branch: "stream-contract-enforced", category: args.category },
-      },
     })) {
       if (evt.type === "text") {
         stream.push(evt.delta);

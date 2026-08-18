@@ -1,7 +1,6 @@
 "use client";
 
 import { Chess, type Move } from "chess.js";
-import { triggerPaywall } from "@/contexts/PaywallDialogContext";
 import {
   ANALYSIS_HANDOFF_PARAM,
   consumeStagedGame,
@@ -142,14 +141,8 @@ import {
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import {
-  parseInsights,
-  type InsightData,
-} from "@/components/AICoachInsights";
-import {
-  recordPuzzleAttempt,
-  getAllAttempts,
-} from "@/lib/repetitTraining";
+import { parseInsights, type InsightData } from "@/components/AICoachInsights";
+import { recordPuzzleAttempt, getAllAttempts } from "@/lib/repetitTraining";
 import { useAtomValue, useSetAtom } from "jotai";
 import { savedEvalsAtom } from "@/sections/analysis/states";
 import type { SavedEvals } from "@/types/eval";
@@ -560,18 +553,12 @@ async function streamCoachReply(params: {
       contextIdRef.current = null;
     } else if (chatRes.status === 401) {
       throw new CoachAuthError();
-    } else if (chatRes.status === 402) {
-      triggerPaywall({ feature: "AI coach", reason: "quota_exhausted" });
-      throw new CoachApiError(402);
     } else if (!chatRes.ok) {
       throw new CoachApiError(chatRes.status);
     } else {
       const data = await chatRes.json();
       const text: string =
-        data.message ??
-        data.response ??
-        data.gameAnalysis?.analysis ??
-        "";
+        data.message ?? data.response ?? data.gameAnalysis?.analysis ?? "";
       // Emit as a single chunk so the UI animates the same way
       onDelta(text);
       return text;
@@ -668,10 +655,6 @@ async function streamCoachReply(params: {
   });
 
   if (res.status === 401) throw new CoachAuthError();
-  if (res.status === 402) {
-    triggerPaywall({ feature: "AI coach", reason: "quota_exhausted" });
-    throw new CoachApiError(402);
-  }
   if (!res.ok) throw new CoachApiError(res.status);
   if (!res.body) throw new CoachApiError(res.status);
 
@@ -850,7 +833,7 @@ const THEME_TITLES: Record<string, string> = {
   pin: "Find the pin",
   skewer: "Find the skewer",
   "discovered-attack": "Discovered attack",
-  "discoveredAttack": "Discovered attack",
+  discoveredAttack: "Discovered attack",
   "double-attack": "Double attack",
   "back-rank": "Back-rank pressure",
   backRankMate: "Back-rank mate",
@@ -987,10 +970,7 @@ const EMPTY_STATE_MESSAGES: CoachMessage[] = [
 // my game" in ember + up to 3 rule-derived) computed in AnalysisPage
 // based on the current game's blunders / brilliancies / opening /
 // endgame state / active mistake context.
-import {
-  generateSuggestions,
-  type Suggestion,
-} from "./generateSuggestions";
+import { generateSuggestions, type Suggestion } from "./generateSuggestions";
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Board square styling
@@ -1295,8 +1275,8 @@ function GameIdentity({
             color: evalPending
               ? "rgba(255,255,255,0.4)"
               : evalPositive
-              ? "#FB923C"
-              : "rgba(255,255,255,0.85)",
+                ? "#FB923C"
+                : "rgba(255,255,255,0.85)",
             fontFamily: "Monaco, Menlo, monospace",
             lineHeight: 1.35,
           }}
@@ -1440,10 +1420,10 @@ function GameActions({
             saveState === "saved"
               ? "Saved to your library"
               : saveState === "saving"
-              ? "Saving…"
-              : saveState === "error"
-              ? "Save failed — check sign-in"
-              : "Save this game to your library"
+                ? "Saving…"
+                : saveState === "error"
+                  ? "Save failed — check sign-in"
+                  : "Save this game to your library"
           }
         >
           <span>
@@ -1478,8 +1458,8 @@ function GameActions({
               {saveState === "saved"
                 ? "✓ Saved"
                 : saveState === "saving"
-                ? "Saving…"
-                : "Save"}
+                  ? "Saving…"
+                  : "Save"}
             </Button>
           </span>
         </Tooltip>
@@ -1728,24 +1708,24 @@ function DrillBanner({
   const accent = isComplete
     ? "#22c55e"
     : isSolved
-    ? "#22c55e"
-    : isWrong
-    ? "#ef4444"
-    : "#A855F7";
+      ? "#22c55e"
+      : isWrong
+        ? "#ef4444"
+        : "#A855F7";
   const accentSoft = isComplete
     ? "rgba(34,197,94,0.12)"
     : isSolved
-    ? "rgba(34,197,94,0.12)"
-    : isWrong
-    ? "rgba(239,68,68,0.12)"
-    : "rgba(168,85,247,0.12)";
+      ? "rgba(34,197,94,0.12)"
+      : isWrong
+        ? "rgba(239,68,68,0.12)"
+        : "rgba(168,85,247,0.12)";
   const accentBorder = isComplete
     ? "rgba(34,197,94,0.35)"
     : isSolved
-    ? "rgba(34,197,94,0.35)"
-    : isWrong
-    ? "rgba(239,68,68,0.4)"
-    : "rgba(168,85,247,0.35)";
+      ? "rgba(34,197,94,0.35)"
+      : isWrong
+        ? "rgba(239,68,68,0.4)"
+        : "rgba(168,85,247,0.35)";
 
   return (
     <motion.div
@@ -1819,8 +1799,8 @@ function DrillBanner({
                         i < state.currentIndex
                           ? "#22c55e"
                           : i === state.currentIndex
-                          ? accent
-                          : "rgba(255,255,255,0.18)",
+                            ? accent
+                            : "rgba(255,255,255,0.18)",
                     }}
                   />
                 ))}
@@ -1839,10 +1819,10 @@ function DrillBanner({
             {isComplete
               ? "Three for three — nice work."
               : isSolved
-              ? `${puzzle?.title ?? "Puzzle"} — solved`
-              : isWrong
-              ? "Not the move — try again."
-              : puzzle?.title ?? "Puzzle"}
+                ? `${puzzle?.title ?? "Puzzle"} — solved`
+                : isWrong
+                  ? "Not the move — try again."
+                  : (puzzle?.title ?? "Puzzle")}
           </Typography>
           {!isComplete && puzzle && state.status === "solving" && (
             <Typography
@@ -1876,13 +1856,15 @@ function DrillBanner({
                   component="span"
                   sx={{ display: { xs: "inline", lg: "none" } }}
                 >
-                  {" "}below
+                  {" "}
+                  below
                 </Box>
                 <Box
                   component="span"
                   sx={{ display: { xs: "none", lg: "inline" } }}
                 >
-                  {" "}on the right
+                  {" "}
+                  on the right
                 </Box>
                 .
               </Typography>
@@ -2001,9 +1983,7 @@ function GlassEvalBar({
    */
   heightPx?: number | null;
 }) {
-  const whiteShare = pending
-    ? 50
-    : Math.max(0, Math.min(100, whitePercentage));
+  const whiteShare = pending ? 50 : Math.max(0, Math.min(100, whitePercentage));
   const whiteOnTop = boardOrientation === "black";
   const whiteAdv = whiteShare >= 50;
   // Label sits at the advantaged side's outer edge (lichess convention).
@@ -2013,7 +1993,9 @@ function GlassEvalBar({
     <Box
       role="img"
       aria-label={
-        pending ? "Engine evaluation: calculating" : `Engine evaluation: ${label}`
+        pending
+          ? "Engine evaluation: calculating"
+          : `Engine evaluation: ${label}`
       }
       sx={{
         position: "relative",
@@ -2218,72 +2200,78 @@ function BoardArea({
             justifyContent: "center",
           }}
         >
-        <Box
-          sx={{
-            position: "relative",
-            width: squarePx ?? "100%",
-            height: squarePx ?? "auto",
-            maxWidth: "100%",
-            flexShrink: 0,
-            borderRadius: "14px",
-            overflow: "hidden",
-            boxShadow:
-              "0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
-          }}
-        >
-          <ChessgroundBoard
-            fen={fen}
-            orientation={boardOrientation}
-            lastMove={lastMoveTuple}
-            check={isInCheck}
-            viewOnly={!interactive}
-            shapes={shapes}
-            movableColor={movableColor}
-            dests={dests}
-            onMove={onMove}
-            syncTick={syncTick}
-          />
-          {empty && (
-            <Box
-              sx={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 0.75,
-                textAlign: "center",
-                px: 3,
-                background: "rgba(8,9,12,0.72)",
-                backdropFilter: "blur(2px)",
-                pointerEvents: "none",
-              }}
-            >
-              <Typography
+          <Box
+            sx={{
+              position: "relative",
+              width: squarePx ?? "100%",
+              height: squarePx ?? "auto",
+              maxWidth: "100%",
+              flexShrink: 0,
+              borderRadius: "14px",
+              overflow: "hidden",
+              boxShadow:
+                "0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
+            }}
+          >
+            <ChessgroundBoard
+              fen={fen}
+              orientation={boardOrientation}
+              lastMove={lastMoveTuple}
+              check={isInCheck}
+              viewOnly={!interactive}
+              shapes={shapes}
+              movableColor={movableColor}
+              dests={dests}
+              onMove={onMove}
+              syncTick={syncTick}
+            />
+            {empty && (
+              <Box
                 sx={{
-                  fontSize: "1rem",
-                  fontWeight: 700,
-                  color: "rgba(255,255,255,0.9)",
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 0.75,
+                  textAlign: "center",
+                  px: 3,
+                  background: "rgba(8,9,12,0.72)",
+                  backdropFilter: "blur(2px)",
+                  pointerEvents: "none",
                 }}
               >
-                No game loaded
-              </Typography>
-              <Typography
-                sx={{
-                  fontSize: "0.84rem",
-                  color: "rgba(255,255,255,0.55)",
-                  maxWidth: 300,
-                  lineHeight: 1.5,
-                }}
-              >
-                Hit <Box component="span" sx={{ color: "#FB923C", fontWeight: 700 }}>Load game</Box>{" "}
-                to paste a PGN or FEN, or pull your recent games from Lichess
-                or Chess.com.
-              </Typography>
-            </Box>
-          )}
-        </Box>
+                <Typography
+                  sx={{
+                    fontSize: "1rem",
+                    fontWeight: 700,
+                    color: "rgba(255,255,255,0.9)",
+                  }}
+                >
+                  No game loaded
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.84rem",
+                    color: "rgba(255,255,255,0.55)",
+                    maxWidth: 300,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Hit{" "}
+                  <Box
+                    component="span"
+                    sx={{ color: "#FB923C", fontWeight: 700 }}
+                  >
+                    Load game
+                  </Box>{" "}
+                  to paste a PGN or FEN, or pull your recent games from Lichess
+                  or Chess.com.
+                </Typography>
+              </Box>
+            )}
+          </Box>
         </Box>
       </Box>
     </Box>
@@ -2522,10 +2510,10 @@ function EvalSparkline({
               m.kind === "brilliant"
                 ? "#22c55e"
                 : m.kind === "mistake"
-                ? "#ef4444"
-                : m.kind === "winning"
-                ? "#F97316"
-                : "rgba(255,255,255,0.4)"
+                  ? "#ef4444"
+                  : m.kind === "winning"
+                    ? "#F97316"
+                    : "rgba(255,255,255,0.4)"
             }
             stroke="#08090C"
             strokeWidth={1.5}
@@ -2547,7 +2535,14 @@ function EvalSparkline({
           stroke="#F97316"
           strokeWidth={1.5}
         />
-        <circle cx={currentX} cy={yFor(series[currentPly] ?? 0)} r={5} fill="#F97316" stroke="#08090C" strokeWidth={2} />
+        <circle
+          cx={currentX}
+          cy={yFor(series[currentPly] ?? 0)}
+          r={5}
+          fill="#F97316"
+          stroke="#08090C"
+          strokeWidth={2}
+        />
       </svg>
       {statusChip && (
         <Box
@@ -2691,8 +2686,7 @@ function TabStrip({
               fontSize: { xs: "0.76rem", sm: "0.84rem" },
               fontWeight: 700,
               letterSpacing: "0.01em",
-              transition:
-                "color 180ms ease, background 180ms ease",
+              transition: "color 180ms ease, background 180ms ease",
               "&:hover": {
                 color: isActive ? "#0A0A0A" : "rgba(255,255,255,0.92)",
               },
@@ -2771,8 +2765,16 @@ function MovesListPanel({
   // Group moves into pairs (white, black) for two-column layout
   type Row = {
     moveNumber: number;
-    white: { san: string; ply: number; classification: MoveLabel | null } | null;
-    black: { san: string; ply: number; classification: MoveLabel | null } | null;
+    white: {
+      san: string;
+      ply: number;
+      classification: MoveLabel | null;
+    } | null;
+    black: {
+      san: string;
+      ply: number;
+      classification: MoveLabel | null;
+    } | null;
   };
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
@@ -3086,33 +3088,28 @@ function MovesListPanel({
             flexWrap: "wrap",
           }}
         >
-          {([
-            MoveClassification.Brilliant,
-            MoveClassification.Great,
-            MoveClassification.Best,
-            MoveClassification.Inaccuracy,
-            MoveClassification.Mistake,
-            MoveClassification.Blunder,
-          ] as MoveLabel[]).map(
-            (k) => (
-              <Stack
-                key={k}
-                direction="row"
-                alignItems="center"
-                spacing={0.5}
-              >
-                <Box
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: CLASSIFICATION_COLORS[k],
-                  }}
-                />
-                <Box component="span">{CLASSIFICATION_LABELS[k]}</Box>
-              </Stack>
-            )
-          )}
+          {(
+            [
+              MoveClassification.Brilliant,
+              MoveClassification.Great,
+              MoveClassification.Best,
+              MoveClassification.Inaccuracy,
+              MoveClassification.Mistake,
+              MoveClassification.Blunder,
+            ] as MoveLabel[]
+          ).map((k) => (
+            <Stack key={k} direction="row" alignItems="center" spacing={0.5}>
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: CLASSIFICATION_COLORS[k],
+                }}
+              />
+              <Box component="span">{CLASSIFICATION_LABELS[k]}</Box>
+            </Stack>
+          ))}
         </Stack>
       </Box>
     </Box>
@@ -3157,7 +3154,12 @@ function ExplorationBanner({
         rowGap: 0.75,
       }}
     >
-      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ flexShrink: 0 }}>
+      <Stack
+        direction="row"
+        spacing={0.75}
+        alignItems="center"
+        sx={{ flexShrink: 0 }}
+      >
         <GitBranch size={13} color="#FBBF24" />
         <Typography
           sx={{
@@ -3398,7 +3400,12 @@ function LinesControls({
             gap: 1,
           }}
         >
-          <Stack direction="row" spacing={0.6} alignItems="center" sx={{ flexWrap: "wrap", rowGap: 0.6 }}>
+          <Stack
+            direction="row"
+            spacing={0.6}
+            alignItems="center"
+            sx={{ flexWrap: "wrap", rowGap: 0.6 }}
+          >
             {label("Depth")}
             {LINES_DEPTHS.map((d) =>
               chip(
@@ -3412,7 +3419,12 @@ function LinesControls({
             )}
           </Stack>
 
-          <Stack direction="row" spacing={0.6} alignItems="center" sx={{ flexWrap: "wrap", rowGap: 0.6 }}>
+          <Stack
+            direction="row"
+            spacing={0.6}
+            alignItems="center"
+            sx={{ flexWrap: "wrap", rowGap: 0.6 }}
+          >
             {label("Lines")}
             {LINES_COUNTS.map((n) =>
               chip(String(n), settings.count === n, () =>
@@ -3421,7 +3433,12 @@ function LinesControls({
             )}
           </Stack>
 
-          <Stack direction="row" spacing={0.6} alignItems="center" sx={{ flexWrap: "wrap", rowGap: 0.6 }}>
+          <Stack
+            direction="row"
+            spacing={0.6}
+            alignItems="center"
+            sx={{ flexWrap: "wrap", rowGap: 0.6 }}
+          >
             {label("Engine")}
             {chip(
               "17 Lite",
@@ -3477,7 +3494,9 @@ function LinesControls({
                 border: settings.preferLocalEngine
                   ? "1px solid #FB923C"
                   : "1px solid rgba(255,255,255,0.3)",
-                background: settings.preferLocalEngine ? "#FB923C" : "transparent",
+                background: settings.preferLocalEngine
+                  ? "#FB923C"
+                  : "transparent",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -3513,8 +3532,8 @@ function LinesControls({
                 {settings.preferLocalEngine
                   ? `Every line is computed here by ${engineName} at your depth.`
                   : fromCloud
-                  ? "These lines came from Lichess's cloud, which is deeper than this browser reaches."
-                  : "Lichess's cloud answers when it has a deeper result; otherwise your engine does."}
+                    ? "These lines came from Lichess's cloud, which is deeper than this browser reaches."
+                    : "Lichess's cloud answers when it has a deeper result; otherwise your engine does."}
               </Typography>
             </Box>
           </Box>
@@ -3618,12 +3637,12 @@ function EngineLinesPanel({
     status === "terminal"
       ? "Game over in this position — nothing to search."
       : status === "unsupported"
-      ? "This browser can't run Stockfish (WebAssembly is unavailable here)."
-      : status === "starting"
-      ? "Starting Stockfish…"
-      : status === "searching"
-      ? "Stockfish is searching this position…"
-      : "No lines for this position yet.";
+        ? "This browser can't run Stockfish (WebAssembly is unavailable here)."
+        : status === "starting"
+          ? "Starting Stockfish…"
+          : status === "searching"
+            ? "Stockfish is searching this position…"
+            : "No lines for this position yet.";
 
   return (
     <Box
@@ -3769,7 +3788,8 @@ function EngineLinesPanel({
                 "&:hover": { color: "#FBBF24" },
               }}
             >
-              Back to move {Math.max(1, Math.ceil(exploring.anchorPly / 2))} (Esc)
+              Back to move {Math.max(1, Math.ceil(exploring.anchorPly / 2))}{" "}
+              (Esc)
             </Box>
           )}
         </Box>
@@ -3811,8 +3831,8 @@ function EngineLinesPanel({
                     typeof line.mate === "number"
                       ? "#FB923C"
                       : (line.cp ?? 0) >= 0
-                      ? "#E2E8F0"
-                      : "rgba(255,255,255,0.62)",
+                        ? "#E2E8F0"
+                        : "rgba(255,255,255,0.62)",
                   fontSize: "0.92rem",
                 }}
               >
@@ -3983,7 +4003,11 @@ function PlayerSideChip({
             : {},
         }}
       >
-        <Box component="span" sx={{ fontSize: "0.85rem", lineHeight: 1 }} aria-hidden>
+        <Box
+          component="span"
+          sx={{ fontSize: "0.85rem", lineHeight: 1 }}
+          aria-hidden
+        >
           {side.color === "white" ? "♔" : "♚"}
         </Box>
         <Typography
@@ -4362,8 +4386,7 @@ function CoachPanel({
             width: 36,
             height: 36,
             borderRadius: "50%",
-            background:
-              "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+            background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -4383,7 +4406,12 @@ function CoachPanel({
           >
             AI Coach
           </Typography>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ mt: 0.5 }}
+          >
             <Box
               sx={{
                 width: 6,
@@ -4433,8 +4461,7 @@ function CoachPanel({
                 sx={{
                   fontSize: "0.92rem",
                   lineHeight: 1,
-                  filter:
-                    "drop-shadow(0 0 4px rgba(249,115,22,0.32))",
+                  filter: "drop-shadow(0 0 4px rgba(249,115,22,0.32))",
                 }}
               >
                 {personality.avatar}
@@ -4452,10 +4479,7 @@ function CoachPanel({
               >
                 {personality.name}
               </Typography>
-              <ChevronDown
-                size={11}
-                color="rgba(255,255,255,0.55)"
-              />
+              <ChevronDown size={11} color="rgba(255,255,255,0.55)" />
             </Box>
           </Tooltip>
         )}
@@ -4588,7 +4612,9 @@ function CoachPanel({
             }}
           >
             <ShieldCheck size={12} color="#22c55e" />
-            <Typography sx={{ fontSize: "0.68rem", color: "#86efac", fontWeight: 600 }}>
+            <Typography
+              sx={{ fontSize: "0.68rem", color: "#86efac", fontWeight: 600 }}
+            >
               Validated
             </Typography>
           </Box>
@@ -4833,14 +4859,12 @@ function CoachPanel({
               width: 44,
               height: 44,
               borderRadius: "12px",
-              background:
-                "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+              background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
               color: "#0A0A0A",
               boxShadow: "0 6px 18px rgba(249,115,22,0.4)",
               transition: "all 200ms ease",
               "&:hover": {
-                background:
-                  "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
+                background: "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
                 transform: "translateY(-1px)",
                 boxShadow: "0 8px 24px rgba(249,115,22,0.55)",
               },
@@ -4998,23 +5022,23 @@ function InlinePuzzleSolver({
     status === "wrong"
       ? "Not the move — try again."
       : status === "solved"
-      ? "Solved!"
-      : turn === "white"
-      ? "White to move"
-      : "Black to move";
+        ? "Solved!"
+        : turn === "white"
+          ? "White to move"
+          : "Black to move";
   const statusColor =
     status === "wrong"
       ? "#fca5a5"
       : status === "solved"
-      ? "#86efac"
-      : "rgba(255,255,255,0.7)";
+        ? "#86efac"
+        : "rgba(255,255,255,0.7)";
 
   const flashShadow =
     flash === "green"
       ? "0 0 0 4px rgba(34,197,94,0.55)"
       : flash === "red"
-      ? "0 0 0 4px rgba(239,68,68,0.55)"
-      : "0 0 0 0 rgba(0,0,0,0)";
+        ? "0 0 0 4px rgba(239,68,68,0.55)"
+        : "0 0 0 0 rgba(0,0,0,0)";
 
   return (
     <Box
@@ -5049,12 +5073,7 @@ function InlinePuzzleSolver({
           viewOnly={false}
         />
       </Box>
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={1}
-        sx={{ mt: 1.25 }}
-      >
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1.25 }}>
         <Typography
           sx={{
             fontSize: "0.78rem",
@@ -5175,12 +5194,7 @@ function CoachPuzzleCard({
         border: "1px solid rgba(168,85,247,0.25)",
       }}
     >
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={1}
-        sx={{ mb: 1.25 }}
-      >
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.25 }}>
         <Lightbulb size={14} color="#C084FC" />
         <Typography
           sx={{
@@ -5204,8 +5218,8 @@ function CoachPuzzleCard({
           {pack.status === "loading"
             ? "loading…"
             : pack.status === "error"
-            ? "unavailable"
-            : `${pack.puzzles.length} puzzle${pack.puzzles.length === 1 ? "" : "s"}`}
+              ? "unavailable"
+              : `${pack.puzzles.length} puzzle${pack.puzzles.length === 1 ? "" : "s"}`}
         </Typography>
       </Stack>
       {pack.status === "loading" && pack.puzzles.length === 0 && (
@@ -5246,7 +5260,8 @@ function CoachPuzzleCard({
               lineHeight: 1.4,
             }}
           >
-            Couldn't reach the puzzle store{pack.error ? ` — ${pack.error}` : ""}.
+            Couldn't reach the puzzle store
+            {pack.error ? ` — ${pack.error}` : ""}.
           </Typography>
         </Box>
       )}
@@ -5266,9 +5281,7 @@ function CoachPuzzleCard({
                   gap: 1.25,
                   px: 1.25,
                   py: 1,
-                  borderRadius: isExpanded
-                    ? "0.6rem 0.6rem 0 0"
-                    : "0.6rem",
+                  borderRadius: isExpanded ? "0.6rem 0.6rem 0 0" : "0.6rem",
                   background: isExpanded
                     ? "rgba(168,85,247,0.08)"
                     : "rgba(255,255,255,0.03)",
@@ -5416,9 +5429,9 @@ function CoachPuzzleCard({
 //      renders the label as an uppercase letter-spaced eyebrow above
 //      the body — far more readable than the raw inline form.
 //   3. Lists of "- foo" bullets get rendered as a real list.
-const INSIGHT_LABEL_RE = /^(Idea|Problem|Solution|Outcome|Continuation)\s*:\s*(.+)$/i;
-const CONTINUATION_TAG_RE =
-  /\[(CONTINUATION|MAIA_CONTINUATION):(\d+):(w|b)\]/g;
+const INSIGHT_LABEL_RE =
+  /^(Idea|Problem|Solution|Outcome|Continuation)\s*:\s*(.+)$/i;
+const CONTINUATION_TAG_RE = /\[(CONTINUATION|MAIA_CONTINUATION):(\d+):(w|b)\]/g;
 
 function ContinuationPill({
   kind,
@@ -5442,9 +5455,7 @@ function ContinuationPill({
         letterSpacing: "0.04em",
         textTransform: "uppercase",
         color: isMaia ? "#C4B5FD" : "#FB923C",
-        background: isMaia
-          ? "rgba(196,181,253,0.08)"
-          : "rgba(251,146,60,0.08)",
+        background: isMaia ? "rgba(196,181,253,0.08)" : "rgba(251,146,60,0.08)",
         border: isMaia
           ? "1px solid rgba(196,181,253,0.28)"
           : "1px solid rgba(251,146,60,0.28)",
@@ -5479,20 +5490,20 @@ function InsightContinuationInline({
    *  forceRecommended=true so each "N. san" turns into a green 🔍
    *  clickable Box (same styling as recommended-move refs in prose).
    *  Caller passes CoachBubble's renderInline closure. */
-  renderInline?: (text: string, forceRecommended?: boolean) => React.ReactNode[];
+  renderInline?: (
+    text: string,
+    forceRecommended?: boolean
+  ) => React.ReactNode[];
 }) {
   // Half-move index inside enginePositions / loadedGame.history():
   // - white move N lands at ply 2N-1 (1-indexed) → index 2(N-1)
   // - black move N lands at ply 2N        (1-indexed) → index 2N-1
-  const halfMoveIdx =
-    color === "b" ? moveNum * 2 - 1 : (moveNum - 1) * 2;
+  const halfMoveIdx = color === "b" ? moveNum * 2 - 1 : (moveNum - 1) * 2;
 
   const isMaia = kind === "MAIA_CONTINUATION";
   const accent = isMaia ? "#C4B5FD" : "#FB923C";
   const bg = isMaia ? "rgba(196,181,253,0.08)" : "rgba(251,146,60,0.08)";
-  const border = isMaia
-    ? "rgba(196,181,253,0.28)"
-    : "rgba(251,146,60,0.28)";
+  const border = isMaia ? "rgba(196,181,253,0.28)" : "rgba(251,146,60,0.28)";
   const label = isMaia ? "Maia line" : "Engine line";
 
   const data = useMemo(() => {
@@ -5540,8 +5551,8 @@ function InsightContinuationInline({
       typeof pv.mate === "number"
         ? `M${pv.mate > 0 ? "+" : ""}${pv.mate}`
         : typeof pv.cp === "number"
-        ? `${pv.cp >= 0 ? "+" : ""}${(pv.cp / 100).toFixed(2)}`
-        : "";
+          ? `${pv.cp >= 0 ? "+" : ""}${(pv.cp / 100).toFixed(2)}`
+          : "";
 
     // Render as "14. e4 c5 15. Nf3 d6 16. d4 …" — chess.com-style
     // move-number-prefixed display, beginning at the right move number.
@@ -5751,7 +5762,13 @@ function InsightBodyText({
   const hasMaia = unInlinedMaia;
 
   return (
-    <Box sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.55 }}>
+    <Box
+      sx={{
+        fontSize: "0.85rem",
+        color: "rgba(255,255,255,0.88)",
+        lineHeight: 1.55,
+      }}
+    >
       {blocks.map((b, i) => {
         if (b.kind === "label") {
           return (
@@ -6129,8 +6146,8 @@ function DarkInsightCard({
               showWhy
                 ? "Hide"
                 : isNegative
-                ? "Show what was missed"
-                : "Show why this works"
+                  ? "Show what was missed"
+                  : "Show why this works"
             }
             active={showWhy}
             onClick={() => setShowWhy((v) => !v)}
@@ -6200,9 +6217,7 @@ function DarkInsightCard({
       {showWhy && insight.why && (
         <Reveal
           title={
-            insight.bestMove
-              ? `Best move: ${insight.bestMove}`
-              : "Explanation"
+            insight.bestMove ? `Best move: ${insight.bestMove}` : "Explanation"
           }
           body={insight.why}
           onClose={() => setShowWhy(false)}
@@ -6433,8 +6448,7 @@ function DarkInsightCarousel({
             top: 0,
             bottom: 0,
             left: 0,
-            background:
-              "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
+            background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
             boxShadow: "0 0 12px rgba(249,115,22,0.45)",
           }}
         />
@@ -6493,9 +6507,7 @@ function DarkInsightCarousel({
                   background: active
                     ? "linear-gradient(135deg,#F97316,#EA580C)"
                     : "rgba(255,255,255,0.18)",
-                  boxShadow: active
-                    ? "0 0 10px rgba(249,115,22,0.45)"
-                    : "none",
+                  boxShadow: active ? "0 0 10px rgba(249,115,22,0.45)" : "none",
                   transition: "all 220ms ease",
                   "&:hover": active
                     ? {}
@@ -6527,7 +6539,9 @@ function PuzzleSetCard({
   onLaunch: (set: PuzzleSet) => void;
 }) {
   const avgRating = useMemo(() => {
-    const rated = set.puzzles.map((p) => p.rating).filter((r): r is number => !!r);
+    const rated = set.puzzles
+      .map((p) => p.rating)
+      .filter((r): r is number => !!r);
     if (rated.length === 0) return null;
     return Math.round(rated.reduce((a, b) => a + b, 0) / rated.length);
   }, [set.puzzles]);
@@ -6771,8 +6785,8 @@ function CoachBubble({
                 textDecorationColor: ref.recommended
                   ? "rgba(134,239,172,0.5)"
                   : isUser
-                  ? "rgba(0,0,0,0.5)"
-                  : "rgba(251,146,60,0.5)",
+                    ? "rgba(0,0,0,0.5)"
+                    : "rgba(251,146,60,0.5)",
                 px: 0.35,
                 borderRadius: "3px",
                 transition: "all 140ms ease",
@@ -6781,8 +6795,8 @@ function CoachBubble({
                   background: ref.recommended
                     ? "rgba(34,197,94,0.16)"
                     : isUser
-                    ? "rgba(0,0,0,0.08)"
-                    : "rgba(249,115,22,0.14)",
+                      ? "rgba(0,0,0,0.08)"
+                      : "rgba(249,115,22,0.14)",
                 },
               }}
             >
@@ -6797,9 +6811,7 @@ function CoachBubble({
       }
       if (lastIdx < part.length) {
         out.push(
-          <span key={`${boldIdx}t${lastIdx}end`}>
-            {part.slice(lastIdx)}
-          </span>
+          <span key={`${boldIdx}t${lastIdx}end`}>{part.slice(lastIdx)}</span>
         );
       }
     });
@@ -6911,12 +6923,18 @@ function CoachBubble({
       </Box>
     ),
     h1: ({ children }: any) => (
-      <Box component="div" sx={{ fontWeight: 700, fontSize: "1.05em", mb: 0.5 }}>
+      <Box
+        component="div"
+        sx={{ fontWeight: 700, fontSize: "1.05em", mb: 0.5 }}
+      >
         {processChildren(children)}
       </Box>
     ),
     h2: ({ children }: any) => (
-      <Box component="div" sx={{ fontWeight: 700, fontSize: "1.02em", mb: 0.5 }}>
+      <Box
+        component="div"
+        sx={{ fontWeight: 700, fontSize: "1.02em", mb: 0.5 }}
+      >
         {processChildren(children)}
       </Box>
     ),
@@ -6926,13 +6944,14 @@ function CoachBubble({
       </Box>
     ),
     h4: ({ children }: any) => (
-      <Box component="div" sx={{ fontWeight: 700, fontSize: "0.96em", mb: 0.5 }}>
+      <Box
+        component="div"
+        sx={{ fontWeight: 700, fontSize: "0.96em", mb: 0.5 }}
+      >
         {processChildren(children)}
       </Box>
     ),
-    em: ({ children }: any) => (
-      <em>{processChildren(children)}</em>
-    ),
+    em: ({ children }: any) => <em>{processChildren(children)}</em>,
     // We intentionally do NOT remap <strong>: renderInline already turns
     // `**bold**` into a styled span, and remark-gfm's `<strong>` rendering
     // would double-bold the same content. Leaving `strong` off this map
@@ -7001,10 +7020,7 @@ function CoachBubble({
   // owning the bold + move-ref tokenization. Returns a JSX element rather
   // than ReactNode[] so callers can drop it into JSX with `{}`.
   const renderMarkdownProse = (text: string): React.ReactNode => (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={markdownComponents}
-    >
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
       {text}
     </ReactMarkdown>
   );
@@ -7153,17 +7169,31 @@ function CoachBubble({
         >
           <Flame size={16} color="#22c55e" />
           <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: "0.82rem", fontWeight: 700, color: "rgba(255,255,255,0.92)" }}>
+            <Typography
+              sx={{
+                fontSize: "0.82rem",
+                fontWeight: 700,
+                color: "rgba(255,255,255,0.92)",
+              }}
+            >
               {msg.insight.tag}
             </Typography>
             <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
               {msg.insight.eval && (
-                <Typography sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.55)", fontFamily: "Monaco, Menlo, monospace" }}>
+                <Typography
+                  sx={{
+                    fontSize: "0.72rem",
+                    color: "rgba(255,255,255,0.55)",
+                    fontFamily: "Monaco, Menlo, monospace",
+                  }}
+                >
                   Eval: {msg.insight.eval}
                 </Typography>
               )}
               {msg.insight.classification && (
-                <Typography sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.55)" }}>
+                <Typography
+                  sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.55)" }}
+                >
                   {msg.insight.classification}
                 </Typography>
               )}
@@ -7538,7 +7568,7 @@ export default function AnalysisPage() {
   // loadedGame so a click-through navigation doesn't trie-walk per render.
   const detectedOpening = useMemo(
     () => detectOpening(loadedGame),
-    [loadedGame],
+    [loadedGame]
   );
   const openingLabel = useMemo(() => {
     const pgnOpening = headers.Opening?.trim();
@@ -7853,10 +7883,7 @@ export default function AnalysisPage() {
   // The picker UI sits in CoachPanel's header chip; this is the source
   // of truth that flows into coachExtras → request body.
   const [selectedPersonalityId, setSelectedPersonalityId] =
-    useLocalStorage<string>(
-      "cm-preview-personality",
-      defaultPersonalityId
-    );
+    useLocalStorage<string>("cm-preview-personality", defaultPersonalityId);
   const personality = useMemo(
     () => getPersonalityById(selectedPersonalityId ?? defaultPersonalityId),
     [selectedPersonalityId]
@@ -7905,8 +7932,7 @@ export default function AnalysisPage() {
       // 1500, which made the server's profile/PGN-header fallbacks dead code
       // and coached every user in the product as a 1500.
       userRating: resolveUserRating(profile),
-      username:
-        user?.displayName ?? user?.email?.split("@")[0] ?? undefined,
+      username: user?.displayName ?? user?.email?.split("@")[0] ?? undefined,
       chesscomUsername,
       lichessUsername,
       personalityId: personality.id,
@@ -8012,7 +8038,7 @@ export default function AnalysisPage() {
       currentPly,
       headers.Opening,
       detectedOpening,
-    ],
+    ]
   );
 
   // Derived: current FEN + last move + check by replaying moves up to currentPly
@@ -8286,7 +8312,9 @@ export default function AnalysisPage() {
         } else if (typeof data.fen === "string" && data.fen.length >= 10) {
           const g = new Chess(data.fen);
           loadNewGame(g, { keepChat: true });
-          setBoardOrientation(data.fen.split(" ")[1] === "w" ? "white" : "black");
+          setBoardOrientation(
+            data.fen.split(" ")[1] === "w" ? "white" : "black"
+          );
         }
         // Hydrate chat transcript or single message
         if (data.kind === "transcript" && Array.isArray(data.transcript)) {
@@ -8298,7 +8326,10 @@ export default function AnalysisPage() {
             })
           );
           setMessages(transcriptMessages);
-        } else if (data.kind === "single" && typeof data.coachContent === "string") {
+        } else if (
+          data.kind === "single" &&
+          typeof data.coachContent === "string"
+        ) {
           setMessages([
             {
               role: "coach",
@@ -8320,9 +8351,8 @@ export default function AnalysisPage() {
   const takeoverMode = rightTab === "masters"; // legacy alias kept for board props
   // Optional previewed move while exploring with Masters tab open — replays
   // from currentFen so the live candidate list updates on the new position.
-  const [takeoverPreview, setTakeoverPreview] = useState<ExplorationPreview | null>(
-    null
-  );
+  const [takeoverPreview, setTakeoverPreview] =
+    useState<ExplorationPreview | null>(null);
 
   // Desync fix (companion to the ae4cf45 replay fix): navigating game history
   // (arrows / move-history strip) advances `currentPly` → `currentFen`, but the
@@ -8375,7 +8405,7 @@ export default function AnalysisPage() {
   // Drill wins over takeover wins over the canonical game position.
   const displayFen = drillState
     ? drillState.currentFen
-    : takeoverPreview?.fen ?? currentFen;
+    : (takeoverPreview?.fen ?? currentFen);
   const displayLastMove = useMemo<Move | null>(() => {
     if (drillState) {
       return drillState.lastMove
@@ -8497,7 +8527,8 @@ export default function AnalysisPage() {
           multiPv: linesSettings.count,
           allowCloud: !linesSettings.preferLocalEngine,
           setPartialEval: (ev) => {
-            if (!cancelled && ev.lines.length) setLiveEval({ fen, position: ev });
+            if (!cancelled && ev.lines.length)
+              setLiveEval({ fen, position: ev });
           },
         })
         .then((ev) => {
@@ -8683,23 +8714,20 @@ export default function AnalysisPage() {
       });
   }, [currentFen, arrowToggles.maia, arrowToggles.maiaElo, maiaCache]);
 
-  const handleTabChange = useCallback(
-    (next: RightTab) => {
-      setRightTab(next);
-      if (next !== "masters") {
-        // Candidates are Masters-specific — drop them.
-        //
-        // The exploration preview is NOT: it describes the board, which every
-        // tab shares. Clearing it here meant walking a line in Masters and
-        // then opening Lines to see what the engine thought of it silently
-        // threw the line away and snapped the board back, so the two tabs
-        // could never be used together. Staleness is already handled by the
-        // [currentPly] effect, and the banner offers an explicit way out.
-        setTakeoverCandidates([]);
-      }
-    },
-    []
-  );
+  const handleTabChange = useCallback((next: RightTab) => {
+    setRightTab(next);
+    if (next !== "masters") {
+      // Candidates are Masters-specific — drop them.
+      //
+      // The exploration preview is NOT: it describes the board, which every
+      // tab shares. Clearing it here meant walking a line in Masters and
+      // then opening Lines to see what the engine thought of it silently
+      // threw the line away and snapped the board back, so the two tabs
+      // could never be used together. Staleness is already handled by the
+      // [currentPly] effect, and the banner offers an explicit way out.
+      setTakeoverCandidates([]);
+    }
+  }, []);
   const handleTakeoverPreviewMove = useCallback(
     (uci: string, san: string) => {
       // Play on top of the currently displayed position so chained clicks
@@ -8864,18 +8892,18 @@ export default function AnalysisPage() {
               typeof candidate.eval === "number"
                 ? `${candidate.eval >= 0 ? "+" : ""}${(candidate.eval / 100).toFixed(2)}`
                 : candidate.count > 0
-                ? `${(candidate.count / 1_000_000).toFixed(1)}M games`
-                : undefined,
+                  ? `${(candidate.count / 1_000_000).toFixed(1)}M games`
+                  : undefined,
             classification:
               candidate.rank === 2
                 ? "Best move (engine)"
                 : candidate.rank === 1
-                ? "Sound continuation"
-                : candidate.rank === 0
-                ? "Neutral"
-                : candidate.topPlayer
-                ? `Played by ${candidate.topPlayer.name}`
-                : undefined,
+                  ? "Sound continuation"
+                  : candidate.rank === 0
+                    ? "Neutral"
+                    : candidate.topPlayer
+                      ? `Played by ${candidate.topPlayer.name}`
+                      : undefined,
           }
         : undefined;
 
@@ -8905,10 +8933,7 @@ export default function AnalysisPage() {
               if (prev.length === 0) return prev;
               const last = prev[prev.length - 1];
               if (last.role !== "coach") return prev;
-              return [
-                ...prev.slice(0, -1),
-                { ...last, content: accumulated },
-              ];
+              return [...prev.slice(0, -1), { ...last, content: accumulated }];
             });
           },
           // D1: the server's corrected text replaces the raw stream, so the
@@ -8940,8 +8965,8 @@ export default function AnalysisPage() {
           err instanceof CoachAuthError
             ? "**Sign-in required** — the coach endpoint is auth-gated."
             : err instanceof CoachApiError
-            ? `**Coach is offline** (HTTP ${err.status}).`
-            : "**Network error** reaching the coach.";
+              ? `**Coach is offline** (HTTP ${err.status}).`
+              : "**Network error** reaching the coach.";
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
@@ -8951,7 +8976,12 @@ export default function AnalysisPage() {
             // D3: the banner overwrites the streamed text in place. Without
             // this flag the model reads "**Coach is offline** (HTTP 502)" as
             // something IT said on its previous turn.
-            { ...last, content: errorText, synthetic: true, incomplete: undefined },
+            {
+              ...last,
+              content: errorText,
+              synthetic: true,
+              incomplete: undefined,
+            },
           ];
         });
       } finally {
@@ -9361,9 +9391,8 @@ export default function AnalysisPage() {
       .filter(
         (m) =>
           !(
-            m.role === "coach" &&
-            m.content === EMPTY_STATE_MESSAGES[0]?.content
-          ),
+            m.role === "coach" && m.content === EMPTY_STATE_MESSAGES[0]?.content
+          )
       )
       .map((m) => ({
         role: m.role,
@@ -9407,14 +9436,11 @@ export default function AnalysisPage() {
             role: m.role,
             content: m.content,
             ...(m.ply !== undefined ? { ply: m.ply } : {}),
-          })),
+          }))
         );
       }
     } catch (err) {
-      console.warn(
-        "[preview/analysis] failed to hydrate saved game:",
-        err,
-      );
+      console.warn("[preview/analysis] failed to hydrate saved game:", err);
     }
   }, [gameFromUrl, loadNewGame]);
 
@@ -9462,10 +9488,7 @@ export default function AnalysisPage() {
               if (prev.length === 0) return prev;
               const last = prev[prev.length - 1];
               if (last.role !== "coach") return prev;
-              return [
-                ...prev.slice(0, -1),
-                { ...last, content: accumulated },
-              ];
+              return [...prev.slice(0, -1), { ...last, content: accumulated }];
             });
           },
           // D1: the server's corrected text replaces the raw stream, so the
@@ -9512,14 +9535,22 @@ export default function AnalysisPage() {
           err instanceof CoachAuthError
             ? "**Sign-in required** — the coach endpoint is auth-gated."
             : err instanceof CoachApiError
-            ? `**Coach is offline** (HTTP ${err.status}).`
-            : "**Network error** reaching the coach.";
+              ? `**Coach is offline** (HTTP ${err.status}).`
+              : "**Network error** reaching the coach.";
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
           if (last.role !== "coach") return prev;
           // D3: see above — a UI banner is not model output.
-          return [...prev.slice(0, -1), { ...last, content: errorText, synthetic: true, incomplete: undefined }];
+          return [
+            ...prev.slice(0, -1),
+            {
+              ...last,
+              content: errorText,
+              synthetic: true,
+              incomplete: undefined,
+            },
+          ];
         });
       } finally {
         setIsThinking(false);
@@ -9546,141 +9577,146 @@ export default function AnalysisPage() {
     handleSendRef.current?.("Analyze my game.");
   }, [autoAnalyzeState, enginePositions, isThinking, allMoves.length]);
 
-  const handleSend = useCallback(async (overrideText?: string) => {
-    // Defensive: onSend is wired straight onto the Send IconButton's
-    // onClick prop, which would otherwise hand a React MouseEvent down
-    // as `overrideText`. Only honour string overrides; anything else
-    // (events, undefined) falls back to the input box.
-    const override =
-      typeof overrideText === "string" ? overrideText : undefined;
-    const text = (override ?? input).trim();
-    if (!text || isThinking) return;
-    // Mirror production AICoachChat:2180 — don't fire deep-coach requests
-    // while Stockfish is still computing. gameEval would be undefined,
-    // landing the user in the route's no-eval branch where the LLM
-    // produces a conversational reply with no grounded mistake insights.
-    if (analysisActive) return;
-    const prevForApi = messages;
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", content: text, ply: currentPly },
-      // Empty coach message we'll fill in as deltas arrive
-      { role: "coach", content: "", ply: currentPly },
-    ]);
-    setInput("");
-    setIsThinking(true);
+  const handleSend = useCallback(
+    async (overrideText?: string) => {
+      // Defensive: onSend is wired straight onto the Send IconButton's
+      // onClick prop, which would otherwise hand a React MouseEvent down
+      // as `overrideText`. Only honour string overrides; anything else
+      // (events, undefined) falls back to the input box.
+      const override =
+        typeof overrideText === "string" ? overrideText : undefined;
+      const text = (override ?? input).trim();
+      if (!text || isThinking) return;
+      // Mirror production AICoachChat:2180 — don't fire deep-coach requests
+      // while Stockfish is still computing. gameEval would be undefined,
+      // landing the user in the route's no-eval branch where the LLM
+      // produces a conversational reply with no grounded mistake insights.
+      if (analysisActive) return;
+      const prevForApi = messages;
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: text, ply: currentPly },
+        // Empty coach message we'll fill in as deltas arrive
+        { role: "coach", content: "", ply: currentPly },
+      ]);
+      setInput("");
+      setIsThinking(true);
 
-    let accumulated = "";
-    try {
-      await streamCoachReply({
-        prevMessages: prevForApi,
-        userText: text,
-        fen: displayFen,
-        currentPly,
-        allMoves,
-        loadedGame,
-        enginePositions,
-        gameEvalFull,
-        contextIdRef: coachContextIdRef,
-        ...coachExtras,
-        onDelta: (chunk) => {
-          accumulated += chunk;
-          // Update the last coach message in-place
-          setMessages((prev) => {
-            if (prev.length === 0) return prev;
-            const last = prev[prev.length - 1];
-            if (last.role !== "coach") return prev;
-            return [
-              ...prev.slice(0, -1),
-              { ...last, content: accumulated },
-            ];
-          });
-        },
-        // D1: the server's corrected text replaces the raw stream, so the
-        // corrected copy is what gets replayed on the next turn.
-        onCorrected: (correctedText) => {
-          accumulated = correctedText;
-          setMessages((prev) => {
-            if (prev.length === 0) return prev;
-            const last = prev[prev.length - 1];
-            if (last.role !== "coach") return prev;
-            return [
-              ...prev.slice(0, -1),
-              { ...last, content: correctedText },
-            ];
-          });
-        },
-        // D4: no `done` event arrived — the answer is a fragment.
-        onTruncated: () => {
-          setMessages((prev) => {
-            if (prev.length === 0) return prev;
-            const last = prev[prev.length - 1];
-            if (last.role !== "coach") return prev;
-            return [...prev.slice(0, -1), { ...last, incomplete: true }];
-          });
-        },
-      });
-      // After stream completes, scan for [PRACTICE:...] tags and trigger
-      // a real /api/similar-puzzles fetch per tag. The coach's tag persists
-      // in the message content but CoachBubble strips it from display.
-      const tags = extractPracticeTags(accumulated).tags;
-      if (tags.length > 0) {
-        const coachMsgIdx = prevForApi.length + 1; // user, then coach
-        const first = tags[0]; // multi-tag pack support is a follow-up
-        setTimeout(
-          () =>
-            triggerPuzzleFetch(
-              coachMsgIdx,
-              first.theme,
-              first.displayTheme,
-              displayFen
-            ),
-          0
-        );
+      let accumulated = "";
+      try {
+        await streamCoachReply({
+          prevMessages: prevForApi,
+          userText: text,
+          fen: displayFen,
+          currentPly,
+          allMoves,
+          loadedGame,
+          enginePositions,
+          gameEvalFull,
+          contextIdRef: coachContextIdRef,
+          ...coachExtras,
+          onDelta: (chunk) => {
+            accumulated += chunk;
+            // Update the last coach message in-place
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [...prev.slice(0, -1), { ...last, content: accumulated }];
+            });
+          },
+          // D1: the server's corrected text replaces the raw stream, so the
+          // corrected copy is what gets replayed on the next turn.
+          onCorrected: (correctedText) => {
+            accumulated = correctedText;
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [
+                ...prev.slice(0, -1),
+                { ...last, content: correctedText },
+              ];
+            });
+          },
+          // D4: no `done` event arrived — the answer is a fragment.
+          onTruncated: () => {
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [...prev.slice(0, -1), { ...last, incomplete: true }];
+            });
+          },
+        });
+        // After stream completes, scan for [PRACTICE:...] tags and trigger
+        // a real /api/similar-puzzles fetch per tag. The coach's tag persists
+        // in the message content but CoachBubble strips it from display.
+        const tags = extractPracticeTags(accumulated).tags;
+        if (tags.length > 0) {
+          const coachMsgIdx = prevForApi.length + 1; // user, then coach
+          const first = tags[0]; // multi-tag pack support is a follow-up
+          setTimeout(
+            () =>
+              triggerPuzzleFetch(
+                coachMsgIdx,
+                first.theme,
+                first.displayTheme,
+                displayFen
+              ),
+            0
+          );
+        }
+        // G6: autoAnalyze completion gate. When the reply contains any
+        // [INSIGHT:...] tag, transition the state machine to "done" so
+        // the input unlocks. Mirrors AICoachChat.tsx:2038-2047.
+        if (
+          (autoAnalyzeState === "pending" ||
+            autoAnalyzeState === "sent-awaiting-insights") &&
+          extractInsightTags(accumulated).insights.length > 0
+        ) {
+          setAutoAnalyzeState("done");
+        }
+      } catch (err) {
+        const errorText =
+          err instanceof CoachAuthError
+            ? "**Sign-in required** — the coach endpoint is auth-gated. Sign in on chessmasti.com and refresh."
+            : err instanceof CoachApiError
+              ? `**Coach is offline** (HTTP ${err.status}). The LLM provider returned an error — try again in a moment.`
+              : "**Network error** reaching the coach. Try again?";
+        setMessages((prev) => {
+          if (prev.length === 0) return prev;
+          const last = prev[prev.length - 1];
+          if (last.role !== "coach") return prev;
+          // D3: see above — a UI banner is not model output.
+          return [
+            ...prev.slice(0, -1),
+            {
+              ...last,
+              content: errorText,
+              synthetic: true,
+              incomplete: undefined,
+            },
+          ];
+        });
+      } finally {
+        setIsThinking(false);
       }
-      // G6: autoAnalyze completion gate. When the reply contains any
-      // [INSIGHT:...] tag, transition the state machine to "done" so
-      // the input unlocks. Mirrors AICoachChat.tsx:2038-2047.
-      if (
-        (autoAnalyzeState === "pending" ||
-          autoAnalyzeState === "sent-awaiting-insights") &&
-        extractInsightTags(accumulated).insights.length > 0
-      ) {
-        setAutoAnalyzeState("done");
-      }
-    } catch (err) {
-      const errorText =
-        err instanceof CoachAuthError
-          ? "**Sign-in required** — the coach endpoint is auth-gated. Sign in on chessmasti.com and refresh."
-          : err instanceof CoachApiError
-          ? `**Coach is offline** (HTTP ${err.status}). The LLM provider returned an error — try again in a moment.`
-          : "**Network error** reaching the coach. Try again?";
-      setMessages((prev) => {
-        if (prev.length === 0) return prev;
-        const last = prev[prev.length - 1];
-        if (last.role !== "coach") return prev;
-        // D3: see above — a UI banner is not model output.
-        return [
-          ...prev.slice(0, -1),
-          { ...last, content: errorText, synthetic: true, incomplete: undefined },
-        ];
-      });
-    } finally {
-      setIsThinking(false);
-    }
-  }, [
-    input,
-    isThinking,
-    messages,
-    currentPly,
-    displayFen,
-    allMoves,
-    triggerPuzzleFetch,
-    autoAnalyzeState,
-    loadedGame,
-    enginePositions,
-    analysisActive,
-  ]);
+    },
+    [
+      input,
+      isThinking,
+      messages,
+      currentPly,
+      displayFen,
+      allMoves,
+      triggerPuzzleFetch,
+      autoAnalyzeState,
+      loadedGame,
+      enginePositions,
+      analysisActive,
+    ]
+  );
 
   // Keep the auto-fire ref pointed at the latest handleSend so the
   // useEffect above can dispatch the synthetic prompt without a stale
@@ -9723,7 +9759,13 @@ export default function AnalysisPage() {
       const say = (content: string, extra: Partial<CoachMessage> = {}) =>
         setMessages((prev) => [
           ...prev,
-          { role: "coach", content, ply: currentPly, synthetic: true, ...extra },
+          {
+            role: "coach",
+            content,
+            ply: currentPly,
+            synthetic: true,
+            ...extra,
+          },
         ]);
 
       // Echo the command so the transcript reads as a conversation.
@@ -9848,10 +9890,10 @@ export default function AnalysisPage() {
         const theme = /rook/i.test(s)
           ? "sacrifice"
           : /knight/i.test(s)
-          ? "knight-fork"
-          : /mate/i.test(s)
-          ? "mateIn2"
-          : "fork";
+            ? "knight-fork"
+            : /mate/i.test(s)
+              ? "mateIn2"
+              : "fork";
         const displayTheme = /rook/i.test(s)
           ? "Rook sacrifices"
           : "Tactical patterns";
@@ -9927,8 +9969,7 @@ export default function AnalysisPage() {
             label: "Previous move",
             icon: CommandIcons.Prev,
             shortcut: ["←"],
-            onSelect: () =>
-              setCurrentPly((p) => Math.max(0, p - 1)),
+            onSelect: () => setCurrentPly((p) => Math.max(0, p - 1)),
           },
           {
             id: "next",
@@ -9954,7 +9995,10 @@ export default function AnalysisPage() {
           id: `moment-${m.ply}`,
           label: `Jump to ${m.label}`,
           hint: `Move ${Math.ceil(m.ply / 2)}`,
-          icon: m.kind === "brilliant" ? CommandIcons.Brilliant : CommandIcons.Moment,
+          icon:
+            m.kind === "brilliant"
+              ? CommandIcons.Brilliant
+              : CommandIcons.Moment,
           onSelect: () => setCurrentPly(m.ply),
         })),
       },
@@ -10047,11 +10091,12 @@ export default function AnalysisPage() {
             fen: shareDialog.fen,
             explanation: shareDialog.msg.content,
             transcript: messages
-              .filter(
-                (m) => m.role === "user" || m.role === "coach"
-              )
+              .filter((m) => m.role === "user" || m.role === "coach")
               .map((m) => ({
-                role: m.role === "coach" ? ("assistant" as const) : ("user" as const),
+                role:
+                  m.role === "coach"
+                    ? ("assistant" as const)
+                    : ("user" as const),
                 content: m.content,
                 fen: undefined,
               })),
@@ -10246,22 +10291,22 @@ export default function AnalysisPage() {
                     drillActive
                       ? turnToMove
                       : takeoverMode
-                      ? turnToMove
-                      : undefined
+                        ? turnToMove
+                        : undefined
                   }
                   dests={
                     drillActive
                       ? displayDests
                       : takeoverMode
-                      ? displayDests
-                      : undefined
+                        ? displayDests
+                        : undefined
                   }
                   onMove={
                     drillActive
                       ? handleDrillMove
                       : takeoverMode
-                      ? handleBoardMove
-                      : undefined
+                        ? handleBoardMove
+                        : undefined
                   }
                   syncTick={boardSyncTick}
                   evalBar={evalBarData}
@@ -10336,171 +10381,162 @@ export default function AnalysisPage() {
                 The Masters tab makes the main board interactive for
                 exploration (same role the old "Takeover" modal had). */}
             <ErrorBoundary name="preview-analysis-tabs">
-            <Box
-              sx={{
-                position: "relative",
-                display: "flex",
-                flexDirection: "column",
-                minHeight: { lg: 0 },
-                height: { lg: "100%" },
-              }}
-            >
-              <TabStrip
-                active={rightTab}
-                onChange={handleTabChange}
-                movesBadge={`${currentPly}/${allMoves.length}`}
-                mastersBadge={
-                  rightTab === "masters" && takeoverCandidates.length > 0
-                    ? String(takeoverCandidates.length)
-                    : undefined
-                }
-              />
-              {/* The one scrolling surface on the page: the panel is pinned
-                  to the column's height and each tab scrolls internally. */}
               <Box
                 sx={{
                   position: "relative",
-                  height: { xs: 600, lg: "auto" },
-                  flex: { lg: 1 },
+                  display: "flex",
+                  flexDirection: "column",
                   minHeight: { lg: 0 },
+                  height: { lg: "100%" },
                 }}
               >
-                <AnimatePresence mode="wait" initial={false}>
-                  {rightTab === "coach" && (
-                    <motion.div
-                      key="coach"
-                      initial={{ opacity: 0, x: -32, scale: 0.98 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: -32, scale: 0.98 }}
-                      transition={{
-                        duration: 0.32,
-                        ease: [0.22, 0.61, 0.36, 1],
-                      }}
-                      style={{ position: "absolute", inset: 0 }}
-                    >
-                      <CoachPanel
-                        messages={messages}
-                        input={input}
-                        onChangeInput={setInput}
-                        onSend={handleSend}
-                        onSuggestion={handleSuggestion}
-                        isThinking={isThinking}
-                        analysisActive={analysisActive}
-                        onPromoteToBoard={handlePromoteToBoard}
-                        allMoves={allMoves}
-                        onMoveRefClick={handleCoachMoveRef}
-                        playerSide={playerSide}
-                        sideUiEligible={!isPuzzleMode && allMoves.length > 0}
-                        onChoosePlayerSide={handleChoosePlayerSide}
-                        onRunCommand={handleRunCommand}
-                        onLaunchPuzzleSet={launchPuzzleSet}
-                        onShareMessage={(m) =>
-                          setShareDialog({ msg: m, fen: displayFen })
-                        }
-                        mistakeContext={mistakeContext}
-                        userRating={resolveUserRating(profile) ?? 1500}
-                        coachContextIdProp={coachContextIdRef.current}
-                        enginePositions={enginePositions}
-                        loadedGame={loadedGame}
-                        suggestions={coachSuggestions}
-                        personalityId={personality.id}
-                        onChangePersonality={(id) =>
-                          setSelectedPersonalityId(id)
-                        }
-                        onPuzzleSolved={(puzzle, secs) =>
-                          recordSolved(
-                            puzzle.id,
-                            secs,
-                            puzzle.solution
-                          )
-                        }
-                        onPracticeConcept={(theme, name, msgIdx) =>
-                          triggerPuzzleFetch(
-                            msgIdx,
-                            theme,
-                            name,
-                            displayFen
-                          )
-                        }
-                      />
-                    </motion.div>
-                  )}
-                  {rightTab === "masters" && (
-                    <motion.div
-                      key="masters"
-                      initial={{ opacity: 0, x: 32, scale: 0.98 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: 32, scale: 0.98 }}
-                      transition={{
-                        duration: 0.32,
-                        ease: [0.22, 0.61, 0.36, 1],
-                      }}
-                      style={{ position: "absolute", inset: 0 }}
-                    >
-                      <MasterGamesTakeover
-                        fen={displayFen}
-                        ply={currentPly}
-                        playedSan={playedSanAtPly}
-                        onPreviewMove={handleTakeoverPreviewMove}
-                        onSendToCoach={handleTakeoverSendToCoach}
-                        onRevert={() => handleTabChange("coach")}
-                        onCandidatesUpdate={setTakeoverCandidates}
-                        moves={allMoves}
-                        onJumpToPly={setCurrentPly}
-                      />
-                    </motion.div>
-                  )}
-                  {rightTab === "moves" && (
-                    <motion.div
-                      key="moves"
-                      initial={{ opacity: 0, x: 32, scale: 0.98 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: 32, scale: 0.98 }}
-                      transition={{
-                        duration: 0.32,
-                        ease: [0.22, 0.61, 0.36, 1],
-                      }}
-                      style={{ position: "absolute", inset: 0 }}
-                    >
-                      <MovesListPanel
-                        moves={allMoves}
-                        currentPly={currentPly}
-                        positions={classifiedPositions}
-                        onJumpTo={setCurrentPly}
-                        onAskCoach={handleAskCoachAboutMove}
-                      />
-                    </motion.div>
-                  )}
-                  {rightTab === "lines" && (
-                    <motion.div
-                      key="lines"
-                      initial={{ opacity: 0, x: 32, scale: 0.98 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: 32, scale: 0.98 }}
-                      transition={{
-                        duration: 0.32,
-                        ease: [0.22, 0.61, 0.36, 1],
-                      }}
-                      style={{ position: "absolute", inset: 0 }}
-                    >
-                      <EngineLinesPanel
-                        position={displayPositionEval}
-                        fen={displayFen}
-                        engineName={engineSettings.engineName}
-                        status={linesStatus}
-                        exploring={takeoverPreview}
-                        onReturnToAnchor={returnToAnchor}
-                        settings={linesSettings}
-                        onSettingsChange={setLinesSettings}
-                        onEngineNameChange={(n) =>
-                          setEngineSettings((s) => ({ ...s, engineName: n }))
-                        }
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <TabStrip
+                  active={rightTab}
+                  onChange={handleTabChange}
+                  movesBadge={`${currentPly}/${allMoves.length}`}
+                  mastersBadge={
+                    rightTab === "masters" && takeoverCandidates.length > 0
+                      ? String(takeoverCandidates.length)
+                      : undefined
+                  }
+                />
+                {/* The one scrolling surface on the page: the panel is pinned
+                  to the column's height and each tab scrolls internally. */}
+                <Box
+                  sx={{
+                    position: "relative",
+                    height: { xs: 600, lg: "auto" },
+                    flex: { lg: 1 },
+                    minHeight: { lg: 0 },
+                  }}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    {rightTab === "coach" && (
+                      <motion.div
+                        key="coach"
+                        initial={{ opacity: 0, x: -32, scale: 0.98 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: -32, scale: 0.98 }}
+                        transition={{
+                          duration: 0.32,
+                          ease: [0.22, 0.61, 0.36, 1],
+                        }}
+                        style={{ position: "absolute", inset: 0 }}
+                      >
+                        <CoachPanel
+                          messages={messages}
+                          input={input}
+                          onChangeInput={setInput}
+                          onSend={handleSend}
+                          onSuggestion={handleSuggestion}
+                          isThinking={isThinking}
+                          analysisActive={analysisActive}
+                          onPromoteToBoard={handlePromoteToBoard}
+                          allMoves={allMoves}
+                          onMoveRefClick={handleCoachMoveRef}
+                          playerSide={playerSide}
+                          sideUiEligible={!isPuzzleMode && allMoves.length > 0}
+                          onChoosePlayerSide={handleChoosePlayerSide}
+                          onRunCommand={handleRunCommand}
+                          onLaunchPuzzleSet={launchPuzzleSet}
+                          onShareMessage={(m) =>
+                            setShareDialog({ msg: m, fen: displayFen })
+                          }
+                          mistakeContext={mistakeContext}
+                          userRating={resolveUserRating(profile) ?? 1500}
+                          coachContextIdProp={coachContextIdRef.current}
+                          enginePositions={enginePositions}
+                          loadedGame={loadedGame}
+                          suggestions={coachSuggestions}
+                          personalityId={personality.id}
+                          onChangePersonality={(id) =>
+                            setSelectedPersonalityId(id)
+                          }
+                          onPuzzleSolved={(puzzle, secs) =>
+                            recordSolved(puzzle.id, secs, puzzle.solution)
+                          }
+                          onPracticeConcept={(theme, name, msgIdx) =>
+                            triggerPuzzleFetch(msgIdx, theme, name, displayFen)
+                          }
+                        />
+                      </motion.div>
+                    )}
+                    {rightTab === "masters" && (
+                      <motion.div
+                        key="masters"
+                        initial={{ opacity: 0, x: 32, scale: 0.98 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: 32, scale: 0.98 }}
+                        transition={{
+                          duration: 0.32,
+                          ease: [0.22, 0.61, 0.36, 1],
+                        }}
+                        style={{ position: "absolute", inset: 0 }}
+                      >
+                        <MasterGamesTakeover
+                          fen={displayFen}
+                          ply={currentPly}
+                          playedSan={playedSanAtPly}
+                          onPreviewMove={handleTakeoverPreviewMove}
+                          onSendToCoach={handleTakeoverSendToCoach}
+                          onRevert={() => handleTabChange("coach")}
+                          onCandidatesUpdate={setTakeoverCandidates}
+                          moves={allMoves}
+                          onJumpToPly={setCurrentPly}
+                        />
+                      </motion.div>
+                    )}
+                    {rightTab === "moves" && (
+                      <motion.div
+                        key="moves"
+                        initial={{ opacity: 0, x: 32, scale: 0.98 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: 32, scale: 0.98 }}
+                        transition={{
+                          duration: 0.32,
+                          ease: [0.22, 0.61, 0.36, 1],
+                        }}
+                        style={{ position: "absolute", inset: 0 }}
+                      >
+                        <MovesListPanel
+                          moves={allMoves}
+                          currentPly={currentPly}
+                          positions={classifiedPositions}
+                          onJumpTo={setCurrentPly}
+                          onAskCoach={handleAskCoachAboutMove}
+                        />
+                      </motion.div>
+                    )}
+                    {rightTab === "lines" && (
+                      <motion.div
+                        key="lines"
+                        initial={{ opacity: 0, x: 32, scale: 0.98 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: 32, scale: 0.98 }}
+                        transition={{
+                          duration: 0.32,
+                          ease: [0.22, 0.61, 0.36, 1],
+                        }}
+                        style={{ position: "absolute", inset: 0 }}
+                      >
+                        <EngineLinesPanel
+                          position={displayPositionEval}
+                          fen={displayFen}
+                          engineName={engineSettings.engineName}
+                          status={linesStatus}
+                          exploring={takeoverPreview}
+                          onReturnToAnchor={returnToAnchor}
+                          settings={linesSettings}
+                          onSettingsChange={setLinesSettings}
+                          onEngineNameChange={(n) =>
+                            setEngineSettings((s) => ({ ...s, engineName: n }))
+                          }
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </Box>
               </Box>
-            </Box>
             </ErrorBoundary>
           </Box>
 
@@ -10539,7 +10575,12 @@ export default function AnalysisPage() {
                 Back to launch
               </Box>
               <Box>·</Box>
-              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexWrap: "wrap" }}>
+              <Stack
+                direction="row"
+                spacing={1.5}
+                alignItems="center"
+                sx={{ flexWrap: "wrap" }}
+              >
                 <Box>← → navigate · F flip · scrub the sparkline ·</Box>
                 <Box
                   onClick={() => setPaletteOpen(true)}

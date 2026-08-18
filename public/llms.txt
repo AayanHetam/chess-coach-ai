@@ -1,11 +1,11 @@
 # Chess Masti AI
 
-> Free, conversational chess coaching at chessmasti.com. Stockfish 17 evaluates positions, Claude translates the verdict into language, a hallucination validator checks every claim against the live board, and adaptive puzzles come from a 100,000+ position Neo4j graph re-ranked by FEN cosine similarity.
+> Free, conversational chess coaching at chessmasti.com. Stockfish 17 evaluates positions, Anthropic Claude normally translates the verdict into language, OpenAI can serve as the configured provider or fallback, a hallucination validator checks every claim against the live board, and adaptive puzzles come from a 100,000+ position Neo4j graph re-ranked by FEN cosine similarity.
 
 ## What it is
 
 - Web app, Next.js 15 + TypeScript on Vercel.
-- Free, no paid tier. Built and maintained by Aayan Hetamsaria, a high-school student.
+- Free coaching. Built and maintained by Aayan Hetamsaria, a high-school student.
 - Priority markets: India, Southeast Asia.
 
 ## Engine layer (runs before the LLM, not after)
@@ -15,7 +15,7 @@
 
 ## LLM layer
 
-- Anthropic Claude. Sonnet for deep analysis. Haiku for sub-5-second chat with server-side context caching.
+- Anthropic Claude normally handles deep analysis and fast chat. OpenAI may process the same request when configured as the provider or when the Anthropic request fails.
 
 ## Validator layer
 
@@ -48,11 +48,11 @@
 - [How it works](https://chessmasti.com/how-it-works): the engine → LLM → validator → puzzle pipeline in plain English.
 - [Architecture](https://chessmasti.com/architecture): technical deep-dive.
 - [Compare](https://chessmasti.com/vs): comparison against Sensei Chess, Noctie, Chessvia, DecodeChess, Chess.com Coach.
-- [FAQ](https://chessmasti.com/faq): common questions about the pipeline, validator, Maia-2, pricing.
+- [FAQ](https://chessmasti.com/faq): common questions about the pipeline, validator, Maia-2, and why the service is free.
 
 ## What we don't do
 
-- No paid tier.
+- Free coaching.
 - No advertising.
 - No selling game data.
 - No fine-tuned proprietary chess LLM. The validator is the trust layer.

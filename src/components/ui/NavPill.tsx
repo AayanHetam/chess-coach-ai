@@ -17,7 +17,6 @@ import { motion } from "framer-motion";
 import { Menu as MenuIcon, LogOut, User, Settings } from "lucide-react";
 import { Logo } from "./Logo";
 import { AppDrawer, type NavId } from "./AppDrawer";
-import NavPlanBadge from "./NavPlanBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import ProfileDialog from "@/components/auth/ProfileDialog";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
@@ -69,7 +68,12 @@ const NAV_LINKS: { id: NavId; label: string; href: string }[] = [
   { id: "scout", label: "Scout", href: "/scout" },
 ];
 
-export function NavPill({ active, contextSlot, actionsSlot, sx }: NavPillProps) {
+export function NavPill({
+  active,
+  contextSlot,
+  actionsSlot,
+  sx,
+}: NavPillProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   // With page context in the pill there isn't room for everything at once.
   // The wordmark yields first (the logo mark still links home, and the
@@ -101,7 +105,11 @@ export function NavPill({ active, contextSlot, actionsSlot, sx }: NavPillProps) 
       console.error("Sign-out failed:", err);
     }
   };
-  const avatarLetter = (user?.displayName?.[0] ?? user?.email?.[0] ?? "?").toUpperCase();
+  const avatarLetter = (
+    user?.displayName?.[0] ??
+    user?.email?.[0] ??
+    "?"
+  ).toUpperCase();
 
   return (
     <>
@@ -193,7 +201,9 @@ export function NavPill({ active, contextSlot, actionsSlot, sx }: NavPillProps) 
         </Box>
 
         {contextSlot ? (
-          <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center" }}>
+          <Box
+            sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center" }}
+          >
             {contextSlot}
           </Box>
         ) : (
@@ -232,9 +242,7 @@ export function NavPill({ active, contextSlot, actionsSlot, sx }: NavPillProps) 
                   py: 0.85,
                   fontSize: "0.85rem",
                   fontWeight: isActive ? 700 : 500,
-                  color: isActive
-                    ? "#FB923C"
-                    : "rgba(255,255,255,0.72)",
+                  color: isActive ? "#FB923C" : "rgba(255,255,255,0.72)",
                   textDecoration: "none",
                   transition: "color 220ms ease",
                   borderRadius: "999px",
@@ -269,10 +277,6 @@ export function NavPill({ active, contextSlot, actionsSlot, sx }: NavPillProps) 
             );
           })}
         </Box>
-
-        {/* Plan-status pill (Premium / Free / Trial / "Premium til {date}").
-            Self-gates on freemium + signed-in, so it's invisible pre-launch. */}
-        <NavPlanBadge />
 
         {/* Account: signed-out → Sign in pill, signed-in → avatar menu.
             Hidden during the auth-resolving flash to avoid the UI flicker
@@ -423,8 +427,7 @@ export function NavPill({ active, contextSlot, actionsSlot, sx }: NavPillProps) 
                   px: 1.75,
                   py: 0.85,
                   borderRadius: "999px",
-                  background:
-                    "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
+                  background: "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
                   color: "#0A0A0A",
                   fontWeight: 700,
                   fontSize: "0.84rem",

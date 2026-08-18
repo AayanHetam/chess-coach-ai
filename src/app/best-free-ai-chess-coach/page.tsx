@@ -48,8 +48,9 @@ const ENTRIES = [
     name: "Chess Masti AI",
     href: "/free-ai-chess-coach",
     pitch: "Best overall free AI chess coach with a training loop",
-    body: "Stockfish engine analysis paired with Claude AI explanations. Your worst mistakes become puzzles automatically. You can ask follow-up questions in plain language. Opponent scouting is included. The validator pipeline checks claims against engine output before showing them to you. Free to start with a generous free tier; a Premium upgrade unlocks unlimited AI coaching.",
-    bestFor: "Players who want to actually improve, not just understand a single position.",
+    body: "Stockfish engine analysis paired with AI explanations. Your worst mistakes become puzzles automatically. You can ask unlimited follow-up questions in plain language. Opponent scouting is included. The validator pipeline checks claims against engine output before showing them to you. Chess Masti and its coaching features are free.",
+    bestFor:
+      "Players who want to actually improve, not just understand a single position.",
   },
   {
     rank: 2,
@@ -57,7 +58,8 @@ const ENTRIES = [
     href: null,
     pitch: "Best free pure-engine evaluation",
     body: "Free, fast, and uses Stockfish. The analysis board is excellent for raw engine work — annotation, move classification, opening explorer, masters database. What you don't get is natural-language explanation or a structured training loop. You see the numbers and have to interpret them yourself.",
-    bestFor: "Players who already read engine output fluently and want the strongest free engine tool.",
+    bestFor:
+      "Players who already read engine output fluently and want the strongest free engine tool.",
   },
   {
     rank: 3,
@@ -73,7 +75,8 @@ const ENTRIES = [
     href: null,
     pitch: "Best if you already play on Chess.com",
     body: "Game review with engine analysis and basic insights. Some features are gated behind a Diamond membership; the free tier is limited in how many reviews per day. Best for casual reviews of your Chess.com games if you don't want to leave the platform.",
-    bestFor: "Players who only play on Chess.com and want light analysis in-platform.",
+    bestFor:
+      "Players who only play on Chess.com and want light analysis in-platform.",
   },
 ];
 
@@ -142,11 +145,13 @@ export default function BestFreeAiChessCoachPage() {
       <H1>Best Free AI Chess Coach in 2026</H1>
 
       <AnswerBlock>
-        The best free AI chess coach is the one that does three things well: evaluates positions
-        accurately, explains them in language you understand, and gives you something to practice.
-        Most tools stop at one of the three. The ranking below is honest about which tools cover
-        which step and who each is best for. Chess Masti AI tops it because it closes the full loop
-        — but if you only need part of the loop, the lower-ranked options may be a better fit.
+        The best free AI chess coach is the one that does three things well:
+        evaluates positions accurately, explains them in language you
+        understand, and gives you something to practice. Most tools stop at one
+        of the three. The ranking below is honest about which tools cover which
+        step and who each is best for. Chess Masti AI tops it because it closes
+        the full loop — but if you only need part of the loop, the lower-ranked
+        options may be a better fit.
       </AnswerBlock>
 
       <CtaRow>
@@ -158,17 +163,33 @@ export default function BestFreeAiChessCoachPage() {
 
       <Box component="section" sx={{ mb: 8 }}>
         <SectionHeading>Ranking criteria</SectionHeading>
-        <ProseBlock>
-          Three buckets, weighted equally:
-        </ProseBlock>
-        <Box component="ol" sx={{ pl: 3, color: "rgba(255,255,255,0.7)", lineHeight: 2 }}>
-          <li><strong style={{ color: "#fff" }}>Engine accuracy.</strong> Is the underlying evaluation Stockfish or comparable? Can it be trusted?</li>
-          <li><strong style={{ color: "#fff" }}>Explanation quality.</strong> Does the tool translate the engine output into plain language that helps you actually understand the position?</li>
-          <li><strong style={{ color: "#fff" }}>Training loop.</strong> After you understand the mistake, does the tool give you something to practice? Without the loop, explanation is entertainment, not improvement.</li>
+        <ProseBlock>Three buckets, weighted equally:</ProseBlock>
+        <Box
+          component="ol"
+          sx={{ pl: 3, color: "rgba(255,255,255,0.7)", lineHeight: 2 }}
+        >
+          <li>
+            <strong style={{ color: "#fff" }}>Engine accuracy.</strong> Is the
+            underlying evaluation Stockfish or comparable? Can it be trusted?
+          </li>
+          <li>
+            <strong style={{ color: "#fff" }}>Explanation quality.</strong> Does
+            the tool translate the engine output into plain language that helps
+            you actually understand the position?
+          </li>
+          <li>
+            <strong style={{ color: "#fff" }}>Training loop.</strong> After you
+            understand the mistake, does the tool give you something to
+            practice? Without the loop, explanation is entertainment, not
+            improvement.
+          </li>
         </Box>
-        <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.85rem", mt: 2 }}>
-          Bias disclosure: this ranking is published by Chess Masti AI. The criteria are honest, but
-          the #1 slot is our own product. Cross-check by reading neutral reviews.
+        <Typography
+          sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.85rem", mt: 2 }}
+        >
+          Bias disclosure: this ranking is published by Chess Masti AI. The
+          criteria are honest, but the #1 slot is our own product. Cross-check
+          by reading neutral reviews.
         </Typography>
       </Box>
 
@@ -177,20 +198,33 @@ export default function BestFreeAiChessCoachPage() {
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
           {ENTRIES.map((entry) => (
             <Box key={entry.rank} sx={glassCard}>
-              <Box sx={{ display: "flex", gap: 2.5, alignItems: "flex-start", mb: 2 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 2.5,
+                  alignItems: "flex-start",
+                  mb: 2,
+                }}
+              >
                 <Box
                   sx={{
                     flexShrink: 0,
                     width: 40,
                     height: 40,
                     borderRadius: "50%",
-                    background: entry.rank === 1 ? `${AEO_TOKENS.ember}22` : "rgba(255,255,255,0.05)",
+                    background:
+                      entry.rank === 1
+                        ? `${AEO_TOKENS.ember}22`
+                        : "rgba(255,255,255,0.05)",
                     border: `1px solid ${entry.rank === 1 ? AEO_TOKENS.ember + "55" : AEO_TOKENS.border}`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     fontWeight: 800,
-                    color: entry.rank === 1 ? AEO_TOKENS.ember : "rgba(255,255,255,0.6)",
+                    color:
+                      entry.rank === 1
+                        ? AEO_TOKENS.ember
+                        : "rgba(255,255,255,0.6)",
                   }}
                 >
                   #{entry.rank}
@@ -210,23 +244,42 @@ export default function BestFreeAiChessCoachPage() {
                   >
                     {entry.name}
                   </Typography>
-                  <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.9rem", mt: 0.5 }}>
+                  <Typography
+                    sx={{
+                      color: "rgba(255,255,255,0.55)",
+                      fontSize: "0.9rem",
+                      mt: 0.5,
+                    }}
+                  >
                     {entry.pitch}
                   </Typography>
                 </Box>
               </Box>
-              <Typography sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.8, mb: 2 }}>
+              <Typography
+                sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.8, mb: 2 }}
+              >
                 {entry.body}
               </Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.85rem", fontStyle: "italic" }}>
-                <strong style={{ color: "rgba(255,255,255,0.75)" }}>Best for:</strong> {entry.bestFor}
+              <Typography
+                sx={{
+                  color: "rgba(255,255,255,0.55)",
+                  fontSize: "0.85rem",
+                  fontStyle: "italic",
+                }}
+              >
+                <strong style={{ color: "rgba(255,255,255,0.75)" }}>
+                  Best for:
+                </strong>{" "}
+                {entry.bestFor}
               </Typography>
             </Box>
           ))}
         </Box>
-        <Typography sx={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.35)", mt: 3 }}>
-          Verified at time of writing. Free tiers and pricing change — check each product&apos;s site
-          before deciding.
+        <Typography
+          sx={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.35)", mt: 3 }}
+        >
+          Verified at time of writing. Free tiers and pricing change — check
+          each product&apos;s site before deciding.
         </Typography>
       </Box>
 
@@ -236,22 +289,27 @@ export default function BestFreeAiChessCoachPage() {
           <Typography sx={{ color: "#fff", fontWeight: 600, mb: 1.5 }}>
             If you&apos;re trying to improve →
           </Typography>
-          <Typography sx={{ color: "rgba(255,255,255,0.7)", mb: 3, lineHeight: 1.8 }}>
-            Chess Masti AI. The training loop is what moves ratings. Explanation alone is comfort
-            food.
+          <Typography
+            sx={{ color: "rgba(255,255,255,0.7)", mb: 3, lineHeight: 1.8 }}
+          >
+            Chess Masti AI. The training loop is what moves ratings. Explanation
+            alone is comfort food.
           </Typography>
           <Typography sx={{ color: "#fff", fontWeight: 600, mb: 1.5 }}>
             If you can already read engine output →
           </Typography>
-          <Typography sx={{ color: "rgba(255,255,255,0.7)", mb: 3, lineHeight: 1.8 }}>
-            Lichess analysis. Fast, free, no fluff. You don&apos;t need an LLM telling you what
-            +1.2 means.
+          <Typography
+            sx={{ color: "rgba(255,255,255,0.7)", mb: 3, lineHeight: 1.8 }}
+          >
+            Lichess analysis. Fast, free, no fluff. You don&apos;t need an LLM
+            telling you what +1.2 means.
           </Typography>
           <Typography sx={{ color: "#fff", fontWeight: 600, mb: 1.5 }}>
             If you want one deep position writeup →
           </Typography>
           <Typography sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.8 }}>
-            DecodeChess on its free tier, or pay for the full version if it&apos;s worth it to you.
+            DecodeChess on its free tier, or pay for the full version if
+            it&apos;s worth it to you.
           </Typography>
         </Box>
       </Box>
@@ -263,7 +321,10 @@ export default function BestFreeAiChessCoachPage() {
         cta="Open the free AI chess coach page"
       />
 
-      <FooterCta title="Try the top pick" sub="Paste a PGN or FEN. No account required to start." />
+      <FooterCta
+        title="Try the top pick"
+        sub="Paste a PGN or FEN. No account required to start."
+      />
     </PageShell>
   );
 }

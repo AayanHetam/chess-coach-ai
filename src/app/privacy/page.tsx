@@ -48,9 +48,9 @@ export default function PrivacyPage() {
           <header>
             <h1>Privacy policy</h1>
             <p className="cm-lede">
-              Plain English. Covers <strong>chessmasti.com</strong> (the website)
-              and <strong>Analyze with Chess Masti</strong> (the Chrome extension).
-              Last updated 2026-08-10.
+              Plain English. Covers <strong>chessmasti.com</strong> (the
+              website) and <strong>Analyze with Chess Masti</strong> (the Chrome
+              extension). Last updated 2026-08-17.
             </p>
           </header>
 
@@ -60,9 +60,9 @@ export default function PrivacyPage() {
             <h3>What we store</h3>
             <ul>
               <li>
-                <strong>Account</strong>: email, a bcrypt hash of your password (we
-                never see the plaintext), and a Google account ID if you sign in
-                with Google. Account data lives in Google Firestore.
+                <strong>Account</strong>: email, a bcrypt hash of your password
+                (we never see the plaintext), and a Google account ID if you
+                sign in with Google. Account data lives in Google Firestore.
               </li>
               <li>
                 <strong>Saved games and preferences</strong>: PGNs you save,
@@ -71,65 +71,26 @@ export default function PrivacyPage() {
                 Firestore.
               </li>
               <li>
-                <strong>Session cookie</strong> (<code>cm_session</code>): a signed
-                JWT in an httpOnly cookie. Used only to keep you signed in.
-              </li>
-              <li>
-                <strong>Subscription status</strong> (only if you start a trial or
-                subscribe to Premium): your plan, trial and renewal dates, and a
-                Stripe customer ID, stored with your account in Firestore. We
-                never store your card number — Stripe holds that.
-              </li>
-            </ul>
-
-            <h3>Product analytics and AI-conversation records — only with your consent</h3>
-            <p>
-              On your first visit we show a cookie banner with{" "}
-              <strong>&quot;I agree&quot;</strong> and <strong>&quot;No thanks&quot;</strong>.
-              Until you agree, none of the following is recorded, and if your
-              browser sends the <strong>Global Privacy Control</strong> signal we
-              treat that as a &quot;no&quot; automatically and never ask.
-            </p>
-            <ul>
-              <li>
-                <strong>Usage events</strong>: pages you view, features you use,
-                puzzle attempts and analysis sessions, your browser type and the
-                referring page, plus an anonymous identifier cookie
-                (<code>cm_anon</code>) and your consent choice
-                (<code>cm_consent</code>). Your IP address is stored only as an{" "}
-                <strong>irreversible hash</strong> — never the raw address.
-              </li>
-              <li>
-                <strong>AI-conversation records</strong>: the questions you ask
-                the coach and the coach&apos;s replies, together with the
-                position and game they relate to. We keep these to improve
-                answer quality and debug the coach.
-              </li>
-              <li>
-                <strong>Retention</strong>: these records are deleted
-                automatically after at most one year.
-              </li>
-              <li>
-                <strong>Changing your mind</strong>: clear this site&apos;s
-                cookies and the banner will ask again — or email us (below) and
-                we&apos;ll purge what&apos;s recorded about you.
+                <strong>Session cookie</strong> (<code>cm_session</code>): a
+                signed JWT in an httpOnly cookie. Used only to keep you signed
+                in.
               </li>
             </ul>
 
             <h3>What we send to third parties</h3>
             <ul>
               <li>
-                <strong>Anthropic Claude</strong> receives the position (FEN), the
-                relevant PGN snippet, and your coaching query so the coach can
-                respond. If you have named an opponent (e.g. their Lichess or
-                Chess.com username) the coach is also told that username so it
-                can tailor its advice. We do not send your own name, email, or
-                account ID along with the request.
+                <strong>Anthropic Claude and OpenAI</strong>: Anthropic normally
+                processes AI coaching requests. OpenAI may process the same
+                request if Anthropic fails or if OpenAI is the configured
+                provider. The request can include the position (FEN), relevant
+                PGN, coaching query and chat messages, ratings, and Chess.com or
+                Lichess usernames used to personalize the coaching.
               </li>
               <li>
                 <strong>The Maia-2 microservice</strong> receives the current
-                position (FEN) and the two ratings (yours and the bot&apos;s) when
-                you play against the Twin Bot opponent, so it can return a
+                position (FEN) and the two ratings (yours and the bot&apos;s)
+                when you play against the Twin Bot opponent, so it can return a
                 humanlike move. It receives nothing else.
               </li>
               <li>
@@ -149,25 +110,20 @@ export default function PrivacyPage() {
                 request one.
               </li>
               <li>
-                <strong>Stripe</strong> processes payments if you subscribe to
-                Premium. Your card details go directly to Stripe&apos;s secure
-                checkout — we never see or store your full card number — and
-                Stripe sends back your subscription status (active, trialing,
-                canceled) so we can unlock or lock Premium. See{" "}
-                <a href="https://stripe.com/privacy">stripe.com/privacy</a>.
-              </li>
-              <li>
                 <strong>Google Firebase Analytics</strong> and{" "}
-                <strong>Vercel Analytics</strong> record anonymous page views
-                and feature usage so we can see what is being used. No content
-                of your games or coaching chats is sent to either.
+                <strong>Vercel Analytics</strong> collect page-view and usage
+                information through browser analytics components. Chess Masti
+                does not add game PGNs or coaching-chat content to those
+                analytics events.
               </li>
               <li>
-                <strong>Sentry</strong> receives the details of any error that
-                happens in your browser (stack trace, the URL you were on, your
-                browser type and hardware metadata such as CPU core count and
-                RAM tier). It does not receive PGNs, chat messages, or account
-                data. Used only for crash diagnosis.
+                <strong>Sentry</strong> may receive sanitized operational errors
+                from the website in your browser and from Chess Masti&apos;s
+                servers, together with technical context such as a stack trace,
+                request route, browser type, and hardware metadata. Chess Masti
+                does not intentionally send AI prompts, coaching-chat messages,
+                AI responses, FENs, PGNs, account identifiers, or raw provider
+                error bodies to Sentry. It is used only for diagnosing failures.
               </li>
             </ul>
 
@@ -180,40 +136,102 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>On your device (IndexedDB)</strong>: puzzle progress and
-                spaced-repetition state. Stored locally in your browser and never
-                sent to us.
+                spaced-repetition state. Stored locally in your browser and
+                never sent to us.
               </li>
               <li>
-                <strong>On Supabase</strong>: the consent-gated usage events and
-                AI-conversation records described above, and data from the
-                internal feedback portal used by our intern programme (if you
-                have been added to the intern allowlist we store the feedback
-                and quality flags you submit).
+                <strong>On Supabase</strong>: the internal feedback portal
+                stores feedback submitted by people on the intern allowlist.
+                When an authorized intern flags a coaching response, that
+                submission includes the flagged response, chat history, the
+                intern&apos;s account identifiers, their explanation and
+                suggested response, and any available FEN or PGN. Separately,
+                consent-controlled analytics endpoints can store page-view and
+                consent-accepted event names, the page&apos;s route path,
+                account or anonymous identifiers, session and request IDs, a
+                salted IP hash when configured, browser and referrer
+                information, and app version. Dedicated puzzle and
+                analysis-session analytics can also store puzzle details, moves
+                and outcomes, FEN or PGN, timestamps, and counts of queried
+                moves or chat turns. Consent-controlled referee monitoring
+                stores only aggregate validator counts, timing totals, request
+                and contract IDs, provider and model names, and prompt,
+                contract, and application version labels. It does not store
+                referee excerpts, AI content, FENs, PGNs, or user or anonymous
+                identifiers.
               </li>
             </ul>
 
+            <h3>AI-call content and operational statistics</h3>
+            <p>
+              Automatic full AI-conversation capture is disabled in the
+              application, including when <code>TRACKING_ENABLED</code> is true.
+              Chess Masti does not write AI system prompts, coaching-chat
+              messages, AI response text, provider error text, account or
+              anonymous identifiers, FENs, or PGNs to Supabase through AI-call
+              tracking.
+            </p>
+            <p>
+              For operational monitoring, each running server process keeps
+              temporary aggregate AI statistics in memory: call counts, provider
+              and model names, token totals, prompt-cache totals, elapsed-time
+              totals, timestamps, and fallback counts and status codes. These
+              statistics reset when the server process restarts and are not
+              written to Supabase. They do not contain prompts, messages,
+              responses, user identifiers, FENs, or PGNs.
+            </p>
+
+            <h3>Tracking controls</h3>
+            <p>
+              Chess Masti&apos;s custom browser-event tracking endpoints check
+              the analytics choice stored in the <code>cm_consent</code> cookie
+              and honor the browser&apos;s Global Privacy Control signal. The
+              consent-controlled event, puzzle-attempt, and analysis-session
+              analytics described above are also disabled unless the
+              server&apos;s
+              <code>TRACKING_ENABLED</code> configuration is on. Google Firebase
+              Analytics and Vercel Analytics are loaded separately from these
+              custom tracking endpoints.
+            </p>
+
             <h3>What we do not do</h3>
             <ul>
-              <li>We do not sell your data. There is no advertising business model.</li>
-              <li>We do not share PGNs or chats with anyone outside the third parties listed above.</li>
-              <li>We do not run Stockfish on our servers — engine analysis happens in your browser as WebAssembly. Positions you analyse stay on your machine for engine evaluation; they only leave it when you choose to ask the AI coach about them.</li>
+              <li>
+                We do not sell your data. There is no advertising business
+                model.
+              </li>
+              <li>
+                We use and disclose PGNs and chats only as described in this
+                policy.
+              </li>
+              <li>
+                We do not run Stockfish on our servers — engine analysis happens
+                in your browser as WebAssembly. Positions you analyse stay on
+                your machine for engine evaluation; they only leave it when you
+                choose to ask the AI coach about them.
+              </li>
             </ul>
 
             <h3>Children</h3>
             <p>
               Chess Masti is intended for users aged 13 and over, and we ask you
-              to confirm you&apos;re 13+ when you create an account. We don&apos;t
-              knowingly collect personal information from children under 13. If
-              you believe a child under 13 has signed up without a parent&apos;s
-              involvement, email us at{" "}
-              <a href="mailto:chessmastiprivacy@gmail.com">chessmastiprivacy@gmail.com</a>{" "}
+              to confirm you&apos;re 13+ when you create an account. We
+              don&apos;t knowingly collect personal information from children
+              under 13. If you believe a child under 13 has signed up without a
+              parent&apos;s involvement, email us at{" "}
+              <a href="mailto:aayanhetamsaria4@gmail.com">
+                aayanhetamsaria4@gmail.com
+              </a>{" "}
               and we&apos;ll delete the account and its data.
             </p>
 
             <h3>Deleting your data</h3>
             <p>
-              Email <a href="mailto:chessmastiprivacy@gmail.com">chessmastiprivacy@gmail.com</a> and
-              we'll delete your account and saved games within seven days.
+              Email{" "}
+              <a href="mailto:aayanhetamsaria4@gmail.com">
+                aayanhetamsaria4@gmail.com
+              </a>{" "}
+              and we'll delete your account and saved games within seven days.
             </p>
           </section>
 
@@ -222,8 +240,8 @@ export default function PrivacyPage() {
 
             <h3>What the extension does</h3>
             <p>
-              It adds an orange &quot;♟ Analyze with Chess Masti&quot; button to
-              game pages on lichess.org and chess.com. When you click it, the
+              It adds an orange &quot;♟ Analyze with Chess Masti&quot; button
+              to game pages on lichess.org and chess.com. When you click it, the
               extension reads the PGN of the game you are looking at and opens
               chessmasti.com/analysis in a new tab with that PGN in the URL.
               That&apos;s it.
@@ -237,15 +255,15 @@ export default function PrivacyPage() {
                 access to every page on those two domains while the extension is
                 installed. In practice it does nothing on pages that aren&apos;t
                 a game-like URL — the button only appears, and the PGN is only
-                read, on paths such as <code>/game/</code>, <code>/analysis/</code>,
-                <code>/play/</code>, <code>/live/</code>, and{" "}
-                <code>/daily/</code>, and on the Lichess game-ID URLs.
+                read, on paths such as <code>/game/</code>,{" "}
+                <code>/analysis/</code>,<code>/play/</code>, <code>/live/</code>
+                , and <code>/daily/</code>, and on the Lichess game-ID URLs.
               </li>
               <li>
-                <strong>The public Lichess game-export endpoint</strong>{" "}
-                (<code>https://lichess.org/game/export/&lt;id&gt;</code>) — fetched
-                only when you click the button on a Lichess game, to get a clean
-                PGN. No authentication, no cookies.
+                <strong>The public Lichess game-export endpoint</strong> (
+                <code>https://lichess.org/game/export/&lt;id&gt;</code>) —
+                fetched only when you click the button on a Lichess game, to get
+                a clean PGN. No authentication, no cookies.
               </li>
             </ul>
 
@@ -258,18 +276,30 @@ export default function PrivacyPage() {
             <h3>What it transmits</h3>
             <p>
               The PGN of the game you click on, sent only to{" "}
-              <strong>chessmasti.com</strong> as a URL parameter when the new tab
-              opens. Equivalent to copy-pasting the PGN into chessmasti.com
+              <strong>chessmasti.com</strong> as a URL parameter when the new
+              tab opens. Equivalent to copy-pasting the PGN into chessmasti.com
               yourself. Nothing is sent anywhere else.
             </p>
 
             <h3>What it does not do</h3>
             <ul>
-              <li>It does not collect personal information, contact information, financial information, authentication data, or location.</li>
+              <li>
+                It does not collect personal information, contact information,
+                financial information, authentication data, or location.
+              </li>
               <li>It does not track your browsing across sites.</li>
-              <li>It does not run on any site other than lichess.org and chess.com.</li>
-              <li>It does not modify the content of pages it runs on, beyond adding the single button.</li>
-              <li>It does not use the data it accesses for any purpose other than opening chessmasti.com with your game pre-loaded.</li>
+              <li>
+                It does not run on any site other than lichess.org and
+                chess.com.
+              </li>
+              <li>
+                It does not modify the content of pages it runs on, beyond
+                adding the single button.
+              </li>
+              <li>
+                It does not use the data it accesses for any purpose other than
+                opening chessmasti.com with your game pre-loaded.
+              </li>
             </ul>
           </section>
 
@@ -277,7 +307,10 @@ export default function PrivacyPage() {
             <h2>Contact</h2>
             <p>
               Questions, deletion requests, or anything else:{" "}
-              <a href="mailto:chessmastiprivacy@gmail.com">chessmastiprivacy@gmail.com</a>.
+              <a href="mailto:aayanhetamsaria4@gmail.com">
+                aayanhetamsaria4@gmail.com
+              </a>
+              .
             </p>
           </section>
 

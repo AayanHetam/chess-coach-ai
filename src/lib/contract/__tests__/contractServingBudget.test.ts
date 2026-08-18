@@ -27,10 +27,16 @@ import type { LLMStreamEvent } from "@/lib/llmProvider";
 import { makeContract, makeInsight } from "./insightFactory";
 
 vi.mock("@/lib/logging", () => ({
-  logger: { child: () => ({ info: () => {}, warn: () => {}, error: () => {} }) },
+  logger: {
+    child: () => ({ info: () => {}, warn: () => {}, error: () => {} }),
+  },
 }));
 
-const cardA = makeInsight({ factIdPrefix: "M1", moveNumber: 11, topMistakeRank: 1 });
+const cardA = makeInsight({
+  factIdPrefix: "M1",
+  moveNumber: 11,
+  topMistakeRank: 1,
+});
 const cardB = makeInsight({
   factIdPrefix: "M2",
   moveNumber: 14,
@@ -40,7 +46,8 @@ const cardB = makeInsight({
 const contract = makeContract([cardA, cardB]);
 
 function baseArgs(
-  over: Partial<ContractServingArgs> & Pick<ContractServingArgs, "callLLMStreamImpl">,
+  over: Partial<ContractServingArgs> &
+    Pick<ContractServingArgs, "callLLMStreamImpl">
 ): ContractServingArgs {
   return {
     contract,
@@ -51,7 +58,6 @@ function baseArgs(
     promptInput: { personalityId: "friendly", userRating: 1500 },
     correlationId: "budget-test",
     uid: "u1",
-    trackingConsent: false,
     requestStartMs: Date.now(),
     cacheInputs: {
       currentFen: contract.game.finalFen,
@@ -80,12 +86,16 @@ describe("generation budget", () => {
 
   it("passes an abort signal to the flagship stream", async () => {
     let sawSignal = false;
-    async function* stream(opts: { signal?: AbortSignal }): AsyncGenerator<LLMStreamEvent> {
+    async function* stream(opts: {
+      signal?: AbortSignal;
+    }): AsyncGenerator<LLMStreamEvent> {
       sawSignal = opts.signal instanceof AbortSignal;
       yield { type: "text", delta: "All good.\n\n" };
     }
     await serveContractAnalysis(
-      baseArgs({ callLLMStreamImpl: stream as ContractServingArgs["callLLMStreamImpl"] }),
+      baseArgs({
+        callLLMStreamImpl: stream as ContractServingArgs["callLLMStreamImpl"],
+      })
     );
     expect(sawSignal).toBe(true);
   });
@@ -93,14 +103,18 @@ describe("generation budget", () => {
   it("an over-budget review ships its completed cards and closes cleanly", async () => {
     const emitted: string[] = [];
     // The model emits card A, then stalls forever on card B.
-    async function* stream(opts: { signal?: AbortSignal }): AsyncGenerator<LLMStreamEvent> {
+    async function* stream(opts: {
+      signal?: AbortSignal;
+    }): AsyncGenerator<LLMStreamEvent> {
       yield { type: "text", delta: "Right, let's walk your game.\n\n" };
       yield {
         type: "text",
         delta: `${renderInsightHeader(cardA)}\nYou went for Bd3, and the instinct was sound [F:M1].\n[/INSIGHT]\n\n`,
       };
       await new Promise((_r, reject) => {
-        opts.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        opts.signal?.addEventListener("abort", () =>
+          reject(new Error("aborted"))
+        );
       });
     }
 
@@ -109,7 +123,7 @@ describe("generation budget", () => {
       baseArgs({
         emitText: (t) => emitted.push(t),
         callLLMStreamImpl: stream as ContractServingArgs["callLLMStreamImpl"],
-      }),
+      })
     );
     await vi.advanceTimersByTimeAsync(CONTRACT_GENERATION_BUDGET_MS + 100);
     const result = await pending;
@@ -117,7 +131,9 @@ describe("generation budget", () => {
     // NOT an error — the abort is a deliberate budget cut.
     expect(result.contractMetadata.generationTruncated).toBe(true);
     // The card that DID complete was refereed and shipped.
-    expect(result.contractMetadata.refereeOutcomes.map((o) => o.factIdPrefix)).toEqual(["M1"]);
+    expect(
+      result.contractMetadata.refereeOutcomes.map((o) => o.factIdPrefix)
+    ).toEqual(["M1"]);
     expect(result.analysisContent).toContain(renderInsightHeader(cardA));
     expect(result.analysisContent).toContain("Right, let's walk your game.");
     // The omission is stated rather than left as a silent short review.
@@ -128,18 +144,25 @@ describe("generation budget", () => {
   });
 
   it("a truncated review is never cached", async () => {
-    async function* truncating(opts: { signal?: AbortSignal }): AsyncGenerator<LLMStreamEvent> {
+    async function* truncating(opts: {
+      signal?: AbortSignal;
+    }): AsyncGenerator<LLMStreamEvent> {
       yield {
         type: "text",
         delta: `${renderInsightHeader(cardA)}\nYou went for Bd3, and the instinct was sound [F:M1].\n[/INSIGHT]\n\n`,
       };
       await new Promise((_r, reject) => {
-        opts.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        opts.signal?.addEventListener("abort", () =>
+          reject(new Error("aborted"))
+        );
       });
     }
     vi.useFakeTimers();
     const pending = serveContractAnalysis(
-      baseArgs({ callLLMStreamImpl: truncating as ContractServingArgs["callLLMStreamImpl"] }),
+      baseArgs({
+        callLLMStreamImpl:
+          truncating as ContractServingArgs["callLLMStreamImpl"],
+      })
     );
     await vi.advanceTimersByTimeAsync(CONTRACT_GENERATION_BUDGET_MS + 100);
     const result = await pending;
@@ -156,7 +179,9 @@ describe("generation budget", () => {
       };
     }
     const second = await serveContractAnalysis(
-      baseArgs({ callLLMStreamImpl: complete as ContractServingArgs["callLLMStreamImpl"] }),
+      baseArgs({
+        callLLMStreamImpl: complete as ContractServingArgs["callLLMStreamImpl"],
+      })
     );
     expect(secondRan).toBe(true);
     expect(second.cached).toBe(false);
@@ -169,8 +194,10 @@ describe("generation budget", () => {
     }
     await expect(
       serveContractAnalysis(
-        baseArgs({ callLLMStreamImpl: boom as ContractServingArgs["callLLMStreamImpl"] }),
-      ),
+        baseArgs({
+          callLLMStreamImpl: boom as ContractServingArgs["callLLMStreamImpl"],
+        })
+      )
     ).rejects.toThrow("anthropic 500");
   });
 
@@ -187,7 +214,9 @@ describe("generation budget", () => {
       };
     }
     const result = await serveContractAnalysis(
-      baseArgs({ callLLMStreamImpl: fast as ContractServingArgs["callLLMStreamImpl"] }),
+      baseArgs({
+        callLLMStreamImpl: fast as ContractServingArgs["callLLMStreamImpl"],
+      })
     );
     expect(result.contractMetadata.generationTruncated).toBe(false);
     expect(result.analysisContent).not.toContain(GENERATION_BUDGET_NOTE.trim());

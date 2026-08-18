@@ -21,20 +21,24 @@ const URL = "https://chessmasti.com/free-chess-coach-for-beginners";
 const HERE = "Free Chess Coach for Beginners";
 
 export const metadata: Metadata = {
-  title: { absolute: "Free Chess Coach for Beginners | Stockfish + AI Explanations" },
+  title: {
+    absolute: "Free Chess Coach for Beginners | Stockfish + AI Explanations",
+  },
   description:
     "A free chess coach for beginners: paste your game, get plain-language explanations of your mistakes, and drill the patterns you keep missing. Free to start, no credit card to begin.",
   alternates: { canonical: URL },
   openGraph: {
     title: "Free Chess Coach for Beginners | Chess Masti AI",
-    description: "Plain-language game review and mistake drills. Free to start, no card to begin.",
+    description:
+      "Plain-language game review and mistake drills. Free to start, no card to begin.",
     url: URL,
     images: [{ url: "/og/free-ai-chess-coach" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Free Chess Coach for Beginners | Chess Masti AI",
-    description: "Plain-language game review and mistake drills. Free to start, no card to begin.",
+    description:
+      "Plain-language game review and mistake drills. Free to start, no card to begin.",
     images: ["/og/free-ai-chess-coach"],
   },
 };
@@ -66,11 +70,12 @@ export default function FreeChessCoachForBeginnersPage() {
       <H1>Free Chess Coach for Beginners</H1>
 
       <AnswerBlock>
-        The best free chess coach for beginners is one that explains things in plain language and
-        doesn&apos;t assume you already speak engine. Chess Masti AI is free to start with a
-        generous free tier, and explains your mistakes the way a patient teacher would: what you
-        were trying to do, what went wrong, and exactly what to try next time. Paste a game and
-        start in under a minute &mdash; no credit card to begin.
+        The best free chess coach for beginners is one that explains things in
+        plain language and doesn&apos;t assume you already speak engine. Chess
+        Masti AI is free and explains your mistakes the way a patient teacher
+        would: what you were trying to do, what went wrong, and exactly what to
+        try next time. Paste a game and start in under a minute &mdash; no
+        credit card to begin.
       </AnswerBlock>
 
       <CtaRow>
@@ -98,12 +103,20 @@ export default function FreeChessCoachForBeginnersPage() {
             },
             {
               title: "No surprise wall mid-lesson",
-              desc: "Most chess sites have free tiers that hit a wall right when the coaching gets useful. Chess Masti gives beginners a genuinely generous free tier — real game review and mistake drills without a credit card. A low-cost Premium tier unlocks unlimited AI coaching when you outgrow it, with a free 7-day trial to try it first.",
+              desc: "Many chess sites limit useful coaching. Chess Masti gives beginners free game review, AI coaching, and mistake drills without a credit card or usage quota.",
             },
           ].map((item) => (
             <Box key={item.title} sx={glassCard}>
-              <Typography sx={{ fontWeight: 700, color: "#fff", mb: 1 }}>{item.title}</Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.65)", fontSize: "0.9rem", lineHeight: 1.8 }}>
+              <Typography sx={{ fontWeight: 700, color: "#fff", mb: 1 }}>
+                {item.title}
+              </Typography>
+              <Typography
+                sx={{
+                  color: "rgba(255,255,255,0.65)",
+                  fontSize: "0.9rem",
+                  lineHeight: 1.8,
+                }}
+              >
                 {item.desc}
               </Typography>
             </Box>
@@ -114,21 +127,22 @@ export default function FreeChessCoachForBeginnersPage() {
       <Box component="section" sx={{ mb: 10 }}>
         <SectionHeading>A beginner-friendly review workflow</SectionHeading>
         <ProseBlock>
-          1. Play your game wherever — Lichess, Chess.com, or in person. If in person, transcribe
-          the moves into a PGN; one game takes a few minutes.
+          1. Play your game wherever — Lichess, Chess.com, or in person. If in
+          person, transcribe the moves into a PGN; one game takes a few minutes.
         </ProseBlock>
         <ProseBlock>
-          2. Paste the PGN into Chess Masti. Skim the eval bar. Find the move with the biggest drop.
-          That&apos;s where the lesson is — not in the small mistakes.
+          2. Paste the PGN into Chess Masti. Skim the eval bar. Find the move
+          with the biggest drop. That&apos;s where the lesson is — not in the
+          small mistakes.
         </ProseBlock>
         <ProseBlock>
-          3. Read the coach&apos;s explanation. Ask a follow-up question if anything&apos;s unclear:
-          &quot;what would have been better than my move?&quot; or &quot;is there a name for this
-          kind of mistake?&quot;
+          3. Read the coach&apos;s explanation. Ask a follow-up question if
+          anything&apos;s unclear: &quot;what would have been better than my
+          move?&quot; or &quot;is there a name for this kind of mistake?&quot;
         </ProseBlock>
         <ProseBlock>
-          4. Convert that one moment into a puzzle. Drill it now. Don&apos;t analyze every move —
-          one good lesson per game is enough.
+          4. Convert that one moment into a puzzle. Drill it now. Don&apos;t
+          analyze every move — one good lesson per game is enough.
         </ProseBlock>
       </Box>
 
@@ -139,7 +153,10 @@ export default function FreeChessCoachForBeginnersPage() {
         cta="Open the free AI chess coach page"
       />
 
-      <FooterCta title="Get a coach that explains things clearly" sub="Paste a PGN. Free to start, no credit card. Built to work for beginners." />
+      <FooterCta
+        title="Get a coach that explains things clearly"
+        sub="Paste a PGN. Free to start, no credit card. Built to work for beginners."
+      />
     </PageShell>
   );
 }

@@ -1,20 +1,19 @@
 import { createHash } from "node:crypto";
+import { after } from "next/server";
 import { getTrackingEnv } from "@/env";
 import { logger } from "@/lib/logging";
 import { DEFAULT_ARMING_TABLE } from "@/lib/contract/armingConfig";
 import type { ShadowRefereeReview } from "@/lib/contract/shadowReferee";
 import { getTrackingSupabase } from "./supabase";
-import { safeAfter } from "./llmCapture";
 import { currentAppVersion } from "./track";
 
 /**
  * Referee-outcome persistence (CI-5 Stage A).
  *
  * With CONTRACT_REFEREE_SHADOW on, the referee grades every real user's coach
- * review and logs what it WOULD have caught — into Vercel's ephemeral log
- * stream, where it cannot be aggregated. This is the bridge to the tracking
- * warehouse: one `referee_outcomes` row per shadow-refereed review, joinable
- * to `llm_calls` / `events` on request_id.
+ * review and logs aggregate information about what it WOULD have caught.
+ * This is the bridge to the tracking warehouse: one content-free
+ * `referee_outcomes` row per shadow-refereed review.
  *
  * Same hard rules as every other tracking writer:
  *  1. Gated on TRACKING_ENABLED (getTrackingEnv) — off ⇒ no client, no write.
@@ -22,19 +21,23 @@ import { currentAppVersion } from "./track";
  *  3. Fire-and-forget via after() (safeAfter) so the insert can never add
  *     latency to — or fail — a user's stream.
  *
- * PRIVACY. The persisted spans are coach-generated PROSE ABOUT THE USER'S
- * GAME, i.e. AI-conversation content. That is covered by the live privacy
- * policy's consent-gated section, so this writer takes an explicit per-request
- * `consent` decision (hasTrackingConsent: `cm_consent=accepted` and no
- * `Sec-GPC: 1`) and drops the row without it. Note: llmCapture gated on
- * TRACKING_ENABLED alone until 2026-08-11 — a live privacy
- * gap this work surfaced, closed in PR #263; both writers now consent-gate,
- * since neither passes through the /api/track* boundary that enforces it.
- * Identifiers are the existing uid/anon_id convention and nothing more: no
- * IP, no user agent, no session id.
+ * PRIVACY. This writer stores aggregate validator counts and operational
+ * versions only. It never stores findings, spans, prompts, responses, board
+ * positions, game records, or user/anonymous identifiers. It remains
+ * consent-gated and fails closed.
  */
 
 const log = logger.child({ module: "tracking-referee" });
+
+function safeAfter(fn: () => Promise<void> | void): void {
+  try {
+    after(fn);
+  } catch {
+    void Promise.resolve()
+      .then(fn)
+      .catch(() => undefined);
+  }
+}
 
 /** Per-request context the route supplies; merged with the review by the writer. */
 export interface RefereeOutcomeContext {
@@ -43,8 +46,6 @@ export interface RefereeOutcomeContext {
    * optional-defaulting-true: forgetting it must fail closed, not open.
    */
   consent: boolean;
-  uid?: string | null;
-  anonId?: string | null;
   isIntern?: boolean;
   requestId?: string | null;
   /** Classified request category ("game_review" | "opening_analysis" | ...). */
@@ -72,9 +73,14 @@ let cachedFingerprint: string | undefined;
 export function armingFingerprint(): string {
   if (cachedFingerprint) return cachedFingerprint;
   const canonical = JSON.stringify(
-    Object.entries(DEFAULT_ARMING_TABLE).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+    Object.entries(DEFAULT_ARMING_TABLE).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0
+    )
   );
-  cachedFingerprint = createHash("sha256").update(canonical).digest("hex").slice(0, 12);
+  cachedFingerprint = createHash("sha256")
+    .update(canonical)
+    .digest("hex")
+    .slice(0, 12);
   return cachedFingerprint;
 }
 
@@ -83,15 +89,15 @@ export function armingFingerprint(): string {
  * consent is absent. Never throws — exported so it can be unit-tested
  * directly (captureRefereeOutcome just schedules it).
  */
-export async function recordRefereeOutcome(input: RefereeOutcomeInput): Promise<void> {
+export async function recordRefereeOutcome(
+  input: RefereeOutcomeInput
+): Promise<void> {
   if (!getTrackingEnv().enabled) return;
   const { review, ctx } = input;
   if (!ctx.consent) return;
   try {
     const supabase = await getTrackingSupabase();
     const { error } = await supabase.from("referee_outcomes").insert({
-      uid: ctx.uid ?? null,
-      anon_id: ctx.anonId ?? null,
       is_intern: ctx.isIntern ?? false,
       request_id: ctx.requestId ?? null,
       contract_id: review.contractId,
@@ -117,7 +123,9 @@ export async function recordRefereeOutcome(input: RefereeOutcomeInput): Promise<
       max_hold_ms: review.maxHoldMs,
       p95_hold_ms: review.p95HoldMs,
       relational_launched: review.relationalLaunched,
-      spans: review.spans,
+      // Never persist response excerpts. Aggregate validator counts are enough
+      // for operational evaluation without retaining AI conversation content.
+      spans: [],
     });
     if (error) {
       log.warn("referee_outcomes insert failed", {
@@ -126,10 +134,13 @@ export async function recordRefereeOutcome(input: RefereeOutcomeInput): Promise<
       });
     }
   } catch (err) {
-    log.warn("recordRefereeOutcome threw (swallowed — telemetry must not break the stream)", {
-      contractId: review.contractId,
-      error: err instanceof Error ? err.message : String(err),
-    });
+    log.warn(
+      "recordRefereeOutcome threw (swallowed — telemetry must not break the stream)",
+      {
+        contractId: review.contractId,
+        error: err instanceof Error ? err.message : String(err),
+      }
+    );
   }
 }
 
@@ -204,22 +215,17 @@ export interface EnforcedRefereeOutcomeInput {
   ctx: RefereeOutcomeContext;
 }
 
-/** Cap mirrors the shadow writer: a review must not write an unbounded row. */
-const MAX_SPANS = 40;
-
 /** Map an enforced-serving summary onto the shared referee_outcomes shape. */
 export async function recordEnforcedRefereeOutcome(
-  input: EnforcedRefereeOutcomeInput,
+  input: EnforcedRefereeOutcomeInput
 ): Promise<void> {
   if (!getTrackingEnv().enabled) return;
   const { summary, contractId, correlationId, ctx } = input;
-  // Coach prose about the user's game — consent-gated, fail closed. Same rule
-  // as every other writer here; see the module header.
+  // Consent-gated and fail closed. Same rule as every other writer here.
   if (!ctx.consent) return;
   try {
     const checkCounts: Record<string, number> = {};
     const categoryCounts: Record<string, number> = {};
-    const spans: Array<Record<string, unknown>> = [];
     let relationalLaunched = 0;
 
     for (const card of summary.cards) {
@@ -227,21 +233,6 @@ export async function recordEnforcedRefereeOutcome(
       for (const f of card.findings) {
         checkCounts[f.check] = (checkCounts[f.check] ?? 0) + 1;
         categoryCounts[f.category] = (categoryCounts[f.category] ?? 0) + 1;
-        if (spans.length < MAX_SPANS) {
-          spans.push({
-            check: f.check,
-            category: f.category,
-            span: f.span,
-            factIdPrefix: card.factIdPrefix,
-            // Enforced-only, and the reason this data is worth more than the
-            // shadow equivalent: not just what the referee caught, but what
-            // the ladder DID about it (dropped / edited / regenerated /
-            // templated) before the user saw anything.
-            stage: card.stage,
-            severity: "error",
-            armed: true,
-          });
-        }
       }
     }
 
@@ -259,22 +250,8 @@ export async function recordEnforcedRefereeOutcome(
     // join the armed totals, because they ARE armed fires that resolved.
     const overviewGraded = summary.overviewOutcome != null ? 1 : 0;
     const overviewViolations = summary.overviewViolations ?? 0;
-    if (overviewGraded && spans.length < MAX_SPANS) {
-      spans.push({
-        check: "overview",
-        category: "contract_global",
-        span: null,
-        factIdPrefix: "overview",
-        stage: summary.overviewOutcome,
-        severity: overviewViolations > 0 ? "error" : "none",
-        armed: overviewViolations > 0,
-      });
-    }
-
     const supabase = await getTrackingSupabase();
     const { error } = await supabase.from("referee_outcomes").insert({
-      uid: ctx.uid ?? null,
-      anon_id: ctx.anonId ?? null,
       is_intern: ctx.isIntern ?? false,
       request_id: ctx.requestId ?? null,
       contract_id: contractId,
@@ -289,7 +266,8 @@ export async function recordEnforcedRefereeOutcome(
       arming_fingerprint: armingFingerprint(),
       app_version: ctx.appVersion ?? currentAppVersion(),
       // A card IS an anchored block; unanchored blocks were never graded.
-      blocks_seen: summary.cards.length + summary.unanchoredBlocks + overviewGraded,
+      blocks_seen:
+        summary.cards.length + summary.unanchoredBlocks + overviewGraded,
       matched: summary.cards.length + overviewGraded,
       unmatched: summary.unanchoredBlocks,
       // Header malformation is resolved upstream by the block gate on this
@@ -306,7 +284,7 @@ export async function recordEnforcedRefereeOutcome(
       // pipelines per card and does not produce them. Left at the column
       // default rather than filled with a plausible-looking zero-as-fact.
       relational_launched: relationalLaunched,
-      spans,
+      spans: [],
     });
     if (error) {
       log.warn("referee_outcomes (enforced) insert failed", {
@@ -315,15 +293,20 @@ export async function recordEnforcedRefereeOutcome(
       });
     }
   } catch (err) {
-    log.warn("recordEnforcedRefereeOutcome threw (swallowed — telemetry must not break the stream)", {
-      contractId,
-      error: err instanceof Error ? err.message : String(err),
-    });
+    log.warn(
+      "recordEnforcedRefereeOutcome threw (swallowed — telemetry must not break the stream)",
+      {
+        contractId,
+        error: err instanceof Error ? err.message : String(err),
+      }
+    );
   }
 }
 
 /** Fire-and-forget scheduler, mirroring captureRefereeOutcome. */
-export function captureEnforcedRefereeOutcome(input: EnforcedRefereeOutcomeInput): void {
+export function captureEnforcedRefereeOutcome(
+  input: EnforcedRefereeOutcomeInput
+): void {
   try {
     safeAfter(() => recordEnforcedRefereeOutcome(input));
   } catch {

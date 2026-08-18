@@ -62,11 +62,24 @@ jobs:
           H=$(curl -sf --max-time 20 "$BASE/" | grep -oci "chess coaching" || echo 0)
           check "landing contains hero copy" "yes" "$([ "$H" -ge 1 ] && echo yes || echo no)"
 
-          # 3. Signin path is alive (bad creds must return 401, not 5xx)
-          S=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -X POST "$BASE/api/auth/signin" \
+          # 3. Signin path is alive (bad creds must return 401, not 5xx) AND
+          # still answers with a generic rejection. The status alone was not
+          # enough: PR #332 changed the copy to "Invalid handle, email or
+          # password." and every probe stayed green, because nothing looked at
+          # the body. The wording is deliberately loose — what must hold is
+          # that ONE generic message comes back, never "no such account",
+          # which would turn the form into an enumeration oracle.
+          SBODY=$(curl -s --max-time 20 -w '\n%{http_code}' -X POST "$BASE/api/auth/signin" \
             -H "Content-Type: application/json" \
             -d '{"email":"heartbeat-probe@example.com","password":"definitely-wrong-1!"}')
+          S=$(printf '%s' "$SBODY" | tail -n1)
           check "signin returns 401 for bad creds" "401" "$S"
+          # No `|| echo 0` here: grep -c ALWAYS prints a count, so the
+          # fallback appends a second line and the failure text reads
+          # "expected '1', got '0\n0'". The script runs under `set -u`, not
+          # `set -e`, so grep's exit status is harmless on its own.
+          SMSG=$(printf '%s' "$SBODY" | grep -ci "invalid.*password")
+          check "signin rejects generically" "1" "$SMSG"
 
           # 4. Google OAuth start hands off to Google
           L=$(curl -s -o /dev/null -D - --max-time 15 "$BASE/api/auth/google/start?returnTo=/" \

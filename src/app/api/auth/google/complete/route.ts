@@ -23,13 +23,12 @@ export const runtime = "nodejs";
  * POST /api/auth/google/complete — finish a Google sign-up that was parked
  * at the /auth/age COPPA interstitial (see google/callback).
  *
- * Body: { ageAffirmed: boolean }
- * - ageAffirmed=true  → create (or link, if a racing sign-in created it
- *   meanwhile) the account with ageAffirmedAt stamped, set the session.
- * - ageAffirmed=false → clear the pending cookie and stop. The checkbox gate
- *   can only affirm, so today's client never sends false; kept fail-closed
- *   for deploy-skew clients and direct calls. No account was ever created,
- *   so stopping leaves zero stored personal data.
+ * Body: { ageAffirmed: boolean, termsAccepted: boolean }
+ * - Both true → create (or link, if a racing sign-in created it meanwhile)
+ *   the account with the server-generated acceptance fields, set the session.
+ * - Either false → clear the pending cookie and stop. The checkbox gate can
+ *   only affirm, so today's client never sends false; kept fail-closed for
+ *   deploy-skew clients and direct calls.
  *
  * The pending cookie is signed (SESSION_SECRET) and carries the Google
  * profile the callback already verified against Google's JWKS — this route
@@ -55,14 +54,19 @@ export async function POST(request: Request) {
   }
 
   let ageAffirmed = false;
+  let termsAccepted = false;
   try {
-    const body = (await request.json()) as { ageAffirmed?: unknown };
+    const body = (await request.json()) as {
+      ageAffirmed?: unknown;
+      termsAccepted?: unknown;
+    };
     ageAffirmed = body.ageAffirmed === true;
+    termsAccepted = body.termsAccepted === true;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  if (!ageAffirmed) {
+  if (!ageAffirmed || !termsAccepted) {
     const response = NextResponse.json({ blocked: true });
     clearPendingSignupCookie(response);
     return response;
@@ -94,6 +98,7 @@ export async function POST(request: Request) {
           photoURL: pending.photoURL,
           emailVerified: true,
           ageAffirmed: true,
+          termsAccepted: true,
         });
       }
     }

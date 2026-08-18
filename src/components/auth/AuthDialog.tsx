@@ -145,6 +145,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
           handle: check.display as string,
           displayName: displayName.trim() || undefined,
           ageAffirmed: true, // only reachable after the 13+ checkbox gate
+          termsAccepted: true,
         });
         setStep("usernames");
       } else {
@@ -167,7 +168,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
       // confirmed, so the affirmation rides along and the OAuth callback can
       // skip the /auth/age interstitial. From the sign-in tab, brand-new
       // accounts get the interstitial server-side instead.
-      await signInWithGoogle({ ageAffirmed: mode === "signup" && agePassed });
+      await signInWithGoogle({
+        ageAffirmed: mode === "signup" && agePassed,
+        termsAccepted: mode === "signup" && agePassed,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed.");
     }

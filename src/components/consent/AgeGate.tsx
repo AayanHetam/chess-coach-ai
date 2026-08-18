@@ -11,12 +11,13 @@ import {
 } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
 import { COPPA_MIN_AGE } from "@/lib/tracking/age";
+import Link from "next/link";
 
 /**
  * Age-affirmation gate (TRK-6, COPPA).
  *
- * Self-contained + reusable: collects an explicit "I'm 13 or older"
- * affirmation and reports it via onConfirmed. It does NOT mutate auth state —
+ * Self-contained + reusable: collects an explicit "I'm at least 13 and agree
+ * to the Terms and Privacy Policy" affirmation and reports it via onConfirmed. It does NOT mutate auth state —
  * the caller wires the affirmation into signup (`ageAffirmed`); no age or
  * birth date is ever collected or transmitted. This replaced the earlier
  * neutral DOB screen; devices that resolved under-13 on that screen stay
@@ -49,7 +50,16 @@ export default function AgeGate({
           variant="caption"
           sx={slotSx?.caption ?? { color: "text.secondary" }}
         >
-          Chess Masti accounts are for players aged {COPPA_MIN_AGE} and up.
+          Chess Masti accounts are for players aged {COPPA_MIN_AGE} and up. By
+          continuing, you agree to the{" "}
+          <Link href="/terms" target="_blank" rel="noreferrer">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" target="_blank" rel="noreferrer">
+            Privacy Policy
+          </Link>
+          .
         </Typography>
         <FormControlLabel
           sx={slotSx?.label}
@@ -60,7 +70,7 @@ export default function AgeGate({
               sx={slotSx?.checkbox}
             />
           }
-          label={`I confirm that I'm ${COPPA_MIN_AGE} or older.`}
+          label={`I confirm that I am at least ${COPPA_MIN_AGE} years old and agree to the Terms of Service and Privacy Policy.`}
         />
         <Button
           variant="contained"

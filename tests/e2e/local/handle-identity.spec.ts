@@ -20,9 +20,10 @@ async function openSignup(page: Page) {
     .first()
     .click();
   await page.getByText("Sign up", { exact: true }).click();
-  // The COPPA gate is a 13+ affirmation checkbox (the DOB screen was retired
-  // on main while this branch was open). No date is ever transmitted.
-  await page.getByRole("checkbox", { name: /13 or older/i }).check();
+  // The COPPA gate is a combined 13+ / Terms / Privacy consent checkbox (the
+  // DOB screen was retired on main while this branch was open). No date is
+  // ever transmitted.
+  await page.getByRole("checkbox", { name: /at least 13 years old/i }).check();
   await page.getByRole("button", { name: /^continue$/i }).click();
 }
 

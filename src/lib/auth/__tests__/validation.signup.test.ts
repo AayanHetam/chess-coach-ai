@@ -14,8 +14,13 @@ const base = {
 
 describe("signupSchema ageAffirmed (COPPA)", () => {
   it("accepts ageAffirmed: true", () => {
-    const parsed = signupSchema.parse({ ...base, ageAffirmed: true });
+    const parsed = signupSchema.parse({
+      ...base,
+      ageAffirmed: true,
+      termsAccepted: true,
+    });
     expect(parsed.ageAffirmed).toBe(true);
+    expect(parsed.termsAccepted).toBe(true);
   });
 
   it("rejects a missing ageAffirmed with the affirmation message (deploy-skew clients)", () => {
@@ -48,19 +53,35 @@ describe("signupSchema ageAffirmed (COPPA)", () => {
     ).toThrow();
     expect(() => signupSchema.parse({ ...base, ageAffirmed: 1 })).toThrow();
   });
+
+  it("rejects missing or false legal consent", () => {
+    expect(() => signupSchema.parse({ ...base, ageAffirmed: true })).toThrow(
+      "Please accept the Terms of Service and Privacy Policy to sign up."
+    );
+    expect(() =>
+      signupSchema.parse({ ...base, ageAffirmed: true, termsAccepted: false })
+    ).toThrow(
+      "Please accept the Terms of Service and Privacy Policy to sign up."
+    );
+  });
 });
 
 describe("signupSchema handle (required)", () => {
   it("accepts a handle", () => {
-    expect(signupSchema.parse({ ...base, ageAffirmed: true }).handle).toBe(
-      "lazerwizard"
-    );
+    expect(
+      signupSchema.parse({ ...base, ageAffirmed: true, termsAccepted: true })
+        .handle
+    ).toBe("lazerwizard");
   });
 
   it("trims it", () => {
     expect(
-      signupSchema.parse({ ...base, handle: "  lazer  ", ageAffirmed: true })
-        .handle
+      signupSchema.parse({
+        ...base,
+        handle: "  lazer  ",
+        ageAffirmed: true,
+        termsAccepted: true,
+      }).handle
     ).toBe("lazer");
   });
 
@@ -68,7 +89,11 @@ describe("signupSchema handle (required)", () => {
     const { handle: _h, ...noHandle } = base;
     void _h;
     try {
-      signupSchema.parse({ ...noHandle, ageAffirmed: true });
+      signupSchema.parse({
+        ...noHandle,
+        ageAffirmed: true,
+        termsAccepted: true,
+      });
       expect.unreachable("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(z.ZodError);
@@ -83,7 +108,12 @@ describe("signupSchema handle (required)", () => {
   it("rejects an empty or whitespace-only handle", () => {
     for (const handle of ["", "   "]) {
       expect(() =>
-        signupSchema.parse({ ...base, handle, ageAffirmed: true })
+        signupSchema.parse({
+          ...base,
+          handle,
+          ageAffirmed: true,
+          termsAccepted: true,
+        })
       ).toThrow();
     }
   });
@@ -93,17 +123,22 @@ describe("signupSchema handle (required)", () => {
     // Duplicating the reserved list and the fold rules here would give two
     // places to keep in sync, and the server one is the gate that matters.
     expect(() =>
-      signupSchema.parse({ ...base, handle: "admin", ageAffirmed: true })
+      signupSchema.parse({
+        ...base,
+        handle: "admin",
+        ageAffirmed: true,
+        termsAccepted: true,
+      })
     ).not.toThrow();
   });
 });
 
 describe("which error a client missing everything is shown", () => {
-  it("reports the COPPA affirmation before the handle", () => {
+  it("reports the COPPA affirmation before the terms and the handle", () => {
     // Zod reports issues in FIELD ORDER and the route surfaces only the
     // first, so field order is a product decision here, not a style one. A
-    // browser holding a bundle from before either change posts neither, and
-    // the age affirmation is the legally load-bearing one.
+    // browser holding a bundle from before any of these changes posts none
+    // of them, and the age affirmation is the legally load-bearing one.
     try {
       signupSchema.parse({
         email: "new@user.com",
@@ -115,11 +150,28 @@ describe("which error a client missing everything is shown", () => {
     }
   });
 
-  it("reports the handle once the affirmation is satisfied", () => {
+  it("reports the terms consent before the handle once age is affirmed", () => {
     const { handle: _h, ...noHandle } = base;
     void _h;
     try {
       signupSchema.parse({ ...noHandle, ageAffirmed: true });
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(firstZodError(err as z.ZodError)).toBe(
+        "Please accept the Terms of Service and Privacy Policy to sign up."
+      );
+    }
+  });
+
+  it("reports the handle once both consents are satisfied", () => {
+    const { handle: _h, ...noHandle } = base;
+    void _h;
+    try {
+      signupSchema.parse({
+        ...noHandle,
+        ageAffirmed: true,
+        termsAccepted: true,
+      });
       expect.unreachable("should have thrown");
     } catch (err) {
       expect(firstZodError(err as z.ZodError)).toBe(

@@ -44,6 +44,17 @@ export const signupSchema = z.object({
   ageAffirmed: z
     .boolean("Please confirm you're 13 or older to sign up.")
     .refine((v) => v === true, "Please confirm you're 13 or older to sign up."),
+  // Declared after `ageAffirmed` so that a client missing every consent
+  // field is told about the COPPA affirmation first (zod reports issues in
+  // field order and the route surfaces only the first).
+  termsAccepted: z
+    .boolean(
+      "Please accept the Terms of Service and Privacy Policy to sign up."
+    )
+    .refine(
+      (v) => v === true,
+      "Please accept the Terms of Service and Privacy Policy to sign up."
+    ),
   /**
    * REQUIRED, and fail-closed on purpose.
    *

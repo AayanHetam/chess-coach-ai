@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       password: input.password,
       displayName: input.displayName,
       ageAffirmed: input.ageAffirmed,
+      termsAccepted: input.termsAccepted,
       handle: input.handle,
     });
 

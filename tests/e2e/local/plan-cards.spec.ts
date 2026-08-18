@@ -1,0 +1,333 @@
+import { test, expect, type Page } from "@playwright/test";
+
+/**
+ * /plan renders — the cards, not the modules behind them.
+ *
+ * Everything shipped to /plan on 2026-08-17 (goal setter, goal progress, the
+ * forward projection, the analyze/theory tasks, the handle card) was verified
+ * by unit tests, a production build, and grepping the bundle for strings. None
+ * of it was ever observed on a screen. Twice that day a green suite sat on top
+ * of a wrong screen, so the gap is not theoretical.
+ *
+ * /plan has no getServerSideProps — auth is client-side through AuthContext,
+ * which reads /api/auth/me. Stubbing that endpoint gives the REAL page, with
+ * the real components, in whichever account state we want, without secrets and
+ * without creating anything. That is the point: these are the shipped
+ * components, not a storybook of look-alikes.
+ */
+
+const DAY = 86_400_000;
+
+/** A year of daily rating points ending at `end`, drifting gently upward. */
+function series(end: number, days: number, step: number) {
+  const t0 = Date.now() - days * DAY;
+  return Array.from({ length: days }, (_, i) => ({
+    t: t0 + i * DAY,
+    rating: Math.round(end - (days - 1 - i) * step),
+  }));
+}
+
+interface AccountState {
+  handle?: string;
+  goal?: boolean;
+  /** Practice budget. 15 min fits ONE extra task, 30 fits both. */
+  time?: "under-10" | "10-30" | "30-plus";
+}
+
+async function stubAccount(page: Page, state: AccountState = {}) {
+  const user: Record<string, unknown> = {
+    uid: "e2e-user",
+    email: "e2e@example.com",
+    displayName: "E2E",
+    chesscomUsername: "Lazer_Wizard",
+    platformRatingSource: "chesscom",
+    platformRating: 1805,
+    platformRatingRaw: 1805,
+    platformRatingPerf: "rapid",
+    dailyTimeCommitment: state.time ?? "10-30",
+    practiceDaysPerWeek: 5,
+    // Quiz already done. Without it OnboardingNudge opens a MUI Modal over the
+    // page, and a modal marks the rest of the app aria-hidden — every
+    // getByRole() below then finds nothing, on a page that looks fine in a
+    // screenshot. That is a property of modals, not a bug, but it makes the
+    // account state the test runs in load-bearing.
+    onboardingCompletedAt: Date.now() - 30 * DAY,
+  };
+  if (state.handle) user.handle = state.handle;
+  if (state.goal) {
+    Object.assign(user, {
+      goalRating: 2000,
+      goalStartRating: 1805,
+      goalSetAt: Date.now() - 7 * DAY,
+      goalTargetDate: Date.now() + 220 * DAY,
+    });
+  }
+
+  await page.route("**/api/auth/me", (r) =>
+    r.fulfill({ json: { user, isIntern: false, isAdmin: false } })
+  );
+  // Already fresh, so useEnsurePlatformRating must not fire. Stubbed anyway:
+  // an unstubbed call would 401 and the failure would look like the page's.
+  await page.route("**/api/ratings/lookup**", (r) =>
+    r.fulfill({ json: { rating: 1805, raw: 1805, perf: "rapid" } })
+  );
+  await page.route("**/api/ratings/history**", (r) =>
+    r.fulfill({
+      json: {
+        status: "ok",
+        platform: "chesscom",
+        username: "Lazer_Wizard",
+        windowDays: 365,
+        trends: [
+          {
+            perf: "bullet",
+            platform: "chesscom",
+            points: series(1289, 60, 4),
+            current: 1289,
+            delta: 236,
+          },
+          {
+            perf: "blitz",
+            platform: "chesscom",
+            points: series(1425, 60, 2.2),
+            current: 1425,
+            delta: 132,
+          },
+          {
+            perf: "rapid",
+            platform: "chesscom",
+            points: series(1805, 60, 1),
+            current: 1805,
+            delta: 59,
+          },
+        ],
+      },
+    })
+  );
+}
+
+/** The page is up when its own heading is on screen, not when navigation ends. */
+async function gotoPlan(page: Page) {
+  await page.goto("/plan");
+  await expect(page.getByText("Your rating trend")).toBeVisible({
+    timeout: 20_000,
+  });
+  // The consent banner is fixed-position and has intercepted clicks before
+  // (the mobile-signup bug of 2026-08-11). Answer it like a user would.
+  const consent = page.getByRole("button", { name: "I agree" });
+  if (await consent.isVisible().catch(() => false)) await consent.click();
+}
+
+test.describe("no goal set", () => {
+  test.beforeEach(async ({ page }) => {
+    await stubAccount(page);
+  });
+
+  test("the goal setter is offered, since the quiz is one-time", async ({
+    page,
+  }) => {
+    await gotoPlan(page);
+    // The whole reason this card exists: existing accounts were never asked.
+    await expect(page.getByRole("button", { name: "Set goal" })).toBeVisible();
+  });
+
+  test("there is exactly ONE rating goal to set", async ({ page }) => {
+    await gotoPlan(page);
+    // /plan carried a second, older goal setter (GoalsCard) writing
+    // goals.targetRating and scoring it against the PUZZLE rating. Two "Set a
+    // goal" buttons, two fields, two scales — visible the moment the page was
+    // looked at, invisible to every unit test.
+    await expect(
+      page.getByRole("button", { name: /^set a goal$/i })
+    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Set goal" })).toHaveCount(1);
+  });
+
+  test("the panels SAY why there is no forecast", async ({ page }) => {
+    await gotoPlan(page);
+    // Without this line, less-rendered and broken look identical to a reader.
+    await expect(
+      page.getByText(/set a goal above and these extend/i)
+    ).toBeVisible();
+  });
+
+  test("no goal means no forecast line is drawn", async ({ page }) => {
+    await gotoPlan(page);
+    const dashed = page.locator('svg path[stroke-dasharray="4 4"]');
+    await expect(dashed).toHaveCount(0);
+  });
+});
+
+test.describe("goal set", () => {
+  test.beforeEach(async ({ page }) => {
+    await stubAccount(page, { goal: true });
+  });
+
+  test("each panel draws a dashed forecast, and the page says what dashed means", async ({
+    page,
+  }) => {
+    await gotoPlan(page);
+    await expect(
+      page.getByText(/dashed = where each control could reach/i)
+    ).toBeVisible();
+    // Three panels, three forecasts. Recharts draws the dashed Area as its own
+    // path, so a missing projection is a count of 0 rather than a subtle shape.
+    // `.recharts-area-curve`, not any dashed path: recharts draws each Area as
+    // TWO paths (fill + curve) and both inherit the dash, so a naive count
+    // reads 6 and tells you nothing about how many panels forecast.
+    await expect(
+      page.locator('svg path.recharts-area-curve[stroke-dasharray="4 4"]')
+    ).toHaveCount(3);
+  });
+
+  test("the explainer for the no-goal case is gone", async ({ page }) => {
+    await gotoPlan(page);
+    await expect(
+      page.getByText(/set a goal above and these extend/i)
+    ).toHaveCount(0);
+  });
+
+  test("the forecast gets the width its time span deserves", async ({
+    page,
+  }) => {
+    await gotoPlan(page);
+    // 60 days of history, 220 days of forecast. recharts defaults `dataKey` to
+    // a CATEGORY axis, which spaces by index — one point per history day
+    // against eight projection points put ~7 months in an eighth of the panel.
+    // Geometry is the only thing that catches this; the dashed line is present
+    // and correct either way.
+    const solid = await page
+      .locator("svg path.recharts-area-curve:not([stroke-dasharray])")
+      .first()
+      .boundingBox();
+    const dashed = await page
+      .locator('svg path.recharts-area-curve[stroke-dasharray="4 4"]')
+      .first()
+      .boundingBox();
+    expect(solid).not.toBeNull();
+    expect(dashed).not.toBeNull();
+    // 220/60 is 3.7x; anything under 2x means the axis is not measuring time.
+    expect(dashed!.width / solid!.width).toBeGreaterThan(2);
+  });
+
+  test("the goal line is drawn on the control the goal is about, and only that one", async ({
+    page,
+  }) => {
+    await gotoPlan(page);
+    // Recharts DISCARDS a ReferenceLine outside the y domain, so this rendered
+    // zero elements on all three panels until the domain included it. Rapid is
+    // where the 1805 platform rating came from, so rapid is where 2000 means
+    // something; 2000 on the 1289 bullet panel is a different scale entirely.
+    const lines = page.locator(".recharts-reference-line");
+    await expect(lines).toHaveCount(1);
+    await expect(page.getByText("goal 2000")).toBeVisible();
+  });
+
+  test("a 30-minute budget buys both the game review and the theory task", async ({
+    page,
+  }) => {
+    // 30 minutes on purpose. At 15 only ONE secondary task fits, and which one
+    // rotates by day — asserting both there would pass or fail by calendar.
+    await stubAccount(page, { goal: true, time: "30-plus" });
+    await gotoPlan(page);
+    await expect(page.getByText("Review one of your games")).toBeVisible();
+    const theory = page.getByText("Learn one opening line");
+    await expect(theory).toBeVisible();
+    // Chessly by name, and it leaves the site — the task is honest about
+    // sending people somewhere else while we build our own theory course.
+    const link = page.locator('a[href*="chessly.com"]').first();
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(page.getByText(/we recommend chessly for now/i)).toBeVisible();
+  });
+});
+
+test.describe("handle card", () => {
+  test("Claim only enables once the server says the handle is free", async ({
+    page,
+  }) => {
+    await stubAccount(page);
+    let asked = "";
+    await page.route("**/api/profile/handle**", async (route) => {
+      const url = new URL(route.request().url());
+      asked = url.searchParams.get("handle") ?? "";
+      await route.fulfill({ json: { available: true } });
+    });
+    await gotoPlan(page);
+
+    const field = page.getByLabel("Handle");
+    const claim = page.getByRole("button", { name: /^claim/i });
+    await expect(field).toBeVisible();
+    // The falsification the whole exercise is for: if the availability check
+    // never reaches the endpoint, this button never enables and the feature is
+    // dead on the screen while every unit test still passes.
+    await expect(claim).toBeDisabled();
+    await field.fill("lazerwizard");
+    await expect(claim).toBeEnabled({ timeout: 5_000 });
+    await expect(page.getByText(/is free/i)).toBeVisible();
+    expect(asked).toBe("lazerwizard");
+  });
+
+  test("a taken handle keeps Claim disabled and says so", async ({ page }) => {
+    await stubAccount(page);
+    await page.route("**/api/profile/handle**", (r) =>
+      r.fulfill({
+        json: { available: false, message: "That handle is taken." },
+      })
+    );
+    await gotoPlan(page);
+    await page.getByLabel("Handle").fill("lazerwizard");
+    await expect(page.getByText(/that handle is taken/i)).toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.getByRole("button", { name: /^claim/i })).toBeDisabled();
+  });
+
+  test("a bad handle is refused in the browser, without asking the server", async ({
+    page,
+  }) => {
+    await stubAccount(page);
+    let calls = 0;
+    await page.route("**/api/profile/handle**", (r) => {
+      calls += 1;
+      return r.fulfill({ json: { available: true } });
+    });
+    await gotoPlan(page);
+    await page.getByLabel("Handle").fill("admin");
+    await expect(
+      page.getByText(/reserved|not available|can't use/i).first()
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /^claim/i })).toBeDisabled();
+    expect(calls).toBe(0);
+  });
+
+  test("claiming posts the handle and the card gets out of the way", async ({
+    page,
+  }) => {
+    await stubAccount(page);
+    let posted: string | undefined;
+    await page.route("**/api/profile/handle**", async (route) => {
+      const req = route.request();
+      if (req.method() === "POST") {
+        posted = (req.postDataJSON() as { handle?: string }).handle;
+        return route.fulfill({ json: { ok: true, handle: "lazerwizard" } });
+      }
+      return route.fulfill({ json: { available: true } });
+    });
+    await gotoPlan(page);
+    await page.getByLabel("Handle").fill("lazerwizard");
+    await expect(page.getByRole("button", { name: /^claim/i })).toBeEnabled({
+      timeout: 5_000,
+    });
+    await page.getByRole("button", { name: /^claim/i }).click();
+    await expect(page.getByText("Pick your handle")).toHaveCount(0);
+    expect(posted).toBe("lazerwizard");
+  });
+
+  test("an account that already has a handle is not asked again", async ({
+    page,
+  }) => {
+    await stubAccount(page, { handle: "LazerWizard" });
+    await gotoPlan(page);
+    await expect(page.getByText("Pick your handle")).toHaveCount(0);
+  });
+});

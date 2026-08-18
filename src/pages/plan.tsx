@@ -42,6 +42,7 @@ import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import RatingTrends from "@/components/plan/RatingTrends";
+import { CHARTED_PERFS, type ChartedPerf } from "@/lib/rating/ratingHistory";
 import GoalProgressCard from "@/components/plan/GoalProgressCard";
 import GoalSetterCard from "@/components/plan/GoalSetterCard";
 import HandleCard from "@/components/plan/HandleCard";
@@ -165,7 +166,14 @@ export default function PlanPage() {
     }
     // A target date already in the past would draw a forecast backwards.
     if (targetDateMs <= nowMs) return undefined;
-    return { targetDateMs, goalRating, minutesPerDay, daysPerWeek };
+    // Which control the goal is about. `platformRatingPerf` can also be
+    // `classical`, which has no panel — then no goal line is drawn anywhere,
+    // which is the honest answer rather than putting it on all three.
+    const perf = profile?.platformRatingPerf;
+    const goalPerf = (CHARTED_PERFS as readonly string[]).includes(perf ?? "")
+      ? (perf as ChartedPerf)
+      : undefined;
+    return { targetDateMs, goalRating, minutesPerDay, daysPerWeek, goalPerf };
   }, [profile, nowMs]);
 
   /**

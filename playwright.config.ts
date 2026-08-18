@@ -17,6 +17,16 @@ import { defineConfig, devices } from "@playwright/test";
 
 const PROD_BASE = "https://www.chessmasti.com";
 
+/**
+ * Local port. Overridable because this repo is worked on by several sessions at
+ * once, and `reuseExistingServer` will happily bind a run to WHOEVER already
+ * holds the port — a different worktree, a different build. That happened: a
+ * whole suite ran green-ish against another session's server and the failures
+ * read as page bugs. Set E2E_PORT to get a server that is certainly yours.
+ */
+const PORT = process.env.E2E_PORT ?? "3210";
+const LOCAL_BASE = `http://127.0.0.1:${PORT}`;
+
 export default defineConfig({
   testDir: "tests/e2e",
   timeout: 60_000,
@@ -39,7 +49,7 @@ export default defineConfig({
       testDir: "tests/e2e/local",
       use: {
         ...devices["Desktop Chrome"],
-        baseURL: "http://127.0.0.1:3210",
+        baseURL: LOCAL_BASE,
         // Light preference on purpose: the Obsidian-Glass surfaces must stay
         // dark for light-mode visitors (the white-homepage bug of 2026-08-10).
         colorScheme: "light",
@@ -54,7 +64,7 @@ export default defineConfig({
         // (locally and in CI). Chromium's mobile emulation covers what these
         // specs assert (viewport, touch, UA).
         browserName: "chromium",
-        baseURL: "http://127.0.0.1:3210",
+        baseURL: LOCAL_BASE,
         colorScheme: "light",
       },
     },
@@ -71,8 +81,8 @@ export default defineConfig({
   webServer: process.env.E2E_NO_SERVER
     ? undefined
     : {
-        command: "npx next start -p 3210",
-        url: "http://127.0.0.1:3210",
+        command: `npx next start -p ${PORT}`,
+        url: LOCAL_BASE,
         reuseExistingServer: !process.env.CI,
         timeout: 90_000,
         env: {

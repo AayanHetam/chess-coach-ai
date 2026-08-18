@@ -209,6 +209,36 @@ describe('buildPreparedLine', () => {
   });
 });
 
+describe('engine conversation', () => {
+  it('never has two evaluations in flight at once', async () => {
+    // A provider backed by one engine process is a single conversation: send two
+    // `position`/`go` pairs before reading either reply and the answers cross.
+    // It surfaced as a move that was illegal in the position it came back for,
+    // which then read as "no engine answer" and silently truncated the line —
+    // so this asserts the shape of the calls rather than the symptom.
+    let inFlight = 0;
+    let overlapped = false;
+
+    const oneAtATime: HoleFinderProviders = {
+      async evaluate(fen: string) {
+        inFlight += 1;
+        if (inFlight > 1) overlapped = true;
+        await new Promise(r => setTimeout(r, 0));
+        inFlight -= 1;
+        return { bestMove: new Chess(fen).moves()[0] ?? '', cp: 0 };
+      },
+    };
+
+    // Their opponents always play something other than the engine's choice, so
+    // the centipawn comparison — the call site that had the bug — runs.
+    const games = batch(['e4', 'c5', 'c3', 'Nf6', 'd3', 'd5', 'Nf3', 'Nc6'], 25);
+    const index = buildPositionIndex(games, 'them', 'black');
+
+    await buildPreparedLines(fenAfter(['e4', 'c5', 'c3']), 'white', index, oneAtATime);
+    expect(overlapped).toBe(false);
+  });
+});
+
 describe('buildPreparedLines', () => {
   const ALAPIN = ['e4', 'c5', 'c3'];
 
@@ -252,6 +282,72 @@ describe('buildPreparedLines', () => {
     const lines = await buildPreparedLines(fenAfter(ALAPIN), 'white', index, scripted({}));
     expect(lines).toHaveLength(1);
     expect(lines[0].moves[0].san).toBe('Nf6');
+  });
+
+  it('forks again further down instead of stopping at the first split', async () => {
+    // Split at ply 1 (Nf6 / Nc6), and the Nf6 branch splits AGAIN at ply 3.
+    // Stopping at the first fork leaves that second split unexplored and the
+    // line ending on "they split from here" with nothing to learn.
+    const games = [
+      ...batch(['e4', 'c5', 'c3', 'Nf6', 'e5', 'Nd5', 'd4', 'cxd4'], 30),
+      ...batch(['e4', 'c5', 'c3', 'Nf6', 'e5', 'Ng8', 'd4', 'cxd4'], 26),
+      ...batch(['e4', 'c5', 'c3', 'Nc6', 'd4', 'cxd4'], 40),
+    ];
+    const index = buildPositionIndex(games, 'them', 'black');
+    const engine = scripted({
+      [positionKey(fenAfter(['e4', 'c5', 'c3', 'Nf6']))]: 'e5',
+      [positionKey(fenAfter(['e4', 'c5', 'c3', 'Nc6']))]: 'd4',
+    });
+
+    const lines = await buildPreparedLines(fenAfter(ALAPIN), 'white', index, engine);
+
+    // Both sides of the SECOND fork have to be present, which is only possible
+    // if forking recursed.
+    const nf6Lines = lines.filter(l => l.moves[0].san === 'Nf6');
+    const seconds = nf6Lines.filter(l => l.moves.length > 2).map(l => l.moves[2].san);
+    expect(seconds).toContain('Nd5');
+    expect(seconds).toContain('Ng8');
+    // And none of them may still be sitting on an unexplored fork.
+    expect(nf6Lines.every(l => l.end !== 'unpredictable')).toBe(true);
+  });
+
+  it('carries each line’s share of their games', async () => {
+    const games = [
+      ...batch(['e4', 'c5', 'c3', 'Nf6', 'e5', 'Nd5'], 30),
+      ...batch(['e4', 'c5', 'c3', 'Nc6', 'd4', 'cxd4'], 26),
+    ];
+    const index = buildPositionIndex(games, 'them', 'black');
+    const engine = scripted({
+      [positionKey(fenAfter(['e4', 'c5', 'c3', 'Nf6']))]: 'e5',
+      [positionKey(fenAfter(['e4', 'c5', 'c3', 'Nc6']))]: 'd4',
+    });
+
+    const lines = await buildPreparedLines(fenAfter(ALAPIN), 'white', index, engine);
+    const nf6 = lines.find(l => l.moves[0].san === 'Nf6')!;
+    const nc6 = lines.find(l => l.moves[0].san === 'Nc6')!;
+
+    expect(nf6.probability).toBeCloseTo(30 / 56, 4);
+    expect(nc6.probability).toBeCloseTo(26 / 56, 4);
+    // Your own moves are choices and must not dilute their share.
+    expect(nf6.moves.filter(m => m.side === 'you').length).toBeGreaterThan(0);
+  });
+
+  it('spends the budget on the likely branches first', async () => {
+    // Five replies, budget for fewer. The rare ones are the ones to drop.
+    const games = [
+      ...batch(['e4', 'c5', 'c3', 'Nf6'], 40),
+      ...batch(['e4', 'c5', 'c3', 'Nc6'], 30),
+      ...batch(['e4', 'c5', 'c3', 'd6'], 20),
+      ...batch(['e4', 'c5', 'c3', 'e6'], 8),
+      ...batch(['e4', 'c5', 'c3', 'g6'], 7),
+    ];
+    const index = buildPositionIndex(games, 'them', 'black');
+
+    const lines = await buildPreparedLines(fenAfter(ALAPIN), 'white', index, scripted({}), {
+      ...PREPARED_DEFAULTS,
+      maxLines: 2,
+    });
+    expect(lines.map(l => l.moves[0].san)).toEqual(['Nf6', 'Nc6']);
   });
 
   it('caps the number of branches', async () => {

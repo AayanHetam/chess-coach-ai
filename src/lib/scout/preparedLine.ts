@@ -65,12 +65,28 @@ export type PreparedEnd = 'novelty' | 'unpredictable' | 'thin' | 'depth' | 'game
 export interface PreparedLine {
   moves: PreparedMove[];
   /**
+   * Share of their games that follow this line, the product of their reply
+   * frequencies along it.
+   *
+   * Once the tree forks more than once there are several lines on screen and
+   * they are not equally worth learning. A branch reached one game in twenty is
+   * not the same object as one reached one game in three, and without this they
+   * look identical.
+   */
+  probability: number;
+  /**
    * Index in `moves` of the first move of yours they have never faced. This is
    * the payoff: from here they are on their own, at a board you have prepared.
    */
   noveltyIndex?: number;
   /** Why the line stopped. */
   end: PreparedEnd;
+  /**
+   * Their replies at the position where this line gave up, when it gave up
+   * because they split. This is what lets the caller fork again rather than
+   * treating a fork as the end of the road.
+   */
+  forkOptions?: Array<{ san: string; probability: number }>;
 }
 
 export interface PreparedLineConfig {
@@ -114,7 +130,7 @@ export const PREPARED_DEFAULTS: PreparedLineConfig = {
   maxPly: 16,
   minGames: 5,
   minProbability: 0.55,
-  maxLines: 3,
+  maxLines: 6,
   maxBranch: 3,
   altProbability: 0.15,
   minGain: 20,
@@ -150,12 +166,19 @@ export async function buildPreparedLine(
   index: PositionIndex,
   providers: HoleFinderProviders,
   config: PreparedLineConfig = PREPARED_DEFAULTS,
-  /** Force their first reply, so a caller can walk each side of a fork. */
-  forcedFirstReply?: string
+  /**
+   * Which branch to take at each fork, in order. Forks are the only places the
+   * walk is ambiguous, so consuming the list there — rather than at every one
+   * of their turns — makes a path a stable name for a line.
+   */
+  forcedReplies: readonly string[] = []
 ): Promise<PreparedLine> {
   const moves: PreparedMove[] = [];
   let noveltyIndex: number | undefined;
   let end: PreparedEnd = 'depth';
+  let probability = 1;
+  let forkIndex = 0;
+  let forkOptions: Array<{ san: string; probability: number }> | undefined;
 
   const board = new Chess(fen);
   const seen = new Set<string>([positionKey(fen)]);
@@ -234,20 +257,30 @@ export async function buildPreparedLine(
         break;
       }
       const replies = replyDistribution(stat);
-      const forced = ply === 0 && forcedFirstReply
-        ? replies.find(r => r.san === forcedFirstReply)
-        : undefined;
-      const top = forced ?? replies[0];
-      if (!top) {
+      const leader = replies[0];
+      if (!leader) {
         end = 'thin';
         break;
       }
-      // A fork is not a dead end — the caller walks each side separately — but
-      // one line must not silently pick a branch they take under half the time.
-      if (!forced && top.probability < config.minProbability) {
-        end = 'unpredictable';
-        break;
+
+      // A fork is not a dead end — the caller walks each branch separately — but
+      // one line must not silently pick a reply they play under half the time.
+      let top = leader;
+      if (leader.probability < config.minProbability) {
+        const wanted = forcedReplies[forkIndex];
+        const chosen = wanted ? replies.find(r => r.san === wanted) : undefined;
+        if (!chosen) {
+          end = 'unpredictable';
+          forkOptions = replies
+            .filter(r => r.probability >= config.altProbability)
+            .slice(0, config.maxBranch)
+            .map(r => ({ san: r.san, probability: r.probability }));
+          break;
+        }
+        forkIndex += 1;
+        top = chosen;
       }
+      probability *= top.probability;
 
       const move: PreparedMove = {
         san: top.san,
@@ -283,17 +316,22 @@ export async function buildPreparedLine(
     seen.add(next);
   }
 
-  return { moves, noveltyIndex, end };
+  return { moves, probability, noveltyIndex, end, forkOptions };
 }
 
 /**
- * The prepared continuation, forking where they genuinely choose.
+ * The prepared continuation, forking wherever they genuinely choose.
  *
- * A single line is the right answer when one reply dominates, and a lie when it
- * does not: after the strongest entry found on a real archive their replies ran
- * 42% / 24% / 24%, and following the 42% alone would be preparation that fails
- * three games in five. Where no reply carries the position, each major one gets
- * its own line, most likely first.
+ * Their tree does not fork only at the start. The strongest real entry split
+ * 42/24/24 at move two, and two of those three branches split AGAIN four plies
+ * later — stopping at the first fork left them ending on "they split from here"
+ * with nothing to learn. So this expands until it runs out of budget rather
+ * than out of nerve.
+ *
+ * Best-first on cumulative probability, because the budget is what a person
+ * will read rather than what the data can support. Spending it on the branch
+ * they take one game in twenty, while the one they take one game in three goes
+ * unexplored, would be the wrong trade in a way that is invisible on screen.
  */
 export async function buildPreparedLines(
   fen: string,
@@ -302,32 +340,67 @@ export async function buildPreparedLines(
   providers: HoleFinderProviders,
   config: PreparedLineConfig = PREPARED_DEFAULTS
 ): Promise<PreparedLine[]> {
-  const stat = index.positions.get(positionKey(fen));
-  const board = new Chess(fen);
-  const theirTurn =
-    !((board.turn() === 'w' && yourColor === 'white') ||
-      (board.turn() === 'b' && yourColor === 'black'));
+  const done: PreparedLine[] = [];
+  const seenLines = new Set<string>();
+  // Paths through the forks, cheapest name for a line. Re-walking a prefix is
+  // near-free: the engine calls behind it are already memoised by the provider.
+  let frontier: Array<{ path: string[]; probability: number }> = [{ path: [], probability: 1 }];
 
-  const replies = theirTurn ? replyDistribution(stat) : [];
-  const dominated = replies.length > 0 && replies[0].probability >= config.minProbability;
+  while (frontier.length > 0 && done.length < config.maxLines) {
+    frontier.sort((a, b) => b.probability - a.probability);
+    const next = frontier.shift()!;
 
-  // One line when they are predictable here, or when it is your move and there
-  // is nothing to fork on yet.
-  if (!theirTurn || replies.length === 0 || dominated) {
-    return [await buildPreparedLine(fen, yourColor, index, providers, config)];
+    const line = await buildPreparedLine(fen, yourColor, index, providers, config, next.path);
+
+    if (line.end === 'unpredictable' && line.forkOptions?.length) {
+      // Explore each branch, but never so many that the last ones could not be
+      // reached anyway — the budget is shared with everything already queued.
+      for (const option of line.forkOptions) {
+        frontier.push({
+          path: [...next.path, option.san],
+          probability: line.probability * option.probability,
+        });
+      }
+      // Worth keeping only as a fallback: if the budget runs out before its
+      // branches are walked, the plies before the fork are still real
+      // preparation. Superseded below if any branch does get explored.
+      if (line.moves.length > 0) keep(line);
+      continue;
+    }
+
+    keep(line);
   }
 
-  const branches = replies
-    .filter(r => r.probability >= config.altProbability)
-    .slice(0, Math.min(config.maxBranch, config.maxLines));
+  function keep(line: PreparedLine) {
+    if (line.moves.length === 0) return;
+    const key = line.moves.map(m => m.san).join(' ');
+    if (seenLines.has(key)) return;
+    seenLines.add(key);
+    done.push(line);
+  }
 
-  const lines: PreparedLine[] = [];
-  for (const branch of branches) {
-    lines.push(
-      await buildPreparedLine(fen, yourColor, index, providers, config, branch.san)
+  // A line that merely reached a fork is a worse answer than one that ran to a
+  // novelty or to the end of their book, so it only survives if nothing better
+  // filled the budget.
+  // Drop any line that stopped at a fork whose branches were then walked — it
+  // is a prefix of them and would show up as a shorter duplicate of its own
+  // continuations.
+  const superseded = (line: PreparedLine) =>
+    line.end === 'unpredictable' &&
+    done.some(
+      other =>
+        other !== line &&
+        other.moves.length > line.moves.length &&
+        line.moves.every((m, i) => other.moves[i].san === m.san)
     );
-  }
-  return lines.filter(l => l.moves.length > 0);
+
+  return done
+    .filter(line => !superseded(line))
+    .sort((a, b) => {
+      const unresolved = (l: PreparedLine) => (l.end === 'unpredictable' ? 1 : 0);
+      return unresolved(a) - unresolved(b) || b.probability - a.probability;
+    })
+    .slice(0, config.maxLines);
 }
 
 /**
@@ -355,8 +428,17 @@ async function centipawnGap(
     }
   };
 
-  const [bestCp, commonCp] = await Promise.all([after(best), after(common)]);
-  if (bestCp === null || commonCp === null) return null;
+  // Sequential, NOT Promise.all. A provider backed by one engine process is a
+  // single conversation — send two `position`/`go` pairs before reading either
+  // reply and the answers cross. It surfaces as a move that is illegal in the
+  // position it came back for: measured here, White was handed d7d5 in a
+  // position where d7 held a black knight, which then read as "the engine has
+  // no answer" and truncated the line. The cloud provider does not care; the
+  // local fallback does, and this file cannot tell which it is holding.
+  const bestCp = await after(best);
+  if (bestCp === null) return null;
+  const commonCp = await after(common);
+  if (commonCp === null) return null;
   // Both are from the replier's view, so lower is better for the mover.
   return Math.max(0, commonCp - bestCp);
 }

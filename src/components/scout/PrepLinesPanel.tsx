@@ -398,6 +398,23 @@ function PreparedLineBlock({ line, startPly }: { line: PreparedLine; startPly: n
         py: 0.25,
       }}
     >
+      <Stack direction="row" alignItems="baseline" spacing={0.75} sx={{ mb: 0.4 }}>
+        <Typography
+          sx={{
+            fontFamily: MONO,
+            fontSize: '0.66rem',
+            fontWeight: 700,
+            color: 'rgba(255,255,255,0.5)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {Math.round(line.probability * 100)}%
+        </Typography>
+        <FieldLabel color="rgba(255,255,255,0.3)" size="0.52rem">
+          of the time
+        </FieldLabel>
+      </Stack>
+
       <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 0.5 }}>
         {line.moves.map((m, i) => (
           <MoveChip

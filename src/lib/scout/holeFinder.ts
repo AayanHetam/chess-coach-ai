@@ -124,6 +124,9 @@ export interface HoleFinderConfig {
   minEdge: number;
 }
 
+/** How many of the returned holes get a prepared continuation built. */
+export const PREPARED_FOR_TOP = 3;
+
 export const HOLE_DEFAULTS: HoleFinderConfig = {
   minRepeats: 5,
   minNeff: 40,
@@ -705,9 +708,10 @@ export async function findHoles(
 
   const ranked = dedupeNested(holes).slice(0, config.topN);
 
-  // Only the lines actually returned get a continuation; each one costs engine
-  // calls and the rest were never going to be shown.
-  for (const hole of ranked) {
+  // Only the leading holes get a continuation. Each line costs engine calls and
+  // forks into several, so building them for all ten would spend the budget on
+  // entries nobody scrolls to and starve the one they came for.
+  for (const hole of ranked.slice(0, PREPARED_FOR_TOP)) {
     hole.prepared = await buildPreparedLines(
       hole.fen,
       theirColor === 'white' ? 'black' : 'white',

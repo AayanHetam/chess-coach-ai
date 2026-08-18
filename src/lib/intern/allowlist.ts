@@ -18,7 +18,9 @@ type CacheEntry = { value: boolean; expiresAt: number };
 const cache = new Map<string, CacheEntry>();
 const TTL_MS = 5 * 60 * 1000;
 
-export async function isAllowlistedIntern(email: string): Promise<boolean> {
+export async function isAllowlistedIntern(
+  email: string | undefined
+): Promise<boolean> {
   if (!email) return false;
   const normalized = email.trim().toLowerCase();
 
@@ -58,4 +60,22 @@ export async function isAllowlistedIntern(email: string): Promise<boolean> {
 
 export function __resetAllowlistCacheForTests() {
   cache.clear();
+}
+
+/**
+ * The email an intern route should key its Supabase rows on.
+ *
+ * `isIntern` is only stamped after `isAllowlistedIntern(email)` returns true,
+ * so a session carrying it always has an address — but the TYPE cannot know
+ * that, and four routes were reaching straight for `session.email`. Returning
+ * null here (rather than asserting) means an email-less session is refused
+ * instead of writing `undefined.toLowerCase()` at runtime.
+ */
+export function internEmailFor(session: {
+  email?: string;
+  isIntern?: boolean;
+}): string | null {
+  if (!session.isIntern) return null;
+  const email = session.email?.trim().toLowerCase();
+  return email ? email : null;
 }

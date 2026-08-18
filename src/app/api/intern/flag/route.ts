@@ -1,3 +1,4 @@
+import { internEmailFor } from "@/lib/intern/allowlist";
 import { NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 import { getSession } from "@/lib/auth/session";
@@ -47,6 +48,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Intern-only." }, { status: 403 });
   }
 
+  // Interns are keyed by email in Supabase. A session without one cannot
+  // be an intern (isIntern is stamped from an allowlist lookup BY email),
+  // so this is a refusal rather than a non-null assertion.
+  const internEmail = internEmailFor(session);
+  if (!internEmail) {
+    return NextResponse.json(
+      { error: "Intern access required." },
+      { status: 403 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -81,7 +93,7 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from("intern_flags")
       .insert({
-        intern_email: session.email.toLowerCase(),
+        intern_email: internEmail,
         intern_uid: session.uid,
         chat_session_id: captured.chatSessionId,
         flagged_message_id: captured.flaggedMessageId,

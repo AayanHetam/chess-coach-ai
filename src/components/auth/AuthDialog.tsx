@@ -140,7 +140,9 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
           return;
         }
         await signUp({
-          email,
+          // An empty field is a SKIP, not an empty address. Sending "" would
+          // fail email validation and block a signup the user is entitled to.
+          email: email.trim() || undefined,
           password,
           handle: check.display as string,
           displayName: displayName.trim() || undefined,
@@ -598,21 +600,38 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             the form would simply refuse to send, with no error
                             we control. Signup and password reset still need a
                             real address, and keep the stricter type. */}
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label={
-                              mode === "signin" ? "Handle or email" : "Email"
-                            }
-                            type={mode === "signin" ? "text" : "email"}
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            autoComplete={
-                              mode === "signin" ? "username" : "email"
-                            }
-                            required
-                            sx={inputSx}
-                          />
+                          {mode !== "signup" && (
+                            <TextField
+                              fullWidth
+                              size="small"
+                              label={
+                                mode === "signin" ? "Handle or email" : "Email"
+                              }
+                              type={mode === "signin" ? "text" : "email"}
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              autoComplete={
+                                mode === "signin" ? "username" : "email"
+                              }
+                              required
+                              sx={inputSx}
+                            />
+                          )}
+
+                          {mode === "signup" && (
+                            <TextField
+                              fullWidth
+                              size="small"
+                              label="Handle"
+                              value={handle}
+                              onChange={(e) => setHandle(e.target.value)}
+                              autoComplete="username"
+                              required
+                              inputProps={{ maxLength: HANDLE_MAX }}
+                              helperText="How we'll address you, and how you can sign in. Other players see this — don't use your full name."
+                              sx={inputSx}
+                            />
+                          )}
 
                           {mode !== "forgot" && (
                             <TextField
@@ -641,13 +660,12 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             <TextField
                               fullWidth
                               size="small"
-                              label="Handle"
-                              value={handle}
-                              onChange={(e) => setHandle(e.target.value)}
-                              autoComplete="username"
-                              required
-                              inputProps={{ maxLength: HANDLE_MAX }}
-                              helperText="How we'll address you, and how you can sign in. Other players see this — don't use your full name."
+                              label="Email (optional)"
+                              type="email"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              autoComplete="email"
+                              helperText="Needed to reset your password or sign in with Google. Without one, a forgotten password means a lost account."
                               sx={inputSx}
                             />
                           )}

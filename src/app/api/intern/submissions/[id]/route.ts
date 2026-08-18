@@ -1,3 +1,4 @@
+import { internEmailFor } from "@/lib/intern/allowlist";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { getInternSupabase } from "@/lib/intern/supabase";
@@ -19,20 +20,37 @@ export type SubmissionDetail = {
   badResponse: string;
   whyWrong: string;
   idealResponse: string;
-  chatHistory: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+  chatHistory: Array<{
+    role: "user" | "assistant" | "system";
+    content: string;
+  }>;
   flaggedMessageIndex: number;
   gamePgn: string | null;
   fenAtFlag: string | null;
   promptVersion: string;
 };
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
   if (!session.isIntern) {
     return NextResponse.json({ error: "Intern-only." }, { status: 403 });
+  }
+
+  // Interns are keyed by email in Supabase. A session without one cannot
+  // be an intern (isIntern is stamped from an allowlist lookup BY email),
+  // so this is a refusal rather than a non-null assertion.
+  const internEmail = internEmailFor(session);
+  if (!internEmail) {
+    return NextResponse.json(
+      { error: "Intern access required." },
+      { status: 403 }
+    );
   }
 
   const { id } = await params;
@@ -52,7 +70,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     if (error) {
       console.error("[intern/submissions/[id]] query failed:", error.message);
-      return NextResponse.json({ error: "Could not load submission." }, { status: 500 });
+      return NextResponse.json(
+        { error: "Could not load submission." },
+        { status: 500 }
+      );
     }
 
     if (!data) {
@@ -61,7 +82,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     // Privacy: only the owning intern can read their submission. Return 404
     // rather than 403 so we don't reveal the row's existence to other interns.
-    if ((data.intern_email as string).toLowerCase() !== session.email.toLowerCase()) {
+    if ((data.intern_email as string).toLowerCase() !== internEmail) {
       return NextResponse.json({ error: "Not found." }, { status: 404 });
     }
 

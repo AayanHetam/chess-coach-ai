@@ -16,7 +16,10 @@ export async function POST(request: Request) {
     assertAuthSecrets({ needsAdmin: true, needsEmail: true });
   } catch (err) {
     console.error("[auth/forgot-password]", err);
-    return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Authentication service unavailable" },
+      { status: 503 }
+    );
   }
 
   let body: unknown;
@@ -41,7 +44,12 @@ export async function POST(request: Request) {
 
   try {
     const user = await getUserByEmail(input.email);
-    if (!user) return okResponse;
+    // `!user.email` is unreachable in practice — they were looked up BY email
+    // — but it is checked rather than asserted, because the alternative is a
+    // non-null assertion that would silently become wrong the day this lookup
+    // changes. Same generic response either way: this endpoint must never
+    // reveal whether an account exists.
+    if (!user || !user.email) return okResponse;
 
     const rawToken = randomBytes(32).toString("base64url");
     const tokenHash = createHash("sha256").update(rawToken).digest("hex");
@@ -60,7 +68,10 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof AdminConfigError) {
       console.error("[auth/forgot-password]", err);
-      return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 });
+      return NextResponse.json(
+        { error: "Authentication service unavailable" },
+        { status: 503 }
+      );
     }
     // Don't surface the email-send error to clients (would leak existence).
     // Log for ops; respond OK.

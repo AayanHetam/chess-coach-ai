@@ -34,7 +34,19 @@ export const displayNameSchema = z
   .max(50, "Name must be 50 characters or fewer.");
 
 export const signupSchema = z.object({
-  email: emailSchema,
+  /**
+   * OPTIONAL. Signup is a handle and a password; the email field is offered
+   * with its reason ("reset your password, sign in with Google") and can be
+   * skipped. An empty string is treated as absence rather than as a malformed
+   * address, because a blank optional field is what a skip LOOKS like.
+   *
+   * The consequence is real and is stated in the form: with no email on file
+   * there is nowhere to send a reset link. /plan nags until one is added.
+   */
+  email: z
+    .union([emailSchema, z.literal("")])
+    .optional()
+    .transform((v) => (v ? v : undefined)),
   password: passwordSchema,
   displayName: displayNameSchema.optional(),
   // COPPA: set by the client only after the 13+ age-affirmation checkbox is
@@ -257,6 +269,16 @@ export const gameEvalUpdateSchema = z.object({
   eval: z.unknown(),
 });
 
+/**
+ * Adding an email after signup. The password is re-proved here — see the
+ * route for why a session alone must not be able to attach an address.
+ */
+export const addEmailSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, "Enter your password to confirm."),
+});
+
+export type AddEmailInput = z.infer<typeof addEmailSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
 export type SigninInput = z.infer<typeof signinSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

@@ -101,6 +101,50 @@ test.describe("signup asks for a handle", () => {
   });
 });
 
+test.describe("email is optional at signup", () => {
+  test("the email field is present but NOT required", async ({ page }) => {
+    await openSignup(page);
+    const email = page.getByLabel(/^Email/);
+    await expect(email).toBeVisible();
+    await expect(email).not.toHaveAttribute("required", "");
+    // Handle and password still are.
+    await expect(page.getByLabel(/^Handle/)).toHaveAttribute("required", "");
+    await expect(page.getByLabel(/^Password/)).toHaveAttribute("required", "");
+  });
+
+  test("it states the cost of skipping, where the decision is made", async ({
+    page,
+  }) => {
+    await openSignup(page);
+    // The user chose "warn loudly": someone skipping this has to have been
+    // told that a forgotten password means a lost account.
+    await expect(
+      page.getByText(/forgotten password means a lost account/i)
+    ).toBeVisible();
+  });
+
+  test("a signup with no email is submitted, not blocked", async ({ page }) => {
+    let posted: Record<string, unknown> | undefined;
+    await page.route("**/api/auth/signup", async (route) => {
+      posted = route.request().postDataJSON() as Record<string, unknown>;
+      // Fail the request AFTER capturing it: this spec must never create an
+      // account, and the assertion is about what the client sends.
+      return route.fulfill({ status: 503, json: { error: "probe" } });
+    });
+    await openSignup(page);
+    await page.getByLabel(/^Handle/).fill("lazerwizard");
+    await page.getByLabel(/^Password/).fill("longenough1!pass");
+    await page
+      .getByRole("button", { name: /create account/i })
+      .first()
+      .click();
+    await expect.poll(() => posted?.handle).toBe("lazerwizard");
+    // undefined, NOT "" — an empty string fails email validation server-side
+    // and would block a signup the user is entitled to.
+    expect(posted).not.toHaveProperty("email");
+  });
+});
+
 test.describe("the handle is what we call you", () => {
   async function stub(page: Page, user: Record<string, unknown>) {
     await page.route("**/api/auth/me", (r) =>

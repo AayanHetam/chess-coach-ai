@@ -11,7 +11,13 @@ const SESSION_SECONDS = SESSION_DAYS * 24 * 60 * 60;
 
 export type SessionPayload = {
   uid: string;
-  email: string;
+  /**
+   * OPTIONAL since signup stopped requiring one. An account can exist with a
+   * handle and a password and nothing else, and it gets a session like any
+   * other. Anything deriving authority from the email (admin, intern) must
+   * treat absence as "no", never as "unset, so allow".
+   */
+  email?: string;
   displayName?: string;
   avatarUrl?: string;
   // CMIP intern allowlist membership at sign-in time. Stamped by the auth
@@ -55,11 +61,13 @@ export async function verifySessionToken(
     const { payload } = await jwtVerify(token, getKey(), {
       algorithms: ["HS256"],
     });
-    if (typeof payload.uid !== "string" || typeof payload.email !== "string")
-      return null;
+    // uid is the identity; email is not. Rejecting a token for a missing
+    // email would have signed out every email-less account at the door, and
+    // the failure would have looked like a broken session secret.
+    if (typeof payload.uid !== "string") return null;
     return {
       uid: payload.uid,
-      email: payload.email,
+      email: typeof payload.email === "string" ? payload.email : undefined,
       displayName:
         typeof payload.displayName === "string"
           ? payload.displayName

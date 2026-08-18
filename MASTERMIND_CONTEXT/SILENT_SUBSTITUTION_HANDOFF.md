@@ -505,6 +505,7 @@ worktree (§0.4).
 | 3 | **T1** request deadline | **#282** | open |
 | 5 | **Group D** history contamination (D1–D4) | **#284** | open |
 | 8 | **Group E** — E1 + E3 only | **#285** | open (E2/E4 deferred — see below) |
+| 11 | **T7** engine-unavailable gate | **(this PR)** | open |
 
 ### PRODUCTION TELEMETRY — READ 2026-08-11, both open questions SETTLED
 
@@ -590,9 +591,48 @@ the ground under the referee's numbers and the snapshot churn would bury the
 signal the byte-equality suite exists to give. **Sequence them with the
 contract workstream; do not race them.**
 
-**T5, T6, T7, T8, T10 are untouched.** T7 in particular is now partly load
-bearing for the E2E harness: the coach composer unlocks with no engine data,
-which is what lets the browser tests pin it open by blocking `/engines/**`.
+**T5, T6 and T7 are now done. T3, T8 and T10 remain** (T8 is in flight on
+`fix/achieved-depth`).
+
+The E2E harness no longer leans on the T7 bug. It still blocks `/engines/**`,
+but that now produces a DECLARED `unavailable` state with a stable placeholder
+(`Ask anything — answering without engine analysis.`) rather than an
+accidentally-open composer, and there is a spec asserting both the banner and
+the `engineDataUnavailable: true` on the wire.
+
+### T7 — the bug underneath the bug (a HANG, not a missing check)
+
+The prescribed fix ("gate on `enginePositions !== null`, show a banner") is
+right but incomplete, and applying only it makes things WORSE.
+
+`getEngineWorker` never handled `worker.onerror`. `new Worker(url)` does not
+throw when the script 404s or is blocked — it fires an `error` event
+asynchronously. With nobody listening, the `uci` handshake in `addNewWorker`
+waited for a `uciok` that was never coming, so **`UciEngine.create()` neither
+resolved nor rejected. Ever.** `useEngine` held `engine === null` forever.
+
+That hang is *why* T7 was invisible, and it is why tightening the gate alone
+would have replaced "open composer, silently no data" with "composer locked
+forever behind `coach unlocks when Stockfish finishes`" — a worse lie, and one
+that would have hung the E2E specs rather than failing them.
+
+So the fix is four parts:
+ 1. `worker.onerror` → an `errored` promise on `EngineWorker`;
+ 2. `addNewWorker` races the handshake against that plus a 90s boot deadline
+    (generous on purpose — 7.16 MB single-threaded on a cold cache is real; the
+    deadline is there to catch *never*, not to hurry *slow*);
+ 3. `useEngineWithStatus` turns the rejection into `failed` / `unsupported`, so
+    "not yet" and "never" stop looking alike;
+ 4. the gate decision moves OUT of the component into `resolveEngineGate` — a
+    boolean expression inside a 10,000-line render body is one nobody can test,
+    and 5 of its 9 tests fail against the original predicate.
+
+The client then STATES it (`engineDataUnavailable`, a required key on the
+request body, same pattern as `userRating`), and the route renders a block
+forbidding the specific claims nothing supports — including the inverse one a
+model volunteers unprompted: "no serious errors were made". An absent
+`gameEval` means three different things server-side and the route cannot tell
+them apart, so the one that matters had to be said out loud.
 
 ### Lessons that cost real time — read these before writing a test
 

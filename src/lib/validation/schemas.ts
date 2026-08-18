@@ -160,6 +160,18 @@ export const enhancedAnalysisSchema = z.object({
    * mistake row, coach opens). Absent means "the end of the game".
    */
   viewedPly: z.number().int().min(0).max(1024).optional(),
+  /**
+   * T7 (SILENT_SUBSTITUTION_HANDOFF §4): the client states that no engine
+   * evaluation is ever arriving — WASM unsupported, `/engines/*` unreachable,
+   * or the sweep errored.
+   *
+   * Optional here because an older client will not send it; absent is read as
+   * `false` (the historical behaviour). It exists because an absent `gameEval`
+   * is ambiguous three ways on this side — never computed, still computing,
+   * computed and dropped — and the coach was answering confidently in all
+   * three, with the engine-backed sections simply not rendered.
+   */
+  engineDataUnavailable: z.boolean().optional(),
   boardOrientation: z.any().optional(),
   personalityId: z
     .string()

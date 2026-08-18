@@ -102,7 +102,8 @@ import {
   CommandIcons,
   type CommandGroup,
 } from "@/components/ui/CommandPalette";
-import { useEngine } from "@/hooks/useEngine";
+import { useEngineWithStatus } from "@/hooks/useEngine";
+import { resolveEngineGate } from "@/lib/coach/engineGate";
 import { isWasmSupported } from "@/lib/engine/shared";
 import { TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
 import {
@@ -451,6 +452,17 @@ async function streamCoachReply(params: {
    *  LLM is blind to the user's skill level and the reply quality drops to
    *  generic. */
   gameEvalFull?: GameEval | null;
+  /**
+   * T7: no engine evaluation is ever arriving for this session.
+   *
+   * Required key with a required value, for the same reason `userRating` is a
+   * required key: an absent `gameEval` is ambiguous three ways server-side
+   * (never computed / still computing / computed and dropped), and the one
+   * that matters — "this browser will never produce one" — is knowable only
+   * here. Leaving it to inference is how the coach came to answer, in full
+   * confidence, with the engine sections silently missing.
+   */
+  engineDataUnavailable: boolean;
   contextIdRef: { current: string | null };
   /**
    * The user's real rating, or `undefined` when they have none.
@@ -505,6 +517,7 @@ async function streamCoachReply(params: {
     loadedGame,
     enginePositions,
     gameEvalFull,
+    engineDataUnavailable,
     contextIdRef,
     userRating,
     playerColor,
@@ -630,6 +643,7 @@ async function streamCoachReply(params: {
     moveHistory,
     fen,
     gameEval: gameEvalPayload,
+    engineDataUnavailable,
     conversationHistory,
     userRating,
     viewedPly: currentPly,
@@ -4231,6 +4245,7 @@ function CoachPanel({
   onPuzzleSolved,
   onPracticeConcept,
   analysisActive,
+  engineDataUnavailable,
   enginePositions,
   loadedGame,
   personalityId,
@@ -4272,6 +4287,14 @@ function CoachPanel({
    * `isAnalyzingGame` gate (AICoachChat:1705) — when set, the input is
    * disabled so the user can't fire deep-coach requests with no gameEval. */
   analysisActive?: boolean;
+  /**
+   * T7: no evaluation is ever arriving — WASM unsupported, `/engines/*`
+   * unreachable, or the sweep errored. Distinct from `analysisActive`, which
+   * means "not yet". The input stays OPEN (locking someone out permanently
+   * would be its own lie) but says what is missing, because an answer written
+   * with no engine data reads exactly like one written with it.
+   */
+  engineDataUnavailable?: boolean;
   /**
    * Production-parity mistake context — when set, mounts inline
    * ContextualPuzzleRecommendations above the message stream. Recomputed
@@ -4774,6 +4797,34 @@ function CoachPanel({
           activeIndex={slashIndex}
           onPick={pickSlashCommand}
         />
+        {/* T7 (SILENT_SUBSTITUTION_HANDOFF §4): the composer stays usable when
+            the engine could not load — locking someone out permanently would
+            be its own lie — but it must not look like business as usual. The
+            answer really will be missing everything Stockfish would have
+            contributed, and the user is the only one who can decide whether to
+            ask anyway. */}
+        {engineDataUnavailable && (
+          <Box
+            sx={{
+              mb: 1.5,
+              px: 1.5,
+              py: 1,
+              borderRadius: "10px",
+              border: "1px solid rgba(249,115,22,0.28)",
+              background: "rgba(249,115,22,0.08)",
+              fontSize: "0.78rem",
+              lineHeight: 1.5,
+              color: "rgba(255,255,255,0.75)",
+            }}
+          >
+            <Box component="span" sx={{ color: "#FB923C", fontWeight: 600 }}>
+              Coaching without engine analysis.
+            </Box>{" "}
+            Stockfish could not run in this browser, so evaluations, move
+            classifications and accuracy are unavailable. Ideas, plans and
+            openings still work.
+          </Box>
+        )}
         <Stack direction="row" spacing={1.5} alignItems="center">
           <TextField
             value={input}
@@ -4825,7 +4876,9 @@ function CoachPanel({
             placeholder={
               analysisActive
                 ? "Analyzing your game… coach unlocks when Stockfish finishes."
-                : "Ask anything about this position..."
+                : engineDataUnavailable
+                  ? "Ask anything — answering without engine analysis."
+                  : "Ask anything about this position..."
             }
             disabled={analysisActive}
             fullWidth
@@ -7593,7 +7646,9 @@ export default function AnalysisPage() {
     depth: number;
     engineName: EngineName;
   }>({ depth: 16, engineName: EngineName.Stockfish17Lite });
-  const engine = useEngine(engineSettings.engineName);
+  const { engine, status: engineStatus } = useEngineWithStatus(
+    engineSettings.engineName,
+  );
 
   /**
    * How hard to think about the ONE position on the board, as opposed to
@@ -7803,11 +7858,21 @@ export default function AnalysisPage() {
   // Gated on allMoves so the empty board doesn't read as "analysis in
   // progress" forever — the evaluate effect below bails on an empty move
   // list, so enginePositions would stay null and the composer stay locked.
-  const analysisActive =
-    allMoves.length > 0 &&
-    engine !== null &&
-    enginePositions === null &&
-    analysisError === null;
+  //
+  // T7 (SILENT_SUBSTITUTION_HANDOFF §4): the gate this replaces required
+  // `engine !== null`, which unlocked the composer for the whole window before
+  // the engine booted and forever when it could never boot at all. The
+  // decision now lives in `resolveEngineGate` as a pure function, because a
+  // boolean expression buried in this render body is one nobody can test.
+  const { pending: engineDataPending, unavailable: engineDataUnavailable } =
+    resolveEngineGate({
+      moveCount: allMoves.length,
+      hasEnginePositions: enginePositions !== null,
+      hasAnalysisError: analysisError !== null,
+      status: engineStatus,
+    });
+
+  const analysisActive = engineDataPending;
 
   useEffect(() => {
     if (!engine || enginePositions || analysisError) return;
@@ -7936,6 +8001,11 @@ export default function AnalysisPage() {
       chesscomUsername,
       lichessUsername,
       personalityId: personality.id,
+      // T7 (SILENT_SUBSTITUTION_HANDOFF §4): whether an engine evaluation is
+      // ever going to arrive. Carried here, alongside `userRating`, because
+      // both are facts only the client holds and both were previously left to
+      // a server-side guess that could not fail loudly.
+      engineDataUnavailable,
     };
   }, [
     playerSide,
@@ -7944,6 +8014,7 @@ export default function AnalysisPage() {
     user?.displayName,
     user?.email,
     personality.id,
+    engineDataUnavailable,
   ]);
 
   // In puzzle mode, prepopulate the coach with a contextual seed message
@@ -10431,6 +10502,7 @@ export default function AnalysisPage() {
                           onSuggestion={handleSuggestion}
                           isThinking={isThinking}
                           analysisActive={analysisActive}
+                          engineDataUnavailable={engineDataUnavailable}
                           onPromoteToBoard={handlePromoteToBoard}
                           allMoves={allMoves}
                           onMoveRefClick={handleCoachMoveRef}

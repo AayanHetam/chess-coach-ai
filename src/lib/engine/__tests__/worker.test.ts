@@ -20,6 +20,9 @@ function makeFakeWorker(): EngineWorker {
     terminate: () => {
       /* no-op */
     },
+    // Never settles: these tests are about the message protocol, not about
+    // worker load failures (see the field doc in @/types/engine).
+    errored: new Promise<Error>(() => {}),
   };
 }
 

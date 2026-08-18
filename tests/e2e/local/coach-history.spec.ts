@@ -19,16 +19,22 @@ const CORRECTED = "CORRECTED-ANALYSIS-SENTINEL: the knight was defended.";
 const RAW_STREAMED = "RAW-STREAMED-SENTINEL: the knight hangs.";
 
 /**
- * Pin the composer open. `analysisActive` gates it and its placeholder text
- * changes with it, so a booting Stockfish flips the locator out from under the
- * test — which is exactly how these specs passed locally and timed out in CI.
- * The coach accepts questions with no engine data (finding T7), and nothing
- * here asserts engine output.
+ * Pin the composer open. Its placeholder changes with the engine gate, so a
+ * booting Stockfish flips the locator out from under the test — which is
+ * exactly how these specs passed locally and timed out in CI.
+ *
+ * Blocking the engine assets makes the worker fail to load, which the gate
+ * reports as `unavailable`: the input stays open behind one stable
+ * placeholder. Before T7 was fixed this worked by accident — a null engine
+ * read as "not analyzing" and the composer opened with nothing saying the
+ * engine was missing. Nothing here asserts engine output.
  */
 async function openAnalysis(page: Page) {
   await page.route("**/engines/**", (route) => route.abort());
   await page.goto("/analysis");
-  const composer = page.getByPlaceholder("Ask anything about this position...");
+  const composer = page.getByPlaceholder(
+    "Ask anything — answering without engine analysis.",
+  );
   const ok = await composer
     .waitFor({ state: "visible", timeout: 60_000 })
     .then(() => true)

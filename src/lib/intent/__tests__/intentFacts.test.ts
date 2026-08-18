@@ -142,6 +142,74 @@ describe("the free-tempo gate does not mix measurement regimes", () => {
   });
 });
 
+// ─── mate: taken from whichever measurement resolves it ────────────────────
+
+describe("a forced mate is reported from either measurement", () => {
+  it("finds the mate the MultiPV root search missed (real: game_11 ply 89 a1=Q)", () => {
+    // The root search splits its effort across three moves and scores a1=Q at
+    // +807. The evaluation of the position it produces spends everything on one
+    // line and finds mate in 13. Using only the root line loses that.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "a1=Q",
+        rootLines: [line("a1=Q", 807), line("Kxe4", 544)],
+        playedScore: { cp: null, mate: 13 },
+      }),
+    );
+    expect(f.mate).not.toBeNull();
+    expect(f.mate!.inMoves).toBe(13);
+  });
+
+  it("reports the CHECKMATING move itself, which has no position after it", () => {
+    // Real: game_02 ply 59 Re6#, and three others — the last move of four of
+    // the founder's games. There are no lines after checkmate, so `playedScore`
+    // is null and the module used to say nothing about the mate that ended the
+    // game.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Re6#",
+        rootLines: [line("Re6#", null, 1)],
+        playedScore: null,
+      }),
+    );
+    expect(f.mate).not.toBeNull();
+    expect(f.mate!.inMoves).toBe(1);
+  });
+
+  it("prefers the shorter mate when both measurements find one", () => {
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Qh5",
+        rootLines: [line("Qh5", null, 5)],
+        playedScore: { cp: null, mate: 3 },
+      }),
+    );
+    expect(f.mate!.inMoves).toBe(3);
+  });
+
+  it("CONTROL: no mate anywhere means no mate fact", () => {
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Qh5",
+        rootLines: [line("Qh5", 300)],
+        playedScore: { cp: 280, mate: null },
+      }),
+    );
+    expect(f.mate).toBeNull();
+  });
+
+  it("CONTROL: a mate AGAINST us is never reported as our forced mate", () => {
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Qh5",
+        rootLines: [line("Qh5", null, -4)],
+        playedScore: { cp: null, mate: -2 },
+      }),
+    );
+    expect(f.mate).toBeNull();
+  });
+});
+
 // ─── cost: both operands from one search ───────────────────────────────────
 //
 // `cost` is `rootLines[0] - played`. On the game-review path those come from

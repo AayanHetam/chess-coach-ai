@@ -796,12 +796,38 @@ function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {
   return { bestSan: best.san, bestCp, playedCp, lossCp: loss, mateChange: null, beyondMeasurement: false };
 }
 
-/** Did the move force mate? Read from the played move's own score. */
+/**
+ * Did the move force mate?
+ *
+ * DELIBERATELY NOT `playedScoreOf`. That helper exists so a SUBTRACTION gets
+ * both operands from one search, which is what `cost` needs. "Is this mate" is
+ * not a subtraction, and the two measurements resolve mates differently: the
+ * MultiPV root search splits its effort across three moves, while the
+ * evaluation of the position the move produced spends all of it on one line.
+ *
+ * Both directions are real, and both were observed on the founder's games:
+ *
+ *   game_11 ply 89 a1=Q   root line +807, produced position MATE IN 13
+ *   game_02 ply 59 Re6#   root line #1, produced position has no evaluation
+ *                         at all — it is checkmate, so there are no lines
+ *
+ * The second is why four checkmating moves — the last move of four of his
+ * games, and the most narratable move in any game — reported nothing. So this
+ * takes a mate from EITHER measurement, preferring the shorter when both find
+ * one. A forced mate the engine has found is a claim about the tree, not a
+ * difference between two noisy numbers, so there is nothing to average.
+ */
 function computeMate(probe: IntentProbe): MateFact | null {
-  const sc = playedScoreOf(probe);
-  if (!sc || sc.mate === null || sc.mate === undefined || sc.mate <= 0) return null;
+  const inSearch = probe.rootLines.find((l) => l.san === probe.playedSan)?.score ?? null;
+  const produced = probe.playedScore;
+  const mateIn = (s: IntentScore | null): number | null =>
+    s && typeof s.mate === "number" && s.mate > 0 ? s.mate : null;
+  const a = mateIn(inSearch);
+  const b = mateIn(produced);
+  if (a === null && b === null) return null;
+  const inMoves = a === null ? b! : b === null ? a : Math.min(a, b);
   const line = probe.rootLines.find((l) => l.san === probe.playedSan);
-  return { inMoves: sc.mate, line: line?.pv ?? [] };
+  return { inMoves, line: line?.pv ?? [] };
 }
 
 /**

@@ -1,5 +1,6 @@
 "use client";
 
+import { addressAs, avatarInitial } from "@/lib/auth/displayIdentity";
 import {
   Avatar,
   Box,
@@ -105,11 +106,10 @@ export function NavPill({
       console.error("Sign-out failed:", err);
     }
   };
-  const avatarLetter = (
-    user?.displayName?.[0] ??
-    user?.email?.[0] ??
-    "?"
-  ).toUpperCase();
+  // The chip every glassed route shows. It is the surface a handle is MOST
+  // visible on, and it was the one my first pass missed — a truncated grep
+  // hid it behind UserMenu and PuzzleSessionRail.
+  const avatarLetter = avatarInitial(user);
 
   return (
     <>
@@ -351,7 +351,7 @@ export function NavPill({
                         lineHeight: 1.2,
                       }}
                     >
-                      {user.displayName ?? "Signed in"}
+                      {addressAs(user, "Signed in")}
                     </Typography>
                     {user.email && (
                       <Typography

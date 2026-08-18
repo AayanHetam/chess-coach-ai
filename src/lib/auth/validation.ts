@@ -44,6 +44,31 @@ export const signupSchema = z.object({
   ageAffirmed: z
     .boolean("Please confirm you're 13 or older to sign up.")
     .refine((v) => v === true, "Please confirm you're 13 or older to sign up."),
+  /**
+   * REQUIRED, and fail-closed on purpose.
+   *
+   * Declared AFTER `ageAffirmed` deliberately. Zod reports issues in field
+   * order and the route surfaces only the first, so a client missing both
+   * must be told about the COPPA affirmation — the legally load-bearing
+   * check — not about a handle.
+   *
+   * Handles shipped claimable-but-optional in #332, which produced yet another
+   * cohort of accounts that would have to be prompted later — the same trap the
+   * goal and the chess username both fell into, because the onboarding quiz is
+   * one-time and existing accounts are never asked again.
+   *
+   * The cost is that a browser holding a bundle from before this deploy posts
+   * no handle and gets a 400 telling it to pick one; reloading fixes it. That
+   * is a self-healing failure, and the alternative — accepting the signup and
+   * silently minting another handle-less account — is the bug being fixed.
+   *
+   * Shape is validated by `checkHandle` on the server (reserved words, length
+   * after separator folding); this only guarantees a non-empty string arrives.
+   */
+  handle: z
+    .string("Pick a handle to finish signing up.")
+    .trim()
+    .min(1, "Pick a handle to finish signing up."),
 });
 
 /**

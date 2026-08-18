@@ -27,6 +27,8 @@ import OAuthErrorSnackbar from "@/components/auth/OAuthErrorSnackbar";
 export type AppUser = {
   uid: string;
   email: string;
+  /** The name the user chose. Resolved through `addressAs`, never read raw. */
+  handle?: string;
   displayName?: string;
   photoURL?: string;
 };
@@ -46,6 +48,8 @@ interface AuthContextType {
   signUp: (input: {
     email: string;
     password: string;
+    /** Required at signup — see signupSchema for why it is fail-closed. */
+    handle: string;
     displayName?: string;
     // COPPA: true only after the 13+ age-affirmation checkbox (required by
     // the signup API; no age or birth date ever leaves the browser).
@@ -80,6 +84,7 @@ function profileToUser(profile: UserProfile | null): AppUser | null {
   return {
     uid: profile.uid,
     email: profile.email,
+    handle: profile.handle,
     displayName: profile.displayName,
     photoURL: profile.photoURL,
   };
@@ -173,6 +178,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     async (input: {
       email: string;
       password: string;
+      handle: string;
       displayName?: string;
       ageAffirmed: boolean;
     }) => {

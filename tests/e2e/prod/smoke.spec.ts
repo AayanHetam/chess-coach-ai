@@ -71,6 +71,10 @@ test("prod signup API enforces the age affirmation", async ({ request }) => {
     data: {
       email: "heartbeat-probe@example.com",
       password: "Longenough1!pass",
+      // Everything else valid, so this probes the AGE GATE and not whichever
+      // required field happens to be declared first. Handles became mandatory
+      // at signup after this test was written.
+      handle: "heartbeatprobe",
     },
   });
   expect(res.status()).toBe(400);

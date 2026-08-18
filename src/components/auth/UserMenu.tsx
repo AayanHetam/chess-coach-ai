@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { addressAs, avatarInitial } from "@/lib/auth/displayIdentity";
 import {
   Avatar,
   Box,
@@ -64,11 +65,11 @@ export default function UserMenu() {
 
   return (
     <>
-      <Tooltip title={user.displayName || user.email || "Account"}>
+      <Tooltip title={addressAs(user)}>
         <IconButton onClick={handleMenuOpen} sx={{ p: 0.5 }}>
           <Avatar
             src={user.photoURL || undefined}
-            alt={user.displayName || "User"}
+            alt={addressAs(user)}
             sx={{
               width: 34,
               height: 34,
@@ -77,7 +78,7 @@ export default function UserMenu() {
               bgcolor: "primary.main",
             }}
           >
-            {user.displayName?.[0] || user.email?.[0]?.toUpperCase() || "U"}
+            {avatarInitial(user)}
           </Avatar>
         </IconButton>
       </Tooltip>
@@ -100,7 +101,7 @@ export default function UserMenu() {
         {/* User info header */}
         <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid #f0f0f0" }}>
           <Typography variant="body2" sx={{ fontWeight: 700, color: "#333" }}>
-            {user.displayName || "Chess Player"}
+            {addressAs(user)}
           </Typography>
           <Typography variant="caption" sx={{ color: "#888" }}>
             {user.email}

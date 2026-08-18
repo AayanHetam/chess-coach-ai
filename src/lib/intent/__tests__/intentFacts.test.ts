@@ -393,6 +393,28 @@ describe("prophylaxis", () => {
     expect(f.notes.join(" ")).toContain("mated whatever they play");
   });
 
+  it("declines the same claim when their best reply was never measured", () => {
+    // The guard above reads isMateAgainst(opponentBestAfter), and
+    // isMateAgainst(null) is false — so "we never measured their best reply"
+    // fell through it and returned a FULL prophylaxis fact, before the swing,
+    // absolute, relative and attribution gates ever run. The exact null
+    // collapse of the a3/Kg5 card the guard was added to kill, one field over:
+    // types.ts documents opponentBestAfter as "null when not measured", and
+    // fromGameEval leaves it null whenever the ply+1 evaluation timed out.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "a3",
+        rootLines: [line("Ke7", 400), line("a3", 100)],
+        playedScore: { cp: 100, mate: null },
+        threat: line("Kg5", 200),
+        threatAfter: line("Kg5", null, -17),
+        opponentBestAfter: null,
+      }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.notes.join(" ")).toContain("never measured");
+  });
+
   it("CONTROL: still comprehensive defusal when the opponent HAD a way out", () => {
     const f = computeIntentFacts(
       probe({

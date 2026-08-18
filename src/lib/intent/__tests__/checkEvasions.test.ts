@@ -42,7 +42,12 @@ const probeOf = (over: Partial<IntentProbe>): IntentProbe => ({
 });
 
 /** Build the probe the way the adapter does, for a checking move. */
-function checkingProbe(fenBefore: string, playedSan: string, threatSan: string): IntentProbe {
+function checkingProbe(
+  fenBefore: string,
+  playedSan: string,
+  threatSan: string,
+  over: Partial<IntentProbe> = {},
+): IntentProbe {
   const g = new Chess(fenBefore);
   const mv = g.move(playedSan);
   const fenAfter = g.fen();
@@ -57,6 +62,7 @@ function checkingProbe(fenBefore: string, playedSan: string, threatSan: string):
     position: buildPositionFacts(fenBefore, playedSan, null, null),
     playedScore: { cp: 407, mate: null },
     rootLines: [{ san: mv.san, score: { cp: 342, mate: null }, pv: [mv.san], depth: 16 }],
+    ...over,
   });
 }
 
@@ -148,5 +154,96 @@ describe("a check that actually answers the threat", () => {
     const ev = threatAfterEvasions(g.fen(), "Qz9");
     expect(ev).not.toBeNull();
     expect(ev!.returns).toBe(0);
+  });
+});
+
+/**
+ * CREDIT WHEN SOUND — the founder's ruling of 2026-08-18.
+ *
+ * When a check ends the threat permanently (it returns after ZERO legal
+ * replies), the coach may now say so — but only when the move is itself at or
+ * near the engine's best, so a blunder is never praised for a side effect.
+ *
+ * Fixture is real: game_02 move 8, `Bxc6+`. The threat was `Bxd5` — capturing
+ * the bishop that stood on d5. `Bxc6+` is that same bishop capturing c6 with
+ * check, so the threat's target is gone from d5 forever: measured, Bxd5
+ * returns after 0 of White's... Black's 4 legal replies. And the move is tied
+ * with the engine's top choice at +210 in the same search, so the soundness
+ * gate is met with a loss of exactly 0.
+ */
+const G2_BXC6_BEFORE = "r2qkb1r/ppp2p1p/2n1b1p1/3Bp3/8/4PQ2/PPPP1PPP/R1B1K1NR w KQkq - 1 8";
+const BXC6_LINES = [
+  { san: "Bxe6", score: { cp: 210, mate: null }, pv: ["Bxe6"], depth: 16 },
+  { san: "Bxc6+", score: { cp: 210, mate: null }, pv: ["Bxc6+"], depth: 16 },
+  { san: "Bb3", score: { cp: 36, mate: null }, pv: ["Bb3"], depth: 16 },
+];
+
+describe("a sound check that permanently ends the threat is credited", () => {
+  it("CONTROL: Bxc6+ really checks, and Bxd5 returns after 0 of the replies", () => {
+    const g = new Chess(G2_BXC6_BEFORE);
+    g.move("Bxc6+");
+    expect(g.isCheck()).toBe(true);
+    const ev = threatAfterEvasions(g.fen(), "Bxd5");
+    expect(ev).not.toBeNull();
+    expect(ev!.replies).toBeGreaterThan(0);
+    expect(ev!.returns).toBe(0);
+    expect(ev!.unmodelled).toBe(0);
+  });
+
+  it("credits the prevention when the move ties the engine's best", () => {
+    const f = computeIntentFacts(
+      checkingProbe(G2_BXC6_BEFORE, "Bxc6+", "Bxd5", { rootLines: BXC6_LINES }),
+    );
+    expect(f.prophylaxis).not.toBeNull();
+    expect(f.prophylaxis!.preventedOutright).toBe(true);
+    expect(f.unaddressedThreat).toBeNull();
+  });
+
+  it("does NOT credit the same prevention on an unsound move", () => {
+    // Identical position, but the engine's best is 300cp above the played
+    // move: the threat still dies for good, and the coach still says nothing,
+    // because a side effect of a bad move earns no credit.
+    const lines = [
+      { san: "Bxe6", score: { cp: 510, mate: null }, pv: ["Bxe6"], depth: 16 },
+      { san: "Bxc6+", score: { cp: 210, mate: null }, pv: ["Bxc6+"], depth: 16 },
+    ];
+    const f = computeIntentFacts(
+      checkingProbe(G2_BXC6_BEFORE, "Bxc6+", "Bxd5", { rootLines: lines }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.notes.join(" ")).toContain("loses 300cp");
+  });
+
+  it("does NOT credit when the move is outside the searched lines", () => {
+    // Below the engine's third choice there is no same-search number, and a
+    // soundness verdict from a cross-regime subtraction is the PR #331 bug —
+    // so no measurement, no credit.
+    const lines = [{ san: "Bxe6", score: { cp: 210, mate: null }, pv: ["Bxe6"], depth: 16 }];
+    const f = computeIntentFacts(
+      checkingProbe(G2_BXC6_BEFORE, "Bxc6+", "Bxd5", { rootLines: lines }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.notes.join(" ")).toContain("not measurably near");
+  });
+
+  it("does NOT credit when an evasion could not be modelled", () => {
+    const f = computeIntentFacts(
+      checkingProbe(G2_BXC6_BEFORE, "Bxc6+", "Bxd5", {
+        rootLines: BXC6_LINES,
+        threatEvasions: { replies: 4, returns: 0, unmodelled: 1 },
+      }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.notes.join(" ")).toContain("not claiming it was ignored");
+  });
+
+  it("CONTROL: Rhxg2+ (returns 1 of 3) still earns neither blame nor credit", () => {
+    // The founder's original position must be unmoved by this feature: Kf2
+    // comes back down Nxg2, so the claim depends on a choice the opponent
+    // never made.
+    const f = computeIntentFacts(checkingProbe(G6_BEFORE, "Rhxg2+", "Kf2"));
+    expect(f.prophylaxis).toBeNull();
+    expect(f.unaddressedThreat).toBeNull();
+    expect(f.notes.join(" ")).toContain("returns after 1 of 3");
   });
 });

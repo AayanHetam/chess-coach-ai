@@ -120,24 +120,39 @@ export const PROPHYLAXIS_MIN_SPECIFIC_CP = 150;
 export const PROPHYLAXIS_THREAT_MUST_END_BELOW_CP = -100;
 
 /**
- * How much WORSE our move may answer the threat than the best move we passed
- * over, before the claim stops being about our move at all.
+ * The share of the available refutation our move must capture before the
+ * threat's decline may be called OUR MOVE'S doing.
  *
  * The founder's rejection of "Kd8 stops Be2": "there is probably just another
  * move that does the same thing that stockfish prefers in that position."
- * Measured — Kd8 answers Be2 to -189; a6 reaches -423 and Qxe4+ -515. Kd8 is
- * the worst answer of the lot, so Be2's decline is not its doing.
+ * The first gate built on that ruling was an absolute centipawn margin
+ * (played-answer minus best-alternative-answer, bar 250), and on clean data
+ * the founder's own rulings order the WRONG way round under it: h5, confirmed,
+ * sits 341cp short of its best alternative; Kd8, rejected, only 311cp short.
+ * No absolute bar keeps one and rejects the other, because an absolute margin
+ * is applied to refutations of wildly different size.
  *
- * Deliberately a tolerance and not a demand for uniqueness: h5 is a real
- * prophylactic move that does NOT uniquely answer Qg4 (f6 also mates), and a
- * gate requiring uniqueness would reject it.
+ * The founder chose the gate's shape on 2026-08-18: a SHARE of the refutation
+ * actually available — captured / (captured + shortfall), where captured is
+ * how far the threat fell under our move and shortfall is how much further the
+ * best passed-over move would have taken it.
  *
- * Set from the positions the founder ruled on: Kd8, which they rejected, sits
- * 377cp worse than the best move passed over; Re1, which they confirmed, sits
- * 161cp worse. Only those two points bracket this bar — it is the
- * least-evidenced number in this file and should move as ground truth grows.
+ * All five of the founder's rulings, under that shape:
+ *
+ *   g6    CONFIRMED   957 of 1030cp    92.9%
+ *   h5    CONFIRMED   1112 of 1453cp   76.5%
+ *   Re1   CONFIRMED   383 of 600cp     63.8%
+ *   Kd8   REJECTED    312 of 623cp     50.1%
+ *   f5    CONFIRMED   incomparable (its alternatives END the threat — no
+ *                     same-scale subtraction exists; the gate does not run)
+ *
+ * The rulings force the bar into (50.1%, 63.8%]. It is set at the MIDPOINT of
+ * that window, equal distance from the closest confirmed and the closest
+ * rejected ruling, so a small measurement wobble on either flips nothing.
+ * Two points bound each edge — move it as ground truth grows, never past
+ * either edge.
  */
-export const PROPHYLAXIS_MAX_ATTRIBUTION_CP = 250;
+export const PROPHYLAXIS_MIN_REFUTATION_SHARE = 0.57;
 
 /** Spread between best and second-best that separates the sharpness buckets. */
 export const SHARPNESS_ONLY_MOVE_CP = 150;
@@ -463,13 +478,37 @@ function computeProphylaxis(
         signals.unaddressed = unaddressed(probe, "only-illegal-due-to-check");
         return null;
       }
-      // Either the threat never comes back — the move genuinely answered it,
-      // which is what `Rhxg2+` does to `Kf2` — or it comes back down some
-      // evasions and not others, in which case the claim depends on a choice
-      // the opponent has not made yet. Neither earns "you ignored it".
-      //
-      // Deliberately NOT credited as prevention either: that is a different
-      // claim, and one the founder has not ruled on. This is subtractive only.
+      if (ev.returns === 0 && ev.unmodelled === 0) {
+        // The threat never comes back down ANY legal reply: the check ended it
+        // permanently, which is what `Rhxg2+` was doing to `Kf2` when a card
+        // told the founder he had ignored it. The founder ruled on 2026-08-18:
+        // CREDIT IT, but only when the move is itself sound — a blunder must
+        // never be praised for a side effect. Soundness is same-search only
+        // (see sameSearchLossCp); when it cannot be measured, no credit.
+        const loss = sameSearchLossCp(probe);
+        if (loss !== null && loss < COST_MIN_LOSS_CP) {
+          return {
+            threatSan: probe.threat.san,
+            scoreBeforeCp: before,
+            scoreAfterCp: null,
+            swingCp: null,
+            preventedOutright: true,
+            defusedMate: threatMates,
+            specificCp: null,
+            attributionCp: attributionMargin(probe),
+          };
+        }
+        notes.push(
+          loss === null
+            ? "the check ends the threat for good, but the move is not measurably near the engine's best — not crediting"
+            : `the check ends the threat for good, but the move itself loses ${loss}cp — a side effect of an unsound move earns no credit`,
+        );
+        return null;
+      }
+      // The threat comes back down some evasions and not others, or an
+      // evasion could not be modelled: the claim depends on a choice the
+      // opponent has not made yet. That earns neither "you ignored it" nor
+      // credit for stopping it.
       notes.push(
         `threat returns after ${ev.returns} of ${ev.replies} replies` +
           (ev.unmodelled ? ` (${ev.unmodelled} unmodelled)` : "") +
@@ -634,12 +673,25 @@ function computeProphylaxis(
   // the same? Only a move that answers the threat at least as well as its
   // alternatives can claim the credit.
   const attribution = attributionOf(probe);
-  if (attribution.kind === "measured" && attribution.marginCp > PROPHYLAXIS_MAX_ATTRIBUTION_CP) {
-    notes.push(
-      `moves we did not play answer ${probe.threat.san} ${attribution.marginCp}cp better — ` +
-      `the threat's decline is not this move's doing`,
-    );
-    return null;
+  if (attribution.kind === "measured") {
+    // Share of the available refutation this move captured. `captured` is how
+    // far the threat fell under our move; `marginCp` is how much further the
+    // best passed-over move would have taken it, measured on the same scale
+    // (attributionOf guarantees that). Their sum is the refutation available.
+    //
+    // A share, not an absolute margin: an absolute bar cannot hold the
+    // founder's rulings, because h5 (confirmed) falls 341cp short of ITS best
+    // alternative while Kd8 (rejected) falls only 311cp short of its much
+    // smaller one. See PROPHYLAXIS_MIN_REFUTATION_SHARE.
+    const captured = before - threatEndsAt;
+    const available = captured + attribution.marginCp;
+    if (available > 0 && captured / available < PROPHYLAXIS_MIN_REFUTATION_SHARE) {
+      notes.push(
+        `this move answered ${captured}cp of the ${available}cp refutation available ` +
+        `(${Math.round((captured / available) * 100)}%) — the threat's decline is mostly not this move's doing`,
+      );
+      return null;
+    }
   }
 
   return {
@@ -760,6 +812,28 @@ function attributionOf(probe: IntentProbe): Attribution {
 function playedScoreOf(probe: IntentProbe): IntentScore | null {
   const inSameSearch = probe.rootLines.find((l) => l.san === probe.playedSan);
   return inSameSearch ? inSameSearch.score : probe.playedScore;
+}
+
+/**
+ * How far the played move sits below the engine's best, SAME SEARCH ONLY.
+ *
+ * This deliberately does not fall back to `probe.playedScore` the way
+ * `playedScoreOf` does: that fallback is a different search of a different
+ * position, and a soundness verdict built on a cross-regime subtraction is the
+ * exact class of error PR #331 removed. A move outside the MultiPV lines was
+ * ranked below the engine's third choice, which already answers "is this move
+ * at or near the best?" with no — so null here means "not measurably near the
+ * best", and callers must decline whatever claim needed the soundness.
+ */
+function sameSearchLossCp(probe: IntentProbe): number | null {
+  const best = probe.rootLines[0];
+  if (!best) return null;
+  const inSameSearch = probe.rootLines.find((l) => l.san === probe.playedSan);
+  if (!inSameSearch) return null;
+  const b = toCp(best.score);
+  const p = toCp(inSameSearch.score);
+  if (b === null || p === null) return null;
+  return Math.max(0, b - p);
 }
 
 function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {

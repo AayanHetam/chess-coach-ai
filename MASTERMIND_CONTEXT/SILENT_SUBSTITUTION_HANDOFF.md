@@ -505,7 +505,8 @@ worktree (§0.4).
 | 3 | **T1** request deadline | **#282** | open |
 | 5 | **Group D** history contamination (D1–D4) | **#284** | open |
 | 8 | **Group E** — E1 + E3 only | **#285** | open (E2/E4 deferred — see below) |
-| 11 | **T7** engine-unavailable gate | **(this PR)** | open |
+| 10 | **T8** achieved-depth guard | **#342** | MERGED |
+| 11 | **T7** engine-unavailable gate | **#345** | open |
 
 ### PRODUCTION TELEMETRY — READ 2026-08-11, both open questions SETTLED
 
@@ -591,8 +592,7 @@ the ground under the referee's numbers and the snapshot churn would bury the
 signal the byte-equality suite exists to give. **Sequence them with the
 contract workstream; do not race them.**
 
-**T5, T6 and T7 are now done. T3, T8 and T10 remain** (T8 is in flight on
-`fix/achieved-depth`).
+**T5, T6, T7 and T8 are now done. T3 and T10 remain.**
 
 The E2E harness no longer leans on the T7 bug. It still blocks `/engines/**`,
 but that now produces a DECLARED `unavailable` state with a stable placeholder
@@ -633,6 +633,41 @@ forbidding the specific claims nothing supports — including the inverse one a
 model volunteers unprompted: "no serious errors were made". An absent
 `gameEval` means three different things server-side and the route cannot tell
 them apart, so the one that matters had to be said out loud.
+
+### T8 — what the fix turned out to hinge on (read before touching it)
+
+The prescribed fix ("skip mixed-depth pairs in swing scans") is right, but the
+obvious implementation — refuse any pair whose two depths differ — **guts the
+CI-4 corpus**. Measured: 64 test failures across 4 files, including
+`contract.test.ts`'s "01: the student's own blunder, in both lists". Nearly
+every insight in every fixture disappears.
+
+The reason is a property of the fixtures, not of the fix. `fixtures/*.json`
+are the **v1 hand-authored** evals, and their `depth` fields cycle 12/13/14
+across consecutive positions — so EVERY adjacent pair reads as a retry. Real
+Stockfish output does not look like that: `fixtures-real/` is uniformly d16
+(the generator's own doc calls the v1 evals contaminated for exactly this kind
+of reason). The residual 12/13/14 values in `fixtures-real/04` are v1
+leftovers preserved verbatim past the SAN truncation point, not real retries.
+**There is no instance of a genuine mixed-depth sweep anywhere in the corpus.**
+
+What makes the guard shippable without touching that corpus: **no fixture
+declares `settings.depth`, and every payload `evaluateGame` returns does.** So
+the rule is keyed on the DECLARED requested depth — a position is short only
+relative to a depth that was actually asked for. Fixtures declare nothing, the
+guard is inert on them, CI-4's baseline does not move, and production (which
+always declares) is fully covered.
+
+The deliberate fail-open: a payload with no `settings` gets no depth guard.
+Inferring the intended depth from the data (say, the sweep maximum) would be
+the very substitution this programme removes. It is pinned by a test and
+reported in the request log as `declaredDepth: null`. The one live path that
+hits it is the partial `{positions}` payload the client sends mid-sweep —
+which is **T7's** bug, and fixing T7 closes this too.
+
+Regenerating `fixtures/` at uniform depth would let the rule tighten to strict
+equality. That is a referee-workstream call: it churns 9 byte-equality
+snapshots and moves CI-4's measurement inputs. **Do not do it in isolation.**
 
 ### Lessons that cost real time — read these before writing a test
 

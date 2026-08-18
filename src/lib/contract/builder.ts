@@ -52,6 +52,7 @@ import {
   uciToSan,
 } from "./chessFormat";
 import { computeEvalIntegrity } from "./gameEvalSchema";
+import { isComparableDepthPair, requestedDepth } from "./evalDepth";
 import type { GameEvalInput, GameHeadersInput, PositionEvalInput } from "./gameEvalSchema";
 import { flattenEval, selectInsights } from "./selectInsights";
 import {
@@ -258,6 +259,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
   const hasGameEval = !!(positions && positions.length > 0);
 
   const evalIntegrity = computeEvalIntegrity(gameEval, moveHistory, replayedPlies);
+  const declaredDepth = requestedDepth(gameEval);
   const selection = selectInsights(moveHistory, gameEval, playerColor);
 
   // --- pgnHeaders: only truthy fields, keyed by GameHeadersInput names ---
@@ -333,7 +335,16 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       fenBefore,
       fenAfter,
       changeDescription: describeMoveChange(fenBefore, moveHistory[i]),
-      classification: evalAfter?.moveClassification ?? null,
+      // T8: `moveClassification` is computed client-side from exactly the
+      // pairwise subtraction the swing scans now refuse — positions[i] vs
+      // positions[i+1] — so a pair the engine searched to two different
+      // depths yields a label with the same fabricated swing behind it.
+      // Dropping it here rather than in the renderer matters: the referee
+      // validates prose AGAINST the contract, so a label that reaches this
+      // object is one the referee will certify as backed.
+      classification: isComparableDepthPair(evalBefore, evalAfter, declaredDepth)
+        ? (evalAfter?.moveClassification ?? null)
+        : null,
       evalAfter: evalAfter?.lines?.[0] ? evalFactFromLine(evalAfter.lines[0]) : null,
       bestWas,
     });

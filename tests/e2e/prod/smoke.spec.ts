@@ -2,8 +2,18 @@ import { test, expect } from "@playwright/test";
 import { bodyLuminance } from "../helpers";
 
 /**
- * Read-only production smoke (nightly heartbeat + manual). Never creates or
- * mutates data: bad-credential signin, redirect handoffs, health endpoints.
+ * Read-only production smoke. Never creates or mutates data: bad-credential
+ * signin, redirect handoffs, health endpoints.
+ *
+ * RUNS DAILY via .github/workflows/prod-smoke.yml, plus on demand. It said
+ * "nightly heartbeat + manual" for eight days while running in NO workflow at
+ * all — the heartbeat is curl-only and never invoked Playwright. That is how
+ * PR #332's copy change sat here red against a healthy site, found by hand.
+ *
+ * Keep the cheap assertions in the heartbeat, which runs hourly for free.
+ * What belongs HERE is only what needs a browser: that pages render, and that
+ * errors reach the screen.
+ *
  * Run with: E2E_NO_SERVER=1 npx playwright test --project=prod-smoke
  */
 

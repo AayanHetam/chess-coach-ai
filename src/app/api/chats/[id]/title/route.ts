@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { requireSession } from "@/lib/auth/session";
-import { getAdminFirestore, AdminConfigError } from "@/lib/server/firebaseAdmin";
-import { callLLM, LLMError } from "@/lib/llmProvider";
+import {
+  getAdminFirestore,
+  AdminConfigError,
+} from "@/lib/server/firebaseAdmin";
+import { callLLM, toSafeLLMError } from "@/lib/llmProvider";
 
 export const runtime = "nodejs";
 
@@ -13,7 +16,10 @@ const MAX_TITLE_LEN = 50;
 type RouteContext = { params: Promise<{ id: string }> };
 
 function clean(t: string): string {
-  return t.replace(/^["'`]+|["'`]+$/g, "").trim().slice(0, MAX_TITLE_LEN);
+  return t
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .trim()
+    .slice(0, MAX_TITLE_LEN);
 }
 
 /**
@@ -29,7 +35,8 @@ export async function POST(_request: Request, { params }: RouteContext) {
   if ("response" in guard) return guard.response;
 
   const { id } = await params;
-  if (!id) return NextResponse.json({ error: "Missing chat id." }, { status: 400 });
+  if (!id)
+    return NextResponse.json({ error: "Missing chat id." }, { status: 400 });
 
   try {
     const db = await getAdminFirestore();
@@ -55,7 +62,9 @@ export async function POST(_request: Request, { params }: RouteContext) {
       .orderBy("createdAt", "asc")
       .limit(4)
       .get();
-    const turns = msgsSnap.docs.map((d) => d.data() as { role: string; content: string });
+    const turns = msgsSnap.docs.map(
+      (d) => d.data() as { role: string; content: string }
+    );
 
     let title: string | null = null;
     let source: "llm" | "pgn" | "fallback" = "fallback";
@@ -87,7 +96,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
         }
       } catch (err) {
         // Fall through to pgn/date fallback.
-        const e = err instanceof LLMError ? err : new Error(String(err));
+        const e = toSafeLLMError(err);
         console.warn("[chats title] LLM failed:", e.message);
       }
     }
@@ -124,9 +133,15 @@ export async function POST(_request: Request, { params }: RouteContext) {
   } catch (err) {
     if (err instanceof AdminConfigError) {
       console.error("[chats title POST]", err);
-      return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+      return NextResponse.json(
+        { error: "Service unavailable" },
+        { status: 503 }
+      );
     }
     console.error("[chats title POST] unexpected", err);
-    return NextResponse.json({ error: "Failed to title chat." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to title chat." },
+      { status: 500 }
+    );
   }
 }

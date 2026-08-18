@@ -98,9 +98,7 @@ describe("llmStatsAggregator", () => {
   });
 
   it("tolerates undefined token counters (LLMResult fields are all optional)", () => {
-    expect(() =>
-      recordLLMCall({ provider: "anthropic" }),
-    ).not.toThrow();
+    expect(() => recordLLMCall({ provider: "anthropic" })).not.toThrow();
     const s = getLLMStats();
     expect(s.byProvider.anthropic.callCount).toBe(1);
     expect(s.byProvider.anthropic.inputTokens).toBe(0);
@@ -201,14 +199,13 @@ describe("llmStatsAggregator", () => {
       primaryError: {
         provider: "anthropic",
         status: 503,
-        message: "Anthropic API: 503 service unavailable",
+        code: "provider_http_error",
       },
     });
     const s = getLLMStats();
     expect(s.fallbackCount).toBe(1);
     expect(s.lastFallback?.primaryProvider).toBe("anthropic");
     expect(s.lastFallback?.status).toBe(503);
-    expect(s.lastFallback?.message).toContain("503");
     expect(s.lastFallback?.at).toBeGreaterThan(0);
   });
 
@@ -218,20 +215,30 @@ describe("llmStatsAggregator", () => {
     expect(getLLMStats().fallbackCount).toBe(0);
   });
 
-  it("caps stored primaryError.message at 300 chars to bound snapshot size", () => {
-    const huge = "x".repeat(5_000);
+  it("does not retain provider error content in the fallback snapshot", () => {
     recordLLMCall({
       provider: "openai",
-      primaryError: { provider: "anthropic", message: huge },
+      primaryError: {
+        provider: "anthropic",
+        status: 502,
+        code: "provider_http_error",
+      },
     });
     const s = getLLMStats();
-    expect(s.lastFallback?.message.length).toBe(300);
+    expect(s.lastFallback).toEqual(
+      expect.objectContaining({ primaryProvider: "anthropic", status: 502 })
+    );
+    expect(s.lastFallback).not.toHaveProperty("message");
   });
 
   it("resetLLMStats clears fallback counters", () => {
     recordLLMCall({
       provider: "openai",
-      primaryError: { provider: "anthropic", status: 500, message: "fail" },
+      primaryError: {
+        provider: "anthropic",
+        status: 500,
+        code: "provider_http_error",
+      },
     });
     expect(getLLMStats().fallbackCount).toBe(1);
     resetLLMStats();

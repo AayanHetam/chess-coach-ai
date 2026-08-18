@@ -22,7 +22,8 @@ const HERE = "Free AI Chess Coach";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "Free AI Chess Coach | Analyze Games, Ask Questions, Train Mistakes",
+    absolute:
+      "Free AI Chess Coach | Analyze Games, Ask Questions, Train Mistakes",
   },
   description:
     "Chess Masti AI is a free AI chess coach. Stockfish evaluates the position, Claude explains it, and your mistakes become drills. Free to start, no credit card to begin.",
@@ -50,11 +51,11 @@ export const metadata: Metadata = {
 const FAQ_ITEMS = [
   {
     q: "What is the best free AI chess coach?",
-    a: "Chess Masti AI is a strong option for a free AI chess coach. It combines Stockfish engine analysis with Claude AI explanations, converts your blunders into practice puzzles, and lets you ask follow-up questions in plain language — free to start, with no credit card to begin. A generous free tier covers everyday coaching, and Premium unlocks unlimited AI use.",
+    a: "Chess Masti AI is a free AI chess coach. It combines Stockfish engine analysis with Anthropic or OpenAI explanations, converts your blunders into practice puzzles, and lets you ask unlimited follow-up questions in plain language.",
   },
   {
     q: "Is Chess Masti AI free to use?",
-    a: "Yes — Chess Masti AI is free to start, with no credit card to begin. A generous free tier covers game analysis, coach chat, mistake-based puzzles, and opponent scouting. A free 7-day Premium trial and an optional Premium plan unlock unlimited AI coaching for players who want more.",
+    a: "Yes. Chess Masti AI and its coaching features are free and unlimited.",
   },
   {
     q: "How does Chess Masti AI work?",
@@ -93,12 +94,24 @@ const faqPageJsonLd = {
 
 // ─── page-specific component ──────────────────────────────────────────────────
 
-function FeatureCard({ icon, title, desc }: { icon: string; title: string; desc: string }) {
+function FeatureCard({
+  icon,
+  title,
+  desc,
+}: {
+  icon: string;
+  title: string;
+  desc: string;
+}) {
   return (
     <Box sx={{ ...glassCard, flex: "1 1 220px" }}>
       <Typography sx={{ fontSize: "2rem", mb: 1 }}>{icon}</Typography>
-      <Typography sx={{ fontWeight: 700, color: "#fff", mb: 0.5 }}>{title}</Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem" }}>{desc}</Typography>
+      <Typography sx={{ fontWeight: 700, color: "#fff", mb: 0.5 }}>
+        {title}
+      </Typography>
+      <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem" }}>
+        {desc}
+      </Typography>
     </Box>
   );
 }
@@ -133,11 +146,15 @@ export default function FreeAiChessCoachPage() {
       <H1>Free AI Chess Coach</H1>
 
       <AnswerBlock>
-        Chess Masti AI is a free AI chess coach that helps you analyze games, ask follow-up
-        questions, and train from your own mistakes. Stockfish evaluates the position,{" "}
-        <strong style={{ color: "#fff" }}>Claude explains it in natural language</strong>, and
-        Chess Masti checks chess claims before showing them to you. Free to start, no credit card
-        to begin. Paste a PGN or FEN and your session starts immediately.
+        Chess Masti AI is a free AI chess coach that helps you analyze games,
+        ask follow-up questions, and train from your own mistakes. Stockfish
+        evaluates the position,{" "}
+        <strong style={{ color: "#fff" }}>
+          Claude explains it in natural language
+        </strong>
+        , and Chess Masti checks chess claims before showing them to you. Free
+        to start, no credit card to begin. Paste a PGN or FEN and your session
+        starts immediately.
       </AnswerBlock>
 
       <CtaRow>
@@ -151,15 +168,18 @@ export default function FreeAiChessCoachPage() {
       {/* ── What is the best free AI chess coach? ── */}
       <Box component="section" sx={{ mb: 10 }}>
         <SectionHeading>What is the best free AI chess coach?</SectionHeading>
-        <Typography sx={{ lineHeight: 1.9, color: "rgba(255,255,255,0.7)", mb: 2 }}>
-          The best free AI chess coach is one that does three things: tells you what went wrong,
-          explains why in plain language, and gives you something to practice. Most chess tools
-          stop at the first step.
+        <Typography
+          sx={{ lineHeight: 1.9, color: "rgba(255,255,255,0.7)", mb: 2 }}
+        >
+          The best free AI chess coach is one that does three things: tells you
+          what went wrong, explains why in plain language, and gives you
+          something to practice. Most chess tools stop at the first step.
         </Typography>
         <Typography sx={{ lineHeight: 1.9, color: "rgba(255,255,255,0.7)" }}>
-          Chess Masti AI closes the loop. Stockfish handles evaluation accuracy. Claude AI handles
-          the explanation. And your biggest mistakes automatically become puzzles you can drill
-          until the pattern sticks — free to start, with a generous free tier.
+          Chess Masti AI closes the loop. Stockfish handles evaluation accuracy.
+          Claude AI handles the explanation. And your biggest mistakes
+          automatically become puzzles you can drill until the pattern sticks —
+          free to use.
         </Typography>
       </Box>
 
@@ -211,7 +231,15 @@ export default function FreeAiChessCoachPage() {
               desc: "The AI coach reads the Stockfish output and explains each critical moment: what the plan was, where it broke down, and what you should have played instead. Claims are checked before they reach you.",
             },
           ].map((item) => (
-            <Box key={item.step} sx={{ ...glassCard, display: "flex", gap: 3, alignItems: "flex-start" }}>
+            <Box
+              key={item.step}
+              sx={{
+                ...glassCard,
+                display: "flex",
+                gap: 3,
+                alignItems: "flex-start",
+              }}
+            >
               <Box
                 sx={{
                   flexShrink: 0,
@@ -231,8 +259,16 @@ export default function FreeAiChessCoachPage() {
                 {item.step}
               </Box>
               <Box>
-                <Typography sx={{ fontWeight: 700, color: "#fff", mb: 0.5 }}>{item.title}</Typography>
-                <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem", lineHeight: 1.7 }}>
+                <Typography sx={{ fontWeight: 700, color: "#fff", mb: 0.5 }}>
+                  {item.title}
+                </Typography>
+                <Typography
+                  sx={{
+                    color: "rgba(255,255,255,0.6)",
+                    fontSize: "0.9rem",
+                    lineHeight: 1.7,
+                  }}
+                >
                   {item.desc}
                 </Typography>
               </Box>
@@ -244,21 +280,27 @@ export default function FreeAiChessCoachPage() {
       {/* ── Why not just use a chess engine? ── */}
       <Box component="section" sx={{ mb: 10 }}>
         <SectionHeading>Why not just use a chess engine?</SectionHeading>
-        <Typography sx={{ lineHeight: 1.9, color: "rgba(255,255,255,0.7)", mb: 2 }}>
-          Stockfish can tell you the best move in any position. What it cannot do is explain why
-          the move is best, what theme you missed, or how to avoid the same mistake next time.
+        <Typography
+          sx={{ lineHeight: 1.9, color: "rgba(255,255,255,0.7)", mb: 2 }}
+        >
+          Stockfish can tell you the best move in any position. What it cannot
+          do is explain why the move is best, what theme you missed, or how to
+          avoid the same mistake next time.
         </Typography>
         <Typography sx={{ lineHeight: 1.9, color: "rgba(255,255,255,0.7)" }}>
-          A chess engine is a calculator. Chess Masti AI is a calculator with a teacher attached.
-          The engine provides the ground truth; the AI coach translates it into something you can
-          act on. And because the coach reads Stockfish output before explaining it, the
-          explanations stay accurate.
+          A chess engine is a calculator. Chess Masti AI is a calculator with a
+          teacher attached. The engine provides the ground truth; the AI coach
+          translates it into something you can act on. And because the coach
+          reads Stockfish output before explaining it, the explanations stay
+          accurate.
         </Typography>
       </Box>
 
       {/* ── Comparison ── */}
       <Box component="section" sx={{ mb: 10 }}>
-        <SectionHeading>Chess Masti AI vs other free chess analysis tools</SectionHeading>
+        <SectionHeading>
+          Chess Masti AI vs other free chess analysis tools
+        </SectionHeading>
         <Box sx={{ overflowX: "auto" }}>
           <Box
             component="table"
@@ -280,7 +322,6 @@ export default function FreeAiChessCoachPage() {
               <tr>
                 <th>Tool</th>
                 <th>Best for</th>
-                <th>Free?</th>
                 <th>AI explanations</th>
                 <th>Training loop</th>
               </tr>
@@ -288,37 +329,35 @@ export default function FreeAiChessCoachPage() {
             <tbody>
               <tr>
                 <td>Chess Masti AI</td>
-                <td>Free full-loop coaching</td>
-                <td style={{ color: AEO_TOKENS.ember }}>✓ Generous free tier</td>
+                <td>Full-loop coaching</td>
                 <td>Claude AI</td>
                 <td>Mistake puzzles + chat</td>
               </tr>
               <tr>
                 <td>DecodeChess</td>
                 <td>Deep position explanation</td>
-                <td>Limited free tier</td>
                 <td>Yes</td>
                 <td>No</td>
               </tr>
               <tr>
                 <td>Lichess analysis</td>
                 <td>Engine evaluation</td>
-                <td>✓ Free</td>
                 <td>No</td>
                 <td>No</td>
               </tr>
               <tr>
                 <td>Noctie</td>
                 <td>Human-style sparring</td>
-                <td>Limited free tier</td>
                 <td>No</td>
                 <td>No</td>
               </tr>
             </tbody>
           </Box>
         </Box>
-        <Typography sx={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.35)", mt: 1.5 }}>
-          Competitor details verified at time of writing. Check each product&apos;s site for current pricing.
+        <Typography
+          sx={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.35)", mt: 1.5 }}
+        >
+          Competitor features were verified at time of writing and may change.
         </Typography>
       </Box>
 
@@ -334,7 +373,13 @@ export default function FreeAiChessCoachPage() {
               >
                 {item.q}
               </Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.65)", fontSize: "0.9rem", lineHeight: 1.8 }}>
+              <Typography
+                sx={{
+                  color: "rgba(255,255,255,0.65)",
+                  fontSize: "0.9rem",
+                  lineHeight: 1.8,
+                }}
+              >
                 {item.a}
               </Typography>
             </Box>
@@ -351,15 +396,27 @@ export default function FreeAiChessCoachPage() {
         }}
       >
         <Typography
-          sx={{ fontWeight: 700, color: "#fff", fontSize: { xs: "1.25rem", md: "1.5rem" }, mb: 1 }}
+          sx={{
+            fontWeight: 700,
+            color: "#fff",
+            fontSize: { xs: "1.25rem", md: "1.5rem" },
+            mb: 1,
+          }}
         >
           Try the free AI chess coach
         </Typography>
         <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 3 }}>
-          Paste a PGN or FEN. No account required to start, and a free 7-day Premium trial when
-          you want unlimited coaching.
+          Paste a PGN or FEN and start learning. Chess Masti&apos;s coaching
+          features are free.
         </Typography>
-        <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            justifyContent: "center",
+            flexWrap: "wrap",
+          }}
+        >
           <CtaButton href="/analysis" primary>
             Analyze a game
           </CtaButton>

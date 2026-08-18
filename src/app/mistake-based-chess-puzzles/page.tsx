@@ -20,7 +20,9 @@ const URL = "https://chessmasti.com/mistake-based-chess-puzzles";
 const HERE = "Mistake-Based Chess Puzzles";
 
 export const metadata: Metadata = {
-  title: { absolute: "Mistake-Based Chess Puzzles | Free Puzzles from Your Own Games" },
+  title: {
+    absolute: "Mistake-Based Chess Puzzles | Free Puzzles from Your Own Games",
+  },
   description:
     "Mistake-based chess puzzles are drills generated from positions you actually got wrong. Chess Masti AI turns your blunders into puzzles automatically, free.",
   alternates: { canonical: URL },
@@ -34,7 +36,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Mistake-Based Chess Puzzles | Chess Masti AI",
-    description: "Free chess puzzles generated from the positions you keep losing.",
+    description:
+      "Free chess puzzles generated from the positions you keep losing.",
     images: ["/og/free-ai-chess-coach"],
   },
 };
@@ -87,11 +90,12 @@ export default function MistakeBasedChessPuzzlesPage() {
       <H1>Mistake-Based Chess Puzzles</H1>
 
       <AnswerBlock>
-        Mistake-based chess puzzles are drills generated from the positions you actually got wrong
-        in your own games — not a random corpus. Chess Masti AI automatically converts your
-        biggest blunders into puzzles, then matches them against a 100,000-puzzle Neo4j graph by
-        49-dimensional FEN cosine similarity so you drill the geometry of your specific mistake,
-        not a generic theme bucket. Free, engine-validated, no subscription.
+        Mistake-based chess puzzles are drills generated from the positions you
+        actually got wrong in your own games — not a random corpus. Chess Masti
+        AI automatically converts your biggest blunders into puzzles, then
+        matches them against a 100,000-puzzle Neo4j graph by 49-dimensional FEN
+        cosine similarity so you drill the geometry of your specific mistake,
+        not a generic theme bucket. Free and engine-validated.
       </AnswerBlock>
 
       <CtaRow>
@@ -102,17 +106,20 @@ export default function MistakeBasedChessPuzzlesPage() {
       </CtaRow>
 
       <Box component="section" sx={{ mb: 10 }}>
-        <SectionHeading>Why mistake-based puzzles work better than random ones</SectionHeading>
+        <SectionHeading>
+          Why mistake-based puzzles work better than random ones
+        </SectionHeading>
         <ProseBlock>
-          Standard puzzle apps give you a randomized sequence: a back-rank mate from someone
-          else&apos;s game, a Russian endgame from 1985. The patterns are real but they aren&apos;t
-          your patterns. Your blunders cluster — most players lose to the same handful of mistakes
-          on repeat.
+          Standard puzzle apps give you a randomized sequence: a back-rank mate
+          from someone else&apos;s game, a Russian endgame from 1985. The
+          patterns are real but they aren&apos;t your patterns. Your blunders
+          cluster — most players lose to the same handful of mistakes on repeat.
         </ProseBlock>
         <ProseBlock>
-          Drilling the position your brain just failed to see is the highest-leverage repetition
-          you can do, because the pattern is fresh and the mistake is yours. Drilling random
-          tactics from someone else&apos;s corpus is fine; drilling your own is faster.
+          Drilling the position your brain just failed to see is the
+          highest-leverage repetition you can do, because the pattern is fresh
+          and the mistake is yours. Drilling random tactics from someone
+          else&apos;s corpus is fine; drilling your own is faster.
         </ProseBlock>
       </Box>
 
@@ -141,7 +148,15 @@ export default function MistakeBasedChessPuzzlesPage() {
               desc: "Puzzles render directly inside the coaching message — same chat bubble, same chess board. No tab switch, no flow break. Solve, miss, solve again. The SM-2 spaced-repetition scheduler files the position away for later review.",
             },
           ].map((step) => (
-            <Box key={step.n} sx={{ ...glassCard, display: "flex", gap: 3, alignItems: "flex-start" }}>
+            <Box
+              key={step.n}
+              sx={{
+                ...glassCard,
+                display: "flex",
+                gap: 3,
+                alignItems: "flex-start",
+              }}
+            >
               <Box
                 sx={{
                   flexShrink: 0,
@@ -161,8 +176,16 @@ export default function MistakeBasedChessPuzzlesPage() {
                 {step.n}
               </Box>
               <Box>
-                <Typography sx={{ fontWeight: 700, color: "#fff", mb: 0.5 }}>{step.title}</Typography>
-                <Typography sx={{ color: "rgba(255,255,255,0.65)", fontSize: "0.9rem", lineHeight: 1.8 }}>
+                <Typography sx={{ fontWeight: 700, color: "#fff", mb: 0.5 }}>
+                  {step.title}
+                </Typography>
+                <Typography
+                  sx={{
+                    color: "rgba(255,255,255,0.65)",
+                    fontSize: "0.9rem",
+                    lineHeight: 1.8,
+                  }}
+                >
                   {step.desc}
                 </Typography>
               </Box>
@@ -174,15 +197,17 @@ export default function MistakeBasedChessPuzzlesPage() {
       <Box component="section" sx={{ mb: 10 }}>
         <SectionHeading>What this is not</SectionHeading>
         <ProseBlock>
-          This is not a replacement for tactics training on a curated set. Chess Masti&apos;s
-          mistake-puzzle set is built from your real games — if you only play 10 games a month,
-          you only have 10 games&apos; worth of mistakes to drill. For raw volume, pair it with
-          Lichess puzzles, Chessable, or Chess Tempo.
+          This is not a replacement for tactics training on a curated set. Chess
+          Masti&apos;s mistake-puzzle set is built from your real games — if you
+          only play 10 games a month, you only have 10 games&apos; worth of
+          mistakes to drill. For raw volume, pair it with Lichess puzzles,
+          Chessable, or Chess Tempo.
         </ProseBlock>
         <ProseBlock>
-          Also worth flagging: not every mistake makes a clean puzzle. Strategic errors and
-          positional drift don&apos;t convert to single-solution drills the way tactical blunders
-          do. The puzzle generator skips those (correctly).
+          Also worth flagging: not every mistake makes a clean puzzle. Strategic
+          errors and positional drift don&apos;t convert to single-solution
+          drills the way tactical blunders do. The puzzle generator skips those
+          (correctly).
         </ProseBlock>
       </Box>
 

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -16,7 +10,6 @@ import {
   Typography,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import { triggerPaywall } from "@/contexts/PaywallDialogContext";
 import { ArrowUp, RotateCcw, Sparkles, Target } from "lucide-react";
 import { Chess } from "chess.js";
 import {
@@ -237,9 +230,6 @@ export function PuzzleCoachPanel({
             userMessage: turnIndex >= 1 ? userMessage : undefined,
           }),
         });
-        if (resp.status === 402) {
-          triggerPaywall({ feature: "puzzle coach", reason: "quota_exhausted" });
-        }
         if (!resp.ok || !resp.body) {
           throw new Error(`puzzle-chat HTTP ${resp.status}`);
         }
@@ -260,7 +250,11 @@ export function PuzzleCoachPanel({
           }
           if (activePuzzleIdRef.current !== capturedPuzzleId) {
             // Puzzle changed mid-stream — drop the rest.
-            try { reader.cancel(); } catch { /* ignore */ }
+            try {
+              reader.cancel();
+            } catch {
+              /* ignore */
+            }
             break;
           }
           buffer += decoder.decode(value, { stream: true });
@@ -359,7 +353,7 @@ export function PuzzleCoachPanel({
         }
       }
     },
-    [puzzle, outcome, userAttemptSan, userRating, turns],
+    [puzzle, outcome, userAttemptSan, userRating, turns]
   );
 
   /** Staged-hint pipeline call (PR-C.1 API). Appends a thinking bubble,
@@ -420,7 +414,7 @@ export function PuzzleCoachPanel({
           return next;
         });
         setHintsFired((prev) =>
-          prev.includes(stage) ? prev : [...prev, stage],
+          prev.includes(stage) ? prev : [...prev, stage]
         );
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return;
@@ -444,7 +438,7 @@ export function PuzzleCoachPanel({
         }
       }
     },
-    [hintLoading, puzzle, userAttemptSan, userRating],
+    [hintLoading, puzzle, userAttemptSan, userRating]
   );
 
   // Auto-fire on outcome change:
@@ -467,16 +461,22 @@ export function PuzzleCoachPanel({
     const trimmed = input.trim();
     if (!trimmed || streaming) return;
     setInput("");
-    fireTurn(turns.filter((t) => t.role !== "coach" || t.content).length + 1, trimmed);
+    fireTurn(
+      turns.filter((t) => t.role !== "coach" || t.content).length + 1,
+      trimmed
+    );
   }, [input, streaming, turns, fireTurn]);
 
   const handleSuggestion = useCallback(
     (s: string) => {
       if (streaming) return;
       setInput("");
-      fireTurn(turns.filter((t) => t.role !== "coach" || t.content).length + 1, s);
+      fireTurn(
+        turns.filter((t) => t.role !== "coach" || t.content).length + 1,
+        s
+      );
     },
-    [streaming, turns, fireTurn],
+    [streaming, turns, fireTurn]
   );
 
   return (
@@ -544,7 +544,9 @@ export function PuzzleCoachPanel({
           >
             #{puzzle.id}
             {puzzle.rating ? ` · ${puzzle.rating}` : ""}
-            {puzzle.themes.length > 0 ? ` · ${puzzle.themes.slice(0, 2).join(", ")}` : ""}
+            {puzzle.themes.length > 0
+              ? ` · ${puzzle.themes.slice(0, 2).join(", ")}`
+              : ""}
           </Typography>
         </Box>
         {onResetPuzzle && (
@@ -616,8 +618,8 @@ export function PuzzleCoachPanel({
                 maxWidth: 280,
               }}
             >
-              I&apos;ll explain the reasoning the moment you solve it — or
-              get stuck. Ask me anything about this position.
+              I&apos;ll explain the reasoning the moment you solve it — or get
+              stuck. Ask me anything about this position.
             </Typography>
           </Box>
         )}

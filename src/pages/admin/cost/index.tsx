@@ -27,12 +27,20 @@ import { Loader } from "@/components/ui/Loader";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useViewer } from "@/hooks/useViewer";
 import { INTERN_THEME_COLOR_DARK } from "@/constants";
-import type { LLMStatsSnapshot, LLMModelTotals } from "@/lib/llmStatsAggregator";
+import type {
+  LLMStatsSnapshot,
+  LLMModelTotals,
+} from "@/lib/llmStatsAggregator";
 import {
   estimateBaselineCostUSD,
   estimateCostUSD,
   getPricing,
 } from "@/lib/llmPricing";
+import {
+  parseProviderHealthResult,
+  type ProviderHealth,
+  type ProviderHealthResult,
+} from "@/lib/admin/providerHealth";
 
 const AUTO_REFRESH_INTERVAL_MS = 10_000;
 
@@ -44,21 +52,7 @@ interface StatsResponse {
 // Subset of /api/health/llm's response we actually render. Loose typing
 // because that endpoint isn't versioned and we'd rather degrade
 // gracefully than blow up on a future field rename.
-interface ProviderHealth {
-  ok: boolean;
-  provider: string;
-  model?: string;
-  elapsedMs?: number;
-  error?: string;
-  status?: number;
-}
-interface HealthResult {
-  ok: boolean;
-  livePath: string;
-  anthropic: ProviderHealth;
-  openai: ProviderHealth;
-  fetchedAt: number;
-}
+type HealthResult = ProviderHealthResult & { fetchedAt: number };
 
 interface ModelRow {
   model: string;
@@ -127,11 +121,19 @@ export default function AdminCost() {
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch("/api/health/llm", { credentials: "include" });
-      const body = (await res.json()) as Omit<HealthResult, "fetchedAt">;
-      setTestResult({ ...body, fetchedAt: Date.now() });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const res = await fetch("/api/health/llm", {
+        method: "POST",
+        credentials: "include",
+      });
+      const body: unknown = await res.json().catch(() => null);
+      const result = parseProviderHealthResult(body);
+      if (!result) {
+        setError(`Provider check unavailable (${res.status}).`);
+        return;
+      }
+      setTestResult({ ...result, fetchedAt: Date.now() });
+    } catch {
+      setError("Provider check unavailable. Please try again.");
     } finally {
       setTesting(false);
     }
@@ -142,7 +144,7 @@ export default function AdminCost() {
   // from a known t=0 instead of "since last cold start hours ago."
   const handleReset = async () => {
     const confirmed = window.confirm(
-      "Reset LLM stats? This wipes the in-memory counters on this Vercel instance. Process-scoped: only this instance is cleared.",
+      "Reset LLM stats? This wipes the in-memory counters on this Vercel instance. Process-scoped: only this instance is cleared."
     );
     if (!confirmed) return;
     setResetting(true);
@@ -184,7 +186,9 @@ export default function AdminCost() {
     fetch("/api/admin/llm-stats", { credentials: "include" })
       .then(async (res) => {
         if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
           throw new Error(body.error ?? `Stats request failed (${res.status})`);
         }
         return res.json() as Promise<StatsResponse>;
@@ -228,7 +232,7 @@ export default function AdminCost() {
             cacheReadTokens: totals.cacheReadTokens,
           }),
         };
-      },
+      }
     );
     return rows.sort((a, b) => (b.costUSD ?? 0) - (a.costUSD ?? 0));
   }, [data]);
@@ -251,7 +255,7 @@ export default function AdminCost() {
 
   const hasUnpricedModel = useMemo(
     () => modelRows.some((r) => r.costUSD === null),
-    [modelRows],
+    [modelRows]
   );
 
   if (viewerLoading) {
@@ -296,7 +300,10 @@ export default function AdminCost() {
                 fontSize: "0.7rem",
               }}
             />
-            <Typography variant="caption" sx={{ letterSpacing: "0.04em", color: "text.secondary" }}>
+            <Typography
+              variant="caption"
+              sx={{ letterSpacing: "0.04em", color: "text.secondary" }}
+            >
               CHESS MASTI · INTERNAL
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
@@ -351,14 +358,22 @@ export default function AdminCost() {
           </Stack>
 
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, color: INTERN_THEME_COLOR_DARK }}>
+            <Typography
+              variant="h4"
+              sx={{ fontWeight: 700, color: INTERN_THEME_COLOR_DARK }}
+            >
               LLM cost &amp; cache
             </Typography>
-            <Typography variant="body2" sx={{ mt: 1, color: "text.secondary", maxWidth: 760 }}>
+            <Typography
+              variant="body2"
+              sx={{ mt: 1, color: "text.secondary", maxWidth: 760 }}
+            >
               Live readout of <code>/api/admin/llm-stats</code> — the in-memory
               aggregator that records every <code>callLLM()</code> result. Costs
               are estimated from each model&apos;s public list price.{" "}
-              <strong>Process-scoped: resets on every Vercel cold start.</strong>{" "}
+              <strong>
+                Process-scoped: resets on every Vercel cold start.
+              </strong>{" "}
               Use as a directional signal, not a ledger.
             </Typography>
           </Box>
@@ -386,12 +401,20 @@ export default function AdminCost() {
                   direction={{ xs: "column", sm: "row" }}
                   spacing={{ xs: 1, sm: 3 }}
                 >
-                  <ProviderHealthBadge label="Anthropic" health={testResult.anthropic} />
-                  <ProviderHealthBadge label="OpenAI" health={testResult.openai} />
+                  <ProviderHealthBadge
+                    label="Anthropic"
+                    health={testResult.providers.anthropic}
+                  />
+                  <ProviderHealthBadge
+                    label="OpenAI"
+                    health={testResult.providers.openai}
+                  />
                 </Stack>
                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                  Live path: <strong>{testResult.livePath}</strong> ·{" "}
-                  {new Date(testResult.fetchedAt).toLocaleTimeString()}
+                  {testResult.ok
+                    ? "At least one provider is available"
+                    : "Providers unavailable"}{" "}
+                  · {new Date(testResult.fetchedAt).toLocaleTimeString()}
                 </Typography>
               </Stack>
             </Paper>
@@ -399,9 +422,21 @@ export default function AdminCost() {
 
           {!data && !error && (
             <Stack spacing={1.5}>
-              <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 2 }} />
-              <Skeleton variant="rectangular" height={64} sx={{ borderRadius: 1 }} />
-              <Skeleton variant="rectangular" height={64} sx={{ borderRadius: 1 }} />
+              <Skeleton
+                variant="rectangular"
+                height={120}
+                sx={{ borderRadius: 2 }}
+              />
+              <Skeleton
+                variant="rectangular"
+                height={64}
+                sx={{ borderRadius: 1 }}
+              />
+              <Skeleton
+                variant="rectangular"
+                height={64}
+                sx={{ borderRadius: 1 }}
+              />
             </Stack>
           )}
 
@@ -450,7 +485,11 @@ export default function AdminCost() {
                 />
                 <StatTile
                   label="Uptime"
-                  value={snapshot.totals.callCount > 0 ? formatDuration(uptimeMs) : "—"}
+                  value={
+                    snapshot.totals.callCount > 0
+                      ? formatDuration(uptimeMs)
+                      : "—"
+                  }
                   caption={`Last call ${relativeTime(snapshot.lastCallAt)}`}
                 />
               </Stack>
@@ -478,7 +517,9 @@ export default function AdminCost() {
                 />
                 <StatTile
                   label="Hourly burn @ this rate"
-                  value={burnPerHourUSD > 0 ? `${formatUSD(burnPerHourUSD)}/hr` : "—"}
+                  value={
+                    burnPerHourUSD > 0 ? `${formatUSD(burnPerHourUSD)}/hr` : "—"
+                  }
                   caption={
                     burnPerHourUSD > 0
                       ? `~${formatUSD(burnPerHourUSD * 24)}/day if traffic holds`
@@ -497,18 +538,22 @@ export default function AdminCost() {
                       ? `Last: ${relativeTime(snapshot.lastFallback.at)} · status ${snapshot.lastFallback.status ?? "?"}`
                       : "No fallbacks this instance"
                   }
-                  accent={
-                    snapshot.fallbackCount > 0 ? "#C62828" : undefined
-                  }
+                  accent={snapshot.fallbackCount > 0 ? "#C62828" : undefined}
                 />
               </Stack>
 
               {/* Per-model breakdown */}
               <Box>
-                <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
+                <Typography
+                  variant="overline"
+                  sx={{ color: "text.secondary", letterSpacing: "0.06em" }}
+                >
                   Per-model breakdown
                 </Typography>
-                <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden", mt: 1.5 }}>
+                <Paper
+                  variant="outlined"
+                  sx={{ borderRadius: 2, overflow: "hidden", mt: 1.5 }}
+                >
                   <TableContainer>
                     <Table size="small">
                       <TableHead>
@@ -546,27 +591,43 @@ export default function AdminCost() {
                             <TableRow key={row.model} hover>
                               <TableCell>
                                 <Stack spacing={0.25}>
-                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  <Typography
+                                    variant="body2"
+                                    sx={{ fontWeight: 600 }}
+                                  >
                                     {row.displayName}
                                   </Typography>
                                   <Typography
                                     variant="caption"
-                                    sx={{ fontFamily: "monospace", color: "text.secondary" }}
+                                    sx={{
+                                      fontFamily: "monospace",
+                                      color: "text.secondary",
+                                    }}
                                   >
                                     {row.model} · {row.provider}
                                   </Typography>
                                 </Stack>
                               </TableCell>
-                              <TableCell align="right">{formatNumber(row.totals.callCount)}</TableCell>
-                              <TableCell align="right">{formatTokens(row.totals.inputTokens)}</TableCell>
-                              <TableCell align="right">{formatTokens(row.totals.outputTokens)}</TableCell>
                               <TableCell align="right">
-                                {row.totals.cacheReadTokens + row.totals.cacheCreationTokens > 0
+                                {formatNumber(row.totals.callCount)}
+                              </TableCell>
+                              <TableCell align="right">
+                                {formatTokens(row.totals.inputTokens)}
+                              </TableCell>
+                              <TableCell align="right">
+                                {formatTokens(row.totals.outputTokens)}
+                              </TableCell>
+                              <TableCell align="right">
+                                {row.totals.cacheReadTokens +
+                                  row.totals.cacheCreationTokens >
+                                0
                                   ? `${formatTokens(row.totals.cacheReadTokens)} / ${formatTokens(row.totals.cacheCreationTokens)}`
                                   : "—"}
                               </TableCell>
                               <TableCell align="right">
-                                {row.totals.callCount > 0 ? formatDuration(avgMs) : "—"}
+                                {row.totals.callCount > 0
+                                  ? formatDuration(avgMs)
+                                  : "—"}
                               </TableCell>
                               <TableCell align="right" sx={{ fontWeight: 600 }}>
                                 {row.costUSD === null ? (
@@ -585,7 +646,11 @@ export default function AdminCost() {
                             <TableCell colSpan={7}>
                               <Typography
                                 variant="body2"
-                                sx={{ textAlign: "center", color: "text.secondary", py: 3 }}
+                                sx={{
+                                  textAlign: "center",
+                                  color: "text.secondary",
+                                  py: 3,
+                                }}
                               >
                                 No LLM calls recorded on this instance yet. Hit{" "}
                                 <code>/analysis</code> to see numbers populate.
@@ -597,25 +662,47 @@ export default function AdminCost() {
                     </Table>
                   </TableContainer>
                   <Divider />
-                  <Box sx={{ p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                      {modelRows.length} model{modelRows.length === 1 ? "" : "s"} · since{" "}
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "text.secondary" }}
+                    >
+                      {modelRows.length} model
+                      {modelRows.length === 1 ? "" : "s"} · since{" "}
                       {new Date(snapshot.startedAt).toLocaleString()}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                      Generated {new Date(data!.notes.generatedAt).toLocaleTimeString()}
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "text.secondary" }}
+                    >
+                      Generated{" "}
+                      {new Date(data!.notes.generatedAt).toLocaleTimeString()}
                     </Typography>
                   </Box>
                 </Paper>
               </Box>
 
               {/* Caveats */}
-              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, backgroundColor: "action.hover" }}>
-                <Typography variant="caption" sx={{ color: "text.secondary", display: "block" }}>
+              <Paper
+                variant="outlined"
+                sx={{ p: 2, borderRadius: 2, backgroundColor: "action.hover" }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{ color: "text.secondary", display: "block" }}
+                >
                   <strong>Caveats.</strong> The aggregator is in-memory and{" "}
-                  <code>{data!.notes.scope}</code>. At present low traffic this is fine; at
-                  scale we&apos;d back it with Upstash. Cost is computed from public list
-                  prices in <code>src/lib/llmPricing.ts</code> — update that file when a
+                  <code>{data!.notes.scope}</code>. At present low traffic this
+                  is fine; at scale we&apos;d back it with Upstash. Cost is
+                  computed from public list prices in{" "}
+                  <code>src/lib/llmPricing.ts</code> — update that file when a
                   vendor changes their published rates.
                 </Typography>
               </Paper>
@@ -644,7 +731,11 @@ function StatTile({
     <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
       <Typography
         variant="overline"
-        sx={{ color: "text.secondary", letterSpacing: "0.06em", fontSize: "0.65rem" }}
+        sx={{
+          color: "text.secondary",
+          letterSpacing: "0.06em",
+          fontSize: "0.65rem",
+        }}
       >
         {label}
       </Typography>
@@ -674,7 +765,10 @@ function StatTile({
           }}
         />
       )}
-      <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 1 }}>
+      <Typography
+        variant="caption"
+        sx={{ color: "text.secondary", display: "block", mt: 1 }}
+      >
         {caption}
       </Typography>
     </Paper>
@@ -712,15 +806,6 @@ function ProviderHealthBadge({
       <Stack spacing={0} sx={{ minWidth: 0 }}>
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
           {label}
-          {health.ok && health.elapsedMs !== undefined && (
-            <Typography
-              component="span"
-              variant="caption"
-              sx={{ ml: 1, color: "text.secondary" }}
-            >
-              {health.elapsedMs}ms
-            </Typography>
-          )}
         </Typography>
         <Typography
           variant="caption"
@@ -730,9 +815,7 @@ function ProviderHealthBadge({
             fontSize: "0.7rem",
           }}
         >
-          {health.ok
-            ? health.model ?? "ok"
-            : `${health.status ?? "?"} · ${(health.error ?? "").slice(0, 60)}`}
+          {health.ok ? "available" : "unavailable"}
         </Typography>
       </Stack>
     </Stack>

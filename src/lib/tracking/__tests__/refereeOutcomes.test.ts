@@ -53,8 +53,6 @@ const review: ShadowRefereeReview = {
 
 const ctx: RefereeOutcomeContext = {
   consent: true,
-  uid: "u1",
-  anonId: "anon_1",
   isIntern: false,
   requestId: "req1",
   category: "game_review",
@@ -73,13 +71,15 @@ beforeEach(() => {
 describe("recordRefereeOutcome: gating", () => {
   it("no-ops when TRACKING_ENABLED is off — no client, no throw", async () => {
     mockEnv.mockReturnValue({ enabled: false } as never);
-    await expect(recordRefereeOutcome({ review, ctx })).resolves.toBeUndefined();
+    await expect(
+      recordRefereeOutcome({ review, ctx })
+    ).resolves.toBeUndefined();
     expect(mockGetClient).not.toHaveBeenCalled();
   });
 
   it("no-ops without consent, even with tracking on", async () => {
     await expect(
-      recordRefereeOutcome({ review, ctx: { ...ctx, consent: false } }),
+      recordRefereeOutcome({ review, ctx: { ...ctx, consent: false } })
     ).resolves.toBeUndefined();
     expect(mockGetClient).not.toHaveBeenCalled();
   });
@@ -94,15 +94,13 @@ describe("recordRefereeOutcome: gating", () => {
 });
 
 describe("recordRefereeOutcome: row shape", () => {
-  it("maps the summary, the would-be-enforced counts, and the spans", async () => {
+  it("maps aggregate summary data without conversation content or identifiers", async () => {
     const fk = fakeClient({ error: null });
     mockGetClient.mockResolvedValue(fk.client);
     await recordRefereeOutcome({ review, ctx });
 
     const row = fk.insert.mock.calls[0][0];
     expect(row).toMatchObject({
-      uid: "u1",
-      anon_id: "anon_1",
       is_intern: false,
       request_id: "req1",
       contract_id: "ct_abc",
@@ -129,27 +127,21 @@ describe("recordRefereeOutcome: row shape", () => {
       p95_hold_ms: 3,
       relational_launched: 4,
     });
-    expect(row.spans).toHaveLength(1);
-    expect(row.spans[0]).toMatchObject({
-      check: "tactical_keyword",
-      armed: "error",
-      span: "forking the bishop on e7",
-      sentence: "The knight lands on e6, forking the bishop on e7.",
-      factIdPrefix: "M1",
-    });
+    expect(row.spans).toEqual([]);
+    expect(row).not.toHaveProperty("uid");
+    expect(row).not.toHaveProperty("anon_id");
+    expect(JSON.stringify(row)).not.toContain("forking the bishop");
     // Stamped so a re-arming can't silently mix two populations.
     expect(row.arming_fingerprint).toBe(armingFingerprint());
     expect(row.arming_fingerprint).toMatch(/^[0-9a-f]{12}$/);
   });
 
-  it("defaults optional identity fields to null / false", async () => {
+  it("defaults optional operational fields to null / false", async () => {
     const fk = fakeClient({ error: null });
     mockGetClient.mockResolvedValue(fk.client);
     await recordRefereeOutcome({ review, ctx: { consent: true } });
     const row = fk.insert.mock.calls[0][0];
     expect(row).toMatchObject({
-      uid: null,
-      anon_id: null,
       is_intern: false,
       request_id: null,
       category: null,
@@ -157,12 +149,21 @@ describe("recordRefereeOutcome: row shape", () => {
     });
   });
 
-  it("stores no identifier beyond uid / anon_id", async () => {
+  it("stores no user, anonymous, network, or session identifiers", async () => {
     const fk = fakeClient({ error: null });
     mockGetClient.mockResolvedValue(fk.client);
     await recordRefereeOutcome({ review, ctx });
     const keys = Object.keys(fk.insert.mock.calls[0][0]);
-    for (const forbidden of ["ip_hash", "ip", "user_agent", "referrer", "session_id", "email"]) {
+    for (const forbidden of [
+      "uid",
+      "anon_id",
+      "ip_hash",
+      "ip",
+      "user_agent",
+      "referrer",
+      "session_id",
+      "email",
+    ]) {
       expect(keys).not.toContain(forbidden);
     }
   });
@@ -170,13 +171,19 @@ describe("recordRefereeOutcome: row shape", () => {
 
 describe("recordRefereeOutcome: never breaks the stream", () => {
   it("swallows an insert error", async () => {
-    mockGetClient.mockResolvedValue(fakeClient({ error: { message: "db boom" } }).client);
-    await expect(recordRefereeOutcome({ review, ctx })).resolves.toBeUndefined();
+    mockGetClient.mockResolvedValue(
+      fakeClient({ error: { message: "db boom" } }).client
+    );
+    await expect(
+      recordRefereeOutcome({ review, ctx })
+    ).resolves.toBeUndefined();
   });
 
   it("swallows a thrown client", async () => {
     mockGetClient.mockRejectedValue(new Error("supabase down"));
-    await expect(recordRefereeOutcome({ review, ctx })).resolves.toBeUndefined();
+    await expect(
+      recordRefereeOutcome({ review, ctx })
+    ).resolves.toBeUndefined();
   });
 });
 

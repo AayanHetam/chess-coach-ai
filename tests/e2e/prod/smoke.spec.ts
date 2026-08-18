@@ -2,8 +2,18 @@ import { test, expect } from "@playwright/test";
 import { bodyLuminance } from "../helpers";
 
 /**
- * Read-only production smoke (nightly heartbeat + manual). Never creates or
- * mutates data: bad-credential signin, redirect handoffs, health endpoints.
+ * Read-only production smoke. Never creates or mutates data: bad-credential
+ * signin, redirect handoffs, health endpoints.
+ *
+ * RUNS DAILY via .github/workflows/prod-smoke.yml, plus on demand. It said
+ * "nightly heartbeat + manual" for eight days while running in NO workflow at
+ * all — the heartbeat is curl-only and never invoked Playwright. That is how
+ * PR #332's copy change sat here red against a healthy site, found by hand.
+ *
+ * Keep the cheap assertions in the heartbeat, which runs hourly for free.
+ * What belongs HERE is only what needs a browser: that pages render, and that
+ * errors reach the screen.
+ *
  * Run with: E2E_NO_SERVER=1 npx playwright test --project=prod-smoke
  */
 
@@ -29,13 +39,23 @@ test("prod signin surfaces a clear error for bad credentials", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /sign in/i }).first().click();
-  await page.getByLabel("Email").fill("heartbeat-probe@example.com");
+  await page
+    .getByRole("button", { name: /sign in/i })
+    .first()
+    .click();
+  await page
+    .getByLabel(/handle or email|^email$/i)
+    .fill("heartbeat-probe@example.com");
   await page.getByLabel("Password").fill("definitely-wrong-1!");
   await page.getByRole("button", { name: /^sign in$/i }).click();
-  await expect(page.getByText(/invalid email or password/i)).toBeVisible({
-    timeout: 15_000,
-  });
+  // Wording tolerant on purpose. PR #332 changed this copy to "Invalid handle,
+  // email or password." and left this spec asserting the old string — the
+  // hourly heartbeat runs prod-smoke, so it went red against a healthy site.
+  // What the probe actually cares about is that ONE generic rejection comes
+  // back (no enumeration oracle), not the exact sentence.
+  await expect(
+    page.getByText(/invalid (handle, )?email or password/i)
+  ).toBeVisible({ timeout: 15_000 });
 });
 
 test("prod Google OAuth start hands off to Google", async ({ request }) => {
@@ -51,11 +71,17 @@ test("prod signup API enforces the age affirmation", async ({ request }) => {
     data: {
       email: "heartbeat-probe@example.com",
       password: "Longenough1!pass",
+      // Everything else valid, so this probes the AGE GATE and not whichever
+      // required field happens to be declared first. Handles became mandatory
+      // at signup after this test was written.
+      handle: "heartbeatprobe",
     },
   });
   expect(res.status()).toBe(400);
   const body = await res.json();
-  expect(body.error).toMatch(/date of birth/i);
+  // Matches the age-affirmation message on both sides of a deploy: the old
+  // copy said "date of birth", the current copy says "13 or older".
+  expect(body.error).toMatch(/confirm.*to sign up/i);
 });
 
 test("prod config health reports no missing env", async ({ request }) => {

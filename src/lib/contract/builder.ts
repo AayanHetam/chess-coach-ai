@@ -52,8 +52,9 @@ import {
   uciToSan,
 } from "./chessFormat";
 import { computeEvalIntegrity } from "./gameEvalSchema";
+import { isComparableDepthPair, requestedDepth } from "./evalDepth";
 import type { GameEvalInput, GameHeadersInput, PositionEvalInput } from "./gameEvalSchema";
-import { selectInsights } from "./selectInsights";
+import { flattenEval, selectInsights } from "./selectInsights";
 import {
   CONTRACT_VERSION,
   type BranchPointFact,
@@ -258,6 +259,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
   const hasGameEval = !!(positions && positions.length > 0);
 
   const evalIntegrity = computeEvalIntegrity(gameEval, moveHistory, replayedPlies);
+  const declaredDepth = requestedDepth(gameEval);
   const selection = selectInsights(moveHistory, gameEval, playerColor);
 
   // --- pgnHeaders: only truthy fields, keyed by GameHeadersInput names ---
@@ -333,7 +335,16 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       fenBefore,
       fenAfter,
       changeDescription: describeMoveChange(fenBefore, moveHistory[i]),
-      classification: evalAfter?.moveClassification ?? null,
+      // T8: `moveClassification` is computed client-side from exactly the
+      // pairwise subtraction the swing scans now refuse — positions[i] vs
+      // positions[i+1] — so a pair the engine searched to two different
+      // depths yields a label with the same fabricated swing behind it.
+      // Dropping it here rather than in the renderer matters: the referee
+      // validates prose AGAINST the contract, so a label that reaches this
+      // object is one the referee will certify as backed.
+      classification: isComparableDepthPair(evalBefore, evalAfter, declaredDepth)
+        ? (evalAfter?.moveClassification ?? null)
+        : null,
       evalAfter: evalAfter?.lines?.[0] ? evalFactFromLine(evalAfter.lines[0]) : null,
       bestWas,
     });
@@ -477,16 +488,19 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     const lineFacts = buildLineFacts(topRank ? `M${topRank}` : `I${intelRank}`, fenBefore, playedSan, lines);
 
     // Mate-flattened numbers + drop, exactly as the legacy loops computed.
-    const cpBeforeFlat =
-      topCand?.cpBeforeFlat ??
-      // C6: null mate is "no mate", not a forced loss.
-      (typeof lines[0].mate === "number" ? (lines[0].mate > 0 ? 9999 : -9999) : (lines[0].cp ?? 0));
+    // The inline fallback used to read `cp ?? 0` on both sides — the same
+    // "unscored means 0.00" substitution flattenEval carried (C6 covered only
+    // the null-mate half). selectInsights now skips unscored plies, so for a
+    // selected candidate these fallbacks should never see a scoreless line;
+    // if one arrives anyway, declining the card beats inventing its eval.
+    const cpBeforeFlat = topCand?.cpBeforeFlat ?? flattenEval(lines[0]);
     const evalAfterLine = positions?.[ply + 1]?.lines?.[0];
     const cpAfterFlat =
-      topCand?.cpAfterFlat ??
-      (typeof evalAfterLine?.mate === "number"
-        ? (evalAfterLine.mate > 0 ? 9999 : -9999)
-        : (evalAfterLine?.cp ?? 0));
+      topCand?.cpAfterFlat ?? (evalAfterLine ? flattenEval(evalAfterLine) : null);
+    if (cpBeforeFlat === null || cpAfterFlat === null) {
+      log.info("contract_unscored_ply_skipped", { ply });
+      continue;
+    }
     const dropCp = cand.dropCp;
 
     // TOP MISTAKES branch point: best line vs the line starting with the

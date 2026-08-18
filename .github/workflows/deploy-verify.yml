@@ -6,6 +6,14 @@
 # workflow makes that loud: after every push to main, poll /api/version
 # until prod serves this commit (or a newer one containing it); if it never
 # does, fail the run and file a GitHub issue.
+#
+# Since 2026-08-17 it also RECOVERS from one specific cause instead of only
+# reporting it. Vercel blocks any commit whose AUTHOR is not a member of the
+# team, and Hobby teams cannot have members, so a release written by a
+# collaborator never builds at all — that is how the pricing/privacy release
+# 47aafa98 sat undeployed while prod served a commit four behind it. When we
+# see that, we deploy the commit ourselves (scripts/deploy/deploy-sha.sh) and
+# only escalate if that also fails.
 name: Deploy verify
 
 on:
@@ -15,6 +23,7 @@ on:
 permissions:
   contents: read
   issues: write
+  deployments: read
 
 jobs:
   verify-prod-deploy:
@@ -25,10 +34,14 @@ jobs:
           fetch-depth: 0
 
       - name: Wait for prod to serve this commit
+        id: wait
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           for i in $(seq 1 40); do
             SHA=$(curl -sf --max-time 10 https://www.chessmasti.com/api/version \
-              | sed -E 's/.*"sha":"([a-f0-9]+)".*/\1/') || SHA=""
+              | sed -E 's/.*"sha":"([a-zA-Z0-9]+)".*/\1/') || SHA=""
             if [ -n "$SHA" ]; then
               if [ "$SHA" = "$GITHUB_SHA" ]; then
                 echo "Prod is serving $SHA — deploy verified."
@@ -41,25 +54,71 @@ jobs:
                 exit 0
               fi
             fi
+
+            # Vercel marks the GitHub deployment failed within about a second
+            # when it refuses to build ("Deployment was blocked"). Waiting out
+            # the full 20 minutes for a build that will never start just burns
+            # Actions minutes, so bail to recovery as soon as we see it. Only
+            # a terminal state counts — a slow build is still in_progress.
+            # Production only: a preview deployment for the same SHA can fail
+            # independently, and that must not be mistaken for prod refusing
+            # to build.
+            BLOCKED=$(gh api "repos/$GITHUB_REPOSITORY/deployments?sha=$GITHUB_SHA" \
+              --jq '.[] | select(.environment=="Production") | .id' 2>/dev/null | while read -r id; do
+                gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" \
+                  --jq '.[] | select(.state=="failure" or .state=="error") | .description' 2>/dev/null
+              done | head -1)
+            if [ -n "$BLOCKED" ]; then
+              echo "Vercel refused this commit: $BLOCKED"
+              echo "reason=$BLOCKED" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
+
             echo "attempt $i/40: prod serves '${SHA:-unreachable}', waiting..."
             sleep 30
           done
           echo "::error::Prod never served $GITHUB_SHA within 20 minutes — the Vercel deploy likely FAILED. Prod is frozen at ${SHA:-unknown}."
           exit 1
 
+      # Deploys the commit with no git metadata attached, which is the only
+      # thing Vercel objected to. Inert until VERCEL_TOKEN exists, so adding
+      # this workflow cannot change behaviour on its own.
+      - name: Recover — deploy this commit without git metadata
+        id: recover
+        if: steps.wait.outcome == 'failure'
+        continue-on-error: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "::warning::VERCEL_TOKEN is not set — cannot self-heal. Add it in Settings → Secrets → Actions."
+            exit 1
+          fi
+          npm install -g vercel@latest
+          chmod +x scripts/deploy/deploy-sha.sh
+          scripts/deploy/deploy-sha.sh "$GITHUB_SHA" main
+
       - name: File issue on failure
-        if: failure()
+        if: steps.wait.outcome == 'failure' && steps.recover.outcome != 'success'
         env:
           GH_TOKEN: ${{ github.token }}
+          REASON: ${{ steps.wait.outputs.reason }}
         run: |
           EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
             --search "in:title Deploy verification failed" --json number --jq 'length')
           if [ "$EXISTING" = "0" ]; then
             BODY=$(printf '%s\n' \
-              "Push \`$GITHUB_SHA\` to main was never served by https://www.chessmasti.com/api/version within 20 minutes." \
+              "Push \`$GITHUB_SHA\` to main was never served by https://www.chessmasti.com/api/version, and the automatic recovery deploy did not fix it." \
               "" \
-              "The Vercel deployment most likely failed while CI was green (build/lint error). Prod is frozen on an older commit until this is fixed." \
+              "Vercel's reported reason: \`${REASON:-none — the build failed or timed out rather than being refused}\`" \
               "" \
+              "If that reason is \"Deployment was blocked\", the commit's AUTHOR is not a member of the Vercel team and Vercel refused to build it — nothing is wrong with the code. Recovery should have handled it, so check that \`VERCEL_TOKEN\` is set and unexpired." \
+              "" \
+              "Recover by hand with:" \
+              "" \
+              "    VERCEL_TOKEN=... scripts/deploy/deploy-sha.sh $GITHUB_SHA" \
+              "" \
+              "Otherwise the Vercel build failed while CI was green (build/lint error) and prod is frozen on an older commit." \
               "Debug: \`vercel inspect <deployment-url> --logs\` and grep for \`Error:\` (warnings are noise)." \
               "" \
               "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID")
@@ -69,3 +128,7 @@ jobs:
           else
             echo "Open deploy-failure issue already exists; not duplicating."
           fi
+
+      - name: Fail the run if prod is still not serving main
+        if: steps.wait.outcome == 'failure' && steps.recover.outcome != 'success'
+        run: exit 1

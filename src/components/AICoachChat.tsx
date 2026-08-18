@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { triggerPaywall } from "@/contexts/PaywallDialogContext";
 import {
   Box,
   Paper,
@@ -50,7 +49,11 @@ import {
   puzzleSolvedStatusAtom,
   PracticePuzzle,
 } from "@/sections/practice/states";
-import { getPuzzlesByTheme, normalizeThemeName, TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
+import {
+  getPuzzlesByTheme,
+  normalizeThemeName,
+  TACTICAL_THEMES,
+} from "@/lib/chessPuzzlesService";
 import { isExplorationModeAtom } from "@/components/board/states";
 import { selectedCoachIdAtom } from "@/atoms/coachAtoms";
 import { getPersonalityById } from "@/config/coachPersonalities";
@@ -142,7 +145,12 @@ const ConceptReinforcementStrip: React.FC<{
         bgcolor: "action.hover",
       }}
     >
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1, flexWrap: "wrap" }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        sx={{ mb: 1, flexWrap: "wrap" }}
+      >
         <Typography variant="caption" sx={{ fontWeight: 600 }}>
           Drill this idea:
         </Typography>
@@ -155,7 +163,13 @@ const ConceptReinforcementStrip: React.FC<{
           />
         ) : (
           concepts.map((c) => (
-            <Chip key={c} size="small" label={c} color="primary" variant="outlined" />
+            <Chip
+              key={c}
+              size="small"
+              label={c}
+              color="primary"
+              variant="outlined"
+            />
           ))
         )}
         {usedTheme && (
@@ -196,7 +210,9 @@ const PracticePuzzleButton: React.FC<{
   const game = useAtomValue(gameAtom);
   const userPlayerInfo = useAtomValue(userPlayerInfoAtom);
   const [loading, setLoading] = React.useState(false);
-  const [inlinePuzzles, setInlinePuzzles] = React.useState<ChessPuzzle[] | null>(null);
+  const [inlinePuzzles, setInlinePuzzles] = React.useState<
+    ChessPuzzle[] | null
+  >(null);
 
   const handleClick = async () => {
     setLoading(true);
@@ -213,7 +229,11 @@ const PracticePuzzleButton: React.FC<{
 
       // Use the CURRENT board position as the reference FEN for similarity ranking.
       const currentFen = (() => {
-        try { return game?.fen?.() ?? null; } catch { return null; }
+        try {
+          return game?.fen?.() ?? null;
+        } catch {
+          return null;
+        }
       })();
 
       // Infer user rating from headers if available
@@ -224,7 +244,9 @@ const PracticePuzzleButton: React.FC<{
           const str = color === "black" ? headers.BlackElo : headers.WhiteElo;
           const n = str ? parseInt(String(str), 10) : NaN;
           return Number.isFinite(n) ? n : 1500;
-        } catch { return 1500; }
+        } catch {
+          return 1500;
+        }
       })();
 
       // PRIMARY PATH: /api/similar-puzzles (theme match + FEN similarity re-rank)
@@ -246,20 +268,27 @@ const PracticePuzzleButton: React.FC<{
           if (resp.ok) {
             const data = await resp.json();
             if (data.puzzles && data.puzzles.length > 0) {
-              const mapped: ChessPuzzle[] = data.puzzles.slice(0, 3).map((p: any) => ({
-                id: p.puzzleId,
-                fen: p.fen,
-                moves: typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
-                rating: p.rating,
-                themes: p.themes || [],
-                solution: typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
-              }));
+              const mapped: ChessPuzzle[] = data.puzzles
+                .slice(0, 3)
+                .map((p: any) => ({
+                  id: p.puzzleId,
+                  fen: p.fen,
+                  moves:
+                    typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
+                  rating: p.rating,
+                  themes: p.themes || [],
+                  solution:
+                    typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
+                }));
               setInlinePuzzles(mapped);
               return;
             }
           }
         } catch (e) {
-          console.log("similar-puzzles failed, falling back to adaptive-puzzles:", (e as Error).message);
+          console.log(
+            "similar-puzzles failed, falling back to adaptive-puzzles:",
+            (e as Error).message
+          );
         }
       }
 
@@ -278,20 +307,26 @@ const PracticePuzzleButton: React.FC<{
         if (resp.ok) {
           const data = await resp.json();
           if (data.puzzles && data.puzzles.length > 0) {
-            const mapped: ChessPuzzle[] = data.puzzles.slice(0, 3).map((p: any) => ({
-              id: p.puzzleId,
-              fen: p.fen,
-              moves: typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
-              rating: p.rating,
-              themes: p.themes || [],
-              solution: typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
-            }));
+            const mapped: ChessPuzzle[] = data.puzzles
+              .slice(0, 3)
+              .map((p: any) => ({
+                id: p.puzzleId,
+                fen: p.fen,
+                moves:
+                  typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
+                rating: p.rating,
+                themes: p.themes || [],
+                solution:
+                  typeof p.moves === "string" ? p.moves.split(" ") : p.moves,
+              }));
             setInlinePuzzles(mapped);
             return;
           }
         }
       } catch (e) {
-        console.log("adaptive-puzzles also failed, falling back to static dataset");
+        console.log(
+          "adaptive-puzzles also failed, falling back to static dataset"
+        );
       }
 
       // TERTIARY FALLBACK: static dataset
@@ -307,7 +342,9 @@ const PracticePuzzleButton: React.FC<{
   };
 
   if (inlinePuzzles) {
-    return <InlinePuzzleSet puzzles={inlinePuzzles} displayTheme={displayTheme} />;
+    return (
+      <InlinePuzzleSet puzzles={inlinePuzzles} displayTheme={displayTheme} />
+    );
   }
 
   return (
@@ -330,12 +367,14 @@ const PracticePuzzleButton: React.FC<{
       }}
       onMouseEnter={(e) => {
         if (!loading) {
-          e.currentTarget.style.background = "linear-gradient(135deg, #43A047 0%, #1B5E20 100%)";
+          e.currentTarget.style.background =
+            "linear-gradient(135deg, #43A047 0%, #1B5E20 100%)";
           e.currentTarget.style.boxShadow = "0 3px 10px rgba(76, 175, 80, 0.4)";
         }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)";
+        e.currentTarget.style.background =
+          "linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)";
         e.currentTarget.style.boxShadow = "0 2px 6px rgba(76, 175, 80, 0.3)";
       }}
       title={`Practice ${displayTheme} puzzles`}
@@ -508,7 +547,10 @@ const ClickableMove: React.FC<{
   );
 
   // Helper: enter exploration mode by replaying game to a half-move index, then playing an alternative move
-  const enterExplorationAt = (halfMoveIdx: number, altMove: string): boolean => {
+  const enterExplorationAt = (
+    halfMoveIdx: number,
+    altMove: string
+  ): boolean => {
     try {
       const gameHistory = game.history();
       const newGame = new Chess();
@@ -519,7 +561,9 @@ const ClickableMove: React.FC<{
       // Play the alternative/recommended move
       newGame.move(altMove);
       goToMove(newGame.history().length, newGame);
-      console.log(`✅ Entered exploration mode: ${altMove} at half-move ${halfMoveIdx}`);
+      console.log(
+        `✅ Entered exploration mode: ${altMove} at half-move ${halfMoveIdx}`
+      );
       return true;
     } catch (error) {
       console.warn(`Could not enter exploration for ${altMove}:`, error);
@@ -531,11 +575,14 @@ const ClickableMove: React.FC<{
     console.log(
       `ClickableMove clicked: ${moveNumber}.${isBlackMove ? ".." : ""} ${move}`
     );
-    
+
     // Calculate the half-move index for this move number
-    let halfMoveIdx = moveNumber !== undefined
-      ? (isBlackMove ? moveNumber * 2 - 1 : (moveNumber - 1) * 2)
-      : -1;
+    let halfMoveIdx =
+      moveNumber !== undefined
+        ? isBlackMove
+          ? moveNumber * 2 - 1
+          : (moveNumber - 1) * 2
+        : -1;
 
     // Verify the turn color at the calculated position and correct if needed
     // This fixes cases where AI writes "20. Rf7" when it means "20... Rf7" (Black's move)
@@ -547,7 +594,9 @@ const ClickableMove: React.FC<{
       }
       // Check if move is legal at the calculated position
       const legalMoves = tempGame.moves();
-      const isLegalHere = legalMoves.some(m => m.replace(/[+#]/, '') === move.replace(/[+#]/, ''));
+      const isLegalHere = legalMoves.some(
+        (m) => m.replace(/[+#]/, "") === move.replace(/[+#]/, "")
+      );
       if (!isLegalHere) {
         // Try the other color's position (±1 half-move)
         const altIdx = isBlackMove ? (moveNumber - 1) * 2 : moveNumber * 2 - 1;
@@ -557,8 +606,14 @@ const ClickableMove: React.FC<{
             tempGame2.move(gameHistory[i]);
           }
           const altLegal = tempGame2.moves();
-          if (altLegal.some(m => m.replace(/[+#]/, '') === move.replace(/[+#]/, ''))) {
-            console.log(`Color correction: ${move} not legal at halfMove ${halfMoveIdx}, using ${altIdx} instead`);
+          if (
+            altLegal.some(
+              (m) => m.replace(/[+#]/, "") === move.replace(/[+#]/, "")
+            )
+          ) {
+            console.log(
+              `Color correction: ${move} not legal at halfMove ${halfMoveIdx}, using ${altIdx} instead`
+            );
             halfMoveIdx = altIdx;
           }
         }
@@ -570,7 +625,7 @@ const ClickableMove: React.FC<{
       enterExplorationAt(halfMoveIdx, move);
       return;
     }
-    
+
     try {
       const gameHistory = game.history();
 
@@ -592,9 +647,11 @@ const ClickableMove: React.FC<{
 
         // Move doesn't match at expected index — this is an alternative/engine move
         // Enter exploration mode at this specific move number's position
-        console.log(`Move "${move}" not at expected index ${targetMoveIndex}, entering exploration mode at move ${moveNumber}`);
-        if (enterExplorationAt(halfMoveIdx >= 0 ? halfMoveIdx : 0, move)) return;
-
+        console.log(
+          `Move "${move}" not at expected index ${targetMoveIndex}, entering exploration mode at move ${moveNumber}`
+        );
+        if (enterExplorationAt(halfMoveIdx >= 0 ? halfMoveIdx : 0, move))
+          return;
       } else {
         // No move number — search for the move in history (find first occurrence)
         const targetMoveIndex = gameHistory.findIndex(
@@ -640,7 +697,9 @@ const ClickableMove: React.FC<{
         fontWeight: "bold",
         padding: "1px 3px",
         borderRadius: "3px",
-        backgroundColor: isRecommended ? "rgba(46, 125, 50, 0.1)" : "rgba(33, 150, 243, 0.08)",
+        backgroundColor: isRecommended
+          ? "rgba(46, 125, 50, 0.1)"
+          : "rgba(33, 150, 243, 0.08)",
         transition: "all 0.2s ease",
       }}
       onMouseEnter={(e) => {
@@ -661,20 +720,17 @@ const ClickableMove: React.FC<{
           e.currentTarget.style.color = "#2196F3";
         }
       }}
-      title={isRecommended ? `Click to explore position after ${move}` : `Click to jump to move ${moveNumber}${isBlackMove ? "..." : "."} ${move}`}
+      title={
+        isRecommended
+          ? `Click to explore position after ${move}`
+          : `Click to jump to move ${moveNumber}${isBlackMove ? "..." : "."} ${move}`
+      }
     >
-      {isRecommended && "🔍 "}{moveNumber}.{isBlackMove ? ".." : ""} {move}
+      {isRecommended && "🔍 "}
+      {moveNumber}.{isBlackMove ? ".." : ""} {move}
     </span>
   );
 };
-
-
-
-
-
-
-
-
 
 // Helper: convert UCI PV array to SAN from a given FEN
 function uciPvToSan(fen: string, pvUci: string[]): string[] {
@@ -689,14 +745,22 @@ function uciPvToSan(fen: string, pvUci: string[]): string[] {
         const moveResult = g.move({ from, to, promotion });
         if (!moveResult) break;
         result.push(moveResult.san);
-      } catch { break; }
+      } catch {
+        break;
+      }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return result;
 }
 
 // Helper: format SAN array as numbered move list
-function formatSanAsMoveList(sanMoves: string[], startMoveNum: number, startsAsWhite: boolean): string {
+function formatSanAsMoveList(
+  sanMoves: string[],
+  startMoveNum: number,
+  startsAsWhite: boolean
+): string {
   const parts: string[] = [];
   let moveNum = startMoveNum;
   let isWhite = startsAsWhite;
@@ -715,8 +779,8 @@ function formatSanAsMoveList(sanMoves: string[], startMoveNum: number, startsAsW
 
 // Engine-backed continuation: reads real Stockfish PV from gameEvalAtom (no LLM hallucinations)
 const EngineContinuation: React.FC<{
-  moveNum: number;    // Full move number (e.g. 14)
-  color: "w" | "b";  // Color whose move this is
+  moveNum: number; // Full move number (e.g. 14)
+  color: "w" | "b"; // Color whose move this is
 }> = ({ moveNum, color }) => {
   const gameEval = useAtomValue(gameEvalAtom);
   const game = useAtomValue(gameAtom);
@@ -731,32 +795,46 @@ const EngineContinuation: React.FC<{
   const pvLine = posEval?.lines?.[0]; // Best line (multiPv=1)
 
   if (!pvLine?.pv || pvLine.pv.length === 0) {
-    return <span style={{ color: "#999", fontStyle: "italic", fontSize: "0.85em" }}>(Engine line not available for move {moveNum})</span>;
+    return (
+      <span style={{ color: "#999", fontStyle: "italic", fontSize: "0.85em" }}>
+        (Engine line not available for move {moveNum})
+      </span>
+    );
   }
 
   // Get FEN at position before this move by replaying game
-  let fenBeforeMove = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  let fenBeforeMove =
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
   try {
     const tempGame = new Chess();
     for (let i = 0; i < halfMoveIdx && i < gameHistory.length; i++) {
       tempGame.move(gameHistory[i]);
     }
     fenBeforeMove = tempGame.fen();
-  } catch { /* use default */ }
+  } catch {
+    /* use default */
+  }
 
   // Convert UCI PV to SAN
   const pvSan = uciPvToSan(fenBeforeMove, pvLine.pv);
   if (pvSan.length === 0) {
-    return <span style={{ color: "#999", fontStyle: "italic", fontSize: "0.85em" }}>(Could not parse engine line)</span>;
+    return (
+      <span style={{ color: "#999", fontStyle: "italic", fontSize: "0.85em" }}>
+        (Could not parse engine line)
+      </span>
+    );
   }
 
   const isWhiteStart = color === "w";
   const displayText = formatSanAsMoveList(pvSan, moveNum, isWhiteStart);
 
   // Format eval
-  const evalStr = pvLine.mate !== undefined
-    ? `M${pvLine.mate > 0 ? "+" : ""}${pvLine.mate}`
-    : pvLine.cp !== undefined ? `${pvLine.cp >= 0 ? "+" : ""}${(pvLine.cp / 100).toFixed(1)}` : "";
+  const evalStr =
+    pvLine.mate !== undefined
+      ? `M${pvLine.mate > 0 ? "+" : ""}${pvLine.mate}`
+      : pvLine.cp !== undefined
+        ? `${pvLine.cp >= 0 ? "+" : ""}${(pvLine.cp / 100).toFixed(1)}`
+        : "";
 
   const handlePlayLine = () => {
     try {
@@ -765,28 +843,38 @@ const EngineContinuation: React.FC<{
         newGame.move(gameHistory[i]);
       }
       for (const san of pvSan) {
-        try { newGame.move(san); } catch { break; }
+        try {
+          newGame.move(san);
+        } catch {
+          break;
+        }
       }
       // Go to divergence point (before first PV move), not the end.
       // The full PV is in the game history so the user can step forward/backward.
       goToMove(halfMoveIdx, newGame);
-      console.log(`✅ Engine continuation loaded (${pvSan.length} moves) at divergence point move ${moveNum}. Use forward arrow to step through.`);
+      console.log(
+        `✅ Engine continuation loaded (${pvSan.length} moves) at divergence point move ${moveNum}. Use forward arrow to step through.`
+      );
     } catch (error) {
       console.error("Error playing engine continuation:", error);
     }
   };
 
   return (
-    <div style={{
-      margin: "6px 0",
-      padding: "8px 12px",
-      borderRadius: "8px",
-      backgroundColor: "rgba(76, 175, 80, 0.08)",
-      border: "1px solid rgba(76, 175, 80, 0.25)",
-      fontSize: "0.9em",
-    }}>
+    <div
+      style={{
+        margin: "6px 0",
+        padding: "8px 12px",
+        borderRadius: "8px",
+        backgroundColor: "rgba(76, 175, 80, 0.08)",
+        border: "1px solid rgba(76, 175, 80, 0.25)",
+        fontSize: "0.9em",
+      }}
+    >
       <div style={{ marginBottom: "4px" }}>
-        <strong style={{ color: "#2E7D32" }}>Engine Best Line {evalStr && `(${evalStr})`}:</strong>{" "}
+        <strong style={{ color: "#2E7D32" }}>
+          Engine Best Line {evalStr && `(${evalStr})`}:
+        </strong>{" "}
         <span>{displayText}</span>
       </div>
       <span
@@ -857,18 +945,28 @@ const MaiaContinuation: React.FC<{
       const resultSan: string[] = [];
       const userIsWhite = color === "w";
       let currentIsWhite = userIsWhite; // First move is user's best move
-      
+
       // Play engine best move first (this is the recommended move)
       const firstUci = pvLine.pv[0];
-      const firstResult = tempGame.move({ from: firstUci.slice(0, 2), to: firstUci.slice(2, 4), promotion: firstUci.length > 4 ? firstUci.slice(4) : undefined });
-      if (!firstResult) { setError("Could not play engine move"); setLoading(false); return; }
+      const firstResult = tempGame.move({
+        from: firstUci.slice(0, 2),
+        to: firstUci.slice(2, 4),
+        promotion: firstUci.length > 4 ? firstUci.slice(4) : undefined,
+      });
+      if (!firstResult) {
+        setError("Could not play engine move");
+        setLoading(false);
+        return;
+      }
       resultSan.push(firstResult.san);
       currentIsWhite = !currentIsWhite;
 
       // Now alternate: opponent = Maia, user = engine best
-      for (let step = 0; step < 8; step++) { // Max 8 more half-moves
+      for (let step = 0; step < 8; step++) {
+        // Max 8 more half-moves
         const fen = tempGame.fen();
-        const isUserTurn = (currentIsWhite && userIsWhite) || (!currentIsWhite && !userIsWhite);
+        const isUserTurn =
+          (currentIsWhite && userIsWhite) || (!currentIsWhite && !userIsWhite);
 
         if (isUserTurn) {
           // User's turn: play engine best from current eval (or PV if available)
@@ -877,9 +975,19 @@ const MaiaContinuation: React.FC<{
           if (pvIdx < pvLine.pv.length) {
             const uci = pvLine.pv[pvIdx];
             try {
-              const r = tempGame.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.length > 4 ? uci.slice(4) : undefined });
-              if (r) { resultSan.push(r.san); currentIsWhite = !currentIsWhite; continue; }
-            } catch { /* fall through */ }
+              const r = tempGame.move({
+                from: uci.slice(0, 2),
+                to: uci.slice(2, 4),
+                promotion: uci.length > 4 ? uci.slice(4) : undefined,
+              });
+              if (r) {
+                resultSan.push(r.san);
+                currentIsWhite = !currentIsWhite;
+                continue;
+              }
+            } catch {
+              /* fall through */
+            }
           }
           break; // No more engine moves available
         } else {
@@ -887,26 +995,47 @@ const MaiaContinuation: React.FC<{
           try {
             const resp = await fetch("/api/maia-predict", {
               method: "POST",
-              headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
+              headers: {
+                "Content-Type": "application/json",
+                ...(await getAuthHeader()),
+              },
               body: JSON.stringify({ fen, rating: 1500 }),
             });
             const data = await resp.json();
             if (data.humanLikeMove) {
               try {
                 const r = tempGame.move(data.humanLikeMove);
-                if (r) { resultSan.push(r.san); currentIsWhite = !currentIsWhite; continue; }
-              } catch { /* Maia move illegal, try from PV */ }
+                if (r) {
+                  resultSan.push(r.san);
+                  currentIsWhite = !currentIsWhite;
+                  continue;
+                }
+              } catch {
+                /* Maia move illegal, try from PV */
+              }
             }
-          } catch { /* Maia API failed */ }
+          } catch {
+            /* Maia API failed */
+          }
 
           // Fallback: use PV move for opponent too
           const pvIdx = resultSan.length;
           if (pvIdx < pvLine.pv.length) {
             const uci = pvLine.pv[pvIdx];
             try {
-              const r = tempGame.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.length > 4 ? uci.slice(4) : undefined });
-              if (r) { resultSan.push(r.san); currentIsWhite = !currentIsWhite; continue; }
-            } catch { /* ignore */ }
+              const r = tempGame.move({
+                from: uci.slice(0, 2),
+                to: uci.slice(2, 4),
+                promotion: uci.length > 4 ? uci.slice(4) : undefined,
+              });
+              if (r) {
+                resultSan.push(r.san);
+                currentIsWhite = !currentIsWhite;
+                continue;
+              }
+            } catch {
+              /* ignore */
+            }
           }
           break; // No more moves available
         }
@@ -928,32 +1057,44 @@ const MaiaContinuation: React.FC<{
         newGame.move(gameHistory[i]);
       }
       for (const san of maiaLine) {
-        try { newGame.move(san); } catch { break; }
+        try {
+          newGame.move(san);
+        } catch {
+          break;
+        }
       }
       // Go to divergence point (before first Maia move), not the end.
       // The full line is in the game history so the user can step forward/backward.
       goToMove(halfMoveIdx, newGame);
-      console.log(`✅ Maia line loaded (${maiaLine.length} moves) at divergence point. Use forward arrow to step through.`);
+      console.log(
+        `✅ Maia line loaded (${maiaLine.length} moves) at divergence point. Use forward arrow to step through.`
+      );
     } catch (error) {
       console.error("Error playing Maia continuation:", error);
     }
   };
 
   const isWhiteStart = color === "w";
-  const displayText = maiaLine ? formatSanAsMoveList(maiaLine, moveNum, isWhiteStart) : "";
+  const displayText = maiaLine
+    ? formatSanAsMoveList(maiaLine, moveNum, isWhiteStart)
+    : "";
 
   return (
-    <div style={{
-      margin: "6px 0",
-      padding: "8px 12px",
-      borderRadius: "8px",
-      backgroundColor: "rgba(156, 39, 176, 0.08)",
-      border: "1px solid rgba(156, 39, 176, 0.25)",
-      fontSize: "0.9em",
-    }}>
+    <div
+      style={{
+        margin: "6px 0",
+        padding: "8px 12px",
+        borderRadius: "8px",
+        backgroundColor: "rgba(156, 39, 176, 0.08)",
+        border: "1px solid rgba(156, 39, 176, 0.25)",
+        fontSize: "0.9em",
+      }}
+    >
       <div style={{ marginBottom: "4px" }}>
         <strong style={{ color: "#7B1FA2" }}>Maia Realistic Line</strong>
-        <span style={{ color: "#9C27B0", fontSize: "0.8em", marginLeft: "6px" }}>
+        <span
+          style={{ color: "#9C27B0", fontSize: "0.8em", marginLeft: "6px" }}
+        >
           (You play best moves, opponent plays most likely human responses)
         </span>
       </div>
@@ -961,36 +1102,61 @@ const MaiaContinuation: React.FC<{
         <span
           onClick={buildMaiaLine}
           style={{
-            display: "inline-flex", alignItems: "center", gap: "4px",
-            color: "#9C27B0", cursor: "pointer", fontWeight: "bold",
-            padding: "3px 8px", borderRadius: "6px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "4px",
+            color: "#9C27B0",
+            cursor: "pointer",
+            fontWeight: "bold",
+            padding: "3px 8px",
+            borderRadius: "6px",
             backgroundColor: "rgba(156, 39, 176, 0.15)",
             border: "1px solid rgba(156, 39, 176, 0.4)",
-            fontSize: "0.85em", transition: "all 0.2s ease",
+            fontSize: "0.85em",
+            transition: "all 0.2s ease",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.3)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.15)"; }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.3)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.15)";
+          }}
         >
           🤖 Compute Maia Line
         </span>
       )}
-      {loading && <span style={{ color: "#9C27B0" }}>Computing Maia predictions...</span>}
-      {error && <span style={{ color: "#999", fontStyle: "italic" }}>{error}</span>}
+      {loading && (
+        <span style={{ color: "#9C27B0" }}>Computing Maia predictions...</span>
+      )}
+      {error && (
+        <span style={{ color: "#999", fontStyle: "italic" }}>{error}</span>
+      )}
       {maiaLine && maiaLine.length > 0 && (
         <>
           <div style={{ margin: "4px 0" }}>{displayText}</div>
           <span
             onClick={handlePlayLine}
             style={{
-              display: "inline-flex", alignItems: "center", gap: "4px",
-              color: "#9C27B0", cursor: "pointer", fontWeight: "bold",
-              padding: "3px 8px", borderRadius: "6px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              color: "#9C27B0",
+              cursor: "pointer",
+              fontWeight: "bold",
+              padding: "3px 8px",
+              borderRadius: "6px",
               backgroundColor: "rgba(156, 39, 176, 0.15)",
               border: "1px solid rgba(156, 39, 176, 0.4)",
-              fontSize: "0.85em", transition: "all 0.2s ease",
+              fontSize: "0.85em",
+              transition: "all 0.2s ease",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.3)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.15)"; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.3)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor =
+                "rgba(156, 39, 176, 0.15)";
+            }}
           >
             ▶ Play on Board
           </span>
@@ -1077,9 +1243,11 @@ const HypotheticalMove: React.FC<{
 
 // Helper function to process [CONTINUATION:moveNum:color] and [MAIA_CONTINUATION:moveNum:color] tokens
 // These render engine-backed continuation lines from real Stockfish PV data (no LLM hallucinations)
-const processContinuationTokens = (text: string): Array<string | React.ReactElement> => {
+const processContinuationTokens = (
+  text: string
+): Array<string | React.ReactElement> => {
   const tokenPattern = /\[(CONTINUATION|MAIA_CONTINUATION):(\d+):(w|b)\]/g;
-  
+
   const parts: Array<string | React.ReactElement> = [];
   let lastIndex = 0;
   let match;
@@ -1125,13 +1293,18 @@ const processContinuationTokens = (text: string): Array<string | React.ReactElem
 
 // Helper function to process position links
 const processPositionLinks = (text: string) => {
-  if (!text.includes("position") && !text.includes("Position") && !text.includes("[position")) {
+  if (
+    !text.includes("position") &&
+    !text.includes("Position") &&
+    !text.includes("[position")
+  ) {
     return [text];
   }
 
   const parts = [];
   // Pattern to match position references: "[position X]" (new format) or "position X", "Position X", etc. (old formats)
-  const positionPattern = /\[position\s+(\d+)\]|(?:\[)?(?:position|Position)\s+(\d+)(?:\])?/gi;
+  const positionPattern =
+    /\[position\s+(\d+)\]|(?:\[)?(?:position|Position)\s+(\d+)(?:\])?/gi;
   let lastIndex = 0;
   let match;
 
@@ -1162,7 +1335,9 @@ const processPositionLinks = (text: string) => {
 };
 
 // Helper function to process practice puzzle button markers [PRACTICE:theme:displayName]
-const processPracticeButtons = (text: string): Array<string | React.ReactElement> => {
+const processPracticeButtons = (
+  text: string
+): Array<string | React.ReactElement> => {
   if (!text.includes("[PRACTICE:")) {
     return [text];
   }
@@ -1194,14 +1369,20 @@ const processPracticeButtons = (text: string): Array<string | React.ReactElement
 };
 
 // Helper function to process correct move links [Correct: Move]
-const processCorrectMoveLinks = (text: string, game: Chess, moveNumber?: number, isBlackMove?: boolean) => {
+const processCorrectMoveLinks = (
+  text: string,
+  game: Chess,
+  moveNumber?: number,
+  isBlackMove?: boolean
+) => {
   if (!text.includes("[Correct:") && !text.includes("[correct:")) {
     return [text];
   }
 
   const parts = [];
   // Pattern to match [Correct: Move] format
-  const correctMovePattern = /\[Correct:\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\]/gi;
+  const correctMovePattern =
+    /\[Correct:\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)\]/gi;
   let lastIndex = 0;
   let match;
 
@@ -1215,7 +1396,7 @@ const processCorrectMoveLinks = (text: string, game: Chess, moveNumber?: number,
     // Try to find the original move from context (we'll need to extract this from the text)
     // For now, use a placeholder - we'll improve this later
     const originalMove = "original"; // Placeholder
-    
+
     parts.push(
       <HypotheticalMove
         key={`correct-${match.index}`}
@@ -1243,25 +1424,48 @@ const renderTextWithClickableMoves = (text: string, game?: Chess) => {
 
   // Step 0: Process [CONTINUATION:X:c] and [MAIA_CONTINUATION:X:c] tokens → engine-backed lines
   const textWithContinuations = processContinuationTokens(text);
-  if (textWithContinuations.length > 1 || (textWithContinuations.length === 1 && typeof textWithContinuations[0] !== "string")) {
-    return <>{textWithContinuations.map((part, idx) => {
-      if (typeof part === "string") {
-        return <React.Fragment key={idx}>{renderTextWithClickableMoves(part, game)}</React.Fragment>;
-      }
-      return <React.Fragment key={idx}>{part}</React.Fragment>;
-    })}</>;
+  if (
+    textWithContinuations.length > 1 ||
+    (textWithContinuations.length === 1 &&
+      typeof textWithContinuations[0] !== "string")
+  ) {
+    return (
+      <>
+        {textWithContinuations.map((part, idx) => {
+          if (typeof part === "string") {
+            return (
+              <React.Fragment key={idx}>
+                {renderTextWithClickableMoves(part, game)}
+              </React.Fragment>
+            );
+          }
+          return <React.Fragment key={idx}>{part}</React.Fragment>;
+        })}
+      </>
+    );
   }
 
   // First, process practice puzzle buttons [PRACTICE:theme:displayName]
   const textWithPractice = processPracticeButtons(text);
-  if (textWithPractice.length > 1 || (textWithPractice.length === 1 && typeof textWithPractice[0] !== "string")) {
+  if (
+    textWithPractice.length > 1 ||
+    (textWithPractice.length === 1 && typeof textWithPractice[0] !== "string")
+  ) {
     // Has practice buttons — process remaining string parts for other links
-    return <>{textWithPractice.map((part, idx) => {
-      if (typeof part === "string") {
-        return <React.Fragment key={idx}>{renderTextWithClickableMoves(part, game)}</React.Fragment>;
-      }
-      return <React.Fragment key={idx}>{part}</React.Fragment>;
-    })}</>;
+    return (
+      <>
+        {textWithPractice.map((part, idx) => {
+          if (typeof part === "string") {
+            return (
+              <React.Fragment key={idx}>
+                {renderTextWithClickableMoves(part, game)}
+              </React.Fragment>
+            );
+          }
+          return <React.Fragment key={idx}>{part}</React.Fragment>;
+        })}
+      </>
+    );
   }
 
   // Then, process position links
@@ -1272,11 +1476,17 @@ const renderTextWithClickableMoves = (text: string, game?: Chess) => {
     return parts.map((part, idx) => {
       if (typeof part === "string") {
         // Process correct move links in this string part
-        const textWithCorrectMoves = processCorrectMoveLinks(part, game || new Chess());
-        
+        const textWithCorrectMoves = processCorrectMoveLinks(
+          part,
+          game || new Chess()
+        );
+
         // If we have correct move links, process each part for regular moves
-        if (textWithCorrectMoves.length > 1 || 
-            (textWithCorrectMoves.length === 1 && typeof textWithCorrectMoves[0] !== "string")) {
+        if (
+          textWithCorrectMoves.length > 1 ||
+          (textWithCorrectMoves.length === 1 &&
+            typeof textWithCorrectMoves[0] !== "string")
+        ) {
           return textWithCorrectMoves.map((subPart, subIdx) => {
             if (typeof subPart === "string") {
               return (
@@ -1285,10 +1495,14 @@ const renderTextWithClickableMoves = (text: string, game?: Chess) => {
                 </React.Fragment>
               );
             }
-            return <React.Fragment key={`${idx}-${subIdx}`}>{subPart}</React.Fragment>;
+            return (
+              <React.Fragment key={`${idx}-${subIdx}`}>
+                {subPart}
+              </React.Fragment>
+            );
           });
         }
-        
+
         // No correct move links, just process regular moves
         return (
           <React.Fragment key={idx}>{renderMovesInText(part)}</React.Fragment>
@@ -1307,9 +1521,15 @@ const renderTextWithClickableMoves = (text: string, game?: Chess) => {
   }
 
   // No position links, process correct move links and regular moves
-  const textWithCorrectMoves = processCorrectMoveLinks(text, game || new Chess());
-  if (textWithCorrectMoves.length > 1 || 
-      (textWithCorrectMoves.length === 1 && typeof textWithCorrectMoves[0] !== "string")) {
+  const textWithCorrectMoves = processCorrectMoveLinks(
+    text,
+    game || new Chess()
+  );
+  if (
+    textWithCorrectMoves.length > 1 ||
+    (textWithCorrectMoves.length === 1 &&
+      typeof textWithCorrectMoves[0] !== "string")
+  ) {
     return processParts(textWithCorrectMoves);
   }
 
@@ -1330,7 +1550,7 @@ const renderMovesInText = (text: string) => {
       type: "ai_parentheses",
       priority: 1,
     },
-    // Priority 2: AI response format "Move X: [move]" 
+    // Priority 2: AI response format "Move X: [move]"
     {
       pattern:
         /Move\s+(\d+):\s*([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/gi,
@@ -1437,9 +1657,14 @@ const renderMovesInText = (text: string) => {
     }
 
     // Check LOCAL context around the move to determine if it's a recommended/best alternative
-    const contextBefore = text.slice(Math.max(0, startIndex - 60), startIndex).toLowerCase();
-    const isRecommendedMove = /best\s*(was|move|is)|should\s*have\s*(played|been)|instead\s*(of|,|:)|better\s*(was|move|is|alternative)|recommended|correct\s*move|improvement/.test(contextBefore);
-    
+    const contextBefore = text
+      .slice(Math.max(0, startIndex - 60), startIndex)
+      .toLowerCase();
+    const isRecommendedMove =
+      /best\s*(was|move|is)|should\s*have\s*(played|been)|instead\s*(of|,|:)|better\s*(was|move|is|alternative)|recommended|correct\s*move|improvement/.test(
+        contextBefore
+      );
+
     if (isRecommendedMove) {
       // Use green clickable move with exploration mode
       parts.push(
@@ -1659,7 +1884,12 @@ function getSmartGameGreeting(
   playerInfo: { username?: string | null; playerColor?: string | null }
 ): string {
   const moveCount = Math.ceil(game.history().length / 2);
-  const playerColor = playerInfo.playerColor === "white" ? "w" : playerInfo.playerColor === "black" ? "b" : null;
+  const playerColor =
+    playerInfo.playerColor === "white"
+      ? "w"
+      : playerInfo.playerColor === "black"
+        ? "b"
+        : null;
   const playerName = playerInfo.username || "you";
 
   if (game.isCheckmate()) {
@@ -1712,7 +1942,8 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   const autoAnalyzeState = useAtomValue(autoAnalyzeStateAtom);
   const setAutoAnalyzeState = useSetAtom(autoAnalyzeStateAtom);
   const lockedByAutoAnalyze =
-    autoAnalyzeState === "pending" || autoAnalyzeState === "sent-awaiting-insights";
+    autoAnalyzeState === "pending" ||
+    autoAnalyzeState === "sent-awaiting-insights";
 
   // Get user player info (username and color)
   const userPlayerInfo = useAtomValue(userPlayerInfoAtom);
@@ -1723,7 +1954,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   // Coach personality
   const selectedCoachId = useAtomValue(selectedCoachIdAtom);
   const personality = getPersonalityById(selectedCoachId);
-  
+
   // Board navigation (for insight card move-click)
   const { goToMove } = useChessActions(boardAtom);
 
@@ -1737,7 +1968,8 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
   // Share-insight dialog state. Holds the snippet payload (fen + explanation)
   // while open; null means dialog is closed.
-  const [snippetDialog, setSnippetDialog] = useState<AnalysisSnippetData | null>(null);
+  const [snippetDialog, setSnippetDialog] =
+    useState<AnalysisSnippetData | null>(null);
 
   // Practice state setters
   const setPracticePuzzles = useSetAtom(practicePuzzlesAtom);
@@ -1765,7 +1997,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         const prevMoves = prevGame.history().length;
 
         // If move count decreased or significantly different, it's a new game
-        if (currentMoves < prevMoves || Math.abs(currentMoves - prevMoves) > 5) {
+        if (
+          currentMoves < prevMoves ||
+          Math.abs(currentMoves - prevMoves) > 5
+        ) {
           // While hydrating a saved chat, the game state may briefly diverge
           // from the FEN that was active when the chat was created. Don't
           // reset the persistence handle in that window — the hydration
@@ -1804,13 +2039,19 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   const preloadedInsight = useAtomValue(preloadedInsightAtom);
   const [messages, setMessages] = useState<Message[]>(() => {
     if (preloadedInsight) {
-      const greeting: Message = { role: "assistant", content: personality.greeting };
+      const greeting: Message = {
+        role: "assistant",
+        content: personality.greeting,
+      };
       // 'transcript' mode: hydrate the full chat history after the greeting.
       // 'single' mode: just append the one saved coach message.
-      if (preloadedInsight.kind === "transcript" && preloadedInsight.transcript) {
+      if (
+        preloadedInsight.kind === "transcript" &&
+        preloadedInsight.transcript
+      ) {
         return [
           greeting,
-          ...preloadedInsight.transcript.map(m => ({
+          ...preloadedInsight.transcript.map((m) => ({
             role: m.role,
             content: m.content,
             ...(m.fen ? { fen: m.fen } : {}),
@@ -1831,7 +2072,9 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [messageFeedback, setMessageFeedback] = useState<Record<number, "positive" | "negative">>({});
+  const [messageFeedback, setMessageFeedback] = useState<
+    Record<number, "positive" | "negative">
+  >({});
   const [puzzleRecommendations, setPuzzleRecommendations] = useState<any[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1983,9 +2226,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
       prevPersonalityRef.current = selectedCoachId;
       const newPersonality = getPersonalityById(selectedCoachId);
 
-      setMessages([
-        { role: "assistant", content: newPersonality.greeting },
-      ]);
+      setMessages([{ role: "assistant", content: newPersonality.greeting }]);
 
       hasUserMessagedRef.current = false;
       gameLoadedRef.current = false;
@@ -2032,7 +2273,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
     setTimeout(() => {
       handleSendMessage("analyze my game");
     }, 100);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoAnalyzeState, gameEval]);
 
   // ── autoAnalyze insight-detection lock release ─────────────────────────
@@ -2051,26 +2292,61 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
       }
       break; // only check the LATEST assistant message — older ones don't matter
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoAnalyzeState, messages]);
 
   // Helper function to detect if message is a greeting
   const isGreeting = (text: string): boolean => {
     const normalizedText = text.toLowerCase().trim();
-    const greetings = ["hi", "hello", "hey", "greetings", "hi there", "hello there", "hey there"];
-    return greetings.some(greeting => normalizedText === greeting || normalizedText.startsWith(greeting + " "));
+    const greetings = [
+      "hi",
+      "hello",
+      "hey",
+      "greetings",
+      "hi there",
+      "hello there",
+      "hey there",
+    ];
+    return greetings.some(
+      (greeting) =>
+        normalizedText === greeting || normalizedText.startsWith(greeting + " ")
+    );
   };
 
   // Helper function to detect if message is a direct request
   const isDirectRequest = (text: string): boolean => {
     const normalizedText = text.toLowerCase().trim();
     const requestKeywords = [
-      "analyze", "review", "explain", "what", "why", "how", "show", "tell", 
-      "help", "check", "best", "worst", "mistake", "good", "bad", "move",
-      "moves", "game", "position", "opening", "middlegame", "endgame",
-      "tactic", "strategy", "improve", "feedback", "coach", "teach"
+      "analyze",
+      "review",
+      "explain",
+      "what",
+      "why",
+      "how",
+      "show",
+      "tell",
+      "help",
+      "check",
+      "best",
+      "worst",
+      "mistake",
+      "good",
+      "bad",
+      "move",
+      "moves",
+      "game",
+      "position",
+      "opening",
+      "middlegame",
+      "endgame",
+      "tactic",
+      "strategy",
+      "improve",
+      "feedback",
+      "coach",
+      "teach",
     ];
-    return requestKeywords.some(keyword => normalizedText.includes(keyword));
+    return requestKeywords.some((keyword) => normalizedText.includes(keyword));
   };
 
   // Helper function to detect if user is accepting practice offer.
@@ -2085,9 +2361,22 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
     if (normalizedText.length > 60) return false;
 
     const acceptanceKeywords = [
-      "yes", "sure", "ok", "okay", "yeah", "yep", "yup", "alright", "all right",
-      "let's practice", "let's do it", "sounds good", "that sounds good",
-      "i'd like to practice", "i want to practice", "i'd like that",
+      "yes",
+      "sure",
+      "ok",
+      "okay",
+      "yeah",
+      "yep",
+      "yup",
+      "alright",
+      "all right",
+      "let's practice",
+      "let's do it",
+      "sounds good",
+      "that sounds good",
+      "i'd like to practice",
+      "i want to practice",
+      "i'd like that",
     ];
     return acceptanceKeywords.some((keyword) => {
       const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -2099,11 +2388,14 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   // Required gate before treating a message as practice acceptance — otherwise
   // we'd fire the practice flow on any short "yes" / "ok" regardless of context.
   const lastAssistantOfferedPractice = (): boolean => {
-    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((m) => m.role === "assistant");
     if (!lastAssistant) return false;
     const c = lastAssistant.content;
     // Must contain a practice-offer phrase AND end with a question.
-    const offerPhrase = /(practice\s+(?:some\s+)?\w+?\s*puzzles|would you like to (?:practice|drill|work on|try)|shall we (?:practice|drill)|want to practice)/i;
+    const offerPhrase =
+      /(practice\s+(?:some\s+)?\w+?\s*puzzles|would you like to (?:practice|drill|work on|try)|shall we (?:practice|drill)|want to practice)/i;
     return offerPhrase.test(c) && /\?/.test(c);
   };
 
@@ -2124,8 +2416,14 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
         const themePatterns = [
           { keywords: ["back rank", "back-rank"], theme: "backRankMate" },
-          { keywords: ["discovered attack", "discovered attacks"], theme: "discoveredAttack" },
-          { keywords: ["hanging piece", "hanging pieces"], theme: "hangingPiece" },
+          {
+            keywords: ["discovered attack", "discovered attacks"],
+            theme: "discoveredAttack",
+          },
+          {
+            keywords: ["hanging piece", "hanging pieces"],
+            theme: "hangingPiece",
+          },
           { keywords: ["skewer", "skewers"], theme: "skewer" },
           { keywords: ["pin", "pins"], theme: "pin" },
           { keywords: ["sacrifice", "sacrifices"], theme: "sacrifice" },
@@ -2134,13 +2432,13 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         ];
 
         for (const pattern of themePatterns) {
-          if (pattern.keywords.some(keyword => content.includes(keyword))) {
+          if (pattern.keywords.some((keyword) => content.includes(keyword))) {
             return pattern.theme;
           }
         }
       }
     }
-    
+
     return null;
   };
 
@@ -2209,16 +2507,18 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
       // TODO(phase-2.5): re-introduce weakness profile via bounded structured field
 
       // Check if this is the first user message (only system message exists)
-      const isFirstUserMessage = messages.filter(m => m.role === "user").length === 0;
-      
+      const isFirstUserMessage =
+        messages.filter((m) => m.role === "user").length === 0;
+
       // Check if a new game was just loaded and user hasn't messaged yet
-      const isNewGameLoaded = gameLoadedRef.current && game && !hasUserMessagedRef.current;
-      
+      const isNewGameLoaded =
+        gameLoadedRef.current && game && !hasUserMessagedRef.current;
+
       // Mark that user has now messaged
       if (isFirstUserMessage) {
         hasUserMessagedRef.current = true;
       }
-      
+
       // ───────────────────────────────────────────────────────────────
       // INTENT CLASSIFICATION (LLM-powered router)
       //
@@ -2243,7 +2543,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
       try {
         const classifyRes = await fetch("/api/classify-intent", {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
+          headers: {
+            "Content-Type": "application/json",
+            ...(await getAuthHeader()),
+          },
           body: JSON.stringify({
             userMessage: textToSend,
             recentMessages: messages
@@ -2266,7 +2569,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         }
       } catch (e) {
         // Swallow — we'll fall back to regex heuristics below.
-        console.warn("Intent classifier call failed, falling back to heuristics:", e);
+        console.warn(
+          "Intent classifier call failed, falling back to heuristics:",
+          e
+        );
       }
 
       // Route: OFF-TOPIC — short polite redirect, no big LLM call.
@@ -2315,14 +2621,15 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         // Prefer the classifier-extracted theme; fall back to keyword scan of
         // recent turns if the classifier didn't give us one.
         const theme = classifiedTheme || extractThemeFromConversation();
-        
+
         if (theme) {
           // Determine difficulty from user rating
           let difficulty: string | undefined;
           if (game) {
             const headers = game.getHeaders();
             const playerColor = userPlayerInfo.playerColor;
-            const ratingStr = playerColor === "black" ? headers.BlackElo : headers.WhiteElo;
+            const ratingStr =
+              playerColor === "black" ? headers.BlackElo : headers.WhiteElo;
             const rating = ratingStr ? parseInt(ratingStr) : undefined;
             if (rating) {
               if (rating <= 1200) difficulty = "beginner";
@@ -2351,13 +2658,17 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             const themeVariants = Array.from(
               new Set([normalizedTheme, theme].filter(Boolean))
             );
-            const puzzles = await getPuzzlesByTheme(themeVariants, 20, difficulty);
-            
+            const puzzles = await getPuzzlesByTheme(
+              themeVariants,
+              20,
+              difficulty
+            );
+
             if (puzzles.length > 0) {
               setPracticePuzzles(puzzles);
               setCurrentPuzzleIndex(0);
               setPracticeTheme(normalizedTheme);
-              
+
               // Redirect with theme and difficulty preset
               const query: Record<string, string> = { theme: normalizedTheme };
               if (difficulty) query.difficulty = difficulty;
@@ -2381,7 +2692,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             ]);
             void persistTurn("assistant", errReply);
           }
-          
+
           setIsLoading(false);
           inFlightRef.current = false;
           return; // Don't make API call for practice acceptance
@@ -2413,7 +2724,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
           const headers = game.getHeaders();
           if (userPlayerInfo.playerColor === "white" && headers.WhiteElo) {
             userRating = parseInt(headers.WhiteElo);
-          } else if (userPlayerInfo.playerColor === "black" && headers.BlackElo) {
+          } else if (
+            userPlayerInfo.playerColor === "black" &&
+            headers.BlackElo
+          ) {
             userRating = parseInt(headers.BlackElo);
           }
         }
@@ -2428,13 +2742,18 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         // TWO-TIER ROUTING:
         // - First message (or no contextId): Full deep analysis via /api/enhanced-analysis (gpt-4o, 5-15s)
         // - Follow-up messages: Fast chat via /api/chat (gpt-4o-mini, 2-5s) using cached context
-        const hasContext = analysisContextIdRef.current && conversationHistory.some(m => m.role === "assistant");
+        const hasContext =
+          analysisContextIdRef.current &&
+          conversationHistory.some((m) => m.role === "assistant");
 
         if (hasContext) {
           // === FAST PATH: Follow-up via /api/chat ===
           const chatResponse = await fetch("/api/chat", {
             method: "POST",
-            headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
+            headers: {
+              "Content-Type": "application/json",
+              ...(await getAuthHeader()),
+            },
             body: JSON.stringify({
               contextId: analysisContextIdRef.current,
               userMessage: textToSend,
@@ -2449,11 +2768,15 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
           if (chatResponse.status === 404) {
             // Context expired — fall through to full analysis below
-            console.log("Analysis context expired, falling back to full analysis");
+            console.log(
+              "Analysis context expired, falling back to full analysis"
+            );
             analysisContextIdRef.current = null;
           } else if (!chatResponse.ok) {
             const errorData = await chatResponse.json();
-            throw new Error(errorData.error || `HTTP error! status: ${chatResponse.status}`);
+            throw new Error(
+              errorData.error || `HTTP error! status: ${chatResponse.status}`
+            );
           } else {
             data = await chatResponse.json();
           }
@@ -2500,17 +2823,13 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Accept": "text/event-stream",
+              Accept: "text/event-stream",
               ...(await getAuthHeader()),
             },
             body: JSON.stringify(requestData),
             signal: abortControllerRef.current.signal,
           });
 
-          if (response.status === 402) {
-            // Free-tier allowance exhausted — surface the upgrade dialog.
-            triggerPaywall({ feature: "AI coach", reason: "quota_exhausted" });
-          }
           if (!response.ok) {
             // Server returned an error status BEFORE streaming. Body is JSON.
             const errorData = await response.json().catch(() => ({}));
@@ -2532,7 +2851,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             // actually reasoning about — so a later "Share Insight" doesn't
             // grab whatever the user navigates to.
             const insightFen = boardFenRef.current;
-            setMessages((prev) => [...prev, { role: "assistant", content: "", fen: insightFen }]);
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: "", fen: insightFen },
+            ]);
             setIsStreaming(true);
 
             const reader = response.body.getReader();
@@ -2562,14 +2884,20 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                     } catch {
                       continue;
                     }
-                    if (parsedEvt.type === "text" && typeof parsedEvt.delta === "string") {
+                    if (
+                      parsedEvt.type === "text" &&
+                      typeof parsedEvt.delta === "string"
+                    ) {
                       streamedText += parsedEvt.delta;
                       setMessages((prev) => {
                         const next = [...prev];
                         const last = next[next.length - 1];
                         if (last && last.role === "assistant") {
                           // Spread `last` so we preserve the `fen` stamped at creation.
-                          next[next.length - 1] = { ...last, content: streamedText };
+                          next[next.length - 1] = {
+                            ...last,
+                            content: streamedText,
+                          };
                         }
                         return next;
                       });
@@ -2582,7 +2910,11 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                 }
               }
             } finally {
-              try { reader.releaseLock(); } catch { /* ignore */ }
+              try {
+                reader.releaseLock();
+              } catch {
+                /* ignore */
+              }
               setIsStreaming(false);
             }
 
@@ -2652,7 +2984,11 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
           setMessages((prev) => [
             ...prev,
-            { role: "assistant", content: assistantContent, fen: boardFenRef.current },
+            {
+              role: "assistant",
+              content: assistantContent,
+              fen: boardFenRef.current,
+            },
           ]);
           void persistTurn("assistant", assistantContent);
         }
@@ -2680,7 +3016,21 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         inFlightRef.current = false;
       }
     },
-    [messages, game, position, boardOrientation, gameEval, input, router, puzzleSolvedStatus, setPracticePuzzles, setCurrentPuzzleIndex, setPracticeTheme, userProfile, isAnalyzingGame]
+    [
+      messages,
+      game,
+      position,
+      boardOrientation,
+      gameEval,
+      input,
+      router,
+      puzzleSolvedStatus,
+      setPracticePuzzles,
+      setCurrentPuzzleIndex,
+      setPracticeTheme,
+      userProfile,
+      isAnalyzingGame,
+    ]
   );
 
   // Handle move analysis requests from moves panel
@@ -2733,7 +3083,8 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
     if (gameHistory.length === 0) return content;
 
     // SAN move pattern (captures piece moves, pawn moves, castling)
-    const sanPattern = /([NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|[a-h]x[a-h][1-8](?:=[NBRQ])?[+#]?|[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g;
+    const sanPattern =
+      /([NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|[a-h]x[a-h][1-8](?:=[NBRQ])?[+#]?|[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?)/g;
 
     // Find all bare SAN moves that DON'T already have a move number prefix
     const result = content.replace(sanPattern, (match, move, offset) => {
@@ -2745,7 +3096,9 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
 
       // Check if this is inside a heading/label like "Best Move:" — we want to number these
       // But skip things that look like square references, not moves (e.g., "e4" in "pawn on e4")
-      const contextBefore = content.slice(Math.max(0, offset - 30), offset).toLowerCase();
+      const contextBefore = content
+        .slice(Math.max(0, offset - 30), offset)
+        .toLowerCase();
       if (/(?:on|at|square|from|to)\s*$/.test(contextBefore)) {
         return match; // This is a square reference, not a move
       }
@@ -2763,7 +3116,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
       const nearbyMoveNum = nearbyContext.match(/(?:Move\s+(\d+)|(\d+)\.)/i);
       if (nearbyMoveNum) {
         const inferredNum = parseInt(nearbyMoveNum[1] || nearbyMoveNum[2]);
-        if (inferredNum > 0 && inferredNum <= Math.ceil(gameHistory.length / 2) + 5) {
+        if (
+          inferredNum > 0 &&
+          inferredNum <= Math.ceil(gameHistory.length / 2) + 5
+        ) {
           return `${inferredNum}. ${move}`;
         }
       }
@@ -2774,7 +3130,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
     return result;
   };
 
-  const handleFeedback = (messageIndex: number, rating: "positive" | "negative") => {
+  const handleFeedback = (
+    messageIndex: number,
+    rating: "positive" | "negative"
+  ) => {
     // Toggle off if same rating clicked again
     if (messageFeedback[messageIndex] === rating) {
       setMessageFeedback((prev) => {
@@ -2830,8 +3189,8 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
       <Box sx={{ mb: 2, position: "relative" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-          AI Chess Coach
-        </Typography>
+            AI Chess Coach
+          </Typography>
           <MaiaStatusIndicator size="small" />
         </Box>
         <ExpandButton onClick={() => setIsExpanded(!isExpanded)} size="small">
@@ -2927,7 +3286,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             };
 
             const renderMarkdown = (body: string) => (
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={markdownComponents}
+              >
                 {body}
               </ReactMarkdown>
             );
@@ -2944,136 +3306,150 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
               message.role === "assistant"
                 ? parseInsights(rawContent)
                 : { prefix: rawContent, insights: [], suffix: "" };
-            const renderRich = (t: string) => renderTextWithClickableMoves(t, game ?? undefined);
+            const renderRich = (t: string) =>
+              renderTextWithClickableMoves(t, game ?? undefined);
 
             return (
-            <FadeIn key={index}>
-            <MessageBubble isUser={message.role === "user"}>
-              {parsed.insights.length > 0 ? (
-                <>
-                  {parsed.prefix && renderMarkdown(parsed.prefix)}
-                  <InsightsCarousel
-                    insights={parsed.insights}
-                    renderRich={renderRich}
-                    onMoveClick={(moveNum, isBlack) => {
-                      const halfMoveIdx = isBlack
-                        ? moveNum * 2 - 1
-                        : (moveNum - 1) * 2;
-                      if (game && halfMoveIdx >= 0) {
-                        goToMove(halfMoveIdx + 1, game);
-                      }
-                    }}
-                  />
-                  {parsed.suffix && renderMarkdown(parsed.suffix)}
-                </>
-              ) : (
-                renderMarkdown(rawContent)
-              )}
-              {isStreaming &&
-                index ===
-                  messages.filter((m) => m.role !== "system").length - 1 &&
-                message.role === "assistant" && (
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      mt: 1,
-                      opacity: 0.7,
-                    }}
-                  >
-                    <CircularProgress size={12} sx={{ mr: 1 }} />
-                    <Typography variant="caption" sx={{ fontStyle: "italic" }}>
-                      Thinking...
-                    </Typography>
-                  </Box>
-                )}
-              {message.role === "assistant" && !isStreaming && (
-                <Box
-                  sx={{
-                    display: "flex",
-                    gap: 0.5,
-                    mt: 0.5,
-                    opacity: messageFeedback[index] ? 1 : 0.4,
-                    "&:hover": { opacity: 1 },
-                    transition: "opacity 0.2s",
-                  }}
-                >
-                  <IconButton
-                    size="small"
-                    onClick={() => handleFeedback(index, "positive")}
-                    sx={{
-                      padding: "2px",
-                      color: messageFeedback[index] === "positive" ? "#4caf50" : "inherit",
-                    }}
-                  >
-                    {messageFeedback[index] === "positive" ? (
-                      <ThumbUpIcon sx={{ fontSize: 14 }} />
-                    ) : (
-                      <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
+              <FadeIn key={index}>
+                <MessageBubble isUser={message.role === "user"}>
+                  {parsed.insights.length > 0 ? (
+                    <>
+                      {parsed.prefix && renderMarkdown(parsed.prefix)}
+                      <InsightsCarousel
+                        insights={parsed.insights}
+                        renderRich={renderRich}
+                        onMoveClick={(moveNum, isBlack) => {
+                          const halfMoveIdx = isBlack
+                            ? moveNum * 2 - 1
+                            : (moveNum - 1) * 2;
+                          if (game && halfMoveIdx >= 0) {
+                            goToMove(halfMoveIdx + 1, game);
+                          }
+                        }}
+                      />
+                      {parsed.suffix && renderMarkdown(parsed.suffix)}
+                    </>
+                  ) : (
+                    renderMarkdown(rawContent)
+                  )}
+                  {isStreaming &&
+                    index ===
+                      messages.filter((m) => m.role !== "system").length - 1 &&
+                    message.role === "assistant" && (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          mt: 1,
+                          opacity: 0.7,
+                        }}
+                      >
+                        <CircularProgress size={12} sx={{ mr: 1 }} />
+                        <Typography
+                          variant="caption"
+                          sx={{ fontStyle: "italic" }}
+                        >
+                          Thinking...
+                        </Typography>
+                      </Box>
                     )}
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleFeedback(index, "negative")}
-                    sx={{
-                      padding: "2px",
-                      color: messageFeedback[index] === "negative" ? "#f44336" : "inherit",
-                    }}
-                  >
-                    {messageFeedback[index] === "negative" ? (
-                      <ThumbDownIcon sx={{ fontSize: 14 }} />
-                    ) : (
-                      <ThumbDownOutlinedIcon sx={{ fontSize: 14 }} />
-                    )}
-                  </IconButton>
-                  {/* CMIP intern flag — renders only when isIntern. */}
-                  <FlagButton
-                    message={message}
-                    messageIndex={index}
-                    chatHistory={visibleMessages}
-                    contextId={analysisContextIdRef.current ?? null}
-                  />
-                  {/* Share Insight — only for messages with a captured FEN and
-                      enough content to be worth sharing. Short canned replies
-                      (off-topic, decline, errors) don't qualify. */}
-                  {message.fen && message.content.trim().length > 100 && (
-                    <Tooltip title="Share Insight" arrow placement="top">
+                  {message.role === "assistant" && !isStreaming && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        gap: 0.5,
+                        mt: 0.5,
+                        opacity: messageFeedback[index] ? 1 : 0.4,
+                        "&:hover": { opacity: 1 },
+                        transition: "opacity 0.2s",
+                      }}
+                    >
                       <IconButton
                         size="small"
-                        aria-label="Share insight"
-                        onClick={() => {
-                          // Capture the conversation up to and including this
-                          // message for the "Whole conversation" share mode.
-                          // System messages are already excluded from
-                          // visibleMessages; we further restrict to user/
-                          // assistant roles to match the ShareableMessage type.
-                          const transcript = visibleMessages
-                            .slice(0, index + 1)
-                            .filter(
-                              (m): m is typeof m & { role: "user" | "assistant" } =>
-                                m.role === "user" || m.role === "assistant"
-                            )
-                            .map(m => ({
-                              role: m.role,
-                              content: m.content,
-                              ...(m.fen ? { fen: m.fen } : {}),
-                            }));
-                          setSnippetDialog({
-                            fen: message.fen as string,
-                            explanation: message.content,
-                            transcript,
-                          });
+                        onClick={() => handleFeedback(index, "positive")}
+                        sx={{
+                          padding: "2px",
+                          color:
+                            messageFeedback[index] === "positive"
+                              ? "#4caf50"
+                              : "inherit",
                         }}
-                        sx={{ padding: "2px", color: "inherit" }}
                       >
-                        <ShareIcon sx={{ fontSize: 14 }} />
+                        {messageFeedback[index] === "positive" ? (
+                          <ThumbUpIcon sx={{ fontSize: 14 }} />
+                        ) : (
+                          <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
+                        )}
                       </IconButton>
-                    </Tooltip>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleFeedback(index, "negative")}
+                        sx={{
+                          padding: "2px",
+                          color:
+                            messageFeedback[index] === "negative"
+                              ? "#f44336"
+                              : "inherit",
+                        }}
+                      >
+                        {messageFeedback[index] === "negative" ? (
+                          <ThumbDownIcon sx={{ fontSize: 14 }} />
+                        ) : (
+                          <ThumbDownOutlinedIcon sx={{ fontSize: 14 }} />
+                        )}
+                      </IconButton>
+                      {/* CMIP intern flag — renders only when isIntern. */}
+                      <FlagButton
+                        message={message}
+                        messageIndex={index}
+                        chatHistory={visibleMessages}
+                        contextId={analysisContextIdRef.current ?? null}
+                      />
+                      {/* Share Insight — only for messages with a captured FEN and
+                      enough content to be worth sharing. Short canned replies
+                      (off-topic, decline, errors) don't qualify. */}
+                      {message.fen && message.content.trim().length > 100 && (
+                        <Tooltip title="Share Insight" arrow placement="top">
+                          <IconButton
+                            size="small"
+                            aria-label="Share insight"
+                            onClick={() => {
+                              // Capture the conversation up to and including this
+                              // message for the "Whole conversation" share mode.
+                              // System messages are already excluded from
+                              // visibleMessages; we further restrict to user/
+                              // assistant roles to match the ShareableMessage type.
+                              const transcript = visibleMessages
+                                .slice(0, index + 1)
+                                .filter(
+                                  (
+                                    m
+                                  ): m is typeof m & {
+                                    role: "user" | "assistant";
+                                  } =>
+                                    m.role === "user" || m.role === "assistant"
+                                )
+                                .map((m) => ({
+                                  role: m.role,
+                                  content: m.content,
+                                  ...(m.fen ? { fen: m.fen } : {}),
+                                }));
+                              setSnippetDialog({
+                                fen: message.fen as string,
+                                explanation: message.content,
+                                transcript,
+                              });
+                            }}
+                            sx={{ padding: "2px", color: "inherit" }}
+                          >
+                            <ShareIcon sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
                   )}
-                </Box>
-              )}
-            </MessageBubble>
-            </FadeIn>
+                </MessageBubble>
+              </FadeIn>
             );
           });
         })()}
@@ -3096,10 +3472,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             autoAnalyzeState === "pending"
               ? `Analyzing your game... ${evaluationProgress}%`
               : autoAnalyzeState === "sent-awaiting-insights"
-              ? "Coach is reviewing your game…"
-              : isAnalyzingGame
-              ? `Analyzing your game... ${evaluationProgress}%`
-              : "Ask specific questions about moves or positions..."
+                ? "Coach is reviewing your game…"
+                : isAnalyzingGame
+                  ? `Analyzing your game... ${evaluationProgress}%`
+                  : "Ask specific questions about moves or positions..."
           }
           disabled={isLoading || isAnalyzingGame || lockedByAutoAnalyze}
         />
@@ -3107,7 +3483,12 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         {/* Quick Analysis Button */}
         <IconButton
           onClick={() => {
-            if (!isLoading && !isAnalyzingGame && !lockedByAutoAnalyze && !input.trim()) {
+            if (
+              !isLoading &&
+              !isAnalyzingGame &&
+              !lockedByAutoAnalyze &&
+              !input.trim()
+            ) {
               setInput("analyze my game");
               // Use the existing handleSend function to ensure proper state management
               setTimeout(() => {
@@ -3145,7 +3526,9 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
         <IconButton
           color="primary"
           onClick={handleSend}
-          disabled={isLoading || isAnalyzingGame || lockedByAutoAnalyze || !input.trim()}
+          disabled={
+            isLoading || isAnalyzingGame || lockedByAutoAnalyze || !input.trim()
+          }
         >
           {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
         </IconButton>

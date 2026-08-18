@@ -44,9 +44,7 @@ export const UNTOUCHED_SURFACES = [
   "Firebase Auth identity (if any) — Firestore `users/{uid}` is the account doc this app reads; a separate Auth record is not deleted here.",
   "`cmip_applications` — intern applications, keyed by EMAIL not uid. Delete by hand if the person applied.",
   "`intern_allowlist` / `intern_flags` (Supabase) — intern-programme rows, keyed by email.",
-  "Promo-code redemptions (Supabase) — kept for billing/audit; contains a uid.",
   "`anon_id`-only tracking rows — pre-signin activity is not linkable to the uid, so it cannot be targeted; it ages out via the one-year retention job instead.",
-  "Stripe customer + subscription — deleting here would orphan billing history. Cancel in Stripe first if the account pays.",
   "Vercel/CDN logs and any third-party analytics — retention is governed by their own policies.",
 ];
 
@@ -130,7 +128,9 @@ export async function planUserDeletion(uid: string): Promise<DeletionPlan> {
  * first, the account doc LAST — so an interrupted run leaves an account that
  * still resolves rather than orphaned data pointing at a uid that is gone.
  */
-export async function executeUserDeletion(uid: string): Promise<DeletionResult> {
+export async function executeUserDeletion(
+  uid: string
+): Promise<DeletionResult> {
   const plan = await planUserDeletion(uid);
   const db = await getAdminFirestore();
   const userRef = db.collection("users").doc(uid);
@@ -139,7 +139,7 @@ export async function executeUserDeletion(uid: string): Promise<DeletionResult> 
 
   const delDocs = async (
     label: string,
-    refs: FirebaseFirestore.DocumentReference[],
+    refs: FirebaseFirestore.DocumentReference[]
   ) => {
     let n = 0;
     for (const ref of refs) {
@@ -155,7 +155,10 @@ export async function executeUserDeletion(uid: string): Promise<DeletionResult> 
 
   for (const coll of SHARED_ARTIFACT_COLLECTIONS) {
     const snap = await db.collection(coll).where("sharerUid", "==", uid).get();
-    await delDocs(`${coll} (sharerUid)`, snap.docs.map((d) => d.ref));
+    await delDocs(
+      `${coll} (sharerUid)`,
+      snap.docs.map((d) => d.ref)
+    );
   }
 
   for (const sub of USER_SUBCOLLECTIONS) {
@@ -168,7 +171,10 @@ export async function executeUserDeletion(uid: string): Promise<DeletionResult> 
       }
       await delDocs(`users/{uid}/${sub.name}/*/${nested}`, nestedRefs);
     }
-    await delDocs(`users/{uid}/${sub.name}`, docs.docs.map((d) => d.ref));
+    await delDocs(
+      `users/{uid}/${sub.name}`,
+      docs.docs.map((d) => d.ref)
+    );
   }
 
   let supabase: DeletionResult["supabase"] = null;
@@ -176,7 +182,7 @@ export async function executeUserDeletion(uid: string): Promise<DeletionResult> 
     supabase = await purgeUserData(uid);
   } catch (e) {
     errors.push(
-      `supabase purge: ${e instanceof Error ? e.message : String(e)}`,
+      `supabase purge: ${e instanceof Error ? e.message : String(e)}`
     );
   }
 

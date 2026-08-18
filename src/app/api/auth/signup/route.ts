@@ -15,7 +15,10 @@ export async function POST(request: Request) {
     assertAuthSecrets({ needsSession: true, needsAdmin: true });
   } catch (err) {
     console.error("[auth/signup]", err);
-    return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Authentication service unavailable" },
+      { status: 503 }
+    );
   }
 
   let body: unknown;
@@ -41,6 +44,7 @@ export async function POST(request: Request) {
       password: input.password,
       displayName: input.displayName,
       ageAffirmed: input.ageAffirmed,
+      handle: input.handle,
     });
 
     const isIntern = await isAllowlistedIntern(user.email);
@@ -59,11 +63,33 @@ export async function POST(request: Request) {
     return response;
   } catch (err) {
     if (err instanceof UserError && err.code === "email_taken") {
-      return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
+      return NextResponse.json(
+        { error: err.message, code: err.code },
+        { status: 409 }
+      );
+    }
+    // 409 for a lost race on the handle, 400 for one that could never be
+    // valid. Both are the user's to fix, and neither is a server fault — a
+    // 500 here would send them to "try again later" for something retrying
+    // will never resolve.
+    if (err instanceof UserError && err.code === "handle_taken") {
+      return NextResponse.json(
+        { error: err.message, code: err.code },
+        { status: 409 }
+      );
+    }
+    if (err instanceof UserError && err.code === "handle_invalid") {
+      return NextResponse.json(
+        { error: err.message, code: err.code },
+        { status: 400 }
+      );
     }
     if (err instanceof AdminConfigError) {
       console.error("[auth/signup]", err);
-      return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 });
+      return NextResponse.json(
+        { error: "Authentication service unavailable" },
+        { status: 503 }
+      );
     }
     console.error("[auth/signup] unexpected", err);
     return NextResponse.json({ error: "Sign-up failed." }, { status: 500 });

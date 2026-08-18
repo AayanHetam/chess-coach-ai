@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { addressAs, avatarInitial } from "@/lib/auth/displayIdentity";
 import {
   Avatar,
   Box,
@@ -64,11 +65,11 @@ export default function UserMenu() {
 
   return (
     <>
-      <Tooltip title={user.displayName || user.email || "Account"}>
+      <Tooltip title={addressAs(user)}>
         <IconButton onClick={handleMenuOpen} sx={{ p: 0.5 }}>
           <Avatar
             src={user.photoURL || undefined}
-            alt={user.displayName || "User"}
+            alt={addressAs(user)}
             sx={{
               width: 34,
               height: 34,
@@ -77,7 +78,7 @@ export default function UserMenu() {
               bgcolor: "primary.main",
             }}
           >
-            {user.displayName?.[0] || user.email?.[0]?.toUpperCase() || "U"}
+            {avatarInitial(user)}
           </Avatar>
         </IconButton>
       </Tooltip>
@@ -100,27 +101,63 @@ export default function UserMenu() {
         {/* User info header */}
         <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid #f0f0f0" }}>
           <Typography variant="body2" sx={{ fontWeight: 700, color: "#333" }}>
-            {user.displayName || "Chess Player"}
+            {addressAs(user)}
           </Typography>
           <Typography variant="caption" sx={{ color: "#888" }}>
             {user.email}
           </Typography>
-          
+
           {/* Linked accounts */}
           {(profile?.chesscomUsername || profile?.lichessUsername) && (
             <Box sx={{ mt: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
               {profile.chesscomUsername && (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, bgcolor: "#f5f5f5", px: 1, py: 0.25, borderRadius: 1 }}>
-                  <img src="https://www.chess.com/favicon.ico" width={12} height={12} alt="Chess.com" />
-                  <Typography variant="caption" sx={{ fontSize: "0.65rem", fontWeight: 600 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    bgcolor: "#f5f5f5",
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: 1,
+                  }}
+                >
+                  <img
+                    src="https://www.chess.com/favicon.ico"
+                    width={12}
+                    height={12}
+                    alt="Chess.com"
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{ fontSize: "0.65rem", fontWeight: 600 }}
+                  >
                     {profile.chesscomUsername}
                   </Typography>
                 </Box>
               )}
               {profile.lichessUsername && (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, bgcolor: "#f5f5f5", px: 1, py: 0.25, borderRadius: 1 }}>
-                  <img src="https://lichess.org/favicon.ico" width={12} height={12} alt="Lichess" />
-                  <Typography variant="caption" sx={{ fontSize: "0.65rem", fontWeight: 600 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    bgcolor: "#f5f5f5",
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: 1,
+                  }}
+                >
+                  <img
+                    src="https://lichess.org/favicon.ico"
+                    width={12}
+                    height={12}
+                    alt="Lichess"
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{ fontSize: "0.65rem", fontWeight: 600 }}
+                  >
                     {profile.lichessUsername}
                   </Typography>
                 </Box>
@@ -152,18 +189,6 @@ export default function UserMenu() {
             <Icon icon="mdi:database-outline" width={20} />
           </ListItemIcon>
           <ListItemText>My Games</ListItemText>
-        </MenuItem>
-
-        <MenuItem
-          onClick={handleMenuClose}
-          component="a"
-          href="/pricing"
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon>
-            <Icon icon="mdi:credit-card-outline" width={20} />
-          </ListItemIcon>
-          <ListItemText>Manage subscription</ListItemText>
         </MenuItem>
 
         <MenuItem onClick={handleSignOut} sx={{ py: 1.5, color: "error.main" }}>

@@ -21,7 +21,10 @@ const URL = "https://chessmasti.com/free-chess-analysis";
 const HERE = "Free Chess Analysis";
 
 export const metadata: Metadata = {
-  title: { absolute: "Free Chess Analysis | Stockfish + AI Explanations from Chess Masti" },
+  title: {
+    absolute:
+      "Free Chess Analysis | Stockfish + AI Explanations from Chess Masti",
+  },
   description:
     "Free chess analysis means analyzing your games without paying upfront. Chess Masti AI runs Stockfish for accuracy and Claude AI for explanations — free to start, no credit card.",
   alternates: {
@@ -29,14 +32,16 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Free Chess Analysis | Chess Masti AI",
-    description: "Analyze any chess game free. Stockfish accuracy plus AI explanations.",
+    description:
+      "Analyze any chess game free. Stockfish accuracy plus AI explanations.",
     url: URL,
     images: [{ url: "/og/free-ai-chess-coach" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Free Chess Analysis | Chess Masti AI",
-    description: "Analyze any chess game free. Stockfish accuracy plus AI explanations.",
+    description:
+      "Analyze any chess game free. Stockfish accuracy plus AI explanations.",
     images: ["/og/free-ai-chess-coach"],
   },
 };
@@ -68,12 +73,12 @@ export default function FreeChessAnalysisPage() {
       <H1>Free Chess Analysis</H1>
 
       <AnswerBlock>
-        Free chess analysis means analyzing your games without paying upfront — no credit card to
-        begin. Chess Masti AI gives you a generous free tier powered by Stockfish (the world&apos;s
-        strongest open-source engine) and Claude AI (which explains the engine output in plain
-        language), plus a free 7-day Premium trial if you want unlimited coaching. Paste a PGN from
-        Lichess, Chess.com, or any other source. The engine runs in your browser. The coach explains
-        every critical move.
+        Free chess analysis means analyzing your games without paying upfront —
+        no credit card to begin. Chess Masti AI is free and powered by Stockfish
+        (the world&apos;s strongest open-source engine) and AI explanations in
+        plain language. Paste a PGN from Lichess, Chess.com, or any other
+        source. The engine runs in your browser. The coach explains every
+        critical move.
       </AnswerBlock>
 
       <CtaRow>
@@ -84,7 +89,9 @@ export default function FreeChessAnalysisPage() {
       </CtaRow>
 
       <Box component="section" sx={{ mb: 10 }}>
-        <SectionHeading>What does free chess analysis actually include?</SectionHeading>
+        <SectionHeading>
+          What does free chess analysis actually include?
+        </SectionHeading>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {[
             {
@@ -105,8 +112,16 @@ export default function FreeChessAnalysisPage() {
             },
           ].map((item) => (
             <Box key={item.title} sx={glassCard}>
-              <Typography sx={{ fontWeight: 700, color: "#fff", mb: 1 }}>{item.title}</Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.65)", fontSize: "0.9rem", lineHeight: 1.8 }}>
+              <Typography sx={{ fontWeight: 700, color: "#fff", mb: 1 }}>
+                {item.title}
+              </Typography>
+              <Typography
+                sx={{
+                  color: "rgba(255,255,255,0.65)",
+                  fontSize: "0.9rem",
+                  lineHeight: 1.8,
+                }}
+              >
                 {item.desc}
               </Typography>
             </Box>
@@ -117,30 +132,36 @@ export default function FreeChessAnalysisPage() {
       <Box component="section" sx={{ mb: 10 }}>
         <SectionHeading>How to analyze a chess game free</SectionHeading>
         <ProseBlock>
-          1. Copy the PGN from Lichess, Chess.com, or your tournament platform. Most sites have an
-          export-PGN button on the game review page.
+          1. Copy the PGN from Lichess, Chess.com, or your tournament platform.
+          Most sites have an export-PGN button on the game review page.
         </ProseBlock>
         <ProseBlock>
-          2. Paste the PGN into Chess Masti&apos;s analysis board. The engine starts evaluating
-          immediately. There is no upload step and no server round-trip for the engine work.
+          2. Paste the PGN into Chess Masti&apos;s analysis board. The engine
+          starts evaluating immediately. There is no upload step and no server
+          round-trip for the engine work.
         </ProseBlock>
         <ProseBlock>
-          3. Click through the moves. At critical moments, the coach explains what happened. Convert
-          any mistake into a puzzle with one tap if you want to drill it later.
+          3. Click through the moves. At critical moments, the coach explains
+          what happened. Convert any mistake into a puzzle with one tap if you
+          want to drill it later.
         </ProseBlock>
       </Box>
 
       <Box component="section" sx={{ mb: 10 }}>
-        <SectionHeading>Why use this instead of Lichess analysis?</SectionHeading>
+        <SectionHeading>
+          Why use this instead of Lichess analysis?
+        </SectionHeading>
         <ProseBlock>
-          Lichess analysis is excellent and free — it&apos;s the gold standard for raw engine
-          evaluation. What it does not do is explain anything in plain language. You get the
-          numbers; you have to figure out what they mean yourself.
+          Lichess analysis is excellent and free — it&apos;s the gold standard
+          for raw engine evaluation. What it does not do is explain anything in
+          plain language. You get the numbers; you have to figure out what they
+          mean yourself.
         </ProseBlock>
         <ProseBlock>
-          Chess Masti adds the explanation layer on top of comparable engine accuracy. If you want
-          numbers, Lichess is great. If you want to learn from your games without becoming an
-          engine-output translator, the explanation layer matters.
+          Chess Masti adds the explanation layer on top of comparable engine
+          accuracy. If you want numbers, Lichess is great. If you want to learn
+          from your games without becoming an engine-output translator, the
+          explanation layer matters.
         </ProseBlock>
       </Box>
 
@@ -151,7 +172,10 @@ export default function FreeChessAnalysisPage() {
         cta="Open the free AI chess coach page"
       />
 
-      <FooterCta title="Start your free chess analysis" sub="Paste a PGN. The engine runs in your browser." />
+      <FooterCta
+        title="Start your free chess analysis"
+        sub="Paste a PGN. The engine runs in your browser."
+      />
     </PageShell>
   );
 }

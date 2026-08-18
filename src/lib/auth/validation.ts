@@ -37,19 +37,64 @@ export const signupSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   displayName: displayNameSchema.optional(),
-  // COPPA: set by the client only after the neutral DOB age gate resolves
-  // 13+. Must be literally true — account creation is refused without it,
-  // and the server stamps ageAffirmedAt from it. The DOB itself is never
-  // transmitted.
+  // COPPA: set by the client only after the 13+ age-affirmation checkbox is
+  // ticked. Must be literally true — account creation is refused without it,
+  // and the server stamps ageAffirmedAt from it. No age or birth date is
+  // ever transmitted.
   ageAffirmed: z
-    .boolean("Please confirm your date of birth to sign up.")
-    .refine((v) => v === true, "Please confirm your date of birth to sign up."),
+    .boolean("Please confirm you're 13 or older to sign up.")
+    .refine((v) => v === true, "Please confirm you're 13 or older to sign up."),
+  /**
+   * REQUIRED, and fail-closed on purpose.
+   *
+   * Declared AFTER `ageAffirmed` deliberately. Zod reports issues in field
+   * order and the route surfaces only the first, so a client missing both
+   * must be told about the COPPA affirmation — the legally load-bearing
+   * check — not about a handle.
+   *
+   * Handles shipped claimable-but-optional in #332, which produced yet another
+   * cohort of accounts that would have to be prompted later — the same trap the
+   * goal and the chess username both fell into, because the onboarding quiz is
+   * one-time and existing accounts are never asked again.
+   *
+   * The cost is that a browser holding a bundle from before this deploy posts
+   * no handle and gets a 400 telling it to pick one; reloading fixes it. That
+   * is a self-healing failure, and the alternative — accepting the signup and
+   * silently minting another handle-less account — is the bug being fixed.
+   *
+   * Shape is validated by `checkHandle` on the server (reserved words, length
+   * after separator folding); this only guarantees a non-empty string arrives.
+   */
+  handle: z
+    .string("Pick a handle to finish signing up.")
+    .trim()
+    .min(1, "Pick a handle to finish signing up."),
 });
 
-export const signinSchema = z.object({
-  email: emailSchema,
-  password: z.string().min(1, "Password is required."),
-});
+/**
+ * Sign-in accepts a handle OR an email.
+ *
+ * `identifier` is the field the form now sends. `email` is still accepted so a
+ * client cached from before this shipped keeps working — a schema change that
+ * bricks sign-in for anyone holding a stale bundle is not a change worth
+ * making. Neither is validated as an email address here: the value is only
+ * ever used as a lookup key, and rejecting an unusual-but-real address at the
+ * door would lock out an account that exists.
+ */
+export const signinSchema = z
+  .object({
+    identifier: z.string().trim().min(1).max(254).optional(),
+    email: z.string().trim().min(1).max(254).optional(),
+    password: z.string().min(1, "Password is required."),
+  })
+  .refine((d) => Boolean(d.identifier || d.email), {
+    message: "Enter your handle or email.",
+    path: ["identifier"],
+  })
+  .transform((d) => ({
+    identifier: (d.identifier ?? d.email ?? "").trim(),
+    password: d.password,
+  }));
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required."),
@@ -91,7 +136,13 @@ export const profilePatchSchema = z.object({
   playingStyle: z.enum(["tactical", "positional", "balanced"]).optional(),
   studyGoals: z
     .array(
-      z.enum(["tactics", "endgames", "openings", "middlegame", "time-management"])
+      z.enum([
+        "tactics",
+        "endgames",
+        "openings",
+        "middlegame",
+        "time-management",
+      ])
     )
     .max(4)
     .optional(),
@@ -126,7 +177,9 @@ export const profilePatchSchema = z.object({
   platformRating: z.number().int().min(0).max(3500).optional(),
   platformRatingRaw: z.number().int().min(0).max(3500).optional(),
   platformRatingSource: z.enum(["lichess", "chesscom"]).optional(),
-  platformRatingPerf: z.enum(["bullet", "blitz", "rapid", "classical"]).optional(),
+  platformRatingPerf: z
+    .enum(["bullet", "blitz", "rapid", "classical"])
+    .optional(),
   platformRatingFetchedAt: z.number().int().min(0).optional(),
 
   // Goal-driven planning inputs.

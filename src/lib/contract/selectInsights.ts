@@ -43,6 +43,7 @@
  */
 import { getFenAtHalfMove, uciToSan } from "./chessFormat";
 import type { GameEvalInput } from "./gameEvalSchema";
+import { isComparableDepthPair, requestedDepth } from "./evalDepth";
 
 export type InsightSelectionPolicy = "legacy";
 
@@ -81,15 +82,25 @@ export interface InsightSelection {
   intelligenceTop3: IntelCandidate[];
 }
 
-function flattenEval(line: { cp?: number | null; mate?: number | null }): number {
-  // C6 (SILENT_SUBSTITUTION_HANDOFF §3): `mate !== undefined` is TRUE for
-  // `null`, and `null > 0` is false — so a null mate flattened to -9999, a
-  // forced loss for White, out of a position that has no mate at all.
-  return typeof line.mate === "number"
-    ? line.mate > 0
-      ? 9999
-      : -9999
-    : (line.cp ?? 0);
+/**
+ * Mate-flatten a line's score, or return null when the line carries none.
+ *
+ * C6 (SILENT_SUBSTITUTION_HANDOFF §3): `mate !== undefined` is TRUE for
+ * `null`, and `null > 0` is false — so a null mate flattened to -9999, a
+ * forced loss for White, out of a position that has no mate at all.
+ *
+ * The null-cp half of the same bug lived here longer: the no-mate branch read
+ * `line.cp ?? 0`, so a line with neither score — no measurement at all, which
+ * gameEvalSchema deliberately admits — flattened to a confident "dead equal".
+ * That 0 fed `drop = cpBefore - cpAfter` and the `drop > 50` gate, so one
+ * unscored ply next to a real +350 manufactured a 350cp collapse into it and
+ * a 350cp recovery out of it, both sorted by size toward rank 1. A missing
+ * number is now null, and callers must decline the ply, exactly as the
+ * depth-0 sentinel already does.
+ */
+export function flattenEval(line: { cp?: number | null; mate?: number | null }): number | null {
+  if (typeof line.mate === "number") return line.mate > 0 ? 9999 : -9999;
+  return typeof line.cp === "number" ? line.cp : null;
 }
 
 export function selectInsights(
@@ -105,6 +116,7 @@ export function selectInsights(
   }
 
   const positions = gameEval?.positions;
+  const declaredDepth = requestedDepth(gameEval);
   if (!positions || positions.length === 0) {
     // Legacy computes both lists only inside the gameEval branch; the
     // intelligence scan's weaker `if (gameEval?.positions)` gate yields
@@ -123,8 +135,15 @@ export function selectInsights(
       if (!evalBefore?.lines?.[0] || !evalAfter?.lines?.[0] || beforeIsSentinel || afterIsSentinel) {
         continue;
       }
+      // T8: a retried position comes back 4 plies shallower and merges in
+      // looking exactly like its neighbours. Subtracting a d12 eval from a
+      // d16 one manufactures a 50-150cp "drop" out of the search rather than
+      // the move — squarely inside the band this scan calls a mistake.
+      if (!isComparableDepthPair(evalBefore, evalAfter, declaredDepth)) continue;
       const cpBefore = flattenEval(evalBefore.lines[0]);
       const cpAfter = flattenEval(evalAfter.lines[0]);
+      // Unscored line: skipped like the sentinel above, never read as 0.00.
+      if (cpBefore === null || cpAfter === null) continue;
       const drop = i % 2 === 0 ? cpBefore - cpAfter : cpAfter - cpBefore;
       if (drop > 50) {
         const fenBefore = getFenAtHalfMove(moveHistory, i);
@@ -164,8 +183,15 @@ export function selectInsights(
       const evalAfter = positions[i + 1];
       if (!evalBefore?.lines?.[0] || !evalAfter?.lines?.[0]) continue;
       if (evalBefore.lines[0].depth === 0 || evalAfter.lines[0].depth === 0) continue;
+      // T8: a retried position comes back 4 plies shallower and merges in
+      // looking exactly like its neighbours. Subtracting a d12 eval from a
+      // d16 one manufactures a 50-150cp "drop" out of the search rather than
+      // the move — squarely inside the band this scan calls a mistake.
+      if (!isComparableDepthPair(evalBefore, evalAfter, declaredDepth)) continue;
       const cpBefore = flattenEval(evalBefore.lines[0]);
       const cpAfter = flattenEval(evalAfter.lines[0]);
+      // Unscored line: skipped like the sentinel above, never read as 0.00.
+      if (cpBefore === null || cpAfter === null) continue;
       const drop = i % 2 === 0 ? cpBefore - cpAfter : cpAfter - cpBefore;
       if (drop > 50) {
         intelCandidates.push({

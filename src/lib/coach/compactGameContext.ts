@@ -16,6 +16,7 @@ import {
   type GameEvalInput,
 } from "@/lib/contract/legacyGameContext";
 import { buildCurrentPositionFacts } from "@/lib/mastermind/positionFacts";
+import { isComparableDepthPair, requestedDepth } from "@/lib/contract/evalDepth";
 
 /**
  * Compact game context used on follow-up chat turns.
@@ -63,6 +64,7 @@ export function buildCompactGameContext(
     return `${cp >= 0 ? "+" : ""}${(cp / 100).toFixed(2)}`;
   };
 
+  const declaredDepth = requestedDepth(gameEval);
   for (let i = 0; i < moveHistory.length; i++) {
     const moveSan = moveHistory[i];
     const moveNum = Math.floor(i / 2) + 1;
@@ -86,10 +88,19 @@ export function buildCompactGameContext(
     // fabricated blunder (or mask a real one) on the Haiku follow-up path.
     const compactSentinel =
       evalBefore?.lines?.[0]?.depth === 0 || evalAfter?.lines?.[0]?.depth === 0;
+    // T8: the same refusal, for the quieter case. A position the engine had
+    // to retry comes back 4 plies shallower and merges in looking exactly like
+    // its neighbours, so the subtraction below would read the SEARCH's
+    // disagreement with itself as the player's mistake. `moveClassification`
+    // is computed from the same pairwise comparison client-side, so it is
+    // suppressed alongside the drop rather than left to speak for it.
+    const depthMismatch =
+      !compactSentinel &&
+      !isComparableDepthPair(evalBefore, evalAfter, declaredDepth);
     let drop = 0;
     let cpBefore: number | null = null;
     let cpAfter: number | null = null;
-    if (evalBefore?.lines?.[0] && evalAfter?.lines?.[0] && !compactSentinel) {
+    if (evalBefore?.lines?.[0] && evalAfter?.lines?.[0] && !compactSentinel && !depthMismatch) {
       // C6: see selectInsights.flattenEval — null must not flatten to -9999.
       cpBefore = typeof evalBefore.lines[0].mate === "number"
         ? (evalBefore.lines[0].mate! > 0 ? 9999 : -9999)
@@ -111,7 +122,7 @@ export function buildCompactGameContext(
     // ALWAYS lands here for a timed-out ply — so the guard that was meant to
     // stop a stalled position narrating as a fabricated blunder was in fact
     // guaranteeing it kept its client-supplied label. Suppress the label too.
-    else if (!compactSentinel && evalAfter?.moveClassification) label = evalAfter.moveClassification;
+    else if (!compactSentinel && !depthMismatch && evalAfter?.moveClassification) label = evalAfter.moveClassification;
 
     // Build the sentence
     let sentence = `Move ${moveNum} (${colorWord}): ${moveSan}`;

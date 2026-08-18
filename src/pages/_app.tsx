@@ -7,7 +7,6 @@ import Layout from "@/sections/layout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthDialogProvider } from "@/contexts/AuthDialogContext";
-import { PaywallDialogProvider } from "@/contexts/PaywallDialogContext";
 import { Typography, Box, Container } from "@mui/material";
 import Head from "next/head";
 import { Analytics } from "@vercel/analytics/react";
@@ -94,15 +93,11 @@ export default function MyApp({ Component, pageProps }: AppProps) {
                 (/, /preview/*, /analysis, ...). Fixed-position and self-styled,
                 so it renders fine outside the themed Layout below. */}
             <ConsentBanner />
-            {/* Hosts the single app-wide Premium upgrade dialog; opened via
-                usePaywallDialog() from any 402 handler or upgrade affordance. */}
-            <PaywallDialogProvider>
-              <ErrorBoundary name="app">
-                <Layout>
-                  <Component {...pageProps} />
-                </Layout>
-              </ErrorBoundary>
-            </PaywallDialogProvider>
+            <ErrorBoundary name="app">
+              <Layout>
+                <Component {...pageProps} />
+              </Layout>
+            </ErrorBoundary>
           </AuthDialogProvider>
         </AuthProvider>
       </QueryClientProvider>

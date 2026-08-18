@@ -34,6 +34,36 @@ export const MATE_CP = 30000;
 export const PROPHYLAXIS_MIN_SWING_CP = 150;
 
 /**
+ * How far the threat must move IN THE OPPONENT'S FAVOUR before we say our move
+ * made it stronger.
+ *
+ * Symmetric with PROPHYLAXIS_MIN_SWING_CP above, and for the same reason. The
+ * founder, on two cards claiming his move made a threat stronger: "the evals
+ * should be the same because the position that occurs should be the same a few
+ * moves after the move." They were the same, to within measurement error.
+ *
+ * This label used to fire on `swing < 0` — any negative value at all. The swing
+ * is a difference between two DIFFERENT positions (with and without our move),
+ * each scored by its own search, and it is nothing like stable enough to read a
+ * sign off. Measured like-for-like on the three cards he was shown, at
+ * increasing depth:
+ *
+ *   game_10 20.Qh3    d14 -29   d16 -28   d18 -12   d20  +7   d22  +6   d24 +13
+ *   game_11 40.Ra6    d14  -8   d16 -25   d18  -3   d20 +43   d22 -151  d24 -333
+ *   game_12 14...d5   d14 -20   d16 -43   d18   0   d20 -16   d22  -7   d24 -17
+ *
+ * The first flips sign at depth 20 and stays flipped; the second flips twice.
+ * At fixed depth the same swing moves ~25cp purely from legitimate measurement
+ * choices (MultiPV 1 vs 2, restricted vs unrestricted). Every instance the
+ * module had ever labelled sat between 9 and 43cp — entirely inside that.
+ *
+ * Requiring the same magnitude in both directions is the point: we already
+ * refuse to say "your move stopped this" below 150cp, and saying "your move
+ * STRENGTHENED this" is no cheaper a claim.
+ */
+export const THREAT_STRENGTHENED_MIN_CP = PROPHYLAXIS_MIN_SWING_CP;
+
+/**
  * How much a free tempo must be worth to the opponent before their best
  * null-move reply counts as a THREAT at all.
  *
@@ -90,24 +120,39 @@ export const PROPHYLAXIS_MIN_SPECIFIC_CP = 150;
 export const PROPHYLAXIS_THREAT_MUST_END_BELOW_CP = -100;
 
 /**
- * How much WORSE our move may answer the threat than the best move we passed
- * over, before the claim stops being about our move at all.
+ * The share of the available refutation our move must capture before the
+ * threat's decline may be called OUR MOVE'S doing.
  *
  * The founder's rejection of "Kd8 stops Be2": "there is probably just another
  * move that does the same thing that stockfish prefers in that position."
- * Measured — Kd8 answers Be2 to -189; a6 reaches -423 and Qxe4+ -515. Kd8 is
- * the worst answer of the lot, so Be2's decline is not its doing.
+ * The first gate built on that ruling was an absolute centipawn margin
+ * (played-answer minus best-alternative-answer, bar 250), and on clean data
+ * the founder's own rulings order the WRONG way round under it: h5, confirmed,
+ * sits 341cp short of its best alternative; Kd8, rejected, only 311cp short.
+ * No absolute bar keeps one and rejects the other, because an absolute margin
+ * is applied to refutations of wildly different size.
  *
- * Deliberately a tolerance and not a demand for uniqueness: h5 is a real
- * prophylactic move that does NOT uniquely answer Qg4 (f6 also mates), and a
- * gate requiring uniqueness would reject it.
+ * The founder chose the gate's shape on 2026-08-18: a SHARE of the refutation
+ * actually available — captured / (captured + shortfall), where captured is
+ * how far the threat fell under our move and shortfall is how much further the
+ * best passed-over move would have taken it.
  *
- * Set from the positions the founder ruled on: Kd8, which they rejected, sits
- * 377cp worse than the best move passed over; Re1, which they confirmed, sits
- * 161cp worse. Only those two points bracket this bar — it is the
- * least-evidenced number in this file and should move as ground truth grows.
+ * All five of the founder's rulings, under that shape:
+ *
+ *   g6    CONFIRMED   957 of 1030cp    92.9%
+ *   h5    CONFIRMED   1112 of 1453cp   76.5%
+ *   Re1   CONFIRMED   383 of 600cp     63.8%
+ *   Kd8   REJECTED    312 of 623cp     50.1%
+ *   f5    CONFIRMED   incomparable (its alternatives END the threat — no
+ *                     same-scale subtraction exists; the gate does not run)
+ *
+ * The rulings force the bar into (50.1%, 63.8%]. It is set at the MIDPOINT of
+ * that window, equal distance from the closest confirmed and the closest
+ * rejected ruling, so a small measurement wobble on either flips nothing.
+ * Two points bound each edge — move it as ground truth grows, never past
+ * either edge.
  */
-export const PROPHYLAXIS_MAX_ATTRIBUTION_CP = 250;
+export const PROPHYLAXIS_MIN_REFUTATION_SHARE = 0.57;
 
 /** Spread between best and second-best that separates the sharpness buckets. */
 export const SHARPNESS_ONLY_MOVE_CP = 150;
@@ -351,7 +396,17 @@ function computeProphylaxis(
       notes.push("opponent is being mated in the null line — no threat of theirs to stop");
       return null;
     }
-    const rootScore = probe.rootLines[0]?.score;
+    // BOTH OPERANDS FROM ONE REGIME. `before` is the null-move probe's number,
+    // measured on a cold transposition table; gameEval's root score is read off
+    // a warm one. Adding them makes the sum carry the difference between two
+    // engines. Sampled on 60 plies near the 150cp bar, 12% of the
+    // threat/no-threat decisions flip when this operand is measured alongside
+    // the threat instead — about 7.8% of all plies where this gate is live, and
+    // in both directions.
+    const rootScore = probe.rootBestProbed ?? probe.rootLines[0]?.score;
+    if (!probe.rootBestProbed && probe.rootLines[0]) {
+      notes.push("free tempo valued across measurement regimes — no same-regime root score");
+    }
     if (!rootScore || isMate(rootScore)) {
       notes.push("cannot value the opponent's tempo against a mate score");
       return null;
@@ -402,8 +457,63 @@ function computeProphylaxis(
       return null;
     }
     if (probe.position.givesCheck) {
-      notes.push("threat is only illegal because the move gives check — not prevention");
-      signals.unaddressed = unaddressed(probe, "only-illegal-due-to-check");
+      // "Illegal because of the check" is not prevention — but nor is it proof
+      // that the threat survives, which is what this branch used to assert.
+      // Both are claims about the same unmeasured thing. Measure it: play out
+      // the evasions and see whether the threat is available again.
+      const ev = probe.threatEvasions;
+      if (!ev) {
+        notes.push("threat illegal under check, and the evasions were not modelled — saying nothing");
+        return null;
+      }
+      if (ev.replies === 0) {
+        // Checkmate or stalemate. There is no next move to threaten with, and
+        // this branch was captioning game_04's final `Qxh7#` with a claim that
+        // he had failed to deal with `Qf3+`.
+        notes.push("the move ended the game — there is no threat left to answer");
+        return null;
+      }
+      if (ev.returns === ev.replies) {
+        notes.push("threat is only illegal because the move gives check — it returns after every reply");
+        signals.unaddressed = unaddressed(probe, "only-illegal-due-to-check");
+        return null;
+      }
+      if (ev.returns === 0 && ev.unmodelled === 0) {
+        // The threat never comes back down ANY legal reply: the check ended it
+        // permanently, which is what `Rhxg2+` was doing to `Kf2` when a card
+        // told the founder he had ignored it. The founder ruled on 2026-08-18:
+        // CREDIT IT, but only when the move is itself sound — a blunder must
+        // never be praised for a side effect. Soundness is same-search only
+        // (see sameSearchLossCp); when it cannot be measured, no credit.
+        const loss = sameSearchLossCp(probe);
+        if (loss !== null && loss < COST_MIN_LOSS_CP) {
+          return {
+            threatSan: probe.threat.san,
+            scoreBeforeCp: before,
+            scoreAfterCp: null,
+            swingCp: null,
+            preventedOutright: true,
+            defusedMate: threatMates,
+            specificCp: null,
+            attributionCp: attributionMargin(probe),
+          };
+        }
+        notes.push(
+          loss === null
+            ? "the check ends the threat for good, but the move is not measurably near the engine's best — not crediting"
+            : `the check ends the threat for good, but the move itself loses ${loss}cp — a side effect of an unsound move earns no credit`,
+        );
+        return null;
+      }
+      // The threat comes back down some evasions and not others, or an
+      // evasion could not be modelled: the claim depends on a choice the
+      // opponent has not made yet. That earns neither "you ignored it" nor
+      // credit for stopping it.
+      notes.push(
+        `threat returns after ${ev.returns} of ${ev.replies} replies` +
+          (ev.unmodelled ? ` (${ev.unmodelled} unmodelled)` : "") +
+          " — not claiming it was ignored",
+      );
       return null;
     }
   }
@@ -461,6 +571,19 @@ function computeProphylaxis(
     // read as "our move stopped this". Found in a dead king-and-pawn ending: a3
     // was carded as stopping Kg5 while White was mated in 20 whatever they
     // played.
+    if (probe.opponentBestAfter === null) {
+      // isMateAgainst(null) is false, so a missing baseline used to fall
+      // straight through the guard below and return the full fact — the exact
+      // null collapse the guard was added to kill, one field over. types.ts
+      // documents opponentBestAfter as "null when not measured" (fromGameEval
+      // leaves it null when the ply+1 evaluation timed out), and an unmeasured
+      // baseline cannot tell a stopped threat from a position that was lost
+      // anyway. Decline; never default.
+      notes.push(
+        "their best reply was never measured — cannot tell a stopped threat from a position that was lost anyway",
+      );
+      return null;
+    }
     if (isMateAgainst(probe.opponentBestAfter)) {
       notes.push("the opponent is being mated whatever they play — the move did not stop this");
       return null;
@@ -484,20 +607,18 @@ function computeProphylaxis(
   }
   if (swing < PROPHYLAXIS_MIN_SWING_CP) {
     notes.push(`threat swing ${swing}cp below ${PROPHYLAXIS_MIN_SWING_CP}cp`);
-    // A negative swing means the move made their threat BETTER for them, which
-    // is a different card from "nothing much changed" and was being filed under
-    // the same label.
+    // A swing far enough NEGATIVE means the move made their threat better for
+    // them — a different card from "nothing much changed". It needs the same
+    // evidence as the positive claim; see THREAT_STRENGTHENED_MIN_CP.
     //
-    // Real, re-measured in a single regime — game_11 move 40, the position the
-    // founder asked about. White is DRAWN: Rc7+, Rc3 and Rc1 all hold at 0.00.
-    // Ra6 loses at -527 AND leaves Black's Re6+ slightly better for Black than
-    // it already was, 521 → 542. "Barely changed" would file that beside a move
-    // that improved nothing; it is worse than nothing.
-    //
-    // The numbers this comment used to quote (2196 → 2706) came from a sweep
-    // whose null-move searches shared a transposition table with the real ones.
-    // The label was right and the evidence was not; 2706 does not reproduce.
-    signals.unaddressed = swing < 0
+    // This comment has now quoted two worked examples that did not survive
+    // measurement, which is itself the lesson. The first (Ra6 2196 → 2706) came
+    // from a sweep whose null-move searches shared a transposition table with
+    // the real ones. The second (the same Ra6, cleanly re-measured at 521 → 542)
+    // was a 21cp difference inside a ±25cp noise floor, and its sign flips with
+    // search depth. No worked example is quoted here now because the corpus
+    // contains none that clears the bar — which is the honest state.
+    signals.unaddressed = swing <= -THREAT_STRENGTHENED_MIN_CP
       ? unaddressed(probe, "made-it-worse", { madeItWorse: true })
       : unaddressed(probe, "barely-changed");
     return null;
@@ -552,12 +673,25 @@ function computeProphylaxis(
   // the same? Only a move that answers the threat at least as well as its
   // alternatives can claim the credit.
   const attribution = attributionOf(probe);
-  if (attribution.kind === "measured" && attribution.marginCp > PROPHYLAXIS_MAX_ATTRIBUTION_CP) {
-    notes.push(
-      `moves we did not play answer ${probe.threat.san} ${attribution.marginCp}cp better — ` +
-      `the threat's decline is not this move's doing`,
-    );
-    return null;
+  if (attribution.kind === "measured") {
+    // Share of the available refutation this move captured. `captured` is how
+    // far the threat fell under our move; `marginCp` is how much further the
+    // best passed-over move would have taken it, measured on the same scale
+    // (attributionOf guarantees that). Their sum is the refutation available.
+    //
+    // A share, not an absolute margin: an absolute bar cannot hold the
+    // founder's rulings, because h5 (confirmed) falls 341cp short of ITS best
+    // alternative while Kd8 (rejected) falls only 311cp short of its much
+    // smaller one. See PROPHYLAXIS_MIN_REFUTATION_SHARE.
+    const captured = before - threatEndsAt;
+    const available = captured + attribution.marginCp;
+    if (available > 0 && captured / available < PROPHYLAXIS_MIN_REFUTATION_SHARE) {
+      notes.push(
+        `this move answered ${captured}cp of the ${available}cp refutation available ` +
+        `(${Math.round((captured / available) * 100)}%) — the threat's decline is mostly not this move's doing`,
+      );
+      return null;
+    }
   }
 
   return {
@@ -651,13 +785,64 @@ function attributionOf(probe: IntentProbe): Attribution {
  * from a material score yields things like "COST 30929cp" — a real output from
  * this function before the mate branches existed.
  */
+/**
+ * The played move's score, preferring the value measured IN THE SAME SEARCH as
+ * the root lines.
+ *
+ * `probe.playedScore` is defined as "the score of the move actually played,
+ * measured at fenBefore, for the PLAYER" — but on the game-review path it is
+ * derived from the evaluation of the position the move PRODUCED, which is a
+ * different search of a different position. When the played move is one of the
+ * MultiPV lines, the engine has already scored it inside the same search that
+ * produced `rootLines[0]`, and that is the number the subtraction wants.
+ *
+ * This is not a nicety. `cost` is `rootLines[0] - played`, so when the student
+ * plays THE ENGINE'S OWN TOP MOVE the answer must be exactly zero. Measured on
+ * the 285 such plies across the founder's twelve games, the two-search version
+ * gives a median of 1cp but a p99 of 113cp and a maximum of 148cp — and five of
+ * them cleared COST_MIN_LOSS_CP, so the review charged the student more than a
+ * pawn for playing the best move on the board. Taking both operands from one
+ * search makes those exactly zero by construction, not by threshold.
+ *
+ * Falls back to the separate measurement for the ~33% of moves outside the top
+ * three, where no same-search number exists. Those are moves the engine ranked
+ * below its third choice, so the loss is large and the noise is a small part of
+ * it.
+ */
+function playedScoreOf(probe: IntentProbe): IntentScore | null {
+  const inSameSearch = probe.rootLines.find((l) => l.san === probe.playedSan);
+  return inSameSearch ? inSameSearch.score : probe.playedScore;
+}
+
+/**
+ * How far the played move sits below the engine's best, SAME SEARCH ONLY.
+ *
+ * This deliberately does not fall back to `probe.playedScore` the way
+ * `playedScoreOf` does: that fallback is a different search of a different
+ * position, and a soundness verdict built on a cross-regime subtraction is the
+ * exact class of error PR #331 removed. A move outside the MultiPV lines was
+ * ranked below the engine's third choice, which already answers "is this move
+ * at or near the best?" with no — so null here means "not measurably near the
+ * best", and callers must decline whatever claim needed the soundness.
+ */
+function sameSearchLossCp(probe: IntentProbe): number | null {
+  const best = probe.rootLines[0];
+  if (!best) return null;
+  const inSameSearch = probe.rootLines.find((l) => l.san === probe.playedSan);
+  if (!inSameSearch) return null;
+  const b = toCp(best.score);
+  const p = toCp(inSameSearch.score);
+  if (b === null || p === null) return null;
+  return Math.max(0, b - p);
+}
+
 function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {
   const best = probe.rootLines[0];
   if (!best) {
     notes.push("no root lines");
     return null;
   }
-  const played = probe.playedScore;
+  const played = playedScoreOf(probe);
   if (!played) {
     notes.push("played move not scored");
     return null;
@@ -729,12 +914,38 @@ function computeCost(probe: IntentProbe, notes: string[]): CostFact | null {
   return { bestSan: best.san, bestCp, playedCp, lossCp: loss, mateChange: null, beyondMeasurement: false };
 }
 
-/** Did the move force mate? Read from the played move's own score. */
+/**
+ * Did the move force mate?
+ *
+ * DELIBERATELY NOT `playedScoreOf`. That helper exists so a SUBTRACTION gets
+ * both operands from one search, which is what `cost` needs. "Is this mate" is
+ * not a subtraction, and the two measurements resolve mates differently: the
+ * MultiPV root search splits its effort across three moves, while the
+ * evaluation of the position the move produced spends all of it on one line.
+ *
+ * Both directions are real, and both were observed on the founder's games:
+ *
+ *   game_11 ply 89 a1=Q   root line +807, produced position MATE IN 13
+ *   game_02 ply 59 Re6#   root line #1, produced position has no evaluation
+ *                         at all — it is checkmate, so there are no lines
+ *
+ * The second is why four checkmating moves — the last move of four of his
+ * games, and the most narratable move in any game — reported nothing. So this
+ * takes a mate from EITHER measurement, preferring the shorter when both find
+ * one. A forced mate the engine has found is a claim about the tree, not a
+ * difference between two noisy numbers, so there is nothing to average.
+ */
 function computeMate(probe: IntentProbe): MateFact | null {
-  const sc = probe.playedScore;
-  if (!sc || sc.mate === null || sc.mate === undefined || sc.mate <= 0) return null;
+  const inSearch = probe.rootLines.find((l) => l.san === probe.playedSan)?.score ?? null;
+  const produced = probe.playedScore;
+  const mateIn = (s: IntentScore | null): number | null =>
+    s && typeof s.mate === "number" && s.mate > 0 ? s.mate : null;
+  const a = mateIn(inSearch);
+  const b = mateIn(produced);
+  if (a === null && b === null) return null;
+  const inMoves = a === null ? b! : b === null ? a : Math.min(a, b);
   const line = probe.rootLines.find((l) => l.san === probe.playedSan);
-  return { inMoves: sc.mate, line: line?.pv ?? [] };
+  return { inMoves, line: line?.pv ?? [] };
 }
 
 /**
@@ -903,6 +1114,9 @@ export function computeIntentFacts(probe: IntentProbe): IntentFacts {
   //    claim after the tempo gate has already confirmed a genuine threat means
   //    something IS happening — saying "nothing tactical here" is then the
   //    opposite of the truth.
+  // Deliberately NOT playedScoreOf(): this is a completeness check on the
+  // probe's own field, and letting a root line stand in for a missing
+  // playedScore would rescue exactly the probe this guard exists to refuse.
   const playedReadable = probe.playedScore !== null && toCp(probe.playedScore) !== null;
   const rootReadable = probe.rootLines.length > 0 && toCp(probe.rootLines[0]?.score) !== null;
   const boardKnown = probe.position !== null;

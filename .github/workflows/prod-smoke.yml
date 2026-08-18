@@ -1,0 +1,79 @@
+# Browser-level production smoke (usability-detection program).
+#
+# WHY THIS IS DAILY AND NOT PER-DEPLOY. The obvious home for this is
+# `deploy-verify`, which already waits for prod to serve the new SHA. It was
+# measured before being written: pushes to main ran 37, 21, 4, 12, 1, 5 and 8
+# on the seven days to 2026-08-18 — about 380 a month. At ~3 billed minutes a
+# run (checkout + npm ci + chromium + the specs) that is 1,100 minutes a
+# month against a 2,000-minute private-repo allowance which was ALREADY
+# exhausted once, on 2026-08-17. Daily costs ~90.
+#
+# WHAT ONLY A BROWSER CAN SEE. The hourly heartbeat already curls five of the
+# six things this checks, more often and for free. What it cannot do is prove
+# the page RENDERS: that the landing is still dark for a light-preference
+# visitor (the white-homepage regression of 2026-08-10), and that a rejected
+# sign-in puts its error where a human can read it rather than only in a JSON
+# body. That is the whole justification for this job existing.
+#
+# Read-only, like the heartbeat: bad credentials, redirect handoffs, health
+# endpoints. Nothing is created or mutated in production.
+name: Prod smoke
+
+on:
+  schedule:
+    # 06:20 UTC. Off the hour on purpose — GitHub throttles scheduled runs
+    # hardest at :00, and this shares a repo with the heartbeat's own hourly
+    # cron.
+    - cron: "20 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # E2E_NO_SERVER skips the local webServer — this project targets
+      # https://www.chessmasti.com, so building or booting the app here would
+      # be pure cost and would test the wrong thing.
+      - name: Prod smoke
+        env:
+          E2E_NO_SERVER: "1"
+        run: npx playwright test --project=prod-smoke
+
+      - name: File issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "in:title Prod smoke failing" --json number --jq 'length')
+          if [ "$EXISTING" = "0" ]; then
+            BODY=$(printf '%s\n' \
+              "The browser-level production smoke failed against https://www.chessmasti.com." \
+              "" \
+              "This covers what the hourly heartbeat cannot: that the landing still RENDERS dark for a light-preference visitor, and that a rejected sign-in shows its error in the form." \
+              "" \
+              "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+              "" \
+              "Close once prod is healthy again; it runs daily.")
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "🚨 Prod smoke failing — production journeys broken" \
+              --body "$BODY"
+          else
+            echo "Open prod-smoke issue already exists; not duplicating."
+          fi

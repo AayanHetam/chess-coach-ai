@@ -23,6 +23,8 @@ export interface UserProfile {
   email: string;
 
   displayName?: string;
+  /** Public handle. Written only by the claim transaction, never by PATCH. */
+  handle?: string;
   photoURL?: string;
   bio?: string;
 

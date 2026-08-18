@@ -137,8 +137,10 @@ function probeFor(r: Ruling): IntentProbe {
     threatAlternative: null,
     threatStillLegal: true,
     threatPieceCaptured: null,
+    threatEvasions: null,
     opponentBestAfter: null,
     opponentBestAfterProbed: null,
+    rootBestProbed: null,
     threatAfterAlternatives: [],
     playedScore: r.playedScore,
     moverHasPieces: true,
@@ -275,8 +277,10 @@ function calibrationProbe(c: Calibration): IntentProbe {
     threatAlternative: null,
     threatStillLegal: true,
     threatPieceCaptured: null,
+    threatEvasions: null,
     opponentBestAfter: null,
     opponentBestAfterProbed: c.probedBest,
+    rootBestProbed: c.rootBest.score,
     threatAfterAlternatives: c.alts,
     playedScore: c.playedScore,
     moverHasPieces: true,
@@ -286,7 +290,7 @@ function calibrationProbe(c: Calibration): IntentProbe {
 }
 
 describe("the founder's rulings on prophylaxis", () => {
-  for (const c of CALIBRATION.filter((x) => x.id.startsWith("h5") === false)) {
+  for (const c of CALIBRATION) {
     it(`${c.founderConfirmed ? "prophylaxis" : "NOT prophylaxis"}: ${c.id}`, () => {
       const f = computeIntentFacts(calibrationProbe(c));
       expect(f.prophylaxis !== null).toBe(c.founderConfirmed);
@@ -294,42 +298,30 @@ describe("the founder's rulings on prophylaxis", () => {
   }
 
   /**
-   * KNOWN REGRESSION, AWAITING THE FOUNDER'S RULING — DO NOT "FIX" BY TUNING.
+   * THE FOUNDER RULED (2026-08-18): the attribution gate is a SHARE of the
+   * refutation available, not an absolute margin.
    *
-   * h5 is the founder's clearest confirmed prophylactic move, and the module
-   * now rejects it. `it.fails` asserts that: the day someone changes the gate,
-   * THIS test fails and forces the change to be looked at deliberately.
-   *
-   * Why it cannot be fixed by moving PROPHYLAXIS_MAX_ATTRIBUTION_CP: on clean
-   * data the two rulings order the WRONG WAY round.
-   *
-   *   h5   CONFIRMED   answers Qg4 to -936; best alternative f6 reaches -1277
-   *                    -> 341cp short
-   *   Kd8  REJECTED    answers Bd5 to -147; best alternative Nxd4 reaches -458
-   *                    -> 311cp short
-   *
-   * No threshold keeps h5 and rejects Kd8, because h5's shortfall is LARGER.
-   * The gate's shape is wrong, not its value: an absolute centipawn margin is
-   * being applied to refutations of wildly different size. As a share of the
-   * refutation actually available, h5 captured 1112 of 1453cp (77%) while Kd8
-   * captured 312 of 623cp (50%) — which does separate them, in the right
-   * direction. Changing a gate's shape is a chess judgement, so it waits.
-   *
-   * Until then the module is SILENT on h5, which is the safe direction: a
-   * missed observation costs nothing a student will notice, a fabricated one
-   * costs their trust.
+   * The `it.fails` that used to stand here was the record of why: under an
+   * absolute margin his own rulings order the wrong way round (h5, confirmed,
+   * 341cp short of its best alternative; Kd8, rejected, only 311cp short).
+   * As a share of the refutation available, h5 captured 1112 of 1453cp (77%)
+   * and Kd8 312 of 623cp (50%). All five rulings pass under the share gate —
+   * the loop above asserts every one — and the two tests below pin the two
+   * that the old gate got wrong, with the numbers visible.
    */
-  it.fails("h5 — game_02 move 23: the founder confirmed it, the module does not", () => {
+  it("h5 — game_02 move 23: confirmed by the founder, now confirmed by the module", () => {
     const h5 = CALIBRATION.find((c) => c.id.startsWith("h5"))!;
     const f = computeIntentFacts(calibrationProbe(h5));
     expect(f.prophylaxis).not.toBeNull();
+    // The margin is still recorded as a fact — the gate no longer misreads it.
+    expect(f.prophylaxis!.attributionCp).toBe(341);
   });
 
-  it("records exactly why h5 is currently refused", () => {
-    const h5 = CALIBRATION.find((c) => c.id.startsWith("h5"))!;
-    const f = computeIntentFacts(calibrationProbe(h5));
+  it("Kd8 — rejected with the share on the record", () => {
+    const kd8 = CALIBRATION.find((c) => c.id.startsWith("Kd8"))!;
+    const f = computeIntentFacts(calibrationProbe(kd8));
     expect(f.prophylaxis).toBeNull();
-    expect(f.notes.join(" ")).toContain("not this move's doing");
+    expect(f.notes.join(" ")).toContain("312cp of the 623cp refutation available (50%)");
   });
 
   // ── the same rule, applied to the other side ────────────────────────────
@@ -373,16 +365,24 @@ describe("the founder's rulings on prophylaxis", () => {
   });
 
   it("a move that makes the threat STRONGER is not filed as 'barely changed'", () => {
-    // Real: game_11 move 40 Ra6. Level beforehand (Rc3 +2), the move scores
-    // -1735, and their threat rises from 2196 to 2706. Calling that "barely
-    // changed" undersold it into the weakest category in the module.
+    // SYNTHETIC, and it has to be. This fixture used to quote game_11 move 40 as
+    // "level beforehand (Rc3 +2), the move scores -1735, their threat rises from
+    // 2196 to 2706" — every one of those numbers came from the sweep whose
+    // null-move searches shared a transposition table with the real ones. Re-
+    // measured cleanly the position is a DRAW (Rc7+/Rc3/Rc1 all 0.00), Ra6
+    // scores -527, and the threat moves 521 -> 542: a 21cp swing whose sign
+    // flips by search depth 20. It no longer reaches this label, and neither
+    // does anything else in the 835-ply corpus.
+    //
+    // So the label is kept and tested on numbers that are honestly invented,
+    // rather than on real numbers that cannot carry the claim.
     const f = computeIntentFacts(
       probeFor({
         ...RULINGS[0],
         best: line("Rc3", cp(2)),
-        playedScore: cp(-1735),
-        threat: line("Re6+", cp(2196)),
-        threatAfter: line("Re6+", cp(2706)),
+        playedScore: cp(-600),
+        threat: line("Re6+", cp(500)),
+        threatAfter: line("Re6+", cp(900)),
       }),
     );
     expect(f.unaddressedThreat!.reason).toBe("made-it-worse");

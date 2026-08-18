@@ -1,4 +1,10 @@
-import { CssBaseline, ThemeProvider, createTheme, Box, Typography } from "@mui/material";
+import {
+  CssBaseline,
+  ThemeProvider,
+  createTheme,
+  Box,
+  Typography,
+} from "@mui/material";
 import { PropsWithChildren, useMemo } from "react";
 import { red } from "@mui/material/colors";
 import {
@@ -11,8 +17,6 @@ import { useRouter } from "next/router";
 import { useViewer } from "@/hooks/useViewer";
 import { EmployeeChrome } from "@/components/intern/EmployeeChrome";
 import { GlobalAuthDialog } from "@/contexts/AuthDialogContext";
-import { GlobalPaywallDialog } from "@/contexts/PaywallDialogContext";
-import TrialBanner from "@/components/paywall/TrialBanner";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 
@@ -64,45 +68,41 @@ export default function Layout({ children }: PropsWithChildren) {
   // /preview/* are server-side 308 stubs that never render a tree.
   const isPreviewStub = router.pathname.startsWith("/preview/");
 
-  const theme = useMemo(
-    () => {
-      // CMIP intern view swaps the brand primary to deep blue. Customer view
-      // (default) keeps the orange theme unchanged.
-      const primary = isIntern ? INTERN_THEME_COLOR : MAIN_THEME_COLOR;
+  const theme = useMemo(() => {
+    // CMIP intern view swaps the brand primary to deep blue. Customer view
+    // (default) keeps the orange theme unchanged.
+    const primary = isIntern ? INTERN_THEME_COLOR : MAIN_THEME_COLOR;
 
-      // Obsidian-Glass is dark everywhere, unconditionally. The old
-      // light/dark toggle lived in the deleted NavBar and the light palette
-      // painted `body { background: #fff }` over the pages' fixed zIndex:-1
-      // backdrops (negative-z elements paint before in-flow backgrounds once
-      // <html> carries its own background) — the white-landing bug of
-      // 2026-08-10. Removing the light mode removes that failure mode.
-      return createTheme({
-        palette: {
-          mode: "dark",
-          error: { main: red[400] },
-          primary: {
-            main: primary,
-            light: isIntern ? INTERN_THEME_COLOR_LIGHT : "#FF8C42",
-          },
-          secondary: { main: "#424242" },
-          background: {
-            // Matches the GradientBackdrop base tone exactly, so the
-            // CssBaseline body layer is invisible behind it.
-            default: "#08090C",
-            paper: "#14161C",
-          },
+    // Obsidian-Glass is dark everywhere, unconditionally. The old
+    // light/dark toggle lived in the deleted NavBar and the light palette
+    // painted `body { background: #fff }` over the pages' fixed zIndex:-1
+    // backdrops (negative-z elements paint before in-flow backgrounds once
+    // <html> carries its own background) — the white-landing bug of
+    // 2026-08-10. Removing the light mode removes that failure mode.
+    return createTheme({
+      palette: {
+        mode: "dark",
+        error: { main: red[400] },
+        primary: {
+          main: primary,
+          light: isIntern ? INTERN_THEME_COLOR_LIGHT : "#FF8C42",
         },
-      });
-    },
-    [isIntern]
-  );
+        secondary: { main: "#424242" },
+        background: {
+          // Matches the GradientBackdrop base tone exactly, so the
+          // CssBaseline body layer is invisible behind it.
+          default: "#08090C",
+          paper: "#14161C",
+        },
+      },
+    });
+  }, [isIntern]);
 
   const shell = (
     <>
       <CssBaseline />
       {/* Single app-wide sign-in / sign-up dialog, themed by this provider. */}
       <GlobalAuthDialog />
-      <GlobalPaywallDialog />
     </>
   );
 
@@ -145,7 +145,6 @@ export default function Layout({ children }: PropsWithChildren) {
                   mb: 2,
                 }}
               >
-                <TrialBanner />
                 <Lc0DownloadBanner />
               </Box>
             </>
@@ -174,7 +173,6 @@ export default function Layout({ children }: PropsWithChildren) {
                 { href: "/practice", label: "Puzzle training" },
                 { href: "/scout", label: "Opponent scout" },
                 { href: "/openings", label: "Openings" },
-                { href: "/pricing", label: "Pricing" },
                 { href: "/terms", label: "Terms" },
                 { href: "/privacy", label: "Privacy" },
                 { href: "/", label: "Home" },

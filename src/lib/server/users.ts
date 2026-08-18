@@ -3,7 +3,8 @@ import bcrypt from "bcryptjs";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminFirestore } from "./firebaseAdmin";
 import { withFirestoreTimeout } from "./withFirestoreTimeout";
-import type { PlanTier, SubscriptionStatus } from "../billing/config";
+import { getUidByHandle, HANDLES } from "./handles";
+import { checkHandle } from "../auth/handle";
 
 const COLLECTION = "users";
 const BCRYPT_COST = 12;
@@ -26,11 +27,15 @@ export type StoredUser = {
   passwordHash?: string;
   googleId?: string;
   // COPPA: server timestamp of the 13+ affirmation recorded at account
-  // creation (neutral DOB gate; the birth date itself never leaves the
+  // creation (affirmation checkbox; no age or birth date ever leaves the
   // browser). Absent on accounts created before the gate shipped.
   ageAffirmedAt?: Timestamp;
 
   displayName?: string;
+  /** Public handle, in the capitalisation the user chose. */
+  handle?: string;
+  /** Canonical (lowercased, separator-folded) form — the uniqueness key. */
+  handleLower?: string;
   photoURL?: string;
   bio?: string;
 
@@ -133,25 +138,6 @@ export type StoredUser = {
 
   passwordResetHash?: string;
   passwordResetExpiresAt?: Timestamp;
-
-  // ─── Subscription / entitlement (pricing pivot, 2026-06) ───────────────────
-  // Stripe is the billing source of truth; these mirror current state so
-  // entitlement can be computed without a Stripe round-trip on every request.
-  // Written ONLY server-side — signup (trial start), the Stripe webhook, and
-  // promo redemption — never through the client PATCH /api/users/me path
-  // (deliberately absent from profilePatchSchema so a user cannot self-grant
-  // premium). Entitlement is derived live via lib/billing/entitlement.ts.
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
-  subscriptionStatus?: SubscriptionStatus;
-  plan?: PlanTier;
-  trialStartedAt?: Timestamp;
-  trialEndsAt?: Timestamp;
-  currentPeriodEnd?: Timestamp;
-  cancelAtPeriodEnd?: boolean;
-  /** e.g. "promo:AKANKSHA2026" — when set, the user is comped (free forever). */
-  compedReason?: string;
-  compedAt?: Timestamp;
 
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -256,6 +242,12 @@ export type CreateUserInput = {
   photoURL?: string;
   emailVerified?: boolean;
   ageAffirmed?: boolean;
+  /**
+   * Chosen at signup. Reserved in the same transaction that creates the user,
+   * so an account can never exist with a handle nobody holds, and a handle can
+   * never be held by an account that was never created.
+   */
+  handle?: string;
 };
 
 export async function createUser(input: CreateUserInput): Promise<StoredUser> {
@@ -287,7 +279,47 @@ export async function createUser(input: CreateUserInput): Promise<StoredUser> {
   if (input.photoURL) doc.photoURL = input.photoURL;
 
   const db = await getAdminFirestore();
-  await db.collection(COLLECTION).doc(uid).set(doc);
+  const userRef = db.collection(COLLECTION).doc(uid);
+
+  if (input.handle !== undefined) {
+    const check = checkHandle(input.handle);
+    if (!check.ok || !check.canonical || !check.display) {
+      throw new UserError(
+        "handle_invalid",
+        check.message ?? "That handle won't work."
+      );
+    }
+    doc.handle = check.display;
+    doc.handleLower = check.canonical;
+
+    // ONE transaction for both documents. Creating the user first and claiming
+    // afterwards would leave an account with no handle whenever the claim lost
+    // a race — which is exactly the handle-less cohort this feature exists to
+    // stop creating. Claiming first would strand a reservation pointing at a
+    // user that was never written.
+    //
+    // `tx.create` (not set) on the reservation is what makes it a race: the
+    // second of two simultaneous signups fails on a document that now exists,
+    // instead of both being told yes.
+    const handleRef = db.collection(HANDLES).doc(check.canonical);
+    await withFirestoreTimeout(
+      db.runTransaction(async (tx) => {
+        const snap = await tx.get(handleRef); // read before any write
+        if (snap.exists) {
+          throw new UserError("handle_taken", "That handle is already taken.");
+        }
+        tx.create(handleRef, {
+          uid,
+          display: check.display,
+          claimedAt: Date.now(),
+        });
+        tx.create(userRef, doc);
+      }),
+      "users.createWithHandle"
+    );
+  } else {
+    await userRef.set(doc);
+  }
 
   const created = await getUserById(uid);
   if (!created) throw new Error("createUser: failed to read back created user");
@@ -311,10 +343,44 @@ export async function verifyPassword(
   return ok ? user : null;
 }
 
+/**
+ * Sign in with EITHER a handle or an email.
+ *
+ * An identifier containing "@" is treated as an email; anything else is
+ * resolved through the handle reservation. Both paths end in the same bcrypt
+ * compare, including the dummy compare on a miss — a handle that does not
+ * exist must take the same time as one that does, or the sign-in form becomes
+ * an oracle for which handles are registered.
+ */
+export async function verifyPasswordByIdentifier(
+  identifier: string,
+  password: string
+): Promise<StoredUser | null> {
+  const id = (identifier ?? "").trim();
+  if (id.includes("@")) return verifyPassword(id, password);
+
+  const uid = await getUidByHandle(id);
+  const user = uid ? await getUserById(uid) : null;
+  if (!user || !user.passwordHash) {
+    await bcrypt.compare(
+      password,
+      "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalid"
+    );
+    return null;
+  }
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  return ok ? user : null;
+}
+
 export type UpdateUserPatch = Partial<
   Pick<
     StoredUser,
     | "displayName"
+    // handle/handleLower are deliberately ABSENT: they may only be written by
+    // claimHandle, inside the transaction that also writes the reservation
+    // document. Allowing them through the generic patch would let a client set
+    // a handle with no reservation behind it — two users could then show the
+    // same name, and one could point handleLower at somebody else's handle.
     | "photoURL"
     | "bio"
     | "chesscomUsername"
@@ -355,40 +421,6 @@ export type UpdateUserPatch = Partial<
     | "timezone"
     | "googleId"
     | "emailVerified"
-    // Subscription fields — server-only writers (signup/webhook/promo). Allowed
-    // on the type so updateUser/updateSubscription accept them; the client PATCH
-    // route gates on profilePatchSchema, which omits these by design.
-    | "stripeCustomerId"
-    | "stripeSubscriptionId"
-    | "subscriptionStatus"
-    | "plan"
-    | "trialStartedAt"
-    | "trialEndsAt"
-    | "currentPeriodEnd"
-    | "cancelAtPeriodEnd"
-    | "compedReason"
-    | "compedAt"
-  >
->;
-
-/**
- * Narrowed patch for the subscription-only writers (Stripe webhook, promo
- * redeem, signup trial-start). Just a readability wrapper over updateUser — the
- * field allow-list is what keeps callers honest.
- */
-export type SubscriptionPatch = Partial<
-  Pick<
-    StoredUser,
-    | "stripeCustomerId"
-    | "stripeSubscriptionId"
-    | "subscriptionStatus"
-    | "plan"
-    | "trialStartedAt"
-    | "trialEndsAt"
-    | "currentPeriodEnd"
-    | "cancelAtPeriodEnd"
-    | "compedReason"
-    | "compedAt"
   >
 >;
 
@@ -408,39 +440,6 @@ export async function updateUser(
   const fresh = await getUserById(uid);
   if (!fresh) throw new Error("updateUser: user disappeared mid-update");
   return fresh;
-}
-
-/**
- * Subscription-only update. Thin wrapper over updateUser() so billing call
- * sites (webhook/promo/signup) read clearly and share one write path.
- */
-export async function updateSubscription(
-  uid: string,
-  patch: SubscriptionPatch,
-): Promise<StoredUser> {
-  return updateUser(uid, patch);
-}
-
-/**
- * Look up a user by their Stripe customer id. Used by the webhook to resolve
- * the local account for subscription lifecycle events. Returns null if no user
- * has that customer id (e.g. an event for a deleted account).
- */
-export async function getUserByStripeCustomerId(
-  stripeCustomerId: string,
-): Promise<StoredUser | null> {
-  const db = await getAdminFirestore();
-  const snap = await withFirestoreTimeout(
-    db
-      .collection(COLLECTION)
-      .where("stripeCustomerId", "==", stripeCustomerId)
-      .limit(1)
-      .get(),
-    `users.getUserByStripeCustomerId(${stripeCustomerId})`,
-  );
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
-  return { uid: doc.id, ...(doc.data() as Omit<StoredUser, "uid">) };
 }
 
 export async function updateLastLoginAt(uid: string): Promise<void> {
@@ -487,7 +486,9 @@ export class UserError extends Error {
       | "email_taken"
       | "not_found"
       | "invalid_credentials"
-      | "weak_password",
+      | "weak_password"
+      | "handle_taken"
+      | "handle_invalid",
     message: string
   ) {
     super(message);

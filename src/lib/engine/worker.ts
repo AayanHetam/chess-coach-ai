@@ -12,11 +12,28 @@ export const getEngineWorker = (enginePath: string): EngineWorker => {
 
   const worker = new window.Worker(resolved);
 
+  // T7: `new Worker()` does not throw when the script is missing or blocked —
+  // it fires `error` asynchronously. With nobody listening, the `uci`
+  // handshake waited on a `uciok` that was never coming and
+  // `UciEngine.create()` hung forever. A hang is worse than a failure here:
+  // a failure can be reported to the user, and a hang cannot be told apart
+  // from a slow boot.
+  const errored = new Promise<Error>((resolve) => {
+    worker.onerror = (event) => {
+      const detail =
+        typeof event === "object" && event && "message" in event
+          ? String((event as ErrorEvent).message)
+          : "unknown error";
+      resolve(new Error(`engine worker failed to load (${resolved}): ${detail}`));
+    };
+  });
+
   const engineWorker: EngineWorker = {
     isReady: false,
     uci: (command: string) => worker.postMessage(command),
     listen: () => null,
     terminate: () => worker.terminate(),
+    errored,
   };
 
   worker.onmessage = (event) => {

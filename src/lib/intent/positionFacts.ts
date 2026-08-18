@@ -288,6 +288,72 @@ export function isLegalSan(fen: string, san: string): boolean {
 }
 
 /**
+ * What becomes of the threat once the check has been answered?
+ *
+ * A check makes every opponent non-evasion illegal for exactly one ply, so
+ * "the threat is illegal now" says nothing on its own. The module used to
+ * resolve that by ASSUMING the threat comes straight back, and reported the
+ * move as having failed to deal with it. Measured across the founder's twelve
+ * games, that assumption was wrong more often than right: of 19 such claims,
+ * only 7 held, 6 were flatly false, and 6 depended on which evasion the
+ * opponent chose.
+ *
+ * The founder caught it on game_06 move 34, `Rhxg2+`: the rook lands on g2
+ * giving check, which makes `Kf2` illegal — and after two of White's three
+ * legal replies it is illegal *forever*, because g2 is now covered. The move
+ * answers the threat exactly, and the card said he had ignored it.
+ *
+ * So: play out every legal evasion and ask whether the threat is available
+ * again. `replies === 0` means the move ended the game — it is checkmate or
+ * stalemate, and there is no "next move" to threaten anything with. That case
+ * produced the worst card of all: `Qxh7#`, the mate that ends game_04, carried
+ * a note saying he had failed to deal with `Qf3+`.
+ *
+ * `unmodelled` counts evasions that give check straight back, where passing is
+ * not a position and this cheap test cannot see far enough. They are reported
+ * rather than guessed, so callers can decline to claim anything.
+ */
+export interface ThreatAfterEvasions {
+  /** The opponent's legal answers to the check. Zero means the game is over. */
+  replies: number;
+  /** How many of those leave the threat playable again. */
+  returns: number;
+  /** How many could not be modelled, because the evasion checked us back. */
+  unmodelled: number;
+}
+
+export function threatAfterEvasions(
+  fenAfter: string,
+  threatSan: string,
+): ThreatAfterEvasions | null {
+  try {
+    const g = new Chess(fenAfter);
+    const replies = g.moves();
+    let returns = 0;
+    let unmodelled = 0;
+    for (const reply of replies) {
+      const board = new Chess(fenAfter);
+      try {
+        board.move(reply);
+      } catch {
+        unmodelled++;
+        continue;
+      }
+      // Hand the move back to the threatening side and ask for the threat.
+      const passed = nullMoveFen(board.fen());
+      if (!passed) {
+        unmodelled++;
+        continue;
+      }
+      if (isLegalSan(passed, threatSan)) returns++;
+    }
+    return { replies: replies.length, returns, unmodelled };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Did the played move CAPTURE the piece that would have delivered the threat?
  *
  * The threat is a move the opponent would play if handed a free tempo, so its

@@ -1653,25 +1653,6 @@ UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): 
   TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
 [
   {
-    "motif": "pin",
-    "kind": "relative",
-    "pinner": {
-      "square": "c4",
-      "piece": "q"
-    },
-    "pinned": {
-      "square": "c6",
-      "piece": "p"
-    },
-    "behind": {
-      "square": "c8",
-      "piece": "b"
-    },
-    "ray": "file-c",
-    "confirmed": true,
-    "refutation": null
-  },
-  {
     "motif": "hanging_piece",
     "square": "g8",
     "piece": "n",
@@ -3527,28 +3508,8 @@ All evals are in pawns from White's perspective (positive = better for White); M
   Eval: 0.40 → -2.80 (lost 3.2 pawns)
   What happened: White knight moved from d4 to e6
   FEN before: r1b1k2r/pp2bp2/2pp2np/8/3N1P2/2NP2P1/PPP1B3/2KR3R w kq - 0 18
-  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "pin",
-    "kind": "relative",
-    "pinner": {
-      "square": "h1",
-      "piece": "r"
-    },
-    "pinned": {
-      "square": "h6",
-      "piece": "p"
-    },
-    "behind": {
-      "square": "h8",
-      "piece": "r"
-    },
-    "ray": "file-h",
-    "confirmed": true,
-    "refutation": null
-  }
-]
+  TACTICAL FACTS: [] — structural patterns detected but all escapable against best defense.
+Do not assert: fork, pin, skewer, discovered, hanging, trapped, back rank, mate threat.
   CRITICAL JUNCTION — gap between #1 and #2 candidate: 3.20 pawns
   BRANCH POINT: Lines diverge at move 1. Best continues Rhe1, played line goes Ne6
   CANDIDATE MOVES (from Stockfish, best first):
@@ -3560,28 +3521,10 @@ All evals are in pawns from White's perspective (positive = better for White); M
   Eval: 1.40 → 0.50 (lost 0.9 pawns)
   What happened: White pawn moved from f2 to f4
   FEN before: r1b1k2r/ppp1bp2/3p3p/4n1p1/3N4/2NP2P1/PPP1BPP1/2KR3R w kq - 1 15
-  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "pin",
-    "kind": "relative",
-    "pinner": {
-      "square": "h1",
-      "piece": "r"
-    },
-    "pinned": {
-      "square": "h6",
-      "piece": "p"
-    },
-    "behind": {
-      "square": "h8",
-      "piece": "r"
-    },
-    "ray": "file-h",
-    "confirmed": true,
-    "refutation": null
-  }
-]
+  TACTICAL FACTS: [] — structural patterns detected but all escapable against best defense.
+Refutations:
+  fork: refuted by g5xf4 (recapture)
+Do not assert: fork, pin, skewer, discovered, hanging, trapped, back rank, mate threat.
 
 UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): fork — refuted by g5xf4
   CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.90 pawns
@@ -3643,28 +3586,8 @@ Do not claim a piece attacks a square unless it is listed here.
 (Pre-computed verified analysis — use this to ground your explanations)
 
 ### CRITICAL POSITION: Move 18 (White — BLUNDER)
-TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "pin",
-    "kind": "relative",
-    "pinner": {
-      "square": "h1",
-      "piece": "r"
-    },
-    "pinned": {
-      "square": "h6",
-      "piece": "p"
-    },
-    "behind": {
-      "square": "h8",
-      "piece": "r"
-    },
-    "ray": "file-h",
-    "confirmed": true,
-    "refutation": null
-  }
-]
+TACTICAL FACTS: [] — structural patterns detected but all escapable against best defense.
+Do not assert: fork, pin, skewer, discovered, hanging, trapped, back rank, mate threat.
 CANDIDATE RANKING: CRITICAL JUNCTION — gap between #1 and #2 candidate: 3.20 pawns
 BRANCH POINT: Key divergence — best: Rhe1 vs alternative: Ne6
 PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
@@ -3692,28 +3615,10 @@ GROUNDED TEACHING SPINE (what the move changed + threats to count):
 CONCEPT DELTA (what the move changed): new threat(s): Black can capture knight on e6 | newly trapped: white knight on e6
 
 ### CRITICAL POSITION: Move 15 (White — INACCURACY)
-TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "pin",
-    "kind": "relative",
-    "pinner": {
-      "square": "h1",
-      "piece": "r"
-    },
-    "pinned": {
-      "square": "h6",
-      "piece": "p"
-    },
-    "behind": {
-      "square": "h8",
-      "piece": "r"
-    },
-    "ray": "file-h",
-    "confirmed": true,
-    "refutation": null
-  }
-]
+TACTICAL FACTS: [] — structural patterns detected but all escapable against best defense.
+Refutations:
+  fork: refuted by g5xf4 (recapture)
+Do not assert: fork, pin, skewer, discovered, hanging, trapped, back rank, mate threat.
 
 UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): fork — refuted by g5xf4
 CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.90 pawns

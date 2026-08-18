@@ -1,7 +1,7 @@
 import { Chess } from "chess.js";
 import { PIECE_VALUE_CP } from "@/lib/tactics/utils";
 import { whiteRelativeToMover } from "./intentFacts";
-import { buildPositionFacts, isTemptingReply, isLegalSan, nullMoveFen, didCaptureThreatPiece } from "./positionFacts";
+import { buildPositionFacts, isTemptingReply, isLegalSan, nullMoveFen, didCaptureThreatPiece, threatAfterEvasions } from "./positionFacts";
 import type { IntentProbe, IntentScore, EngineLine } from "./types";
 import type { GameEval, LineEval } from "@/types/eval";
 
@@ -120,6 +120,12 @@ export interface NullMoveProbe {
    * the comparison is cross-regime.
    */
   opponentBestAfter: EngineLine | null;
+  /**
+   * The player's best move at fenBefore, measured by THIS prober rather than
+   * read from gameEval. Feeds the free-tempo valuation, which would otherwise
+   * add a cold-table number to a warm-table one. See `rootBestProbed`.
+   */
+  rootBest: EngineLine | null;
 }
 
 export interface ProbeFromEval {
@@ -218,7 +224,22 @@ export function intentProbesFromGameEval(params: {
     const replySan = moves[ply + 1];
     if (replySan && afterScore && !isTimedOut(next?.lines)) {
       const bestSan = uciToSan(fenAfter, next!.lines[0]?.pv?.[0]);
-      const actualScore = isTimedOut(afterNext?.lines) ? null : toScore(afterNext!.lines[0]);
+      // Prefer the score the SAME search gave their reply. `trap` computes
+      // `best - actual` and calls the difference the opponent's error, so when
+      // they play the engine's own top reply the answer must be exactly zero.
+      // Taking `actual` from the evaluation of the position their reply PRODUCED
+      // makes it a different search: on the 278 plies here where the opponent
+      // played `bestSan`, that version reads a median of 2cp but a p99 of 113cp
+      // and a max of 148cp — over TRAP_MIN_ATTRIBUTION_CP on 1.8% of them.
+      // See `playedScoreOf` in intentFacts.ts, which is the same fix for `cost`.
+      const replyInSameSearch = (next!.lines ?? []).find(
+        (l) => uciToSan(fenAfter, l.pv?.[0]) === replySan,
+      );
+      const actualScore = replyInSameSearch
+        ? toScore(replyInSameSearch)
+        : isTimedOut(afterNext?.lines)
+          ? null
+          : toScore(afterNext!.lines[0]);
       const passedFen = nullMoveFen(fenBefore);
       if (bestSan) {
         opponentReply = {
@@ -256,11 +277,15 @@ export function intentProbesFromGameEval(params: {
       threatPieceCaptured: t1?.threat
         ? didCaptureThreatPiece(fenBefore, mv.san, t1.threat.san)
         : null,
+      // Only meaningful when the move gives check; cheap enough to always
+      // compute, and the module declines to speak when it is null.
+      threatEvasions: t1?.threat ? threatAfterEvasions(fenAfter, t1.threat.san) : null,
       opponentBestAfter,
       // Same-regime baseline: present only when the Tier 1 prober measured it
       // itself. Never falls back to the Tier 0 number above — that fallback is
       // exactly the cross-regime subtraction this field exists to prevent.
       opponentBestAfterProbed: t1?.opponentBestAfter?.score ?? null,
+      rootBestProbed: t1?.rootBest?.score ?? null,
       threatAfterAlternatives: t1?.threatAfterAlternatives ?? [],
       playedScore,
       moverHasPieces,
@@ -283,12 +308,14 @@ function emptyProbe(fenBefore: string, playedSan: string, fenAfter: string): Int
     playedSan,
     fenAfter,
     rootLines: [],
+    rootBestProbed: null,
     opponentBestAfterProbed: null,
     threat: null,
     threatAfter: null,
     threatAlternative: null,
     threatStillLegal: true,
     threatPieceCaptured: null,
+    threatEvasions: null,
     opponentBestAfter: null,
     threatAfterAlternatives: [],
     playedScore: null,

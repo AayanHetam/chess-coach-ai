@@ -23,6 +23,17 @@ import { satisfiesRequest } from "./pickDisplayEval";
 const DEFAULT_PER_POSITION_TIMEOUT_MS = 30_000;
 
 /**
+ * How long the UCI handshake may take before the engine is declared dead.
+ *
+ * Generous on purpose: Stockfish 17 Lite is 7.16 MB, production is never
+ * cross-origin-isolated (COOP `same-origin-allow-popups` ⇒ no
+ * `SharedArrayBuffer` ⇒ single-threaded), and a cold cache on a mid-range
+ * Android over a slow connection is a real, legitimate case. This number is
+ * meant to catch "never" — not to hurry "slow".
+ */
+const WORKER_BOOT_TIMEOUT_MS = 90_000;
+
+/**
  * How long an interactive single-position eval pauses for Lichess before it
  * starts the local engine anyway.
  *
@@ -228,14 +239,58 @@ export class UciEngine {
   private async addNewWorker() {
     const worker = getEngineWorker(this.enginePath);
 
-    await sendCommandsToWorker(worker, ["uci"], "uciok");
-    await sendCommandsToWorker(
-      worker,
-      [`setoption name MultiPV value ${this.multiPv}`, "isready"],
-      "readyok"
-    );
-    await this.customEngineInit?.(worker);
-    await sendCommandsToWorker(worker, ["ucinewgame", "isready"], "readyok");
+    // T7 (SILENT_SUBSTITUTION_HANDOFF §4): the handshake below waits for the
+    // engine to answer. If the worker script never loaded — 404, a school or
+    // corporate filter blocking `/engines/*`, a dead worker — that answer
+    // never comes, and this used to wait for it forever: `create()` neither
+    // resolved nor rejected, so `useEngine` held `null` indefinitely and the
+    // coach's composer read that as "not analyzing" and unlocked.
+    //
+    // A hang is the worst possible shape for this failure, because it is
+    // indistinguishable from a slow boot on exactly the low-end devices where
+    // slow boots are normal. Both escapes below convert it into a rejection,
+    // which `useEngineWithStatus` turns into a reportable `failed` status.
+    const handshake = (async () => {
+      await sendCommandsToWorker(worker, ["uci"], "uciok");
+      await sendCommandsToWorker(
+        worker,
+        [`setoption name MultiPV value ${this.multiPv}`, "isready"],
+        "readyok"
+      );
+      await this.customEngineInit?.(worker);
+      await sendCommandsToWorker(worker, ["ucinewgame", "isready"], "readyok");
+    })();
+
+    let bootTimer: ReturnType<typeof setTimeout> | undefined;
+    const bootTimeout = new Promise<never>((_, reject) => {
+      bootTimer = setTimeout(
+        () =>
+          reject(
+            new Error(
+              `engine boot exceeded ${WORKER_BOOT_TIMEOUT_MS}ms (${this.enginePath})`
+            )
+          ),
+        WORKER_BOOT_TIMEOUT_MS
+      );
+      (bootTimer as unknown as { unref?: () => void }).unref?.();
+    });
+
+    try {
+      await Promise.race([
+        handshake,
+        // A worker that loaded but never speaks UCI is covered by the timeout;
+        // one that failed to load at all reports here immediately.
+        worker.errored.then((err) => {
+          throw err;
+        }),
+        bootTimeout,
+      ]);
+    } catch (err) {
+      clearTimeout(bootTimer);
+      worker.terminate();
+      throw err;
+    }
+    clearTimeout(bootTimer);
 
     this.workers.push(worker);
     this.releaseWorker(worker);

@@ -10,7 +10,8 @@ import {
   DECISIVE_CP,
 } from "../intentFacts";
 import type { EngineLine, IntentProbe } from "../types";
-import { buildPositionFacts } from "../positionFacts";
+import { buildPositionFacts, threatAfterEvasions } from "../positionFacts";
+import { Chess } from "chess.js";
 
 const line = (san: string, cp: number | null, mate: number | null = null, pv: string[] = []): EngineLine => ({
   san,
@@ -39,12 +40,14 @@ function probe(over: Partial<IntentProbe> = {}): IntentProbe {
     rootLines: [line("Kb1", 0)],
     threat: null,
     opponentBestAfterProbed: null,
+    rootBestProbed: null,
     threatAfter: null,
     threatAlternative: null,
     opponentBestAfter: null,
     threatAfterAlternatives: [],
     threatStillLegal: true,
     threatPieceCaptured: null,
+    threatEvasions: null,
     playedScore: { cp: 0, mate: null },
     moverHasPieces: true,
     position: null,
@@ -75,6 +78,195 @@ describe("score conventions", () => {
     expect(toCp({ cp: null, mate: 1 })).toBeGreaterThan(toCp({ cp: null, mate: 5 })!);
     expect(toCp({ cp: null, mate: 1 })).toBeGreaterThan(toCp({ cp: 2000, mate: null })!);
     expect(toCp({ cp: null, mate: -2 })).toBe(-(MATE_CP - 2));
+  });
+});
+
+// ─── the free-tempo gate: both operands from one regime ────────────────────
+//
+// "Is there a threat at all?" values the opponent's free tempo as
+// `threat + playerBest`. The threat comes from the null-move prober (cold
+// transposition table); gameEval's root score is read off a warm one. The sum
+// therefore carries the difference between two engines.
+//
+// Sampled on 60 real plies deliberately chosen NEAR the 150cp bar, 12% of the
+// threat/no-threat decisions flip when the root score is measured alongside the
+// threat instead — about 7.8% of every ply where this gate is live, flipping in
+// BOTH directions. Real case, game_06 ply 75 Rxa2: 158 warm, 55 cold.
+
+describe("the free-tempo gate does not mix measurement regimes", () => {
+  const threat = line("Qg4", 100);
+
+  it("uses the same-regime root score when it exists, and stays silent below the bar", () => {
+    // warm root +60 would make the tempo worth 160 and clear the bar; the
+    // same-regime reading is +20, worth 120, and there is no threat to narrate.
+    const f = computeIntentFacts(
+      probe({
+        threat,
+        threatAfter: line("Qg4", -400),
+        rootLines: [line("Rf5", 60)],
+        rootBestProbed: { cp: 20, mate: null },
+        opponentBestAfterProbed: { cp: -390, mate: null },
+      }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.notes.join(" ")).toContain("free tempo worth only 120cp");
+  });
+
+  it("CONTROL: the identical probe WITHOUT the same-regime score falls back, and speaks", () => {
+    // Same numbers, `rootBestProbed` absent. The Tier 0 root score is used —
+    // 160cp, over the bar — and the mixed comparison is recorded in the notes so
+    // it is visible rather than silent.
+    const f = computeIntentFacts(
+      probe({
+        threat,
+        threatAfter: line("Qg4", -400),
+        rootLines: [line("Rf5", 60)],
+        rootBestProbed: null,
+        opponentBestAfterProbed: { cp: -390, mate: null },
+      }),
+    );
+    expect(f.prophylaxis).not.toBeNull();
+    expect(f.notes.join(" ")).toContain("across measurement regimes");
+  });
+
+  it("CONTROL: a same-regime score comfortably OVER the bar still speaks", () => {
+    const f = computeIntentFacts(
+      probe({
+        threat,
+        threatAfter: line("Qg4", -400),
+        rootLines: [line("Rf5", 60)],
+        rootBestProbed: { cp: 300, mate: null },
+        opponentBestAfterProbed: { cp: -390, mate: null },
+      }),
+    );
+    expect(f.prophylaxis).not.toBeNull();
+    expect(f.notes.join(" ")).not.toContain("across measurement regimes");
+  });
+});
+
+// ─── mate: taken from whichever measurement resolves it ────────────────────
+
+describe("a forced mate is reported from either measurement", () => {
+  it("finds the mate the MultiPV root search missed (real: game_11 ply 89 a1=Q)", () => {
+    // The root search splits its effort across three moves and scores a1=Q at
+    // +807. The evaluation of the position it produces spends everything on one
+    // line and finds mate in 13. Using only the root line loses that.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "a1=Q",
+        rootLines: [line("a1=Q", 807), line("Kxe4", 544)],
+        playedScore: { cp: null, mate: 13 },
+      }),
+    );
+    expect(f.mate).not.toBeNull();
+    expect(f.mate!.inMoves).toBe(13);
+  });
+
+  it("reports the CHECKMATING move itself, which has no position after it", () => {
+    // Real: game_02 ply 59 Re6#, and three others — the last move of four of
+    // the founder's games. There are no lines after checkmate, so `playedScore`
+    // is null and the module used to say nothing about the mate that ended the
+    // game.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Re6#",
+        rootLines: [line("Re6#", null, 1)],
+        playedScore: null,
+      }),
+    );
+    expect(f.mate).not.toBeNull();
+    expect(f.mate!.inMoves).toBe(1);
+  });
+
+  it("prefers the shorter mate when both measurements find one", () => {
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Qh5",
+        rootLines: [line("Qh5", null, 5)],
+        playedScore: { cp: null, mate: 3 },
+      }),
+    );
+    expect(f.mate!.inMoves).toBe(3);
+  });
+
+  it("CONTROL: no mate anywhere means no mate fact", () => {
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Qh5",
+        rootLines: [line("Qh5", 300)],
+        playedScore: { cp: 280, mate: null },
+      }),
+    );
+    expect(f.mate).toBeNull();
+  });
+
+  it("CONTROL: a mate AGAINST us is never reported as our forced mate", () => {
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Qh5",
+        rootLines: [line("Qh5", null, -4)],
+        playedScore: { cp: null, mate: -2 },
+      }),
+    );
+    expect(f.mate).toBeNull();
+  });
+});
+
+// ─── cost: both operands from one search ───────────────────────────────────
+//
+// `cost` is `rootLines[0] - played`. On the game-review path those come from
+// DIFFERENT searches: the best move's score from the MultiPV search at
+// fenBefore, and the played move's from the evaluation of the position it
+// produced. When the student plays the engine's own top move the answer must be
+// exactly zero, and it was not.
+//
+// Measured on the 285 plies in the founder's twelve games where he played
+// rootLines[0]: median 1cp, p99 113cp, max 148cp — and five cleared
+// COST_MIN_LOSS_CP, so the review charged him over a pawn for playing the best
+// move on the board. Two of those five were his own moves.
+
+describe("cost never charges for playing the engine's own best move", () => {
+  it("reports NOTHING when the played move is rootLines[0], whatever the second measurement says", () => {
+    // The real numbers from game_12 ply 98: Kg4 IS the top line at -1379, while
+    // the separate evaluation of the position it produced reads -1527. The
+    // difference is 148cp of measurement, and none of it is a mistake.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Kg4",
+        rootLines: [line("Kg4", -1379), line("Kh4", -1500)],
+        playedScore: { cp: -1527, mate: null },
+      }),
+    );
+    expect(f.cost).toBeNull();
+  });
+
+  it("CONTROL: the same fixture with a move the engine did NOT rank still reports its cost", () => {
+    // Identical but the played move is absent from the lines, so the separate
+    // measurement is all there is — and it must still be used.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Kh5",
+        rootLines: [line("Kg4", -1379), line("Kh4", -1500)],
+        playedScore: { cp: -1527, mate: null },
+      }),
+    );
+    expect(f.cost).not.toBeNull();
+    expect(f.cost!.lossCp).toBe(148);
+  });
+
+  it("uses the in-search score even when the played move is only the SECOND line", () => {
+    // Not just rootLines[0]: any line the same search scored is preferable to a
+    // number from a different search. Here the played move is line 2 at -1500,
+    // so the real loss is 121cp, not the 148cp the other measurement implies.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Kh4",
+        rootLines: [line("Kg4", -1379), line("Kh4", -1500)],
+        playedScore: { cp: -1527, mate: null },
+      }),
+    );
+    expect(f.cost).not.toBeNull();
+    expect(f.cost!.lossCp).toBe(121);
   });
 });
 
@@ -199,6 +391,28 @@ describe("prophylaxis", () => {
     );
     expect(f.prophylaxis).toBeNull();
     expect(f.notes.join(" ")).toContain("mated whatever they play");
+  });
+
+  it("declines the same claim when their best reply was never measured", () => {
+    // The guard above reads isMateAgainst(opponentBestAfter), and
+    // isMateAgainst(null) is false — so "we never measured their best reply"
+    // fell through it and returned a FULL prophylaxis fact, before the swing,
+    // absolute, relative and attribution gates ever run. The exact null
+    // collapse of the a3/Kg5 card the guard was added to kill, one field over:
+    // types.ts documents opponentBestAfter as "null when not measured", and
+    // fromGameEval leaves it null whenever the ply+1 evaluation timed out.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "a3",
+        rootLines: [line("Ke7", 400), line("a3", 100)],
+        playedScore: { cp: 100, mate: null },
+        threat: line("Kg5", 200),
+        threatAfter: line("Kg5", null, -17),
+        opponentBestAfter: null,
+      }),
+    );
+    expect(f.prophylaxis).toBeNull();
+    expect(f.notes.join(" ")).toContain("never measured");
   });
 
   it("CONTROL: still comprehensive defusal when the opponent HAD a way out", () => {
@@ -514,19 +728,32 @@ describe("unaddressed threats", () => {
     expect(f.quiet).toBe(false);
   });
 
-  // ── a threat made WORSE is not a threat "barely changed" ─────────────────
+  // ── a threat made WORSE needs the same evidence as a threat STOPPED ──────
   //
-  // These two exist because a mutation proved nothing distinguished the two
-  // labels: collapsing `made-it-worse` back into `barely-changed` left the
-  // whole suite green. The label shipped in #323 on the strength of numbers
-  // (2196 -> 2706) that came from a corrupted sweep and do not reproduce. It
-  // is the right label; it just had no evidence and no test.
+  // The label exists because a mutation proved nothing distinguished
+  // "made-it-worse" from "barely-changed": collapsing them left the whole suite
+  // green. But the FIRST version of these tests pinned noise.
   //
-  // Real position, re-measured in one regime — game_11 move 40, and the move
-  // the founder asked about. White is DRAWN: Rc7+, Rc3 and Rc1 all hold at
-  // 0.00. Ra6 loses at -527 and leaves Black's Re6+ slightly BETTER for Black
-  // than it already was, 521 -> 542.
-  it("distinguishes a threat the move made WORSE from one it barely changed", () => {
+  // The founder, shown two cards claiming his move made a threat stronger: "the
+  // evals should be the same because the position that occurs should be the
+  // same a few moves after the move." They were the same, to within measurement
+  // error. Measured like-for-like at increasing depth, the swing behind those
+  // cards does this:
+  //
+  //   game_10 20.Qh3   d14 -29  d16 -28  d18 -12  d20  +7  d22  +6  d24 +13
+  //   game_11 40.Ra6   d14  -8  d16 -25  d18  -3  d20 +43  d22 -151 d24 -333
+  //
+  // The first flips sign at depth 20 and stays flipped. The gate had no
+  // threshold at all — it fired on `swing < 0` — so it was reading a label off
+  // the sign of a quantity that moves ~25cp with legitimate measurement choices
+  // at fixed depth, and changes sign with depth.
+  //
+  // Zero of the 835 plies in the founder's corpus now reach this label. That is
+  // the honest state, and it is why the fixture below is SYNTHETIC: there is no
+  // real instance to quote.
+  it("says nothing about a threat 'strengthened' by less than the noise floor", () => {
+    // The exact Ra6 numbers that used to produce a "you made it stronger" card:
+    // a 21cp swing, whose sign flips by depth 20.
     const f = computeIntentFacts(
       probe({
         playedSan: "Ra6",
@@ -539,32 +766,67 @@ describe("unaddressed threats", () => {
       }),
     );
     expect(f.unaddressedThreat).not.toBeNull();
-    expect(f.unaddressedThreat!.reason).toBe("made-it-worse");
-    expect(f.unaddressedThreat!.madeItWorse).toBe(true);
-    expect(f.unaddressedThreat!.scoreBeforeCp).toBe(521);
-    expect(f.unaddressedThreat!.scoreAfterCp).toBe(542);
+    expect(f.unaddressedThreat!.reason).toBe("barely-changed");
+    expect(f.unaddressedThreat!.madeItWorse).toBe(false);
   });
 
-  it("CONTROL: the same position with the threat nudged DOWN is barely-changed", () => {
-    // Identical but for the sign of the swing: 521 -> 500 instead of 521 -> 542.
-    // If this and the test above ever agree, the two labels are not separated.
+  it("still separates the two labels when the swing clears the bar", () => {
+    // SYNTHETIC, and deliberately so — see above. Same shape as the Ra6 case but
+    // with the threat gaining 300cp, twice the bar, so the sign is not in doubt.
+    // Without this the mutation "made-it-worse collapses into barely-changed"
+    // survives and the label is untested.
     const f = computeIntentFacts(
       probe({
         playedSan: "Ra6",
         rootLines: [line("Rc7+", 0), line("Rc3", 0)],
         playedScore: { cp: -527, mate: null },
         threat: line("Re6+", 521),
-        threatAfter: line("Re6+", 500),
-        opponentBestAfter: { cp: 556, mate: null },
-        opponentBestAfterProbed: { cp: 556, mate: null },
+        threatAfter: line("Re6+", 821),
+        opponentBestAfter: { cp: 830, mate: null },
+        opponentBestAfterProbed: { cp: 830, mate: null },
       }),
     );
-    expect(f.unaddressedThreat!.reason).toBe("barely-changed");
-    expect(f.unaddressedThreat!.madeItWorse).toBe(false);
+    expect(f.unaddressedThreat).not.toBeNull();
+    expect(f.unaddressedThreat!.reason).toBe("made-it-worse");
+    expect(f.unaddressedThreat!.madeItWorse).toBe(true);
+    expect(f.unaddressedThreat!.scoreBeforeCp).toBe(521);
+    expect(f.unaddressedThreat!.scoreAfterCp).toBe(821);
+  });
+
+  it("CONTROL: an equally large swing the OTHER way is not made-it-worse", () => {
+    // 521 -> 221 instead of 521 -> 821. If this and the test above ever agree,
+    // the two labels are not separated.
+    const f = computeIntentFacts(
+      probe({
+        playedSan: "Ra6",
+        rootLines: [line("Rc7+", 0), line("Rc3", 0)],
+        playedScore: { cp: -527, mate: null },
+        threat: line("Re6+", 521),
+        threatAfter: line("Re6+", 221),
+        opponentBestAfter: { cp: 230, mate: null },
+        opponentBestAfterProbed: { cp: 230, mate: null },
+      }),
+    );
+    expect(f.unaddressedThreat?.reason ?? "no-card").not.toBe("made-it-worse");
   });
 
   it("reports a threat that is only illegal for one ply because we gave check", () => {
+    // Italian: Bxf7+ checks, which makes Bxf2+ illegal for exactly one ply.
+    // Here the assumption the old code made unconditionally happens to be TRUE
+    // — the c5 bishop still bears on f2 after every legal evasion — so the
+    // claim survives. It now has to be measured rather than assumed, which is
+    // what `threatEvasions` carries.
     const FEN = "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 6 5";
+    const board = new Chess(FEN);
+    board.move("Bxf7+");
+    const evasions = threatAfterEvasions(board.fen(), "Bxf2+");
+
+    // CONTROL: the fixture must actually present the branch — a real check,
+    // with the threat genuinely returning every time. Without this the
+    // assertion below could pass for the wrong reason.
+    expect(evasions!.replies).toBeGreaterThan(0);
+    expect(evasions!.returns).toBe(evasions!.replies);
+
     const f = computeIntentFacts(
       probe({
         fenBefore: FEN,
@@ -576,6 +838,7 @@ describe("unaddressed threats", () => {
         threatAfter: null,
         threatStillLegal: false,
         threatPieceCaptured: false,
+        threatEvasions: evasions,
       }),
     );
     expect(f.prophylaxis).toBeNull();

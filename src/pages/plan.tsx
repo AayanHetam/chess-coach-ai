@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEnsurePlatformRating } from "@/lib/rating/useEnsurePlatformRating";
 import { puzzleStatsAtom } from "@/lib/puzzleRating";
 import { streakAtom, dayKey } from "@/lib/curriculum/streak";
 import { dailyLogAtom, puzzlesOn, trainedOn } from "@/lib/curriculum/dailyLog";
@@ -37,12 +38,15 @@ import {
   intensityTier,
 } from "@/lib/curriculum/improvementModel";
 import { resolveUserRating } from "@/lib/coach/userRating";
+import { firstNameOf } from "@/lib/auth/displayIdentity";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import RatingTrends from "@/components/plan/RatingTrends";
+import { CHARTED_PERFS, type ChartedPerf } from "@/lib/rating/ratingHistory";
 import GoalProgressCard from "@/components/plan/GoalProgressCard";
 import GoalSetterCard from "@/components/plan/GoalSetterCard";
+import HandleCard from "@/components/plan/HandleCard";
 import { buildGoalPatch, hasCompleteGoal } from "@/lib/curriculum/goalPatch";
 import { NumberTicker } from "@/components/ui/NumberTicker";
 import SessionRunner from "@/components/curriculum/SessionRunner";
@@ -97,7 +101,7 @@ function GlassCard({
 
 export default function PlanPage() {
   const router = useRouter();
-  const { user, profile, updateProfile } = useAuth();
+  const { user, profile, updateProfile, refresh } = useAuth();
   // Open when they ask to change an existing goal. A user with no goal at
   // all gets the setter unconditionally — see the mount below.
   const [editingGoal, setEditingGoal] = useState(false);
@@ -116,6 +120,9 @@ export default function PlanPage() {
     },
     [updateProfile]
   );
+  // Without this the goal is scored against the puzzle rating's 1200 default
+  // for anyone who never opened the profile dialog.
+  useEnsurePlatformRating(profile, refresh);
   const stats = useAtomValue(puzzleStatsAtom);
   const streak = useAtomValue(streakAtom);
   const srs = useAtomValue(puzzleThemeSrsAtom);
@@ -160,7 +167,14 @@ export default function PlanPage() {
     }
     // A target date already in the past would draw a forecast backwards.
     if (targetDateMs <= nowMs) return undefined;
-    return { targetDateMs, goalRating, minutesPerDay, daysPerWeek };
+    // Which control the goal is about. `platformRatingPerf` can also be
+    // `classical`, which has no panel — then no goal line is drawn anywhere,
+    // which is the honest answer rather than putting it on all three.
+    const perf = profile?.platformRatingPerf;
+    const goalPerf = (CHARTED_PERFS as readonly string[]).includes(perf ?? "")
+      ? (perf as ChartedPerf)
+      : undefined;
+    return { targetDateMs, goalRating, minutesPerDay, daysPerWeek, goalPerf };
   }, [profile, nowMs]);
 
   /**
@@ -263,7 +277,9 @@ export default function PlanPage() {
   );
 
   const hasPlacement = typeof profile?.measuredRating === "number";
-  const firstName = profile?.displayName?.split(" ")[0] || "there";
+  // The handle wins here — it is the name they chose, and it is what the sign
+  // -in form now accepts. `addressAs` owns that precedence for every surface.
+  const firstName = firstNameOf(profile ?? undefined, "there");
   const canResume = isResumeFresh(resume, nowMs);
 
   // Anonymous visitor — point them into the funnel.
@@ -340,6 +356,12 @@ export default function PlanPage() {
           </StatTile>
         </Box>
       </Box>
+
+      {/* Existing accounts predate handles and the quiz is one-time, so
+          without this the feature would only ever reach new signups. */}
+      {user && (
+        <HandleCard currentHandle={profile?.handle} onClaimed={refresh} />
+      )}
 
       {/* The promise, and whether they're keeping to it — or the means to make
           one. A signed-in user with no goal gets the setter: the quiz is

@@ -40,11 +40,6 @@ const softwareApplication = {
   url: BASE,
   description:
     "Free AI chess coach combining Stockfish engine analysis with Claude AI explanations. Analyze games, train from your mistakes, and scout opponents — free.",
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-  },
   creator: {
     "@type": "Person",
     name: "Aayan Hetamsaria",
@@ -66,7 +61,6 @@ export const homeSoftwareApplication = {
   operatingSystem: "Web",
   description:
     "Free conversational chess coaching: Stockfish 17 evaluates, Claude explains, a hallucination validator checks every claim, and adaptive puzzles come from a 100,000+ position Neo4j graph.",
-  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   featureList: [
     "Engine-grounded coaching using Stockfish 17 WASM",
     "Two-tier Anthropic Claude (Sonnet for analysis, Haiku for chat)",

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { callLLM, LLMError, getProviderStatus } from "@/lib/llmProvider";
+import {
+  callLLM,
+  PUBLIC_LLM_ERROR,
+  getProviderStatus,
+} from "@/lib/llmProvider";
 import { requireSession } from "@/lib/auth/session";
-import { gateFeature } from "@/lib/billing/gate";
 import { allSyllabusThemes } from "@/lib/curriculum/syllabus";
 import { QUIZ_FOCUS_THEME_IDS } from "@/components/onboarding/quizThemes";
 
@@ -119,14 +122,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ themeId, tier, lesson: cached, cached: true });
   }
 
-  // Gate only once we're actually about to generate — cache hits and the
-  // validation/theme checks above cost nothing, so they don't consume the
-  // free-tier allowance (limit is 1/day). No-op when FREEMIUM_ENABLED is off.
-  const gate = await gateFeature(guard.session.uid, "concept_lesson", {
-    surface: "concept_lesson",
-  });
-  if (!gate.ok) return gate.response;
-
   let llmResult;
   try {
     llmResult = await callLLM({
@@ -141,10 +136,9 @@ export async function POST(request: NextRequest) {
       temperature: 0.3,
       maxTokens: 400,
     });
-  } catch (err) {
-    const e = err instanceof LLMError ? err : new Error(String(err));
+  } catch {
     return NextResponse.json(
-      { error: `Lesson API error: ${e.message}` },
+      { error: PUBLIC_LLM_ERROR.message, code: PUBLIC_LLM_ERROR.code },
       { status: 502 }
     );
   }

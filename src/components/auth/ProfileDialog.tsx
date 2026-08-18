@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent, KeyboardEvent } from "react";
+import { addressAs, avatarInitial } from "@/lib/auth/displayIdentity";
 import {
   Dialog,
   DialogContent,
@@ -43,15 +44,39 @@ interface ProfileDialogProps {
 }
 
 const COACH_TONES: { value: CoachTone; label: string; hint: string }[] = [
-  { value: "friendly", label: "Friendly", hint: "Warm, encouraging coach voice." },
-  { value: "strict", label: "Strict", hint: "Direct feedback, no sugarcoating." },
-  { value: "masti", label: "Masti", hint: "Playful & spirited — Chess Masti's house style." },
+  {
+    value: "friendly",
+    label: "Friendly",
+    hint: "Warm, encouraging coach voice.",
+  },
+  {
+    value: "strict",
+    label: "Strict",
+    hint: "Direct feedback, no sugarcoating.",
+  },
+  {
+    value: "masti",
+    label: "Masti",
+    hint: "Playful & spirited — Chess Masti's house style.",
+  },
 ];
 
 const PLAYING_STYLES: { value: PlayingStyle; label: string; hint: string }[] = [
-  { value: "tactical", label: "Tactical", hint: "Sharp lines, sacrifices, attacking play." },
-  { value: "positional", label: "Positional", hint: "Long-term plans, structural advantages." },
-  { value: "balanced", label: "Balanced", hint: "Mix both — pick the right tool per position." },
+  {
+    value: "tactical",
+    label: "Tactical",
+    hint: "Sharp lines, sacrifices, attacking play.",
+  },
+  {
+    value: "positional",
+    label: "Positional",
+    hint: "Long-term plans, structural advantages.",
+  },
+  {
+    value: "balanced",
+    label: "Balanced",
+    hint: "Mix both — pick the right tool per position.",
+  },
 ];
 
 const STUDY_GOALS: { value: StudyGoal; label: string }[] = [
@@ -105,7 +130,10 @@ export default function ProfileDialog({
   // Password change form (Account tab)
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
   const [pwSubmitting, setPwSubmitting] = useState(false);
-  const [pwMessage, setPwMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [pwMessage, setPwMessage] = useState<{
+    kind: "ok" | "err";
+    text: string;
+  } | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [savedTab, setSavedTab] = useState<TabKey | null>(null);
@@ -129,7 +157,9 @@ export default function ProfileDialog({
       chesscomUsername: profile.chesscomUsername ?? "",
       lichessUsername: profile.lichessUsername ?? "",
       selfReportedRating:
-        profile.selfReportedRating != null ? String(profile.selfReportedRating) : "",
+        profile.selfReportedRating != null
+          ? String(profile.selfReportedRating)
+          : "",
       primaryPlatform: profile.primaryPlatform ?? "",
     });
     setCoaching({
@@ -177,7 +207,9 @@ export default function ProfileDialog({
         await updateProfile({
           coachTone: coaching.coachTone || undefined,
           playingStyle: coaching.playingStyle || undefined,
-          studyGoals: coaching.studyGoals.length ? coaching.studyGoals : undefined,
+          studyGoals: coaching.studyGoals.length
+            ? coaching.studyGoals
+            : undefined,
           favoriteOpenings: coaching.favoriteOpenings.length
             ? coaching.favoriteOpenings
             : undefined,
@@ -209,11 +241,17 @@ export default function ProfileDialog({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword: pw.current, newPassword: pw.next }),
+        body: JSON.stringify({
+          currentPassword: pw.current,
+          newPassword: pw.next,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setPwMessage({ kind: "err", text: data.error ?? "Password change failed." });
+        setPwMessage({
+          kind: "err",
+          text: data.error ?? "Password change failed.",
+        });
         return;
       }
       setPwMessage({ kind: "ok", text: "Password updated." });
@@ -280,7 +318,7 @@ export default function ProfileDialog({
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Avatar
             src={user.photoURL || undefined}
-            alt={user.displayName || "User"}
+            alt={addressAs(user)}
             sx={{
               width: 56,
               height: 56,
@@ -288,13 +326,19 @@ export default function ProfileDialog({
               backdropFilter: "blur(10px)",
             }}
           >
-            {user.displayName?.[0] || user.email?.[0]?.toUpperCase() || "U"}
+            {avatarInitial(user)}
           </Avatar>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: "#fff", mb: 0.5 }}>
-              {user.displayName || "Chess Player"}
+            <Typography
+              variant="h6"
+              sx={{ fontWeight: 700, color: "#fff", mb: 0.5 }}
+            >
+              {addressAs(user)}
             </Typography>
-            <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.85)" }}>
+            <Typography
+              variant="body2"
+              sx={{ color: "rgba(255,255,255,0.85)" }}
+            >
               {user.email}
             </Typography>
           </Box>
@@ -309,10 +353,26 @@ export default function ProfileDialog({
         }}
         variant="fullWidth"
       >
-        <Tab label="Account" value="account" sx={{ textTransform: "none", fontWeight: 600 }} />
-        <Tab label="Chess" value="chess" sx={{ textTransform: "none", fontWeight: 600 }} />
-        <Tab label="Coaching" value="coaching" sx={{ textTransform: "none", fontWeight: 600 }} />
-        <Tab label="Appearance" value="appearance" sx={{ textTransform: "none", fontWeight: 600 }} />
+        <Tab
+          label="Account"
+          value="account"
+          sx={{ textTransform: "none", fontWeight: 600 }}
+        />
+        <Tab
+          label="Chess"
+          value="chess"
+          sx={{ textTransform: "none", fontWeight: 600 }}
+        />
+        <Tab
+          label="Coaching"
+          value="coaching"
+          sx={{ textTransform: "none", fontWeight: 600 }}
+        />
+        <Tab
+          label="Appearance"
+          value="appearance"
+          sx={{ textTransform: "none", fontWeight: 600 }}
+        />
       </Tabs>
 
       <DialogContent sx={{ py: 3, px: 3 }}>
@@ -329,7 +389,9 @@ export default function ProfileDialog({
               size="small"
               label="Display name"
               value={account.displayName}
-              onChange={(e) => setAccount({ ...account, displayName: e.target.value })}
+              onChange={(e) =>
+                setAccount({ ...account, displayName: e.target.value })
+              }
               inputProps={{ maxLength: 50 }}
             />
             <TextField
@@ -392,7 +454,9 @@ export default function ProfileDialog({
                     required
                   />
                   {pwMessage && (
-                    <Alert severity={pwMessage.kind === "ok" ? "success" : "error"}>
+                    <Alert
+                      severity={pwMessage.kind === "ok" ? "success" : "error"}
+                    >
                       {pwMessage.text}
                     </Alert>
                   )}
@@ -415,8 +479,15 @@ export default function ProfileDialog({
         {tab === "chess" && (
           <Stack spacing={2.5}>
             <Box>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-                <img src="https://www.chess.com/favicon.ico" width={18} height={18} alt="Chess.com" />
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}
+              >
+                <img
+                  src="https://www.chess.com/favicon.ico"
+                  width={18}
+                  height={18}
+                  alt="Chess.com"
+                />
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   Chess.com Username
                 </Typography>
@@ -426,13 +497,22 @@ export default function ProfileDialog({
                 size="small"
                 placeholder="e.g., magnuscarlsen"
                 value={chess.chesscomUsername}
-                onChange={(e) => setChess({ ...chess, chesscomUsername: e.target.value })}
+                onChange={(e) =>
+                  setChess({ ...chess, chesscomUsername: e.target.value })
+                }
               />
             </Box>
 
             <Box>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-                <img src="https://lichess.org/favicon.ico" width={18} height={18} alt="Lichess" />
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}
+              >
+                <img
+                  src="https://lichess.org/favicon.ico"
+                  width={18}
+                  height={18}
+                  alt="Lichess"
+                />
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   Lichess Username
                 </Typography>
@@ -442,7 +522,9 @@ export default function ProfileDialog({
                 size="small"
                 placeholder="e.g., drnykterstein"
                 value={chess.lichessUsername}
-                onChange={(e) => setChess({ ...chess, lichessUsername: e.target.value })}
+                onChange={(e) =>
+                  setChess({ ...chess, lichessUsername: e.target.value })
+                }
               />
             </Box>
 
@@ -456,7 +538,9 @@ export default function ProfileDialog({
               type="number"
               inputProps={{ min: 0, max: 3500 }}
               value={chess.selfReportedRating}
-              onChange={(e) => setChess({ ...chess, selfReportedRating: e.target.value })}
+              onChange={(e) =>
+                setChess({ ...chess, selfReportedRating: e.target.value })
+              }
               sx={{ maxWidth: 260 }}
               helperText="Only used when we can't read a rating from your account above."
             />
@@ -469,7 +553,10 @@ export default function ProfileDialog({
               onChange={(e) =>
                 setChess({
                   ...chess,
-                  primaryPlatform: e.target.value as "" | "chesscom" | "lichess",
+                  primaryPlatform: e.target.value as
+                    | ""
+                    | "chesscom"
+                    | "lichess",
                 })
               }
               sx={{ maxWidth: 200 }}
@@ -498,7 +585,9 @@ export default function ProfileDialog({
               <ToggleButtonGroup
                 exclusive
                 value={coaching.coachTone}
-                onChange={(_e, v) => v !== null && setCoaching({ ...coaching, coachTone: v })}
+                onChange={(_e, v) =>
+                  v !== null && setCoaching({ ...coaching, coachTone: v })
+                }
                 fullWidth
               >
                 {COACH_TONES.map((t) => (
@@ -516,7 +605,10 @@ export default function ProfileDialog({
                     <Typography variant="body2" sx={{ fontWeight: 700 }}>
                       {t.label}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#666", lineHeight: 1.2 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#666", lineHeight: 1.2 }}
+                    >
                       {t.hint}
                     </Typography>
                   </ToggleButton>
@@ -531,7 +623,9 @@ export default function ProfileDialog({
               <ToggleButtonGroup
                 exclusive
                 value={coaching.playingStyle}
-                onChange={(_e, v) => v !== null && setCoaching({ ...coaching, playingStyle: v })}
+                onChange={(_e, v) =>
+                  v !== null && setCoaching({ ...coaching, playingStyle: v })
+                }
                 fullWidth
               >
                 {PLAYING_STYLES.map((s) => (
@@ -549,7 +643,10 @@ export default function ProfileDialog({
                     <Typography variant="body2" sx={{ fontWeight: 700 }}>
                       {s.label}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#666", lineHeight: 1.2 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#666", lineHeight: 1.2 }}
+                    >
                       {s.hint}
                     </Typography>
                   </ToggleButton>
@@ -588,7 +685,9 @@ export default function ProfileDialog({
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
                 Favorite openings
               </Typography>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 1.25 }}>
+              <Box
+                sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 1.25 }}
+              >
                 {coaching.favoriteOpenings.map((name) => (
                   <Chip
                     key={name}
@@ -596,7 +695,9 @@ export default function ProfileDialog({
                     onDelete={() =>
                       setCoaching({
                         ...coaching,
-                        favoriteOpenings: coaching.favoriteOpenings.filter((x) => x !== name),
+                        favoriteOpenings: coaching.favoriteOpenings.filter(
+                          (x) => x !== name
+                        ),
                       })
                     }
                   />
@@ -645,7 +746,9 @@ export default function ProfileDialog({
               <ToggleButtonGroup
                 exclusive
                 value={appearance.boardTheme}
-                onChange={(_e, v) => v !== null && setAppearance({ ...appearance, boardTheme: v })}
+                onChange={(_e, v) =>
+                  v !== null && setAppearance({ ...appearance, boardTheme: v })
+                }
                 fullWidth
               >
                 {BOARD_THEMES.map((t) => (
@@ -667,7 +770,9 @@ export default function ProfileDialog({
               <ToggleButtonGroup
                 exclusive
                 value={appearance.pieceSet}
-                onChange={(_e, v) => v !== null && setAppearance({ ...appearance, pieceSet: v })}
+                onChange={(_e, v) =>
+                  v !== null && setAppearance({ ...appearance, pieceSet: v })
+                }
                 fullWidth
               >
                 {PIECE_SETS.map((p) => (
@@ -683,7 +788,8 @@ export default function ProfileDialog({
             </Box>
 
             <Typography variant="caption" sx={{ color: "#999" }}>
-              Visual themes are saved but not yet applied to the board — wiring lands in a follow-up.
+              Visual themes are saved but not yet applied to the board — wiring
+              lands in a follow-up.
             </Typography>
 
             <Box sx={{ display: "flex", justifyContent: "flex-end" }}>

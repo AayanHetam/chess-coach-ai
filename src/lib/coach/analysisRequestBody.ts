@@ -59,6 +59,18 @@ export interface AnalysisRequestBodyInput {
    * `userRating`: forgetting it is how B3 happened.
    */
   viewedPly: number | undefined;
+  /**
+   * T7: `true` when no engine evaluation is ever arriving for this session —
+   * WASM unsupported, `/engines/*` unreachable, or the sweep errored.
+   *
+   * Required key, and deliberately NOT inferable server-side: an absent
+   * `gameEval` already means three different things (never computed, still
+   * computing, computed and dropped), and the server cannot tell them apart.
+   * Without this the coach answers a question it cannot ground and simply
+   * omits the sections it has no data for — which reads, to the user, exactly
+   * like a game with no mistakes in it.
+   */
+  engineDataUnavailable: boolean;
   playerColor?: "w" | "b";
   playerColorName?: "white" | "black";
   boardOrientation?: "white" | "black";
@@ -87,6 +99,9 @@ export function buildAnalysisRequestBody(
     // PGN-header fallbacks reachable. Never reintroduce a `?? 1500` here.
     userRating: input.userRating,
     viewedPly: input.viewedPly,
+    // T7: see the field doc. Always sent, including `false`, so the server can
+    // distinguish "the engine has nothing to say" from "the client forgot".
+    engineDataUnavailable: input.engineDataUnavailable,
     // Personalization. All optional server-side; the system prompt only gets
     // richer with each one present.
     playerColor: input.playerColor,

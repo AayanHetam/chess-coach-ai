@@ -89,6 +89,24 @@ export interface IntentProbe {
   threatPieceCaptured: boolean | null;
 
   /**
+   * What happens to the threat once the check has been answered.
+   *
+   * The guard above rejects "the threat is illegal" as evidence on a checking
+   * move, which is right — but it then asserted the opposite, that the threat
+   * comes straight back, and reported the move as having ignored it. That is
+   * an equally unmeasured claim, and across the founder's games it was wrong
+   * more often than right. This field is the measurement: play every legal
+   * evasion and see whether the threat is available again.
+   *
+   * Computed with chess.js by the caller; null when unknown.
+   */
+  threatEvasions: {
+    replies: number;
+    returns: number;
+    unmodelled: number;
+  } | null;
+
+  /**
    * The opponent's BEST move at fenAfter, scored for THEM — the baseline the
    * threat has to be measured against.
    *
@@ -126,6 +144,26 @@ export interface IntentProbe {
    * than a fabricated one.
    */
   opponentBestAfterProbed: IntentScore | null;
+
+  /**
+   * The player's best move at fenBefore, re-measured by whatever engine
+   * produced `threat`.
+   *
+   * The "is this a threat at all?" gate values the opponent's free tempo as
+   * `threat + rootBest` — one Tier 1 number plus one Tier 0 number. gameEval's
+   * root score is read off a warm transposition table; the null-move probe runs
+   * on a cold one, so the sum carries the difference between the two engines.
+   *
+   * Measured: on 60 plies deliberately sampled NEAR the 150cp bar, 12% of the
+   * threat/no-threat decisions flip when this operand is measured in the same
+   * regime as the threat — about 7.8% of all plies where the gate is live, and
+   * they flip in BOTH directions. That is the engine deciding whether the
+   * student is told about a threat, rather than the position.
+   *
+   * Null when the caller did not pay for the extra search, in which case the
+   * Tier 0 root score is used and a note records the mixed comparison.
+   */
+  rootBestProbed: IntentScore | null;
 
   /**
    * The threat replayed after each of OUR plausible alternatives, scored for

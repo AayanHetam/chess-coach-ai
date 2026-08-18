@@ -39,7 +39,8 @@ export const metadata: Metadata = {
     site: "@ChessMastiAI",
     creator: "@ChessMastiAI",
     title: "How Chess Masti AI Works",
-    description: "Engine-first chess coaching: Stockfish → Claude → validator → puzzles.",
+    description:
+      "Engine-first chess coaching: Stockfish → Claude → validator → puzzles.",
     images: ["https://chessmasti.com/social-networks-1200x630.png"],
   },
 };
@@ -48,7 +49,12 @@ const breadcrumbJsonLd = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   itemListElement: [
-    { "@type": "ListItem", position: 1, name: "Home", item: "https://chessmasti.com/" },
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Home",
+      item: "https://chessmasti.com/",
+    },
     {
       "@type": "ListItem",
       position: 2,
@@ -168,12 +174,14 @@ export default function HowItWorksPage() {
       <H1>How Chess Masti AI works</H1>
 
       <AnswerBlock>
-        Most &quot;AI chess coaches&quot; are an LLM with a board diagram pasted into the prompt.
-        They hallucinate. They invent moves that aren&apos;t legal in the position. They confidently
-        misidentify pieces. They tell you the rook on f1 is hanging when there&apos;s no rook on
-        f1. Chess Masti AI is built the other way around: the engine runs first, the LLM only ever
-        paraphrases what the engine already said, and a separate validator checks the paraphrase
-        against the actual board before you read it.
+        Most &quot;AI chess coaches&quot; are an LLM with a board diagram pasted
+        into the prompt. They hallucinate. They invent moves that aren&apos;t
+        legal in the position. They confidently misidentify pieces. They tell
+        you the rook on f1 is hanging when there&apos;s no rook on f1. Chess
+        Masti AI is built the other way around: the engine runs first, the LLM
+        only ever paraphrases what the engine already said, and a separate
+        validator checks the paraphrase against the actual board before you read
+        it.
       </AnswerBlock>
 
       <Box component="section" id="engine" sx={{ mb: 10 }}>
@@ -182,51 +190,71 @@ export default function HowItWorksPage() {
           <SectionHeading>The engine runs first</SectionHeading>
         </Box>
         <ProseBlock>
-          When you load a game, <strong style={{ color: "#fff" }}>Stockfish 17</strong> runs in
-          your browser as a WebAssembly worker — no server round-trip, no rate limit. For each move
-          the engine produces an evaluation, the best continuation, and the next-best alternatives.
-          We layer three more passes on top of the raw eval:
+          When you load a game,{" "}
+          <strong style={{ color: "#fff" }}>Stockfish 17</strong> runs in your
+          browser as a WebAssembly worker — no server round-trip, no rate limit.
+          For each move the engine produces an evaluation, the best
+          continuation, and the next-best alternatives. We layer three more
+          passes on top of the raw eval:
         </ProseBlock>
         <Box component="ul" sx={ulSx}>
           <li>
-            <strong style={{ color: "#fff" }}>Tactical motif detection</strong>: pins, forks,
-            skewers, discovered attacks, back-rank patterns.
+            <strong style={{ color: "#fff" }}>Tactical motif detection</strong>:
+            pins, forks, skewers, discovered attacks, back-rank patterns.
           </li>
           <li>
-            <strong style={{ color: "#fff" }}>Candidate-move gap analysis</strong>: how big was the
-            gap between the move you played and Stockfish&apos;s recommendation, and was the
-            recommendation a single forcing line or a quiet positional choice?
+            <strong style={{ color: "#fff" }}>
+              Candidate-move gap analysis
+            </strong>
+            : how big was the gap between the move you played and
+            Stockfish&apos;s recommendation, and was the recommendation a single
+            forcing line or a quiet positional choice?
           </li>
           <li>
-            <strong style={{ color: "#fff" }}>Branch-point analysis</strong>: was this move the
-            position&apos;s pivot — where the game&apos;s evaluation decisively turned?
+            <strong style={{ color: "#fff" }}>Branch-point analysis</strong>:
+            was this move the position&apos;s pivot — where the game&apos;s
+            evaluation decisively turned?
           </li>
         </Box>
-        <ProseBlock>The LLM never sees the bare position. It sees the engine&apos;s structured verdict.</ProseBlock>
+        <ProseBlock>
+          The LLM never sees the bare position. It sees the engine&apos;s
+          structured verdict.
+        </ProseBlock>
       </Box>
 
       <Box component="section" id="claude" sx={{ mb: 10 }}>
         <Box sx={{ display: "flex", gap: 3, alignItems: "flex-start", mb: 3 }}>
           <NumberBubble>2</NumberBubble>
-          <SectionHeading>Claude turns the verdict into language</SectionHeading>
+          <SectionHeading>
+            Claude turns the verdict into language
+          </SectionHeading>
         </Box>
         <ProseBlock>Two models, picked by latency budget:</ProseBlock>
         <Box component="ul" sx={ulSx}>
           <li>
-            <strong style={{ color: "#fff" }}>Claude Sonnet</strong> (Anthropic) handles deep,
-            multi-paragraph analysis. It receives the engine output and your historical context —
-            playing style, study goals, favourite openings — and writes the coaching response.
+            <strong style={{ color: "#fff" }}>Claude Sonnet</strong> (Anthropic)
+            handles deep, multi-paragraph analysis. It receives the engine
+            output and your historical context — playing style, study goals,
+            favourite openings — and writes the coaching response.
           </li>
           <li>
-            <strong style={{ color: "#fff" }}>Claude Haiku</strong> handles follow-up chat with
-            sub-5-second responses. The first analysis call seeds a server-side context cache keyed
-            by <Box component="code" sx={codeInline}>contextId</Box>, so subsequent questions don&apos;t repay the
-            full token cost.
+            <strong style={{ color: "#fff" }}>Claude Haiku</strong> handles
+            follow-up chat with sub-5-second responses. The first analysis call
+            seeds a server-side context cache keyed by{" "}
+            <Box component="code" sx={codeInline}>
+              contextId
+            </Box>
+            , so subsequent questions don&apos;t repay the full token cost.
           </li>
         </Box>
         <ProseBlock>
-          The system prompt makes one thing explicit: never invent a chess fact. If the engine
-          didn&apos;t say it, don&apos;t write it.
+          The system prompt makes one thing explicit: never invent a chess fact.
+          If the engine didn&apos;t say it, don&apos;t write it.
+        </ProseBlock>
+        <ProseBlock>
+          Anthropic normally processes these coaching requests. OpenAI may
+          receive the same request when it is configured as the provider or when
+          the Anthropic request fails.
         </ProseBlock>
       </Box>
 
@@ -237,20 +265,29 @@ export default function HowItWorksPage() {
         </Box>
         <ProseBlock>
           LLMs still drift. So before any coaching response renders, a{" "}
-          <strong style={{ color: "#fff" }}>hallucination validator</strong> parses it for every
-          reference to a piece, square, or move, and checks each one against the live{" "}
-          <Box component="code" sx={codeInline}>chess.js</Box> board state.
+          <strong style={{ color: "#fff" }}>hallucination validator</strong>{" "}
+          parses it for every reference to a piece, square, or move, and checks
+          each one against the live{" "}
+          <Box component="code" sx={codeInline}>
+            chess.js
+          </Box>{" "}
+          board state.
         </ProseBlock>
         <ProseBlock>
-          If the response says &quot;the bishop on c4 attacks h7,&quot; the validator confirms
-          there is a bishop on c4 and that h7 is on its diagonal. If the response suggests{" "}
-          <Box component="code" sx={codeInline}>Nxe5</Box> as a candidate, the validator confirms that a knight legally
-          moves to e5 in the current position. Claims that don&apos;t check out are rewritten or
-          dropped.
+          If the response says &quot;the bishop on c4 attacks h7,&quot; the
+          validator confirms there is a bishop on c4 and that h7 is on its
+          diagonal. If the response suggests{" "}
+          <Box component="code" sx={codeInline}>
+            Nxe5
+          </Box>{" "}
+          as a candidate, the validator confirms that a knight legally moves to
+          e5 in the current position. Claims that don&apos;t check out are
+          rewritten or dropped.
         </ProseBlock>
         <ProseBlock>
-          This is the layer most &quot;AI coaches&quot; don&apos;t have. It&apos;s also the reason
-          you can trust the output enough to act on it during a game.
+          This is the layer most &quot;AI coaches&quot; don&apos;t have.
+          It&apos;s also the reason you can trust the output enough to act on it
+          during a game.
         </ProseBlock>
       </Box>
 
@@ -260,21 +297,27 @@ export default function HowItWorksPage() {
           <SectionHeading>Targeted training, inline</SectionHeading>
         </Box>
         <ProseBlock>
-          A coaching response that just explains your mistake is half the loop. The other half is
-          doing more reps on positions like the one you just got wrong.
+          A coaching response that just explains your mistake is half the loop.
+          The other half is doing more reps on positions like the one you just
+          got wrong.
         </ProseBlock>
         <ProseBlock>
-          So three puzzles render directly inside the coaching message — same chat bubble, same
-          chess board, no tab switch. They&apos;re pulled from a{" "}
-          <strong style={{ color: "#fff" }}>Neo4j graph of 100,000+ Lichess puzzles</strong>{" "}
-          filtered to popularity ≥ 60, plays ≥ 50, rating deviation ≤ 120. Retrieval is a graph
-          traversal (your skill band × the relevant tactical theme), then a 49-dimensional FEN
-          cosine-similarity re-ranking against the FEN you just lost. You train on the geometry of
-          your specific mistake, not a generic &quot;back-rank tactics&quot; bucket.
+          So three puzzles render directly inside the coaching message — same
+          chat bubble, same chess board, no tab switch. They&apos;re pulled from
+          a{" "}
+          <strong style={{ color: "#fff" }}>
+            Neo4j graph of 100,000+ Lichess puzzles
+          </strong>{" "}
+          filtered to popularity ≥ 60, plays ≥ 50, rating deviation ≤ 120.
+          Retrieval is a graph traversal (your skill band × the relevant
+          tactical theme), then a 49-dimensional FEN cosine-similarity
+          re-ranking against the FEN you just lost. You train on the geometry of
+          your specific mistake, not a generic &quot;back-rank tactics&quot;
+          bucket.
         </ProseBlock>
         <ProseBlock>
-          Solve them, the SM-2 spaced-repetition scheduler files them away, and the next time a
-          similar shape comes up the loop is shorter.
+          Solve them, the SM-2 spaced-repetition scheduler files them away, and
+          the next time a similar shape comes up the loop is shorter.
         </ProseBlock>
       </Box>
 
@@ -283,18 +326,20 @@ export default function HowItWorksPage() {
         <Box component="ul" sx={ulSx}>
           <li>
             <strong style={{ color: "#fff" }}>Twin Bot</strong> runs on{" "}
-            <strong style={{ color: "#fff" }}>Maia-2</strong> (NeurIPS 2024), a neural network
-            trained to predict human moves at a target Elo. Optionally seeded with a public Lichess
-            player&apos;s opening repertoire.
+            <strong style={{ color: "#fff" }}>Maia-2</strong> (NeurIPS 2024), a
+            neural network trained to predict human moves at a target Elo.
+            Optionally seeded with a public Lichess player&apos;s opening
+            repertoire.
           </li>
           <li>
-            <strong style={{ color: "#fff" }}>Live play</strong> uses Lichess OAuth 2.0 PKCE with
-            dual-SSE streams.
+            <strong style={{ color: "#fff" }}>Live play</strong> uses Lichess
+            OAuth 2.0 PKCE with dual-SSE streams.
           </li>
           <li>
-            <strong style={{ color: "#fff" }}>Opponent scouting</strong> ingests a Lichess or
-            Chess.com username and returns opening trees, repertoire collisions, a Tells
-            readability index, tilt and timeout psychology profiles, and a shareable SVG card.
+            <strong style={{ color: "#fff" }}>Opponent scouting</strong> ingests
+            a Lichess or Chess.com username and returns opening trees,
+            repertoire collisions, a Tells readability index, tilt and timeout
+            psychology profiles, and a shareable SVG card.
           </li>
         </Box>
       </Box>
@@ -307,14 +352,26 @@ export default function HowItWorksPage() {
         }}
       >
         <Typography
-          sx={{ fontWeight: 700, color: "#fff", fontSize: { xs: "1.25rem", md: "1.5rem" }, mb: 1 }}
+          sx={{
+            fontWeight: 700,
+            color: "#fff",
+            fontSize: { xs: "1.25rem", md: "1.5rem" },
+            mb: 1,
+          }}
         >
           See the architecture and the comparison
         </Typography>
         <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 3 }}>
-          No paid tier. India and Southeast Asia first.
+          Free coaching. India and Southeast Asia first.
         </Typography>
-        <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            justifyContent: "center",
+            flexWrap: "wrap",
+          }}
+        >
           <CtaButton href="/architecture">Architecture deep-dive</CtaButton>
           <CtaButton href="/vs">vs other coaches</CtaButton>
           <CtaButton href="/faq">FAQ</CtaButton>

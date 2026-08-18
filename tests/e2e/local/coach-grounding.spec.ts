@@ -30,23 +30,29 @@ async function fulfillStub(route: Route) {
 /**
  * Keep the coach composer in ONE state for the whole test.
  *
- * `analysisActive = engine !== null && enginePositions === null` gates the
- * composer, and its placeholder text changes with it. Stockfish boots
- * asynchronously, so on a slow runner that flips mid-test and a
- * placeholder-based locator silently stops matching — which is exactly how
- * these specs passed locally and timed out in CI.
+ * The composer's placeholder changes with the engine gate, and Stockfish boots
+ * asynchronously — so on a slow runner that flips mid-test and a
+ * placeholder-based locator silently stops matching. That is exactly how these
+ * specs passed locally and timed out in CI.
  *
- * Blocking the engine assets pins `engine` to null, so `analysisActive` stays
- * false and the composer stays open. That is not a contrivance: the coach
- * genuinely accepts questions with no engine data (finding T7), and none of
- * these assertions are about engine output — they are about which fields the
- * browser puts in the request body.
+ * Blocking the engine assets makes the worker fail to load, which the gate
+ * reports as `unavailable`: the composer stays OPEN and keeps one stable
+ * placeholder for the whole run.
+ *
+ * This used to work for a different reason. `analysisActive` required
+ * `engine !== null`, so a null engine read as "not analyzing" and the composer
+ * opened with no engine data and nothing said so — finding T7, which these
+ * specs were quietly leaning on. T7 is now fixed, and the degraded state is
+ * declared rather than accidental. None of the assertions here are about
+ * engine output; they are about which fields the browser puts in the request
+ * body.
  */
 async function pinComposerOpen(page: Page) {
   await page.route("**/engines/**", (route) => route.abort());
 }
 
-const COMPOSER = "Ask anything about this position...";
+/** The T7 placeholder: input open, and honest about what is missing. */
+const COMPOSER = "Ask anything — answering without engine analysis.";
 
 /**
  * A game for specs that need a board with history to navigate.
@@ -172,6 +178,50 @@ test.describe("A1 — the analysis coach never invents a rating", () => {
       "signed-out request carried a rating the client cannot possibly know"
     ).toBeUndefined();
     expect("userRating" in body).toBe(false);
+  });
+});
+
+test.describe("T7 — an engine that never loads is declared, not hidden", () => {
+  test("the page says so, and the request says so", async ({ page }) => {
+    // `pinComposerOpen` blocks `/engines/**`, which is the real-world case of a
+    // school or corporate filter — the situation this finding is about.
+    //
+    // Before the fix the composer opened anyway (`analysisActive` required
+    // `engine !== null`, and a null engine read as "not analyzing"), the
+    // request carried no signal at all, and the reply came back in the coach's
+    // ordinary confident voice with the engine-backed sections simply absent.
+    // Nothing in the UI or on the wire distinguished that from a game with
+    // nothing to say about it.
+    const bodies: Array<Record<string, unknown>> = [];
+    await page.route("**/api/enhanced-analysis", async (route) => {
+      bodies.push(JSON.parse(route.request().postData() ?? "{}"));
+      await fulfillStub(route);
+    });
+
+    await pinComposerOpen(page);
+    await page.goto("/analysis");
+
+    // 1. The user is told, in the page, before they ask.
+    await expect(
+      page.getByText("Coaching without engine analysis."),
+      "engine failed to load and the composer gave no sign of it"
+    ).toBeVisible({ timeout: 60_000 });
+
+    // 2. The input is still usable. A permanently disabled box behind
+    //    "coach unlocks when Stockfish finishes" would be its own lie.
+    const composer = page.getByPlaceholder(COMPOSER);
+    await expect(composer).toBeEnabled();
+
+    await composer.fill("what should I study from this?");
+    await composer.press("Enter");
+    await expect.poll(() => bodies.length, { timeout: 30_000 }).toBeGreaterThan(0);
+
+    // 3. The server is told, so the prompt can forbid the claims it cannot
+    //    support instead of quietly omitting the sections behind them.
+    expect(
+      bodies[0].engineDataUnavailable,
+      "request did not tell the server the engine never loaded"
+    ).toBe(true);
   });
 });
 

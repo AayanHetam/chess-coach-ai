@@ -532,6 +532,19 @@ function computeProphylaxis(
     // read as "our move stopped this". Found in a dead king-and-pawn ending: a3
     // was carded as stopping Kg5 while White was mated in 20 whatever they
     // played.
+    if (probe.opponentBestAfter === null) {
+      // isMateAgainst(null) is false, so a missing baseline used to fall
+      // straight through the guard below and return the full fact — the exact
+      // null collapse the guard was added to kill, one field over. types.ts
+      // documents opponentBestAfter as "null when not measured" (fromGameEval
+      // leaves it null when the ply+1 evaluation timed out), and an unmeasured
+      // baseline cannot tell a stopped threat from a position that was lost
+      // anyway. Decline; never default.
+      notes.push(
+        "their best reply was never measured — cannot tell a stopped threat from a position that was lost anyway",
+      );
+      return null;
+    }
     if (isMateAgainst(probe.opponentBestAfter)) {
       notes.push("the opponent is being mated whatever they play — the move did not stop this");
       return null;

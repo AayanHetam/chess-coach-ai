@@ -318,19 +318,86 @@ export interface ThreatAfterEvasions {
   replies: number;
   /** How many of those leave the threat playable again. */
   returns: number;
+  /**
+   * Of the returning branches, how many leave the threat MET the moment it is
+   * played: the mover can capture the arriving piece without losing material,
+   * through a capture that did not exist in the world the threat was priced
+   * in. Legal again is not threatening again — the founder's Qxg3+ covers h4,
+   * so White's Qh4 lands into Qxh4 down every evasion, and a card still told
+   * him he had ignored it. See metByNewCapture.
+   */
+  met: number;
   /** How many could not be modelled, because the evasion checked us back. */
   unmodelled: number;
+}
+
+/**
+ * After `fen` (threat side to move), play the threat: can the OTHER side then
+ * capture the arriving piece without losing material?
+ * Null when the threat is not even legal at `fen`.
+ *
+ * The first capture is evaluated SIGNED — `exchangeValue`'s outer
+ * `max(0, ...)` floor exists because a side may decline an exchange, but it
+ * makes "even trade, take it" and "losing, leave it" both read 0. Here the
+ * distinction is the whole point: the founder's Qxg3+ meets Qh4 with an EVEN
+ * queen trade (profit exactly 0 — met), while QxN into a pawn recapture is
+ * -600 (not an answer at all). Recaptures below keep their floors, since
+ * those sides can decline.
+ *
+ * (tactics/utils' `see` was tried first and returns +300 for the losing QxN
+ * case — its swap-list prices the wrong piece at each step. Reported
+ * separately; nothing in this module uses it.)
+ */
+function capturableOnArrival(fen: string, threatSan: string): boolean | null {
+  try {
+    const g = new Chess(fen);
+    const mv = g.move(threatSan);
+    const to = mv.to as Square;
+    const occupant = g.get(to);
+    if (!occupant) return false;
+
+    const captures = g.moves({ verbose: true }).filter((m) => m.to === to && m.captured);
+    if (captures.length === 0) return false;
+
+    // Cheapest capturer first, priced like exchangeValue prices it.
+    const cost = (m: { piece: PieceSymbol; promotion?: string }) =>
+      (m.piece === "k" ? PIECE_VALUE_CP.q + 1 : valueOf(m.piece)) - promotionBonus(m.promotion);
+    captures.sort((a, b) => cost(a) - cost(b));
+    const chosen = captures[0];
+    const gained = valueOf(occupant.type) + promotionBonus(chosen.promotion);
+
+    const next = new Chess(g.fen());
+    next.move({ from: chosen.from, to: chosen.to, promotion: (chosen.promotion ?? "q") as never });
+    const opponent: Color = g.turn() === "w" ? "b" : "w";
+    return gained - exchangeValue(next, to, opponent) >= 0;
+  } catch {
+    return null;
+  }
 }
 
 export function threatAfterEvasions(
   fenAfter: string,
   threatSan: string,
+  fenBefore?: string,
 ): ThreatAfterEvasions | null {
   try {
     const g = new Chess(fenAfter);
     const replies = g.moves();
     let returns = 0;
+    let met = 0;
     let unmodelled = 0;
+
+    // The world the threat was priced in: the mover passes, the opponent plays
+    // the threat. If the arriving piece was ALREADY capturable there, the
+    // threat's measured value includes that fact and a post-check capture
+    // proves nothing. Only a capture our move CREATED counts as meeting it.
+    // With no baseline position the distinction cannot be made, and the
+    // conservative reading is "possibly met" — the claim built on it fails
+    // closed rather than defaulting to the assumption that produced a wrong
+    // card.
+    const baselineFen = fenBefore ? nullMoveFen(fenBefore) : null;
+    const pricedWithCapture = baselineFen ? capturableOnArrival(baselineFen, threatSan) : null;
+
     for (const reply of replies) {
       const board = new Chess(fenAfter);
       try {
@@ -345,9 +412,11 @@ export function threatAfterEvasions(
         unmodelled++;
         continue;
       }
-      if (isLegalSan(passed, threatSan)) returns++;
+      if (!isLegalSan(passed, threatSan)) continue;
+      returns++;
+      if (pricedWithCapture !== true && capturableOnArrival(passed, threatSan) === true) met++;
     }
-    return { replies: replies.length, returns, unmodelled };
+    return { replies: replies.length, returns, met, unmodelled };
   } catch {
     return null;
   }

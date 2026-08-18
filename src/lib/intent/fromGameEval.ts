@@ -278,8 +278,12 @@ export function intentProbesFromGameEval(params: {
         ? didCaptureThreatPiece(fenBefore, mv.san, t1.threat.san)
         : null,
       // Only meaningful when the move gives check; cheap enough to always
-      // compute, and the module declines to speak when it is null.
-      threatEvasions: t1?.threat ? threatAfterEvasions(fenAfter, t1.threat.san) : null,
+      // compute, and the module declines to speak when it is null. fenBefore
+      // is the baseline world the threat was priced in — without it, a
+      // returning threat that lands into a capture cannot be told apart from
+      // one whose price already included that capture, and the claim built on
+      // the distinction fails closed.
+      threatEvasions: t1?.threat ? threatAfterEvasions(fenAfter, t1.threat.san, fenBefore) : null,
       opponentBestAfter,
       // Same-regime baseline: present only when the Tier 1 prober measured it
       // itself. Never falls back to the Tier 0 number above — that fallback is

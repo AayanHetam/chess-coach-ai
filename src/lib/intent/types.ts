@@ -103,6 +103,12 @@ export interface IntentProbe {
   threatEvasions: {
     replies: number;
     returns: number;
+    /**
+     * Returning branches where the threat lands into a capture (SEE >= 0)
+     * that the played move CREATED — legal again, but answered on arrival.
+     * The founder's Qxg3+ covers h4; a card still said he ignored Qh4.
+     */
+    met: number;
     unmodelled: number;
   } | null;
 

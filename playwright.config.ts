@@ -6,7 +6,7 @@ import { defineConfig, devices } from "@playwright/test";
  * Two families:
  * - tests/e2e/local  — critical-journey specs against a local `next start`
  *   of the production build. Run WITHOUT secrets (CI has none): they cover
- *   client-side journeys (dark chrome, auth dialog, DOB age gate, puzzle
+ *   client-side journeys (dark chrome, auth dialog, age gate, puzzle
  *   board) and never create accounts.
  * - tests/e2e/prod   — read-only smoke against https://www.chessmasti.com
  *   (nightly heartbeat + manual). Never writes data: bad-credential signin,

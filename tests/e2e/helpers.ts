@@ -18,14 +18,6 @@ export async function horizontalOverflow(page: Page): Promise<number> {
   );
 }
 
-/** A DOB string (yyyy-mm-dd) for someone `years` old today. */
-export function dobYearsAgo(years: number): string {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() - years);
-  d.setDate(d.getDate() - 1); // safely past the birthday
-  return d.toISOString().slice(0, 10);
-}
-
 /**
  * Wait until /puzzles stops swapping the puzzle, then return the settled FEN.
  *

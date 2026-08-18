@@ -37,8 +37,20 @@ export const signupSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   displayName: displayNameSchema.optional(),
+  // COPPA: set by the client only after the 13+ age-affirmation checkbox is
+  // ticked. Must be literally true — account creation is refused without it,
+  // and the server stamps ageAffirmedAt from it. No age or birth date is
+  // ever transmitted.
+  ageAffirmed: z
+    .boolean("Please confirm you're 13 or older to sign up.")
+    .refine((v) => v === true, "Please confirm you're 13 or older to sign up."),
   /**
    * REQUIRED, and fail-closed on purpose.
+   *
+   * Declared AFTER `ageAffirmed` deliberately. Zod reports issues in field
+   * order and the route surfaces only the first, so a client missing both
+   * must be told about the COPPA affirmation — the legally load-bearing
+   * check — not about a handle.
    *
    * Handles shipped claimable-but-optional in #332, which produced yet another
    * cohort of accounts that would have to be prompted later — the same trap the
@@ -57,13 +69,6 @@ export const signupSchema = z.object({
     .string("Pick a handle to finish signing up.")
     .trim()
     .min(1, "Pick a handle to finish signing up."),
-  // COPPA: set by the client only after the neutral DOB age gate resolves
-  // 13+. Must be literally true — account creation is refused without it,
-  // and the server stamps ageAffirmedAt from it. The DOB itself is never
-  // transmitted.
-  ageAffirmed: z
-    .boolean("Please confirm your date of birth to sign up.")
-    .refine((v) => v === true, "Please confirm your date of birth to sign up."),
 });
 
 /**

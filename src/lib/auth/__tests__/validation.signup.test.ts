@@ -18,26 +18,26 @@ describe("signupSchema ageAffirmed (COPPA)", () => {
     expect(parsed.ageAffirmed).toBe(true);
   });
 
-  it("rejects a missing ageAffirmed with the DOB message (deploy-skew clients)", () => {
+  it("rejects a missing ageAffirmed with the affirmation message (deploy-skew clients)", () => {
     try {
       signupSchema.parse(base);
       expect.unreachable("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(z.ZodError);
       expect(firstZodError(err as z.ZodError)).toBe(
-        "Please confirm your date of birth to sign up."
+        "Please confirm you're 13 or older to sign up."
       );
     }
   });
 
-  it("rejects ageAffirmed: false with the DOB message", () => {
+  it("rejects ageAffirmed: false with the affirmation message", () => {
     try {
       signupSchema.parse({ ...base, ageAffirmed: false });
       expect.unreachable("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(z.ZodError);
       expect(firstZodError(err as z.ZodError)).toBe(
-        "Please confirm your date of birth to sign up."
+        "Please confirm you're 13 or older to sign up."
       );
     }
   });
@@ -95,5 +95,36 @@ describe("signupSchema handle (required)", () => {
     expect(() =>
       signupSchema.parse({ ...base, handle: "admin", ageAffirmed: true })
     ).not.toThrow();
+  });
+});
+
+describe("which error a client missing everything is shown", () => {
+  it("reports the COPPA affirmation before the handle", () => {
+    // Zod reports issues in FIELD ORDER and the route surfaces only the
+    // first, so field order is a product decision here, not a style one. A
+    // browser holding a bundle from before either change posts neither, and
+    // the age affirmation is the legally load-bearing one.
+    try {
+      signupSchema.parse({
+        email: "new@user.com",
+        password: "longenough1!",
+      });
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(firstZodError(err as z.ZodError)).toMatch(/13 or older/i);
+    }
+  });
+
+  it("reports the handle once the affirmation is satisfied", () => {
+    const { handle: _h, ...noHandle } = base;
+    void _h;
+    try {
+      signupSchema.parse({ ...noHandle, ageAffirmed: true });
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(firstZodError(err as z.ZodError)).toBe(
+        "Pick a handle to finish signing up."
+      );
+    }
   });
 });

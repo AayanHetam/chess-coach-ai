@@ -27,10 +27,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { checkHandle, HANDLE_MAX } from "@/lib/auth/handle";
 import { firstNameOf } from "@/lib/auth/displayIdentity";
 import AgeGate from "@/components/consent/AgeGate";
-import {
-  isAgeGateBlocked,
-  setAgeGateBlocked,
-} from "@/lib/tracking/ageGateLock";
+import { isAgeGateBlocked } from "@/lib/tracking/ageGateLock";
 
 interface AuthDialogProps {
   open: boolean;
@@ -65,10 +62,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [handle, setHandle] = useState("");
-  // COPPA DOB gate: signup mode shows the neutral age screen first; the form
-  // (and its Google button) only renders after a 13+ resolution. An under-13
-  // resolution sets a persistent lockout (isAgeGateBlocked) so the gate can't
-  // be retried by reopening the dialog.
+  // COPPA age gate: signup mode asks for an explicit 13+ affirmation
+  // (checkbox) before the form (and its Google button) ever renders.
+  // ageBlocked honors the persistent lockout set by the retired DOB gate on
+  // devices where a date once resolved under-13.
   const [agePassed, setAgePassed] = useState(false);
   const [ageBlocked, setAgeBlocked] = useState(false);
 
@@ -76,8 +73,9 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
     if (open) setAgeBlocked(isAgeGateBlocked());
   }, [open]);
 
-  // The lockout notice replaces the form outright, which unmounts whatever
-  // was focused (the Continue button, or the DOB field). Focus then falls to
+  // The lockout notice replaces the panel outright (e.g. on switching to the
+  // signup tab on a locked device), which unmounts whatever
+  // was focused (the tab just clicked, or a form field). Focus then falls to
   // <body> — outside the modal — and stays there until MUI's focus trap
   // notices and pulls it back, measured at ~100ms. Escape pressed inside that
   // window never reaches the Modal's keydown handler, so the dialog does not
@@ -123,7 +121,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
 
   const handleEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (mode === "signup" && !agePassed) return; // COPPA neutral age screen
+    if (mode === "signup" && !agePassed) return; // COPPA 13+ affirmation gate
     setError(null);
     setInfo(null);
     setSubmitting(true);
@@ -146,7 +144,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
           password,
           handle: check.display as string,
           displayName: displayName.trim() || undefined,
-          ageAffirmed: true, // only reachable after the DOB gate resolves 13+
+          ageAffirmed: true, // only reachable after the 13+ checkbox gate
         });
         setStep("usernames");
       } else {
@@ -165,10 +163,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
   const handleGoogle = async () => {
     setError(null);
     try {
-      // In signup mode this button only renders after the DOB gate resolved
-      // 13+, so the affirmation rides along and the OAuth callback can skip
-      // the /auth/age interstitial. From the sign-in tab, brand-new accounts
-      // get the interstitial server-side instead.
+      // In signup mode this button only renders after the 13+ checkbox was
+      // confirmed, so the affirmation rides along and the OAuth callback can
+      // skip the /auth/age interstitial. From the sign-in tab, brand-new
+      // accounts get the interstitial server-side instead.
       await signInWithGoogle({ ageAffirmed: mode === "signup" && agePassed });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed.");
@@ -492,8 +490,9 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                   }}
                 >
                   {step === "auth" && mode === "signup" && ageBlocked ? (
-                    /* COPPA: neutral under-13 lockout. No account exists and no
-                     personal data was stored — the DOB never left the browser. */
+                    /* COPPA: under-13 lockout, set by the retired DOB gate and
+                     still honored. No account exists and no personal data was
+                     stored — the DOB never left the browser. */
                     <Box
                       ref={blockedNoticeRef}
                       // tabIndex -1: focusable programmatically (see the effect
@@ -542,19 +541,11 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                       </Typography>
                     </Box>
                   ) : step === "auth" && mode === "signup" && !agePassed ? (
-                    /* COPPA: neutral DOB gate — shown before the signup form
-                     (and its Google button) ever renders. 13+ reveals the
-                     form; under-13 flips the persistent lockout above. */
+                    /* COPPA: 13+ affirmation checkbox — shown before the
+                     signup form (and its Google button) ever renders. */
                     <Box sx={{ py: 0.5 }}>
                       <AgeGate
-                        onResolved={({ isUnder13 }) => {
-                          if (isUnder13) {
-                            setAgeGateBlocked();
-                            setAgeBlocked(true);
-                          } else {
-                            setAgePassed(true);
-                          }
-                        }}
+                        onConfirmed={() => setAgePassed(true)}
                         slotSx={{
                           title: {
                             fontSize: "0.95rem",
@@ -566,12 +557,15 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             fontSize: "0.78rem",
                             lineHeight: 1.45,
                           },
-                          input: {
-                            ...inputSx,
-                            "& input::-webkit-calendar-picker-indicator": {
-                              filter: "invert(1)",
-                              opacity: 0.55,
+                          label: {
+                            "& .MuiFormControlLabel-label": {
+                              fontSize: "0.85rem",
+                              color: "rgba(255,255,255,0.8)",
                             },
+                          },
+                          checkbox: {
+                            color: "rgba(255,255,255,0.4)",
+                            "&.Mui-checked": { color: "#FB923C" },
                           },
                           button: {
                             background: orangeGradient,

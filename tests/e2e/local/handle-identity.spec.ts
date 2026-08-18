@@ -1,5 +1,4 @@
 import { test, expect, type Page } from "@playwright/test";
-import { dobYearsAgo } from "../helpers";
 
 /**
  * Handles: chosen at signup, and then actually USED to address people.
@@ -21,7 +20,9 @@ async function openSignup(page: Page) {
     .first()
     .click();
   await page.getByText("Sign up", { exact: true }).click();
-  await page.getByLabel("Date of birth").fill(dobYearsAgo(20));
+  // The COPPA gate is a 13+ affirmation checkbox (the DOB screen was retired
+  // on main while this branch was open). No date is ever transmitted.
+  await page.getByRole("checkbox", { name: /13 or older/i }).check();
   await page.getByRole("button", { name: /^continue$/i }).click();
 }
 

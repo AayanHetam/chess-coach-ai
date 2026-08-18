@@ -3,14 +3,16 @@ import { useRouter } from "next/router";
 import { Alert, Box, Button, Paper, Typography } from "@mui/material";
 import { PageTitle } from "@/components/pageTitle";
 import AgeGate from "@/components/consent/AgeGate";
-import { isAgeGateBlocked, setAgeGateBlocked } from "@/lib/tracking/ageGateLock";
+import { isAgeGateBlocked } from "@/lib/tracking/ageGateLock";
 
 /**
  * COPPA interstitial for brand-new Google accounts (see
  * /api/auth/google/callback). The verified Google profile is parked in the
- * signed cm_pending_google cookie; no account exists yet. A 13+ resolution
- * POSTs /api/auth/google/complete to create the account + session; under-13
- * clears the pending cookie (nothing was ever stored) and locks the gate.
+ * signed cm_pending_google cookie; no account exists yet. Confirming the 13+
+ * affirmation checkbox POSTs /api/auth/google/complete to create the account
+ * + session. Without the affirmation no account is ever created — the pending
+ * cookie simply expires (10-minute TTL). Devices locked by the retired DOB
+ * gate still see the blocked notice.
  *
  * Plain utility styling on purpose — auth utility pages (reset-password
  * et al.) are outside the dark-glass chrome rollout.
@@ -34,7 +36,7 @@ export default function AgeInterstitialPage() {
     if (isAgeGateBlocked()) setPhase("blocked");
   }, []);
 
-  const complete = async (ageAffirmed: boolean) => {
+  const complete = async () => {
     setError(null);
     setPhase("submitting");
     try {
@@ -42,14 +44,8 @@ export default function AgeInterstitialPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ageAffirmed }),
+        body: JSON.stringify({ ageAffirmed: true }),
       });
-      if (!ageAffirmed) {
-        // Regardless of the server response, lock the gate locally.
-        setAgeGateBlocked();
-        setPhase("blocked");
-        return;
-      }
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as {
           code?: string;
@@ -82,7 +78,10 @@ export default function AgeInterstitialPage() {
               <Typography sx={{ fontWeight: 700, mb: 1 }}>
                 We can&apos;t create an account for you right now.
               </Typography>
-              <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", mb: 2 }}
+              >
                 No account was created and nothing you entered was stored. A
                 parent or guardian can get in touch through the contact details
                 on our Privacy page.
@@ -112,9 +111,9 @@ export default function AgeInterstitialPage() {
               )}
               <Box sx={{ mt: 1.5, opacity: phase === "submitting" ? 0.6 : 1 }}>
                 <AgeGate
-                  onResolved={({ isUnder13 }) => {
+                  onConfirmed={() => {
                     if (phase === "submitting") return;
-                    void complete(!isUnder13);
+                    void complete();
                   }}
                 />
               </Box>

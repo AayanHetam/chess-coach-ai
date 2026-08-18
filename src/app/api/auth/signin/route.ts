@@ -3,7 +3,11 @@ import { ZodError } from "zod";
 import { assertAuthSecrets } from "@/env";
 import { signinSchema, firstZodError } from "@/lib/auth/validation";
 import { setSessionCookieOnResponse } from "@/lib/auth/session";
-import { toSafe, updateLastLoginAt, verifyPassword } from "@/lib/server/users";
+import {
+  toSafe,
+  updateLastLoginAt,
+  verifyPasswordByIdentifier,
+} from "@/lib/server/users";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
 import { isAllowlistedIntern } from "@/lib/intern/allowlist";
 import { isDashboardAdminEmail } from "@/lib/auth/isAdmin";
@@ -15,7 +19,10 @@ export async function POST(request: Request) {
     assertAuthSecrets({ needsSession: true, needsAdmin: true });
   } catch (err) {
     console.error("[auth/signin]", err);
-    return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Authentication service unavailable" },
+      { status: 503 }
+    );
   }
 
   let body: unknown;
@@ -36,11 +43,17 @@ export async function POST(request: Request) {
   }
 
   try {
-    const user = await verifyPassword(input.email, input.password);
+    const user = await verifyPasswordByIdentifier(
+      input.identifier,
+      input.password
+    );
     if (!user) {
-      // Single message for unknown-email AND wrong-password to avoid email enumeration.
+      // ONE message for every failure — unknown handle, unknown email, wrong
+      // password. Distinguishing them would turn this form into an oracle for
+      // which handles and emails are registered, and handles are public, so
+      // the guess space is small.
       return NextResponse.json(
-        { error: "Invalid email or password." },
+        { error: "Invalid handle, email or password." },
         { status: 401 }
       );
     }
@@ -64,7 +77,10 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof AdminConfigError) {
       console.error("[auth/signin]", err);
-      return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 });
+      return NextResponse.json(
+        { error: "Authentication service unavailable" },
+        { status: 503 }
+      );
     }
     console.error("[auth/signin] unexpected", err);
     return NextResponse.json({ error: "Sign-in failed." }, { status: 500 });

@@ -98,7 +98,12 @@ async function fetchMe(): Promise<{
 }> {
   const res = await fetch("/api/auth/me", { credentials: "include" });
   if (!res.ok) {
-    return { profile: null, isIntern: false, isAdmin: false, entitlement: null };
+    return {
+      profile: null,
+      isIntern: false,
+      isAdmin: false,
+      entitlement: null,
+    };
   }
   const data = (await res.json()) as {
     user: UserProfile | null;
@@ -139,7 +144,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isIntern, setIsIntern] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [entitlement, setEntitlement] = useState<ClientEntitlement | null>(null);
+  const [entitlement, setEntitlement] = useState<ClientEntitlement | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -184,7 +191,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signInWithEmail = useCallback(
     async (email: string, password: string) => {
-      await postJson("/api/auth/signin", { email, password });
+      // `identifier`, because this may be a handle rather than an email.
+      // The route still accepts `email` for older cached bundles.
+      await postJson("/api/auth/signin", { identifier: email, password });
       await refresh();
     },
     [refresh]
@@ -207,37 +216,43 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await postJson("/api/auth/forgot-password", { email });
   }, []);
 
-  const signInWithGoogle = useCallback(async (opts?: { ageAffirmed?: boolean }) => {
-    // Server-routed OAuth: full-page redirect through chessmasti.com so
-    // we never hit the *.firebaseapp.com handler that school WiFi blocks.
-    //
-    // Pass returnTo so the OAuth callback lands the user back on the page
-    // they were on (with all query params intact) — important for shared
-    // permalinks like /analysis?insightId=X where signing in without
-    // returnTo would dump them on / and lose the deep link entirely.
-    // Caller is always client-side (button click handler), but we use
-    // globalThis to keep TypeScript happy under SSR-aware narrowing.
-    const w =
-      typeof globalThis !== "undefined" && "location" in globalThis
-        ? (globalThis as { location: Location }).location
-        : null;
-    if (!w) {
-      // Should not happen in practice; defensive only.
-      return;
-    }
-    const here = w.pathname + w.search + w.hash;
-    // Only pass same-origin paths. Server-side `sanitizeReturnTo` rejects
-    // anything else, but we keep client-side hygiene tight too.
-    const returnTo = here.startsWith("/") ? here : "/";
-    // ageAffirmed=1 marks that the signup dialog's DOB gate already resolved
-    // 13+, so the OAuth callback can skip the /auth/age interstitial.
-    const ageParam = opts?.ageAffirmed ? "&ageAffirmed=1" : "";
-    w.href = `/api/auth/google/start?returnTo=${encodeURIComponent(returnTo)}${ageParam}`;
-  }, []);
+  const signInWithGoogle = useCallback(
+    async (opts?: { ageAffirmed?: boolean }) => {
+      // Server-routed OAuth: full-page redirect through chessmasti.com so
+      // we never hit the *.firebaseapp.com handler that school WiFi blocks.
+      //
+      // Pass returnTo so the OAuth callback lands the user back on the page
+      // they were on (with all query params intact) — important for shared
+      // permalinks like /analysis?insightId=X where signing in without
+      // returnTo would dump them on / and lose the deep link entirely.
+      // Caller is always client-side (button click handler), but we use
+      // globalThis to keep TypeScript happy under SSR-aware narrowing.
+      const w =
+        typeof globalThis !== "undefined" && "location" in globalThis
+          ? (globalThis as { location: Location }).location
+          : null;
+      if (!w) {
+        // Should not happen in practice; defensive only.
+        return;
+      }
+      const here = w.pathname + w.search + w.hash;
+      // Only pass same-origin paths. Server-side `sanitizeReturnTo` rejects
+      // anything else, but we keep client-side hygiene tight too.
+      const returnTo = here.startsWith("/") ? here : "/";
+      // ageAffirmed=1 marks that the signup dialog's DOB gate already resolved
+      // 13+, so the OAuth callback can skip the /auth/age interstitial.
+      const ageParam = opts?.ageAffirmed ? "&ageAffirmed=1" : "";
+      w.href = `/api/auth/google/start?returnTo=${encodeURIComponent(returnTo)}${ageParam}`;
+    },
+    []
+  );
 
   const signOut = useCallback(async () => {
     try {
-      await fetch("/api/auth/signout", { method: "POST", credentials: "include" });
+      await fetch("/api/auth/signout", {
+        method: "POST",
+        credentials: "include",
+      });
     } catch (err) {
       console.error("Sign-out request failed:", err);
     }

@@ -89,6 +89,24 @@ export interface IntentProbe {
   threatPieceCaptured: boolean | null;
 
   /**
+   * What happens to the threat once the check has been answered.
+   *
+   * The guard above rejects "the threat is illegal" as evidence on a checking
+   * move, which is right — but it then asserted the opposite, that the threat
+   * comes straight back, and reported the move as having ignored it. That is
+   * an equally unmeasured claim, and across the founder's games it was wrong
+   * more often than right. This field is the measurement: play every legal
+   * evasion and see whether the threat is available again.
+   *
+   * Computed with chess.js by the caller; null when unknown.
+   */
+  threatEvasions: {
+    replies: number;
+    returns: number;
+    unmodelled: number;
+  } | null;
+
+  /**
    * The opponent's BEST move at fenAfter, scored for THEM — the baseline the
    * threat has to be measured against.
    *

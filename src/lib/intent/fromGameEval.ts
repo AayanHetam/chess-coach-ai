@@ -1,7 +1,7 @@
 import { Chess } from "chess.js";
 import { PIECE_VALUE_CP } from "@/lib/tactics/utils";
 import { whiteRelativeToMover } from "./intentFacts";
-import { buildPositionFacts, isTemptingReply, isLegalSan, nullMoveFen, didCaptureThreatPiece } from "./positionFacts";
+import { buildPositionFacts, isTemptingReply, isLegalSan, nullMoveFen, didCaptureThreatPiece, threatAfterEvasions } from "./positionFacts";
 import type { IntentProbe, IntentScore, EngineLine } from "./types";
 import type { GameEval, LineEval } from "@/types/eval";
 
@@ -277,6 +277,9 @@ export function intentProbesFromGameEval(params: {
       threatPieceCaptured: t1?.threat
         ? didCaptureThreatPiece(fenBefore, mv.san, t1.threat.san)
         : null,
+      // Only meaningful when the move gives check; cheap enough to always
+      // compute, and the module declines to speak when it is null.
+      threatEvasions: t1?.threat ? threatAfterEvasions(fenAfter, t1.threat.san) : null,
       opponentBestAfter,
       // Same-regime baseline: present only when the Tier 1 prober measured it
       // itself. Never falls back to the Tier 0 number above — that fallback is
@@ -312,6 +315,7 @@ function emptyProbe(fenBefore: string, playedSan: string, fenAfter: string): Int
     threatAlternative: null,
     threatStillLegal: true,
     threatPieceCaptured: null,
+    threatEvasions: null,
     opponentBestAfter: null,
     threatAfterAlternatives: [],
     playedScore: null,

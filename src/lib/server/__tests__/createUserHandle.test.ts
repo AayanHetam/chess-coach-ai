@@ -149,7 +149,9 @@ describe("createUser with a handle", () => {
     await expect(
       createUser({ ...BASE, handle: "lazerwizard" })
     ).rejects.toBeInstanceOf(UserError);
-    const users = Array.from(store.keys()).filter((k) => k.startsWith("users/"));
+    const users = Array.from(store.keys()).filter((k) =>
+      k.startsWith("users/")
+    );
     expect(users).toEqual([]);
   });
 
@@ -175,7 +177,9 @@ describe("createUser with a handle", () => {
   it("still creates a plain account when no handle is given (Google path)", async () => {
     const user = await createUser(BASE);
     expect(user.handle).toBeUndefined();
-    expect(Array.from(store.keys()).some((k) => k.startsWith("handles/"))).toBe(false);
+    expect(Array.from(store.keys()).some((k) => k.startsWith("handles/"))).toBe(
+      false
+    );
   });
 
   it("issues every read before the first write", async () => {

@@ -58,7 +58,10 @@ test.describe("signup asks for a handle", () => {
     let calls = 0;
     await page.route("**/api/auth/signup", (r) => {
       calls += 1;
-      return r.fulfill({ status: 500, json: { error: "should not be called" } });
+      return r.fulfill({
+        status: 500,
+        json: { error: "should not be called" },
+      });
     });
     await openSignup(page);
     await fillSignupExceptHandle(page);
@@ -80,7 +83,10 @@ test.describe("signup asks for a handle", () => {
     let calls = 0;
     await page.route("**/api/auth/signup", (r) => {
       calls += 1;
-      return r.fulfill({ status: 500, json: { error: "should not be called" } });
+      return r.fulfill({
+        status: 500,
+        json: { error: "should not be called" },
+      });
     });
     await openSignup(page);
     await fillSignupExceptHandle(page);
@@ -162,8 +168,8 @@ test.describe("the handle is what we call you", () => {
     // visible text. "L" for LazerWizard, not "A" for Ana — one chain, every
     // surface. This is the chip on every glassed route, and it kept saying
     // "A" after the first pass because a truncated grep hid NavPill.
-    await expect(
-      page.getByRole("button", { name: "Account menu" })
-    ).toHaveText("L");
+    await expect(page.getByRole("button", { name: "Account menu" })).toHaveText(
+      "L"
+    );
   });
 });

@@ -64,7 +64,9 @@ export function firstNameOf(
  * The single letter for an avatar chip. Uppercased, and never a space or an
  * empty string — an empty avatar circle looks like a failed image load.
  */
-export function avatarInitial(user: AddressableUser | null | undefined): string {
+export function avatarInitial(
+  user: AddressableUser | null | undefined
+): string {
   const ch = addressAs(user).trim().charAt(0).toUpperCase();
   return ch || FALLBACK_NAME.charAt(0);
 }

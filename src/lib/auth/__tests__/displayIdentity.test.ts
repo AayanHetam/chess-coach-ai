@@ -44,9 +44,9 @@ describe("addressAs", () => {
 
   it("does not let whitespace beat a real value further down the chain", () => {
     expect(addressAs({ handle: "  ", displayName: "Ana" })).toBe("Ana");
-    expect(addressAs({ handle: " ", displayName: " ", email: "ana@x.com" })).toBe(
-      "ana"
-    );
+    expect(
+      addressAs({ handle: " ", displayName: " ", email: "ana@x.com" })
+    ).toBe("ana");
   });
 
   it("trims what it returns", () => {

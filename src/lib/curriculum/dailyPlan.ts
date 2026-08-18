@@ -54,6 +54,29 @@ function dedupeThemes(themes: string[]): string[] {
  */
 export type DailyTaskKind = "puzzles" | "reviews" | "analyze" | "theory";
 
+/**
+ * Enough of a measured repertoire hole to write the task with, without pulling
+ * the whole report — and its statistics — into the pure planner.
+ */
+export interface OpeningLineSummary {
+  /** Already numbered, e.g. `1.e4 c5 2.c3`. */
+  line: string;
+  /** Their recency-weighted score in that position, 0–1. */
+  score: number;
+  /** Their own average in that colour, 0–1. */
+  baseline: number;
+  /** Games behind it, for the reader. */
+  games: number;
+  /**
+   * The engine's replacement, when it has one worth naming.
+   *
+   * Absent is a finding, not a gap: a sound move that still loses games means
+   * the structure is the problem, and saying so is more useful than inventing
+   * an improvement out of a few centipawns.
+   */
+  betterMove?: string;
+}
+
 export interface DailyTask {
   kind: DailyTaskKind;
   label: string;
@@ -99,6 +122,15 @@ export interface DailyPlanInput {
   hasLinkedAccount?: boolean;
   /** True when the quiz recorded openings as something they want to improve. */
   wantsOpenings?: boolean;
+  /**
+   * The line in the player's OWN games that currently costs them the most,
+   * when one has been measured.
+   *
+   * Passed in rather than computed. This module is pure, and finding it costs
+   * an archive fetch and an engine pass — see `src/lib/learn/repertoireHole.ts`.
+   * Absent means we have not measured one yet, NOT that there is nothing wrong.
+   */
+  openingLine?: OpeningLineSummary;
   /**
    * Day number, for rotating the secondary task when only one fits. Injected
    * rather than read from the clock so the generator stays pure and testable.
@@ -195,15 +227,30 @@ export function secondaryTasksFor(
     minutes: TASK_MINUTES.analyze,
     href: "/analysis",
   };
-  const theory: DailyTask = {
-    kind: "theory",
-    label: "Learn one opening line",
-    detail:
-      "We recommend Chessly for now while we build our own theory course. Twenty minutes of your own opening beats a hundred puzzles you were never going to reach.",
-    minutes: TASK_MINUTES.theory,
-    href: "https://chessly.com",
-    external: true,
-  };
+  // Their own worst line when we have measured one, and only then. The generic
+  // task sends people off-site to guess at which opening to study; the measured
+  // one names the position their own results say is costing them games.
+  const measured = input.openingLine;
+  const pct = (v: number) => Math.round(v * 100);
+  const theory: DailyTask = measured
+    ? {
+        kind: "theory",
+        label: `Your weakest line: ${measured.line}`,
+        detail: measured.betterMove
+          ? `You score ${pct(measured.score)}% here against your own ${pct(measured.baseline)}% average, over ${measured.games} games. The engine would rather you played ${measured.betterMove}.`
+          : `You score ${pct(measured.score)}% here against your own ${pct(measured.baseline)}% average, over ${measured.games} games. Your moves are sound — it is the position that does not suit you.`,
+        minutes: TASK_MINUTES.theory,
+        href: "/plan#opening-line",
+      }
+    : {
+        kind: "theory",
+        label: "Learn one opening line",
+        detail:
+          "We recommend Chessly for now while we build our own theory course. Twenty minutes of your own opening beats a hundred puzzles you were never going to reach.",
+        minutes: TASK_MINUTES.theory,
+        href: "https://chessly.com",
+        external: true,
+      };
 
   const eligible: DailyTask[] = [];
   if (input.hasLinkedAccount) eligible.push(analyze);

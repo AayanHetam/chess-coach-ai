@@ -53,6 +53,9 @@ import SessionRunner from "@/components/curriculum/SessionRunner";
 import CurriculumMap from "@/components/curriculum/CurriculumMap";
 import GoalsCard from "@/components/curriculum/GoalsCard";
 import ConceptLessonCard from "@/components/curriculum/ConceptLessonCard";
+import OpeningLineCard from "@/components/plan/OpeningLineCard";
+import { useRepertoireHole } from "@/lib/learn/useRepertoireHole";
+import { formatLine } from "@/lib/learn/repertoireHole";
 
 const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
 const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
@@ -200,6 +203,35 @@ export default function PlanPage() {
     );
   }, [profile, goalCurrentRating]);
 
+  // Which archive to read. chess.com first only because it is the account most
+  // of these users link; either one answers the same question.
+  const repertoireAccount = useMemo(() => {
+    if (profile?.chesscomUsername)
+      return { platform: "chess.com" as const, username: profile.chesscomUsername };
+    if (profile?.lichessUsername)
+      return { platform: "lichess" as const, username: profile.lichessUsername };
+    return { platform: "chess.com" as const, username: null };
+  }, [profile?.chesscomUsername, profile?.lichessUsername]);
+
+  const repertoire = useRepertoireHole(repertoireAccount);
+
+  // The daily planner is pure and cannot go and measure this itself, so the
+  // measured line is handed to it. Undefined means "not measured yet", which is
+  // not the same as "nothing wrong" — the planner keeps its generic task.
+  const openingLine = useMemo(
+    () =>
+      repertoire.line
+        ? {
+            line: formatLine(repertoire.line.line, repertoire.line.color),
+            score: repertoire.line.score,
+            baseline: repertoire.line.baseline,
+            games: repertoire.line.games,
+            betterMove: repertoire.line.betterMove,
+          }
+        : undefined,
+    [repertoire.line]
+  );
+
   const plan = useMemo(
     () =>
       buildDailySession({
@@ -220,11 +252,13 @@ export default function PlanPage() {
           profile?.lichessUsername || profile?.chesscomUsername
         ),
         wantsOpenings: profile?.studyGoals?.includes("openings"),
+        // Their own worst line, when we have measured one.
+        openingLine,
         // Day number, so the secondary task rotates rather than being the same
         // one every day at the budgets where only one fits.
         dayIndex: Math.floor(nowMs / 86_400_000),
       }),
-    [profile, stats, srs, nowMs, goalIntensityTier]
+    [profile, stats, srs, nowMs, goalIntensityTier, openingLine]
   );
 
   // Today's plan as discrete, tickable rows. A theme counts as done once ANY
@@ -585,6 +619,19 @@ export default function PlanPage() {
           <ConceptLessonCard />
         </GlassCard>
       )}
+
+      <GlassCard>
+        <OpeningLineCard
+          phase={repertoire.phase}
+          label={repertoire.label}
+          reports={repertoire.reports}
+          line={repertoire.line}
+          error={repertoire.error}
+          cachedAt={repertoire.cachedAt}
+          username={repertoireAccount.username}
+          onRun={repertoire.run}
+        />
+      </GlassCard>
 
       <GlassCard>
         <GoalsCard />

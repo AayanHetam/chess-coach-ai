@@ -16,8 +16,8 @@ import Link from "next/link";
 /**
  * Age-affirmation gate (TRK-6, COPPA).
  *
- * Self-contained + reusable: collects an explicit "I'm 13 or older"
- * affirmation and reports it via onConfirmed. It does NOT mutate auth state —
+ * Self-contained + reusable: collects an explicit "I'm at least 13 and agree
+ * to the Terms and Privacy Policy" affirmation and reports it via onConfirmed. It does NOT mutate auth state —
  * the caller wires the affirmation into signup (`ageAffirmed`); no age or
  * birth date is ever collected or transmitted. This replaced the earlier
  * neutral DOB screen; devices that resolved under-13 on that screen stay

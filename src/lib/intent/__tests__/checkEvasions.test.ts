@@ -145,7 +145,18 @@ describe("a check that actually answers the threat", () => {
     expect(ev!.returns).toBe(ev!.replies);
     expect(ev!.met).toBe(0);
 
-    const facts = computeIntentFacts(checkingProbe(QF3, "Qf3+", "Qf4"));
+    // A better move must exist for any criticism to be grounded (the Nh7
+    // ruling) — in the real game Qf3+ IS the engine's best, so the real ply
+    // is silenced for that reason; the fixture supplies an alternative so the
+    // met/baseline logic stays under test in isolation.
+    const facts = computeIntentFacts(
+      checkingProbe(QF3, "Qf3+", "Qf4", {
+        rootLines: [
+          { san: "Rc1", score: { cp: 500, mate: null }, pv: ["Rc1"], depth: 16 },
+          { san: "Qf3+", score: { cp: 342, mate: null }, pv: ["Qf3+"], depth: 16 },
+        ],
+      }),
+    );
     expect(facts.unaddressedThreat).not.toBeNull();
     expect(facts.unaddressedThreat!.reason).toBe("only-illegal-due-to-check");
   });
@@ -323,7 +334,16 @@ describe("a threat that returns into a newly created capture was dealt with", ()
     expect(ev!.returns).toBe(ev!.replies);
     expect(ev!.met).toBe(0);
 
-    const f = computeIntentFacts(checkingProbe(G2_QF3_BEFORE, "Qf3+", "Qf4"));
+    const f = computeIntentFacts(
+      checkingProbe(G2_QF3_BEFORE, "Qf3+", "Qf4", {
+        // grounded: a clearly better move exists (Nh7 ruling), so the claim
+        // rests solely on the pre-existing-capture baseline under test here
+        rootLines: [
+          { san: "Rc1", score: { cp: 500, mate: null }, pv: ["Rc1"], depth: 16 },
+          { san: "Qf3+", score: { cp: 342, mate: null }, pv: ["Qf3+"], depth: 16 },
+        ],
+      }),
+    );
     expect(f.unaddressedThreat).not.toBeNull();
     expect(f.unaddressedThreat!.reason).toBe("only-illegal-due-to-check");
   });
@@ -345,7 +365,16 @@ describe("a threat that returns into a newly created capture was dealt with", ()
     expect(ev!.returns).toBe(2);
     expect(ev!.met).toBe(0);
 
-    const f = computeIntentFacts(checkingProbe(FEN, "Qe6+", "Ne4"));
+    const f = computeIntentFacts(
+      checkingProbe(FEN, "Qe6+", "Ne4", {
+        // grounded in a better move (Nh7 ruling), so what is under test is
+        // purely whether a LOSING capture silences the claim — it must not
+        rootLines: [
+          { san: "Qb2", score: { cp: 500, mate: null }, pv: ["Qb2"], depth: 16 },
+          { san: "Qe6+", score: { cp: 342, mate: null }, pv: ["Qe6+"], depth: 16 },
+        ],
+      }),
+    );
     expect(f.unaddressedThreat).not.toBeNull();
     expect(f.unaddressedThreat!.reason).toBe("only-illegal-due-to-check");
   });

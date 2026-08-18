@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { buildGoalPatch, hasCompleteGoal } from "../goalPatch";
 import { projectToGoal } from "../improvementModel";
 import {
@@ -132,6 +132,10 @@ describe("hasCompleteGoal", () => {
 });
 
 describe("the quiz and the /plan setter agree", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("write identical goal fields for identical inputs", () => {
     // Same user, same answers, two doors into the same state. If these ever
     // diverge, a goal set on /plan behaves differently from one set at signup.
@@ -145,6 +149,14 @@ describe("the quiz and the /plan setter agree", () => {
       daysPerWeek: 4,
       dailyReminder: true,
     };
+
+    // Freeze the clock. Both doors stamp their own Date.now() inside
+    // buildGoalPatch, so on a real clock the two calls can land either side
+    // of a millisecond boundary and goalTargetDate differs by exactly 1ms --
+    // a failure that says nothing about agreement, which is what this test is
+    // actually for. Frozen, a difference here means real divergence.
+    vi.useFakeTimers();
+    vi.setSystemTime(1_700_000_000_000);
 
     const fromQuiz = buildPayload(answers, 1400);
     const fromPlan = buildGoalPatch(base);

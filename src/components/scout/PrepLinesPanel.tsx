@@ -28,6 +28,7 @@ import { DossierPanel, EMBER, EMBER_LIGHT, FieldLabel, MONO, VerdictPill } from 
 const CONFIRMED = '#34d399';
 const SIGNAL = EMBER_LIGHT;
 const PREP = 'rgba(255,255,255,0.5)';
+const BAD = '#f87171';
 
 const TIER_COLOR: Record<HoleTier, string> = {
   confirmed: CONFIRMED,
@@ -321,6 +322,14 @@ function LineRow({
             <Stat label="Their score here" value={`${(hole.score * 100).toFixed(1)}%`} sub={`vs ${(hole.baseline * 100).toFixed(1)}% overall`} />
             <Stat label="Their games" value={`${hole.games}`} sub={`effective ${hole.neff.toFixed(0)}`} />
             <Stat label="You reach it" value={`${(hole.reach * 100).toFixed(0)}%`} sub="of games" />
+            {hole.you && (
+              <Stat
+                label="You score here"
+                value={`${(hole.you.score * 100).toFixed(0)}%`}
+                sub={`${hole.you.games} games · vs your ${(hole.you.baseline * 100).toFixed(0)}%`}
+                tone={hole.you.surplus >= 0 ? CONFIRMED : BAD}
+              />
+            )}
             <Stat
               label="Ground you give"
               value={hole.concessionCp === 0 ? 'none' : `${hole.concessionCp}cp`}
@@ -363,6 +372,18 @@ function LineRow({
                 ))}
               </Stack>
             </Box>
+          )}
+
+          {hole.you && hole.you.surplus < -0.01 && (
+            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
+              <Box sx={{ color: '#fbbf24', display: 'flex' }}>
+                <Icon icon="mdi:alert-outline" width={13} />
+              </Box>
+              <Typography sx={{ fontSize: '0.79rem', color: 'rgba(255,255,255,0.7)' }}>
+                You are below your own average here too ({(hole.you.score * 100).toFixed(0)}% over{' '}
+                {hole.you.games} games) — their weakness is discounted by yours.
+              </Typography>
+            </Stack>
           )}
 
           {hole.cpLoss !== undefined && hole.cpLoss > 0 && hole.betterMove && (
@@ -650,7 +671,17 @@ function endNote(line: PreparedLine): string {
   }
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function Stat({
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: string;
+}) {
   return (
     <Box>
       <FieldLabel color="rgba(255,255,255,0.35)" size="0.53rem">
@@ -661,7 +692,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
           fontFamily: MONO,
           fontSize: '0.92rem',
           fontWeight: 700,
-          color: 'rgba(255,255,255,0.9)',
+          color: tone ?? 'rgba(255,255,255,0.9)',
           lineHeight: 1.2,
           fontVariantNumeric: 'tabular-nums',
         }}

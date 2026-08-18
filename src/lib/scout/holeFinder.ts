@@ -342,10 +342,34 @@ export interface Hole {
   reach: number;
   /** The deficit defensible at 95% once confirmed; zero otherwise. */
   confirmedEdge: number;
+  /**
+   * Their deficit plus your surplus, both against their own baselines.
+   *
+   * Measuring each player against themselves is what makes the two comparable
+   * across a rating gap: a 600 and a 1400 both sit near 50% overall, so the
+   * question "who is unusually bad here" transfers.
+   */
+  jointEdge: number;
   /** The larger of the estimated results edge and the engine edge. */
   edge: number;
   /** Reach × (edge − concession cost). Expected score gained per game. */
   benefit: number;
+  /**
+   * Your own record in the same position, when your archive was supplied.
+   *
+   * The report is otherwise entirely one-sided, and one-sided is wrong: if they
+   * score 31% here and so do you, that is not an edge, it is a bad position that
+   * you happen to both be bad at. Undefined means your games were not available
+   * or never reached here, which is different from "you do badly".
+   */
+  you?: {
+    games: number;
+    neff: number;
+    score: number;
+    baseline: number;
+    /** Your score here above your own baseline, shrunk. Negative is a warning. */
+    surplus: number;
+  };
   /** The last move you choose on the way in — the actionable instruction. */
   keyMove?: string;
   /**
@@ -565,7 +589,13 @@ export async function findHoles(
   theirColor: 'white' | 'black',
   index: PositionIndex,
   providers: HoleFinderProviders,
-  config: HoleFinderConfig = HOLE_DEFAULTS
+  config: HoleFinderConfig = HOLE_DEFAULTS,
+  /**
+   * Your own games, indexed the same way. Optional: the report degrades to the
+   * one-sided ranking without it rather than refusing to run, because a scout
+   * of a stranger is still useful when you have not linked an account.
+   */
+  yourIndex?: PositionIndex
 ): Promise<HoleReport> {
   const screen = screenPositions(index, config);
   const candidates = collectCandidates(tree, theirColor, index, screen, config);
@@ -668,6 +698,24 @@ export async function findHoles(
     const shrunk = shrinkScore(score, n, index.baseline, config.shrinkK);
     const upper = wilsonBounds(score, n, 1.96).upper;
 
+    // Your side of the same board. Same FEN key space, so this is the position
+    // itself rather than a line that resembles it.
+    const yourStat = yourIndex?.positions.get(positionKey(c.path[lastIndex].fen));
+    let you: Hole['you'];
+    if (yourIndex && yourStat) {
+      const yourN = effectiveN(yourStat);
+      const yourScore = positionScore(yourStat);
+      // Shrunk toward YOUR baseline, so three good games do not read as mastery.
+      const yourShrunk = shrinkScore(yourScore, yourN, yourIndex.baseline, config.shrinkK);
+      you = {
+        games: yourStat.games,
+        neff: yourN,
+        score: yourScore,
+        baseline: yourIndex.baseline,
+        surplus: yourShrunk - yourIndex.baseline,
+      };
+    }
+
     const confirmed = !!c.test?.confirmed;
     const confirmedEdge = confirmed ? Math.max(0, index.baseline - upper) : 0;
     // A results edge is only ever claimed for a position the screen actually
@@ -678,7 +726,10 @@ export async function findHoles(
     const estimatedEdge = c.test ? Math.max(0, index.baseline - shrunk) : 0;
     const engineEdge = cpLoss !== undefined ? cpToScoreEdge(cpLoss) : 0;
     const edge = Math.max(estimatedEdge, engineEdge);
-    const benefit = c.reach * (edge - cpToScoreEdge(concessionCp));
+    // Your surplus counts once, alongside their deficit. With no games of yours
+    // it is zero and the ranking is exactly what it was before.
+    const jointEdge = edge + (you?.surplus ?? 0);
+    const benefit = c.reach * (jointEdge - cpToScoreEdge(concessionCp));
 
     if (edge < config.minEdge || benefit <= 0) continue;
 
@@ -701,6 +752,8 @@ export async function findHoles(
       reach: c.reach,
       confirmedEdge,
       edge,
+      jointEdge,
+      you,
       benefit,
       keyMove: [...c.line].reverse().find(m => m.side === 'you')?.san,
     });

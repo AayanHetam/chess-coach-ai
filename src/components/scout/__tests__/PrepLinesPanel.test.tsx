@@ -182,6 +182,7 @@ describe('PrepLinesPanel', () => {
           reach: 0.5,
           confirmedEdge: 0,
           edge: 0.1,
+          jointEdge: 0.1,
           benefit: 0.05,
         },
       ],

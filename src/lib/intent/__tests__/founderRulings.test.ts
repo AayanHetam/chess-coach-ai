@@ -400,3 +400,79 @@ describe("the founder's rulings on prophylaxis", () => {
     expect(at(ALREADY_LOST_CP)).toBeNull();
   });
 });
+
+/**
+ * THE FOUNDER'S NH7 RULING (2026-08-18): a criticism must be grounded in a
+ * better move.
+ *
+ * "Nh7's motive is not to deal with d4, it is to get the knight away from the
+ * pawn — that is the intent. The ideal move changes if black moves or they
+ * don't, which means the move had another intent — unless the best move is
+ * still the same."
+ *
+ * The card read "your best available: Nh7 · you played Nh7 · you did not deal
+ * with d4" — it scolded the engine's own first choice. Measured across his
+ * twelve games, 20 of 49 unaddressed-threat claims charged a move that ties
+ * or near-ties the engine's best (10 were the literal best move), while the
+ * module's own facts for the Nh7 ply said `purpose: escape` — it had already
+ * detected the real intent and scolded anyway.
+ *
+ * The gate reuses COST_MIN_LOSS_CP: if a loss is too small to charge as cost,
+ * it is too small to charge as negligence. Same-search only, and a move
+ * ABSENT from the MultiPV lines ranked below the engine's third choice —
+ * which is exactly when the criticism is grounded — so absence KEEPS the
+ * claim. That is what protects Qxf2, the mate card the founder ruled worth
+ * saying, whose played move is far outside the top three.
+ */
+describe("the founder's Nh7 ruling — no scolding the engine's own best move", () => {
+  const NH7_FEN = "r2qk2r/pbpp1pp1/1p2pn2/2b3Pp/2P5/2NP1P1P/PP3PB1/R1BQ1RK1 b kq - 0 10";
+  const nh7Probe = (rootLines: EngineLine[]): IntentProbe => ({
+    fenBefore: NH7_FEN,
+    playedSan: "Nh7",
+    fenAfter: "r2qk2r/pbpp1ppn/1p2p3/2b3Pp/2P5/2NP1P1P/PP3PB1/R1BQ1RK1 w kq - 1 11",
+    rootLines,
+    threat: line("d4", cp(310)),
+    threatAfter: line("d4", cp(290)),
+    threatAlternative: null,
+    threatStillLegal: true,
+    threatPieceCaptured: null,
+    threatEvasions: null,
+    opponentBestAfter: { cp: 60, mate: null },
+    opponentBestAfterProbed: { cp: 60, mate: null },
+    rootBestProbed: { cp: -29, mate: null },
+    threatAfterAlternatives: [],
+    playedScore: { cp: -29, mate: null },
+    moverHasPieces: true,
+    position: null,
+    opponentReply: null,
+  });
+
+  it("does not charge Nh7 with ignoring d4 — Nh7 IS the engine's best move", () => {
+    const f = computeIntentFacts(
+      nh7Probe([line("Nh7", cp(-29)), line("Ng8", cp(-106)), line("Bb4", cp(-265))]),
+    );
+    expect(f.unaddressedThreat).toBeNull();
+    expect(f.notes.join(" ")).toContain("position, not this move's failing");
+  });
+
+  it("CONTROL: the same claim survives when a clearly better move existed", () => {
+    // Identical position data, but the engine's best is 180cp above the move
+    // played: now "you did not deal with d4" is grounded in a real
+    // alternative, and silencing it would hide a genuine coaching point.
+    const f = computeIntentFacts(
+      nh7Probe([line("d5", cp(151)), line("Nh7", cp(-29)), line("Ng8", cp(-106))]),
+    );
+    expect(f.unaddressedThreat).not.toBeNull();
+    expect(f.unaddressedThreat!.threatSan).toBe("d4");
+  });
+
+  it("CONTROL: a move BELOW the engine's third choice keeps the claim", () => {
+    // Absence from the MultiPV lines means the engine ranked three moves
+    // above this one — the grounded case, and the shape of Qxf2, the mate
+    // card the founder ruled worth saying.
+    const f = computeIntentFacts(
+      nh7Probe([line("d5", cp(151)), line("Ng8", cp(-106)), line("Bb4", cp(-265))]),
+    );
+    expect(f.unaddressedThreat).not.toBeNull();
+  });
+});

@@ -1149,6 +1149,40 @@ export function computeIntentFacts(probe: IntentProbe): IntentFacts {
     notes.push("the game was already lost before this move — an unmet threat is not news");
     signals.unaddressed = null;
   }
+  // The founder's Nh7 ruling (game_12 move 10): "Nh7's motive is not to deal
+  // with d4, it is to get the knight away from the pawn — the ideal move
+  // changes if black moves or they don't, which means the move had another
+  // intent, unless the best move is still the same."
+  //
+  // A criticism must be grounded in a better move. When the engine's own best
+  // move is (as near as measurable) the move played, the threat is the
+  // position's weather, not this move's failing — the card that prompted the
+  // ruling read "your best available: Nh7 · you played Nh7 · you did not deal
+  // with d4", and this module's own facts for that ply said `purpose: escape`.
+  // Measured on the founder's games, 20 of 49 unaddressed claims charged a
+  // move that ties or near-ties the engine's best; ten charged the literal
+  // best move.
+  //
+  // The bar reuses COST_MIN_LOSS_CP: a loss too small to charge as cost is
+  // too small to charge as negligence. Same-search only, and deliberately
+  // asymmetric on missing data: a move ABSENT from the MultiPV lines ranked
+  // below the engine's third choice — exactly when the criticism is grounded —
+  // so null KEEPS the claim (that is what preserves Qxf2, the mate card the
+  // founder ruled worth saying). Empty rootLines means nothing is known about
+  // the alternatives, and an ungroundable criticism is dropped, not defaulted.
+  if (signals.unaddressed) {
+    const lossVsBest = sameSearchLossCp(probe);
+    if (probe.rootLines.length === 0) {
+      notes.push("no engine lines — a criticism cannot be grounded in a better move");
+      signals.unaddressed = null;
+    } else if (lossVsBest !== null && lossVsBest < COST_MIN_LOSS_CP) {
+      notes.push(
+        `the engine's best move is (nearly) the move played — ` +
+          `${signals.unaddressed.threatSan} is the position, not this move's failing`,
+      );
+      signals.unaddressed = null;
+    }
+  }
 
   const threatLeftUnsaid = signals.threatWasReal && prophylaxis === null;
   if (signals.unaddressed) {

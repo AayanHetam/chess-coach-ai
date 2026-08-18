@@ -30,6 +30,7 @@ const valid = {
   password: "longenough1!",
   ageAffirmed: true,
   termsAccepted: true,
+  handle: "lazerwizard",
 };
 
 describe("POST /api/auth/signup consent enforcement", () => {

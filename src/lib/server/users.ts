@@ -3,7 +3,8 @@ import bcrypt from "bcryptjs";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminFirestore } from "./firebaseAdmin";
 import { withFirestoreTimeout } from "./withFirestoreTimeout";
-import { getUidByHandle } from "./handles";
+import { getUidByHandle, HANDLES } from "./handles";
+import { checkHandle } from "../auth/handle";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal/versions";
 
 const COLLECTION = "users";
@@ -248,6 +249,12 @@ export type CreateUserInput = {
   emailVerified?: boolean;
   ageAffirmed?: boolean;
   termsAccepted?: boolean;
+  /**
+   * Chosen at signup. Reserved in the same transaction that creates the user,
+   * so an account can never exist with a handle nobody holds, and a handle can
+   * never be held by an account that was never created.
+   */
+  handle?: string;
 };
 
 export async function createUser(input: CreateUserInput): Promise<StoredUser> {
@@ -286,7 +293,47 @@ export async function createUser(input: CreateUserInput): Promise<StoredUser> {
   if (input.photoURL) doc.photoURL = input.photoURL;
 
   const db = await getAdminFirestore();
-  await db.collection(COLLECTION).doc(uid).set(doc);
+  const userRef = db.collection(COLLECTION).doc(uid);
+
+  if (input.handle !== undefined) {
+    const check = checkHandle(input.handle);
+    if (!check.ok || !check.canonical || !check.display) {
+      throw new UserError(
+        "handle_invalid",
+        check.message ?? "That handle won't work."
+      );
+    }
+    doc.handle = check.display;
+    doc.handleLower = check.canonical;
+
+    // ONE transaction for both documents. Creating the user first and claiming
+    // afterwards would leave an account with no handle whenever the claim lost
+    // a race — which is exactly the handle-less cohort this feature exists to
+    // stop creating. Claiming first would strand a reservation pointing at a
+    // user that was never written.
+    //
+    // `tx.create` (not set) on the reservation is what makes it a race: the
+    // second of two simultaneous signups fails on a document that now exists,
+    // instead of both being told yes.
+    const handleRef = db.collection(HANDLES).doc(check.canonical);
+    await withFirestoreTimeout(
+      db.runTransaction(async (tx) => {
+        const snap = await tx.get(handleRef); // read before any write
+        if (snap.exists) {
+          throw new UserError("handle_taken", "That handle is already taken.");
+        }
+        tx.create(handleRef, {
+          uid,
+          display: check.display,
+          claimedAt: Date.now(),
+        });
+        tx.create(userRef, doc);
+      }),
+      "users.createWithHandle"
+    );
+  } else {
+    await userRef.set(doc);
+  }
 
   const created = await getUserById(uid);
   if (!created) throw new Error("createUser: failed to read back created user");
@@ -453,7 +500,9 @@ export class UserError extends Error {
       | "email_taken"
       | "not_found"
       | "invalid_credentials"
-      | "weak_password",
+      | "weak_password"
+      | "handle_taken"
+      | "handle_invalid",
     message: string
   ) {
     super(message);

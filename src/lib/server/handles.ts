@@ -22,7 +22,11 @@ import { checkHandle, canonicalHandle } from "../auth/handle";
  * both are written in the SAME transaction so they cannot disagree.
  */
 
-const HANDLES = "handles";
+/**
+ * Exported so `createUser` can reserve a handle in the SAME transaction that
+ * creates the user, rather than importing the string twice and drifting.
+ */
+export const HANDLES = "handles";
 const USERS = "users";
 
 export type ClaimResult =

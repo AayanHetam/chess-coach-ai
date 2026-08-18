@@ -1,5 +1,6 @@
 "use client";
 
+import { addressAs } from "@/lib/auth/displayIdentity";
 import { useRouter } from "next/router";
 import { Avatar, Box, IconButton, Stack, Typography } from "@mui/material";
 import { ArrowLeft, Check, Settings, X } from "lucide-react";
@@ -132,7 +133,7 @@ export function PuzzleSessionRail({
     })),
   ];
 
-  const displayName = user?.displayName || user?.email?.split("@")[0] || "You";
+  const displayName = addressAs(user);
 
   return (
     <Box

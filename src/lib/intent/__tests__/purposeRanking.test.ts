@@ -36,6 +36,7 @@ function probe(over: Partial<IntentProbe> = {}): IntentProbe {
     threatAfterAlternatives: [],
     threatStillLegal: true,
     threatPieceCaptured: null,
+    threatEvasions: null,
     playedScore: { cp: 0, mate: null },
     moverHasPieces: true,
     position: null,

@@ -1,0 +1,152 @@
+import { describe, it, expect } from "vitest";
+import { Chess } from "chess.js";
+import { threatAfterEvasions, buildPositionFacts } from "../positionFacts";
+import { computeIntentFacts } from "../intentFacts";
+import type { IntentProbe } from "../types";
+
+/**
+ * "YOU DID NOT DEAL WITH X" — ON A MOVE THAT DEALS WITH X
+ *
+ * A check makes every opponent non-evasion illegal for exactly one ply. The
+ * module correctly refused to read that as prevention, and then asserted the
+ * opposite instead: that the threat comes straight back, so the move ignored
+ * it. Both are claims about the same thing nobody measured.
+ *
+ * Measured over the founder's twelve games, of 19 such claims only 7 held:
+ * 6 were flatly false and 6 depended on which evasion the opponent picked.
+ *
+ * The founder caught it on game_06 move 34. He played `Rhxg2+`; the card said
+ * he had failed to deal with `Kf2`. `Rhxg2+` is precisely what stops `Kf2`.
+ */
+
+const probeOf = (over: Partial<IntentProbe>): IntentProbe => ({
+  fenBefore: "",
+  playedSan: "",
+  fenAfter: "",
+  rootLines: [],
+  rootBestProbed: null,
+  opponentBestAfterProbed: null,
+  threat: null,
+  threatAfter: null,
+  threatAlternative: null,
+  threatStillLegal: true,
+  threatPieceCaptured: null,
+  threatEvasions: null,
+  opponentBestAfter: null,
+  threatAfterAlternatives: [],
+  playedScore: null,
+  moverHasPieces: true,
+  position: null,
+  opponentReply: null,
+  ...over,
+});
+
+/** Build the probe the way the adapter does, for a checking move. */
+function checkingProbe(fenBefore: string, playedSan: string, threatSan: string): IntentProbe {
+  const g = new Chess(fenBefore);
+  const mv = g.move(playedSan);
+  const fenAfter = g.fen();
+  return probeOf({
+    fenBefore,
+    playedSan: mv.san,
+    fenAfter,
+    threat: { san: threatSan, score: { cp: 366, mate: null }, pv: [threatSan], depth: 16 },
+    threatStillLegal: false,
+    threatPieceCaptured: false,
+    threatEvasions: threatAfterEvasions(fenAfter, threatSan),
+    position: buildPositionFacts(fenBefore, playedSan, null, null),
+    playedScore: { cp: 407, mate: null },
+    rootLines: [{ san: mv.san, score: { cp: 342, mate: null }, pv: [mv.san], depth: 16 }],
+  });
+}
+
+// ── the founder's position ───────────────────────────────────────────────────
+// 8/4k3/2p5/1p2Pp2/p3pN2/2P1P1r1/PPB1K1Pr/3R4 b - - 2 34
+// Black rooks on g3 and h2, White king on e2. If Black passes, Kf2 forks the
+// loose rook on g3 — a real threat, worth +366. Rhxg2+ answers it: the rook
+// lands on g2 with check, the two rooks defend each other, and f2 is covered.
+const G6_BEFORE = "8/4k3/2p5/1p2Pp2/p3pN2/2P1P1r1/PPB1K1Pr/3R4 b - - 2 34";
+
+// game_04's final move. Qxh7 is mate; there is no next move at all.
+const G4_MATE_BEFORE = "5rk1/2p4p/p3p1pQ/1b6/4P3/P5P1/2B2q2/b2K3R w - - 0 28";
+
+// game_02 move 18: Qxg3+ is check, and Qh4 really is available after every
+// single legal reply. This one the module SHOULD still call unaddressed.
+const G2_BEFORE = "2r2rk1/p1q2p1p/6p1/8/Q7/2P1P1P1/PP1P4/R1B1K2R b KQ - 0 18";
+
+describe("a check that actually answers the threat", () => {
+  it("CONTROL: Rhxg2+ really does give check and really does make Kf2 illegal", () => {
+    // Without this, the assertions below could pass because the fixture stopped
+    // exercising the branch at all.
+    const g = new Chess(G6_BEFORE);
+    g.move("Rhxg2+");
+    expect(g.isCheck()).toBe(true);
+    expect(g.moves()).not.toContain("Kf2");
+    // and Kf2 was genuinely available before the move
+    const passed = new Chess(G6_BEFORE);
+    const parts = passed.fen().split(" ");
+    parts[1] = "w";
+    parts[3] = "-";
+    expect(new Chess(parts.join(" ")).moves()).toContain("Kf2");
+  });
+
+  it("CONTROL: White's only replies are Nxg2, Kf1, Ke1 — and 2 of 3 kill Kf2 for good", () => {
+    const g = new Chess(G6_BEFORE);
+    g.move("Rhxg2+");
+    const ev = threatAfterEvasions(g.fen(), "Kf2");
+    expect(ev).not.toBeNull();
+    expect(ev!.replies).toBe(3);
+    expect(ev!.returns).toBe(1); // only Nxg2, which takes the rook off g2
+    expect(ev!.unmodelled).toBe(0);
+  });
+
+  it("does not claim the move ignored a threat it made illegal", () => {
+    // This is the test that failed before the fix: reason "only-illegal-due-to-check".
+    const facts = computeIntentFacts(checkingProbe(G6_BEFORE, "Rhxg2+", "Kf2"));
+    expect(facts.unaddressedThreat).toBeNull();
+    expect(facts.notes.join(" ")).toContain("returns after 1 of 3 replies");
+  });
+
+  it("says nothing about threats on the move that delivers checkmate", () => {
+    // Qxh7# ends game_04. The old branch captioned it "you did not deal with Qf3+".
+    const g = new Chess(G4_MATE_BEFORE);
+    g.move("Qxh7#");
+    expect(g.isCheckmate()).toBe(true);
+
+    const ev = threatAfterEvasions(g.fen(), "Qf3+");
+    expect(ev!.replies).toBe(0);
+
+    const facts = computeIntentFacts(checkingProbe(G4_MATE_BEFORE, "Qxh7#", "Qf3+"));
+    expect(facts.unaddressedThreat).toBeNull();
+    expect(facts.notes.join(" ")).toContain("ended the game");
+  });
+
+  it("CONTROL: still reports the threat when it survives every legal reply", () => {
+    // The fix must stay subtractive, not silence the branch outright.
+    const g = new Chess(G2_BEFORE);
+    g.move("Qxg3+");
+    const ev = threatAfterEvasions(g.fen(), "Qh4");
+    expect(ev!.replies).toBeGreaterThan(0);
+    expect(ev!.returns).toBe(ev!.replies);
+
+    const facts = computeIntentFacts(checkingProbe(G2_BEFORE, "Qxg3+", "Qh4"));
+    expect(facts.unaddressedThreat).not.toBeNull();
+    expect(facts.unaddressedThreat!.reason).toBe("only-illegal-due-to-check");
+  });
+
+  it("declines to speak when the evasions were never modelled", () => {
+    // Fail closed: a null measurement must not fall back to the old assumption.
+    const probe = checkingProbe(G6_BEFORE, "Rhxg2+", "Kf2");
+    const facts = computeIntentFacts({ ...probe, threatEvasions: null });
+    expect(facts.unaddressedThreat).toBeNull();
+    expect(facts.notes.join(" ")).toContain("not modelled");
+  });
+
+  it("threatAfterEvasions never throws on a nonsense threat", () => {
+    const g = new Chess(G6_BEFORE);
+    g.move("Rhxg2+");
+    const ev = threatAfterEvasions(g.fen(), "Qz9");
+    expect(ev).not.toBeNull();
+    expect(ev!.returns).toBe(0);
+  });
+});

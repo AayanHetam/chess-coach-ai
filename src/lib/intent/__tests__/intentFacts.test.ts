@@ -10,7 +10,8 @@ import {
   DECISIVE_CP,
 } from "../intentFacts";
 import type { EngineLine, IntentProbe } from "../types";
-import { buildPositionFacts } from "../positionFacts";
+import { buildPositionFacts, threatAfterEvasions } from "../positionFacts";
+import { Chess } from "chess.js";
 
 const line = (san: string, cp: number | null, mate: number | null = null, pv: string[] = []): EngineLine => ({
   san,
@@ -46,6 +47,7 @@ function probe(over: Partial<IntentProbe> = {}): IntentProbe {
     threatAfterAlternatives: [],
     threatStillLegal: true,
     threatPieceCaptured: null,
+    threatEvasions: null,
     playedScore: { cp: 0, mate: null },
     moverHasPieces: true,
     position: null,
@@ -787,7 +789,22 @@ describe("unaddressed threats", () => {
   });
 
   it("reports a threat that is only illegal for one ply because we gave check", () => {
+    // Italian: Bxf7+ checks, which makes Bxf2+ illegal for exactly one ply.
+    // Here the assumption the old code made unconditionally happens to be TRUE
+    // — the c5 bishop still bears on f2 after every legal evasion — so the
+    // claim survives. It now has to be measured rather than assumed, which is
+    // what `threatEvasions` carries.
     const FEN = "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 6 5";
+    const board = new Chess(FEN);
+    board.move("Bxf7+");
+    const evasions = threatAfterEvasions(board.fen(), "Bxf2+");
+
+    // CONTROL: the fixture must actually present the branch — a real check,
+    // with the threat genuinely returning every time. Without this the
+    // assertion below could pass for the wrong reason.
+    expect(evasions!.replies).toBeGreaterThan(0);
+    expect(evasions!.returns).toBe(evasions!.replies);
+
     const f = computeIntentFacts(
       probe({
         fenBefore: FEN,
@@ -799,6 +816,7 @@ describe("unaddressed threats", () => {
         threatAfter: null,
         threatStillLegal: false,
         threatPieceCaptured: false,
+        threatEvasions: evasions,
       }),
     );
     expect(f.prophylaxis).toBeNull();

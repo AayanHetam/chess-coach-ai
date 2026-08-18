@@ -442,8 +442,39 @@ function computeProphylaxis(
       return null;
     }
     if (probe.position.givesCheck) {
-      notes.push("threat is only illegal because the move gives check — not prevention");
-      signals.unaddressed = unaddressed(probe, "only-illegal-due-to-check");
+      // "Illegal because of the check" is not prevention — but nor is it proof
+      // that the threat survives, which is what this branch used to assert.
+      // Both are claims about the same unmeasured thing. Measure it: play out
+      // the evasions and see whether the threat is available again.
+      const ev = probe.threatEvasions;
+      if (!ev) {
+        notes.push("threat illegal under check, and the evasions were not modelled — saying nothing");
+        return null;
+      }
+      if (ev.replies === 0) {
+        // Checkmate or stalemate. There is no next move to threaten with, and
+        // this branch was captioning game_04's final `Qxh7#` with a claim that
+        // he had failed to deal with `Qf3+`.
+        notes.push("the move ended the game — there is no threat left to answer");
+        return null;
+      }
+      if (ev.returns === ev.replies) {
+        notes.push("threat is only illegal because the move gives check — it returns after every reply");
+        signals.unaddressed = unaddressed(probe, "only-illegal-due-to-check");
+        return null;
+      }
+      // Either the threat never comes back — the move genuinely answered it,
+      // which is what `Rhxg2+` does to `Kf2` — or it comes back down some
+      // evasions and not others, in which case the claim depends on a choice
+      // the opponent has not made yet. Neither earns "you ignored it".
+      //
+      // Deliberately NOT credited as prevention either: that is a different
+      // claim, and one the founder has not ruled on. This is subtractive only.
+      notes.push(
+        `threat returns after ${ev.returns} of ${ev.replies} replies` +
+          (ev.unmodelled ? ` (${ev.unmodelled} unmodelled)` : "") +
+          " — not claiming it was ignored",
+      );
       return null;
     }
   }

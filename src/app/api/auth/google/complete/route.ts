@@ -26,8 +26,10 @@ export const runtime = "nodejs";
  * Body: { ageAffirmed: boolean }
  * - ageAffirmed=true  → create (or link, if a racing sign-in created it
  *   meanwhile) the account with ageAffirmedAt stamped, set the session.
- * - ageAffirmed=false → clear the pending cookie and stop. No account was
- *   ever created, so declining leaves zero stored personal data.
+ * - ageAffirmed=false → clear the pending cookie and stop. The checkbox gate
+ *   can only affirm, so today's client never sends false; kept fail-closed
+ *   for deploy-skew clients and direct calls. No account was ever created,
+ *   so stopping leaves zero stored personal data.
  *
  * The pending cookie is signed (SESSION_SECRET) and carries the Google
  * profile the callback already verified against Google's JWKS — this route

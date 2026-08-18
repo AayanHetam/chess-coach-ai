@@ -177,7 +177,7 @@ export async function GET(request: Request) {
         });
         user = { ...existing, googleId, emailVerified: true };
       } else if (stateCookie.ageAffirmed) {
-        // Brand-new user who already passed the DOB age gate in the signup
+        // Brand-new user who already confirmed the 13+ checkbox in the signup
         // dialog before starting OAuth (flag rode in the signed state cookie).
         user = await createUser({
           email,
@@ -191,7 +191,7 @@ export async function GET(request: Request) {
         // Brand-new user with no age affirmation (e.g. "Continue with
         // Google" from the sign-in tab). COPPA: do NOT create the account
         // yet — park the verified profile in a short-lived signed cookie
-        // and route through the neutral DOB gate at /auth/age.
+        // and route through the 13+ affirmation gate at /auth/age.
         // /api/auth/google/complete finishes account creation on 13+.
         const target = new URL("/auth/age", env.appBaseUrl);
         if (stateCookie.returnTo) {

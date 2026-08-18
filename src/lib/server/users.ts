@@ -26,7 +26,7 @@ export type StoredUser = {
   passwordHash?: string;
   googleId?: string;
   // COPPA: server timestamp of the 13+ affirmation recorded at account
-  // creation (neutral DOB gate; the birth date itself never leaves the
+  // creation (affirmation checkbox; no age or birth date ever leaves the
   // browser). Absent on accounts created before the gate shipped.
   ageAffirmedAt?: Timestamp;
 

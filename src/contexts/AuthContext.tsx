@@ -47,8 +47,8 @@ interface AuthContextType {
     email: string;
     password: string;
     displayName?: string;
-    // COPPA: true only after the DOB age gate resolves 13+ (required by the
-    // signup API; the birth date itself never leaves the browser).
+    // COPPA: true only after the 13+ age-affirmation checkbox (required by
+    // the signup API; no age or birth date ever leaves the browser).
     ageAffirmed: boolean;
   }) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
@@ -209,8 +209,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       // Only pass same-origin paths. Server-side `sanitizeReturnTo` rejects
       // anything else, but we keep client-side hygiene tight too.
       const returnTo = here.startsWith("/") ? here : "/";
-      // ageAffirmed=1 marks that the signup dialog's DOB gate already resolved
-      // 13+, so the OAuth callback can skip the /auth/age interstitial.
+      // ageAffirmed=1 marks that the signup dialog's 13+ checkbox was already
+      // confirmed, so the OAuth callback can skip the /auth/age interstitial.
       const ageParam = opts?.ageAffirmed ? "&ageAffirmed=1" : "";
       w.href = `/api/auth/google/start?returnTo=${encodeURIComponent(returnTo)}${ageParam}`;
     },

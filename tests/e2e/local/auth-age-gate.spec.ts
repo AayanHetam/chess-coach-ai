@@ -1,10 +1,16 @@
 import { test, expect } from "@playwright/test";
-import { dobYearsAgo } from "../helpers";
 
 /**
- * COPPA DOB gate journey (client-side only — never submits a signup, so no
+ * COPPA age-gate journey (client-side only — never submits a signup, so no
  * account is ever created and the suite is safe against any backend).
+ *
+ * The gate is a 13+ affirmation checkbox. The under-13 lockout can no longer
+ * be triggered from the UI — it was set by the retired DOB screen — but the
+ * localStorage flag is still honored, so that path is covered by seeding the
+ * flag directly.
  */
+
+const LEGACY_LOCK_KEY = "cm_age_gate_blocked";
 
 async function openSignupTab(page: import("@playwright/test").Page) {
   await page.goto("/");
@@ -12,17 +18,25 @@ async function openSignupTab(page: import("@playwright/test").Page) {
   await page.getByText("Sign up", { exact: true }).click();
 }
 
-test("signup shows the DOB gate before any form fields", async ({ page }) => {
+function ageCheckbox(page: import("@playwright/test").Page) {
+  return page.getByRole("checkbox", { name: /13 or older/i });
+}
+
+test("signup shows the age checkbox before any form fields", async ({ page }) => {
   await openSignupTab(page);
-  await expect(page.getByText(/what's your date of birth/i)).toBeVisible();
+  await expect(ageCheckbox(page)).toBeVisible();
   await expect(page.getByLabel("Email")).toHaveCount(0);
   await expect(page.getByText(/continue with google/i)).toHaveCount(0);
 });
 
-test("13+ DOB reveals the signup form and Google button", async ({ page }) => {
+test("confirming 13+ reveals the signup form and Google button", async ({
+  page,
+}) => {
   await openSignupTab(page);
-  await page.getByLabel("Date of birth").fill(dobYearsAgo(20));
-  await page.getByRole("button", { name: /^continue$/i }).click();
+  const cont = page.getByRole("button", { name: /^continue$/i });
+  await expect(cont).toBeDisabled(); // no free pass without the affirmation
+  await ageCheckbox(page).check();
+  await cont.click();
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByText(/continue with google/i)).toBeVisible();
 });
@@ -35,22 +49,26 @@ test("the dialog has a close control the keyboard can reach", async ({ page }) =
   await close.focus();
   await expect(close).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(page.getByText(/what's your date of birth/i)).toBeHidden();
+  await expect(ageCheckbox(page)).toBeHidden();
 });
 
-test("the lockout keeps focus inside the dialog, so Escape still works", async ({
+test("a legacy under-13 lock still blocks signup, keeps focus in the dialog", async ({
   page,
 }) => {
+  await page.addInitScript(
+    (key) => localStorage.setItem(key, "1"),
+    LEGACY_LOCK_KEY
+  );
   await openSignupTab(page);
-  await page.getByLabel("Date of birth").fill(dobYearsAgo(10));
-  await page.getByRole("button", { name: /^continue$/i }).click();
   await expect(
     page.getByText(/can't create an account for you right now/i)
   ).toBeVisible();
+  await expect(ageCheckbox(page)).toHaveCount(0);
 
-  // Deliberately no wait. The notice replaces the form and unmounts whatever
-  // was focused; focus used to land on <body> for ~100ms until MUI's focus
-  // trap pulled it back, and an Escape pressed in that window was swallowed.
+  // Clicking the Sign up tab swapped the panel for the notice and unmounted
+  // the focused element; focus used to land on <body> for ~100ms until MUI's
+  // focus trap pulled it back, and an Escape pressed in that window was
+  // swallowed. Deliberately no wait before asserting.
   const focusInsideDialog = await page.evaluate(
     () => !!document.activeElement?.closest('[aria-modal="true"]')
   );
@@ -60,24 +78,12 @@ test("the lockout keeps focus inside the dialog, so Escape still works", async (
   await expect(
     page.getByText(/can't create an account for you right now/i)
   ).toBeHidden();
-});
 
-test("under-13 DOB blocks with a neutral notice and locks retries", async ({
-  page,
-}) => {
-  await openSignupTab(page);
-  await page.getByLabel("Date of birth").fill(dobYearsAgo(10));
-  await page.getByRole("button", { name: /^continue$/i }).click();
-  await expect(
-    page.getByText(/can't create an account for you right now/i)
-  ).toBeVisible();
-
-  // Reopen the dialog: the lockout must persist — no second try.
-  await page.keyboard.press("Escape");
+  // Reopen: the lockout persists — no second try at the gate.
   await page.getByRole("button", { name: /sign in/i }).first().click();
   await page.getByText("Sign up", { exact: true }).click();
   await expect(
     page.getByText(/can't create an account for you right now/i)
   ).toBeVisible();
-  await expect(page.getByLabel("Date of birth")).toHaveCount(0);
+  await expect(ageCheckbox(page)).toHaveCount(0);
 });

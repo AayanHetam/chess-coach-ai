@@ -52,6 +52,13 @@ export interface TrendProjection {
   minutesPerDay: number;
   daysPerWeek: number;
   goalRating: number;
+  /**
+   * Which control the goal is actually about — the perf the platform rating
+   * was taken from. A goal of 2000 set off a 1805 rapid rating says nothing
+   * about bullet, so the goal line belongs on one panel, not all three.
+   * Undefined (or `classical`) means we cannot say, and no line is drawn.
+   */
+  goalPerf?: ChartedPerf;
 }
 
 interface Trend {
@@ -146,18 +153,31 @@ function TrendPanel({
   // a straight edge. Padding around the actual range is what makes movement
   // legible. (Truncating a LINE baseline is fine; truncating a bar baseline is
   // not — bars encode magnitude by length, lines encode change by slope.)
+  // The goal line belongs to exactly one control (see TrendProjection.goalPerf).
+  const goalOnThisPanel =
+    projection && projection.goalPerf === trend.perf
+      ? projection.goalRating
+      : undefined;
+
   const [lo, hi] = useMemo(() => {
     if (data.length === 0) return [0, 1];
     // Both series, or the forecast runs off the top of the panel and silently
     // renders as a line pinned to the ceiling.
-    const vals = data.flatMap((d) =>
-      [d.rating, d.projected].filter((v): v is number => v !== undefined)
-    );
+    // The goal is in the domain too, on the panel that owns it. Recharts
+    // DISCARDS a ReferenceLine outside the axis range by default, so the goal
+    // line was computed, passed review, and rendered zero elements on every
+    // panel — confirmed by counting .recharts-reference-line in a real browser.
+    const vals = [
+      ...data.flatMap((d) =>
+        [d.rating, d.projected].filter((v): v is number => v !== undefined)
+      ),
+      ...(goalOnThisPanel !== undefined ? [goalOnThisPanel] : []),
+    ];
     const min = Math.min(...vals);
     const max = Math.max(...vals);
     const pad = Math.max(20, Math.round((max - min) * 0.2));
     return [min - pad, max + pad];
-  }, [data]);
+  }, [data, goalOnThisPanel]);
 
   const empty = history.length === 0;
   const single = history.length === 1 && projectedEnd === undefined;
@@ -237,8 +257,22 @@ function TrendPanel({
                   <stop offset="100%" stopColor={EMBER} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              {/* Axes are present for scale but recessive — the shape is the message. */}
-              <XAxis dataKey="t" hide />
+              {/* Axes are present for scale but recessive — the shape is the
+                  message. The x axis MUST be a time scale: recharts defaults
+                  `dataKey` to a CATEGORY axis, which spaces points evenly by
+                  index. History is one point per day and the forecast is eight
+                  points across months, so on a category axis a 7-month
+                  projection rendered in about an eighth of the panel while two
+                  months of history filled the rest — the forecast looked like a
+                  last-minute flick instead of the bulk of the timeline. Every
+                  unit test still passed; it is only wrong once you look. */}
+              <XAxis
+                dataKey="t"
+                type="number"
+                scale="time"
+                domain={["dataMin", "dataMax"]}
+                hide
+              />
               <YAxis domain={[lo, hi]} hide />
               <Tooltip
                 cursor={{ stroke: EMBER_SOFT, strokeWidth: 1 }}
@@ -297,28 +331,17 @@ function TrendPanel({
               )}
               {/* Where the goal itself sits, so the panel answers "does this
                   control get there" rather than only "which way is it going". */}
-              {/* Why there is no forecast. Without this the panels simply render less
-          and look identical to a broken chart — the reader cannot tell "you
-          have not set a goal" from "this feature is not working", and the one
-          thing they could do about it goes unsaid. */}
-              {!projection && (
-                <Typography
-                  sx={{
-                    color: "rgba(255,255,255,0.4)",
-                    fontSize: "0.76rem",
-                    mt: -0.5,
-                    mb: 1.25,
-                  }}
-                >
-                  Set a goal above and these extend to your target date.
-                </Typography>
-              )}
-
-              {projection && (
+              {goalOnThisPanel !== undefined && (
                 <ReferenceLine
-                  y={projection.goalRating}
+                  y={goalOnThisPanel}
                   stroke="rgba(255,255,255,0.28)"
                   strokeDasharray="2 4"
+                  label={{
+                    value: `goal ${goalOnThisPanel}`,
+                    position: "insideTopLeft",
+                    fill: "rgba(255,255,255,0.45)",
+                    fontSize: 10,
+                  }}
                 />
               )}
             </AreaChart>
@@ -458,6 +481,26 @@ export default function RatingTrends({
           Dashed = where each control could reach by{" "}
           {formatTargetDate(projection.targetDateMs)} at your current schedule.
           An estimate from typical improvement rates, not a promise.
+        </Typography>
+      )}
+      {/* Why there is no forecast. Without it the panels simply render less and
+          look identical to a broken chart — the reader cannot tell "you have
+          not set a goal" from "this feature is not working", and the one thing
+          they could do about it goes unsaid.
+
+          This lived inside <AreaChart> until it was looked at on a screen. A
+          <p> nested in an <svg> is not rendered by any browser, so the line
+          existed in the bundle, passed review, and was never once visible. */}
+      {!projection && (
+        <Typography
+          sx={{
+            color: "rgba(255,255,255,0.4)",
+            fontSize: "0.76rem",
+            mt: -0.5,
+            mb: 1.25,
+          }}
+        >
+          Set a goal above and these extend to your target date.
         </Typography>
       )}
       <Box

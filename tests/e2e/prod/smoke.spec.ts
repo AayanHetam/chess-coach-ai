@@ -29,13 +29,23 @@ test("prod signin surfaces a clear error for bad credentials", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /sign in/i }).first().click();
-  await page.getByLabel("Email").fill("heartbeat-probe@example.com");
+  await page
+    .getByRole("button", { name: /sign in/i })
+    .first()
+    .click();
+  await page
+    .getByLabel(/handle or email|^email$/i)
+    .fill("heartbeat-probe@example.com");
   await page.getByLabel("Password").fill("definitely-wrong-1!");
   await page.getByRole("button", { name: /^sign in$/i }).click();
-  await expect(page.getByText(/invalid email or password/i)).toBeVisible({
-    timeout: 15_000,
-  });
+  // Wording tolerant on purpose. PR #332 changed this copy to "Invalid handle,
+  // email or password." and left this spec asserting the old string — the
+  // hourly heartbeat runs prod-smoke, so it went red against a healthy site.
+  // What the probe actually cares about is that ONE generic rejection comes
+  // back (no enumeration oracle), not the exact sentence.
+  await expect(
+    page.getByText(/invalid (handle, )?email or password/i)
+  ).toBeVisible({ timeout: 15_000 });
 });
 
 test("prod Google OAuth start hands off to Google", async ({ request }) => {

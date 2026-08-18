@@ -60,8 +60,11 @@ jobs:
             # the full 20 minutes for a build that will never start just burns
             # Actions minutes, so bail to recovery as soon as we see it. Only
             # a terminal state counts — a slow build is still in_progress.
+            # Production only: a preview deployment for the same SHA can fail
+            # independently, and that must not be mistaken for prod refusing
+            # to build.
             BLOCKED=$(gh api "repos/$GITHUB_REPOSITORY/deployments?sha=$GITHUB_SHA" \
-              --jq '.[].id' 2>/dev/null | while read -r id; do
+              --jq '.[] | select(.environment=="Production") | .id' 2>/dev/null | while read -r id; do
                 gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" \
                   --jq '.[] | select(.state=="failure" or .state=="error") | .description' 2>/dev/null
               done | head -1)

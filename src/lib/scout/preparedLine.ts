@@ -42,6 +42,8 @@ import type { HoleFinderProviders } from '@/lib/scout/holeFinder';
 export interface PreparedMove {
   san: string;
   side: 'you' | 'them';
+  /** The position this move was played from — what to ask the corpus about. */
+  fen: string;
   /** Their games that reached the position this move was played from. */
   from: number;
 
@@ -217,6 +219,7 @@ export async function buildPreparedLine(
       const move: PreparedMove = {
         san: evaluation.bestMove,
         side: 'you',
+        fen: board.fen(),
         from: here,
         timesFaced: faced,
         commonReply: common && common.san !== evaluation.bestMove ? common.san : undefined,
@@ -285,6 +288,7 @@ export async function buildPreparedLine(
       const move: PreparedMove = {
         san: top.san,
         side: 'them',
+        fen: board.fen(),
         from: here,
         probability: top.probability,
         // Excludes the move THIS line took, which is not always the top one:

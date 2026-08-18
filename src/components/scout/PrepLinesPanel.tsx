@@ -20,6 +20,8 @@ import {
 import { Icon } from '@iconify/react';
 import type { Hole, HoleReport, HoleTier } from '@/lib/scout/holeFinder';
 import type { PreparedLine, PreparedMove } from '@/lib/scout/preparedLine';
+import type { MasterView } from '@/lib/master/ideas';
+import { useMasterIdeas, type MasterContext } from '@/lib/master/useMasterIdeas';
 import type { HoleProgress } from '@/lib/scout/useHoleReport';
 import { DossierPanel, EMBER, EMBER_LIGHT, FieldLabel, MONO, VerdictPill } from './dossier';
 
@@ -69,6 +71,8 @@ export default function PrepLinesPanel({
   onExplore,
 }: PrepLinesPanelProps) {
   const running = progress.phase === 'evaluating' || progress.phase === 'reading' || progress.phase === 'ranking';
+  // Loaded alongside the report rather than inside it — see useMasterIdeas.
+  const master = useMasterIdeas(report?.holes, yourColor);
 
   return (
     <DossierPanel
@@ -157,7 +161,15 @@ export default function PrepLinesPanel({
         </Stack>
       )}
 
-      {report && !running && <ReportBody report={report} theirName={theirName} yourColor={yourColor} onExplore={onExplore} />}
+          {report && !running && (
+        <ReportBody
+          report={report}
+          theirName={theirName}
+          yourColor={yourColor}
+          onExplore={onExplore}
+          master={master}
+        />
+      )}
 
       {!report && !running && !error && (
         <Typography sx={{ mt: 2, fontSize: '0.84rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>
@@ -175,11 +187,13 @@ function ReportBody({
   theirName,
   yourColor,
   onExplore,
+  master,
 }: {
   report: HoleReport;
   theirName: string;
   yourColor: 'white' | 'black';
   onExplore?: (moves: string[], yourColor: 'white' | 'black') => void;
+  master: MasterContext;
 }) {
   if (report.noHoleFound) {
     return (
@@ -211,6 +225,7 @@ function ReportBody({
             hole={h}
             rank={i + 1}
             theirName={theirName}
+            master={master}
             onExplore={onExplore ? () => onExplore(h.line.map(m => m.san), yourColor) : undefined}
           />
         ))}
@@ -225,11 +240,13 @@ function LineRow({
   hole,
   rank,
   theirName,
+  master,
   onExplore,
 }: {
   hole: Hole;
   rank: number;
   theirName: string;
+  master: MasterContext;
   onExplore?: () => void;
 }) {
   const [open, setOpen] = useState(rank === 1);
@@ -337,7 +354,12 @@ function LineRow({
               </FieldLabel>
               <Stack spacing={1.25} sx={{ mt: 1 }}>
                 {hole.prepared.map((line, i) => (
-                  <PreparedLineBlock key={i} line={line} startPly={hole.line.length} />
+                  <PreparedLineBlock
+                    key={i}
+                    line={line}
+                    startPly={hole.line.length}
+                    master={master}
+                  />
                 ))}
               </Stack>
             </Box>
@@ -387,8 +409,18 @@ function LineRow({
  * shown with the frequency behind them rather than as assertions — a 36% reply
  * and a 100% reply are different objects and must not look alike.
  */
-function PreparedLineBlock({ line, startPly }: { line: PreparedLine; startPly: number }) {
+function PreparedLineBlock({
+  line,
+  startPly,
+  master,
+}: {
+  line: PreparedLine;
+  startPly: number;
+  master: MasterContext;
+}) {
   if (line.moves.length === 0) return null;
+  const yours = line.moves.find(m => m.side === 'you');
+  const view = yours ? master.byFen.get(yours.fen) : undefined;
 
   return (
     <Box
@@ -429,8 +461,123 @@ function PreparedLineBlock({ line, startPly }: { line: PreparedLine; startPly: n
       <Typography sx={{ fontSize: '0.71rem', color: 'rgba(255,255,255,0.42)', mt: 0.75, lineHeight: 1.5 }}>
         {endNote(line)}
       </Typography>
+
+      {view && yours && <MasterNote view={view} yourMove={yours.san} />}
     </Box>
   );
+}
+
+/**
+ * What masters do in the position where you first have a choice.
+ *
+ * The headline is agreement or disagreement, because that is the part that
+ * changes what you play. Everything else is counted context: the plans below
+ * are moves that were made in this position, not a description of it.
+ */
+function MasterNote({ view, yourMove }: { view: MasterView; yourMove: string }) {
+  const mine = view.yourMove;
+  const top = view.choices[0];
+  const agrees = mine?.rank === 1;
+  const unplayed = mine?.rank === null;
+
+  return (
+    <Box sx={{ mt: 1, pt: 0.9, borderTop: '1px dashed rgba(255,255,255,0.08)' }}>
+      <Stack direction="row" spacing={0.6} alignItems="center" sx={{ mb: 0.5 }}>
+        <Box sx={{ color: 'rgba(255,255,255,0.35)', display: 'flex' }}>
+          <Icon icon="mdi:chess-king" width={12} />
+        </Box>
+        <FieldLabel color="rgba(255,255,255,0.35)" size="0.52rem">
+          {view.games.toLocaleString()} master games here
+        </FieldLabel>
+      </Stack>
+
+      <Typography sx={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.68)', lineHeight: 1.5 }}>
+        {unplayed ? (
+          <>
+            No master in the corpus has played{' '}
+            <Box component="span" sx={{ fontFamily: MONO, color: '#fbbf24' }}>
+              {yourMove}
+            </Box>{' '}
+            here — they play{' '}
+            <Box component="span" sx={{ fontFamily: MONO, color: 'rgba(255,255,255,0.9)' }}>
+              {top?.san}
+            </Box>
+            .
+          </>
+        ) : agrees ? (
+          <>
+            Masters agree:{' '}
+            <Box component="span" sx={{ fontFamily: MONO, color: CONFIRMED }}>
+              {yourMove}
+            </Box>{' '}
+            is their main move ({Math.round((mine?.share ?? 0) * 100)}%).
+          </>
+        ) : (
+          <>
+            Masters prefer{' '}
+            <Box component="span" sx={{ fontFamily: MONO, color: EMBER_LIGHT }}>
+              {top?.san}
+            </Box>{' '}
+            ({Math.round((top?.share ?? 0) * 100)}%, scoring{' '}
+            {Math.round((top?.score ?? 0) * 100)}%);{' '}
+            <Box component="span" sx={{ fontFamily: MONO }}>
+              {yourMove}
+            </Box>{' '}
+            is their #{mine?.rank}, {shareText(mine?.share ?? 0, mine?.games ?? 0)}.
+          </>
+        )}
+      </Typography>
+
+      {view.motifs.length > 0 && (
+        <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', mt: 0.5, lineHeight: 1.5 }}>
+          {view.principalGames.toLocaleString()} follow{' '}
+          <Box component="span" sx={{ fontFamily: MONO, color: 'rgba(255,255,255,0.62)' }}>
+            {view.principal.join(' ')}
+          </Box>
+          {' — '}
+          {describeMotifs(view)}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+/**
+ * A share, or a count when the share would round to nothing.
+ *
+ * "their #9 at 0%" reads as a rounding artefact and makes the reader distrust
+ * the row. Three games in 1,419 is the same fact stated so it can be believed.
+ */
+function shareText(share: number, games: number): string {
+  const pct = Math.round(share * 100);
+  if (pct >= 1) return `played in ${pct}%`;
+  return `played in ${games.toLocaleString()} of them`;
+}
+
+/** The plans in the master line, as a sentence built from counted facts. */
+function describeMotifs(view: MasterView): string {
+  const parts: string[] = [];
+  const castle = view.motifs.find(m => m.kind === 'castle');
+  if (castle && castle.kind === 'castle') {
+    parts.push(`${castle.by === 'you' ? 'you' : 'they'} castle ${castle.side}`);
+  }
+  const breaks = view.motifs.filter(m => m.kind === 'break');
+  if (breaks.length > 0) {
+    parts.push(
+      `break with ${breaks
+        .slice(0, 2)
+        .map(b => (b.kind === 'break' ? b.san : ''))
+        .join(' and ')}`
+    );
+  }
+  const routes = view.motifs.filter(m => m.kind === 'route').slice(0, 2);
+  for (const r of routes) {
+    if (r.kind === 'route') parts.push(`${r.piece} to ${r.to}`);
+  }
+  const trade = view.motifs.find(m => m.kind === 'trade');
+  if (trade && trade.kind === 'trade') parts.push(`trade on ${trade.square}`);
+
+  return parts.length > 0 ? parts.join(', ') + '.' : 'no clear plan in the data.';
 }
 
 function MoveChip({ move, ply, novelty }: { move: PreparedMove; ply: number; novelty: boolean }) {

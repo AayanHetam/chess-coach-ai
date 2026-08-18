@@ -148,6 +148,11 @@ test.describe("scout prep report", () => {
     await expect(page.getByText(/The lines? from here/i).first()).toBeVisible();
     await expect(page.getByText(/Nd5/).first()).toBeVisible();
 
+    // Master context comes from a second request against the real corpus, so
+    // this also proves /api/master-ideas answers for the positions the prep
+    // actually lands on rather than for a hand-picked FEN.
+    await expect(page.getByText(/master games here/i).first()).toBeVisible({ timeout: 20_000 });
+
     // Evidence must be on screen, not behind a disclosure: a claim about a
     // person is not readable without the sample it came from.
     await expect(page.getByText(/independent lines/i).first()).toBeVisible();

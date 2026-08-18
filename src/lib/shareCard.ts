@@ -1,18 +1,24 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Share card — football-sticker style PNG renderer for a scouted player.
+// Share card — dossier-style PNG renderer for a scouted player.
 //
 // The card is composed entirely as an inline SVG string (no external assets),
 // which we render to an offscreen canvas and export as PNG. This sidesteps the
 // html2canvas dependency and guarantees a crisp, transparent-free image.
+//
+// The layout mirrors the on-page dossier (src/components/scout/dossier.tsx):
+// registration marks at the corners, mono field labels, and segmented meters
+// rather than rings or dial gauges. A shared card should look like the product
+// it came from.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { ProfileSnapshot, StalkerScore } from '@/types/scout';
+import { ProfileSnapshot, TellsProfile } from '@/types/scout';
+import { strengthBand } from '@/lib/scoutAnalytics';
 
 export interface ShareCardData {
   username: string;
   platform: 'chess.com' | 'lichess';
   profile: ProfileSnapshot;
-  stalker: StalkerScore;
+  tells: TellsProfile;
   topOpening?: {
     eco: string;
     name: string;
@@ -21,6 +27,10 @@ export interface ShareCardData {
 
 const CARD_W = 720;
 const CARD_H = 1024;
+const M = 52; // page margin
+
+const SANS = "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
+const MONO = "ui-monospace,SFMono-Regular,Menlo,Monaco,'Courier New',monospace";
 
 // HTML-escape a string so it's safe to inline into SVG text nodes.
 function escape(s: string): string {
@@ -32,202 +42,236 @@ function escape(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function statColor(v: number): string {
-  if (v >= 75) return '#22c55e';
-  if (v >= 60) return '#84cc16';
-  if (v >= 45) return '#f59e0b';
-  return '#ef4444';
+/** Higher = stronger player. */
+function strengthColor(v: number): string {
+  if (v >= 75) return '#34d399';
+  if (v >= 60) return '#a3e635';
+  if (v >= 45) return '#fbbf24';
+  return '#f87171';
+}
+
+/** Higher = more exploitable by the sharer. */
+function tellColor(v: number): string {
+  if (v >= 70) return '#f87171';
+  if (v >= 50) return '#FB923C';
+  if (v >= 35) return '#fbbf24';
+  return '#34d399';
+}
+
+/** Mono, wide-tracked field label — the dossier's caption voice. */
+function label(
+  x: number,
+  y: number,
+  text: string,
+  fill: string,
+  size = 13,
+  tracking = 2.6
+): string {
+  return `<text x="${x}" y="${y}" font-family="${MONO}" font-size="${size}"
+      font-weight="600" fill="${fill}" letter-spacing="${tracking}">${escape(
+        text.toUpperCase()
+      )}</text>`;
+}
+
+/**
+ * A row of discrete segments filling left-to-right — the house meter form.
+ * Discrete segments survive PNG downscaling on a phone timeline far better
+ * than a thin arc does.
+ */
+function meter(
+  x: number,
+  y: number,
+  w: number,
+  value: number,
+  color: string,
+  segments = 22,
+  h = 13
+): string {
+  const clamped = Math.max(0, Math.min(100, value));
+  const lit = Math.round((clamped / 100) * segments);
+  const gap = 3;
+  const segW = (w - gap * (segments - 1)) / segments;
+  let out = '';
+  for (let i = 0; i < segments; i += 1) {
+    const on = i < lit;
+    out += `<rect x="${(x + i * (segW + gap)).toFixed(2)}" y="${y}" width="${segW.toFixed(2)}" height="${h}"
+        rx="1.5" fill="${on ? color : '#ffffff'}" opacity="${on ? (i === lit - 1 ? 1 : 0.82) : 0.07}"/>`;
+  }
+  return out;
+}
+
+/**
+ * Label + meter + right-aligned value, aligned to a shared grid.
+ *
+ * The label column has to clear the longest tell label ("Repetitive patterns"),
+ * so it is sized off that worst case rather than off the average — a narrower
+ * column silently runs the text under the meter.
+ */
+function meterRow(
+  y: number,
+  text: string,
+  value: number,
+  color: string
+): string {
+  const labelSize = 12;
+  const labelTracking = 1.8;
+  const meterX = M + 212;
+  const meterW = CARD_W - M - 54 - meterX;
+  return `
+    ${label(M, y + 11, text, 'rgba(255,255,255,0.62)', labelSize, labelTracking)}
+    ${meter(meterX, y, meterW, value, color)}
+    <text x="${CARD_W - M}" y="${y + 12}" text-anchor="end" font-family="${MONO}"
+          font-size="19" font-weight="700" fill="${color}">${Math.round(value)}</text>`;
+}
+
+/** Corner registration marks — the dossier signature. */
+function cornerMarks(): string {
+  const c = 'rgba(249,115,22,0.5)';
+  const len = 22;
+  const o = 26; // inset
+  const stroke = `stroke="${c}" stroke-width="2" fill="none"`;
+  return `
+    <path d="M${o},${o + len} L${o},${o} L${o + len},${o}" ${stroke}/>
+    <path d="M${CARD_W - o - len},${o} L${CARD_W - o},${o} L${CARD_W - o},${o + len}" ${stroke}/>
+    <path d="M${o},${CARD_H - o - len} L${o},${CARD_H - o} L${o + len},${CARD_H - o}" ${stroke}/>
+    <path d="M${CARD_W - o - len},${CARD_H - o} L${CARD_W - o},${CARD_H - o} L${CARD_W - o},${CARD_H - o - len}" ${stroke}/>`;
+}
+
+/** Fit the username to the card width — long handles are common. */
+function nameSize(name: string): number {
+  if (name.length <= 12) return 54;
+  if (name.length <= 18) return 42;
+  if (name.length <= 26) return 32;
+  return 26;
+}
+
+function verdictText(p: TellsProfile['predictability']): string {
+  if (p === 'High') return 'Highly readable';
+  if (p === 'Medium') return 'Readable';
+  return 'Hard to read';
 }
 
 export function buildShareCardSvg(data: ShareCardData): string {
-  const { username, platform, profile, stalker, topOpening } = data;
-  const initials = username.charAt(0).toUpperCase() || '?';
+  const { username, platform, profile, tells, topOpening } = data;
 
-  const stats = [
-    { label: 'ATK', value: profile.atk },
-    { label: 'DEF', value: profile.def },
-    { label: 'TIME', value: profile.time },
-    { label: 'MIND', value: profile.mind },
+  const dims: Array<{ label: string; value: number }> = [
+    { label: 'Attack', value: profile.atk },
+    { label: 'Defence', value: profile.def },
+    { label: 'Clock', value: profile.time },
+    { label: 'Composure', value: profile.mind },
   ];
 
-  // OVR ring geometry
-  const cx = CARD_W / 2;
-  const cy = 300;
-  const r = 88;
-  const circ = 2 * Math.PI * r;
-  const ovrPct = Math.max(0, Math.min(100, profile.ovr));
-  const ovrOffset = circ * (1 - ovrPct / 100);
+  const ranked = [...tells.factors].sort((a, b) => b.score - a.score).slice(0, 4);
 
-  // Stalker gauge (3/4 arc on bottom)
-  const sx = CARD_W / 2;
-  const sy = 820;
-  const sr = 72;
-  const arcLen = 2 * Math.PI * sr * 0.75;
-  const stalkerPct = Math.max(0, Math.min(100, stalker.total));
-  const stalkerOffset = arcLen * (1 - stalkerPct / 100);
+  const ovrColor = strengthColor(profile.ovr);
+
+  // Name the strength band alongside the number, matching the on-page card.
+  const ratingValues = Object.values(profile.ratings).filter(
+    (r): r is number => typeof r === 'number' && r > 0
+  );
+  const anchor = ratingValues.length ? Math.max(...ratingValues) : profile.peakRating;
+  const band = anchor !== undefined ? strengthBand(anchor) : '';
+  const tellsColor = tellColor(tells.total);
+
+  // Vertical rhythm: each block declares its own top edge so the layout stays
+  // readable when one is retuned.
+  const yHeaderRule = 108;
+  const ySubject = 168;
+  const yScores = 292;
+  const yStrengthLabel = 424;
+  const yStrengthRows = 456;
+  const yTellsLabel = 646;
+  const yTellsRows = 678;
+  const yFooter = 952;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-     width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}">
+<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#0b1120"/>
-      <stop offset="100%" stop-color="#1e293b"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#0d0f14"/>
+      <stop offset="100%" stop-color="#07080b"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#FF6B35"/>
-      <stop offset="100%" stop-color="#FF8C42"/>
-    </linearGradient>
-    <linearGradient id="avatar" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1e293b"/>
-      <stop offset="100%" stop-color="#0f172a"/>
-    </linearGradient>
-    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
-      <feOffset dy="6"/>
-      <feComponentTransfer>
-        <feFuncA type="linear" slope="0.4"/>
-      </feComponentTransfer>
-      <feMerge>
-        <feMergeNode/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#F97316" stop-opacity="0"/>
+    </radialGradient>
   </defs>
 
-  <!-- background -->
   <rect width="${CARD_W}" height="${CARD_H}" fill="url(#bg)"/>
-  <!-- subtle orange blob -->
-  <circle cx="${CARD_W - 60}" cy="-40" r="220" fill="url(#accent)" opacity="0.12"/>
-  <circle cx="-40" cy="${CARD_H - 40}" r="180" fill="url(#accent)" opacity="0.08"/>
+  <ellipse cx="${CARD_W * 0.82}" cy="120" rx="340" ry="280" fill="url(#glow)"/>
+  <ellipse cx="${CARD_W * 0.1}" cy="${CARD_H - 120}" rx="300" ry="240" fill="url(#glow)"/>
+  ${cornerMarks()}
 
-  <!-- Top strip: brand + platform chip -->
-  <g>
-    <text x="40" y="62" font-family="system-ui,-apple-system,sans-serif"
-          font-size="26" font-weight="800" fill="url(#accent)" letter-spacing="2">
-      ChessStalker
-    </text>
-    <text x="40" y="88" font-family="system-ui,-apple-system,sans-serif"
-          font-size="14" fill="#94a3b8" letter-spacing="3">
-      SCOUT REPORT
-    </text>
-    <rect x="${CARD_W - 40 - 130}" y="40" width="130" height="36" rx="18"
-          fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)"/>
-    <text x="${CARD_W - 40 - 65}" y="63" text-anchor="middle"
-          font-family="system-ui,-apple-system,sans-serif"
-          font-size="14" font-weight="700" fill="#fff" letter-spacing="1">
-      ${escape(platform.toUpperCase())}
-    </text>
-  </g>
+  <!-- Header -->
+  ${label(M, 62, 'Chess Masti', '#FB923C', 17)}
+  ${label(M, 86, 'Scout dossier', 'rgba(255,255,255,0.34)', 12)}
+  <rect x="${CARD_W - M - 132}" y="46" width="132" height="32" rx="5"
+        fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.12)"/>
+  <text x="${CARD_W - M - 66}" y="67" text-anchor="middle" font-family="${MONO}"
+        font-size="12" font-weight="600" fill="rgba(255,255,255,0.7)"
+        letter-spacing="2">${escape(platform.toUpperCase())}</text>
+  <line x1="${M}" y1="${yHeaderRule}" x2="${CARD_W - M}" y2="${yHeaderRule}"
+        stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
 
-  <!-- OVR ring with avatar in center -->
-  <g transform="translate(${cx}, ${cy})">
-    <circle cx="0" cy="0" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10"/>
-    <circle cx="0" cy="0" r="${r}" fill="none" stroke="url(#accent)" stroke-width="10"
-            stroke-linecap="round"
-            stroke-dasharray="${circ}" stroke-dashoffset="${ovrOffset}"
-            transform="rotate(-90)"/>
-    <!-- avatar -->
-    <circle cx="0" cy="0" r="${r - 16}" fill="url(#avatar)"/>
-    <text x="0" y="20" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif"
-          font-size="68" font-weight="800" fill="url(#accent)">${escape(initials)}</text>
-    <!-- OVR label below -->
-    <text x="0" y="${r + 28}" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif"
-          font-size="14" font-weight="700" fill="#94a3b8" letter-spacing="3">OVR</text>
-    <text x="0" y="${r + 60}" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif"
-          font-size="40" font-weight="900" fill="#fff">${profile.ovr}</text>
-  </g>
+  <!-- Subject -->
+  ${label(M, ySubject - 26, 'Subject', 'rgba(255,255,255,0.34)', 12)}
+  <text x="${M}" y="${ySubject + 26}" font-family="${SANS}"
+        font-size="${nameSize(username)}" font-weight="800" fill="#ffffff"
+        letter-spacing="-1">${escape(username)}</text>
+  <rect x="${M}" y="${ySubject + 46}" width="${Math.min(300, 22 + profile.archetype.length * 11)}" height="30" rx="5"
+        fill="rgba(249,115,22,0.12)" stroke="rgba(249,115,22,0.42)"/>
+  <text x="${M + 14}" y="${ySubject + 66}" font-family="${MONO}" font-size="12"
+        font-weight="600" fill="#FB923C" letter-spacing="2">${escape(profile.archetype.toUpperCase())}</text>
+  <text x="${CARD_W - M}" y="${ySubject + 66}" text-anchor="end" font-family="${MONO}"
+        font-size="13" fill="rgba(255,255,255,0.42)" letter-spacing="1.5">${profile.totalGames.toLocaleString()} GAMES${
+    profile.spanDays > 0 ? ` · ${profile.spanDays}D` : ''
+  }</text>
 
-  <!-- Username + archetype -->
-  <g>
-    <text x="${CARD_W / 2}" y="480" text-anchor="middle"
-          font-family="system-ui,-apple-system,sans-serif"
-          font-size="44" font-weight="900" fill="#fff">
-      ${escape(username)}
-    </text>
-    <rect x="${CARD_W / 2 - 110}" y="500" width="220" height="34" rx="17"
-          fill="rgba(255,107,53,0.12)" stroke="rgba(255,107,53,0.4)"/>
-    <text x="${CARD_W / 2}" y="523" text-anchor="middle"
-          font-family="system-ui,-apple-system,sans-serif"
-          font-size="15" font-weight="700" fill="#FF6B35" letter-spacing="1">
-      ${escape(profile.archetype.toUpperCase())}
-    </text>
-    <text x="${CARD_W / 2}" y="555" text-anchor="middle"
-          font-family="system-ui,-apple-system,sans-serif"
-          font-size="13" fill="#94a3b8">
-      ${profile.totalGames.toLocaleString()} games analyzed
-      ${profile.spanDays > 0 ? ` · ${profile.spanDays} days` : ''}
-    </text>
-  </g>
+  <!-- The two headline numbers, side by side -->
+  <line x1="${CARD_W / 2}" y1="${yScores - 4}" x2="${CARD_W / 2}" y2="${yScores + 88}"
+        stroke="rgba(255,255,255,0.09)" stroke-width="1"/>
+  ${label(M, yScores + 14, 'Overall', 'rgba(255,255,255,0.34)', 12)}
+  <text x="${M}" y="${yScores + 76}" font-family="${MONO}" font-size="62" font-weight="700"
+        fill="${ovrColor}" letter-spacing="-3">${profile.ovr}</text>
+  ${band ? label(M, yScores + 98, band, ovrColor, 11) : ''}
 
-  <!-- Stat quad: ATK / DEF / TIME / MIND -->
-  <g transform="translate(${CARD_W / 2 - 280}, 590)">
-    ${stats
-      .map((s, i) => {
-        const col = i;
-        const x = col * 140;
-        const color = statColor(s.value);
-        return `
-    <g transform="translate(${x}, 0)">
-      <rect x="0" y="0" width="120" height="80" rx="12" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
-      <text x="60" y="34" text-anchor="middle"
-            font-family="system-ui,-apple-system,sans-serif"
-            font-size="30" font-weight="800" fill="${color}">${s.value}</text>
-      <text x="60" y="60" text-anchor="middle"
-            font-family="system-ui,-apple-system,sans-serif"
-            font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="2">${s.label}</text>
-      <rect x="14" y="72" width="92" height="3" rx="1.5" fill="${color}" opacity="0.6"/>
-    </g>`;
-      })
-      .join('')}
-  </g>
+  ${label(CARD_W / 2 + 34, yScores + 14, 'Tells', '#FB923C', 12)}
+  <text x="${CARD_W / 2 + 34}" y="${yScores + 76}" font-family="${MONO}" font-size="62"
+        font-weight="700" fill="${tellsColor}" letter-spacing="-3">${tells.total}</text>
+  <text x="${CARD_W - M}" y="${yScores + 76}" text-anchor="end" font-family="${SANS}"
+        font-size="15" font-weight="600" fill="${tellsColor}">${escape(verdictText(tells.predictability))}</text>
 
-  <!-- Stalker gauge + text -->
-  <g transform="translate(${sx}, ${sy}) rotate(135)">
-    <circle cx="0" cy="0" r="${sr}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12"
-            stroke-linecap="round"
-            stroke-dasharray="${arcLen} ${arcLen * 2}"/>
-    <circle cx="0" cy="0" r="${sr}" fill="none"
-            stroke="${stalker.total >= 70 ? '#ef4444' : stalker.total >= 50 ? '#FF6B35' : '#22c55e'}"
-            stroke-width="12" stroke-linecap="round"
-            stroke-dasharray="${arcLen} ${arcLen * 2}"
-            stroke-dashoffset="${stalkerOffset}"/>
-  </g>
-  <g transform="translate(${sx}, ${sy})">
-    <text x="0" y="6" text-anchor="middle"
-          font-family="system-ui,-apple-system,sans-serif"
-          font-size="40" font-weight="900" fill="#fff">${stalker.total}</text>
-    <text x="0" y="30" text-anchor="middle"
-          font-family="system-ui,-apple-system,sans-serif"
-          font-size="12" font-weight="700" fill="#94a3b8" letter-spacing="2">STALKER</text>
-  </g>
+  <!-- Strength profile -->
+  ${label(M, yStrengthLabel, 'Strength profile', 'rgba(255,255,255,0.34)', 12)}
+  <line x1="${M}" y1="${yStrengthLabel + 14}" x2="${CARD_W - M}" y2="${yStrengthLabel + 14}"
+        stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  ${dims
+    .map((d, i) => meterRow(yStrengthRows + i * 44, d.label, d.value, strengthColor(d.value)))
+    .join('')}
 
-  <!-- Stalker predictability pill -->
-  <g>
-    <rect x="${CARD_W / 2 - 110}" y="900" width="220" height="34" rx="17"
-          fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.08)"/>
-    <text x="${CARD_W / 2}" y="923" text-anchor="middle"
-          font-family="system-ui,-apple-system,sans-serif"
-          font-size="14" font-weight="700" fill="#fff" letter-spacing="1">
-      PREDICTABILITY · ${escape(stalker.predictability.toUpperCase())}
-    </text>
-  </g>
+  <!-- Tells -->
+  ${label(M, yTellsLabel, `Tells · ${ranked.length} found`, '#FB923C', 12)}
+  <line x1="${M}" y1="${yTellsLabel + 14}" x2="${CARD_W - M}" y2="${yTellsLabel + 14}"
+        stroke="rgba(249,115,22,0.2)" stroke-width="1"/>
+  ${ranked
+    .map((t, i) => meterRow(yTellsRows + i * 44, t.label, t.score, tellColor(t.score)))
+    .join('')}
 
+  <!-- Footer -->
+  <line x1="${M}" y1="${yFooter - 34}" x2="${CARD_W - M}" y2="${yFooter - 34}"
+        stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
   ${
     topOpening
-      ? `
-  <g>
-    <text x="${CARD_W / 2}" y="970" text-anchor="middle"
-          font-family="system-ui,-apple-system,sans-serif"
-          font-size="11" fill="#64748b" letter-spacing="2">TOP OPENING</text>
-    <text x="${CARD_W / 2}" y="995" text-anchor="middle"
-          font-family="system-ui,-apple-system,sans-serif"
-          font-size="15" font-weight="700" fill="#cbd5e1">
-      ${escape(topOpening.eco)} · ${escape(topOpening.name)}
-    </text>
-  </g>`
+      ? `${label(M, yFooter - 8, 'Most played', 'rgba(255,255,255,0.3)', 11)}
+  <text x="${M}" y="${yFooter + 16}" font-family="${SANS}" font-size="16" font-weight="700"
+        fill="rgba(255,255,255,0.86)">${escape(topOpening.eco)} · ${escape(
+          topOpening.name.length > 34 ? `${topOpening.name.slice(0, 33)}…` : topOpening.name
+        )}</text>`
       : ''
   }
+  <text x="${CARD_W - M}" y="${yFooter + 16}" text-anchor="end" font-family="${MONO}"
+        font-size="13" font-weight="600" fill="rgba(255,255,255,0.4)"
+        letter-spacing="1.5">CHESSMASTI.COM</text>
 </svg>`;
 }
 

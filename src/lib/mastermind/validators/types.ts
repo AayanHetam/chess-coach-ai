@@ -180,9 +180,9 @@ export type ScoutClaimType =
   | "latest_rating"
   | "recent_form_trend"
   | "phase_elo"
-  // §3.3 Stalker (2)
-  | "stalker_total"
-  | "stalker_factor"
+  // §3.3 Tells (2)
+  | "tells_total"
+  | "tells_factor"
   // §3.4 Psychology (8)
   | "tilt_pattern"
   | "timeout_pattern"

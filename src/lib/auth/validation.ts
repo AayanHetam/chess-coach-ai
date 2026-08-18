@@ -46,10 +46,30 @@ export const signupSchema = z.object({
     .refine((v) => v === true, "Please confirm your date of birth to sign up."),
 });
 
-export const signinSchema = z.object({
-  email: emailSchema,
-  password: z.string().min(1, "Password is required."),
-});
+/**
+ * Sign-in accepts a handle OR an email.
+ *
+ * `identifier` is the field the form now sends. `email` is still accepted so a
+ * client cached from before this shipped keeps working — a schema change that
+ * bricks sign-in for anyone holding a stale bundle is not a change worth
+ * making. Neither is validated as an email address here: the value is only
+ * ever used as a lookup key, and rejecting an unusual-but-real address at the
+ * door would lock out an account that exists.
+ */
+export const signinSchema = z
+  .object({
+    identifier: z.string().trim().min(1).max(254).optional(),
+    email: z.string().trim().min(1).max(254).optional(),
+    password: z.string().min(1, "Password is required."),
+  })
+  .refine((d) => Boolean(d.identifier || d.email), {
+    message: "Enter your handle or email.",
+    path: ["identifier"],
+  })
+  .transform((d) => ({
+    identifier: (d.identifier ?? d.email ?? "").trim(),
+    password: d.password,
+  }));
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required."),
@@ -90,7 +110,15 @@ export const profilePatchSchema = z.object({
   coachTone: z.enum(["friendly", "strict", "masti"]).optional(),
   playingStyle: z.enum(["tactical", "positional", "balanced"]).optional(),
   studyGoals: z
-    .array(z.enum(["tactics", "endgames", "openings", "time-management"]))
+    .array(
+      z.enum([
+        "tactics",
+        "endgames",
+        "openings",
+        "middlegame",
+        "time-management",
+      ])
+    )
     .max(4)
     .optional(),
   favoriteOpenings: z
@@ -124,8 +152,23 @@ export const profilePatchSchema = z.object({
   platformRating: z.number().int().min(0).max(3500).optional(),
   platformRatingRaw: z.number().int().min(0).max(3500).optional(),
   platformRatingSource: z.enum(["lichess", "chesscom"]).optional(),
-  platformRatingPerf: z.enum(["bullet", "blitz", "rapid", "classical"]).optional(),
+  platformRatingPerf: z
+    .enum(["bullet", "blitz", "rapid", "classical"])
+    .optional(),
   platformRatingFetchedAt: z.number().int().min(0).optional(),
+
+  // Goal-driven planning inputs.
+  goalRating: z.number().int().min(100).max(3000).optional(),
+  practiceDaysPerWeek: z.number().int().min(1).max(7).optional(),
+  goalTargetDate: z.number().int().min(0).optional(),
+  goalStartRating: z.number().int().min(0).max(3500).optional(),
+  goalSetAt: z.number().int().min(0).optional(),
+  // Measured weaknesses are replaced wholesale by the placement test, unlike
+  // focusThemes which carries the user's stated preference.
+  measuredWeaknesses: z
+    .array(z.enum(QUIZ_FOCUS_THEME_IDS))
+    .max(MAX_FOCUS_THEMES)
+    .optional(),
 
   // User-set learning goals (target rating is a self-chosen aspiration only).
   goals: z

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { GOAL_DIAGRAMS, GOAL_DIAGRAM_ALT } from "../tacticDiagrams";
+import { GOAL_DIAGRAMS, GOAL_DIAGRAM_ALT, SPOT_DIAGRAMS } from "../tacticDiagrams";
 import { QUIZ_GOAL_OPTIONS } from "../quizThemes";
 import type { DiagramSpec, Square } from "../TacticDiagram";
 
@@ -37,7 +37,7 @@ describe("every goal option has a diagram", () => {
   });
 
   it("places every piece and arrow inside the crop", () => {
-    for (const [key, spec] of Object.entries(GOAL_DIAGRAMS)) {
+    for (const [key, spec] of Object.entries({ ...GOAL_DIAGRAMS, ...SPOT_DIAGRAMS })) {
       const inside = (s: Square) =>
         s[0] >= 0 && s[0] < spec.size && s[1] >= 0 && s[1] < spec.size;
       for (const p of spec.pieces) expect(inside(p.at), `${key} piece off-board`).toBe(true);
@@ -50,7 +50,7 @@ describe("every goal option has a diagram", () => {
   });
 
   it("never stacks two pieces on one square", () => {
-    for (const [key, spec] of Object.entries(GOAL_DIAGRAMS)) {
+    for (const [key, spec] of Object.entries({ ...GOAL_DIAGRAMS, ...SPOT_DIAGRAMS })) {
       const seen = new Set(spec.pieces.map((p) => `${p.at[0]},${p.at[1]}`));
       expect(seen.size, `${key} has overlapping pieces`).toBe(spec.pieces.length);
     }
@@ -58,7 +58,7 @@ describe("every goal option has a diagram", () => {
 });
 
 describe("the fork diagram is a real fork", () => {
-  const spec = GOAL_DIAGRAMS.forks;
+  const spec = GOAL_DIAGRAMS.tactics; // Tactics is represented by the fork
 
   it("has a white knight attacking two black pieces via legal knight moves", () => {
     const knight = spec.pieces.find((p) => p.glyph === "knight" && p.side === "w");
@@ -81,7 +81,7 @@ describe("the fork diagram is a real fork", () => {
 });
 
 describe("the pin diagram is a real pin", () => {
-  const spec = GOAL_DIAGRAMS.pins;
+  const spec = SPOT_DIAGRAMS.pin;
 
   it("puts bishop, pinned piece and king on one diagonal, in that order", () => {
     const bishop = spec.pieces.find((p) => p.glyph === "bishop" && p.side === "w")!;
@@ -105,7 +105,7 @@ describe("the pin diagram is a real pin", () => {
 });
 
 describe("the hanging-piece diagram is really hanging", () => {
-  const spec = GOAL_DIAGRAMS.blunders;
+  const spec = SPOT_DIAGRAMS.hanging;
 
   it("attacks the black piece along a rank or file", () => {
     const rook = spec.pieces.find((p) => p.glyph === "rook" && p.side === "w")!;
@@ -124,7 +124,7 @@ describe("the hanging-piece diagram is really hanging", () => {
 });
 
 describe("the king-safety diagram has real attacking lines", () => {
-  const spec = GOAL_DIAGRAMS["king-safety"];
+  const spec = GOAL_DIAGRAMS.middlegame; // Middlegame is represented by an attack
 
   it("converges a rank attacker and a diagonal attacker on the king", () => {
     const king = spec.pieces.find((p) => p.glyph === "king" && p.side === "b")!;
@@ -136,7 +136,7 @@ describe("the king-safety diagram has real attacking lines", () => {
 });
 
 describe("the endgame diagram shows the opposition", () => {
-  const spec = GOAL_DIAGRAMS.endgames;
+  const spec = GOAL_DIAGRAMS.endgame;
 
   it("stands the kings on one file, two squares apart", () => {
     const kings = spec.pieces.filter((p) => p.glyph === "king");

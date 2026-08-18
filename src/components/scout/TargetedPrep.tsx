@@ -4,7 +4,6 @@ import {
   Button,
   Chip,
   Grid,
-  Paper,
   Stack,
   Tab,
   Tabs,
@@ -12,6 +11,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
+import { DossierPanel, FieldLabel } from './dossier';
 import { OpeningSummary, TargetedPrep } from '@/types/scout';
 import { formatMoveSequence } from '@/lib/scoutService';
 
@@ -34,19 +34,7 @@ export default function TargetedPrepPanel({ prep, onExplore }: TargetedPrepProps
   const currentColor = color;
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2.5,
-        borderRadius: '1.5rem',
-        border: '1px solid rgba(255,255,255,0.08)',
-        bgcolor: 'rgba(20,22,28,0.55)',
-        backdropFilter: 'blur(14px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-        overflow: 'hidden',
-      }}
-    >
+    <DossierPanel label="Targeted preparation">
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         alignItems={{ xs: 'flex-start', sm: 'center' }}
@@ -55,10 +43,6 @@ export default function TargetedPrepPanel({ prep, onExplore }: TargetedPrepProps
         sx={{ mb: 2 }}
       >
         <Box>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Icon icon="mdi:target" width={20} style={{ color: '#FB923C' }} />
-            <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>Targeted Preparation</Typography>
-          </Stack>
           <Typography variant="caption" color="text.secondary">
             What to play vs. what to avoid — click any line to explore on the board.
           </Typography>
@@ -158,7 +142,7 @@ export default function TargetedPrepPanel({ prep, onExplore }: TargetedPrepProps
           </Grid>
         </Grid>
       )}
-    </Paper>
+    </DossierPanel>
   );
 }
 

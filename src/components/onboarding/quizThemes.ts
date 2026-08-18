@@ -38,54 +38,55 @@ export interface QuizGoalOption {
 }
 
 export const QUIZ_GOAL_OPTIONS: QuizGoalOption[] = [
-  // Trimmed to a short, scannable set (label-only). The placement test still
-  // measures every theme — this is just the user's stated focus.
+  // Five phases/skills rather than individual motifs. The old list named seven
+  // specific tactics (forks, pins, hanging pieces…), which asked a beginner to
+  // self-diagnose at a granularity they don't have — you cannot pick "pins" as
+  // a weakness if you don't yet know what a pin is. Phase-level choices are
+  // answerable by anyone, and the placement test measures the motif level far
+  // better than self-report ever could.
   {
-    key: "blunders",
-    label: "Hanging pieces",
-    helper: "",
-    focusThemes: ["hanging-piece"],
+    key: "tactics",
+    label: "Tactics",
+    helper: "Spot forks, pins and hanging pieces before they cost you.",
+    focusThemes: [
+      "hanging-piece",
+      "fork",
+      "double-attack",
+      "pin",
+      "skewer",
+      "discovered-attack",
+      "back-rank",
+    ],
     studyGoal: "tactics",
-  },
-  {
-    key: "forks",
-    label: "Forks & double attacks",
-    helper: "",
-    focusThemes: ["fork", "double-attack"],
-    studyGoal: "tactics",
-  },
-  {
-    key: "pins",
-    label: "Pins & skewers",
-    helper: "",
-    focusThemes: ["pin", "skewer"],
-    studyGoal: "tactics",
-  },
-  {
-    key: "king-safety",
-    label: "King safety & attacks",
-    helper: "",
-    focusThemes: ["exposed-king", "mating-attack"],
-    studyGoal: "tactics",
-  },
-  {
-    key: "endgames",
-    label: "Endgames",
-    helper: "",
-    focusThemes: ["endgame"],
-    studyGoal: "endgames",
   },
   {
     key: "openings",
     label: "Openings",
-    helper: "",
+    helper: "Get out of the first ten moves with a position you like.",
+    // No focus themes: opening puzzles aren't in the theme graph, so seeding
+    // any id here would return an empty feed. This shapes the coach prompt,
+    // not the puzzle recommender.
     focusThemes: [],
     studyGoal: "openings",
   },
   {
+    key: "middlegame",
+    label: "Middlegame",
+    helper: "Find a plan when nothing is forced.",
+    focusThemes: ["exposed-king", "mating-attack", "sacrifice"],
+    studyGoal: "middlegame",
+  },
+  {
+    key: "endgame",
+    label: "Endgame",
+    helper: "Convert winning positions instead of drawing them.",
+    focusThemes: ["endgame", "promotion", "advanced-pawn"],
+    studyGoal: "endgames",
+  },
+  {
     key: "general",
     label: "General improvement",
-    helper: "",
+    helper: "A bit of everything — let the coach decide.",
     focusThemes: [],
     studyGoal: "tactics",
   },

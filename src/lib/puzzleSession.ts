@@ -62,6 +62,20 @@ export const puzzlePracticeQueueAtom = atomWithStorage<PuzzleContext[] | null>(
   null,
 );
 
+/**
+ * What the injected queue IS, for the banner on /puzzles.
+ *
+ * The queue used to have exactly one producer ("practice missed", from
+ * session history) so the banner hardcoded that wording. /analysis now
+ * injects generated sets too, and calling a fresh set of fork puzzles
+ * "re-practicing missed puzzles" describes something that never happened.
+ * Null means the original missed-puzzles flow.
+ */
+export const puzzlePracticeLabelAtom = atomWithStorage<string | null>(
+  "chessMastiPuzzlePracticeLabel",
+  null,
+);
+
 export function buildSavedSession(
   results: SessionResult[],
   meta: {

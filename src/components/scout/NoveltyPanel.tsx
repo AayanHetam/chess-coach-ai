@@ -1,5 +1,6 @@
-import { Box, Button, Chip, Grid, Paper, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Chip, Grid, Stack, Tooltip, Typography } from '@mui/material';
 import { Icon } from '@iconify/react';
+import { DossierPanel, FieldLabel } from './dossier';
 import { NoveltyFinding } from '@/types/scout';
 import { formatMoveSequence } from '@/lib/scoutService';
 
@@ -15,41 +16,8 @@ export interface NoveltyPanelProps {
 
 export default function NoveltyPanel({ findings, onExplore }: NoveltyPanelProps) {
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2.5,
-        borderRadius: '1.5rem',
-        border: '1px solid rgba(255,255,255,0.08)',
-        bgcolor: 'rgba(20,22,28,0.55)',
-        backdropFilter: 'blur(14px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-        overflow: 'hidden',
-      }}
-    >
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.75 }}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Icon icon="mdi:alert-octagram-outline" width={20} style={{ color: '#FB923C' }} />
-          <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>Novelty finder</Typography>
-          <Chip
-            label="NEW"
-            size="small"
-            sx={{
-              bgcolor: 'rgba(249,115,22,0.18)',
-              color: '#FB923C',
-              border: '1px solid rgba(249,115,22,0.4)',
-              fontWeight: 800,
-              fontSize: '0.6rem',
-              height: 18,
-              letterSpacing: 1,
-            }}
-          />
-        </Stack>
-        <Typography variant="caption" color="text.secondary">
-          {findings.length} deviation{findings.length === 1 ? '' : 's'}
-        </Typography>
-      </Stack>
+    <DossierPanel label="Novelty finder"
+      action={<FieldLabel color="rgba(255,255,255,0.4)" size="0.6rem">{`${findings.length} deviation${findings.length === 1 ? '' : 's'}`}</FieldLabel>}>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
         Positions where the opponent <strong>left their own repertoire</strong> early. They were
         guessing — point the prep arrow right here.
@@ -83,7 +51,7 @@ export default function NoveltyPanel({ findings, onExplore }: NoveltyPanelProps)
           ))}
         </Grid>
       )}
-    </Paper>
+    </DossierPanel>
   );
 }
 

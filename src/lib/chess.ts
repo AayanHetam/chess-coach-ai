@@ -1,9 +1,69 @@
 import { EvaluateGameParams, LineEval, PositionEval } from "@/types/eval";
 import { Game, Player } from "@/types/game";
-import { Chess, PieceSymbol, Square } from "chess.js";
+import { Chess, Move, PieceSymbol, Square } from "chess.js";
 import { getPositionWinPercentage } from "./engine/helpers/winPercentage";
 import { Color } from "@/types/enums";
 import { Piece } from "react-chessboard/dist/chessboard/types";
+
+/**
+ * The position a loaded game STARTS from.
+ *
+ * `undefined` for an ordinary PGN (the standard start position); a FEN for a
+ * game loaded from one — `?fen=`, `?puzzleFen=`, a FEN pasted into the load
+ * dialog, or a coach insight that carries only a position.
+ *
+ * This exists because replaying a game with `new Chess()` silently assumes
+ * the standard start position. For a FEN-loaded game that assumption is
+ * wrong, and with zero moves to replay the result is the START POSITION —
+ * so /analysis rendered, evaluated, and coached a completely different board
+ * from the one the URL asked for, while the greeting said "Loaded a custom
+ * position". chess.js populates the SetUp/FEN headers for both
+ * `new Chess(fen)` and `loadPgn` with a FEN tag, so one lookup covers every
+ * entry point.
+ */
+export const getRootFen = (game: Chess): string | undefined => {
+  const fen = game.header().FEN;
+  return typeof fen === "string" && fen.length >= 10 ? fen : undefined;
+};
+
+/**
+ * A board sitting at `rootFen` (or the standard start position when absent),
+ * ready to replay a move list onto. Falls back to the start position if the
+ * FEN is unusable rather than throwing mid-render.
+ */
+export const boardFromRoot = (rootFen?: string): Chess => {
+  if (!rootFen) return new Chess();
+  try {
+    return new Chess(rootFen);
+  } catch {
+    return new Chess();
+  }
+};
+
+/**
+ * Replay `moves` (SAN) from the game's root for `ply` half-moves.
+ * Stops early on an illegal move rather than throwing.
+ */
+export const replayFromRoot = (
+  moves: Array<{ san: string }> | string[],
+  ply: number,
+  rootFen?: string
+): { board: Chess; lastMove: Move | null } => {
+  const board = boardFromRoot(rootFen);
+  let lastMove: Move | null = null;
+  const limit = Math.min(ply, moves.length);
+  for (let i = 0; i < limit; i++) {
+    const entry = moves[i];
+    const san = typeof entry === "string" ? entry : entry.san;
+    try {
+      const played = board.move(san);
+      if (played) lastMove = played;
+    } catch {
+      break;
+    }
+  }
+  return { board, lastMove };
+};
 
 export const getEvaluateGameParams = (game: Chess): EvaluateGameParams => {
   const history = game.history({ verbose: true });

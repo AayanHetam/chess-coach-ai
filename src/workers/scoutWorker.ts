@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 // Web Worker that offloads opening-tree + prep-line construction AND the full
-// analytics bundle (profile / stalker / prep / checklist / rivals / psychology
+// analytics bundle (profile / tells / prep / checklist / rivals / psychology
 // / recent) so the main thread stays responsive even for 2000+ scouted games.
 
 import { buildOpeningTree, generatePrepLines } from '@/lib/scoutService';

@@ -218,12 +218,12 @@ describe("sentence-coupled checks see the whole sentence again", () => {
   });
 
   it("the fragment alone refutes nothing — the fabrication escaped", () => {
-    const insight = insightOf("01_mate_for_white_midgame", "I2");
+    const insight = insightOf("01_mate_for_white_midgame", "M2");
     expect(checkMobilityLiteralClaims(" O-O it has no legal moves.", insight)).toEqual([]);
   });
 
   it("the whole sentence refutes it on chess.js arithmetic (4 legal moves)", () => {
-    const insight = insightOf("01_mate_for_white_midgame", "I2");
+    const insight = insightOf("01_mate_for_white_midgame", "M2");
     const fires = checkMobilityLiteralClaims(PROSE, insight);
     expect(fires).toHaveLength(1);
     expect(fires[0].category).toBe("mobility_count_wrong");
@@ -232,7 +232,7 @@ describe("sentence-coupled checks see the whole sentence again", () => {
   });
 
   it("the v4 span it was measured from still fires unchanged (no move number, no delta)", () => {
-    const insight = insightOf("01_mate_for_white_midgame", "I2");
+    const insight = insightOf("01_mate_for_white_midgame", "M2");
     // VERBATIM v4 flaggedSpans[0].sentence.
     const v4 =
       "- Black's knight on e7: trapped with no legal moves — a complete waste of a piece right now.";

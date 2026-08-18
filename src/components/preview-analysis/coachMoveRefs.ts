@@ -159,11 +159,20 @@ export interface RecommendedPreview {
 export function buildRecommendedPreview(
   allMoves: Array<Pick<Move, "san">>,
   targetPly: number,
-  san: string
+  san: string,
+  /** The game's starting FEN when it wasn't loaded from the standard
+   *  position. Without it a FEN-loaded game replays from the wrong board and
+   *  every recommendation is refused as illegal. */
+  rootFen?: string
 ): RecommendedPreview | null {
   const tryAt = (ply: number): RecommendedPreview | null => {
     if (ply < 0 || ply > allMoves.length) return null;
-    const g = new Chess();
+    let g: Chess;
+    try {
+      g = rootFen ? new Chess(rootFen) : new Chess();
+    } catch {
+      g = new Chess();
+    }
     try {
       for (let i = 0; i < ply; i++) g.move(allMoves[i].san);
     } catch {

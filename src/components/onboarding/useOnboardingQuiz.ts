@@ -24,7 +24,9 @@ export type StepId =
   | "sa-spot"
   | "sa-tournaments"
   | "goals"
-  | "time";
+  | "goal-rating"
+  | "time"
+  | "frequency";
 
 export type QuizPhase = "questions" | "result";
 
@@ -43,7 +45,12 @@ export function resolveSteps(answers: QuizAnswers): StepId[] {
   } else {
     steps.push("sa-years", "sa-spot", "sa-tournaments");
   }
-  steps.push("goals", "time");
+  // Goal-rating is LAST on purpose. It draws a projection, and a projection
+  // needs the schedule: asking it earlier meant falling back to a default of
+  // 20min x 4 days and telling a 1300 they'd reach 1600 in "about 4 years" —
+  // the most discouraging plausible number, at the moment of peak motivation.
+  // With time and frequency already answered the same user sees ~4 months.
+  steps.push("goals", "time", "frequency", "goal-rating");
   return steps;
 }
 
@@ -86,8 +93,19 @@ export function canAdvanceStep(step: StepId, a: QuizAnswers): boolean {
       return a.selfAssess.tournaments !== undefined;
     case "goals":
       return a.goals.length > 0;
+    case "goal-rating":
+      // A goal is optional — someone who just wants to get better shouldn't be
+      // forced to name a number they haven't thought about. But if they DO type
+      // one it has to be sane, and it has to be above where they are, or the
+      // projection is meaningless.
+      return (
+        a.goalRating === undefined ||
+        (Number.isFinite(a.goalRating) && a.goalRating >= 100 && a.goalRating <= 3000)
+      );
     case "time":
       return !!a.time;
+    case "frequency":
+      return typeof a.daysPerWeek === "number" && a.daysPerWeek >= 1;
     default:
       return false;
   }
@@ -112,6 +130,8 @@ export interface OnboardingQuizApi {
   setSelfAssess: (key: SelfAssessKey, score: SelfAssessScore) => void;
   toggleGoal: (key: string) => void;
   setTime: (v: TimeCommitment) => void;
+  setGoalRating: (v: number | undefined) => void;
+  setDaysPerWeek: (v: number) => void;
   setDailyReminder: (v: boolean) => void;
 }
 
@@ -235,6 +255,12 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
   const setTime = useCallback((v: TimeCommitment) => {
     setAnswers((a) => ({ ...a, time: v }));
   }, []);
+  const setGoalRating = useCallback((v: number | undefined) => {
+    setAnswers((a) => ({ ...a, goalRating: v }));
+  }, []);
+  const setDaysPerWeek = useCallback((v: number) => {
+    setAnswers((a) => ({ ...a, daysPerWeek: v }));
+  }, []);
   const setDailyReminder = useCallback((v: boolean) => {
     setAnswers((a) => ({ ...a, dailyReminder: v }));
   }, []);
@@ -258,6 +284,8 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
     setSelfAssess,
     toggleGoal,
     setTime,
+    setGoalRating,
+    setDaysPerWeek,
     setDailyReminder,
   };
 }

@@ -52,8 +52,8 @@ export default function OnboardingPage() {
   userRef.current = user;
 
   const handleUnlock = useCallback(
-    async (answers: QuizAnswers) => {
-      const payload = buildPayload(answers);
+    async (answers: QuizAnswers, currentRating?: number) => {
+      const payload = buildPayload(answers, currentRating);
 
       if (user) {
         // Signed in but not yet onboarded (e.g. a Google signup who arrived

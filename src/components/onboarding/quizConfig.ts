@@ -7,6 +7,16 @@
 
 import type { UserProfileUpdates } from "@/lib/firestoreUsers";
 import { QUIZ_GOAL_OPTIONS } from "./quizThemes";
+import { buildGoalPatch } from "@/lib/curriculum/goalPatch";
+// Re-exported so the many existing `from "./quizConfig"` imports keep working
+// while the definition itself lives outside the quizConfig/goalPatch cycle.
+export {
+  MINUTES_PER_DAY,
+  minutesPerDayFor,
+  type TimeCommitment,
+} from "@/lib/curriculum/timeCommitment";
+import { minutesPerDayFor } from "@/lib/curriculum/timeCommitment";
+import type { TimeCommitment } from "@/lib/curriculum/timeCommitment";
 
 // localStorage keys ───────────────────────────────────────────────────────────
 // Draft = in-progress answers (resumable, never persisted to Firestore).
@@ -16,7 +26,6 @@ export const FLUSH_STORAGE_KEY = "cm_onboarding_quiz_v1";
 
 // Answer model ──────────────────────────────────────────────────────────────
 export type PlayStyle = "lichess" | "chesscom" | "otb" | "new";
-export type TimeCommitment = "under-10" | "10-30" | "30-plus";
 export type SelfAssessScore = 0 | 1 | 2;
 export type SelfAssessKey = "years" | "spot" | "tournaments";
 
@@ -35,6 +44,10 @@ export interface QuizAnswers {
   goals: string[];
   // Daily time budget:
   time?: TimeCommitment;
+  /** Target rating — the question the whole plan is built around. */
+  goalRating?: number;
+  /** Days per week they intend to practise (1-7). */
+  daysPerWeek?: number;
   /**
    * Daily reminder opt-in. Pre-checked (see `emptyAnswers`), shown as a visible
    * choice on the final step rather than defaulted silently at signup — this
@@ -45,8 +58,19 @@ export interface QuizAnswers {
 }
 
 export function emptyAnswers(): QuizAnswers {
-  return { selfAssess: {}, goals: [], dailyReminder: true };
+  return { selfAssess: {}, goals: [], dailyReminder: true, daysPerWeek: 4 };
 }
+
+/** Days-per-week choices for the practice-frequency step. */
+export const FREQUENCY_OPTIONS: {
+  key: number;
+  label: string;
+  helper: string;
+}[] = [
+  { key: 2, label: "A couple of days", helper: "When I get a chance." },
+  { key: 4, label: "About 4 days", helper: "Most weekdays." },
+  { key: 6, label: "Almost every day", helper: "With a rest day." },
+];
 
 // Step 1 — how do you currently play? ──────────────────────────────────────
 export const PLAY_STYLE_OPTIONS: {
@@ -122,9 +146,17 @@ export const TIME_OPTIONS: {
   label: string;
   helper: string;
 }[] = [
+  // Capped at 30 minutes on purpose. Asking for more than half an hour a day
+  // sets a bar most people miss, and a plan you miss is a plan you abandon.
+  // The stored keys are unchanged so existing profiles need no migration —
+  // only the labels and the minutes they map to have moved.
   { key: "under-10", label: "Under 10 min / day", helper: "Quick daily reps." },
-  { key: "10-30", label: "10–30 min / day", helper: "A steady habit." },
-  { key: "30-plus", label: "30+ min / day", helper: "I'm here to grind." },
+  { key: "10-30", label: "About 15 min / day", helper: "A steady habit." },
+  {
+    key: "30-plus",
+    label: "About 30 min / day",
+    helper: "I want to move fast.",
+  },
 ];
 
 // Rating + band helpers ──────────────────────────────────────────────────────
@@ -193,8 +225,19 @@ export function derivedFocusThemes(answers: QuizAnswers): string[] {
  * handleSaveUsernames discipline: omit empty/undefined keys so we never clobber
  * an existing value with a blank, and only include studyGoals when the quiz
  * actually derived some (a theme-only re-take won't wipe manually-set goals).
+ *
+ * `currentRating` is the anchor the goal projection was DISPLAYED from — the
+ * live platform number on the platform path, the derived one otherwise. It has
+ * to be passed in rather than re-derived here: `derivedRating` returns
+ * undefined for the platform path, so re-deriving silently dropped the anchor
+ * for every user who gave a username, which is the majority flow. The quiz
+ * promised them a date on screen and then stored nothing, leaving /plan with
+ * no goal to hold them to.
  */
-export function buildPayload(answers: QuizAnswers): UserProfileUpdates {
+export function buildPayload(
+  answers: QuizAnswers,
+  currentRating?: number
+): UserProfileUpdates {
   const payload: UserProfileUpdates = {};
 
   // Only the self-assessment branch produces a rating the quiz itself knows.
@@ -224,6 +267,31 @@ export function buildPayload(answers: QuizAnswers): UserProfileUpdates {
   if (studyGoals.length > 0) payload.studyGoals = studyGoals;
 
   if (answers.time) payload.dailyTimeCommitment = answers.time;
+  if (typeof answers.goalRating === "number")
+    payload.goalRating = answers.goalRating;
+  if (typeof answers.daysPerWeek === "number") {
+    payload.practiceDaysPerWeek = answers.daysPerWeek;
+  }
+
+  // The promised date, computed once at signup from the goal and the schedule
+  // the user actually agreed to. Stored so /plan can hold them to it rather
+  // than silently recomputing a softer target every time they visit.
+  //
+  // Delegated to buildGoalPatch, which the /plan goal setter also calls. Two
+  // hand-written copies of this is what produced the bug above: the anchor was
+  // re-derived here and disagreed with the number already on screen. One
+  // implementation, so they cannot drift apart again.
+  //
+  // Prefer the anchor the projection was actually SHOWN from; fall back to the
+  // self-assessed one. Never fabricate — if neither exists (lookup 404'd, or
+  // no established rating) buildGoalPatch returns null and nothing is written.
+  const goalPatch = buildGoalPatch({
+    currentRating: currentRating ?? derivedRating(answers),
+    goalRating: answers.goalRating,
+    time: answers.time,
+    daysPerWeek: answers.daysPerWeek,
+  });
+  if (goalPatch) Object.assign(payload, goalPatch);
 
   // Always written, both ways: an explicit false is the user declining, which
   // must be recorded rather than left undefined and re-asked.

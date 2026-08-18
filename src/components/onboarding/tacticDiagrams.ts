@@ -119,24 +119,32 @@ const GENERAL: DiagramSpec = {
   ],
 };
 
-/** Keyed by `QuizGoalOption.key` in quizThemes.ts. */
+/**
+ * Keyed by `QuizGoalOption.key` in quizThemes.ts — now five phases rather than
+ * seven individual motifs.
+ *
+ * `FORK` represents Tactics because it is the motif every improving player
+ * meets first, and `KING_SAFETY` represents Middlegame because an attack on a
+ * loose king is the most legible "here is a plan" picture available on a 4×4
+ * crop. `HANGING` and `PIN` are still exported and still tested — PIN is used
+ * by the "can you spot a fork or a pin" question.
+ */
 export const GOAL_DIAGRAMS: Record<string, DiagramSpec> = {
-  blunders: HANGING,
-  forks: FORK,
-  pins: PIN,
-  "king-safety": KING_SAFETY,
-  endgames: ENDGAME,
+  tactics: FORK,
   openings: OPENING,
+  middlegame: KING_SAFETY,
+  endgame: ENDGAME,
   general: GENERAL,
 };
 
 /** Plain-language caption, so the diagram is never the only carrier of meaning. */
 export const GOAL_DIAGRAM_ALT: Record<string, string> = {
-  blunders: "A bishop attacked by a rook with nothing defending it",
-  forks: "A knight attacking a king and a rook at the same time",
-  pins: "A bishop pinning a knight against its king",
-  "king-safety": "A rook and queen converging on an exposed king",
-  endgames: "A king escorting a pawn up the board",
+  tactics: "A knight attacking a king and a rook at the same time",
   openings: "Central pawns out and a knight developing",
+  middlegame: "A rook and queen converging on an exposed king",
+  endgame: "A king escorting a pawn up the board",
   general: "A balanced middlegame position",
 };
+
+/** Still used by the self-assessment "spot a fork or a pin" question. */
+export const SPOT_DIAGRAMS = { fork: FORK, pin: PIN, hanging: HANGING } as const;

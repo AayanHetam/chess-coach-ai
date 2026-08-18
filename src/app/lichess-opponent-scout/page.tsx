@@ -24,19 +24,19 @@ const HERE = "Lichess Opponent Scout";
 export const metadata: Metadata = {
   title: { absolute: "Lichess Opponent Scout | Free Pre-Game Opponent Analysis" },
   description:
-    "A free Lichess opponent scout: paste any Lichess username and get opening trees, repertoire collisions against yours, a Stalker Score, and tilt/timeout psychology profiles in seconds.",
+    "A free Lichess opponent scout: paste any Lichess username and get opening trees, repertoire collisions against yours, a Tells readout, and tilt/timeout psychology profiles in seconds.",
   alternates: { canonical: URL },
   openGraph: {
     title: "Lichess Opponent Scout | Chess Masti AI",
     description:
-      "Free opponent scout for Lichess. Opening trees, Stalker Score, tilt profile, repertoire collisions. Seconds, not hours.",
+      "Free opponent scout for Lichess. Opening trees, Tells, tilt profile, repertoire collisions. Seconds, not hours.",
     url: URL,
     images: [{ url: "/og/free-ai-chess-coach" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Lichess Opponent Scout | Chess Masti AI",
-    description: "Free opponent scout for Lichess. Stalker Score, tilt profile, repertoire collisions.",
+    description: "Free opponent scout for Lichess. Tells, tilt profile, repertoire collisions.",
     images: ["/og/free-ai-chess-coach"],
   },
 };
@@ -47,7 +47,7 @@ export default function LichessOpponentScoutPage() {
       name: "Lichess Opponent Scout | Free Pre-Game Opponent Analysis",
       url: URL,
       description:
-        "Free Lichess opponent scout. Opening tendencies, Stalker Score, psychological tilt profile, repertoire collisions — pre-game prep in seconds.",
+        "Free Lichess opponent scout. Opening tendencies, Tells, psychological tilt profile, repertoire collisions — pre-game prep in seconds.",
     }),
     buildBreadcrumbJsonLd({ here: HERE, url: URL }),
   ];
@@ -70,7 +70,7 @@ export default function LichessOpponentScoutPage() {
       <AnswerBlock>
         A Lichess opponent scout pulls a player&apos;s public Lichess game history and turns it into
         pre-game prep: their opening tendencies, the lines where they over- and under-perform, a
-        Stalker Score that quantifies how exploitable they are, and a psychology profile that flags
+        Tells readout that quantifies how readable they are, and a psychology profile that flags
         tilt and time-trouble patterns. Chess Masti AI does all of this free. Paste any Lichess
         username; the dashboard renders in seconds.
       </AnswerBlock>
@@ -95,8 +95,8 @@ export default function LichessOpponentScoutPage() {
               desc: "Paste your Lichess username too and the tool finds the lines where you over-perform and they under-perform. These are the lines you should be willing to play if you reach them.",
             },
             {
-              title: "Stalker Score",
-              desc: "A 0-100 exploitability index. High Stalker Score means predictable openings, narrow repertoire, time-trouble, or tilt-loss patterns. Low means they're solid across the board and you'll have to outplay them.",
+              title: "Tells",
+              desc: "A 0-100 readability index. A high Tells score means predictable openings, narrow repertoire, time-trouble, or tilt-loss patterns. Low means they're solid across the board and you'll have to outplay them.",
             },
             {
               title: "Tilt and timeout psychology",
@@ -141,7 +141,7 @@ export default function LichessOpponentScoutPage() {
           2. Optionally paste your own Lichess username to unlock the repertoire-collision panel.
         </ProseBlock>
         <ProseBlock>
-          3. The dashboard renders the opening tree, Stalker Score, tilt profile, and (if you
+          3. The dashboard renders the opening tree, Tells, tilt profile, and (if you
           supplied your username) the collision panel. Drill into specific lines to see exact game
           counts and scores.
         </ProseBlock>

@@ -73,11 +73,11 @@ interface AdjSpan {
 }
 
 const SPANS: AdjSpan[] = [
-  { idx: 0, fixture: "01_mate_for_white_midgame", factIdPrefix: "I2", check: "tactical_keyword", span: "trapped", sentence: "- Black's knight on e7 is completely trapped with no legal moves." },
-  { idx: 1, fixture: "01_mate_for_white_midgame", factIdPrefix: "I1", check: "tactical_keyword", span: "fork", sentence: "Nxf7 with a strong fork." },
-  { idx: 2, fixture: "01_mate_for_white_midgame", factIdPrefix: "I2", check: "tactical_keyword", span: "trapped", sentence: "Problem: Moving the knight to e7 leaves it with zero legal moves — it becomes completely trapped." },
-  { idx: 3, fixture: "01_mate_for_white_midgame", factIdPrefix: "I1", check: "tactical_keyword", span: "fork", sentence: "Nxf7 forking the queen and rook." },
-  { idx: 4, fixture: "01_mate_for_white_midgame", factIdPrefix: "I2", check: "tactical_keyword", span: "trapped", sentence: "The knight on e7 is immediately trapped with no legal moves, and Black's position becomes very cramped." },
+  { idx: 0, fixture: "01_mate_for_white_midgame", factIdPrefix: "M2", check: "tactical_keyword", span: "trapped", sentence: "- Black's knight on e7 is completely trapped with no legal moves." },
+  { idx: 1, fixture: "01_mate_for_white_midgame", factIdPrefix: "M1", check: "tactical_keyword", span: "fork", sentence: "Nxf7 with a strong fork." },
+  { idx: 2, fixture: "01_mate_for_white_midgame", factIdPrefix: "M2", check: "tactical_keyword", span: "trapped", sentence: "Problem: Moving the knight to e7 leaves it with zero legal moves — it becomes completely trapped." },
+  { idx: 3, fixture: "01_mate_for_white_midgame", factIdPrefix: "M1", check: "tactical_keyword", span: "fork", sentence: "Nxf7 forking the queen and rook." },
+  { idx: 4, fixture: "01_mate_for_white_midgame", factIdPrefix: "M2", check: "tactical_keyword", span: "trapped", sentence: "The knight on e7 is immediately trapped with no legal moves, and Black's position becomes very cramped." },
   { idx: 5, fixture: "02_mate_for_black", factIdPrefix: "M2", check: "tactical_keyword", span: "trapped", sentence: "Problem: The knight on c6 immediately becomes trapped — it has no good squares and the d6 pawn isn't going anywhere." },
   { idx: 6, fixture: "02_mate_for_black", factIdPrefix: "M1", check: "forbidden_claim", span: "dominating", sentence: "d5 — pushing the knight off c6 and dominating the center." },
   { idx: 7, fixture: "02_mate_for_black", factIdPrefix: "M2", check: "san_whitelist", span: "e3", sentence: "O-O Nf5, where the knight finds a much better square — pressuring the d6 pawn and eyeing e3." },

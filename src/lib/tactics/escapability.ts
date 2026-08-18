@@ -1,5 +1,5 @@
 import { Chess, type Square, type Color } from "chess.js";
-import { attackersOf, pieceValue, see } from "./utils";
+import { attackersOf, pieceValue, see, squareToCoord, coordToSquare, pawnAttackSquares, rawAttacks } from "./utils";
 import type { AnyMotif, ForkMotif, PinMotif, SkewerMotif, DiscoveredAttackMotif, RemovedDefenderMotif, Refutation } from "./types";
 
 // 2-ply forcing-move search: can the opponent immediately refute the tactic?
@@ -73,6 +73,75 @@ function confirmFork(
   return { confirmed: atLeastOneTrapped, refutation: null };
 }
 
+// Is `s` on the infinite line through `a` and `b`? `a` and `b` are known to sit
+// on a common rank, file or diagonal, so a zero cross-product against that
+// direction is an exact collinearity test.
+function isOnLineThrough(a: Square, b: Square, s: Square): boolean {
+  const [ax, ay] = squareToCoord(a);
+  const [bx, by] = squareToCoord(b);
+  const [sx, sy] = squareToCoord(s);
+  const dx = Math.sign(bx - ax);
+  const dy = Math.sign(by - ay);
+  return (sx - ax) * dy === (sy - ay) * dx;
+}
+
+// Every square the piece on `from` could move to by its movement pattern in
+// this position, respecting blockers but IGNORING king safety. Pseudo-legal on
+// purpose — see relativePinBinds.
+function pseudoLegalDestinations(game: Chess, from: Square): Square[] {
+  const piece = game.get(from);
+  if (!piece) return [];
+
+  if (piece.type === "p") {
+    const [fx, fy] = squareToCoord(from);
+    const dir = piece.color === "w" ? 1 : -1;
+    const out: Square[] = [];
+    const one = coordToSquare(fx, fy + dir);
+    if (one && !game.get(one)) {
+      out.push(one);
+      const startRank = piece.color === "w" ? 1 : 6;
+      const two = coordToSquare(fx, fy + 2 * dir);
+      if (fy === startRank && two && !game.get(two)) out.push(two);
+    }
+    const ep = game.fen().split(" ")[3];
+    for (const sq of pawnAttackSquares(from, piece.color)) {
+      const occupant = game.get(sq);
+      if ((occupant && occupant.color !== piece.color) || sq === ep) out.push(sq);
+    }
+    return out;
+  }
+
+  // For every other piece, the squares it attacks are the squares it moves to,
+  // minus those already holding a friend.
+  return rawAttacks(game, from).filter((sq) => game.get(sq)?.color !== piece.color);
+}
+
+/**
+ * Does a relative pin actually bind?
+ *
+ * A relative pin is a constraint, not a shape: it exists only if moving the
+ * pinned piece would expose the dearer piece behind it. Geometry alone is not
+ * enough — a pawn stacked between an enemy queen and its own rook on the same
+ * file is not pinned, because every pawn push stays on the file and keeps
+ * blocking. That single class accounted for most of the false pins the coach
+ * was narrating.
+ *
+ * Detection already guarantees the ray is clear from pinner to pinned and from
+ * pinned to behind, so ANY destination off that line exposes the piece behind.
+ * The test is therefore: can the pinned piece reach a square off the line?
+ *
+ * Reachability is deliberately PSEUDO-legal. Whether the pinned side happens to
+ * be in check right now is a fact about the position, not about the pin, and
+ * motifs are scanned on turn-flipped FENs where a check can be an artifact of
+ * the flip. Judging the pin on legal moves let an unrelated check erase a real
+ * pin (Bg4 pinning Nf3 to Qd1 is a pin whether or not White is in check).
+ */
+function relativePinBinds(gameAfter: Chess, motif: PinMotif): boolean {
+  return pseudoLegalDestinations(gameAfter, motif.pinned.square).some(
+    (dest) => !isOnLineThrough(motif.pinner.square, motif.behind.square, dest),
+  );
+}
+
 function confirmPin(
   gameAfter: Chess,
   motif: PinMotif,
@@ -81,7 +150,13 @@ function confirmPin(
   // Absolute pins: the pinned piece literally cannot legally move → always confirmed
   if (motif.kind === "absolute") return { confirmed: true, refutation: null };
 
-  // Relative pins: the pinned piece CAN move but exposes a higher-value piece
+  // Relative pins: only real if moving the pinned piece would actually expose
+  // the piece behind. A phantom pin is not "refuted" — it never existed — so
+  // it carries no refutation, it simply goes unconfirmed.
+  if (!relativePinBinds(gameAfter, motif)) {
+    return { confirmed: false, refutation: null };
+  }
+
   // Refuted if the pinned piece can ALSO check or capture the pinner
   const opponentColor: Color = movingColor === "w" ? "b" : "w";
   const { refuted, byMove } = opponentCanCaptureForFree(

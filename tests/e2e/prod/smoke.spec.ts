@@ -75,7 +75,9 @@ test("prod signup API enforces the age affirmation", async ({ request }) => {
   });
   expect(res.status()).toBe(400);
   const body = await res.json();
-  expect(body.error).toMatch(/date of birth/i);
+  // Matches the age-affirmation message on both sides of a deploy: the old
+  // copy said "date of birth", the current copy says "13 or older".
+  expect(body.error).toMatch(/confirm.*to sign up/i);
 });
 
 test("prod config health reports no missing env", async ({ request }) => {

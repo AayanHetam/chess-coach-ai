@@ -27,7 +27,9 @@ import {
 const mockEnv = vi.mocked(getTrackingEnv);
 const mockGetClient = vi.mocked(getTrackingSupabase);
 
-function fakeClient(insertResult: { error: { message: string } | null } = { error: null }) {
+function fakeClient(
+  insertResult: { error: { message: string } | null } = { error: null }
+) {
   const insert = vi.fn().mockResolvedValue(insertResult);
   const from = vi.fn().mockReturnValue({ insert });
   return { client: { from } as never, from, insert };
@@ -52,7 +54,10 @@ function card(over: Partial<EnforcedRefereeSummaryLike["cards"][number]> = {}) {
 }
 
 const summary: EnforcedRefereeSummaryLike = {
-  cards: [card(), card({ factIdPrefix: "M2", stage: "pass", errorsInitial: 0, findings: [] })],
+  cards: [
+    card(),
+    card({ factIdPrefix: "M2", stage: "pass", errorsInitial: 0, findings: [] }),
+  ],
   errorsInitialTotal: 1,
   warnsInitialTotal: 2,
   unanchoredBlocks: 1,
@@ -61,8 +66,6 @@ const summary: EnforcedRefereeSummaryLike = {
 
 const ctx: RefereeOutcomeContext = {
   consent: true,
-  uid: "u1",
-  anonId: "a1",
   isIntern: false,
   requestId: "req1",
   category: "game_review",
@@ -101,7 +104,12 @@ describe("recordEnforcedRefereeOutcome", () => {
   it("counts armed fires equal to referee fires (documented path invariant)", async () => {
     const { client, insert } = fakeClient();
     mockGetClient.mockResolvedValue(client);
-    await recordEnforcedRefereeOutcome({ summary, contractId: "c", correlationId: "x", ctx });
+    await recordEnforcedRefereeOutcome({
+      summary,
+      contractId: "c",
+      correlationId: "x",
+      ctx,
+    });
     const row = insert.mock.calls[0][0];
     // On this path the referee already ran WITH the arming table applied, so
     // the fires counted ARE the enforced ones.
@@ -121,7 +129,13 @@ describe("recordEnforcedRefereeOutcome", () => {
           card({ factIdPrefix: "M2" }),
           card({
             factIdPrefix: "M3",
-            findings: [{ check: "san_whitelist", category: "square_unknown", span: "on h9" }],
+            findings: [
+              {
+                check: "san_whitelist",
+                category: "square_unknown",
+                span: "on h9",
+              },
+            ],
           }),
         ],
       },
@@ -135,35 +149,23 @@ describe("recordEnforcedRefereeOutcome", () => {
     expect(row.relational_launched).toBe(3);
   });
 
-  it("records what the LADDER did, not just what the referee caught", async () => {
+  it("stores no findings, ladder excerpts, or identifiers", async () => {
     const { client, insert } = fakeClient();
     mockGetClient.mockResolvedValue(client);
-    await recordEnforcedRefereeOutcome({ summary, contractId: "c", correlationId: "x", ctx });
-    const row = insert.mock.calls[0][0];
-    // This is the enforced signal the shadow population cannot carry: the
-    // fabrication was caught AND the user never saw it, because the ladder
-    // dropped the sentence.
-    expect(row.spans[0]).toMatchObject({
-      check: "tactical_keyword",
-      factIdPrefix: "M1",
-      stage: "sentence_drop",
-    });
-  });
-
-  it("caps spans so one review cannot write an unbounded row", async () => {
-    const { client, insert } = fakeClient();
-    mockGetClient.mockResolvedValue(client);
-    const many = Array.from({ length: 60 }, (_, i) => card({ factIdPrefix: `M${i}` }));
     await recordEnforcedRefereeOutcome({
-      summary: { ...summary, cards: many },
+      summary,
       contractId: "c",
       correlationId: "x",
       ctx,
     });
-    expect(insert.mock.calls[0][0].spans).toHaveLength(40);
+    const row = insert.mock.calls[0][0];
+    expect(row.spans).toEqual([]);
+    expect(row).not.toHaveProperty("uid");
+    expect(row).not.toHaveProperty("anon_id");
+    expect(JSON.stringify(row)).not.toContain("forking the bishop");
   });
 
-  it("fails closed without consent — these spans are conversation content", async () => {
+  it("fails closed without consent", async () => {
     const { client, insert } = fakeClient();
     mockGetClient.mockResolvedValue(client);
     await recordEnforcedRefereeOutcome({
@@ -179,14 +181,24 @@ describe("recordEnforcedRefereeOutcome", () => {
     mockEnv.mockReturnValue({ enabled: false } as never);
     const { client, insert } = fakeClient();
     mockGetClient.mockResolvedValue(client);
-    await recordEnforcedRefereeOutcome({ summary, contractId: "c", correlationId: "x", ctx });
+    await recordEnforcedRefereeOutcome({
+      summary,
+      contractId: "c",
+      correlationId: "x",
+      ctx,
+    });
     expect(insert).not.toHaveBeenCalled();
   });
 
   it("never throws into the stream when the insert fails", async () => {
     mockGetClient.mockRejectedValue(new Error("supabase down"));
     await expect(
-      recordEnforcedRefereeOutcome({ summary, contractId: "c", correlationId: "x", ctx }),
+      recordEnforcedRefereeOutcome({
+        summary,
+        contractId: "c",
+        correlationId: "x",
+        ctx,
+      })
     ).resolves.toBeUndefined();
   });
 });
@@ -223,7 +235,7 @@ describe("zero-card reviews — the overview referee must be visible", () => {
     expect(row.referee_errors).toBe(2);
   });
 
-  it("records the overview's ladder stage as its own span", async () => {
+  it("does not store overview ladder details", async () => {
     const { client, insert } = fakeClient();
     mockGetClient.mockResolvedValue(client);
     await recordEnforcedRefereeOutcome({
@@ -232,9 +244,7 @@ describe("zero-card reviews — the overview referee must be visible", () => {
       correlationId: "x",
       ctx,
     });
-    expect(insert.mock.calls[0][0].spans).toContainEqual(
-      expect.objectContaining({ factIdPrefix: "overview", stage: "sentence_drop", armed: true }),
-    );
+    expect(insert.mock.calls[0][0].spans).toEqual([]);
   });
 
   it("a CLEAN overview is graded but contributes no errors", async () => {
@@ -249,21 +259,22 @@ describe("zero-card reviews — the overview referee must be visible", () => {
     const row = insert.mock.calls[0][0];
     expect(row.matched).toBe(1);
     expect(row.armed_errors).toBe(0);
-    expect(row.spans).toContainEqual(
-      expect.objectContaining({ factIdPrefix: "overview", armed: false }),
-    );
+    expect(row.spans).toEqual([]);
   });
 
   it("a carded review is unaffected — overviewOutcome is null there", async () => {
     const { client, insert } = fakeClient();
     mockGetClient.mockResolvedValue(client);
-    await recordEnforcedRefereeOutcome({ summary, contractId: "c", correlationId: "x", ctx });
+    await recordEnforcedRefereeOutcome({
+      summary,
+      contractId: "c",
+      correlationId: "x",
+      ctx,
+    });
     const row = insert.mock.calls[0][0];
     expect(row.matched).toBe(2);
     expect(row.armed_errors).toBe(1);
-    expect(row.spans.some((s: { factIdPrefix: string }) => s.factIdPrefix === "overview")).toBe(
-      false,
-    );
+    expect(row.spans).toEqual([]);
   });
 });
 

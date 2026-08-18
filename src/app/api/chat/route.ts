@@ -1,5 +1,4 @@
 import { Chess } from "chess.js";
-import { hasTrackingConsent } from "@/lib/tracking/consent";
 import { NextRequest, NextResponse } from "next/server";
 import {
   getAnalysisContext,
@@ -14,16 +13,13 @@ import {
   callLLM,
   callLLMStream,
   LLMError,
+  PUBLIC_LLM_ERROR,
+  toSafeLLMError,
   type LLMMessage,
 } from "@/lib/llmProvider";
 import { recordLLMCall } from "@/lib/llmStatsAggregator";
 import { requireSession } from "@/lib/auth/session";
-import { gateFeature } from "@/lib/billing/gate";
-import {
-  logger,
-  logErrorToSentry,
-  extractRequestId,
-} from "@/lib/logging";
+import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
 // ── Stage B (PR 1.C) Mastermind validator pipeline imports ──────────
 // All flag-gated by getMastermindEnv().validatorsEnabled. Flag-off path
 // remains byte-identical to today.
@@ -55,9 +51,6 @@ const log = logger.child({ module: "chat" });
  * 2. **Without contextId** (fallback): Plain passthrough to OpenAI, same as before.
  */
 export async function POST(request: NextRequest) {
-  // Conversation capture is consent-gated (privacy policy: AI-conversation
-  // records are stored only with consent). Resolved once per request.
-  const trackingConsent = hasTrackingConsent(request);
   const guard = await requireSession();
   if ("response" in guard) return guard.response;
   // Same `reportFatal` helper as /api/enhanced-analysis: fire a structured
@@ -84,12 +77,6 @@ export async function POST(request: NextRequest) {
 
     const parsed = validateRequest(chatSchema, body);
     if (!parsed.success) return parsed.response;
-    // Gate AFTER validation so a malformed request doesn't burn the free-tier
-    // allowance. Re-checked every call (no tier in the contextId cache key).
-    const gate = await gateFeature(guard.session.uid, "coach_chat", {
-      surface: "coach_chat",
-    });
-    if (!gate.ok) return gate.response;
     const {
       messages,
       contextId,
@@ -108,7 +95,10 @@ export async function POST(request: NextRequest) {
       if (!context) {
         // Context expired or not found — tell client to fall back to full analysis
         return NextResponse.json(
-          { error: "context_expired", message: "Analysis context expired. Re-analyzing." },
+          {
+            error: "context_expired",
+            message: "Analysis context expired. Re-analyzing.",
+          },
           { status: 404 }
         );
       }
@@ -150,7 +140,9 @@ export async function POST(request: NextRequest) {
       try {
         const boardFacts = buildFenPositionFacts(activeFen);
         const relational = buildRelationalFacts(activeFen);
-        perTurnFacts = [boardFacts, relational.summary].filter(Boolean).join("\n\n");
+        perTurnFacts = [boardFacts, relational.summary]
+          .filter(Boolean)
+          .join("\n\n");
       } catch {
         // oracle failure — proceed without per-turn facts (legacy behavior)
       }
@@ -166,8 +158,13 @@ export async function POST(request: NextRequest) {
         ? renderContractCompact(context.compactContract)
         : "";
 
-      const cachedSystemPrompt = context.systemPromptStable ?? context.systemPrompt;
-      const condensedContext = [buildCondensedContext(context), contractBlock, perTurnFacts]
+      const cachedSystemPrompt =
+        context.systemPromptStable ?? context.systemPrompt;
+      const condensedContext = [
+        buildCondensedContext(context),
+        contractBlock,
+        perTurnFacts,
+      ]
         .filter(Boolean)
         .join("\n\n");
       const uncachedSuffix = context.systemPromptStable
@@ -238,7 +235,9 @@ export async function POST(request: NextRequest) {
       // unchanged (handled outside this block).
       if (validatorsEnabled) {
         const playerPerspective: "white" | "black" =
-          (context.playerColor === "b" || context.playerColor === "black") ? "black" : "white";
+          context.playerColor === "b" || context.playerColor === "black"
+            ? "black"
+            : "white";
         // Anchor the pipeline to the viewed ply when the client supplies
         // moveIndex (position after half-move k = gameEval.positions[k], so
         // slicing the history to k keeps eval indexing aligned). Without it,
@@ -317,19 +316,22 @@ export async function POST(request: NextRequest) {
                 timeoutMs: readPipelineTimeoutMs(prep.category),
                 fallbackResponse:
                   "Still thinking — the deep-validation pass took longer than expected. Try asking again.",
-              },
+              }
             );
           } catch (err) {
             const e = err instanceof LLMError ? err : new Error(String(err));
-            log.error("Mastermind pipeline failed for chat", { message: e.message });
+            log.error("Mastermind pipeline failed for chat", {
+              message: e.message,
+            });
             reportFatal(err, "non-stream:mastermind-pipeline");
             return NextResponse.json(
-              { error: `LLM API error: ${e.message}` },
-              { status: 502 },
+              { error: PUBLIC_LLM_ERROR.message, code: PUBLIC_LLM_ERROR.code },
+              { status: 502 }
             );
           }
 
-          const rawContent = pipelineResult.finalResponse || "I couldn't generate a response.";
+          const rawContent =
+            pipelineResult.finalResponse || "I couldn't generate a response.";
           const validation = validateAIResponse(rawContent, activeFen);
 
           forwardPipelineTelemetryForRoute({
@@ -407,24 +409,16 @@ export async function POST(request: NextRequest) {
           temperature: 0.7,
           maxTokens: 3000,
           cacheSystem: true,
-          capture: {
-            feature: "chat",
-            consent: trackingConsent,
-            uid: guard.session.uid,
-            isIntern: guard.session.isIntern,
-            fen: activeFen,
-            props: { path: "fast", contextId: contextId ?? null },
-          },
         });
       } catch (err) {
-        const e = err instanceof LLMError ? err : new Error(String(err));
+        const e = toSafeLLMError(err);
         console.error("LLM chat call failed:", e.message);
-        reportFatal(err, "non-stream:fast-path", {
+        reportFatal(e, "non-stream:fast-path", {
           provider: e instanceof LLMError ? e.provider : undefined,
           status: e instanceof LLMError ? e.status : undefined,
         });
         return NextResponse.json(
-          { error: `LLM API error: ${e.message}` },
+          { error: PUBLIC_LLM_ERROR.message, code: PUBLIC_LLM_ERROR.code },
           { status: 502 }
         );
       }
@@ -436,7 +430,9 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         gameAnalysis: {
-          analysis: validation.isValid ? rawContent : validation.correctedResponse,
+          analysis: validation.isValid
+            ? rawContent
+            : validation.correctedResponse,
           position: activeFen,
           validationScore: validation.score,
           cached: false,
@@ -459,7 +455,9 @@ export async function POST(request: NextRequest) {
       .map((m: { content: string }) => m.content)
       .join("\n\n");
     const fallbackMessages: LLMMessage[] = messages
-      .filter((m: { role: string }) => m.role === "user" || m.role === "assistant")
+      .filter(
+        (m: { role: string }) => m.role === "user" || m.role === "assistant"
+      )
       .map((m: { role: string; content: string }) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
@@ -468,8 +466,7 @@ export async function POST(request: NextRequest) {
     // Opt-in SSE streaming. When ?stream=1 is set on the URL, the fallback
     // path streams text deltas from Anthropic (or falls back to OpenAI as a
     // single-chunk pseudo-stream). Existing JSON callers unaffected.
-    const wantsStream =
-      request.nextUrl.searchParams.get("stream") === "1";
+    const wantsStream = request.nextUrl.searchParams.get("stream") === "1";
 
     const fbCallOptions = {
       tier: "fast" as const,
@@ -483,13 +480,6 @@ export async function POST(request: NextRequest) {
       // is a user-facing failure in single-provider mode (audit §3.8).
       temperature: Math.max(0, Math.min(1, parsed.data.temperature ?? 0.7)),
       maxTokens: parsed.data.max_tokens ?? 3000,
-      capture: {
-        feature: "chat",
-        consent: trackingConsent,
-        uid: guard.session.uid,
-        isIntern: guard.session.isIntern,
-        props: { path: "fallback" },
-      },
     };
 
     if (wantsStream) {
@@ -508,12 +498,12 @@ export async function POST(request: NextRequest) {
             }
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            console.error("LLM stream call failed:", msg);
-            reportFatal(err, "stream:fallback");
+            const e = toSafeLLMError(err);
+            console.error("LLM stream call failed:", e.message);
+            reportFatal(e, "stream:fallback");
             controller.enqueue(
               encoder.encode(
-                `data: ${JSON.stringify({ type: "error", error: msg })}\n\n`
+                `data: ${JSON.stringify({ type: "error", error: PUBLIC_LLM_ERROR.message, code: PUBLIC_LLM_ERROR.code })}\n\n`
               )
             );
           } finally {
@@ -535,14 +525,14 @@ export async function POST(request: NextRequest) {
     try {
       fbResult = await callLLM(fbCallOptions);
     } catch (err) {
-      const e = err instanceof LLMError ? err : new Error(String(err));
+      const e = toSafeLLMError(err);
       console.error("LLM fallback call failed:", e.message);
-      reportFatal(err, "non-stream:fallback", {
+      reportFatal(e, "non-stream:fallback", {
         provider: e instanceof LLMError ? e.provider : undefined,
         status: e instanceof LLMError ? e.status : undefined,
       });
       return NextResponse.json(
-        { error: `LLM API error: ${e.message}` },
+        { error: PUBLIC_LLM_ERROR.message, code: PUBLIC_LLM_ERROR.code },
         { status: 502 }
       );
     }

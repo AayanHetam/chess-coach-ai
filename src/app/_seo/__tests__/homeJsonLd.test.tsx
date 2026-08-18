@@ -32,9 +32,9 @@ const renderHomeJsonLd = () =>
           key: (node as { "@id": string })["@id"],
           type: "application/ld+json",
           dangerouslySetInnerHTML: { __html: JSON.stringify(node) },
-        }),
-      ),
-    ),
+        })
+      )
+    )
   );
 
 describe("homepage JSON-LD @id graph", () => {
@@ -60,18 +60,30 @@ describe("homepage JSON-LD @id graph", () => {
 
   it("carries exactly one Organization node and one WebSite node", () => {
     expect(
-      homePageJsonLd.filter((n) => (n as { "@type": string })["@type"] === "Organization"),
+      homePageJsonLd.filter(
+        (n) => (n as { "@type": string })["@type"] === "Organization"
+      )
     ).toHaveLength(1);
     expect(
-      homePageJsonLd.filter((n) => (n as { "@type": string })["@type"] === "WebSite"),
+      homePageJsonLd.filter(
+        (n) => (n as { "@type": string })["@type"] === "WebSite"
+      )
     ).toHaveLength(1);
   });
 
   it("has a SoftwareApplication node whose @id is the shared SOFTWARE_APP_ID", () => {
     const app = homePageJsonLd.find(
-      (n) => (n as { "@type": string })["@type"] === "SoftwareApplication",
+      (n) => (n as { "@type": string })["@type"] === "SoftwareApplication"
     ) as { "@id": string } | undefined;
     expect(app).toBeDefined();
     expect(app?.["@id"]).toBe(SOFTWARE_APP_ID);
+  });
+
+  it("contains no Chess Masti price or Offer schema", () => {
+    const json = JSON.stringify(homePageJsonLd);
+    expect(json).not.toContain('"offers"');
+    expect(json).not.toContain('"price"');
+    expect(json).not.toContain('"priceCurrency"');
+    expect(json).not.toContain('"Offer"');
   });
 });

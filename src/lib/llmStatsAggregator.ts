@@ -46,7 +46,6 @@ export interface LLMModelTotals extends LLMProviderTotals {
 export interface FallbackEvent {
   primaryProvider: string;
   status?: number;
-  message: string;
   /** Wall-clock time of the fallback in ms since epoch. */
   at: number;
 }
@@ -138,7 +137,7 @@ export function recordLLMCall(stats: {
    * here so a sustained fallback condition surfaces on the dashboard
    * without anyone having to scrape Vercel logs.
    */
-  primaryError?: { provider: string; status?: number; message: string };
+  primaryError?: { provider: string; status?: number; code: string };
 }): void {
   const p = ensureProvider(stats.provider);
   p.callCount += 1;
@@ -161,9 +160,6 @@ export function recordLLMCall(stats: {
     lastFallback = {
       primaryProvider: stats.primaryError.provider,
       status: stats.primaryError.status,
-      // Cap stored message length so a runaway provider error doesn't
-      // bloat the in-memory snapshot.
-      message: stats.primaryError.message.slice(0, 300),
       at: Date.now(),
     };
   }

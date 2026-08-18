@@ -85,7 +85,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   deletedOrder.length = 0;
   mockGetDb.mockResolvedValue(makeDb(FIXTURE));
-  mockPurge.mockResolvedValue({ uid: "u1", deleted: { events: 4 }, errors: [] });
+  mockPurge.mockResolvedValue({
+    uid: "u1",
+    deleted: { events: 4 },
+    errors: [],
+  });
 });
 
 describe("planUserDeletion — read-only survey", () => {
@@ -97,7 +101,9 @@ describe("planUserDeletion — read-only survey", () => {
 
   it("counts every surface, including nested chat messages", async () => {
     const plan = await planUserDeletion("u1");
-    const by = Object.fromEntries(plan.surfaces.map((s) => [s.surface, s.count]));
+    const by = Object.fromEntries(
+      plan.surfaces.map((s) => [s.surface, s.count])
+    );
     expect(by["users/{uid}/games"]).toBe(3);
     expect(by["users/{uid}/chats"]).toBe(2);
     // The one most easily missed by hand: messages live UNDER each chat.
@@ -125,7 +131,9 @@ describe("executeUserDeletion", () => {
   it("deletes nested messages before the chats that own them", async () => {
     await executeUserDeletion("u1");
     const firstChat = deletedOrder.findIndex((p) => /chats\/c\d$/.test(p));
-    const lastMessage = deletedOrder.map((p) => /messages\//.test(p)).lastIndexOf(true);
+    const lastMessage = deletedOrder
+      .map((p) => /messages\//.test(p))
+      .lastIndexOf(true);
     expect(lastMessage).toBeLessThan(firstChat);
   });
 
@@ -148,6 +156,6 @@ describe("executeUserDeletion", () => {
     expect(UNTOUCHED_SURFACES.length).toBeGreaterThan(0);
     const all = UNTOUCHED_SURFACES.join(" ");
     expect(all).toMatch(/cmip_applications/);
-    expect(all).toMatch(/Stripe/);
+    expect(all).not.toMatch(/Stripe|billing|promo-code/i);
   });
 });

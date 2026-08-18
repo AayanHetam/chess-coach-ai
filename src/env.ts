@@ -70,7 +70,8 @@ export function getAuthEnv() {
     cmip: {
       fromEmail: process.env.CMIP_FROM_EMAIL ?? "noreply@chessmasti.com",
       adminEmail: process.env.CMIP_ADMIN_EMAIL,
-      contactEmail: process.env.CMIP_CONTACT_EMAIL ?? "applications@chessmasti.com",
+      contactEmail:
+        process.env.CMIP_CONTACT_EMAIL ?? "applications@chessmasti.com",
       // Personal email of the human admin who can reach /admin/intern-data.
       // Distinct from `adminEmail` (which is the role-mailbox recipient for
       // application notifications). Resolved 2026-05-17: aayanhetamsaria4@gmail.com.
@@ -118,7 +119,7 @@ export function getMastermindEnv(): { validatorsEnabled: boolean } {
   if (cachedMastermindEnv) return cachedMastermindEnv;
   cachedMastermindEnv = {
     validatorsEnabled: parseMastermindFlag(
-      process.env.MASTERMIND_VALIDATORS_ENABLED,
+      process.env.MASTERMIND_VALIDATORS_ENABLED
     ),
   };
   return cachedMastermindEnv;
@@ -208,8 +209,8 @@ export function parseContractCategories(raw: string | undefined): string[] {
       raw
         .split(",")
         .map((s) => s.trim().toLowerCase())
-        .filter((s) => s.length > 0),
-    ),
+        .filter((s) => s.length > 0)
+    )
   );
 }
 
@@ -237,9 +238,14 @@ export function parseContractUids(raw: string | undefined): string[] {
     new Set(
       raw
         .split(/[,\n\r\t]+/)
-        .map((s) => s.trim().replace(/^["']|["']$/g, "").trim())
-        .filter((s) => s.length > 0),
-    ),
+        .map((s) =>
+          s
+            .trim()
+            .replace(/^["']|["']$/g, "")
+            .trim()
+        )
+        .filter((s) => s.length > 0)
+    )
   );
 }
 
@@ -247,7 +253,9 @@ let cachedContractEnv: ContractEnv | undefined;
 
 export function getContractEnv(): ContractEnv {
   if (cachedContractEnv) return cachedContractEnv;
-  const modeRaw = (process.env.CONTRACT_REFEREE_MODE ?? "").trim().toLowerCase();
+  const modeRaw = (process.env.CONTRACT_REFEREE_MODE ?? "")
+    .trim()
+    .toLowerCase();
   const granularityRaw = (process.env.CONTRACT_CITATION_GRANULARITY ?? "")
     .trim()
     .toLowerCase();
@@ -257,7 +265,8 @@ export function getContractEnv(): ContractEnv {
     categories: parseContractCategories(process.env.CONTRACT_CATEGORIES),
     uids: parseContractUids(process.env.CONTRACT_UIDS),
     refereeMode: modeRaw === "deterministic" ? "deterministic" : "full",
-    citationGranularity: granularityRaw === "paragraph" ? "paragraph" : "sentence",
+    citationGranularity:
+      granularityRaw === "paragraph" ? "paragraph" : "sentence",
   };
   return cachedContractEnv;
 }
@@ -322,7 +331,8 @@ export function assertTrackingSecrets(): void {
   const env = getTrackingEnv();
   const missing: string[] = [];
   if (!env.supabase.url) missing.push("TRACKING_SUPABASE_URL");
-  if (!env.supabase.serviceRoleKey) missing.push("TRACKING_SUPABASE_SERVICE_ROLE_KEY");
+  if (!env.supabase.serviceRoleKey)
+    missing.push("TRACKING_SUPABASE_SERVICE_ROLE_KEY");
   if (missing.length) {
     throw new Error(`Missing required tracking env: ${missing.join(", ")}`);
   }
@@ -333,16 +343,21 @@ export function assertTrackingSecrets(): void {
  * Call from auth route handlers, NOT module-load. The route then 503s
  * with a loud server log instead of crashing the whole app.
  */
-export function assertAuthSecrets(opts: {
-  needsSession?: boolean;
-  needsAdmin?: boolean;
-  needsGoogle?: boolean;
-  needsEmail?: boolean;
-  needsSupabase?: boolean;
-} = {}): void {
+export function assertAuthSecrets(
+  opts: {
+    needsSession?: boolean;
+    needsAdmin?: boolean;
+    needsGoogle?: boolean;
+    needsEmail?: boolean;
+    needsSupabase?: boolean;
+  } = {}
+): void {
   const env = getAuthEnv();
   const missing: string[] = [];
-  if (opts.needsSession && (!env.session.secret || env.session.secret.length < 32)) {
+  if (
+    opts.needsSession &&
+    (!env.session.secret || env.session.secret.length < 32)
+  ) {
     missing.push("SESSION_SECRET (≥32 chars)");
   }
   if (opts.needsAdmin) {
@@ -369,51 +384,5 @@ export function assertAuthSecrets(opts: {
   }
   if (missing.length) {
     throw new Error(`Missing required auth env: ${missing.join(", ")}`);
-  }
-}
-
-/**
- * Billing / pricing-pivot env (Stripe + freemium flag). All optional so an
- * unconfigured deploy stays inert: with FREEMIUM_ENABLED unset/false, gating is
- * a no-op (every user treated as premium) and the Stripe routes 503 loudly via
- * assertStripeSecrets() rather than crashing boot. Read via functions (matches
- * getAuthEnv/getTrackingEnv) so tests can flip vars without cache fighting.
- *
- * Mind the trailing-\n gotcha on FREEMIUM_ENABLED — parseBoolEnv trims it.
- */
-export function getBillingEnv() {
-  return {
-    freemiumEnabled: parseBoolEnv(process.env.FREEMIUM_ENABLED),
-    appBaseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
-  };
-}
-
-export function getStripeEnv() {
-  return {
-    secretKey: process.env.STRIPE_SECRET_KEY,
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-    priceId: process.env.STRIPE_PRICE_ID,
-    publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
-  };
-}
-
-/**
- * Throw early if required Stripe secrets are missing. Call from the Stripe
- * route handlers (checkout/webhook/portal), NOT module-load, so a deploy
- * without keys degrades to a loud 503 on those routes instead of crashing the
- * whole app and taking the free tier down with it.
- */
-export function assertStripeSecrets(
-  opts: { needsWebhook?: boolean } = {},
-): void {
-  const env = getStripeEnv();
-  const missing: string[] = [];
-  if (!env.secretKey) missing.push("STRIPE_SECRET_KEY");
-  if (!env.priceId) missing.push("STRIPE_PRICE_ID");
-  if (opts.needsWebhook && !env.webhookSecret) {
-    missing.push("STRIPE_WEBHOOK_SECRET");
-  }
-  if (missing.length) {
-    throw new Error(`Missing required Stripe env: ${missing.join(", ")}`);
   }
 }

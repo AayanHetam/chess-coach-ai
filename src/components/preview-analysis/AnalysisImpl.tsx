@@ -1,7 +1,10 @@
 "use client";
 
 import { Chess, type Move } from "chess.js";
-import { triggerPaywall } from "@/contexts/PaywallDialogContext";
+import {
+  ANALYSIS_HANDOFF_PARAM,
+  consumeStagedGame,
+} from "@/lib/analysis/handoff";
 import {
   Box,
   Button,
@@ -12,8 +15,9 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MasterGamesTakeover,
@@ -50,6 +54,7 @@ import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
 import {
   Activity,
+  AlertTriangle,
   ArrowLeft,
   BookOpen,
   Check,
@@ -62,7 +67,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Command,
-  Crown,
   Eye,
   Flame,
   GitBranch,
@@ -74,7 +78,7 @@ import {
   Share2,
   ShieldCheck,
   Sparkles,
-  TrendingUp,
+  Target,
   Zap,
 } from "lucide-react";
 import {
@@ -99,6 +103,24 @@ import {
   type CommandGroup,
 } from "@/components/ui/CommandPalette";
 import { useEngine } from "@/hooks/useEngine";
+import { isWasmSupported } from "@/lib/engine/shared";
+import { TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
+import {
+  toPuzzleContexts,
+  pickPracticeTheme,
+  toStoreTheme,
+  isThemeAvailable,
+  makeSetId,
+  type PuzzleSet,
+} from "@/lib/analysis/puzzleHandoff";
+import {
+  puzzlePracticeQueueAtom,
+  puzzlePracticeLabelAtom,
+} from "@/lib/puzzleSession";
+import {
+  pickDisplayEval,
+  satisfiesRequest,
+} from "@/lib/engine/pickDisplayEval";
 import { EngineName, MoveClassification } from "@/types/enums";
 import type { PositionEval, LineEval } from "@/types/eval";
 import { getMovesClassification } from "@/lib/engine/helpers/moveClassification";
@@ -107,6 +129,8 @@ import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useViewer } from "@/hooks/useViewer";
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { buildAnalysisRequestBody } from "@/lib/coach/analysisRequestBody";
+import { buildChatRequestBody } from "@/lib/coach/chatRequestBody";
+import { buildConversationHistory } from "@/lib/coach/conversationHistory";
 import type { GameEval } from "@/types/eval";
 import { FlagButton } from "@/components/intern/FlagButton";
 import {
@@ -117,18 +141,17 @@ import {
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import {
-  parseInsights,
-  type InsightData,
-} from "@/components/AICoachInsights";
-import {
-  recordPuzzleAttempt,
-  getAllAttempts,
-} from "@/lib/repetitTraining";
+import { parseInsights, type InsightData } from "@/components/AICoachInsights";
+import { recordPuzzleAttempt, getAllAttempts } from "@/lib/repetitTraining";
 import { useAtomValue, useSetAtom } from "jotai";
 import { savedEvalsAtom } from "@/sections/analysis/states";
 import type { SavedEvals } from "@/types/eval";
-import { getEvaluateGameParams, getEvaluationBarValue } from "@/lib/chess";
+import {
+  getEvaluateGameParams,
+  getEvaluationBarValue,
+  getRootFen,
+  replayFromRoot,
+} from "@/lib/chess";
 import { detectOpening } from "@/lib/unifiedOpeningDetector";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
@@ -179,58 +202,24 @@ const analysisTheme = createTheme({
 });
 
 // ───────────────────────────────────────────────────────────────────────────────
-// Pre-loaded demo game — Kasparov vs Topalov, Wijk aan Zee 1999
-// "Kasparov's Immortal" — picked for dramatic eval swings + brilliancies
+// Cold start
 // ───────────────────────────────────────────────────────────────────────────────
+//
+// /analysis opens on an EMPTY board. It used to open on a hand-curated
+// Kasparov–Topalov 1999 demo, which brought with it a whole shadow set of
+// hardcoded, ply-indexed data — a mock eval curve, seven authored "key
+// moments", an ENGINE_BEST table and a Maia move table. All of it was keyed by
+// ply number, not position, so every one of them rendered confidently WRONG
+// data the moment a user loaded their own game. Removing the demo removes the
+// entire class. Everything on the page now derives from the loaded game, and
+// with no game loaded the page says so.
 
-const DEMO_PGN = `[Event "Hoogovens Group A"]
-[Site "Wijk aan Zee NED"]
-[Date "1999.01.20"]
-[White "Garry Kasparov"]
-[Black "Veselin Topalov"]
-[Result "1-0"]
-[Opening "Pirc Defense, Austrian Attack"]
-
-1. e4 d6 2. d4 Nf6 3. Nc3 g6 4. Be3 Bg7 5. Qd2 c6 6. f3 b5 7. Nge2 Nbd7 8. Bh6 Bxh6 9. Qxh6 Bb7 10. a3 e5 11. O-O-O Qe7 12. Kb1 a6 13. Nc1 O-O-O 14. Nb3 exd4 15. Rxd4 c5 16. Rd1 Nb6 17. g3 Kb8 18. Na5 Ba8 19. Bh3 d5 20. Qf4+ Ka7 21. Rhe1 d4 22. Nd5 Nbxd5 23. exd5 Qd6 24. Rxd4 cxd4 25. Re7+ Kb6 26. Qxd4+ Kxa5 27. b4+ Ka4 28. Qc3 Qxd5 29. Ra7 Bb7 30. Rxb7 Qc4 31. Qxf6 Kxa3 32. Qxa6+ Kxb4 33. c3+ Kxc3 34. Qa1+ Kd2 35. Qb2+ Kd1 36. Bf1 Rd2 37. Rd7 Rxd7 38. Bxc4 bxc4 39. Qxh8 Rd3 40. Qa8 c3 41. Qa4+ Ke1 42. f4 f5 43. Kc1 Rd2 44. Qa7 1-0`;
-
-// Mock eval data — plausible curve for the Kasparov game (rises, dips during
-// the rook sac at move 24, then climbs to mate). Replaces real Stockfish for
-// this demo. Values are cp/100 from White's perspective.
-function buildMockEval(plyCount: number): number[] {
-  const arr: number[] = [];
-  for (let i = 0; i < plyCount; i++) {
-    let v: number;
-    if (i < 10) v = Math.sin(i * 0.4) * 0.25;
-    else if (i < 22) v = 0.4 + Math.sin(i * 0.6) * 0.35;
-    else if (i < 36) v = 1.0 + Math.sin(i * 0.5) * 0.8 + i * 0.04;
-    else if (i < 48) {
-      // Rook sac dip — eval looks scary for a moment then resolves
-      const t = (i - 36) / 12;
-      v = 2.5 + Math.sin(t * Math.PI) * 1.5 + Math.sin(i * 0.3) * 0.5;
-    } else if (i < 60) v = 3.5 + (i - 48) * 0.3 + Math.sin(i * 0.2) * 0.4;
-    else v = Math.min(15, 7 + (i - 60) * 0.4);
-    arr.push(Number(v.toFixed(2)));
-  }
-  return arr;
-}
-
-// Key moments — manually authored against the actual game. In production
-// these come from move classification (mistake/blunder/brilliancy detection).
+// Key moments are derived from move classification (see `liveKeyMoments`).
 interface KeyMoment {
   ply: number;
   label: string;
   kind: "opening" | "mistake" | "brilliant" | "winning" | "neutral";
 }
-
-const KEY_MOMENTS: KeyMoment[] = [
-  { ply: 14, label: "8.Bh6 — sharp trade", kind: "neutral" },
-  { ply: 26, label: "13...O-O-O — castling long", kind: "neutral" },
-  { ply: 36, label: "18.Na5! — eyes on the king", kind: "brilliant" },
-  { ply: 47, label: "24.Rxd4‼ — the rook sac", kind: "brilliant" },
-  { ply: 53, label: "27.b4+! — king hunt", kind: "brilliant" },
-  { ply: 67, label: "34.Qa1+ — net closes", kind: "winning" },
-  { ply: 87, label: "44.Qa7 1-0", kind: "winning" },
-];
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Move classification — chess.com-style win% delta thresholds, computed from
@@ -314,65 +303,6 @@ function classifyMove(
 // (e.g. a heatmap overlay) doesn't have to re-import. Calling it has no
 // side effects so this is just a soft tree-shake hint.
 void getPositionWinPercentage;
-
-// ───────────────────────────────────────────────────────────────────────────────
-// Mock arrow data per ply — Engine best + Maia at various ELO ranges.
-// Plies are 0-indexed from the start of the game (ply 0 = before any moves).
-// uci format = "fromsq + tosq" e.g. "e2e4".
-// Real wiring would source these from Stockfish + the Maia microservice.
-// ───────────────────────────────────────────────────────────────────────────────
-
-const ENGINE_BEST: Record<number, string> = {
-  0: "e2e4",
-  1: "c7c5",
-  2: "g1f3",
-  3: "d7d6",
-  4: "d2d4",
-  5: "g7g6",
-  6: "c1e3",
-  7: "f8g7",
-  8: "d1d2",
-  9: "c7c6",
-  10: "f2f3",
-  11: "b7b5",
-  12: "g1e2",
-  13: "b8d7",
-  14: "e3h6",
-};
-
-// G8: real Maia is wired via /api/maia-predict. The hand-curated
-// MAIA_MOVES table below is the cold-start fallback for the Kasparov
-// demo (so the arrow shows immediately while the API request is in
-// flight, and stays useful if MAIA_API_URL is unconfigured at runtime).
-const MAIA_MOVES: Record<number, Record<number, string>> = {
-  0: { 1100: "e2e4", 1500: "e2e4", 1800: "d2d4", 2200: "g1f3" },
-  1: { 1100: "e7e5", 1500: "e7e5", 1800: "c7c5", 2200: "d7d6" },
-  2: { 1100: "f1c4", 1500: "g1f3", 1800: "d2d4", 2200: "g1f3" },
-  3: { 1100: "g7g6", 1500: "g8f6", 1800: "g8f6", 2200: "g8f6" },
-  4: { 1100: "f1c4", 1500: "b1c3", 1800: "b1c3", 2200: "b1c3" },
-  5: { 1100: "f8g7", 1500: "g7g6", 1800: "g7g6", 2200: "g7g6" },
-  6: { 1100: "f2f4", 1500: "f2f4", 1800: "c1e3", 2200: "c1e3" },
-  7: { 1100: "e8g8", 1500: "f8g7", 1800: "f8g7", 2200: "f8g7" },
-  8: { 1100: "g1f3", 1500: "d1d2", 1800: "d1d2", 2200: "d1d2" },
-  9: { 1100: "e8g8", 1500: "c7c6", 1800: "c7c6", 2200: "c7c6" },
-  10: { 1100: "g1f3", 1500: "h2h3", 1800: "f2f3", 2200: "f2f3" },
-};
-
-function findMaiaMoveFromTable(ply: number, elo: number): string | undefined {
-  const map = MAIA_MOVES[ply];
-  if (!map) return undefined;
-  const elos = Object.keys(map).map(Number).sort((a, b) => a - b);
-  let closest = elos[0];
-  let minDiff = Math.abs(elo - elos[0]);
-  for (const e of elos) {
-    const diff = Math.abs(elo - e);
-    if (diff < minDiff) {
-      closest = e;
-      minDiff = diff;
-    }
-  }
-  return map[closest];
-}
 
 function uciToShape(uci: string, brush: string): DrawShape {
   return { orig: uci.slice(0, 2), dest: uci.slice(2, 4), brush };
@@ -552,6 +482,18 @@ async function streamCoachReply(params: {
    *  and merges the persona's tone-and-style block into the prompt. */
   personalityId?: string;
   onDelta: (chunk: string) => void;
+  /**
+   * D1: fired when the server shipped a CORRECTED analysis. The caller must
+   * replace the streamed text with it, otherwise the raw (uncorrected) copy is
+   * what gets replayed to the model on the next turn as its own last word.
+   */
+  onCorrected?: (correctedText: string) => void;
+  /**
+   * D4: fired when the stream ended without a `done` event. The caller must
+   * mark the message `incomplete` so it renders as truncated and is kept out
+   * of conversationHistory.
+   */
+  onTruncated?: () => void;
   signal?: AbortSignal;
 }): Promise<string> {
   const {
@@ -573,15 +515,14 @@ async function streamCoachReply(params: {
     lichessUsername,
     personalityId,
     onDelta,
+    onCorrected,
+    onTruncated,
     signal,
   } = params;
 
-  const conversationHistory = prevMessages
-    .filter((m) => m.role === "user" || m.role === "coach")
-    .map((m) => ({
-      role: m.role === "coach" ? ("assistant" as const) : ("user" as const),
-      content: m.content,
-    }));
+  // Group D: synthetic (UI-authored) and incomplete (truncated) turns are
+  // filtered out here, in the ONE place history is assembled.
+  const conversationHistory = buildConversationHistory(prevMessages);
 
   const hasContext =
     contextIdRef.current !== null &&
@@ -593,11 +534,18 @@ async function streamCoachReply(params: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({
-        contextId: contextIdRef.current,
-        userMessage: userText,
-        conversationHistory,
-      }),
+      body: JSON.stringify(
+        // B1 (SILENT_SUBSTITUTION_HANDOFF §3 Group B): assembled by the shared
+        // builder so the "forward the board the user is actually looking at"
+        // contract is unit-tested against the code that ships.
+        buildChatRequestBody({
+          contextId: contextIdRef.current!,
+          userMessage: userText,
+          conversationHistory,
+          fen,
+          currentPly,
+        })
+      ),
       signal,
     });
     if (chatRes.status === 404) {
@@ -605,18 +553,12 @@ async function streamCoachReply(params: {
       contextIdRef.current = null;
     } else if (chatRes.status === 401) {
       throw new CoachAuthError();
-    } else if (chatRes.status === 402) {
-      triggerPaywall({ feature: "AI coach", reason: "quota_exhausted" });
-      throw new CoachApiError(402);
     } else if (!chatRes.ok) {
       throw new CoachApiError(chatRes.status);
     } else {
       const data = await chatRes.json();
       const text: string =
-        data.message ??
-        data.response ??
-        data.gameAnalysis?.analysis ??
-        "";
+        data.message ?? data.response ?? data.gameAnalysis?.analysis ?? "";
       // Emit as a single chunk so the UI animates the same way
       onDelta(text);
       return text;
@@ -690,6 +632,7 @@ async function streamCoachReply(params: {
     gameEval: gameEvalPayload,
     conversationHistory,
     userRating,
+    viewedPly: currentPly,
     playerColor,
     playerColorName,
     boardOrientation,
@@ -712,10 +655,6 @@ async function streamCoachReply(params: {
   });
 
   if (res.status === 401) throw new CoachAuthError();
-  if (res.status === 402) {
-    triggerPaywall({ feature: "AI coach", reason: "quota_exhausted" });
-    throw new CoachApiError(402);
-  }
   if (!res.ok) throw new CoachApiError(res.status);
   if (!res.body) throw new CoachApiError(res.status);
 
@@ -739,6 +678,12 @@ async function streamCoachReply(params: {
   const decoder = new TextDecoder();
   let buffer = "";
   let accumulated = "";
+  // D4 (SILENT_SUBSTITUTION_HANDOFF §3 Group D): the loop used to exit on the
+  // reader's `done` with no check that a `type:"done"` EVENT ever arrived. A
+  // Vercel 60s kill, a dropped connection, or a proxy cutting the SSE body all
+  // yield a partial answer that renders as finished and enters history as a
+  // completed turn.
+  let sawDoneEvent = false;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -755,11 +700,48 @@ async function streamCoachReply(params: {
         if (parsed.type === "text" && typeof parsed.delta === "string") {
           accumulated += parsed.delta;
           onDelta(parsed.delta);
+        } else if (
+          parsed.type === "context" &&
+          typeof parsed.contextId === "string"
+        ) {
+          // T1: the server now ships the contextId as its own EARLY event so a
+          // function killed mid-stream doesn't cost the client its cached
+          // context (which would make the next turn a full flagship
+          // re-analysis). Emitting it server-side is inert without this branch
+          // — the reader only understood text/done/metadata/error.
+          contextIdRef.current = parsed.contextId;
         } else if (parsed.type === "done" || parsed.type === "metadata") {
           // Final event carries contextId + validation + puzzle recs
+          sawDoneEvent = true;
           if (parsed.contextId) contextIdRef.current = parsed.contextId;
           if (parsed.metadata?.contextId)
             contextIdRef.current = parsed.metadata.contextId;
+          // T5 (SILENT_SUBSTITUTION_HANDOFF §4): the server already reports
+          // when the deep-validation pass timed out or fell back — the client
+          // just never read it, so the placeholder ("Still analyzing — the
+          // deep-validation pass took longer than expected") rendered
+          // IDENTICALLY to a real answer and entered history as one. Reuse
+          // D4's `incomplete` flag: it both marks the bubble and keeps the
+          // non-answer out of what the model is told it said.
+          if (
+            parsed.metadata?.pipeline?.timedOut === true ||
+            parsed.metadata?.pipeline?.finalOutcome === "fallback_used"
+          ) {
+            onTruncated?.();
+          }
+          // D1: the server stores the CORRECTED analysis as canonical and
+          // re-injects it as the first assistant message on every follow-up —
+          // but the client kept the raw streamed text and re-sent THAT in
+          // conversationHistory, where it landed as the model's most recent
+          // statement. The model then defends the uncorrected line and the
+          // corrected copy reads as superseded. Swap it in.
+          if (
+            parsed.metadata?.corrected &&
+            typeof parsed.metadata?.analysis === "string" &&
+            parsed.metadata.analysis.trim().length > 0
+          ) {
+            onCorrected?.(parsed.metadata.analysis);
+          }
         } else if (parsed.type === "error") {
           throw new CoachApiError(502);
         }
@@ -769,6 +751,8 @@ async function streamCoachReply(params: {
       }
     }
   }
+  // D4: reaching here without a `done` event means the answer is a fragment.
+  if (!sawDoneEvent) onTruncated?.();
   return accumulated;
 }
 
@@ -793,36 +777,6 @@ interface DrillPuzzle {
   rating: number;
   themes: string[];
 }
-
-const DEMO_PUZZLES: DrillPuzzle[] = [
-  {
-    id: "demo-back-rank",
-    title: "Back-rank breakthrough",
-    hint: "Two rooks lock the eighth rank. The pawns trap the king.",
-    fen: "R5k1/5ppp/8/8/8/8/8/4R1K1 w - - 0 1",
-    solution: ["e1e8"],
-    rating: 1200,
-    themes: ["backRankMate", "mateIn1"],
-  },
-  {
-    id: "demo-queen-mate",
-    title: "Queen-and-king finish",
-    hint: "The white king already covers the escape. Bring the queen home.",
-    fen: "7k/8/5P1K/8/8/8/8/3Q4 w - - 0 1",
-    solution: ["d1d8"],
-    rating: 1100,
-    themes: ["queenMate", "mateIn1"],
-  },
-  {
-    id: "demo-rook-corner",
-    title: "Lift the rook",
-    hint: "King opposition is already there. Deliver the back-rank check.",
-    fen: "7k/8/7K/8/8/8/8/R7 w - - 0 1",
-    solution: ["a1a8"],
-    rating: 1000,
-    themes: ["rookMate", "mateIn1"],
-  },
-];
 
 interface PuzzlePack {
   theme: string;
@@ -879,7 +833,7 @@ const THEME_TITLES: Record<string, string> = {
   pin: "Find the pin",
   skewer: "Find the skewer",
   "discovered-attack": "Discovered attack",
-  "discoveredAttack": "Discovered attack",
+  discoveredAttack: "Discovered attack",
   "double-attack": "Double attack",
   "back-rank": "Back-rank pressure",
   backRankMate: "Back-rank mate",
@@ -967,46 +921,47 @@ interface DrillState {
   savedOrientation: "white" | "black";
 }
 
-const DEMO_PUZZLE_PACK: PuzzlePack = {
-  theme: "mating-patterns",
-  displayTheme: "Mating patterns",
-  puzzles: DEMO_PUZZLES,
-};
-
-// Pre-loaded coach exchange — what an excellent first interaction looks like
 interface CoachMessage {
   role: "user" | "coach";
   content: string;
+  /**
+   * D2/D3 (SILENT_SUBSTITUTION_HANDOFF §3 Group D): this turn was authored by
+   * the UI, not by the model or the user. Seeded demo content, load greetings,
+   * error banners, and the suggestion pill's fabricated exchange all set it.
+   * Synthetic turns still RENDER — they are just never replayed to the model
+   * as things it said.
+   */
+  synthetic?: boolean;
+  /**
+   * D4: the stream ended without a `done` event, so this text is a fragment.
+   * Excluded from conversationHistory — a half-finished sentence replayed as a
+   * completed thought is worse than no history at all.
+   */
+  incomplete?: boolean;
   ply?: number; // links message to a board position
   insight?: { tag: string; eval?: string; classification?: string };
   // When set, a puzzle pack card renders below the bubble with a
   // "Move to big board" CTA per puzzle.
   puzzlePack?: PuzzlePack;
+  /** A practice set generated by /puzzle-generation. Kept on the message so
+   *  the same puzzles can be relaunched from the transcript later — the
+   *  handoff atom is consumed and cleared by /puzzles, this is the durable
+   *  copy. */
+  puzzleSet?: PuzzleSet;
 }
 
-const SEED_MESSAGES: CoachMessage[] = [
+// The cold-start chat. `synthetic: true` keeps it out of conversationHistory
+// (D2/D3, SILENT_SUBSTITUTION_HANDOFF §3 Group D) — it is UI copy, not
+// something the model said. It replaced a three-turn seeded exchange about
+// the Kasparov demo whose hand-written eval numbers used to be replayed to
+// the model as its own prior analysis.
+const EMPTY_STATE_MESSAGES: CoachMessage[] = [
   {
     role: "coach",
+    synthetic: true,
     content:
-      "Loaded **Kasparov vs Topalov, 1999** — one of the most famous games of all time. Want me to walk you through it, or jump to a specific moment? **24.Rxd4** is the most analyzed move in chess history if you want to start there.",
+      "Board's empty — load a game and I'll take a look. **Load game** up top takes a PGN, a FEN, or your last games straight from Lichess or Chess.com.",
     ply: 0,
-  },
-  {
-    role: "user",
-    content: "Why is 24.Rxd4 considered brilliant?",
-    ply: 47,
-  },
-  {
-    role: "coach",
-    content:
-      "Stockfish 17 sees it as the only winning move — eval jumps from +2.4 to +4.7 after **24.Rxd4 cxd4 25.Re7+!** The rook is *lost* but the second rook delivers check, and after **25...Kb6 26.Qxd4+** the black king walks into a mating net on a4 with no defenders. Kasparov calculated 15+ ply to see this would work.\n\nWant to drill the underlying patterns? I picked three mating-net positions in the same family — you can solve them right here, or move any one onto the big board.",
-    ply: 47,
-    insight: {
-      tag: "24.Rxd4 — brilliancy",
-      eval: "+4.7",
-      classification: "Best move (only win)",
-    },
-    puzzlePack: DEMO_PUZZLE_PACK,
   },
 ];
 
@@ -1015,10 +970,7 @@ const SEED_MESSAGES: CoachMessage[] = [
 // my game" in ember + up to 3 rule-derived) computed in AnalysisPage
 // based on the current game's blunders / brilliancies / opening /
 // endgame state / active mistake context.
-import {
-  generateSuggestions,
-  type Suggestion,
-} from "./generateSuggestions";
+import { generateSuggestions, type Suggestion } from "./generateSuggestions";
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Board square styling
@@ -1170,15 +1122,177 @@ function NavPill() {
   );
 }
 
-function GameHeader({
+/**
+ * The loaded game's identity, rendered INSIDE the nav pill.
+ *
+ * Replaces the standalone GameHeader card that used to sit under the pill —
+ * two stacked bars saying "you are on /analysis" and "you are analyzing X".
+ * Everything load-bearing survived the merge (players, opening, ply cursor,
+ * live eval); what didn't was the "NOW ANALYZING" caption, the crown icon,
+ * and the Event/date line, none of which the user acts on.
+ *
+ * Truncates rather than wraps: the pill is a fixed-height row.
+ */
+function GameIdentity({
   whiteName,
   blackName,
-  event,
-  year,
   opening,
   currentEval,
   currentPly,
   totalPlies,
+  hasGame,
+  evalPending,
+}: {
+  whiteName?: string;
+  blackName?: string;
+  opening: string | null;
+  currentEval: number;
+  currentPly: number;
+  totalPlies: number;
+  hasGame: boolean;
+  /** Stockfish still running — show a dash, not a number we don't have. */
+  evalPending?: boolean;
+}) {
+  // On a phone the pill has room for the burger, the mark, Load game and
+  // Sign in — and nothing else. Squeezing the name in truncated it to a
+  // single character, which is worse than omitting it; the loaded game is
+  // named in the coach's greeting directly below.
+  const hideOnPhone = { xs: "none", sm: "flex" } as const;
+
+  if (!hasGame) {
+    return (
+      <Typography
+        sx={{
+          display: { xs: "none", sm: "block" },
+          fontSize: "0.86rem",
+          color: "rgba(255,255,255,0.42)",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        No game loaded
+      </Typography>
+    );
+  }
+
+  const evalPositive = currentEval >= 0;
+
+  return (
+    <Stack
+      direction="row"
+      spacing={1.5}
+      alignItems="center"
+      sx={{ minWidth: 0, width: "100%", display: hideOnPhone }}
+    >
+      <Typography
+        sx={{
+          fontSize: "0.9rem",
+          fontWeight: 700,
+          color: "rgba(255,255,255,0.92)",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          minWidth: 0,
+        }}
+      >
+        {whiteName || "White"}{" "}
+        <Box
+          component="span"
+          sx={{ color: "rgba(255,255,255,0.35)", fontWeight: 400 }}
+        >
+          vs
+        </Box>{" "}
+        {blackName || "Black"}
+      </Typography>
+
+      {opening && opening !== "—" && (
+        <Typography
+          sx={{
+            // Widest thing here and the least actionable — first to go when
+            // the nav links need the room.
+            display: { xs: "none", xl: "block" },
+            fontSize: "0.8rem",
+            color: "rgba(255,255,255,0.45)",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            minWidth: 0,
+          }}
+        >
+          {opening}
+        </Typography>
+      )}
+
+      {/* Both chips are fixed-width, so on a phone they crowd the truncating
+          name out and collide with the actions. The move cursor and the eval
+          are both restated under the board. */}
+      <Stack
+        direction="row"
+        spacing={0.4}
+        alignItems="baseline"
+        sx={{ flexShrink: 0, display: { xs: "none", md: "flex" } }}
+      >
+        <Typography
+          sx={{
+            fontSize: "0.92rem",
+            fontWeight: 800,
+            color: "rgba(255,255,255,0.9)",
+            fontFamily: "Monaco, Menlo, monospace",
+            lineHeight: 1,
+          }}
+        >
+          {currentPly}
+        </Typography>
+        <Typography
+          sx={{ fontSize: "0.76rem", color: "rgba(255,255,255,0.38)" }}
+        >
+          / {totalPlies}
+        </Typography>
+      </Stack>
+
+      <Box
+        sx={{
+          flexShrink: 0,
+          display: { xs: "none", md: "block" },
+          px: 1.1,
+          py: 0.4,
+          borderRadius: "8px",
+          background: evalPositive
+            ? "rgba(249,115,22,0.12)"
+            : "rgba(255,255,255,0.06)",
+          border: evalPositive
+            ? "1px solid rgba(249,115,22,0.3)"
+            : "1px solid rgba(255,255,255,0.1)",
+          minWidth: 52,
+          textAlign: "center",
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: "0.84rem",
+            fontWeight: 700,
+            color: evalPending
+              ? "rgba(255,255,255,0.4)"
+              : evalPositive
+                ? "#FB923C"
+                : "rgba(255,255,255,0.85)",
+            fontFamily: "Monaco, Menlo, monospace",
+            lineHeight: 1.35,
+          }}
+        >
+          {evalPending ? "—" : formatEval(currentEval)}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
+
+/**
+ * The game actions half of the merged bar: engine settings, Load, Save, and
+ * the ⌘K chip inherited from the page footer this layout removed.
+ */
+function GameActions({
   onLoadGameClick,
   engineDepth,
   onEngineDepthChange,
@@ -1186,280 +1300,171 @@ function GameHeader({
   onEngineNameChange,
   onSaveGameClick,
   saveState,
+  onOpenPalette,
 }: {
-  whiteName: string;
-  blackName: string;
-  event: string;
-  year: string;
-  opening: string;
-  currentEval: number;
-  currentPly: number;
-  totalPlies: number;
   onLoadGameClick?: () => void;
   engineDepth?: number;
   onEngineDepthChange?: (d: number) => void;
   engineName?: EngineName;
   onEngineNameChange?: (n: EngineName) => void;
   /**
-   * G4: surface a Save button when the user is signed in. Click → calls
-   * useGameDatabase().addGame upstream. Undefined = button hidden (guest
-   * mode); defined = button visible with the current state badge.
+   * G4: surface a Save button when the user is signed in AND there is a game
+   * to save. Undefined = button hidden.
    */
   onSaveGameClick?: () => void;
   saveState?: "idle" | "saving" | "saved" | "error";
+  onOpenPalette?: () => void;
 }) {
   const [enginePopoverAnchor, setEnginePopoverAnchor] =
     useState<HTMLElement | null>(null);
-  const evalPositive = currentEval >= 0;
+
+  const actionSx = {
+    px: 1.25,
+    py: 0.6,
+    minWidth: 0,
+    borderRadius: "10px",
+    fontSize: "0.76rem",
+    fontWeight: 700,
+    textTransform: "none" as const,
+    whiteSpace: "nowrap" as const,
+  };
+
   return (
-    <Box
-      sx={{
-        mb: 3,
-        px: { xs: 3, md: 4 },
-        py: 2.5,
-        borderRadius: "1.5rem",
-        background:
-          "linear-gradient(135deg, rgba(249,115,22,0.06), rgba(20,22,28,0.55))",
-        backdropFilter: "blur(14px) saturate(150%)",
-        WebkitBackdropFilter: "blur(14px) saturate(150%)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: "auto 1fr auto" },
-        gap: { xs: 2, md: 4 },
-        alignItems: "center",
-      }}
+    <Stack
+      direction="row"
+      spacing={0.85}
+      alignItems="center"
+      sx={{ flexShrink: 0 }}
     >
-      <Stack direction="row" spacing={1.5} alignItems="center">
-        <Box
-          sx={{
-            width: 38,
-            height: 38,
-            borderRadius: "10px",
-            background:
-              "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(234,88,12,0.18))",
-            border: "1px solid rgba(249,115,22,0.3)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Crown size={18} color="#F97316" />
-        </Box>
-        <Box>
-          <Typography
+      {onOpenPalette && (
+        <Tooltip title="Command palette — jump to a move, flip, ask the coach">
+          <Box
+            component="button"
+            type="button"
+            aria-label="Open command palette"
+            onClick={onOpenPalette}
             sx={{
-              fontSize: "0.7rem",
-              fontWeight: 700,
-              letterSpacing: "0.16em",
-              color: "rgba(255,255,255,0.5)",
-              textTransform: "uppercase",
-              lineHeight: 1,
-            }}
-          >
-            Now analyzing
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: "1.05rem",
-              fontWeight: 700,
-              color: "rgba(255,255,255,0.94)",
-              lineHeight: 1.3,
-              mt: 0.5,
-            }}
-          >
-            {whiteName} <Box component="span" sx={{ color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>vs</Box> {blackName}
-          </Typography>
-        </Box>
-      </Stack>
-
-      <Stack
-        direction="row"
-        spacing={3}
-        sx={{
-          color: "rgba(255,255,255,0.55)",
-          fontSize: "0.85rem",
-          flexWrap: "wrap",
-          justifyContent: { xs: "flex-start", md: "center" },
-        }}
-      >
-        <Box>
-          <Box component="span" sx={{ color: "rgba(255,255,255,0.4)" }}>Event · </Box>
-          {event} {year}
-        </Box>
-        <Box sx={{ display: { xs: "none", md: "block" } }}>·</Box>
-        <Box>
-          <Box component="span" sx={{ color: "rgba(255,255,255,0.4)" }}>Opening · </Box>
-          {opening}
-        </Box>
-      </Stack>
-
-      <Stack
-        direction="row"
-        spacing={1.5}
-        alignItems="center"
-        sx={{
-          flexWrap: "wrap",
-          rowGap: 1,
-          justifyContent: { xs: "flex-start", md: "flex-end" },
-        }}
-      >
-        <Stack direction="row" alignItems="baseline" spacing={0.5}>
-          <Typography
-            sx={{
-              fontSize: "1.4rem",
-              fontWeight: 800,
-              color: "rgba(255,255,255,0.96)",
-              lineHeight: 1,
+              display: { xs: "none", xl: "inline-flex" },
+              alignItems: "center",
+              cursor: "pointer",
+              font: "inherit",
+              px: 0.9,
+              py: 0.45,
+              borderRadius: "8px",
+              background: "rgba(249,115,22,0.1)",
+              border: "1px solid rgba(249,115,22,0.25)",
+              color: "#FB923C",
               fontFamily: "Monaco, Menlo, monospace",
+              fontWeight: 600,
+              fontSize: "0.72rem",
+              transition: "all 180ms ease",
+              "&:hover": {
+                background: "rgba(249,115,22,0.18)",
+                borderColor: "rgba(249,115,22,0.4)",
+              },
             }}
           >
-            {currentPly}
-          </Typography>
-          <Typography
-            sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.4)" }}
-          >
-            / {totalPlies}
-          </Typography>
-        </Stack>
+            ⌘K
+          </Box>
+        </Tooltip>
+      )}
 
-        <Box
-          sx={{
-            px: 1.75,
-            py: 0.75,
-            borderRadius: "10px",
-            background: evalPositive
-              ? "rgba(249,115,22,0.12)"
-              : "rgba(255,255,255,0.06)",
-            border: evalPositive
-              ? "1px solid rgba(249,115,22,0.3)"
-              : "1px solid rgba(255,255,255,0.1)",
-            minWidth: 64,
-            textAlign: "center",
-          }}
-        >
-          <Typography
+      {engineDepth !== undefined && (
+        <Tooltip title="Stockfish engine settings — depth and variant">
+          <Button
+            onClick={(e) => setEnginePopoverAnchor(e.currentTarget)}
             sx={{
-              fontSize: "1rem",
-              fontWeight: 700,
-              color: evalPositive ? "#FB923C" : "rgba(255,255,255,0.85)",
+              ...actionSx,
+              display: { xs: "none", sm: "inline-flex" },
               fontFamily: "Monaco, Menlo, monospace",
-              lineHeight: 1,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "rgba(255,255,255,0.78)",
+              "&:hover": {
+                background: "rgba(255,255,255,0.08)",
+                borderColor: "rgba(255,255,255,0.2)",
+              },
             }}
           >
-            {formatEval(currentEval)}
-          </Typography>
-        </Box>
+            d{engineDepth}
+          </Button>
+        </Tooltip>
+      )}
 
-        {engineDepth !== undefined && (
-          <Tooltip title="Stockfish engine settings — depth and variant">
-            <Button
-              onClick={(e) => setEnginePopoverAnchor(e.currentTarget)}
-              startIcon={<Activity size={13} />}
-              sx={{
-                px: 1.5,
-                py: 0.75,
-                borderRadius: "10px",
-                fontSize: "0.78rem",
-                fontWeight: 700,
-                fontFamily: "Monaco, Menlo, monospace",
-                textTransform: "none",
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "rgba(255,255,255,0.78)",
-                "&:hover": {
-                  background: "rgba(255,255,255,0.08)",
-                  borderColor: "rgba(255,255,255,0.2)",
-                },
-              }}
-            >
-              d{engineDepth}
-            </Button>
-          </Tooltip>
-        )}
-        {onLoadGameClick && (
-          <Tooltip title="Load a new PGN, FEN, or import from Lichess/Chess.com">
-            <Button
-              onClick={onLoadGameClick}
-              startIcon={<RefreshCw size={13} />}
-              sx={{
-                px: 1.5,
-                py: 0.75,
-                borderRadius: "10px",
-                fontSize: "0.78rem",
-                fontWeight: 700,
-                textTransform: "none",
+      {onLoadGameClick && (
+        <Tooltip title="Load a new PGN, FEN, or import from Lichess/Chess.com">
+          <Button
+            onClick={onLoadGameClick}
+            startIcon={<RefreshCw size={13} />}
+            sx={{
+              ...actionSx,
+              background:
+                "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(251,146,60,0.12))",
+              border: "1px solid rgba(249,115,22,0.35)",
+              color: "#FB923C",
+              "&:hover": {
                 background:
-                  "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(251,146,60,0.12))",
-                border: "1px solid rgba(249,115,22,0.35)",
-                color: "#FB923C",
-                "&:hover": {
-                  background:
-                    "linear-gradient(135deg, rgba(249,115,22,0.28), rgba(251,146,60,0.18))",
-                  borderColor: "rgba(249,115,22,0.55)",
-                },
-              }}
-            >
-              Load game
-            </Button>
-          </Tooltip>
-        )}
-        {onSaveGameClick && (
-          <Tooltip
-            title={
-              saveState === "saved"
-                ? "Saved to your library"
-                : saveState === "saving"
+                  "linear-gradient(135deg, rgba(249,115,22,0.28), rgba(251,146,60,0.18))",
+                borderColor: "rgba(249,115,22,0.55)",
+              },
+            }}
+          >
+            Load game
+          </Button>
+        </Tooltip>
+      )}
+
+      {onSaveGameClick && (
+        <Tooltip
+          title={
+            saveState === "saved"
+              ? "Saved to your library"
+              : saveState === "saving"
                 ? "Saving…"
                 : saveState === "error"
-                ? "Save failed — check sign-in"
-                : "Save this game to your library"
-            }
-          >
-            <span>
-              <Button
-                onClick={onSaveGameClick}
-                disabled={saveState === "saving" || saveState === "saved"}
-                sx={{
-                  px: 1.5,
-                  py: 0.75,
-                  borderRadius: "10px",
-                  fontSize: "0.78rem",
-                  fontWeight: 700,
-                  textTransform: "none",
+                  ? "Save failed — check sign-in"
+                  : "Save this game to your library"
+          }
+        >
+          <span>
+            <Button
+              onClick={onSaveGameClick}
+              disabled={saveState === "saving" || saveState === "saved"}
+              sx={{
+                ...actionSx,
+                display: { xs: "none", lg: "inline-flex" },
+                background:
+                  saveState === "saved"
+                    ? "rgba(34,197,94,0.18)"
+                    : "rgba(255,255,255,0.06)",
+                border:
+                  saveState === "saved"
+                    ? "1px solid rgba(34,197,94,0.35)"
+                    : "1px solid rgba(255,255,255,0.12)",
+                color:
+                  saveState === "saved" ? "#86efac" : "rgba(255,255,255,0.78)",
+                "&:hover": {
                   background:
                     saveState === "saved"
-                      ? "rgba(34,197,94,0.18)"
-                      : "rgba(255,255,255,0.06)",
-                  border:
-                    saveState === "saved"
-                      ? "1px solid rgba(34,197,94,0.35)"
-                      : "1px solid rgba(255,255,255,0.12)",
+                      ? "rgba(34,197,94,0.24)"
+                      : "rgba(255,255,255,0.1)",
+                },
+                "&.Mui-disabled": {
                   color:
-                    saveState === "saved" ? "#86efac" : "rgba(255,255,255,0.78)",
-                  "&:hover": {
-                    background:
-                      saveState === "saved"
-                        ? "rgba(34,197,94,0.24)"
-                        : "rgba(255,255,255,0.1)",
-                  },
-                  "&.Mui-disabled": {
-                    color:
-                      saveState === "saved"
-                        ? "#86efac"
-                        : "rgba(255,255,255,0.4)",
-                  },
-                }}
-              >
-                {saveState === "saved"
-                  ? "✓ Saved"
-                  : saveState === "saving"
+                    saveState === "saved" ? "#86efac" : "rgba(255,255,255,0.4)",
+                },
+              }}
+            >
+              {saveState === "saved"
+                ? "✓ Saved"
+                : saveState === "saving"
                   ? "Saving…"
-                  : "Save game"}
-              </Button>
-            </span>
-          </Tooltip>
-        )}
-      </Stack>
+                  : "Save"}
+            </Button>
+          </span>
+        </Tooltip>
+      )}
+
       <EngineSettingsPopover
         anchorEl={enginePopoverAnchor}
         onClose={() => setEnginePopoverAnchor(null)}
@@ -1468,7 +1473,7 @@ function GameHeader({
         engineName={engineName ?? EngineName.Stockfish17Lite}
         onEngineNameChange={onEngineNameChange}
       />
-    </Box>
+    </Stack>
   );
 }
 
@@ -1703,24 +1708,24 @@ function DrillBanner({
   const accent = isComplete
     ? "#22c55e"
     : isSolved
-    ? "#22c55e"
-    : isWrong
-    ? "#ef4444"
-    : "#A855F7";
+      ? "#22c55e"
+      : isWrong
+        ? "#ef4444"
+        : "#A855F7";
   const accentSoft = isComplete
     ? "rgba(34,197,94,0.12)"
     : isSolved
-    ? "rgba(34,197,94,0.12)"
-    : isWrong
-    ? "rgba(239,68,68,0.12)"
-    : "rgba(168,85,247,0.12)";
+      ? "rgba(34,197,94,0.12)"
+      : isWrong
+        ? "rgba(239,68,68,0.12)"
+        : "rgba(168,85,247,0.12)";
   const accentBorder = isComplete
     ? "rgba(34,197,94,0.35)"
     : isSolved
-    ? "rgba(34,197,94,0.35)"
-    : isWrong
-    ? "rgba(239,68,68,0.4)"
-    : "rgba(168,85,247,0.35)";
+      ? "rgba(34,197,94,0.35)"
+      : isWrong
+        ? "rgba(239,68,68,0.4)"
+        : "rgba(168,85,247,0.35)";
 
   return (
     <motion.div
@@ -1794,8 +1799,8 @@ function DrillBanner({
                         i < state.currentIndex
                           ? "#22c55e"
                           : i === state.currentIndex
-                          ? accent
-                          : "rgba(255,255,255,0.18)",
+                            ? accent
+                            : "rgba(255,255,255,0.18)",
                     }}
                   />
                 ))}
@@ -1814,10 +1819,10 @@ function DrillBanner({
             {isComplete
               ? "Three for three — nice work."
               : isSolved
-              ? `${puzzle?.title ?? "Puzzle"} — solved`
-              : isWrong
-              ? "Not the move — try again."
-              : puzzle?.title ?? "Puzzle"}
+                ? `${puzzle?.title ?? "Puzzle"} — solved`
+                : isWrong
+                  ? "Not the move — try again."
+                  : (puzzle?.title ?? "Puzzle")}
           </Typography>
           {!isComplete && puzzle && state.status === "solving" && (
             <Typography
@@ -1851,13 +1856,15 @@ function DrillBanner({
                   component="span"
                   sx={{ display: { xs: "inline", lg: "none" } }}
                 >
-                  {" "}below
+                  {" "}
+                  below
                 </Box>
                 <Box
                   component="span"
                   sx={{ display: { xs: "none", lg: "inline" } }}
                 >
-                  {" "}on the right
+                  {" "}
+                  on the right
                 </Box>
                 .
               </Typography>
@@ -1966,10 +1973,17 @@ function GlassEvalBar({
   label,
   pending,
   boardOrientation,
-}: EvalBarData & { boardOrientation: "white" | "black" }) {
-  const whiteShare = pending
-    ? 50
-    : Math.max(0, Math.min(100, whitePercentage));
+  heightPx,
+}: EvalBarData & {
+  boardOrientation: "white" | "black";
+  /**
+   * Pin the bar to the board's measured square height. Without it the bar
+   * stretches to the row instead, and stands taller than the board whenever
+   * the square is height-capped. Null/undefined → stretch (mobile).
+   */
+  heightPx?: number | null;
+}) {
+  const whiteShare = pending ? 50 : Math.max(0, Math.min(100, whitePercentage));
   const whiteOnTop = boardOrientation === "black";
   const whiteAdv = whiteShare >= 50;
   // Label sits at the advantaged side's outer edge (lichess convention).
@@ -1979,13 +1993,17 @@ function GlassEvalBar({
     <Box
       role="img"
       aria-label={
-        pending ? "Engine evaluation: calculating" : `Engine evaluation: ${label}`
+        pending
+          ? "Engine evaluation: calculating"
+          : `Engine evaluation: ${label}`
       }
       sx={{
         position: "relative",
         width: { xs: 16, md: 22 },
         flexShrink: 0,
-        alignSelf: "stretch",
+        ...(heightPx
+          ? { height: heightPx, alignSelf: "center" }
+          : { alignSelf: "stretch" }),
         borderRadius: "10px",
         overflow: "hidden",
         border: "1px solid rgba(255,255,255,0.08)",
@@ -2073,6 +2091,7 @@ function BoardArea({
   onMove,
   syncTick,
   evalBar,
+  empty = false,
 }: {
   fen: string;
   lastMove: Move | null;
@@ -2086,11 +2105,47 @@ function BoardArea({
   /** Bump to force chessground to re-sync to `fen` (rejected drag, etc.). */
   syncTick?: number;
   evalBar: EvalBarData;
+  /** No game loaded — dim the start position and say so over it. */
+  empty?: boolean;
 }) {
   const lastMoveTuple = useMemo<[string, string] | undefined>(
     () => (lastMove ? [lastMove.from, lastMove.to] : undefined),
     [lastMove]
   );
+
+  // The board must be the largest square that fits the space left over after
+  // the strip below it — i.e. min(available width, available height).
+  //
+  // CSS can't express that here. `aspect-ratio` transfers a definite height
+  // to width only when the box's width is genuinely auto, and a flex item
+  // whose child is `width: 100%` (chessground) resolves its flex-basis from
+  // content instead, so the square silently became a rectangle. Measuring the
+  // slot is the reliable version.
+  //
+  // Only below lg, though. In the stacked layout the column has no bounded
+  // height, so the slot's height is derived from the board — measuring it
+  // and then sizing the board from the measurement collapses the board to a
+  // few pixels. There, chessground's own width-driven mode is correct.
+  const theme = useTheme();
+  const heightBound = useMediaQuery(theme.breakpoints.up("lg"));
+  const slotRef = useRef<HTMLDivElement>(null);
+  const [squarePx, setSquarePx] = useState<number | null>(null);
+  useEffect(() => {
+    if (!heightBound) {
+      setSquarePx(null);
+      return;
+    }
+    const el = slotRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      const next =
+        width > 0 && height > 0 ? Math.floor(Math.min(width, height)) : null;
+      setSquarePx((prev) => (prev === next ? prev : next));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [heightBound]);
 
   return (
     <Box
@@ -2104,39 +2159,119 @@ function BoardArea({
         border: "1px solid rgba(255,255,255,0.07)",
         boxShadow:
           "0 24px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)",
-        p: { xs: 1.5, md: 2 },
+        p: { xs: 1.5, md: 1.75 },
+        // At lg the board is the column's flexible element: it takes whatever
+        // height is left after the strip below it, and the square sizes off
+        // THAT rather than off the column width. That inversion is what keeps
+        // the page one screen tall.
+        flex: { lg: 1 },
+        minHeight: { lg: 0 },
+        display: "flex",
+        // As a flex item of the column, this card would refuse to shrink
+        // below the board's min-content width and overflow the viewport on
+        // a phone. It was a plain block before it became a flex container.
+        minWidth: 0,
       }}
     >
       <Box
         sx={{
           display: "flex",
           alignItems: "stretch",
+          justifyContent: "center",
           gap: { xs: 1, md: 1.5 },
+          width: "100%",
+          minHeight: 0,
         }}
       >
-        <GlassEvalBar {...evalBar} boardOrientation={boardOrientation} />
+        <GlassEvalBar
+          {...evalBar}
+          boardOrientation={boardOrientation}
+          heightPx={squarePx}
+        />
+        {/* Measured slot: fills the row, reports its box to the observer. */}
         <Box
+          ref={slotRef}
           sx={{
             flex: 1,
             minWidth: 0,
-            borderRadius: "14px",
-            overflow: "hidden",
-            boxShadow:
-              "0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
+            minHeight: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          <ChessgroundBoard
-            fen={fen}
-            orientation={boardOrientation}
-            lastMove={lastMoveTuple}
-            check={isInCheck}
-            viewOnly={!interactive}
-            shapes={shapes}
-            movableColor={movableColor}
-            dests={dests}
-            onMove={onMove}
-            syncTick={syncTick}
-          />
+          <Box
+            sx={{
+              position: "relative",
+              width: squarePx ?? "100%",
+              height: squarePx ?? "auto",
+              maxWidth: "100%",
+              flexShrink: 0,
+              borderRadius: "14px",
+              overflow: "hidden",
+              boxShadow:
+                "0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
+            }}
+          >
+            <ChessgroundBoard
+              fen={fen}
+              orientation={boardOrientation}
+              lastMove={lastMoveTuple}
+              check={isInCheck}
+              viewOnly={!interactive}
+              shapes={shapes}
+              movableColor={movableColor}
+              dests={dests}
+              onMove={onMove}
+              syncTick={syncTick}
+            />
+            {empty && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 0.75,
+                  textAlign: "center",
+                  px: 3,
+                  background: "rgba(8,9,12,0.72)",
+                  backdropFilter: "blur(2px)",
+                  pointerEvents: "none",
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: "1rem",
+                    fontWeight: 700,
+                    color: "rgba(255,255,255,0.9)",
+                  }}
+                >
+                  No game loaded
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.84rem",
+                    color: "rgba(255,255,255,0.55)",
+                    maxWidth: 300,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Hit{" "}
+                  <Box
+                    component="span"
+                    sx={{ color: "#FB923C", fontWeight: 700 }}
+                  >
+                    Load game
+                  </Box>{" "}
+                  to paste a PGN or FEN, or pull your recent games from Lichess
+                  or Chess.com.
+                </Typography>
+              </Box>
+            )}
+          </Box>
         </Box>
       </Box>
     </Box>
@@ -2174,6 +2309,15 @@ function ChessgroundDarkSquareOverride() {
   );
 }
 
+/**
+ * The eval curve, sized to live inside the control strip under the board.
+ *
+ * Slimmed from a standalone card: the glass shell, the "EVALUATION ARC"
+ * caption and the "Click to scrub" hint are gone (the strip supplies the
+ * shell; the cursor supplies the affordance). The key-moment markers absorbed
+ * the KeyMomentsRow that used to sit beneath — they are now hoverable and
+ * clickable, so the labels are still reachable at zero vertical cost.
+ */
 function EvalSparkline({
   series,
   currentPly,
@@ -2182,6 +2326,7 @@ function EvalSparkline({
   analyzing = false,
   progress = 0,
   errored = false,
+  hasGame = true,
 }: {
   series: number[];
   currentPly: number;
@@ -2190,12 +2335,14 @@ function EvalSparkline({
   /** True while Stockfish is still computing — shows progress + dotted line. */
   analyzing?: boolean;
   progress?: number;
-  /** True if the engine failed to start; sparkline falls back to mock data. */
+  /** True if the engine failed to start. */
   errored?: boolean;
+  /** False on the empty board — nothing to plot, so say so. */
+  hasGame?: boolean;
 }) {
   const width = 800;
-  const height = 76;
-  const padY = 8;
+  const height = 48;
+  const padY = 6;
   const maxVal = Math.max(5, ...series.map(Math.abs));
 
   const xFor = (i: number) => (i / Math.max(1, series.length - 1)) * width;
@@ -2221,265 +2368,194 @@ function EvalSparkline({
     onJumpTo(Math.max(0, Math.min(series.length, targetPly)));
   };
 
-  return (
-    <Box
+  const statusChip = analyzing ? (
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={0.6}
       sx={{
-        mt: 2,
-        p: 2,
-        borderRadius: "1.25rem",
-        background: "rgba(20,22,28,0.55)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        border: "1px solid rgba(255,255,255,0.07)",
+        px: 0.9,
+        py: 0.15,
+        borderRadius: "999px",
+        background: "rgba(12,14,20,0.85)",
+        border: "1px solid rgba(249,115,22,0.3)",
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={1.5} mb={1.5}>
-        <TrendingUp size={14} color="#F97316" />
+      <Box
+        sx={{
+          width: 5,
+          height: 5,
+          borderRadius: "50%",
+          background: "#F97316",
+          animation: "pulse 1.4s ease-in-out infinite",
+          "@keyframes pulse": {
+            "0%, 100%": { opacity: 0.4, transform: "scale(0.85)" },
+            "50%": { opacity: 1, transform: "scale(1)" },
+          },
+        }}
+      />
+      <Typography
+        sx={{
+          fontSize: "0.64rem",
+          fontWeight: 700,
+          color: "#FB923C",
+          fontFamily: "Monaco, Menlo, monospace",
+        }}
+      >
+        Stockfish · {Math.round(progress)}%
+      </Typography>
+    </Stack>
+  ) : errored ? (
+    <Typography
+      sx={{
+        px: 0.9,
+        py: 0.15,
+        borderRadius: "999px",
+        background: "rgba(12,14,20,0.85)",
+        border: "1px solid rgba(239,68,68,0.25)",
+        fontSize: "0.64rem",
+        fontWeight: 700,
+        color: "#fca5a5",
+        fontFamily: "Monaco, Menlo, monospace",
+      }}
+    >
+      Engine offline
+    </Typography>
+  ) : null;
+
+  if (!hasGame || series.length < 2) {
+    return (
+      <Box
+        sx={{
+          height,
+          borderRadius: "10px",
+          border: "1px dashed rgba(255,255,255,0.08)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <Typography
           sx={{
             fontSize: "0.7rem",
-            fontWeight: 700,
             letterSpacing: "0.14em",
-            color: "rgba(255,255,255,0.55)",
             textTransform: "uppercase",
+            fontWeight: 700,
+            color: "rgba(255,255,255,0.24)",
           }}
         >
           Evaluation arc
         </Typography>
-        {analyzing && (
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={0.75}
-            sx={{
-              px: 1,
-              py: 0.25,
-              borderRadius: "999px",
-              background: "rgba(249,115,22,0.12)",
-              border: "1px solid rgba(249,115,22,0.3)",
-            }}
-          >
-            <Box
-              sx={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "#F97316",
-                animation: "pulse 1.4s ease-in-out infinite",
-                "@keyframes pulse": {
-                  "0%, 100%": { opacity: 0.4, transform: "scale(0.85)" },
-                  "50%": { opacity: 1, transform: "scale(1)" },
-                },
-              }}
-            />
-            <Typography
-              sx={{
-                fontSize: "0.66rem",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                color: "#FB923C",
-                fontFamily: "Monaco, Menlo, monospace",
-              }}
-            >
-              Stockfish · {Math.round(progress)}%
-            </Typography>
-          </Stack>
-        )}
-        {errored && (
-          <Typography
-            sx={{
-              px: 1,
-              py: 0.25,
-              borderRadius: "999px",
-              background: "rgba(239,68,68,0.1)",
-              border: "1px solid rgba(239,68,68,0.25)",
-              fontSize: "0.66rem",
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              color: "#fca5a5",
-              fontFamily: "Monaco, Menlo, monospace",
-            }}
-          >
-            Engine offline — preview curve
-          </Typography>
-        )}
-        <Box sx={{ flex: 1 }} />
-        <Typography
-          sx={{
-            fontSize: "0.7rem",
-            color: "rgba(255,255,255,0.4)",
-            fontFamily: "Monaco, Menlo, monospace",
-          }}
-        >
-          Click to scrub
-        </Typography>
-      </Stack>
-      <Box
-        sx={{
-          position: "relative",
-          width: "100%",
-          height,
-          cursor: "pointer",
-        }}
-      >
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
-          style={{ width: "100%", height: "100%", display: "block" }}
-          onClick={handleClick}
-        >
-          <defs>
-            <linearGradient id="evalGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#F97316" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#F97316" stopOpacity="0.05" />
-            </linearGradient>
-          </defs>
-          {/* Grid line at eval=0 */}
-          <line
-            x1={0}
-            y1={midY}
-            x2={width}
-            y2={midY}
-            stroke="rgba(255,255,255,0.1)"
-            strokeDasharray="2 4"
-            strokeWidth={1}
-          />
-          {/* Area fill */}
-          <path
-            d={areaPath}
-            fill="url(#evalGrad)"
-            opacity={analyzing ? 0.55 : 1}
-          />
-          {/* Line stroke — dashed while engine is still computing */}
-          <path
-            d={linePath}
-            fill="none"
-            stroke="#FB923C"
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            strokeDasharray={analyzing ? "3 4" : undefined}
-            opacity={analyzing ? 0.7 : 1}
-          />
-          {/* Key moment markers */}
-          {keyMoments.map((m) => (
-            <circle
-              key={m.ply}
-              cx={xFor(m.ply)}
-              cy={yFor(series[m.ply] ?? 0)}
-              r={3.5}
-              fill={
-                m.kind === "brilliant"
-                  ? "#22c55e"
-                  : m.kind === "mistake"
-                  ? "#ef4444"
-                  : m.kind === "winning"
-                  ? "#F97316"
-                  : "rgba(255,255,255,0.4)"
-              }
-              stroke="#08090C"
-              strokeWidth={1.5}
-            />
-          ))}
-          {/* Current ply marker */}
-          <line
-            x1={currentX}
-            y1={0}
-            x2={currentX}
-            y2={height}
-            stroke="#F97316"
-            strokeWidth={1.5}
-          />
-          <circle cx={currentX} cy={yFor(series[currentPly] ?? 0)} r={5} fill="#F97316" stroke="#08090C" strokeWidth={2} />
-        </svg>
       </Box>
-    </Box>
-  );
-}
+    );
+  }
 
-function KeyMomentsRow({
-  moments,
-  currentPly,
-  onJumpTo,
-}: {
-  moments: KeyMoment[];
-  currentPly: number;
-  onJumpTo: (ply: number) => void;
-}) {
   return (
     <Box
       sx={{
-        mt: 2,
-        display: "flex",
-        gap: 1,
-        overflowX: "auto",
-        pb: 1,
-        "&::-webkit-scrollbar": { height: 4 },
-        "&::-webkit-scrollbar-thumb": {
-          background: "rgba(249,115,22,0.2)",
-          borderRadius: "2px",
-        },
+        position: "relative",
+        width: "100%",
+        height,
+        cursor: "pointer",
       }}
     >
-      {moments.map((m) => {
-        const active = currentPly >= m.ply - 1 && currentPly <= m.ply + 1;
-        const accentColor =
-          m.kind === "brilliant"
-            ? "#22c55e"
-            : m.kind === "mistake"
-            ? "#ef4444"
-            : m.kind === "winning"
-            ? "#F97316"
-            : "rgba(255,255,255,0.55)";
-        return (
-          <Box
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+        style={{ width: "100%", height: "100%", display: "block" }}
+        onClick={handleClick}
+      >
+        <defs>
+          <linearGradient id="evalGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#F97316" stopOpacity="0.45" />
+            <stop offset="100%" stopColor="#F97316" stopOpacity="0.05" />
+          </linearGradient>
+        </defs>
+        {/* Grid line at eval=0 */}
+        <line
+          x1={0}
+          y1={midY}
+          x2={width}
+          y2={midY}
+          stroke="rgba(255,255,255,0.1)"
+          strokeDasharray="2 4"
+          strokeWidth={1}
+        />
+        {/* Area fill */}
+        <path
+          d={areaPath}
+          fill="url(#evalGrad)"
+          opacity={analyzing ? 0.55 : 1}
+        />
+        {/* Line stroke — dashed while engine is still computing */}
+        <path
+          d={linePath}
+          fill="none"
+          stroke="#FB923C"
+          strokeWidth={1.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          strokeDasharray={analyzing ? "3 4" : undefined}
+          opacity={analyzing ? 0.7 : 1}
+        />
+        {/* Key moment markers — the whole of the old KeyMomentsRow. Hover for
+            the label, click to jump. */}
+        {keyMoments.map((m) => (
+          <circle
             key={m.ply}
-            onClick={() => onJumpTo(m.ply)}
-            sx={{
-              flexShrink: 0,
-              cursor: "pointer",
-              px: 1.5,
-              py: 1,
-              borderRadius: "10px",
-              background: active
-                ? "rgba(249,115,22,0.14)"
-                : "rgba(255,255,255,0.03)",
-              border: active
-                ? "1px solid rgba(249,115,22,0.4)"
-                : "1px solid rgba(255,255,255,0.06)",
-              transition: "all 180ms ease",
-              "&:hover": {
-                background: "rgba(255,255,255,0.06)",
-                borderColor: "rgba(255,255,255,0.18)",
-                transform: "translateY(-1px)",
-              },
+            cx={xFor(m.ply)}
+            cy={yFor(series[m.ply] ?? 0)}
+            r={3.5}
+            fill={
+              m.kind === "brilliant"
+                ? "#22c55e"
+                : m.kind === "mistake"
+                  ? "#ef4444"
+                  : m.kind === "winning"
+                    ? "#F97316"
+                    : "rgba(255,255,255,0.4)"
+            }
+            stroke="#08090C"
+            strokeWidth={1.5}
+            style={{ cursor: "pointer" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onJumpTo(m.ply);
             }}
           >
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Box
-                sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: accentColor,
-                  boxShadow: `0 0 8px ${accentColor}66`,
-                  flexShrink: 0,
-                }}
-              />
-              <Typography
-                sx={{
-                  fontSize: "0.78rem",
-                  fontWeight: 600,
-                  color: "rgba(255,255,255,0.92)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {m.label}
-              </Typography>
-            </Stack>
-          </Box>
-        );
-      })}
+            <title>{m.label}</title>
+          </circle>
+        ))}
+        {/* Current ply marker */}
+        <line
+          x1={currentX}
+          y1={0}
+          x2={currentX}
+          y2={height}
+          stroke="#F97316"
+          strokeWidth={1.5}
+        />
+        <circle
+          cx={currentX}
+          cy={yFor(series[currentPly] ?? 0)}
+          r={5}
+          fill="#F97316"
+          stroke="#08090C"
+          strokeWidth={2}
+        />
+      </svg>
+      {statusChip && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 2,
+            right: 4,
+            pointerEvents: "none",
+          }}
+        >
+          {statusChip}
+        </Box>
+      )}
     </Box>
   );
 }
@@ -2489,6 +2565,65 @@ function KeyMomentsRow({
 // ───────────────────────────────────────────────────────────────────────────────
 
 type RightTab = "coach" | "masters" | "moves" | "lines";
+
+/**
+ * A position the user has walked to OFF the mainline — by clicking a master
+ * move, a coach recommendation, or by moving a piece on the board.
+ *
+ * `path` and `anchorPly` exist so the user can get back. Exploration used to
+ * carry only the resulting FEN, so once you had clicked a few moves deep
+ * there was nothing on screen saying where you had branched from or how to
+ * return to it — you had to guess a ply and re-navigate.
+ */
+interface ExplorationPreview {
+  fen: string;
+  from: string;
+  to: string;
+  san: string;
+  /** SANs played since leaving the mainline, in order. */
+  path: string[];
+  /** The mainline ply this branch left from. Returning restores it. */
+  anchorPly: number;
+}
+
+/**
+ * Why the Lines tab has nothing to show, when it has nothing to show.
+ * "starting" and "unsupported" are deliberately distinct: `engine === null`
+ * covers both, and conflating them told every visitor for the first seconds
+ * of every page load that the engine had failed.
+ */
+type LinesStatus =
+  | "ready"
+  | "searching"
+  | "starting"
+  | "unsupported"
+  | "terminal";
+
+/**
+ * How hard the user wants the engine to think about the position in front of
+ * them, and which engine should do it.
+ *
+ * Separate from the whole-game review settings: this applies to one position,
+ * so it can afford depth the review pass cannot.
+ */
+interface LinesSettings {
+  /** Search depth for the current position. */
+  depth: number;
+  /** How many candidate lines to show (MultiPV — the engine allows 2–10). */
+  count: number;
+  /**
+   * Force the selected local engine even when Lichess's cloud holds a deeper
+   * answer. Off by default: the cloud result is usually far deeper (60+) and
+   * instant. On, for anyone who wants the engine they picked to be the one
+   * actually answering.
+   */
+  preferLocalEngine: boolean;
+}
+
+/** Depth choices for a single position. */
+const LINES_DEPTHS = [14, 18, 22, 26] as const;
+/** Candidate-line counts. Engine accepts 2–10; more is slower per search. */
+const LINES_COUNTS = [2, 3, 5] as const;
 
 function TabStrip({
   active,
@@ -2540,17 +2675,18 @@ function TabStrip({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 0.85,
-              px: 1.5,
+              gap: { xs: 0.5, sm: 0.85 },
+              // Four tabs share one row; at full padding the last one is
+              // clipped on a phone.
+              px: { xs: 0.5, sm: 1.5 },
               py: 1,
               borderRadius: "0.65rem",
               cursor: "pointer",
               color: isActive ? "#0A0A0A" : "rgba(255,255,255,0.62)",
-              fontSize: "0.84rem",
+              fontSize: { xs: "0.76rem", sm: "0.84rem" },
               fontWeight: 700,
               letterSpacing: "0.01em",
-              transition:
-                "color 180ms ease, background 180ms ease",
+              transition: "color 180ms ease, background 180ms ease",
               "&:hover": {
                 color: isActive ? "#0A0A0A" : "rgba(255,255,255,0.92)",
               },
@@ -2589,6 +2725,7 @@ function TabStrip({
                 <Box
                   component="span"
                   sx={{
+                    display: { xs: "none", sm: "inline" },
                     px: 0.7,
                     py: 0.1,
                     borderRadius: "999px",
@@ -2628,8 +2765,16 @@ function MovesListPanel({
   // Group moves into pairs (white, black) for two-column layout
   type Row = {
     moveNumber: number;
-    white: { san: string; ply: number; classification: MoveLabel | null } | null;
-    black: { san: string; ply: number; classification: MoveLabel | null } | null;
+    white: {
+      san: string;
+      ply: number;
+      classification: MoveLabel | null;
+    } | null;
+    black: {
+      san: string;
+      ply: number;
+      classification: MoveLabel | null;
+    } | null;
   };
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
@@ -2943,33 +3088,28 @@ function MovesListPanel({
             flexWrap: "wrap",
           }}
         >
-          {([
-            MoveClassification.Brilliant,
-            MoveClassification.Great,
-            MoveClassification.Best,
-            MoveClassification.Inaccuracy,
-            MoveClassification.Mistake,
-            MoveClassification.Blunder,
-          ] as MoveLabel[]).map(
-            (k) => (
-              <Stack
-                key={k}
-                direction="row"
-                alignItems="center"
-                spacing={0.5}
-              >
-                <Box
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: CLASSIFICATION_COLORS[k],
-                  }}
-                />
-                <Box component="span">{CLASSIFICATION_LABELS[k]}</Box>
-              </Stack>
-            )
-          )}
+          {(
+            [
+              MoveClassification.Brilliant,
+              MoveClassification.Great,
+              MoveClassification.Best,
+              MoveClassification.Inaccuracy,
+              MoveClassification.Mistake,
+              MoveClassification.Blunder,
+            ] as MoveLabel[]
+          ).map((k) => (
+            <Stack key={k} direction="row" alignItems="center" spacing={0.5}>
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: CLASSIFICATION_COLORS[k],
+                }}
+              />
+              <Box component="span">{CLASSIFICATION_LABELS[k]}</Box>
+            </Stack>
+          ))}
         </Stack>
       </Box>
     </Box>
@@ -2980,36 +3120,485 @@ function MovesListPanel({
 // position. Each line is the engine's best continuation from this point;
 // rendered as evaluation + the first few SAN moves of the principal
 // variation. Empty state when analysis hasn't reached this ply yet.
+/**
+ * "You are off the mainline" — shown above the board whenever an exploration
+ * branch is active, on every tab.
+ *
+ * The board silently showed an explored position with nothing saying so and
+ * no way back: after a few clicks down a master line you had to guess which
+ * ply you had branched from and re-navigate by hand. This names the branch
+ * and restores the anchor in one click (or Escape).
+ */
+function ExplorationBanner({
+  preview,
+  onReturn,
+}: {
+  preview: ExplorationPreview;
+  onReturn: () => void;
+}) {
+  const anchor = plyToMoveDisplay(preview.anchorPly);
+  return (
+    <Box
+      sx={{
+        mb: 1.25,
+        px: 1.5,
+        py: 0.85,
+        borderRadius: "0.9rem",
+        background:
+          "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(20,22,28,0.6))",
+        border: "1px solid rgba(251,191,36,0.32)",
+        display: "flex",
+        alignItems: "center",
+        gap: 1.25,
+        flexWrap: "wrap",
+        rowGap: 0.75,
+      }}
+    >
+      <Stack
+        direction="row"
+        spacing={0.75}
+        alignItems="center"
+        sx={{ flexShrink: 0 }}
+      >
+        <GitBranch size={13} color="#FBBF24" />
+        <Typography
+          sx={{
+            fontSize: "0.66rem",
+            fontWeight: 700,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: "#FBBF24",
+          }}
+        >
+          Exploring
+        </Typography>
+      </Stack>
+
+      <Typography
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          fontFamily: "Monaco, Menlo, monospace",
+          fontSize: "0.78rem",
+          color: "rgba(255,255,255,0.82)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+        title={preview.path.join(" ")}
+      >
+        {preview.path.join(" ")}
+      </Typography>
+
+      <Tooltip title="Leave this line and put the board back where you branched off (Esc)">
+        <Button
+          onClick={onReturn}
+          startIcon={<ArrowLeft size={13} />}
+          sx={{
+            flexShrink: 0,
+            px: 1.25,
+            py: 0.4,
+            minWidth: 0,
+            borderRadius: "8px",
+            fontSize: "0.75rem",
+            fontWeight: 700,
+            textTransform: "none",
+            whiteSpace: "nowrap",
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.14)",
+            color: "rgba(255,255,255,0.88)",
+            "&:hover": {
+              background: "rgba(251,191,36,0.16)",
+              borderColor: "rgba(251,191,36,0.45)",
+              color: "#FBBF24",
+            },
+          }}
+        >
+          {anchor.color === null
+            ? "Back to start"
+            : `Back to move ${anchor.moveNum}`}
+        </Button>
+      </Tooltip>
+    </Box>
+  );
+}
+
+/**
+ * Stockfish's top lines FOR THE POSITION ON THE BOARD.
+ *
+ * `position` must be the evaluation OF `fen`. It used to be handed
+ * `enginePositions[currentPly]` — the game-wide pass indexed by ply — while
+ * `fen` was the displayed board, so the moment the user explored off the
+ * mainline the two disagreed and this panel replayed one position's
+ * principal variation on another. chess.js rejected the moves, the SAN list
+ * came out empty or truncated, and the tab showed lines that had nothing to
+ * do with what was on screen. Both now come from the same FEN-keyed source.
+ */
+/**
+ * Accuracy controls for the position on the board.
+ *
+ * These existed only behind the small "d16" chip in the nav bar, which set
+ * the WHOLE-GAME review depth — so there was no way to ask for a harder look
+ * at the one position you were staring at without also making every future
+ * game review slower. Depth and line count here apply to the current
+ * position only.
+ */
+function LinesControls({
+  settings,
+  onChange,
+  engineName,
+  onEngineNameChange,
+  reachedDepth,
+  analyzing,
+  fromCloud,
+}: {
+  settings: LinesSettings;
+  onChange: (next: LinesSettings) => void;
+  engineName: EngineName;
+  onEngineNameChange?: (n: EngineName) => void;
+  reachedDepth: number;
+  analyzing: boolean;
+  fromCloud: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const chip = (
+    label: string,
+    active: boolean,
+    onClick: () => void,
+    title?: string
+  ) => (
+    // describeChild, because MUI's Tooltip otherwise sets aria-label to the
+    // tooltip text and REPLACES the child's own name: d22 and d26 both
+    // announced as "Deeper and slower — seconds per position in a browser",
+    // indistinguishable to a screen reader and to any name-based query.
+    <Tooltip
+      title={title ?? ""}
+      describeChild
+      disableHoverListener={!title}
+      key={label}
+    >
+      <Box
+        component="button"
+        type="button"
+        onClick={onClick}
+        sx={{
+          cursor: "pointer",
+          font: "inherit",
+          px: 1,
+          py: 0.35,
+          borderRadius: "7px",
+          fontFamily: "Monaco, Menlo, monospace",
+          fontSize: "0.72rem",
+          fontWeight: 700,
+          lineHeight: 1.4,
+          background: active
+            ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(251,146,60,0.14))"
+            : "rgba(255,255,255,0.04)",
+          border: active
+            ? "1px solid rgba(249,115,22,0.45)"
+            : "1px solid rgba(255,255,255,0.1)",
+          color: active ? "#FB923C" : "rgba(255,255,255,0.7)",
+          transition: "all 150ms ease",
+          "&:hover": {
+            borderColor: active
+              ? "rgba(249,115,22,0.65)"
+              : "rgba(255,255,255,0.24)",
+            color: active ? "#FB923C" : "rgba(255,255,255,0.95)",
+          },
+        }}
+      >
+        {label}
+      </Box>
+    </Tooltip>
+  );
+
+  const label = (text: string) => (
+    <Typography
+      sx={{
+        fontSize: "0.64rem",
+        fontWeight: 700,
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        color: "rgba(255,255,255,0.4)",
+        minWidth: 44,
+      }}
+    >
+      {text}
+    </Typography>
+  );
+
+  return (
+    <Box
+      sx={{
+        mb: 1.5,
+        borderRadius: "0.6rem",
+        background: "rgba(0,0,0,0.22)",
+        border: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      {/* Collapsed summary — the settings that are in force right now. */}
+      <Box
+        component="button"
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        sx={{
+          width: "100%",
+          cursor: "pointer",
+          font: "inherit",
+          background: "none",
+          border: "none",
+          px: 1.25,
+          py: 0.85,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          color: "rgba(255,255,255,0.7)",
+          "&:hover": { color: "rgba(255,255,255,0.95)" },
+        }}
+      >
+        <Activity size={13} color="#FB923C" />
+        <Typography
+          sx={{
+            fontSize: "0.74rem",
+            fontWeight: 600,
+            fontFamily: "Monaco, Menlo, monospace",
+            color: "inherit",
+          }}
+        >
+          {settings.count} lines · target d{settings.depth}
+          {analyzing && reachedDepth > 0 ? ` · at d${reachedDepth}` : ""}
+        </Typography>
+        <Box sx={{ flex: 1 }} />
+        <Typography
+          sx={{
+            fontSize: "0.68rem",
+            color: "rgba(255,255,255,0.45)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {open ? "Hide" : "Accuracy"}
+        </Typography>
+        <ChevronRight
+          size={13}
+          style={{
+            transform: open ? "rotate(90deg)" : "none",
+            transition: "transform 160ms ease",
+          }}
+        />
+      </Box>
+
+      {open && (
+        <Box
+          sx={{
+            px: 1.25,
+            pb: 1.25,
+            pt: 0.25,
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+          }}
+        >
+          <Stack
+            direction="row"
+            spacing={0.6}
+            alignItems="center"
+            sx={{ flexWrap: "wrap", rowGap: 0.6 }}
+          >
+            {label("Depth")}
+            {LINES_DEPTHS.map((d) =>
+              chip(
+                `d${d}`,
+                settings.depth === d,
+                () => onChange({ ...settings, depth: d }),
+                d >= 22
+                  ? "Deeper and slower — seconds per position in a browser"
+                  : undefined
+              )
+            )}
+          </Stack>
+
+          <Stack
+            direction="row"
+            spacing={0.6}
+            alignItems="center"
+            sx={{ flexWrap: "wrap", rowGap: 0.6 }}
+          >
+            {label("Lines")}
+            {LINES_COUNTS.map((n) =>
+              chip(String(n), settings.count === n, () =>
+                onChange({ ...settings, count: n })
+              )
+            )}
+          </Stack>
+
+          <Stack
+            direction="row"
+            spacing={0.6}
+            alignItems="center"
+            sx={{ flexWrap: "wrap", rowGap: 0.6 }}
+          >
+            {label("Engine")}
+            {chip(
+              "17 Lite",
+              engineName === EngineName.Stockfish17Lite,
+              () => onEngineNameChange?.(EngineName.Stockfish17Lite),
+              "Single-threaded — fastest to start, works on restricted networks"
+            )}
+            {chip(
+              "17 Full",
+              engineName === EngineName.Stockfish17,
+              () => onEngineNameChange?.(EngineName.Stockfish17),
+              "NNUE — stronger per depth, heavier to load"
+            )}
+          </Stack>
+
+          {/* The honest part. Without this the engine buttons above are
+              decorative on any position Lichess already knows. */}
+          <Box
+            component="button"
+            type="button"
+            onClick={() =>
+              onChange({
+                ...settings,
+                preferLocalEngine: !settings.preferLocalEngine,
+              })
+            }
+            sx={{
+              mt: 0.25,
+              cursor: "pointer",
+              font: "inherit",
+              textAlign: "left",
+              px: 1,
+              py: 0.75,
+              borderRadius: "7px",
+              background: settings.preferLocalEngine
+                ? "rgba(249,115,22,0.1)"
+                : "rgba(255,255,255,0.03)",
+              border: settings.preferLocalEngine
+                ? "1px solid rgba(249,115,22,0.35)"
+                : "1px solid rgba(255,255,255,0.08)",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 1,
+            }}
+          >
+            <Box
+              sx={{
+                mt: "2px",
+                width: 13,
+                height: 13,
+                flexShrink: 0,
+                borderRadius: "4px",
+                border: settings.preferLocalEngine
+                  ? "1px solid #FB923C"
+                  : "1px solid rgba(255,255,255,0.3)",
+                background: settings.preferLocalEngine
+                  ? "#FB923C"
+                  : "transparent",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#0A0A0A",
+                fontSize: "0.6rem",
+                fontWeight: 900,
+                lineHeight: 1,
+              }}
+            >
+              {settings.preferLocalEngine ? "✓" : ""}
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                sx={{
+                  fontSize: "0.74rem",
+                  fontWeight: 700,
+                  color: settings.preferLocalEngine
+                    ? "#FB923C"
+                    : "rgba(255,255,255,0.85)",
+                  lineHeight: 1.3,
+                }}
+              >
+                Use my engine, not the cloud
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: "0.7rem",
+                  color: "rgba(255,255,255,0.5)",
+                  lineHeight: 1.45,
+                  mt: 0.2,
+                }}
+              >
+                {settings.preferLocalEngine
+                  ? `Every line is computed here by ${engineName} at your depth.`
+                  : fromCloud
+                    ? "These lines came from Lichess's cloud, which is deeper than this browser reaches."
+                    : "Lichess's cloud answers when it has a deeper result; otherwise your engine does."}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 function EngineLinesPanel({
   position,
   fen,
   engineName,
+  status = "searching",
+  exploring,
+  onReturnToAnchor,
+  settings,
+  onSettingsChange,
+  onEngineNameChange,
 }: {
   position: PositionEval | null;
   fen: string;
   engineName: EngineName;
+  status?: LinesStatus;
+  /** Non-null while the board is off the mainline. */
+  exploring?: ExplorationPreview | null;
+  onReturnToAnchor?: () => void;
+  settings: LinesSettings;
+  onSettingsChange: (next: LinesSettings) => void;
+  onEngineNameChange?: (n: EngineName) => void;
 }) {
+  const analyzing = status === "searching" || status === "starting";
   const lines = position?.lines ?? [];
+  const fromCloud = position?.source === "cloud";
+  // Depth actually reached, which is not necessarily the depth requested —
+  // a search still running reports a lower one, and a cloud answer usually
+  // reports a much higher one.
+  const reachedDepth = lines[0]?.depth ?? 0;
+  // Guard: only render a line whose moves are actually legal from `fen`. A
+  // stale eval arriving for the previous position would otherwise print a
+  // plausible-looking but wrong variation.
   const sanLines = useMemo(() => {
-    return lines.slice(0, 3).map((line) => {
-      try {
+    return lines
+      .slice(0, settings.count)
+      .map((line) => {
         const g = new Chess(fen);
         const sans: string[] = [];
         for (const uci of line.pv.slice(0, 8)) {
-          const mv = g.move({
-            from: uci.slice(0, 2),
-            to: uci.slice(2, 4),
-            promotion: uci.length >= 5 ? uci[4] : "q",
-          });
+          let mv;
+          try {
+            mv = g.move({
+              from: uci.slice(0, 2),
+              to: uci.slice(2, 4),
+              promotion: uci.length >= 5 ? uci[4] : "q",
+            });
+          } catch {
+            break;
+          }
           if (!mv) break;
           sans.push(mv.san);
         }
         return { line, sans };
-      } catch {
-        return { line, sans: line.pv.slice(0, 8) };
-      }
-    });
-  }, [lines, fen]);
+      })
+      .filter((l) => l.sans.length > 0);
+  }, [lines, fen, settings.count]);
 
   const formatEval = (line: LineEval): string => {
     if (typeof line.mate === "number") {
@@ -3021,6 +3610,39 @@ function EngineLinesPanel({
     }
     return "—";
   };
+
+  // Whose move it is, so the variation reads "13.Bg5 Nbd7" rather than a bare
+  // move list the reader has to count out.
+  const startPly = useMemo(() => {
+    try {
+      const g = new Chess(fen);
+      const full = Number(fen.split(" ")[5] ?? 1);
+      return g.turn() === "w" ? full * 2 - 1 : full * 2;
+    } catch {
+      return 1;
+    }
+  }, [fen]);
+
+  const renderVariation = (sans: string[]) =>
+    sans
+      .map((san, i) => {
+        const ply = startPly + i;
+        const moveNum = Math.ceil(ply / 2);
+        if (ply % 2 === 1) return `${moveNum}.${san}`;
+        return i === 0 ? `${moveNum}...${san}` : san;
+      })
+      .join(" ");
+
+  const emptyMessage =
+    status === "terminal"
+      ? "Game over in this position — nothing to search."
+      : status === "unsupported"
+        ? "This browser can't run Stockfish (WebAssembly is unavailable here)."
+        : status === "starting"
+          ? "Starting Stockfish…"
+          : status === "searching"
+            ? "Stockfish is searching this position…"
+            : "No lines for this position yet.";
 
   return (
     <Box
@@ -3040,6 +3662,7 @@ function EngineLinesPanel({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 1,
           mb: 1.5,
         }}
       >
@@ -3053,17 +3676,125 @@ function EngineLinesPanel({
         >
           Engine lines
         </Box>
+        <Stack direction="row" spacing={1} alignItems="center">
+          {analyzing && (
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#F97316",
+                animation: "pulse 1.4s ease-in-out infinite",
+                "@keyframes pulse": {
+                  "0%, 100%": { opacity: 0.4, transform: "scale(0.85)" },
+                  "50%": { opacity: 1, transform: "scale(1)" },
+                },
+              }}
+            />
+          )}
+          {/* Who actually answered.
+              This used to be a static `{engineName}` label, which was wrong
+              whenever the number came from Lichess's cloud eval — and for
+              common positions it usually does, because the cloud holds depth
+              60 and the code takes it whenever it beats the requested depth.
+              An engine selector is meaningless if the panel can't say which
+              engine the numbers in front of you came from. */}
+          <Tooltip
+            describeChild
+            title={
+              fromCloud
+                ? `Lichess cloud analysis, depth ${reachedDepth} — deeper than this browser would reach. Turn on "Use my engine" below to force ${engineName}.`
+                : `Computed in your browser by ${engineName}`
+            }
+          >
+            <Box
+              sx={{
+                color: fromCloud ? "#93C5FD" : "rgba(255,255,255,0.42)",
+                fontSize: "0.72rem",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                whiteSpace: "nowrap",
+                cursor: "help",
+              }}
+            >
+              {fromCloud ? `Lichess cloud · d${reachedDepth}` : engineName}
+            </Box>
+          </Tooltip>
+        </Stack>
+      </Box>
+
+      <LinesControls
+        settings={settings}
+        onChange={onSettingsChange}
+        engineName={engineName}
+        onEngineNameChange={onEngineNameChange}
+        reachedDepth={reachedDepth}
+        analyzing={analyzing}
+        fromCloud={fromCloud}
+      />
+
+      {/* Which position these lines describe. Without it, an explored branch
+          and its anchor look identical here — the complaint that started
+          this: it was hard to tell where you were, let alone get back. */}
+      {exploring && (
         <Box
           sx={{
-            color: "rgba(255,255,255,0.42)",
-            fontSize: "0.72rem",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
+            mb: 1.5,
+            px: 1.25,
+            py: 0.85,
+            borderRadius: "0.6rem",
+            background: "rgba(251,191,36,0.08)",
+            border: "1px solid rgba(251,191,36,0.28)",
           }}
         >
-          {engineName}
+          <Typography
+            sx={{
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "#FBBF24",
+              mb: 0.4,
+            }}
+          >
+            Off the mainline
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: "Monaco, Menlo, monospace",
+              fontSize: "0.76rem",
+              color: "rgba(255,255,255,0.8)",
+              wordBreak: "break-word",
+            }}
+          >
+            {exploring.path.join(" ")}
+          </Typography>
+          {onReturnToAnchor && (
+            <Box
+              component="button"
+              type="button"
+              onClick={onReturnToAnchor}
+              sx={{
+                mt: 0.75,
+                cursor: "pointer",
+                border: "none",
+                background: "none",
+                p: 0,
+                font: "inherit",
+                fontSize: "0.74rem",
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.6)",
+                textDecoration: "underline",
+                "&:hover": { color: "#FBBF24" },
+              }}
+            >
+              Back to move {Math.max(1, Math.ceil(exploring.anchorPly / 2))}{" "}
+              (Esc)
+            </Box>
+          )}
         </Box>
-      </Box>
+      )}
+
       {sanLines.length === 0 ? (
         <Box
           sx={{
@@ -3073,7 +3804,7 @@ function EngineLinesPanel({
             textAlign: "center",
           }}
         >
-          Stockfish hasn't reached this position yet.
+          {emptyMessage}
         </Box>
       ) : (
         <Stack spacing={1.25}>
@@ -3100,8 +3831,8 @@ function EngineLinesPanel({
                     typeof line.mate === "number"
                       ? "#FB923C"
                       : (line.cp ?? 0) >= 0
-                      ? "#E2E8F0"
-                      : "rgba(255,255,255,0.62)",
+                        ? "#E2E8F0"
+                        : "rgba(255,255,255,0.62)",
                   fontSize: "0.92rem",
                 }}
               >
@@ -3116,7 +3847,7 @@ function EngineLinesPanel({
                   lineHeight: 1.5,
                 }}
               >
-                {sans.join(" ")}
+                {renderVariation(sans)}
               </Box>
               <Box
                 sx={{
@@ -3272,7 +4003,11 @@ function PlayerSideChip({
             : {},
         }}
       >
-        <Box component="span" sx={{ fontSize: "0.85rem", lineHeight: 1 }} aria-hidden>
+        <Box
+          component="span"
+          sx={{ fontSize: "0.85rem", lineHeight: 1 }}
+          aria-hidden
+        >
           {side.color === "white" ? "♔" : "♚"}
         </Box>
         <Typography
@@ -3297,6 +4032,185 @@ function PlayerSideChip({
         )}
       </Box>
     </Tooltip>
+  );
+}
+
+/** Human-readable name for a theme key, falling back to the key itself
+ *  rather than inventing a label for a pattern we don't have copy for. */
+function themeDisplayName(theme: string): string {
+  const known = (TACTICAL_THEMES as Record<string, { theme?: string }>)[theme];
+  if (known?.theme) return known.theme;
+  // kebab or camel → words
+  return theme
+    .replace(/-/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Coach slash commands
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A command the coach composer can run directly, without the message going to
+ * the model.
+ *
+ * These are actions the page can perform deterministically — fetching a
+ * practice set from the puzzle store, for instance. Routing them through the
+ * LLM would mean hoping it emits the right tag; running them here means the
+ * user gets the same result every time.
+ */
+interface CoachCommand {
+  /** Typed form, without the leading slash. */
+  id: string;
+  label: string;
+  /** One line, shown in the menu. */
+  description: string;
+  /** Longer text shown the first time it is used. */
+  help: string;
+  icon: typeof Sparkles;
+}
+
+const COACH_COMMANDS: CoachCommand[] = [
+  {
+    id: "puzzle-generation",
+    label: "/puzzle-generation",
+    description: "Practice the pattern you just got wrong",
+    help:
+      "Finds puzzles that share the tactical pattern of the position you're " +
+      "looking at, then opens them as a practice run. Works best when you're " +
+      "sitting on a mistake — navigate to one first, or name a pattern " +
+      "yourself with /puzzle-generation fork.",
+    icon: Target,
+  },
+];
+
+/** Parse composer text into a command + argument, or null if it isn't one. */
+function parseCommand(
+  text: string
+): { command: CoachCommand; arg: string } | null {
+  const m = /^\/([a-z-]+)\s*(.*)$/i.exec(text.trim());
+  if (!m) return null;
+  const command = COACH_COMMANDS.find(
+    (c) => c.id.toLowerCase() === m[1].toLowerCase()
+  );
+  return command ? { command, arg: m[2].trim() } : null;
+}
+
+/** Commands matching what has been typed so far after the slash. */
+function matchCommands(text: string): CoachCommand[] {
+  const m = /^\/([a-z-]*)$/i.exec(text);
+  if (!m) return [];
+  const q = m[1].toLowerCase();
+  return COACH_COMMANDS.filter((c) => c.id.toLowerCase().startsWith(q));
+}
+
+/**
+ * The menu that opens when the composer starts with "/".
+ *
+ * Keyboard-first, like the command palette the rest of the app already uses:
+ * ↑/↓ to move, Enter or Tab to pick, Esc to dismiss. Mounted above the input
+ * so it never covers what is being typed.
+ */
+function SlashCommandMenu({
+  commands,
+  activeIndex,
+  onPick,
+}: {
+  commands: CoachCommand[];
+  activeIndex: number;
+  onPick: (c: CoachCommand) => void;
+}) {
+  if (commands.length === 0) return null;
+  return (
+    <Box
+      role="listbox"
+      aria-label="Coach commands"
+      sx={{
+        position: "absolute",
+        bottom: "calc(100% + 8px)",
+        left: 0,
+        right: 0,
+        zIndex: 20,
+        borderRadius: "0.85rem",
+        overflow: "hidden",
+        background: "rgba(16,18,24,0.97)",
+        backdropFilter: "blur(18px) saturate(150%)",
+        WebkitBackdropFilter: "blur(18px) saturate(150%)",
+        border: "1px solid rgba(249,115,22,0.28)",
+        boxShadow: "0 18px 48px rgba(0,0,0,0.6)",
+      }}
+    >
+      {commands.map((c, i) => {
+        const active = i === activeIndex;
+        const Icon = c.icon;
+        return (
+          <Box
+            key={c.id}
+            role="option"
+            aria-selected={active}
+            onMouseDown={(e) => {
+              // mousedown, not click: the input must not lose focus first.
+              e.preventDefault();
+              onPick(c);
+            }}
+            sx={{
+              px: 1.5,
+              py: 1.15,
+              display: "flex",
+              gap: 1.25,
+              alignItems: "flex-start",
+              cursor: "pointer",
+              background: active ? "rgba(249,115,22,0.14)" : "transparent",
+              borderLeft: active
+                ? "2px solid #F97316"
+                : "2px solid transparent",
+              "&:hover": { background: "rgba(249,115,22,0.1)" },
+            }}
+          >
+            <Icon
+              size={15}
+              color={active ? "#FB923C" : "rgba(255,255,255,0.5)"}
+              style={{ marginTop: 2, flexShrink: 0 }}
+            />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                sx={{
+                  fontFamily: "Monaco, Menlo, monospace",
+                  fontSize: "0.82rem",
+                  fontWeight: 700,
+                  color: active ? "#FB923C" : "rgba(255,255,255,0.92)",
+                  lineHeight: 1.3,
+                }}
+              >
+                {c.label}
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: "0.74rem",
+                  color: "rgba(255,255,255,0.55)",
+                  lineHeight: 1.45,
+                }}
+              >
+                {c.description}
+              </Typography>
+            </Box>
+          </Box>
+        );
+      })}
+      <Box
+        sx={{
+          px: 1.5,
+          py: 0.6,
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          fontSize: "0.68rem",
+          color: "rgba(255,255,255,0.38)",
+          fontFamily: "Monaco, Menlo, monospace",
+        }}
+      >
+        ↑↓ select · ⏎ run · esc dismiss
+      </Box>
+    </Box>
   );
 }
 
@@ -3325,6 +4239,8 @@ function CoachPanel({
   playerSide,
   sideUiEligible,
   onChoosePlayerSide,
+  onRunCommand,
+  onLaunchPuzzleSet,
 }: {
   messages: CoachMessage[];
   input: string;
@@ -3386,8 +4302,35 @@ function CoachPanel({
    *  and the assumed-side switch chip (playerSide set). */
   sideUiEligible?: boolean;
   onChoosePlayerSide?: (color: PlayerSideColor) => void;
+  /** Run a slash command. Handled by the page, not sent to the model. */
+  onRunCommand?: (id: string, arg: string) => void;
+  /** Open a generated practice set on /puzzles. */
+  onLaunchPuzzleSet?: (set: PuzzleSet) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Slash-command menu state. `dismissed` is reset whenever the text changes
+  // so Escape hides the menu for the current keystroke without disabling the
+  // feature for the rest of the session.
+  const [slashIndex, setSlashIndex] = useState(0);
+  const [slashDismissed, setSlashDismissed] = useState(false);
+  const slashMatches = useMemo(
+    () => (slashDismissed ? [] : matchCommands(input)),
+    [input, slashDismissed]
+  );
+  useEffect(() => {
+    setSlashIndex(0);
+    setSlashDismissed(false);
+  }, [input]);
+  const pickSlashCommand = useCallback(
+    (c: CoachCommand) => {
+      // Fill the composer rather than firing immediately: several commands
+      // take an argument, and the user should see what is about to run.
+      onChangeInput(`/${c.id} `);
+      setSlashDismissed(true);
+    },
+    [onChangeInput]
+  );
 
   // Personality picker UI state — kept local to the panel; the actual
   // selection bubbles up via onChangePersonality.
@@ -3443,8 +4386,7 @@ function CoachPanel({
             width: 36,
             height: 36,
             borderRadius: "50%",
-            background:
-              "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+            background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -3464,7 +4406,12 @@ function CoachPanel({
           >
             AI Coach
           </Typography>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ mt: 0.5 }}
+          >
             <Box
               sx={{
                 width: 6,
@@ -3514,8 +4461,7 @@ function CoachPanel({
                 sx={{
                   fontSize: "0.92rem",
                   lineHeight: 1,
-                  filter:
-                    "drop-shadow(0 0 4px rgba(249,115,22,0.32))",
+                  filter: "drop-shadow(0 0 4px rgba(249,115,22,0.32))",
                 }}
               >
                 {personality.avatar}
@@ -3533,10 +4479,7 @@ function CoachPanel({
               >
                 {personality.name}
               </Typography>
-              <ChevronDown
-                size={11}
-                color="rgba(255,255,255,0.55)"
-              />
+              <ChevronDown size={11} color="rgba(255,255,255,0.55)" />
             </Box>
           </Tooltip>
         )}
@@ -3669,7 +4612,9 @@ function CoachPanel({
             }}
           >
             <ShieldCheck size={12} color="#22c55e" />
-            <Typography sx={{ fontSize: "0.68rem", color: "#86efac", fontWeight: 600 }}>
+            <Typography
+              sx={{ fontSize: "0.68rem", color: "#86efac", fontWeight: 600 }}
+            >
               Validated
             </Typography>
           </Box>
@@ -3735,6 +4680,7 @@ function CoachPanel({
                   contextId={coachContextIdProp}
                   onPuzzleSolved={onPuzzleSolved}
                   onPracticeConcept={onPracticeConcept}
+                  onLaunchPuzzleSet={onLaunchPuzzleSet}
                   enginePositions={enginePositions}
                   loadedGame={loadedGame}
                 />
@@ -3823,14 +4769,56 @@ function CoachPanel({
           zIndex: 1,
         }}
       >
+        <SlashCommandMenu
+          commands={slashMatches}
+          activeIndex={slashIndex}
+          onPick={pickSlashCommand}
+        />
         <Stack direction="row" spacing={1.5} alignItems="center">
           <TextField
             value={input}
             onChange={(e) => onChangeInput(e.target.value)}
             onKeyDown={(e) => {
+              // The command menu owns the arrow keys and Enter while open,
+              // so typing "/" and pressing Enter runs the highlighted command
+              // instead of sending "/" to the model as a question.
+              if (slashMatches.length > 0) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setSlashIndex((i) => (i + 1) % slashMatches.length);
+                  return;
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSlashIndex(
+                    (i) => (i - 1 + slashMatches.length) % slashMatches.length
+                  );
+                  return;
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setSlashDismissed(true);
+                  return;
+                }
+                if (e.key === "Enter" || e.key === "Tab") {
+                  e.preventDefault();
+                  const picked = slashMatches[slashIndex] ?? slashMatches[0];
+                  if (picked) pickSlashCommand(picked);
+                  return;
+                }
+              }
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 if (analysisActive || isThinking) return;
+                // A fully typed command runs here rather than being sent as a
+                // chat message.
+                const parsed = parseCommand(input);
+                if (parsed && onRunCommand) {
+                  onChangeInput("");
+                  setSlashDismissed(false);
+                  onRunCommand(parsed.command.id, parsed.arg);
+                  return;
+                }
                 onSend();
               }
             }}
@@ -3871,14 +4859,12 @@ function CoachPanel({
               width: 44,
               height: 44,
               borderRadius: "12px",
-              background:
-                "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+              background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
               color: "#0A0A0A",
               boxShadow: "0 6px 18px rgba(249,115,22,0.4)",
               transition: "all 200ms ease",
               "&:hover": {
-                background:
-                  "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
+                background: "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
                 transform: "translateY(-1px)",
                 boxShadow: "0 8px 24px rgba(249,115,22,0.55)",
               },
@@ -4036,23 +5022,23 @@ function InlinePuzzleSolver({
     status === "wrong"
       ? "Not the move — try again."
       : status === "solved"
-      ? "Solved!"
-      : turn === "white"
-      ? "White to move"
-      : "Black to move";
+        ? "Solved!"
+        : turn === "white"
+          ? "White to move"
+          : "Black to move";
   const statusColor =
     status === "wrong"
       ? "#fca5a5"
       : status === "solved"
-      ? "#86efac"
-      : "rgba(255,255,255,0.7)";
+        ? "#86efac"
+        : "rgba(255,255,255,0.7)";
 
   const flashShadow =
     flash === "green"
       ? "0 0 0 4px rgba(34,197,94,0.55)"
       : flash === "red"
-      ? "0 0 0 4px rgba(239,68,68,0.55)"
-      : "0 0 0 0 rgba(0,0,0,0)";
+        ? "0 0 0 4px rgba(239,68,68,0.55)"
+        : "0 0 0 0 rgba(0,0,0,0)";
 
   return (
     <Box
@@ -4087,12 +5073,7 @@ function InlinePuzzleSolver({
           viewOnly={false}
         />
       </Box>
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={1}
-        sx={{ mt: 1.25 }}
-      >
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1.25 }}>
         <Typography
           sx={{
             fontSize: "0.78rem",
@@ -4213,12 +5194,7 @@ function CoachPuzzleCard({
         border: "1px solid rgba(168,85,247,0.25)",
       }}
     >
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={1}
-        sx={{ mb: 1.25 }}
-      >
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.25 }}>
         <Lightbulb size={14} color="#C084FC" />
         <Typography
           sx={{
@@ -4242,8 +5218,8 @@ function CoachPuzzleCard({
           {pack.status === "loading"
             ? "loading…"
             : pack.status === "error"
-            ? "unavailable"
-            : `${pack.puzzles.length} puzzle${pack.puzzles.length === 1 ? "" : "s"}`}
+              ? "unavailable"
+              : `${pack.puzzles.length} puzzle${pack.puzzles.length === 1 ? "" : "s"}`}
         </Typography>
       </Stack>
       {pack.status === "loading" && pack.puzzles.length === 0 && (
@@ -4284,7 +5260,8 @@ function CoachPuzzleCard({
               lineHeight: 1.4,
             }}
           >
-            Couldn't reach the puzzle store{pack.error ? ` — ${pack.error}` : ""}.
+            Couldn't reach the puzzle store
+            {pack.error ? ` — ${pack.error}` : ""}.
           </Typography>
         </Box>
       )}
@@ -4304,9 +5281,7 @@ function CoachPuzzleCard({
                   gap: 1.25,
                   px: 1.25,
                   py: 1,
-                  borderRadius: isExpanded
-                    ? "0.6rem 0.6rem 0 0"
-                    : "0.6rem",
+                  borderRadius: isExpanded ? "0.6rem 0.6rem 0 0" : "0.6rem",
                   background: isExpanded
                     ? "rgba(168,85,247,0.08)"
                     : "rgba(255,255,255,0.03)",
@@ -4454,9 +5429,9 @@ function CoachPuzzleCard({
 //      renders the label as an uppercase letter-spaced eyebrow above
 //      the body — far more readable than the raw inline form.
 //   3. Lists of "- foo" bullets get rendered as a real list.
-const INSIGHT_LABEL_RE = /^(Idea|Problem|Solution|Outcome|Continuation)\s*:\s*(.+)$/i;
-const CONTINUATION_TAG_RE =
-  /\[(CONTINUATION|MAIA_CONTINUATION):(\d+):(w|b)\]/g;
+const INSIGHT_LABEL_RE =
+  /^(Idea|Problem|Solution|Outcome|Continuation)\s*:\s*(.+)$/i;
+const CONTINUATION_TAG_RE = /\[(CONTINUATION|MAIA_CONTINUATION):(\d+):(w|b)\]/g;
 
 function ContinuationPill({
   kind,
@@ -4480,9 +5455,7 @@ function ContinuationPill({
         letterSpacing: "0.04em",
         textTransform: "uppercase",
         color: isMaia ? "#C4B5FD" : "#FB923C",
-        background: isMaia
-          ? "rgba(196,181,253,0.08)"
-          : "rgba(251,146,60,0.08)",
+        background: isMaia ? "rgba(196,181,253,0.08)" : "rgba(251,146,60,0.08)",
         border: isMaia
           ? "1px solid rgba(196,181,253,0.28)"
           : "1px solid rgba(251,146,60,0.28)",
@@ -4517,20 +5490,20 @@ function InsightContinuationInline({
    *  forceRecommended=true so each "N. san" turns into a green 🔍
    *  clickable Box (same styling as recommended-move refs in prose).
    *  Caller passes CoachBubble's renderInline closure. */
-  renderInline?: (text: string, forceRecommended?: boolean) => React.ReactNode[];
+  renderInline?: (
+    text: string,
+    forceRecommended?: boolean
+  ) => React.ReactNode[];
 }) {
   // Half-move index inside enginePositions / loadedGame.history():
   // - white move N lands at ply 2N-1 (1-indexed) → index 2(N-1)
   // - black move N lands at ply 2N        (1-indexed) → index 2N-1
-  const halfMoveIdx =
-    color === "b" ? moveNum * 2 - 1 : (moveNum - 1) * 2;
+  const halfMoveIdx = color === "b" ? moveNum * 2 - 1 : (moveNum - 1) * 2;
 
   const isMaia = kind === "MAIA_CONTINUATION";
   const accent = isMaia ? "#C4B5FD" : "#FB923C";
   const bg = isMaia ? "rgba(196,181,253,0.08)" : "rgba(251,146,60,0.08)";
-  const border = isMaia
-    ? "rgba(196,181,253,0.28)"
-    : "rgba(251,146,60,0.28)";
+  const border = isMaia ? "rgba(196,181,253,0.28)" : "rgba(251,146,60,0.28)";
   const label = isMaia ? "Maia line" : "Engine line";
 
   const data = useMemo(() => {
@@ -4542,15 +5515,16 @@ function InsightContinuationInline({
     const pv = posEval?.lines?.[0];
     if (!pv?.pv || pv.pv.length === 0) return null;
 
-    // Get FEN before this move by replaying loadedGame's history.
+    // Get FEN before this move by replaying loadedGame's history from its
+    // ROOT — a FEN-loaded game does not start from the standard position.
     let fenBefore: string | null = null;
     try {
-      const tempGame = new Chess();
-      const history = loadedGame.history();
-      for (let i = 0; i < halfMoveIdx && i < history.length; i++) {
-        tempGame.move(history[i]);
-      }
-      fenBefore = tempGame.fen();
+      const { board } = replayFromRoot(
+        loadedGame.history(),
+        halfMoveIdx,
+        getRootFen(loadedGame)
+      );
+      fenBefore = board.fen();
     } catch {
       return null;
     }
@@ -4577,8 +5551,8 @@ function InsightContinuationInline({
       typeof pv.mate === "number"
         ? `M${pv.mate > 0 ? "+" : ""}${pv.mate}`
         : typeof pv.cp === "number"
-        ? `${pv.cp >= 0 ? "+" : ""}${(pv.cp / 100).toFixed(2)}`
-        : "";
+          ? `${pv.cp >= 0 ? "+" : ""}${(pv.cp / 100).toFixed(2)}`
+          : "";
 
     // Render as "14. e4 c5 15. Nf3 d6 16. d4 …" — chess.com-style
     // move-number-prefixed display, beginning at the right move number.
@@ -4788,7 +5762,13 @@ function InsightBodyText({
   const hasMaia = unInlinedMaia;
 
   return (
-    <Box sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.55 }}>
+    <Box
+      sx={{
+        fontSize: "0.85rem",
+        color: "rgba(255,255,255,0.88)",
+        lineHeight: 1.55,
+      }}
+    >
       {blocks.map((b, i) => {
         if (b.kind === "label") {
           return (
@@ -5166,8 +6146,8 @@ function DarkInsightCard({
               showWhy
                 ? "Hide"
                 : isNegative
-                ? "Show what was missed"
-                : "Show why this works"
+                  ? "Show what was missed"
+                  : "Show why this works"
             }
             active={showWhy}
             onClick={() => setShowWhy((v) => !v)}
@@ -5237,9 +6217,7 @@ function DarkInsightCard({
       {showWhy && insight.why && (
         <Reveal
           title={
-            insight.bestMove
-              ? `Best move: ${insight.bestMove}`
-              : "Explanation"
+            insight.bestMove ? `Best move: ${insight.bestMove}` : "Explanation"
           }
           body={insight.why}
           onClose={() => setShowWhy(false)}
@@ -5470,8 +6448,7 @@ function DarkInsightCarousel({
             top: 0,
             bottom: 0,
             left: 0,
-            background:
-              "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
+            background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
             boxShadow: "0 0 12px rgba(249,115,22,0.45)",
           }}
         />
@@ -5530,9 +6507,7 @@ function DarkInsightCarousel({
                   background: active
                     ? "linear-gradient(135deg,#F97316,#EA580C)"
                     : "rgba(255,255,255,0.18)",
-                  boxShadow: active
-                    ? "0 0 10px rgba(249,115,22,0.45)"
-                    : "none",
+                  boxShadow: active ? "0 0 10px rgba(249,115,22,0.45)" : "none",
                   transition: "all 220ms ease",
                   "&:hover": active
                     ? {}
@@ -5543,6 +6518,123 @@ function DarkInsightCarousel({
           })}
         </Box>
       )}
+    </Box>
+  );
+}
+
+/**
+ * A generated practice set, sitting in the conversation.
+ *
+ * Deliberately not the old inline three-puzzle solver: solving in a chat
+ * bubble is a cramped version of a page that already exists. This names what
+ * was found and hands it to /puzzles, and — because the set lives on the
+ * message rather than in the handoff atom that /puzzles consumes — the same
+ * puzzles can be relaunched from here any number of times.
+ */
+function PuzzleSetCard({
+  set,
+  onLaunch,
+}: {
+  set: PuzzleSet;
+  onLaunch: (set: PuzzleSet) => void;
+}) {
+  const avgRating = useMemo(() => {
+    const rated = set.puzzles
+      .map((p) => p.rating)
+      .filter((r): r is number => !!r);
+    if (rated.length === 0) return null;
+    return Math.round(rated.reduce((a, b) => a + b, 0) / rated.length);
+  }, [set.puzzles]);
+
+  return (
+    <Box
+      sx={{
+        mt: 1.25,
+        borderRadius: "1rem",
+        overflow: "hidden",
+        background:
+          "linear-gradient(135deg, rgba(249,115,22,0.10), rgba(20,22,28,0.75))",
+        border: "1px solid rgba(249,115,22,0.32)",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+      }}
+    >
+      <Box
+        sx={{
+          px: 1.75,
+          py: 1.5,
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+        }}
+      >
+        <Box
+          sx={{
+            width: 38,
+            height: 38,
+            flexShrink: 0,
+            borderRadius: "11px",
+            background:
+              "linear-gradient(135deg, rgba(249,115,22,0.9), rgba(234,88,12,0.9))",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 0 18px rgba(249,115,22,0.35)",
+          }}
+        >
+          <Target size={19} color="#0A0A0A" />
+        </Box>
+
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography
+            sx={{
+              fontSize: "0.95rem",
+              fontWeight: 800,
+              color: "rgba(255,255,255,0.96)",
+              lineHeight: 1.25,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {set.displayName}
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: "0.74rem",
+              color: "rgba(255,255,255,0.5)",
+              fontFamily: "Monaco, Menlo, monospace",
+              mt: 0.25,
+            }}
+          >
+            {set.puzzles.length} puzzles
+            {avgRating ? ` · avg ${avgRating}` : ""}
+          </Typography>
+        </Box>
+
+        <Button
+          onClick={() => onLaunch(set)}
+          endIcon={<ChevronRight size={15} />}
+          sx={{
+            flexShrink: 0,
+            px: 2,
+            py: 0.9,
+            borderRadius: "10px",
+            fontSize: "0.84rem",
+            fontWeight: 800,
+            letterSpacing: "0.01em",
+            textTransform: "none",
+            color: "#0A0A0A",
+            background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
+            boxShadow: "0 6px 18px rgba(249,115,22,0.4)",
+            transition: "transform 180ms ease, box-shadow 180ms ease",
+            "&:hover": {
+              background: "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
+              transform: "translateY(-1px)",
+              boxShadow: "0 9px 24px rgba(249,115,22,0.5)",
+            },
+          }}
+        >
+          Practice
+        </Button>
+      </Box>
     </Box>
   );
 }
@@ -5558,6 +6650,7 @@ function CoachBubble({
   contextId,
   onPuzzleSolved,
   onPracticeConcept,
+  onLaunchPuzzleSet,
   enginePositions,
   loadedGame,
 }: {
@@ -5585,6 +6678,8 @@ function CoachBubble({
     displayName: string,
     messageIndex: number
   ) => void;
+  /** Open a generated practice set on /puzzles. */
+  onLaunchPuzzleSet?: (set: PuzzleSet) => void;
   /** Engine data passed through to insight cards so `[CONTINUATION:N:c]`
    *  / `[MAIA_CONTINUATION:N:c]` tokens can materialise inline PVs. */
   enginePositions?: PositionEval[] | null;
@@ -5690,8 +6785,8 @@ function CoachBubble({
                 textDecorationColor: ref.recommended
                   ? "rgba(134,239,172,0.5)"
                   : isUser
-                  ? "rgba(0,0,0,0.5)"
-                  : "rgba(251,146,60,0.5)",
+                    ? "rgba(0,0,0,0.5)"
+                    : "rgba(251,146,60,0.5)",
                 px: 0.35,
                 borderRadius: "3px",
                 transition: "all 140ms ease",
@@ -5700,8 +6795,8 @@ function CoachBubble({
                   background: ref.recommended
                     ? "rgba(34,197,94,0.16)"
                     : isUser
-                    ? "rgba(0,0,0,0.08)"
-                    : "rgba(249,115,22,0.14)",
+                      ? "rgba(0,0,0,0.08)"
+                      : "rgba(249,115,22,0.14)",
                 },
               }}
             >
@@ -5716,9 +6811,7 @@ function CoachBubble({
       }
       if (lastIdx < part.length) {
         out.push(
-          <span key={`${boldIdx}t${lastIdx}end`}>
-            {part.slice(lastIdx)}
-          </span>
+          <span key={`${boldIdx}t${lastIdx}end`}>{part.slice(lastIdx)}</span>
         );
       }
     });
@@ -5830,12 +6923,18 @@ function CoachBubble({
       </Box>
     ),
     h1: ({ children }: any) => (
-      <Box component="div" sx={{ fontWeight: 700, fontSize: "1.05em", mb: 0.5 }}>
+      <Box
+        component="div"
+        sx={{ fontWeight: 700, fontSize: "1.05em", mb: 0.5 }}
+      >
         {processChildren(children)}
       </Box>
     ),
     h2: ({ children }: any) => (
-      <Box component="div" sx={{ fontWeight: 700, fontSize: "1.02em", mb: 0.5 }}>
+      <Box
+        component="div"
+        sx={{ fontWeight: 700, fontSize: "1.02em", mb: 0.5 }}
+      >
         {processChildren(children)}
       </Box>
     ),
@@ -5845,13 +6944,14 @@ function CoachBubble({
       </Box>
     ),
     h4: ({ children }: any) => (
-      <Box component="div" sx={{ fontWeight: 700, fontSize: "0.96em", mb: 0.5 }}>
+      <Box
+        component="div"
+        sx={{ fontWeight: 700, fontSize: "0.96em", mb: 0.5 }}
+      >
         {processChildren(children)}
       </Box>
     ),
-    em: ({ children }: any) => (
-      <em>{processChildren(children)}</em>
-    ),
+    em: ({ children }: any) => <em>{processChildren(children)}</em>,
     // We intentionally do NOT remap <strong>: renderInline already turns
     // `**bold**` into a styled span, and remark-gfm's `<strong>` rendering
     // would double-bold the same content. Leaving `strong` off this map
@@ -5920,10 +7020,7 @@ function CoachBubble({
   // owning the bold + move-ref tokenization. Returns a JSX element rather
   // than ReactNode[] so callers can drop it into JSX with `{}`.
   const renderMarkdownProse = (text: string): React.ReactNode => (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={markdownComponents}
-    >
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
       {text}
     </ReactMarkdown>
   );
@@ -6025,6 +7122,37 @@ function CoachBubble({
           </Tooltip>
         )}
       </Box>
+      {msg.incomplete && !isUser && (
+        // D4 / T5 (SILENT_SUBSTITUTION_HANDOFF §3 Group D, §4): this answer is
+        // a fragment — the stream ended with no `done` event, or the server
+        // reported the deep-validation pass timed out. Both used to render
+        // EXACTLY like a finished answer, so the user had no way to tell an
+        // incomplete analysis from a complete one. Excluding it from the
+        // model's history (already done) protects the model; this is what
+        // protects the reader.
+        <Box
+          sx={{
+            mt: 1,
+            px: 1.25,
+            py: 0.75,
+            borderRadius: "0.6rem",
+            display: "flex",
+            alignItems: "center",
+            gap: 0.75,
+            background: "rgba(249,115,22,0.08)",
+            border: "1px solid rgba(249,115,22,0.25)",
+            color: "rgba(255,237,213,0.85)",
+            fontSize: "0.78rem",
+            lineHeight: 1.4,
+          }}
+        >
+          <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+          <span>
+            This answer was cut off before it finished — treat it as partial,
+            and ask again for the full explanation.
+          </span>
+        </Box>
+      )}
       {msg.insight && !isUser && (
         <Box
           sx={{
@@ -6041,23 +7169,40 @@ function CoachBubble({
         >
           <Flame size={16} color="#22c55e" />
           <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: "0.82rem", fontWeight: 700, color: "rgba(255,255,255,0.92)" }}>
+            <Typography
+              sx={{
+                fontSize: "0.82rem",
+                fontWeight: 700,
+                color: "rgba(255,255,255,0.92)",
+              }}
+            >
               {msg.insight.tag}
             </Typography>
             <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
               {msg.insight.eval && (
-                <Typography sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.55)", fontFamily: "Monaco, Menlo, monospace" }}>
+                <Typography
+                  sx={{
+                    fontSize: "0.72rem",
+                    color: "rgba(255,255,255,0.55)",
+                    fontFamily: "Monaco, Menlo, monospace",
+                  }}
+                >
                   Eval: {msg.insight.eval}
                 </Typography>
               )}
               {msg.insight.classification && (
-                <Typography sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.55)" }}>
+                <Typography
+                  sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.55)" }}
+                >
                   {msg.insight.classification}
                 </Typography>
               )}
             </Stack>
           </Box>
         </Box>
+      )}
+      {msg.puzzleSet && !isUser && onLaunchPuzzleSet && (
+        <PuzzleSetCard set={msg.puzzleSet} onLaunch={onLaunchPuzzleSet} />
       )}
       {msg.puzzlePack && !isUser && onPromoteToBoard && (
         <CoachPuzzleCard
@@ -6139,6 +7284,15 @@ function ThinkingBubble() {
   );
 }
 
+/**
+ * Board controls, sized to share the strip under the board with the eval
+ * sparkline.
+ *
+ * Was a standalone full-width pill below BOTH columns with 42px buttons and a
+ * stacked "MOVE" caption. Now: 34px buttons, one-line move readout, and the
+ * arrow-overlay toggles ride in the middle via `arrows` rather than occupying
+ * a card of their own.
+ */
 function MoveNavigator({
   currentPly,
   totalPlies,
@@ -6169,9 +7323,9 @@ function MoveNavigator({
           onClick={onClick}
           disabled={disabled}
           sx={{
-            width: 42,
-            height: 42,
-            borderRadius: "10px",
+            width: 34,
+            height: 34,
+            borderRadius: "9px",
             background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.08)",
             color: "rgba(255,255,255,0.85)",
@@ -6196,18 +7350,11 @@ function MoveNavigator({
   return (
     <Box
       sx={{
-        mt: 3,
-        px: { xs: 2, md: 3 },
-        py: 1.75,
-        borderRadius: "999px",
-        background: "rgba(20,22,28,0.65)",
-        backdropFilter: "blur(14px) saturate(150%)",
-        WebkitBackdropFilter: "blur(14px) saturate(150%)",
-        border: "1px solid rgba(255,255,255,0.08)",
         display: "flex",
         alignItems: "center",
-        gap: 1,
+        gap: 0.6,
         flexWrap: "wrap",
+        rowGap: 1,
       }}
     >
       <NavButton
@@ -6215,25 +7362,25 @@ function MoveNavigator({
         disabled={currentPly === 0}
         tooltip="Start (Home)"
       >
-        <ChevronsLeft size={18} />
+        <ChevronsLeft size={16} />
       </NavButton>
       <NavButton
         onClick={() => onJumpTo(Math.max(0, currentPly - 1))}
         disabled={currentPly === 0}
         tooltip="Previous move (←)"
       >
-        <ChevronLeft size={18} />
+        <ChevronLeft size={16} />
       </NavButton>
 
       <Box
         sx={{
-          mx: 1.5,
-          px: 2,
-          py: 1,
-          borderRadius: "10px",
+          mx: 0.5,
+          px: 1.25,
+          py: 0.55,
+          borderRadius: "9px",
           background: "rgba(249,115,22,0.08)",
           border: "1px solid rgba(249,115,22,0.2)",
-          minWidth: 100,
+          minWidth: 62,
           textAlign: "center",
         }}
       >
@@ -6242,11 +7389,11 @@ function MoveNavigator({
           return disp.color === null ? (
             <Typography
               sx={{
-                fontSize: "0.82rem",
+                fontSize: "0.76rem",
                 fontWeight: 700,
                 color: "#FB923C",
                 fontFamily: "Monaco, Menlo, monospace",
-                lineHeight: 1,
+                lineHeight: 1.4,
               }}
             >
               Start
@@ -6254,29 +7401,28 @@ function MoveNavigator({
           ) : (
             <Stack
               direction="row"
-              spacing={0.75}
+              spacing={0.6}
               alignItems="center"
               justifyContent="center"
-              sx={{ lineHeight: 1 }}
+              sx={{ lineHeight: 1.4 }}
             >
               <Typography
                 sx={{
-                  fontSize: "0.92rem",
+                  fontSize: "0.82rem",
                   fontWeight: 700,
                   color: "#FB923C",
                   fontFamily: "Monaco, Menlo, monospace",
-                  lineHeight: 1,
+                  lineHeight: 1.4,
                 }}
               >
                 {disp.moveNum}
               </Typography>
               <Box
                 sx={{
-                  width: 9,
-                  height: 9,
+                  width: 8,
+                  height: 8,
                   borderRadius: "50%",
-                  background:
-                    disp.color === "white" ? "#F0D9B5" : "#1A1814",
+                  background: disp.color === "white" ? "#F0D9B5" : "#1A1814",
                   border: "1px solid rgba(255,255,255,0.3)",
                   boxShadow:
                     disp.color === "white"
@@ -6288,17 +7434,6 @@ function MoveNavigator({
             </Stack>
           );
         })()}
-        <Typography
-          sx={{
-            fontSize: "0.65rem",
-            color: "rgba(255,255,255,0.4)",
-            mt: 0.5,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-          }}
-        >
-          Move
-        </Typography>
       </Box>
 
       <NavButton
@@ -6306,25 +7441,25 @@ function MoveNavigator({
         disabled={currentPly === totalPlies}
         tooltip="Next move (→)"
       >
-        <ChevronRight size={18} />
+        <ChevronRight size={16} />
       </NavButton>
       <NavButton
         onClick={() => onJumpTo(totalPlies)}
         disabled={currentPly === totalPlies}
         tooltip="End"
       >
-        <ChevronsRight size={18} />
+        <ChevronsRight size={16} />
       </NavButton>
 
       <Box sx={{ flex: 1, minWidth: 8 }} />
 
       <NavButton onClick={onFlip} tooltip="Flip board (F)">
-        <RotateCw size={16} />
+        <RotateCw size={15} />
       </NavButton>
       <NavButton onClick={onReset} tooltip="Reset to start">
-        <RefreshCw size={16} />
+        <RefreshCw size={15} />
       </NavButton>
-      <Tooltip title="Share">
+      <Tooltip title="Copy a link to this position">
         <span>
           <IconButton
             onClick={() => {
@@ -6333,9 +7468,9 @@ function MoveNavigator({
               }
             }}
             sx={{
-              width: 42,
-              height: 42,
-              borderRadius: "10px",
+              width: 34,
+              height: 34,
+              borderRadius: "9px",
               background:
                 "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(234,88,12,0.18))",
               border: "1px solid rgba(249,115,22,0.35)",
@@ -6347,7 +7482,7 @@ function MoveNavigator({
               },
             }}
           >
-            <Share2 size={16} />
+            <Share2 size={15} />
           </IconButton>
         </span>
       </Tooltip>
@@ -6395,7 +7530,7 @@ export default function AnalysisPage() {
   >(autoAnalyzeParam === "1" ? "pending" : "idle");
   const autoAnalyzeFiredRef = useRef(false);
 
-  // Loaded game — either the Kasparov demo (cold start), a puzzle stub
+  // Loaded game — an empty board on cold start, a puzzle stub
   // (?puzzleFen=...), or whatever the user just imported via URL param /
   // LoadGameDialog. Mutable because we hot-swap the game when the user
   // pastes a new PGN.
@@ -6403,20 +7538,27 @@ export default function AnalysisPage() {
     const g = new Chess();
     if (puzzleFen) {
       g.loadPgn(`[FEN "${decodeURIComponent(puzzleFen)}"]\n[SetUp "1"]\n*`);
-    } else {
-      g.loadPgn(DEMO_PGN);
     }
     return g;
   });
-  // True when we're showing the hand-curated demo (puzzle pack is fair game).
-  // Flips false the moment a real game is loaded so we don't pretend the demo
-  // narrative applies to a user's PGN.
-  const [isDemoGame, setIsDemoGame] = useState(true);
 
   const allMoves = useMemo(
     () => loadedGame.history({ verbose: true }) as Move[],
     [loadedGame]
   );
+  /**
+   * The position this game starts from — a FEN when it was loaded from one
+   * (?fen=, ?puzzleFen=, a pasted FEN, a position-only coach insight),
+   * undefined for an ordinary PGN. Everything that replays the move list has
+   * to start here; see getRootFen.
+   */
+  const rootFen = useMemo(() => getRootFen(loadedGame), [loadedGame]);
+  // False until something is actually loaded — the cold-start board is the
+  // start position with no history, and a bare-FEN load has no history
+  // either, so move count alone can't tell the two apart. Drives the page's
+  // empty state (board placeholder, coach copy, suggestion pills).
+  const [gameLoaded, setGameLoaded] = useState(Boolean(puzzleFen));
+  const hasGame = gameLoaded || allMoves.length > 0;
   const headers = useMemo(() => loadedGame.header(), [loadedGame]);
   // Live opening detection — falls back to the PGN-supplied header. Most
   // imported games have an Opening tag (chess.com fills it, lichess fills
@@ -6426,7 +7568,7 @@ export default function AnalysisPage() {
   // loadedGame so a click-through navigation doesn't trie-walk per render.
   const detectedOpening = useMemo(
     () => detectOpening(loadedGame),
-    [loadedGame],
+    [loadedGame]
   );
   const openingLabel = useMemo(() => {
     const pgnOpening = headers.Opening?.trim();
@@ -6452,6 +7594,22 @@ export default function AnalysisPage() {
     engineName: EngineName;
   }>({ depth: 16, engineName: EngineName.Stockfish17Lite });
   const engine = useEngine(engineSettings.engineName);
+
+  /**
+   * How hard to think about the ONE position on the board, as opposed to
+   * `engineSettings.depth`, which is the whole-game review pass.
+   *
+   * They have to be separate. The review pass evaluates every ply, so depth
+   * there is multiplied by the length of the game — pushing it to 22 turns a
+   * 40-move game into minutes of work. The Lines tab is a single position, so
+   * it can afford depth the review never could, which is the whole point of
+   * letting someone dial in the accuracy they want.
+   */
+  const [linesSettings, setLinesSettings] = useState<LinesSettings>({
+    depth: 18,
+    count: 3,
+    preferLocalEngine: false,
+  });
   const [enginePositions, setEnginePositions] = useState<PositionEval[] | null>(
     null
   );
@@ -6510,12 +7668,11 @@ export default function AnalysisPage() {
   // SurpriseAnalyzer is a separate Stockfish pass that adds a lot of
   // build-time cost; instead we use the classification we already have
   // and lift Brilliant + Great into "brilliant" markers, Blunder + Miss
-  // into "mistake" markers. Falls back to the hand-curated Kasparov
-  // KEY_MOMENTS constant when classification isn't ready or the demo is
-  // still the seed game (isDemoGame), so the demo experience is
-  // unchanged.
+  // into "mistake" markers. Empty until classification lands — there is no
+  // hand-authored fallback any more, because a fallback keyed by ply number
+  // labels the wrong moves on every game but the one it was written for.
   const liveKeyMoments = useMemo<KeyMoment[]>(() => {
-    if (!classifiedPositions || isDemoGame) return KEY_MOMENTS;
+    if (!classifiedPositions) return [];
     const moments: KeyMoment[] = [];
     for (let ply = 1; ply < classifiedPositions.length; ply++) {
       const cls = classifiedPositions[ply]?.moveClassification;
@@ -6539,7 +7696,7 @@ export default function AnalysisPage() {
       }
     }
     return moments;
-  }, [classifiedPositions, isDemoGame, loadedGame]);
+  }, [classifiedPositions, loadedGame]);
 
   // Whenever the loaded game OR engine settings change, clear the analysis
   // cache so Stockfish re-runs. allMoves derives from loadedGame so
@@ -6623,12 +7780,17 @@ export default function AnalysisPage() {
     setSavedEvals((prev) => ({ ...prev, ...gameSavedEvals }));
   }, [enginePositions, loadedGame, engineSettings.engineName, setSavedEvals]);
 
-  const mockEvalSeries = useMemo(
-    () => buildMockEval(allMoves.length + 1),
+  // Flat 0.00 until Stockfish reports. This used to be a hand-authored
+  // "plausible" curve shaped around the Kasparov demo's rook sacrifice, which
+  // on any other game drew swings that never happened. A flat line plus the
+  // sparkline's own "Stockfish · N%" chip says what's true: nothing evaluated
+  // yet.
+  const placeholderEvalSeries = useMemo(
+    () => new Array(allMoves.length + 1).fill(0) as number[],
     [allMoves.length]
   );
   const evalSeries = useMemo<number[]>(() => {
-    if (!enginePositions) return mockEvalSeries;
+    if (!enginePositions) return placeholderEvalSeries;
     return enginePositions.map((p) => {
       const line = p.lines?.[0];
       if (!line) return 0;
@@ -6637,8 +7799,15 @@ export default function AnalysisPage() {
         return Math.max(-12, Math.min(12, line.cp / 100));
       return 0;
     });
-  }, [enginePositions, mockEvalSeries]);
-  const analysisActive = engine !== null && enginePositions === null && analysisError === null;
+  }, [enginePositions, placeholderEvalSeries]);
+  // Gated on allMoves so the empty board doesn't read as "analysis in
+  // progress" forever — the evaluate effect below bails on an empty move
+  // list, so enginePositions would stay null and the composer stay locked.
+  const analysisActive =
+    allMoves.length > 0 &&
+    engine !== null &&
+    enginePositions === null &&
+    analysisError === null;
 
   useEffect(() => {
     if (!engine || enginePositions || analysisError) return;
@@ -6714,10 +7883,7 @@ export default function AnalysisPage() {
   // The picker UI sits in CoachPanel's header chip; this is the source
   // of truth that flows into coachExtras → request body.
   const [selectedPersonalityId, setSelectedPersonalityId] =
-    useLocalStorage<string>(
-      "cm-preview-personality",
-      defaultPersonalityId
-    );
+    useLocalStorage<string>("cm-preview-personality", defaultPersonalityId);
   const personality = useMemo(
     () => getPersonalityById(selectedPersonalityId ?? defaultPersonalityId),
     [selectedPersonalityId]
@@ -6727,6 +7893,18 @@ export default function AnalysisPage() {
     // The user's side. An explicit/inferred answer (playerSide) wins; the
     // board orientation is only the last-resort assumption when the side
     // is still ambiguous (user hasn't answered the inline ask yet).
+    // A3 (SILENT_SUBSTITUTION_HANDOFF §3 Group A): `playerSide` is null
+    // whenever username→PGN-header matching failed and the user has not
+    // answered the "which side were you playing?" card. Board orientation is
+    // then a GUESS (and defaults to white).
+    //
+    // `playerColor` still falls back to the guess because the mechanics need a
+    // side to filter mistakes by. `playerColorName` does NOT: it is what the
+    // prompt turns into "Always analyze the game from the perspective of
+    // <user> playing as White", asserted as fact. Sending it unconfirmed is
+    // how a Black-side player gets their opponent's moves reviewed as their
+    // own. Confirmed side → assert it; guess → say it is unknown.
+    const sideConfirmed = playerSide != null;
     const sideName: "white" | "black" = playerSide?.color ?? boardOrientation;
     const playerColor: "w" | "b" = sideName === "white" ? "w" : "b";
     let chesscomUsername: string | undefined;
@@ -6747,15 +7925,14 @@ export default function AnalysisPage() {
     }
     return {
       playerColor,
-      playerColorName: sideName,
+      playerColorName: sideConfirmed ? sideName : undefined,
       boardOrientation,
       // A1 (SILENT_SUBSTITUTION_HANDOFF): the real rating, or `undefined` when
       // the user has none. Never a default — the request body used to hardcode
       // 1500, which made the server's profile/PGN-header fallbacks dead code
       // and coached every user in the product as a 1500.
       userRating: resolveUserRating(profile),
-      username:
-        user?.displayName ?? user?.email?.split("@")[0] ?? undefined,
+      username: user?.displayName ?? user?.email?.split("@")[0] ?? undefined,
       chesscomUsername,
       lichessUsername,
       personalityId: personality.id,
@@ -6805,11 +7982,8 @@ export default function AnalysisPage() {
     const correctMove =
       bestUci.length >= 4 ? bestUci.slice(0, 2) + bestUci.slice(2, 4) : "";
 
-    // FEN at the position BEFORE the mistake.
-    const g = new Chess();
-    for (let i = 0; i < currentPly - 1 && i < allMoves.length; i++) {
-      g.move(allMoves[i]);
-    }
+    // FEN at the position BEFORE the mistake, from the game's root.
+    const { board: g } = replayFromRoot(allMoves, currentPly - 1, rootFen);
     const fenAtMistake = g.fen();
 
     const evalBefore = prev.lines[0].cp ?? 0;
@@ -6833,45 +8007,58 @@ export default function AnalysisPage() {
   // SUGGESTION_PILLS constant. Pinned "Analyze my game" + up to 3 rule-
   // derived suggestions based on the actual game's classifications,
   // opening, and current cursor position. See generateSuggestions.ts.
+  // With nothing loaded, every game-derived pill ("Analyze my game", "What's
+  // the most important moment in this game?") points at a game that doesn't
+  // exist. Offer the one thing that does something instead.
   const coachSuggestions = useMemo(
     () =>
-      generateSuggestions({
-        loadedGame,
-        enginePositions: classifiedPositions,
-        mistakeContext: mistakeContext
-          ? {
-              movePlayed: mistakeContext.movePlayed,
-              classification:
-                classifiedPositions?.[currentPly]?.moveClassification,
-            }
-          : null,
-        openingName:
-          headers.Opening?.trim() || detectedOpening?.name || null,
-      }),
+      !hasGame
+        ? [
+            { text: "How do I load a game?", pinned: true },
+            { text: "What can you help me with?" },
+          ]
+        : generateSuggestions({
+            loadedGame,
+            enginePositions: classifiedPositions,
+            mistakeContext: mistakeContext
+              ? {
+                  movePlayed: mistakeContext.movePlayed,
+                  classification:
+                    classifiedPositions?.[currentPly]?.moveClassification,
+                }
+              : null,
+            openingName:
+              headers.Opening?.trim() || detectedOpening?.name || null,
+          }),
     [
+      hasGame,
       loadedGame,
       classifiedPositions,
       mistakeContext,
       currentPly,
       headers.Opening,
       detectedOpening,
-    ],
+    ]
   );
 
   // Derived: current FEN + last move + check by replaying moves up to currentPly
   const { currentFen, lastMove, isInCheck } = useMemo(() => {
-    const g = new Chess();
-    let last: Move | null = null;
-    for (let i = 0; i < currentPly; i++) {
-      const result = g.move(allMoves[i]);
-      if (result) last = result;
-    }
+    // Replay from the game's ROOT, not from a fresh board. For a game loaded
+    // from a FEN there are no moves to replay, so `new Chess()` handed the
+    // whole page the standard start position — board, eval bar, Lines tab and
+    // coach context all described a position the user never asked for, under a
+    // greeting that said "Loaded a custom position".
+    const { board, lastMove: last } = replayFromRoot(
+      allMoves,
+      currentPly,
+      rootFen
+    );
     return {
-      currentFen: g.fen(),
+      currentFen: board.fen(),
       lastMove: last,
-      isInCheck: g.inCheck(),
+      isInCheck: board.inCheck(),
     };
-  }, [allMoves, currentPly]);
+  }, [allMoves, currentPly, rootFen]);
 
   // Command palette state
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -6887,13 +8074,15 @@ export default function AnalysisPage() {
       ? [
           {
             role: "coach",
+            // D3: UI-authored greeting, not model output.
+            synthetic: true,
             content: solutionParam
               ? `Loaded a puzzle position. Solution: **${solutionParam.replace("-", " → ")}**. Ask me anything about the tactical idea, or try alternatives on the board.`
               : `Loaded a puzzle position. Ask me to walk through the tactical idea.`,
             ply: 0,
           },
         ]
-      : SEED_MESSAGES
+      : EMPTY_STATE_MESSAGES
   );
   const [input, setInput] = useState(
     promptParam ? decodeURIComponent(promptParam) : ""
@@ -6943,7 +8132,7 @@ export default function AnalysisPage() {
   const loadNewGame = useCallback(
     (game: Chess, opts?: { keepChat?: boolean; greeting?: string }) => {
       setLoadedGame(game);
-      setIsDemoGame(false);
+      setGameLoaded(true);
       setCurrentPly(0);
       // G13 (extended 2026-08-10): resolve which side the user played.
       //  1. Username match against the White/Black headers — any known
@@ -7000,14 +8189,19 @@ export default function AnalysisPage() {
       }
       if (!opts?.keepChat) {
         const newHeaders = game.header();
+        // chess.js fills an absent Date with the PGN placeholder
+        // "????.??.??", which used to render as "(????)" in the greeting.
+        const year = newHeaders.Date?.split(".")[0];
+        const yearSuffix = year && /^\d{4}$/.test(year) ? ` (${year})` : "";
         const greeting =
           opts?.greeting ??
           (newHeaders.White && newHeaders.Black
-            ? `Loaded **${newHeaders.White} vs ${newHeaders.Black}**${
-                newHeaders.Date ? ` (${newHeaders.Date.split(".")[0]})` : ""
-              }. Stockfish is running in the background; once it's done the Moves tab will light up with classifications. Ask me about any move.`
+            ? `Loaded **${newHeaders.White} vs ${newHeaders.Black}**${yearSuffix}. Stockfish is running in the background; once it's done the Moves tab will light up with classifications. Ask me about any move.`
             : `Loaded a new game. Stockfish is running in the background. Ask me anything about the position or a specific move.`);
-        setMessages([{ role: "coach", content: greeting, ply: 0 }]);
+        setMessages([
+          // D3: UI-authored greeting, not model output.
+          { role: "coach", content: greeting, ply: 0, synthetic: true },
+        ]);
       }
     },
     []
@@ -7020,6 +8214,7 @@ export default function AnalysisPage() {
   const fenLoadedRef = useRef(false);
   const lichessReviewLoadedRef = useRef(false);
   const insightLoadedRef = useRef(false);
+  const handoffLoadedRef = useRef(false);
 
   // ?pgn=<url-encoded PGN>
   useEffect(() => {
@@ -7076,6 +8271,27 @@ export default function AnalysisPage() {
     }
   }, [router.isReady, router.query.lichessReview, loadNewGame, router]);
 
+  // ?handoff=1 + sessionStorage — "Analyze now" from /profile. The PGN travels
+  // in storage rather than the URL because a chess.com PGN with per-move clock
+  // comments url-encodes to several KB, and /analysis has getServerSideProps so
+  // that would be re-sent to the server on every navigation.
+  useEffect(() => {
+    if (!router.isReady || handoffLoadedRef.current) return;
+    if (router.query[ANALYSIS_HANDOFF_PARAM] !== "1") return;
+    const staged = consumeStagedGame();
+    if (!staged) return;
+    try {
+      const g = new Chess();
+      g.loadPgn(staged);
+      handoffLoadedRef.current = true;
+      loadNewGame(g);
+      // Drop the flag so a refresh doesn't look for a PGN that's been consumed.
+      router.replace(router.pathname, undefined, { shallow: true });
+    } catch (err) {
+      console.warn("[analysis] malformed handoff payload:", err);
+    }
+  }, [router.isReady, router.query, loadNewGame, router]);
+
   // ?insightId=<id> — permalink to a saved coach insight. Fetches
   // /api/insights/{id} and hydrates the chat with the saved transcript.
   useEffect(() => {
@@ -7096,7 +8312,9 @@ export default function AnalysisPage() {
         } else if (typeof data.fen === "string" && data.fen.length >= 10) {
           const g = new Chess(data.fen);
           loadNewGame(g, { keepChat: true });
-          setBoardOrientation(data.fen.split(" ")[1] === "w" ? "white" : "black");
+          setBoardOrientation(
+            data.fen.split(" ")[1] === "w" ? "white" : "black"
+          );
         }
         // Hydrate chat transcript or single message
         if (data.kind === "transcript" && Array.isArray(data.transcript)) {
@@ -7108,7 +8326,10 @@ export default function AnalysisPage() {
             })
           );
           setMessages(transcriptMessages);
-        } else if (data.kind === "single" && typeof data.coachContent === "string") {
+        } else if (
+          data.kind === "single" &&
+          typeof data.coachContent === "string"
+        ) {
           setMessages([
             {
               role: "coach",
@@ -7130,12 +8351,8 @@ export default function AnalysisPage() {
   const takeoverMode = rightTab === "masters"; // legacy alias kept for board props
   // Optional previewed move while exploring with Masters tab open — replays
   // from currentFen so the live candidate list updates on the new position.
-  const [takeoverPreview, setTakeoverPreview] = useState<{
-    fen: string;
-    from: string;
-    to: string;
-    san: string;
-  } | null>(null);
+  const [takeoverPreview, setTakeoverPreview] =
+    useState<ExplorationPreview | null>(null);
 
   // Desync fix (companion to the ae4cf45 replay fix): navigating game history
   // (arrows / move-history strip) advances `currentPly` → `currentFen`, but the
@@ -7188,7 +8405,7 @@ export default function AnalysisPage() {
   // Drill wins over takeover wins over the canonical game position.
   const displayFen = drillState
     ? drillState.currentFen
-    : takeoverPreview?.fen ?? currentFen;
+    : (takeoverPreview?.fen ?? currentFen);
   const displayLastMove = useMemo<Move | null>(() => {
     if (drillState) {
       return drillState.lastMove
@@ -7278,8 +8495,23 @@ export default function AnalysisPage() {
   useEffect(() => {
     if (!engine || gameAnalysisRunning || displayTerminal) return;
     const fen = displayFen;
-    if (savedEvals[fen]?.lines?.length) return;
-    const liveCacheKey = `${fen}|d${engineSettings.depth}`;
+    // Only skip the search if what we already have is as deep and as wide as
+    // the user asked for. This used to skip on the mere EXISTENCE of a saved
+    // eval, so asking for more depth or more lines than the review pass
+    // produced changed nothing — the stale, shallower answer kept being
+    // served and the controls looked broken.
+    if (
+      satisfiesRequest(
+        savedEvals[fen],
+        linesSettings.depth,
+        linesSettings.count
+      )
+    ) {
+      return;
+    }
+    const liveCacheKey = `${fen}|d${linesSettings.depth}|n${linesSettings.count}|${
+      linesSettings.preferLocalEngine ? engineSettings.engineName : "cloud-ok"
+    }`;
     const cached = liveEvalCacheRef.current.get(liveCacheKey);
     if (cached) {
       setLiveEval({ fen, position: cached });
@@ -7291,9 +8523,12 @@ export default function AnalysisPage() {
       engine
         .evaluatePositionWithUpdate({
           fen,
-          depth: engineSettings.depth,
+          depth: linesSettings.depth,
+          multiPv: linesSettings.count,
+          allowCloud: !linesSettings.preferLocalEngine,
           setPartialEval: (ev) => {
-            if (!cancelled && ev.lines.length) setLiveEval({ fen, position: ev });
+            if (!cancelled && ev.lines.length)
+              setLiveEval({ fen, position: ev });
           },
         })
         .then((ev) => {
@@ -7315,17 +8550,38 @@ export default function AnalysisPage() {
     displayTerminal,
     displayFen,
     savedEvals,
-    engineSettings.depth,
+    linesSettings.depth,
+    linesSettings.count,
+    linesSettings.preferLocalEngine,
+    engineSettings.engineName,
   ]);
+
+  /**
+   * The engine's evaluation OF THE POSITION ON THE BOARD — the single source
+   * both the eval bar and the Lines tab read.
+   *
+   * Keyed by FEN, never by ply. The Lines tab used to be handed
+   * `enginePositions[currentPly]` while being told the board was
+   * `displayFen`; the moment you explored off the mainline those were two
+   * different positions, so it replayed the mainline's principal variation
+   * on the explored board — the SAN conversion silently broke and the tab
+   * showed moves that did not belong to what you were looking at. It also
+   * ignored `liveEval` entirely, so an explored position reported "Stockfish
+   * hasn't reached this position yet" while the eval bar beside it displayed
+   * a number for that exact position.
+   */
+  const displayPositionEval = useMemo<PositionEval | null>(
+    () =>
+      pickDisplayEval(
+        savedEvals[displayFen],
+        liveEval?.fen === displayFen ? liveEval.position : null
+      ),
+    [savedEvals, displayFen, liveEval]
+  );
 
   const evalBarData = useMemo<EvalBarData>(() => {
     if (displayTerminal) return { ...displayTerminal, pending: false };
-    const saved = savedEvals[displayFen];
-    const position = saved?.lines?.length
-      ? saved
-      : liveEval?.fen === displayFen && liveEval.position.lines.length
-        ? liveEval.position
-        : null;
+    const position = displayPositionEval;
     if (!position) return { whitePercentage: 50, label: null, pending: true };
     try {
       const bar = getEvaluationBarValue(position);
@@ -7340,7 +8596,7 @@ export default function AnalysisPage() {
       // Line with neither cp nor mate — treat as not-yet-evaluated.
       return { whitePercentage: 50, label: null, pending: true };
     }
-  }, [displayTerminal, savedEvals, displayFen, liveEval]);
+  }, [displayTerminal, displayPositionEval]);
 
   // Computed arrow shapes from toggles + takeover state
   const displayShapes = useMemo<DrawShape[]>(() => {
@@ -7371,10 +8627,17 @@ export default function AnalysisPage() {
       });
     }
 
-    // Engine best (green)
+    // Engine best (green) — straight off the Stockfish pass for THIS ply.
+    // Previously a hardcoded 15-entry ply→UCI table written against the
+    // Kasparov demo, which drew an arbitrary arrow on the first 15 plies of
+    // whatever game the user actually loaded. Nothing to draw until the
+    // engine has reported, which is the honest state.
     if (arrowToggles.best) {
-      const best = ENGINE_BEST[currentPly];
-      if (best) shapes.push(uciToShape(best, ARROW_PALETTE.best.brush));
+      const pos = enginePositions?.[currentPly];
+      const best = pos?.bestMove ?? pos?.lines?.[0]?.pv?.[0];
+      if (best && best.length >= 4) {
+        shapes.push(uciToShape(best, ARROW_PALETTE.best.brush));
+      }
     }
 
     // Most common from master DB (blue)
@@ -7396,14 +8659,12 @@ export default function AnalysisPage() {
       }
     }
 
-    // Maia at the selected ELO (purple). Prefer the live /api/maia-predict
-    // result for the current FEN+ELO; fall back to the hand-table for the
-    // Kasparov demo so the arrow shows during the in-flight fetch and stays
-    // useful when MAIA_API_URL is unconfigured.
+    // Maia at the selected ELO (purple) — live /api/maia-predict for the
+    // current FEN+ELO. The old ply-indexed hand-table fallback went with the
+    // demo; nothing renders while the fetch is in flight or when
+    // MAIA_API_URL is unconfigured.
     if (arrowToggles.maia) {
-      const cacheKey = `${currentFen}|${arrowToggles.maiaElo}`;
-      const live = maiaCache[cacheKey];
-      const maia = live ?? findMaiaMoveFromTable(currentPly, arrowToggles.maiaElo);
+      const maia = maiaCache[`${currentFen}|${arrowToggles.maiaElo}`];
       if (maia) shapes.push(uciToShape(maia, ARROW_PALETTE.maia.brush));
     }
 
@@ -7417,6 +8678,7 @@ export default function AnalysisPage() {
     allMoves,
     currentFen,
     maiaCache,
+    enginePositions,
   ]);
 
   // G8 fetch effect: when the Maia toggle is on and the (fen, elo) pair
@@ -7452,17 +8714,20 @@ export default function AnalysisPage() {
       });
   }, [currentFen, arrowToggles.maia, arrowToggles.maiaElo, maiaCache]);
 
-  const handleTabChange = useCallback(
-    (next: RightTab) => {
-      setRightTab(next);
-      if (next !== "masters") {
-        // Leaving the Masters tab → clear exploration preview + candidates
-        setTakeoverPreview(null);
-        setTakeoverCandidates([]);
-      }
-    },
-    []
-  );
+  const handleTabChange = useCallback((next: RightTab) => {
+    setRightTab(next);
+    if (next !== "masters") {
+      // Candidates are Masters-specific — drop them.
+      //
+      // The exploration preview is NOT: it describes the board, which every
+      // tab shares. Clearing it here meant walking a line in Masters and
+      // then opening Lines to see what the engine thought of it silently
+      // threw the line away and snapped the board back, so the two tabs
+      // could never be used together. Staleness is already handled by the
+      // [currentPly] effect, and the banner offers an explicit way out.
+      setTakeoverCandidates([]);
+    }
+  }, []);
   const handleTakeoverPreviewMove = useCallback(
     (uci: string, san: string) => {
       // Play on top of the currently displayed position so chained clicks
@@ -7474,10 +8739,16 @@ export default function AnalysisPage() {
       if (played) {
         // Trust the caller's SAN (it comes from the candidate list) but fall
         // back to the derived SAN if it was omitted.
-        setTakeoverPreview({ ...played, san: san || played.san });
+        const sanPlayed = san || played.san;
+        setTakeoverPreview((prev) => ({
+          ...played,
+          san: sanPlayed,
+          path: [...(prev?.path ?? []), sanPlayed],
+          anchorPly: prev?.anchorPly ?? currentPly,
+        }));
       }
     },
-    [displayFen]
+    [displayFen, currentPly]
   );
 
   // Coach move-reference clicks. Two shapes:
@@ -7493,7 +8764,12 @@ export default function AnalysisPage() {
   const handleCoachMoveRef = useCallback(
     (ply: number, playSan?: string) => {
       if (playSan) {
-        const preview = buildRecommendedPreview(allMoves, ply, playSan);
+        const preview = buildRecommendedPreview(
+          allMoves,
+          ply,
+          playSan,
+          rootFen
+        );
         if (preview) {
           if (preview.anchorPly !== currentPly) {
             keepPreviewOnPlySyncRef.current = true;
@@ -7504,6 +8780,8 @@ export default function AnalysisPage() {
             from: preview.from,
             to: preview.to,
             san: preview.san,
+            path: [preview.san],
+            anchorPly: preview.anchorPly,
           });
           return;
         }
@@ -7512,7 +8790,11 @@ export default function AnalysisPage() {
         // already previewing the line) — continue the preview in place.
         const continued = playSanOnFen(displayFen, playSan);
         if (continued) {
-          setTakeoverPreview(continued);
+          setTakeoverPreview((prev) => ({
+            ...continued,
+            path: [...(prev?.path ?? []), continued.san],
+            anchorPly: prev?.anchorPly ?? currentPly,
+          }));
           return;
         }
       }
@@ -7521,7 +8803,7 @@ export default function AnalysisPage() {
       setTakeoverPreview(null);
       setCurrentPly(ply);
     },
-    [allMoves, currentPly, displayFen]
+    [allMoves, currentPly, displayFen, rootFen]
   );
 
   // User makes a move on the board directly (interactive in takeover mode)
@@ -7529,10 +8811,69 @@ export default function AnalysisPage() {
     (orig: string, dest: string) => {
       // Replay from the currently displayed position (preview or canonical)
       const played = replayPreviewMove(displayFen, `${orig}${dest}`);
-      if (played) setTakeoverPreview(played);
+      if (played) {
+        setTakeoverPreview((prev) => ({
+          ...played,
+          path: [...(prev?.path ?? []), played.san],
+          anchorPly: prev?.anchorPly ?? currentPly,
+        }));
+      }
     },
-    [displayFen]
+    [displayFen, currentPly]
   );
+
+  /**
+   * Leave the exploration branch and put the board back on the mainline
+   * position it started from.
+   *
+   * The state to do this always existed — clearing the preview restores
+   * `currentFen` — but nothing on screen offered it, so walking a few moves
+   * into a line left you guessing which ply you had branched from. Also
+   * restores the cursor when a coach recommendation moved it.
+   */
+  /**
+   * What the Lines tab should say when it has nothing to show.
+   *
+   * `engine === null` means EITHER "the worker is still booting" (the usual
+   * case, for the first seconds of every visit) OR "this browser cannot run
+   * it at all". Telling a user mid-boot that Stockfish isn't running and they
+   * should reload is worse than saying nothing, so the two are separated by
+   * the only signal that actually distinguishes them.
+   */
+  const linesStatus = useMemo<LinesStatus>(() => {
+    if (displayTerminal) return "terminal";
+    if (displayPositionEval) {
+      // Lines exist, but a shallower or narrower answer than was asked for
+      // is still work in progress — that distinction is what makes the depth
+      // control feel connected to anything.
+      return satisfiesRequest(
+        displayPositionEval,
+        linesSettings.depth,
+        linesSettings.count
+      )
+        ? "ready"
+        : "searching";
+    }
+    if (typeof window !== "undefined" && !isWasmSupported()) {
+      return "unsupported";
+    }
+    if (!engine) return "starting";
+    return "searching";
+  }, [
+    displayTerminal,
+    displayPositionEval,
+    engine,
+    linesSettings.depth,
+    linesSettings.count,
+  ]);
+
+  const returnToAnchor = useCallback(() => {
+    if (!takeoverPreview) return;
+    const { anchorPly } = takeoverPreview;
+    setTakeoverPreview(null);
+    if (anchorPly !== currentPly) setCurrentPly(anchorPly);
+  }, [takeoverPreview, currentPly]);
+
   const handleTakeoverSendToCoach = useCallback(
     async (message: string, candidate?: MasterCandidate) => {
       const prevForApi = messages;
@@ -7551,18 +8892,18 @@ export default function AnalysisPage() {
               typeof candidate.eval === "number"
                 ? `${candidate.eval >= 0 ? "+" : ""}${(candidate.eval / 100).toFixed(2)}`
                 : candidate.count > 0
-                ? `${(candidate.count / 1_000_000).toFixed(1)}M games`
-                : undefined,
+                  ? `${(candidate.count / 1_000_000).toFixed(1)}M games`
+                  : undefined,
             classification:
               candidate.rank === 2
                 ? "Best move (engine)"
                 : candidate.rank === 1
-                ? "Sound continuation"
-                : candidate.rank === 0
-                ? "Neutral"
-                : candidate.topPlayer
-                ? `Played by ${candidate.topPlayer.name}`
-                : undefined,
+                  ? "Sound continuation"
+                  : candidate.rank === 0
+                    ? "Neutral"
+                    : candidate.topPlayer
+                      ? `Played by ${candidate.topPlayer.name}`
+                      : undefined,
           }
         : undefined;
 
@@ -7592,10 +8933,30 @@ export default function AnalysisPage() {
               if (prev.length === 0) return prev;
               const last = prev[prev.length - 1];
               if (last.role !== "coach") return prev;
+              return [...prev.slice(0, -1), { ...last, content: accumulated }];
+            });
+          },
+          // D1: the server's corrected text replaces the raw stream, so the
+          // corrected copy is what gets replayed on the next turn.
+          onCorrected: (correctedText) => {
+            accumulated = correctedText;
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
               return [
                 ...prev.slice(0, -1),
-                { ...last, content: accumulated },
+                { ...last, content: correctedText },
               ];
+            });
+          },
+          // D4: no `done` event arrived — the answer is a fragment.
+          onTruncated: () => {
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [...prev.slice(0, -1), { ...last, incomplete: true }];
             });
           },
         });
@@ -7604,15 +8965,23 @@ export default function AnalysisPage() {
           err instanceof CoachAuthError
             ? "**Sign-in required** — the coach endpoint is auth-gated."
             : err instanceof CoachApiError
-            ? `**Coach is offline** (HTTP ${err.status}).`
-            : "**Network error** reaching the coach.";
+              ? `**Coach is offline** (HTTP ${err.status}).`
+              : "**Network error** reaching the coach.";
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
           if (last.role !== "coach") return prev;
           return [
             ...prev.slice(0, -1),
-            { ...last, content: errorText },
+            // D3: the banner overwrites the streamed text in place. Without
+            // this flag the model reads "**Coach is offline** (HTTP 502)" as
+            // something IT said on its previous turn.
+            {
+              ...last,
+              content: errorText,
+              synthetic: true,
+              incomplete: undefined,
+            },
           ];
         });
       } finally {
@@ -8012,16 +9381,18 @@ export default function AnalysisPage() {
   // explicitly saved the game (so opt-in only — anonymous / unsaved games
   // never write to IndexedDB or Firestore). Debounced so streaming token
   // updates don't trigger one write per chunk; in practice setGameTranscript
-  // fires ~1s after the last message edit. SEED_MESSAGES are filtered out so
-  // the demo intro never overwrites a real conversation that the user is
+  // fires ~1s after the last message edit. The cold-start greeting is
+  // filtered out so it never overwrites a real conversation that the user is
   // mid-replay-loading.
   useEffect(() => {
     if (savedGameId === null) return;
-    if (isDemoGame) return;
     if (messages.length === 0) return;
     const slim = messages
       .filter(
-        (m) => !(m.role === "coach" && m.content === SEED_MESSAGES[0]?.content),
+        (m) =>
+          !(
+            m.role === "coach" && m.content === EMPTY_STATE_MESSAGES[0]?.content
+          )
       )
       .map((m) => ({
         role: m.role,
@@ -8036,7 +9407,7 @@ export default function AnalysisPage() {
       });
     }, 1000);
     return () => clearTimeout(handle);
-  }, [messages, savedGameId, isDemoGame, setGameTranscript]);
+  }, [messages, savedGameId, setGameTranscript]);
 
   // Hydrate transcript from a saved game opened via ?gameId=N. We load the
   // PGN into a fresh Chess via loadNewGame with keepChat:true, then seed
@@ -8053,7 +9424,7 @@ export default function AnalysisPage() {
       restored.loadPgn(gameFromUrl.pgn);
       setSavedGameId(gameFromUrl.id);
       setSaveState("saved");
-      // keepChat:true so loadNewGame doesn't reset messages to SEED_MESSAGES
+      // keepChat:true so loadNewGame doesn't reset messages to the greeting
       // before our setMessages below replaces them with the saved transcript.
       loadNewGame(restored, { keepChat: true });
       if (
@@ -8065,14 +9436,11 @@ export default function AnalysisPage() {
             role: m.role,
             content: m.content,
             ...(m.ply !== undefined ? { ply: m.ply } : {}),
-          })),
+          }))
         );
       }
     } catch (err) {
-      console.warn(
-        "[preview/analysis] failed to hydrate saved game:",
-        err,
-      );
+      console.warn("[preview/analysis] failed to hydrate saved game:", err);
     }
   }, [gameFromUrl, loadNewGame]);
 
@@ -8096,9 +9464,9 @@ export default function AnalysisPage() {
       ]);
       setIsThinking(true);
 
-      // Compute the FEN AT this ply (not at the current display position)
-      const g = new Chess();
-      for (let i = 0; i < ply && i < allMoves.length; i++) g.move(allMoves[i]);
+      // Compute the FEN AT this ply (not at the current display position),
+      // replaying from the game's root so FEN-loaded games are correct.
+      const { board: g } = replayFromRoot(allMoves, ply, rootFen);
       const fenAtPly = g.fen();
 
       let accumulated = "";
@@ -8120,10 +9488,30 @@ export default function AnalysisPage() {
               if (prev.length === 0) return prev;
               const last = prev[prev.length - 1];
               if (last.role !== "coach") return prev;
+              return [...prev.slice(0, -1), { ...last, content: accumulated }];
+            });
+          },
+          // D1: the server's corrected text replaces the raw stream, so the
+          // corrected copy is what gets replayed on the next turn.
+          onCorrected: (correctedText) => {
+            accumulated = correctedText;
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
               return [
                 ...prev.slice(0, -1),
-                { ...last, content: accumulated },
+                { ...last, content: correctedText },
               ];
+            });
+          },
+          // D4: no `done` event arrived — the answer is a fragment.
+          onTruncated: () => {
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [...prev.slice(0, -1), { ...last, incomplete: true }];
             });
           },
         });
@@ -8147,13 +9535,22 @@ export default function AnalysisPage() {
           err instanceof CoachAuthError
             ? "**Sign-in required** — the coach endpoint is auth-gated."
             : err instanceof CoachApiError
-            ? `**Coach is offline** (HTTP ${err.status}).`
-            : "**Network error** reaching the coach.";
+              ? `**Coach is offline** (HTTP ${err.status}).`
+              : "**Network error** reaching the coach.";
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
           if (last.role !== "coach") return prev;
-          return [...prev.slice(0, -1), { ...last, content: errorText }];
+          // D3: see above — a UI banner is not model output.
+          return [
+            ...prev.slice(0, -1),
+            {
+              ...last,
+              content: errorText,
+              synthetic: true,
+              incomplete: undefined,
+            },
+          ];
         });
       } finally {
         setIsThinking(false);
@@ -8180,114 +9577,146 @@ export default function AnalysisPage() {
     handleSendRef.current?.("Analyze my game.");
   }, [autoAnalyzeState, enginePositions, isThinking, allMoves.length]);
 
-  const handleSend = useCallback(async (overrideText?: string) => {
-    // Defensive: onSend is wired straight onto the Send IconButton's
-    // onClick prop, which would otherwise hand a React MouseEvent down
-    // as `overrideText`. Only honour string overrides; anything else
-    // (events, undefined) falls back to the input box.
-    const override =
-      typeof overrideText === "string" ? overrideText : undefined;
-    const text = (override ?? input).trim();
-    if (!text || isThinking) return;
-    // Mirror production AICoachChat:2180 — don't fire deep-coach requests
-    // while Stockfish is still computing. gameEval would be undefined,
-    // landing the user in the route's no-eval branch where the LLM
-    // produces a conversational reply with no grounded mistake insights.
-    if (analysisActive) return;
-    const prevForApi = messages;
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", content: text, ply: currentPly },
-      // Empty coach message we'll fill in as deltas arrive
-      { role: "coach", content: "", ply: currentPly },
-    ]);
-    setInput("");
-    setIsThinking(true);
+  const handleSend = useCallback(
+    async (overrideText?: string) => {
+      // Defensive: onSend is wired straight onto the Send IconButton's
+      // onClick prop, which would otherwise hand a React MouseEvent down
+      // as `overrideText`. Only honour string overrides; anything else
+      // (events, undefined) falls back to the input box.
+      const override =
+        typeof overrideText === "string" ? overrideText : undefined;
+      const text = (override ?? input).trim();
+      if (!text || isThinking) return;
+      // Mirror production AICoachChat:2180 — don't fire deep-coach requests
+      // while Stockfish is still computing. gameEval would be undefined,
+      // landing the user in the route's no-eval branch where the LLM
+      // produces a conversational reply with no grounded mistake insights.
+      if (analysisActive) return;
+      const prevForApi = messages;
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: text, ply: currentPly },
+        // Empty coach message we'll fill in as deltas arrive
+        { role: "coach", content: "", ply: currentPly },
+      ]);
+      setInput("");
+      setIsThinking(true);
 
-    let accumulated = "";
-    try {
-      await streamCoachReply({
-        prevMessages: prevForApi,
-        userText: text,
-        fen: displayFen,
-        currentPly,
-        allMoves,
-        loadedGame,
-        enginePositions,
-        gameEvalFull,
-        contextIdRef: coachContextIdRef,
-        ...coachExtras,
-        onDelta: (chunk) => {
-          accumulated += chunk;
-          // Update the last coach message in-place
-          setMessages((prev) => {
-            if (prev.length === 0) return prev;
-            const last = prev[prev.length - 1];
-            if (last.role !== "coach") return prev;
-            return [
-              ...prev.slice(0, -1),
-              { ...last, content: accumulated },
-            ];
-          });
-        },
-      });
-      // After stream completes, scan for [PRACTICE:...] tags and trigger
-      // a real /api/similar-puzzles fetch per tag. The coach's tag persists
-      // in the message content but CoachBubble strips it from display.
-      const tags = extractPracticeTags(accumulated).tags;
-      if (tags.length > 0) {
-        const coachMsgIdx = prevForApi.length + 1; // user, then coach
-        const first = tags[0]; // multi-tag pack support is a follow-up
-        setTimeout(
-          () =>
-            triggerPuzzleFetch(
-              coachMsgIdx,
-              first.theme,
-              first.displayTheme,
-              displayFen
-            ),
-          0
-        );
+      let accumulated = "";
+      try {
+        await streamCoachReply({
+          prevMessages: prevForApi,
+          userText: text,
+          fen: displayFen,
+          currentPly,
+          allMoves,
+          loadedGame,
+          enginePositions,
+          gameEvalFull,
+          contextIdRef: coachContextIdRef,
+          ...coachExtras,
+          onDelta: (chunk) => {
+            accumulated += chunk;
+            // Update the last coach message in-place
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [...prev.slice(0, -1), { ...last, content: accumulated }];
+            });
+          },
+          // D1: the server's corrected text replaces the raw stream, so the
+          // corrected copy is what gets replayed on the next turn.
+          onCorrected: (correctedText) => {
+            accumulated = correctedText;
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [
+                ...prev.slice(0, -1),
+                { ...last, content: correctedText },
+              ];
+            });
+          },
+          // D4: no `done` event arrived — the answer is a fragment.
+          onTruncated: () => {
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              if (last.role !== "coach") return prev;
+              return [...prev.slice(0, -1), { ...last, incomplete: true }];
+            });
+          },
+        });
+        // After stream completes, scan for [PRACTICE:...] tags and trigger
+        // a real /api/similar-puzzles fetch per tag. The coach's tag persists
+        // in the message content but CoachBubble strips it from display.
+        const tags = extractPracticeTags(accumulated).tags;
+        if (tags.length > 0) {
+          const coachMsgIdx = prevForApi.length + 1; // user, then coach
+          const first = tags[0]; // multi-tag pack support is a follow-up
+          setTimeout(
+            () =>
+              triggerPuzzleFetch(
+                coachMsgIdx,
+                first.theme,
+                first.displayTheme,
+                displayFen
+              ),
+            0
+          );
+        }
+        // G6: autoAnalyze completion gate. When the reply contains any
+        // [INSIGHT:...] tag, transition the state machine to "done" so
+        // the input unlocks. Mirrors AICoachChat.tsx:2038-2047.
+        if (
+          (autoAnalyzeState === "pending" ||
+            autoAnalyzeState === "sent-awaiting-insights") &&
+          extractInsightTags(accumulated).insights.length > 0
+        ) {
+          setAutoAnalyzeState("done");
+        }
+      } catch (err) {
+        const errorText =
+          err instanceof CoachAuthError
+            ? "**Sign-in required** — the coach endpoint is auth-gated. Sign in on chessmasti.com and refresh."
+            : err instanceof CoachApiError
+              ? `**Coach is offline** (HTTP ${err.status}). The LLM provider returned an error — try again in a moment.`
+              : "**Network error** reaching the coach. Try again?";
+        setMessages((prev) => {
+          if (prev.length === 0) return prev;
+          const last = prev[prev.length - 1];
+          if (last.role !== "coach") return prev;
+          // D3: see above — a UI banner is not model output.
+          return [
+            ...prev.slice(0, -1),
+            {
+              ...last,
+              content: errorText,
+              synthetic: true,
+              incomplete: undefined,
+            },
+          ];
+        });
+      } finally {
+        setIsThinking(false);
       }
-      // G6: autoAnalyze completion gate. When the reply contains any
-      // [INSIGHT:...] tag, transition the state machine to "done" so
-      // the input unlocks. Mirrors AICoachChat.tsx:2038-2047.
-      if (
-        (autoAnalyzeState === "pending" ||
-          autoAnalyzeState === "sent-awaiting-insights") &&
-        extractInsightTags(accumulated).insights.length > 0
-      ) {
-        setAutoAnalyzeState("done");
-      }
-    } catch (err) {
-      const errorText =
-        err instanceof CoachAuthError
-          ? "**Sign-in required** — the coach endpoint is auth-gated. Sign in on chessmasti.com and refresh."
-          : err instanceof CoachApiError
-          ? `**Coach is offline** (HTTP ${err.status}). The LLM provider returned an error — try again in a moment.`
-          : "**Network error** reaching the coach. Try again?";
-      setMessages((prev) => {
-        if (prev.length === 0) return prev;
-        const last = prev[prev.length - 1];
-        if (last.role !== "coach") return prev;
-        return [...prev.slice(0, -1), { ...last, content: errorText }];
-      });
-    } finally {
-      setIsThinking(false);
-    }
-  }, [
-    input,
-    isThinking,
-    messages,
-    currentPly,
-    displayFen,
-    allMoves,
-    triggerPuzzleFetch,
-    autoAnalyzeState,
-    loadedGame,
-    enginePositions,
-    analysisActive,
-  ]);
+    },
+    [
+      input,
+      isThinking,
+      messages,
+      currentPly,
+      displayFen,
+      allMoves,
+      triggerPuzzleFetch,
+      autoAnalyzeState,
+      loadedGame,
+      enginePositions,
+      analysisActive,
+    ]
+  );
 
   // Keep the auto-fire ref pointed at the latest handleSend so the
   // useEffect above can dispatch the synthetic prompt without a stale
@@ -8295,6 +9724,159 @@ export default function AnalysisPage() {
   useEffect(() => {
     handleSendRef.current = handleSend;
   }, [handleSend]);
+
+  // ─── /puzzle-generation ────────────────────────────────────────────────
+  //
+  // Runs on the page, not through the model. The coach could be asked to emit
+  // a tag and hope, but the work here is deterministic — read the pattern off
+  // the position, ask the puzzle store for matches, hand them to /puzzles —
+  // and a user who types a command should get the same thing every time.
+  const setPracticeQueue = useSetAtom(puzzlePracticeQueueAtom);
+  const setPracticeLabel = useSetAtom(puzzlePracticeLabelAtom);
+  const [commandUsed, setCommandUsed] = useState(false);
+
+  /** Concepts the coach has named in this conversation, newest first. */
+  const coachNamedConcepts = useMemo(() => {
+    const out: string[] = [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role !== "coach") continue;
+      for (const t of extractPracticeTags(m.content).tags) {
+        if (!out.includes(t.theme)) out.push(t.theme);
+      }
+    }
+    return out;
+  }, [messages]);
+
+  const runPuzzleGeneration = useCallback(
+    async (arg: string) => {
+      const theme = pickPracticeTheme({
+        explicit: arg,
+        mistakeMotifs: mistakeContext?.tacticalMotifs,
+        coachConcepts: coachNamedConcepts,
+      });
+
+      const say = (content: string, extra: Partial<CoachMessage> = {}) =>
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "coach",
+            content,
+            ply: currentPly,
+            synthetic: true,
+            ...extra,
+          },
+        ]);
+
+      // Echo the command so the transcript reads as a conversation.
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "user",
+          content: arg ? `/puzzle-generation ${arg}` : "/puzzle-generation",
+          ply: currentPly,
+          synthetic: true,
+        },
+      ]);
+
+      if (!theme) {
+        say(
+          "I need a pattern to search for. Step to a move I've flagged as a " +
+            "mistake and run `/puzzle-generation` there, or name one yourself " +
+            "— for example `/puzzle-generation fork`."
+        );
+        return;
+      }
+      if (!isThemeAvailable(theme)) {
+        // Measured: the store has nothing under this key. Better to say so
+        // than to run a query that cannot succeed and show an empty set.
+        say(
+          `I don't have practice puzzles for **${theme}** yet. Try a related ` +
+            "pattern like `pin`, `skewer`, or `discoveredAttack`."
+        );
+        return;
+      }
+
+      setIsThinking(true);
+      try {
+        const puzzles = await fetchPuzzlesForTheme(
+          displayFen,
+          toStoreTheme(theme),
+          resolveUserRating(profile) ?? 1500,
+          5
+        );
+        const mapped = toPuzzleContexts(
+          (puzzles ?? []).map((p) => ({
+            puzzleId: p.id,
+            fen: p.fen,
+            moves: p.solution.join(" "),
+            rating: p.rating,
+            themes: p.themes,
+          }))
+        );
+        if (mapped.length === 0) {
+          say(
+            `No puzzles came back for **${theme}**. The pattern may be too ` +
+              "specific — try a broader one, or a different move."
+          );
+          return;
+        }
+        const set: PuzzleSet = {
+          id: makeSetId(theme, currentPly, Date.now()),
+          theme,
+          displayName: themeDisplayName(theme),
+          sourceFen: displayFen,
+          sourcePly: currentPly,
+          puzzles: mapped,
+          createdAt: Date.now(),
+        };
+        say(
+          commandUsed
+            ? `${mapped.length} puzzles on **${set.displayName}**.`
+            : `${mapped.length} puzzles on **${set.displayName}**, drawn from ` +
+                "positions that share this pattern.\n\nHit Practice to run " +
+                "them — you'll come back here afterwards, and this set stays " +
+                "in the conversation so you can redo it any time.",
+          { puzzleSet: set }
+        );
+        setCommandUsed(true);
+      } catch (err) {
+        say(
+          "The puzzle store didn't answer just now. Try again in a moment — " +
+            "your game and this conversation are untouched."
+        );
+        console.warn("[puzzle-generation]", err);
+      } finally {
+        setIsThinking(false);
+      }
+    },
+    [
+      mistakeContext,
+      coachNamedConcepts,
+      displayFen,
+      currentPly,
+      profile,
+      commandUsed,
+    ]
+  );
+
+  /** Open a generated set on /puzzles. The set stays on the message, so this
+   *  can be run again later from the same card. */
+  const launchPuzzleSet = useCallback(
+    (set: PuzzleSet) => {
+      setPracticeQueue(set.puzzles);
+      setPracticeLabel(`Practising ${set.displayName}`);
+      router.push("/puzzles");
+    },
+    [router, setPracticeQueue, setPracticeLabel]
+  );
+
+  const handleRunCommand = useCallback(
+    (id: string, arg: string) => {
+      if (id === "puzzle-generation") void runPuzzleGeneration(arg);
+    },
+    [runPuzzleGeneration]
+  );
 
   const handleSuggestion = useCallback(
     (s: string) => {
@@ -8308,21 +9890,26 @@ export default function AnalysisPage() {
         const theme = /rook/i.test(s)
           ? "sacrifice"
           : /knight/i.test(s)
-          ? "knight-fork"
-          : /mate/i.test(s)
-          ? "mateIn2"
-          : "fork";
+            ? "knight-fork"
+            : /mate/i.test(s)
+              ? "mateIn2"
+              : "fork";
         const displayTheme = /rook/i.test(s)
           ? "Rook sacrifices"
           : "Tactical patterns";
         const msgIdx = messages.length + 1; // index of the coach msg we push
         setMessages((prev) => [
           ...prev,
-          { role: "user", content: s, ply: currentPly },
+          // D3: this pill fabricates a WHOLE exchange with no API call behind
+          // it. Both halves are synthetic — dropping only the coach turn would
+          // leave a question the model never answered, which reads as an
+          // ignored user.
+          { role: "user", content: s, ply: currentPly, synthetic: true },
           {
             role: "coach",
             content: `Pulled three positions in the same family from the master puzzle index — solve them inline, or move any one onto the big board.`,
             ply: currentPly,
+            synthetic: true,
           },
         ]);
         // Defer one tick so the message lands in state before the fetch trigger
@@ -8344,6 +9931,13 @@ export default function AnalysisPage() {
       const inInput =
         target.tagName === "INPUT" || target.tagName === "TEXTAREA";
       if (inInput) return;
+      // Escape leaves an exploration branch before it means anything else —
+      // it is the keyboard half of the "back to move N" control.
+      if (e.key === "Escape" && takeoverPreview) {
+        e.preventDefault();
+        returnToAnchor();
+        return;
+      }
       if (e.key === "ArrowLeft") setCurrentPly((p) => Math.max(0, p - 1));
       else if (e.key === "ArrowRight")
         setCurrentPly((p) => Math.min(allMoves.length, p + 1));
@@ -8354,7 +9948,7 @@ export default function AnalysisPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [allMoves.length]);
+  }, [allMoves.length, takeoverPreview, returnToAnchor]);
 
   // Command palette groups — recomputed when ply/moments change
   const commandGroups: CommandGroup[] = useMemo(
@@ -8375,8 +9969,7 @@ export default function AnalysisPage() {
             label: "Previous move",
             icon: CommandIcons.Prev,
             shortcut: ["←"],
-            onSelect: () =>
-              setCurrentPly((p) => Math.max(0, p - 1)),
+            onSelect: () => setCurrentPly((p) => Math.max(0, p - 1)),
           },
           {
             id: "next",
@@ -8402,7 +9995,10 @@ export default function AnalysisPage() {
           id: `moment-${m.ply}`,
           label: `Jump to ${m.label}`,
           hint: `Move ${Math.ceil(m.ply / 2)}`,
-          icon: m.kind === "brilliant" ? CommandIcons.Brilliant : CommandIcons.Moment,
+          icon:
+            m.kind === "brilliant"
+              ? CommandIcons.Brilliant
+              : CommandIcons.Moment,
           onSelect: () => setCurrentPly(m.ply),
         })),
       },
@@ -8495,11 +10091,12 @@ export default function AnalysisPage() {
             fen: shareDialog.fen,
             explanation: shareDialog.msg.content,
             transcript: messages
-              .filter(
-                (m) => m.role === "user" || m.role === "coach"
-              )
+              .filter((m) => m.role === "user" || m.role === "coach")
               .map((m) => ({
-                role: m.role === "coach" ? ("assistant" as const) : ("user" as const),
+                role:
+                  m.role === "coach"
+                    ? ("assistant" as const)
+                    : ("user" as const),
                 content: m.content,
                 fen: undefined,
               })),
@@ -8546,60 +10143,117 @@ export default function AnalysisPage() {
         ]}
       />
 
+      {/*
+        Viewport-locked at lg and up: the page is exactly one screen tall and
+        never scrolls — the coach transcript is the only scrolling surface.
+        Below lg the two columns stack, which cannot fit a board AND a chat in
+        one screen, so the layout falls back to ordinary document flow.
+      */}
       <Box
         sx={{
-          minHeight: "100vh",
+          height: { lg: "100dvh" },
+          minHeight: { xs: "100vh", lg: 0 },
           width: "100%",
           color: "rgba(255,255,255,0.94)",
-          pt: 2,
-          pb: 4,
+          display: "flex",
+          flexDirection: "column",
+          overflow: { lg: "hidden" },
+          pt: { xs: 2, lg: 1.5 },
+          pb: { xs: 4, lg: 1.5 },
           px: { xs: 2, md: 3 },
         }}
       >
-        <SharedNavPill active="analysis" />
+        {/*
+          One bar, not two. The game identity (players / opening) and the
+          game actions (engine depth, Load, Save) used to live in a separate
+          GameHeader card stacked under the nav pill, costing ~110px of
+          vertical space to say what fits inline here.
+        */}
+        <SharedNavPill
+          active="analysis"
+          sx={{
+            position: "static",
+            top: "auto",
+            mb: { xs: 2, lg: 1.25 },
+            flexShrink: 0,
+          }}
+          contextSlot={
+            <GameIdentity
+              whiteName={headers.White ?? undefined}
+              blackName={headers.Black ?? undefined}
+              opening={hasGame ? openingLabel : null}
+              currentEval={evalSeries[currentPly] ?? 0}
+              currentPly={currentPly}
+              totalPlies={allMoves.length}
+              hasGame={hasGame}
+              evalPending={analysisActive}
+            />
+          }
+          actionsSlot={
+            <GameActions
+              onLoadGameClick={() => setLoadGameOpen(true)}
+              engineDepth={engineSettings.depth}
+              onEngineDepthChange={(d) =>
+                setEngineSettings((s) => ({ ...s, depth: d }))
+              }
+              engineName={engineSettings.engineName}
+              onEngineNameChange={(n) =>
+                setEngineSettings((s) => ({ ...s, engineName: n }))
+              }
+              onSaveGameClick={user && hasGame ? handleSaveGame : undefined}
+              saveState={saveState}
+              onOpenPalette={() => setPaletteOpen(true)}
+            />
+          }
+        />
 
         {/* Lc0DownloadBanner — was previously injected by the legacy
             chrome (sections/layout/index.tsx) which the cutover dropped
             on /preview/* routes. Re-mounted here so the Maia/Lc0
             availability nudge still surfaces when the microservice is
             down. Self-gates on maia-status; renders nothing in the
-            common case where Maia is up. */}
-        <Box sx={{ maxWidth: 1680, mx: "auto", px: { xs: 1, sm: 2 }, mb: 2 }}>
+            common case where Maia is up — hence no wrapper margin, which
+            would otherwise eat vertical space on every page view. */}
+        <Box sx={{ maxWidth: 1680, mx: "auto", width: "100%", flexShrink: 0 }}>
           <Lc0DownloadBanner />
         </Box>
 
-        <Box sx={{ maxWidth: 1680, mx: "auto" }}>
-          <GameHeader
-            whiteName={headers.White || "White"}
-            blackName={headers.Black || "Black"}
-            event={headers.Event || "—"}
-            year={headers.Date?.split(".")[0] || ""}
-            opening={openingLabel}
-            currentEval={evalSeries[currentPly] ?? 0}
-            currentPly={currentPly}
-            totalPlies={allMoves.length}
-            onLoadGameClick={() => setLoadGameOpen(true)}
-            engineDepth={engineSettings.depth}
-            onEngineDepthChange={(d) =>
-              setEngineSettings((s) => ({ ...s, depth: d }))
-            }
-            engineName={engineSettings.engineName}
-            onEngineNameChange={(n) =>
-              setEngineSettings((s) => ({ ...s, engineName: n }))
-            }
-            onSaveGameClick={user ? handleSaveGame : undefined}
-            saveState={saveState}
-          />
-
+        <Box
+          sx={{
+            maxWidth: 1680,
+            mx: "auto",
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            flex: { lg: 1 },
+            minHeight: { lg: 0 },
+          }}
+        >
           <Box
             sx={{
               display: "grid",
+              // The board column tracks the viewport HEIGHT, because the
+              // board is height-capped here (it's the largest square that
+              // fits under the nav bar and above the control strip). A fixed
+              // 680px track left a short window with a 450px board floating
+              // in dead space while the chat was squeezed next to it.
+              //
+              // 227px is the page chrome around the square (padding, nav bar,
+              // strip, card padding), measured rather than derived. It only
+              // tunes how much slack the column carries: BoardArea measures
+              // its real box, so an imprecise estimate here can never make
+              // the board non-square or push the page past one screen.
               gridTemplateColumns: {
-                xs: "1fr",
-                lg: "minmax(420px, 680px) minmax(380px, 1fr)",
+                // minmax(0, 1fr), not 1fr: a bare `1fr` track has an `auto`
+                // minimum, so the stacked column grew to the board's
+                // min-content width and hung off the right of a phone.
+                xs: "minmax(0, 1fr)",
+                lg: "minmax(420px, min(900px, calc(100dvh - 227px))) minmax(380px, 1fr)",
               },
-              gap: { xs: 3, lg: 3 },
-              alignItems: "start",
+              gap: { xs: 3, lg: 2 },
+              alignItems: { xs: "start", lg: "stretch" },
+              flex: { lg: 1 },
+              minHeight: { lg: 0 },
             }}
           >
             <Box
@@ -8607,7 +10261,8 @@ export default function AnalysisPage() {
                 display: "flex",
                 flexDirection: "column",
                 minWidth: 0,
-                maxWidth: { xs: "100%", lg: 680 },
+                minHeight: { lg: 0 },
+                maxWidth: "100%",
               }}
             >
               {drillState && (
@@ -8616,6 +10271,12 @@ export default function AnalysisPage() {
                   onExit={exitDrill}
                   onRestart={restartDrill}
                   onSkip={advanceDrill}
+                />
+              )}
+              {!drillState && takeoverPreview && (
+                <ExplorationBanner
+                  preview={takeoverPreview}
+                  onReturn={returnToAnchor}
                 />
               )}
               <ErrorBoundary name="preview-analysis-board">
@@ -8630,222 +10291,265 @@ export default function AnalysisPage() {
                     drillActive
                       ? turnToMove
                       : takeoverMode
-                      ? turnToMove
-                      : undefined
+                        ? turnToMove
+                        : undefined
                   }
                   dests={
                     drillActive
                       ? displayDests
                       : takeoverMode
-                      ? displayDests
-                      : undefined
+                        ? displayDests
+                        : undefined
                   }
                   onMove={
                     drillActive
                       ? handleDrillMove
                       : takeoverMode
-                      ? handleBoardMove
-                      : undefined
+                        ? handleBoardMove
+                        : undefined
                   }
                   syncTick={boardSyncTick}
                   evalBar={evalBarData}
+                  empty={!hasGame}
                 />
               </ErrorBoundary>
-              <BoardArrowToggles
-                state={arrowToggles}
-                onChange={setArrowToggles}
-              />
-              <EvalSparkline
-                series={evalSeries}
-                currentPly={currentPly}
-                onJumpTo={setCurrentPly}
-                keyMoments={liveKeyMoments}
-                analyzing={analysisActive}
-                progress={analysisProgress}
-                errored={analysisError !== null}
-              />
-              <KeyMomentsRow
-                moments={liveKeyMoments}
-                currentPly={currentPly}
-                onJumpTo={setCurrentPly}
-              />
+
+              {/*
+                One strip under the board instead of four stacked cards
+                (arrows / sparkline / key-moments / navigator). The key-moment
+                chips are gone: they duplicated the sparkline's own markers,
+                which are now hoverable and clickable.
+              */}
+              <Box
+                sx={{
+                  mt: { xs: 2, lg: 1.25 },
+                  flexShrink: 0,
+                  p: { xs: 1.5, lg: 1.25 },
+                  borderRadius: "1.25rem",
+                  background: "rgba(20,22,28,0.55)",
+                  backdropFilter: "blur(12px)",
+                  WebkitBackdropFilter: "blur(12px)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1,
+                }}
+              >
+                <EvalSparkline
+                  series={evalSeries}
+                  currentPly={currentPly}
+                  onJumpTo={setCurrentPly}
+                  keyMoments={liveKeyMoments}
+                  analyzing={analysisActive}
+                  progress={analysisProgress}
+                  errored={analysisError !== null}
+                  hasGame={hasGame}
+                />
+                <MoveNavigator
+                  currentPly={currentPly}
+                  totalPlies={allMoves.length}
+                  onJumpTo={setCurrentPly}
+                  onFlip={() =>
+                    setBoardOrientation((o) =>
+                      o === "white" ? "black" : "white"
+                    )
+                  }
+                  onReset={() => setCurrentPly(0)}
+                />
+                {/* Own row rather than inline with the navigator: sharing one
+                    row made the pills wrap on a narrow column, and a strip
+                    whose height changes with viewport width is exactly what
+                    the board-column sizing above can't predict. */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    borderTop: "1px solid rgba(255,255,255,0.05)",
+                    pt: 1,
+                  }}
+                >
+                  <BoardArrowToggles
+                    compact
+                    state={arrowToggles}
+                    onChange={setArrowToggles}
+                  />
+                </Box>
+              </Box>
             </Box>
 
             {/* Right column: tabbed surface — Coach / Masters / Moves.
                 The Masters tab makes the main board interactive for
                 exploration (same role the old "Takeover" modal had). */}
             <ErrorBoundary name="preview-analysis-tabs">
-            <Box sx={{ position: "relative" }}>
-              <TabStrip
-                active={rightTab}
-                onChange={handleTabChange}
-                movesBadge={`${currentPly}/${allMoves.length}`}
-                mastersBadge={
-                  rightTab === "masters" && takeoverCandidates.length > 0
-                    ? String(takeoverCandidates.length)
-                    : undefined
-                }
-              />
               <Box
                 sx={{
                   position: "relative",
-                  height: {
-                    xs: 600,
-                    lg: "clamp(720px, 86vh, 920px)",
-                  },
+                  display: "flex",
+                  flexDirection: "column",
+                  minHeight: { lg: 0 },
+                  height: { lg: "100%" },
                 }}
               >
-                <AnimatePresence mode="wait" initial={false}>
-                  {rightTab === "coach" && (
-                    <motion.div
-                      key="coach"
-                      initial={{ opacity: 0, x: -32, scale: 0.98 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: -32, scale: 0.98 }}
-                      transition={{
-                        duration: 0.32,
-                        ease: [0.22, 0.61, 0.36, 1],
-                      }}
-                      style={{ position: "absolute", inset: 0 }}
-                    >
-                      <CoachPanel
-                        messages={messages}
-                        input={input}
-                        onChangeInput={setInput}
-                        onSend={handleSend}
-                        onSuggestion={handleSuggestion}
-                        isThinking={isThinking}
-                        analysisActive={analysisActive}
-                        onPromoteToBoard={handlePromoteToBoard}
-                        allMoves={allMoves}
-                        onMoveRefClick={handleCoachMoveRef}
-                        playerSide={playerSide}
-                        sideUiEligible={
-                          !isDemoGame &&
-                          !isPuzzleMode &&
-                          allMoves.length > 0
-                        }
-                        onChoosePlayerSide={handleChoosePlayerSide}
-                        onShareMessage={(m) =>
-                          setShareDialog({ msg: m, fen: displayFen })
-                        }
-                        mistakeContext={mistakeContext}
-                        userRating={resolveUserRating(profile) ?? 1500}
-                        coachContextIdProp={coachContextIdRef.current}
-                        enginePositions={enginePositions}
-                        loadedGame={loadedGame}
-                        suggestions={coachSuggestions}
-                        personalityId={personality.id}
-                        onChangePersonality={(id) =>
-                          setSelectedPersonalityId(id)
-                        }
-                        onPuzzleSolved={(puzzle, secs) =>
-                          recordSolved(
-                            puzzle.id,
-                            secs,
-                            puzzle.solution
-                          )
-                        }
-                        onPracticeConcept={(theme, name, msgIdx) =>
-                          triggerPuzzleFetch(
-                            msgIdx,
-                            theme,
-                            name,
-                            displayFen
-                          )
-                        }
-                      />
-                    </motion.div>
-                  )}
-                  {rightTab === "masters" && (
-                    <motion.div
-                      key="masters"
-                      initial={{ opacity: 0, x: 32, scale: 0.98 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: 32, scale: 0.98 }}
-                      transition={{
-                        duration: 0.32,
-                        ease: [0.22, 0.61, 0.36, 1],
-                      }}
-                      style={{ position: "absolute", inset: 0 }}
-                    >
-                      <MasterGamesTakeover
-                        fen={displayFen}
-                        ply={currentPly}
-                        playedSan={playedSanAtPly}
-                        onPreviewMove={handleTakeoverPreviewMove}
-                        onSendToCoach={handleTakeoverSendToCoach}
-                        onRevert={() => handleTabChange("coach")}
-                        onCandidatesUpdate={setTakeoverCandidates}
-                        moves={allMoves}
-                        onJumpToPly={setCurrentPly}
-                      />
-                    </motion.div>
-                  )}
-                  {rightTab === "moves" && (
-                    <motion.div
-                      key="moves"
-                      initial={{ opacity: 0, x: 32, scale: 0.98 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: 32, scale: 0.98 }}
-                      transition={{
-                        duration: 0.32,
-                        ease: [0.22, 0.61, 0.36, 1],
-                      }}
-                      style={{ position: "absolute", inset: 0 }}
-                    >
-                      <MovesListPanel
-                        moves={allMoves}
-                        currentPly={currentPly}
-                        positions={classifiedPositions}
-                        onJumpTo={setCurrentPly}
-                        onAskCoach={handleAskCoachAboutMove}
-                      />
-                    </motion.div>
-                  )}
-                  {rightTab === "lines" && (
-                    <motion.div
-                      key="lines"
-                      initial={{ opacity: 0, x: 32, scale: 0.98 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: 32, scale: 0.98 }}
-                      transition={{
-                        duration: 0.32,
-                        ease: [0.22, 0.61, 0.36, 1],
-                      }}
-                      style={{ position: "absolute", inset: 0 }}
-                    >
-                      <EngineLinesPanel
-                        position={
-                          enginePositions?.[currentPly] ?? null
-                        }
-                        fen={displayFen}
-                        engineName={engineSettings.engineName}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <TabStrip
+                  active={rightTab}
+                  onChange={handleTabChange}
+                  movesBadge={`${currentPly}/${allMoves.length}`}
+                  mastersBadge={
+                    rightTab === "masters" && takeoverCandidates.length > 0
+                      ? String(takeoverCandidates.length)
+                      : undefined
+                  }
+                />
+                {/* The one scrolling surface on the page: the panel is pinned
+                  to the column's height and each tab scrolls internally. */}
+                <Box
+                  sx={{
+                    position: "relative",
+                    height: { xs: 600, lg: "auto" },
+                    flex: { lg: 1 },
+                    minHeight: { lg: 0 },
+                  }}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    {rightTab === "coach" && (
+                      <motion.div
+                        key="coach"
+                        initial={{ opacity: 0, x: -32, scale: 0.98 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: -32, scale: 0.98 }}
+                        transition={{
+                          duration: 0.32,
+                          ease: [0.22, 0.61, 0.36, 1],
+                        }}
+                        style={{ position: "absolute", inset: 0 }}
+                      >
+                        <CoachPanel
+                          messages={messages}
+                          input={input}
+                          onChangeInput={setInput}
+                          onSend={handleSend}
+                          onSuggestion={handleSuggestion}
+                          isThinking={isThinking}
+                          analysisActive={analysisActive}
+                          onPromoteToBoard={handlePromoteToBoard}
+                          allMoves={allMoves}
+                          onMoveRefClick={handleCoachMoveRef}
+                          playerSide={playerSide}
+                          sideUiEligible={!isPuzzleMode && allMoves.length > 0}
+                          onChoosePlayerSide={handleChoosePlayerSide}
+                          onRunCommand={handleRunCommand}
+                          onLaunchPuzzleSet={launchPuzzleSet}
+                          onShareMessage={(m) =>
+                            setShareDialog({ msg: m, fen: displayFen })
+                          }
+                          mistakeContext={mistakeContext}
+                          userRating={resolveUserRating(profile) ?? 1500}
+                          coachContextIdProp={coachContextIdRef.current}
+                          enginePositions={enginePositions}
+                          loadedGame={loadedGame}
+                          suggestions={coachSuggestions}
+                          personalityId={personality.id}
+                          onChangePersonality={(id) =>
+                            setSelectedPersonalityId(id)
+                          }
+                          onPuzzleSolved={(puzzle, secs) =>
+                            recordSolved(puzzle.id, secs, puzzle.solution)
+                          }
+                          onPracticeConcept={(theme, name, msgIdx) =>
+                            triggerPuzzleFetch(msgIdx, theme, name, displayFen)
+                          }
+                        />
+                      </motion.div>
+                    )}
+                    {rightTab === "masters" && (
+                      <motion.div
+                        key="masters"
+                        initial={{ opacity: 0, x: 32, scale: 0.98 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: 32, scale: 0.98 }}
+                        transition={{
+                          duration: 0.32,
+                          ease: [0.22, 0.61, 0.36, 1],
+                        }}
+                        style={{ position: "absolute", inset: 0 }}
+                      >
+                        <MasterGamesTakeover
+                          fen={displayFen}
+                          ply={currentPly}
+                          playedSan={playedSanAtPly}
+                          onPreviewMove={handleTakeoverPreviewMove}
+                          onSendToCoach={handleTakeoverSendToCoach}
+                          onRevert={() => handleTabChange("coach")}
+                          onCandidatesUpdate={setTakeoverCandidates}
+                          moves={allMoves}
+                          onJumpToPly={setCurrentPly}
+                        />
+                      </motion.div>
+                    )}
+                    {rightTab === "moves" && (
+                      <motion.div
+                        key="moves"
+                        initial={{ opacity: 0, x: 32, scale: 0.98 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: 32, scale: 0.98 }}
+                        transition={{
+                          duration: 0.32,
+                          ease: [0.22, 0.61, 0.36, 1],
+                        }}
+                        style={{ position: "absolute", inset: 0 }}
+                      >
+                        <MovesListPanel
+                          moves={allMoves}
+                          currentPly={currentPly}
+                          positions={classifiedPositions}
+                          onJumpTo={setCurrentPly}
+                          onAskCoach={handleAskCoachAboutMove}
+                        />
+                      </motion.div>
+                    )}
+                    {rightTab === "lines" && (
+                      <motion.div
+                        key="lines"
+                        initial={{ opacity: 0, x: 32, scale: 0.98 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: 32, scale: 0.98 }}
+                        transition={{
+                          duration: 0.32,
+                          ease: [0.22, 0.61, 0.36, 1],
+                        }}
+                        style={{ position: "absolute", inset: 0 }}
+                      >
+                        <EngineLinesPanel
+                          position={displayPositionEval}
+                          fen={displayFen}
+                          engineName={engineSettings.engineName}
+                          status={linesStatus}
+                          exploring={takeoverPreview}
+                          onReturnToAnchor={returnToAnchor}
+                          settings={linesSettings}
+                          onSettingsChange={setLinesSettings}
+                          onEngineNameChange={(n) =>
+                            setEngineSettings((s) => ({ ...s, engineName: n }))
+                          }
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </Box>
               </Box>
-            </Box>
             </ErrorBoundary>
           </Box>
 
-          <MoveNavigator
-            currentPly={currentPly}
-            totalPlies={allMoves.length}
-            onJumpTo={setCurrentPly}
-            onFlip={() =>
-              setBoardOrientation((o) => (o === "white" ? "black" : "white"))
-            }
-            onReset={() => setCurrentPly(0)}
-          />
-
+          {/* Footer — hidden at lg and up, where the page is pinned to the
+              viewport and there is no room for a row that only carries a
+              hint. Its two live affordances survive: the ⌘K chip moved into
+              the nav bar, and "Back" is the wordmark. */}
           <Box
             sx={{
+              display: { xs: "flex", lg: "none" },
               mt: 4,
               pt: 3,
               borderTop: "1px solid rgba(255,255,255,0.06)",
-              display: "flex",
               flexDirection: { xs: "column", md: "row" },
               gap: 1.5,
               alignItems: "center",
@@ -8871,7 +10575,12 @@ export default function AnalysisPage() {
                 Back to launch
               </Box>
               <Box>·</Box>
-              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexWrap: "wrap" }}>
+              <Stack
+                direction="row"
+                spacing={1.5}
+                alignItems="center"
+                sx={{ flexWrap: "wrap" }}
+              >
                 <Box>← → navigate · F flip · scrub the sparkline ·</Box>
                 <Box
                   onClick={() => setPaletteOpen(true)}

@@ -18,7 +18,7 @@ import { track } from "@/lib/tracking/client";
  * - Global Privacy Control is honored silently: if the browser signals GPC we
  *   record "rejected" and never show the banner (no nagging an opt-out user).
  * - Strictly-necessary cookies (the auth session) are always on; this gates the
- *   analytics/AI-conversation tier only. Absent consent is treated as "no" by
+ *   consent-controlled product analytics only. Absent consent is treated as "no" by
  *   both the client SDK and the server, but an explicit "No thanks" is still
  *   offered: GDPR/CNIL guidance requires declining to be as easy as accepting,
  *   and it also stops the banner from reappearing every visit.
@@ -86,8 +86,8 @@ export default function ConsentBanner() {
       >
         <Box sx={{ fontSize: 14, lineHeight: 1.5 }}>
           <Typography variant="body2" sx={{ color: "inherit" }}>
-            We use cookies for analytics and to improve the AI coach. Essential
-            cookies (keeping you signed in) are always on.
+            We use optional cookies for product analytics. Essential cookies
+            (keeping you signed in) are always on.
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>

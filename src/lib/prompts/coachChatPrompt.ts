@@ -45,7 +45,12 @@ export type SkillTier = "beginner" | "intermediate" | "advanced";
 
 export type CoachTone = "friendly" | "strict" | "masti";
 export type PlayingStyle = "tactical" | "positional" | "balanced";
-export type StudyGoal = "tactics" | "endgames" | "openings" | "time-management";
+export type StudyGoal =
+  | "tactics"
+  | "endgames"
+  | "openings"
+  | "middlegame"
+  | "time-management";
 
 export interface CoachingPrefs {
   coachTone?: CoachTone;
@@ -94,6 +99,7 @@ const GOAL_LABELS: Record<StudyGoal, string> = {
   tactics: "tactical pattern recognition",
   endgames: "endgame technique",
   openings: "opening understanding",
+  middlegame: "middlegame planning — finding a plan when nothing is forced",
   "time-management": "clock and time-management discipline",
 };
 
@@ -157,6 +163,20 @@ export function getCoachChatSystemPromptParts(
     .join("\n");
 
   const userContextLines: string[] = ["USER CONTEXT:"];
+
+  // A3 (SILENT_SUBSTITUTION_HANDOFF §3 Group A): `playerColorName` is present
+  // ONLY when the side is confirmed — either the user picked it or the PGN
+  // header matched their username. When it is absent the side is a GUESS
+  // (board orientation, which defaults to white), and asserting it is not a
+  // small error: for a Black-side game whose header did not match, the coach
+  // reviews the OPPONENT's moves as the user's and frames them as "your
+  // mistakes". Name the user, say the side is unknown, and let the model ask.
+  if (input.username && !input.playerColorName) {
+    userContextLines.push(
+      `- The user's in-game username is: ${input.username}`,
+      `- Which side ${input.username} played is NOT confirmed. Do NOT state or assume they were White or Black, and do NOT attribute either side's moves to them as "your move" until they say which side they were. If it matters to the answer, ask.`
+    );
+  }
 
   if (input.username && input.playerColorName) {
     const colorCap = input.playerColorName === "white" ? "White" : "Black";
@@ -438,6 +458,13 @@ INTERACTIVE ELEMENTS:
 - When discussing a specific position, reference it clearly and explain the plan
 
 ${personality.systemPromptOverride}
+
+SLASH COMMANDS:
+The composer accepts /puzzle-generation, which pulls puzzles sharing the tactical pattern of the position the user is on and opens them as a practice run. It is run by the app, not by you — never claim to have run it, and never emit it as a token.
+- Mention it ONCE, and only when it is genuinely the next useful step: the user is sitting on a mistake you have just explained, and sounds like they want to drill it ("how do I stop doing this", "give me practice", "I keep missing these").
+- Phrase it as a suggestion with the pattern named, e.g. "Type /puzzle-generation to drill this fork pattern."
+- Do NOT mention it in the same breath as a [CONCEPT:...] tag — that tag already renders its own practice button, and offering two routes to the same thing in one message reads as noise.
+- If the user has already used it this conversation, do not bring it up again unless they ask.
 
 PRACTICE PUZZLE SYSTEM:
 The app has a library of theme-tagged practice puzzles. Each [CONCEPT:<themeKey>:<Display Name>] tag inside an insight renders a practice button that fetches puzzles matching that theme at the user's skill level. (Do not cite specific puzzle counts or a database name to the user — just name the concept and let the app supply the puzzles.)

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hasTrackingConsent } from "@/lib/tracking/consent";
-import { callLLMStream, LLMError, type LLMMessage } from "@/lib/llmProvider";
+import {
+  callLLMStream,
+  LLMError,
+  PUBLIC_LLM_ERROR,
+  toSafeLLMError,
+  type LLMMessage,
+} from "@/lib/llmProvider";
 import { puzzleChatSchema } from "@/lib/validation/puzzleChatSchemas";
 import {
   PUZZLE_COACH_BASE_PROMPT,
@@ -9,9 +14,6 @@ import {
   buildTurn0Trigger,
 } from "@/lib/prompts/puzzleChatPrompt";
 import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
-import { requireSession } from "@/lib/auth/session";
-import { gateFeature } from "@/lib/billing/gate";
-import { isFreemiumEnabled } from "@/lib/billing/access";
 import { analyzeMateClaim, applyMateCorrection } from "@/lib/tactics/mateClaim";
 
 /**
@@ -34,29 +36,17 @@ import { analyzeMateClaim, applyMateCorrection } from "@/lib/tactics/mateClaim";
 const log = logger.child({ module: "puzzle-chat" });
 
 export async function POST(request: NextRequest) {
-  // Conversation capture is consent-gated (privacy policy: AI-conversation
-  // records are stored only with consent). Resolved once per request.
-  const trackingConsent = hasTrackingConsent(request);
   const requestId = extractRequestId(request.headers);
-
-  // Premium gate (pricing pivot). The puzzle coach is a premium feature. When
-  // FREEMIUM_ENABLED is OFF the route stays fully anonymous as before (no
-  // regression). When ON, require sign-in and consume the free puzzle-coach
-  // daily allowance.
-  if (isFreemiumEnabled()) {
-    const guard = await requireSession();
-    if ("response" in guard) return guard.response;
-    const gate = await gateFeature(guard.session.uid, "puzzle_coach", {
-      surface: "puzzle_coach",
-    });
-    if (!gate.ok) return gate.response;
-  }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch (err) {
-    logErrorToSentry(err, { route: "/api/puzzle-chat", phase: "parse-body", requestId });
+    logErrorToSentry(err, {
+      route: "/api/puzzle-chat",
+      phase: "parse-body",
+      requestId,
+    });
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -67,7 +57,7 @@ export async function POST(request: NextRequest) {
         error: "Invalid puzzle-chat request",
         details: parsed.error.issues,
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -86,7 +76,7 @@ export async function POST(request: NextRequest) {
   if (turnIndex >= 1 && (!userMessage || userMessage.trim().length === 0)) {
     return NextResponse.json(
       { error: "userMessage is required on turn ≥ 1" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -149,14 +139,6 @@ export async function POST(request: NextRequest) {
           // explanation gets a bit more headroom; follow-ups are short.
           maxTokens: turnIndex === 0 ? 600 : 350,
           cacheSystem: true,
-          capture: {
-            feature: "puzzle-chat",
-            consent: trackingConsent,
-            requestId,
-            promptVersion: PUZZLE_COACH_PROMPT_VERSION,
-            fen: puzzle.fen,
-            props: { puzzleId: puzzle.id, turnIndex, outcome },
-          },
         })) {
           if (ev.type === "text") {
             if (firstTokenAt === null) firstTokenAt = Date.now();
@@ -164,8 +146,8 @@ export async function POST(request: NextRequest) {
             accumulated += ev.delta;
             controller.enqueue(
               encoder.encode(
-                `data: ${JSON.stringify({ type: "text", delta: ev.delta })}\n\n`,
-              ),
+                `data: ${JSON.stringify({ type: "text", delta: ev.delta })}\n\n`
+              )
             );
           } else if (ev.type === "done") {
             // Mate-claim enforcement. Deltas already went out — we can't
@@ -176,7 +158,7 @@ export async function POST(request: NextRequest) {
             // call would only add latency and a second chance to be wrong.
             const { text: correctedText, corrections } = applyMateCorrection(
               accumulated,
-              analyzeMateClaim(puzzle.fen, puzzle.solution),
+              analyzeMateClaim(puzzle.fen, puzzle.solution)
             );
             if (corrections.length > 0) {
               log.warn("puzzle-chat false mate claim corrected", {
@@ -204,8 +186,8 @@ export async function POST(request: NextRequest) {
                   // Only sent when something actually changed, so the client
                   // can treat its presence as "replace the bubble".
                   ...(corrections.length > 0 ? { correctedText } : {}),
-                })}\n\n`,
-              ),
+                })}\n\n`
+              )
             );
           }
         }
@@ -220,22 +202,22 @@ export async function POST(request: NextRequest) {
           ttftMs: firstTokenAt ? firstTokenAt - startedAt : null,
         });
       } catch (err) {
-        const e = err instanceof LLMError ? err : new Error(String(err));
+        const e = toSafeLLMError(err);
         log.error("puzzle-chat stream failed", {
           requestId,
           message: e.message,
           provider: err instanceof LLMError ? err.provider : undefined,
           status: err instanceof LLMError ? err.status : undefined,
         });
-        logErrorToSentry(err, {
+        logErrorToSentry(e, {
           route: "/api/puzzle-chat",
           phase: "stream",
           requestId,
         });
         controller.enqueue(
           encoder.encode(
-            `data: ${JSON.stringify({ type: "error", error: e.message })}\n\n`,
-          ),
+            `data: ${JSON.stringify({ type: "error", error: PUBLIC_LLM_ERROR.message, code: PUBLIC_LLM_ERROR.code })}\n\n`
+          )
         );
       } finally {
         controller.close();

@@ -59,6 +59,9 @@ vi.mock("@/lib/responseCache", () => ({
   generateCacheKey: () => "test-cache-key",
   getCachedResponse: mockGetCachedResponse,
   setCachedResponse: mockSetCachedResponse,
+  // T6: the route keys the cache on an engine-data fingerprint. A partial
+  // module mock throws at import time on any export it omits.
+  evalFingerprint: () => "test-eval-fp",
 }));
 vi.mock("@/lib/analysisContextCache", () => ({
   generateContextId: mockGenerateContextId,
@@ -268,7 +271,7 @@ describe("enhanced-analysis route: flag-off invariants", () => {
     expect(events.some((e) => e.type === "text")).toBe(true);
     const done = events.find((e) => e.type === "done");
     expect(done).toBeDefined();
-    expect((done as { metadata: { pipeline?: unknown } }).metadata.pipeline).toBeUndefined();
+    expect((done as unknown as { metadata: { pipeline?: unknown } }).metadata.pipeline).toBeUndefined();
     expect(mockCallLLMStream).toHaveBeenCalledTimes(1);
     expect(mockRunValidationPipeline).not.toHaveBeenCalled();
   });
@@ -301,7 +304,7 @@ describe("enhanced-analysis route: flag-on happy paths", () => {
     expect(validating).toBeDefined();
     expect(events.some((e) => e.type === "text")).toBe(true);
     const done = events.find((e) => e.type === "done");
-    expect((done as { metadata: { pipeline?: { finalOutcome: string } } }).metadata.pipeline?.finalOutcome).toBe("passed_initial");
+    expect((done as unknown as { metadata: { pipeline?: { finalOutcome: string } } }).metadata.pipeline?.finalOutcome).toBe("passed_initial");
     expect(mockCallLLMStream).not.toHaveBeenCalled();
   });
 });
@@ -321,7 +324,7 @@ describe("enhanced-analysis route: pipeline retry + fallback", () => {
     const events = await readSSE(res);
     expect(events.some((e) => e.type === "validating" && e.phase === "retry-1")).toBe(true);
     const done = events.find((e) => e.type === "done");
-    expect((done as { metadata: { pipeline: { finalOutcome: string; retryCount: number } } }).metadata.pipeline.finalOutcome).toBe("passed_after_retry");
+    expect((done as unknown as { metadata: { pipeline: { finalOutcome: string; retryCount: number } } }).metadata.pipeline.finalOutcome).toBe("passed_after_retry");
   });
 
   it("flag on, stream fallback → validating phase=fallback emitted; logger.error fires from telemetry", async () => {
@@ -376,7 +379,7 @@ describe("enhanced-analysis route: §3.2 failure matrix", () => {
     const events = await readSSE(res);
     expect(events.some((e) => e.type === "validating" && e.phase === "fallback-to-flagoff")).toBe(true);
     const done = events.find((e) => e.type === "done");
-    expect((done as { metadata: { pipeline: { fallbackReason: string } } }).metadata.pipeline.fallbackReason).toBe("fd_failed");
+    expect((done as unknown as { metadata: { pipeline: { fallbackReason: string } } }).metadata.pipeline.fallbackReason).toBe("fd_failed");
     expect(mockCallLLMStream).toHaveBeenCalledTimes(1);
   });
 

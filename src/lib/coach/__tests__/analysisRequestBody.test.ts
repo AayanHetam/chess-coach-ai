@@ -19,6 +19,7 @@ import {
 const base: AnalysisRequestBodyInput = {
   userMessage: "why was that a mistake?",
   moveHistory: ["e4", "e5", "Nf3"],
+  viewedPly: 3,
   fen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
   gameEval: { positions: [] },
   conversationHistory: [],

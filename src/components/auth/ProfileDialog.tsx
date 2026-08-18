@@ -20,6 +20,7 @@ import {
 } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
+import PlatformRatingCard from "./PlatformRatingCard";
 import type {
   CoachTone,
   PlayingStyle,
@@ -28,12 +29,18 @@ import type {
   PieceSet,
 } from "@/lib/firestoreUsers";
 
+type TabKey = "account" | "chess" | "coaching" | "appearance";
+
 interface ProfileDialogProps {
   open: boolean;
   onClose: () => void;
+  /**
+   * Tab to land on. Defaults to "account". /profile's "Add your username" CTA
+   * passes "chess" so the user arrives at the field they were sent for rather
+   * than having to find it.
+   */
+  initialTab?: TabKey;
 }
-
-type TabKey = "account" | "chess" | "coaching" | "appearance";
 
 const COACH_TONES: { value: CoachTone; label: string; hint: string }[] = [
   { value: "friendly", label: "Friendly", hint: "Warm, encouraging coach voice." },
@@ -51,6 +58,7 @@ const STUDY_GOALS: { value: StudyGoal; label: string }[] = [
   { value: "tactics", label: "Tactics" },
   { value: "endgames", label: "Endgames" },
   { value: "openings", label: "Openings" },
+  { value: "middlegame", label: "Middlegame" },
   { value: "time-management", label: "Time management" },
 ];
 
@@ -66,9 +74,13 @@ const PIECE_SETS: { value: PieceSet; label: string }[] = [
   { value: "alpha", label: "Alpha" },
 ];
 
-export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
+export default function ProfileDialog({
+  open,
+  onClose,
+  initialTab = "account",
+}: ProfileDialogProps) {
   const { user, profile, updateProfile } = useAuth();
-  const [tab, setTab] = useState<TabKey>("account");
+  const [tab, setTab] = useState<TabKey>(initialTab);
 
   // Per-tab dirty state. Each tab saves independently.
   const [account, setAccount] = useState({ displayName: "", bio: "" });
@@ -98,6 +110,13 @@ export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
   const [saving, setSaving] = useState(false);
   const [savedTab, setSavedTab] = useState<TabKey | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Re-seed the tab each time the dialog opens. Without this, a dialog kept
+  // mounted (as /profile does) would remember the tab the user last browsed to
+  // and ignore the `initialTab` the CTA asked for.
+  useEffect(() => {
+    if (open) setTab(initialTab);
+  }, [open, initialTab]);
 
   // Hydrate forms from profile when it loads / changes.
   useEffect(() => {
@@ -427,15 +446,19 @@ export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
               />
             </Box>
 
+            {/* Real rating, read from the linked account. Ranked above the
+                self-reported number below in resolveUserRating(). */}
+            <PlatformRatingCard />
+
             <TextField
               size="small"
-              label="Self-reported rating"
+              label="Rating (if you have no online account)"
               type="number"
               inputProps={{ min: 0, max: 3500 }}
               value={chess.selfReportedRating}
               onChange={(e) => setChess({ ...chess, selfReportedRating: e.target.value })}
-              sx={{ maxWidth: 200 }}
-              helperText="The coach uses this to calibrate explanations."
+              sx={{ maxWidth: 260 }}
+              helperText="Only used when we can't read a rating from your account above."
             />
 
             <TextField

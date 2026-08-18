@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { detectMotifs } from "../index";
+import type { HangingPieceMotif, BackRankMateMotif } from "../types";
 
 // ─── Fork tests ────────────────────────────────────────────────────────────
 describe("detectMotifs — fork", () => {
@@ -83,7 +84,9 @@ describe("detectMotifs — hanging_piece", () => {
     const fenBefore = "4k3/4k3/3n4/8/8/8/8/4KQ2 w - - 0 1";
     const motifs = detectMotifs(fenBefore, "Qd3");
     // d6 knight is defended by king on e7 (e7→d6 is adjacent, king attacks it)
-    const hanging = motifs.find((m) => m.motif === "hanging_piece" && m.square === "d6");
+    const hanging = motifs.find(
+      (m): m is HangingPieceMotif => m.motif === "hanging_piece" && m.square === "d6",
+    );
     // King defends d6 via attack, so SEE should be negative → not hanging
     if (hanging) {
       expect(hanging.see_value_cp).toBeLessThanOrEqual(0);
@@ -99,7 +102,8 @@ describe("detectMotifs — back_rank_mate", () => {
   it("detects immediate back rank checkmate", () => {
     const motifs = detectMotifs(BACKRANK_FEN_BEFORE, "Ra8#");
     const br = motifs.find(
-      (m) => m.motif === "back_rank_mate" || m.motif === "back_rank_threat",
+      (m): m is BackRankMateMotif =>
+        m.motif === "back_rank_mate" || m.motif === "back_rank_threat",
     );
     expect(br).toBeDefined();
     expect(br?.motif).toBe("back_rank_mate");
@@ -109,7 +113,7 @@ describe("detectMotifs — back_rank_mate", () => {
 
   it("back_rank_mate has no interposers", () => {
     const motifs = detectMotifs(BACKRANK_FEN_BEFORE, "Ra8#");
-    const br = motifs.find((m) => m.motif === "back_rank_mate");
+    const br = motifs.find((m): m is BackRankMateMotif => m.motif === "back_rank_mate");
     expect(br?.interposers.length).toBe(0);
     expect(br?.refutation).toBeNull();
   });

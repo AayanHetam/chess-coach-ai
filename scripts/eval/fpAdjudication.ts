@@ -13,7 +13,25 @@
  * Anything not PROVABLY licensed stays "needs-review": the adjudicator only
  * ever says "this fire was false", never "this fire was true".
  */
+import { Chess } from "chess.js";
+import { countSafeMoves } from "@/lib/tactics/motifs/trapped_piece";
 import type { CoachContract } from "@/lib/contract/types";
+
+/** Safe-move count for a piece, turn-corrected exactly as the referee does. */
+function safeMovesAt(fen: string, square: string, pieceLetter: string): number | null {
+  try {
+    const parts = fen.split(" ");
+    const onBoard = new Chess(fen).get(square as never);
+    if (!onBoard || onBoard.type !== pieceLetter) return null;
+    if (parts[1] !== onBoard.color) {
+      parts[1] = onBoard.color;
+      parts[3] = "-";
+    }
+    return countSafeMoves(new Chess(parts.join(" ")), square as never);
+  } catch {
+    return null;
+  }
+}
 
 export type FpAdjudication =
   | "widened-licensed" // strict-only: the sequence IS a contiguous window of a contract PV
@@ -99,6 +117,70 @@ export async function buildFpPools(contract: CoachContract): Promise<FpContractP
 export interface FpAdjudicateHelpers {
   stripSanDecorations: (s: string) => string;
   isPvWindow: (seq: string[], pvs: string[][]) => boolean;
+  /**
+   * The carrier sentence, when the caller has it. Supplied for the
+   * `tactical_keyword_unbacked` case only — see the note on that branch.
+   */
+  sentence?: string;
+  /** The insight FENs the fire was scored against. */
+  fens?: string[];
+}
+
+/**
+ * TRAPPED-CLASS BOARD CHECK (CI-5 follow-up, 2026-08-11).
+ *
+ * The contract-global keyword pool is a sound license for MOST tactical
+ * vocabulary: "you forked them earlier" is legitimate prose on a card that
+ * did not itself contain the fork. It is NOT sound for the trapped class,
+ * whose truth condition is arithmetic about ONE named piece on ONE board.
+ * The 2026-08-11 gate run adjudicated 2 "trapped" fires FALSE on this rule
+ * and the plan recorded them as board-true; re-run with carrier sentences
+ * captured, the same class of fire reads:
+ *
+ *   "The bishop on a8, the knight on a7, and the bishop on d2 all become
+ *    trapped with no legal moves"
+ *
+ * — where chess.js gives those pieces 1, 3 and 1 legal moves and 1 safe move
+ * each. The prose is refuted by the board; calling the fire a false positive
+ * because a NEIGHBOURING insight's keyword list contains the word is simply
+ * wrong. So the pool license for this class is conditioned on the board
+ * agreeing: zero safe moves for the piece the sentence names.
+ *
+ * Strictly conservative — it can only move a verdict from
+ * "licensed-elsewhere-in-contract" to "needs-review", i.e. it never
+ * manufactures a false positive, it only declines to certify one.
+ */
+const TRAPPED_CLASS = new Set(["trapped"]);
+
+function trappedClaimBackedByBoard(
+  sentence: string | undefined,
+  fens: string[] | undefined,
+  countSafe: (fen: string, square: string, pieceLetter: string) => number | null,
+): boolean {
+  if (!sentence || !fens || fens.length === 0) return false;
+  const letters: Record<string, string> = {
+    queen: "q",
+    rook: "r",
+    bishop: "b",
+    knight: "n",
+    king: "k",
+    pawn: "p",
+  };
+  const refs: Array<{ letter: string; square: string }> = [];
+  for (const m of Array.from(
+    sentence.matchAll(/\b(queen|rook|bishop|knight|king|pawn)\s+(?:on|at|to)\s+([a-h][1-8])\b/gi),
+  )) {
+    refs.push({ letter: letters[m[1].toLowerCase()], square: m[2] });
+  }
+  for (const m of Array.from(sentence.matchAll(/\b([KQRBN])([a-h][1-8])\b/g))) {
+    refs.push({ letter: m[1].toLowerCase(), square: m[2] });
+  }
+  if (refs.length === 0) return false;
+  // EVERY named piece must actually be boxed in — the observed prose names
+  // three pieces at once and is wrong about all three.
+  return refs.every((r) =>
+    fens.some((fen) => countSafe(fen, r.square, r.letter) === 0),
+  );
 }
 
 /** Mechanical adjudication of one fire. Anything not provably licensed stays
@@ -140,8 +222,15 @@ export function adjudicateFp(
         ? "licensed-elsewhere-in-contract"
         : "needs-review";
     }
-    case "tactical_keyword_unbacked":
-      return pools.keywords.has(v.span.toLowerCase()) ? "licensed-elsewhere-in-contract" : "needs-review";
+    case "tactical_keyword_unbacked": {
+      if (!pools.keywords.has(v.span.toLowerCase())) return "needs-review";
+      if (TRAPPED_CLASS.has(v.span.toLowerCase())) {
+        return trappedClaimBackedByBoard(helpers.sentence, helpers.fens, safeMovesAt)
+          ? "licensed-elsewhere-in-contract"
+          : "needs-review";
+      }
+      return "licensed-elsewhere-in-contract";
+    }
     default:
       return "needs-review";
   }

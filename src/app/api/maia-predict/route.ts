@@ -46,12 +46,14 @@ export async function POST(req: Request) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Maia-2 service error:", response.status, errorData);
+      console.error("Maia-2 service request failed", {
+        status: response.status,
+        code: "provider_http_error",
+      });
       return NextResponse.json(
         {
-          error: "Maia-2 service error",
-          message: errorData.detail || `Service returned ${response.status}`,
+          error: "AI opponent is temporarily unavailable.",
+          code: "AI_PROVIDER_UNAVAILABLE",
           fallback: true,
         },
         { status: response.status }
@@ -67,12 +69,14 @@ export async function POST(req: Request) {
       rating: prediction.rating,
       model: prediction.model || "maia2",
     });
-  } catch (error) {
-    console.error("Maia prediction error:", error);
+  } catch {
+    console.error("Maia prediction request failed", {
+      code: "provider_network_error",
+    });
     return NextResponse.json(
       {
-        error: "Failed to get Maia prediction",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: "AI opponent is temporarily unavailable.",
+        code: "AI_PROVIDER_UNAVAILABLE",
         fallback: true,
       },
       { status: 500 }
@@ -110,4 +114,3 @@ export async function GET() {
     },
   });
 }
-

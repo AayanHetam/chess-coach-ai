@@ -67,14 +67,14 @@ interface AdjSpan {
 }
 
 const SPANS: AdjSpan[] = [
-  { idx: 0, fixture: "01_mate_for_white_midgame", factIdPrefix: "I1", check: "san_whitelist", span: "Bc4xd5+", sentence: "- White threatens Qxd5+ (check), Bc4xd5+ (check), and Bb5+ — the king on e6 is caught in the open" },
-  { idx: 1, fixture: "01_mate_for_white_midgame", factIdPrefix: "I1", check: "tactical_keyword", span: "pin", sentence: "- Black's knight on d5 is pinned to the king by your bishop on c4, making it unable to help defend" },
-  { idx: 2, fixture: "01_mate_for_white_midgame", factIdPrefix: "I1", check: "forbidden_claim", span: "Dominates", sentence: "- White queen on f3: Dominates the board with 15 active squares, delivering check and eyeing d5" },
-  { idx: 3, fixture: "01_mate_for_white_midgame", factIdPrefix: "I1", check: "tactical_keyword", span: "pin", sentence: "Problem: Moving to e6 walks the king directly into the crossfire of your queen on f3 and bishop on c4, with the knight on d5 pinned and unable to help defend." },
-  { idx: 4, fixture: "01_mate_for_white_midgame", factIdPrefix: "I1", check: "forbidden_claim", span: "Dominates", sentence: "- White Qf3: Dominates the board with 15 active squares, ready to deliver check from multiple angles." },
-  { idx: 5, fixture: "01_mate_for_white_midgame", factIdPrefix: "I1", check: "san_whitelist", span: "Qd5+", sentence: "- White threatens Qd5+ and Bb5# — the king on e6 is caught in a mating net" },
-  { idx: 6, fixture: "01_mate_for_white_midgame", factIdPrefix: "I1", check: "tactical_keyword", span: "pin", sentence: "Crucially, the knight on d5 is pinned to the king by your bishop on c4, so it can't help defend." },
-  { idx: 7, fixture: "01_mate_for_white_midgame", factIdPrefix: "I1", check: "forbidden_claim", span: "dominates", sentence: "- Your queen on f3 dominates the board with 15 legal moves, putting immediate pressure on the exposed king" },
+  { idx: 0, fixture: "01_mate_for_white_midgame", factIdPrefix: "M1", check: "san_whitelist", span: "Bc4xd5+", sentence: "- White threatens Qxd5+ (check), Bc4xd5+ (check), and Bb5+ — the king on e6 is caught in the open" },
+  { idx: 1, fixture: "01_mate_for_white_midgame", factIdPrefix: "M1", check: "tactical_keyword", span: "pin", sentence: "- Black's knight on d5 is pinned to the king by your bishop on c4, making it unable to help defend" },
+  { idx: 2, fixture: "01_mate_for_white_midgame", factIdPrefix: "M1", check: "forbidden_claim", span: "Dominates", sentence: "- White queen on f3: Dominates the board with 15 active squares, delivering check and eyeing d5" },
+  { idx: 3, fixture: "01_mate_for_white_midgame", factIdPrefix: "M1", check: "tactical_keyword", span: "pin", sentence: "Problem: Moving to e6 walks the king directly into the crossfire of your queen on f3 and bishop on c4, with the knight on d5 pinned and unable to help defend." },
+  { idx: 4, fixture: "01_mate_for_white_midgame", factIdPrefix: "M1", check: "forbidden_claim", span: "Dominates", sentence: "- White Qf3: Dominates the board with 15 active squares, ready to deliver check from multiple angles." },
+  { idx: 5, fixture: "01_mate_for_white_midgame", factIdPrefix: "M1", check: "san_whitelist", span: "Qd5+", sentence: "- White threatens Qd5+ and Bb5# — the king on e6 is caught in a mating net" },
+  { idx: 6, fixture: "01_mate_for_white_midgame", factIdPrefix: "M1", check: "tactical_keyword", span: "pin", sentence: "Crucially, the knight on d5 is pinned to the king by your bishop on c4, so it can't help defend." },
+  { idx: 7, fixture: "01_mate_for_white_midgame", factIdPrefix: "M1", check: "forbidden_claim", span: "dominates", sentence: "- Your queen on f3 dominates the board with 15 legal moves, putting immediate pressure on the exposed king" },
   { idx: 8, fixture: "03_sentinel_timeout", factIdPrefix: "M1", check: "forbidden_claim", span: "obvious", sentence: "A quiet move is one with no capture, no check, and no obvious threat — but it sets up something powerful." },
   { idx: 9, fixture: "04_invalid_san_truncation", factIdPrefix: "M1", check: "tactical_keyword", span: "pin", sentence: "Ba6 threatens to win the b7-pawn indirectly by pinning the b7-pawn's defender" },
   { idx: 10, fixture: "04_invalid_san_truncation", factIdPrefix: "M1", check: "tactical_keyword", span: "pin", sentence: "The bishop eyes the b7 pawn and creates a pin-like discomfort — Black has to spend a move responding instead of developing freely." },

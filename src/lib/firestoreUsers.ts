@@ -9,7 +9,12 @@
 
 export type CoachTone = "friendly" | "strict" | "masti";
 export type PlayingStyle = "tactical" | "positional" | "balanced";
-export type StudyGoal = "tactics" | "endgames" | "openings" | "time-management";
+export type StudyGoal =
+  | "tactics"
+  | "endgames"
+  | "openings"
+  | "middlegame"
+  | "time-management";
 export type BoardTheme = "classic" | "wood" | "neon";
 export type PieceSet = "default" | "merida" | "alpha";
 
@@ -18,6 +23,8 @@ export interface UserProfile {
   email: string;
 
   displayName?: string;
+  /** Public handle. Written only by the claim transaction, never by PATCH. */
+  handle?: string;
   photoURL?: string;
   bio?: string;
 
@@ -35,6 +42,24 @@ export interface UserProfile {
   // Onboarding-quiz output (see StoredUser in lib/server/users.ts). Both flow
   // through UserProfileUpdates automatically since they aren't in the Omit.
   focusThemes?: string[];
+  /** Normalized platform rating used for coach calibration (see rating/platformRatings.ts). */
+  platformRating?: number;
+  /** The platform's own number — what we show the user. */
+  platformRatingRaw?: number;
+  platformRatingSource?: "lichess" | "chesscom";
+  platformRatingPerf?: string;
+  platformRatingFetchedAt?: number;
+  /** Target rating, on the same calibration scale as platformRating. */
+  goalRating?: number;
+  /** Days per week the user plans to practise (1-7). */
+  practiceDaysPerWeek?: number;
+  /** Epoch ms the goal rating is projected for. */
+  goalTargetDate?: number;
+  /** Placement-measured weaknesses, REPLACED each run (see server/users.ts). */
+  measuredWeaknesses?: string[];
+  /** Rating when the goal was set, and when — the baseline /plan tracks against. */
+  goalStartRating?: number;
+  goalSetAt?: number;
   dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
   onboardingCompletedAt?: number;
 

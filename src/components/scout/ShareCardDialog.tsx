@@ -55,7 +55,7 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
     try {
       setDownloading(true);
       const blob = await renderSvgToPng(svg);
-      triggerDownload(blob, `chessstalker-${data.username}.png`);
+      triggerDownload(blob, `chess-masti-scout-${data.username}.png`);
       setToast({ kind: 'ok', msg: 'PNG downloaded.' });
     } catch (e) {
       setToast({ kind: 'err', msg: `Download failed: ${(e as Error).message}` });

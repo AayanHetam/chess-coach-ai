@@ -31,6 +31,8 @@ import {
   type MaiaProbResult,
 } from "@/lib/grounding/maia";
 import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
+import { intentFactsForPlies, isIntentFactsEnabled } from "@/lib/intent/reviewFacts";
+import type { GameEval } from "@/types/eval";
 import type { RelationalFactsBlock } from "@/lib/relational/relationalFactsBuilder";
 import { detectConcepts } from "@/lib/concept/conceptDetector";
 import { getConcept } from "@/lib/concept/conceptTaxonomy";
@@ -51,7 +53,7 @@ import {
 } from "./chessFormat";
 import { computeEvalIntegrity } from "./gameEvalSchema";
 import type { GameEvalInput, GameHeadersInput, PositionEvalInput } from "./gameEvalSchema";
-import { selectInsights } from "./selectInsights";
+import { flattenEval, selectInsights } from "./selectInsights";
 import {
   CONTRACT_VERSION,
   type BranchPointFact,
@@ -475,15 +477,19 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     const lineFacts = buildLineFacts(topRank ? `M${topRank}` : `I${intelRank}`, fenBefore, playedSan, lines);
 
     // Mate-flattened numbers + drop, exactly as the legacy loops computed.
-    const cpBeforeFlat =
-      topCand?.cpBeforeFlat ??
-      (lines[0].mate !== undefined ? (lines[0].mate > 0 ? 9999 : -9999) : (lines[0].cp ?? 0));
+    // The inline fallback used to read `cp ?? 0` on both sides — the same
+    // "unscored means 0.00" substitution flattenEval carried (C6 covered only
+    // the null-mate half). selectInsights now skips unscored plies, so for a
+    // selected candidate these fallbacks should never see a scoreless line;
+    // if one arrives anyway, declining the card beats inventing its eval.
+    const cpBeforeFlat = topCand?.cpBeforeFlat ?? flattenEval(lines[0]);
     const evalAfterLine = positions?.[ply + 1]?.lines?.[0];
     const cpAfterFlat =
-      topCand?.cpAfterFlat ??
-      (evalAfterLine?.mate !== undefined
-        ? (evalAfterLine.mate > 0 ? 9999 : -9999)
-        : (evalAfterLine?.cp ?? 0));
+      topCand?.cpAfterFlat ?? (evalAfterLine ? flattenEval(evalAfterLine) : null);
+    if (cpBeforeFlat === null || cpAfterFlat === null) {
+      log.info("contract_unscored_ply_skipped", { ply });
+      continue;
+    }
     const dropCp = cand.dropCp;
 
     // TOP MISTAKES branch point: best line vs the line starting with the
@@ -667,6 +673,22 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     finalRelational,
     persona: { personalityId: null, ...(username ? { username } : {}) },
   };
+  // INTENT FACTS — dark, additive, and gated on INTENT_FACTS_ENABLED.
+  //
+  // Attached for telemetry and offline comparison only: serializeForVerbalizer
+  // strips `intent`, so the verbalizer prompt, its cache prefix, and every
+  // byte-equality snapshot are identical whether this ran or not. Computed for
+  // carded plies alone (Tier 0 — no extra engine work), because a whole-game
+  // sweep would be waste and the null-move tier is not wired yet.
+  if (isIntentFactsEnabled() && gameEval && insights.length) {
+    const intent = intentFactsForPlies({
+      gameEval: gameEval as unknown as GameEval,
+      moves: moveHistory,
+      plies: insights.map((i) => i.ply),
+    });
+    if (intent.length) contract.intent = intent;
+  }
+
   // Plan §5 gate definition: contract build time is CPU-only, measured OVER
   // the shared grounding fetches (their network wait is excluded — it exists
   // on the legacy path too and is now strictly smaller thanks to the dedup).

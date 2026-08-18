@@ -85,10 +85,15 @@ function findPlayerFromName(name: string | undefined): TopPlayer | undefined {
 /**
  * Which upstream in the master-games source chain produced this response.
  * Mirrors `ApiData["source"]` from /api/opening-explorer:
- * curated (hand-vetted master index) → lichess (Lichess Masters, live) →
- * chessdb (chessdb.cn engine fallback).
+ * tree (the generated master-games corpus) → lichess (Lichess Masters, live,
+ * currently 401-blocked and off by default) → chessdb (engine analysis, no
+ * game statistics).
+ *
+ * "curated" is the retired name for "tree", kept in the union only so
+ * responses still inside the 10-minute edge cache render normally after a
+ * deploy.
  */
-export type MasterSource = "curated" | "lichess" | "chessdb";
+export type MasterSource = "tree" | "curated" | "lichess" | "chessdb";
 
 export interface MasterCandidate {
   san: string;
@@ -111,8 +116,14 @@ export interface MasterCandidate {
   source?: MasterSource;
 }
 
-// Hardcoded fallback for the Pirc/Kasparov demo when the Lichess API is
-// unreachable. Keyed by ply so we can still demo offline.
+// Offline fallback for when the Lichess masters API is unreachable, keyed by
+// ply. Only ply 0 is here: the start position is the same in every game, so
+// these five first moves are true no matter what is loaded.
+//
+// The ply-1 entry (e5/c5/e6/c6/d6) was removed alongside the /analysis demo
+// game. It is Black's reply set after 1.e4, and it was correct only because
+// the demo opened 1.e4 — on any d4/Nf3/c4 game it listed replies to a move
+// that was never played, as master statistics.
 const HARDCODED_FALLBACK_BY_PLY: Record<number, MasterCandidate[]> = {
   0: [
     { san: "e4", uci: "e2e4", count: 8400000, topPlayer: TOP_PLAYERS.carlsen },
@@ -120,13 +131,6 @@ const HARDCODED_FALLBACK_BY_PLY: Record<number, MasterCandidate[]> = {
     { san: "Nf3", uci: "g1f3", count: 2300000, topPlayer: TOP_PLAYERS.nakamura },
     { san: "c4", uci: "c2c4", count: 1700000, topPlayer: TOP_PLAYERS.giri },
     { san: "g3", uci: "g2g3", count: 240000 },
-  ],
-  1: [
-    { san: "e5", uci: "e7e5", count: 2800000, topPlayer: TOP_PLAYERS.carlsen },
-    { san: "c5", uci: "c7c5", count: 2400000, topPlayer: TOP_PLAYERS.nepo },
-    { san: "e6", uci: "e7e6", count: 890000 },
-    { san: "c6", uci: "c7c6", count: 540000 },
-    { san: "d6", uci: "d7d6", count: 420000, topPlayer: TOP_PLAYERS.topalov },
   ],
 };
 
@@ -195,9 +199,12 @@ export function nextCandidateIndex(
 interface ApiMove {
   uci: string;
   san?: string;
-  white: number;
-  draws: number;
-  black: number;
+  /** Games in which this move was played. Absent on engine-only sources. */
+  count?: number;
+  /** Result split. Absent on engine-only sources (chessdb). */
+  white?: number;
+  draws?: number;
+  black?: number;
   averageRating?: number;
   eval?: number;
   rank?: number;
@@ -216,14 +223,31 @@ interface ApiTopGame {
 }
 
 interface ApiData {
-  white: number;
-  draws: number;
-  black: number;
+  white?: number;
+  draws?: number;
+  black?: number;
   moves: ApiMove[];
   topGames?: ApiTopGame[];
   opening?: { eco: string; name: string };
   source?: MasterSource;
   indexedPositions?: number;
+  /**
+   * False when the source has no game statistics at all (chessdb is an
+   * engine database). The UI must not render win/draw/loss bars or a game
+   * count in that case. Absent = true, for older cached responses.
+   */
+  hasGameCounts?: boolean;
+  corpus?: MasterCorpusMeta;
+}
+
+/** Provenance for the generated tree, surfaced in the panel footer. */
+export interface MasterCorpusMeta {
+  games: number;
+  positions: number;
+  maxPlies: number;
+  minGames: number;
+  source: string;
+  generatedAt: string;
 }
 
 export function buildCandidatesFromApi(
@@ -255,12 +279,19 @@ export function buildCandidatesFromApi(
       }
     }
 
-    // Real game count from Lichess (sum of white/draws/black). chessdb's
-    // numbers are color-split synthesizers, not game counts — leave count
-    // at 0 in that case and the UI shows engine data instead.
-    const total = m.white + m.draws + m.black;
-    const isFromLichess = total > 1000; // Lichess returns thousands+ at minimum
-    const count = isFromLichess ? total : 0;
+    // Whether these numbers are game counts is now stated by the API
+    // (`hasGameCounts`), not guessed.
+    //
+    // It used to be inferred with `total > 1000`, on the reasoning that only
+    // a real games database returns thousands. That silently zeroed every
+    // genuine position played fewer than 1000 times in the corpus — which is
+    // most of the tree below the first few moves. A line with 391 real games
+    // rendered as no data at all, and was a large part of why this tab looked
+    // empty as soon as you left the opening.
+    const hasCounts = data.hasGameCounts !== false;
+    const count = hasCounts
+      ? m.count ?? (m.white ?? 0) + (m.draws ?? 0) + (m.black ?? 0)
+      : 0;
 
     // Top player attribution:
     // - Curated data carries the key directly (e.g. "carlsen") — fastest path
@@ -286,9 +317,10 @@ export function buildCandidatesFromApi(
       uci: m.uci,
       count,
       topPlayer,
-      whiteWins: m.white,
-      draws: m.draws,
-      blackWins: m.black,
+      // Only carry a win/draw/loss split when it describes real games.
+      whiteWins: hasCounts ? m.white : undefined,
+      draws: hasCounts ? m.draws : undefined,
+      blackWins: hasCounts ? m.black : undefined,
       eval: m.eval,
       rank: m.rank,
       winrate: m.winrate,
@@ -307,9 +339,14 @@ const SOURCE_META: Record<
   MasterSource,
   { initials: string; label: string; color: string }
 > = {
+  tree: {
+    initials: "DB",
+    label: "Master-games database",
+    color: "#22C55E",
+  },
   curated: {
-    initials: "CUR",
-    label: "Curated master index",
+    initials: "DB",
+    label: "Master-games database",
     color: "#22C55E",
   },
   lichess: {
@@ -318,8 +355,8 @@ const SOURCE_META: Record<
     color: "#60A5FA",
   },
   chessdb: {
-    initials: "CDB",
-    label: "chessdb.cn engine",
+    initials: "ENG",
+    label: "chessdb.cn engine analysis — no game statistics",
     color: "#A78BFA",
   },
 };
@@ -549,7 +586,7 @@ export function MasterGamesTakeover({
   }, [fen]);
 
   // Build the candidate list. Use API data if available, fall back to
-  // hardcoded for the Pirc demo positions, otherwise empty (out of book).
+  // hardcoded for the start position, otherwise empty (out of book).
   const candidates = useMemo<MasterCandidate[]>(() => {
     if (apiData) return buildCandidatesFromApi(apiData, fen);
     return HARDCODED_FALLBACK_BY_PLY[ply] ?? [];
@@ -714,7 +751,12 @@ export function MasterGamesTakeover({
                 lineHeight: 1.1,
               }}
             >
-              Master Games · Lichess DB
+              {/* Off the tree these rows are an engine's, so the title must
+                  stop saying "Master Games" — it sat directly above the
+                  "no master games reach this position" notice. */}
+              {apiData?.source === "chessdb"
+                ? "Engine analysis · chessdb.cn"
+                : "Master Games"}
             </Typography>
             <Typography
               sx={{
@@ -966,6 +1008,45 @@ export function MasterGamesTakeover({
             </Box>
           ) : (
             <Stack spacing={0.75}>
+              {/* Past the database's coverage the rows below are an ENGINE's
+                  move ranking, not games anyone played. Saying so is the
+                  whole point: these rows previously carried a synthesized
+                  ~375/250/375 win-draw-loss split that read as roughly a
+                  thousand master games at every position. */}
+              {apiData?.source === "chessdb" && (
+                <Box
+                  sx={{
+                    px: 1.25,
+                    py: 0.85,
+                    mb: 0.25,
+                    borderRadius: "8px",
+                    background: "rgba(167,139,250,0.08)",
+                    border: "1px dashed rgba(167,139,250,0.35)",
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      color: "#C4B5FD",
+                      letterSpacing: "0.04em",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    Beyond the games database
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.72rem",
+                      color: "rgba(255,255,255,0.55)",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    No master games reach this position. These are engine
+                    picks from chessdb.cn — evaluations, not game counts.
+                  </Typography>
+                </Box>
+              )}
               {displayed.map((c, idx) => {
                 const isPlayed = c.san === playedSan;
                 const isKbSelected = idx === selectedCandidateIdx;
@@ -1255,14 +1336,21 @@ export function MasterGamesTakeover({
               }}
             />
             <Box>
+              {/* Name the corpus the numbers came from. This used to read
+                  "Lichess Masters · curated index" for data that was neither
+                  Lichess Masters nor curated, which is how counts from one
+                  month of a 2300+ online pool ended up presented as the
+                  historical master record. */}
               {apiError
                 ? "Offline · fallback only"
                 : apiData
-                ? apiData.source === "curated"
-                  ? `Lichess Masters · curated index (${apiData.indexedPositions ?? "?"} positions)`
-                  : apiData.source === "chessdb"
-                  ? "chessdb.cn · 7B+ positions"
-                  : "Lichess masters · 2.5M+ games (live)"
+                ? apiData.source === "chessdb"
+                  ? "chessdb.cn engine · no game statistics"
+                  : apiData.source === "lichess"
+                  ? "Lichess Masters (live)"
+                  : apiData.corpus?.games
+                  ? `${formatCount(apiData.corpus.games)} games · ${apiData.corpus.source}`
+                  : `Master-games database (${apiData.indexedPositions ?? "?"} positions)`
                 : "Loading…"}
             </Box>
           </Box>

@@ -8,20 +8,39 @@ import {
   MenuItem,
   Stack,
   Typography,
+  type SxProps,
+  type Theme,
 } from "@mui/material";
 import Link from "next/link";
-import { useState, MouseEvent } from "react";
+import { useState, type MouseEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Menu as MenuIcon, LogOut, User, Settings } from "lucide-react";
 import { Logo } from "./Logo";
 import { AppDrawer, type NavId } from "./AppDrawer";
-import NavPlanBadge from "./NavPlanBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import ProfileDialog from "@/components/auth/ProfileDialog";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
 
 interface NavPillProps {
   active?: NavId;
+  /**
+   * Page-supplied context rendered inline, immediately after the wordmark —
+   * e.g. /analysis puts the loaded game's player names + opening here so the
+   * page needs only ONE bar instead of a nav pill stacked on a game header.
+   * Given `flex: 1` and `minWidth: 0`, so the slot owns its own truncation.
+   */
+  contextSlot?: ReactNode;
+  /**
+   * Page-supplied controls rendered just before the nav links (e.g. the
+   * /analysis engine-depth / Load / Save buttons).
+   */
+  actionsSlot?: ReactNode;
+  /**
+   * Style overrides for the pill itself. /analysis drops the sticky
+   * positioning because the pill is a flex row of a viewport-height column
+   * there, not a floating header over a scrolling page.
+   */
+  sx?: SxProps<Theme>;
 }
 
 // Five primary nav links across the production surfaces. Order tells the
@@ -49,8 +68,18 @@ const NAV_LINKS: { id: NavId; label: string; href: string }[] = [
   { id: "scout", label: "Scout", href: "/scout" },
 ];
 
-export function NavPill({ active }: NavPillProps) {
+export function NavPill({
+  active,
+  contextSlot,
+  actionsSlot,
+  sx,
+}: NavPillProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // With page context in the pill there isn't room for everything at once.
+  // The wordmark yields first (the logo mark still links home, and the
+  // burger drawer names the app); the link row only yields on genuinely
+  // narrow viewports, where it is likewise in the drawer.
+  const hasSlots = Boolean(contextSlot || actionsSlot);
   // Hover state lets the indicator preview-slide to the hovered item;
   // snaps back to the truly active item on mouse-leave.
   const [hovered, setHovered] = useState<NavId | null>(null);
@@ -76,30 +105,38 @@ export function NavPill({ active }: NavPillProps) {
       console.error("Sign-out failed:", err);
     }
   };
-  const avatarLetter = (user?.displayName?.[0] ?? user?.email?.[0] ?? "?").toUpperCase();
+  const avatarLetter = (
+    user?.displayName?.[0] ??
+    user?.email?.[0] ??
+    "?"
+  ).toUpperCase();
 
   return (
     <>
       <Box
         component="header"
-        sx={{
-          position: "sticky",
-          top: 16,
-          zIndex: 50,
-          mx: "auto",
-          maxWidth: 1680,
-          px: { xs: 1.5, md: 2 },
-          py: 1,
-          mb: 3,
-          borderRadius: "999px",
-          background: "rgba(12,14,20,0.6)",
-          backdropFilter: "blur(16px) saturate(160%)",
-          WebkitBackdropFilter: "blur(16px) saturate(160%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          display: "flex",
-          alignItems: "center",
-          gap: 1.5,
-        }}
+        sx={[
+          {
+            position: "sticky",
+            top: 16,
+            zIndex: 50,
+            mx: "auto",
+            maxWidth: 1680,
+            width: "100%",
+            px: { xs: 1.5, md: 2 },
+            py: 1,
+            mb: 3,
+            borderRadius: "999px",
+            background: "rgba(12,14,20,0.6)",
+            backdropFilter: "blur(16px) saturate(160%)",
+            WebkitBackdropFilter: "blur(16px) saturate(160%)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+          },
+          ...(Array.isArray(sx) ? sx : [sx]),
+        ]}
       >
         <IconButton
           onClick={() => setDrawerOpen(true)}
@@ -152,16 +189,37 @@ export function NavPill({ active }: NavPillProps) {
           >
             <Logo variant="bold" size={16} color="#0A0A0A" />
           </Box>
-          <Box sx={{ display: { xs: "none", sm: "block" } }}>Chess Masti</Box>
+          <Box
+            sx={{
+              display: hasSlots
+                ? { xs: "none", xl: "block" }
+                : { xs: "none", sm: "block" },
+            }}
+          >
+            Chess Masti
+          </Box>
         </Box>
 
-        <Box sx={{ flex: 1 }} />
+        {contextSlot ? (
+          <Box
+            sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center" }}
+          >
+            {contextSlot}
+          </Box>
+        ) : (
+          <Box sx={{ flex: 1 }} />
+        )}
+
+        {actionsSlot}
 
         {/* Animated 5-link nav with sliding indicator */}
         <Box
           sx={{
-            display: { xs: "none", md: "flex" },
+            display: hasSlots
+              ? { xs: "none", lg: "flex" }
+              : { xs: "none", md: "flex" },
             position: "relative",
+            flexShrink: 0,
             background: "rgba(255,255,255,0.03)",
             border: "1px solid rgba(255,255,255,0.06)",
             borderRadius: "999px",
@@ -184,9 +242,7 @@ export function NavPill({ active }: NavPillProps) {
                   py: 0.85,
                   fontSize: "0.85rem",
                   fontWeight: isActive ? 700 : 500,
-                  color: isActive
-                    ? "#FB923C"
-                    : "rgba(255,255,255,0.72)",
+                  color: isActive ? "#FB923C" : "rgba(255,255,255,0.72)",
                   textDecoration: "none",
                   transition: "color 220ms ease",
                   borderRadius: "999px",
@@ -221,10 +277,6 @@ export function NavPill({ active }: NavPillProps) {
             );
           })}
         </Box>
-
-        {/* Plan-status pill (Premium / Free / Trial / "Premium til {date}").
-            Self-gates on freemium + signed-in, so it's invisible pre-launch. */}
-        <NavPlanBadge />
 
         {/* Account: signed-out → Sign in pill, signed-in → avatar menu.
             Hidden during the auth-resolving flash to avoid the UI flicker
@@ -375,8 +427,7 @@ export function NavPill({ active }: NavPillProps) {
                   px: 1.75,
                   py: 0.85,
                   borderRadius: "999px",
-                  background:
-                    "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
+                  background: "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
                   color: "#0A0A0A",
                   fontWeight: 700,
                   fontSize: "0.84rem",

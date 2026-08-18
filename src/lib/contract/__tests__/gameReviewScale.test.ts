@@ -1,10 +1,11 @@
 /**
  * PR-CI-5 — game_review at CARD SCALE.
  *
- * position_analysis reviews carry 1–3 cards; a game review carries up to 13
- * (selectInsights: ≤10 top mistakes + ≤3 intel-only), all sharing ONE set of
- * per-review ladder budgets and ONE wall-clock deadline. Everything here is a
- * property that only fails at that scale.
+ * position_analysis reviews carry 1–3 cards; a game review draws from up to 13
+ * candidate insights (selectInsights: ≤10 top mistakes + ≤3 intel-only) and
+ * ships at most MAX_GAME_REVIEW_CARDS of them (founder cap, 2026-08-11 — see
+ * cardWorthiness.ts). They share ONE set of per-review ladder budgets and ONE
+ * wall-clock deadline. Everything here is a property that only fails at scale.
  *
  * The load-bearing one is the deadline. Before CI-5 it was ADVISORY: a stage
  * checked `now() + ESTIMATE < deadline` before starting, but `callLLM` has no
@@ -22,7 +23,12 @@ import { DEFAULT_LADDER_BUDGETS, runInsightLadder } from "@/lib/contract/ladder"
 import type { LadderCardOpts } from "@/lib/contract/ladder";
 import type { ArmingTable } from "@/lib/contract/armingConfig";
 import type { LLMResult } from "@/lib/llmProvider";
-import { maxTokensForInsights, selectCardInsights } from "@/lib/prompts/verbalizerPrompt";
+import {
+  maxTokensForInsights,
+  selectCardInsights,
+  selectCardInsightsDetailed,
+} from "@/lib/prompts/verbalizerPrompt";
+import { MAX_GAME_REVIEW_CARDS } from "@/lib/contract/cardWorthiness";
 import type { InsightContract } from "@/lib/contract/types";
 import { makeContract, makeInsight } from "./insightFactory";
 
@@ -61,7 +67,7 @@ function bigGameReviewContract(cards: number) {
 }
 
 describe("card plan scales to game_review size", () => {
-  it("a 13-card review (10 top mistakes + 3 intel) is planned in full", () => {
+  it("a 13-candidate review is CAPPED at MAX_GAME_REVIEW_CARDS, keeping pedagogical order", () => {
     const insights: InsightContract[] = [];
     for (let n = 0; n < 10; n++) {
       insights.push(
@@ -78,19 +84,48 @@ describe("card plan scales to game_review size", () => {
         }),
       );
     }
-    const plan = selectCardInsights(makeContract(insights));
-    expect(plan).toHaveLength(13);
-    // Top mistakes first, in rank order; intel-only after, in rank order.
-    expect(plan.map((i) => i.factIdPrefix)).toEqual([
-      "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "I1", "I2", "I3",
-    ]);
+    const contract = makeContract(insights);
+    const plan = selectCardInsights(contract);
+    expect(plan).toHaveLength(MAX_GAME_REVIEW_CARDS);
+    // All 13 candidates carry the factory's identical severity (350cp, a
+    // BETTER→WORSE band drop), so every one clears the floor and the CAP is
+    // what binds; ties resolve by ply, which is legacy rank order.
+    expect(plan.map((i) => i.factIdPrefix)).toEqual(
+      Array.from({ length: MAX_GAME_REVIEW_CARDS }, (_, i) => `M${i + 1}`),
+    );
+    const detailed = selectCardInsightsDetailed(contract);
+    expect(detailed.droppedBelowFloor).toEqual([]);
+    expect(detailed.droppedOverCap).toHaveLength(13 - MAX_GAME_REVIEW_CARDS);
+    expect(detailed.headlineRestored).toBe(false);
+  });
+
+  it("the cap is 3 — pinned to production latency, not preference", () => {
+    // Every other assertion in this file DERIVES from the constant, so the
+    // mechanism is covered but the VALUE was not: setting it back to 5 kept
+    // the whole suite green while restoring the ~60s behaviour that shipped
+    // truncated reviews. This test is the deliberate change-detector.
+    //
+    // The evidence (production, 2026-08-12, all ten real-Stockfish fixtures):
+    //   · 4 cards on a long game       → 58.4s against the 60s maxDuration
+    //   · 07_knight_fork at 4 cards    → hit CONTRACT_GENERATION_BUDGET_MS and
+    //     shipped a TRUNCATED review, while the SAME fixture completed in
+    //     50.4s and 53.6s on other runs
+    // Same input, different outcome = we were close enough to the wall that
+    // variance decided whether a user got a whole review. Raising this without
+    // fresh PRODUCTION numbers re-opens that.
+    expect(MAX_GAME_REVIEW_CARDS).toBe(3);
   });
 
   it("the token budget grows with cards and never exceeds its ceiling", () => {
-    // 1-3 cards (position_analysis) sit on the legacy 3000 floor...
+    // 1-3 cards (position_analysis) sit on the legacy 3000 floor, and at the
+    // 3-card cap the game_review worst case is still on that floor.
     expect(maxTokensForInsights(1)).toBe(3000);
     expect(maxTokensForInsights(3)).toBe(3000);
-    // ...game_review scale grows, and the 13-card worst case is capped.
+    expect(maxTokensForInsights(MAX_GAME_REVIEW_CARDS)).toBe(3000);
+    // The 5th card is where the budget starts growing.
+    expect(maxTokensForInsights(5)).toBe(3600);
+    // The function itself still scales past the cap (it is not the cap's
+    // enforcement point) and stays bounded.
     expect(maxTokensForInsights(7)).toBe(4800);
     expect(maxTokensForInsights(10)).toBe(6600);
     expect(maxTokensForInsights(13)).toBe(8000);
@@ -102,9 +137,11 @@ describe("card plan scales to game_review size", () => {
   });
 });
 
-describe("per-review ladder budgets hold across a 13-card review", () => {
+describe("per-review ladder budgets hold across a full-size review", () => {
   it("≤2 Haiku edits and ≤3 Sonnet regens total, however many cards violate", async () => {
     const contract = bigGameReviewContract(13);
+    const planned = selectCardInsights(contract);
+    expect(planned).toHaveLength(MAX_GAME_REVIEW_CARDS);
     const budgets = DEFAULT_LADDER_BUDGETS();
     expect(budgets.editsRemaining).toBe(2);
     expect(budgets.regensRemaining).toBe(3);
@@ -150,7 +187,7 @@ describe("per-review ladder budgets hold across a 13-card review", () => {
     expect(budgets.editsRemaining).toBe(0);
     expect(budgets.regensRemaining).toBe(0);
     // Every card still SHIPPED something — the template floor is unbudgeted.
-    expect(results).toHaveLength(13);
+    expect(results).toHaveLength(planned.length);
     for (const r of results) expect(r.finalText).toContain("[INSIGHT:");
     // Once the caps are spent the remaining cards resolve deterministically.
     expect(results.filter((r) => r.stage === "templated").length).toBeGreaterThan(0);
@@ -262,7 +299,7 @@ describe("the wall-clock deadline is ENFORCED, not advisory", () => {
     expect(budgets.regensRemaining).toBe(3);
   });
 
-  it("a 10-card review whose deadline is already spent still emits every card, in order", async () => {
+  it("a full-size review whose deadline is already spent still emits every card, in order", async () => {
     const contract = bigGameReviewContract(10);
     const plan = selectCardInsights(contract);
     const emitted: string[] = [];
@@ -287,9 +324,10 @@ describe("the wall-clock deadline is ENFORCED, not advisory", () => {
     const elapsed = Date.now() - t0;
 
     // Every planned card shipped, none dropped, pedagogical order preserved.
-    expect(summary.cards).toHaveLength(10);
+    expect(plan).toHaveLength(MAX_GAME_REVIEW_CARDS);
+    expect(summary.cards).toHaveLength(plan.length);
     expect(summary.cards.map((c) => c.factIdPrefix)).toEqual(plan.map((i) => i.factIdPrefix));
-    expect(summary.ladderDistribution.templated).toBe(10);
+    expect(summary.ladderDistribution.templated).toBe(plan.length);
     // The fabricated eval never reaches the client.
     expect(shipped).not.toContain("-9.50");
     // Headers appear in plan order.

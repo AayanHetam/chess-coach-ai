@@ -26,10 +26,15 @@ const START_FEN =
   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 describe("SourceBadge", () => {
-  it('renders "CUR" for the curated source', () => {
-    const html = renderBadge({ source: "curated" });
-    expect(html).toContain("CUR");
-    expect(html).toContain("Curated master index");
+  it('renders "DB" for the master-games tree', () => {
+    // Was "CUR"/"Curated master index" — retired with the hand-typed overlay
+    // that name described. `curated` stays in the union so responses still in
+    // the edge cache across a deploy keep rendering.
+    for (const source of ["tree", "curated"] as const) {
+      const html = renderBadge({ source });
+      expect(html).toContain("DB");
+      expect(html).toContain("Master-games database");
+    }
   });
 
   it('renders "LIC" for the lichess source', () => {
@@ -38,10 +43,13 @@ describe("SourceBadge", () => {
     expect(html).toContain("Lichess Masters");
   });
 
-  it('renders "CDB" for the chessdb source', () => {
+  it('renders "ENG" for the chessdb source, and says it has no game stats', () => {
     const html = renderBadge({ source: "chessdb" });
-    expect(html).toContain("CDB");
+    expect(html).toContain("ENG");
     expect(html).toContain("chessdb.cn");
+    // The whole point of the relabel: chessdb is an engine database, and its
+    // rows used to be indistinguishable from game statistics.
+    expect(html).toContain("no game statistics");
   });
 
   it("renders nothing when the source is undefined (hardcoded demo rows)", () => {
@@ -89,22 +97,22 @@ describe("buildCandidatesFromApi", () => {
     expect(candidates[0].count).toBe(2_800_000);
   });
 
-  it("sets count=0 for a chessdb-shaped move (synthesized color splits, not games)", () => {
+  it("sets count=0 for an engine-only source, on the API's say-so", () => {
+    // This used to be inferred from the magnitude of the color split. The API
+    // now states it, because the magnitude test also zeroed real positions
+    // played fewer than 1000 times.
     const candidates = buildCandidatesFromApi(
       {
-        white: 0,
-        draws: 0,
-        black: 0,
         source: "chessdb",
-        moves: [
-          { uci: "e2e4", san: "e4", white: 60, draws: 20, black: 20, eval: 30, winrate: 55 },
-        ],
+        hasGameCounts: false,
+        moves: [{ uci: "e2e4", san: "e4", eval: 30, winrate: 55 }],
       },
       START_FEN
     );
     expect(candidates[0].count).toBe(0);
     expect(candidates[0].source).toBe("chessdb");
     expect(candidates[0].eval).toBe(30);
+    expect(candidates[0].whiteWins).toBeUndefined();
   });
 
   it("derives SAN from FEN+UCI when the move omits san (chessdb path)", () => {

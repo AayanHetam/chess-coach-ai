@@ -7,50 +7,84 @@ import {
   SelfAssessKey,
   SelfAssessScore,
   TimeCommitment,
-  usesRatingPath,
+  usesPlatformPath,
 } from "./quizConfig";
 
 /**
  * Quiz state machine. One question per screen with a branch after step 1
- * (online-rating path vs self-assessment path). Answers are mirrored to a
+ * (platform-username path vs self-assessment path). Answers are mirrored to a
  * localStorage DRAFT so a refresh resumes; the draft is NOT the flush payload
  * (that's written separately by the result screen on "unlock").
  */
 
 export type StepId =
   | "play-style"
-  | "rating"
+  | "username"
   | "sa-years"
   | "sa-spot"
   | "sa-tournaments"
   | "goals"
-  | "time";
+  | "goal-rating"
+  | "time"
+  | "frequency";
 
 export type QuizPhase = "questions" | "result";
 
-/** The ordered, branch-resolved step list for the current answers. */
-function resolveSteps(answers: QuizAnswers): StepId[] {
+/**
+ * The ordered, branch-resolved step list for the current answers.
+ *
+ * Exported so the branch and CTA rules can be unit-tested as plain functions —
+ * the alternative was pulling in a React-hook testing library purely to observe
+ * them, which is a dependency this repo does not need.
+ */
+export function resolveSteps(answers: QuizAnswers): StepId[] {
   const steps: StepId[] = ["play-style"];
   if (!answers.playStyle) return steps;
-  if (usesRatingPath(answers.playStyle)) {
-    steps.push("rating");
+  if (usesPlatformPath(answers.playStyle)) {
+    steps.push("username");
   } else {
     steps.push("sa-years", "sa-spot", "sa-tournaments");
   }
-  steps.push("goals", "time");
+  // Goal-rating is LAST on purpose. It draws a projection, and a projection
+  // needs the schedule: asking it earlier meant falling back to a default of
+  // 20min x 4 days and telling a 1300 they'd reach 1600 in "about 4 years" —
+  // the most discouraging plausible number, at the moment of peak motivation.
+  // With time and frequency already answered the same user sees ~4 months.
+  steps.push("goals", "time", "frequency", "goal-rating");
   return steps;
 }
 
-function isRatingValid(r: number | undefined): boolean {
-  return typeof r === "number" && Number.isFinite(r) && r >= 100 && r <= 3500;
+/**
+ * Both platforms allow only these characters in a handle, so anything else is
+ * a typo we can catch before the user leaves the step rather than a confusing
+ * "account not found" after signup.
+ */
+const USERNAME_RE = /^[A-Za-z0-9_-]{1,30}$/;
+
+export function isUsernameValid(u: string | undefined): boolean {
+  return typeof u === "string" && USERNAME_RE.test(u.trim());
 }
 
-function canAdvanceStep(step: StepId, a: QuizAnswers): boolean {
+/**
+ * Whether `stepIndex` is genuinely the final question.
+ *
+ * Before a play style is picked the branch is unresolved, so `resolveSteps` can
+ * only return the one step it knows about — which made step 1 look like the
+ * last step and rendered the CTA as "See my results" on the very first screen
+ * of the acquisition funnel. The branch must be resolved before "last" means
+ * anything.
+ */
+export function isLastStep(answers: QuizAnswers, stepIndex: number): boolean {
+  if (!answers.playStyle) return false;
+  return stepIndex === resolveSteps(answers).length - 1;
+}
+
+export function canAdvanceStep(step: StepId, a: QuizAnswers): boolean {
   switch (step) {
     case "play-style":
       return !!a.playStyle;
-    case "rating":
-      return isRatingValid(a.rating);
+    case "username":
+      return isUsernameValid(a.username);
     case "sa-years":
       return a.selfAssess.years !== undefined;
     case "sa-spot":
@@ -59,8 +93,19 @@ function canAdvanceStep(step: StepId, a: QuizAnswers): boolean {
       return a.selfAssess.tournaments !== undefined;
     case "goals":
       return a.goals.length > 0;
+    case "goal-rating":
+      // A goal is optional — someone who just wants to get better shouldn't be
+      // forced to name a number they haven't thought about. But if they DO type
+      // one it has to be sane, and it has to be above where they are, or the
+      // projection is meaningless.
+      return (
+        a.goalRating === undefined ||
+        (Number.isFinite(a.goalRating) && a.goalRating >= 100 && a.goalRating <= 3000)
+      );
     case "time":
       return !!a.time;
+    case "frequency":
+      return typeof a.daysPerWeek === "number" && a.daysPerWeek >= 1;
     default:
       return false;
   }
@@ -81,11 +126,12 @@ export interface OnboardingQuizApi {
   back: () => void;
   startOver: () => void;
   setPlayStyle: (v: PlayStyle) => void;
-  setRating: (v: number | undefined) => void;
   setUsername: (v: string) => void;
   setSelfAssess: (key: SelfAssessKey, score: SelfAssessScore) => void;
   toggleGoal: (key: string) => void;
   setTime: (v: TimeCommitment) => void;
+  setGoalRating: (v: number | undefined) => void;
+  setDaysPerWeek: (v: number) => void;
   setDailyReminder: (v: boolean) => void;
 }
 
@@ -140,7 +186,7 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
   const steps = useMemo(() => resolveSteps(answers), [answers]);
   const currentStep = phase === "result" ? null : (steps[stepIndex] ?? null);
   const canAdvance = currentStep ? canAdvanceStep(currentStep, answers) : true;
-  const isLastQuestion = stepIndex === steps.length - 1;
+  const isLastQuestion = isLastStep(answers, stepIndex);
   const isFirstStep = stepIndex === 0 && phase === "questions";
 
   // Progress: estimate the denominator before the branch is known (online path
@@ -186,9 +232,6 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
   const setPlayStyle = useCallback((v: PlayStyle) => {
     setAnswers((a) => ({ ...a, playStyle: v }));
   }, []);
-  const setRating = useCallback((v: number | undefined) => {
-    setAnswers((a) => ({ ...a, rating: v }));
-  }, []);
   const setUsername = useCallback((v: string) => {
     setAnswers((a) => ({ ...a, username: v }));
   }, []);
@@ -212,6 +255,12 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
   const setTime = useCallback((v: TimeCommitment) => {
     setAnswers((a) => ({ ...a, time: v }));
   }, []);
+  const setGoalRating = useCallback((v: number | undefined) => {
+    setAnswers((a) => ({ ...a, goalRating: v }));
+  }, []);
+  const setDaysPerWeek = useCallback((v: number) => {
+    setAnswers((a) => ({ ...a, daysPerWeek: v }));
+  }, []);
   const setDailyReminder = useCallback((v: boolean) => {
     setAnswers((a) => ({ ...a, dailyReminder: v }));
   }, []);
@@ -231,11 +280,12 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
     back,
     startOver,
     setPlayStyle,
-    setRating,
     setUsername,
     setSelfAssess,
     toggleGoal,
     setTime,
+    setGoalRating,
+    setDaysPerWeek,
     setDailyReminder,
   };
 }

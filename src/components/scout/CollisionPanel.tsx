@@ -4,7 +4,6 @@ import {
   Button,
   Chip,
   Grid,
-  Paper,
   Stack,
   Tab,
   Tabs,
@@ -12,6 +11,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
+import { DossierPanel, FieldLabel } from './dossier';
 import { CollisionLine, Collisions } from '@/types/scout';
 import { formatMoveSequence } from '@/lib/scoutService';
 
@@ -34,20 +34,7 @@ export default function CollisionPanel({
     collisions.whenYouPlayBlack.length === 0;
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2.5,
-        borderRadius: '1.5rem',
-        border: '1px solid rgba(255,255,255,0.08)',
-        background: 'rgba(20,22,28,0.55)',
-        backdropFilter: 'blur(14px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-        boxShadow:
-          '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-        overflow: 'hidden',
-      }}
-    >
+    <DossierPanel label={`Collisions · you vs ${targetUsername}`}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         alignItems={{ xs: 'flex-start', sm: 'center' }}
@@ -56,25 +43,6 @@ export default function CollisionPanel({
         sx={{ mb: 2 }}
       >
         <Box>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Icon icon="mdi:crosshairs-gps" width={20} style={{ color: '#FB923C' }} />
-            <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>
-              Collisions · You vs {targetUsername}
-            </Typography>
-            <Chip
-              label="NEW"
-              size="small"
-              sx={{
-                bgcolor: 'rgba(249,115,22,0.18)',
-                color: '#FB923C',
-                border: '1px solid rgba(249,115,22,0.4)',
-                fontWeight: 800,
-                fontSize: '0.6rem',
-                height: 18,
-                letterSpacing: 1,
-              }}
-            />
-          </Stack>
           <Typography variant="caption" color="text.secondary">
             Lines where <strong>your</strong> repertoire meets <strong>their</strong> weakness.
             Ranked by overall edge.
@@ -157,7 +125,7 @@ export default function CollisionPanel({
           )}
         </>
       )}
-    </Paper>
+    </DossierPanel>
   );
 }
 

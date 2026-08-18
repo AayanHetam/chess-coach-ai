@@ -39,12 +39,47 @@ const cache = new Map<string, CacheEntry>();
  * empty-string bucket, which means legacy/anonymous callers still share a
  * single cache bucket per (fen, skillLevel, message).
  */
+/**
+ * Fingerprint of the engine data an answer was produced FROM (T6).
+ *
+ * An analysis written with no evals — or with shallow ones — reads exactly
+ * like a fully-grounded one: same voice, same structure, no hedge. Without
+ * this in the key, the first caller to ask a question on a position decides
+ * what every later caller gets for 24h, so a user whose Stockfish never
+ * finished can poison the answer for users whose did. That is not
+ * hypothetical: the coach accepts questions while the engine is still booting
+ * (finding T7), which is the common case on a slow device.
+ *
+ * Returns a short, stable descriptor. `undefined`/absent evals collapse to
+ * "none", which is its own bucket rather than being merged with graded data.
+ */
+export function evalFingerprint(gameEval: unknown): string {
+  const ge = gameEval as
+    | { positions?: Array<{ lines?: Array<{ depth?: number }> }> }
+    | undefined
+    | null;
+  const positions = ge?.positions;
+  if (!Array.isArray(positions) || positions.length === 0) return "none";
+  let minDepth = Infinity;
+  for (const p of positions) {
+    const d = p?.lines?.[0]?.depth;
+    if (typeof d === "number") minDepth = Math.min(minDepth, d);
+  }
+  // A single timeout sentinel (depth 0) anywhere makes this a different
+  // artifact from a clean run, and it should not share a bucket with one.
+  const depth = Number.isFinite(minDepth) ? minDepth : 0;
+  return `n${positions.length}d${depth}`;
+}
+
 export function generateCacheKey(
   fen: string,
   skillLevel: string,
   userMessage: string,
   personaSignature?: string,
-  moveHistory?: string[]
+  moveHistory?: string[],
+  /** T6: engine-data descriptor from `evalFingerprint`. Omitted keeps the
+   *  legacy bucket, so this is additive for any caller not yet passing it. */
+  evalFp?: string
 ): string {
   const messageHash = createHash("md5")
     .update(userMessage.toLowerCase().trim())
@@ -75,7 +110,8 @@ export function generateCacheKey(
   // Prefix with PROMPT_VERSION so a prompt revision (Phase 2 = "3.0") makes
   // older cache entries unreachable instead of serving stale stub-prompt
   // analyses to clients on the new prompt.
-  return `v${PROMPT_VERSION}|${normalizedFen}|${skillLevel}|${messageHash}|p${personaHash}|m${movesHash}`;
+  const evalPart = evalFp ? `|e${evalFp}` : "";
+  return `v${PROMPT_VERSION}|${normalizedFen}|${skillLevel}|${messageHash}|p${personaHash}|m${movesHash}${evalPart}`;
 }
 
 /**

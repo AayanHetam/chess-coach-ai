@@ -12,10 +12,18 @@ import {
   PLAY_STYLE_OPTIONS,
   SELF_ASSESS_QUESTIONS,
   TIME_OPTIONS,
+  FREQUENCY_OPTIONS,
+  minutesPerDayFor,
   QuizAnswers,
   SelfAssessKey,
 } from "./quizConfig";
 import { QUIZ_GOAL_OPTIONS } from "./quizThemes";
+import GoalRatingPicker from "./GoalRatingPicker";
+import { useQuizCurrentRating } from "./useQuizCurrentRating";
+import { isUsernameValid } from "./useOnboardingQuiz";
+import TacticDiagram from "./TacticDiagram";
+import QuizIcon, { type QuizIconName } from "./QuizIcon";
+import { GOAL_DIAGRAMS, GOAL_DIAGRAM_ALT, SPOT_DIAGRAMS } from "./tacticDiagrams";
 
 const EASE = [0.22, 0.61, 0.36, 1] as const;
 const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
@@ -39,9 +47,47 @@ const ratingInputSx = {
   },
 } as const;
 
+/** Play-style option key → its illustration. */
+const PLAY_STYLE_ICON: Record<string, QuizIconName> = {
+  lichess: "online",
+  chesscom: "online",
+  otb: "otb",
+  new: "new",
+};
+const PLAY_STYLE_ICON_ALT: Record<string, string> = {
+  lichess: "A chess board on a screen",
+  chesscom: "A chess board on a screen",
+  otb: "Two players either side of a board",
+  new: "A single pawn, just starting out",
+};
+
+/** Self-assessment score → rank. Mirrors selfAssessScore's 0/1/2. */
+const LEVEL_ALT = ["Pawn — just starting", "Knight — getting there", "Queen — confident"];
+
+/** Days-per-week option → clock fill, reusing the time-budget iconography. */
+const FREQUENCY_ICON: Record<number, QuizIconName> = {
+  2: "time-low",
+  4: "time-mid",
+  6: "time-high",
+};
+
+const TIME_ICON: Record<string, QuizIconName> = {
+  "under-10": "time-low",
+  "10-30": "time-mid",
+  "30-plus": "time-high",
+};
+
 interface OnboardingQuizProps {
-  /** Called when the user unlocks from the result screen. */
-  onUnlock: (answers: QuizAnswers) => void;
+  /**
+   * Called when the user unlocks from the result screen.
+   *
+   * `currentRating` is the anchor the goal projection was displayed from — the
+   * live platform number when they gave a username. It has to travel with the
+   * answers: buildPayload cannot re-derive it, because the derivation returns
+   * undefined on the platform path, and the promise would be shown on screen
+   * and then quietly not stored.
+   */
+  onUnlock: (answers: QuizAnswers, currentRating?: number) => void;
   submitting?: boolean;
   /** True when the viewer is already signed in (mandatory-onboarding flow). */
   authed?: boolean;
@@ -53,6 +99,10 @@ export default function OnboardingQuiz({
   authed,
 }: OnboardingQuizProps) {
   const q = useOnboardingQuiz();
+  // Reads the visitor's real rating so the goal projection is anchored to them
+  // rather than to a guess. Resolves to undefined when unknown, which the
+  // picker renders honestly instead of substituting a number.
+  const { currentRating, status: ratingStatus } = useQuizCurrentRating(q.answers);
 
   // Avoid a flash of empty/then-restored content before the draft hydrates.
   if (!q.hydrated) {
@@ -67,7 +117,7 @@ export default function OnboardingQuiz({
       return (
         <QuizResult
           answers={q.answers}
-          onUnlock={() => onUnlock(q.answers)}
+          onUnlock={() => onUnlock(q.answers, currentRating)}
           onBack={q.back}
           submitting={submitting}
           authed={authed}
@@ -87,37 +137,46 @@ export default function OnboardingQuiz({
                 helper={o.helper}
                 selected={q.answers.playStyle === o.key}
                 onClick={() => q.setPlayStyle(o.key)}
+                visual={
+                  <QuizIcon
+                    name={PLAY_STYLE_ICON[o.key]}
+                    px={64}
+                    title={PLAY_STYLE_ICON_ALT[o.key]}
+                  />
+                }
               />
             ))}
           </QuizStep>
         );
 
-      case "rating": {
+      case "username": {
         const platform =
           q.answers.playStyle === "lichess" ? "Lichess" : "Chess.com";
+        const typed = (q.answers.username ?? "").trim();
+        const malformed = typed.length > 0 && !isUsernameValid(typed);
         return (
           <QuizStep
-            title={`What's your ${platform} rating?`}
-            helper="A rough number is fine — we use it to calibrate your coach."
+            title={`What's your ${platform} username?`}
+            helper={`We'll read your real rating straight off ${platform} — no need to guess.`}
           >
             <TextField
-              type="number"
-              label="Rating"
-              placeholder="e.g. 1200"
+              label={`${platform} username`}
+              placeholder={
+                q.answers.playStyle === "lichess" ? "e.g. DrNykterstein" : "e.g. hikaru"
+              }
               fullWidth
-              value={q.answers.rating ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                q.setRating(v === "" ? undefined : Number(v));
-              }}
-              sx={ratingInputSx}
-              inputProps={{ min: 100, max: 3500, inputMode: "numeric" }}
-            />
-            <TextField
-              label={`${platform} username (optional)`}
-              fullWidth
+              autoFocus
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
               value={q.answers.username ?? ""}
               onChange={(e) => q.setUsername(e.target.value)}
+              error={malformed}
+              helperText={
+                malformed
+                  ? "Letters, numbers, hyphens and underscores only."
+                  : " "
+              }
               sx={ratingInputSx}
             />
           </QuizStep>
@@ -131,13 +190,33 @@ export default function OnboardingQuiz({
         const question = SELF_ASSESS_QUESTIONS.find((sq) => sq.key === key);
         if (!question) return null;
         return (
-          <QuizStep title={question.question}>
+          <QuizStep
+            title={question.question}
+            /* "Can you spot a fork or a pin?" is unanswerable if you don't know
+               what one looks like. Show it. */
+            aside={
+              key === "spot" ? (
+                <TacticDiagram
+                  spec={SPOT_DIAGRAMS.fork}
+                  px={84}
+                  title="A knight attacking a king and a rook at the same time"
+                />
+              ) : undefined
+            }
+          >
             {question.options.map((opt) => (
               <QuizOption
                 key={opt.label}
                 label={opt.label}
                 selected={q.answers.selfAssess[key] === opt.score}
                 onClick={() => q.setSelfAssess(key, opt.score)}
+                visual={
+                  <QuizIcon
+                    name={`level-${opt.score}` as const}
+                    px={52}
+                    title={LEVEL_ALT[opt.score]}
+                  />
+                }
               />
             ))}
           </QuizStep>
@@ -146,7 +225,10 @@ export default function OnboardingQuiz({
 
       case "goals":
         return (
-          <QuizStep title="What do you want to improve?" helper="Pick a few.">
+          <QuizStep
+            title="What do you want to improve?"
+            helper="Pick a few — each one is shown on the board."
+          >
             {QUIZ_GOAL_OPTIONS.map((o) => (
               <QuizOption
                 key={o.key}
@@ -155,6 +237,55 @@ export default function OnboardingQuiz({
                 multi
                 selected={q.answers.goals.includes(o.key)}
                 onClick={() => q.toggleGoal(o.key)}
+                visual={
+                  GOAL_DIAGRAMS[o.key] ? (
+                    <TacticDiagram
+                      spec={GOAL_DIAGRAMS[o.key]}
+                      px={72}
+                      title={GOAL_DIAGRAM_ALT[o.key]}
+                    />
+                  ) : undefined
+                }
+              />
+            ))}
+          </QuizStep>
+        );
+
+      case "goal-rating":
+        return (
+          <QuizStep
+            title="What rating do you want to reach?"
+            helper={
+              currentRating
+                ? `You're around ${currentRating} today.`
+                : "We'll estimate how long it takes."
+            }
+          >
+            <GoalRatingPicker
+              currentRating={currentRating}
+              value={q.answers.goalRating}
+              onChange={q.setGoalRating}
+              minutesPerDay={minutesPerDayFor(q.answers.time)}
+              daysPerWeek={q.answers.daysPerWeek ?? 4}
+              ratingStatus={ratingStatus}
+            />
+          </QuizStep>
+        );
+
+      case "frequency":
+        return (
+          <QuizStep
+            title="How often can you practise?"
+            helper="Little and often beats one long session."
+          >
+            {FREQUENCY_OPTIONS.map((o) => (
+              <QuizOption
+                key={o.key}
+                label={o.label}
+                helper={o.helper}
+                selected={q.answers.daysPerWeek === o.key}
+                onClick={() => q.setDaysPerWeek(o.key)}
+                visual={<QuizIcon name={FREQUENCY_ICON[o.key]} px={52} />}
               />
             ))}
           </QuizStep>
@@ -170,6 +301,7 @@ export default function OnboardingQuiz({
                 helper={o.helper}
                 selected={q.answers.time === o.key}
                 onClick={() => q.setTime(o.key)}
+                visual={<QuizIcon name={TIME_ICON[o.key]} px={52} />}
               />
             ))}
 

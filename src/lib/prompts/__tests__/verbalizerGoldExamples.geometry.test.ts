@@ -116,7 +116,7 @@ describe("verbalizer gold examples — contract slices are board-consistent", ()
         branch: raw.branchPoint !== undefined,
         delta: raw.featureDelta !== undefined,
       };
-      for (const m of ex.idealProse.matchAll(/\[F:([A-Za-z0-9_.-]{1,40})\]/g)) {
+      for (const m of Array.from(ex.idealProse.matchAll(/\[F:([A-Za-z0-9_.-]{1,40})\]/g))) {
         const id = m[1];
         if (id === prefix) continue;
         expect(id.startsWith(`${prefix}.`), `citation ${id} is not on insight ${prefix}`).toBe(true);

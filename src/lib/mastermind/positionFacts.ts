@@ -119,14 +119,35 @@ export function buildCurrentPositionFacts(
   }
 
   const toMove = game.turn() === "w" ? "White" : "Black";
-  const lastMove = moveHistory[played - 1] ?? moveHistory[moveHistory.length - 1];
+  // E3 (SILENT_SUBSTITUTION_HANDOFF §3 Group E): this was
+  //   moveHistory[played - 1] ?? moveHistory[moveHistory.length - 1]
+  // When the FIRST move fails to replay, `played === 0`, `moveHistory[-1]` is
+  // undefined, and the `??` fell back to the LAST move of the game — handing
+  // the model a STARTING-POSITION piece map captioned "Last move played:
+  // Qxh7#", a mate that is nowhere on the board it is looking at. There is no
+  // sensible fallback here: if nothing replayed, no move was played.
+  const lastMove = played > 0 ? moveHistory[played - 1] : null;
 
   const lines = [
     `FEN: ${game.fen()}`,
     `White pieces: ${white.join(" ")}`,
     `Black pieces: ${black.join(" ")}`,
-    `${toMove} to move. Last move played: ${lastMove}.`,
+    lastMove
+      ? `${toMove} to move. Last move played: ${lastMove}.`
+      : `${toMove} to move.`,
   ];
+
+  // E3: the deep path already warns on truncation ("analysis covers the first
+  // N moves… Do NOT comment on moves after this point"); this path used to
+  // just `break` silently, so the model saw a board covering fewer moves than
+  // the game with nothing saying so.
+  if (played < moveHistory.length) {
+    lines.push(
+      `NOTE: this position covers the first ${played} half-move${played === 1 ? "" : "s"} only — ` +
+        `the remaining ${moveHistory.length - played} could not be replayed. ` +
+        `Do NOT comment on moves after this point.`,
+    );
+  }
 
   const curEval = gameEval?.positions?.[played]?.lines?.[0];
   // Omit the line entirely rather than fabricate a number. This is the last
@@ -138,9 +159,22 @@ export function buildCurrentPositionFacts(
     );
   }
 
+  // B2 (SILENT_SUBSTITUTION_HANDOFF §3 Group B): this block is built by
+  // replaying the WHOLE game, so it is the FINAL position — and it is baked
+  // into the cached compact context and re-sent verbatim on every follow-up.
+  // It used to be headed "CURRENT POSITION (the board you are commenting on)",
+  // which was already misleading and became actively harmful once B1 started
+  // forwarding the viewed board: the per-turn "CURRENTLY VIEWED POSITION"
+  // block would sit next to this one, both claiming to be the board in
+  // question, describing different positions, with this one asserting equal
+  // or greater authority. Fixing B1 alone would have looked like a fix and
+  // left the bug live — which is why B1/B2/B3 ship together.
   return (
-    "## CURRENT POSITION (the board you are commenting on — use these exact " +
-    "facts; do NOT reconstruct the board from the move list)\n" +
+    "## FINAL POSITION (the position at the END of the game — use these exact " +
+    "facts; do NOT reconstruct the board from the move list). If a " +
+    "CURRENTLY VIEWED POSITION block is also present, THAT is the board the " +
+    "user is looking at and the one to answer about; this block is only the " +
+    "game's final state.\n" +
     lines.join("\n")
   );
 }

@@ -81,6 +81,7 @@ import {
   type SessionEndReason,
   puzzleSessionHistoryAtom,
   puzzlePracticeQueueAtom,
+  puzzlePracticeLabelAtom,
   buildSavedSession,
   appendSession,
   appendSessionToStorage,
@@ -315,6 +316,12 @@ export default function PreviewPuzzlesPage() {
   const [practiceQueueAtomVal, setPracticeQueueAtom] = useAtom(
     puzzlePracticeQueueAtom,
   );
+  // What the injected queue is, so the banner doesn't call a generated set
+  // "re-practicing missed puzzles". Snapshotted alongside the queue.
+  const [practiceLabelAtomVal, setPracticeLabelAtom] = useAtom(
+    puzzlePracticeLabelAtom,
+  );
+  const [practiceLabel, setPracticeLabel] = useState<string | null>(null);
 
   const [activeTheme, setActiveTheme] = useState<string | null>(null);
   const [activeBand, setActiveBand] = useState<string>("all");
@@ -404,9 +411,17 @@ export default function PreviewPuzzlesPage() {
     ) {
       setPracticeList(practiceQueueAtomVal);
       setPracticeIdx(0);
+      setPracticeLabel(practiceLabelAtomVal);
       setPracticeQueueAtom(null);
+      setPracticeLabelAtom(null);
     }
-  }, [practiceQueueAtomVal, practiceList, setPracticeQueueAtom]);
+  }, [
+    practiceQueueAtomVal,
+    practiceLabelAtomVal,
+    practiceList,
+    setPracticeQueueAtom,
+    setPracticeLabelAtom,
+  ]);
 
   // Puzzle precedence: re-practice queue > resumed puzzle > feed. The resume
   // effect sets its override synchronously on mount, before the feed's first
@@ -1600,7 +1615,7 @@ export default function PreviewPuzzlesPage() {
               <Typography
                 sx={{ fontSize: "0.85rem", fontWeight: 600, color: "#FFD1A8" }}
               >
-                Re-practicing missed puzzles ·{" "}
+                {practiceLabel ?? "Re-practicing missed puzzles"} ·{" "}
                 {Math.min(practiceIdx + 1, practiceList.length)} of{" "}
                 {practiceList.length}
               </Typography>

@@ -3,14 +3,19 @@ import bcrypt from "bcryptjs";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminFirestore } from "./firebaseAdmin";
 import { withFirestoreTimeout } from "./withFirestoreTimeout";
-import type { PlanTier, SubscriptionStatus } from "../billing/config";
+import { getUidByHandle } from "./handles";
 
 const COLLECTION = "users";
 const BCRYPT_COST = 12;
 
 export type CoachTone = "friendly" | "strict" | "masti";
 export type PlayingStyle = "tactical" | "positional" | "balanced";
-export type StudyGoal = "tactics" | "endgames" | "openings" | "time-management";
+export type StudyGoal =
+  | "tactics"
+  | "endgames"
+  | "openings"
+  | "middlegame"
+  | "time-management";
 export type BoardTheme = "classic" | "wood" | "neon";
 export type PieceSet = "default" | "merida" | "alpha";
 
@@ -26,6 +31,10 @@ export type StoredUser = {
   ageAffirmedAt?: Timestamp;
 
   displayName?: string;
+  /** Public handle, in the capitalisation the user chose. */
+  handle?: string;
+  /** Canonical (lowercased, separator-folded) form — the uniqueness key. */
+  handleLower?: string;
   photoURL?: string;
   bio?: string;
 
@@ -44,6 +53,44 @@ export type StoredUser = {
   // recommender; `dailyTimeCommitment` is the self-reported practice budget.
   focusThemes?: string[];
   dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
+
+  // Rating pulled from the user's Lichess / Chess.com account (see
+  // src/lib/rating/platformRatings.ts). `platformRating` is NORMALIZED onto the
+  // common calibration scale so cross-platform comparison is fair;
+  // `platformRatingRaw` is the platform's own number and is what we display.
+  // Absent means "no established rating found" — never a default.
+  platformRating?: number;
+  platformRatingRaw?: number;
+  platformRatingSource?: "lichess" | "chesscom";
+  platformRatingPerf?: string;
+  platformRatingFetchedAt?: number;
+
+  // Goal-driven planning. `goalRating` is on the same calibration scale as
+  // platformRating; `practiceDaysPerWeek` combines with dailyTimeCommitment to
+  // give the weekly hours the improvement model needs.
+  goalRating?: number;
+  practiceDaysPerWeek?: number;
+  /** The date the goal was projected for, so /plan can track against it. */
+  goalTargetDate?: number;
+
+  /**
+   * Weaknesses MEASURED by the placement test, replaced wholesale on each run.
+   *
+   * Split out from `focusThemes` because the two are different kinds of data:
+   * `focusThemes` is what the user SAID they want to work on and should
+   * persist, while this is an OBSERVATION and must be replaceable. Unioning
+   * them meant placement could add a weakness but never retract one, so a
+   * theme you had since improved at stayed a training target forever.
+   */
+  measuredWeaknesses?: string[];
+
+  /**
+   * Where the goal projection started, and when. Stored rather than derived so
+   * /plan can say "you're 3 weeks ahead" against the ORIGINAL promise instead
+   * of quietly re-baselining to a softer target every time the user visits.
+   */
+  goalStartRating?: number;
+  goalSetAt?: number;
   // Set when the user finishes the onboarding quiz. Gates the mandatory-once
   // questionnaire (OnboardingGate) so they're never asked twice.
   onboardingCompletedAt?: number;
@@ -90,25 +137,6 @@ export type StoredUser = {
 
   passwordResetHash?: string;
   passwordResetExpiresAt?: Timestamp;
-
-  // ─── Subscription / entitlement (pricing pivot, 2026-06) ───────────────────
-  // Stripe is the billing source of truth; these mirror current state so
-  // entitlement can be computed without a Stripe round-trip on every request.
-  // Written ONLY server-side — signup (trial start), the Stripe webhook, and
-  // promo redemption — never through the client PATCH /api/users/me path
-  // (deliberately absent from profilePatchSchema so a user cannot self-grant
-  // premium). Entitlement is derived live via lib/billing/entitlement.ts.
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
-  subscriptionStatus?: SubscriptionStatus;
-  plan?: PlanTier;
-  trialStartedAt?: Timestamp;
-  trialEndsAt?: Timestamp;
-  currentPeriodEnd?: Timestamp;
-  cancelAtPeriodEnd?: boolean;
-  /** e.g. "promo:AKANKSHA2026" — when set, the user is comped (free forever). */
-  compedReason?: string;
-  compedAt?: Timestamp;
 
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -268,10 +296,44 @@ export async function verifyPassword(
   return ok ? user : null;
 }
 
+/**
+ * Sign in with EITHER a handle or an email.
+ *
+ * An identifier containing "@" is treated as an email; anything else is
+ * resolved through the handle reservation. Both paths end in the same bcrypt
+ * compare, including the dummy compare on a miss — a handle that does not
+ * exist must take the same time as one that does, or the sign-in form becomes
+ * an oracle for which handles are registered.
+ */
+export async function verifyPasswordByIdentifier(
+  identifier: string,
+  password: string
+): Promise<StoredUser | null> {
+  const id = (identifier ?? "").trim();
+  if (id.includes("@")) return verifyPassword(id, password);
+
+  const uid = await getUidByHandle(id);
+  const user = uid ? await getUserById(uid) : null;
+  if (!user || !user.passwordHash) {
+    await bcrypt.compare(
+      password,
+      "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalid"
+    );
+    return null;
+  }
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  return ok ? user : null;
+}
+
 export type UpdateUserPatch = Partial<
   Pick<
     StoredUser,
     | "displayName"
+    // handle/handleLower are deliberately ABSENT: they may only be written by
+    // claimHandle, inside the transaction that also writes the reservation
+    // document. Allowing them through the generic patch would let a client set
+    // a handle with no reservation behind it — two users could then show the
+    // same name, and one could point handleLower at somebody else's handle.
     | "photoURL"
     | "bio"
     | "chesscomUsername"
@@ -284,6 +346,17 @@ export type UpdateUserPatch = Partial<
     | "favoriteOpenings"
     | "focusThemes"
     | "dailyTimeCommitment"
+    | "platformRating"
+    | "platformRatingRaw"
+    | "platformRatingSource"
+    | "platformRatingPerf"
+    | "platformRatingFetchedAt"
+    | "goalRating"
+    | "practiceDaysPerWeek"
+    | "goalTargetDate"
+    | "measuredWeaknesses"
+    | "goalStartRating"
+    | "goalSetAt"
     | "onboardingCompletedAt"
     | "measuredRating"
     | "measuredRatingConfidence"
@@ -301,40 +374,6 @@ export type UpdateUserPatch = Partial<
     | "timezone"
     | "googleId"
     | "emailVerified"
-    // Subscription fields — server-only writers (signup/webhook/promo). Allowed
-    // on the type so updateUser/updateSubscription accept them; the client PATCH
-    // route gates on profilePatchSchema, which omits these by design.
-    | "stripeCustomerId"
-    | "stripeSubscriptionId"
-    | "subscriptionStatus"
-    | "plan"
-    | "trialStartedAt"
-    | "trialEndsAt"
-    | "currentPeriodEnd"
-    | "cancelAtPeriodEnd"
-    | "compedReason"
-    | "compedAt"
-  >
->;
-
-/**
- * Narrowed patch for the subscription-only writers (Stripe webhook, promo
- * redeem, signup trial-start). Just a readability wrapper over updateUser — the
- * field allow-list is what keeps callers honest.
- */
-export type SubscriptionPatch = Partial<
-  Pick<
-    StoredUser,
-    | "stripeCustomerId"
-    | "stripeSubscriptionId"
-    | "subscriptionStatus"
-    | "plan"
-    | "trialStartedAt"
-    | "trialEndsAt"
-    | "currentPeriodEnd"
-    | "cancelAtPeriodEnd"
-    | "compedReason"
-    | "compedAt"
   >
 >;
 
@@ -354,39 +393,6 @@ export async function updateUser(
   const fresh = await getUserById(uid);
   if (!fresh) throw new Error("updateUser: user disappeared mid-update");
   return fresh;
-}
-
-/**
- * Subscription-only update. Thin wrapper over updateUser() so billing call
- * sites (webhook/promo/signup) read clearly and share one write path.
- */
-export async function updateSubscription(
-  uid: string,
-  patch: SubscriptionPatch,
-): Promise<StoredUser> {
-  return updateUser(uid, patch);
-}
-
-/**
- * Look up a user by their Stripe customer id. Used by the webhook to resolve
- * the local account for subscription lifecycle events. Returns null if no user
- * has that customer id (e.g. an event for a deleted account).
- */
-export async function getUserByStripeCustomerId(
-  stripeCustomerId: string,
-): Promise<StoredUser | null> {
-  const db = await getAdminFirestore();
-  const snap = await withFirestoreTimeout(
-    db
-      .collection(COLLECTION)
-      .where("stripeCustomerId", "==", stripeCustomerId)
-      .limit(1)
-      .get(),
-    `users.getUserByStripeCustomerId(${stripeCustomerId})`,
-  );
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
-  return { uid: doc.id, ...(doc.data() as Omit<StoredUser, "uid">) };
 }
 
 export async function updateLastLoginAt(uid: string): Promise<void> {

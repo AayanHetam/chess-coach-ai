@@ -82,6 +82,21 @@ export async function createScoutSnapshot(
   return ref.id;
 }
 
+// Snapshots written before the Tells rename stored the exploitability block
+// under `analytics.stalker`. Those docs are immutable point-in-time captures
+// and every one of them backs a share link that is already in the wild, so we
+// normalise on read rather than migrating the collection. Drop this once the
+// oldest surviving snapshot postdates the rename.
+export function normalizeLegacyAnalytics(
+  analytics: Record<string, unknown> | undefined
+): ScoutSnapshotRecord["analytics"] {
+  if (analytics && !("tells" in analytics) && "stalker" in analytics) {
+    const { stalker, ...rest } = analytics;
+    return { ...rest, tells: stalker } as unknown as ScoutSnapshotRecord["analytics"];
+  }
+  return analytics as unknown as ScoutSnapshotRecord["analytics"];
+}
+
 export async function getScoutSnapshot(
   id: string
 ): Promise<ScoutSnapshotRecord | null> {
@@ -104,7 +119,7 @@ export async function getScoutSnapshot(
     months: typeof raw.months === "number" ? raw.months : 12,
     yourUsername: raw.yourUsername ?? null,
     scoutResult: raw.scoutResult,
-    analytics: raw.analytics,
+    analytics: normalizeLegacyAnalytics(raw.analytics),
     tree: raw.tree,
     collisions: raw.collisions ?? null,
     sharerUid: raw.sharerUid ?? null,

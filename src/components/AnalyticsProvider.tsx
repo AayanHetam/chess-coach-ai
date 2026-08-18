@@ -31,7 +31,9 @@ export default function AnalyticsProvider() {
   useEffect(() => {
     if (!pathname) return;
 
-    const url = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
+    const url =
+      pathname +
+      (searchParams?.toString() ? `?${searchParams.toString()}` : "");
 
     // Deduplicate — don't re-track the same URL within the same render cycle
     if (url === lastTrackedPath.current) return;
@@ -60,7 +62,9 @@ export default function AnalyticsProvider() {
     recordVisit(url);
 
     // 4. TRK-4: fire a page.view into the tracking warehouse (server-gated).
-    track("page.view", { path: url, title: document.title });
+    // Custom analytics intentionally stores only the route path. Query values
+    // and page titles can contain user-controlled or sensitive content.
+    track("page.view", { path: pathname });
   }, [pathname, searchParams]);
 
   return null;

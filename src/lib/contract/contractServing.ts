@@ -19,7 +19,12 @@
  * maxDuration 60s via requestStartMs + 55s (5s margin).
  */
 import { callLLMStream as defaultCallLLMStream } from "@/lib/llmProvider";
-import type { CallLLMOptions, LLMMessage, LLMResult, LLMStreamEvent } from "@/lib/llmProvider";
+import type {
+  CallLLMOptions,
+  LLMMessage,
+  LLMResult,
+  LLMStreamEvent,
+} from "@/lib/llmProvider";
 import {
   buildVerbalizerUserTurn,
   getVerbalizerSystemPromptParts,
@@ -105,6 +110,10 @@ export interface ContractDoneMetadata {
   ladderDistribution: Record<LadderStage, number>;
   /** Cards refused by the CI-5 sentinel guard (fabricated classification). */
   sentinelCardsRefused: number;
+  /** How a ZERO-CARD review's overview resolved; null when it had cards. */
+  overviewOutcome: "pass" | "sentence_drop" | "templated" | null;
+  /** Contract-global violations found in that overview. */
+  overviewViolations: number;
   /** Generation was cut by CONTRACT_GENERATION_BUDGET_MS (review is short). */
   generationTruncated: boolean;
   cached: boolean;
@@ -121,8 +130,6 @@ export interface ContractServingArgs {
   promptInput: CoachChatPromptInput;
   correlationId: string;
   uid: string;
-  /** hasTrackingConsent(request) — conversation capture is consent-gated. */
-  trackingConsent: boolean;
   requestStartMs: number;
   cacheInputs: {
     currentFen: string;
@@ -132,7 +139,9 @@ export interface ContractServingArgs {
     moveHistory: string[] | undefined;
   };
   /** Test seams. */
-  callLLMStreamImpl?: (opts: CallLLMOptions) => AsyncGenerator<LLMStreamEvent, void, void>;
+  callLLMStreamImpl?: (
+    opts: CallLLMOptions
+  ) => AsyncGenerator<LLMStreamEvent, void, void>;
   ladderDeps?: LadderDeps;
   armingTable?: ArmingTable;
 }
@@ -148,7 +157,7 @@ export interface ContractServingResult {
 }
 
 export async function serveContractAnalysis(
-  args: ContractServingArgs,
+  args: ContractServingArgs
 ): Promise<ContractServingResult> {
   const env = getContractEnv();
   const { contract } = args;
@@ -157,7 +166,7 @@ export async function serveContractAnalysis(
     args.cacheInputs.skillLevel,
     args.cacheInputs.userMessage,
     args.cacheInputs.personaSignature,
-    args.cacheInputs.moveHistory,
+    args.cacheInputs.moveHistory
   );
 
   const cachedText = getCachedResponse(cacheKey);
@@ -185,6 +194,10 @@ export async function serveContractAnalysis(
           passthrough_footnoted: 0,
         },
         sentinelCardsRefused: 0,
+        // A zero-card review is never cached (allVerified requires cards), so
+        // a cache hit is by construction a carded one.
+        overviewOutcome: null,
+        overviewViolations: 0,
         generationTruncated: false,
         cached: true,
       },
@@ -226,7 +239,7 @@ export async function serveContractAnalysis(
       generationTruncated = true;
       generationController.abort();
     },
-    Math.max(0, generationBudgetLeftMs),
+    Math.max(0, generationBudgetLeftMs)
   );
   try {
     for await (const evt of callLLMStream({
@@ -238,14 +251,6 @@ export async function serveContractAnalysis(
       maxTokens: maxTokensForInsights(cardCount),
       cacheSystem: true,
       signal: generationController.signal,
-      capture: {
-        feature: "enhanced-analysis",
-        consent: args.trackingConsent,
-        uid: args.uid,
-        requestId: args.correlationId,
-        promptVersion: VERBALIZER_PROMPT_VERSION,
-        props: { branch: "stream-contract-enforced", category: args.category },
-      },
     })) {
       if (evt.type === "text") {
         stream.push(evt.delta);
@@ -310,6 +315,10 @@ export async function serveContractAnalysis(
       citationCoverage: summary.citationCoverageMean,
       ladderDistribution: summary.ladderDistribution,
       sentinelCardsRefused: summary.sentinelCardsRefused,
+      // Zero-card reviews: how the (now refereed) overview resolved, so a
+      // dogfood flag on a card-less review is triageable. null = had cards.
+      overviewOutcome: summary.overviewOutcome,
+      overviewViolations: summary.overviewViolations,
       generationTruncated,
       cached: false,
     },

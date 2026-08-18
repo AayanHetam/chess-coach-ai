@@ -10,8 +10,11 @@
  */
 
 import { createHash } from "crypto";
+import { Chess } from "chess.js";
+import { detectOpening } from "@/lib/unifiedOpeningDetector";
 import { logger } from "@/lib/logging";
 import type { MastermindGameEval } from "./mastermind/routeHelpers";
+import type { CompactContract } from "./contract/followUp";
 
 const log = logger.child({ module: "analysis-context-cache" });
 
@@ -56,6 +59,20 @@ export interface AnalysisContext {
   // emits a no_stockfish_eval telemetry event rather than firing false-positive
   // eval_mismatch_* events.
   gameEval?: MastermindGameEval;
+  /**
+   * PR-CI-6a: the trimmed fact contract behind the review the user is looking
+   * at, so `/api/chat` follow-ups are grounded in the SAME facts the refereed
+   * first turn was built from (engine lines, licensed tactical vocabulary,
+   * forbidden claim classes) instead of only the PGN + eval list.
+   *
+   * Set ONLY on the contract-mode serving path. A legacy-served review must
+   * leave this undefined: grounding a follow-up in a contract whose prose the
+   * user never saw would have the model referring to cards that do not exist.
+   *
+   * Trimmed at store time (see toCompactContract) — the full CoachContract is
+   * far too large to hold 50 of in a serverless instance's memory.
+   */
+  compactContract?: CompactContract;
 }
 
 const MAX_CACHE_SIZE = 50;
@@ -231,6 +248,60 @@ export function getAnalysisContext(contextId: string): AnalysisContext | null {
  *   3. Pointer to the prior deep analysis (lives in conversation history)
  *   4. The compactGameContext block (PGN + per-move narrative + top mistakes)
  */
+/**
+ * Facts about the game as a whole, for the follow-up context (E1).
+ *
+ * Everything here is DERIVED from what the context already stores, so this
+ * needs no new fields and works for entries written before it existed. Each
+ * line is emitted only when the underlying value is genuinely present — an
+ * absent opening is left out rather than guessed at, which is the entire point
+ * of the document this comes from.
+ */
+function buildGameOverview(context: AnalysisContext): string[] {
+  const out: string[] = [];
+
+  const moves = context.playedMoves ?? [];
+  if (moves.length > 0) {
+    try {
+      const game = new Chess();
+      for (const san of moves) {
+        try {
+          game.move(san);
+        } catch {
+          break;
+        }
+      }
+      const opening = detectOpening(game);
+      if (opening && opening.name && opening.name !== "Opening") {
+        out.push(
+          `Opening: ${opening.name}${opening.eco ? ` (ECO ${opening.eco})` : ""}`,
+        );
+      }
+    } catch {
+      // Opening detection is best-effort; never block the context on it.
+    }
+  }
+
+  // gameEval is `z.any()` at the request boundary, so read defensively.
+  const ge = context.gameEval as
+    | {
+        accuracy?: { white?: number; black?: number };
+        estimatedElo?: { white?: number; black?: number };
+      }
+    | undefined;
+  const side = context.playerColor === "w" ? "white" : "black";
+  const acc = ge?.accuracy?.[side];
+  if (typeof acc === "number" && Number.isFinite(acc)) {
+    out.push(`Your accuracy this game: ${acc.toFixed(1)}%`);
+  }
+  const elo = ge?.estimatedElo?.[side];
+  if (typeof elo === "number" && Number.isFinite(elo)) {
+    out.push(`Estimated Elo for this game: ${Math.round(elo)}`);
+  }
+
+  return out;
+}
+
 export function buildCondensedContext(context: AnalysisContext): string {
   const lines: string[] = [];
 
@@ -238,6 +309,22 @@ export function buildCondensedContext(context: AnalysisContext): string {
   lines.push(`Final FEN: ${context.fen}`);
   lines.push(`Player: ${context.playerColor === "w" ? "White" : "Black"}, Skill: ${context.skillLevel}`);
   lines.push(`Game length: ${context.moveCount} full moves`);
+
+  // E1 (SILENT_SUBSTITUTION_HANDOFF §3 Group E): the follow-up context used to
+  // carry no opening name, no ECO, and no accuracy — while the cached system
+  // prompt still instructs the model to acknowledge the opening BY NAME. So
+  // "what opening did I play?" was answered from memory over raw SAN, and
+  // transposition-heavy lines got misnamed confidently.
+  //
+  // Derived here rather than stored, so none of the six storeAnalysisContext
+  // call sites has to be touched — and so a context written before this
+  // existed still gets an overview on read.
+  const overview = buildGameOverview(context);
+  if (overview.length > 0) {
+    lines.push("");
+    lines.push("## GAME OVERVIEW");
+    lines.push(...overview);
+  }
   lines.push("");
 
   lines.push("## GROUNDING RULES (read carefully)");

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hasTrackingConsent } from "@/lib/tracking/consent";
-import { callLLM, LLMError } from "@/lib/llmProvider";
+import {
+  callLLM,
+  LLMError,
+  PUBLIC_LLM_ERROR,
+  toSafeLLMError,
+} from "@/lib/llmProvider";
 import { puzzleHintRequestSchema } from "@/lib/validation/puzzleHintSchemas";
 import type {
   HintStage,
@@ -45,9 +49,6 @@ import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
 const log = logger.child({ module: "puzzle-hint" });
 
 export async function POST(request: NextRequest) {
-  // Conversation capture is consent-gated (privacy policy: AI-conversation
-  // records are stored only with consent). Resolved once per request.
-  const trackingConsent = hasTrackingConsent(request);
   const requestId = extractRequestId(request.headers);
 
   let body: unknown;
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid puzzle-hint request", details: parsed.error.issues },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -122,14 +123,6 @@ export async function POST(request: NextRequest) {
       temperature: stage === "deeper_dive" ? 0.6 : 0.5,
       maxTokens,
       cacheSystem: true,
-      capture: {
-        feature: "puzzle-hint",
-        consent: trackingConsent,
-        requestId,
-        promptVersion: PUZZLE_HINT_PROMPT_VERSION,
-        fen: puzzle.fen,
-        props: { puzzleId: puzzle.id, stage, attempt: "first" },
-      },
     });
 
     let parsedResp = parseHintResponse(first.content);
@@ -140,7 +133,11 @@ export async function POST(request: NextRequest) {
     // Leak validator: if the protected stages leaked the solution, retry
     // once with a stricter explicit warning. If that still leaks, return
     // a generic fallback.
-    if (guarded && fingerprint && detectSolutionLeak(parsedResp.prose, fingerprint)) {
+    if (
+      guarded &&
+      fingerprint &&
+      detectSolutionLeak(parsedResp.prose, fingerprint)
+    ) {
       log.warn("puzzle-hint leak detected on first attempt", {
         requestId,
         puzzleId: puzzle.id,
@@ -160,14 +157,6 @@ export async function POST(request: NextRequest) {
         ],
         temperature: 0.4,
         maxTokens,
-        capture: {
-          feature: "puzzle-hint",
-          consent: trackingConsent,
-          requestId,
-          promptVersion: PUZZLE_HINT_PROMPT_VERSION,
-          fen: puzzle.fen,
-          props: { puzzleId: puzzle.id, stage, attempt: "retry" },
-        },
       });
       const retryParsed = parseHintResponse(retry.content);
       if (detectSolutionLeak(retryParsed.prose, fingerprint)) {
@@ -198,7 +187,7 @@ export async function POST(request: NextRequest) {
     // write below, so a false claim is never memoised and replayed.
     const { text: prose, corrections: falseMates } = applyMateCorrection(
       parsedResp.prose,
-      analyzeMateClaim(puzzle.fen, puzzle.solution),
+      analyzeMateClaim(puzzle.fen, puzzle.solution)
     );
     if (falseMates.length > 0) {
       log.warn("puzzle-hint false mate claim corrected", {
@@ -236,7 +225,7 @@ export async function POST(request: NextRequest) {
           userAttemptSan: userAttemptSan ?? null,
           promptVersion: PUZZLE_HINT_PROMPT_VERSION,
         },
-        response,
+        response
       );
     }
 
@@ -255,7 +244,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (err) {
-    const e = err instanceof LLMError ? err : new Error(String(err));
+    const e = toSafeLLMError(err);
     log.error("puzzle-hint failed", {
       requestId,
       message: e.message,
@@ -263,14 +252,18 @@ export async function POST(request: NextRequest) {
       provider: err instanceof LLMError ? err.provider : undefined,
       status: err instanceof LLMError ? err.status : undefined,
     });
-    logErrorToSentry(err, {
+    logErrorToSentry(e, {
       route: "/api/puzzle-hint",
       requestId,
       stage,
     });
     return NextResponse.json(
-      { error: "puzzle-hint failed", message: e.message },
-      { status: 500 },
+      {
+        error: "puzzle-hint failed",
+        code: PUBLIC_LLM_ERROR.code,
+        message: PUBLIC_LLM_ERROR.message,
+      },
+      { status: 500 }
     );
   }
 }
@@ -280,6 +273,11 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
   return NextResponse.json({
     status: "ok",
     promptVersion: PUZZLE_HINT_PROMPT_VERSION,
-    stages: ["why_wrong", "hint", "answer", "deeper_dive"] satisfies HintStage[],
+    stages: [
+      "why_wrong",
+      "hint",
+      "answer",
+      "deeper_dive",
+    ] satisfies HintStage[],
   });
 }

@@ -122,12 +122,12 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
 
   const { username, platform, analytics } = snapshot;
   const profile = analytics.profile;
-  const stalker = analytics.stalker;
+  const tells = analytics.tells;
   const prepWhite = analytics.prep.asWhite.weaknesses.slice(0, 3);
   const prepBlack = analytics.prep.asBlack.weaknesses.slice(0, 3);
   const titleLine = `${username} · ${platform}`;
-  const description = `Scout report for ${username} on ${platform}. Stalker Score ${Math.round(
-    stalker.total
+  const description = `Scout report for ${username} on ${platform}. Tells ${Math.round(
+    tells.total
   )}/100, ${profile.totalGames} games analyzed.`;
 
   return (
@@ -206,7 +206,7 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
               mb: 4,
             }}
           >
-            {/* Stalker Score card */}
+            {/* Tells card */}
             <Box
               sx={{
                 background: SURFACE,
@@ -216,19 +216,19 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
               }}
             >
               <Typography sx={{ color: EMBER, fontSize: "0.75rem", letterSpacing: 1.5, fontWeight: 700, mb: 1 }}>
-                STALKER SCORE
+                TELLS
               </Typography>
               <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5, mb: 2 }}>
                 <Typography sx={{ color: "#fff", fontSize: "3.5rem", fontWeight: 800, lineHeight: 1 }}>
-                  {Math.round(stalker.total)}
+                  {Math.round(tells.total)}
                 </Typography>
                 <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>/ 100</Typography>
               </Box>
               <Typography sx={{ color: "rgba(255,255,255,0.7)", mb: 2, fontSize: "0.9rem" }}>
-                Predictability: <strong style={{ color: "#fff" }}>{stalker.predictability}</strong>
+                Predictability: <strong style={{ color: "#fff" }}>{tells.predictability}</strong>
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                {stalker.factors.map((factor) => (
+                {tells.factors.map((factor) => (
                   <StatBar key={factor.id} label={factor.label} value={factor.score} />
                 ))}
               </Box>
@@ -366,7 +366,7 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
               Scout your own opponent
             </Typography>
             <Typography sx={{ color: "rgba(255,255,255,0.65)", mb: 3 }}>
-              Paste any Lichess or Chess.com username. Get the Stalker Score, opening weaknesses,
+              Paste any Lichess or Chess.com username. Get their Tells, opening weaknesses,
               and tilt profile in seconds. Free.
             </Typography>
             <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>

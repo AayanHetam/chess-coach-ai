@@ -9,9 +9,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useAtomValue } from "jotai";
 import { useAuth } from "@/contexts/AuthContext";
-import { puzzleStatsAtom } from "@/lib/puzzleRating";
 import {
   pushConfigured,
   subscribeToPush,
@@ -36,38 +34,28 @@ const inputSx = {
 } as const;
 
 /**
- * Goal-setting: a self-chosen target rating shown as honest current→target
- * progress (NOT a "you'll reach it by date X" projection), plus a daily puzzle
- * goal. Persists to profile.goals.
+ * The daily puzzle goal, and reminders.
+ *
+ * This card used to own a TARGET RATING too. /plan now has a real goal setter
+ * above it (GoalSetterCard / GoalProgressCard, `profile.goalRating`), and when
+ * the page was finally looked at on a screen it had two "Set a goal" buttons —
+ * writing DIFFERENT fields, scored on DIFFERENT scales. This one measured
+ * progress against `stats.rating`, the PUZZLE rating, so a 1805 Chess.com
+ * player setting 2000 here would have been told they were 800 points short.
+ *
+ * The rating half is gone rather than reconciled: one goal, one writer
+ * (`buildGoalPatch`). Any `goals.targetRating` already stored is left untouched
+ * — it is simply no longer offered or displayed.
  */
 export default function GoalsCard() {
   const { profile, updateProfile } = useAuth();
-  const stats = useAtomValue(puzzleStatsAtom);
   const [editing, setEditing] = useState(false);
-  const [target, setTarget] = useState(
-    String(profile?.goals?.targetRating ?? "")
-  );
   const [perDay, setPerDay] = useState(
     String(profile?.goals?.puzzlesPerDay ?? "")
   );
   const [saving, setSaving] = useState(false);
 
-  const targetRating = profile?.goals?.targetRating;
-  const current = stats.rating;
-  // Honest progress: how far current sits between a sensible floor and the
-  // target. No date prediction — just where you are vs where you want to be.
-  const pct =
-    targetRating && targetRating > current
-      ? Math.max(
-          0,
-          Math.min(
-            1,
-            (current - (current - 200)) / (targetRating - (current - 200))
-          )
-        )
-      : targetRating
-        ? 1
-        : 0;
+  const perDayGoal = profile?.goals?.puzzlesPerDay;
 
   const [pushBusy, setPushBusy] = useState(false);
   const canPush = pushConfigured();
@@ -104,14 +92,10 @@ export default function GoalsCard() {
   const save = async () => {
     setSaving(true);
     try {
-      const t = parseInt(target, 10);
       const d = parseInt(perDay, 10);
       await updateProfile({
         goals: {
           ...(profile?.goals ?? {}),
-          ...(Number.isFinite(t) && t > 0
-            ? { targetRating: Math.min(3500, t) }
-            : {}),
           ...(Number.isFinite(d) && d > 0
             ? { puzzlesPerDay: Math.min(200, d) }
             : {}),
@@ -136,7 +120,7 @@ export default function GoalsCard() {
         }}
       >
         <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "1.1rem" }}>
-          Your goals
+          Daily goal
         </Typography>
         {!editing && (
           <Button
@@ -148,21 +132,13 @@ export default function GoalsCard() {
               minWidth: 0,
             }}
           >
-            {targetRating ? "Edit" : "Set a goal"}
+            {perDayGoal ? "Edit" : "Set"}
           </Button>
         )}
       </Box>
 
       {editing ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          <TextField
-            size="small"
-            type="number"
-            label="Target rating"
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            sx={inputSx}
-          />
           <TextField
             size="small"
             type="number"
@@ -194,56 +170,17 @@ export default function GoalsCard() {
             </Button>
           </Box>
         </Box>
-      ) : targetRating ? (
-        <Box>
-          <Box
-            sx={{ display: "flex", justifyContent: "space-between", mb: 0.75 }}
-          >
-            <Typography
-              sx={{ color: "rgba(255,255,255,0.7)", fontSize: "0.85rem" }}
-            >
-              {current} now
-            </Typography>
-            <Typography
-              sx={{ color: "#FB923C", fontSize: "0.85rem", fontWeight: 700 }}
-            >
-              {targetRating} goal
-            </Typography>
-          </Box>
-          <Box
-            sx={{
-              height: 8,
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.08)",
-              overflow: "hidden",
-            }}
-          >
-            <Box
-              sx={{
-                height: "100%",
-                width: `${pct * 100}%`,
-                borderRadius: 999,
-                background: ORANGE,
-              }}
-            />
-          </Box>
-          {profile?.goals?.puzzlesPerDay && (
-            <Typography
-              sx={{
-                color: "rgba(255,255,255,0.5)",
-                fontSize: "0.78rem",
-                mt: 1,
-              }}
-            >
-              Daily goal: {profile.goals.puzzlesPerDay} puzzles
-            </Typography>
-          )}
-        </Box>
+      ) : perDayGoal ? (
+        <Typography
+          sx={{ color: "rgba(255,255,255,0.7)", fontSize: "0.85rem" }}
+        >
+          {perDayGoal} puzzles a day.
+        </Typography>
       ) : (
         <Typography
           sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}
         >
-          Set a target rating to track your progress.
+          Set how many puzzles a day you want to aim for.
         </Typography>
       )}
 

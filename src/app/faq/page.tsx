@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Chess Masti AI — FAQ",
     description:
-      "Engine-first pipeline, validator, Maia-2, free pricing — common questions answered.",
+      "Engine-first pipeline, validator, Maia-2, and free coaching — common questions answered.",
     url: "https://chessmasti.com/faq",
     type: "article",
     siteName: "Chess Masti AI",
@@ -45,11 +45,11 @@ export const metadata: Metadata = {
 const QA: { q: string; a: string }[] = [
   {
     q: "Is Chess Masti AI free?",
-    a: "Yes. There is no paid tier. No upsell, no premium gate. Built and maintained by Aayan Hetamsaria, a high-school student.",
+    a: "Yes. Chess Masti and its coaching features are free and unlimited. Built and maintained by Aayan Hetamsaria, a high-school student.",
   },
   {
     q: "Which LLM does it use?",
-    a: "Anthropic Claude. Claude Sonnet for deep game analysis, Claude Haiku for sub-5-second follow-up chat with server-side context caching.",
+    a: "Anthropic Claude normally processes AI requests. OpenAI may receive the same request as a fallback or when configured as the provider. Stockfish calculations can run locally in your browser, but coaching prompts are sent securely to the selected AI provider.",
   },
   {
     q: "Why does the engine run before the LLM, not after?",
@@ -81,7 +81,7 @@ const QA: { q: string; a: string }[] = [
   },
   {
     q: "What does opponent scouting do?",
-    a: "Paste a Lichess or Chess.com username and the dashboard returns opening trees, repertoire collisions against yours, a Stalker Score exploitability index, tilt and timeout psychology profiles, and a shareable SVG player card.",
+    a: "Paste a Lichess or Chess.com username and the dashboard returns opening trees, repertoire collisions against yours, a Tells readability index, tilt and timeout psychology profiles, and a shareable SVG player card.",
   },
   {
     q: "What's the inline-puzzle thing?",
@@ -118,8 +118,18 @@ const breadcrumbJsonLd = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   itemListElement: [
-    { "@type": "ListItem", position: 1, name: "Home", item: "https://chessmasti.com/" },
-    { "@type": "ListItem", position: 2, name: "FAQ", item: "https://chessmasti.com/faq" },
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Home",
+      item: "https://chessmasti.com/",
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: "FAQ",
+      item: "https://chessmasti.com/faq",
+    },
   ],
 };
 
@@ -142,8 +152,8 @@ export default function FaqPage() {
       <H1>Frequently asked questions</H1>
 
       <AnswerBlock>
-        Common questions about the engine-first pipeline, the validator, Maia-2, the puzzle graph,
-        and why this is free.
+        Common questions about the engine-first pipeline, the validator, Maia-2,
+        the puzzle graph, and why this is free.
       </AnswerBlock>
 
       <Box component="section" sx={{ mb: 10 }}>
@@ -157,7 +167,11 @@ export default function FaqPage() {
                 {item.q}
               </Typography>
               <Typography
-                sx={{ color: "rgba(255,255,255,0.65)", fontSize: "0.9rem", lineHeight: 1.8 }}
+                sx={{
+                  color: "rgba(255,255,255,0.65)",
+                  fontSize: "0.9rem",
+                  lineHeight: 1.8,
+                }}
               >
                 {item.a}
               </Typography>
@@ -173,13 +187,28 @@ export default function FaqPage() {
           borderColor: `${AEO_TOKENS.ember}22`,
         }}
       >
-        <Typography sx={{ fontWeight: 700, color: "#fff", fontSize: { xs: "1.25rem", md: "1.5rem" }, mb: 1 }}>
+        <Typography
+          sx={{
+            fontWeight: 700,
+            color: "#fff",
+            fontSize: { xs: "1.25rem", md: "1.5rem" },
+            mb: 1,
+          }}
+        >
           Related reading
         </Typography>
         <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 3 }}>
-          Deeper dives on the pipeline, the architecture, and the competitive landscape.
+          Deeper dives on the pipeline, the architecture, and the competitive
+          landscape.
         </Typography>
-        <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            justifyContent: "center",
+            flexWrap: "wrap",
+          }}
+        >
           <CtaButton href="/how-it-works">How the pipeline works</CtaButton>
           <CtaButton href="/architecture">Architecture</CtaButton>
           <CtaButton href="/vs">vs other coaches</CtaButton>

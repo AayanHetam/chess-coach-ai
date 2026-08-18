@@ -64,7 +64,7 @@ describe("C1 — the current eval is omitted rather than fabricated", () => {
 
   it("keeps the rest of the block intact when the eval is dropped", () => {
     const out = buildCurrentPositionFacts(MOVES, evalWith({ cp: 0, depth: 0 }));
-    expect(out).toContain("## CURRENT POSITION");
+    expect(out).toContain("## FINAL POSITION");
     expect(out).toContain("FEN: ");
     expect(out).toContain("White pieces: ");
     expect(out).toContain("to move. Last move played: Nc6.");

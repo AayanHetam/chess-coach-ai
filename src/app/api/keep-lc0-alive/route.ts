@@ -50,22 +50,20 @@ export async function GET(req: Request) {
     });
     clearTimeout(timeout);
 
-    const body = await res.text().catch(() => "");
     const elapsedMs = Date.now() - startedAt;
 
     return NextResponse.json({
       ok: res.ok,
       status: res.status,
       elapsedMs,
-      target: `${LC0_API_URL}/health`,
-      preview: body.slice(0, 200),
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         ok: false,
         elapsedMs: Date.now() - startedAt,
-        error: error instanceof Error ? error.message : "Failed to ping Lc0",
+        error: "Provider health check unavailable",
+        code: "PROVIDER_HEALTH_UNAVAILABLE",
       },
       { status: 502 }
     );

@@ -69,7 +69,7 @@ describe("citationRate: baseline", () => {
     const r = computeCitationRate({
       category: "opponent_prep",
       validatorResults: [emptyResult()],
-      opportunities: { scout: [scoutOpp("archetype"), scoutOpp("stalker_total")] },
+      opportunities: { scout: [scoutOpp("archetype"), scoutOpp("tells_total")] },
     });
     expect(r.perSource.scout).toMatchObject({ citations: 0, opportunities: 2, ratePct: 0 });
   });
@@ -132,7 +132,7 @@ describe("citationRate: per-source counting", () => {
         ]),
       ],
       opportunities: {
-        scout: [scoutOpp("archetype"), scoutOpp("stalker_total")],
+        scout: [scoutOpp("archetype"), scoutOpp("tells_total")],
         userHistory: [userHistoryOpp("hours_played_claim"), userHistoryOpp("hours_played_claim")],
       },
     });

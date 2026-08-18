@@ -1,0 +1,136 @@
+#!/bin/bash
+# Mutation harness for the scout prep engine.
+#
+#   ./scripts/scout/mutate-holefinder.sh            # everything
+#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master
+#
+# A green suite proves nothing until it has been watched to fail. Each mutation
+# breaks exactly one guarantee and names the test that must go red.
+#
+# This is not ceremony. Four of the first six mutations written for this feature
+# were missed by fixtures that looked thorough: a flat-50% control cannot produce
+# a false discovery even with the multiple-comparison correction removed; a
+# transposition whose move counters happen to match cannot detect a key that
+# never dropped them; and a "you" archive containing only the hole games has a
+# baseline equal to its own hole score, so every surplus is zero and the
+# promotion and demotion assertions test nothing.
+#
+# STALE is as serious as MISS. A pattern that has rotted past its source mutates
+# nothing, leaves the suite green, and reports exactly like a real coverage gap —
+# two of these rotted silently when their modules were rewritten. Every mutation
+# is therefore verified to have changed the file before its test is run.
+#
+# Run from the repo root. Restores every file on exit, including on Ctrl-C.
+set -u
+
+HF=src/lib/scout/holeFinder.ts
+PS=src/lib/scout/positionStats.ts
+PL=src/lib/scout/preparedLine.ts
+MI=src/lib/master/ideas.ts
+
+T_HOLE=src/lib/scout/__tests__/holeFinder.test.ts
+T_PREP=src/lib/scout/__tests__/preparedLine.test.ts
+T_JOINT=src/lib/scout/__tests__/jointReport.test.ts
+T_IDEAS=src/lib/master/__tests__/ideas.test.ts
+
+GROUP="${1:-all}"
+BAK=$(mktemp -d)
+for f in "$HF" "$PS" "$PL" "$MI"; do cp "$f" "$BAK/$(basename "$f")"; done
+restore() { for f in "$HF" "$PS" "$PL" "$MI"; do cp "$BAK/$(basename "$f")" "$f"; done; }
+trap 'restore; rm -rf "$BAK"' EXIT
+
+pass=0; miss=0; stale=0
+
+# mut <file> <perl-expr> <test-file> <expected-failing-test> <label>
+mut() {
+  local file="$1" expr="$2" test="$3" expect="$4" label="$5"
+  perl -0pi -e "$expr" "$file"
+  if cmp -s "$file" "$BAK/$(basename "$file")"; then
+    echo "  STALE  $label — pattern no longer matches $(basename "$file"); mutation was a no-op"
+    stale=$((stale+1)); restore; return
+  fi
+  local out
+  out=$(npx vitest run "$test" 2>&1)
+  if echo "$out" | grep -q "Tests .*failed"; then
+    if echo "$out" | grep -qF "$expect"; then
+      echo "  PASS   $label"; pass=$((pass+1))
+    else
+      echo "  WEAK   $label — failed, but not via: $expect"
+      echo "$out" | grep -E "^\s+×" | head -3
+      miss=$((miss+1))
+    fi
+  else
+    echo "  MISS   $label — SUITE STAYED GREEN"; miss=$((miss+1))
+  fi
+  restore
+}
+
+want() { [ "$GROUP" = all ] || [ "$GROUP" = "$1" ]; }
+
+if want screen; then
+echo "── screen: what makes a weakness claim legitimate"
+mut "$HF" 's/\(\(i \+ 1\) \/ m\) \* q/q/' "$T_HOLE" \
+  "confirms nothing on an opponent who is merely noisy" "no multiple-comparison correction"
+mut "$PS" 's/\.slice\(0, 4\)\.join/.slice(0, 6).join/' "$T_HOLE" \
+  "pools transpositions into one position" "no transposition pooling"
+mut "$PS" 's/Math\.pow\(0\.5, ageDays \/ config\.halfLifeDays\)/1/' "$T_HOLE" \
+  "weights recent games more heavily" "no recency weighting"
+mut "$PS" 's/\(stat\.weight \* stat\.weight\) \/ stat\.weightSq/stat.weight/' "$T_HOLE" \
+  "reports the Kish effective sample" "n_eff not Kish-corrected"
+mut "$HF" 's/c\.test \? Math\.max\(0, index\.baseline - shrunk\) : 0/Math.max(0, index.baseline - shrunk)/' "$T_HOLE" \
+  "refuses to recommend a line the screen never tested" "unscreened lines claim a results edge"
+mut "$HF" 's/afterMoveCp - afterBestCp/afterBestCp - afterMoveCp/' "$T_HOLE" \
+  "measures how much worse the position is left for the mover" "sibling loss sign flipped"
+mut "$HF" 's/if \(seenPositions\.has\(key\)\) continue;//' "$T_HOLE" \
+  "keeps the better of two move orders reaching the same position" "transposed duplicates reported"
+mut "$PS" 's/if \(!seen\.has\(key\)\) \{/if (true) {/' "$T_HOLE" \
+  "counts a repeated position once per game" "repetition double-counts"
+mut "$HF" 's/evaluated >= config\.engineBudget/false/' "$T_HOLE" \
+  "stops evaluating once the engine budget is spent" "engine budget ignored"
+fi
+
+if want prep; then
+echo "── prepared lines: depth without invention"
+mut "$PL" 's/faced \/ here <= config\.noveltyRate/faced === 0/' "$T_PREP" \
+  "treats a move they have barely met as unfamiliar" "novelty demands a literal zero"
+mut "$PL" 's/replies\.length > 0 && here >= config\.minGames/here >= config.minGames/' "$T_PREP" \
+  "does not call a well-known move a novelty" "novelty claimed at the data horizon"
+mut "$PL" 's/r\.san !== top\.san && //' "$T_PREP" \
+  "never lists the reply a line took among its own alternatives" "branch listed in its own alternatives"
+mut "$PL" 's/leader\.probability < config\.minProbability/false/' "$T_PREP" \
+  "refuses to guess when they are genuinely split" "no fork — always follow the top reply"
+mut "$PL" 's/probability: r\.weight \/ total/probability: r.games \/ 1e9/' "$T_PREP" \
+  "weights a recent switch above an abandoned habit" "reply prediction ignores recency"
+mut "$PL" 's/const bestCp = await after\(best\);.*?if \(commonCp === null\) return null;/const [bestCp, commonCp] = await Promise.all([after(best), after(common)]); if (bestCp === null || commonCp === null) return null;/s' "$T_PREP" \
+  "never has two evaluations in flight at once" "two evaluations in flight (engine desync)"
+fi
+
+if want joint; then
+echo "── pairing: their weakness measured against yours"
+mut "$HF" 's/edge \+ \(you\?\.surplus \?\? 0\)/edge/' "$T_JOINT" \
+  "ranks a line lower when you are ALSO bad there" "your surplus ignored in the ranking"
+mut "$HF" 's/surplus: yourShrunk - yourIndex\.baseline/surplus: yourScore - yourIndex.baseline/' "$T_JOINT" \
+  "shrinks your side by sample size like theirs" "your side not shrunk by sample size"
+mut "$HF" 's/yourShrunk - yourIndex\.baseline/yourShrunk - index.baseline/' "$T_JOINT" \
+  "measures each of you against your OWN baseline" "measured against THEIR baseline"
+fi
+
+if want master; then
+echo "── master ideas: counted, not written"
+mut "$MI" 's/: 1 - whiteScore;/: whiteScore;/' "$T_IDEAS" \
+  "flips it when Black is to move" "score not flipped for Black to move"
+mut "$MI" 's/if \(legal\.captured\) return false;/if (legal.captured) return true;/' "$T_IDEAS" \
+  "does not count a capture" "captures counted as breaks"
+mut "$MI" 's/pendingCapture && pendingCapture\.square === played\.to && pendingCapture\.by !== by/false/' "$T_IDEAS" \
+  "spots a delayed recapture as a trade" "delayed recaptures missed"
+mut "$MI" 's/Array\.from\(journeys\.values\(\)\)\.find\(j => j\.to === played\.from && j\.by === by\)/undefined/' "$T_IDEAS" \
+  "joins a two-step manoeuvre into one journey" "piece journeys not joined"
+mut "$MI" 's/if \(games < config\.minGames\) return null;//' "$T_IDEAS" \
+  "returns nothing for a position the corpus barely has" "thin positions reported anyway"
+mut "$MI" 's/games = best\.count;/games = Math.round(share * 1000);/' "$T_IDEAS" \
+  "reports the games reaching the end" "principal line reports share as games"
+fi
+
+echo
+echo "caught ${pass} · uncaught ${miss} · stale ${stale}"
+[ "$miss" -eq 0 ] && [ "$stale" -eq 0 ]

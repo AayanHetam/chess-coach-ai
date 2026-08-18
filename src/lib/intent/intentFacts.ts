@@ -473,6 +473,21 @@ function computeProphylaxis(
         notes.push("the move ended the game — there is no threat left to answer");
         return null;
       }
+      if (ev.returns === ev.replies && ev.met > 0) {
+        // Legal again is NOT threatening again. The threat comes back down
+        // every reply, but in at least one branch it lands into a capture the
+        // played move itself created (SEE >= 0, absent from the null-move
+        // world the threat was priced in). The founder's Qxg3+: the queen
+        // lands on g3 covering h4, so Qh4 is met by Qxh4 down every evasion —
+        // and the card said he had ignored it. Whether the capture fully
+        // neutralizes the threat needs an engine; whether we may claim he
+        // IGNORED it does not: we may not.
+        notes.push(
+          `threat returns after every reply but this move meets it with a capture that did not exist before ` +
+            `(${ev.met} of ${ev.returns} branches) — not claiming either way`,
+        );
+        return null;
+      }
       if (ev.returns === ev.replies) {
         notes.push("threat is only illegal because the move gives check — it returns after every reply");
         signals.unaddressed = unaddressed(probe, "only-illegal-due-to-check");

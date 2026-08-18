@@ -43,6 +43,7 @@ export async function GET(request: Request) {
   // carried in the signed state cookie so the callback can skip the
   // /auth/age interstitial for brand-new accounts.
   const ageAffirmed = url.searchParams.get("ageAffirmed") === "1";
+  const termsAccepted = url.searchParams.get("termsAccepted") === "1";
 
   const state = generateState();
   const { verifier, challenge } = generatePkcePair();
@@ -66,6 +67,7 @@ export async function GET(request: Request) {
     codeVerifier: verifier,
     returnTo,
     ageAffirmed,
+    termsAccepted,
   });
   return response;
 }

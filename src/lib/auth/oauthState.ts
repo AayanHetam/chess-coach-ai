@@ -22,6 +22,7 @@ export type OAuthStatePayload = {
   // our own signup UI — same trust level as any age screen — but carried in
   // the signed state cookie so a forged query param can't set it.
   ageAffirmed?: boolean;
+  termsAccepted?: boolean;
 };
 
 let cachedKey: Uint8Array | null = null;
@@ -70,13 +71,19 @@ export async function readOAuthStateFromRequest(
 ): Promise<OAuthStatePayload | null> {
   const cookieHeader = request.headers.get("cookie");
   if (!cookieHeader) return null;
-  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`));
+  const match = cookieHeader.match(
+    new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`)
+  );
   if (!match) return null;
 
   try {
-    const { payload } = await jwtVerify(decodeURIComponent(match[1]), getKey(), {
-      algorithms: ["HS256"],
-    });
+    const { payload } = await jwtVerify(
+      decodeURIComponent(match[1]),
+      getKey(),
+      {
+        algorithms: ["HS256"],
+      }
+    );
     if (
       typeof payload.state !== "string" ||
       typeof payload.codeVerifier !== "string"
@@ -86,8 +93,10 @@ export async function readOAuthStateFromRequest(
     return {
       state: payload.state,
       codeVerifier: payload.codeVerifier,
-      returnTo: typeof payload.returnTo === "string" ? payload.returnTo : undefined,
+      returnTo:
+        typeof payload.returnTo === "string" ? payload.returnTo : undefined,
       ageAffirmed: payload.ageAffirmed === true,
+      termsAccepted: payload.termsAccepted === true,
     };
   } catch {
     return null;

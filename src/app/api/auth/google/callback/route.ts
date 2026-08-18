@@ -54,11 +54,17 @@ function errorRedirect(
 export async function GET(request: Request) {
   let env;
   try {
-    assertAuthSecrets({ needsSession: true, needsAdmin: true, needsGoogle: true });
+    assertAuthSecrets({
+      needsSession: true,
+      needsAdmin: true,
+      needsGoogle: true,
+    });
     env = getAuthEnv();
   } catch (err) {
     console.error("[auth/google/callback] missing config", err);
-    return new NextResponse("Google sign-in is not configured", { status: 503 });
+    return new NextResponse("Google sign-in is not configured", {
+      status: 503,
+    });
   }
 
   const url = new URL(request.url);
@@ -108,8 +114,15 @@ export async function GET(request: Request) {
       }),
     });
     if (!tokenRes.ok) {
-      console.error("[auth/google/callback] token exchange failed", await tokenRes.text());
-      const response = errorRedirect(env.appBaseUrl, "token_exchange_failed", returnTo);
+      console.error(
+        "[auth/google/callback] token exchange failed",
+        await tokenRes.text()
+      );
+      const response = errorRedirect(
+        env.appBaseUrl,
+        "token_exchange_failed",
+        returnTo
+      );
       clearOAuthStateCookie(response);
       return response;
     }
@@ -122,7 +135,11 @@ export async function GET(request: Request) {
     idToken = tokens.id_token;
   } catch (err) {
     console.error("[auth/google/callback] token exchange threw", err);
-    const response = errorRedirect(env.appBaseUrl, "token_exchange_failed", returnTo);
+    const response = errorRedirect(
+      env.appBaseUrl,
+      "token_exchange_failed",
+      returnTo
+    );
     clearOAuthStateCookie(response);
     return response;
   }
@@ -151,15 +168,21 @@ export async function GET(request: Request) {
 
   // Refuse unverified-email logins to prevent account-takeover via shadow accounts.
   if (payload.email_verified === false) {
-    const response = errorRedirect(env.appBaseUrl, "email_unverified", returnTo);
+    const response = errorRedirect(
+      env.appBaseUrl,
+      "email_unverified",
+      returnTo
+    );
     clearOAuthStateCookie(response);
     return response;
   }
 
   const googleId = payload.sub;
   const email = payload.email.toLowerCase();
-  const displayName = typeof payload.name === "string" ? payload.name : undefined;
-  const photoURL = typeof payload.picture === "string" ? payload.picture : undefined;
+  const displayName =
+    typeof payload.name === "string" ? payload.name : undefined;
+  const photoURL =
+    typeof payload.picture === "string" ? payload.picture : undefined;
 
   try {
     let user = await getUserByGoogleId(googleId);
@@ -176,7 +199,7 @@ export async function GET(request: Request) {
           ...(photoURL && !existing.photoURL ? { photoURL } : {}),
         });
         user = { ...existing, googleId, emailVerified: true };
-      } else if (stateCookie.ageAffirmed) {
+      } else if (stateCookie.ageAffirmed && stateCookie.termsAccepted) {
         // Brand-new user who already confirmed the 13+ checkbox in the signup
         // dialog before starting OAuth (flag rode in the signed state cookie).
         user = await createUser({
@@ -186,6 +209,7 @@ export async function GET(request: Request) {
           photoURL,
           emailVerified: true,
           ageAffirmed: true,
+          termsAccepted: true,
         });
       } else {
         // Brand-new user with no age affirmation (e.g. "Continue with
@@ -195,7 +219,10 @@ export async function GET(request: Request) {
         // /api/auth/google/complete finishes account creation on 13+.
         const target = new URL("/auth/age", env.appBaseUrl);
         if (stateCookie.returnTo) {
-          target.searchParams.set("returnTo", safeReturnTo(stateCookie.returnTo));
+          target.searchParams.set(
+            "returnTo",
+            safeReturnTo(stateCookie.returnTo)
+          );
         }
         const response = NextResponse.redirect(target);
         await setPendingSignupCookie(response, {
@@ -239,7 +266,11 @@ export async function GET(request: Request) {
   } catch (err) {
     if (err instanceof AdminConfigError) {
       console.error("[auth/google/callback]", err);
-      const response = errorRedirect(env.appBaseUrl, "admin_unavailable", returnTo);
+      const response = errorRedirect(
+        env.appBaseUrl,
+        "admin_unavailable",
+        returnTo
+      );
       clearOAuthStateCookie(response);
       return response;
     }

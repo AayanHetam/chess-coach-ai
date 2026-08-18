@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
 import { COPPA_MIN_AGE } from "@/lib/tracking/age";
+import Link from "next/link";
 
 /**
  * Age-affirmation gate (TRK-6, COPPA).
@@ -49,7 +50,16 @@ export default function AgeGate({
           variant="caption"
           sx={slotSx?.caption ?? { color: "text.secondary" }}
         >
-          Chess Masti accounts are for players aged {COPPA_MIN_AGE} and up.
+          Chess Masti accounts are for players aged {COPPA_MIN_AGE} and up. By
+          continuing, you agree to the{" "}
+          <Link href="/terms" target="_blank" rel="noreferrer">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" target="_blank" rel="noreferrer">
+            Privacy Policy
+          </Link>
+          .
         </Typography>
         <FormControlLabel
           sx={slotSx?.label}
@@ -60,7 +70,7 @@ export default function AgeGate({
               sx={slotSx?.checkbox}
             />
           }
-          label={`I confirm that I'm ${COPPA_MIN_AGE} or older.`}
+          label={`I confirm that I am at least ${COPPA_MIN_AGE} years old and agree to the Terms of Service and Privacy Policy.`}
         />
         <Button
           variant="contained"

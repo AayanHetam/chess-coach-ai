@@ -41,7 +41,10 @@ interface AuthContextType {
   // CMIP dashboard admin (matches CMIP_DASHBOARD_ADMIN_EMAIL). Gates
   // /admin/intern-data UI on the browser; server re-checks every request.
   isAdmin: boolean;
-  signInWithGoogle: (opts?: { ageAffirmed?: boolean }) => Promise<void>;
+  signInWithGoogle: (opts?: {
+    ageAffirmed?: boolean;
+    termsAccepted?: boolean;
+  }) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUp: (input: {
     email: string;
@@ -50,6 +53,7 @@ interface AuthContextType {
     // COPPA: true only after the 13+ age-affirmation checkbox (required by
     // the signup API; no age or birth date ever leaves the browser).
     ageAffirmed: boolean;
+    termsAccepted: boolean;
   }) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -175,6 +179,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       password: string;
       displayName?: string;
       ageAffirmed: boolean;
+      termsAccepted: boolean;
     }) => {
       await postJson("/api/auth/signup", input);
       await refresh();
@@ -187,7 +192,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   const signInWithGoogle = useCallback(
-    async (opts?: { ageAffirmed?: boolean }) => {
+    async (opts?: { ageAffirmed?: boolean; termsAccepted?: boolean }) => {
       // Server-routed OAuth: full-page redirect through chessmasti.com so
       // we never hit the *.firebaseapp.com handler that school WiFi blocks.
       //
@@ -212,7 +217,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       // ageAffirmed=1 marks that the signup dialog's 13+ checkbox was already
       // confirmed, so the OAuth callback can skip the /auth/age interstitial.
       const ageParam = opts?.ageAffirmed ? "&ageAffirmed=1" : "";
-      w.href = `/api/auth/google/start?returnTo=${encodeURIComponent(returnTo)}${ageParam}`;
+      const termsParam = opts?.termsAccepted ? "&termsAccepted=1" : "";
+      w.href = `/api/auth/google/start?returnTo=${encodeURIComponent(returnTo)}${ageParam}${termsParam}`;
     },
     []
   );

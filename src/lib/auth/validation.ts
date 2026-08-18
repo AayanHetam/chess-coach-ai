@@ -44,6 +44,14 @@ export const signupSchema = z.object({
   ageAffirmed: z
     .boolean("Please confirm you're 13 or older to sign up.")
     .refine((v) => v === true, "Please confirm you're 13 or older to sign up."),
+  termsAccepted: z
+    .boolean(
+      "Please accept the Terms of Service and Privacy Policy to sign up."
+    )
+    .refine(
+      (v) => v === true,
+      "Please accept the Terms of Service and Privacy Policy to sign up."
+    ),
 });
 
 /**

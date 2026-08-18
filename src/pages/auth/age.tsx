@@ -44,7 +44,7 @@ export default function AgeInterstitialPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ageAffirmed: true }),
+        body: JSON.stringify({ ageAffirmed: true, termsAccepted: true }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as {

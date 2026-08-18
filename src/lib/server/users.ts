@@ -4,6 +4,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminFirestore } from "./firebaseAdmin";
 import { withFirestoreTimeout } from "./withFirestoreTimeout";
 import { getUidByHandle } from "./handles";
+import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal/versions";
 
 const COLLECTION = "users";
 const BCRYPT_COST = 12;
@@ -29,6 +30,11 @@ export type StoredUser = {
   // creation (affirmation checkbox; no age or birth date ever leaves the
   // browser). Absent on accounts created before the gate shipped.
   ageAffirmedAt?: Timestamp;
+  termsAcceptedAt?: Timestamp;
+  termsVersion?: string;
+  privacyVersion?: string;
+  age13ConfirmedAt?: Timestamp;
+  acceptanceMethod?: "signup-checkbox";
 
   displayName?: string;
   /** Public handle, in the capitalisation the user chose. */
@@ -241,6 +247,7 @@ export type CreateUserInput = {
   photoURL?: string;
   emailVerified?: boolean;
   ageAffirmed?: boolean;
+  termsAccepted?: boolean;
 };
 
 export async function createUser(input: CreateUserInput): Promise<StoredUser> {
@@ -267,6 +274,13 @@ export async function createUser(input: CreateUserInput): Promise<StoredUser> {
   };
   if (passwordHash) doc.passwordHash = passwordHash;
   if (input.ageAffirmed) doc.ageAffirmedAt = FieldValue.serverTimestamp();
+  if (input.ageAffirmed && input.termsAccepted) {
+    doc.termsAcceptedAt = FieldValue.serverTimestamp();
+    doc.termsVersion = TERMS_VERSION;
+    doc.privacyVersion = PRIVACY_VERSION;
+    doc.age13ConfirmedAt = FieldValue.serverTimestamp();
+    doc.acceptanceMethod = "signup-checkbox";
+  }
   if (input.googleId) doc.googleId = input.googleId;
   if (input.displayName) doc.displayName = input.displayName;
   if (input.photoURL) doc.photoURL = input.photoURL;

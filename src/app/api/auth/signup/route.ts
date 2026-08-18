@@ -15,7 +15,10 @@ export async function POST(request: Request) {
     assertAuthSecrets({ needsSession: true, needsAdmin: true });
   } catch (err) {
     console.error("[auth/signup]", err);
-    return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Authentication service unavailable" },
+      { status: 503 }
+    );
   }
 
   let body: unknown;
@@ -41,6 +44,7 @@ export async function POST(request: Request) {
       password: input.password,
       displayName: input.displayName,
       ageAffirmed: input.ageAffirmed,
+      termsAccepted: input.termsAccepted,
     });
 
     const isIntern = await isAllowlistedIntern(user.email);
@@ -59,11 +63,17 @@ export async function POST(request: Request) {
     return response;
   } catch (err) {
     if (err instanceof UserError && err.code === "email_taken") {
-      return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
+      return NextResponse.json(
+        { error: err.message, code: err.code },
+        { status: 409 }
+      );
     }
     if (err instanceof AdminConfigError) {
       console.error("[auth/signup]", err);
-      return NextResponse.json({ error: "Authentication service unavailable" }, { status: 503 });
+      return NextResponse.json(
+        { error: "Authentication service unavailable" },
+        { status: 503 }
+      );
     }
     console.error("[auth/signup] unexpected", err);
     return NextResponse.json({ error: "Sign-up failed." }, { status: 500 });

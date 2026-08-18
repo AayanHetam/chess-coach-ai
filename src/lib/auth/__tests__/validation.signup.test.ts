@@ -9,8 +9,13 @@ const base = {
 
 describe("signupSchema ageAffirmed (COPPA)", () => {
   it("accepts ageAffirmed: true", () => {
-    const parsed = signupSchema.parse({ ...base, ageAffirmed: true });
+    const parsed = signupSchema.parse({
+      ...base,
+      ageAffirmed: true,
+      termsAccepted: true,
+    });
     expect(parsed.ageAffirmed).toBe(true);
+    expect(parsed.termsAccepted).toBe(true);
   });
 
   it("rejects a missing ageAffirmed with the affirmation message (deploy-skew clients)", () => {
@@ -38,7 +43,20 @@ describe("signupSchema ageAffirmed (COPPA)", () => {
   });
 
   it("rejects truthy non-boolean values (no type coercion)", () => {
-    expect(() => signupSchema.parse({ ...base, ageAffirmed: "true" })).toThrow();
+    expect(() =>
+      signupSchema.parse({ ...base, ageAffirmed: "true" })
+    ).toThrow();
     expect(() => signupSchema.parse({ ...base, ageAffirmed: 1 })).toThrow();
+  });
+
+  it("rejects missing or false legal consent", () => {
+    expect(() => signupSchema.parse({ ...base, ageAffirmed: true })).toThrow(
+      "Please accept the Terms of Service and Privacy Policy to sign up."
+    );
+    expect(() =>
+      signupSchema.parse({ ...base, ageAffirmed: true, termsAccepted: false })
+    ).toThrow(
+      "Please accept the Terms of Service and Privacy Policy to sign up."
+    );
   });
 });

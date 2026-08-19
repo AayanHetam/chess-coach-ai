@@ -6,7 +6,7 @@ import { Avatar, Box, IconButton, Stack, Typography } from "@mui/material";
 import { ArrowLeft, Check, Settings, X } from "lucide-react";
 import type { PuzzleContext } from "@/lib/validation/puzzleChatSchemas";
 import type { SessionResult } from "@/lib/puzzleSession";
-import { prettyTheme } from "@/components/puzzle/prettyTheme";
+import { buildRailRows, type RowState } from "@/lib/puzzle/railRows";
 import { SERIF_DISPLAY } from "@/theme/fonts";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -30,17 +30,6 @@ const RAIL_EDGE = "1px solid rgba(255,255,255,0.08)";
 const TEXT = "rgba(255,240,224,0.92)";
 const TEXT_DIM = "rgba(255,240,224,0.5)";
 const EMBER = "#FF7A1A";
-
-type RowState = "solved" | "failed" | "current" | "upcoming";
-
-interface RailRow {
-  key: string;
-  label: string;
-  rating?: number;
-  state: RowState;
-  /** Only set when the row can actually be brought to the board. */
-  jumpId?: string;
-}
 
 function StatusGlyph({ state }: { state: RowState }) {
   if (state === "solved" || state === "failed") {
@@ -106,33 +95,12 @@ export function PuzzleSessionRail({
   const router = useRouter();
   const { user } = useAuth();
 
-  const queued = upcoming.slice(0, upcomingLimit);
-
-  const rows: RailRow[] = [
-    ...results.map((r, i) => ({
-      key: `done-${r.id}-${i}`,
-      label: prettyTheme(r.puzzle?.themes ?? [r.theme]),
-      rating: r.puzzle?.rating,
-      state: (r.solved ? "solved" : "failed") as RowState,
-    })),
-    ...(currentPuzzle
-      ? [
-          {
-            key: `current-${currentPuzzle.id}`,
-            label: prettyTheme(currentPuzzle.themes),
-            rating: currentPuzzle.rating,
-            state: "current" as RowState,
-          },
-        ]
-      : []),
-    ...queued.map((p) => ({
-      key: `next-${p.id}`,
-      label: prettyTheme(p.themes),
-      rating: p.rating,
-      state: "upcoming" as RowState,
-      jumpId: p.id,
-    })),
-  ];
+  const rows = buildRailRows({
+    results,
+    currentPuzzle,
+    upcoming,
+    upcomingLimit,
+  });
 
   const displayName = addressAs(user);
 
@@ -237,7 +205,7 @@ export function PuzzleSessionRail({
                 direction="row"
                 alignItems="center"
                 spacing={1.5}
-                aria-current={row.state === "current" ? "true" : undefined}
+                aria-current={row.isCurrent ? "true" : undefined}
                 onClick={
                   clickable ? () => onJumpTo(row.jumpId as string) : undefined
                 }
@@ -246,14 +214,15 @@ export function PuzzleSessionRail({
                   py: 1.15,
                   borderRadius: "0.75rem",
                   cursor: clickable ? "pointer" : "default",
-                  background:
-                    row.state === "current"
-                      ? "rgba(255,122,26,0.10)"
-                      : "transparent",
-                  border:
-                    row.state === "current"
-                      ? "1px solid rgba(255,122,26,0.28)"
-                      : "1px solid transparent",
+                  // Highlight follows `isCurrent`, the glyph follows `state`.
+                  // A solved puzzle you are still looking at is ONE row: green
+                  // check, ember highlight.
+                  background: row.isCurrent
+                    ? "rgba(255,122,26,0.10)"
+                    : "transparent",
+                  border: row.isCurrent
+                    ? "1px solid rgba(255,122,26,0.28)"
+                    : "1px solid transparent",
                   transition: "background 180ms ease-out",
                   "&:hover": clickable
                     ? { background: "rgba(255,255,255,0.05)" }
@@ -273,7 +242,7 @@ export function PuzzleSessionRail({
                     color: row.state === "upcoming" ? TEXT_DIM : TEXT,
                     fontFamily: SERIF_DISPLAY,
                     fontSize: "0.95rem",
-                    fontWeight: row.state === "current" ? 600 : 400,
+                    fontWeight: row.isCurrent ? 600 : 400,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",

@@ -102,6 +102,7 @@ import { isComparableDepthPair, requestedDepth, shallowSearchPlies } from "@/lib
 // captureEnforcedRefereeOutcome (CI-6) is the enforced-serving path's own
 // writer — the shadow gate is never constructed once a category is armed, so
 // it cannot record what the referee caught on served traffic.
+import { captureIntentOutcome } from "@/lib/tracking/intentOutcomes";
 import {
   captureRefereeOutcome,
   captureEnforcedRefereeOutcome,
@@ -710,6 +711,27 @@ export async function POST(request: NextRequest) {
           isContractServingConfigured()
         ) {
           contractForShadowReferee = built.contract;
+        }
+        // Intent shadow (I-1): with INTENT_FACTS_ENABLED on, the contract
+        // carries intent facts that serializeForVerbalizer strips — without
+        // this capture, arming the flag computes them and discards them
+        // unobserved. Wired HERE, at the contract build both serving branches
+        // share, so it cannot repeat the CI-6 per-branch telemetry gap.
+        // Content-free aggregates only; consent-gated and fail-closed inside
+        // the writer.
+        if (built.contract.intent?.length) {
+          captureIntentOutcome({
+            intent: built.contract.intent,
+            contractId: built.contract.contractId,
+            correlationId: requestId,
+            buildMs: built.contract.buildMs ?? null,
+            ctx: {
+              consent: refereeOutcomeBase.consent,
+              isIntern: refereeOutcomeBase.isIntern,
+              requestId,
+              contractVersion: CONTRACT_VERSION,
+            },
+          });
         }
       } else if (fen || position) {
         // Position-only analysis

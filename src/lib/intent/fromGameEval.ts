@@ -152,8 +152,16 @@ export function intentProbesFromGameEval(params: {
    * nothing.
    */
   startFen?: string;
+  /**
+   * When present, only these plies get the expensive per-ply work (position
+   * facts, SAN/PV conversion, tempting-reply checks) and appear in the output.
+   * The board replay and capture-context tracking still run for every ply —
+   * a wanted ply's recapture facts depend on the capture the unwanted ply
+   * before it made.
+   */
+  onlyPlies?: Set<number>;
 }): ProbeFromEval[] {
-  const { gameEval, moves, nullMoveProbes, startFen } = params;
+  const { gameEval, moves, nullMoveProbes, startFen, onlyPlies } = params;
   const out: ProbeFromEval[] = [];
   const positions = gameEval?.positions ?? [];
 
@@ -182,6 +190,14 @@ export function intentProbesFromGameEval(params: {
       break; // the move list and the board have diverged; nothing after is trustworthy
     }
     const fenAfter = board.fen();
+
+    // An unwanted ply still advances the board and the capture context above —
+    // both feed the wanted plies — but pays for nothing else.
+    if (onlyPlies && !onlyPlies.has(ply)) {
+      lastCaptureSquare = mv.captured ? mv.to : null;
+      lastCaptureValueCp = mv.captured ? (PIECE_VALUE_CP[mv.captured] ?? 0) : null;
+      continue;
+    }
 
     const here = positions[ply];
     const next = positions[ply + 1];

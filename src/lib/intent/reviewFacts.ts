@@ -1,5 +1,6 @@
 import { intentProbesFromGameEval, type NullMoveProbe } from "./fromGameEval";
 import { computeIntentFacts } from "./intentFacts";
+import { parseBoolEnv } from "@/env";
 import type { GameEval } from "@/types/eval";
 import type { IntentFacts } from "./types";
 
@@ -21,6 +22,8 @@ import type { IntentFacts } from "./types";
  */
 export interface ReviewIntent {
   ply: number;
+  /** Whose move it was — episode collapsing and byPlayer splits need it. */
+  mover: "w" | "b";
   playedSan: string;
   tier: "tier0" | "tier1";
   facts: IntentFacts;
@@ -40,12 +43,23 @@ export function intentFactsForPlies(params: {
 
   try {
     const wanted = new Set(plies);
-    const probes = intentProbesFromGameEval({ gameEval, moves, nullMoveProbes, startFen });
+    // onlyPlies keeps the expensive per-ply work (position facts, SAN/PV
+    // conversion, tempting-reply checks) off the ~50 plies a review will
+    // never card — measured at 475ms of synchronous serving time for a
+    // 55-ply game before the restriction.
+    const probes = intentProbesFromGameEval({
+      gameEval,
+      moves,
+      nullMoveProbes,
+      startFen,
+      onlyPlies: wanted,
+    });
     const out: ReviewIntent[] = [];
     for (const { ply, probe, skipped } of probes) {
       if (!wanted.has(ply) || skipped) continue;
       out.push({
         ply,
+        mover: probe.fenBefore.split(" ")[1] === "b" ? "b" : "w",
         playedSan: probe.playedSan,
         tier: nullMoveProbes?.has(ply) ? "tier1" : "tier0",
         facts: computeIntentFacts(probe),
@@ -58,11 +72,16 @@ export function intentFactsForPlies(params: {
   }
 }
 
-/** Is the dark intent computation switched on? Off unless explicitly enabled. */
+/**
+ * Is the dark intent computation switched on? Off unless explicitly enabled.
+ * Parsed with the shared parseBoolEnv — its `.trim()` is load-bearing: a prod
+ * flag saved as `"true\n"` (Vercel's UI appends one to multi-line saves) bit
+ * the Mastermind validators before the shared parser existed.
+ */
 export function isIntentFactsEnabled(
   // Not NodeJS.ProcessEnv: Next augments it to require NODE_ENV, so a caller
   // could not pass a bare { INTENT_FACTS_ENABLED } without inventing one.
   env: Record<string, string | undefined> = process.env,
 ): boolean {
-  return env.INTENT_FACTS_ENABLED === "true";
+  return parseBoolEnv(env.INTENT_FACTS_ENABLED);
 }

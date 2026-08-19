@@ -1543,12 +1543,33 @@ export default function PreviewPuzzlesPage() {
 
       <GradientBackdrop />
 
+      {/*
+        Viewport-locked at lg and up: exactly one screen, never scrolls. This is
+        what the layout spec asked for from the start ("three regions, full
+        viewport height, no page scroll") — the whole point of the format is
+        that you never leave the puzzle to see the set, and a page that scrolls
+        invites you to leave it.
+
+        Below lg the three regions stack, and a board plus a coach transcript
+        cannot fit one screen, so the layout falls back to ordinary document
+        flow rather than trapping a phone inside a 100dvh box.
+      */}
       <Box
         sx={{
-          minHeight: "100vh",
+          // Minus whatever the fixed cookie banner occupies, published by
+          // ConsentBanner as `--cm-consent-h` and 0 once dismissed. Without
+          // this the banner sits ON TOP of the bottom controls — and on a
+          // locked page there is no scrolling out from under it, so the
+          // answer-mode and confirm-mode toggles were simply unclickable for
+          // any first-time visitor on a 720p laptop. The e2e suite caught it.
+          height: { lg: "calc(100dvh - var(--cm-consent-h, 0px))" },
+          minHeight: { xs: "100vh", lg: 0 },
           color: "rgba(255,240,224,0.94)",
-          pt: 2,
-          pb: 4,
+          display: "flex",
+          flexDirection: "column",
+          overflow: { lg: "hidden" },
+          pt: { xs: 2, lg: 1.5 },
+          pb: { xs: 4, lg: 1.5 },
           px: { xs: 2, md: 3 },
         }}
       >
@@ -1556,9 +1577,25 @@ export default function PreviewPuzzlesPage() {
 
         {/* Widened from 1500 for the three-region layout — at 1500 the rail's
             240px minimum ate into the board column. */}
-        <Box sx={{ maxWidth: 1640, mx: "auto", mt: 3 }}>
-          {/* Page header — compact, doesn't compete with the board */}
-          <Box sx={{ mb: 2.5 }}>
+        <Box
+          sx={{
+            maxWidth: 1640,
+            mx: "auto",
+            width: "100%",
+            mt: { xs: 3, lg: 2 },
+            // The column that owns the leftover height. minHeight:0 is what
+            // lets a flex child actually shrink — without it the grid below
+            // refuses to go under its content size and the page scrolls again.
+            flex: { lg: 1 },
+            minHeight: { lg: 0 },
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {/* Page header — compact, doesn't compete with the board. Tighter
+              still at lg, where every pixel it takes comes straight out of the
+              board. flexShrink:0 so it never squeezes instead of the grid. */}
+          <Box sx={{ mb: { xs: 2.5, lg: 1.25 }, flexShrink: 0 }}>
             <Stack direction="row" alignItems="center" spacing={1.5} mb={1.25}>
               <Box
                 sx={{
@@ -1600,10 +1637,18 @@ export default function PreviewPuzzlesPage() {
             <Typography
               variant="h1"
               sx={{
-                fontSize: { xs: "1.8rem", md: "2.4rem" },
+                fontSize: { xs: "1.8rem", md: "2.4rem", lg: "1.75rem" },
                 color: "rgba(255,240,224,0.96)",
                 lineHeight: 1.05,
                 maxWidth: 760,
+                // Wide but short — the common laptop — is where the one-screen
+                // layout runs out of room, and this headline is the cheapest
+                // thing to give up. It is brand copy; the board is the product.
+                // Keeping it cost ~50px, which at 1366x768 was the difference
+                // between a 288px board and a usable one.
+                "@media (min-width:1200px) and (max-height:900px)": {
+                  display: "none",
+                },
               }}
             >
               Solve. Then{" "}
@@ -1625,7 +1670,8 @@ export default function PreviewPuzzlesPage() {
           {/* Filter row — themes + rating band */}
           <Box
             sx={{
-              mb: 3,
+              mb: { xs: 3, lg: 1.5 },
+              flexShrink: 0,
               display: "flex",
               flexDirection: { xs: "column", md: "row" },
               gap: { xs: 1.5, md: 3 },
@@ -1714,9 +1760,14 @@ export default function PreviewPuzzlesPage() {
                 xs: "1fr",
                 lg: "minmax(240px, 17%) minmax(0, 1fr) minmax(380px, 30%)",
               },
-              gap: { xs: 3, lg: 3 },
+              gap: { xs: 3, lg: 2.5 },
               alignItems: "stretch",
-              minHeight: { lg: "clamp(540px, 70vh, 740px)" },
+              // Was a clamped min-height, which is what made the page taller
+              // than the viewport and forced the scroll. Now it takes exactly
+              // the height left over after the header, and each region handles
+              // its own overflow internally.
+              flex: { lg: 1 },
+              minHeight: { xs: "auto", lg: 0 },
             }}
           >
             {/* Session rail */}
@@ -1730,8 +1781,25 @@ export default function PreviewPuzzlesPage() {
               />
             </Box>
 
-            {/* Board column */}
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {/* Board column. Owns its overflow at lg: if a tall viewport isn't
+                available, THIS scrolls rather than the page, so the rail and
+                the coach stay put and the set is always visible. */}
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+                minHeight: { lg: 0 },
+                overflowY: { lg: "auto" },
+                // Hairline scrollbar so the board card doesn't get a heavy
+                // gutter on the one screen the whole design is about.
+                "&::-webkit-scrollbar": { width: 6 },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "rgba(255,255,255,0.12)",
+                  borderRadius: 3,
+                },
+              }}
+            >
               <Box
                 sx={{
                   position: "relative",
@@ -1749,7 +1817,12 @@ export default function PreviewPuzzlesPage() {
                         : "0 24px 64px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
                   transition: "box-shadow 320ms cubic-bezier(0.23, 1, 0.32, 1)",
                   p: { xs: 2, md: 3 },
-                  minHeight: 540,
+                  // At lg the card takes the column's height and the board
+                  // sizes itself from what's left. A fixed 540 min-height here
+                  // is what used to push the card past the viewport.
+                  minHeight: { xs: 540, lg: 0 },
+                  flex: { lg: 1 },
+                  overflow: { lg: "hidden" },
                   display: "flex",
                   flexDirection: "column",
                 }}
@@ -1806,98 +1879,127 @@ export default function PreviewPuzzlesPage() {
                       enabled={analyseOpen && analysisGate.available}
                       fen={displayFen}
                     />
+                    {/* Board area: takes the height left over inside the card
+                        and centres the board in it. */}
                     <Box
                       sx={{
-                        position: "relative",
-                        maxWidth: { xs: "100%", md: 540 },
-                        mx: "auto",
+                        flex: { lg: 1 },
+                        minHeight: { lg: 0 },
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         width: "100%",
-                        borderRadius: "0.85rem",
-                        overflow: "hidden",
-                        boxShadow: "0 0 0 1px rgba(255,255,255,0.06)",
                       }}
                     >
-                      <PuzzleBoardSurface
-                        boardId="PuzzleBoard"
-                        fen={displayFen}
-                        orientation={orientation}
-                        interactive={interactive}
-                        // One tap seam, two meanings — take back a staged
-                        // move, or mark a square as ruled out. Staging wins
-                        // when both are live so a tap never does the
-                        // surprising one.
-                        onInactiveSquareTap={handleInactiveSquareTap}
-                        onPieceDrop={onBoardMove}
-                        lastMove={
-                          displayLastMove
-                            ? {
-                                from: displayLastMove[0],
-                                to: displayLastMove[1],
-                              }
-                            : null
-                        }
-                        wrongSquare={boardWrongSquare}
-                        correctSquare={activeDemo ? null : correctSquare}
-                        flash={activeDemo ? null : { state: flash, flashKey }}
-                        underlaySquareStyles={boardUnderlay}
-                        pieceSet={pieceSet}
-                      />
-                      {activeDemo && (
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            top: 12,
-                            left: "50%",
-                            transform: "translateX(-50%)",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                            px: 1.5,
-                            py: 0.75,
-                            borderRadius: "999px",
-                            background: "rgba(22,18,14,0.92)",
-                            backdropFilter: "blur(10px)",
-                            border: "1px solid rgba(255,122,26,0.32)",
-                            boxShadow: "0 12px 32px -10px rgba(0,0,0,0.5)",
-                            zIndex: 5,
-                          }}
-                        >
-                          <Sparkles size={12} color="#FFD1A8" />
-                          <Typography
+                      <Box
+                        sx={{
+                          position: "relative",
+                          // A chess board is square, so its WIDTH is decided by
+                          // whichever axis runs out first. Capping only by width
+                          // let a 540px board sit in a shorter column and get
+                          // its bottom two ranks clipped — a board you cannot
+                          // fully see is worse than a page that scrolls.
+                          //
+                          // `aspect-ratio` + `height: 100%` derives the width
+                          // from the space actually available, so no constant
+                          // has to encode how tall the header happens to be —
+                          // which matters because the filter chips wrap at
+                          // different widths and change that height.
+                          height: { lg: "100%" },
+                          width: { xs: "100%", lg: "auto" },
+                          aspectRatio: { lg: "1 / 1" },
+                          maxWidth: { xs: "100%", md: 540 },
+                          maxHeight: { lg: "100%" },
+                          mx: "auto",
+                          borderRadius: "0.85rem",
+                          overflow: "hidden",
+                          boxShadow: "0 0 0 1px rgba(255,255,255,0.06)",
+                        }}
+                      >
+                        <PuzzleBoardSurface
+                          boardId="PuzzleBoard"
+                          fen={displayFen}
+                          orientation={orientation}
+                          interactive={interactive}
+                          // One tap seam, two meanings — take back a staged
+                          // move, or mark a square as ruled out. Staging wins
+                          // when both are live so a tap never does the
+                          // surprising one.
+                          onInactiveSquareTap={handleInactiveSquareTap}
+                          onPieceDrop={onBoardMove}
+                          lastMove={
+                            displayLastMove
+                              ? {
+                                  from: displayLastMove[0],
+                                  to: displayLastMove[1],
+                                }
+                              : null
+                          }
+                          wrongSquare={boardWrongSquare}
+                          correctSquare={activeDemo ? null : correctSquare}
+                          flash={activeDemo ? null : { state: flash, flashKey }}
+                          underlaySquareStyles={boardUnderlay}
+                          pieceSet={pieceSet}
+                        />
+                        {activeDemo && (
+                          <Box
                             sx={{
-                              fontSize: "0.74rem",
-                              fontWeight: 600,
-                              color: "rgba(255,240,224,0.92)",
-                            }}
-                          >
-                            {activeDemo.finished
-                              ? "Demo finished"
-                              : `Coach is showing • ${activeDemo.idx}/${activeDemo.moves.length}`}
-                          </Typography>
-                          <Button
-                            onClick={handleDemoEnd}
-                            size="small"
-                            sx={{
-                              ml: 0.5,
-                              px: 1.25,
-                              py: 0.2,
-                              minHeight: 0,
-                              fontSize: "0.72rem",
-                              fontWeight: 700,
+                              position: "absolute",
+                              top: 12,
+                              left: "50%",
+                              transform: "translateX(-50%)",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                              px: 1.5,
+                              py: 0.75,
                               borderRadius: "999px",
-                              color: "#FFD1A8",
-                              background: "rgba(255,122,26,0.14)",
+                              background: "rgba(22,18,14,0.92)",
+                              backdropFilter: "blur(10px)",
                               border: "1px solid rgba(255,122,26,0.32)",
-                              textTransform: "none",
-                              "&:hover": {
-                                background: "rgba(255,122,26,0.22)",
-                              },
+                              boxShadow: "0 12px 32px -10px rgba(0,0,0,0.5)",
+                              zIndex: 5,
                             }}
                           >
-                            {activeDemo.finished ? "Back to your move" : "Stop"}
-                          </Button>
-                        </Box>
-                      )}
+                            <Sparkles size={12} color="#FFD1A8" />
+                            <Typography
+                              sx={{
+                                fontSize: "0.74rem",
+                                fontWeight: 600,
+                                color: "rgba(255,240,224,0.92)",
+                              }}
+                            >
+                              {activeDemo.finished
+                                ? "Demo finished"
+                                : `Coach is showing • ${activeDemo.idx}/${activeDemo.moves.length}`}
+                            </Typography>
+                            <Button
+                              onClick={handleDemoEnd}
+                              size="small"
+                              sx={{
+                                ml: 0.5,
+                                px: 1.25,
+                                py: 0.2,
+                                minHeight: 0,
+                                fontSize: "0.72rem",
+                                fontWeight: 700,
+                                borderRadius: "999px",
+                                color: "#FFD1A8",
+                                background: "rgba(255,122,26,0.14)",
+                                border: "1px solid rgba(255,122,26,0.32)",
+                                textTransform: "none",
+                                "&:hover": {
+                                  background: "rgba(255,122,26,0.22)",
+                                },
+                              }}
+                            >
+                              {activeDemo.finished
+                                ? "Back to your move"
+                                : "Stop"}
+                            </Button>
+                          </Box>
+                        )}
+                      </Box>
                     </Box>
 
                     {choiceModeActive && (
@@ -2228,7 +2330,15 @@ export default function PreviewPuzzlesPage() {
 
                     {/* The moment you want confirm-mode off is the moment it
                         just slowed you down — so the toggle lives here, not
-                        only in profile settings. */}
+                        only in profile settings.
+
+                        I tried hiding this on short screens to buy the board
+                        ~28px. Wrong trade twice over: it removes an inline
+                        control on exactly the laptops that have it hardest,
+                        which is the opposite of why it was put here — and it is
+                        the readiness signal several puzzle specs wait on, so
+                        the suite went red at 1280x720 and said so. The board
+                        gives up the 28px instead. */}
                     <Box
                       sx={{
                         display: "flex",

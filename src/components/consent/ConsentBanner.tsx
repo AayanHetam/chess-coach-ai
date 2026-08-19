@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Box, Paper, Stack, Typography, Button } from "@mui/material";
 import NextLink from "next/link";
 import {
@@ -28,6 +28,7 @@ import { track } from "@/lib/tracking/client";
  */
 export default function ConsentBanner() {
   const [visible, setVisible] = useState(false);
+  const paperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (gpcEnabled()) {
@@ -36,6 +37,45 @@ export default function ConsentBanner() {
     }
     if (getClientConsent() === null) setVisible(true);
   }, []);
+
+  /**
+   * Publish how much bottom space this banner occupies, as `--cm-consent-h`
+   * on the document root.
+   *
+   * Being `position: fixed`, the banner sits on top of whatever is beneath it.
+   * On a scrolling page that is survivable — you scroll the content out from
+   * under it. On a viewport-locked page (/analysis, and now /puzzles) nothing
+   * can move, so anything under the banner is simply unreachable: on a 720p
+   * laptop it covered the answer-mode and confirm-mode toggles outright.
+   *
+   * That is the same failure the zIndex note above records — the banner
+   * covering the signup button on mobile — so this exports the measurement
+   * rather than leaving each locked layout to hardcode a guess at the height.
+   * Measured, not assumed, because the banner wraps to two lines on narrow
+   * viewports.
+   */
+  useEffect(() => {
+    const root = document.documentElement;
+    const clear = () => root.style.removeProperty("--cm-consent-h");
+    if (!visible) {
+      clear();
+      return clear;
+    }
+    const publish = () => {
+      const h = paperRef.current?.getBoundingClientRect().height ?? 0;
+      // Plus the banner's own bottom offset, so content clears it entirely.
+      root.style.setProperty("--cm-consent-h", `${Math.ceil(h) + 16}px`);
+    };
+    publish();
+    const ro = new ResizeObserver(publish);
+    if (paperRef.current) ro.observe(paperRef.current);
+    window.addEventListener("resize", publish);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", publish);
+      clear();
+    };
+  }, [visible]);
 
   if (!visible) return null;
 
@@ -53,6 +93,7 @@ export default function ConsentBanner() {
 
   return (
     <Paper
+      ref={paperRef}
       role="dialog"
       aria-label="Cookie consent"
       elevation={0}

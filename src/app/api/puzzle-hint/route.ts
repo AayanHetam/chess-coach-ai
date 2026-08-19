@@ -27,6 +27,7 @@ import { getCachedHint, setCachedHint } from "@/lib/puzzleHint/cache";
 import { analyzeMateClaim, applyMateCorrection } from "@/lib/tactics/mateClaim";
 import { isPlayableFromAnySolverAnchor } from "@/lib/puzzle/demoLine";
 import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
+import { aiDisabledResponse, isAiDisabled } from "@/lib/coach/aiAvailability";
 
 /**
  * POST /api/puzzle-hint — staged puzzle-coach hint pipeline.
@@ -50,6 +51,10 @@ import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
 const log = logger.child({ module: "puzzle-hint" });
 
 export async function POST(request: NextRequest) {
+  // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
+  // BEFORE any work, auth or spend, and with a code that says "off", not
+  // "broken" — the difference decides whether the user retries forever.
+  if (isAiDisabled()) return aiDisabledResponse();
   const requestId = extractRequestId(request.headers);
 
   let body: unknown;

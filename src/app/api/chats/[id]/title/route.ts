@@ -6,6 +6,7 @@ import {
   AdminConfigError,
 } from "@/lib/server/firebaseAdmin";
 import { callLLM, toSafeLLMError } from "@/lib/llmProvider";
+import { aiDisabledResponse, isAiDisabled } from "@/lib/coach/aiAvailability";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,10 @@ function clean(t: string): string {
  * Auto-sets `titleSource`. Skips if the chat already has a manual title.
  */
 export async function POST(_request: Request, { params }: RouteContext) {
+  // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
+  // BEFORE any work, auth or spend, and with a code that says "off", not
+  // "broken" — the difference decides whether the user retries forever.
+  if (isAiDisabled()) return aiDisabledResponse();
   const guard = await requireSession();
   if ("response" in guard) return guard.response;
 

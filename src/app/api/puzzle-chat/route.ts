@@ -15,6 +15,7 @@ import {
 } from "@/lib/prompts/puzzleChatPrompt";
 import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
 import { analyzeMateClaim, applyMateCorrection } from "@/lib/tactics/mateClaim";
+import { aiDisabledResponse, isAiDisabled } from "@/lib/coach/aiAvailability";
 
 /**
  * Puzzle Coach chat endpoint — scoped, interactive, multi-turn coach for
@@ -36,6 +37,10 @@ import { analyzeMateClaim, applyMateCorrection } from "@/lib/tactics/mateClaim";
 const log = logger.child({ module: "puzzle-chat" });
 
 export async function POST(request: NextRequest) {
+  // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
+  // BEFORE any work, auth or spend, and with a code that says "off", not
+  // "broken" — the difference decides whether the user retries forever.
+  if (isAiDisabled()) return aiDisabledResponse();
   const requestId = extractRequestId(request.headers);
 
   let body: unknown;

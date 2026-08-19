@@ -30,6 +30,10 @@ import type {
   PuzzleHintResponse,
   TermMention,
 } from "@/lib/validation/puzzleHintSchemas";
+import { AI_DISABLED_ERROR, isAiDisabledPublic } from "@/lib/coach/aiAvailability";
+
+/** Build-time flag; see lib/coach/aiAvailability. */
+const AI_DISABLED = isAiDisabledPublic();
 
 /**
  * Puzzle Coach Panel — the right-column chat surface on /preview/puzzles.
@@ -762,7 +766,7 @@ export function PuzzleCoachPanel({
                 component="button"
                 type="button"
                 onClick={() => handleSuggestion(s)}
-                disabled={streaming}
+                disabled={AI_DISABLED || streaming}
                 sx={{
                   px: 1.25,
                   py: 0.5,
@@ -804,6 +808,26 @@ export function PuzzleCoachPanel({
             },
           }}
         >
+          {AI_DISABLED && (
+            <Box
+              sx={{
+                mb: 1.5,
+                px: 1.5,
+                py: 1,
+                borderRadius: "10px",
+                border: "1px solid rgba(249,115,22,0.28)",
+                background: "rgba(249,115,22,0.08)",
+                fontSize: "0.78rem",
+                lineHeight: 1.5,
+                color: "rgba(255,255,255,0.75)",
+              }}
+            >
+              <Box component="span" sx={{ color: "#FB923C", fontWeight: 600 }}>
+                AI coaching is paused.
+              </Box>{" "}
+              {AI_DISABLED_ERROR.message}
+            </Box>
+          )}
           <TextField
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -814,13 +838,15 @@ export function PuzzleCoachPanel({
               }
             }}
             placeholder={
-              outcome === "unattempted"
-                ? "Ask for a hint…"
-                : "Ask about this puzzle…"
+              AI_DISABLED
+                ? "AI coaching is paused."
+                : outcome === "unattempted"
+                  ? "Ask for a hint…"
+                  : "Ask about this puzzle…"
             }
             multiline
             maxRows={4}
-            disabled={streaming}
+            disabled={AI_DISABLED || streaming}
             variant="standard"
             fullWidth
             InputProps={{
@@ -838,7 +864,7 @@ export function PuzzleCoachPanel({
           />
           <IconButton
             onClick={handleSend}
-            disabled={streaming || !input.trim()}
+            disabled={AI_DISABLED || streaming || !input.trim()}
             size="small"
             sx={{
               flexShrink: 0,

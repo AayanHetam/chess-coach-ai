@@ -49,7 +49,7 @@ Detailed walkthrough: **[chessmasti.com/how-it-works](https://chessmasti.com/how
 - **Engine-first, not LLM-first.** Stockfish runs before the LLM speaks. The LLM never invents chess facts; it paraphrases the engine's verdict.
 - **Hallucination validator.** Every coaching response is verified against `chess.js` before it renders. The trust layer most AI chess coaches skip.
 - **Maia-2 humanlike opponent.** Twin Bot uses [Maia-2](https://maiachess.com/) (NeurIPS 2024) to play like a human at a target Elo, optionally mirroring a specific Lichess player's repertoire.
-- **Adaptive puzzle retrieval.** 100,000+ Lichess puzzles in a Neo4j graph, joined with 298,000+ Jhamtani expert-commentary pairs. Recommendations come from graph traversal plus FEN cosine re-ranking against your actual mistake — not a generic theme bucket.
+- **Adaptive puzzle retrieval.** 100,000+ Lichess puzzles in a Neo4j graph, joined with expert commentary from the Jhamtani et al. (ACL 2018) research corpus. Recommendations come from graph traversal plus FEN cosine re-ranking against your actual mistake — not a generic theme bucket.
 - **Live Lichess play.** OAuth 2.0 PKCE plus dual-SSE streams. No tab-switching.
 - **Opponent scouting.** Lichess / Chess.com username → opening trees, repertoire collisions, "Stalker Score" exploitability index, tilt and timeout psychology profiles.
 - **Free.** No paid tier, no upsell, no advertising.

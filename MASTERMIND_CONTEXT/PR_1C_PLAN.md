@@ -115,7 +115,7 @@ Committed alongside the scraper: `scripts/mastermind/persona-data/COMPLIANCE.md`
 - Take-down procedure if a source contacts us
 - **Coverage gap: chess.com forums skipped** (Aayan 2026-05-17). Revisit if a researcher contact yields explicit permission.
 - **Refresh cadence (Aayan 2026-05-17):** quarterly re-scrape after the initial 1.C run, with the same per-source dedup behavior. Refresh is mechanical — re-run `scrape-forum-questions.ts`, re-classify, append-only to the corpus (existing question IDs aren't re-fetched).
-- **Retirement trigger (Aayan 2026-05-17):** **once CMIP produces real user questions from Chess Masti's own users at sufficient volume (rough threshold: ≥500 categorized real-user questions across the six categories), retire the forum scraper entirely.** Real questions from logged-in coach users displace scraped public-forum questions as the persona-script source. The COMPLIANCE.md file gains a retirement-decision section at that point recording the cutover date and the final scraped-corpus snapshot for ISEF reproducibility.
+- **Retirement trigger (Aayan 2026-05-17):** **once CMIP produces real user questions from Chess Masti's own users at sufficient volume (rough threshold: ≥500 categorized real-user questions across the six categories), retire the forum scraper entirely.** Real questions from logged-in coach users displace scraped public-forum questions as the persona-script source. The COMPLIANCE.md file gains a retirement-decision section at that point recording the cutover date and the final scraped-corpus snapshot for research reproducibility.
 
 #### 1.7.4 §1.7 questions — RESOLVED 2026-05-17
 
@@ -312,9 +312,9 @@ Existing `@/lib/logging/sentryIntegration.ts` carries the structured-log → Sen
 
 This lets Sentry alerts trigger on `final_outcome=fallback_used` (which means 2 retries failed — production-grade signal we want to know about).
 
-### 3.3 ISEF dataset extraction
+### 3.3 research-dataset extraction
 
-The ISEF paper's hallucination escape-rate dataset comes from these logs.
+The the research write-up paper's hallucination escape-rate dataset comes from these logs.
 
 Query pattern (Sentry export → Parquet → analysis notebook):
 ```
@@ -329,7 +329,7 @@ Each row is one validator fire. Aggregations:
 - Fallback rate: `count(final_outcome="fallback_used") / count(all turns)`. Low = LLM rarely needs the safety net.
 - Persona × fire-rate breakdown: which user personas trigger more fires?
 
-The ISEF appendix references this query pattern directly. **Aayan should review the schema before commit** so the dataset shape supports the paper's claims.
+The the research write-up appendix references this query pattern directly. **Aayan should review the schema before commit** so the dataset shape supports the paper's claims.
 
 ### 3.4 PII discipline
 
@@ -345,7 +345,7 @@ The ISEF appendix references this query pattern directly. **Aayan should review 
 | 3.1 | `user_tier` field — populate now (placeholder for Phase 5.E) or skip? | Populate now with `"free"` for all (paid tier doesn't exist yet) |
 | 3.2 | Sentry alert on `final_outcome=fallback_used`? | Yes, low-priority alert (warns when >1% of turns hit fallback) |
 | 3.3 | Dataset retention policy | Indefinite for paid; 90 days for free (matches `MastermindSession` retention from BUILD_PLAN §10) |
-| 3.4 | Truncate `llm_span` to 200 chars — sufficient for ISEF analysis? | Yes; the citation matching only needs the surrounding clause |
+| 3.4 | Truncate `llm_span` to 200 chars — sufficient for research analysis? | Yes; the citation matching only needs the surrounding clause |
 
 ---
 
@@ -668,7 +668,7 @@ A coach response in the opponent-prep category needs to cite ≥85% of available
 
 **PR 1.D queued (NOT auto-rolling — Aayan triggers explicitly).** Name: **"Jhamtani wire-up."** Step 1 is **investigation-only**: find where the corpus actually lives today (in-repo `data/chess-commentary/`? live Aura with `:Commentary` nodes? cloud storage? removed entirely?). Decide whether and how to restore it. Then re-spec `jhamtaniCitation.ts` against the verified shape and ship.
 
-**Implication on docs (handled separately).** The audit (§A.5) flagged that 4 prod pages claim "298,000+ Jhamtani expert-commentary pairs" — those will be addressed by a separate doc-fix PR off main, not bundled into PR 1.C. Aayan's directive 2026-05-17.
+**Implication on docs (handled separately).** The audit (§A.5) flagged a stale corpus-size figure on 4 prod pages — addressed by a separate doc-fix PR off main (since merged), not bundled into PR 1.C. Aayan's directive 2026-05-17.
 
 ### 6.5 Citation-rate aggregator — `citationRate.ts`
 
@@ -779,7 +779,7 @@ Original §8 open questions resolved. Plan body updated; this section is the aud
 | 3 | Total pipeline budget | **30s** | §2.3 |
 | 4 | Flag name | **`MASTERMIND_VALIDATORS_ENABLED`** (distinct from agent-loop flag) | §4.1 |
 | 5 | "Real regression" definition | **Honor system** — regression introduced unintentionally and caught by the gate before merge | §4.4 |
-| 6 | `user_tier` telemetry field | **Populate as `"free"`** (paid tier doesn't exist yet, but the field shape is ISEF-stable) | §3.5 |
+| 6 | `user_tier` telemetry field | **Populate as `"free"`** (paid tier doesn't exist yet, but the field shape is the research write-up-stable) | §3.5 |
 | 7 | Stage A rollback procedure | **Pause PR 1.C, ship gate-fix sub-PR, resume** | §1.5 |
 | 8 | Persona fidelity at $1/sweep | **Approved** | §5.5 |
 | 9 | Structural grounding 0.85 | **SUPERSEDED by Revision 1** — replaced with hallucination ≥95% per category + per-category citation floors | §5.3 |

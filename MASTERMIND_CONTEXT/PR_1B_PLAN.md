@@ -12,7 +12,7 @@ Stage 3 primitives (PR 1.A) made structured grounding cheap to compute. But the 
 
 PR 1.B adds two validators (`evalClaim`, `featureDeltaCitation`), one orchestrator (`regenerate`), one helper module (`qualitativeBands`), and a telemetry emitter. Each shippable in isolation; the composed pipeline is the artifact PR 1.C consumes.
 
-This is also the source of the ISEF paper's **hallucination escape-rate dataset**. Telemetry is load-bearing, not nice-to-have.
+This is also the source of the research paper's **hallucination escape-rate dataset**. Telemetry is load-bearing, not nice-to-have.
 
 ---
 
@@ -44,7 +44,7 @@ Tests under `src/lib/mastermind/__tests__/validators/`:
 | `pipeline.test.ts` | 5 | ~140 |
 | **Total tests** | **43** | **~1,060** |
 
-**Total PR LOC (lib + tests): ~1,120 LOC + ~1,060 LOC tests = ~2,180 LOC.** Above the original ~400 LOC estimate, below the 800-LOC expansion guard. **Flagging this for review** since the spec said "If expansion proposal exceeds 800 LOC of added code beyond the current ~400 estimate, flag in the plan and ask before proceeding." Drivers of the increase: (1) two Haiku parser sub-modules with structured-output prompts and JSON-recovery handling, each substantially more than a regex; (2) telemetry module with correlation IDs (load-bearing for ISEF); (3) fallback synthesizer is its own 140-LOC concern; (4) 43 tests with adversarial fixtures.
+**Total PR LOC (lib + tests): ~1,120 LOC + ~1,060 LOC tests = ~2,180 LOC.** Above the original ~400 LOC estimate, below the 800-LOC expansion guard. **Flagging this for review** since the spec said "If expansion proposal exceeds 800 LOC of added code beyond the current ~400 estimate, flag in the plan and ask before proceeding." Drivers of the increase: (1) two Haiku parser sub-modules with structured-output prompts and JSON-recovery handling, each substantially more than a regex; (2) telemetry module with correlation IDs (load-bearing for the research dataset); (3) fallback synthesizer is its own 140-LOC concern; (4) 43 tests with adversarial fixtures.
 
 **Proposed:** proceed at ~1,120 lib LOC; if you'd rather I trim, the natural cut points are (a) drop the fallback synthesizer in 1.B and let retry-2 failure return the bad response with the existing footnote (still better than today since we'd at least know which assertions failed) → saves ~140 LOC; (b) drop the correlation-ID layer from telemetry → saves ~30 LOC. Neither is a recommendation; both are reversible scope cuts.
 
@@ -393,7 +393,7 @@ This narrowing has a real cost: an LLM saying "the queen on e5 is undefended" (a
 
 ### 6.5 Cited-spans audit
 
-The parser returns `claim_text` per claim. The validator records both the claim text and the matched delta entry (or none) in telemetry, so the ISEF paper has the raw evidence dataset.
+The parser returns `claim_text` per claim. The validator records both the claim text and the matched delta entry (or none) in telemetry, so the research paper has the raw evidence dataset.
 
 ---
 
@@ -484,7 +484,7 @@ For a fallback case:
 [fallback_used: retry=2]       final
 ```
 
-All events share the same `correlation_id` so ISEF analysis can stitch the trajectory.
+All events share the same `correlation_id` so research analysis can stitch the trajectory.
 
 ---
 
@@ -529,14 +529,14 @@ Tone selector chooses sentence templates per `coachTone`. Default "warm" if abse
 ### 8.3 Why template-only and not a fast-tier LLM call
 
 - Cost discipline: hitting Sonnet twice already burned the per-turn budget. A third LLM call (even Haiku) on retry-exhaustion is throwing more compute at a model that already failed twice.
-- Determinism: ISEF analysis benefits from a reproducible fallback path.
+- Determinism: research analysis benefits from a reproducible fallback path.
 - Trust: a deterministic synthesis from validated inputs cannot hallucinate.
 
 If we want LLM polish on the fallback, that's a follow-up PR (not 1.B).
 
 ---
 
-## 9. Telemetry & ISEF dataset
+## 9. Telemetry & the research write-up dataset
 
 ### 9.1 Emitter (`telemetry.ts`)
 
@@ -560,11 +560,11 @@ Every pipeline invocation gets a UUIDv4 `correlationId`. Threaded through:
 - Each retry LLM call
 - Fallback synthesis (if reached)
 
-ISEF analysis groups events by correlation_id to reconstruct each turn's full validation trajectory.
+research analysis groups events by correlation_id to reconstruct each turn's full validation trajectory.
 
 ### 9.3 Cost reporting in telemetry
 
-Every LLM call (parser, initial, retries) emits a separate `cost_event` capturing `inputTokens`, `outputTokens`, `cacheCreationTokens`, `cacheReadTokens`, `costUsd`. ISEF analysis can compute hit rate × cost reduction directly.
+Every LLM call (parser, initial, retries) emits a separate `cost_event` capturing `inputTokens`, `outputTokens`, `cacheCreationTokens`, `cacheReadTokens`, `costUsd`. research analysis can compute hit rate × cost reduction directly.
 
 ---
 
@@ -701,7 +701,7 @@ Total: **43 tests** across 6 test files. Minimum bar 30; expanded to cover adver
 - Both validators run on the same response (eval + citation).
 - Correlation ID threads through all events.
 - Cost across all sub-calls aggregates correctly.
-- ISEF dataset shape: every event has the required fields.
+- the research write-up dataset shape: every event has the required fields.
 
 ### 12.7 Adversarial fixtures (cross-cutting)
 

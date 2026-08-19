@@ -789,9 +789,9 @@ Pre-1.C.B.2 verification of how this codebase's logger + Sentry actually behave.
 - `correlation_id` is opaque; safe to log.
 - `user_id` is logged in cleartext (UID, not email). This is consistent with the existing Sentry posture across other routes.
 
-### 6.6 ISEF dataset extraction
+### 6.6 research-dataset extraction
 
-Same query shape as [PR_1C_PLAN.md §3.3](PR_1C_PLAN.md). Route's additions to the schema (`response_id`, `category`, `user_tier`) are forward-compatible — the ISEF query pattern already accommodates missing tags as nulls.
+Same query shape as [PR_1C_PLAN.md §3.3](PR_1C_PLAN.md). Route's additions to the schema (`response_id`, `category`, `user_tier`) are forward-compatible — the the research write-up query pattern already accommodates missing tags as nulls.
 
 ---
 
@@ -879,7 +879,7 @@ analysisContent = validation.isValid ? finalResponse : validation.correctedRespo
 
 **Footnote-class events** route through the existing `log.warn("AI response validation issues", …)` call at [route.ts:1253-1258](../src/app/api/enhanced-analysis/route.ts#L1253-L1258). These do NOT pass through `forwardTelemetry`. The Sentry tag remains the existing log's tag (`module` is not set; it appears as the route's default tag).
 
-ISEF / Sentry query distinguishing them:
+the research write-up / Sentry query distinguishing them:
 - Pipeline events: filter `module = "mastermind-validator"`.
 - Footnote events: filter `message LIKE "AI response validation issues"` (or by Sentry breadcrumb).
 
@@ -1130,7 +1130,7 @@ All of:
 | **Q1** | Stage A scope decision (§0). | **RESOLVED 2026-05-18 — Stage A reopened and shipped.** All four outstanding Stage A items (`scoutCitation`, `userHistoryAggregates`, `userHistoryCitation`, `runValidationPipeline.dataSources` extension) shipped in commits A.6 through A.9. Stage B as planned wires all four validators. The pre-Stage-A "tighter scope" default no longer applies. |
 | **Q2** | Per-retry `validating` SSE events (§4) — every boundary or initial only? | **Ratified: emit on every boundary.** Phase 2 UI can decide whether to render or suppress later events per persona; the wire format ships forward-compatible either way. |
 | **Q3** | `/api/chat` no-`contextId` fallback — skip the pipeline or attempt a degraded run? | **Ratified: skip on no-context chat.** Eval-mismatch coverage on plain chat isn't worth the latency cost without a FEN. |
-| **Q4** | Telemetry field set for ISEF analyzability — ship as specced or add `prompt_version` / `model_id` / `route_request_id`? | **Ratified: ship as specified.** `prompt_version` already in `coach.tokens` log; `model_id` implicit in tier+date; `route_request_id` overlaps with `correlation_id`. |
+| **Q4** | Telemetry field set for the research write-up analyzability — ship as specced or add `prompt_version` / `model_id` / `route_request_id`? | **Ratified: ship as specified.** `prompt_version` already in `coach.tokens` log; `model_id` implicit in tier+date; `route_request_id` overlaps with `correlation_id`. |
 | **Q5** | CategoryClassifier wiring posture in Stage B. | **Ratified: wire in Stage B (revised — the wait condition has now fired).** Q5's original "wait until scout + user-history validators land" rationale is now satisfied — both shipped in Stage A.6/A.8. Stage B wires the classifier; `category` populates telemetry + citation-rate input. ~$0.001/turn extra cost acceptable. |
 | **Q6** | Partial-data degraded UX — surface to user or silently degrade? | **Ratified: silently degrade.** UI surface for degraded mode is a Phase 2 orchestrator concern. |
 | **Q7** | CI sweep workflow — manual-trigger GitHub Action or local-only? | **Ratified: local-only for Stage B.** Add CI sweep after Stage B has been in prod stably for 30+ days. |

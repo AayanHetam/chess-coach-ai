@@ -363,7 +363,7 @@ Per-turn `correlation_id` threads through. New event types:
 { "event": "capability_gap_logged", "gap_description", "category" }
 ```
 
-Sentry tags add `module=mastermind-orchestrator`, `category=<value>`, `phase=plan|execute|synthesize`. ISEF dataset extraction (per PR_1C_PLAN §3.3) extends naturally.
+Sentry tags add `module=mastermind-orchestrator`, `category=<value>`, `phase=plan|execute|synthesize`. research-dataset extraction (per PR_1C_PLAN §3.3) extends naturally.
 
 ---
 
@@ -460,7 +460,7 @@ This rewrite collapses the old 5-phase plan. Phases 4 (chesstalker + persona) an
 - Stage 3 primitives — feature delta, piece roles, threat trees, tablebase, complexity, critical moments. Registered as tools in Phase 2.A.
 - Persona-scrape pipeline (Reddit + Lichess forums + Stack Exchange) — produces the synthetic-tester's real-question corpus.
 - Synthetic-tester gate — 50-turn sweep, hallucination ≥95% per category hard ceiling, per-category citation floors.
-- Telemetry pipeline — Sentry forwarding, ISEF dataset extraction.
+- Telemetry pipeline — Sentry forwarding, research-dataset extraction.
 - Feature flag `MASTERMIND_VALIDATORS_ENABLED`, preview-only.
 
 ### 7.2 What Phase 1 does NOT ship
@@ -642,7 +642,7 @@ Phase 2 ships the orchestrator. Phase 3 evaluates whether it's actually amazing.
 
 ### 9.3 Phase 3 disposition of the persona-scrape pipeline
 
-Per [PR_1C_PLAN.md §1.7.3](PR_1C_PLAN.md), the persona scraper retires when CMIP yields ≥500 categorized real-user questions. Phase 3's first sweep against the human-rating corpus is also the trigger to flip persona-script generation from "scrape forums" to "draw from CMIP corpus." The scraper code stays in repo for ISEF reproducibility but is no longer the source of synthetic-tester questions.
+Per [PR_1C_PLAN.md §1.7.3](PR_1C_PLAN.md), the persona scraper retires when CMIP yields ≥500 categorized real-user questions. Phase 3's first sweep against the human-rating corpus is also the trigger to flip persona-script generation from "scrape forums" to "draw from CMIP corpus." The scraper code stays in repo for research reproducibility but is no longer the source of synthetic-tester questions.
 
 ### 9.4 Phase 3 PR breakdown (provisional)
 
@@ -659,7 +659,7 @@ Per [PR_1C_PLAN.md §1.7.3](PR_1C_PLAN.md), the persona scraper retires when CMI
 
 ### 10.1 Observability + telemetry
 
-Already-shipped pipeline (PR 1.C `validatorTelemetry.ts`) extends naturally to the orchestrator events in §4.5. New event types pass through the same Sentry forwarder. ISEF query patterns extend; correlation_id threads through plan + execute + synthesize + validators.
+Already-shipped pipeline (PR 1.C `validatorTelemetry.ts`) extends naturally to the orchestrator events in §4.5. New event types pass through the same Sentry forwarder. research query patterns extend; correlation_id threads through plan + execute + synthesize + validators.
 
 A `/admin/mastermind` dashboard (gated `users.role === "admin"`) surfaces:
 - Tool-call mix per category (which tools fire how often).

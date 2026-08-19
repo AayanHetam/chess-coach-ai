@@ -69,7 +69,6 @@ The sequence below is one-at-a-time. Each step ships before the next opens. Esti
 
 ### Continuous (does not block sequence)
 - **Claude for Education credit application** — fold once eligibility window opens
-- **Investor founder framing** — keep the Mumbai urban-poor mission framing in external copy (omit HS-student status). Update the live launch page when the MAU number changes (real ≈100 → adjust when honest)
 
 ## Deferred until 2026-09 or later
 

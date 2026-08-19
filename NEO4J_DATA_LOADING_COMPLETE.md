@@ -490,13 +490,13 @@ LIMIT 10
 
 ---
 
-## 🎯 Connection to Your Original Email
+## 🎯 Connection to the Original Vision
 
-This implementation **directly addresses your two database ideas:**
+This implementation **directly addresses the two database ideas:**
 
 ### ✅ **Database #1: Jhamtani Commentary (298k pairs)**
 
-**Your Vision:**
+**The Vision:**
 > "Connect commentary to FEN strings using graph databases. Adjust commentary to details like rating and opening plans."
 
 **What We Built:**
@@ -521,7 +521,7 @@ const commentary = await fetch('/api/commentary-by-fen', {
 
 ### ✅ **Database #2: Lichess Puzzles (90k+ across 70 themes)**
 
-**Your Vision:**
+**The Vision:**
 > "Model specifically trains the user with more context. Start with puzzles that are only forks, or puzzles that look similar to their specific mistake. Transform puzzle lists into an adaptive learning system through graph traversal."
 
 **What We Built:**
@@ -712,8 +712,7 @@ All queries use indexed lookups:
 ---
 
 **Implementation Time:** ~3 hours
-**Ready for:** Inspirit project demonstration
-**Addresses:** Both database ideas from original email
+**Addresses:** Both database ideas from the original vision
 
 This completes the Neo4j graph database implementation for Chess Masti! 🎉
 

@@ -2,8 +2,9 @@
 
 This is a **second, separate Supabase project** from `../supabase/` (which holds the
 CMIP intern portal). Keeping them separate isolates the high-volume event firehose
-and full AI-conversation capture — including content from minors — from intern eval
-data. Decision + rationale: [TRACKING_PLAN.md](../TRACKING_PLAN.md) §1.
+and consent-gated AI-conversation capture (disclosed on `/privacy`, with an age gate
+and retention purge) from intern eval data. Decision + rationale:
+[TRACKING_PLAN.md](../TRACKING_PLAN.md) §1.
 
 ## Env vars (distinct from CMIP's `SUPABASE_*`)
 

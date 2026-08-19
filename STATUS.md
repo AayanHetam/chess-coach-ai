@@ -54,7 +54,7 @@ A coaching layer over the puzzle surface — no competitor has this.
 ### AEO (Answer Engine Optimization)
 Own the "free AI chess coach" query in Google + ChatGPT + Perplexity + Gemini + Bing Copilot.
 
-- Plan: [AEO_GROWTH_PLAN.md](AEO_GROWTH_PLAN.md). Scorecard: [AEO_SCORECARD.md](AEO_SCORECARD.md).
+- Plan + scorecard: kept out of the public repo (growth-strategy docs).
 - **PR0 (measurement) through PR10 (cleanup) all shipped.** Highlights from the last few weeks:
   - HowTo schema + section anchors on `/how-it-works` (#128)
   - `@id` graph + `isPartOf` on `/faq` and `/vs`, `LearningResource` on `/best-free-ai-chess-coach` (#129)
@@ -64,7 +64,6 @@ Own the "free AI chess coach" query in Google + ChatGPT + Perplexity + Gemini + 
   - June URL gaps: `/lichess-opponent-scout` + `/mistake-based-chess-puzzles` (#140)
 - **Continuous workstream.** Branches still in the tree from in-progress AEO work include `feat/aeo-share-artifacts`, `feat/aeo-share-followups`, `feat/aeo-refactor-content-pages-to-aeoUi`, `feat/aeo-pr*` series. Most have already merged; remaining branches are landed-and-uncleaned.
 - Reminder: JSON-LD must be plain `<script>`, never `next/script` — App Router defers `<Script>`, SSR HTML lacks the JSON-LD, crawlers see nothing (bit us on 21 AEO pages in PR #142).
-- Adjacent: launch page says "10,000+ MAU" but the real number is ~100. Marketing-page-only fib — never extrapolate the 10k number to Anthropic, technical, or factual contexts.
 
 ### Cutover — `/preview/analysis` → `/analysis`
 Replace the legacy analysis surface with the dark-glass design-OS surface.
@@ -191,4 +190,3 @@ These have cost us real time. Read once.
 - **`Inspirit_project` root is not a git repo.** `cd chess-coach-ai/` for all git ops.
 - **For parse/load errors, dump the input before speculating.** First catch should log the failing input. Saved a deploy cycle 4 → 1 on the snippet-dialog bug chain.
 - **OpenAI fallback exists in code but is not configured.** `OPENAI_API_KEY` is not in prod env. Treat Anthropic as the sole live provider for any external copy / claim.
-- **Never frame anything as "open-source" / "OSS" / "community-driven" in external copy.** The OSS path is off (CC-BY-NC license blocker, confirmed 2026-05-10).

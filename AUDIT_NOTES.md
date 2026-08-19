@@ -102,7 +102,7 @@ Prompt versioning: `src/lib/prompts/systemPrompts.ts:22` exports `PROMPT_VERSION
 - `docs/research/{ab-pilot-design,internal-data-probe,concept-similarity-rationale}.md`
 
 **Roadmap / status / planning**:
-- `FEATURE_ROADMAP.md`, `NEXT_STEPS.md`, `FINAL_STATUS.md`, `RYAN_RECOMMENDATIONS_COMPLETE.md`, `THEME_MAPPING_ISSUE.md`, `Chess_Masti_AI_Quality_Improvement_Plan.docx` (binary)
+- `FEATURE_ROADMAP.md`, `NEXT_STEPS.md`, `FINAL_STATUS.md`, `MENTOR_RECOMMENDATIONS_COMPLETE.md`, `THEME_MAPPING_ISSUE.md`, `Chess_Masti_AI_Quality_Improvement_Plan.docx` (binary)
 
 **"FIX_SUMMARY" / "CLEANUP_SUMMARY" docs** (15 files) — historical change logs. **Likely stale.** Review-on-demand only:
 - `AICOACH_FIX_SUMMARY.md`, `ANALYSIS_SIMPLIFICATION_SUMMARY.md`, `CLEANUP_SUMMARY.md`, `CLICKABLE_MOVES_FIX_SUMMARY.md`, `COMPREHENSIVE_CLEANUP_SUMMARY.md`, `DUPLICATE_LINKS_FIX_SUMMARY.md`, `FINAL_CLEANUP_VERIFICATION.md`, `FINAL_SIMPLIFICATION_SUMMARY.md`, `HALLUCINATION_FIX_SUMMARY.md`, `IMPLEMENTATION_SUMMARY.md`, `INTEGRATION_SUMMARY.md`, `PHASE_ANALYSIS_REMOVAL_SUMMARY.md`, `PHASE_BALANCED_ANALYSIS_FIX_SUMMARY.md`, `PNG_ERROR_FIX_SUMMARY.md`, `UI_SIMPLIFICATION_SUMMARY.md`

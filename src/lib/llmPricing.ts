@@ -32,6 +32,19 @@ export interface ModelPricing {
 }
 
 export const MODEL_PRICING: Record<string, ModelPricing> = {
+  // Opus tier. Reachable via LLM_FLAGSHIP_MODEL=claude-opus-5 (see
+  // llmProvider.ANTHROPIC_MODEL_SPECS). 5x Sonnet on both input and output —
+  // CONFIRM against anthropic.com/pricing before quoting the dashboard's
+  // number anywhere that matters; this row was added from the published Opus
+  // tier, not measured.
+  "claude-opus-5": {
+    provider: "anthropic",
+    displayName: "Claude Opus 5",
+    inputPerMillion: 15.0,
+    outputPerMillion: 75.0,
+    cacheWritePerMillion: 18.75,
+    cacheReadPerMillion: 1.5,
+  },
   // Current flagship. Same $3/$15 tier as the retired claude-sonnet-4-20250514.
   "claude-sonnet-4-6": {
     provider: "anthropic",

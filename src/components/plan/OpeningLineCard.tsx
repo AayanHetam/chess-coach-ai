@@ -18,7 +18,9 @@ import {
   type RepertoireReport,
 } from "@/lib/learn/repertoireHole";
 import { fetchMasterViews } from "@/lib/master/useMasterIdeas";
+import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
 import type { MasterView } from "@/lib/master/ideas";
+import type { OpeningTheory } from "@/types/theory";
 
 const EMBER = "#FB923C";
 const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
@@ -250,6 +252,7 @@ function LineBlock({ line }: { line: RepertoireHole }) {
       </Box>
 
       <Diagnosis line={line} />
+      <TheoryNote line={line} />
       <MasterNote line={line} />
     </>
   );
@@ -283,6 +286,79 @@ function Diagnosis({ line }: { line: RepertoireHole }) {
         </>
       )}
     </Typography>
+  );
+}
+
+/**
+ * What the book says about the position you keep reaching.
+ *
+ * The text is CC BY-SA 4.0 from Wikibooks and is shown VERBATIM — share-alike
+ * attaches to adapted material, so quoting is free and rewriting is not. It is
+ * also the safer choice on accuracy: nothing here is generated, so nothing here
+ * can be confidently wrong about a position.
+ *
+ * Attribution is not decoration. The licence requires crediting the source with
+ * a link back to the exact page, so the footer below is load-bearing and must
+ * not be trimmed for space.
+ */
+function TheoryNote({ line }: { line: RepertoireHole }) {
+  const [theory, setTheory] = useState<OpeningTheory | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchOpeningTheory([line.fen]).then((byFen) => {
+      if (!cancelled) setTheory(byFen.get(line.fen) ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [line]);
+
+  if (!theory) return null;
+
+  return (
+    <Box sx={{ mt: 2 }}>
+      <FieldLabel>
+        {theory.name ? `The theory — ${theory.name}` : "The theory"}
+        {theory.eco ? ` · ${theory.eco}` : ""}
+      </FieldLabel>
+      {theory.excerpt.split(/\n{2,}/).map((para, i) => (
+        <Typography
+          key={i}
+          sx={{
+            color: "rgba(255,255,255,0.7)",
+            fontSize: "0.86rem",
+            lineHeight: 1.65,
+            mt: i === 0 ? 0.5 : 1,
+          }}
+        >
+          {para}
+        </Typography>
+      ))}
+      <Typography sx={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.3)", mt: 1 }}>
+        From{" "}
+        <Box
+          component="a"
+          href={theory.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{ color: "rgba(249,115,22,0.75)", "&:hover": { color: EMBER } }}
+        >
+          Wikibooks
+        </Box>
+        , licensed{" "}
+        <Box
+          component="a"
+          href={theory.licenceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{ color: "rgba(249,115,22,0.75)", "&:hover": { color: EMBER } }}
+        >
+          {theory.licence}
+        </Box>
+        .
+      </Typography>
+    </Box>
   );
 }
 

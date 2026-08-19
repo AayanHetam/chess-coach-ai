@@ -25,6 +25,10 @@ const nextConfig = (phase: string): NextConfig => ({
   // ship the JSON alongside the routes that need it at runtime.
   outputFileTracingIncludes: {
     "/api/opening-explorer": ["./src/data/master-tree.json"],
+    // Same reason for the Wikibooks theory corpus (1 MB): the loader reads it
+    // with fs so webpack leaves it alone, which also means the tracer cannot
+    // see the dependency and the file would simply be absent at runtime.
+    "/api/opening-theory": ["./src/data/wikibooks-theory.json"],
     // Note: /api/puzzle-feed's CSV now lives at /public/data/ and is
     // served by Vercel's static handler. The loader reads it via fs from
     // public/ when colocated and falls back to HTTPS fetch from the

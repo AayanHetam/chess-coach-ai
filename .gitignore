@@ -83,3 +83,8 @@ scripts/synthetic-tester/runs/
 
 # loop runtime objective file (placed per-worktree by scripts/loop/loops.sh)
 /OBJECTIVE.md
+
+# Raw wikitext cached by scripts/openings/build-wikibooks-theory.mjs.
+# The committed artefact is src/data/wikibooks-theory.json; this is just the
+# scratch that makes a re-run free instead of 3,000 more requests to Wikimedia.
+.cache/

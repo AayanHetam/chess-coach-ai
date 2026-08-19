@@ -2,7 +2,7 @@
 # Mutation harness for the scout prep engine.
 #
 #   ./scripts/scout/mutate-holefinder.sh            # everything
-#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master | learn
+#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master | learn | theory
 #
 # A green suite proves nothing until it has been watched to fail. Each mutation
 # breaks exactly one guarantee and names the test that must go red.
@@ -28,17 +28,21 @@ PS=src/lib/scout/positionStats.ts
 PL=src/lib/scout/preparedLine.ts
 MI=src/lib/master/ideas.ts
 RH=src/lib/learn/repertoireHole.ts
+WT=src/lib/theory/wikibooksTheory.ts
+WI=scripts/openings/build-wikibooks-theory.mjs
 
 T_HOLE=src/lib/scout/__tests__/holeFinder.test.ts
 T_PREP=src/lib/scout/__tests__/preparedLine.test.ts
 T_JOINT=src/lib/scout/__tests__/jointReport.test.ts
 T_IDEAS=src/lib/master/__tests__/ideas.test.ts
 T_LEARN=src/lib/learn/__tests__/repertoireHole.test.ts
+T_TLOAD=src/lib/theory/__tests__/wikibooksTheory.test.ts
+T_TIMP=src/lib/theory/__tests__/wikibooksImport.test.ts
 
 GROUP="${1:-all}"
 BAK=$(mktemp -d)
-for f in "$HF" "$PS" "$PL" "$MI" "$RH"; do cp "$f" "$BAK/$(basename "$f")"; done
-restore() { for f in "$HF" "$PS" "$PL" "$MI" "$RH"; do cp "$BAK/$(basename "$f")" "$f"; done; }
+for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI"; do cp "$f" "$BAK/$(basename "$f")"; done
+restore() { for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI"; do cp "$BAK/$(basename "$f")" "$f"; done; }
 trap 'restore; rm -rf "$BAK"' EXIT
 
 pass=0; miss=0; stale=0
@@ -157,6 +161,26 @@ mut "$RH" 's/path\[lastIndex - 1\]\.fen/path[lastIndex].fen/' "$T_LEARN" \
   "records the decision point, not just the position after it" "parent position is the position itself"
 mut "$RH" 's/const cost = await engine\.costOfMove\(parentFen, fen\);\s*const here = await engine\.evaluate\(fen\);/const [cost, here] = await Promise.all([engine.costOfMove(parentFen, fen), engine.evaluate(fen)]);/s' "$T_LEARN" \
   "never issues two evaluations at once" "two evaluations in flight (engine desync)"
+fi
+
+if want theory; then
+echo "── theory: borrowed words, credited and unaltered"
+mut "$WI" 's/\(\\s\*\\\.\\\.\)\?//' "$T_TIMP" \
+  "reads Black's move, which is written with three dots" "SAN parser drops Black moves"
+mut "$WI" 's{if \(nextHeading\) body = body.slice\(0, nextHeading.index\);}{}' "$T_TIMP" \
+  "stops before the history and the theory table" "excerpt runs into history and tables"
+mut "$WI" 's{if \(out && out.length \+ p.length \+ 2 > MAX_EXCERPT\) break;}{}' "$T_TIMP" \
+  "never stops mid-sentence at a move number" "excerpt ignores its length cap"
+mut "$WI" 's{excerpt.length > prev.x.length}{false}' "$T_TIMP" \
+  "keeps the best-written page when several share a position" "shortest path beats best written"
+mut "$WT" 's{data.positions\[positionKey\(fen\)\]}{data.positions[fen]}' "$T_TLOAD" \
+  "matches regardless of the move counters" "lookup not transposition-pooled"
+mut "$WT" 's{title\.replace\(/ /g, ._.\)}{encodeURIComponent(title)}' "$T_TLOAD" \
+  "keeps the slashes and dots that make the URL work" "attribution link URL-encoded into a 404"
+mut "$WT" 's{if \(loadFailed\) return null;}{}' "$T_TLOAD" \
+  "does not retry a corpus that failed to load" "missing corpus re-read every request"
+mut "$WT" 's{  if \(!entry\) return null;}{  if (!entry) return { name: undefined, eco: undefined, excerpt: \x27\x27, sourceUrl: \x27\x27, sourceTitle: \x27\x27, licence: data.licence, licenceUrl: data.licenceUrl };}' "$T_TLOAD" \
+  "returns null when the book has nothing, rather than inventing something" "empty theory returned instead of null"
 fi
 
 echo

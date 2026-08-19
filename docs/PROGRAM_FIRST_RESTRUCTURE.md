@@ -21,7 +21,7 @@ Do **not** retire "AI chess coach" as a market position. Two different jobs:
 | **Acquisition** — get strangers here | ~20 AEO pages in `src/app/` (`free-ai-chess-coach`, `ai-chess-coach-for-kids`, `stockfish-ai-chess-coach`, `decodechess-alternative`, …), sitewide metadata, landing SEO | "AI chess coach" — keep |
 | **Retention** — make them come back | `/plan`, the daily session, reminders, streaks | "Your plan / your program" — this is the pivot |
 
-`AEO_GROWTH_PLAN.md`'s north star is literally *"Chess Masti AI = the free AI
+The growth plan's north star is literally *"Chess Masti AI = the free AI
 chess coach"*, and the whole page corpus targets those queries. That's an asset
 built on real search demand; nobody searches "chess learning plan app" at
 volume. Burning it buys nothing.
@@ -35,8 +35,7 @@ target requires, and it should be judged on return-rate, not on brand feel.
 Corollary for scope: **change the in-app experience and the post-signup surface;
 leave the marketing/SEO layer alone** until there's evidence to move it.
 
-Timing note: `AEO_GROWTH_PLAN.md` sets an Aug 31 2026 checkpoint that's supposed
-to decide whether search carries the next quarter. It depends on Google Search
+Timing note: the growth plan's search checkpoint depends on Google Search
 Console impressions — and there is **no `google-site-verification` tag anywhere**
 in the app, so that checkpoint is currently unmeasurable. The decision will be
 made on judgment regardless; shifting effort to retention stands on its own.
@@ -92,13 +91,15 @@ anywhere. There is also no persisted multi-day schedule: days 1–6 are an SRS
 due-date projection recomputed on every page load, so "your week" silently
 rewrites itself as stats change.
 
-**G5 — Reminders send nothing.** All the code, none of the config:
-- **No VAPID keys in any env file.** This also *hides the push opt-in switch
-  entirely* (`GoalsCard` renders it only when `pushConfigured()`), so no user can
-  ever create a subscription even if they want to.
-- **Resend domain unverified** — every email send throws; the route still returns
-  200 by design, so failures are invisible.
-- **`CRON_SECRET` unset** — the endpoint is publicly callable where it's missing.
+**G5 — Reminders send nothing.** All the code, none of the config. Delivery
+depends on several ops-side prerequisites (VAPID keypair, verified email
+domain, cron auth secret — see the Tier 3 checklist) that are provisioned
+outside the repo; until they are, note these code-side facts:
+- `GoalsCard` renders the push opt-in switch only when `pushConfigured()`,
+  so without a VAPID keypair no user can ever create a subscription even if
+  they want to.
+- The email route returns 200 by design even when the send throws, so
+  delivery failures are invisible.
 - **Nobody is opted in.** `reminderPrefs.enabled` is never defaulted true at
   signup or in onboarding; the only writer is a switch buried in the third card
   on a page nothing links to. The cron's query returns ~0 users.
@@ -174,7 +175,7 @@ alone** — that's the front door (§1).
 - **Tier 2 — daily tasks: BUILT** (branch `feat/program-daily-tasks`).
   `dailyLog` records puzzles + themes per day; /plan renders tickable task
   rows and a live goal counter; the week grid shows completed days.
-- **Tier 3 — reminders: BLOCKED on four founder-gated ops.** See below.
+- **Tier 3 — reminders: pending the ops provisioning checklist.** See below.
 - **Tier 4 — in-app naming: not started** (correctly — it comes last).
 
 ### Open decision before Tier 3 code lands

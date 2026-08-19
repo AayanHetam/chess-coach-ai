@@ -571,7 +571,7 @@ Every PR in this plan must satisfy **all** of:
 2. `mastermind/stage-3-primitives` → main (PR 1.A library)
 3. `mastermind/stage-3-validators` → main (PR 1.B library, PR 1.C wiring + sweep)
 
-**Rationale:** the audit trail for ISEF and for future debugging needs to show the decision points distinctly. A squashed merge collapses "what was planned" / "what was built" / "what was wired" into one blob, making it hard to trace why a particular choice was made. Three merges in order keep the boundaries legible:
+**Rationale:** the audit trail for the research write-up and for future debugging needs to show the decision points distinctly. A squashed merge collapses "what was planned" / "what was built" / "what was wired" into one blob, making it hard to trace why a particular choice was made. Three merges in order keep the boundaries legible:
 
 - planning-docs answers *"why this shape?"*
 - primitives answers *"what computes the deltas?"*

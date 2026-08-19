@@ -7,7 +7,7 @@ authors:
     given-names: Aayan
 url: "https://github.com/AayanHetam/chess-coach-ai"
 repository-code: "https://github.com/AayanHetam/chess-coach-ai"
-license: CC-BY-NC-4.0
+license: AGPL-3.0-only
 date-released: "2024-02-01"
 year: 2026
 version: "1.0.0"

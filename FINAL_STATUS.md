@@ -3,7 +3,7 @@
 ## Status: Production Ready for Demo
 
 **Date**: April 18, 2026
-**Database**: Neo4j Aura (1e4a9e7e) - 199,963 nodes, 245k+ relationships
+**Database**: Neo4j Aura - 199,963 nodes, 245k+ relationships
 **Puzzles Loaded**: 100,000 Lichess puzzles with 65+ themes
 **FEN Similarity**: 15/15 test cases passed (100% theme accuracy, 97.4% position similarity)
 
@@ -66,7 +66,7 @@
   - ✅ Match user's rating level
 
 ### 4. Neo4j Database ✅
-**Instance**: `1e4a9e7e.databases.neo4j.io`
+**Instance**: `[instance-id].databases.neo4j.io`
 
 **Nodes** (199,963 total):
 - 100,000 Puzzles (from Lichess)
@@ -218,7 +218,6 @@ node scripts/test-puzzle-matching.mjs --host=https://your-url --limit=20
 4. **For each mistake**: Show recommended puzzles
 5. **Highlight**: "These 5 puzzles all have the same tactical pattern you missed"
 6. **Show FEN similarity**: "Notice how the positions look visually similar"
-7. **Connect to TakeTakeTake**: "Your existing Stockfish + LLM stack can integrate this to close conceptual gaps faster"
 
 ### Video Demo Script (5 minutes)
 ```
@@ -241,16 +240,16 @@ to where I made my mistake. This is the FEN similarity system."
 feature vectors, cosine similarity scoring. Theme matching ensures
 relevance, FEN similarity reinforces pattern recognition."
 
-[4:00-5:00] TakeTakeTake connection
-"You already have Stockfish for mistake detection and LLMs for explanations.
-This adds the missing piece: targeted practice. Your users will improve
-faster because they're practicing the exact patterns they struggle with,
-in positions that look familiar."
+[4:00-5:00] Why it matters
+"Stockfish detects the mistake and the LLM explains it; this adds the
+missing piece: targeted practice. Players improve faster because they're
+practicing the exact patterns they struggle with, in positions that look
+familiar."
 ```
 
 ---
 
-## Metrics for Cover Letter
+## Headline Metrics
 
 ### Technical Achievements
 - ✅ **100,000 puzzles** loaded from Lichess with 65+ themes
@@ -260,7 +259,7 @@ in positions that look familiar."
 - ✅ **97.4% FEN similarity** for position-aware recommendations
 - ✅ **400-500ms query latency** for real-time puzzle generation
 
-### Convergent Stack (with TakeTakeTake)
+### Stack
 - ✅ **Stockfish 17** for position evaluation
 - ✅ **Anthropic Claude** for natural language coaching
 - ✅ **Neo4j graph database** for complex relationships
@@ -275,11 +274,6 @@ in positions that look familiar."
 ---
 
 ## Next Steps
-
-### For TakeTakeTake Interview
-1. ✅ Demo video (5 minutes) - **READY TO RECORD**
-2. ✅ Cover letter emphasizing puzzle generation - **READY TO WRITE**
-3. ✅ Updated CV with metrics - **READY TO UPDATE**
 
 ### For Testers
 1. Share: `TESTER_GUIDE.md`
@@ -320,7 +314,7 @@ tail -f puzzle_load_new_db.log
 ```bash
 # Open Neo4j Browser
 # https://console.neo4j.io/
-# Instance: 1e4a9e7e
+# Instance: [instance-id]
 
 # Run query to check themes
 MATCH (t:Theme)<-[:HAS_THEME]-(p:Puzzle)
@@ -381,4 +375,4 @@ curl -X POST http://localhost:3000/api/similar-puzzles \
 
 **Status**: 🎉 **PRODUCTION READY**
 **Demo Readiness**: ✅ **GO**
-**Next Action**: Record demo video + write cover letter
+**Next Action**: Record demo video

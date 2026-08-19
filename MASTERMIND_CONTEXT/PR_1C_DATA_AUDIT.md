@@ -22,7 +22,7 @@ For each source below, the doc records: what the docs claim, what the code shows
 |---|---|
 | [MASTERMIND_DATA_INVENTORY.md §preloaded](MASTERMIND_DATA_INVENTORY.md) | "Jhamtani et al. (ACL 2018) ChessCommentaryGeneration corpus under `chess-commentary/`" exists in `data/`. Loader is design-only; *"Not currently wired into a runtime endpoint — it's a sidecar that could feed the `(Commentary)−[:FROM_POSITION]→(Position)` edges."* |
 | [PR_1C_PLAN.md §6.4](PR_1C_PLAN.md) | Validator data source = Neo4j Jhamtani commentary corpus. Schema = `:Concept` nodes with `:HAS_COMMENTARY` edges to `:CommentaryEntry` nodes containing example games + prose. |
-| [src/app/faq/page.tsx:59](../src/app/faq/page.tsx#L59), [LandingFeatures.tsx:111](../src/components/landing/LandingFeatures.tsx#L111), [architecture/page.tsx:229](../src/app/architecture/page.tsx#L229), [how-it-works/page.tsx:182](../src/app/how-it-works/page.tsx#L182) | Public marketing claims "298,000+ Jhamtani expert-commentary pairs" joined to the puzzle graph. |
+| [src/app/faq/page.tsx:59](../src/app/faq/page.tsx#L59), [LandingFeatures.tsx:111](../src/components/landing/LandingFeatures.tsx#L111), [architecture/page.tsx:229](../src/app/architecture/page.tsx#L229), [how-it-works/page.tsx:182](../src/app/how-it-works/page.tsx#L182) | Public site copy describes the Jhamtani expert-commentary corpus joined to the puzzle graph. |
 | [scripts/neo4j-loaders/load-commentary.mjs](../scripts/neo4j-loaders/load-commentary.mjs) | Loader exists. Downloads from `github.com/harsh19/ChessCommentaryGeneration`. Default limit 500. Builds `(Position)←[:FROM_POSITION]−(Commentary)` and `(Commentary)−[:IN_OPENING]→(Opening)` edges per [setup-graph.mjs:7](../scripts/neo4j-loaders/setup-graph.mjs#L7). |
 | [src/app/api/commentary-by-fen/route.ts](../src/app/api/commentary-by-fen/route.ts) | Live route. Queries `MATCH (pos:Position)<-[:FROM_POSITION]-(c:Commentary)` and returns `{id, text, move, moveNumber, playerRating, opening, gameId}`. |
 | [scripts/concept-pipeline/README.md:14](../scripts/concept-pipeline/README.md#L14) | "`04-link-commentary.ts` — *(Part B6 — future)* Links the orphaned Jhamtani commentary nodes to their nearest puzzles by embedding cosine." Implies commentary nodes exist in some form but are orphan (not linked to puzzles). |
@@ -40,9 +40,7 @@ For each source below, the doc records: what the docs claim, what the code shows
 
 ### A.3 What this audit cannot verify
 
-- Whether the `:Commentary` nodes still exist in the live Aura instance, or whether Aayan removed them.
-- The actual node count if they exist.
-- Whether the public marketing claim "298,000+" was ever populated to Aura or has always been aspirational.
+- Whether the `:Commentary` nodes exist in the live Aura instance, and the actual node count if they do.
 
 ### A.4 Delta vs PR_1C_PLAN.md §6.4
 
@@ -63,7 +61,7 @@ Three options for `jhamtaniCitation.ts` in PR 1.C:
 | **B. Drop** — remove `jhamtaniCitation.ts` from PR 1.C scope. Concept-explanation category falls back to citation rate 0 against an empty source (no opportunities = no floor failure). | Low — clean removal; §6.4 → trash | Update §6, §2.5, §5.3.2 to reflect "concept explanation has no automated citation validator in 1.C" |
 | **C. Defer** — split `jhamtaniCitation.ts` into a follow-up PR ("PR 1.D"). PR 1.C ships without it; concept-explanation citation tracking is paused until 1.D. | Low — defer cleanly; concept_explanation category gets a known-gap note | Same as B for §6, plus a "deferred to 1.D" stub in §11 (CMIP redirection) clarifying that PR 1.D depends on confirmed Jhamtani Aura state |
 
-**Surfacing for Aayan:** the public marketing claim of "298,000+ Jhamtani expert-commentary pairs" is on **four** prod pages right now. If A.3 reveals the corpus is in fact removed, those pages assert something not true. That's a separate concern from PR 1.C but worth flagging in the same breath — the audit isn't the place to fix marketing copy, but it surfaces the dependency.
+**Surfacing for Aayan:** four prod pages describe the Jhamtani commentary corpus. The site copy must track A.3's verified corpus state — keep the two in sync whichever way the per-source call goes.
 
 ---
 
@@ -361,6 +359,6 @@ Net: PR 1.C grows by ~470 lib LOC and shrinks slightly on test LOC because defer
 
 ### F.4 Out-of-scope concerns flagged for follow-up
 
-- **Public marketing copy** on FAQ / LandingFeatures / how-it-works / architecture claims "298,000+ Jhamtani expert-commentary pairs." If Aura no longer has those nodes, the copy is asserting something not true. Separate concern; not in this audit's lane to fix but worth flagging in the same breath as Aayan's per-source call on Source A.
+- **Public site copy** on FAQ / LandingFeatures / how-it-works / architecture describes the Jhamtani commentary corpus; keep that copy in sync with the verified Aura corpus state per the Source-A call.
 - **`MIN_NB_PLAYS` divergence** between `.py` (50) and `.mjs` (100) ingest scripts. Already in DATA_INVENTORY discrepancy table; live Aura count would resolve which value was applied. Not gating.
 - **Local Lc0 vs HF Spaces Maia coexistence.** Already in DATA_INVENTORY discrepancy table. Out of audit scope.

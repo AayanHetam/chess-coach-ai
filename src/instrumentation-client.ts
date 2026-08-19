@@ -1,10 +1,32 @@
-import * as Sentry from "@sentry/nextjs";
+// Named imports, not `import * as Sentry`: under src/ this file is linted, and
+// the `import/namespace` rule cannot resolve members through the namespace of
+// @sentry/nextjs's type surface — it fails the build on `Sentry.init`. This
+// file previously lived outside src/ where nothing linted it.
+import { init, replayIntegration } from "@sentry/nextjs";
 
+/**
+ * Browser-side Sentry init.
+ *
+ * WHY THIS FILE EXISTS AT ALL. The settings below used to live in
+ * `sentry.client.config.ts`, which is bundled only by the `withSentryConfig`
+ * webpack plugin — and that plugin is configured in `next.config.ts`, which
+ * Next never reads (`next.config.js` resolves first and wins). So the init was
+ * never injected into any bundle, and Sentry has never run in production:
+ * two independent failures, a missing DSN and an init that could not load.
+ *
+ * `instrumentation-client.ts` is loaded by Next itself on Next 15, with no
+ * plugin involved. That makes browser error capture independent of which
+ * config file wins, which is the property worth having here.
+ *
+ * The guards are unchanged and deliberate: no DSN means no init (so a fork or
+ * a preview without the env var is silent rather than broken), and localhost
+ * is excluded so development noise never reaches the project.
+ */
 if (
   process.env.NEXT_PUBLIC_SENTRY_DSN &&
   document.location.hostname !== "localhost"
 ) {
-  Sentry.init({
+  init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     environment: "production",
     // Stop the SDK from auto-attaching cookies, request headers, or the
@@ -14,7 +36,7 @@ if (
     // actually need for triage.
     sendDefaultPii: false,
     integrations: [
-      Sentry.replayIntegration({
+      replayIntegration({
         // Session replays fire at 100% on errors (see below). Without
         // masking the replay would capture the visible chat, the user's
         // typed messages, ProfileDialog inputs (email + the moments

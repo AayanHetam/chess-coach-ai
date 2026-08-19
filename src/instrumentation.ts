@@ -15,6 +15,27 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
+  // Server-side Sentry. The browser half lives in `instrumentation-client.ts`;
+  // this is the half that sees API-route throws, Firestore failures and LLM
+  // errors — i.e. the ones a user never reports because they only see a 500.
+  //
+  // Imported dynamically, like everything else here, so the SDK never lands in
+  // an edge bundle. Guarded on the DSN so a fork or a preview without the env
+  // var boots silently instead of erroring on init.
+  if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+    const Sentry = await import("@sentry/nextjs");
+    Sentry.init({
+      dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+      environment: process.env.VERCEL_ENV ?? "production",
+      // Same reasoning as the client: never auto-attach cookies, headers or
+      // IPs. Server events would otherwise carry the session cookie and the
+      // upstream API credentials present on the request.
+      sendDefaultPii: false,
+      tracesSampleRate: 0.1,
+      debug: false,
+    });
+  }
+
   // Validate env at boot — throws on missing ANTHROPIC_API_KEY etc. so the
   // worker fails fast rather than silently 500ing on the first AI request.
   const { parseEnv, parseBoolEnv } = await import("./env");

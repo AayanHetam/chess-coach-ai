@@ -10,6 +10,17 @@ const withBundleAnalyzer = withBundleAnalyzerInit({
   openAnalyzer: false,
 });
 
+/**
+ * INERT while `next.config.js` exists — Next resolves the .js first and never
+ * reads this file. Verified: none of the COEP/COOP headers below are emitted
+ * in production or by a local `next start`.
+ *
+ * Do not add anything here expecting it to take effect. The live config is
+ * `next.config.js`. Consolidating the two is worth doing, but it MUST be its
+ * own change with a full test pass, because it activates everything below for
+ * the first time — starting with site-wide `require-corp`, which breaks
+ * /scout.
+ */
 const nextConfig = (phase: string): NextConfig => ({
   // Removed static export to enable API routes on Vercel
   // output: "export" prevents API routes from working

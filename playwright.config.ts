@@ -27,6 +27,22 @@ const PROD_BASE = "https://www.chessmasti.com";
 const PORT = process.env.E2E_PORT ?? "3210";
 const LOCAL_BASE = `http://127.0.0.1:${PORT}`;
 
+/**
+ * Every local spec predates the first-visit WelcomeTour and would otherwise
+ * meet its modal on /plan, /puzzles, /analysis, ... — so the "already seen"
+ * flag is seeded at the context level. welcome-tour.spec.ts opts back out
+ * with an empty `test.use({ storageState })` to test the virgin path.
+ */
+const TOUR_SEEN_STATE = {
+  cookies: [],
+  origins: [
+    {
+      origin: LOCAL_BASE,
+      localStorage: [{ name: "cm-welcome-tour-v1", value: "1" }],
+    },
+  ],
+};
+
 export default defineConfig({
   testDir: "tests/e2e",
   timeout: 60_000,
@@ -53,6 +69,7 @@ export default defineConfig({
         // Light preference on purpose: the Obsidian-Glass surfaces must stay
         // dark for light-mode visitors (the white-homepage bug of 2026-08-10).
         colorScheme: "light",
+        storageState: TOUR_SEEN_STATE,
       },
     },
     {
@@ -66,6 +83,7 @@ export default defineConfig({
         browserName: "chromium",
         baseURL: LOCAL_BASE,
         colorScheme: "light",
+        storageState: TOUR_SEEN_STATE,
       },
     },
     {

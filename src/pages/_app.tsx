@@ -13,6 +13,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import QuizPersistenceFlush from "@/components/auth/QuizPersistenceFlush";
 import OnboardingNudge from "@/components/onboarding/OnboardingNudge";
+import WelcomeTour from "@/components/onboarding/WelcomeTour";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 import ConsentBanner from "@/components/consent/ConsentBanner";
 import ProgressSync from "@/components/curriculum/ProgressSync";
@@ -81,6 +82,10 @@ export default function MyApp({ Component, pageProps }: AppProps) {
                 /profile to personalize — a dismissable, one-time dialog. Never
                 force-redirects; the home screen stays the default surface. */}
             <OnboardingNudge />
+            {/* One-time first-visit tour of the three core tools (Practice,
+                Analyze, Plan) with a miniature of the nav pill. Product
+                surfaces only; yields to OnboardingNudge when both are due. */}
+            <WelcomeTour />
             {/* Registers the push service worker (no-op where unsupported). */}
             <ServiceWorkerRegistrar />
             {/* Makes training progress durable: merges the server copy in on

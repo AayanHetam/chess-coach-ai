@@ -7,7 +7,9 @@ import { Sparkles, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasFreshPendingFlush } from "@/components/onboarding/quizStorage";
 
-const DISMISS_KEY = "cm_onboarding_nudge_dismissed";
+// Exported so WelcomeTour can defer to this dialog instead of stacking on it.
+export const NUDGE_DISMISS_KEY = "cm_onboarding_nudge_dismissed";
+const DISMISS_KEY = NUDGE_DISMISS_KEY;
 
 // Surfaces where the nudge would be redundant or in the way: the quiz itself,
 // and /profile (which is exactly where we'd be sending them).

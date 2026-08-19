@@ -1,8 +1,22 @@
 # Code Protection Guide for Chess Masti AI
 
-**Last Updated:** April 11, 2026
+> ## ⚠️ SUPERSEDED — 2026-08-19
+>
+> This document describes a **CC BY-NC 4.0** posture that no longer applies. The
+> project relicensed to **AGPL-3.0-only** and the source is open.
+>
+> That reverses this guide's central premise. Under AGPL anyone may use, modify
+> and redistribute the code, **including commercially** — what they cannot do is
+> take it proprietary, and if they run a modified version as a network service
+> they must offer their users the source (§13). The "non-commercial use only"
+> advice below is no longer the license we grant.
+>
+> Kept for history rather than deleted: it records why the earlier choice was
+> made. Do not follow its instructions. See `LICENSE` and `COPYING.md`.
+
+**Last Updated:** April 11, 2026 (superseded 2026-08-19)
 **Author:** Aayan Hetamsaria
-**License:** CC BY-NC 4.0
+**License:** ~~CC BY-NC 4.0~~ → AGPL-3.0-only
 
 ---
 

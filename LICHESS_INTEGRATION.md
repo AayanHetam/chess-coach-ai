@@ -225,7 +225,7 @@ To improve the integration:
 
 ## License
 
-This integration is part of ChessMasti and follows the same license (CC-BY-NC-4.0).
+This integration is part of Chess Masti AI and follows the same license (AGPL-3.0-only).
 
 ---
 

@@ -22,13 +22,13 @@
 </p>
 
 <p align="center">
-<a href="https://creativecommons.org/licenses/by-nc/4.0/">
-<img src="https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg" alt="License: CC BY-NC 4.0">
+<a href="https://www.gnu.org/licenses/agpl-3.0">
+<img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License: AGPL v3">
 </a>
 <img src="https://img.shields.io/badge/Copyright-2024--2026%20Aayan%20Hetamsaria-blue.svg" alt="Copyright 2024-2026 Aayan Hetamsaria">
 </p>
 
-> **Note on licensing.** Source is publicly visible but **not open-source**. The code is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) — non-commercial use only, attribution required. Commercial use, redistribution, and derivative commercial products are not permitted. If you want to use Chess Masti AI commercially, please reach out.
+> **Note on licensing.** The code is **open source** under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0). Chess Masti AI is derived from [Chesskit](https://github.com/GuillaumeSD/Chesskit) and, through it, [lichess](https://github.com/lichess-org/lila) — both AGPL — so the same terms carry through. If you run a modified version as a network service, AGPL §13 requires you to offer your users its source. Some bundled piece sets and sounds are under their own, stricter terms; see [COPYING.md](COPYING.md) for the exception list.
 
 ## What this is
 
@@ -96,6 +96,6 @@ Built and maintained by **Aayan Hetamsaria**, a high-school student. Priority ma
 
 ## License & contact
 
-License: **[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)**. Non-commercial use only; attribution required. Source is visible but rights are restricted — this is not an open-source project.
+License: **[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0)**. Free to use, study, modify and redistribute; derivative works must stay AGPL, and running a modified version as a network service obliges you to offer its source to your users (§13). Bundled piece sets and sounds keep their own licenses — see [COPYING.md](COPYING.md).
 
-For commercial use inquiries, partnerships, or coverage, file an issue or reach the maintainer through the contact links at [chessmasti.com](https://chessmasti.com).
+For partnerships or coverage, file an issue or reach the maintainer through the contact links at [chessmasti.com](https://chessmasti.com).

@@ -191,4 +191,4 @@ These have cost us real time. Read once.
 - **`Inspirit_project` root is not a git repo.** `cd chess-coach-ai/` for all git ops.
 - **For parse/load errors, dump the input before speculating.** First catch should log the failing input. Saved a deploy cycle 4 → 1 on the snippet-dialog bug chain.
 - **OpenAI fallback exists in code but is not configured.** `OPENAI_API_KEY` is not in prod env. Treat Anthropic as the sole live provider for any external copy / claim.
-- **Never frame anything as "open-source" / "OSS" / "community-driven" in external copy.** The OSS path is off (CC-BY-NC license blocker, confirmed 2026-05-10).
+- **~~Never frame anything as "open-source"~~ — REVERSED 2026-08-19.** The project is now AGPL-3.0 and the repo is going public, so "open source" is accurate and may be used. The old rule existed because CC-BY-NC is not an OSI-approved license; that blocker is gone. Caveat for copy: the CODE is open source, but several bundled piece sets and sounds are NonCommercial/NoDerivatives (see `COPYING.md`), so do not claim the whole repository is.

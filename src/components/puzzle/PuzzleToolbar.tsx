@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Box, Tooltip, Typography } from "@mui/material";
-import { BookOpen, Clock, Eye, EyeOff, Ban } from "lucide-react";
+import { BookOpen, Clock, Eye, EyeOff, Ban, LineChart } from "lucide-react";
 import { formatSolveClock } from "@/lib/puzzle/solveClock";
 
 /**
@@ -13,10 +13,12 @@ import { formatSolveClock } from "@/lib/puzzle/solveClock";
  * right, closed by a hairline divider. The tools are affordances you reach
  * for, so they must not compete with the board.
  *
- * Analyse lands in a follow-up. It needs an engine mount (WASM load, a
- * Lichess cloud-eval call baked into that code path, caching) and it has to
- * be gated until the puzzle is resolved — Stockfish's best move IS the
- * answer, so an always-available Analyse button is a cheat button.
+ * Analyse is gated by `analysisGate.ts`. Stockfish's best move IS the puzzle's
+ * answer, so the button stays disabled — and says why on hover — until the
+ * puzzle is solved or the solution is shown. It is disabled rather than hidden
+ * because a tool that only appears after you succeed is a tool nobody
+ * discovers. The engine mounts lazily behind it, so the ~7 MB download only
+ * happens for solvers who actually open it.
  */
 
 const DIM = "rgba(255,240,224,0.5)";
@@ -97,6 +99,14 @@ interface PuzzleToolbarProps {
   onToggleReference: () => void;
   eliminateOn: boolean;
   onToggleEliminate: () => void;
+  analyseOn: boolean;
+  /**
+   * Set while the puzzle is unsolved. Present ⇒ the button is disabled and
+   * explains why, rather than vanishing — a tool that appears only after you
+   * succeed is a tool nobody discovers.
+   */
+  analyseDisabledReason?: string;
+  onToggleAnalyse: () => void;
   /** Session counters + Finish, kept at the far right. */
   trailing?: ReactNode;
 }
@@ -110,6 +120,9 @@ export function PuzzleToolbar({
   onToggleReference,
   eliminateOn,
   onToggleEliminate,
+  analyseOn,
+  analyseDisabledReason,
+  onToggleAnalyse,
   trailing,
 }: PuzzleToolbarProps) {
   return (
@@ -139,7 +152,9 @@ export function PuzzleToolbar({
           }}
           aria-live="off"
           aria-label={
-            timerHidden ? "Solve time hidden" : `Solve time ${formatSolveClock(elapsedMs)}`
+            timerHidden
+              ? "Solve time hidden"
+              : `Solve time ${formatSolveClock(elapsedMs)}`
           }
         >
           {formatSolveClock(elapsedMs)}
@@ -184,6 +199,18 @@ export function PuzzleToolbar({
         label="Eliminate"
         active={eliminateOn}
         onClick={onToggleEliminate}
+      />
+
+      {/* Analyse sits last: it is the only tool that is unavailable most of
+          the time, so putting it before the always-live ones would make the
+          row read as half-broken. */}
+      <ToolButton
+        icon={<LineChart size={18} />}
+        label="Analyse"
+        active={analyseOn}
+        disabled={Boolean(analyseDisabledReason)}
+        disabledReason={analyseDisabledReason}
+        onClick={onToggleAnalyse}
       />
 
       {trailing ? <Box sx={{ ml: 1 }}>{trailing}</Box> : null}

@@ -1,5 +1,5 @@
 import { Chess, type Color, type PieceSymbol, type Square } from "chess.js";
-import { PIECE_VALUE_CP } from "@/lib/tactics/utils";
+import { PIECE_VALUE_CP, exchangeValue, materialValue, promotionBonus } from "@/lib/tactics/utils";
 
 /**
  * The board-derived half of intent — what a move does to the position,
@@ -68,88 +68,6 @@ export interface PositionFacts {
   recaptureNetCp: number | null;
 }
 
-/** Value of a piece, with the king's sentinel kept out of material maths. */
-function valueOf(piece: PieceSymbol | string | undefined): number {
-  if (!piece || piece === "k") return 0;
-  return PIECE_VALUE_CP[piece as PieceSymbol] ?? 0;
-}
-
-/** What a promotion adds beyond the pawn that bought it. */
-function promotionBonus(promotion: string | undefined): number {
-  if (!promotion) return 0;
-  return (PIECE_VALUE_CP[promotion as PieceSymbol] ?? 0) - PIECE_VALUE_CP.p;
-}
-
-/**
- * Static exchange evaluation, played out on real legal moves.
- *
- * Two hazards this has to avoid, both of which were live defects found by an
- * adversarial audit:
- *
- *  - The KING is not capturable material. chess.js happily generates
- *    "Rxe1" capturing a king on the turn-flipped position this function builds,
- *    and PIECE_VALUE_CP.k is 99999 — so an unguarded recursion priced every
- *    check evasion at 999.99 pawns, then re-parsed a kingless board and threw.
- *  - A PROMOTION is worth more than the piece standing on the target square.
- *    Pricing only the occupant inverted the sign of rook-winning promotions.
- */
-function exchangeValue(position: Chess, target: Square, side: Color, depth = 0): number {
-  if (depth > 12) return 0; // pathological positions; exchanges never run this deep
-  const occupant = position.get(target);
-  if (!occupant || occupant.color === side) return 0;
-  // A king can be attacked but never won.
-  if (occupant.type === "k") return 0;
-
-  // chess.js only generates moves for the side to move, so asking what the
-  // OPPONENT could win on a square during our turn silently returns nothing.
-  let game = position;
-  if (game.turn() !== side) {
-    const parts = position.fen().split(" ");
-    parts[1] = side;
-    parts[3] = "-";
-    try {
-      game = new Chess(parts.join(" "));
-    } catch {
-      return 0;
-    }
-  }
-
-  let captures;
-  try {
-    captures = game.moves({ verbose: true }).filter((m) => m.to === target && m.captured);
-  } catch {
-    return 0;
-  }
-  if (captures.length === 0) return 0;
-
-  // Least valuable attacker — but ranked by what the capture is WORTH to the
-  // recapturing side, not by the bare piece value. Two traps here, both of
-  // which produced sign-flipped material claims:
-  //
-  //  - valueOf() maps the king to 0 so that a king is never counted as material
-  //    won. Reused as a sort key that made the king the cheapest attacker, so a
-  //    king recapture was always chosen over a pawn that captures and PROMOTES.
-  //    Because the promotion tie-break only ran on an exact value tie, it never
-  //    fired: a move losing 400cp was reported as winning 400cp.
-  //  - The promotion bonus belongs in the key itself, not in the tie-break.
-  const cost = (m: { piece: PieceSymbol; promotion?: string }) =>
-    (m.piece === "k" ? PIECE_VALUE_CP.q + 1 : valueOf(m.piece)) - promotionBonus(m.promotion);
-  captures.sort((a, b) => cost(a) - cost(b));
-  const chosen = captures[0];
-  const gained = valueOf(occupant.type) + promotionBonus(chosen.promotion);
-
-  let next: Chess;
-  try {
-    next = new Chess(game.fen());
-    next.move({ from: chosen.from, to: chosen.to, promotion: (chosen.promotion ?? "q") as never });
-  } catch {
-    return 0;
-  }
-  const opponent: Color = side === "w" ? "b" : "w";
-  // The opponent recaptures only if it pays; hence max(0, ...).
-  return Math.max(0, gained - exchangeValue(next, target, opponent, depth + 1));
-}
-
 function attackedBy(game: Chess, square: Square, by: Color): boolean {
   try {
     return game.isAttacked(square, by);
@@ -211,7 +129,7 @@ export function buildPositionFacts(
 
     const to = move.to as Square;
     const from = move.from as Square;
-    const capturedCp = valueOf(move.captured);
+    const capturedCp = materialValue(move.captured);
     const promoBonus = promotionBonus(move.promotion);
 
     // What the opponent can win back on the square we landed on — including
@@ -232,7 +150,7 @@ export function buildPositionFacts(
     const isRecapture = !!opponentLastCaptureSquare && move.to === opponentLastCaptureSquare;
     const isKing = move.piece === "k";
     const standingLoss = !isKing && wasAttacked ? exchangeValue(before, from, opponent) : 0;
-    const movedValue = Math.min(valueOf(move.piece), MAX_PIECE_CP);
+    const movedValue = Math.min(materialValue(move.piece), MAX_PIECE_CP);
     const escapedAttack = !isKing && wasAttacked && standingLoss > 0 && !isAttackedAfter;
 
     return {
@@ -361,10 +279,10 @@ function capturableOnArrival(fen: string, threatSan: string): boolean | null {
 
     // Cheapest capturer first, priced like exchangeValue prices it.
     const cost = (m: { piece: PieceSymbol; promotion?: string }) =>
-      (m.piece === "k" ? PIECE_VALUE_CP.q + 1 : valueOf(m.piece)) - promotionBonus(m.promotion);
+      (m.piece === "k" ? PIECE_VALUE_CP.q + 1 : materialValue(m.piece)) - promotionBonus(m.promotion);
     captures.sort((a, b) => cost(a) - cost(b));
     const chosen = captures[0];
-    const gained = valueOf(occupant.type) + promotionBonus(chosen.promotion);
+    const gained = materialValue(occupant.type) + promotionBonus(chosen.promotion);
 
     const next = new Chess(g.fen());
     next.move({ from: chosen.from, to: chosen.to, promotion: (chosen.promotion ?? "q") as never });
@@ -489,7 +407,7 @@ export function isTemptingReply(fen: string, replySan: string): boolean {
     }
     if (probe.isCheck()) return true;
     if (!move.captured) return false;
-    return valueOf(move.captured) >= valueOf(move.piece);
+    return materialValue(move.captured) >= materialValue(move.piece);
   } catch {
     return false;
   }

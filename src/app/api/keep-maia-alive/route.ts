@@ -19,13 +19,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   // Authorize: Vercel cron sends `Authorization: Bearer <CRON_SECRET>`.
-  // If CRON_SECRET is not set we still allow the call (useful for local
-  // testing / external uptime monitors), but log a warning.
-  if (CRON_SECRET) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Fail closed: a missing CRON_SECRET must reject, not open the relay.
+  const auth = req.headers.get("authorization");
+  if (!CRON_SECRET || auth !== `Bearer ${CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   if (!MAIA_API_URL) {

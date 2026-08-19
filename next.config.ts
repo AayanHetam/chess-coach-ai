@@ -32,6 +32,23 @@ const nextConfig = (phase: string): NextConfig => ({
   },
   headers: async () => [
           {
+            // Baseline hardening on every route: block framing (clickjacking),
+            // MIME sniffing, and referrer leakage to third parties.
+            source: "/:path*",
+            headers: [
+              { key: "X-Frame-Options", value: "DENY" },
+              { key: "X-Content-Type-Options", value: "nosniff" },
+              {
+                key: "Referrer-Policy",
+                value: "strict-origin-when-cross-origin",
+              },
+              {
+                key: "Strict-Transport-Security",
+                value: "max-age=63072000; includeSubDomains; preload",
+              },
+            ],
+          },
+          {
             source: "/((?!_next/static|_next/image|favicon.*|apple-touch-icon.*|android-chrome.*).*)",
             headers: [
               {

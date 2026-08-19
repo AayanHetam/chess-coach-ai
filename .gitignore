@@ -83,3 +83,6 @@ scripts/synthetic-tester/runs/
 
 # loop runtime objective file (placed per-worktree by scripts/loop/loops.sh)
 /OBJECTIVE.md
+
+# Supabase CLI scratch state (contains internal project/org ids)
+supabase-tracking/supabase/.temp/

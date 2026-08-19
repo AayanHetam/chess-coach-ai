@@ -113,3 +113,39 @@ test("showing the solution unlocks Analyse", async ({ page }) => {
 
   await expect(analyseButton(page)).toBeEnabled({ timeout: 15000 });
 });
+
+test("unlocking Analyse is visible, not just enabled", async ({ page }) => {
+  // Shipped first as a 0.25 → 0.5 alpha shift on the same colour, sitting
+  // between two identical-looking tools. Aayan solved a puzzle and asked
+  // "where even is analyse" — the unlock was technically correct and
+  // perceptually absent. `toBeEnabled()` alone would never have caught that,
+  // so this asserts the treatment a person can actually see.
+  const styles = () =>
+    analyseButton(page).evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { background: s.backgroundColor, border: s.borderTopColor };
+    });
+
+  await page.goto("/puzzles");
+  await waitForStableFen(page);
+  const locked = await styles();
+  // Locked is flat: no fill, no edge.
+  expect(locked.background).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+
+  await page.getByRole("button", { name: /show solution/i }).click();
+  await expect(analyseButton(page)).toBeEnabled({ timeout: 15000 });
+
+  // Polled, not read once: the fill animates over 180ms, and `toBeEnabled()`
+  // resolves the instant the attribute drops — so a single read lands
+  // mid-transition and sees the OLD colour. That failed on desktop and passed
+  // on mobile purely on timing, which is the same trap as the force-click above.
+  await expect
+    .poll(async () => (await styles()).background, { timeout: 5000 })
+    .toMatch(/rgba?\(255, 122, 26/);
+
+  const unlocked = await styles();
+  // Unlocked carries a real ember fill AND a border — the two things that make
+  // it read as a chip rather than as one more flat label.
+  expect(unlocked.background).not.toBe(locked.background);
+  expect(unlocked.border).not.toBe(locked.border);
+});

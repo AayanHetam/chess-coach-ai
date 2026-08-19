@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import { BookOpen, RotateCcw, Search } from "lucide-react";
+import { BookOpen, Dumbbell, RotateCcw, Search } from "lucide-react";
 import {
   formatLine,
   type RepertoireHole,
@@ -190,6 +190,36 @@ function Ready({
   return (
     <>
       <LineBlock line={line} />
+
+      {/* The card diagnoses; the trainer repairs. One primary action, and it is
+          the one that changes something. */}
+      <Box
+        component="a"
+        href="/train/opening"
+        sx={{
+          mt: 2.5,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 1,
+          minHeight: 44,
+          px: 2.25,
+          borderRadius: "12px",
+          border: "1px solid rgba(249,115,22,0.5)",
+          background: "rgba(249,115,22,0.08)",
+          color: EMBER,
+          fontSize: "0.78rem",
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textDecoration: "none",
+          transition: "background 180ms ease, border-color 180ms ease",
+          "&:hover": { background: "rgba(249,115,22,0.16)", borderColor: EMBER },
+          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        }}
+      >
+        <Dumbbell size={15} aria-hidden />
+        FIX THIS LINE
+      </Box>
+
       {others.length > 0 && (
         <Box sx={{ mt: 2.5 }}>
           <FieldLabel>Also leaking</FieldLabel>

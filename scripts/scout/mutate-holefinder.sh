@@ -2,7 +2,7 @@
 # Mutation harness for the scout prep engine.
 #
 #   ./scripts/scout/mutate-holefinder.sh            # everything
-#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master | learn | theory
+#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master | learn | theory | trainer
 #
 # A green suite proves nothing until it has been watched to fail. Each mutation
 # breaks exactly one guarantee and names the test that must go red.
@@ -30,6 +30,7 @@ MI=src/lib/master/ideas.ts
 RH=src/lib/learn/repertoireHole.ts
 WT=src/lib/theory/wikibooksTheory.ts
 WI=scripts/openings/build-wikibooks-theory.mjs
+TS=src/lib/learn/trainerSession.ts
 
 T_HOLE=src/lib/scout/__tests__/holeFinder.test.ts
 T_PREP=src/lib/scout/__tests__/preparedLine.test.ts
@@ -38,11 +39,12 @@ T_IDEAS=src/lib/master/__tests__/ideas.test.ts
 T_LEARN=src/lib/learn/__tests__/repertoireHole.test.ts
 T_TLOAD=src/lib/theory/__tests__/wikibooksTheory.test.ts
 T_TIMP=src/lib/theory/__tests__/wikibooksImport.test.ts
+T_TRAIN=src/lib/learn/__tests__/trainerSession.test.ts
 
 GROUP="${1:-all}"
 BAK=$(mktemp -d)
-for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI"; do cp "$f" "$BAK/$(basename "$f")"; done
-restore() { for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI"; do cp "$BAK/$(basename "$f")" "$f"; done; }
+for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI" "$TS"; do cp "$f" "$BAK/$(basename "$f")"; done
+restore() { for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI" "$TS"; do cp "$BAK/$(basename "$f")" "$f"; done; }
 trap 'restore; rm -rf "$BAK"' EXIT
 
 pass=0; miss=0; stale=0
@@ -181,6 +183,24 @@ mut "$WT" 's{if \(loadFailed\) return null;}{}' "$T_TLOAD" \
   "does not retry a corpus that failed to load" "missing corpus re-read every request"
 mut "$WT" 's{  if \(!entry\) return null;}{  if (!entry) return { name: undefined, eco: undefined, excerpt: \x27\x27, sourceUrl: \x27\x27, sourceTitle: \x27\x27, licence: data.licence, licenceUrl: data.licenceUrl };}' "$T_TLOAD" \
   "returns null when the book has nothing, rather than inventing something" "empty theory returned instead of null"
+fi
+
+if want trainer; then
+echo "── trainer: the session, and what it refuses to fake"
+mut "$TS" 's{line.color === .white. \? whiteToMove : !whiteToMove}{whiteToMove}' "$T_TRAIN" \
+  "gives Black the odd plies" "turn order ignores the user colour"
+mut "$TS" 's{if \(ply === decision && line.target\) return line.target.san;}{}' "$T_TRAIN" \
+  "asks for the REPLACEMENT at the decision, not the habit" "drill asks for the habit it is replacing"
+mut "$TS" 's{positionKey\(played\) === positionKey\(want\)}{san === expected}' "$T_TRAIN" \
+  "grades by position, so two spellings of one move both pass" "graded on the move string, not the position"
+mut "$TS" 's{if \(ok === null\) return state;}{}' "$T_TRAIN" \
+  "does not spoil a run for an illegal drag" "an illegal drag costs a streak"
+mut "$TS" 's{confrontMove: san,[\s\S]*?feedback: .none.,}{confrontMove: san, playedHabit, feedback: \x27wrong\x27,}' "$T_TRAIN" \
+  "never flashes red at the move they always play" "confront accuses instead of observing"
+mut "$TS" 's{clean \? state.streak \+ 1 : 0}{state.streak + 1}' "$T_TRAIN" \
+  "resets the streak when a run was spoiled" "a spoiled run still counts as clean"
+mut "$TS" 's{if \(!line.target\) return \{ ...state, act: .done. \};}{}' "$T_TRAIN" \
+  "ends the session when there is nothing better to drill" "invents a drill with no replacement"
 fi
 
 echo

@@ -22,13 +22,12 @@
 </p>
 
 <p align="center">
-<a href="https://creativecommons.org/licenses/by-nc/4.0/">
-<img src="https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg" alt="License: CC BY-NC 4.0">
+<a href="https://www.gnu.org/licenses/agpl-3.0">
+<img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License: AGPL v3">
 </a>
-<img src="https://img.shields.io/badge/Copyright-2024--2026%20Aayan%20Hetamsaria-blue.svg" alt="Copyright 2024-2026 Aayan Hetamsaria">
 </p>
 
-> **Note on licensing.** Source is publicly visible but **not open-source**. The code is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) — non-commercial use only, attribution required. Commercial use, redistribution, and derivative commercial products are not permitted. If you want to use Chess Masti AI commercially, please reach out.
+> **Free and open source.** Chess Masti AI is licensed under the [GNU AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0) — the license of the [Chesskit](https://github.com/GuillaumeSD/chesskit) project it grew from (see [COPYING.md](COPYING.md) for lineage). You are free to use, study, modify, and redistribute it under the same terms; if you run a modified version as a network service, the AGPL asks you to offer its source to your users too.
 
 ## What this is
 
@@ -96,6 +95,6 @@ Built and maintained by **Aayan Hetamsaria**, a high-school student. Priority ma
 
 ## License & contact
 
-License: **[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)**. Non-commercial use only; attribution required. Source is visible but rights are restricted — this is not an open-source project.
+License: **[GNU AGPL-3.0](LICENSE)**, inherited from the Chesskit lineage documented in [COPYING.md](COPYING.md). This is free, open-source software.
 
-For commercial use inquiries, partnerships, or coverage, file an issue or reach the maintainer through the contact links at [chessmasti.com](https://chessmasti.com).
+For partnerships or coverage, file an issue or reach the maintainer through the contact links at [chessmasti.com](https://chessmasti.com).

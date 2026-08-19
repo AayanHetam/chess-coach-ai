@@ -23,7 +23,14 @@ const pct = (v: number) => Math.round(v * 100);
 export interface TrainerPanelProps {
   state: TrainerState;
   line: TrainerLine;
-  hole: RepertoireHole;
+  /**
+   * The measurement this line came from, when there is one.
+   *
+   * Null on a scheduled review: the card carries the line, and the finding
+   * that produced it is deliberately not required — a repaired line stops
+   * being flagged, which is the point. See reviewSchedule.ts.
+   */
+  hole: RepertoireHole | null;
   theory: OpeningTheory | null;
   master: MasterView | null;
   onAdvance: () => void;
@@ -35,6 +42,8 @@ export interface TrainerPanelProps {
    * as a bug; one sentence turns it into a courtesy.
    */
   resumedNote?: string | null;
+  /** When this line next comes back, in words. Review sessions only. */
+  nextReview?: string | null;
 }
 
 export default function TrainerPanel(props: TrainerPanelProps) {
@@ -144,6 +153,7 @@ function Block({ children, delay = 0 }: { children: React.ReactNode; delay?: num
 // ── Act 1 ────────────────────────────────────────────────────────────────────
 
 function Confront({ hole }: TrainerPanelProps) {
+  if (!hole) return null;
   return (
     <Block>
       <Label icon={<Target size={15} />}>Your move</Label>
@@ -161,6 +171,7 @@ function Confront({ hole }: TrainerPanelProps) {
 // ── Act 2 ────────────────────────────────────────────────────────────────────
 
 function Learn({ state, hole, theory, master, line }: TrainerPanelProps) {
+  if (!hole) return null;
   const played = state.confrontMove ?? "";
   return (
     <>
@@ -264,11 +275,12 @@ function Learn({ state, hole, theory, master, line }: TrainerPanelProps) {
 
 function Drill({ state, line }: TrainerPanelProps) {
   const target = line.target;
+  const review = state.mode === "review";
   return (
     <Block>
-      <Label icon={<Target size={15} />}>Drill</Label>
+      <Label icon={<Target size={15} />}>{review ? "Review" : "Drill"}</Label>
       <Typography sx={{ color: "#fff", fontSize: "1.05rem", fontWeight: 600, lineHeight: 1.4, mb: 1 }}>
-        Play the line through.
+        {review ? "You fixed this one. Still got it?" : "Play the line through."}
       </Typography>
       <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.88rem", lineHeight: 1.6 }}>
         {target
@@ -299,17 +311,44 @@ function Drill({ state, line }: TrainerPanelProps) {
         </Box>
       )}
 
-      <Typography sx={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.35)", mt: 2 }}>
-        {state.streak} clean {state.streak === 1 ? "run" : "runs"} banked
-        {state.runs > state.streak ? ` · ${state.runs} attempted` : ""}
-      </Typography>
+      {/* A tally is only worth showing when there is something to accumulate.
+          On a one-run review "0 clean runs banked" is noise dressed as
+          progress. */}
+      {!review && (
+        <Typography sx={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.35)", mt: 2 }}>
+          {state.streak} clean {state.streak === 1 ? "run" : "runs"} banked
+          {state.runs > state.streak ? ` · ${state.runs} attempted` : ""}
+        </Typography>
+      )}
     </Block>
   );
 }
 
 // ── Done ─────────────────────────────────────────────────────────────────────
 
-function Done({ line, hole }: TrainerPanelProps) {
+function Done({ state, line, hole, nextReview }: TrainerPanelProps) {
+  // A review that went clean is not a repair, and saying "Repaired" again
+  // would claim work they did not just do.
+  if (state.mode === "review") {
+    const clean = state.misses === 0;
+    return (
+      <Block>
+        <Label icon={<Check size={15} />}>{clean ? "Still there" : "Needed a nudge"}</Label>
+        <Typography sx={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700, lineHeight: 1.4, mb: 1 }}>
+          {clean
+            ? "Straight through, no prompting."
+            : `You found it after ${state.misses} ${state.misses === 1 ? "miss" : "misses"}.`}
+        </Typography>
+        <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem", lineHeight: 1.65 }}>
+          {clean
+            ? "That is what sticking looks like. "
+            : "Worth catching now rather than over the board. "}
+          {nextReview ? `We will ask ${nextReview}.` : ""}
+        </Typography>
+      </Block>
+    );
+  }
+  if (!hole) return null;
   return (
     <Block>
       <Label icon={<Check size={15} />}>Repaired</Label>
@@ -323,7 +362,7 @@ function Done({ line, hole }: TrainerPanelProps) {
           <>
             The next time this comes up in a real game, you have a move to reach
             for. You score {pct(hole.score)}% here today; that is the number to
-            watch.
+            watch.{nextReview ? ` We will check you still have it ${nextReview}.` : ""}
           </>
         ) : (
           <>

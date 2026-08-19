@@ -12,7 +12,7 @@
 
 import { Box, Typography } from "@mui/material";
 import { ArrowLeft, Check, RotateCcw } from "lucide-react";
-import { DRILL_TARGET, type ActStep } from "@/lib/learn/trainerSession";
+import type { ActStep } from "@/lib/learn/trainerSession";
 
 const EMBER = "#FB923C";
 const DONE = "#86EFAC";
@@ -26,6 +26,12 @@ export interface TrainerRailProps {
   streak: number;
   /** True once the drill is running, so the pips only appear when they mean something. */
   drilling: boolean;
+  /**
+   * Clean runs this session is asking for. Three to repair, one to review.
+   * Read from the session rather than fixed, so a one-run review does not draw
+   * two empty pips it will never fill.
+   */
+  goal: number;
   onExit: () => void;
   /** Throw the saved session away and begin again. */
   onRestart: () => void;
@@ -38,6 +44,7 @@ export default function TrainerRail({
   steps,
   streak,
   drilling,
+  goal,
   onExit,
   onRestart,
 }: TrainerRailProps) {
@@ -78,7 +85,7 @@ export default function TrainerRail({
         </Box>
       </Box>
 
-      {drilling && <Pips streak={streak} />}
+      {drilling && goal > 1 && <Pips streak={streak} goal={goal} />}
 
       {/* Pushed to the floor, away from the acts: starting over throws progress
           away, and a destructive action does not belong next to the ones that
@@ -118,6 +125,7 @@ export function TrainerRailStrip({
   steps,
   streak,
   drilling,
+  goal,
   onExit,
   onRestart,
 }: TrainerRailProps) {
@@ -151,7 +159,7 @@ export function TrainerRailStrip({
           {current?.label}
         </Typography>
       </Box>
-      {drilling && <Pips streak={streak} compact />}
+      {drilling && goal > 1 && <Pips streak={streak} goal={goal} compact />}
       {/* The rail is hidden at this width, so without this there is no way to
           start over on a phone at all. Icon-only for room, with a real name for
           anyone not reading it visually. */}
@@ -301,14 +309,14 @@ function Glyph({ status }: { status: ActStep["status"] }) {
  * Visible before the streak is at risk, so the cost of a miss is legible in
  * advance rather than only after it is paid.
  */
-function Pips({ streak, compact }: { streak: number; compact?: boolean }) {
+function Pips({ streak, goal, compact }: { streak: number; goal: number; compact?: boolean }) {
   return (
     <Box
       role="img"
-      aria-label={`${streak} of ${DRILL_TARGET} clean runs`}
+      aria-label={`${streak} of ${goal} clean runs`}
       sx={{ display: "flex", gap: 0.75, mt: compact ? 0 : 0.5, flexShrink: 0 }}
     >
-      {Array.from({ length: DRILL_TARGET }, (_, i) => (
+      {Array.from({ length: goal }, (_, i) => (
         <Box
           key={i}
           sx={{

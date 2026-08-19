@@ -22,8 +22,28 @@ import { positionKey } from '@/lib/scout/positionStats';
 
 export type Act = 'confront' | 'learn' | 'drill' | 'done';
 
+/**
+ * Why the session is running.
+ *
+ *   repair  First contact with a line we have measured as costing them. All
+ *           three acts, because the point is to change a habit.
+ *   review  A line they already repaired, come back round on the spaced
+ *           schedule. One clean run and out. Re-running the confrontation
+ *           would be re-accusing them of a habit they have already fixed, and
+ *           re-running the full three would make every review feel like a
+ *           punishment for having done the work.
+ */
+export type SessionMode = 'repair' | 'review';
+
 /** Clean runs needed before a line counts as repaired. */
 export const DRILL_TARGET = 3;
+
+/** Clean runs asked for on a scheduled review. */
+export const REVIEW_TARGET = 1;
+
+export function goalFor(mode: SessionMode): number {
+  return mode === 'review' ? REVIEW_TARGET : DRILL_TARGET;
+}
 
 export interface TrainerTarget {
   san: string;
@@ -55,6 +75,8 @@ export type Feedback = 'none' | 'correct' | 'wrong';
 
 export interface TrainerState {
   act: Act;
+  /** Why this session is running. Decides the acts and the run target. */
+  mode: SessionMode;
   /** Plies completed in the current drill run. */
   ply: number;
   fen: string;
@@ -77,6 +99,14 @@ export interface TrainerState {
   lastWrong: string | null;
   /** True once the current run has had a miss; a run is clean or it is not. */
   runSpoiled: boolean;
+  /**
+   * Misses across the whole session, not just this run.
+   *
+   * The grade a review feeds back to the scheduler. `runSpoiled` cannot carry
+   * it: it is reset every run by design, so a session that missed six times
+   * and a session that missed once would schedule identically.
+   */
+  misses: number;
 }
 
 /** The move the user is expected to find at `ply`, or null if it is not theirs. */
@@ -110,9 +140,12 @@ export function fenAfter(line: TrainerLine, n: number): string {
 /** The ply the flagged move sits at. */
 export const decisionPly = (line: TrainerLine): number => line.moves.length - 1;
 
-export function createSession(line: TrainerLine): TrainerState {
+export function createSession(line: TrainerLine, mode: SessionMode = 'repair'): TrainerState {
+  // A review has nothing to confront and nothing new to teach. It is the drill.
+  if (mode === 'review') return startRun(line, 'review');
   return {
     act: 'confront',
+    mode,
     // CONFRONT opens one ply BEFORE the flagged move: the decision itself, with
     // the move not yet made.
     ply: decisionPly(line),
@@ -124,6 +157,7 @@ export function createSession(line: TrainerLine): TrainerState {
     feedback: 'none',
     lastWrong: null,
     runSpoiled: false,
+    misses: 0,
   };
 }
 
@@ -194,7 +228,13 @@ function submitDrill(state: TrainerState, line: TrainerLine, san: string): Train
   if (ok === null) return state;
 
   if (!ok) {
-    return { ...state, feedback: 'wrong', lastWrong: san, runSpoiled: true };
+    return {
+      ...state,
+      feedback: 'wrong',
+      lastWrong: san,
+      runSpoiled: true,
+      misses: state.misses + 1,
+    };
   }
 
   // Correct. Advance past this ply, then past any opponent replies that follow,
@@ -220,7 +260,7 @@ function submitDrill(state: TrainerState, line: TrainerLine, san: string): Train
   const clean = !state.runSpoiled;
   const streak = clean ? state.streak + 1 : 0;
   const runs = state.runs + 1;
-  if (streak >= DRILL_TARGET) {
+  if (streak >= goalFor(state.mode)) {
     return {
       ...state,
       act: 'done',
@@ -232,11 +272,11 @@ function submitDrill(state: TrainerState, line: TrainerLine, san: string): Train
       lastWrong: null,
     };
   }
-  return { ...startRun(line), streak, runs, feedback: 'correct' };
+  return { ...startRun(line, state.mode), streak, runs, misses: state.misses, feedback: 'correct' };
 }
 
 /** A fresh drill run from the top of the line. */
-export function startRun(line: TrainerLine): TrainerState {
+export function startRun(line: TrainerLine, mode: SessionMode = 'repair'): TrainerState {
   // Auto-play any opponent moves before the user's first turn.
   let ply = 0;
   const board = new Chess();
@@ -250,6 +290,7 @@ export function startRun(line: TrainerLine): TrainerState {
   }
   return {
     act: 'drill',
+    mode,
     ply,
     fen: board.fen(),
     streak: 0,
@@ -259,6 +300,7 @@ export function startRun(line: TrainerLine): TrainerState {
     feedback: 'none',
     lastWrong: null,
     runSpoiled: false,
+    misses: 0,
   };
 }
 
@@ -273,7 +315,7 @@ export function startRun(line: TrainerLine): TrainerState {
 export function advance(state: TrainerState, line: TrainerLine): TrainerState {
   if (state.act !== 'learn') return state;
   if (!line.target) return { ...state, act: 'done' };
-  return { ...startRun(line), streak: state.streak, runs: state.runs };
+  return { ...startRun(line, state.mode), streak: state.streak, runs: state.runs, misses: state.misses };
 }
 
 /** Clear a wrong-move flash without touching progress. */
@@ -289,14 +331,15 @@ export interface ActStep {
 
 /** The rail's three rows. */
 export function steps(state: TrainerState, line: TrainerLine): ActStep[] {
-  const order: Array<Exclude<Act, 'done'>> = line.target
-    ? ['confront', 'learn', 'drill']
-    : ['confront', 'learn'];
+  // A review is one act. Showing it as step 3 of 3 with the first two ticked
+  // would claim they just did work they did not do.
+  const order: Array<Exclude<Act, 'done'>> =
+    state.mode === 'review' ? ['drill'] : line.target ? ['confront', 'learn', 'drill'] : ['confront', 'learn'];
   const reachedIndex = state.act === 'done' ? order.length : order.indexOf(state.act as Exclude<Act, 'done'>);
   const labels: Record<Exclude<Act, 'done'>, string> = {
     confront: 'Play your move',
     learn: 'See what it costs',
-    drill: `Drill it ${DRILL_TARGET} times`,
+    drill: state.mode === 'review' ? 'Play it once, clean' : `Drill it ${DRILL_TARGET} times`,
   };
   return order.map((act, i) => ({
     act,

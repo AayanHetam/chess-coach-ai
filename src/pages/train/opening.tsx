@@ -26,10 +26,11 @@ import type { FlashState } from "@/components/puzzle/FlashOverlay";
 import TrainerRail, { TrainerRailStrip } from "@/components/train/TrainerRail";
 import TrainerPanel from "@/components/train/TrainerPanel";
 import { useRepertoireHole } from "@/lib/learn/useRepertoireHole";
-import { formatLine, type RepertoireHole } from "@/lib/learn/repertoireHole";
+import { formatLine, holeLine, type RepertoireHole } from "@/lib/learn/repertoireHole";
 import {
   advance,
   createSession,
+  goalFor,
   isUsersPly,
   steps as railSteps,
   submitMove,
@@ -38,10 +39,19 @@ import {
 import {
   clearSession,
   describeProgress,
+  lineKeyOf,
   loadSession,
   markRepaired,
   saveSession,
 } from "@/lib/learn/trainerProgress";
+import { modeOf, parseTrainerQuery, resolveHole } from "@/lib/learn/trainerRoute";
+import {
+  describeNext,
+  findCard,
+  recordReview,
+  scheduleAfterRepair,
+  type ReviewCard,
+} from "@/lib/learn/reviewSchedule";
 import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
 import { fetchMasterViews } from "@/lib/master/useMasterIdeas";
 import type { OpeningTheory } from "@/types/theory";
@@ -79,13 +89,38 @@ export default function OpeningTrainerPage() {
   }, [profile?.chesscomUsername, profile?.lichessUsername]);
 
   const repertoire = useRepertoireHole(account);
-  const hole = repertoire.line;
+  const accountId = `${account.platform}:${account.username ?? ""}`;
+
+  // Which of the three ways in this is. Parsed once, off the query, so the
+  // rest of the page never re-derives "is this a review" from a raw string.
+  const request = useMemo(
+    () => parseTrainerQuery(router.query),
+    [router.query]
+  );
+  const mode = modeOf(request);
+
+  // A review is served from its own card and needs no measurement, no engine
+  // and no archive. That independence is the point: see reviewSchedule.ts.
+  const [card, setCard] = useState<ReviewCard | null>(null);
+  useEffect(() => {
+    if (request.kind !== "review" || !account.username) {
+      setCard(null);
+      return;
+    }
+    setCard(findCard(accountId, request.lineKey));
+  }, [request, accountId, account.username]);
+
+  const resolved = useMemo(
+    () => resolveHole(repertoire.reports, request),
+    [repertoire.reports, request]
+  );
+  const hole = resolved.status === "ready" ? resolved.hole : null;
 
   const [theory, setTheory] = useState<OpeningTheory | null>(null);
   const [master, setMaster] = useState<MasterView | null>(null);
 
   useEffect(() => {
-    if (!hole) return;
+    if (!hole || mode === "review") return;
     let cancelled = false;
     const habit = hole.line[hole.line.length - 1]?.san;
     void fetchOpeningTheory([hole.fen]).then((m) => {
@@ -97,16 +132,16 @@ export default function OpeningTrainerPage() {
     return () => {
       cancelled = true;
     };
-  }, [hole]);
+  }, [hole, mode]);
 
+  // The line to drill. A review takes it from the card verbatim; everything
+  // else builds it from the measurement plus whatever the engine and the
+  // masters have to say.
   const line: TrainerLine | null = useMemo(() => {
+    if (mode === "review") return card?.line ?? null;
     if (!hole) return null;
-    return {
-      moves: hole.line.map((m) => m.san),
-      color: hole.color,
-      target: targetFor(hole, master),
-    };
-  }, [hole, master]);
+    return { ...holeLine(hole), target: targetFor(hole, master) };
+  }, [mode, card, hole, master]);
 
   const [state, setState] = useState<ReturnType<typeof createSession> | null>(null);
   const [resumed, setResumed] = useState(false);
@@ -115,26 +150,40 @@ export default function OpeningTrainerPage() {
   // land after the user has already moved, and rebuilding the session then
   // would silently rewind them to act one. Nothing in createSession reads the
   // target, and the drill reads it live, so a late arrival still works.
-  const lineKey = line ? `${line.moves.join(" ")}|${line.color}` : "";
-  const accountId = `${account.platform}:${account.username ?? ""}`;
+  // ONE identity for a line, shared with saved sessions, review cards and the
+  // links that point here. A second spelling would let a link open a line
+  // whose paused session could never be found again.
+  const lineKey = line ? lineKeyOf(line) : "";
 
   useEffect(() => {
     if (!line || !account.username) {
       setState(null);
       return;
     }
-    const saved = loadSession(accountId, line, Date.now());
-    setState(saved ?? createSession(line));
+    const saved = loadSession(accountId, line, Date.now(), mode);
+    setState(saved ?? createSession(line, mode));
     setResumed(Boolean(saved));
-  }, [lineKey, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lineKey, accountId, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Persist on every change. One small write, and it is what makes walking
   // away from a three-run drill free rather than expensive.
+  const [nextReview, setNextReview] = useState<string | null>(null);
+
   useEffect(() => {
     if (!state || !line || !account.username) return;
     if (state.act === "done") {
-      markRepaired(accountId, line, formatLine(hole!.line, hole!.color), state.runs, Date.now());
-      clearSession(accountId);
+      const now = Date.now();
+      const label = hole ? formatLine(hole.line, hole.color) : (card?.label ?? lineKey);
+      // Finishing is the ONLY place a schedule is written. A line that is
+      // merely opened, or abandoned mid-run, changes nothing: a review you
+      // walked away from is not evidence about how well you know the line.
+      const scheduled =
+        state.mode === "review"
+          ? recordReview(accountId, lineKey, state.misses, now)
+          : scheduleAfterRepair(accountId, line, label, state.misses, now);
+      if (state.mode !== "review") markRepaired(accountId, line, label, state.runs, now);
+      setNextReview(scheduled ? describeNext(scheduled, now) : null);
+      clearSession(accountId, state.mode);
       return;
     }
     saveSession(accountId, line, state, Date.now());
@@ -142,10 +191,10 @@ export default function OpeningTrainerPage() {
 
   const restart = useCallback(() => {
     if (!line) return;
-    clearSession(accountId);
-    setState(createSession(line));
+    clearSession(accountId, mode);
+    setState(createSession(line, mode));
     setResumed(false);
-  }, [line, accountId]);
+  }, [line, accountId, mode]);
 
   const [flashKey, setFlashKey] = useState(0);
   const exit = useCallback(() => void router.push("/plan"), [router]);
@@ -202,17 +251,24 @@ export default function OpeningTrainerPage() {
   const flash: FlashState =
     state?.feedback === "correct" ? "green" : state?.feedback === "wrong" ? "red" : "idle";
 
-  if (!hole || !line || !state) {
+  if (!line || !state) {
+    // Three different nothings, and collapsing them would tell most of these
+    // players something untrue. Asking for a line we no longer hold is not the
+    // same as never having measured, and neither is "still working".
+    const working = repertoire.phase === "fetching" || repertoire.phase === "building";
+    const gone = !working && request.kind !== "today";
     return (
       <Shell>
         <Box sx={{ p: 4, maxWidth: 520 }}>
           <Typography sx={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700, mb: 1 }}>
-            Nothing to train yet
+            {gone ? "That line is not in your measurement any more" : "Nothing to train yet"}
           </Typography>
           <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.92rem", lineHeight: 1.65 }}>
-            {repertoire.phase === "fetching" || repertoire.phase === "building"
+            {working
               ? `${repertoire.label}…`
-              : "Measure your repertoire on your plan first, and we will bring the line that costs you most."}
+              : gone
+                ? "It was measured from games you have played, and the measurement has since been rebuilt. That usually means the line stopped costing you, which is the outcome we were after."
+                : "Measure your repertoire on your plan first, and we will bring the line that costs you most."}
           </Typography>
           <Box
             component="button"
@@ -237,7 +293,8 @@ export default function OpeningTrainerPage() {
     );
   }
 
-  const label = formatLine(hole.line, hole.color);
+  const label = hole ? formatLine(hole.line, hole.color) : (card?.label ?? "");
+  const goal = goalFor(state.mode);
   const yourTurn = state.act === "confront" || (state.act === "drill" && isUsersPly(line, state.ply));
 
   return (
@@ -247,6 +304,7 @@ export default function OpeningTrainerPage() {
         steps={railSteps(state, line)}
         streak={state.streak}
         drilling={state.act === "drill"}
+        goal={goal}
         onExit={exit}
         onRestart={restart}
         resumed={resumed}
@@ -258,6 +316,7 @@ export default function OpeningTrainerPage() {
           steps={railSteps(state, line)}
           streak={state.streak}
           drilling={state.act === "drill"}
+          goal={goal}
           onExit={exit}
           onRestart={restart}
           resumed={resumed}
@@ -286,7 +345,7 @@ export default function OpeningTrainerPage() {
           >
             <PuzzleBoardSurface
               fen={state.fen}
-              orientation={hole.color}
+              orientation={line.color}
               interactive={yourTurn && state.act !== "done"}
               onPieceDrop={onPieceDrop}
               pieceSet={pieceSet}
@@ -314,7 +373,7 @@ export default function OpeningTrainerPage() {
                   : state.act === "learn"
                     ? `You played ${state.confrontMove ?? ""}`
                     : yourTurn
-                      ? `You play ${hole.color === "white" ? "White" : "Black"}`
+                      ? `You play ${line.color === "white" ? "White" : "Black"}`
                       : "Your opponent replies"}
               </Typography>
               <Typography
@@ -326,7 +385,9 @@ export default function OpeningTrainerPage() {
               >
                 {state.act === "drill"
                   ? `move ${Math.floor(state.ply / 2) + 1} of ${Math.ceil(line.moves.length / 2)}`
-                  : `${hole.games} games`}
+                  : hole
+                    ? `${hole.games} games`
+                    : ""}
               </Typography>
             </Box>
           </Box>
@@ -336,6 +397,7 @@ export default function OpeningTrainerPage() {
             line={line}
             hole={hole}
             resumedNote={resumed ? describeProgress(state) : null}
+            nextReview={nextReview}
             theory={theory}
             master={master}
             onAdvance={() => setState(advance(state, line))}

@@ -258,3 +258,74 @@ describe('steps', () => {
     expect(steps(s, WHITE).every(r => r.status === 'done')).toBe(true);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Review mode.
+//
+// A review is the same drill with a different contract: the player already did
+// the work, so re-running the confrontation would re-accuse them of a habit
+// they have fixed, and re-running all three would make the reward for doing it
+// properly be doing it again.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('review mode', () => {
+  const LINE: TrainerLine = {
+    moves: ['e4', 'c5', 'c3'],
+    color: 'white',
+    target: { san: 'Nf3', source: 'engine' },
+  };
+
+  it('opens straight into the drill, with no confrontation', () => {
+    const s = createSession(LINE, 'review');
+    expect(s.act).toBe('drill');
+    expect(s.mode).toBe('review');
+  });
+
+  it('is one clean run, not three', () => {
+    let s = createSession(LINE, 'review');
+    s = submitMove(s, LINE, 'e4');
+    s = submitMove(s, LINE, 'Nf3');
+    expect(s.act).toBe('done');
+    expect(s.streak).toBe(1);
+  });
+
+  it('still asks for three when the session is a repair', () => {
+    let s = advance({ ...createSession(LINE), act: 'learn' }, LINE);
+    for (let run = 0; run < 2; run++) {
+      s = submitMove(s, LINE, 'e4');
+      s = submitMove(s, LINE, 'Nf3');
+      expect(s.act).toBe('drill');
+    }
+    s = submitMove(s, LINE, 'e4');
+    s = submitMove(s, LINE, 'Nf3');
+    expect(s.act).toBe('done');
+    expect(s.streak).toBe(DRILL_TARGET);
+  });
+
+  it('counts every miss across the session, not just the current run', () => {
+    // runSpoiled resets each run by design, so it cannot carry the grade: a
+    // session that missed six times and one that missed once would schedule
+    // identically.
+    let s = advance({ ...createSession(LINE), act: 'learn' }, LINE);
+    s = submitMove(s, LINE, 'd4'); // wrong
+    expect(s.misses).toBe(1);
+    s = submitMove(s, LINE, 'e4');
+    s = submitMove(s, LINE, 'Nc3'); // wrong
+    expect(s.misses).toBe(2);
+    s = submitMove(s, LINE, 'Nf3'); // run ends, spoiled
+    expect(s.runSpoiled).toBe(false); // fresh run
+    expect(s.misses).toBe(2); // but the session remembers
+  });
+
+  it('shows one act on the rail, not three with two falsely ticked', () => {
+    const s = createSession(LINE, 'review');
+    const rows = steps(s, LINE);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].act).toBe('drill');
+    expect(rows[0].status).toBe('current');
+  });
+
+  it('keeps a repair on all three rows', () => {
+    expect(steps(createSession(LINE), LINE)).toHaveLength(3);
+  });
+});

@@ -13,7 +13,7 @@
 // session", which costs one restart. A throw here would take the trainer down
 // on mount, which is the one failure a resume feature must not introduce.
 
-import type { TrainerLine, TrainerState } from '@/lib/learn/trainerSession';
+import type { SessionMode, TrainerLine, TrainerState } from '@/lib/learn/trainerSession';
 
 const PREFIX = 'cm.trainer.v1';
 
@@ -34,6 +34,15 @@ export interface SavedSession {
   savedAt: number;
 }
 
+/**
+ * Sessions are stored per MODE.
+ *
+ * A repair and a review of the same line share a line key but are different
+ * work: three acts against one. Sharing a slot would let a paused repair be
+ * resumed as a finished review, or a review overwrite a repair someone was
+ * half way through.
+ */
+
 export interface RepairedLine {
   lineKey: string;
   /** The line as the reader saw it, so a history can be shown without re-deriving. */
@@ -53,8 +62,9 @@ export function lineKeyOf(line: Pick<TrainerLine, 'moves' | 'color'>): string {
   return `${line.color}:${line.moves.join(' ')}`;
 }
 
-function sessionKey(account: string): string {
-  return `${PREFIX}.session:${account.toLowerCase()}`;
+function sessionKey(account: string, mode: SessionMode): string {
+  const suffix = mode === 'review' ? '.review' : '';
+  return `${PREFIX}.session${suffix}:${account.toLowerCase()}`;
 }
 
 function repairedKey(account: string): string {
@@ -96,7 +106,7 @@ export function saveSession(
   state: TrainerState,
   now: number
 ): void {
-  write(sessionKey(account), {
+  write(sessionKey(account, state.mode), {
     v: 1,
     lineKey: lineKeyOf(line),
     state,
@@ -116,9 +126,10 @@ export function loadSession(
   account: string,
   line: Pick<TrainerLine, 'moves' | 'color'>,
   now: number,
+  mode: SessionMode = 'repair',
   ttlMs: number = SESSION_TTL_MS
 ): TrainerState | null {
-  const saved = read<SavedSession>(sessionKey(account));
+  const saved = read<SavedSession>(sessionKey(account, mode));
   if (!saved || saved.v !== 1) return null;
   if (saved.lineKey !== lineKeyOf(line)) return null;
   if (typeof saved.savedAt !== 'number' || now - saved.savedAt > ttlMs) return null;
@@ -126,11 +137,14 @@ export function loadSession(
   if (!state || typeof state !== 'object') return null;
   if (typeof state.act !== 'string' || typeof state.fen !== 'string') return null;
   if (state.act === 'done') return null;
-  return state;
+  // Fields added after sessions were already in the wild. `misses` in
+  // particular is arithmetic: undefined + 1 is NaN, which would silently
+  // corrupt the grade a review feeds back to the scheduler.
+  return { ...state, mode: state.mode === 'review' ? 'review' : 'repair', misses: state.misses ?? 0 };
 }
 
-export function clearSession(account: string): void {
-  remove(sessionKey(account));
+export function clearSession(account: string, mode: SessionMode = 'repair'): void {
+  remove(sessionKey(account, mode));
 }
 
 /** Everything this account has repaired, newest first. */

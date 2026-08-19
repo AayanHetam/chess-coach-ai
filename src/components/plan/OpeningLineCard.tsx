@@ -11,13 +11,21 @@
 
 import { useEffect, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import { BookOpen, Check, Dumbbell, Play, RotateCcw, Search } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Dumbbell, History, Play, RotateCcw, Search } from "lucide-react";
 import {
   formatLine,
+  holeLine,
+  rankHoles,
   type RepertoireHole,
   type RepertoireReport,
 } from "@/lib/learn/repertoireHole";
 import { isRepaired, loadSession } from "@/lib/learn/trainerProgress";
+import { reviewHref, trainerHref } from "@/lib/learn/trainerRoute";
+import {
+  dueCards,
+  needsFullRepair,
+  type ReviewCard,
+} from "@/lib/learn/reviewSchedule";
 import { fetchMasterViews } from "@/lib/master/useMasterIdeas";
 import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
 import type { MasterView } from "@/lib/master/ideas";
@@ -189,13 +197,21 @@ function Ready({
             ? "We looked at both colours and found no line where you score measurably below your own average. That is a good result, not a missing one — your losses are not concentrated in one opening."
             : "Not enough games yet to measure a repertoire. Positions need to repeat before a score in them means anything."}
         </Body>
+        {/* Reviews belong on BOTH sides of this branch. Having no leaking line
+            left is the success case, and it is exactly when the only thing
+            still worth doing is checking the lines you already fixed. Putting
+            this after the early return would have made a clean repertoire
+            silently swallow its own review queue. */}
+        <DueForReview accountId={accountId} />
         <RunButton onClick={onRun} icon={<RotateCcw size={15} />} label="MEASURE AGAIN" />
       </>
     );
   }
 
-  const others = reports
-    .flatMap((r) => r.holes)
+  // The queue, in the same order the trainer would offer them. Ranked once,
+  // centrally, so this list and the headline can never disagree about which
+  // line matters most.
+  const others = rankHoles(reports)
     .filter((h) => h !== line)
     .slice(0, 3);
 
@@ -212,32 +228,16 @@ function Ready({
       {others.length > 0 && (
         <Box sx={{ mt: 2.5 }}>
           <FieldLabel>Also leaking</FieldLabel>
+          {/* Every one of these is trainable. Listing a measured weakness and
+              then offering no way to act on it makes the card a report; the
+              only difference between a report and a plan is whether the rows
+              go anywhere. */}
           {others.map((h) => (
-            <Box
-              key={`${h.color}-${h.fen}`}
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 2,
-                py: 0.6,
-                borderBottom: "1px solid rgba(255,255,255,0.06)",
-                "&:last-of-type": { borderBottom: "none" },
-              }}
-            >
-              <Typography
-                sx={{ fontFamily: MONO, fontSize: "0.8rem", color: "rgba(255,255,255,0.7)" }}
-              >
-                {formatLine(h.line, h.color)}
-              </Typography>
-              <Typography
-                sx={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}
-              >
-                {pct(h.score)}% · {h.games} games
-              </Typography>
-            </Box>
+            <QueueRow key={`${h.color}-${h.fen}`} hole={h} />
           ))}
         </Box>
       )}
+      <DueForReview accountId={accountId} />
       <Footer cachedAt={cachedAt} reports={reports} onRun={onRun} />
     </>
   );
@@ -254,7 +254,7 @@ function TrainCta({ line, accountId }: { line: RepertoireHole; accountId: string
 
   useEffect(() => {
     if (!accountId) return;
-    const key = { moves: line.line.map((m) => m.san), color: line.color };
+    const key = holeLine(line);
     if (loadSession(accountId, key, Date.now())) setStatus("resume");
     else if (isRepaired(accountId, key)) setStatus("repaired");
     else setStatus("fresh");
@@ -268,7 +268,7 @@ function TrainCta({ line, accountId }: { line: RepertoireHole; accountId: string
     <Box sx={{ mt: 2.5, display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
       <Box
         component="a"
-        href="/train/opening"
+        href={trainerHref(line)}
         sx={{
           display: "inline-flex",
           alignItems: "center",
@@ -297,6 +297,105 @@ function TrainCta({ line, accountId }: { line: RepertoireHole; accountId: string
           <Typography sx={{ fontSize: "0.78rem", color: "#86EFAC" }}>Repaired</Typography>
         </Box>
       )}
+    </Box>
+  );
+}
+
+/** One trainable line in the queue. A whole row, so the target is the row. */
+function QueueRow({ hole }: { hole: RepertoireHole }) {
+  return (
+    <Box
+      component="a"
+      href={trainerHref(hole)}
+      aria-label={`Train ${formatLine(hole.line, hole.color)}`}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 2,
+        // 44px of target, met with padding rather than by growing the text.
+        minHeight: 44,
+        px: 1,
+        mx: -1,
+        borderRadius: "10px",
+        textDecoration: "none",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        "&:last-of-type": { borderBottom: "none" },
+        transition: "background 180ms ease",
+        "&:hover": { background: "rgba(255,255,255,0.04)" },
+        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: -2 },
+      }}
+    >
+      <Typography sx={{ fontFamily: MONO, fontSize: "0.8rem", color: "rgba(255,255,255,0.7)" }}>
+        {formatLine(hole.line, hole.color)}
+      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexShrink: 0 }}>
+        <Typography sx={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>
+          {pct(hole.score)}% · {hole.games} games
+        </Typography>
+        <ChevronRight size={14} color="rgba(255,255,255,0.35)" aria-hidden />
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * Lines that came back round.
+ *
+ * Read in an effect, like every other localStorage read on this card: a server
+ * render that guessed would hydrate into a different list.
+ *
+ * Hidden entirely when nothing is due. An empty "0 due" row would be a
+ * permanent reminder that there is nothing to remind them of.
+ */
+function DueForReview({ accountId }: { accountId: string | null }) {
+  const [due, setDue] = useState<ReviewCard[]>([]);
+
+  useEffect(() => {
+    if (!accountId) return;
+    setDue(dueCards(accountId, Date.now()));
+  }, [accountId]);
+
+  if (due.length === 0) return null;
+  return (
+    <Box sx={{ mt: 2.5 }}>
+      <FieldLabel>Due to check</FieldLabel>
+      {due.map((card) => (
+        <Box
+          key={card.lineKey}
+          component="a"
+          href={reviewHref(card.lineKey, needsFullRepair(card))}
+          aria-label={`Review ${card.label}`}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+            minHeight: 44,
+            px: 1,
+            mx: -1,
+            borderRadius: "10px",
+            textDecoration: "none",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            "&:last-of-type": { borderBottom: "none" },
+            transition: "background 180ms ease",
+            "&:hover": { background: "rgba(255,255,255,0.04)" },
+            "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: -2 },
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+            <History size={14} color="rgba(255,255,255,0.4)" aria-hidden />
+            <Typography sx={{ fontFamily: MONO, fontSize: "0.8rem", color: "rgba(255,255,255,0.7)" }}>
+              {card.label}
+            </Typography>
+          </Box>
+          <Typography sx={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>
+            {/* A line that keeps lapsing is not a review any more, and the
+                link says so before they click it. */}
+            {needsFullRepair(card) ? "train again" : "one clean run"}
+          </Typography>
+        </Box>
+      ))}
     </Box>
   );
 }

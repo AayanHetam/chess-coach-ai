@@ -241,6 +241,37 @@ export const TRAP_MIN_COST_CP = 200;
 export const TRAP_MIN_ATTRIBUTION_CP = 100;
 
 /**
+ * Every tunable that shapes what this module claims, in one place, so
+ * telemetry can fingerprint the calibration a row was produced under. These
+ * numbers were calibrated against the founder's rulings on real positions —
+ * a retune silently mixes two populations unless rows say which table made
+ * them (same discipline as DEFAULT_ARMING_TABLE / armingFingerprint).
+ *
+ * Add every NEW threshold here when it is born; a constant that shapes claims
+ * but is missing from this record produces telemetry that cannot be trusted
+ * across retunes.
+ */
+export const INTENT_CALIBRATION = {
+  ALREADY_LOST_CP,
+  COST_MIN_LOSS_CP,
+  DECISIVE_CP,
+  MATERIAL_MIN_CP,
+  MATE_CP,
+  OPPONENT_ALREADY_LOST_CP,
+  PROPHYLAXIS_MIN_REFUTATION_SHARE,
+  PROPHYLAXIS_MIN_SPECIFIC_CP,
+  PROPHYLAXIS_MIN_SWING_CP,
+  PROPHYLAXIS_THREAT_MUST_END_BELOW_CP,
+  SHARPNESS_CLEARLY_BEST_CP,
+  SHARPNESS_ONLY_MOVE_CP,
+  SHARPNESS_SLIGHT_EDGE_CP,
+  THREAT_MIN_TEMPO_VALUE_CP,
+  THREAT_STRENGTHENED_MIN_CP,
+  TRAP_MIN_ATTRIBUTION_CP,
+  TRAP_MIN_COST_CP,
+} as const;
+
+/**
  * Side-channel from the analysis passes to the "is this position quiet" gate.
  *
  * A pass can decline to make a claim for two very different reasons: it looked

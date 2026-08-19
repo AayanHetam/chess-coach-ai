@@ -29,12 +29,22 @@ const GAME_EVAL: GameEval = {
 const MOVES = ["e4", "e5", "Nf3"];
 
 describe("isIntentFactsEnabled", () => {
-  it("is OFF unless explicitly set to the string true", () => {
+  it("is OFF for empty, unset, and falsy values", () => {
     expect(isIntentFactsEnabled({})).toBe(false);
     expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "" })).toBe(false);
-    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "1" })).toBe(false);
-    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "TRUE" })).toBe(false);
+    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "false" })).toBe(false);
+    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "0" })).toBe(false);
+  });
+
+  it("parses with the shared parseBoolEnv — trim and case are forgiven", () => {
+    // The trailing-newline case is the one that bit prod: Vercel's UI appends
+    // "\n" to multi-line saves, and the old exact-string match read the armed
+    // flag as off. parseBoolEnv exists to make that class of incident
+    // impossible; the intent flag must not be the one hold-out that keeps it.
     expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "true" })).toBe(true);
+    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "true\n" })).toBe(true);
+    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "TRUE" })).toBe(true);
+    expect(isIntentFactsEnabled({ INTENT_FACTS_ENABLED: "1" })).toBe(true);
   });
 });
 
@@ -65,6 +75,36 @@ describe("intentFactsForPlies", () => {
     };
     const out = intentFactsForPlies({ gameEval: timedOut, moves: MOVES, plies: [0, 1] });
     expect(out.map((r) => r.ply)).toEqual([1]);
+  });
+
+  it("reports whose move each ply was", () => {
+    const out = intentFactsForPlies({ gameEval: GAME_EVAL, moves: MOVES, plies: [0, 1, 2] });
+    expect(out.map((r) => [r.ply, r.mover])).toEqual([[0, "w"], [1, "b"], [2, "w"]]);
+  });
+
+  it("an uncarded capture still feeds the carded ply after it", () => {
+    // Restricting computation to carded plies must not lose cross-ply context:
+    // the recapture facts of carded ply N are priced against the capture the
+    // UNCARDED ply N-1 made. Full-sweep and restricted answers must agree.
+    const capMoves = ["e4", "d5", "exd5", "Qxd5"];
+    const capEval: GameEval = {
+      ...GAME_EVAL,
+      positions: [
+        { lines: [line(["e2e4"], 25)] },
+        { lines: [line(["d7d5"], 20)] },
+        { lines: [line(["e4d5"], 60)] },
+        { lines: [line(["d8d5"], 10)] },
+        { lines: [line(["b1c3"], 15)] },
+      ],
+    };
+    const full = intentFactsForPlies({
+      gameEval: capEval, moves: capMoves, plies: [0, 1, 2, 3],
+    }).find((r) => r.ply === 3);
+    const restricted = intentFactsForPlies({
+      gameEval: capEval, moves: capMoves, plies: [3],
+    })[0];
+    expect(restricted).toBeDefined();
+    expect(JSON.stringify(restricted)).toBe(JSON.stringify(full));
   });
 });
 

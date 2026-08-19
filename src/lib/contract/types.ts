@@ -260,6 +260,8 @@ export interface MoveTableEntry {
 /** One carded ply's intent facts, plus which tier of engine data produced them. */
 export interface IntentSummary {
   ply: number;
+  /** Whose move it was — episode collapsing and byPlayer splits need it. */
+  mover: "w" | "b";
   playedSan: string;
   /** "tier0" = gameEval only; "tier1" = a null-move probe was paid for. */
   tier: "tier0" | "tier1";

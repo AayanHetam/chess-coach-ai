@@ -110,6 +110,9 @@ async function stub(page: Page) {
 async function play(page: Page, from: string, to: string) {
   await page.locator(`[data-square="${from}"]`).first().click();
   await page.locator(`[data-square="${to}"]`).first().click();
+  // Let the move animation settle. Clicking into a moving board drops the
+  // click, and the resulting failure looks like a logic bug rather than a race.
+  await page.waitForTimeout(220);
 }
 
 async function measureThenTrain(page: Page) {
@@ -127,6 +130,37 @@ async function measureThenTrain(page: Page) {
   await page.getByRole("link", { name: /FIX THIS LINE/i }).click();
   await expect(page).toHaveURL(/\/train\/opening/);
   return crashes;
+}
+
+
+/**
+ * One clean pass of 1.e4 ... Nf3 through the drill.
+ *
+ * Waits for the board to be back at the top of the run first. Clicking while
+ * it still shows the previous position selects the wrong squares, and the
+ * resulting "Nf3 is the move we are replacing" reads as a grading bug rather
+ * than as a test that moved too fast.
+ */
+async function drillRun(page: Page) {
+  await expect(page.getByText(/move 1 of/i)).toBeVisible({ timeout: 15_000 });
+  // react-chessboard syncs its internal position from the prop in an effect,
+  // so there is a window where the caption already says "move 1" but the board
+  // still has no piece on e2. Clicking into it selects nothing and the next
+  // click is read as the move, which surfaces as a bogus grading failure.
+  await page.waitForTimeout(500);
+  await play(page, "e2", "e4");
+  await play(page, "g1", "f3");
+}
+
+/** Get from the plan into the drill act. */
+async function intoDrill(page: Page) {
+  await measureThenTrain(page);
+  await expect(page.getByText(/Play the move you normally play here/i)).toBeVisible({
+    timeout: 30_000,
+  });
+  await play(page, "c2", "c3");
+  await page.getByRole("button", { name: /Drill|Finish/i }).first().click();
+  await expect(page.getByText(/Play the line through/i)).toBeVisible({ timeout: 15_000 });
 }
 
 test.describe("opening trainer", () => {
@@ -178,7 +212,7 @@ test.describe("opening trainer", () => {
     if (wide) await expect(nav.getByText(/See what it costs/i)).toBeVisible();
 
     // A trainer you cannot leave is a trap.
-    await nav.getByRole("button", { name: /Your plan/i }).click();
+    await nav.getByRole("button", { name: /Leave the session/i }).click();
     await expect(page).toHaveURL(/\/plan/);
   });
 
@@ -190,5 +224,68 @@ test.describe("opening trainer", () => {
     await expect(page.getByText(/Nothing to train yet/i)).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("button", { name: /Back to your plan/i })).toBeVisible();
     expect(crashes, `page errors: ${crashes.join("\n")}`).toHaveLength(0);
+  });
+
+  test("a session survives leaving the page", async ({ page }) => {
+    const crashes: string[] = [];
+    page.on("pageerror", (e) => crashes.push(String(e)));
+
+    await intoDrill(page);
+    await drillRun(page);
+    await expect(page.getByText(/1 clean run banked/i)).toBeVisible({ timeout: 15_000 });
+
+    // Walk away entirely, then come back. Three clean runs is a real ask, and
+    // the honest way to make it is to make leaving free.
+    await page.goto("/plan");
+    await page.goto("/train/opening");
+
+    await expect(page.getByText(/Picked up where you left off/i)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/1 clean run banked/i)).toBeVisible();
+    // And the board is back at the top of the run, ready to play.
+    await expect(page.getByText(/Play the line through/i)).toBeVisible();
+
+    expect(crashes, `page errors: ${crashes.join("\n")}`).toHaveLength(0);
+  });
+
+  test("start over throws the saved session away", async ({ page }) => {
+    await intoDrill(page);
+    await drillRun(page);
+    await expect(page.getByText(/1 clean run banked/i)).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("button", { name: /Start over/i }).click();
+
+    // Back to the first act, with nothing banked and no resume note.
+    await expect(page.getByText(/Play the move you normally play here/i)).toBeVisible();
+    await expect(page.getByText(/Picked up where you left off/i)).toHaveCount(0);
+    await expect(page.getByText(/1 clean run banked/i)).toHaveCount(0);
+  });
+
+  test("finishing marks the line repaired, and the plan says so", async ({ page }) => {
+    await intoDrill(page);
+    for (let i = 0; i < 3; i++) await drillRun(page);
+
+    await expect(page.getByText(/Repaired/i).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/three times clean/i)).toBeVisible();
+
+    await page.locator('section[aria-label="Coaching"]').getByRole("button", { name: /Back to your plan/i }).click();
+    await expect(page).toHaveURL(/\/plan/);
+
+    // The card must not offer a fresh start for work already done.
+    await expect(page.getByRole("link", { name: /TRAIN IT AGAIN/i })).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByRole("link", { name: /FIX THIS LINE/i })).toHaveCount(0);
+  });
+
+  test("Escape leaves without losing the session", async ({ page }) => {
+    await intoDrill(page);
+    await drillRun(page);
+    await page.keyboard.press("Escape");
+    await expect(page).toHaveURL(/\/plan/);
+
+    // Paused, not discarded: the card offers to resume.
+    await expect(page.getByRole("link", { name: /RESUME TRAINING/i })).toBeVisible({
+      timeout: 30_000,
+    });
   });
 });

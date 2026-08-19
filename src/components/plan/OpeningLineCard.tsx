@@ -11,12 +11,13 @@
 
 import { useEffect, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import { BookOpen, Dumbbell, RotateCcw, Search } from "lucide-react";
+import { BookOpen, Check, Dumbbell, Play, RotateCcw, Search } from "lucide-react";
 import {
   formatLine,
   type RepertoireHole,
   type RepertoireReport,
 } from "@/lib/learn/repertoireHole";
+import { isRepaired, loadSession } from "@/lib/learn/trainerProgress";
 import { fetchMasterViews } from "@/lib/master/useMasterIdeas";
 import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
 import type { MasterView } from "@/lib/master/ideas";
@@ -36,6 +37,8 @@ export interface OpeningLineCardProps {
   cachedAt: number | null;
   /** Null when no chess.com / Lichess account is linked. */
   username: string | null;
+  /** `platform:username`, for reading this account's training progress. */
+  accountId?: string | null;
   onRun: () => void;
 }
 
@@ -47,6 +50,7 @@ export default function OpeningLineCard({
   error,
   cachedAt,
   username,
+  accountId,
   onRun,
 }: OpeningLineCardProps) {
   return (
@@ -63,7 +67,13 @@ export default function OpeningLineCard({
       ) : phase === "fetching" || phase === "building" ? (
         <Body>{label}…</Body>
       ) : phase === "ready" ? (
-        <Ready line={line} reports={reports} cachedAt={cachedAt} onRun={onRun} />
+        <Ready
+          line={line}
+          reports={reports}
+          cachedAt={cachedAt}
+          onRun={onRun}
+          accountId={accountId ?? null}
+        />
       ) : (
         <Idle onRun={onRun} />
       )}
@@ -160,11 +170,13 @@ function Ready({
   reports,
   cachedAt,
   onRun,
+  accountId,
 }: {
   line: RepertoireHole | null;
   reports: RepertoireReport[];
   cachedAt: number | null;
   onRun: () => void;
+  accountId: string | null;
 }) {
   // Nothing to show splits two ways, and collapsing them would tell half these
   // users the opposite of the truth.
@@ -192,33 +204,10 @@ function Ready({
       <LineBlock line={line} />
 
       {/* The card diagnoses; the trainer repairs. One primary action, and it is
-          the one that changes something. */}
-      <Box
-        component="a"
-        href="/train/opening"
-        sx={{
-          mt: 2.5,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 1,
-          minHeight: 44,
-          px: 2.25,
-          borderRadius: "12px",
-          border: "1px solid rgba(249,115,22,0.5)",
-          background: "rgba(249,115,22,0.08)",
-          color: EMBER,
-          fontSize: "0.78rem",
-          fontWeight: 700,
-          letterSpacing: "0.06em",
-          textDecoration: "none",
-          transition: "background 180ms ease, border-color 180ms ease",
-          "&:hover": { background: "rgba(249,115,22,0.16)", borderColor: EMBER },
-          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
-        }}
-      >
-        <Dumbbell size={15} aria-hidden />
-        FIX THIS LINE
-      </Box>
+          the one that changes something. Its wording follows the state, so a
+          half-finished session is never hidden behind a button that reads like
+          a fresh start. */}
+      <TrainCta line={line} accountId={accountId} />
 
       {others.length > 0 && (
         <Box sx={{ mt: 2.5 }}>
@@ -251,6 +240,64 @@ function Ready({
       )}
       <Footer cachedAt={cachedAt} reports={reports} onRun={onRun} />
     </>
+  );
+}
+
+/**
+ * The one action, worded for where the player actually is.
+ *
+ * Read in an effect rather than during render: this is localStorage, and a
+ * server render that guessed would hydrate into a different label.
+ */
+function TrainCta({ line, accountId }: { line: RepertoireHole; accountId: string | null }) {
+  const [status, setStatus] = useState<"fresh" | "resume" | "repaired">("fresh");
+
+  useEffect(() => {
+    if (!accountId) return;
+    const key = { moves: line.line.map((m) => m.san), color: line.color };
+    if (loadSession(accountId, key, Date.now())) setStatus("resume");
+    else if (isRepaired(accountId, key)) setStatus("repaired");
+    else setStatus("fresh");
+  }, [accountId, line]);
+
+  const label =
+    status === "resume" ? "RESUME TRAINING" : status === "repaired" ? "TRAIN IT AGAIN" : "FIX THIS LINE";
+  const Icon = status === "resume" ? Play : status === "repaired" ? RotateCcw : Dumbbell;
+
+  return (
+    <Box sx={{ mt: 2.5, display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+      <Box
+        component="a"
+        href="/train/opening"
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 1,
+          minHeight: 44,
+          px: 2.25,
+          borderRadius: "12px",
+          border: "1px solid rgba(249,115,22,0.5)",
+          background: "rgba(249,115,22,0.08)",
+          color: EMBER,
+          fontSize: "0.78rem",
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textDecoration: "none",
+          transition: "background 180ms ease, border-color 180ms ease",
+          "&:hover": { background: "rgba(249,115,22,0.16)", borderColor: EMBER },
+          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        }}
+      >
+        <Icon size={15} aria-hidden />
+        {label}
+      </Box>
+      {status === "repaired" && (
+        <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.6 }}>
+          <Check size={14} color="#86EFAC" aria-hidden />
+          <Typography sx={{ fontSize: "0.78rem", color: "#86EFAC" }}>Repaired</Typography>
+        </Box>
+      )}
+    </Box>
   );
 }
 

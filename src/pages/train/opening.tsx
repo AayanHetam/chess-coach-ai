@@ -35,6 +35,13 @@ import {
   submitMove,
   type TrainerLine,
 } from "@/lib/learn/trainerSession";
+import {
+  clearSession,
+  describeProgress,
+  loadSession,
+  markRepaired,
+  saveSession,
+} from "@/lib/learn/trainerProgress";
 import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
 import { fetchMasterViews } from "@/lib/master/useMasterIdeas";
 import type { OpeningTheory } from "@/types/theory";
@@ -101,18 +108,72 @@ export default function OpeningTrainerPage() {
     };
   }, [hole, master]);
 
-  const [state, setState] = useState(() => (line ? createSession(line) : null));
+  const [state, setState] = useState<ReturnType<typeof createSession> | null>(null);
+  const [resumed, setResumed] = useState(false);
+
   // Keyed on the LINE, deliberately not on the target. The master lookup can
   // land after the user has already moved, and rebuilding the session then
   // would silently rewind them to act one. Nothing in createSession reads the
   // target, and the drill reads it live, so a late arrival still works.
   const lineKey = line ? `${line.moves.join(" ")}|${line.color}` : "";
+  const accountId = `${account.platform}:${account.username ?? ""}`;
+
   useEffect(() => {
-    setState(line ? createSession(line) : null);
-  }, [lineKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!line || !account.username) {
+      setState(null);
+      return;
+    }
+    const saved = loadSession(accountId, line, Date.now());
+    setState(saved ?? createSession(line));
+    setResumed(Boolean(saved));
+  }, [lineKey, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist on every change. One small write, and it is what makes walking
+  // away from a three-run drill free rather than expensive.
+  useEffect(() => {
+    if (!state || !line || !account.username) return;
+    if (state.act === "done") {
+      markRepaired(accountId, line, formatLine(hole!.line, hole!.color), state.runs, Date.now());
+      clearSession(accountId);
+      return;
+    }
+    saveSession(accountId, line, state, Date.now());
+  }, [state, lineKey, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const restart = useCallback(() => {
+    if (!line) return;
+    clearSession(accountId);
+    setState(createSession(line));
+    setResumed(false);
+  }, [line, accountId]);
 
   const [flashKey, setFlashKey] = useState(0);
   const exit = useCallback(() => void router.push("/plan"), [router]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Escape leaves. Nothing is lost by leaving: the session is saved on
+      // every change, so this is a pause and not a discard.
+      if (e.key === "Escape") {
+        e.preventDefault();
+        exit();
+        return;
+      }
+      // Enter advances, but only where there is one obvious next step. Binding
+      // it during the drill would let a stray keypress count as a move.
+      if (e.key === "Enter" && state && line) {
+        if (state.act === "learn") {
+          e.preventDefault();
+          setState(advance(state, line));
+        } else if (state.act === "done") {
+          e.preventDefault();
+          exit();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [exit, state, line]);
 
   const onPieceDrop = useCallback(
     (from: string, to: string) => {
@@ -187,6 +248,8 @@ export default function OpeningTrainerPage() {
         streak={state.streak}
         drilling={state.act === "drill"}
         onExit={exit}
+        onRestart={restart}
+        resumed={resumed}
       />
 
       <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
@@ -196,6 +259,8 @@ export default function OpeningTrainerPage() {
           streak={state.streak}
           drilling={state.act === "drill"}
           onExit={exit}
+          onRestart={restart}
+          resumed={resumed}
         />
 
         <Box
@@ -225,6 +290,10 @@ export default function OpeningTrainerPage() {
               interactive={yourTurn && state.act !== "done"}
               onPieceDrop={onPieceDrop}
               pieceSet={pieceSet}
+              // Short, on purpose. A drill is a rhythm: the default animation
+              // is long enough that a fast player's next click lands mid-move
+              // and is dropped, which reads as the board ignoring them.
+              animationMs={150}
               flash={{ state: flash, flashKey }}
               boardId="opening-trainer"
             />
@@ -266,6 +335,7 @@ export default function OpeningTrainerPage() {
             state={state}
             line={line}
             hole={hole}
+            resumedNote={resumed ? describeProgress(state) : null}
             theory={theory}
             master={master}
             onAdvance={() => setState(advance(state, line))}

@@ -11,7 +11,7 @@
 // that eats the board.
 
 import { Box, Typography } from "@mui/material";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Check, RotateCcw } from "lucide-react";
 import { DRILL_TARGET, type ActStep } from "@/lib/learn/trainerSession";
 
 const EMBER = "#FB923C";
@@ -27,9 +27,20 @@ export interface TrainerRailProps {
   /** True once the drill is running, so the pips only appear when they mean something. */
   drilling: boolean;
   onExit: () => void;
+  /** Throw the saved session away and begin again. */
+  onRestart: () => void;
+  /** True when this session was picked up from a saved one. */
+  resumed?: boolean;
 }
 
-export default function TrainerRail({ line, steps, streak, drilling, onExit }: TrainerRailProps) {
+export default function TrainerRail({
+  line,
+  steps,
+  streak,
+  drilling,
+  onExit,
+  onRestart,
+}: TrainerRailProps) {
   return (
     <Box
       component="nav"
@@ -68,12 +79,48 @@ export default function TrainerRail({ line, steps, streak, drilling, onExit }: T
       </Box>
 
       {drilling && <Pips streak={streak} />}
+
+      {/* Pushed to the floor, away from the acts: starting over throws progress
+          away, and a destructive action does not belong next to the ones that
+          advance. */}
+      <Box sx={{ mt: "auto", pt: 2 }}>
+        <Box
+          component="button"
+          onClick={onRestart}
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.6,
+            minHeight: 44,
+            px: 0.5,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "rgba(255,255,255,0.35)",
+            fontSize: "0.76rem",
+            borderRadius: "8px",
+            transition: "color 180ms ease",
+            "&:hover": { color: "rgba(255,255,255,0.7)" },
+            "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+          }}
+        >
+          <RotateCcw size={13} aria-hidden />
+          Start over
+        </Box>
+      </Box>
     </Box>
   );
 }
 
 /** The same status, laid out horizontally, for narrow screens. */
-export function TrainerRailStrip({ line, steps, streak, drilling, onExit }: TrainerRailProps) {
+export function TrainerRailStrip({
+  line,
+  steps,
+  streak,
+  drilling,
+  onExit,
+  onRestart,
+}: TrainerRailProps) {
   const current = steps.find((s) => s.status === "current") ?? steps[steps.length - 1];
   return (
     <Box
@@ -105,6 +152,30 @@ export function TrainerRailStrip({ line, steps, streak, drilling, onExit }: Trai
         </Typography>
       </Box>
       {drilling && <Pips streak={streak} compact />}
+      {/* The rail is hidden at this width, so without this there is no way to
+          start over on a phone at all. Icon-only for room, with a real name for
+          anyone not reading it visually. */}
+      <Box
+        component="button"
+        onClick={onRestart}
+        aria-label="Start over"
+        sx={{
+          display: "grid",
+          placeItems: "center",
+          width: 44,
+          height: 44,
+          flexShrink: 0,
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: "rgba(255,255,255,0.4)",
+          borderRadius: "8px",
+          "&:hover": { color: "rgba(255,255,255,0.8)" },
+          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        }}
+      >
+        <RotateCcw size={16} aria-hidden />
+      </Box>
     </Box>
   );
 }
@@ -114,7 +185,7 @@ function ExitLink({ onExit, compact }: { onExit: () => void; compact?: boolean }
     <Box
       component="button"
       onClick={onExit}
-      aria-label="Leave the session and go back to your plan"
+      aria-label="Leave the session"
       sx={{
         display: "inline-flex",
         alignItems: "center",

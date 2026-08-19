@@ -2,7 +2,7 @@
 # Mutation harness for the scout prep engine.
 #
 #   ./scripts/scout/mutate-holefinder.sh            # everything
-#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master | learn | theory | trainer
+#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master | learn | theory | trainer | resume
 #
 # A green suite proves nothing until it has been watched to fail. Each mutation
 # breaks exactly one guarantee and names the test that must go red.
@@ -31,6 +31,7 @@ RH=src/lib/learn/repertoireHole.ts
 WT=src/lib/theory/wikibooksTheory.ts
 WI=scripts/openings/build-wikibooks-theory.mjs
 TS=src/lib/learn/trainerSession.ts
+TP=src/lib/learn/trainerProgress.ts
 
 T_HOLE=src/lib/scout/__tests__/holeFinder.test.ts
 T_PREP=src/lib/scout/__tests__/preparedLine.test.ts
@@ -40,11 +41,12 @@ T_LEARN=src/lib/learn/__tests__/repertoireHole.test.ts
 T_TLOAD=src/lib/theory/__tests__/wikibooksTheory.test.ts
 T_TIMP=src/lib/theory/__tests__/wikibooksImport.test.ts
 T_TRAIN=src/lib/learn/__tests__/trainerSession.test.ts
+T_PROG=src/lib/learn/__tests__/trainerProgress.test.ts
 
 GROUP="${1:-all}"
 BAK=$(mktemp -d)
-for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI" "$TS"; do cp "$f" "$BAK/$(basename "$f")"; done
-restore() { for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI" "$TS"; do cp "$BAK/$(basename "$f")" "$f"; done; }
+for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI" "$TS" "$TP"; do cp "$f" "$BAK/$(basename "$f")"; done
+restore() { for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI" "$TS" "$TP"; do cp "$BAK/$(basename "$f")" "$f"; done; }
 trap 'restore; rm -rf "$BAK"' EXIT
 
 pass=0; miss=0; stale=0
@@ -201,6 +203,20 @@ mut "$TS" 's{clean \? state.streak \+ 1 : 0}{state.streak + 1}' "$T_TRAIN" \
   "resets the streak when a run was spoiled" "a spoiled run still counts as clean"
 mut "$TS" 's{if \(!line.target\) return \{ ...state, act: .done. \};}{}' "$T_TRAIN" \
   "ends the session when there is nothing better to drill" "invents a drill with no replacement"
+fi
+
+if want resume; then
+echo "── resume: pausing is free, resuming has to be right"
+mut "$TP" 's{if \(saved.lineKey !== lineKeyOf\(line\)\) return null;}{}' "$T_PROG" \
+  "refuses a session saved against a different line" "resumes another line's session"
+mut "$TP" 's{now - saved.savedAt > ttlMs}{false}' "$T_PROG" \
+  "expires" "resumes a session nobody remembers starting"
+mut "$TP" 's{if \(state.act === .done.\) return null;}{}' "$T_PROG" \
+  "never resumes a finished session" "drops the player onto a completion screen"
+mut "$TP" 's{.filter\(r => r.lineKey !== key\)}{}' "$T_PROG" \
+  "updates rather than stacking when the same line is repaired again" "repaired list stacks into a log"
+mut "$TP" 's{`\$\{PREFIX\}.session:\$\{account.toLowerCase\(\)\}`}{`\$\{PREFIX\}.session`}' "$T_PROG" \
+  "refuses another account progress" "one account resumes another's session"
 fi
 
 echo

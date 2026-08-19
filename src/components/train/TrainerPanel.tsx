@@ -28,6 +28,13 @@ export interface TrainerPanelProps {
   master: MasterView | null;
   onAdvance: () => void;
   onExit: () => void;
+  /**
+   * Where they left off, when this session was resumed.
+   *
+   * Shown once, in words. Landing mid-drill with an unexplained streak reads
+   * as a bug; one sentence turns it into a courtesy.
+   */
+  resumedNote?: string | null;
 }
 
 export default function TrainerPanel(props: TrainerPanelProps) {
@@ -64,6 +71,22 @@ export default function TrainerPanel(props: TrainerPanelProps) {
           p: { xs: 2.5, md: 3 },
         }}
       >
+        {props.resumedNote && state.act !== "done" && (
+          <Box
+            role="status"
+            sx={{
+              px: 1.25,
+              py: 0.85,
+              borderRadius: "10px",
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.03)",
+            }}
+          >
+            <Typography sx={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.55)" }}>
+              Picked up where you left off. {props.resumedNote}.
+            </Typography>
+          </Box>
+        )}
         {state.act === "confront" && <Confront {...props} />}
         {state.act === "learn" && <Learn {...props} />}
         {state.act === "drill" && <Drill {...props} />}

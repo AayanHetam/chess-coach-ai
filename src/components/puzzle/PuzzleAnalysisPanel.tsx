@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import { getLineEvalLabel, moveLineUciToSan } from "@/lib/chess";
 import { useEngineWithStatus, isEngineUnavailable } from "@/hooks/useEngine";
-import { EngineName } from "@/types/enums";
+import { DEFAULT_ENGINE, ENGINE_LABELS } from "@/constants";
 import { SERIF_DISPLAY } from "@/theme/fonts";
 import type { LineEval } from "@/types/eval";
 
@@ -16,8 +16,8 @@ import type { LineEval } from "@/types/eval";
  * while the answer is still a secret.
  *
  * The engine is loaded LAZILY: `useEngineWithStatus(undefined)` stays idle and
- * downloads nothing, so passing a name only when `enabled` keeps Stockfish's
- * ~7 MB off the critical path for the many solvers who never open this. That
+ * downloads nothing, so passing a name only when `enabled` keeps the engine
+ * download off the critical path for the many solvers who never open this. That
  * download is also why every non-ready state below is spelled out rather than
  * collapsed into a spinner — on a mid-range phone the wait is long, and
  * "nothing is happening" and "nothing will ever happen" must not look alike.
@@ -29,15 +29,15 @@ const DIM = "rgba(255,240,224,0.5)";
 /**
  * How long to sit on "Evaluating…" before admitting nothing is coming.
  *
- * A search that never returns is not hypothetical: the engine boots, logs that
- * it started, and then produces no line — reproducible locally on the existing
- * /analysis surface too, so it is a property of the engine path rather than of
- * this panel. Without a bound, the UI spins forever and claims to be working.
- * That is the silent-substitution failure mode this codebase keeps re-learning:
- * "nothing yet" and "nothing ever" must not look the same.
+ * This guard is the reason the wrong-engine bug was findable at all. Pinned to
+ * Stockfish 16, the panel was quietly pulling a 40 MB network and every user
+ * saw the message below — which is exactly what it is for: "nothing yet" and
+ * "nothing ever" must not look the same. Without it the panel would have spun
+ * forever, still claiming to work, and the mistake would have looked like slow.
  *
  * Generous, because a genuine single-threaded depth-16 search on a slow phone
- * is allowed to take a while.
+ * is allowed to take a while. It bounds the SEARCH, not the download — the
+ * loading state above owns that, and it is only armed once status is "ready".
  */
 const STALL_MS = 25_000;
 
@@ -53,8 +53,16 @@ export function PuzzleAnalysisPanel({
   fen,
 }: PuzzleAnalysisPanelProps) {
   // The lazy mount. `undefined` → the hook stays idle and fetches nothing.
+  //
+  // DEFAULT_ENGINE, not a hardcoded name. This shipped pinned to
+  // `EngineName.Stockfish16`, whose worker pairs with a separate 40 MB NNUE
+  // network — so the panel sat downloading long past the stall guard and every
+  // real user got "the engine didn't return an evaluation". Stockfish 17 Lite
+  // is ~6 MB and self-contained, and it is what the rest of the app already
+  // loads, so /puzzles and /analysis now agree on the engine by construction
+  // rather than by two people remembering to pick the same one.
   const { engine, status } = useEngineWithStatus(
-    enabled ? EngineName.Stockfish16 : undefined
+    enabled ? DEFAULT_ENGINE : undefined
   );
   const [line, setLine] = useState<LineEval | null>(null);
   const [evaluating, setEvaluating] = useState(false);
@@ -150,7 +158,7 @@ export function PuzzleAnalysisPanel({
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <CircularProgress size={13} sx={{ color: DIM }} />
           <Typography sx={{ fontSize: "0.78rem", color: DIM }}>
-            Loading the engine (about 7 MB, first time only)…
+            {`Loading the engine (~${ENGINE_LABELS[DEFAULT_ENGINE].sizeMb} MB, first time only)…`}
           </Typography>
         </Box>
       ) : !line && stalled ? (

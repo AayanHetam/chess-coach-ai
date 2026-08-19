@@ -126,12 +126,76 @@ export const PUBLIC_LLM_ERROR = {
 } as const;
 
 // ── Model mapping ───────────────────────────────────────────────────────────
-const MODELS = {
-  anthropic: {
-    // claude-sonnet-4-20250514 was retired by Anthropic on 2026-06-15
-    flagship: "claude-sonnet-4-6",
-    fast: "claude-haiku-4-5-20251001",
+
+/**
+ * Per-model capabilities.
+ *
+ * `output_config.effort` was previously gated on the TIER (`tier ===
+ * "flagship"`), with a comment explaining that Haiku 4.5 returns 400 if it
+ * receives one. But that is a property of the MODEL, not of the tier — so the
+ * moment a tier points somewhere else the gate is wrong, in whichever
+ * direction hurts: a 400 on every request, or a silently un-tuned model.
+ *
+ * Probed against the live API on 2026-08-19 (1-token calls, with and without
+ * the param):
+ *   claude-opus-5              200 / 200   → supports effort
+ *   claude-sonnet-4-6          200 / 200   → supports effort
+ *   claude-haiku-4-5-20251001  400 on effort (documented in the original note)
+ */
+interface AnthropicModelSpec {
+  id: string;
+  supportsEffort: boolean;
+}
+
+const ANTHROPIC_MODEL_SPECS: Record<string, AnthropicModelSpec> = {
+  "claude-opus-5": { id: "claude-opus-5", supportsEffort: true },
+  // claude-sonnet-4-20250514 was retired by Anthropic on 2026-06-15
+  "claude-sonnet-4-6": { id: "claude-sonnet-4-6", supportsEffort: true },
+  "claude-haiku-4-5-20251001": {
+    id: "claude-haiku-4-5-20251001",
+    supportsEffort: false,
   },
+};
+
+const DEFAULT_ANTHROPIC_MODELS: Record<LLMTier, string> = {
+  flagship: "claude-sonnet-4-6",
+  fast: "claude-haiku-4-5-20251001",
+};
+
+/**
+ * Resolve a tier to a concrete Anthropic model, honouring the
+ * `LLM_FLAGSHIP_MODEL` / `LLM_FAST_MODEL` overrides.
+ *
+ * The overrides exist so a model upgrade is a config change with a one-line
+ * revert rather than a deploy. Unset ⇒ today's mapping exactly.
+ *
+ * An unrecognised id falls back to the default and logs an ERROR rather than
+ * throwing: a typo in an env var should not take the coach down. It must not
+ * be silent either — every `LLMResult` carries the model that actually ran, so
+ * the resolved value is visible in telemetry rather than assumed from config.
+ */
+function resolveAnthropicModel(tier: LLMTier): AnthropicModelSpec {
+  const override = (
+    tier === "flagship"
+      ? process.env.LLM_FLAGSHIP_MODEL
+      : process.env.LLM_FAST_MODEL
+  )?.trim();
+
+  if (override) {
+    const spec = ANTHROPIC_MODEL_SPECS[override];
+    if (spec) return spec;
+    console.error(
+      `[llmProvider] ${tier === "flagship" ? "LLM_FLAGSHIP_MODEL" : "LLM_FAST_MODEL"}="${override}" is not a known model; using ${DEFAULT_ANTHROPIC_MODELS[tier]}. Add it to ANTHROPIC_MODEL_SPECS (and llmPricing) first.`,
+    );
+  }
+  return ANTHROPIC_MODEL_SPECS[DEFAULT_ANTHROPIC_MODELS[tier]];
+}
+
+/** Test seams — the resolver and registry are internal to this module. */
+export const __resolveAnthropicModelForTest = resolveAnthropicModel;
+export const __ANTHROPIC_MODEL_SPECS_FOR_TEST = ANTHROPIC_MODEL_SPECS;
+
+const MODELS = {
   openai: {
     flagship: "gpt-4o",
     fast: "gpt-4o-mini",
@@ -188,7 +252,8 @@ async function callAnthropic(
     throw new LLMError("anthropic", 0, "provider_unconfigured");
   }
 
-  const model = MODELS.anthropic[tier];
+  const spec = resolveAnthropicModel(tier);
+  const model = spec.id;
   const startedAt = Date.now();
 
   const systemPayload = buildAnthropicSystemPayload(opts);
@@ -215,10 +280,10 @@ async function callAnthropic(
         //    cost/quality point. Flagship-only: the fast tier (Haiku 4.5)
         //    returns 400 if sent `effort`.
         //  - format: structured output (see CallLLMOptions.outputSchema).
-        ...(tier === "flagship" || opts.outputSchema
+        ...(spec.supportsEffort || opts.outputSchema
           ? {
               output_config: {
-                ...(tier === "flagship" ? { effort: "medium" } : {}),
+                ...(spec.supportsEffort ? { effort: "medium" } : {}),
                 ...(opts.outputSchema
                   ? {
                       format: {
@@ -360,7 +425,8 @@ async function* callAnthropicStream(
     throw new LLMError("anthropic", 0, "provider_unconfigured");
   }
 
-  const model = MODELS.anthropic[tier];
+  const spec = resolveAnthropicModel(tier);
+  const model = spec.id;
   const startedAt = Date.now();
 
   const systemPayload = buildAnthropicSystemPayload(opts);
@@ -382,9 +448,13 @@ async function* callAnthropicStream(
         temperature: opts.temperature ?? 0.7,
         max_tokens: opts.maxTokens ?? 1500,
         stream: true,
-        // See callAnthropic: pin Sonnet 4.6 effort to "medium"; flagship-only
-        // (Haiku 4.5 on the fast tier returns 400 if sent `effort`).
-        ...(tier === "flagship" ? { output_config: { effort: "medium" } } : {}),
+        // See ANTHROPIC_MODEL_SPECS: pin effort to "medium" on models that
+        // accept it (Sonnet 4.6 and Opus 5 default to "high"). Keyed on the
+        // MODEL, not the tier — Haiku 4.5 returns 400 if sent `effort`, and
+        // that stays true wherever it is mapped.
+        ...(spec.supportsEffort
+          ? { output_config: { effort: "medium" } }
+          : {}),
       }),
       signal: opts.signal,
     }

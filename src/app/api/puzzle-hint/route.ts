@@ -27,6 +27,19 @@ import { getCachedHint, setCachedHint } from "@/lib/puzzleHint/cache";
 import { analyzeMateClaim, applyMateCorrection } from "@/lib/tactics/mateClaim";
 import { isPlayableFromAnySolverAnchor } from "@/lib/puzzle/demoLine";
 import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
+import { aiDisabledResponse, isAiDisabled } from "@/lib/coach/aiAvailability";
+import { clientIp, rateLimited } from "@/lib/http/ipRateLimit";
+
+/**
+ * This endpoint is intentionally anonymous (puzzle-solvers use the coach
+ * without an account — Aayan 2026-05-31), so it cannot lean on per-user
+ * quota. Every non-cache-hit request bills a flagship Anthropic call whose
+ * cache key is entirely attacker-controlled, so an unthrottled caller can
+ * spin fresh puzzle ids to force a fresh call each time and run up the bill.
+ * A per-IP courtesy throttle caps trivial single-source abuse; a shared-store
+ * limiter is the deferred follow-up.
+ */
+const HINT_RATE_LIMIT = { windowMs: 60_000, max: 20 };
 
 /**
  * POST /api/puzzle-hint — staged puzzle-coach hint pipeline.
@@ -50,7 +63,18 @@ import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
 const log = logger.child({ module: "puzzle-hint" });
 
 export async function POST(request: NextRequest) {
+  // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
+  // BEFORE any work, auth or spend, and with a code that says "off", not
+  // "broken" — the difference decides whether the user retries forever.
+  if (isAiDisabled()) return aiDisabledResponse();
   const requestId = extractRequestId(request.headers);
+
+  if (rateLimited("puzzle-hint", clientIp(request), HINT_RATE_LIMIT)) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
+  }
 
   let body: unknown;
   try {

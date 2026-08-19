@@ -69,6 +69,9 @@ import { useSolveClock } from "@/lib/puzzle/useSolveClock";
 import { findThemeReference } from "@/lib/puzzle/themeReference";
 import { PuzzleToolbar } from "@/components/puzzle/PuzzleToolbar";
 import { PuzzleReferenceCard } from "@/components/puzzle/PuzzleReferenceCard";
+import { PuzzleAnalysisPanel } from "@/components/puzzle/PuzzleAnalysisPanel";
+import { analysisAvailability } from "@/lib/puzzle/analysisGate";
+import type { AttemptStatus } from "@/lib/puzzle/attemptStatus";
 import { SERIF_DISPLAY } from "@/theme/fonts";
 import { eliminatedUnderlay, toggleEliminated } from "@/lib/puzzle/eliminate";
 import { buildMoveChoices } from "@/lib/puzzle/moveChoices";
@@ -158,8 +161,6 @@ const puzzleTheme = createTheme({
 });
 
 const EASE_OUT_STRONG: [number, number, number, number] = [0.23, 1, 0.32, 1];
-
-type AttemptStatus = "playing" | "wrong" | "solved";
 
 /**
  * A compact set of the most-pedagogically-useful Lichess themes for
@@ -301,6 +302,12 @@ export default function PreviewPuzzlesPage() {
   const [hideTimer, setHideTimer] = useAtom(hideSolveTimerAtom);
   const [referenceOpen, setReferenceOpen] = useState(false);
   const [eliminateMode, setEliminateMode] = useState(false);
+  const [analyseOpen, setAnalyseOpen] = useState(false);
+  // Sticky for the CURRENT puzzle only. `activeDemo` is transient — it plays
+  // and then resumes the user's own position — so it cannot answer "has this
+  // solver already been shown the answer?", which is exactly what the analysis
+  // gate needs to know. Reset on every puzzle change alongside `status`.
+  const [solutionRevealed, setSolutionRevealed] = useState(false);
   // Squares the solver has ruled out. Scratch state for ONE position — not
   // persisted, because carrying it to the next puzzle would be misleading.
   const [eliminated, setEliminated] = useState<ReadonlySet<string>>(
@@ -564,6 +571,14 @@ export default function PreviewPuzzlesPage() {
     setGame(new Chess(studentStartFen));
     setMoveIdx(0);
     setStatus("playing");
+    // Must reset alongside `status`. Without this, a solved puzzle's unlocked
+    // Analyse panel carries into the NEXT puzzle and hands over its answer —
+    // the gate would be correct and still be bypassed, by staleness.
+    //
+    // Deliberately NOT reset in `handleReset`: replaying the same puzzle does
+    // not un-see a solution you have already been shown.
+    setSolutionRevealed(false);
+    setAnalyseOpen(false);
     setLastMove(null);
     setWrongSquare(null);
     setLastWrongSan(null);
@@ -854,13 +869,13 @@ export default function PreviewPuzzlesPage() {
       if (moves.length === 0) return;
       if (!planDemoLine(game.fen(), moves).playable) {
         setDemoNote(
-          "That line can't be played from this position, so I haven't put it on the board. The coach may have mixed up the move order.",
+          "That line can't be played from this position, so I haven't put it on the board. The coach may have mixed up the move order."
         );
         return;
       }
       setPendingDemoMoves(moves);
     },
-    [game],
+    [game]
   );
 
   // Confirmed in the dialog. Snapshot resumeFen now (where the user was
@@ -913,6 +928,8 @@ export default function PreviewPuzzlesPage() {
       return;
     }
     if (sanMoves.length === 0) return;
+    // The answer is now out, so the analysis gate opens for this puzzle.
+    setSolutionRevealed(true);
     setCoachHighlights(null);
     setActiveDemo({
       moves: sanMoves,
@@ -923,6 +940,19 @@ export default function PreviewPuzzlesPage() {
       finished: false,
     });
   }, [puzzle, game, bumpActivity]);
+
+  // Whether Analyse may run at all. Kept as one value so the disabled state,
+  // the click handler and the panel mount all read the SAME decision — three
+  // hand-rolled conditions is how one of them ends up subtly different.
+  const analysisGate = useMemo(
+    () =>
+      analysisAvailability({
+        status,
+        solutionRevealed,
+        hasPuzzle: Boolean(puzzle),
+      }),
+    [status, solutionRevealed, puzzle]
+  );
 
   // Session: counts for the HUD + Finish recap. Rating already auto-saves per
   // puzzle, so Finish is purely a recap + reset gesture.
@@ -1752,11 +1782,30 @@ export default function PreviewPuzzlesPage() {
                         // exclusive intents; entering one drops the other.
                         setStaged(null);
                       }}
+                      analyseOn={analyseOpen}
+                      analyseDisabledReason={
+                        analysisGate.available ? undefined : analysisGate.reason
+                      }
+                      onToggleAnalyse={() => {
+                        // Guard the handler too, not just the disabled prop.
+                        // The gate is a correctness rule, and a rule enforced
+                        // only by a UI attribute is one keyboard event or one
+                        // careless refactor away from not being enforced.
+                        if (!analysisGate.available) return;
+                        setAnalyseOpen((v) => !v);
+                      }}
                       trailing={sessionHud}
                     />
                     {referenceOpen && themeReference && (
                       <PuzzleReferenceCard reference={themeReference} />
                     )}
+                    {/* Gate checked here as well as on the button. The panel
+                        mounts the engine, so this condition is the one that
+                        actually decides whether an evaluation can exist. */}
+                    <PuzzleAnalysisPanel
+                      enabled={analyseOpen && analysisGate.available}
+                      fen={displayFen}
+                    />
                     <Box
                       sx={{
                         position: "relative",

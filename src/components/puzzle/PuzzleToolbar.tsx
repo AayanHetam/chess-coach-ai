@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Box, Tooltip, Typography } from "@mui/material";
-import { BookOpen, Clock, Eye, EyeOff, Ban } from "lucide-react";
+import { BookOpen, Clock, Eye, EyeOff, Ban, LineChart } from "lucide-react";
 import { formatSolveClock } from "@/lib/puzzle/solveClock";
 
 /**
@@ -13,10 +13,12 @@ import { formatSolveClock } from "@/lib/puzzle/solveClock";
  * right, closed by a hairline divider. The tools are affordances you reach
  * for, so they must not compete with the board.
  *
- * Analyse lands in a follow-up. It needs an engine mount (WASM load, a
- * Lichess cloud-eval call baked into that code path, caching) and it has to
- * be gated until the puzzle is resolved — Stockfish's best move IS the
- * answer, so an always-available Analyse button is a cheat button.
+ * Analyse is gated by `analysisGate.ts`. Stockfish's best move IS the puzzle's
+ * answer, so the button stays disabled — and says why on hover — until the
+ * puzzle is solved or the solution is shown. It is disabled rather than hidden
+ * because a tool that only appears after you succeed is a tool nobody
+ * discovers. The engine mounts lazily behind it, so the ~7 MB download only
+ * happens for solvers who actually open it.
  */
 
 const DIM = "rgba(255,240,224,0.5)";
@@ -27,6 +29,8 @@ function ToolButton({
   label,
   disabled,
   active,
+  attention,
+  hint,
   disabledReason,
   onClick,
 }: {
@@ -34,11 +38,24 @@ function ToolButton({
   label: string;
   disabled?: boolean;
   active?: boolean;
+  /**
+   * "This just became available and you should look at it."
+   *
+   * Needed because locked and unlocked were the SAME colour at 0.25 vs 0.5
+   * alpha — a difference nobody can see, sitting between two tools that look
+   * identical. Analyse unlocking is the payoff moment of the whole screen
+   * ("Solve. Then understand why."), and it was arriving silently.
+   */
+  attention?: boolean;
+  /** Hover text for the ENABLED state, so the tool can explain what it does. */
+  hint?: string;
   /** Shown on hover when disabled. A dead button with no explanation is worse
    *  than no button — the user assumes it's broken. */
   disabledReason?: string;
   onClick: () => void;
 }) {
+  const highlighted = attention && !disabled && !active;
+
   const button = (
     <Box
       component="button"
@@ -48,19 +65,41 @@ function ToolButton({
       disabled={disabled}
       onClick={onClick}
       sx={{
+        position: "relative",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         gap: 0.4,
         px: 1.25,
         py: 0.75,
-        border: "none",
-        background: "transparent",
+        // Ember fill + edge, not just a colour shift. Against two flat
+        // borderless neighbours, a filled chip is what the eye actually lands
+        // on — alpha alone reads as "same button, slightly brighter".
+        border: highlighted
+          ? "1px solid rgba(255,122,26,0.45)"
+          : "1px solid transparent",
+        background: highlighted ? "rgba(255,122,26,0.12)" : "transparent",
         borderRadius: "0.5rem",
         cursor: disabled ? "not-allowed" : "pointer",
-        color: disabled ? "rgba(255,240,224,0.25)" : active ? "#FFD1A8" : DIM,
-        transition: "color 180ms ease-out, background 180ms ease-out",
-        "&:hover": disabled ? undefined : { color: BRIGHT },
+        color: disabled
+          ? // Pushed further down so locked reads as genuinely inert rather
+            // than as a dimmer version of available.
+            "rgba(255,240,224,0.22)"
+          : highlighted
+            ? "#FFB37A"
+            : active
+              ? "#FFD1A8"
+              : DIM,
+        transition:
+          "color 180ms ease-out, background 180ms ease-out, border-color 180ms ease-out",
+        "&:hover": disabled
+          ? undefined
+          : {
+              color: BRIGHT,
+              background: highlighted
+                ? "rgba(255,122,26,0.2)"
+                : "rgba(255,255,255,0.04)",
+            },
         "&:focus-visible": {
           outline: "2px solid rgba(255,122,26,0.8)",
           outlineOffset: 2,
@@ -74,13 +113,31 @@ function ToolButton({
       >
         {label}
       </Typography>
+      {highlighted && (
+        // A dot, because the fill alone still loses to a board full of
+        // pieces in peripheral vision.
+        <Box
+          aria-hidden
+          sx={{
+            position: "absolute",
+            top: 3,
+            right: 3,
+            width: 6,
+            height: 6,
+            borderRadius: "999px",
+            background: "#FF7A1A",
+            boxShadow: "0 0 0 3px rgba(255,122,26,0.18)",
+          }}
+        />
+      )}
     </Box>
   );
 
-  if (disabled && disabledReason) {
+  const tooltip = disabled ? disabledReason : highlighted ? hint : undefined;
+  if (tooltip) {
     // span wrapper: MUI tooltips need a non-disabled child to receive events.
     return (
-      <Tooltip title={disabledReason} arrow>
+      <Tooltip title={tooltip} arrow>
         <span style={{ display: "inline-flex" }}>{button}</span>
       </Tooltip>
     );
@@ -97,6 +154,14 @@ interface PuzzleToolbarProps {
   onToggleReference: () => void;
   eliminateOn: boolean;
   onToggleEliminate: () => void;
+  analyseOn: boolean;
+  /**
+   * Set while the puzzle is unsolved. Present ⇒ the button is disabled and
+   * explains why, rather than vanishing — a tool that appears only after you
+   * succeed is a tool nobody discovers.
+   */
+  analyseDisabledReason?: string;
+  onToggleAnalyse: () => void;
   /** Session counters + Finish, kept at the far right. */
   trailing?: ReactNode;
 }
@@ -110,6 +175,9 @@ export function PuzzleToolbar({
   onToggleReference,
   eliminateOn,
   onToggleEliminate,
+  analyseOn,
+  analyseDisabledReason,
+  onToggleAnalyse,
   trailing,
 }: PuzzleToolbarProps) {
   return (
@@ -139,7 +207,9 @@ export function PuzzleToolbar({
           }}
           aria-live="off"
           aria-label={
-            timerHidden ? "Solve time hidden" : `Solve time ${formatSolveClock(elapsedMs)}`
+            timerHidden
+              ? "Solve time hidden"
+              : `Solve time ${formatSolveClock(elapsedMs)}`
           }
         >
           {formatSolveClock(elapsedMs)}
@@ -184,6 +254,23 @@ export function PuzzleToolbar({
         label="Eliminate"
         active={eliminateOn}
         onClick={onToggleEliminate}
+      />
+
+      {/* Analyse sits last: it is the only tool that is unavailable most of
+          the time, so putting it before the always-live ones would make the
+          row read as half-broken. */}
+      <ToolButton
+        icon={<LineChart size={18} />}
+        label="Analyse"
+        active={analyseOn}
+        disabled={Boolean(analyseDisabledReason)}
+        disabledReason={analyseDisabledReason}
+        // Highlighted from the moment it unlocks until it is first opened for
+        // this puzzle. Once opened it drops to the normal active treatment —
+        // a permanent flag would just become part of the furniture.
+        attention={!analyseDisabledReason && !analyseOn}
+        hint="See the engine's evaluation and best line for this position"
+        onClick={onToggleAnalyse}
       />
 
       {trailing ? <Box sx={{ ml: 1 }}>{trailing}</Box> : null}

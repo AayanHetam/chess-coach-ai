@@ -104,6 +104,7 @@ import {
 } from "@/components/ui/CommandPalette";
 import { useEngineWithStatus } from "@/hooks/useEngine";
 import { resolveEngineGate } from "@/lib/coach/engineGate";
+import { AI_DISABLED_ERROR, isAiDisabledPublic } from "@/lib/coach/aiAvailability";
 import { parseCachedEval } from "@/lib/coach/analysisEvalCache";
 import { isWasmSupported } from "@/lib/engine/shared";
 import { TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
@@ -438,6 +439,9 @@ function buildContextBlurb(
  * content (the caller doesn't need it — onDelta drives the UI — but
  * we use it to look for [INSIGHT:...] tags in G5).
  */
+/** Build-time flag; see lib/coach/aiAvailability. */
+const AI_DISABLED = isAiDisabledPublic();
+
 async function streamCoachReply(params: {
   prevMessages: CoachMessage[];
   userText: string;
@@ -4804,7 +4808,27 @@ function CoachPanel({
             answer really will be missing everything Stockfish would have
             contributed, and the user is the only one who can decide whether to
             ask anyway. */}
-        {engineDataUnavailable && (
+        {AI_DISABLED && (
+          <Box
+            sx={{
+              mb: 1.5,
+              px: 1.5,
+              py: 1,
+              borderRadius: "10px",
+              border: "1px solid rgba(249,115,22,0.28)",
+              background: "rgba(249,115,22,0.08)",
+              fontSize: "0.78rem",
+              lineHeight: 1.5,
+              color: "rgba(255,255,255,0.75)",
+            }}
+          >
+            <Box component="span" sx={{ color: "#FB923C", fontWeight: 600 }}>
+              AI coaching is paused.
+            </Box>{" "}
+            {AI_DISABLED_ERROR.message}
+          </Box>
+        )}
+        {!AI_DISABLED && engineDataUnavailable && (
           <Box
             sx={{
               mb: 1.5,
@@ -4875,13 +4899,15 @@ function CoachPanel({
               }
             }}
             placeholder={
-              analysisActive
+              AI_DISABLED
+                ? "AI coaching is paused — see the note above."
+                : analysisActive
                 ? "Analyzing your game… coach unlocks when Stockfish finishes."
                 : engineDataUnavailable
                   ? "Ask anything — answering without engine analysis."
                   : "Ask anything about this position..."
             }
-            disabled={analysisActive}
+            disabled={AI_DISABLED || analysisActive}
             fullWidth
             multiline
             maxRows={3}
@@ -4908,7 +4934,7 @@ function CoachPanel({
           />
           <IconButton
             onClick={onSend}
-            disabled={!input.trim() || isThinking || analysisActive}
+            disabled={AI_DISABLED || !input.trim() || isThinking || analysisActive}
             sx={{
               width: 44,
               height: 44,

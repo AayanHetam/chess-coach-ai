@@ -88,3 +88,6 @@ scripts/synthetic-tester/runs/
 # The committed artefact is src/data/wikibooks-theory.json; this is just the
 # scratch that makes a re-run free instead of 3,000 more requests to Wikimedia.
 .cache/
+
+# Supabase CLI scratch state (contains internal project/org ids)
+supabase-tracking/supabase/.temp/

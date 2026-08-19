@@ -31,6 +31,9 @@ const REQUIRED = [
   "SUPABASE_SERVICE_ROLE_KEY",
   // Password-reset email delivery
   "RESEND_API_KEY",
+  // Cron auth — absence makes the reminder/keep-alive routes fail closed (401),
+  // silently stopping the daily email + engine keep-alive jobs.
+  "CRON_SECRET",
 ] as const;
 
 export async function GET() {

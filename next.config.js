@@ -34,6 +34,8 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/opening-explorer": ["./src/data/master-tree.json"],
     "/api/opening-theory": ["./src/data/wikibooks-theory.json"],
+    "/api/repertoire": ["./src/data/repertoire-map.json"],
+    "/api/openings/search": ["./src/data/openings.json"],
   },
   /**
    * Baseline hardening on every route, verified on the wire rather than

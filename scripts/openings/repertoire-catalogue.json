@@ -1,0 +1,648 @@
+{
+  "_comment": [
+    "Curated ANNOTATION for the repertoire bracket. Not the bracket itself.",
+    "",
+    "The bracket — which slots exist, which branches a choice leaves open, how",
+    "often you face each one — is derived from master-tree.json and openings.json",
+    "by scripts/openings/build-repertoire-map.mjs. This file cannot make the",
+    "bracket wrong; it can only fail to improve it. That split is deliberate: a",
+    "hand-written repertoire tree would be stale the day after it was written and",
+    "nobody would be able to tell.",
+    "",
+    "What curation adds: a human name, a sentence, the theory load, the kind of",
+    "position it leads to, and — the one load-bearing field — `family`, the ECO",
+    "name prefix used to PROVE which branches the choice absorbs.",
+    "",
+    "coverage:",
+    "  family  Absorption is proved against the named ECO family.",
+    "  system  You play the same setup whatever they do, so there are no separate",
+    "          branches to fill. ECO barely names system openings (the London has",
+    "          6 named lines to the Caro-Kann's 103), so family matching would",
+    "          invent gaps that are not real decisions.",
+    "  move    Commits a move and nothing else. Correct for '1...e5': that is one",
+    "          move, not a repertoire, and every White reply is still to decide.",
+    "",
+    "Every `family` prefix is checked at build time and a miss FAILS the build.",
+    "A typo'd prefix matches nothing, which silently reads as 'this opening",
+    "covers none of its own theory' and fills the bracket with phantom gaps.",
+    "It has already happened once here, to a curly apostrophe."
+  ],
+  "choices": [
+    {
+      "id": "w-e4",
+      "at": [],
+      "play": "e4",
+      "side": "white",
+      "name": "1.e4",
+      "coverage": "move",
+      "load": "heavy",
+      "character": "attack",
+      "blurb": "The most played move in chess. You get open positions and fast development, and you answer whatever Black chooses."
+    },
+    {
+      "id": "w-d4",
+      "at": [],
+      "play": "d4",
+      "side": "white",
+      "name": "1.d4",
+      "coverage": "move",
+      "load": "medium",
+      "character": "structure",
+      "blurb": "Slower and more structural. Fewer forcing lines to memorise than 1.e4, and you keep a space edge for longer."
+    },
+    {
+      "id": "w-london",
+      "at": [],
+      "play": "d4",
+      "side": "white",
+      "name": "London System",
+      "coverage": "system",
+      "family": "London System",
+      "setup": [
+        "d4",
+        "Bf4",
+        "e3",
+        "Nf3",
+        "c3",
+        "Bd3",
+        "Nbd2",
+        "h3",
+        "O-O"
+      ],
+      "load": "light",
+      "character": "solid",
+      "blurb": "The same setup against almost anything Black plays. The least theory of any serious first move, and the reason it is everywhere below master level."
+    },
+    {
+      "id": "w-c4",
+      "at": [],
+      "play": "c4",
+      "side": "white",
+      "name": "English Opening",
+      "coverage": "family",
+      "family": "English Opening",
+      "load": "medium",
+      "character": "structure",
+      "blurb": "Flank play and a lot of transpositions. Rewards understanding structures over memorising lines."
+    },
+    {
+      "id": "w-nf3",
+      "at": [],
+      "play": "Nf3",
+      "side": "white",
+      "name": "Réti / 1.Nf3",
+      "coverage": "family",
+      "family": "Réti Opening",
+      "load": "medium",
+      "character": "structure",
+      "blurb": "Keeps every option open and sidesteps most prepared defences by transposing later."
+    },
+    {
+      "id": "w-b3",
+      "at": [],
+      "play": "b3",
+      "side": "white",
+      "name": "Nimzo-Larsen Attack",
+      "coverage": "system",
+      "family": "Nimzo-Larsen Attack",
+      "setup": [
+        "b3",
+        "Bb2",
+        "e3",
+        "Nf3",
+        "Be2",
+        "O-O",
+        "d3",
+        "Nbd2",
+        "c4"
+      ],
+      "load": "light",
+      "character": "attack",
+      "blurb": "Almost no theory and almost nobody prepares for it. You aim the bishop down the long diagonal and play chess."
+    },
+    {
+      "id": "w-italian",
+      "at": [
+        "e4",
+        "e5"
+      ],
+      "play": "Nf3",
+      "side": "white",
+      "name": "Italian Game",
+      "coverage": "family",
+      "family": "Italian Game",
+      "load": "medium",
+      "character": "attack",
+      "blurb": "Natural development, an early bishop at Black's weakest square, and slow build-up or a quick d4 depending on taste."
+    },
+    {
+      "id": "w-ruy",
+      "at": [
+        "e4",
+        "e5"
+      ],
+      "play": "Nf3",
+      "side": "white",
+      "name": "Ruy Lopez",
+      "coverage": "family",
+      "family": "Ruy Lopez",
+      "load": "heavy",
+      "character": "structure",
+      "blurb": "The deepest body of theory in chess and the most respected try for an edge. Expensive to learn, permanent once learned."
+    },
+    {
+      "id": "w-scotch",
+      "at": [
+        "e4",
+        "e5"
+      ],
+      "play": "Nf3",
+      "side": "white",
+      "name": "Scotch Game",
+      "coverage": "family",
+      "family": "Scotch Game",
+      "load": "medium",
+      "character": "attack",
+      "blurb": "Open the centre immediately. Far less theory than the Ruy Lopez and the play is concrete rather than manoeuvring."
+    },
+    {
+      "id": "w-vienna",
+      "at": [
+        "e4",
+        "e5"
+      ],
+      "play": "Nc3",
+      "side": "white",
+      "name": "Vienna Game",
+      "coverage": "family",
+      "family": "Vienna Game",
+      "load": "light",
+      "character": "attack",
+      "blurb": "A quiet-looking move that hides a very sharp f4 plan. Cheap to learn and rarely met with real preparation."
+    },
+    {
+      "id": "w-kg",
+      "at": [
+        "e4",
+        "e5"
+      ],
+      "play": "f4",
+      "side": "white",
+      "name": "King's Gambit",
+      "coverage": "family",
+      "family": "King's Gambit",
+      "load": "medium",
+      "character": "attack",
+      "blurb": "A pawn for the centre and the initiative. Objectively fine and practically terrifying to face without preparation."
+    },
+    {
+      "id": "w-open-sicilian",
+      "at": [
+        "e4",
+        "c5"
+      ],
+      "play": "Nf3",
+      "side": "white",
+      "name": "Open Sicilian",
+      "coverage": "move",
+      "load": "heavy",
+      "character": "attack",
+      "blurb": "The critical test, and the most theory in the game: Black gets several systems and you need an answer to each."
+    },
+    {
+      "id": "w-alapin",
+      "at": [
+        "e4",
+        "c5"
+      ],
+      "play": "c3",
+      "side": "white",
+      "name": "Alapin",
+      "coverage": "family",
+      "family": "Sicilian Defense: Alapin",
+      "load": "light",
+      "character": "structure",
+      "blurb": "Build the big centre and refuse the whole Open Sicilian argument. One system covers every Sicilian Black plays."
+    },
+    {
+      "id": "w-closed-sicilian",
+      "at": [
+        "e4",
+        "c5"
+      ],
+      "play": "Nc3",
+      "side": "white",
+      "name": "Closed Sicilian",
+      "coverage": "family",
+      "family": "Sicilian Defense: Closed",
+      "load": "light",
+      "character": "attack",
+      "blurb": "A setup rather than a line: g3, Bg2, f4 and a kingside attack, with almost nothing to memorise."
+    },
+    {
+      "id": "w-rossolimo",
+      "at": [
+        "e4",
+        "c5"
+      ],
+      "play": "Nf3",
+      "side": "white",
+      "name": "Rossolimo",
+      "coverage": "family",
+      "family": "Sicilian Defense: Nyezhmetdinov-Rossolimo Attack",
+      "load": "medium",
+      "character": "structure",
+      "blurb": "Meet 2...Nc6 with an early Bb5. A fraction of the Open Sicilian's theory for a real, lasting pull. It does not answer 2...d6, which is a separate decision."
+    },
+    {
+      "id": "w-french-advance",
+      "at": [
+        "e4",
+        "e6"
+      ],
+      "play": "d4",
+      "side": "white",
+      "name": "French: Advance",
+      "coverage": "family",
+      "family": "French Defense: Advance",
+      "load": "light",
+      "character": "structure",
+      "blurb": "Take the space and lock the centre. The plans repeat, which is why it costs so little to learn."
+    },
+    {
+      "id": "w-french-tarrasch",
+      "at": [
+        "e4",
+        "e6"
+      ],
+      "play": "d4",
+      "side": "white",
+      "name": "French: Tarrasch",
+      "coverage": "family",
+      "family": "French Defense: Tarrasch",
+      "load": "medium",
+      "character": "structure",
+      "blurb": "3.Nd2, sidestepping the Winawer entirely. Flexible and much less sharp than 3.Nc3."
+    },
+    {
+      "id": "w-caro-advance",
+      "at": [
+        "e4",
+        "c6"
+      ],
+      "play": "d4",
+      "side": "white",
+      "name": "Caro-Kann: Advance",
+      "coverage": "family",
+      "family": "Caro-Kann Defense: Advance",
+      "load": "medium",
+      "character": "attack",
+      "blurb": "Gain space and go after the bishop Black has just developed outside the pawn chain."
+    },
+    {
+      "id": "w-caro-panov",
+      "at": [
+        "e4",
+        "c6"
+      ],
+      "play": "d4",
+      "side": "white",
+      "name": "Caro-Kann: Panov",
+      "coverage": "family",
+      "family": "Caro-Kann Defense: Panov",
+      "load": "medium",
+      "character": "attack",
+      "blurb": "An isolated queen's pawn and open lines. Turns the most solid defence in chess into a fight."
+    },
+    {
+      "id": "w-qg",
+      "at": [
+        "d4",
+        "d5"
+      ],
+      "play": "c4",
+      "side": "white",
+      "name": "Queen's Gambit",
+      "coverage": "move",
+      "load": "heavy",
+      "character": "structure",
+      "blurb": "The main line against 1...d5, and the most respected. Black gets several defences and each needs an answer."
+    },
+    {
+      "id": "w-catalan",
+      "at": [
+        "d4",
+        "Nf6"
+      ],
+      "play": "c4",
+      "side": "white",
+      "name": "Catalan",
+      "coverage": "family",
+      "family": "Catalan Opening",
+      "load": "medium",
+      "character": "structure",
+      "blurb": "A fianchetto and a long squeeze. Positions repeat, so understanding compounds instead of expiring."
+    },
+    {
+      "id": "w-qg-indian",
+      "at": [
+        "d4",
+        "Nf6"
+      ],
+      "play": "c4",
+      "side": "white",
+      "name": "Play c4 against the Indians",
+      "coverage": "move",
+      "load": "heavy",
+      "character": "structure",
+      "blurb": "The principled move. It also invites the Nimzo-Indian, King's Indian and Grünfeld, which are three separate answers."
+    },
+    {
+      "id": "w-tromp",
+      "at": [
+        "d4",
+        "Nf6"
+      ],
+      "play": "Bg5",
+      "side": "white",
+      "name": "Trompowsky",
+      "coverage": "system",
+      "family": "Trompowsky Attack",
+      "load": "light",
+      "character": "attack",
+      "blurb": "Second move, and Black's entire Indian preparation is already off the board.",
+      "setup": [
+        "d4",
+        "Bg5",
+        "e3",
+        "Nd2",
+        "c3",
+        "Bd3",
+        "Ngf3",
+        "O-O"
+      ]
+    },
+    {
+      "id": "b-sicilian-najdorf",
+      "at": [
+        "e4"
+      ],
+      "play": "c5",
+      "side": "black",
+      "name": "Sicilian: Najdorf",
+      "coverage": "family",
+      "family": "Sicilian Defense: Najdorf",
+      "load": "heavy",
+      "character": "counterattack",
+      "blurb": "The most analysed defence in chess and the most ambitious. You play for a win with Black, and you pay for it in study hours."
+    },
+    {
+      "id": "b-sicilian-dragon",
+      "at": [
+        "e4"
+      ],
+      "play": "c5",
+      "side": "black",
+      "name": "Sicilian: Dragon",
+      "coverage": "family",
+      "family": "Sicilian Defense: Dragon",
+      "load": "heavy",
+      "character": "attack",
+      "blurb": "Opposite-side castling and a race. Whoever knows the line further usually wins, which cuts both ways."
+    },
+    {
+      "id": "b-sicilian-accel",
+      "at": [
+        "e4"
+      ],
+      "play": "c5",
+      "side": "black",
+      "name": "Sicilian: Accelerated Dragon",
+      "coverage": "family",
+      "family": "Sicilian Defense: Accelerated Dragon",
+      "load": "medium",
+      "character": "counterattack",
+      "blurb": "Dragon ideas at a fraction of the theory, at the cost of allowing the Maróczy bind."
+    },
+    {
+      "id": "b-sicilian-kan",
+      "at": [
+        "e4"
+      ],
+      "play": "c5",
+      "side": "black",
+      "name": "Sicilian: Kan",
+      "coverage": "family",
+      "family": "Sicilian Defense: Kan",
+      "load": "medium",
+      "character": "counterattack",
+      "blurb": "Flexible and light on forced lines. You keep the structure fluid and decide what to be later."
+    },
+    {
+      "id": "b-e5",
+      "at": [
+        "e4"
+      ],
+      "play": "e5",
+      "side": "black",
+      "name": "1...e5",
+      "coverage": "move",
+      "load": "heavy",
+      "character": "solid",
+      "blurb": "The classical reply. Be clear that it is one move and not a repertoire: White has six real tries and each needs its own answer."
+    },
+    {
+      "id": "b-caro",
+      "at": [
+        "e4"
+      ],
+      "play": "c6",
+      "side": "black",
+      "name": "Caro-Kann Defence",
+      "coverage": "family",
+      "family": "Caro-Kann Defense",
+      "load": "medium",
+      "character": "solid",
+      "blurb": "Solid, structurally sound, and unusually self-contained: it answers more of what White can throw at it than almost any other defence."
+    },
+    {
+      "id": "b-french",
+      "at": [
+        "e4"
+      ],
+      "play": "e6",
+      "side": "black",
+      "name": "French Defence",
+      "coverage": "family",
+      "family": "French Defense",
+      "load": "medium",
+      "character": "counterattack",
+      "blurb": "Give up some space, aim at d4, and accept a bad bishop you spend the game solving. Very consistent plans."
+    },
+    {
+      "id": "b-pirc",
+      "at": [
+        "e4"
+      ],
+      "play": "d6",
+      "side": "black",
+      "name": "Pirc Defence",
+      "coverage": "family",
+      "family": "Pirc Defense",
+      "load": "light",
+      "character": "counterattack",
+      "blurb": "Let White build the centre and then hit it. Cheap in theory, demanding in understanding."
+    },
+    {
+      "id": "b-scandi",
+      "at": [
+        "e4"
+      ],
+      "play": "d5",
+      "side": "black",
+      "name": "Scandinavian Defence",
+      "coverage": "family",
+      "family": "Scandinavian Defense",
+      "load": "light",
+      "character": "solid",
+      "blurb": "You reach your structure by move three, every game. The least theory of any sound answer to 1.e4."
+    },
+    {
+      "id": "b-grunfeld",
+      "at": [
+        "d4"
+      ],
+      "play": "Nf6",
+      "side": "black",
+      "name": "Grünfeld Defence",
+      "coverage": "family",
+      "family": "Grünfeld Defense",
+      "load": "heavy",
+      "character": "counterattack",
+      "blurb": "Invite the big centre and shoot at it from the side. Sharp, principled, and it leaves the whole 2.Bf4 / 2.Bg5 world unanswered."
+    },
+    {
+      "id": "b-kid",
+      "at": [
+        "d4"
+      ],
+      "play": "Nf6",
+      "side": "black",
+      "name": "King's Indian Defence",
+      "coverage": "family",
+      "family": "King's Indian Defense",
+      "load": "heavy",
+      "character": "attack",
+      "blurb": "Concede the centre, castle, and throw the kingside pawns at White's king. The most direct winning attempt against 1.d4."
+    },
+    {
+      "id": "b-nimzo",
+      "at": [
+        "d4"
+      ],
+      "play": "Nf6",
+      "side": "black",
+      "name": "Nimzo-Indian Defence",
+      "coverage": "family",
+      "family": "Nimzo-Indian Defense",
+      "load": "medium",
+      "character": "structure",
+      "blurb": "Pin the knight, trade it for structure, and play against the doubled pawns. The most respected answer to 1.d4."
+    },
+    {
+      "id": "b-qgd",
+      "at": [
+        "d4"
+      ],
+      "play": "d5",
+      "side": "black",
+      "name": "Queen's Gambit Declined",
+      "coverage": "family",
+      "family": "Queen's Gambit Declined",
+      "load": "medium",
+      "character": "solid",
+      "blurb": "The old reliable. You will not be blown off the board, and the plans are the same every game."
+    },
+    {
+      "id": "b-slav",
+      "at": [
+        "d4"
+      ],
+      "play": "d5",
+      "side": "black",
+      "name": "Slav Defence",
+      "coverage": "family",
+      "family": "Slav Defense",
+      "load": "medium",
+      "character": "solid",
+      "blurb": "Hold the centre without shutting in the light-squared bishop, which is the one thing the QGD cannot do."
+    },
+    {
+      "id": "b-dutch",
+      "at": [
+        "d4"
+      ],
+      "play": "f5",
+      "side": "black",
+      "name": "Dutch Defence",
+      "coverage": "family",
+      "family": "Dutch Defense",
+      "load": "medium",
+      "character": "attack",
+      "blurb": "An immediate kingside imbalance. Rare enough that most 1.d4 players have no prepared answer."
+    },
+    {
+      "id": "b-english-e5",
+      "at": [
+        "c4"
+      ],
+      "play": "e5",
+      "side": "black",
+      "name": "Reversed Sicilian",
+      "coverage": "family",
+      "family": "English Opening: King's English",
+      "load": "medium",
+      "character": "counterattack",
+      "blurb": "Meet the English by taking the centre yourself, with a tempo more than White has in the Sicilian."
+    },
+    {
+      "id": "b-english-nf6",
+      "at": [
+        "c4"
+      ],
+      "play": "Nf6",
+      "side": "black",
+      "name": "1...Nf6 against the English",
+      "coverage": "move",
+      "load": "light",
+      "character": "structure",
+      "blurb": "Keep every option open and let White commit first. Often transposes straight into whatever you already play against 1.d4."
+    },
+    {
+      "id": "b-reti-d5",
+      "at": [
+        "Nf3"
+      ],
+      "play": "d5",
+      "side": "black",
+      "name": "1...d5 against 1.Nf3",
+      "coverage": "move",
+      "load": "light",
+      "character": "solid",
+      "blurb": "Stake the centre at once. Most 1.Nf3 games transpose to a queen's pawn opening from here."
+    },
+    {
+      "id": "b-reti-nf6",
+      "at": [
+        "Nf3"
+      ],
+      "play": "Nf6",
+      "side": "black",
+      "name": "1...Nf6 against 1.Nf3",
+      "coverage": "move",
+      "load": "light",
+      "character": "structure",
+      "blurb": "The most flexible reply, and the one most likely to transpose into your existing 1.d4 defence."
+    }
+  ]
+}

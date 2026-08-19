@@ -65,7 +65,11 @@ const NAV_LINKS: { id: NavId; label: string; href: string }[] = [
   { id: "play", label: "Play", href: "/play" },
   { id: "analysis", label: "Analyze", href: "/analysis" },
   { id: "practice", label: "Practice", href: "/puzzles" },
-  { id: "openings", label: "Learn", href: "/openings" },
+  // "Learn" points at the repertoire builder, not at the opening explorer.
+  // /openings is a reference surface you look things up in; /learn is the one
+  // you come back to and make decisions on, and it was reachable only by
+  // typing the URL. /openings keeps its footer link.
+  { id: "openings", label: "Learn", href: "/learn" },
   { id: "scout", label: "Scout", href: "/scout" },
 ];
 

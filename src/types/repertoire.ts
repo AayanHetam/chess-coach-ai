@@ -1,0 +1,109 @@
+// Wire types for the repertoire bracket.
+//
+// Deliberately in src/types and not beside the loader: the loader reads a 100KB
+// JSON with `fs`, and a single client import of that module would drag Node's
+// filesystem into a page bundle. Types cross the boundary; the file does not.
+
+/** How a choice's coverage of the branches below it is established. */
+export type CoverageKind =
+  /** Proved against a named ECO family: absorption is set membership. */
+  | 'family'
+  /** The same setup whatever the opponent does, so there are no branches. */
+  | 'system'
+  /** Commits a move and nothing more. Every reply is still to be decided. */
+  | 'move';
+
+export type TheoryLoad = 'light' | 'medium' | 'heavy';
+export type Character = 'attack' | 'solid' | 'counterattack' | 'structure';
+
+export interface RepertoireChoice {
+  id: string;
+  name: string;
+  /** The move it commits you to at this slot. */
+  play: string;
+  coverage: CoverageKind;
+  family: string | null;
+  load: TheoryLoad;
+  character: Character;
+  blurb: string;
+  /**
+   * Share of what follows that this choice answers on its own, 0-1.
+   *
+   * Meaningless for `coverage: 'move'` — 1.e4 "answers 3%" is arithmetically
+   * true and useless, because the move was never a claim to answer anything.
+   * Callers must not render it for those.
+   */
+  absorbs: number;
+  gaps: Array<{ slot: string; share: number }>;
+  /** Named ECO lines backing the coverage claim, or null when not family-proved. */
+  namedLines: number | null;
+}
+
+/** A move actually played here, for slots we have not curated choices for. */
+export interface SlotMove {
+  san: string;
+  share: number;
+  name: string | null;
+  eco: string | null;
+}
+
+export interface RepertoireSlot {
+  id: string;
+  side: 'white' | 'black';
+  /** SAN moves from the start to this position. */
+  line: string[];
+  fen: string;
+  /** Share of your games as this colour that arrive here, 0-1. */
+  share: number;
+  /** The opening this position is known as, when it has a consensus name. */
+  name: string | null;
+  eco: string | null;
+  /** The choice whose gap created this slot, or null for a root. */
+  origin: string | null;
+  moves: SlotMove[];
+  choices: RepertoireChoice[];
+}
+
+export interface RepertoireMapMeta {
+  source: string;
+  games: number;
+  openings: number;
+  gapMaxPly: number;
+  gapMinShare: number;
+  steerPly: number;
+  otherFirstMoves: number;
+}
+
+export interface RepertoireMap {
+  meta: RepertoireMapMeta;
+  slots: RepertoireSlot[];
+  /**
+   * "If you already play X, this slot flows back into it at least N of the time."
+   *
+   * A LOWER bound: the search that produced it has a horizon, so a transposition
+   * first available beyond that depth is not counted. Never present it as exact.
+   */
+  transpositions: Array<{ slot: string; choice: string; atLeast: number }>;
+}
+
+/** One filled slot in a player's bracket. */
+export interface RepertoirePick {
+  slotId: string;
+  /** A curated choice, when they took one of ours. */
+  choiceId?: string;
+  /** A move, when they picked one off the list or out of the library. */
+  san?: string;
+  /** What to call it on screen. */
+  label: string;
+  /** Set when the pick came from the searchable library rather than our list. */
+  fromLibrary?: boolean;
+}
+
+/** A named opening in the searchable library. */
+export interface OpeningEntry {
+  name: string;
+  eco: string | null;
+  pgn: string | null;
+  /** SAN moves, derived from the pgn. */
+  moves: string[];
+}

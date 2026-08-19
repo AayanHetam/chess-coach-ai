@@ -112,7 +112,7 @@ describe('resolveHole', () => {
   });
 
   it('ranks every confirmed line above every suspected one', () => {
-    const suspected = hole(['e4', 'e5', 'f4'], 'white', 100, 'suspected');
+    const suspected = hole(['e4', 'e5', 'f4'], 'white', 100, 'signal');
     const confirmed = hole(['d4', 'd5', 'Bf4'], 'white', 1);
     // A far larger estimate does not outrank a measurement.
     expect(resolveHole(report([suspected, confirmed]), { kind: 'today' })).toEqual({

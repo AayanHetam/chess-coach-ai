@@ -1,6 +1,6 @@
 # 🚀 Next Steps for Chess Masti
 
-**Status:** All Ryan Knight recommendations implemented + Neo4j loaders ready
+**Status:** All code-review recommendations implemented + Neo4j loaders ready
 **Date:** March 30, 2026
 
 ---
@@ -83,7 +83,7 @@ MATCH (n) RETURN labels(n) AS label, count(n) AS count
 ```bash
 # Commit all changes:
 git add .
-git commit -m "Add Neo4j integration + Ryan's recommendations"
+git commit -m "Add Neo4j integration + code-review recommendations"
 git push origin main
 
 # Deploy automatically triggers on push
@@ -489,7 +489,7 @@ git push origin main
 ```
 
 ### Key Documentation:
-- [RYAN_RECOMMENDATIONS_COMPLETE.md](RYAN_RECOMMENDATIONS_COMPLETE.md) - All implementations
+- [MENTOR_RECOMMENDATIONS_COMPLETE.md](MENTOR_RECOMMENDATIONS_COMPLETE.md) - All implementations
 - [NEO4J_DATA_LOADING_COMPLETE.md](NEO4J_DATA_LOADING_COMPLETE.md) - Data loading guide
 - [scripts/neo4j-loaders/README.md](scripts/neo4j-loaders/README.md) - Loader docs
 

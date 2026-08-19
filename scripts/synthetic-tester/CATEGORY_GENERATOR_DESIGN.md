@@ -481,7 +481,7 @@ The non-null-bucket floors (opponent_prep, improvement_strategy, meta_motivation
 
 ## 12.5 Budget discipline (RATIFIED 2026-05-23)
 
-**Hard cap: $70 for Stage C through PR 1.C merge.** Aayan funds from personal money; the $100 added to the Anthropic API account holds $30 buffer for unexpected costs and early Phase 2 testing.
+**Hard cap: $70 for Stage C through PR 1.C merge.** The API budget is small and fixed, with a buffer reserved for unexpected costs and early Phase 2 testing.
 
 **Cost shape with frugal adjustments:**
 

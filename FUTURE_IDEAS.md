@@ -113,51 +113,9 @@ The Stage 3 step is the operational answer to "make sure it gets called": shippi
 
 ---
 
-## Anthropic API credit acquisition strategy
+## API cost engineering levers
 
-Captured 2026-05-01 after a research pass on Anthropic's actual program landscape. Goal: fund the Anthropic spend that powers `callLLM()` in [src/lib/llmProvider.ts](src/lib/llmProvider.ts) without forcing premature monetization, on the way to the 50k-MAU-in-18-months target.
-
-### Programs that don't fit the project's current shape (eligibility-blocked)
-
-- **Anthropic Startup Program** — VC-backed only; requires a partner-VC referral link per [claude.com/programs/startups](https://claude.com/programs/startups). Not viable as a solo, unfunded HS founder.
-- **Claude for Education (institutional plan)** — sold to school districts and universities, not individual builders.
-- **Claude Campus / Builder Club / Campus Ambassador** — gated on enrollment at a partner university.
-- **Claude for Nonprofits** ([support.claude.com](https://support.claude.com/en/articles/12893767-getting-started-with-claude-for-nonprofits)) — *important*: this is a discount on Claude.ai **subscription** plans (Team minimum 150 seats × $8/mo ≈ $1,200/mo), **not API credits**. Forming a 501(c)(3) does not directly unlock production API credits via this program.
-
-### Programs ranked by realistic credit yield × probability of acceptance
-
-| Path | API credits | Acceptance probability | Structural cost | College-app value |
-|---|---|---|---|---|
-| Win Claude/Anthropic hackathons (Devpost) | $500 – $100,000 per event | Realistic; ship-and-win | None | High |
-| AWS Activate Founders → Claude via Bedrock | ~$1,000 in AWS credits | High; lightweight app | None | Low |
-| AWS for Nonprofits / Google Cloud nonprofit (after 501(c)(3)) → Bedrock | Substantial cloud credits | High once 501(c)(3) approved | High (3–12mo formation) | Very high |
-| UW research partnership → External Researcher Access ([support.claude.com](https://support.claude.com/en/articles/9125743-what-is-the-external-researcher-access-program)) | Direct Anthropic API credits | Medium; depends on faculty | None (just outreach) | Very high |
-| Direct Anthropic dev-rel email | Variable | Low | None | Low |
-
-### What this implies
-
-The structural change that actually unlocks Anthropic credits for someone in this profile is **501(c)(3) → AWS for Nonprofits → Bedrock**, not anything Anthropic publishes directly. Open-sourcing the project does not unlock any verified Anthropic credit program (no "Claude for Open Source" program could be confirmed); OSS has merit for other reasons (community, hackathon eligibility, college-app credentialing) but isn't the credit lever.
-
-### Active hackathons / venues to apply through (verify status before submitting)
-
-- [Claude Code Hackathon — $100k credits pool](https://www.adwaitx.com/claude-code-hackathon-opus-4-6/)
-- [Claude Hackathon 2026 — Columbia × NYU — $3k credits](https://claude-hackathon-2026.devpost.com/)
-- [Anthropic × USC Claude Hackathon — $2.5k / $1.5k credits](https://anthropic-usc-hackathon.devpost.com/)
-- [Anthropic London Hackathon](https://anthropiclondon.devpost.com/)
-- [Claude Hackathon × UVicHacks — $1.5k credits](https://claude-hackathon-uvichacks.devpost.com/)
-- [Anthropic × WiCS Hackathon](https://anthropic-wics-hackathon.devpost.com/)
-- [Anthropic Hackathon GT × CBC — $500 credits](https://anthropic-hackathon.devpost.com/)
-
-### Recommended sequence
-
-1. **Immediate (≤4 weeks)**: submit Chess Masti AI (or a focused subsystem) to 2–3 currently-open Claude hackathons. Stackable; even small wins compound on the college app and produce real credits.
-2. **Parallel, no commitment**: cold-email 3–5 UW faculty in CSE / HCDE / Education whose research touches AI tutoring, intelligent tutoring systems, or accessible AI. Goal: turn "potential UW partnership" into a named faculty sponsor → unlocks External Researcher Access.
-3. **Medium-term lightweight nonprofit credential**: apply for **fiscal sponsorship via Hack Foundation** ([hackclub.com/fiscal-sponsorship](https://hackclub.com/fiscal-sponsorship/)). Weeks-not-months process, designed for student founders, gets most 501(c)(3)-shaped benefits without the IRS Form 1023 overhead.
-4. **Long-term (only if Chess Masti AI is genuinely staying mission-driven)**: full 501(c)(3) formation → AWS for Nonprofits → Bedrock-hosted Claude. ~$275 (Form 1023-EZ) + state fees, 2–4 weeks for EZ filing, 3–12 months for standard. Mission-locks the project; not reversible. Strong college-app signal independent of credits.
-
-### Engineering levers that compound regardless of any credit grant
-
-These reduce the Anthropic bill directly and make any credit grant go further. Higher leverage than the credits themselves over a 12-month horizon:
+These reduce the Anthropic bill directly. High leverage over a 12-month horizon:
 
 - Verify `cacheSystem: true` is enabled on every flagship `callLLM` invocation. The system prompt at [src/lib/chessPrinciples.ts:172](src/lib/chessPrinciples.ts#L172) is large and reused — cache hits are ~10× cheaper.
 - Audit which routes call `tier: "flagship"`. Demote any that don't truly need Sonnet 4 to `"fast"` (Haiku 4.5).
@@ -201,11 +159,11 @@ Not a near-term build. Reference for when the strategic question reopens.
 
 ## Competitor feature gaps to evaluate
 
-Captured 2026-05-01 from a comprehensive competitive scan of ~35 chess training/coaching products. Full landscape and per-competitor profiles in [competition.md](competition.md). This section is the actionable spinoff: features observed in real competing products that chessmasti doesn't ship today, grouped by strategic fit so the highest-leverage ones surface first.
+Captured 2026-05-01 from a comprehensive competitive scan of ~35 chess training/coaching products. Full landscape and per-competitor profiles were captured in an internal competitive scan (kept out of the public repo). This section is the actionable spinoff: features observed in real competing products that chessmasti doesn't ship today, grouped by strategic fit so the highest-leverage ones surface first.
 
 Source competitor named in parentheses; rough effort tag — `S` (small, days–weeks), `M` (medium, weeks–month), `L` (large, multi-month) — reflects scope, not difficulty.
 
-**Priority commitments — 2026-05-01**: items tagged **[PRIORITY]** below are committed for the coming months. They cover the three product-failure themes identified in [competition.md](competition.md): **distribution** (mobile app, browser extension, multi-language), **diagnostics** (insights dashboard, personal opening tree, CAPS score, opponent scouting), and **onboarding/structure** (structured curriculum, coordinate trainer, coach persona, native annotation/studies, visualization training). Tier order still reflects effort/sequence, not priority — work generally proceeds shortest → longest within and across tiers.
+**Priority commitments — 2026-05-01**: items tagged **[PRIORITY]** below are committed for the coming months. They cover the three product-failure themes identified in that scan: **distribution** (mobile app, browser extension, multi-language), **diagnostics** (insights dashboard, personal opening tree, CAPS score, opponent scouting), and **onboarding/structure** (structured curriculum, coordinate trainer, coach persona, native annotation/studies, visualization training). Tier order still reflects effort/sequence, not priority — work generally proceeds shortest → longest within and across tiers.
 
 ### Tier 1 — High fit with our AI-coaching positioning, near-term candidates
 

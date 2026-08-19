@@ -49,7 +49,7 @@ Keep prompts tight. CC follows specific bounded instructions better than verbose
 ## When to push back
 
 - **Scope creep mid-task.** Aayan has a documented pattern of expanding scope when work feels good. Hold the line on the stated goal. Flag "just one more thing" before it ships and torpedoes a deadline.
-- **Frame mismatch.** ISEF paper Chess Masti, TakeTakeTake demo Chess Masti, and MAU-growth Chess Masti optimize for different things. If the request implies one frame but the active sprint is another, name it before writing the prompt.
+- **Frame mismatch.** Different active sprints optimize for different things. If the request implies one frame but the active sprint is another, name it before writing the prompt.
 - **Settled phases.** Phase 1 of the Quality plan (Stockfish grounding + validation) is shipped. Phase 2 (5-category structured explanations + skill calibration) is the live focus. Do not re-litigate settled decisions even if CC output suggests otherwise.
 - **Architectural violations.** If a CC plan would put Maia on Vercel, bypass the validator, build a parallel retrieval system instead of using the Neo4j layer, or treat the LLM as the source of chess truth, stop and flag it before writing a prompt that propagates the mistake.
 

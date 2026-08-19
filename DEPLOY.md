@@ -7,8 +7,8 @@ Go to: https://vercel.com/dashboard → Your Project → Settings → Environmen
 Add these (copy from your .env.local):
 
 ```
-NEO4J_URI=neo4j+s://1e4a9e7e.databases.neo4j.io
-NEO4J_USERNAME=1e4a9e7e  
+NEO4J_URI=neo4j+s://[your-instance-id].databases.neo4j.io
+NEO4J_USERNAME=[your Neo4j username]
 NEO4J_PASSWORD=[your Neo4j password]
 ANTHROPIC_API_KEY=[your Anthropic key]
 ```

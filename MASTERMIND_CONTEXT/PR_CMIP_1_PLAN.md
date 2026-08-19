@@ -217,13 +217,14 @@ Interns have a regular `users/{uid}` doc in Firestore — they signed up like an
 - **Seed values (resolved 2026-05-17):**
   ```sql
   insert into intern_allowlist (email) values
-    ('jadhavpushkar196@gmail.com'),
-    ('akshajshriv10@gmail.com'),
-    ('s-annapureddyp@bsd405.org');
+    ('intern-one@example.com'),
+    ('intern-two@example.com'),
+    ('intern-three@example.com');
   ```
-  More interns added later by direct SQL or by a CMIP-1.D-follow-up admin UI.
+  (Real cohort emails live in the production table only.) More interns added
+  later by direct SQL or by a CMIP-1.D-follow-up admin UI.
 
-**Admin role setup (resolved 2026-05-17):** Aayan's CM email is **aayanhetamsaria4@gmail.com** (not kapilhetamsaria@gmail.com — that's a Claude-only address). For CMIP-1.D's admin export pages to be reachable, the Firestore `users/{uid}` doc for aayanhetamsaria4@gmail.com needs `role: "admin"`. This is a one-time write Aayan does via the existing Firestore admin path before CMIP-1.D ships (not a CMIP-1.A blocker).
+**Admin role setup (resolved 2026-05-17):** the CM admin account is the public contact address shown on `/privacy`. For CMIP-1.D's admin export pages to be reachable, that account's Firestore `users/{uid}` doc needs `role: "admin"`. This is a one-time write Aayan does via the existing Firestore admin path before CMIP-1.D ships (not a CMIP-1.A blocker).
 
 **Acceptance gate:**
 - A non-allowlisted user signs in → no employee chrome visible anywhere on chessmasti.com. Site looks exactly as it does today.
@@ -334,7 +335,7 @@ create index on intern_flags (intern_email, flagged_at desc);
 **Branch:** `cmip/admin-dashboard-and-export`
 
 **New files:**
-- `src/pages/admin/intern-data/index.tsx` — admin-only page (gated by `user.role === "admin"` for `aayanhetamsaria4@gmail.com`). Two sections:
+- `src/pages/admin/intern-data/index.tsx` — admin-only page (gated by `user.role === "admin"` for the CM admin account). Two sections:
   1. **Roster + progress table** (primary). One row per intern, **auto-discovered from `intern_allowlist`** so any intern added via `scripts/intern/add-to-allowlist.mjs` shows up on next page load without code changes. Columns: name (or email if no display name), this-week submissions vs target with status pill (`🟢 / 🟡 / 🔵 / Pre-program`), streak, all-time submissions, conversion (flags → submitted), last activity. Sortable. Default sort: status (`🟡 Behind` first, then `🟢`, then `🔵`, then `Pre-program`) so attention goes where it's needed.
   2. **Export panel**. One button: "Download submissions as JSONL." Same schema as before. Includes a toggle to include/exclude `intern_email` attribution.
 - `src/pages/admin/intern-data/[email].tsx` — per-intern detail. Last 8 weeks bar chart of submissions, recent pending (unsubmitted) flags list, and a "send nudge" placeholder (CMIP-1.D.1 follow-up).
@@ -356,7 +357,7 @@ create index on intern_flags (intern_email, flagged_at desc);
 - `scripts/intern/export-submissions.mjs` — CLI variant for local export → file.
 
 **Edits:**
-- Existing admin pattern: confirm `users/{uid}.role === "admin"` is set for `aayanhetamsaria4@gmail.com` (one-time Firestore write) before this PR ships.
+- Existing admin pattern: confirm `users/{uid}.role === "admin"` is set for the CM admin account (one-time Firestore write) before this PR ships.
 
 **Roster query (Supabase, simplified):**
 ```sql
@@ -545,10 +546,10 @@ User answers captured verbatim. Plan body updated in-place to reflect each decis
 
 | # | Question | Answer | Plan section updated |
 |---|---|---|---|
-| A | Cohort emails — who's currently in CMIP? | **jadhavpushkar196@gmail.com, akshajshriv10@gmail.com, s-annapureddyp@bsd405.org** (more added later) | §5.1 seed values |
+| A | Cohort emails — who's currently in CMIP? | three interns confirmed for the 2026 cohort (emails in the production allowlist table; more added later) | §5.1 seed values |
 | B | Accent color | **"Deep blue works (make the entire site Blue themed instead of Orange)."** Full theme reskin, not just an accent border. Customer view unchanged. | §3.2 row "Brand color — site-wide" |
 | C | Flag categories | **"all Bad/innacurate/incomplete responses"** → three categories: **Bad / Inaccurate / Incomplete** | §2.1, §5.2 schema |
-| D | Admin email | **aayanhetamsaria4@gmail.com** is the CM admin (kapilhetamsaria@gmail.com is for Claude only, not CM). Firestore `users/{uid}.role = "admin"` to be set before CMIP-1.D. | §5.1 admin role setup |
+| D | Admin email | The CM admin is the public `/privacy` contact account. Firestore `users/{uid}.role = "admin"` to be set before CMIP-1.D. | §5.1 admin role setup |
 | E | Supabase — existing or fresh? | **Fresh project under a new "Chess Masti" Supabase org** (Aayan creates the org during CMIP-1.A setup; needs no prior infra) | §5.1 Supabase setup |
 | F | Profile dialog 5th tab? | **"Keep everything at /intern, we don't need to impact the consumer product itself."** No 5th tab. Profile dialog untouched. | §3.2, §5.1 |
 

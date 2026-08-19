@@ -106,7 +106,7 @@ docs/
   ops/                DEPLOY.md, DEPLOYMENT_GUIDE.md, QUICK_DEPLOY.md,
                       TESTER_GUIDE.md, CODE_PROTECTION_GUIDE.md
   historical/         All 15 *_FIX_SUMMARY.md / *_CLEANUP_SUMMARY.md files,
-                      FINAL_STATUS.md, RYAN_RECOMMENDATIONS_COMPLETE.md,
+                      FINAL_STATUS.md, MENTOR_RECOMMENDATIONS_COMPLETE.md,
                       THEME_MAPPING_ISSUE.md, NEXT_STEPS.md, FEATURE_ROADMAP.md
   research/           (already exists) ab-pilot-design.md, internal-data-probe.md,
                       concept-similarity-rationale.md
@@ -151,7 +151,7 @@ Per-file disposition table (56 files):
 | PNG_ERROR_FIX_SUMMARY.md | move → docs/historical/ |
 | UI_SIMPLIFICATION_SUMMARY.md | move → docs/historical/ |
 | FINAL_STATUS.md | move → docs/historical/ |
-| RYAN_RECOMMENDATIONS_COMPLETE.md | move → docs/historical/ |
+| MENTOR_RECOMMENDATIONS_COMPLETE.md | move → docs/historical/ |
 | NEXT_STEPS.md | move → docs/historical/ |
 | FEATURE_ROADMAP.md | move → docs/historical/ |
 | THEME_MAPPING_ISSUE.md | move → docs/historical/ |

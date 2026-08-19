@@ -1,13 +1,23 @@
-# Copying Chesskit
+# Copying Chess Masti AI
 
-Any file in this project that does not state otherwise and is not listed as an
-exception below is part of chesskit.
+Chess Masti AI grew from [Chesskit](https://github.com/GuillaumeSD/Chesskit),
+which grew from [lichess](https://github.com/lichess-org/lila). Any file in this
+project that does not state otherwise and is not listed as an exception below is
+covered by this notice.
 
-Chesskit is free software; you can redistribute and/or modify it under the terms
-of the GNU Affero General Public License as published by the Free Software
+Chess Masti AI is free software; you can redistribute and/or modify it under the
+terms of the GNU Affero General Public License as published by the Free Software
 Foundation; version 3 of the License.
 
 See the LICENSE file for a copy of the _GNU Affero General Public License_.
+
+Copyright (C) 2024-2026 Aayan Hetamsaria and the Chesskit and lichess authors.
+
+> **The code is open source; not every bundled asset is.** Several piece sets
+> and sounds listed below are NonCommercial, NoDerivatives, or plain freeware.
+> Those terms are neither AGPL-compatible nor open source, which is exactly why
+> they are carved out here — as upstream does. Redistribute the code freely;
+> check this table before redistributing the assets.
 
 ## Exceptions (free)
 

@@ -13,7 +13,7 @@ The single rule: **finish one thing before opening the next.**
 Chess Masti is accessible AI chess coaching. Mission framing: high-quality chess education at near-zero cost, originating from the founder's experience growing up in Mumbai. Product: [chessmasti.com](https://chessmasti.com).
 
 - **18-month MAU target**: 50,000 by 2026-11-01 (per memory: from 2026-05-01 baseline).
-- **Revenue posture**: zero revenue is fine for the next 18 months — credit-application-driven (Claude for Education being the active path; OSS path off due to CC-BY-NC license blocker).
+- **Revenue posture**: zero revenue is fine for the next 18 months — credit-application-driven (Claude for Education being the active path; the OSS path REOPENED 2026-08-19 when the project restored AGPL-3.0 and went public).
 - **Strategic moat**: UI craft + grounded coaching, not a chess engine. DecodeChess / Chessstalker / Lichess / Chess.com all work but look dated.
 
 ## Current state (2026-05-29)
@@ -77,7 +77,7 @@ Listed with rationale because skipping silently breeds cruft.
 - **Landing v2 (WebGL chess landing)** — built, parked. Visible-from-outside but doesn't move the MAU number on its own. Ship after Phase 2.F lands so the funnel from landing → product → coach is end-to-end polished.
 - **OpenAI fallback integration** — code exists in `llmProvider.ts`, `OPENAI_API_KEY` not configured. Anthropic uptime hasn't been a real problem. Wire when there's an actual outage to justify the second-provider operational cost.
 - **The 30+ `*_SUMMARY.md` files at the repo root** — stale CC-session artifacts. One-pass cleanup sprint, deferred.
-- **OSS strategic path** — CC-BY-NC license blocks Claude for OSS eligibility. Education path is fitter anyway. Do not revisit unless license posture changes.
+- **OSS strategic path** — UNBLOCKED 2026-08-19. The license posture changed, which was this entry's own condition for revisiting: AGPL-3.0 is OSI-approved, so eligibility is no longer a licensing question. The remaining gate is the 5k-star threshold (repo is at 0 on day one), so Education is still the nearer path.
 - **Coach personality picker as a full picker UI** — minimal `personalityId="default"` threading is enough for prompt-quality parity; full picker waits.
 
 ## Operational rules

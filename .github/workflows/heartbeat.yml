@@ -107,7 +107,45 @@ jobs:
             | grep -ci "confirm.*to sign up")
           check "signup enforces age affirmation" "1" "$G"
 
-          # 6. Env config complete (names-only presence check)
+          # 6. The AI path actually answers.
+          #
+          # Nothing here probed an LLM endpoint until now. On 2026-08-19 the
+          # Anthropic balance ran out and EVERY coaching feature went dead in
+          # production — coach chat, puzzle hints, game-review prose — while
+          # every probe above stayed green, because the site, auth and config
+          # were all perfectly healthy. It was found by accident, hours later.
+          # The chess half of the product runs client-side and is genuinely
+          # unaffected, which is exactly why the outage was invisible from out
+          # here.
+          #
+          # `/api/puzzle-hint` is used rather than `/api/health/llm` because
+          # the health routes are admin + same-origin gated (deliberately —
+          # they spend provider tokens), so CI cannot reach them without
+          # minting and distributing a secret. This probes the REAL user path
+          # instead, which is the thing that has to work anyway.
+          #
+          # `why_wrong` is the Haiku stage: the cheapest call that still
+          # proves a provider answered. The route caches by
+          # (puzzleId, stage, attempt), so repeat hours are often free.
+          #
+          # A DELIBERATE pause is not an outage. AI_COACH_DISABLED returns 503
+          # with AI_TEMPORARILY_DISABLED, and that must not page anyone —
+          # distinguishing "switched off on purpose" from "broken" is the
+          # whole reason that code is separate from AI_PROVIDER_UNAVAILABLE.
+          AIBODY=$(curl -s --max-time 90 -w '\n%{http_code}' -X POST "$BASE/api/puzzle-hint" \
+            -H "Content-Type: application/json" \
+            -d '{"puzzle":{"id":"heartbeat-probe","fen":"r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3","solution":["f8c5","b2b4","c5b4"],"themes":[]},"stage":"why_wrong","userAttemptSan":"Nf6"}')
+          AISTATUS=$(printf '%s' "$AIBODY" | tail -n1)
+          if [ "$AISTATUS" = "200" ]; then
+            AISTATE="ok"
+          elif [ "$AISTATUS" = "503" ] && printf '%s' "$AIBODY" | grep -q "AI_TEMPORARILY_DISABLED"; then
+            AISTATE="ok"
+          else
+            AISTATE="$AISTATUS"
+          fi
+          check "coach answers (or is deliberately paused)" "ok" "$AISTATE"
+
+          # 7. Env config complete (names-only presence check)
           C=$(curl -s --max-time 15 "$BASE/api/health/config" | grep -c '"ok":true' || echo 0)
           check "health/config reports ok" "1" "$C"
 

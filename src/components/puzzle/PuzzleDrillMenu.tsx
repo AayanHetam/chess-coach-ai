@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import type { PuzzleContext } from "@/lib/validation/puzzleChatSchemas";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import { prettyTheme } from "@/components/puzzle/prettyTheme";
+import { SERIF_DISPLAY } from "@/theme/fonts";
 
 /**
  * PuzzleDrillMenu — the "drill more like this" set, as an opt-in drag-down
@@ -129,8 +130,9 @@ export function PuzzleDrillMenu({ puzzles, onPick }: PuzzleDrillMenuProps) {
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography
                     sx={{
-                      fontSize: "0.82rem",
-                      fontWeight: 700,
+                      fontFamily: SERIF_DISPLAY,
+                      fontSize: "0.9rem",
+                      fontWeight: 500,
                       color: "rgba(255,240,224,0.92)",
                     }}
                   >
@@ -161,8 +163,7 @@ export function PuzzleDrillMenu({ puzzles, onPick }: PuzzleDrillMenuProps) {
                       fontWeight: 700,
                       textTransform: "none",
                       "&:hover": {
-                        background:
-                          "linear-gradient(135deg, #FB923C, #FBBF24)",
+                        background: "linear-gradient(135deg, #FB923C, #FBBF24)",
                       },
                     }}
                   >

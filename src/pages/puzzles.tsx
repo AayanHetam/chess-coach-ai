@@ -69,10 +69,8 @@ import { useSolveClock } from "@/lib/puzzle/useSolveClock";
 import { findThemeReference } from "@/lib/puzzle/themeReference";
 import { PuzzleToolbar } from "@/components/puzzle/PuzzleToolbar";
 import { PuzzleReferenceCard } from "@/components/puzzle/PuzzleReferenceCard";
-import {
-  eliminatedUnderlay,
-  toggleEliminated,
-} from "@/lib/puzzle/eliminate";
+import { SERIF_DISPLAY } from "@/theme/fonts";
+import { eliminatedUnderlay, toggleEliminated } from "@/lib/puzzle/eliminate";
 import { buildMoveChoices } from "@/lib/puzzle/moveChoices";
 import { MoveChoiceList } from "@/components/puzzle/MoveChoiceList";
 import { stepDifficulty } from "@/lib/puzzleDifficulty";
@@ -99,9 +97,9 @@ import {
 const PuzzleBoardSurface = dynamic(
   () =>
     import("@/components/puzzle/PuzzleBoardSurface").then(
-      (m) => m.PuzzleBoardSurface,
+      (m) => m.PuzzleBoardSurface
     ),
-  { ssr: false },
+  { ssr: false }
 );
 
 /** Per-color fill for coach-triggered square overlays (was in PuzzleBoard.tsx).
@@ -270,7 +268,7 @@ const FEED_TO_CURRICULUM_THEME: Record<string, string> = {
 
 /** First focus theme that maps to a feed theme, or undefined. */
 function firstFeedThemeForFocus(
-  focus: string[] | undefined,
+  focus: string[] | undefined
 ): string | undefined {
   if (!focus) return undefined;
   for (const f of focus) {
@@ -306,7 +304,7 @@ export default function PreviewPuzzlesPage() {
   // Squares the solver has ruled out. Scratch state for ONE position — not
   // persisted, because carrying it to the next puzzle would be misleading.
   const [eliminated, setEliminated] = useState<ReadonlySet<string>>(
-    () => new Set<string>(),
+    () => new Set<string>()
   );
   const [puzzleStartedAt, setPuzzleStartedAt] = useState(() => Date.now());
   const recordTrainingDay = useRecordTrainingDay();
@@ -315,12 +313,12 @@ export default function PreviewPuzzlesPage() {
   const pieceSet = useAtomValue(pieceSetAtom);
   const setSessionHistory = useSetAtom(puzzleSessionHistoryAtom);
   const [practiceQueueAtomVal, setPracticeQueueAtom] = useAtom(
-    puzzlePracticeQueueAtom,
+    puzzlePracticeQueueAtom
   );
   // What the injected queue is, so the banner doesn't call a generated set
   // "re-practicing missed puzzles". Snapshotted alongside the queue.
   const [practiceLabelAtomVal, setPracticeLabelAtom] = useAtom(
-    puzzlePracticeLabelAtom,
+    puzzlePracticeLabelAtom
   );
   const [practiceLabel, setPracticeLabel] = useState<string | null>(null);
 
@@ -330,7 +328,9 @@ export default function PreviewPuzzlesPage() {
   // Re-practice queue: when the user taps "Practice missed" in session history,
   // the page drills through these specific puzzles (taking precedence over the
   // feed) then reverts. practiceList is the snapshot; practiceIdx walks it.
-  const [practiceList, setPracticeList] = useState<PuzzleContext[] | null>(null);
+  const [practiceList, setPracticeList] = useState<PuzzleContext[] | null>(
+    null
+  );
   const [practiceIdx, setPracticeIdx] = useState(0);
 
   // Snapshot any fresh "continue where you left off" entry at mount, before
@@ -339,12 +339,14 @@ export default function PreviewPuzzlesPage() {
   const resumeReadRef = useRef(false);
   if (!resumeReadRef.current) {
     resumeReadRef.current = true;
-    initialResumeRef.current = isResumeFresh(resume, Date.now()) ? resume : null;
+    initialResumeRef.current = isResumeFresh(resume, Date.now())
+      ? resume
+      : null;
   }
 
   // The resumed puzzle takes precedence over the feed until the user moves on.
   const [resumeOverride, setResumeOverride] = useState<PuzzleContext | null>(
-    null,
+    null
   );
   // One-shot guards: resume is applied synchronously on mount; the rating +
   // focus-theme seed waits for auth to resolve.
@@ -378,7 +380,7 @@ export default function PreviewPuzzlesPage() {
         ratingMax: band.max,
       });
     },
-    [feed],
+    [feed]
   );
 
   const handleThemeClick = useCallback(
@@ -389,7 +391,7 @@ export default function PreviewPuzzlesPage() {
       setActiveTheme(id);
       applyFilters(id, activeBand);
     },
-    [activeBand, applyFilters],
+    [activeBand, applyFilters]
   );
 
   const handleBandClick = useCallback(
@@ -399,7 +401,7 @@ export default function PreviewPuzzlesPage() {
       setActiveBand(bandId);
       applyFilters(activeTheme, bandId);
     },
-    [activeTheme, applyFilters],
+    [activeTheme, applyFilters]
   );
 
   // Consume an injected re-practice queue once it hydrates from storage: snapshot
@@ -478,8 +480,9 @@ export default function PreviewPuzzlesPage() {
     to: string;
     fen: string;
   } | null>(null);
-  const [difficultyAnchor, setDifficultyAnchor] =
-    useState<HTMLElement | null>(null);
+  const [difficultyAnchor, setDifficultyAnchor] = useState<HTMLElement | null>(
+    null
+  );
   // SAN of the choice-mode option tried and rejected for the CURRENT ply.
   // Cleared whenever the position advances so a stale red row can't bleed onto
   // the next question.
@@ -503,7 +506,7 @@ export default function PreviewPuzzlesPage() {
   // immediately (preventing a double-save if the user then goes idle).
   const [recapResults, setRecapResults] = useState<SessionResult[]>([]);
   const [lastSessionMsg, setLastSessionMsg] = useState<string | undefined>(
-    undefined,
+    undefined
   );
   const [idleSavedOpen, setIdleSavedOpen] = useState(false);
   // Fresh-stats mirror so grading reads the current rating/attempts without
@@ -537,7 +540,7 @@ export default function PreviewPuzzlesPage() {
   /** Set when a coach-offered demo line was refused; see handleCoachDemoRequest. */
   const [demoNote, setDemoNote] = useState("");
   const [pendingDemoMoves, setPendingDemoMoves] = useState<string[] | null>(
-    null,
+    null
   );
   const [activeDemo, setActiveDemo] = useState<ActiveDemo | null>(null);
 
@@ -546,7 +549,7 @@ export default function PreviewPuzzlesPage() {
   // we set this; the board renders translucent overlays. Cleared on next
   // attempt / puzzle change / another highlight click.
   const [coachHighlights, setCoachHighlights] = useState<CoachHighlight | null>(
-    null,
+    null
   );
 
   // Reset board state whenever the puzzle changes.
@@ -580,7 +583,7 @@ export default function PreviewPuzzlesPage() {
     () => () => {
       if (oppReplyTimerRef.current) clearTimeout(oppReplyTimerRef.current);
     },
-    [],
+    []
   );
 
   // Reset the grading clock + guard whenever a new puzzle is shown.
@@ -620,7 +623,7 @@ export default function PreviewPuzzlesPage() {
     // A saved resume drives the stream unless the user deep-linked a theme.
     if (!queryTheme && initialResumeRef.current) return;
     const focusTheme = queryTheme
-      ? FEED_THEME_BY_FOCUS[queryTheme] ?? queryTheme
+      ? (FEED_THEME_BY_FOCUS[queryTheme] ?? queryTheme)
       : firstFeedThemeForFocus(profile?.focusThemes);
     feed.setFilters({
       themes: focusTheme ? [focusTheme] : undefined,
@@ -650,14 +653,14 @@ export default function PreviewPuzzlesPage() {
         before,
         puzzleRating,
         solved,
-        s.totalAttempts,
+        s.totalAttempts
       );
       const theme = pickPrimaryTheme(puzzle.themes);
       const timeMs = Math.max(0, Date.now() - startTimeRef.current);
       // Stamp the session identity on its first graded puzzle.
       if (!sessionIdRef.current) {
         sessionIdRef.current = `s-${Date.now()}-${Math.floor(
-          Math.random() * 1e6,
+          Math.random() * 1e6
         )}`;
         sessionStartRef.current = Date.now();
       }
@@ -669,7 +672,7 @@ export default function PreviewPuzzlesPage() {
           timeMs,
           theme,
           timestamp: Date.now(),
-        }),
+        })
       );
       // A graded puzzle here is real training and must count toward the daily
       // streak. Before the program-first restructure, bumpStreak fired ONLY in
@@ -689,7 +692,7 @@ export default function PreviewPuzzlesPage() {
         },
       ]);
     },
-    [puzzle, setStats, recordTrainingDay],
+    [puzzle, setStats, recordTrainingDay]
   );
 
   // Grade the rating on solve (first-try only counts as solved, mirroring
@@ -718,7 +721,7 @@ export default function PreviewPuzzlesPage() {
       // Mirror to the server for cross-device history (best-effort; anon no-op).
       if (authedRef.current) postSessionToServer(session);
     },
-    [setSessionHistory],
+    [setSessionHistory]
   );
 
   // Clear the live session (counters back to zero + new identity next grade).
@@ -833,12 +836,9 @@ export default function PreviewPuzzlesPage() {
 
   // Coach asks to demo a line via [SHOW_MOVE:...]. Stash the moves so the
   // dialog opens with confirmation + speed pick.
-  const handleShowCoachHighlight = useCallback(
-    (highlight: CoachHighlight) => {
-      setCoachHighlights(highlight);
-    },
-    [],
-  );
+  const handleShowCoachHighlight = useCallback((highlight: CoachHighlight) => {
+    setCoachHighlights(highlight);
+  }, []);
 
   // Every SAN here was written by the model. The server drops lines that fit
   // NOWHERE on the puzzle's solution, but it cannot know which position this
@@ -879,7 +879,7 @@ export default function PreviewPuzzlesPage() {
         finished: false,
       });
     },
-    [pendingDemoMoves, game],
+    [pendingDemoMoves, game]
   );
 
   const handleDemoCancel = useCallback(() => {
@@ -935,7 +935,7 @@ export default function PreviewPuzzlesPage() {
   // Unfiltered is "All" in the chip row, which is a filter state, not a
   // subject — the rail says "Tactics" there instead.
   const railHeading = activeTheme
-    ? QUICK_THEMES.find((t) => t.id === activeTheme)?.label ?? "Tactics"
+    ? (QUICK_THEMES.find((t) => t.id === activeTheme)?.label ?? "Tactics")
     : "Tactics";
 
   const handleFinishSession = useCallback(() => {
@@ -1050,7 +1050,7 @@ export default function PreviewPuzzlesPage() {
     if (answerMode !== "choice" || !expectedMove) return [];
     return buildMoveChoices(
       game.fen(),
-      `${expectedMove.from}${expectedMove.to}${expectedMove.promotion ?? ""}`,
+      `${expectedMove.from}${expectedMove.to}${expectedMove.promotion ?? ""}`
     );
   }, [answerMode, expectedMove, game]);
 
@@ -1067,7 +1067,7 @@ export default function PreviewPuzzlesPage() {
   // Reference is static-only and stays null for the themes nothing covers.
   const themeReference = useMemo(
     () => findThemeReference(puzzle?.themes),
-    [puzzle],
+    [puzzle]
   );
 
   const displayFen = useMemo(() => {
@@ -1192,7 +1192,7 @@ export default function PreviewPuzzlesPage() {
       setStatus("playing");
       return true;
     },
-    [game, moveIdx, parsedMoves, status, bumpActivity],
+    [game, moveIdx, parsedMoves, status, bumpActivity]
   );
 
   const handleReset = useCallback(() => {
@@ -1236,7 +1236,15 @@ export default function PreviewPuzzlesPage() {
     } else {
       feed.advance();
     }
-  }, [puzzle, resumeOverride, recordGrade, feed, practiceList, practiceIdx, bumpActivity]);
+  }, [
+    puzzle,
+    resumeOverride,
+    recordGrade,
+    feed,
+    practiceList,
+    practiceIdx,
+    bumpActivity,
+  ]);
 
   // "New puzzle ⌄" → Easier / Same / Harder. Same just advances; the other two
   // shift the active rating band one step and let the refetch deliver a puzzle
@@ -1253,7 +1261,7 @@ export default function PreviewPuzzlesPage() {
         RATING_BANDS.filter((b) => b.id !== "all"),
         activeBand,
         puzzle?.rating ?? stats.rating,
-        delta,
+        delta
       );
       // Already at the floor/ceiling — serve another at this difficulty rather
       // than silently doing nothing.
@@ -1263,7 +1271,7 @@ export default function PreviewPuzzlesPage() {
       }
       handleBandClick(target.id);
     },
-    [activeBand, puzzle, stats.rating, handleBandClick, handleNextPuzzle],
+    [activeBand, puzzle, stats.rating, handleBandClick, handleNextPuzzle]
   );
 
   // "Neo4j similar puzzle" — same motif, same difficulty, served from the
@@ -1278,12 +1286,10 @@ export default function PreviewPuzzlesPage() {
   const handleNeo4jSimilar = useCallback(async () => {
     if (!puzzle || similarLoading) return;
     bumpActivity();
-    const themes = puzzle.themes.filter(
-      (t) => !NON_GRAPH_THEMES.has(t),
-    );
+    const themes = puzzle.themes.filter((t) => !NON_GRAPH_THEMES.has(t));
     if (themes.length === 0) {
       setSimilarNote(
-        "This puzzle has no tactical motif tagged, so the graph has nothing to match. Served a same-difficulty puzzle instead.",
+        "This puzzle has no tactical motif tagged, so the graph has nothing to match. Served a same-difficulty puzzle instead."
       );
       handleNextPuzzle();
       return;
@@ -1307,7 +1313,7 @@ export default function PreviewPuzzlesPage() {
       });
       if (res.status === 503) {
         setSimilarNote(
-          "Puzzle graph is unavailable right now. Served a same-difficulty puzzle instead.",
+          "Puzzle graph is unavailable right now. Served a same-difficulty puzzle instead."
         );
         handleNextPuzzle();
         return;
@@ -1317,7 +1323,7 @@ export default function PreviewPuzzlesPage() {
       const hit = data?.puzzles?.[0];
       if (!hit?.puzzleId || !hit?.fen || !hit?.moves) {
         setSimilarNote(
-          "No close match in the graph for this motif. Served a same-difficulty puzzle instead.",
+          "No close match in the graph for this motif. Served a same-difficulty puzzle instead."
         );
         handleNextPuzzle();
         return;
@@ -1333,7 +1339,7 @@ export default function PreviewPuzzlesPage() {
       setPracticeList(null);
     } catch {
       setSimilarNote(
-        "Couldn't reach the puzzle graph. Served a same-difficulty puzzle instead.",
+        "Couldn't reach the puzzle graph. Served a same-difficulty puzzle instead."
       );
       handleNextPuzzle();
     } finally {
@@ -1351,7 +1357,7 @@ export default function PreviewPuzzlesPage() {
       setResumeOverride(null);
       setPracticeList(null);
     },
-    [feed, bumpActivity],
+    [feed, bumpActivity]
   );
 
   const coachOutcome: PuzzleOutcome = useMemo(() => {
@@ -1382,7 +1388,11 @@ export default function PreviewPuzzlesPage() {
   // Convert coach-triggered highlights into the shared board's generic
   // underlay-style seam (the board has no coach concept of its own).
   const coachUnderlay = useMemo(() => {
-    if (activeDemo || !coachHighlights || coachHighlights.squares.length === 0) {
+    if (
+      activeDemo ||
+      !coachHighlights ||
+      coachHighlights.squares.length === 0
+    ) {
       return undefined;
     }
     const fill = COACH_HIGHLIGHT_BG[coachHighlights.color];
@@ -1397,10 +1407,10 @@ export default function PreviewPuzzlesPage() {
   // seam. Elimination is painted last so the solver's own marks always win.
   const boardUnderlay = useMemo(() => {
     const marks = eliminatedUnderlay(eliminated);
-    if (!coachUnderlay) return Object.keys(marks).length > 0 ? marks : undefined;
+    if (!coachUnderlay)
+      return Object.keys(marks).length > 0 ? marks : undefined;
     return { ...coachUnderlay, ...marks };
   }, [coachUnderlay, eliminated]);
-
 
   // Board → page move sink. The shared board doesn't judge legality (each
   // surface owns its own move semantics), so we replicate the legality probe
@@ -1425,7 +1435,7 @@ export default function PreviewPuzzlesPage() {
       setStaged({ from, to, fen: stagedFen });
       return true;
     },
-    [game, handleMove, confirmMoves, bumpActivity],
+    [game, handleMove, confirmMoves, bumpActivity]
   );
 
   // A new ply is a new question: the previous ply's rejected option must not
@@ -1464,7 +1474,7 @@ export default function PreviewPuzzlesPage() {
         setEliminated((prev) => toggleEliminated(prev, square));
       }
     },
-    [staged, eliminateMode],
+    [staged, eliminateMode]
   );
 
   // Choice mode: tapping a row IS the deliberate act confirm-move exists to
@@ -1477,7 +1487,7 @@ export default function PreviewPuzzlesPage() {
       setWrongChoiceSan(choice.isSolution ? null : choice.san);
       handleMove(choice.uci.slice(0, 2), choice.uci.slice(2, 4));
     },
-    [status, activeDemo, handleMove, bumpActivity],
+    [status, activeDemo, handleMove, bumpActivity]
   );
 
   return (
@@ -1599,9 +1609,7 @@ export default function PreviewPuzzlesPage() {
                 label: t.label,
                 active: activeTheme === t.id,
               }))}
-              onClick={(id) =>
-                handleThemeClick(id === "__all__" ? null : id)
-              }
+              onClick={(id) => handleThemeClick(id === "__all__" ? null : id)}
             />
             <Box sx={{ flex: 1 }} />
             <FilterChipRow
@@ -1707,10 +1715,9 @@ export default function PreviewPuzzlesPage() {
                     status === "solved"
                       ? "0 24px 64px -16px rgba(34,197,94,0.25), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(34,197,94,0.32)"
                       : status === "wrong"
-                      ? "0 24px 64px -16px rgba(239,68,68,0.2), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(239,68,68,0.32)"
-                      : "0 24px 64px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
-                  transition:
-                    "box-shadow 320ms cubic-bezier(0.23, 1, 0.32, 1)",
+                        ? "0 24px 64px -16px rgba(239,68,68,0.2), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(239,68,68,0.32)"
+                        : "0 24px 64px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
+                  transition: "box-shadow 320ms cubic-bezier(0.23, 1, 0.32, 1)",
                   p: { xs: 2, md: 3 },
                   minHeight: 540,
                   display: "flex",
@@ -1782,9 +1789,7 @@ export default function PreviewPuzzlesPage() {
                         }
                         wrongSquare={boardWrongSquare}
                         correctSquare={activeDemo ? null : correctSquare}
-                        flash={
-                          activeDemo ? null : { state: flash, flashKey }
-                        }
+                        flash={activeDemo ? null : { state: flash, flashKey }}
                         underlaySquareStyles={boardUnderlay}
                         pieceSet={pieceSet}
                       />
@@ -1804,8 +1809,7 @@ export default function PreviewPuzzlesPage() {
                             background: "rgba(22,18,14,0.92)",
                             backdropFilter: "blur(10px)",
                             border: "1px solid rgba(255,122,26,0.32)",
-                            boxShadow:
-                              "0 12px 32px -10px rgba(0,0,0,0.5)",
+                            boxShadow: "0 12px 32px -10px rgba(0,0,0,0.5)",
                             zIndex: 5,
                           }}
                         >
@@ -1841,9 +1845,7 @@ export default function PreviewPuzzlesPage() {
                               },
                             }}
                           >
-                            {activeDemo.finished
-                              ? "Back to your move"
-                              : "Stop"}
+                            {activeDemo.finished ? "Back to your move" : "Stop"}
                           </Button>
                         </Box>
                       )}
@@ -1878,14 +1880,14 @@ export default function PreviewPuzzlesPage() {
                             status === "solved"
                               ? "rgba(34,197,94,0.14)"
                               : status === "wrong"
-                              ? "rgba(239,68,68,0.14)"
-                              : "rgba(255,122,26,0.1)",
+                                ? "rgba(239,68,68,0.14)"
+                                : "rgba(255,122,26,0.1)",
                           border:
                             status === "solved"
                               ? "1px solid rgba(34,197,94,0.35)"
                               : status === "wrong"
-                              ? "1px solid rgba(239,68,68,0.35)"
-                              : "1px solid rgba(255,122,26,0.28)",
+                                ? "1px solid rgba(239,68,68,0.35)"
+                                : "1px solid rgba(255,122,26,0.28)",
                         }}
                       >
                         {status === "solved" ? (
@@ -1895,25 +1897,41 @@ export default function PreviewPuzzlesPage() {
                         ) : (
                           <Lightbulb size={13} color="#FFD1A8" />
                         )}
+                        {/* One element, two kinds of text, so the face has to
+                            switch with it. "White to move" is the question —
+                            puzzle content, serif. "Solved" / "Try again" are
+                            the app answering back — chrome, sans. Setting the
+                            whole pill serif would put a verdict in the voice
+                            reserved for the problem itself. */}
                         <Typography
                           sx={{
-                            fontSize: "0.78rem",
-                            fontWeight: 600,
+                            fontFamily:
+                              status === "solved" || status === "wrong"
+                                ? undefined
+                                : SERIF_DISPLAY,
+                            fontSize:
+                              status === "solved" || status === "wrong"
+                                ? "0.78rem"
+                                : "0.86rem",
+                            fontWeight:
+                              status === "solved" || status === "wrong"
+                                ? 600
+                                : 500,
                             color:
                               status === "solved"
                                 ? "#86efac"
                                 : status === "wrong"
-                                ? "#fca5a5"
-                                : "#FFD1A8",
+                                  ? "#fca5a5"
+                                  : "#FFD1A8",
                           }}
                         >
                           {status === "solved"
                             ? "Solved"
                             : status === "wrong"
-                            ? "Try again"
-                            : `${
-                                game.turn() === "w" ? "White" : "Black"
-                              } to move`}
+                              ? "Try again"
+                              : `${
+                                  game.turn() === "w" ? "White" : "Black"
+                                } to move`}
                         </Typography>
                       </Box>
 
@@ -1970,7 +1988,6 @@ export default function PreviewPuzzlesPage() {
                       >
                         Show solution
                       </Button>
-
                     </Stack>
 
                     {/* Action bar — Acely's commit/escape pair, bottom-anchored
@@ -2173,7 +2190,7 @@ export default function PreviewPuzzlesPage() {
                       <Button
                         onClick={() =>
                           setAnswerMode((m) =>
-                            m === "choice" ? "board" : "choice",
+                            m === "choice" ? "board" : "choice"
                           )
                         }
                         sx={{
@@ -2194,25 +2211,25 @@ export default function PreviewPuzzlesPage() {
                           : "Answer: on the board"}
                       </Button>
                       {!choiceModeActive && (
-                      <Button
-                        onClick={() => setConfirmMoves((v) => !v)}
-                        sx={{
-                          px: 1,
-                          py: 0.25,
-                          minHeight: 0,
-                          color: "rgba(255,240,224,0.4)",
-                          fontSize: "0.74rem",
-                          fontWeight: 600,
-                          "&:hover": {
-                            color: "rgba(255,240,224,0.75)",
-                            background: "transparent",
-                          },
-                        }}
-                      >
-                        {confirmMoves
-                          ? "Confirm each move: on"
-                          : "Confirm each move: off"}
-                      </Button>
+                        <Button
+                          onClick={() => setConfirmMoves((v) => !v)}
+                          sx={{
+                            px: 1,
+                            py: 0.25,
+                            minHeight: 0,
+                            color: "rgba(255,240,224,0.4)",
+                            fontSize: "0.74rem",
+                            fontWeight: 600,
+                            "&:hover": {
+                              color: "rgba(255,240,224,0.75)",
+                              background: "transparent",
+                            },
+                          }}
+                        >
+                          {confirmMoves
+                            ? "Confirm each move: on"
+                            : "Confirm each move: off"}
+                        </Button>
                       )}
                     </Box>
                   </>

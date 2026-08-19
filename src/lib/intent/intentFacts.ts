@@ -1183,6 +1183,41 @@ export function computeIntentFacts(probe: IntentProbe): IntentFacts {
       signals.unaddressed = null;
     }
   }
+  // The founder's fxg5 verdicts: "it is just a series of stockfish moves and
+  // played moves that determine if a move stopped another or not." For every
+  // card he kept, the ENGINE'S BEST MOVE deals with the threat — makes it
+  // illegal (Rc7+ vs Re6+) or drops it below the existing "now loses" bar
+  // (Rc1 takes Rxb3 to -188) — while the played move left it standing. For
+  // the one he called noise, even the best move (Nf8) leaves d4 at +67:
+  // perfectly playable. A threat that not even stockfish's move answers is
+  // the position's weather, and "you did not deal with it" teaches nothing —
+  // there was nothing to be taught.
+  //
+  // Measured on his games the split is 21 kept / 8 dropped with FULL
+  // alternative coverage; the rule reproduces all five of his verdicts with
+  // no new constant. Dropping is on POSITIVE evidence only: with no
+  // measurement of the best move's answer, the claim stands on the loss
+  // grounding above, and the note records the gap.
+  if (signals.unaddressed) {
+    const bestSan = probe.rootLines[0]?.san;
+    const bestAnswer = bestSan
+      ? probe.threatAfterAlternatives.find((a) => a.ourSan === bestSan)
+      : undefined;
+    const cpAfterBest = toCp(bestAnswer?.score ?? null);
+    if (!bestAnswer || (bestAnswer.stillLegal && cpAfterBest === null)) {
+      notes.push("the best move's answer was not measured — keeping the claim on the loss grounding alone");
+    } else if (
+      bestAnswer.stillLegal &&
+      cpAfterBest !== null &&
+      cpAfterBest > PROPHYLAXIS_THREAT_MUST_END_BELOW_CP
+    ) {
+      notes.push(
+        `even the engine's best move leaves ${signals.unaddressed.threatSan} playable ` +
+          `(${cpAfterBest}cp) — the threat is the position's weather, not this move's failing`,
+      );
+      signals.unaddressed = null;
+    }
+  }
 
   const threatLeftUnsaid = signals.threatWasReal && prophylaxis === null;
   if (signals.unaddressed) {

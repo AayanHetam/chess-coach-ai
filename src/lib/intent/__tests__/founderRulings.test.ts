@@ -476,3 +476,82 @@ describe("the founder's Nh7 ruling — no scolding the engine's own best move", 
     expect(f.unaddressedThreat).not.toBeNull();
   });
 });
+
+/**
+ * THE FOUNDER'S FXG5 VERDICTS (2026-08-18): the threat's answer is a fact
+ * about STOCKFISH'S MOVE, not a judgement call.
+ *
+ * "This entire worth-saying thing makes it seem like these are case-by-case
+ * and ambiguous, but I think it is just a series of stockfish moves and
+ * played moves that determine if a move stopped another or not."
+ *
+ * He then ruled five cards: Qxf2, Nxd5, Ra6, Ra1 worth saying; fxg5 noise.
+ * The discriminator, measured, is exactly his formulation: for every card he
+ * kept, the ENGINE'S BEST MOVE deals with the threat (makes it illegal, or
+ * drops it below the existing -100 "now loses" bar) while the played move
+ * left it standing. For fxg5, even the best move (Nf8) leaves d4 at +67 —
+ * perfectly playable. A threat that not even stockfish's move answers is the
+ * position's weather, and "you did not deal with it" teaches nothing.
+ *
+ * 5/5 on his verdicts with no new constant. Drop is on POSITIVE evidence
+ * only: with no measurement of the best move's answer, the claim stands on
+ * the loss-based grounding above and a note records the gap.
+ */
+describe("the founder's fxg5 verdicts — the best move must deal with the threat", () => {
+  const weatherProbe = (
+    bestAnswer: { ourSan: string; score: IntentScore | null; stillLegal: boolean } | null,
+  ): IntentProbe => ({
+    // Real numbers from game_12 move 13… fxg5: threat d4 at +284; best Nf8
+    // leaves it at +67; the played move (loss 180, grounded) leaves +212.
+    fenBefore: "8/8/8/8/8/8/8/K6k w - - 0 1",
+    playedSan: "fxg5",
+    fenAfter: "8/8/8/8/8/8/8/1K5k b - - 1 1",
+    rootLines: [line("Nf8", cp(-48)), line("g6", cp(-120)), line("fxg5", cp(-228))],
+    threat: line("d4", cp(284)),
+    threatAfter: line("d4", cp(212)),
+    threatAlternative: null,
+    threatStillLegal: true,
+    threatPieceCaptured: null,
+    threatEvasions: null,
+    opponentBestAfter: { cp: 240, mate: null },
+    opponentBestAfterProbed: { cp: 240, mate: null },
+    rootBestProbed: { cp: -48, mate: null },
+    threatAfterAlternatives: bestAnswer ? [bestAnswer] : [],
+    playedScore: { cp: -241, mate: null },
+    moverHasPieces: true,
+    position: null,
+    opponentReply: null,
+  });
+
+  it("NOISE: fxg5 — even the engine's best move leaves d4 playable", () => {
+    const f = computeIntentFacts(
+      weatherProbe({ ourSan: "Nf8", score: cp(67), stillLegal: true }),
+    );
+    expect(f.unaddressedThreat).toBeNull();
+    expect(f.notes.join(" ")).toContain("even the engine's best move");
+  });
+
+  it("CONTROL: the claim survives when the best move DOES deal with it (Ra1 shape)", () => {
+    // Rc1 drops Rxb3 to -188, below the -100 bar: the best move answers the
+    // threat and the played move did not — the coaching point is real.
+    const f = computeIntentFacts(
+      weatherProbe({ ourSan: "Nf8", score: cp(-188), stillLegal: true }),
+    );
+    expect(f.unaddressedThreat).not.toBeNull();
+  });
+
+  it("CONTROL: the claim survives when the best move makes it illegal (Ra6 shape)", () => {
+    const f = computeIntentFacts(
+      weatherProbe({ ourSan: "Nf8", score: null, stillLegal: false }),
+    );
+    expect(f.unaddressedThreat).not.toBeNull();
+  });
+
+  it("CONTROL: no measurement of the best move's answer keeps the claim, with a note", () => {
+    // Drop only on positive evidence. The founder's seven mate rulings run
+    // through probes with no alternative data at all; they must be untouched.
+    const f = computeIntentFacts(weatherProbe(null));
+    expect(f.unaddressedThreat).not.toBeNull();
+    expect(f.notes.join(" ")).toContain("best move's answer was not measured");
+  });
+});

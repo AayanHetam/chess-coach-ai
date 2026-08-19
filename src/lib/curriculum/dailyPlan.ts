@@ -120,8 +120,11 @@ export interface DailyPlanInput {
    * last loss when we have no games to show them is a task they cannot start.
    */
   hasLinkedAccount?: boolean;
-  /** True when the quiz recorded openings as something they want to improve. */
-  wantsOpenings?: boolean;
+  // No `wantsOpenings`. The quiz asks whether openings are a stated interest,
+  // and it used to be threaded in here as if it gated the theory task — it never
+  // was read, and it should not be. Every player needs opening theory whether or
+  // not they thought to ask for it (Aayan, 2026-08-19), and a declared-but-unread
+  // field reads to the next person like a switch that works.
   /**
    * The line in the player's OWN games that currently costs them the most,
    * when one has been measured.

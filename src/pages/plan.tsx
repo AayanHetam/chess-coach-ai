@@ -252,7 +252,6 @@ export default function PlanPage() {
         hasLinkedAccount: Boolean(
           profile?.lichessUsername || profile?.chesscomUsername
         ),
-        wantsOpenings: profile?.studyGoals?.includes("openings"),
         // Their own worst line, when we have measured one.
         openingLine,
         // Day number, so the secondary task rotates rather than being the same

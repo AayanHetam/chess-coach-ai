@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseCachedEval } from "../analysisEvalCache";
 import { requestedDepth } from "@/lib/contract/evalDepth";
 import type { GameEval, PositionEval } from "@/types/eval";
+import { EngineName } from "@/types/enums";
 
 /**
  * T10 — a revisited game was quietly a degraded one.
@@ -18,20 +19,21 @@ import type { GameEval, PositionEval } from "@/types/eval";
  * the reply said so.
  */
 
-const pos = (depth: number): PositionEval =>
-  ({ lines: [{ pv: ["e2e4"], cp: 20, depth, multiPv: 1 }] }) as PositionEval;
+const pos = (depth: number): PositionEval => ({
+  lines: [{ pv: ["e2e4"], cp: 20, depth, multiPv: 1 }],
+});
 
 const FULL: GameEval = {
   positions: [pos(16), pos(16), pos(16)],
   accuracy: { white: 91.2, black: 84.7 },
   estimatedElo: { white: 1720, black: 1500 },
   settings: {
-    engine: "stockfish-17-lite",
+    engine: EngineName.Stockfish17Lite,
     date: "2026-01-01",
     depth: 16,
     multiPv: 3,
   },
-} as GameEval;
+};
 
 describe("parseCachedEval — the full sweep survives a revisit", () => {
   it("restores accuracy, estimated Elo and settings, not just positions", () => {

@@ -13,6 +13,17 @@
  * Neo4j is not configured (dev without .env.local, preview deploys).
  */
 export async function register() {
+  // Guarded directly on NEXT_RUNTIME rather than after an early return: Next
+  // statically replaces this expression per runtime, so the edge build drops
+  // the import entirely. With the guard expressed as an early return instead,
+  // @sentry/nextjs was still traced into edge-instrumentation.js (912 KB) and
+  // pushed the og/* edge function past its 1 MB plan limit — build green,
+  // deploy failed.
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { initServerSentry } = await import("./sentry.server");
+    initServerSentry();
+  }
+
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
   // Validate env at boot — throws on missing ANTHROPIC_API_KEY etc. so the

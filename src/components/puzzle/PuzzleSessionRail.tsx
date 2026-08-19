@@ -7,6 +7,7 @@ import { ArrowLeft, Check, Settings, X } from "lucide-react";
 import type { PuzzleContext } from "@/lib/validation/puzzleChatSchemas";
 import type { SessionResult } from "@/lib/puzzleSession";
 import { prettyTheme } from "@/components/puzzle/prettyTheme";
+import { SERIF_DISPLAY } from "@/theme/fonts";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
@@ -172,9 +173,19 @@ export function PuzzleSessionRail({
           </Typography>
         </Stack>
 
+        {/* The session's subject — content, not chrome. Serif, and lighter:
+            a display serif at 800 reads as a shout, where the whole point of
+            the face is that the subject feels considered. */}
         <Typography
           component="h2"
-          sx={{ color: TEXT, fontSize: "1.6rem", fontWeight: 800, mb: 2.25 }}
+          sx={{
+            color: TEXT,
+            fontFamily: SERIF_DISPLAY,
+            fontSize: "1.6rem",
+            fontWeight: 500,
+            letterSpacing: "-0.01em",
+            mb: 2.25,
+          }}
         >
           {heading}
         </Typography>
@@ -250,13 +261,19 @@ export function PuzzleSessionRail({
                 }}
               >
                 <StatusGlyph state={row.state} />
+                {/* Motif name = puzzle content, so serif. The rating beside it
+                    stays monospace and the glyph stays a glyph — the row is a
+                    content word wrapped in chrome, and the faces say which is
+                    which. Weight carries "current" rather than a heavier face,
+                    since a bold display serif at 0.9rem turns muddy. */}
                 <Typography
                   sx={{
                     flex: 1,
                     minWidth: 0,
                     color: row.state === "upcoming" ? TEXT_DIM : TEXT,
-                    fontSize: "0.9rem",
-                    fontWeight: row.state === "current" ? 700 : 500,
+                    fontFamily: SERIF_DISPLAY,
+                    fontSize: "0.95rem",
+                    fontWeight: row.state === "current" ? 600 : 400,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",

@@ -25,6 +25,7 @@ import {
 } from "@/lib/puzzleHint/responseProcessor";
 import { getCachedHint, setCachedHint } from "@/lib/puzzleHint/cache";
 import { analyzeMateClaim, applyMateCorrection } from "@/lib/tactics/mateClaim";
+import { isPlayableFromAnySolverAnchor } from "@/lib/puzzle/demoLine";
 import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
 import { clientIp, rateLimited } from "@/lib/http/ipRateLimit";
 
@@ -217,11 +218,41 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Demo-line enforcement. `[SHOW_MOVE: …]` becomes a card the user can
+    // click to replay the line on the real board, and every SAN in it is
+    // written by the model — the schema asks only for `min(2).max(8)`, which
+    // "Qz9" satisfies. The playback loop in pages/puzzles.tsx does
+    // `try { g.move(m) } catch { break }`, so an impossible ply produces no
+    // error and no warning: the board plays the legal prefix, stops dead, and
+    // sits under a card still listing the whole line in confident glyphs.
+    //
+    // The server does not know which position the user's board is on, so this
+    // only rejects lines that are playable from NO position on the puzzle's
+    // own solution — a line that fits nowhere cannot fit theirs. Dropping it
+    // here also keeps it out of the cache below, so one hallucination is not
+    // replayed to everyone who reaches this puzzle.
+    let showMoves = parsedResp.showMoves;
+    let demoRejected = false;
+    if (
+      showMoves &&
+      showMoves.length > 0 &&
+      !isPlayableFromAnySolverAnchor(puzzle.fen, puzzle.solution, showMoves)
+    ) {
+      log.warn("puzzle-hint unplayable demo line dropped", {
+        requestId,
+        puzzleId: puzzle.id,
+        stage,
+        moves: showMoves,
+      });
+      showMoves = undefined;
+      demoRejected = true;
+    }
+
     const response: PuzzleHintResponse = {
       stage,
       prose,
       mentions: parsedResp.mentions,
-      showMoves: parsedResp.showMoves,
+      showMoves,
       meta: {
         model: usedResult.model,
         provider: usedResult.provider,
@@ -235,8 +266,10 @@ export async function POST(request: NextRequest) {
     };
 
     // Only cache responses we'd be happy serving again. Fallback prose
-    // is generic and not useful to memoise.
-    if (!leakFallback) {
+    // is generic and not useful to memoise, and a response whose demo line
+    // had to be dropped is one the model got wrong about the board — the
+    // prose around it described a line that does not exist.
+    if (!leakFallback && !demoRejected) {
       setCachedHint(
         {
           puzzleId: puzzle.id,

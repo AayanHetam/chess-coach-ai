@@ -592,7 +592,9 @@ the ground under the referee's numbers and the snapshot churn would bury the
 signal the byte-equality suite exists to give. **Sequence them with the
 contract workstream; do not race them.**
 
-**T5, T6, T7 and T8 are now done. T3 and T10 remain.**
+**T5, T6, T7, T8 and T10 are now done. Only T3 remains** (a cost/product
+call: making follow-up turns externally grounded is a recurring spend on the
+highest-volume path, not a bug to fix unilaterally).
 
 The E2E harness no longer leans on the T7 bug. It still blocks `/engines/**`,
 but that now produces a DECLARED `unavailable` state with a stable placeholder
@@ -668,6 +670,36 @@ which is **T7's** bug, and fixing T7 closes this too.
 Regenerating `fixtures/` at uniform depth would let the rule tighten to strict
 equality. That is a referee-workstream call: it churns 9 byte-equality
 snapshots and moves CI-4's measurement inputs. **Do not do it in isolation.**
+
+### T10 — two of the four were real; check before fixing
+
+Measured against main on 2026-08-19, not assumed:
+
+**T10.1 (gameEvalFull lost on revisit) — REAL, and worse than described.** The
+sessionStorage entry stored `PositionEval[]` only, so a revisited game restored
+positions and nothing else. The listed harm (accuracy + estimated Elo silently
+missing from the prompt) is true, but the expensive part is `settings.depth`:
+**T8's mixed-depth guard keys on the declared requested depth and fails open
+without one, so a revisited game was the single case where the
+fabricated-mistake protection could not run at all.** Fixed by storing the
+whole `GameEval`; `parseCachedEval` keeps reading legacy bare-array entries so
+a format change does not throw away a valid 60-second sweep.
+
+**T10.3 (idle timer not re-armed by coach conversation) — REAL.**
+`PuzzleCoachPanel` received no activity callback, and a coaching conversation
+is the one thing a user can do on that page for a long stretch without touching
+the board. `onActivity` now fires on send, suggestion and hint-stage request.
+
+**T10.2 (savedEvalsAtom stale shallow eval) — ALREADY FIXED.** Both read sites
+are depth-aware: one goes through `satisfiesRequest(savedEvals[fen], depth,
+count)` and the other through `pickDisplayEval` (deeper wins). The fix carries
+a comment describing this exact bug. Do not re-fix it.
+
+**T10.4 (`concept-lesson` unbounded TTL-less Map) — NOT A REAL PROBLEM.**
+`themeId` is checked against `KNOWN_THEMES` BEFORE the cache is touched, so the
+key space is `themes x tiers`. Measured: **22 themes x 3 tiers = 66 entries
+max**, small JSON objects, on an instance that recycles in minutes. TTL-less is
+accurate; *unbounded* is not. Left alone deliberately.
 
 ### Lessons that cost real time — read these before writing a test
 

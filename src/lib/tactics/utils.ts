@@ -101,51 +101,140 @@ export function attackersOf(
   return result;
 }
 
-// Simplified Static Exchange Evaluator.
-// Returns net centipawns for `capturingColor` capturing on `target`.
-// Positive = profitable; negative = losing exchange.
+/**
+ * Piece value for MATERIAL maths: the king is never winnable material (0).
+ * Contrast `pieceValue`, whose 99999 king sentinel exists for attack ordering.
+ */
+export function materialValue(piece: PieceSymbol | string | undefined): number {
+  if (!piece || piece === "k") return 0;
+  return PIECE_VALUE_CP[piece as PieceSymbol] ?? 0;
+}
+
+/** What a promotion adds beyond the pawn that bought it. */
+export function promotionBonus(promotion: string | undefined): number {
+  if (!promotion) return 0;
+  return (PIECE_VALUE_CP[promotion as PieceSymbol] ?? 0) - PIECE_VALUE_CP.p;
+}
+
+/**
+ * The cheapest legal capture on `target` by the side to move, priced the way
+ * the exchange recursion prices it — by what the capture is WORTH to the
+ * capturer (king ranked dearest, promotion credited in the sort key), not by
+ * bare piece value.
+ */
+function cheapestCapture(
+  game: Chess,
+  target: Square,
+): { from: Square; to: Square; promotion?: string; gained: number } | null {
+  let captures;
+  try {
+    captures = game.moves({ verbose: true }).filter((m) => m.to === target && m.captured);
+  } catch {
+    return null;
+  }
+  if (captures.length === 0) return null;
+  const cost = (m: { piece: PieceSymbol; promotion?: string }) =>
+    (m.piece === "k" ? PIECE_VALUE_CP.q + 1 : materialValue(m.piece)) - promotionBonus(m.promotion);
+  captures.sort((a, b) => cost(a) - cost(b));
+  const chosen = captures[0];
+  const occupant = game.get(target);
+  return {
+    from: chosen.from,
+    to: chosen.to,
+    promotion: chosen.promotion,
+    gained: materialValue(occupant?.type) + promotionBonus(chosen.promotion),
+  };
+}
+
+/** `game` with `side` to move (en passant cleared), or null if the position breaks. */
+function withSideToMove(game: Chess, side: Color): Chess | null {
+  if (game.turn() === side) return game;
+  const parts = game.fen().split(" ");
+  parts[1] = side;
+  parts[3] = "-";
+  try {
+    return new Chess(parts.join(" "));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Static exchange evaluation, played out on real legal moves.
+ *
+ * Moved here from intent/positionFacts (issue #350) so tactics and intent
+ * share one audited engine. Two hazards it has to avoid, both of which were
+ * live defects found by an adversarial audit:
+ *
+ *  - The KING is not capturable material. chess.js happily generates
+ *    "Rxe1" capturing a king on the turn-flipped position this function builds,
+ *    and PIECE_VALUE_CP.k is 99999 — so an unguarded recursion priced every
+ *    check evasion at 999.99 pawns, then re-parsed a kingless board and threw.
+ *  - A PROMOTION is worth more than the piece standing on the target square.
+ *    Pricing only the occupant inverted the sign of rook-winning promotions.
+ *
+ * Returns what `side` can WIN on `target` — an option price, floored at 0
+ * because a side that would lose material simply declines to capture.
+ */
+export function exchangeValue(position: Chess, target: Square, side: Color, depth = 0): number {
+  if (depth > 12) return 0; // pathological positions; exchanges never run this deep
+  const occupant = position.get(target);
+  if (!occupant || occupant.color === side) return 0;
+  // A king can be attacked but never won.
+  if (occupant.type === "k") return 0;
+
+  // chess.js only generates moves for the side to move, so asking what the
+  // OPPONENT could win on a square during our turn silently returns nothing.
+  const game = withSideToMove(position, side);
+  if (!game) return 0;
+
+  const capture = cheapestCapture(game, target);
+  if (!capture) return 0;
+
+  let next: Chess;
+  try {
+    next = new Chess(game.fen());
+    next.move({ from: capture.from, to: capture.to, promotion: (capture.promotion ?? "q") as never });
+  } catch {
+    return 0;
+  }
+  const opponent: Color = side === "w" ? "b" : "w";
+  // The opponent recaptures only if it pays; hence max(0, ...).
+  return Math.max(0, capture.gained - exchangeValue(next, target, opponent, depth + 1));
+}
+
+/**
+ * Static Exchange Evaluator on real legal moves (issue #350 rewrite).
+ * Returns net centipawns for `capturingColor` capturing on `target`:
+ * the FIRST capture is taken as given (that is the question being asked),
+ * every later recapture is option-priced by `exchangeValue`. Positive =
+ * profitable; negative = losing exchange; 0 when no legal capture exists,
+ * the square is empty, or the occupant is a king (never winnable material).
+ *
+ * The old swap-list implementation priced the recapturing side's own piece
+ * as the gain, reused the initial capturer, and double-counted the
+ * alternation in its backward pass — a losing QxN came back +320.
+ */
 export function see(game: Chess, target: Square, capturingColor: Color): number {
-  const targetPiece = game.get(target);
-  if (!targetPiece) return 0;
-  const opponentColor: Color = capturingColor === "w" ? "b" : "w";
+  const occupant = game.get(target);
+  if (!occupant || occupant.color === capturingColor) return 0;
+  if (occupant.type === "k") return 0;
 
-  const atks = attackersOf(game, target, capturingColor)
-    .map((a) => pieceValue(a.piece))
-    .sort((a, b) => a - b);
-  const defs = attackersOf(game, target, opponentColor)
-    .map((d) => pieceValue(d.piece))
-    .sort((a, b) => a - b);
+  const positioned = withSideToMove(game, capturingColor);
+  if (!positioned) return 0;
 
-  if (atks.length === 0) return 0;
-  if (defs.length === 0) return pieceValue(targetPiece.type);
+  const capture = cheapestCapture(positioned, target);
+  if (!capture) return 0;
 
-  // Simulate exchange: cheapest attacker captures first
-  const gains: number[] = [pieceValue(targetPiece.type)];
-  let ai = 0, di = 0;
-  let turn = "def"; // after initial capture, defender recaptures
-  let lastGain = gains[0];
-
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    if (turn === "def") {
-      if (di >= defs.length) break;
-      lastGain = defs[di++] - lastGain;
-      gains.push(lastGain);
-      turn = "atk";
-    } else {
-      if (ai >= atks.length) break;
-      lastGain = atks[ai++] - lastGain;
-      gains.push(lastGain);
-      turn = "def";
-    }
+  let next: Chess;
+  try {
+    next = new Chess(positioned.fen());
+    next.move({ from: capture.from, to: capture.to, promotion: (capture.promotion ?? "q") as never });
+  } catch {
+    return 0;
   }
-
-  // Each side only recaptures if it's profitable; walk backwards
-  let result = 0;
-  for (let i = gains.length - 1; i >= 0; i--) {
-    result = Math.max(0, gains[i] - result);
-  }
-  return result;
+  const opponent: Color = capturingColor === "w" ? "b" : "w";
+  return capture.gained - exchangeValue(next, target, opponent, 1);
 }
 
 // Check if two squares share a rank, file, or diagonal.

@@ -517,16 +517,36 @@ button, whose behaviour moved into the `New puzzle ⌄` split control's body.
 Anything the spec adds that doesn't exist yet (rail, toolbar, choice rows)
 arrives as a leaf component mounted into that same page.
 
-All built work is in the working tree on `main`, uncommitted. `tsc --noEmit`
-clean, 153 test files / 1934 tests green, `/puzzles` serves 200 with a clean
-dev log.
+All built work is merged to `main`. (This list was stale for a week — it still
+showed the toolbar, answer modes and Eliminate as unbuilt long after they
+shipped, which is how a spec gets something rebuilt from scratch. Corrected
+2026-08-19 by reading the tree, not the doc.)
 
 - ✅ **PR-1 + PR-2** — three-region shell + `PuzzleSessionRail`.
 - ✅ **§3.6 tutor wordmark** — `Logo` + "Chess Masti Puzzle AI" in
   `SERIF_DISPLAY`.
 - ✅ **PR-4** — confirm-move staging + the action pair. Details below.
-- ⬜ PR-3 toolbar (timer + Analyse + Reference), PR-4b answer-mode registry,
-  PR-5 resizable split, PR-6 type split, PR-7 Eliminate.
+- ✅ **PR-3 toolbar** — solve timer + Reference. **Analyse is deliberately
+  absent, not forgotten**: see the note in
+  [PuzzleToolbar.tsx](../src/components/puzzle/PuzzleToolbar.tsx) — Stockfish's
+  best move *is* the puzzle's answer, so an always-available Analyse button is
+  a cheat button. It needs an engine mount gated on "already solved".
+- ✅ **PR-4b answer-mode registry** — `board` / `choice` via
+  `MoveChoiceList` + `answerModeAtom`.
+- ✅ **PR-7 Eliminate** — `src/lib/puzzle/eliminate.ts` + the board underlay.
+- ✅ **PR-6 type split** — serif at the content sites (the "X to move" prompt,
+  rail heading, rail motif labels, drill-menu motif names, choice rows,
+  reference card, tutor wordmark); sans everywhere in chrome; ratings and IDs
+  stay monospace. Note the prompt pill switches face with its own content:
+  "White to move" is the question and reads serif, while "Solved" / "Try again"
+  are the app answering back and stay sans.
+- ⬜ **PR-5 resizable split** — the only layout item still outstanding.
+
+**Deviation from PR-6 as written.** The spec said to add the font pair to the
+local `puzzleTheme`. It is imported directly from `@/theme/fonts` at each
+content site instead: four components already did exactly that before this
+change, and a custom MUI typography variant needs module augmentation to be
+type-safe — a new pattern for no gain over the one already established.
 
 #### PR-4 as built
 - `confirmMovesAtom` in [src/lib/puzzlePrefs.ts](../src/lib/puzzlePrefs.ts) —

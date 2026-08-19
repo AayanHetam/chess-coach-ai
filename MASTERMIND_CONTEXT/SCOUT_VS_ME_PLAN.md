@@ -84,7 +84,7 @@ dimension, as White and as Black separately, and feeds §5.
 > ten Maia-driven lines spanning their repertoire. Aayan corrected it — the goal
 > is not to learn their openings, it is to find *the hole they keep falling
 > into* and build the line that gets there. He had done exactly this by hand
-> with Stockfish and OpeningTree against `chilllychess`, found a gap in the
+> with Stockfish and OpeningTree against a stronger opponent, found a gap in the
 > Caro-Kann, and won against someone ~300 rating points above him.
 >
 > The second reframe came from the data, not from a person. See §5.6.
@@ -99,7 +99,7 @@ The obvious model: find moves they repeat that Stockfish refutes.
 engineEdge(m) = cp→score( CPLoss(m) )
 ```
 
-Swept across all 77 decisions `chilllychess` repeats 30+ times in his Caro-Kann,
+Swept across all 77 decisions the test opponent repeats 30+ times in his Caro-Kann,
 at depth 16, **his worst repeated inaccuracy is 44cp.** There is no blunder to
 find. Strong club players do not hang pieces inside their own repertoire — they
 walk into structures they cannot play, and an engine cannot see that, because it
@@ -162,7 +162,7 @@ Everything above is measured on a **recency-weighted position index**, not on th
 move tree. Two corrections, both forced by real data:
 
 **Transpositions pool.** A move tree asks a separate question of every spelling
-of the same idea. The c4 break against `chilllychess`'s Caro appeared as 18 games
+of the same idea. The c4 break against the test opponent's Caro appeared as 18 games
 down one order and 31 down another; pooled by position it is one question at
 n_eff 51. FEN keys drop the halfmove and fullmove counters, which never change an
 evaluation.
@@ -213,7 +213,7 @@ one layer down.
 | `signal` | Screened, below baseline, did not clear the bar. Real evidence, unproven. |
 | `prep` | Not screened. Best available line; **not a claim about their play.** |
 
-Power: at a 19-point deficit the gate needs n_eff ≈ 73. `chilllychess`'s best line
+Power: at a 19-point deficit the gate needs n_eff ≈ 73. the test opponent's best line
 has n_eff 51 — genuinely close, genuinely not proven. So `confirmedWeakness:
 false` is the *normal* outcome against a solid opponent, not a failure, and the
 UI must not dress the prep tier up as a discovery.

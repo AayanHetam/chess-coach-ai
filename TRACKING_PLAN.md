@@ -212,10 +212,10 @@ Tracking is **consent-gated**. Three cookie tiers:
 - **Neutral age gate** at signup (date-of-birth, not "are you 13?"). Self-identified **under-13 → restricted mode**: behavioral analytics + content retention off unless verifiable parental consent is obtained. This is the COPPA-sensitive path.
 - **CCPA/CPRA** — we do not sell data; include a "Do Not Sell or Share" disclosure + honor GPC as the opt-out signal.
 
-> ⚠️ **Honest caveat (not legal advice):** a banner + a self-drafted policy do **not** by themselves make chessmasti.com COPPA-compliant if it knowingly serves under-13s. If there are under-13 users, the age gate + restricted mode + (possibly) verifiable parental consent are the substantive controls, and this needs review by someone qualified. Flagging because product+legal decisions are being made on this.
+> ⚠️ **Note:** the age gate + restricted mode + (where applicable) verifiable parental consent are the substantive controls here; the plan is to have the policy and consent design reviewed by someone qualified.
 
 ## 5. Cost & scale
-- At ~100 real MAU: negligible (well within Supabase Pro).
+- At current scale: negligible (well within Supabase Pro).
 - The cost driver at scale is `llm_calls` full text. Scaling path (deferred, documented): monthly partitioning, cold-tier archival, or sampling above a volume threshold (always keep flagged/low-rated/error rows). `log()` any future sampling so coverage gaps are never silent.
 
 ## 6. Phasing (stacked PRs — CI-gated tsc+vitest; verify locally on the stack tip before shipping)
@@ -240,4 +240,4 @@ Tracking is **consent-gated**. Three cookie tiers:
 - ~~`analysis_sessions`~~ → **dedicated table** (§3.2).
 - ~~Backfill~~ → **start clean** (TRK-3).
 
-> Status after 2026-06-13: all questions resolved. **Awaiting Aayan + tech-lead sign-off on the plan before TRK-0 code is written.** Two compliance long-poles (privacy-policy review + consent/age-gate design) should get qualified eyes given the under-13 exposure.
+> Status after 2026-06-13: all questions resolved. **Awaiting Aayan + tech-lead sign-off on the plan before TRK-0 code is written.** Two compliance long-poles (privacy-policy review + consent/age-gate design) should get qualified eyes given the youth-facing audience.

@@ -46,6 +46,7 @@ import {
   type DemoSpeedKey,
 } from "@/components/puzzle/DemoMoveDialog";
 import { parseSolutionMoves } from "@/lib/puzzleSolution";
+import { planDemoLine } from "@/lib/puzzle/demoLine";
 import { usePuzzleFeed } from "@/hooks/usePuzzleFeed";
 import type {
   PuzzleOutcome,
@@ -533,6 +534,8 @@ export default function PreviewPuzzlesPage() {
   // Coach demo state — coach asks "show on board", user picks speed in
   // the dialog, then `activeDemo` runs the moves on the main board while
   // the user's puzzle attempt is paused. resumeFen flips it back when done.
+  /** Set when a coach-offered demo line was refused; see handleCoachDemoRequest. */
+  const [demoNote, setDemoNote] = useState("");
   const [pendingDemoMoves, setPendingDemoMoves] = useState<string[] | null>(
     null,
   );
@@ -837,10 +840,28 @@ export default function PreviewPuzzlesPage() {
     [],
   );
 
-  const handleCoachDemoRequest = useCallback((moves: string[]) => {
-    if (moves.length === 0) return;
-    setPendingDemoMoves(moves);
-  }, []);
+  // Every SAN here was written by the model. The server drops lines that fit
+  // NOWHERE on the puzzle's solution, but it cannot know which position this
+  // board is on — so the exact check belongs here, where `game.fen()` is the
+  // very position the demo would replay from.
+  //
+  // Silently refusing would be the same bug wearing a different hat: the
+  // playback loop below already fails silently (`catch { break }`), which is
+  // how an impossible line came to look like a demo that just stops. If the
+  // coach offered a line this board cannot play, say so.
+  const handleCoachDemoRequest = useCallback(
+    (moves: string[]) => {
+      if (moves.length === 0) return;
+      if (!planDemoLine(game.fen(), moves).playable) {
+        setDemoNote(
+          "That line can't be played from this position, so I haven't put it on the board. The coach may have mixed up the move order.",
+        );
+        return;
+      }
+      setPendingDemoMoves(moves);
+    },
+    [game],
+  );
 
   // Confirmed in the dialog. Snapshot resumeFen now (where the user was
   // mid-attempt) so we can restore it cleanly when the demo finishes.
@@ -2354,6 +2375,31 @@ export default function PreviewPuzzlesPage() {
         lastMessage={lastSessionMsg}
         onMessagePicked={setLastSessionMsg}
       />
+
+      {/* Fires when the coach offered a board demo this position cannot play.
+          The card looks identical either way, and the playback loop fails by
+          breaking mid-line — so without this the board just stops and nothing
+          says why. */}
+      <Snackbar
+        open={demoNote !== ""}
+        autoHideDuration={8000}
+        onClose={() => setDemoNote("")}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity="warning"
+          onClose={() => setDemoNote("")}
+          sx={{
+            bgcolor: "rgba(22,18,14,0.96)",
+            color: "rgba(255,240,224,0.94)",
+            border: "1px solid rgba(255,122,26,0.35)",
+            borderRadius: "0.85rem",
+            "& .MuiAlert-icon": { color: "#FFD1A8" },
+          }}
+        >
+          {demoNote}
+        </Alert>
+      </Snackbar>
 
       {/* Fires only when the graph lookup fell back. The menu item promises a
           Neo4j match, so a silent CSV substitution would make the label a lie. */}

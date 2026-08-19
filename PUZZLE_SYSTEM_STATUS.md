@@ -239,42 +239,15 @@ ON MATCH SET r.count = r.count + 1
 3. **Highlight**: "For each mistake, the system recommends 3-5 targeted puzzles"
 4. **Deep dive**: Click one puzzle, show board + solution
 5. **Explain FEN similarity**: "These 3 puzzles look visually similar to reinforce the pattern"
-6. **Connect to TakeTakeTake**: "You already have Stockfish + LLMs. This shows how to integrate puzzle generation to close conceptual gaps in your AI coach."
 
-## 📊 Key Metrics for Cover Letter
+## 📊 Key Metrics
 
 - **100,000 Lichess puzzles** loaded with 65+ tactical themes
 - **50-dimension FEN feature extraction** for position similarity
 - **Mistake → Puzzle pipeline**: Detects tactical motif → queries graph DB → ranks by theme + similarity
 - **Neo4j graph schema**: Position-as-hub with theme hierarchies
 - **~320 puzzles/second** loading speed (optimized UNWIND+MERGE)
-- **Convergent tech stack**: Stockfish 17 + Anthropic Claude + Neo4j (same tools TakeTakeTake uses)
-
-## 🔗 TakeTakeTake Value Proposition
-
-**Their Challenge**: "We have Stockfish + Maia + LLMs, but users don't improve as fast as they should because they don't get targeted practice after mistakes."
-
-**Your Solution**:
-- Automatically generate contextually relevant puzzles for every mistake
-- Blend tactical theme matching with FEN similarity for pattern reinforcement
-- Graph-powered recommendation engine that learns user weaknesses
-- Scalable to millions of puzzles with minimal latency
-
-**Proof**: Live demo showing:
-1. Game analysis with 3 different mistake types
-2. Diverse puzzle recommendations (not just forks)
-3. FEN similarity clustering (5-8 visually similar boards)
-4. Integration path: "Here's the API endpoint you'd call from your existing coach"
-
-## 📝 Next Steps (Priority Order)
-
-1. ⏳ **Wait for puzzle load** (4 min ETA) ← IN PROGRESS
-2. 🔍 **Verify theme diversity** with check-themes.mjs
-3. 🧪 **Test diverse mistakes** (fork, pin, skewer, back-rank)
-4. 🎨 **Polish UI** for demo video
-5. 🎥 **Record 5-min demo** showing full flow
-6. ✍️ **Write cover letter** emphasizing puzzle generation capability
-7. 📄 **Update CV** with metrics
+- **Tech stack**: Stockfish 17 + Anthropic Claude + Neo4j
 
 ---
 

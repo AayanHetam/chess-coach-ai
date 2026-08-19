@@ -30,7 +30,7 @@
 
 - Neo4j Aura graph: 100,000+ quality-filtered Lichess puzzles (popularity ≥ 60, plays ≥ 50, rating deviation ≤ 120).
 - 46 tactical themes × 4 difficulty bands.
-- Joined with 298,000+ Jhamtani expert-commentary pairs.
+- Joined with expert commentary from the Jhamtani et al. (ACL 2018) research corpus.
 - Graph traversal + 49-dimensional FEN cosine-similarity re-ranking against the user's mistake position.
 - SM-2 spaced repetition over puzzle progress.
 

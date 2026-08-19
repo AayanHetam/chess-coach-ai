@@ -104,6 +104,7 @@ import {
 } from "@/components/ui/CommandPalette";
 import { useEngineWithStatus } from "@/hooks/useEngine";
 import { resolveEngineGate } from "@/lib/coach/engineGate";
+import { parseCachedEval } from "@/lib/coach/analysisEvalCache";
 import { isWasmSupported } from "@/lib/engine/shared";
 import { TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
 import {
@@ -7790,9 +7791,16 @@ export default function AnalysisPage() {
     try {
       const stored = window.sessionStorage.getItem(cacheKey);
       if (!stored) return;
-      const parsed = JSON.parse(stored) as PositionEval[];
-      if (Array.isArray(parsed) && parsed.length === allMoves.length + 1) {
-        setEnginePositions(parsed);
+      // T10 (SILENT_SUBSTITUTION_HANDOFF §4): this used to store and restore
+      // ONLY `positions`, so a revisited game lost `accuracy`, `estimatedElo`
+      // and — the one that matters most — `settings.depth`, which is what
+      // T8's mixed-depth guard keys on. A revisit was the single case where
+      // that protection could not run. See analysisEvalCache for the legacy
+      // format handling.
+      const restored = parseCachedEval(stored, allMoves.length + 1);
+      if (restored) {
+        setEnginePositions(restored.positions);
+        if (restored.gameEval) setGameEvalFull(restored.gameEval);
         setAnalysisProgress(100);
       }
     } catch {
@@ -7800,16 +7808,22 @@ export default function AnalysisPage() {
     }
   }, [cacheKey, enginePositions, analysisError, allMoves.length]);
 
-  // Save when analysis completes
+  // Save when analysis completes.
+  //
+  // The WHOLE GameEval, not just positions: `accuracy`, `estimatedElo` and
+  // `settings` are all things the server reads, and storing only positions is
+  // what made a revisited game a degraded one. Gated on `gameEvalFull` so a
+  // restore-from-legacy pass (positions only, no GameEval) cannot overwrite a
+  // full entry with a partial one.
   useEffect(() => {
-    if (!cacheKey || !enginePositions) return;
+    if (!cacheKey || !gameEvalFull) return;
     if (typeof window === "undefined") return;
     try {
-      window.sessionStorage.setItem(cacheKey, JSON.stringify(enginePositions));
+      window.sessionStorage.setItem(cacheKey, JSON.stringify(gameEvalFull));
     } catch {
       /* quota exhausted — skip silently */
     }
-  }, [cacheKey, enginePositions]);
+  }, [cacheKey, gameEvalFull]);
 
   // G15: also push every position eval into the production savedEvalsAtom
   // so the rest of the site (production /analysis, /play eval-bar, etc.)

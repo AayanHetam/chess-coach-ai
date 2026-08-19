@@ -2334,6 +2334,11 @@ export default function PreviewPuzzlesPage() {
                   onResetPuzzle={handleReset}
                   onCoachDemoRequest={handleCoachDemoRequest}
                   onShowCoachHighlight={handleShowCoachHighlight}
+                  // T10: a coaching conversation is the one thing a user can
+                  // do here for a long stretch without touching the board, so
+                  // without this the 15-minute idle timer closed the session
+                  // out from under a live conversation.
+                  onActivity={bumpActivity}
                 />
               ) : (
                 <Box

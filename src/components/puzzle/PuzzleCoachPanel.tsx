@@ -99,6 +99,17 @@ interface PuzzleCoachPanelProps {
    *  popover. Parent paints the highlight on the puzzle board until the
    *  user makes another move / clicks elsewhere. (PR-C.3) */
   onShowCoachHighlight?: (highlight: CoachHighlight) => void;
+  /**
+   * Fired on every user-initiated coach interaction, so the parent can treat
+   * talking to the coach as activity.
+   *
+   * The puzzle page auto-saves and closes a session after 15 minutes idle, and
+   * `bumpActivity` was wired to board moves only. Reading an explanation and
+   * asking a follow-up is the one thing a user can do here for a long stretch
+   * WITHOUT touching the board — so the session could close underneath a live
+   * conversation, mid-sentence. (SILENT_SUBSTITUTION_HANDOFF §4, T10.)
+   */
+  onActivity?: () => void;
 }
 
 const SUGGESTED_FOLLOWUPS = [
@@ -119,6 +130,7 @@ export function PuzzleCoachPanel({
   onResetPuzzle,
   onCoachDemoRequest,
   onShowCoachHighlight,
+  onActivity,
 }: PuzzleCoachPanelProps) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
@@ -365,6 +377,8 @@ export function PuzzleCoachPanel({
     async (stage: HintStage) => {
       if (hintLoading) return;
       if (hintsFiredRef.current.includes(stage)) return;
+      // Asking for a hint is activity — see `onActivity`.
+      onActivity?.();
       const capturedPuzzleId = puzzle.id;
       const ac = new AbortController();
       abortRef.current?.abort();
@@ -438,7 +452,7 @@ export function PuzzleCoachPanel({
         }
       }
     },
-    [hintLoading, puzzle, userAttemptSan, userRating]
+    [hintLoading, puzzle, userAttemptSan, userRating, onActivity]
   );
 
   // Auto-fire on outcome change:
@@ -460,23 +474,27 @@ export function PuzzleCoachPanel({
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed || streaming) return;
+    // Typing to the coach is activity. Without this the 15-minute idle timer
+    // keeps running through a conversation and closes the session under it.
+    onActivity?.();
     setInput("");
     fireTurn(
       turns.filter((t) => t.role !== "coach" || t.content).length + 1,
       trimmed
     );
-  }, [input, streaming, turns, fireTurn]);
+  }, [input, streaming, turns, fireTurn, onActivity]);
 
   const handleSuggestion = useCallback(
     (s: string) => {
       if (streaming) return;
+      onActivity?.();
       setInput("");
       fireTurn(
         turns.filter((t) => t.role !== "coach" || t.content).length + 1,
         s
       );
     },
-    [streaming, turns, fireTurn]
+    [streaming, turns, fireTurn, onActivity]
   );
 
   return (

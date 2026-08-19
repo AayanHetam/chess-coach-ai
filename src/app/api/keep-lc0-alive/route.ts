@@ -18,11 +18,11 @@ const CRON_SECRET = process.env.CRON_SECRET;
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  if (CRON_SECRET) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Fail closed: a missing CRON_SECRET must reject, not open the relay.
+  // Vercel cron injects `Authorization: Bearer <CRON_SECRET>` when set.
+  const auth = req.headers.get("authorization");
+  if (!CRON_SECRET || auth !== `Bearer ${CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   if (!LC0_API_URL) {

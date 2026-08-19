@@ -48,6 +48,16 @@ concurrency:
 jobs:
   typecheck-and-test:
     runs-on: ubuntu-latest
+    # A healthy run is ~9-12 minutes. Without this the job inherits GitHub's
+    # 6-hour default, and on 2026-08-19 that is exactly what happened: four
+    # runs — including main's own post-merge run — sat wedged for 5+ hours
+    # each on the Playwright browser install, blocking every merge in the repo
+    # and burning roughly 1,200 runner-minutes against the 2,000-minute
+    # monthly allowance this workflow's concurrency block was added to protect.
+    #
+    # 25 gives real headroom over the observed worst case while turning an
+    # invisible six-hour wedge into a visible failure you can retry.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -92,8 +102,27 @@ jobs:
       # Critical-journey E2E against the production build we just made.
       # Secrets-free by design: journeys are client-side (dark chrome, auth
       # dialog, COPPA DOB gate, core pages) and never create accounts.
+      # `--with-deps` shells out to apt-get, and apt is what hung on
+      # 2026-08-19 — every stuck run in the repo was parked on this one step.
+      # Two changes, both about failing fast rather than hanging:
+      #
+      #   1. a step budget, so a wedged install dies in 6 minutes;
+      #   2. a fallback to the browser-only install. ubuntu-latest already
+      #      ships Chromium's shared libraries, so the deps pass is
+      #      belt-and-braces; when apt is unreachable, skipping it still
+      #      produces a working browser rather than a red pipeline.
+      #
+      # `timeout` (coreutils) bounds the inner command so the `||` can fire —
+      # step-level `timeout-minutes` would kill the whole step instead.
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 6
+        run: |
+          timeout 240 npx playwright install --with-deps chromium \
+            || npx playwright install chromium
 
+      # Separate budget: if the suite itself hangs (a webServer that never
+      # comes up, a test awaiting a locator forever), that is a different
+      # failure from a broken install and should be legible as one.
       - name: E2E critical journeys
+        timeout-minutes: 12
         run: npx playwright test --project=local-desktop-light --project=local-mobile-light

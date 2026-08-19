@@ -298,8 +298,33 @@ All evals are in pawns from White's perspective (positive = better for White); M
   Eval: M- → -3.00 (lost 97.0 pawns)
   What happened: Black knight moved from f6 to g4
   FEN before: r1bqk2r/ppppnppp/1b3n2/3PP3/2B5/5N2/PP3PPP/RNBQK2R b KQkq - 0 8
-  TACTICAL FACTS: [] — no tactical patterns detected.
-Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "f2",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "b6",
+        "piece": "b"
+      },
+      {
+        "square": "g4",
+        "piece": "n"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "e1",
+        "piece": "k"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
   CRITICAL JUNCTION — gap between #1 and #2 candidate: 94.99 pawns
   BRANCH POINT: Lines diverge at move 1. Best continues Ba5+, played line goes Ng4
   CANDIDATE MOVES (from Stockfish, best first):
@@ -325,30 +350,6 @@ Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trappe
       }
     ],
     "defenders": [],
-    "see_value_cp": 100,
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "c3",
-    "piece": "p",
-    "attackers": [
-      {
-        "square": "d4",
-        "piece": "p"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "b2",
-        "piece": "p"
-      },
-      {
-        "square": "b1",
-        "piece": "n"
-      }
-    ],
     "see_value_cp": 100,
     "confirmed": true,
     "refutation": null
@@ -416,8 +417,33 @@ Do not claim a piece attacks a square unless it is listed here.
 (Pre-computed verified analysis — use this to ground your explanations)
 
 ### CRITICAL POSITION: Move 8 (Black — BLUNDER)
-TACTICAL FACTS: [] — no tactical patterns detected.
-Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "hanging_piece",
+    "square": "f2",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "b6",
+        "piece": "b"
+      },
+      {
+        "square": "g4",
+        "piece": "n"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "e1",
+        "piece": "k"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
 CANDIDATE RANKING: CRITICAL JUNCTION — gap between #1 and #2 candidate: 94.99 pawns
 BRANCH POINT: Key divergence — best: Ba5+ vs alternative: Ng4
 ENGINE IDEA: The key idea: 8... Ba5+ gives check.
@@ -455,30 +481,6 @@ TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
       }
     ],
     "defenders": [],
-    "see_value_cp": 100,
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "c3",
-    "piece": "p",
-    "attackers": [
-      {
-        "square": "d4",
-        "piece": "p"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "b2",
-        "piece": "p"
-      },
-      {
-        "square": "b1",
-        "piece": "n"
-      }
-    ],
     "see_value_cp": 100,
     "confirmed": true,
     "refutation": null
@@ -622,62 +624,6 @@ All evals are in pawns from White's perspective (positive = better for White); M
     "ray": "diag-g5-e7",
     "confirmed": true,
     "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "f6",
-    "piece": "n",
-    "attackers": [
-      {
-        "square": "g5",
-        "piece": "b"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "e7",
-        "piece": "b"
-      },
-      {
-        "square": "g7",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 320,
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "d5",
-    "piece": "p",
-    "attackers": [
-      {
-        "square": "c4",
-        "piece": "p"
-      },
-      {
-        "square": "c3",
-        "piece": "n"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "d8",
-        "piece": "q"
-      },
-      {
-        "square": "e6",
-        "piece": "p"
-      },
-      {
-        "square": "f6",
-        "piece": "n"
-      }
-    ],
-    "see_value_cp": 100,
-    "confirmed": true,
-    "refutation": null
   }
 ]
   CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
@@ -760,62 +706,6 @@ TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
       "piece": "b"
     },
     "ray": "diag-g5-e7",
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "f6",
-    "piece": "n",
-    "attackers": [
-      {
-        "square": "g5",
-        "piece": "b"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "e7",
-        "piece": "b"
-      },
-      {
-        "square": "g7",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 320,
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "d5",
-    "piece": "p",
-    "attackers": [
-      {
-        "square": "c4",
-        "piece": "p"
-      },
-      {
-        "square": "c3",
-        "piece": "n"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "d8",
-        "piece": "q"
-      },
-      {
-        "square": "e6",
-        "piece": "p"
-      },
-      {
-        "square": "f6",
-        "piece": "n"
-      }
-    ],
-    "see_value_cp": 100,
     "confirmed": true,
     "refutation": null
   }
@@ -917,29 +807,8 @@ All evals are in pawns from White's perspective (positive = better for White); M
   Eval: 0.35 → -0.30 (lost 0.7 pawns)
   What happened: White pawn moved from d2 to d4
   FEN before: rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3
-  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "hanging_piece",
-    "square": "c5",
-    "piece": "p",
-    "attackers": [
-      {
-        "square": "d4",
-        "piece": "p"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "d6",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 100,
-    "confirmed": true,
-    "refutation": null
-  }
-]
+  TACTICAL FACTS: [] — no tactical patterns detected.
+Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
   CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
   BRANCH POINT: Lines diverge at move 1. Best continues Ba6, played line goes d4
   CANDIDATE MOVES (from Stockfish, best first):
@@ -1005,29 +874,8 @@ Do not claim a piece attacks a square unless it is listed here.
 (Pre-computed verified analysis — use this to ground your explanations)
 
 ### CRITICAL POSITION: Move 3 (White — INACCURACY)
-TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "hanging_piece",
-    "square": "c5",
-    "piece": "p",
-    "attackers": [
-      {
-        "square": "d4",
-        "piece": "p"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "d6",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 100,
-    "confirmed": true,
-    "refutation": null
-  }
-]
+TACTICAL FACTS: [] — no tactical patterns detected.
+Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
 CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
 BRANCH POINT: Key divergence — best: Ba6 vs alternative: d4
 PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
@@ -1506,6 +1354,26 @@ All evals are in pawns from White's perspective (positive = better for White); M
     "refutation": null
   },
   {
+    "motif": "hanging_piece",
+    "square": "e4",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "f3",
+        "piece": "p"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "b7",
+        "piece": "b"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
     "motif": "trapped_piece",
     "square": "g7",
     "piece": "b",
@@ -1565,6 +1433,54 @@ All evals are in pawns from White's perspective (positive = better for White); M
     "see_value_cp": 330,
     "confirmed": true,
     "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "f6",
+    "piece": "b",
+    "attackers": [
+      {
+        "square": "g8",
+        "piece": "n"
+      },
+      {
+        "square": "g5",
+        "piece": "p"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "e6",
+        "piece": "q"
+      }
+    ],
+    "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "e4",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "a8",
+        "piece": "b"
+      },
+      {
+        "square": "f3",
+        "piece": "p"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "e6",
+        "piece": "q"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
   }
 ]
   CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
@@ -1593,30 +1509,6 @@ All evals are in pawns from White's perspective (positive = better for White); M
     ],
     "defenders": [],
     "see_value_cp": 330,
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "g8",
-    "piece": "n",
-    "attackers": [
-      {
-        "square": "h6",
-        "piece": "n"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "h8",
-        "piece": "r"
-      },
-      {
-        "square": "f7",
-        "piece": "q"
-      }
-    ],
-    "see_value_cp": 140,
     "confirmed": true,
     "refutation": null
   },
@@ -1654,77 +1546,21 @@ UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): 
 [
   {
     "motif": "hanging_piece",
-    "square": "g8",
-    "piece": "n",
+    "square": "c8",
+    "piece": "b",
     "attackers": [
       {
-        "square": "h6",
+        "square": "a7",
         "piece": "n"
-      },
-      {
-        "square": "c4",
-        "piece": "q"
       }
     ],
     "defenders": [
       {
         "square": "e8",
         "piece": "q"
-      },
-      {
-        "square": "h8",
-        "piece": "r"
       }
     ],
-    "see_value_cp": 140,
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "a6",
-    "piece": "n",
-    "attackers": [
-      {
-        "square": "c4",
-        "piece": "q"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "b7",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 320,
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "c6",
-    "piece": "p",
-    "attackers": [
-      {
-        "square": "a7",
-        "piece": "n"
-      },
-      {
-        "square": "c4",
-        "piece": "q"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "b7",
-        "piece": "p"
-      },
-      {
-        "square": "d7",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 100,
+    "see_value_cp": 10,
     "confirmed": true,
     "refutation": null
   },
@@ -1808,34 +1644,6 @@ UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): 
     ],
     "defenders": [],
     "see_value_cp": 500,
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "c6",
-    "piece": "p",
-    "attackers": [
-      {
-        "square": "c4",
-        "piece": "q"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "b8",
-        "piece": "n"
-      },
-      {
-        "square": "b7",
-        "piece": "p"
-      },
-      {
-        "square": "d7",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 100,
     "confirmed": true,
     "refutation": null
   }
@@ -2007,6 +1815,26 @@ TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
     "refutation": null
   },
   {
+    "motif": "hanging_piece",
+    "square": "e4",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "f3",
+        "piece": "p"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "b7",
+        "piece": "b"
+      }
+    ],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
     "motif": "trapped_piece",
     "square": "g7",
     "piece": "b",
@@ -2083,6 +1911,54 @@ TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
     ],
     "defenders": [],
     "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "f6",
+    "piece": "b",
+    "attackers": [
+      {
+        "square": "g8",
+        "piece": "n"
+      },
+      {
+        "square": "g5",
+        "piece": "p"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "e6",
+        "piece": "q"
+      }
+    ],
+    "see_value_cp": 330,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "e4",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "a8",
+        "piece": "b"
+      },
+      {
+        "square": "f3",
+        "piece": "p"
+      }
+    ],
+    "defenders": [
+      {
+        "square": "e6",
+        "piece": "q"
+      }
+    ],
+    "see_value_cp": 100,
     "confirmed": true,
     "refutation": null
   }
@@ -2394,33 +2270,8 @@ UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): 
   Eval: 0.35 → -0.60 (lost 0.9 pawns)
   What happened: White knight moved from f3 to d4, capturing pawn on d4
   FEN before: r1bqkbnr/pp1ppppp/2n5/8/3pP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4
-  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "hanging_piece",
-    "square": "c6",
-    "piece": "n",
-    "attackers": [
-      {
-        "square": "d4",
-        "piece": "n"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "b7",
-        "piece": "p"
-      },
-      {
-        "square": "d7",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 320,
-    "confirmed": true,
-    "refutation": null
-  }
-]
+  TACTICAL FACTS: [] — no tactical patterns detected.
+Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
   Only one candidate line available.
   CANDIDATE MOVES (from Stockfish, best first):
     ⮕ PLAYED: Nxd4 (+0.35) — Line: 4. Nxd4 Na5 5. Ba6 Nb3 (depth 12)
@@ -2578,33 +2429,8 @@ CONCEPT DELTA (what the move changed): new threat(s): Black king is in check | B
 OPPONENT THREATS TO COUNT: Qxd1+ (check), Qd2+ (check), Qe3+ (check)
 
 ### CRITICAL POSITION: Move 4 (White — INACCURACY)
-TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "hanging_piece",
-    "square": "c6",
-    "piece": "n",
-    "attackers": [
-      {
-        "square": "d4",
-        "piece": "n"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "b7",
-        "piece": "p"
-      },
-      {
-        "square": "d7",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 320,
-    "confirmed": true,
-    "refutation": null
-  }
-]
+TACTICAL FACTS: [] — no tactical patterns detected.
+Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
 CANDIDATE RANKING: Only one candidate line available.
 ENGINE IDEA: The key idea: 4. Nxd4 wins the pawn.
 VERIFIED POSITION FACTS (chess.js oracle — only assert relationships listed here):
@@ -2756,33 +2582,8 @@ All evals are in pawns from White's perspective (positive = better for White); M
   Eval: 0.25 → -0.35 (lost 0.6 pawns)
   What happened: White rook moved from a1 to b1
   FEN before: r1bq1rk1/ppp2pbp/2np1np1/4p3/2P5/2NP1NP1/PP2PPBP/R1BQ1RK1 w - - 2 8
-  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "hanging_piece",
-    "square": "e5",
-    "piece": "p",
-    "attackers": [
-      {
-        "square": "f3",
-        "piece": "n"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "c6",
-        "piece": "n"
-      },
-      {
-        "square": "d6",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 100,
-    "confirmed": true,
-    "refutation": null
-  }
-]
+  TACTICAL FACTS: [] — no tactical patterns detected.
+Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
   CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
   BRANCH POINT: Lines diverge at move 1. Best continues Bd2, played line goes Rb1
   CANDIDATE MOVES (from Stockfish, best first):
@@ -2844,33 +2645,8 @@ Do not claim a piece attacks a square unless it is listed here.
 (Pre-computed verified analysis — use this to ground your explanations)
 
 ### CRITICAL POSITION: Move 8 (White — INACCURACY)
-TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
-[
-  {
-    "motif": "hanging_piece",
-    "square": "e5",
-    "piece": "p",
-    "attackers": [
-      {
-        "square": "f3",
-        "piece": "n"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "c6",
-        "piece": "n"
-      },
-      {
-        "square": "d6",
-        "piece": "p"
-      }
-    ],
-    "see_value_cp": 100,
-    "confirmed": true,
-    "refutation": null
-  }
-]
+TACTICAL FACTS: [] — no tactical patterns detected.
+Do not use: fork, pin, skewer, discovered, removes the defender, hanging, trapped, back rank, mate threat.
 CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
 BRANCH POINT: Key divergence — best: Bd2 vs alternative: Rb1
 PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):
@@ -3061,30 +2837,6 @@ All evals are in pawns from White's perspective (positive = better for White); M
     "ray": "diag-g4-d1",
     "confirmed": true,
     "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "f3",
-    "piece": "n",
-    "attackers": [
-      {
-        "square": "g4",
-        "piece": "b"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "g2",
-        "piece": "p"
-      },
-      {
-        "square": "d1",
-        "piece": "q"
-      }
-    ],
-    "see_value_cp": 320,
-    "confirmed": true,
-    "refutation": null
   }
 ]
   IMPORTANT CHOICE — gap between #1 and #2 candidate: 2.00 pawns
@@ -3257,30 +3009,6 @@ TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
       "piece": "q"
     },
     "ray": "diag-g4-d1",
-    "confirmed": true,
-    "refutation": null
-  },
-  {
-    "motif": "hanging_piece",
-    "square": "f3",
-    "piece": "n",
-    "attackers": [
-      {
-        "square": "g4",
-        "piece": "b"
-      }
-    ],
-    "defenders": [
-      {
-        "square": "g2",
-        "piece": "p"
-      },
-      {
-        "square": "d1",
-        "piece": "q"
-      }
-    ],
-    "see_value_cp": 320,
     "confirmed": true,
     "refutation": null
   }
@@ -3521,12 +3249,27 @@ Do not assert: fork, pin, skewer, discovered, hanging, trapped, back rank, mate 
   Eval: 1.40 → 0.50 (lost 0.9 pawns)
   What happened: White pawn moved from f2 to f4
   FEN before: r1b1k2r/ppp1bp2/3p3p/4n1p1/3N4/2NP2P1/PPP1BPP1/2KR3R w kq - 1 15
-  TACTICAL FACTS: [] — structural patterns detected but all escapable against best defense.
-Refutations:
-  fork: refuted by g5xf4 (recapture)
-Do not assert: fork, pin, skewer, discovered, hanging, trapped, back rank, mate threat.
-
-UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): fork — refuted by g5xf4
+  TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "fork",
+    "by_piece": "p",
+    "by_square": "f4",
+    "targets": [
+      {
+        "square": "e5",
+        "piece": "n"
+      },
+      {
+        "square": "g5",
+        "piece": "p"
+      }
+    ],
+    "unavoidable_loss_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
   CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.90 pawns
   BRANCH POINT: Lines diverge at move 1. Best continues Nf5, played line goes f4
   CANDIDATE MOVES (from Stockfish, best first):
@@ -3615,12 +3358,27 @@ GROUNDED TEACHING SPINE (what the move changed + threats to count):
 CONCEPT DELTA (what the move changed): new threat(s): Black can capture knight on e6 | newly trapped: white knight on e6
 
 ### CRITICAL POSITION: Move 15 (White — INACCURACY)
-TACTICAL FACTS: [] — structural patterns detected but all escapable against best defense.
-Refutations:
-  fork: refuted by g5xf4 (recapture)
-Do not assert: fork, pin, skewer, discovered, hanging, trapped, back rank, mate threat.
-
-UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): fork — refuted by g5xf4
+TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
+[
+  {
+    "motif": "fork",
+    "by_piece": "p",
+    "by_square": "f4",
+    "targets": [
+      {
+        "square": "e5",
+        "piece": "n"
+      },
+      {
+        "square": "g5",
+        "piece": "p"
+      }
+    ],
+    "unavoidable_loss_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  }
+]
 CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.90 pawns
 BRANCH POINT: Key divergence — best: Nf5 vs alternative: f4
 PEDAGOGICAL CONCEPTS (teach by name — this is the principle the student missed):

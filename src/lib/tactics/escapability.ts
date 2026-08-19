@@ -191,7 +191,15 @@ function confirmDiscoveredAttack(
   movingColor: Color,
 ): { confirmed: boolean; refutation: Refutation | null } {
   const opponentColor: Color = movingColor === "w" ? "b" : "w";
-  // Confirmed if the victim is actually winning to capture (SEE ≥ 0)
+  // A discovered CHECK is confirmed by the check itself — the king is not
+  // winnable material, so the SEE gate below would price it at 0 and wrongly
+  // unconfirm every discovered check. (The old see() priced a king victim at
+  // 99999, which confirmed these by accident; issue #350 made it honest.)
+  const victimPiece = gameAfter.get(motif.victim.square);
+  if (victimPiece?.type === "k") {
+    return { confirmed: true, refutation: null };
+  }
+  // Confirmed if the victim is actually winning to capture (SEE > 0)
   const seeValue = see(gameAfter, motif.victim.square, movingColor);
   if (seeValue <= 0) {
     return { confirmed: false, refutation: { move: `defend-${motif.victim.square}`, refuted_by: "counter_threat" } };

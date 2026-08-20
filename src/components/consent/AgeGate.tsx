@@ -22,12 +22,18 @@ import Link from "next/link";
  * birth date is ever collected or transmitted. This replaced the earlier
  * neutral DOB screen; devices that resolved under-13 on that screen stay
  * locked via ageGateLock, which callers check before rendering this gate.
+ *
+ * Also offers an OPTIONAL email opt-in checkbox. Unlike the affirmation it
+ * never gates Continue — its value just rides along in onConfirmed so every
+ * signup path (dialog form, Google popup, /auth/age interstitial) captures
+ * the preference on the same surface. The label must never match the e2e
+ * locator for the required box (/at least 13 years old/i).
  */
 export default function AgeGate({
   onConfirmed,
   slotSx,
 }: {
-  onConfirmed: () => void;
+  onConfirmed: (opts: { emailOptIn: boolean }) => void;
   /** Optional per-slot style overrides so the gate can sit on dark-glass
    *  surfaces (AuthDialog, /auth/age) without forking the component. */
   slotSx?: {
@@ -39,6 +45,7 @@ export default function AgeGate({
   };
 }) {
   const [checked, setChecked] = useState(false);
+  const [emailOptIn, setEmailOptIn] = useState(false);
 
   return (
     <Box sx={{ maxWidth: 360 }}>
@@ -72,9 +79,20 @@ export default function AgeGate({
           }
           label={`I confirm that I am at least ${COPPA_MIN_AGE} years old and agree to the Terms of Service and Privacy Policy.`}
         />
+        <FormControlLabel
+          sx={slotSx?.label}
+          control={
+            <Checkbox
+              checked={emailOptIn}
+              onChange={(e) => setEmailOptIn(e.target.checked)}
+              sx={slotSx?.checkbox}
+            />
+          }
+          label="Email me chess tips and updates from Chess Masti. (Optional)"
+        />
         <Button
           variant="contained"
-          onClick={onConfirmed}
+          onClick={() => onConfirmed({ emailOptIn })}
           disabled={!checked}
           sx={slotSx?.button}
         >

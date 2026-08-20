@@ -47,6 +47,7 @@ interface AuthContextType {
   signInWithGoogle: (opts?: {
     ageAffirmed?: boolean;
     termsAccepted?: boolean;
+    emailOptIn?: boolean;
   }) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUp: (input: {
@@ -60,6 +61,8 @@ interface AuthContextType {
     // the signup API; no age or birth date ever leaves the browser).
     ageAffirmed: boolean;
     termsAccepted: boolean;
+    /** Optional marketing-email consent — never required to sign up. */
+    emailOptIn?: boolean;
   }) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -188,6 +191,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       displayName?: string;
       ageAffirmed: boolean;
       termsAccepted: boolean;
+      emailOptIn?: boolean;
     }) => {
       await postJson("/api/auth/signup", input);
       await refresh();
@@ -200,7 +204,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   const signInWithGoogle = useCallback(
-    async (opts?: { ageAffirmed?: boolean; termsAccepted?: boolean }) => {
+    async (opts?: {
+      ageAffirmed?: boolean;
+      termsAccepted?: boolean;
+      emailOptIn?: boolean;
+    }) => {
       // Server-routed OAuth: full-page redirect through chessmasti.com so
       // we never hit the *.firebaseapp.com handler that school WiFi blocks.
       //
@@ -226,7 +234,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       // confirmed, so the OAuth callback can skip the /auth/age interstitial.
       const ageParam = opts?.ageAffirmed ? "&ageAffirmed=1" : "";
       const termsParam = opts?.termsAccepted ? "&termsAccepted=1" : "";
-      w.href = `/api/auth/google/start?returnTo=${encodeURIComponent(returnTo)}${ageParam}${termsParam}`;
+      const optInParam = opts?.emailOptIn ? "&emailOptIn=1" : "";
+      w.href = `/api/auth/google/start?returnTo=${encodeURIComponent(returnTo)}${ageParam}${termsParam}${optInParam}`;
     },
     []
   );

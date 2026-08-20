@@ -92,6 +92,12 @@ export const signupSchema = z.object({
     .string("Pick a handle to finish signing up.")
     .trim()
     .min(1, "Pick a handle to finish signing up."),
+  /**
+   * OPTIONAL marketing-email consent. Unlike the two consents above it never
+   * blocks signup — absent and false mean the same thing (no emails). Declared
+   * LAST so the age→terms→handle error ordering above stays intact.
+   */
+  emailOptIn: z.boolean().optional(),
 });
 
 /**

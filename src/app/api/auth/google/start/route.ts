@@ -44,6 +44,7 @@ export async function GET(request: Request) {
   // /auth/age interstitial for brand-new accounts.
   const ageAffirmed = url.searchParams.get("ageAffirmed") === "1";
   const termsAccepted = url.searchParams.get("termsAccepted") === "1";
+  const emailOptIn = url.searchParams.get("emailOptIn") === "1";
 
   const state = generateState();
   const { verifier, challenge } = generatePkcePair();
@@ -68,6 +69,7 @@ export async function GET(request: Request) {
     returnTo,
     ageAffirmed,
     termsAccepted,
+    emailOptIn,
   });
   return response;
 }

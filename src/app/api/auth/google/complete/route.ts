@@ -23,7 +23,7 @@ export const runtime = "nodejs";
  * POST /api/auth/google/complete — finish a Google sign-up that was parked
  * at the /auth/age COPPA interstitial (see google/callback).
  *
- * Body: { ageAffirmed: boolean, termsAccepted: boolean }
+ * Body: { ageAffirmed: boolean, termsAccepted: boolean, emailOptIn?: boolean }
  * - Both true → create (or link, if a racing sign-in created it meanwhile)
  *   the account with the server-generated acceptance fields, set the session.
  * - Either false → clear the pending cookie and stop. The checkbox gate can
@@ -55,13 +55,17 @@ export async function POST(request: Request) {
 
   let ageAffirmed = false;
   let termsAccepted = false;
+  let emailOptIn = false;
   try {
     const body = (await request.json()) as {
       ageAffirmed?: unknown;
       termsAccepted?: unknown;
+      emailOptIn?: unknown;
     };
     ageAffirmed = body.ageAffirmed === true;
     termsAccepted = body.termsAccepted === true;
+    // Optional marketing consent — never part of the gate below.
+    emailOptIn = body.emailOptIn === true;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
@@ -99,6 +103,7 @@ export async function POST(request: Request) {
           emailVerified: true,
           ageAffirmed: true,
           termsAccepted: true,
+          emailOptIn,
         });
       }
     }

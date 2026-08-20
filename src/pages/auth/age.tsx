@@ -36,7 +36,7 @@ export default function AgeInterstitialPage() {
     if (isAgeGateBlocked()) setPhase("blocked");
   }, []);
 
-  const complete = async () => {
+  const complete = async (emailOptIn: boolean) => {
     setError(null);
     setPhase("submitting");
     try {
@@ -44,7 +44,11 @@ export default function AgeInterstitialPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ageAffirmed: true, termsAccepted: true }),
+        body: JSON.stringify({
+          ageAffirmed: true,
+          termsAccepted: true,
+          emailOptIn,
+        }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as {
@@ -111,9 +115,9 @@ export default function AgeInterstitialPage() {
               )}
               <Box sx={{ mt: 1.5, opacity: phase === "submitting" ? 0.6 : 1 }}>
                 <AgeGate
-                  onConfirmed={() => {
+                  onConfirmed={({ emailOptIn }) => {
                     if (phase === "submitting") return;
-                    void complete();
+                    void complete(emailOptIn);
                   }}
                 />
               </Box>

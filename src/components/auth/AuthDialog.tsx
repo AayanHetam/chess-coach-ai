@@ -68,6 +68,9 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
   // devices where a date once resolved under-13.
   const [agePassed, setAgePassed] = useState(false);
   const [ageBlocked, setAgeBlocked] = useState(false);
+  // Optional marketing-email consent, collected on the same AgeGate surface
+  // as the required affirmation. False unless the user ticked the box.
+  const [emailOptIn, setEmailOptIn] = useState(false);
 
   useEffect(() => {
     if (open) setAgeBlocked(isAgeGateBlocked());
@@ -108,6 +111,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
     setDisplayName("");
     setHandle("");
     setAgePassed(false);
+    setEmailOptIn(false);
     setChesscomUsername("");
     setLichessUsername("");
     setError(null);
@@ -148,6 +152,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
           displayName: displayName.trim() || undefined,
           ageAffirmed: true, // only reachable after the 13+ checkbox gate
           termsAccepted: true,
+          emailOptIn,
         });
         setStep("usernames");
       } else {
@@ -173,6 +178,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
       await signInWithGoogle({
         ageAffirmed: mode === "signup" && agePassed,
         termsAccepted: mode === "signup" && agePassed,
+        emailOptIn: mode === "signup" && agePassed && emailOptIn,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed.");
@@ -551,7 +557,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                      signup form (and its Google button) ever renders. */
                     <Box sx={{ py: 0.5 }}>
                       <AgeGate
-                        onConfirmed={() => setAgePassed(true)}
+                        onConfirmed={({ emailOptIn: optIn }) => {
+                          setEmailOptIn(optIn);
+                          setAgePassed(true);
+                        }}
                         slotSx={{
                           title: {
                             fontSize: "0.95rem",

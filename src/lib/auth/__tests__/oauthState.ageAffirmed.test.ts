@@ -45,4 +45,28 @@ describe("oauthState ageAffirmed flag (COPPA)", () => {
     );
     expect(parsed?.ageAffirmed).toBe(false);
   });
+
+  it("round-trips emailOptIn: true and defaults it to false when absent", async () => {
+    const withOptIn = NextResponse.redirect("http://localhost/");
+    await setOAuthStateCookie(withOptIn, {
+      state: "s3",
+      codeVerifier: "v3",
+      ageAffirmed: true,
+      termsAccepted: true,
+      emailOptIn: true,
+    });
+    const optInToken = withOptIn.cookies.get("cm_oauth_state")!.value;
+    const parsedOptIn = await readOAuthStateFromRequest(
+      requestWithCookie(`cm_oauth_state=${optInToken}`)
+    );
+    expect(parsedOptIn?.emailOptIn).toBe(true);
+
+    const without = NextResponse.redirect("http://localhost/");
+    await setOAuthStateCookie(without, { state: "s4", codeVerifier: "v4" });
+    const legacyToken = without.cookies.get("cm_oauth_state")!.value;
+    const parsedLegacy = await readOAuthStateFromRequest(
+      requestWithCookie(`cm_oauth_state=${legacyToken}`)
+    );
+    expect(parsedLegacy?.emailOptIn).toBe(false);
+  });
 });

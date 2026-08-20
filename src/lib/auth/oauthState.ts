@@ -23,6 +23,9 @@ export type OAuthStatePayload = {
   // the signed state cookie so a forged query param can't set it.
   ageAffirmed?: boolean;
   termsAccepted?: boolean;
+  // Optional marketing-email consent ticked on the same gate. Carried in the
+  // signed cookie for the same reason as the consents above.
+  emailOptIn?: boolean;
 };
 
 let cachedKey: Uint8Array | null = null;
@@ -97,6 +100,7 @@ export async function readOAuthStateFromRequest(
         typeof payload.returnTo === "string" ? payload.returnTo : undefined,
       ageAffirmed: payload.ageAffirmed === true,
       termsAccepted: payload.termsAccepted === true,
+      emailOptIn: payload.emailOptIn === true,
     };
   } catch {
     return null;

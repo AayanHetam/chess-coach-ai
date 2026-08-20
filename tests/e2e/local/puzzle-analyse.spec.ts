@@ -102,6 +102,41 @@ test("opening Analyse once unlocked DOES fetch the engine", async ({
     .toBeGreaterThan(0);
 });
 
+test("Analyse renders a real evaluation, not just a loading state", async ({
+  page,
+}) => {
+  // The end of the story the tests above only begin: the engine is not merely
+  // REQUESTED (the control above), it downloads, boots, searches, and a number
+  // reaches the screen. This exact assertion was believed impossible headless
+  // — "headless Chromium completes no WASM search on this codebase" — but the
+  // engine was always fine headless. What was broken was the app: every
+  // `evaluatePositionWithUpdate({ multiPv: 1 })` threw `Invalid MultiPV
+  // value : 1` before the search started (uciEngine.setMultiPv's lower bound
+  // was 2), the panel swallowed the rejection, and the stall message rendered
+  // 25s later for every user, in every browser, headed or not. So this test
+  // is the regression guard for that bug at the level that matters: a person
+  // seeing an evaluation.
+  test.setTimeout(150_000);
+
+  await page.goto("/puzzles");
+  await waitForStableFen(page);
+  await page.getByRole("button", { name: /show solution/i }).click();
+  await expect(analyseButton(page)).toBeEnabled({ timeout: 15000 });
+  await analyseButton(page).click();
+
+  // Generous: ~7 MB engine download from the local server + single-threaded
+  // boot + a depth-16 search. The stall guard fires at 25s, so a healthy pass
+  // typically lands well before this and a regression fails fast below.
+  await expect(page.getByText(/depth \d+/)).toBeVisible({ timeout: 90_000 });
+  // The eval label alongside it: "+0.85" / "-1.20" / "+M3".
+  await expect(page.getByText(/^[+-](\d+\.\d\d|M\d+)$/)).toBeVisible();
+  // And the failure copy must NOT be on screen — the exact message every
+  // production user saw while the multiPv bug shipped.
+  await expect(
+    page.getByText(/didn't return an evaluation/)
+  ).toHaveCount(0);
+});
+
 test("showing the solution unlocks Analyse", async ({ page }) => {
   await page.goto("/puzzles");
   await waitForStableFen(page);

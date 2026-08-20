@@ -106,10 +106,19 @@ export function PuzzleAnalysisPanel({
           setLine(first);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         // A rejected evaluation must not leave a stale line on screen looking
-        // like a fresh answer.
-        if (!cancelled) setLine(null);
+        // like a fresh answer — and it means nothing is EVER coming, so show
+        // the terminal message now rather than letting "Evaluating…" run out
+        // the 25s stall clock. That silent-swallow-then-stall shape is
+        // exactly how the multiPv:1 rejection hid for weeks: the error had a
+        // message, and nobody ever saw it.
+        console.error("[PuzzleAnalysisPanel] evaluation failed:", err);
+        if (!cancelled) {
+          clearTimeout(stallTimer);
+          setLine(null);
+          setStalled(true);
+        }
       })
       .finally(() => {
         if (!cancelled) setEvaluating(false);

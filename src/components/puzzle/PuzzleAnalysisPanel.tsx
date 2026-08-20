@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
+import { Chess } from "chess.js";
 import { getLineEvalLabel, moveLineUciToSan } from "@/lib/chess";
 import { useEngineWithStatus, isEngineUnavailable } from "@/hooks/useEngine";
 import { DEFAULT_ENGINE, ENGINE_LABELS } from "@/constants";
@@ -52,6 +53,34 @@ export function PuzzleAnalysisPanel({
   enabled,
   fen,
 }: PuzzleAnalysisPanelProps) {
+  // A finished game deserves words, not a search. After "Show solution" on a
+  // mate puzzle the board's FEN IS the mated position, and asking Stockfish
+  // about it yields `bestmove (none)` — which used to reach the user as "the
+  // engine didn't return an evaluation", a shrug about the one position whose
+  // evaluation is absolute. Saying "checkmate" needs chess.js, not a 7 MB
+  // engine download, so a terminal position also skips mounting the engine
+  // entirely below.
+  const terminal = useMemo(() => {
+    if (!enabled || !fen) return null;
+    try {
+      const game = new Chess(fen);
+      if (game.isCheckmate()) {
+        const winner = game.turn() === "w" ? "Black" : "White";
+        return `Checkmate — ${winner} has won this position, so there's nothing left to evaluate.`;
+      }
+      if (game.isStalemate()) {
+        return "Stalemate — this position is a draw, so there's nothing left to evaluate.";
+      }
+      if (game.isDraw()) {
+        return "This position is a dead draw, so there's nothing left to evaluate.";
+      }
+    } catch {
+      // An unparseable FEN falls through to the engine path, whose own error
+      // handling owns that case.
+    }
+    return null;
+  }, [enabled, fen]);
+
   // The lazy mount. `undefined` → the hook stays idle and fetches nothing.
   //
   // DEFAULT_ENGINE, not a hardcoded name. This shipped pinned to
@@ -62,7 +91,7 @@ export function PuzzleAnalysisPanel({
   // loads, so /puzzles and /analysis now agree on the engine by construction
   // rather than by two people remembering to pick the same one.
   const { engine, status } = useEngineWithStatus(
-    enabled ? DEFAULT_ENGINE : undefined
+    enabled && !terminal ? DEFAULT_ENGINE : undefined
   );
   const [line, setLine] = useState<LineEval | null>(null);
   const [evaluating, setEvaluating] = useState(false);
@@ -155,7 +184,19 @@ export function PuzzleAnalysisPanel({
         border: "1px solid rgba(255,255,255,0.07)",
       }}
     >
-      {isEngineUnavailable(status) ? (
+      {terminal ? (
+        // The one evaluation that needs no engine. Serif like the eval label —
+        // this IS the answer, not an apology for missing one.
+        <Typography
+          sx={{
+            fontFamily: SERIF_DISPLAY,
+            fontSize: "0.92rem",
+            color: "rgba(255,240,224,0.88)",
+          }}
+        >
+          {terminal}
+        </Typography>
+      ) : isEngineUnavailable(status) ? (
         // Terminal. Say so plainly instead of spinning forever — this is the
         // exact case `useEngine`'s status machine was built to make visible.
         <Typography sx={{ fontSize: "0.78rem", color: DIM }}>

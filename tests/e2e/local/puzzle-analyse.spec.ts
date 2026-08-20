@@ -121,7 +121,18 @@ test("Analyse renders a real evaluation, not just a loading state", async ({
   await page.goto("/puzzles");
   await waitForStableFen(page);
   await page.getByRole("button", { name: /show solution/i }).click();
-  await expect(analyseButton(page)).toBeEnabled({ timeout: 15000 });
+
+  // Let the demo finish, then step OFF the final position. The feed is
+  // random, and a random puzzle's solution may end in checkmate — a terminal
+  // board whose correct Analyse output is the checkmate line, not a depth
+  // readout (covered by the test below). "Back to your move" restores the
+  // solver's own position, which always has a move to find, so THIS test is
+  // deterministic about getting a live search.
+  await page
+    .getByRole("button", { name: /back to your move/i })
+    .click({ timeout: 30_000 });
+
+  await expect(analyseButton(page)).toBeEnabled();
   await analyseButton(page).click();
 
   // Generous: ~7 MB engine download from the local server + single-threaded
@@ -135,6 +146,51 @@ test("Analyse renders a real evaluation, not just a loading state", async ({
   await expect(
     page.getByText(/didn't return an evaluation/)
   ).toHaveCount(0);
+});
+
+test("a solved-out mate reads as checkmate, not as an engine failure", async ({
+  page,
+}) => {
+  // The second production stall, found live the moment the first was fixed:
+  // after "Show solution" on a mate puzzle the board's final FEN is the
+  // MATED position, and `go` on a finished game returns `bestmove (none)`
+  // with zero info lines — so the panel showed "the engine didn't return an
+  // evaluation" about the one position whose evaluation is absolute. The
+  // "Mate in 1" filter makes the terminal board deterministic here.
+  test.setTimeout(120_000);
+
+  await page.goto("/puzzles");
+  await waitForStableFen(page);
+
+  const fenOf = () =>
+    page.locator("[data-board-fen]").getAttribute("data-board-fen");
+  const before = await fenOf();
+  await page.getByRole("button", { name: "Mate in 1" }).click();
+  await expect.poll(fenOf, { timeout: 15_000 }).not.toBe(before);
+  await waitForStableFen(page);
+
+  // Saying "checkmate" needs chess.js, not a 7 MB download — the panel must
+  // not fetch the engine at all for a finished position.
+  const engineRequests: string[] = [];
+  await page.route("**/engines/**", (route) => {
+    engineRequests.push(route.request().url());
+    return route.continue();
+  });
+
+  await page.getByRole("button", { name: /show solution/i }).click();
+  // Demo finished — the board now rests on the mated position.
+  await expect(
+    page.getByRole("button", { name: /back to your move/i })
+  ).toBeVisible({ timeout: 30_000 });
+
+  await expect(analyseButton(page)).toBeEnabled();
+  await analyseButton(page).click();
+
+  await expect(
+    page.getByText(/Checkmate — (White|Black) has won/)
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/didn't return an evaluation/)).toHaveCount(0);
+  expect(engineRequests).toEqual([]);
 });
 
 test("showing the solution unlocks Analyse", async ({ page }) => {

@@ -278,3 +278,79 @@ export function findGaps(tree, family, trunk, { maxPly, minShare, limit = 10 }) 
   })(trunk, 1);
   return gaps.sort((a, b) => b.share - a.share).slice(0, limit);
 }
+
+/**
+ * What actually happens from a position, measured.
+ *
+ * Nothing here is a judgement. The main line is whatever gets played most; the
+ * breaks and the castling are counted over a frequency-weighted walk of the
+ * real games. The STRUCTURE those moves produce is classified separately and on
+ * the client, from `src/lib/repertoire/structure.ts`, so there is exactly one
+ * classifier rather than a copy of it in a build script that would drift.
+ */
+export function brief(tree, line, { plies = 8, minShare = 0.004 } = {}) {
+  const start = fenAfter(line);
+  if (!start) return null;
+  const node = tree.positions[positionKey(start)];
+  if (!node) return null;
+
+  const games = node.reduce((sum, m) => sum + m[1], 0);
+  // format is [san, count, white, draws]; the score is from White's side.
+  const wins = node.reduce((sum, m) => sum + (m[2] ?? 0), 0);
+  const draws = node.reduce((sum, m) => sum + (m[3] ?? 0), 0);
+
+  // The most-played continuation. Not "best": most played.
+  const mainline = [];
+  let fen = start;
+  for (let i = 0; i < plies; i++) {
+    const replies = repliesAt(tree, fen);
+    if (replies.length === 0) break;
+    const top = replies[0];
+    const next = fenAfter([...line, ...mainline, top.san]);
+    if (!next) break;
+    mainline.push(top.san);
+    fen = next;
+  }
+
+  // Weighted walk for the things worth counting.
+  //
+  // Pawn breaks only, and castling deliberately NOT. Castling happens around
+  // move five to seven, by which point a frequency-weighted walk has branched
+  // far enough that pruning has eaten most of the probability mass — measured,
+  // it reported 2% of Black castling short in the Trompowsky, which is false
+  // and reads as authoritative. Breaks survive because they happen early, near
+  // the root, where the weights are still large. A number we cannot measure
+  // properly is worse than a number we do not show.
+  const breaks = new Map();
+  (function step(sans, weight, depth) {
+    if (depth <= 0 || weight < minShare) return;
+    const here = fenAfter(sans);
+    if (!here) return;
+    const white = here.split(' ')[1] === 'w';
+    for (const reply of repliesAt(tree, here)) {
+      const w = weight * reply.share;
+      if (w < minShare) continue;
+      // A pawn move is a SAN with no piece letter. Captures included: ...cxd4
+      // is the break, and dropping them would miss most of them.
+      if (/^[a-h]/.test(reply.san)) {
+        const key = `${white ? '' : '...'}${reply.san}`;
+        breaks.set(key, (breaks.get(key) ?? 0) + w);
+      }
+      step([...sans, reply.san], w, depth - 1);
+    }
+    // Deep enough to actually REACH the castling moves. At six plies from a
+    // move-two slot the walk stops around move five, every individual O-O is
+    // diluted below the threshold, and the brief reports that nobody castles.
+  })(line, 1, 8);
+
+  return {
+    games,
+    /** White's score from here, 0-1. */
+    score: games > 0 ? Number(((wins + draws / 2) / games).toFixed(3)) : null,
+    mainline,
+    breaks: [...breaks.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([san, share]) => ({ san, share: Number(share.toFixed(3)) })),
+  };
+}

@@ -33,6 +33,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
+  brief,
   buildLabeller,
   familyPositions,
   fenAfter,
@@ -135,6 +136,7 @@ function main() {
       name: named?.name ?? null,
       eco: named?.eco ?? null,
       moves: [],
+      brief: null,
       choices: [],
     };
     slots.set(id, slot);
@@ -188,6 +190,10 @@ function main() {
     if (done.has(slot.id)) continue;
     done.add(slot.id);
     slot.moves = movesFor(slot);
+    // Understanding for positions no book names. 35% of these slots have no
+    // prose written about them anywhere, because they are positions rather
+    // than openings; this is what can be measured instead.
+    slot.brief = brief(tree, slot.line);
 
     for (const choice of curatedBySlot.get(slot.id) ?? []) {
       const trunk = [...choice.at, choice.play];
@@ -310,6 +316,7 @@ function main() {
       eco: s.eco,
       origin: s.origin,
       moves: s.moves,
+      brief: s.brief ?? null,
       choices: s.choices,
     })),
     transpositions,

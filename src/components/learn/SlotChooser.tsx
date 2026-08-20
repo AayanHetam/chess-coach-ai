@@ -14,8 +14,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
+import { Chess } from "chess.js";
 import { motion } from "framer-motion";
-import { BookOpen, Check, Search, X } from "lucide-react";
+import { BookOpen, Check, Search, Shapes, X } from "lucide-react";
 import type {
   OpeningEntry,
   RepertoireChoice,
@@ -23,6 +24,7 @@ import type {
   RepertoireSlot,
 } from "@/types/repertoire";
 import { numberedLine, share as pctOf } from "@/lib/repertoire/bracket";
+import { classify, skeletonOf } from "@/lib/repertoire/structure";
 import { rankChoices, type QuizAnswers } from "@/lib/repertoire/store";
 
 const EMBER = "#FB923C";
@@ -99,6 +101,7 @@ export default function SlotChooser({ slot, quiz, onPick, onClose, transposes }:
       </Box>
 
       {transposes.length > 0 && <Transposes transposes={transposes} />}
+      <Brief slot={slot} />
 
       {ranked.length > 0 ? (
         <Box sx={{ display: "grid", gap: 1 }}>
@@ -138,6 +141,59 @@ function Transposes({ transposes }: { transposes: SlotChooserProps["transposes"]
       <Typography sx={{ color: GOOD, fontSize: "0.82rem", lineHeight: 1.6 }}>
         Your <strong>{best.name}</strong> already answers at least {pctOf(best.atLeast)} of this by
         transposition. The rest is a different opening and still needs a move.
+      </Typography>
+    </Box>
+  );
+}
+
+/**
+ * What this position IS, for the 35% of slots no book names.
+ *
+ * The structure is classified here rather than in the build, so there is one
+ * classifier in the codebase instead of a copy of it in a script that would
+ * drift. Everything else is counted, and the wording says which is which:
+ * "most played" is not "best", and it does not pretend to be.
+ */
+function Brief({ slot }: { slot: RepertoireSlot }) {
+  const brief = slot.brief;
+  const structure = useMemo(() => {
+    if (!brief || brief.mainline.length === 0) return null;
+    try {
+      const board = new Chess();
+      for (const san of [...slot.line, ...brief.mainline]) if (!board.move(san)) return null;
+      return classify(skeletonOf(board.fen()));
+    } catch {
+      return null;
+    }
+  }, [slot.line, brief]);
+
+  if (!brief || brief.games < 200) return null;
+  return (
+    <Box sx={{ mb: 2, p: 1.75, borderRadius: "12px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
+        <Shapes size={13} color="rgba(255,255,255,0.4)" aria-hidden />
+        <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          What this becomes
+        </Typography>
+      </Box>
+      <Typography sx={{ fontFamily: MONO, fontSize: "0.8rem", color: "rgba(255,255,255,0.75)", mb: 0.75 }}>
+        {numberedLine([...slot.line, ...brief.mainline], slot.line.length)}
+      </Typography>
+      {structure && (
+        <Typography sx={{ fontSize: "0.85rem", color: "#fff", lineHeight: 1.55, mb: 0.5 }}>
+          A <strong>{structure.name}</strong>. {structure.summary}
+        </Typography>
+      )}
+      <Typography sx={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.55 }}>
+        {brief.score !== null && (
+          <>White scores {Math.round(brief.score * 100)}% across {brief.games.toLocaleString()} games. </>
+        )}
+        {brief.breaks.length > 0 && (
+          <>The pawn breaks that actually happen: {brief.breaks.map((b) => `${b.san} ${pctOf(b.share)}`).join(", ")}.</>
+        )}
+      </Typography>
+      <Typography sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.35)", mt: 0.75 }}>
+        Most played, not best. Counted, not recommended.
       </Typography>
     </Box>
   );

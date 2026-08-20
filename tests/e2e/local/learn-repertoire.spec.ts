@@ -111,4 +111,17 @@ test.describe("repertoire bracket", () => {
     await expect(page.getByText(/Van Geet/i).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("1.d4 Nf6 2.c4 g6")).toHaveCount(0);
   });
+
+  test("says what a position becomes, even where no book names it", async ({ page }) => {
+    await throughQuiz(page);
+    await page.getByRole("tab", { name: /As Black/i }).click();
+    await page.getByText(/Against the English/).first().click();
+
+    // 1.c4 has no prose anywhere. What it HAS is a measurable answer: the
+    // continuation people actually play, the structure that produces, and the
+    // breaks that really occur.
+    await expect(page.getByText(/What this becomes/i).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/games\./).first()).toBeVisible();
+    await expect(page.getByText(/Most played, not best/i).first()).toBeVisible();
+  });
 });

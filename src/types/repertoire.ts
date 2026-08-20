@@ -47,6 +47,24 @@ export interface SlotMove {
   eco: string | null;
 }
 
+/**
+ * What is measurably true about a position, for the ones no book names.
+ *
+ * Every field is counted off the master corpus. Nothing is inferred and nothing
+ * is written by a model. Castling is deliberately absent: it happens too deep
+ * in the tree for a pruned walk to measure honestly, and a number we cannot
+ * measure properly is worse than a number we do not show.
+ */
+export interface PositionBrief {
+  games: number;
+  /** White's score from here, 0-1, or null when the corpus has too few games. */
+  score: number | null;
+  /** The most-played continuation. Most played, not best. */
+  mainline: string[];
+  /** Pawn breaks that actually occur, as a share of games reaching here. */
+  breaks: Array<{ san: string; share: number }>;
+}
+
 export interface RepertoireSlot {
   id: string;
   side: 'white' | 'black';
@@ -61,6 +79,8 @@ export interface RepertoireSlot {
   /** The choice whose gap created this slot, or null for a root. */
   origin: string | null;
   moves: SlotMove[];
+  /** Derived understanding. Null only when the corpus does not reach here. */
+  brief: PositionBrief | null;
   choices: RepertoireChoice[];
 }
 

@@ -22,7 +22,7 @@ import type { RepertoireMap, RepertoireSlot } from '@/types/repertoire';
 function slot(over: Partial<RepertoireSlot> & { id: string }): RepertoireSlot {
   return {
     side: 'black', line: [], fen: 'x', share: 1, name: null, eco: null,
-    origin: null, moves: [], choices: [], ...over,
+    origin: null, moves: [], brief: null, choices: [], ...over,
   };
 }
 

@@ -66,6 +66,40 @@ describe("signupSchema ageAffirmed (COPPA)", () => {
   });
 });
 
+describe("signupSchema emailOptIn (optional marketing consent)", () => {
+  const consented = { ...base, ageAffirmed: true, termsAccepted: true };
+
+  it("is not required — a payload without it still parses", () => {
+    expect(signupSchema.parse(consented).emailOptIn).toBeUndefined();
+  });
+
+  it("accepts an explicit true or false", () => {
+    expect(
+      signupSchema.parse({ ...consented, emailOptIn: true }).emailOptIn
+    ).toBe(true);
+    expect(
+      signupSchema.parse({ ...consented, emailOptIn: false }).emailOptIn
+    ).toBe(false);
+  });
+
+  it("never gates signup the way the required consents do", () => {
+    // emailOptIn: false must NOT throw — that is the whole difference
+    // between this checkbox and ageAffirmed/termsAccepted.
+    expect(() =>
+      signupSchema.parse({ ...consented, emailOptIn: false })
+    ).not.toThrow();
+  });
+
+  it("rejects non-boolean values (no type coercion)", () => {
+    expect(() =>
+      signupSchema.parse({ ...consented, emailOptIn: "true" })
+    ).toThrow();
+    expect(() =>
+      signupSchema.parse({ ...consented, emailOptIn: 1 })
+    ).toThrow();
+  });
+});
+
 describe("signupSchema handle (required)", () => {
   it("accepts a handle", () => {
     expect(

@@ -49,6 +49,36 @@ describe("signup acceptance storage", () => {
     expect(doc.termsAcceptedAt).not.toBe(new Date().toISOString());
   });
 
+  it("stamps emailOptInAt only when the optional box was ticked", async () => {
+    const optedIn = await createUser({
+      email: "optin@example.com",
+      password: "longenough1!",
+      ageAffirmed: true,
+      termsAccepted: true,
+      emailOptIn: true,
+    });
+    expect(captured.get(optedIn.uid)!.emailOptInAt).toBeTruthy();
+
+    const declined = await createUser({
+      email: "declined@example.com",
+      password: "longenough1!",
+      ageAffirmed: true,
+      termsAccepted: true,
+      emailOptIn: false,
+    });
+    // Absent, not false: no field must exist that could later be misread as
+    // consent, and omitted must look identical to declined.
+    expect("emailOptInAt" in captured.get(declined.uid)!).toBe(false);
+
+    const omitted = await createUser({
+      email: "omitted@example.com",
+      password: "longenough1!",
+      ageAffirmed: true,
+      termsAccepted: true,
+    });
+    expect("emailOptInAt" in captured.get(omitted.uid)!).toBe(false);
+  });
+
   it("does not complete creation when acceptance storage fails", async () => {
     set.mockRejectedValueOnce(new Error("storage unavailable"));
 

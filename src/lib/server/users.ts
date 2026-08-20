@@ -45,6 +45,13 @@ export type StoredUser = {
   privacyVersion?: string;
   age13ConfirmedAt?: Timestamp;
   acceptanceMethod?: "signup-checkbox";
+  /**
+   * When the user ticked the OPTIONAL marketing-email checkbox at signup.
+   * Absent means they did not opt in — never assume consent from absence.
+   * Recorded even on email-less accounts so the preference applies if an
+   * address is added later.
+   */
+  emailOptInAt?: Timestamp;
 
   displayName?: string;
   /** Public handle, in the capitalisation the user chose. */
@@ -267,6 +274,8 @@ export type CreateUserInput = {
   emailVerified?: boolean;
   ageAffirmed?: boolean;
   termsAccepted?: boolean;
+  /** Optional marketing-email consent — stamps emailOptInAt when true. */
+  emailOptIn?: boolean;
   /**
    * Chosen at signup. Reserved in the same transaction that creates the user,
    * so an account can never exist with a handle nobody holds, and a handle can
@@ -313,6 +322,9 @@ export async function createUser(input: CreateUserInput): Promise<StoredUser> {
     doc.age13ConfirmedAt = FieldValue.serverTimestamp();
     doc.acceptanceMethod = "signup-checkbox";
   }
+  // Only when true: absence of the field IS "did not opt in", and writing an
+  // explicit false would make the two states look different when they aren't.
+  if (input.emailOptIn) doc.emailOptInAt = FieldValue.serverTimestamp();
   if (input.googleId) doc.googleId = input.googleId;
   if (input.displayName) doc.displayName = input.displayName;
   if (input.photoURL) doc.photoURL = input.photoURL;

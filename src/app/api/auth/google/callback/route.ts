@@ -210,6 +210,7 @@ export async function GET(request: Request) {
           emailVerified: true,
           ageAffirmed: true,
           termsAccepted: true,
+          emailOptIn: stateCookie.emailOptIn === true,
         });
       } else {
         // Brand-new user with no age affirmation (e.g. "Continue with

@@ -36,12 +36,12 @@ const MAP: RepertoireMap = {
       choices: [
         {
           id: 'grunfeld', name: 'Grünfeld', play: 'Nf6', coverage: 'family', family: 'Grünfeld',
-          load: 'heavy', character: 'counterattack', blurb: '', absorbs: 0.7, namedLines: 55,
+          load: 'heavy', level: 'club', why: 'x', character: 'counterattack', blurb: '', absorbs: 0.7, namedLines: 55,
           gaps: [{ slot: 'black:d4 Nf6 Bf4', share: 0.2 }, { slot: 'black:d4 Nf6 Bg5', share: 0.1 }],
         },
         {
           id: 'london-proof', name: 'System', play: 'd5', coverage: 'system', family: null,
-          load: 'light', character: 'solid', blurb: '', absorbs: 1, namedLines: null, gaps: [],
+          load: 'light', level: 'new', why: 'x', character: 'solid', blurb: '', absorbs: 1, namedLines: null, gaps: [],
         },
       ],
     }),

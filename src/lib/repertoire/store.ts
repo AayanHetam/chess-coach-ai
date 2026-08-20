@@ -5,6 +5,7 @@
 // network. Every read is defensive, because a throw here happens on mount and
 // would take /learn down entirely.
 
+import { levelFit, type Band } from '@/lib/repertoire/levels';
 import type {
   Character,
   RepertoireChoice,
@@ -121,12 +122,27 @@ export function suggestionScore(choice: RepertoireChoice, quiz: QuizAnswers | nu
   return score;
 }
 
-/** Choices for a slot, best match first, ties broken by what covers more. */
+/**
+ * Choices for a slot, best match first.
+ *
+ * LEVEL leads, and it leads by a wide enough margin that taste cannot override
+ * it. Someone rated 700 who says they want sharp attacking positions should be
+ * offered the King's Gambit and the Vienna, not the Najdorf — the taste is
+ * real, and there is a version of it that will not cost them a year.
+ *
+ * It stays a RANKING and never becomes a filter. Everything is still on the
+ * list, and what is above their level says so on its own card.
+ */
 export function rankChoices(
   choices: RepertoireChoice[],
-  quiz: QuizAnswers | null
+  quiz: QuizAnswers | null,
+  band?: Band
 ): RepertoireChoice[] {
   return [...choices].sort((a, b) => {
+    if (band) {
+      const byLevel = levelFit(b, band) - levelFit(a, band);
+      if (byLevel !== 0) return byLevel;
+    }
     const byFit = suggestionScore(b, quiz) - suggestionScore(a, quiz);
     if (byFit !== 0) return byFit;
     // `move` choices absorb nothing by definition, so comparing their absorb

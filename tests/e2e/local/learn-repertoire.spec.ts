@@ -9,11 +9,14 @@ import { test, expect, type Page } from "@playwright/test";
  * actually appears when it is.
  */
 
-async function stub(page: Page) {
+async function stub(page: Page, rating?: number) {
   await page.route("**/api/auth/me", (r) =>
     r.fulfill({
       json: {
-        user: { uid: "e2e", email: "e2e@example.com", handle: "e2e", displayName: "E2E" },
+        user: {
+          uid: "e2e", email: "e2e@example.com", handle: "e2e", displayName: "E2E",
+          platformRating: rating, platformRatingSource: rating ? "chesscom" : undefined,
+        },
         isIntern: false,
         isAdmin: false,
       },
@@ -123,5 +126,33 @@ test.describe("repertoire bracket", () => {
     await expect(page.getByText(/What this becomes/i).first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(/games\./).first()).toBeVisible();
     await expect(page.getByText(/Most played, not best/i).first()).toBeVisible();
+  });
+
+  test("pitches the same slot differently at 700 and at 1700", async ({ page }) => {
+    // The whole point of the level model. A 700 and a 1700 opening the SAME
+    // slot must not be handed the same list in the same order.
+    await stub(page, 700);
+    await throughQuiz(page);
+    await page.getByRole("tab", { name: /As Black/i }).click();
+    await page.getByText(/Against 1\.d4/).first().click();
+
+    const cards = page.locator('[role="group"] button').filter({ hasText: /answers|more decisions/ });
+    await expect(cards.first()).toBeVisible({ timeout: 10_000 });
+    // A beginner is offered a beginner opening first, and told which ones cost.
+    await expect(cards.first()).toContainText(/King's Indian/i);
+    await expect(page.getByText(/A long way above your level/i).first()).toBeVisible();
+    // And the one that suits them says BOTH things: it fits, and it is heavy.
+    await expect(cards.first()).toContainText(/suits your level/i);
+    await expect(cards.first()).toContainText(/a lot of theory/i);
+  });
+
+  test("tells a player when their repertoire is finished", async ({ page }) => {
+    await stub(page, 700);
+    await throughQuiz(page);
+    // Nothing chosen, so it must NOT say they are done.
+    await expect(page.getByText(/Not finished yet/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/treating you as starting out/i)).toBeVisible();
+    // And it says what opening work is worth at this level, which is: not much.
+    await expect(page.getByText(/not spent on tactics/i)).toBeVisible();
   });
 });

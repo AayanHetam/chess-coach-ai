@@ -94,6 +94,22 @@ describe('classify', () => {
     expect(id).toBe('open-sicilian');
   });
 
+  it('does not call a lone d6 pawn an isolated queen\'s pawn', () => {
+    // The boundary the rank requirement actually guards, and the Dragon test
+    // above does NOT reach it: a Dragon keeps its e7 pawn, so it fails the
+    // isolani test for a reason that has nothing to do with the rank.
+    //
+    // This is the skeleton of a Sicilian where Black has traded BOTH the c- and
+    // the e-pawn, leaving d6 alone with no neighbour. It is an Open Sicilian
+    // structure with a backward pawn, not an isolated queen's pawn, and the
+    // plans for the two are opposites: activity and the d-file against blockade
+    // and trade.
+    const sk = skeletonOf('4k3/pp3ppp/3p4/8/4P3/8/PP3PPP/4K3 b - - 0 1');
+    expect([...sk.black].sort()).toEqual(['a7', 'b7', 'd6', 'f7', 'g7', 'h7']);
+    expect(classify(sk)?.id).not.toBe('iqp-black');
+    expect(classify(sk)?.id).toBe('open-sicilian');
+  });
+
   it('separates the Sicilian structures that share a skeleton', () => {
     const base = ['e4', 'c5', 'Nf3', 'd6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3'];
     // ...e6 is the small centre; ...e5 leaves the hole on d5.

@@ -31,8 +31,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import { Box, Typography } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronRight, Pencil, Sparkles } from "lucide-react";
+import { Check, ChevronRight, Pencil, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { resolveUserRating } from "@/lib/coach/userRating";
+import { bandFor, sufficiency, verdict, type Band } from "@/lib/repertoire/levels";
 import SlotChooser from "@/components/learn/SlotChooser";
 import {
   buildBracket,
@@ -61,6 +63,12 @@ const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
 export default function LearnPage() {
   const { profile } = useAuth();
   const account = profile?.handle ?? profile?.chesscomUsername ?? profile?.lichessUsername ?? "guest";
+
+  // Measured, not asked. We already know their rating, and asking somebody
+  // their level is both a question we can answer ourselves and a question
+  // people answer badly about themselves.
+  const rating = resolveUserRating(profile);
+  const band = useMemo(() => bandFor(rating), [rating]);
 
   const [map, setMap] = useState<RepertoireMap | null>(null);
   const [mapState, setMapState] = useState<"loading" | "ready" | "failed">("loading");
@@ -123,9 +131,13 @@ export default function LearnPage() {
     [picks, childrenOf, persist, side, state]
   );
 
+  // How deep the bracket goes is a level question. Three layers of nested
+  // branches in front of a 700 is a wall, and every one of those branches is a
+  // line they will meet a handful of times a year.
+  const maxDepth = band.id === "new" ? 1 : band.id === "beginner" ? 2 : 3;
   const bracket = useMemo(
-    () => (map ? buildBracket(map, side, picks) : []),
-    [map, side, picks]
+    () => (map ? buildBracket(map, side, picks, maxDepth) : []),
+    [map, side, picks, maxDepth]
   );
   const cover = useMemo(
     () => (map ? coverage(map, side, picks) : null),
@@ -165,13 +177,14 @@ export default function LearnPage() {
           Your repertoire
         </Typography>
         <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.95rem", lineHeight: 1.65, mb: 3, maxWidth: 620 }}>
-          One slot for every decision a complete repertoire has to make. Fill one and the branches it
-          leaves open appear underneath it, sized by how often you will actually meet them.
+          One slot for every decision a complete repertoire has to make, sized by how often you will
+          actually meet it and pitched at the level you are actually at. Fill one and the branches it
+          leaves open appear underneath.
         </Typography>
 
         <SideToggle side={side} onChange={(s) => { setSide(s); setOpenSlot(null); }} />
 
-        {cover && <CoverageBar coverage={cover} side={side} meta={map.meta} />}
+        {cover && <CoverageBar coverage={cover} side={side} meta={map.meta} band={band} rating={rating} />}
 
         <Box sx={{ display: "grid", gap: 1.5, mt: 3 }}>
           {bracket.map((node) => (
@@ -181,6 +194,7 @@ export default function LearnPage() {
               map={map}
               picks={picks}
               quiz={state.quiz}
+              band={band}
               openSlot={openSlot}
               onOpen={setOpenSlot}
               onPick={choose}
@@ -204,6 +218,7 @@ function SlotBranch({
   map,
   picks,
   quiz,
+  band,
   openSlot,
   onOpen,
   onPick,
@@ -212,6 +227,7 @@ function SlotBranch({
   map: RepertoireMap;
   picks: RepertoirePick[];
   quiz: QuizAnswers | null;
+  band: Band;
   openSlot: string | null;
   onOpen: (id: string | null) => void;
   onPick: (pick: RepertoirePick) => void;
@@ -281,6 +297,7 @@ function SlotBranch({
             <SlotChooser
               slot={node.slot}
               quiz={quiz}
+              band={band}
               transposes={transposesInto(map, node.slot.id, picks)}
               onPick={onPick}
               onClose={() => onOpen(null)}
@@ -298,6 +315,7 @@ function SlotBranch({
               map={map}
               picks={picks}
               quiz={quiz}
+              band={band}
               openSlot={openSlot}
               onOpen={onOpen}
               onPick={onPick}
@@ -320,13 +338,18 @@ function CoverageBar({
   coverage: cover,
   side,
   meta,
+  band,
+  rating,
 }: {
   coverage: NonNullable<ReturnType<typeof coverage>>;
   side: "white" | "black";
   meta: RepertoireMap["meta"];
+  band: Band;
+  rating: number | undefined;
 }) {
   const done = Math.round(cover.answered * 100);
   const biggest = cover.open[0];
+  const state = sufficiency(cover.answered, band);
   return (
     <Box sx={{ mt: 2.5, p: { xs: 2, md: 2.5 }, borderRadius: "1.5rem", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}>
       <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, flexWrap: "wrap", mb: 1.25 }}>
@@ -351,6 +374,30 @@ function CoverageBar({
           }}
         />
       </Box>
+      {/* The sentence this whole feature exists to be able to say. Telling
+          somebody their opening work is finished is worth more to them than
+          another course, and nothing else in this space will ever say it. */}
+      <Box
+        sx={{
+          mt: 1.5, p: 1.5, borderRadius: "12px",
+          display: "flex", alignItems: "flex-start", gap: 1,
+          border: `1px solid ${state.enough ? "rgba(134,239,172,0.28)" : "rgba(255,255,255,0.09)"}`,
+          background: state.enough ? "rgba(134,239,172,0.06)" : "rgba(255,255,255,0.02)",
+        }}
+      >
+        {state.enough && <Check size={15} color={GOOD} aria-hidden style={{ marginTop: 2, flexShrink: 0 }} />}
+        <Box>
+          <Typography sx={{ color: state.enough ? GOOD : "#fff", fontSize: "0.86rem", lineHeight: 1.55 }}>
+            {verdict(cover.answered, band)}
+          </Typography>
+          <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.78rem", lineHeight: 1.55, mt: 0.5 }}>
+            {rating ? `Rated ${rating}, ` : "Unrated, so "}
+            {rating ? `so we are treating you as ${band.name.toLowerCase()}` : `treating you as ${band.name.toLowerCase()}`}
+            . {band.advice}
+          </Typography>
+        </Box>
+      </Box>
+
       <Typography sx={{ mt: 1.25, fontSize: "0.82rem", color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
         {biggest ? (
           <>

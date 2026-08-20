@@ -76,6 +76,18 @@ export interface Structure {
   /** What each side is trying to do in it. */
   white: string;
   black: string;
+  /**
+   * How hard it is to play WELL, which is not how much theory it has.
+   *
+   *   clear     one plan, and it is the same every game
+   *   moderate  a plan you can state, and timing that decides it
+   *   demanding punishes a reasonable-looking move, every game
+   *
+   * Separate from theory load on purpose. The King's Indian chain has an
+   * enormous amount written about it and one plan; the Maróczy has almost
+   * nothing written about it and takes years to sit in properly.
+   */
+  difficulty: 'clear' | 'moderate' | 'demanding';
 }
 
 type Rule = Structure & { test: (sk: Skeleton, w: Set<string>, b: Set<string>) => boolean };
@@ -94,6 +106,7 @@ const has = (pawns: string[], square: string) => pawns.includes(square);
 const RULES: Rule[] = [
   {
     id: 'carlsbad',
+    difficulty: 'moderate',
     name: 'Carlsbad',
     summary:
       'White has traded the c-pawn for Black\'s e-pawn, leaving White a half-open c-file and Black a half-open e-file.',
@@ -104,6 +117,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'iqp-white',
+    difficulty: 'demanding',
     name: 'Isolated queen\'s pawn, White',
     summary: 'White has a d-pawn with no c- or e-pawn beside it. Space and open lines against a long-term weakness.',
     white: 'Piece play while the pawn still cramps them: the d5 push, and the outpost on e5.',
@@ -115,6 +129,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'iqp-black',
+    difficulty: 'demanding',
     name: 'Isolated queen\'s pawn, Black',
     summary: 'Black has a d-pawn with no c- or e-pawn beside it. The same bargain with the colours reversed.',
     white: 'Blockade on d4, trade pieces, and win the pawn late.',
@@ -123,6 +138,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'hanging-white',
+    difficulty: 'demanding',
     name: 'Hanging pawns, White',
     summary: 'White pawns abreast on c4 and d4 with no b- or e-pawn. Strong while they advance, weak once they stop.',
     white: 'Push one of them, usually d5, before Black gets to blockade both.',
@@ -131,6 +147,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'maroczy',
+    difficulty: 'demanding',
     name: 'Maróczy bind',
     summary: 'White pawns on c4 and e4 against a Black side with no c-pawn. A space bind rather than an attack.',
     white: 'Squeeze. Keep pieces on, own d5, and deny Black the ...b5 and ...d5 breaks.',
@@ -139,6 +156,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'boleslavsky',
+    difficulty: 'moderate',
     name: 'Boleslavsky hole',
     summary: 'Black has pawns on d6 and e5 and no c-pawn, which leaves the d5 square permanently short of a defender.',
     white: 'Occupy d5, or trade the pieces that fight for it.',
@@ -147,6 +165,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'scheveningen',
+    difficulty: 'demanding',
     name: 'Scheveningen small centre',
     summary: 'Black pawns on d6 and e6 and no c-pawn: a low, flexible centre that concedes space and keeps every break.',
     white: 'Space and a kingside attack, often with f4 and g4.',
@@ -155,6 +174,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'open-sicilian',
+    difficulty: 'moderate',
     name: 'Open Sicilian',
     summary:
       'Black has traded the c-pawn for White\'s d-pawn: a half-open c-file and a queenside majority against White\'s space and half-open d-file.',
@@ -166,6 +186,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'french-chain',
+    difficulty: 'clear',
     name: 'Locked centre, French type',
     summary: 'White e5 and d4 against Black e6 and d5. The centre is closed and both sides play on the wing their chain points at.',
     white: 'Kingside space, and defend the base of the chain on d4.',
@@ -175,6 +196,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'kid-chain',
+    difficulty: 'clear',
     name: 'King\'s Indian chain',
     summary: 'White d5, c4 and e4 against Black d6 and e5. The centre is shut and the game becomes a race on opposite wings.',
     white: 'The c5 break and play down the c-file.',
@@ -184,6 +206,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'benoni-chain',
+    difficulty: 'demanding',
     name: 'Benoni chain',
     summary: 'White d5 and c4 against Black c5 and d6, with Black a half-open e-file and a queenside pawn majority.',
     white: 'Central space and the e4-e5 break.',
@@ -193,6 +216,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'stonewall-black',
+    difficulty: 'clear',
     name: 'Stonewall, Black',
     summary: 'Black pawns on d5, e6 and f5. A permanent grip on e4 bought with a permanently weak e5 square.',
     white: 'Trade the dark-squared bishops and use e5.',
@@ -201,6 +225,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'stonewall-white',
+    difficulty: 'clear',
     name: 'Stonewall, White',
     summary: 'White pawns on d4, e3 and f4. The same grip on e5, and the same hole on e4.',
     white: 'Own e5, and attack on the kingside.',
@@ -209,6 +234,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'slav-triangle',
+    difficulty: 'clear',
     name: 'Slav triangle',
     summary: 'Black pawns on c6, d5 and e6. Extremely solid, and the light-squared bishop has to be solved.',
     white: 'Play for the e4 break and against the bishop still on c8.',

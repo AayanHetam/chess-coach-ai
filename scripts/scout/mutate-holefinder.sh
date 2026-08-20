@@ -2,7 +2,7 @@
 # Mutation harness for the scout prep engine.
 #
 #   ./scripts/scout/mutate-holefinder.sh            # everything
-#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master | learn | theory | trainer | resume | review | bracket
+#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master | learn | theory | trainer | resume | review | route | bracket | level
 #
 # A green suite proves nothing until it has been watched to fail. Each mutation
 # breaks exactly one guarantee and names the test that must go red.
@@ -35,6 +35,8 @@ TP=src/lib/learn/trainerProgress.ts
 RS=src/lib/learn/reviewSchedule.ts
 TR=src/lib/learn/trainerRoute.ts
 BR=src/lib/repertoire/bracket.ts
+LV=src/lib/repertoire/levels.ts
+ST=src/lib/repertoire/structure.ts
 
 T_HOLE=src/lib/scout/__tests__/holeFinder.test.ts
 T_PREP=src/lib/scout/__tests__/preparedLine.test.ts
@@ -48,11 +50,13 @@ T_PROG=src/lib/learn/__tests__/trainerProgress.test.ts
 T_REVIEW=src/lib/learn/__tests__/reviewSchedule.test.ts
 T_ROUTE=src/lib/learn/__tests__/trainerRoute.test.ts
 T_BRACKET=src/lib/repertoire/__tests__/bracket.test.ts
+T_LEVEL=src/lib/repertoire/__tests__/levels.test.ts
+T_STRUCT=src/lib/repertoire/__tests__/structure.test.ts
 
 GROUP="${1:-all}"
 BAK=$(mktemp -d)
-for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI" "$TS" "$TP" "$RS" "$TR" "$BR"; do cp "$f" "$BAK/$(basename "$f")"; done
-restore() { for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI" "$TS" "$TP" "$RS" "$TR" "$BR"; do cp "$BAK/$(basename "$f")" "$f"; done; }
+for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI" "$TS" "$TP" "$RS" "$TR" "$BR" "$LV" "$ST"; do cp "$f" "$BAK/$(basename "$f")"; done
+restore() { for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI" "$TS" "$TP" "$RS" "$TR" "$BR" "$LV" "$ST"; do cp "$BAK/$(basename "$f")" "$f"; done; }
 trap 'restore; rm -rf "$BAK"' EXIT
 
 pass=0; miss=0; stale=0
@@ -279,6 +283,38 @@ mut "$BR" 's{if \(pct > 0 && pct < 1\) return .<1%.;}{}' "$T_BRACKET" \
   "never rounds a real branch away to zero percent" "a real branch reads as never happening"
 mut "$BR" 's{if \(pick && depth < maxDepth\)}{if (false)}' "$T_BRACKET" \
   "hides a branch until the choice that creates it is made" "choosing an opening opens nothing"
+fi
+
+if want level; then
+echo "── level: who this repertoire is FOR, and when it is finished"
+# "This is enough, stop working on openings" is the most useful sentence on the
+# page and the most dangerous. Said too early it sends somebody into games with
+# a hole a prepared opponent finds every time.
+mut "$LV" 's|if \(stretch <= 0\) return 2;|if (stretch <= 99) return 2;|' "$T_LEVEL" \
+  "ranks a light opening that needs understanding BELOW a heavy one that does not" "every opening suits every level"
+mut "$LV" 's|return LOAD_ORDER\[choice.load\] <= LOAD_ORDER\[band.ceiling\];|return true;|' "$T_LEVEL" \
+  "still says the heavy one is heavy" "a mountain of theory is never flagged as one"
+mut "$LV" 's|const enough = coverage >= band.enoughAt;|const enough = true;|' "$T_LEVEL" \
+  "is not enough while a real hole is left" "an empty repertoire is declared finished"
+mut "$LV" 's|return BANDS\[2\];|return BANDS[0];|' "$T_LEVEL" \
+  "guesses the middle for an unrated player, not the bottom" "unrated players are assumed to be beginners"
+mut "$LV" 's|if \(stretch === 1\) return 1;|if (stretch === 1) return -1;|' "$T_LEVEL" \
+  "warns only on a real stretch, not on one band" "every sound opening is flagged as too advanced"
+mut "$LV" 's|  return -stretch;|  return -3;|' "$T_LEVEL" \
+  "puts two bands above ahead of three" "catalogue order decides which of two unsuitable openings comes first"
+fi
+
+if want structure; then
+echo "── structure: naming what a position becomes, without naming it wrong"
+# Drops the rank requirement, which is what the FIRST version of this rule did:
+# a Dragon's lone d6 pawn has no c- or e-pawn beside it and matched the isolani
+# test exactly, handing Dragon players the wrong middlegame plan.
+mut "$ST" 's|has\(sk.black, .d5.\) && !b.has|b.has(\x27d\x27) \&\& !b.has|' "$T_STRUCT" \
+  "does not call a lone d6 pawn an isolated queen" "a lone backward d6 pawn is called an isolated queen pawn"
+mut "$ST" 's|!w.has\(.e.\) && !b.has\(.d.\)|!w.has(\x27e\x27)|' "$T_STRUCT" \
+  "does not call two blocked d-pawns an isolani" "two blocked d-pawns are reported as an isolani"
+mut "$ST" 's|  return null;\n\}\n\n/\*\* True when both sides|  return RULES[0];\n}\n\n/** True when both sides|' "$T_STRUCT" \
+  "says nothing rather than guessing at move two" "an opening position is confidently labelled a Carlsbad"
 fi
 
 echo "caught ${pass} · uncaught ${miss} · stale ${stale}"

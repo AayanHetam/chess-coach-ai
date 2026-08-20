@@ -26,6 +26,7 @@ import type {
 import { numberedLine, share as pctOf } from "@/lib/repertoire/bracket";
 import { classify, skeletonOf } from "@/lib/repertoire/structure";
 import { rankChoices, type QuizAnswers } from "@/lib/repertoire/store";
+import { levelFit, withinCeiling, type Band } from "@/lib/repertoire/levels";
 
 const EMBER = "#FB923C";
 const GOOD = "#86EFAC";
@@ -40,14 +41,16 @@ const LOAD_WORDS: Record<string, string> = {
 export interface SlotChooserProps {
   slot: RepertoireSlot;
   quiz: QuizAnswers | null;
+  /** The rating band we measured, which decides the order of the list. */
+  band: Band;
   onPick: (pick: RepertoirePick) => void;
   onClose: () => void;
   /** Systems already in their bracket that this slot can transpose into. */
   transposes: Array<{ choiceId: string; name: string; atLeast: number }>;
 }
 
-export default function SlotChooser({ slot, quiz, onPick, onClose, transposes }: SlotChooserProps) {
-  const ranked = useMemo(() => rankChoices(slot.choices, quiz), [slot.choices, quiz]);
+export default function SlotChooser({ slot, quiz, band, onPick, onClose, transposes }: SlotChooserProps) {
+  const ranked = useMemo(() => rankChoices(slot.choices, quiz, band), [slot.choices, quiz, band]);
   const panel = useRef<HTMLDivElement>(null);
 
   // Escape closes, and focus starts inside. A chooser you can only leave with
@@ -106,7 +109,13 @@ export default function SlotChooser({ slot, quiz, onPick, onClose, transposes }:
       {ranked.length > 0 ? (
         <Box sx={{ display: "grid", gap: 1 }}>
           {ranked.map((choice, i) => (
-            <ChoiceCard key={choice.id} choice={choice} index={i} onPick={() => onPick({ slotId: slot.id, choiceId: choice.id, label: choice.name })} />
+            <ChoiceCard
+              key={choice.id}
+              choice={choice}
+              index={i}
+              band={band}
+              onPick={() => onPick({ slotId: slot.id, choiceId: choice.id, label: choice.name })}
+            />
           ))}
         </Box>
       ) : (
@@ -202,13 +211,17 @@ function Brief({ slot }: { slot: RepertoireSlot }) {
 function ChoiceCard({
   choice,
   index,
+  band,
   onPick,
 }: {
   choice: RepertoireChoice;
   index: number;
+  band: Band;
   onPick: () => void;
 }) {
   const branches = choice.gaps.length;
+  const fit = levelFit(choice, band);
+  const heavyForBand = !withinCeiling(choice, band);
   return (
     <Box
       component={motion.button}
@@ -237,8 +250,19 @@ function ChoiceCard({
       <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.84rem", lineHeight: 1.55, mb: 1 }}>
         {choice.blurb}
       </Typography>
+      {/* Why it suits the level, or why it does not. The honest version of a
+          recommendation is the reason attached to it. */}
+      <Typography sx={{ color: fit < 0 ? EMBER : "rgba(255,255,255,0.45)", fontSize: "0.79rem", lineHeight: 1.5, mb: 1 }}>
+        {fit < 0 && <strong>A long way above your level. </strong>}
+        {choice.why}
+      </Typography>
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-        <Tag>{LOAD_WORDS[choice.load] ?? choice.load}</Tag>
+        {/* Theory load and level are different things, and the King's Indian is
+            the case that proves it: a lot to memorise, one plan, and a fine
+            choice at 900. A single difficulty number could not say that. */}
+        <Tag tone={heavyForBand ? "warn" : undefined}>{LOAD_WORDS[choice.load] ?? choice.load}</Tag>
+        {fit >= 2 && <Tag tone="good">suits your level</Tag>}
+        {fit < 0 && <Tag tone="warn">costs you a year first</Tag>}
         {/* A `move` choice absorbs nothing by definition — it is a move, not a
             repertoire — so an absorb figure for it would be arithmetic dressed
             as a recommendation. Say what it actually costs you instead. */}

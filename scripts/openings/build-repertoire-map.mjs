@@ -88,7 +88,41 @@ function main() {
     }
   }
 
-  // ── Guard 2: every curated move must be legal where it is claimed ──────────
+  // ── Guard 2: level and reasoning are required, not optional ────────────────
+  // A choice with no level silently sorts as neutral for every band, which
+  // looks exactly like a deliberate "suits everyone" and is never what was
+  // meant. Same for `why`: a recommendation with no reason attached is the
+  // thing this whole page exists not to be.
+  const LEVELS = ['new', 'beginner', 'improving', 'club', 'strong'];
+  for (const choice of catalogue.choices) {
+    if (!LEVELS.includes(choice.level)) {
+      problems.push(`choice "${choice.id}": level "${choice.level}" is not one of ${LEVELS.join(', ')}`);
+    }
+    if (!choice.why || choice.why.length < 40) {
+      problems.push(`choice "${choice.id}": needs a "why" saying what the level costs or buys`);
+    }
+  }
+
+  // Every slot we curate must have SOMETHING a near-beginner can play. A slot
+  // whose cheapest option is two bands above them shows a 700 a list where
+  // every entry is flagged as a mistake, which is worse than showing no levels
+  // at all. 1.d4 d5 shipped exactly like that until this guard was written.
+  const ORDER = ['new', 'beginner', 'improving', 'club', 'strong'];
+  const bySlot = new Map();
+  for (const choice of catalogue.choices) {
+    const id = `${choice.side}:${choice.at.join(' ')}`;
+    const rank = ORDER.indexOf(choice.level);
+    bySlot.set(id, Math.min(bySlot.get(id) ?? 99, rank < 0 ? 99 : rank));
+  }
+  for (const [id, lowest] of bySlot) {
+    if (lowest > 1) {
+      problems.push(
+        `slot "${id}": cheapest option is "${ORDER[lowest]}"; a beginner opening this has nothing to pick`
+      );
+    }
+  }
+
+  // ── Guard 3: every curated move must be legal where it is claimed ──────────
   for (const choice of catalogue.choices) {
     if (!fenAfter([...choice.at, choice.play])) {
       problems.push(`choice "${choice.id}": ${choice.play} is not legal after ${choice.at.join(' ') || '(start)'}`);
@@ -229,8 +263,10 @@ function main() {
         coverage: choice.coverage,
         family: choice.family ?? null,
         load: choice.load,
+        level: choice.level,
         character: choice.character,
         blurb: choice.blurb,
+        why: choice.why,
         /** Share of what follows that this choice answers by itself. */
         absorbs: Number((1 - open).toFixed(4)),
         gaps: gapSlots,

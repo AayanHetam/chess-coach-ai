@@ -13,7 +13,11 @@ export type CoverageKind =
   /** Commits a move and nothing more. Every reply is still to be decided. */
   | 'move';
 
+/** How much there is to memorise. NOT how hard it is to play well. */
 export type TheoryLoad = 'light' | 'medium' | 'heavy';
+
+/** The lowest rating band an opening is a sensible choice for. */
+export type LevelId = 'new' | 'beginner' | 'improving' | 'club' | 'strong';
 export type Character = 'attack' | 'solid' | 'counterattack' | 'structure';
 
 export interface RepertoireChoice {
@@ -24,8 +28,19 @@ export interface RepertoireChoice {
   coverage: CoverageKind;
   family: string | null;
   load: TheoryLoad;
+  /**
+   * The lowest band this is a sensible choice for.
+   *
+   * A SEPARATE axis from `load`, and the separation is the point: the King's
+   * Indian is `heavy` and `beginner` at once, because it has enormous theory
+   * and exactly one plan. Collapsing the two into a single difficulty score
+   * would make that opening unrecommendable to the players it suits best.
+   */
+  level: LevelId;
   character: Character;
   blurb: string;
+  /** Why it suits that level, in one line. A judgement, and labelled as one. */
+  why: string;
   /**
    * Share of what follows that this choice answers on its own, 0-1.
    *

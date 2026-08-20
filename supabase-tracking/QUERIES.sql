@@ -187,3 +187,60 @@ select count(*)                                            as reviews,
        sum(relational_launched)                            as haiku_parses
 from referee_outcomes
 where ts > now() - interval '7 days';
+
+-- ═════════════════════════════════════════════════════════════════════════════
+-- INTENT SHADOW (I-1) — intent_outcomes
+-- One content-free row per reviewed game with INTENT_FACTS_ENABLED on.
+-- episode_counts is the honest number; ply_counts is the raw one (quoting
+-- per-ply counts overstated 34 "surviving mates" that were 7 episodes).
+-- Always group by intent_fingerprint before comparing across dates — a
+-- calibration retune is a different population.
+-- ═════════════════════════════════════════════════════════════════════════════
+
+-- ── Is the shadow alive? Rows per day vs refereed reviews ────────────────────
+select date_trunc('day', ts) as day,
+       count(*)              as intent_rows,
+       sum(plies_analysed)   as plies,
+       round(avg(build_ms)::numeric, 0) as avg_build_ms
+from intent_outcomes
+group by 1 order by 1 desc limit 14;
+
+-- ── What does the module SAY on real traffic? Episode mix per family ─────────
+select intent_fingerprint,
+       count(*)                                                   as reviews,
+       sum((episode_counts->>'unaddressedThreat')::int)           as unaddressed,
+       sum((episode_counts->>'escape')::int)                      as escapes,
+       sum((episode_counts->>'material')::int)                    as material,
+       sum((episode_counts->>'mate')::int)                        as mates,
+       sum((episode_counts->>'cost')::int)                        as cost,
+       sum((episode_counts->>'trap')::int)                        as traps,
+       sum((episode_counts->>'prophylaxis')::int)                 as prophylaxis,
+       sum(quiet_plies)                                           as quiet_plies
+from intent_outcomes
+where ts > now() - interval '7 days'
+group by 1;
+
+-- ── Per-ply vs per-episode inflation check (the 34-vs-7 lesson, live) ────────
+select sum((ply_counts->>'unaddressedThreat')::int)      as unaddressed_plies,
+       sum((episode_counts->>'unaddressedThreat')::int)  as unaddressed_episodes
+from intent_outcomes
+where ts > now() - interval '7 days';
+
+-- ── Purpose distribution — what the moves were FOR ──────────────────────────
+select purpose_counts, count(*)
+from intent_outcomes
+where ts > now() - interval '7 days'
+group by 1 order by 2 desc limit 20;
+
+-- ── Tier watch: Tier 1 stays 0 until stage I-2 wires null-move probes ────────
+select sum((tier_counts->>'tier0')::int) as tier0_plies,
+       sum((tier_counts->>'tier1')::int) as tier1_plies
+from intent_outcomes
+where ts > now() - interval '7 days';
+
+-- ── Cost envelope: does arming show up in contract build time? ──────────────
+select percentile_cont(0.5)  within group (order by build_ms) as p50_ms,
+       percentile_cont(0.95) within group (order by build_ms) as p95_ms,
+       max(build_ms)                                          as worst_ms
+from intent_outcomes
+where ts > now() - interval '7 days' and build_ms is not null;

@@ -62,9 +62,17 @@ import { SessionRecapDialog } from "@/components/puzzle/SessionRecapDialog";
 import { PuzzleSessionRail } from "@/components/puzzle/PuzzleSessionRail";
 import {
   answerModeAtom,
+  coachPanelWidthAtom,
   confirmMovesAtom,
   hideSolveTimerAtom,
 } from "@/lib/puzzlePrefs";
+import {
+  COACH_MAX_PX,
+  COACH_MIN_PX,
+  coachTrack,
+  dragCoachWidth,
+  stepCoachWidth,
+} from "@/lib/puzzle/coachSplit";
 import { useSolveClock } from "@/lib/puzzle/useSolveClock";
 import { findThemeReference } from "@/lib/puzzle/themeReference";
 import { PuzzleToolbar } from "@/components/puzzle/PuzzleToolbar";
@@ -300,6 +308,95 @@ export default function PreviewPuzzlesPage() {
   const [confirmMoves, setConfirmMoves] = useAtom(confirmMovesAtom);
   const [answerMode, setAnswerMode] = useAtom(answerModeAtom);
   const [hideTimer, setHideTimer] = useAtom(hideSolveTimerAtom);
+  const [coachWidth, setCoachWidth] = useAtom(coachPanelWidthAtom);
+  // Center/right resizable split (layout-spec PR-5). While a drag is live the
+  // grip writes the track straight onto the grid element as
+  // `--cm-coach-track` — mutating one CSS var instead of re-rendering this
+  // whole page per pointermove — and the width is committed to the atom on
+  // release. Every commit keeps the inline var and the atom in sync, so the
+  // sx fallback below never fights a stale inline value.
+  const splitGridRef = useRef<HTMLDivElement | null>(null);
+  const coachColRef = useRef<HTMLDivElement | null>(null);
+  const splitDragRef = useRef<{
+    startX: number;
+    startWidth: number;
+    gridWidth: number;
+  } | null>(null);
+
+  const commitCoachWidth = useCallback(
+    (w: number | null) => {
+      const grid = splitGridRef.current;
+      if (grid) {
+        if (w == null) grid.style.removeProperty("--cm-coach-track");
+        else grid.style.setProperty("--cm-coach-track", coachTrack(w));
+      }
+      setCoachWidth(w);
+    },
+    [setCoachWidth],
+  );
+
+  const beginSplitDrag = useCallback((e: React.PointerEvent<HTMLElement>) => {
+    const grid = splitGridRef.current;
+    const coach = coachColRef.current;
+    if (!grid || !coach) return;
+    // Otherwise the drag selects half the coach transcript on its way across.
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    splitDragRef.current = {
+      startX: e.clientX,
+      startWidth: coach.getBoundingClientRect().width,
+      gridWidth: grid.getBoundingClientRect().width,
+    };
+  }, []);
+
+  const moveSplitDrag = useCallback((e: React.PointerEvent<HTMLElement>) => {
+    const drag = splitDragRef.current;
+    const grid = splitGridRef.current;
+    if (!drag || !grid) return;
+    grid.style.setProperty(
+      "--cm-coach-track",
+      coachTrack(dragCoachWidth(drag.startWidth, drag.startX, e.clientX, drag.gridWidth)),
+    );
+  }, []);
+
+  const endSplitDrag = useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      const drag = splitDragRef.current;
+      if (!drag) return;
+      splitDragRef.current = null;
+      commitCoachWidth(
+        dragCoachWidth(drag.startWidth, drag.startX, e.clientX, drag.gridWidth),
+      );
+    },
+    [commitCoachWidth],
+  );
+
+  const cancelSplitDrag = useCallback(() => {
+    if (!splitDragRef.current) return;
+    splitDragRef.current = null;
+    // Revert to the last committed width, whichever form it's in.
+    commitCoachWidth(coachWidth);
+  }, [commitCoachWidth, coachWidth]);
+
+  const keySplitResize = useCallback(
+    (e: React.KeyboardEvent<HTMLElement>) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const grid = splitGridRef.current;
+      const coach = coachColRef.current;
+      if (!grid || !coach) return;
+      e.preventDefault();
+      commitCoachWidth(
+        stepCoachWidth(
+          coach.getBoundingClientRect().width,
+          // The coach is the RIGHT column, so ArrowLeft moves the divider
+          // left and widens it — same direction the drag reads.
+          e.key === "ArrowLeft" ? "wider" : "narrower",
+          grid.getBoundingClientRect().width,
+        ),
+      );
+    },
+    [commitCoachWidth],
+  );
   const [referenceOpen, setReferenceOpen] = useState(false);
   const [eliminateMode, setEliminateMode] = useState(false);
   const [analyseOpen, setAnalyseOpen] = useState(false);
@@ -1750,15 +1847,19 @@ export default function PreviewPuzzlesPage() {
 
           {/* Main grid: board + coach */}
           <Box
+            ref={splitGridRef}
             sx={{
               display: "grid",
               // Three regions, Acely format (docs/PUZZLE_TRAINING_LAYOUT_SPEC.md):
               // session rail | the one puzzle | the coach. The rail is dropped
               // below lg rather than stacked — on a phone the queue is noise
               // under the board, and the session HUD already carries progress.
+              // The coach track is user-resizable via the gutter grip (PR-5):
+              // `--cm-coach-track` carries the live width during a drag, the
+              // coachTrack() fallback carries the persisted one.
               gridTemplateColumns: {
                 xs: "1fr",
-                lg: "minmax(240px, 17%) minmax(0, 1fr) minmax(380px, 30%)",
+                lg: `minmax(240px, 17%) minmax(0, 1fr) var(--cm-coach-track, ${coachTrack(coachWidth)})`,
               },
               gap: { xs: 3, lg: 2.5 },
               alignItems: "stretch",
@@ -2478,6 +2579,8 @@ export default function PreviewPuzzlesPage() {
 
             {/* Coach column */}
             <motion.div
+              ref={coachColRef}
+              data-testid="coach-column"
               initial={{ opacity: 0, transform: "translateY(8px)" }}
               animate={{ opacity: 1, transform: "translateY(0px)" }}
               transition={{
@@ -2489,8 +2592,70 @@ export default function PreviewPuzzlesPage() {
                 minHeight: 0,
                 display: "flex",
                 flexDirection: "column",
+                // Containing block for the resize grip in the gutter.
+                position: "relative",
               }}
             >
+              {/* The 6-dot resize grip, sitting in the 20px grid gutter
+                  (gap: 2.5) between the board column and this one — the
+                  spot Acely puts it (docs/PUZZLE_TRAINING_LAYOUT_SPEC.md,
+                  Part 1). Pointer drags and arrow keys both resize; a
+                  double-click restores the default split. */}
+              <Box
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize coach panel"
+                aria-valuemin={COACH_MIN_PX}
+                aria-valuemax={COACH_MAX_PX}
+                aria-valuenow={coachWidth ?? undefined}
+                tabIndex={0}
+                title="Drag to resize — double-click to reset"
+                data-testid="coach-split-grip"
+                onPointerDown={beginSplitDrag}
+                onPointerMove={moveSplitDrag}
+                onPointerUp={endSplitDrag}
+                onPointerCancel={cancelSplitDrag}
+                onKeyDown={keySplitResize}
+                onDoubleClick={() => commitCoachWidth(null)}
+                sx={{
+                  display: { xs: "none", lg: "flex" },
+                  position: "absolute",
+                  left: -20,
+                  top: 0,
+                  bottom: 0,
+                  width: 20,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "col-resize",
+                  // Without this a touch drag scrolls the page instead of
+                  // moving the divider.
+                  touchAction: "none",
+                  zIndex: 1,
+                  outline: "none",
+                  "& .cm-grip-dot": {
+                    width: 3,
+                    height: 3,
+                    borderRadius: "50%",
+                    background: "rgba(255,240,224,0.3)",
+                    transition: "background 180ms ease",
+                  },
+                  "&:hover .cm-grip-dot, &:focus-visible .cm-grip-dot": {
+                    background: "#FFD1A8",
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 3px)",
+                    gap: "3px",
+                  }}
+                >
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <Box key={i} className="cm-grip-dot" />
+                  ))}
+                </Box>
+              </Box>
               {puzzle ? (
                 <PuzzleCoachPanel
                   puzzle={puzzle}

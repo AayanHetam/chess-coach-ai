@@ -47,6 +47,21 @@ export const answerModeAtom = atomWithStorage<PuzzleAnswerMode>(
 );
 
 /**
+ * Coach-panel width at lg+, in px, set by dragging the grip in the
+ * center/right gutter (docs/PUZZLE_TRAINING_LAYOUT_SPEC.md PR-5).
+ *
+ * `null` = never resized, render the pre-PR-5 default track. Per-device like
+ * the rest of this file — the right split on an ultrawide is not the right
+ * split on a 13" laptop. Values are re-clamped against the live grid width on
+ * every use (src/lib/puzzle/coachSplit.ts), so a stale or hand-edited value
+ * cannot crush the board column.
+ */
+export const coachPanelWidthAtom = atomWithStorage<number | null>(
+  "cm_puzzle_coach_width",
+  null,
+);
+
+/**
  * Hide the solve clock.
  *
  * A visible timer motivates some players and rattles others, and the ones it

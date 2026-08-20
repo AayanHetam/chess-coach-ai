@@ -77,29 +77,45 @@ architecture (the server never runs an engine) and the calibration regime
 non-negotiable per the measurement-regimes rule, or the thresholds must be
 re-derived on a re-measured corpus).
 
-Open questions to settle before code (in order):
+### Regime verdict (measured 2026-08-20 — settled, do not relitigate without a re-measured corpus)
 
-1. **Regime-fidelity experiment (offline, decides everything else).** Re-run
-   the corpus probes at candidate cheaper regimes (e.g. depth 13/14) and
-   measure how many calibrated verdicts flip vs depth 16. If a cheaper
-   regime agrees on ~all corpus rulings, the client budget question relaxes;
-   if not, depth 16 it is.
-2. **Ply selection.** The client doesn't know which plies the server will
-   card. Proposal: client probes a superset — top-K eval-drop plies of the
-   user's colour (K≈6) — and the server uses what matches its carding,
-   ignoring the rest. Misses degrade to Tier 0, never to wrong claims.
-3. **UX budget.** ~1.26s/position × K on the client, after gameEval and
-   before the review request. Options: overlap with the gameEval pass,
-   lower K, accept latency, or probe lazily and let the FIRST review stay
-   Tier 0 with a Tier-1 follow-up. Decide with the regime experiment's
-   numbers in hand.
-4. **Schema.** `nullMoveProbes` rides the existing request body next to
-   `gameEval`, zod-validated, size-capped, and — like gameEval — treated as
-   untrusted client input (the intent module already fails closed on
-   malformed probe data).
+The 835-ply corpus was re-probed at depths 13 and 14 and the module's
+verdicts diffed against the depth-16 baseline (`scripts/intent/`,
+determinism-controlled; the canonical d16 baseline is the current-main
+apply of the d16 probes — 0 diffs vs the #355 tip):
 
-Shadow first, exactly like I-1: Tier-1 facts flow into `intent_outcomes`
-(`tier_counts.tier1` goes non-zero), nothing renders.
+| regime | native cost | verdict fidelity |
+|---|---|---|
+| d16 | 577 ms/search, ~7 searches/ply ≈ 4 s per carded ply | reference |
+| d14 | 555 ms/search — **only ~4% cheaper** | 445/835 plies drift; loses 3 long mates and 16 prophylaxis credits **including the founder-ruled Re1 (63.8% share anchor)** |
+| d13 | 99 ms/search — 5.8× cheaper | 465/835 drift; loses 6 long mates (in 9–17) and the same Re1 credit; 33 purpose flips |
+
+Card-level rulings (the WORTH/NOISE five, Nh7, Qxg3+, Rhxg2+) survive at
+every depth — the depth-fragile facts are long-horizon: deep mates and
+marginal endgame prophylaxis. But a ruled credit is a ruled credit:
+**depth 16 is the only regime that preserves the calibration, and d14's
+near-identical cost means there is no cheaper regime worth having.**
+
+### Design (follows from the verdict)
+
+Tier-1 probes run **client-side at full depth 16, in the background, AFTER
+the review renders** — for shadow purposes nothing needs to block:
+
+1. The review response already names its carded plies, so the client probes
+   exactly those — no superset heuristic, no waste.
+2. Cost is invisible: ~4 s/ply native ⇒ est. 8–25 s/ply in client WASM,
+   spent while the user reads their review.
+3. The client POSTs the probes to a follow-up endpoint; the server re-derives
+   Tier-1 intent facts (probes are untrusted input — the module already
+   fails closed on malformed data) and writes an **upgraded shadow row**
+   (`tier_counts.tier1` goes non-zero).
+4. Schema: a `nullMoveProbes` payload keyed by ply, zod-validated,
+   size-capped, joined to the original review by contractId.
+
+The depth question bites again only at I-3, where Tier-1 facts must exist
+*before* prose renders. Options then: precompute on a prior visit, stream
+intent sections late, or let first-render prose stay Tier-0. Decide at I-3
+with shadow data in hand.
 
 ## Stage I-3 — render behind the referee
 

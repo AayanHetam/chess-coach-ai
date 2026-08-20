@@ -121,7 +121,14 @@ export class UciEngine {
   private async setMultiPv(multiPv: number) {
     if (multiPv === this.multiPv) return;
 
-    if (multiPv < 2 || multiPv > 10) {
+    // MultiPV=1 is the engine's own default and what every single-line
+    // consumer asks for (PuzzleAnalysisPanel, surpriseEngineService). The
+    // lower bound was 2 — inherited from the Lines-tab selector, whose
+    // smallest offering is 2 — so a multiPv:1 request threw right here,
+    // BEFORE the search and before the cloud head-start. That one comparison
+    // was the entire "Analyse never returns an evaluation" stall: the panel's
+    // catch() swallowed the throw and the stall guard fired 25s later.
+    if (multiPv < 1 || multiPv > 10) {
       throw new Error(`Invalid MultiPV value : ${multiPv}`);
     }
 

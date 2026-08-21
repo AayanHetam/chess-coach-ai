@@ -91,7 +91,7 @@ export const PLAY_STYLE_OPTIONS: {
   {
     key: "otb",
     label: "Over the board",
-    helper: "Clubs, school, or casual in-person.",
+    helper: "Clubs, tournaments, or casual in-person.",
   },
   {
     key: "new",

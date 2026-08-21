@@ -104,7 +104,10 @@ import {
 } from "@/components/ui/CommandPalette";
 import { useEngineWithStatus } from "@/hooks/useEngine";
 import { resolveEngineGate } from "@/lib/coach/engineGate";
-import { AI_DISABLED_ERROR, isAiDisabledPublic } from "@/lib/coach/aiAvailability";
+import {
+  AI_DISABLED_ERROR,
+  isAiDisabledPublic,
+} from "@/lib/coach/aiAvailability";
 import { parseCachedEval } from "@/lib/coach/analysisEvalCache";
 import { isWasmSupported } from "@/lib/engine/shared";
 import { TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
@@ -4902,10 +4905,10 @@ function CoachPanel({
               AI_DISABLED
                 ? "AI coaching is paused — see the note above."
                 : analysisActive
-                ? "Analyzing your game… coach unlocks when Stockfish finishes."
-                : engineDataUnavailable
-                  ? "Ask anything — answering without engine analysis."
-                  : "Ask anything about this position..."
+                  ? "Analyzing your game… coach unlocks when Stockfish finishes."
+                  : engineDataUnavailable
+                    ? "Ask anything — answering without engine analysis."
+                    : "Ask anything about this position..."
             }
             disabled={AI_DISABLED || analysisActive}
             fullWidth
@@ -4934,7 +4937,9 @@ function CoachPanel({
           />
           <IconButton
             onClick={onSend}
-            disabled={AI_DISABLED || !input.trim() || isThinking || analysisActive}
+            disabled={
+              AI_DISABLED || !input.trim() || isThinking || analysisActive
+            }
             sx={{
               width: 44,
               height: 44,
@@ -7674,7 +7679,7 @@ export default function AnalysisPage() {
     engineName: EngineName;
   }>({ depth: 16, engineName: EngineName.Stockfish17Lite });
   const { engine, status: engineStatus } = useEngineWithStatus(
-    engineSettings.engineName,
+    engineSettings.engineName
   );
 
   /**
@@ -10166,7 +10171,7 @@ export default function AnalysisPage() {
         <title>Chess Masti — Analyze your game</title>
         <meta
           name="description"
-          content="Stockfish 17 evaluates, an AI coach explains, a validator checks every claim. Engine-grounded chess coaching, free for everyone."
+          content="Stockfish 17 evaluates, an AI coach explains, a validator checks every claim. Engine-grounded chess coaching, free for players aged 13 and older."
         />
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content="#08090C" />

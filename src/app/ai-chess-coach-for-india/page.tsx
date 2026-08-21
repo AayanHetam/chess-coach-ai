@@ -26,7 +26,7 @@ export const metadata: Metadata = {
       "AI Chess Coach for India | Free AI Chess Coaching by an Indian Founder",
   },
   description:
-    "A free AI chess coach for Indian players: free to start with no credit card, works on low-bandwidth connections, no GST surprise. Built by an Indian founder for Indian club, school, and rated players.",
+    "A free AI chess coach for Indian players aged 13 and older: free to start with no credit card, works on low-bandwidth connections, and has no GST surprise. Built by an Indian founder for club, tournament, and online players.",
   alternates: { canonical: URL },
   openGraph: {
     title: "AI Chess Coach for India | Chess Masti AI",
@@ -50,7 +50,7 @@ export default function AiChessCoachForIndiaPage() {
       name: "AI Chess Coach for India | Free AI Chess Coaching by an Indian Founder",
       url: URL,
       description:
-        "Free AI chess coach built by an Indian founder for Indian players.",
+        "Free AI chess coach built by an Indian founder for Indian players aged 13 and older.",
     }),
     buildBreadcrumbJsonLd({ here: HERE, url: URL }),
   ];
@@ -72,10 +72,10 @@ export default function AiChessCoachForIndiaPage() {
 
       <AnswerBlock>
         Chess Masti AI is a free-to-start AI chess coach built in India for
-        chess players who want serious analysis on a budget. Engine runs in your
-        browser (Stockfish WASM, no cloud-engine quota). The coach explains
-        every critical move in plain English. Chess Masti is free, with no
-        coaching, including unlimited AI coaching. Just paste a PGN and start.
+        chess players aged 13 and older who want serious analysis on a budget.
+        The engine runs in your browser (Stockfish WASM, no cloud-engine quota).
+        The coach explains every critical move in plain English. Chess Masti is
+        free, including unlimited AI coaching. Just paste a PGN and start.
       </AnswerBlock>
 
       <CtaRow>
@@ -91,7 +91,7 @@ export default function AiChessCoachForIndiaPage() {
           {[
             {
               title: "Built for the budget that matters",
-              desc: "Chess Masti is free for school students and club players in India, with unlimited coaching.",
+              desc: "Chess Masti is free for teen players aged 13 and older, adult players, and club players in India, with unlimited coaching.",
             },
             {
               title: "Works on low bandwidth",
@@ -130,8 +130,9 @@ export default function AiChessCoachForIndiaPage() {
           Chess Masti AI is built by Aayan Hetamsaria, growing up in urban
           India. The product is designed around the gap between Indian chess
           talent (which is enormous) and Indian access to one-on-one coaching
-          (which is expensive). The goal: a serious AI coach for the kid in Pune
-          or the club player in Chennai who wants access to real chess feedback.
+          (which is expensive). The goal: a serious AI coach for the player in
+          Pune or the club player in Chennai who wants access to real chess
+          feedback.
         </ProseBlock>
         <ProseBlock>
           The product is live at chessmasti.com — that&apos;s the URL,
@@ -144,7 +145,7 @@ export default function AiChessCoachForIndiaPage() {
         <SectionHeading>Three workflows it&apos;s built for</SectionHeading>
         <ProseBlock>
           <strong style={{ color: "#fff" }}>
-            1. School and club rated player.
+            1. Tournament and club-rated player.
           </strong>{" "}
           Review your tournament games. The coach flags the moves that cost you
           rating points and turns them into puzzle drills.
@@ -156,10 +157,10 @@ export default function AiChessCoachForIndiaPage() {
         </ProseBlock>
         <ProseBlock>
           <strong style={{ color: "#fff" }}>3. Coach support tool.</strong> If
-          you teach chess — school club, after-school class, online students —
-          use Chess Masti to demonstrate mistakes in their own games. The
-          training-loop is the part most coaches don&apos;t have time to build
-          by hand.
+          you teach chess to players aged 13 and older — in a club, private
+          lesson, or online — use Chess Masti to demonstrate mistakes in their
+          own games. The training loop is the part most coaches don&apos;t have
+          time to build by hand.
         </ProseBlock>
       </Box>
 

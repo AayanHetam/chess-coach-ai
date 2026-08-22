@@ -50,7 +50,7 @@ export default function TermsPage() {
             <p className="cm-lede">
               Plain English. These terms cover your use of{" "}
               <strong>chessmasti.com</strong> and its free chess coaching tools.
-              Last updated 2026-08-17.
+              Last updated August 21, 2026.
             </p>
           </header>
 
@@ -69,12 +69,11 @@ export default function TermsPage() {
           <section>
             <h2>Who can use it</h2>
             <p>
-              Chess Masti is intended for users <strong>13 and older</strong>.
-              If you are under 13, you may use it only with the involvement and
-              consent of a parent or guardian, who agrees to these terms on your
-              behalf. If you are a parent and believe a child under 13 has
-              signed up without your consent, email us (below) and we&apos;ll
-              remove the account and its data.
+              You must be at least <strong>13 years old</strong> to use Chess
+              Masti. Children under 13 may not create an account or use the
+              service. Permission from a parent or guardian does not create an
+              exception. Chess Masti does not currently operate a verified
+              parental-consent system for users under 13.
             </p>
           </section>
 

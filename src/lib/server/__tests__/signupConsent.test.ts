@@ -41,8 +41,8 @@ describe("signup acceptance storage", () => {
     });
 
     const doc = captured.get(user.uid)!;
-    expect(doc.termsVersion).toBe("2026-08-17");
-    expect(doc.privacyVersion).toBe("2026-08-17");
+    expect(doc.termsVersion).toBe("2026-08-21");
+    expect(doc.privacyVersion).toBe("2026-08-21");
     expect(doc.acceptanceMethod).toBe("signup-checkbox");
     expect(doc.termsAcceptedAt).toBeTruthy();
     expect(doc.age13ConfirmedAt).toBeTruthy();

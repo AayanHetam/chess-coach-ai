@@ -16,20 +16,20 @@ shapes the whole thing, and the ordered execution plan.
 
 Do **not** retire "AI chess coach" as a market position. Two different jobs:
 
-| Job | Owns | Language |
-|---|---|---|
-| **Acquisition** — get strangers here | ~20 AEO pages in `src/app/` (`free-ai-chess-coach`, `ai-chess-coach-for-kids`, `stockfish-ai-chess-coach`, `decodechess-alternative`, …), sitewide metadata, landing SEO | "AI chess coach" — keep |
-| **Retention** — make them come back | `/plan`, the daily session, reminders, streaks | "Your plan / your program" — this is the pivot |
+| Job                                  | Owns                                                                                                                                                                  | Language                                       |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **Acquisition** — get strangers here | AEO pages in `src/app/` (`free-ai-chess-coach`, `ai-chess-coach-for-india`, `stockfish-ai-chess-coach`, `decodechess-alternative`, …), sitewide metadata, landing SEO | "AI chess coach" — keep                        |
+| **Retention** — make them come back  | `/plan`, the daily session, reminders, streaks                                                                                                                        | "Your plan / your program" — this is the pivot |
 
-The growth plan's north star is literally *"Chess Masti AI = the free AI
-chess coach"*, and the whole page corpus targets those queries. That's an asset
+The growth plan's north star is literally _"Chess Masti AI = the free AI
+chess coach"_, and the whole page corpus targets those queries. That's an asset
 built on real search demand; nobody searches "chess learning plan app" at
 volume. Burning it buys nothing.
 
 **The argument for the pivot is the MAU math, not the positioning.** The goal is
-1M *monthly active* users by June 2027 ([[project_business_goals]]). A coach is a
+1M _monthly active_ users by June 2027 ([[project_business_goals]]). A coach is a
 tool you summon; a plan is a thing that summons you. Reminders are the mechanism
-that turns a visitor into an *active* user. So this is the retention engine the
+that turns a visitor into an _active_ user. So this is the retention engine the
 target requires, and it should be judged on return-rate, not on brand feel.
 
 Corollary for scope: **change the in-app experience and the post-signup surface;
@@ -48,10 +48,11 @@ Far more is built than the UI suggests. **The program is real but unreachable,
 and it doesn't remember you.**
 
 ### Real and working
+
 - **`/plan`** (`src/pages/plan.tsx`, 549 lines) — a genuine program home: welcome
   header, rating + streak tiles, resume card, placement prompt, a 7-cell "Your
   week" grid, "Today's training", concept lesson, goals, curriculum map. Its copy
-  is *already* program-language — **zero coach framing on this page.**
+  is _already_ program-language — **zero coach framing on this page.**
 - **`SessionRunner`** (`src/components/curriculum/SessionRunner.tsx`) — end-to-end
   daily session: builds the session, fetches puzzles live with a 4-step fallback
   ladder, grades, updates rating, writes SRS cards, bumps the streak.
@@ -83,7 +84,7 @@ fatal.**
 The single most important habit metric ignores the main training surface.
 
 **G4 — There are no daily tasks, and nothing records completion.** "Today's
-training" is *one sentence* plus a button. No task rows, no checkboxes, no
+training" is _one sentence_ plus a button. No task rows, no checkboxes, no
 "3 of 5 done". `goals.puzzlesPerDay` is set in `GoalsCard` and then only ever
 rendered as static text — nothing counts against it. The week grid shows planned
 effort and **cannot** show a completed day, because completion is never stored
@@ -95,6 +96,7 @@ rewrites itself as stats change.
 depends on several ops-side prerequisites (VAPID keypair, verified email
 domain, cron auth secret — see the Tier 3 checklist) that are provisioned
 outside the repo; until they are, note these code-side facts:
+
 - `GoalsCard` renders the push opt-in switch only when `pushConfigured()`,
   so without a VAPID keypair no user can ever create a subscription even if
   they want to.
@@ -112,9 +114,11 @@ outside the repo; until they are, note these code-side facts:
 
 ## 3. Execution plan, ordered by leverage
 
-### Tier 0 — Make the program reachable *(pure wiring; highest ratio)*
+### Tier 0 — Make the program reachable _(pure wiring; highest ratio)_
+
 Nothing here needs new systems. It is the difference between a feature nobody
 finds and the product's home.
+
 1. Add **Plan** as the **first** item in `NavPill` and `AppDrawer`.
 2. Post-login → `/plan` (Google callback default `returnTo`; `AuthDialog` has no
    redirect at all today).
@@ -124,14 +128,16 @@ finds and the product's home.
 5. Render or delete `NavPill`'s `badge` prop — declared, passed by two callers,
    never rendered.
 
-### Tier 1 — Make the program remember you *(correctness)*
+### Tier 1 — Make the program remember you _(correctness)_
+
 6. Server-persist streak, SRS cards and stats; keep localStorage as cache, not
    source of truth. Fixes **G2** — without this, "your 30-day plan" is a claim
    the product can't keep.
 7. Bump the streak from **every** training surface (`/puzzles`, placement,
    analysis-driven practice), not just `SessionRunner`. Fixes **G3**.
 
-### Tier 2 — Daily tasks with completion *(the product change asked for)*
+### Tier 2 — Daily tasks with completion _(the product change asked for)_
+
 8. Turn "Today's training" into a real **task list** — discrete rows, each
    completable, with persisted per-day completion state.
 9. Count against `goals.puzzlesPerDay`: "3 of 5 done today".
@@ -139,14 +145,17 @@ finds and the product's home.
     planned effort.
 
 ### Tier 3 — Make reminders actually arrive
+
 **Founder-gated ops (Aayan only — I can't do these):**
+
 - Generate VAPID keypair, set `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY`
-  in Vercel. *This one unblocks the push opt-in UI as well as delivery.*
+  in Vercel. _This one unblocks the push opt-in UI as well as delivery._
 - Verify `chessmasti.com` DNS in Resend.
 - Set `CRON_SECRET` in Vercel.
 - Confirm the Vercel plan allows 3 cron jobs.
 
 **Code:**
+
 11. Ask for reminder consent **in onboarding**, and default
     `reminderPrefs.enabled` true at signup.
 12. Honour `reminderPrefs.hour` + `users.timezone` instead of a fixed 14:00 UTC —
@@ -154,7 +163,8 @@ finds and the product's home.
 13. A test for `/api/send-reminders` — there is none, and it's now a load-bearing
     retention path.
 
-### Tier 4 — In-app naming *(last, and narrow)*
+### Tier 4 — In-app naming _(last, and narrow)_
+
 Change coach framing **inside the app only**: `/puzzles` `<title>Puzzle Coach`,
 `/practice`'s "with the AI coach", `/profile`'s "Your coaching profile".
 **Leave `src/app/layout.tsx` metadata, the AEO pages, and the landing hero
@@ -182,7 +192,7 @@ alone** — that's the front door (§1).
 
 `reminderPrefs.enabled` defaults to false and the only writer is a switch on
 /plan, so the cron's query returns ~0 users even once the keys exist. The fix
-is an opt-in *ask*, and the shape of that ask is a judgement call with consent
+is an opt-in _ask_, and the shape of that ask is a judgement call with consent
 implications rather than a technical one:
 
 - Silently defaulting email reminders on at signup would maximise opt-in but is

@@ -6,7 +6,7 @@ Long-tail backlog of strategic options that aren't on the active Phase 3 plan bu
 
 ## #1 TOP PRIORITY — Claude Mastermind: agentic chess coach
 
-Captured 2026-05-02. Strategic direction for the AI coaching surface. Not a feature — the *shape* of the product.
+Captured 2026-05-02. Strategic direction for the AI coaching surface. Not a feature — the _shape_ of the product.
 
 ### The idea
 
@@ -19,11 +19,12 @@ Tool-using Claude agent loop, **built into the existing [enhanced-analysis route
 ### Tools — two tiers
 
 **Tier A: pre-loaded files in repo (instant, common asks).** "Sitting in the back chilling, ready to be activated if prompted." Likely under `/data/`:
+
 - GM games archive — Fischer-Spassky, Carlsen-Nepo, Kasparov-Karpov, world championship games as PGN
 - Piece-movement drills — basic piece movement, mate-in-1, fork/pin/skewer fundamentals
 - Famous endgame studies (Lucena, Philidor, Réti)
 - Opening traps library
-- *Already wired:* Stockfish analysis, Maia, opening repertoire ([src/lib/repertoireParser.ts](src/lib/repertoireParser.ts))
+- _Already wired:_ Stockfish analysis, Maia, opening repertoire ([src/lib/repertoireParser.ts](src/lib/repertoireParser.ts))
 
 **Tier B: Claude fetches live (rare requests).** Anything not pre-bundled — Lichess/Chess.com lookups by player or game ID, master-DB position search, etc.
 
@@ -54,7 +55,7 @@ interface PositionFeatureDelta {
 }
 ```
 
-The LLM receives this shape and translates phrases like *"creates a backward d6 pawn you can target"* or *"trades the bishop pair for an outpost on e5"* — sentences that today's prompt cannot produce because we don't tell the LLM what changed.
+The LLM receives this shape and translates phrases like _"creates a backward d6 pawn you can target"_ or _"trades the bishop pair for an outpost on e5"_ — sentences that today's prompt cannot produce because we don't tell the LLM what changed.
 
 #### Tablebase (parallel deliverable)
 
@@ -97,7 +98,7 @@ Everything in the Tier 1 / Tier 2 competitor-gap lists below (insights dashboard
 
 1. **Tool inventory** — concrete list. Which 50 GM games? Which drill set? What file format? Picking arbitrarily means rework later.
 2. **Tool-call visibility** — silent ("coach is thinking…") or transparent ("looking up Fischer-Spassky game 6 from 1972…")? Latter is more chess-coach-ish but also more UI work.
-3. **Cost model** — agent loops make 2–5+ Claude calls per turn vs. one. Acceptable for the *smart* surface; deliberate tradeoff against the small-fix scope (which still optimizes for cheap responses).
+3. **Cost model** — agent loops make 2–5+ Claude calls per turn vs. one. Acceptable for the _smart_ surface; deliberate tradeoff against the small-fix scope (which still optimizes for cheap responses).
 4. **Streaming + tool use** — Anthropic SDK supports it, but the existing SSE streaming in `enhanced-analysis` (line 2362 of AICoachChat.tsx) would need restructuring.
 5. **Prompt-injection surface** — tool inputs are a new attack surface. Phase 1.4 of the audit closed the previous P0 hole; tool args need similar discipline.
 
@@ -130,11 +131,11 @@ Captured 2026-05-01 after looking at [chessido.com](https://chessido.com). **Not
 
 ### What chessido is, briefly
 
-B2B SaaS for chess academies (looks India-first — "batches," Indian student names in the demo). Sells the operator workflow: live classes, simul/puzzle-rush sessions with live leaderboards, batch scheduling, student dashboards, "Auto Marketing," and a marketplace. Hero demo is *coach running a live puzzle rush across 6 students with a real-time leaderboard* — i.e., the product earns its place inside the lesson, not just in the admin sheet. Free to start, no credit card. Their headline is workflow consolidation, not AI tutoring — "Smart Insights" gets one card.
+B2B SaaS for chess academies (looks India-first — "batches," Indian student names in the demo). Sells the operator workflow: live classes, simul/puzzle-rush sessions with live leaderboards, batch scheduling, student dashboards, "Auto Marketing," and a marketplace. Hero demo is _coach running a live puzzle rush across 6 students with a real-time leaderboard_ — i.e., the product earns its place inside the lesson, not just in the admin sheet. Free to start, no credit card. Their headline is workflow consolidation, not AI tutoring — "Smart Insights" gets one card.
 
 ### Why it's strategically interesting for chess-coach-ai
 
-The AI coaching layer chess-coach-ai already has — engine analysis, mistake detection, principle-based explanations via [`callLLM()`](src/lib/llmProvider.ts) — is precisely what tools like chessido *don't* lead with. There's an opening to be the AI tutor inside academy platforms rather than the academy platform itself. Two shapes this could take:
+The AI coaching layer chess-coach-ai already has — engine analysis, mistake detection, principle-based explanations via [`callLLM()`](src/lib/llmProvider.ts) — is precisely what tools like chessido _don't_ lead with. There's an opening to be the AI tutor inside academy platforms rather than the academy platform itself. Two shapes this could take:
 
 1. **White-label / API**: expose the analysis pipeline ([src/app/api/enhanced-analysis/route.ts](src/app/api/enhanced-analysis/route.ts)) as a B2B API consumed by academy platforms. Lower distribution cost than chasing individual players one-by-one; academies bring their own students.
 2. **Full B2B product**: build the academy operator surface ourselves (classroom, batches, dashboards) on top of the existing AI coaching core. Much bigger build.
@@ -179,7 +180,7 @@ These extend the LLM coaching surface or close obvious gaps without changing the
 - **[PRIORITY]** **Chesstalker perspective for self-analysis (2nd perspective)** — add a chesstalker-style perspective alongside the existing coach perspective in self-analysis. Goals are different from the coach perspective: the coach explains/teaches, the chesstalker narrates/commentates the player's own game from the player's seat. Two distinct prompt templates threaded through `getSystemPrompt(analysisType)` rather than a single coach voice. **S–M**
 - **Auto-generated weekly study plan** (Aimchess) — natural fit for our LLM. We already analyze games and detect mistakes; package it into a shippable weekly plan with concrete drills. **M**
 - **Decoded-play mode (decode while playing the engine)** (DecodeChess) — extension of the practice surface: live LLM coaching during a Stockfish/Maia game. **M**
-- **Voice output for the AI coach (TTS)** (Chessvia, Dr. Wolf) — listen to coaching while reviewing. Voice *input* (STT) is more questionable for chess — notation is awkward to speak. **M**
+- **Voice output for the AI coach (TTS)** (Chessvia, Dr. Wolf) — listen to coaching while reviewing. Voice _input_ (STT) is more questionable for chess — notation is awkward to speak. **M**
 - **"Piece functionality" output (what each piece is doing right now)** (DecodeChess) — additional analytical layer the LLM is already capable of producing. **S**
 - **"Guess the Move" master-game replay** (Chess Tempo) — content product layered over a game DB; tests calculation. **M**
 
@@ -188,14 +189,14 @@ These extend the LLM coaching surface or close obvious gaps without changing the
 Aligned with positioning but bigger lifts. Worth evaluating when the Tier 1 backlog thins out.
 
 - **[PRIORITY]** **Browser extension overlay on chess.com / lichess** (Chessvia) — high leverage; brings our coach to where users already play. Distribution unlock. Lichess first (chess.com is hostile to extensions). Reuses existing web stack. **M–L**
-- **[PRIORITY]** **Native mobile app (iOS + Android)** (Aimchess, Dr. Wolf, ChessVision.ai) — table stakes long-term; PWA may bridge for the first few months. The fork: extension *or* mobile first — picking one and deferring the other ~3 months is realistic. **L**
+- **[PRIORITY]** **Native mobile app (iOS + Android)** (Aimchess, Dr. Wolf, ChessVision.ai) — table stakes long-term; PWA may bridge for the first few months. The fork: extension _or_ mobile first — picking one and deferring the other ~3 months is realistic. **L**
 - **[PRIORITY]** **Multi-language coach** (Sensei Chess: Hindi, Tamil, Kannada, Portuguese; CT-ART: 6 langs) — direct unlock for India/Brazil markets. Claude handles this natively; the lift is UI strings + prompt-template translations + QA. Start with Hindi to validate the India-market thesis before committing to 4+. **M**
 - **[PRIORITY]** **Visualization training (gradually harder mental visualization drills)** (Aimchess) — distinctive niche feature; pairs naturally with the coordinate trainer. **M**
 - **[PRIORITY]** **Native game annotation + shareable studies** (Lichess Studies) — collaborative annotation surface with chapters; users currently have no way to annotate or share. Lichess sets the bar. **L**
 - **Skill tree with per-pattern strength tracking** (ChessPuzzle.net's 271-level / 105-skill taxonomy) — sophisticated personalization layer. Would replace some of `adaptive-puzzles` heuristics with a structured pattern model. **L**
 - **Endgame trainer with 3–7 piece tablebase positions** (Chess Tempo, Lichess Practice) — content moat for serious improvers. **M**
 - **Sparring positions: play a set position repeatedly vs Stockfish/Maia** (ChessDojo) — extension of our practice surface. **S–M**
-- **Annotated game submissions with AI sensei review** (ChessDojo's human version) — submit a game with your annotations, AI critiques the *annotations*. Distinctive twist. **M**
+- **Annotated game submissions with AI sensei review** (ChessDojo's human version) — submit a game with your annotations, AI critiques the _annotations_. Distinctive twist. **M**
 
 ### Tier 3 — Acquisition / engagement features
 
@@ -229,7 +230,6 @@ If/when the academy pivot reopens (see "B2B pivot" section above), these are the
 - Teacher/coach dashboard with assignments and progress reports (ChessKid, Chessity, Chessverse.in, Chesslang)
 - Class / batch / cohort management with rating-segmented enrollment (ProChessTraining, Chessverse.in)
 - Family / group / school per-seat pricing (Chessity)
-- COPPA-compliant kids mode + safe-chat moderation (ChessKid)
 - White-label academy branding (Chessverse.in)
 - School workshop kit for non-chess-playing teachers (Chessity)
 

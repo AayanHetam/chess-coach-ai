@@ -14,6 +14,7 @@ serve four uses off one foundation:
 4. **User-facing progress** — persistent puzzle/game history (feeds the Puzzle Coach SRS plan).
 
 **Decisions locked (2026-06-13):**
+
 - Storage = **Supabase (Postgres)**; LLM capture = **full content, all calls**.
 - **Separate Supabase project** from the CMIP intern portal — new env vars `TRACKING_SUPABASE_URL` + `TRACKING_SUPABASE_SERVICE_ROLE_KEY` (distinct from CMIP's `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`). Isolates the high-volume firehose + minors' content from intern eval data.
 - **Single `TRACKING_ENABLED` kill switch** gating every write, mirroring `MASTERMIND_VALIDATORS_ENABLED` — instant prod off-switch with no deploy.
@@ -26,15 +27,15 @@ serve four uses off one foundation:
 
 ## 2. What exists today (audit, 2026-06-13)
 
-| Layer | Today | Gap |
-|---|---|---|
-| Firestore | users, saved games, chats+messages, scouts, insights | live app state only — not analytical |
+| Layer                    | Today                                                  | Gap                                         |
+| ------------------------ | ------------------------------------------------------ | ------------------------------------------- |
+| Firestore                | users, saved games, chats+messages, scouts, insights   | live app state only — not analytical        |
 | GA4 + Firebase Analytics | `page_view`, `analyze_game`, `play_game`, share dialog | **disabled on localhost**; thin; no funnels |
-| Vercel Analytics | web vitals only | no custom events |
-| Server logs | structured JSON → console + Sentry breadcrumbs | ephemeral, not queryable |
-| `llmStatsAggregator` | token/latency totals **in-memory** | resets every cold start; no content |
-| Supabase | CMIP `intern_allowlist`, `intern_flags` only | no general tracking tables |
-| IndexedDB | puzzle/SRS state, client-only | never reaches the server |
+| Vercel Analytics         | web vitals only                                        | no custom events                            |
+| Server logs              | structured JSON → console + Sentry breadcrumbs         | ephemeral, not queryable                    |
+| `llmStatsAggregator`     | token/latency totals **in-memory**                     | resets every cold start; no content         |
+| Supabase                 | CMIP `intern_allowlist`, `intern_flags` only           | no general tracking tables                  |
+| IndexedDB                | puzzle/SRS state, client-only                          | never reaches the server                    |
 
 **Not tracked at all:** puzzle attempts, prompt→response pairs (except manual CMIP flags),
 interaction journeys, funnels, analysis-session lifecycle, logged-out behavior.
@@ -61,6 +62,7 @@ Single foundation, three write surfaces, layered tables.
 ```
 
 ### 3.1 Identity spine
+
 - Signed-in users: reuse the Firestore **`uid`** as a `text` foreign key on every row (same pattern as `intern_flags.intern_uid`, sourced from the `cm_session` JWT). No new identity table.
 - Logged-out users: an **`anon_id`** cookie (httpOnly, 1-yr, set by `/api/track` on first hit) so we keep the pre-signup funnel. On sign-in we stamp an `anon_id → uid` stitch event so journeys join across the boundary.
 - `is_intern` copied from the session for easy filtering.
@@ -68,6 +70,7 @@ Single foundation, three write surfaces, layered tables.
 ### 3.2 Tables (DDL sketch — matches `intern_flags` conventions: `text` uids, `jsonb`, `timestamptz default now()`, `gen_random_uuid()`, RLS enabled / no policies = service-role only)
 
 **`events`** — the firehose. One row per interaction.
+
 ```sql
 create table if not exists events (
   id          uuid primary key default gen_random_uuid(),
@@ -93,6 +96,7 @@ alter table events enable row level security;
 ```
 
 **`llm_calls`** — full prompt/response capture. The eval-data goldmine. One row per `callLLM`/`callLLMStream`.
+
 ```sql
 create table if not exists llm_calls (
   id               uuid primary key default gen_random_uuid(),
@@ -127,6 +131,7 @@ alter table llm_calls enable row level security;
 ```
 
 **`puzzle_attempts`** — structured outcomes (analytics + user-facing progress; complements, doesn't replace, IndexedDB SRS).
+
 ```sql
 create table if not exists puzzle_attempts (
   id            uuid primary key default gen_random_uuid(),
@@ -151,6 +156,7 @@ alter table puzzle_attempts enable row level security;
 ```
 
 **`analysis_sessions`** — game-analysis lifecycle (dedicated table, per decision).
+
 ```sql
 create table if not exists analysis_sessions (
   id            uuid primary key default gen_random_uuid(),
@@ -169,26 +175,32 @@ alter table analysis_sessions enable row level security;
 ```
 
 ### 3.3 Server emitter — `src/lib/tracking/`
+
 - New `getTrackingSupabase()` client pointing at the **separate** tracking project (`TRACKING_SUPABASE_URL` / `TRACKING_SUPABASE_SERVICE_ROLE_KEY`), modeled on `src/lib/intern/supabase.ts` (lazy + cached, `persistSession: false`, service-role). CMIP's `getInternSupabase()` is left untouched — different project, different keys.
 - Every write is gated by `TRACKING_ENABLED` (no-op early-return when unset/`"false"`; remember the `.trim()` gotcha from the Mastermind flag — Vercel appended a `\n`).
 - `track.ts`: `trackEvent(evt)` inserts into `events`; `recordLLMCallFull(row)` inserts into `llm_calls`; `recordPuzzleAttempt(row)` inserts into `puzzle_attempts`.
 - **Never block or break a user request.** Every write is wrapped in try/catch that swallows and `logger.warn`s on failure. On Vercel serverless, un-awaited promises can be frozen after the response flushes — so use `waitUntil()` (`@vercel/functions`) to let fire-and-forget writes finish. This is a real gotcha and is a first-class requirement, not a nicety.
 
 ### 3.4 LLM capture hook (the key insight)
+
 `callLLM()` and `callLLMStream()` are the **single choke point** ([llmProvider.ts:454](src/lib/llmProvider.ts#L454), [:387](src/lib/llmProvider.ts#L387)) — they hold both the full prompt (`opts.system` + `opts.systemSuffix` + `opts.messages`) and the result (`content`). Add an optional `capture` field to `CallLLMOptions`:
+
 ```ts
 capture?: { uid?: string; anonId?: string; isIntern?: boolean; requestId?: string;
             feature: string; promptVersion?: string; fen?: string; gamePgn?: string };
 ```
+
 When present, after the result resolves (or on the streaming `done` event / on error) fire `recordLLMCallFull()`. Routes pass `capture` through; the 6 existing `recordLLMCall()` in-memory aggregator calls stay as-is (they're cheap and feed the live dashboard). One hook covers all current + future callsites.
 
 ### 3.5 Client emitter — `/api/track` + `src/lib/tracking/client.ts`
+
 - `track(name, props)` batches and flushes via `navigator.sendBeacon` (survives page unload); `/api/track` attaches uid (session cookie), anon_id (cookie), ip_hash, ua, referrer, then inserts into `events`.
 - Replaces the localhost-disabled GA-only path and retires the stubbed `src/lib/visitorTracker.ts` (CLAUDE.md flags it as a no-op TODO awaiting a `/api/visits` proxy — this supersedes it).
 
 ## 4. Privacy & safety — REQUIRED workstream, not optional
 
 The audience **includes minors** (chess learners). Full content + identity capture raises COPPA (FTC) / GDPR-K / CCPA duties. Baked in from day one:
+
 - **Hash IPs** (`SHA-256(ip + TRACKING_IP_SALT)`) — never store raw IP.
 - **Service-role only** — RLS enabled, zero policies (same as `intern_flags`); the browser never reads these tables.
 - **Deletion path** — a `purgeUserData(uid)` that deletes from `events` + `llm_calls` + `puzzle_attempts` + `analysis_sessions`, wired into account deletion so a data-removal request is honorable.
@@ -200,42 +212,43 @@ The audience **includes minors** (chess learners). Full content + identity captu
 
 Tracking is **consent-gated**. Three cookie tiers:
 
-| Tier | Examples | Consent needed? |
-|---|---|---|
-| Strictly necessary | `cm_session` auth JWT | No (exempt) |
-| Analytics / product | `anon_id`, client `track()` beacons, GA4 | **Yes** |
-| AI-conversation capture | `llm_calls` content rows | **Yes** (covered by ToS accept for signed-in; gated for logged-out) |
+| Tier                    | Examples                                 | Consent needed?                                                     |
+| ----------------------- | ---------------------------------------- | ------------------------------------------------------------------- |
+| Strictly necessary      | `cm_session` auth JWT                    | No (exempt)                                                         |
+| Analytics / product     | `anon_id`, client `track()` beacons, GA4 | **Yes**                                                             |
+| AI-conversation capture | `llm_calls` content rows                 | **Yes** (covered by ToS accept for signed-in; gated for logged-out) |
 
 - **Banner** (first visit): Accept all / Reject non-essential / Manage. Choice stored in a `cm_consent` cookie. **Reject** = strictly-necessary only — no `anon_id`, no client beacons, no GA, and logged-out coach content is not retained.
 - **The consent decision itself is recorded** server-side (legitimate-interest record of the choice) regardless of outcome.
 - **Honor Global Privacy Control** — if the request carries `Sec-GPC: 1`, default analytics/sale-share consent to off.
-- **Neutral age gate** at signup (date-of-birth, not "are you 13?"). Self-identified **under-13 → restricted mode**: behavioral analytics + content retention off unless verifiable parental consent is obtained. This is the COPPA-sensitive path.
+- **13+ account eligibility gate** at signup. Users who cannot confirm that they are at least 13 may not create an account or use the service. Parental permission does not create an exception, and Chess Masti does not currently operate a verified parental-consent system.
 - **CCPA/CPRA** — we do not sell data; include a "Do Not Sell or Share" disclosure + honor GPC as the opt-out signal.
 
-> ⚠️ **Note:** the age gate + restricted mode + (where applicable) verifiable parental consent are the substantive controls here; the plan is to have the policy and consent design reviewed by someone qualified.
+> ⚠️ **Note:** the 13+ eligibility control, policy, and consent design should be reviewed by someone qualified.
 
 ## 5. Cost & scale
+
 - At current scale: negligible (well within Supabase Pro).
 - The cost driver at scale is `llm_calls` full text. Scaling path (deferred, documented): monthly partitioning, cold-tier archival, or sampling above a volume threshold (always keep flagged/low-rated/error rows). `log()` any future sampling so coverage gaps are never silent.
 
 ## 6. Phasing (stacked PRs — CI-gated tsc+vitest; verify locally on the stack tip before shipping)
 
-| PR | Scope | Ships |
-|---|---|---|
-| **TRK-0** | This plan + migrations (`events`, `llm_calls`, `puzzle_attempts`) + generalize Supabase client + privacy/retention doc | schema only, no instrumentation |
-| **TRK-1** | `src/lib/tracking/` core: `trackEvent`, `waitUntil` plumbing, `/api/track` endpoint, `anon_id` cookie + unit tests | server + client event ingestion |
-| **TRK-2** | LLM full capture: `capture` field on `CallLLMOptions`, hook in `callLLM`/`callLLMStream`, wire enhanced-analysis + chat + puzzle-hint + puzzle-chat | **eval-data unlock** |
-| **TRK-3** | `puzzle_attempts` + `analysis_sessions` writes (**start clean — no backfill**) | user-facing progress foundation |
-| **TRK-4** | Client `track()` SDK + sendBeacon, instrument page views / feature opens / shares / clicks, retire `visitorTracker.ts` | full interaction coverage |
-| **TRK-5** | Read side: funnel/retention SQL + admin views, `purgeUserData`, retention `pg_cron`, optional dashboard | analytics + deletion + 1-yr purge |
-| **TRK-6** | **Consent & privacy**: cookie banner (Accept/Reject/Manage), `cm_consent` cookie, age gate + under-13 restricted mode, GPC handling, ship the privacy-policy page | **gates the prod flag flip; must precede enabling TRK-4 beacons in prod** |
+| PR        | Scope                                                                                                                                                      | Ships                                                                     |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **TRK-0** | This plan + migrations (`events`, `llm_calls`, `puzzle_attempts`) + generalize Supabase client + privacy/retention doc                                     | schema only, no instrumentation                                           |
+| **TRK-1** | `src/lib/tracking/` core: `trackEvent`, `waitUntil` plumbing, `/api/track` endpoint, `anon_id` cookie + unit tests                                         | server + client event ingestion                                           |
+| **TRK-2** | LLM full capture: `capture` field on `CallLLMOptions`, hook in `callLLM`/`callLLMStream`, wire enhanced-analysis + chat + puzzle-hint + puzzle-chat        | **eval-data unlock**                                                      |
+| **TRK-3** | `puzzle_attempts` + `analysis_sessions` writes (**start clean — no backfill**)                                                                             | user-facing progress foundation                                           |
+| **TRK-4** | Client `track()` SDK + sendBeacon, instrument page views / feature opens / shares / clicks, retire `visitorTracker.ts`                                     | full interaction coverage                                                 |
+| **TRK-5** | Read side: funnel/retention SQL + admin views, `purgeUserData`, retention `pg_cron`, optional dashboard                                                    | analytics + deletion + 1-yr purge                                         |
+| **TRK-6** | **Consent & privacy**: cookie banner (Accept/Reject/Manage), `cm_consent` cookie, 13+ account eligibility gate, GPC handling, ship the privacy-policy page | **gates the prod flag flip; must precede enabling TRK-4 beacons in prod** |
 
 ## 7. Open questions — ALL RESOLVED 2026-06-13
 
 - ~~Kill switch~~ → **single `TRACKING_ENABLED`** (§1).
 - ~~Supabase project~~ → **separate project** (§1).
 - ~~Retention TTLs~~ → **1 year**, daily `pg_cron` purge (§4).
-- ~~`anon_id` pre-consent~~ → **consent-gated**; build a cookie banner + age gate (§4.1, TRK-6). Approach delegated to + chosen by Claude.
+- ~~`anon_id` pre-consent~~ → **consent-gated**; build a cookie banner + 13+ account eligibility gate (§4.1, TRK-6). Approach delegated to + chosen by Claude.
 - ~~Privacy-policy owner~~ → **draft authored** at [PRIVACY_POLICY_DRAFT.md](PRIVACY_POLICY_DRAFT.md); needs qualified review.
 - ~~`analysis_sessions`~~ → **dedicated table** (§3.2).
 - ~~Backfill~~ → **start clean** (TRK-3).

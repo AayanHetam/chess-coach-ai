@@ -50,7 +50,7 @@ export default function PrivacyPage() {
             <p className="cm-lede">
               Plain English. Covers <strong>chessmasti.com</strong> (the
               website) and <strong>Analyze with Chess Masti</strong> (the Chrome
-              extension). Last updated 2026-08-17.
+              extension). Last updated August 21, 2026.
             </p>
           </header>
 
@@ -69,6 +69,12 @@ export default function PrivacyPage() {
                 coaching-tone preference, playing style, study goals, favorite
                 openings, and board/piece-set choices. Tied to your account in
                 Firestore.
+              </li>
+              <li>
+                <strong>Saved chats</strong>: when you choose to save a coaching
+                chat, its chat record, related game reference, and user and
+                assistant message content are stored with your account in
+                Firestore so you can reopen the conversation.
               </li>
               <li>
                 <strong>Session cookie</strong> (<code>cm_session</code>): a
@@ -131,8 +137,9 @@ export default function PrivacyPage() {
             <ul>
               <li>
                 <strong>On our servers (Google Firestore)</strong> via the
-                Firebase Admin SDK: account, saved games, preferences. Server-
-                side only — your browser never connects to Firestore directly.
+                Firebase Admin SDK: account, saved games, saved chats and their
+                messages, and preferences. Server-side only — your browser never
+                connects to Firestore directly.
               </li>
               <li>
                 <strong>On your device (IndexedDB)</strong>: puzzle progress and
@@ -214,15 +221,14 @@ export default function PrivacyPage() {
 
             <h3>Children</h3>
             <p>
-              Chess Masti is intended for users aged 13 and over, and we ask you
-              to confirm you&apos;re 13+ when you create an account. We
-              don&apos;t knowingly collect personal information from children
-              under 13. If you believe a child under 13 has signed up without a
-              parent&apos;s involvement, email us at{" "}
+              Chess Masti is intended for users aged 13 and older. We do not
+              knowingly collect personal information from children under 13. If
+              you are a parent or guardian and believe Chess Masti collected
+              personal information from a child under 13, email us at{" "}
               <a href="mailto:aayanhetamsaria4@gmail.com">
                 aayanhetamsaria4@gmail.com
               </a>{" "}
-              and we&apos;ll delete the account and its data.
+              to request deletion.
             </p>
 
             <h3>Deleting your data</h3>

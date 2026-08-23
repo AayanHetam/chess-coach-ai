@@ -31,7 +31,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 
 const ChessgroundBoard = dynamic(
@@ -1089,10 +1089,29 @@ function DailyPuzzleSection() {
   // Solution: 1.Nc7+ forks K and R, winning the rook next move.
   const initialFen = "r3k3/8/8/3N4/8/8/8/4K3 w - - 0 1";
   const solution = { from: "d5" as Square, to: "c7" as Square };
-  const today = new Date().toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-  });
+  // Computed after mount, never during render.
+  //
+  // This page is statically prerendered, so anything derived from the clock
+  // at render time is the BUILD machine's clock, frozen into the HTML. From
+  // the day after a deploy onward the server said one date and every browser
+  // said another: React hit a text mismatch (#425), hydration failed (#418)
+  // and the entire root was discarded and re-rendered on the client (#423).
+  // Production was doing that on every single homepage visit -- the SSR HTML
+  // read AUGUST 22 while browsers read AUGUST 23.
+  //
+  // Deferring to an effect makes the server render and the client's FIRST
+  // render agree by construction: both emit no date. The viewer then gets
+  // their own local date a tick later, which is the only correct one anyway,
+  // since "today" varies by timezone as well as by how stale the build is.
+  const [today, setToday] = useState<string | null>(null);
+  useEffect(() => {
+    setToday(
+      new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+      })
+    );
+  }, []);
 
   const [position, setPosition] = useState(initialFen);
   const [status, setStatus] = useState<"playing" | "wrong" | "solved">(
@@ -1156,7 +1175,9 @@ function DailyPuzzleSection() {
     <Box sx={{ py: { xs: 6, md: 10 } }}>
       <RevealOnScroll>
         <Box sx={{ maxWidth: 720, mb: 6 }}>
-          <EyebrowBadge>PUZZLE OF THE DAY · {today.toUpperCase()}</EyebrowBadge>
+          <EyebrowBadge>
+            PUZZLE OF THE DAY{today ? ` · ${today.toUpperCase()}` : ""}
+          </EyebrowBadge>
           <Typography
             variant="h2"
             sx={{

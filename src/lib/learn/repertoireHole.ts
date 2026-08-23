@@ -402,14 +402,38 @@ export async function findRepertoireHoles(
  * equally often.
  */
 export function pickTodaysLine(reports: RepertoireReport[]): RepertoireHole | null {
+  return rankHoles(reports)[0] ?? null;
+}
+
+/**
+ * Every measured hole, in the order worth offering them.
+ *
+ * Confirmed lines come first as a BLOCK, ahead of every unconfirmed one
+ * regardless of size: the difference between "measured" and "suspected" is not
+ * a quantity you can trade against a slightly larger estimate. Within each
+ * block, teaching value orders them.
+ *
+ * The head of this list is today's line, so the queue and the headline can
+ * never disagree about which line matters most.
+ */
+export function rankHoles(reports: RepertoireReport[]): RepertoireHole[] {
   const all = reports.flatMap(r => r.holes);
-  if (all.length === 0) return null;
-  // A confirmed line outranks any unconfirmed one regardless of size: the
-  // difference between "measured" and "suspected" is not a quantity you can
-  // trade against a slightly larger estimate.
-  const confirmed = all.filter(h => h.tier === 'confirmed');
-  const pool = confirmed.length > 0 ? confirmed : all;
-  return pool.reduce((best, h) => (h.teachingValue > best.teachingValue ? h : best));
+  const byValue = (a: RepertoireHole, b: RepertoireHole) => b.teachingValue - a.teachingValue;
+  return [
+    ...all.filter(h => h.tier === 'confirmed').sort(byValue),
+    ...all.filter(h => h.tier !== 'confirmed').sort(byValue),
+  ];
+}
+
+/**
+ * The hole as the trainer's state machine wants it: SAN moves and a colour.
+ *
+ * One conversion, used by the route, by storage keys and by the review
+ * scheduler, so a line has ONE identity everywhere and a saved session can
+ * never be matched against a differently-derived key.
+ */
+export function holeLine(hole: RepertoireHole): { moves: string[]; color: 'white' | 'black' } {
+  return { moves: hole.line.map(m => m.san), color: hole.color };
 }
 
 /** Moves rendered as a numbered line: `1.e4 c5 2.c3`. */

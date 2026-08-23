@@ -640,6 +640,11 @@ export default function PlanPage() {
           error={repertoire.error}
           cachedAt={repertoire.cachedAt}
           username={repertoireAccount.username}
+          accountId={
+            repertoireAccount.username
+              ? `${repertoireAccount.platform}:${repertoireAccount.username}`
+              : null
+          }
           onRun={repertoire.run}
         />
       </GlassCard>

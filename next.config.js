@@ -23,6 +23,21 @@
  */
 const nextConfig = {
   /**
+   * Data files read with `fs` at runtime, which webpack therefore never sees
+   * and the tracer therefore never copies into the serverless bundle. Without
+   * these the route builds clean, deploys clean, and 500s on its first request
+   * in production with ENOENT.
+   *
+   * These entries existed in next.config.ts, the file Next does not load, so
+   * they had never taken effect. See the header above.
+   */
+  outputFileTracingIncludes: {
+    "/api/opening-explorer": ["./src/data/master-tree.json"],
+    "/api/opening-theory": ["./src/data/wikibooks-theory.json"],
+    "/api/repertoire": ["./src/data/repertoire-map.json"],
+    "/api/openings/search": ["./src/data/openings.json"],
+  },
+  /**
    * Baseline hardening on every route, verified on the wire rather than
    * assumed present — the previous attempt at these was written into the
    * config nothing reads.

@@ -2,7 +2,7 @@
 # Mutation harness for the scout prep engine.
 #
 #   ./scripts/scout/mutate-holefinder.sh            # everything
-#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master | learn
+#   ./scripts/scout/mutate-holefinder.sh joint      # screen | prep | joint | master | learn | theory | trainer | resume | review | route | bracket | level
 #
 # A green suite proves nothing until it has been watched to fail. Each mutation
 # breaks exactly one guarantee and names the test that must go red.
@@ -28,17 +28,35 @@ PS=src/lib/scout/positionStats.ts
 PL=src/lib/scout/preparedLine.ts
 MI=src/lib/master/ideas.ts
 RH=src/lib/learn/repertoireHole.ts
+WT=src/lib/theory/wikibooksTheory.ts
+WI=scripts/openings/build-wikibooks-theory.mjs
+TS=src/lib/learn/trainerSession.ts
+TP=src/lib/learn/trainerProgress.ts
+RS=src/lib/learn/reviewSchedule.ts
+TR=src/lib/learn/trainerRoute.ts
+BR=src/lib/repertoire/bracket.ts
+LV=src/lib/repertoire/levels.ts
+ST=src/lib/repertoire/structure.ts
 
 T_HOLE=src/lib/scout/__tests__/holeFinder.test.ts
 T_PREP=src/lib/scout/__tests__/preparedLine.test.ts
 T_JOINT=src/lib/scout/__tests__/jointReport.test.ts
 T_IDEAS=src/lib/master/__tests__/ideas.test.ts
 T_LEARN=src/lib/learn/__tests__/repertoireHole.test.ts
+T_TLOAD=src/lib/theory/__tests__/wikibooksTheory.test.ts
+T_TIMP=src/lib/theory/__tests__/wikibooksImport.test.ts
+T_TRAIN=src/lib/learn/__tests__/trainerSession.test.ts
+T_PROG=src/lib/learn/__tests__/trainerProgress.test.ts
+T_REVIEW=src/lib/learn/__tests__/reviewSchedule.test.ts
+T_ROUTE=src/lib/learn/__tests__/trainerRoute.test.ts
+T_BRACKET=src/lib/repertoire/__tests__/bracket.test.ts
+T_LEVEL=src/lib/repertoire/__tests__/levels.test.ts
+T_STRUCT=src/lib/repertoire/__tests__/structure.test.ts
 
 GROUP="${1:-all}"
 BAK=$(mktemp -d)
-for f in "$HF" "$PS" "$PL" "$MI" "$RH"; do cp "$f" "$BAK/$(basename "$f")"; done
-restore() { for f in "$HF" "$PS" "$PL" "$MI" "$RH"; do cp "$BAK/$(basename "$f")" "$f"; done; }
+for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI" "$TS" "$TP" "$RS" "$TR" "$BR" "$LV" "$ST"; do cp "$f" "$BAK/$(basename "$f")"; done
+restore() { for f in "$HF" "$PS" "$PL" "$MI" "$RH" "$WT" "$WI" "$TS" "$TP" "$RS" "$TR" "$BR" "$LV" "$ST"; do cp "$BAK/$(basename "$f")" "$f"; done; }
 trap 'restore; rm -rf "$BAK"' EXIT
 
 pass=0; miss=0; stale=0
@@ -149,7 +167,12 @@ mut "$RH" 's/if \(!c\.test \|\| !c\.stat\) continue;/if (!c.stat) continue;/' "$
   "never teaches a position the screen did not test" "unscreened positions taught"
 mut "$RH" 's/cpLoss >= config\.moveLossCp/cpLoss >= 0/' "$T_LEARN" \
   "holds its tongue below the centipawn bar rather than dressing up noise" "any centipawn counts as a better move"
-mut "$RH" 's/confirmed\.length > 0 \? confirmed : all/all/' "$T_LEARN" \
+# Rewritten when pickTodaysLine was refactored into rankHoles for the trainable
+# queue. The old pattern matched `confirmed.length > 0 ? confirmed : all`, which
+# no longer exists — it went STALE, kept the suite green, and reported exactly
+# like a coverage gap. Which is the entire reason this harness checks that a
+# mutation changed the file before it trusts the test.
+mut "$RH" 's/\.\.\.all\.filter\(h => h\.tier === .confirmed.\)\.sort\(byValue\),//' "$T_LEARN" \
   "prefers a measured line over a larger guess" "a bigger guess outranks a measurement"
 mut "$RH" 's/return empty\(true\)/return empty(false)/' "$T_LEARN" \
   "separates \"not enough games\" from \"nothing is wrong\"" "thin archive reads as no weakness"
@@ -159,6 +182,139 @@ mut "$RH" 's/const cost = await engine\.costOfMove\(parentFen, fen\);\s*const he
   "never issues two evaluations at once" "two evaluations in flight (engine desync)"
 fi
 
+if want theory; then
+echo "── theory: borrowed words, credited and unaltered"
+mut "$WI" 's/\(\\s\*\\\.\\\.\)\?//' "$T_TIMP" \
+  "reads Black's move, which is written with three dots" "SAN parser drops Black moves"
+mut "$WI" 's{if \(nextHeading\) body = body.slice\(0, nextHeading.index\);}{}' "$T_TIMP" \
+  "stops before the history and the theory table" "excerpt runs into history and tables"
+mut "$WI" 's{if \(out && out.length \+ p.length \+ 2 > MAX_EXCERPT\) break;}{}' "$T_TIMP" \
+  "never stops mid-sentence at a move number" "excerpt ignores its length cap"
+mut "$WI" 's{excerpt.length > prev.x.length}{false}' "$T_TIMP" \
+  "keeps the best-written page when several share a position" "shortest path beats best written"
+mut "$WT" 's{data.positions\[positionKey\(fen\)\]}{data.positions[fen]}' "$T_TLOAD" \
+  "matches regardless of the move counters" "lookup not transposition-pooled"
+mut "$WT" 's{title\.replace\(/ /g, ._.\)}{encodeURIComponent(title)}' "$T_TLOAD" \
+  "keeps the slashes and dots that make the URL work" "attribution link URL-encoded into a 404"
+mut "$WT" 's{if \(loadFailed\) return null;}{}' "$T_TLOAD" \
+  "does not retry a corpus that failed to load" "missing corpus re-read every request"
+mut "$WT" 's{  if \(!entry\) return null;}{  if (!entry) return { name: undefined, eco: undefined, excerpt: \x27\x27, sourceUrl: \x27\x27, sourceTitle: \x27\x27, licence: data.licence, licenceUrl: data.licenceUrl };}' "$T_TLOAD" \
+  "returns null when the book has nothing, rather than inventing something" "empty theory returned instead of null"
+fi
+
+if want trainer; then
+echo "── trainer: the session, and what it refuses to fake"
+mut "$TS" 's{line.color === .white. \? whiteToMove : !whiteToMove}{whiteToMove}' "$T_TRAIN" \
+  "gives Black the odd plies" "turn order ignores the user colour"
+mut "$TS" 's{if \(ply === decision && line.target\) return line.target.san;}{}' "$T_TRAIN" \
+  "asks for the REPLACEMENT at the decision, not the habit" "drill asks for the habit it is replacing"
+mut "$TS" 's{positionKey\(played\) === positionKey\(want\)}{san === expected}' "$T_TRAIN" \
+  "grades by position, so two spellings of one move both pass" "graded on the move string, not the position"
+mut "$TS" 's{if \(ok === null\) return state;}{}' "$T_TRAIN" \
+  "does not spoil a run for an illegal drag" "an illegal drag costs a streak"
+mut "$TS" 's{confrontMove: san,[\s\S]*?feedback: .none.,}{confrontMove: san, playedHabit, feedback: \x27wrong\x27,}' "$T_TRAIN" \
+  "never flashes red at the move they always play" "confront accuses instead of observing"
+mut "$TS" 's{clean \? state.streak \+ 1 : 0}{state.streak + 1}' "$T_TRAIN" \
+  "resets the streak when a run was spoiled" "a spoiled run still counts as clean"
+mut "$TS" 's{if \(!line.target\) return \{ ...state, act: .done. \};}{}' "$T_TRAIN" \
+  "ends the session when there is nothing better to drill" "invents a drill with no replacement"
+fi
+
+if want resume; then
+echo "── resume: pausing is free, resuming has to be right"
+mut "$TP" 's{if \(saved.lineKey !== lineKeyOf\(line\)\) return null;}{}' "$T_PROG" \
+  "refuses a session saved against a different line" "resumes another line's session"
+mut "$TP" 's{now - saved.savedAt > ttlMs}{false}' "$T_PROG" \
+  "expires" "resumes a session nobody remembers starting"
+mut "$TP" 's{if \(state.act === .done.\) return null;}{}' "$T_PROG" \
+  "never resumes a finished session" "drops the player onto a completion screen"
+mut "$TP" 's{.filter\(r => r.lineKey !== key\)}{}' "$T_PROG" \
+  "updates rather than stacking when the same line is repaired again" "repaired list stacks into a log"
+mut "$TP" 's{`\$\{PREFIX\}.session\$\{suffix\}:\$\{account.toLowerCase\(\)\}`}{`\$\{PREFIX\}.session\$\{suffix\}`}' "$T_PROG" \
+  "refuses another account progress" "one account resumes another's session"
+fi
+
 echo
-echo "caught ${pass} · uncaught ${miss} · stale ${stale}"
 [ "$miss" -eq 0 ] && [ "$stale" -eq 0 ]
+
+if want review; then
+echo "── review: bringing a repaired line back, and grading it honestly"
+# Every failure in this group is SILENT in the product: an empty review queue
+# looks identical whether everything is learned or scheduling is broken.
+mut "$RS" 's{if \(misses <= 0\) return 5;}{if (misses <= 99) return 5;}' "$T_REVIEW" \
+  "pushes a clean review further out than a scruffy one" "every review grades perfect, so a forgotten line is pushed further away"
+mut "$RS" 's{const card = schedule\(\{ ...base, line, label \}, qualityFromMisses\(misses\), now\);}{const card = { ...base, line, label };}' "$T_REVIEW" \
+  "does not put a line the player just finished straight back on their plan" "finishing leaves the line due immediately"
+mut "$RS" 's|\.\.\.base, line, label |...base |' "$T_REVIEW" \
+  "refreshes the drilled move when a line is repaired again" "a re-repair keeps a stale target and drills the wrong move"
+mut "$RS" 's{c.nextReview <= now}{true}' "$T_REVIEW" \
+  "does not put a line the player just finished straight back on their plan" "every card is due every day"
+mut "$RS" 's{lapses: card.lapses \+ \(quality < 3 \? 1 : 0\)}{lapses: card.lapses}' "$T_REVIEW" \
+  "sends a repeatedly forgotten line back through the full repair" "a line that keeps lapsing is never escalated"
+mut "$RS" 's{x.line.moves.length > 0 &&}{}' "$T_REVIEW" \
+  "drops a stored card with no moves rather than opening an empty board" "an empty drill the player cannot finish or escape"
+mut "$RS" 's{\.slice\(0, Math.max\(0, limit\)\)}{}' "$T_REVIEW" \
+  "caps a sitting, so a queue never becomes a debt" "the review queue is uncapped"
+fi
+
+if want route; then
+echo "── route: one identity for a line, everywhere"
+mut "$TR" 's{return found \? \{ status: .ready., hole: found \} : \{ status: .missing. \};}{return { status: \x27ready\x27, hole: found ?? holes[0] };}' "$T_ROUTE" \
+  "reports a named line that is gone rather than substituting another" "a dead link silently drills a DIFFERENT line"
+mut "$TR" 's{const review = one\(query.review\);}{const review = null;}' "$T_ROUTE" \
+  "reads a named line and a review" "a scheduled review opens as a fresh three-run repair"
+mut "$TR" 's{encodeURIComponent\(lineKeyOf\(holeLine\(hole\)\)\)}{lineKeyOf(holeLine(hole))}' "$T_ROUTE" \
+  "escapes a line whose notation would truncate a URL" "a mating move truncates its own link at the #"
+mut "$RH" 's{\.\.\.all.filter\(h => h.tier === .confirmed.\).sort\(byValue\),}{}' "$T_ROUTE" \
+  "ranks every confirmed line above every suspected one" "a large guess outranks a small measurement"
+fi
+
+if want bracket; then
+echo "── bracket: the coverage number, which is the easiest thing here to inflate"
+mut "$BR" 's{answered \+= node.reach \* choice.absorbs;}{answered += node.reach;}' "$T_BRACKET" \
+  "credits only what a choice actually absorbs" "a choice is credited with branches it does not answer"
+mut "$BR" 's{      open.push\(node\);}{}' "$T_BRACKET" \
+  "names the biggest thing still unanswered" "unfilled slots vanish instead of counting as open"
+mut "$BR" 's{children.push\(node\(child, reach \* gap.share, depth \+ 1\)\)}{children.push(node(child, reach, depth + 1))}' "$T_BRACKET" \
+  "compounds reach down the tree" "a deep branch claims its parent whole share"
+mut "$BR" 's{const scale = side === .black. \? 1 - map.meta.otherFirstMoves : 1;}{const scale = 1;}' "$T_BRACKET" \
+  "holds back the share taken by first moves too rare to plan for" "answering 1.e4 and 1.d4 alone reads as finished"
+mut "$BR" 's{if \(pct > 0 && pct < 1\) return .<1%.;}{}' "$T_BRACKET" \
+  "never rounds a real branch away to zero percent" "a real branch reads as never happening"
+mut "$BR" 's{if \(pick && depth < maxDepth\)}{if (false)}' "$T_BRACKET" \
+  "hides a branch until the choice that creates it is made" "choosing an opening opens nothing"
+fi
+
+if want level; then
+echo "── level: who this repertoire is FOR, and when it is finished"
+# "This is enough, stop working on openings" is the most useful sentence on the
+# page and the most dangerous. Said too early it sends somebody into games with
+# a hole a prepared opponent finds every time.
+mut "$LV" 's|if \(stretch <= 0\) return 2;|if (stretch <= 99) return 2;|' "$T_LEVEL" \
+  "ranks a light opening that needs understanding BELOW a heavy one that does not" "every opening suits every level"
+mut "$LV" 's|return LOAD_ORDER\[choice.load\] <= LOAD_ORDER\[band.ceiling\];|return true;|' "$T_LEVEL" \
+  "still says the heavy one is heavy" "a mountain of theory is never flagged as one"
+mut "$LV" 's|const enough = coverage >= band.enoughAt;|const enough = true;|' "$T_LEVEL" \
+  "is not enough while a real hole is left" "an empty repertoire is declared finished"
+mut "$LV" 's|return BANDS\[2\];|return BANDS[0];|' "$T_LEVEL" \
+  "guesses the middle for an unrated player, not the bottom" "unrated players are assumed to be beginners"
+mut "$LV" 's|if \(stretch === 1\) return 1;|if (stretch === 1) return -1;|' "$T_LEVEL" \
+  "warns only on a real stretch, not on one band" "every sound opening is flagged as too advanced"
+mut "$LV" 's|  return -stretch;|  return -3;|' "$T_LEVEL" \
+  "puts two bands above ahead of three" "catalogue order decides which of two unsuitable openings comes first"
+fi
+
+if want structure; then
+echo "── structure: naming what a position becomes, without naming it wrong"
+# Drops the rank requirement, which is what the FIRST version of this rule did:
+# a Dragon's lone d6 pawn has no c- or e-pawn beside it and matched the isolani
+# test exactly, handing Dragon players the wrong middlegame plan.
+mut "$ST" 's|has\(sk.black, .d5.\) && !b.has|b.has(\x27d\x27) \&\& !b.has|' "$T_STRUCT" \
+  "does not call a lone d6 pawn an isolated queen" "a lone backward d6 pawn is called an isolated queen pawn"
+mut "$ST" 's|!w.has\(.e.\) && !b.has\(.d.\)|!w.has(\x27e\x27)|' "$T_STRUCT" \
+  "does not call two blocked d-pawns an isolani" "two blocked d-pawns are reported as an isolani"
+mut "$ST" 's|  return null;\n\}\n\n/\*\* True when both sides|  return RULES[0];\n}\n\n/** True when both sides|' "$T_STRUCT" \
+  "says nothing rather than guessing at move two" "an opening position is confidently labelled a Carlsbad"
+fi
+
+echo "caught ${pass} · uncaught ${miss} · stale ${stale}"

@@ -176,6 +176,31 @@ test.describe("the weakest-line card", () => {
     });
   });
 
+  test("quotes the book, and credits it", async ({ page }) => {
+    await gotoPlan(page);
+    await page.getByRole("button", { name: /FIND MY WEAKEST LINE/i }).click();
+    await expect(page.getByText("1.e4 c5 2.c3").first()).toBeVisible({ timeout: 120_000 });
+
+    // Not stubbed: this proves /api/opening-theory answers for the position the
+    // screen actually landed on, from the corpus committed to the repo.
+    await expect(page.getByText(/anti-Sicilian/i).first()).toBeVisible({ timeout: 20_000 });
+
+    // Attribution is a LICENCE CONDITION, not decoration. CC BY-SA requires
+    // crediting the source with a link to the page the words came from, so the
+    // absence of either link is a compliance failure, not a cosmetic one — and
+    // the link has to survive URL construction, which is where dots and slashes
+    // in "1...c5" get mangled into a 404.
+    const source = page.getByRole("link", { name: /Wikibooks/i }).first();
+    await expect(source).toBeVisible();
+    await expect(source).toHaveAttribute(
+      "href",
+      "https://en.wikibooks.org/wiki/Chess_Opening_Theory/1._e4/1...c5/2._c3"
+    );
+    const licence = page.getByRole("link", { name: /CC BY-SA/i }).first();
+    await expect(licence).toBeVisible();
+    await expect(licence).toHaveAttribute("href", /creativecommons\.org\/licenses\/by-sa/);
+  });
+
   test("says so plainly when there is nothing to report", async ({ page }) => {
     // Same volume of games, every branch at the same score. We looked properly
     // and there is no weakness — which must not read as "we could not measure

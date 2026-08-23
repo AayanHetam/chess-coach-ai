@@ -57,7 +57,15 @@ const SELF_CHROMED_ROUTES = new Set([
 // Deliberately chrome-free. /auth/age is the COPPA interstitial — offering
 // nav links there is a way to route AROUND the gate — and /reset-password is a
 // one-shot token flow. Both still get the dark theme and the backdrop.
-const BARE_ROUTES = new Set(["/reset-password", "/auth/age"]);
+const BARE_ROUTES = new Set([
+  "/reset-password",
+  "/auth/age",
+  // The opening trainer is a full-viewport three-region session: rail, board,
+  // panel, no page scroll. A header and a footer above and below it push the
+  // board off screen and turn the session into a scrolling document, which is
+  // the one thing the layout is designed not to be.
+  "/train/opening",
+]);
 
 export default function Layout({ children }: PropsWithChildren) {
   const { isIntern } = useViewer();

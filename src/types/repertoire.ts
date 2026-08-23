@@ -94,6 +94,17 @@ export interface RepertoireSlot {
   /** The choice whose gap created this slot, or null for a root. */
   origin: string | null;
   moves: SlotMove[];
+  /**
+   * What share of the play at this position `moves` accounts for, 0-1.
+   *
+   * NOT redundant with summing the shares: the list is capped at six replies,
+   * so a sum below 1 is normal and says nothing on its own about whether the
+   * cap is hiding anything. Measured on the shipped corpus, six replies are the
+   * whole story at only 36% of positions, and at `1.Nf3 d5 2.g3` they are 86%
+   * of 47,303 games spread over 24 replies. A screen that says "what people
+   * play here" needs to know which of those it is showing.
+   */
+  replyCoverage: number;
   /** Derived understanding. Null only when the corpus does not reach here. */
   brief: PositionBrief | null;
   choices: RepertoireChoice[];

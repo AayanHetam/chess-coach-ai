@@ -25,7 +25,9 @@
  */
 
 import fs from "fs";
+import path from "path";
 import readline from "readline";
+import { fileURLToPath } from "url";
 import { Chess } from "chess.js";
 
 const TOP_PLAYERS_REGEX = [
@@ -59,6 +61,55 @@ function normalizeFen(fen) {
   return fen.split(" ").slice(0, 4).join(" ");
 }
 
+/**
+ * Cut movetext to roughly the first `maxPlies` moves before parsing it.
+ *
+ * The regex chain below runs over the WHOLE movetext of every game — a 60-move
+ * Lichess game carries `{ [%eval 0.24] [%clk 0:02:31] }` on every ply, so the
+ * comment-stripping pass alone touches kilobytes per game to keep the first 14
+ * plies. At 100M games that is the dominant cost of the whole build.
+ *
+ * Cutting is done on the move NUMBER token, with two moves of slack, because
+ * the token is unambiguous even inside comments and variations: `17.` cannot
+ * appear as a SAN. If the marker is not found the text is left alone, so a
+ * short game or an unusual format degrades to the old behaviour rather than
+ * losing moves.
+ */
+export function truncateMovetext(text, maxPlies) {
+  const cutAtMove = Math.ceil(maxPlies / 2) + 2;
+  const marker = new RegExp(`\\b${cutAtMove}\\.`);
+  const at = text.search(marker);
+  return at === -1 ? text : text.slice(0, at);
+}
+
+/**
+ * Parse `--ply-tiers=0:25,15:50,20:100` into a lookup.
+ *
+ * A flat threshold at 24 plies either keeps an enormous singleton tail or
+ * amputates the shallow tree that the whole bracket depends on. Deeper
+ * positions are naturally rarer, so the threshold has to rise with depth or the
+ * count explodes.
+ *
+ * Returns a function of a position's SHALLOWEST observed ply. Shallowest,
+ * because a position reachable at ply 6 by one move order and ply 20 by another
+ * is a ply-6 position; judging it by the deeper path would prune common
+ * openings that happen to have an obscure transposition into them.
+ */
+export function parsePlyTiers(spec, fallback) {
+  if (!spec) return () => fallback;
+  const tiers = spec
+    .split(",")
+    .map((part) => part.split(":").map((n) => parseInt(n, 10)))
+    .filter(([ply, min]) => Number.isFinite(ply) && Number.isFinite(min))
+    .sort((a, b) => a[0] - b[0]);
+  if (tiers.length === 0) return () => fallback;
+  return (ply) => {
+    let min = tiers[0][1];
+    for (const [from, value] of tiers) if (ply >= from) min = value;
+    return min;
+  };
+}
+
 async function main() {
   const [, , input, output, maxPliesArg, minGamesArg] = process.argv;
   if (!input || !output) {
@@ -77,6 +128,15 @@ async function main() {
     ? parseInt(minGamesRaw.split(":")[1] ?? "90000", 10)
     : null;
   const minGames = autoTarget ? 1 : parseInt(minGamesRaw, 10);
+
+  // --ply-tiers=0:25,15:50,20:100 — threshold as a function of depth. Without
+  // it every ply is judged by the same flat number, which is what caps the
+  // shipped tree at 14 plies today.
+  const plyTierSpec = process.argv.find((a) => a.startsWith("--ply-tiers="));
+  const thresholdForPly = parsePlyTiers(
+    plyTierSpec?.split("=")[1],
+    autoTarget ? 1 : minGames
+  );
 
   /**
    * Memory ceiling for the aggregation pass.
@@ -100,6 +160,11 @@ async function main() {
       for (const m of moves.values()) total += m.count;
       if (total <= 1) {
         tree.delete(fen);
+        // Drop the side tables too. Leaving them behind leaks the memory the
+        // sweep exists to reclaim, and worse, resurrects a stale arrival count
+        // if the position comes back later in the stream.
+        arrivals.delete(fen);
+        minPly.delete(fen);
         dropped++;
       }
     }
@@ -114,6 +179,18 @@ async function main() {
   const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
 
   const tree = new Map(); // normalizedFen → Map<san, { count, players: Map<key, {rank,count}>, w, d, b }>
+  /**
+   * Games that ARRIVED at a position, which is not the sum of its move rows.
+   *
+   * A game that ends here contributes an arrival and no row, and once anything
+   * caps the rows per position the two diverge for real. Recording it during
+   * aggregation is the only chance to know it — after pruning the truth is
+   * gone, and every share downstream would quietly renormalise to whatever
+   * survived.
+   */
+  const arrivals = new Map(); // normalizedFen → count
+  /** Shallowest ply a position was seen at, for the depth-tiered threshold. */
+  const minPly = new Map(); // normalizedFen → ply
   let currentHeaders = {};
   let currentMoves = "";
   let gamesProcessed = 0;
@@ -127,7 +204,7 @@ async function main() {
       inMoves = false;
       return;
     }
-    const movesText = currentMoves
+    const movesText = truncateMovetext(currentMoves, maxPlies)
       .replace(/\{[^}]*\}/g, "") // strip comments
       .replace(/\d+\.+/g, "")
       .replace(/\$\d+/g, "")
@@ -147,6 +224,13 @@ async function main() {
       if (!san) break;
 
       const fenBefore = normalizeFen(chess.fen());
+      // Counted BEFORE the move is attempted, because the game reached this
+      // position whether or not the next token parses. This is the quantity
+      // shares must divide by.
+      arrivals.set(fenBefore, (arrivals.get(fenBefore) ?? 0) + 1);
+      const seenAt = minPly.get(fenBefore);
+      if (seenAt === undefined || ply < seenAt) minPly.set(fenBefore, ply);
+
       let move;
       try {
         move = chess.move(san);
@@ -241,7 +325,13 @@ async function main() {
   let prunedPositions = 0;
   const out = {};
   for (const [fen, moves] of tree) {
-    if (totals.get(fen) < MIN_GAMES_AT_POSITION) {
+    // The tiered threshold when one was given, the flat one otherwise. Judged
+    // on the position's SHALLOWEST ply so a common opening with an obscure deep
+    // transposition into it is not held to the deep threshold.
+    const floor = plyTierSpec
+      ? Math.max(MIN_GAMES_AT_POSITION, thresholdForPly(minPly.get(fen) ?? 0))
+      : MIN_GAMES_AT_POSITION;
+    if (totals.get(fen) < floor) {
       prunedPositions++;
       continue;
     }
@@ -274,7 +364,14 @@ async function main() {
       .filter(Boolean)
       .sort((a, b) => b.count - a.count);
 
-    out[fen] = { moves: candidates };
+    out[fen] = {
+      moves: candidates,
+      // Games that reached here. Equal to the row sum whenever nothing drops a
+      // row, which is true of both builders today — recorded so it stays true
+      // when one of them stops being.
+      arrivals: arrivals.get(fen) ?? totals.get(fen),
+      minPly: minPly.get(fen) ?? 0,
+    };
   }
 
   // Emit corpus provenance alongside the tree. The UI states how many games
@@ -287,6 +384,7 @@ async function main() {
       positions: Object.keys(out).length,
       maxPlies,
       minGames: MIN_GAMES_AT_POSITION,
+      plyTiers: plyTierSpec?.split("=")[1] ?? null,
       prunedPositions,
       source: process.env.CORPUS_LABEL ?? "Lichess Elite (2300+)",
       generatedAt: new Date().toISOString().slice(0, 10),
@@ -307,7 +405,15 @@ async function main() {
   );
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Only build when run as a script. `truncateMovetext` and `parsePlyTiers` are
+// the two pieces with real edge cases, and a test that imports them must not
+// kick off a 45-minute aggregation to do it.
+const invokedDirectly =
+  process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

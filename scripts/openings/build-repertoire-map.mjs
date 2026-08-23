@@ -25,8 +25,14 @@
 //   2. A choice whose `play` move is illegal at the position it claims to
 //      answer. Silently produces a slot nobody can fill.
 //   3. A slot with no reachable choices at all: a dead end in the bracket.
-//   4. Shares that do not sum to roughly 1 at a slot, which would mean the
-//      frequency data and the walk disagree about what is reachable.
+//   4. Shares above 1 at a slot, which would mean the frequency data and the
+//      walk disagree about what is reachable.
+//   5. Shares that account for too LITTLE of the position. The upper bound in
+//      4 cannot see the opposite failure: shares divided by their own
+//      surviving sum come to exactly 1.000 and sail through it. That is the
+//      shape of bug this repo has shipped before — a guard whose else branch
+//      cannot fire — and it is the one a deeper tree with a per-position move
+//      cap would introduce.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import fs from 'fs';
@@ -40,6 +46,7 @@ import {
   findGaps,
   positionKey,
   repliesAt,
+  replyCoverage,
   steerability,
 } from './lib/coverage.mjs';
 
@@ -57,6 +64,12 @@ const GAP_LIMIT = 8;
 const STEER_PLY = 8;
 /** Replies offered as choices at a derived slot. */
 const MOVES_PER_SLOT = 6;
+/**
+ * Floor on how much of a position's real play a slot's replies must account
+ * for. See the guard that uses it for why it is this number and not a tighter
+ * one.
+ */
+const MIN_REPLY_COVERAGE = 0.8;
 
 const read = f => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'));
 
@@ -193,6 +206,18 @@ function main() {
       });
   }
 
+  /**
+   * What share of real play the six shown replies account for.
+   *
+   * Six is not always most of it. Measured on the shipped corpus: the six most
+   * played replies are the whole story at only 36% of positions, and at
+   * `1.Nf3 d5 2.g3` they are 86% of 47,303 games across 24 replies. The screen
+   * says "what people play here" either way, so the number has to travel with
+   * the slot rather than being inferred from shares that legitimately sum to
+   * less than one.
+   */
+  const coverageOf = moves => Number(replyCoverage(moves).toFixed(4));
+
   // ── Roots ──────────────────────────────────────────────────────────────────
   // White has ONE root: their first move. Black has one per White first move
   // that is played often enough to need an answer, plus a bucket for the rest,
@@ -224,6 +249,7 @@ function main() {
     if (done.has(slot.id)) continue;
     done.add(slot.id);
     slot.moves = movesFor(slot);
+    slot.replyCoverage = coverageOf(slot.moves);
     // Understanding for positions no book names. 35% of these slots have no
     // prose written about them anywhere, because they are positions rather
     // than openings; this is what can be measured instead.
@@ -323,6 +349,34 @@ function main() {
     if (slot.moves.length > 0 && total > 1.0001) {
       late.push(`slot "${slot.id}" reply shares sum to ${total.toFixed(3)}`);
     }
+    // The lower bound. The upper one above cannot catch a renormalised slot:
+    // shares divided by their own surviving sum come to exactly 1.000 and pass
+    // it cleanly, which is the failure this repo has shipped before — a guard
+    // whose else branch cannot fire.
+    //
+    // 0.80 rather than something tighter because the six-reply cap legitimately
+    // hides play: on the shipped corpus the worst real slot is 86.3%, and
+    // nineteen sit under 95%. A floor above those would fail the build on
+    // healthy data. Below 0.80 the shown replies are not "what people play"
+    // in any useful sense, whatever produced it.
+    if (slot.moves.length > 0 && total < MIN_REPLY_COVERAGE) {
+      late.push(
+        `slot "${slot.id}" shows only ${(total * 100).toFixed(1)}% of the play at that position ` +
+          `(${slot.moves.length} replies) — shares are being read off a truncated list`
+      );
+    }
+  }
+
+  // Not a failure, but worth seeing: these slots describe the position less
+  // completely than the screen implies.
+  const thinlyCovered = [...slots.values()]
+    .filter(s => s.moves.length > 0 && s.replyCoverage < 0.95)
+    .sort((a, b) => a.replyCoverage - b.replyCoverage);
+  if (thinlyCovered.length) {
+    console.log(`\nslots where the shown replies are under 95% of real play: ${thinlyCovered.length}`);
+    for (const s of thinlyCovered.slice(0, 5)) {
+      console.log(`  ${(s.replyCoverage * 100).toFixed(1)}%  ${s.id}`);
+    }
   }
   if (late.length) {
     console.error('Derived map is inconsistent:\n');
@@ -352,6 +406,7 @@ function main() {
       eco: s.eco,
       origin: s.origin,
       moves: s.moves,
+      replyCoverage: s.replyCoverage ?? 0,
       brief: s.brief ?? null,
       choices: s.choices,
     })),

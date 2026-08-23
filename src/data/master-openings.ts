@@ -37,6 +37,12 @@ export interface MasterMove {
 
 export interface IndexedEntry {
   moves: MasterMove[];
+  /**
+   * Games that ARRIVED at this position, which is not always the sum of
+   * `moves`. Divide by this, never by the sum, or a capped move list turns a
+   * rare branch into a common one and nothing downstream can tell.
+   */
+  arrivals: number;
 }
 
 export interface MasterCorpusMeta {
@@ -74,13 +80,33 @@ const EMPTY_META: MasterCorpusMeta = {
  */
 type StoredMove = [san: string, count: number, white: number, draws: number];
 
+/**
+ * A stored position: either the bare rows, or rows plus the true arrival count.
+ *
+ * The wrapper appears only where games arrived that the rows do not account
+ * for — a position whose move list was capped. Every tree built so far keeps
+ * every row, so every position is the bare array and v2 and v3 files are
+ * identical on disk. See scripts/compact-master-tree.mjs.
+ */
+type StoredPosition = StoredMove[] | { t: number; m: StoredMove[] };
+
+/** Rows and the games that arrived, whichever shape the position is stored in. */
+function unwrap(node: StoredPosition): { rows: StoredMove[]; arrivals: number } {
+  const rows = Array.isArray(node) ? node : node.m;
+  const sum = rows.reduce((s, r) => s + r[1], 0);
+  const declared = Array.isArray(node) ? 0 : Number(node.t) || 0;
+  // Never below the row sum: a `t` under it is corrupt, and trusting it would
+  // put shares above 1.
+  return { rows, arrivals: Math.max(sum, declared) };
+}
+
 // Large JSON — webpack used to bundle it into every server output
 // (master-tree.json was a static `import`), which hung Vercel builds
 // indefinitely on the 2-core runner. Loading at module-init via fs keeps
 // webpack from touching it; next.config.ts's `outputFileTracingIncludes`
 // ensures the file ships with the API bundle so the read works at runtime.
 const loaded: {
-  positions: Record<string, StoredMove[]>;
+  positions: Record<string, StoredPosition>;
   meta: MasterCorpusMeta;
 } = (() => {
   try {
@@ -93,7 +119,7 @@ const loaded: {
     const raw = JSON.parse(fs.readFileSync(filePath, "utf-8"));
     if (raw && typeof raw === "object" && raw.positions) {
       return {
-        positions: raw.positions as Record<string, StoredMove[]>,
+        positions: raw.positions as Record<string, StoredPosition>,
         meta: { ...EMPTY_META, ...(raw.meta ?? {}) } as MasterCorpusMeta,
       };
     }
@@ -120,7 +146,7 @@ const TREE = loaded.positions;
  * requested are ever materialised, so a 94,901-position tree costs one
  * `JSON.parse` at startup rather than half a million object allocations.
  */
-function expand(fen: string, rows: StoredMove[]): IndexedEntry {
+function expand(fen: string, rows: StoredMove[], arrivals: number): IndexedEntry {
   const board = new Chess(`${normalizeFen(fen)} 0 1`);
   const moves: MasterMove[] = [];
   for (const [san, count, white, draws] of rows) {
@@ -145,7 +171,7 @@ function expand(fen: string, rows: StoredMove[]): IndexedEntry {
       black: count - white - draws,
     });
   }
-  return { moves };
+  return { moves, arrivals };
 }
 
 /** Strip half-move + full-move counters so positions match regardless of how
@@ -156,9 +182,11 @@ export function normalizeFen(fen: string): string {
 }
 
 export function lookupCuratedPosition(fen: string): IndexedEntry | null {
-  const rows = TREE[normalizeFen(fen)];
-  if (!rows || rows.length === 0) return null;
-  return expand(fen, rows);
+  const node = TREE[normalizeFen(fen)];
+  if (!node) return null;
+  const { rows, arrivals } = unwrap(node);
+  if (rows.length === 0) return null;
+  return expand(fen, rows, arrivals);
 }
 
 /** Count of indexed positions — exported for observability / footer label. */

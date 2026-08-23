@@ -1,7 +1,9 @@
 # Tracking & Telemetry Plan — "Track Everything"
 
-> Status: **DRAFT — awaiting Aayan + tech-lead review. No production code written yet.**
-> Drafted 2026-06-13. Plan-first per the Mastermind/CMIP playbook.
+> Status: **SHIPPED — the tracking stack is live in production and E2E-verified.**
+> Drafted 2026-06-13, plan-first per the Mastermind/CMIP playbook; kept as the design of
+> record for the schema and rationale. Where this document and the code disagree, the
+> code wins — see [src/lib/tracking/](src/lib/tracking/) and [supabase/migrations/](supabase/migrations/).
 
 ## 1. Goal (as scoped with Aayan, 2026-06-13)
 

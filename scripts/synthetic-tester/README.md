@@ -1,6 +1,6 @@
 # Synthetic Tester for Chess Masti AI
 
-Generates (game position, persona question, coach response, validator verdict) tuples at scale for **manual** grading. Not an auto-grader. Plan: [SYNTHETIC_TESTER_PLAN.md](../../SYNTHETIC_TESTER_PLAN.md) at the repo root.
+Generates (game position, persona question, coach response, validator verdict) tuples at scale for **manual** grading. Not an auto-grader. Plan: [PLAN.md](./PLAN.md) in this directory.
 
 ## Quick start
 

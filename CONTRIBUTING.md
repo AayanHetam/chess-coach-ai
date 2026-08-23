@@ -1,30 +1,34 @@
-# Contributing
+# Contributing to Chess Masti AI
 
-## I want to contribute code
+Thanks for your interest in contributing! Chess Masti AI ([chessmasti.com](https://chessmasti.com)) is a free, open-source chess learning platform licensed under the [GNU AGPL-3.0](LICENSE).
 
-- [Set up your development environment](https://github.com/GuillaumeSD/Chesskit?tab=readme-ov-file#running-the-app-in-dev-mode).
-- Communicate with contributors on [Discord](https://discord.com/invite/Yr99abAcUr).
-- [Pick a backlog card to work on](https://chesskit.notion.site/4cf7823836724432b71aa8932ba7d5bb). To get started, it is recommended you pick a card with the `good first issue` tag.
-- Before starting to code, you should engage in conversation with contributors on [Discord](https://discord.com/invite/Yr99abAcUr) to ensure that the card is still relevant and get help or additional context if needed.
+## Development setup
 
-## I want to contribute artwork/design
+Requirements: Node.js 18+, npm.
 
-Reach out to contributors on [Discord](https://discord.com/invite/Yr99abAcUr) to discuss what you want to contribute. You can also check the [backlog](https://chesskit.notion.site/4cf7823836724432b71aa8932ba7d5bb) for cards related to design.
+```bash
+git clone https://github.com/AayanHetam/chess-coach-ai.git
+cd chess-coach-ai
+npm install
+cp .env.example .env.local   # then fill in the keys you need (ANTHROPIC_API_KEY at minimum for AI features)
+npm run dev                  # http://127.0.0.1:3000
+```
 
-## I want to report a bug or a problem
+Most of the app runs without external services; features backed by an unconfigured service (AI coach, Maia, Neo4j puzzles) degrade or disable themselves. Check `/api/health/llm` before assuming an AI issue is a code issue.
 
-[**Make an issue**](https://github.com/GuillaumeSD/Chesskit/issues/new). Before creating an issue, make sure that:
+## Before you open a PR
 
-1. You list the steps to reproduce the problem to show that other users may experience it as well, if the issue is not self-descriptive.
-2. You provide a clear description of the problem, including any error messages or unexpected behavior.
-3. You include relevant information such as your operating system, browser version, and any other details that may help in diagnosing the issue.
-4. Search to make sure it isn't a duplicate.
+- `npx tsc --noEmit` must be clean — this is the real type gate.
+- `npm test` (Vitest) must pass; CI runs both on every PR.
+- Write or update tests alongside behavioral changes.
+- **Chess correctness is non-negotiable.** Legal-move, draw, and mate detection bugs are always highest priority — never ship a change that can render an illegal move or a wrong chess claim.
+- Keep PRs focused on one change. For larger features, open an issue first to discuss direction.
 
-## I want to suggest a feature
+## Licensing
 
-Discussions regarding whether a proposed new feature would be useful should be done on [Discord](https://discord.com/invite/Yr99abAcUr). Make sure that the feature you propose:
+- Code contributions are accepted under **AGPL-3.0**, the project's license. The project descends from [Chesskit](https://github.com/GuillaumeSD/Chesskit); lineage and attribution are documented in [COPYING.md](COPYING.md).
+- Note that some bundled artwork (e.g. certain piece sets) carries separate non-commercial/no-derivatives licenses — see [COPYING.md](COPYING.md). The *code* is open source; those assets are not covered by the AGPL grant.
 
-1. Is **effective in delivering a goal**. A feature that adds nothing new or improves nothing is purely fancy.
-2. Is **clear and concise**. If ambiguities exist, define them or propose options.
-3. Is **not a duplicate**. Check the [backlog](https://chesskit.notion.site/4cf7823836724432b71aa8932ba7d5bb) to see if the feature is already planned or in progress.
-4. Doesn't rely on mundane assumptions. Non-technical people have the tendency to measure how difficult / easy a feature is to implement based on their unreliable instincts, and such assumptions waste everyone's time. **Point out what needs to happen**, not what you think will happen.
+## Questions
+
+File an issue, or reach the maintainer through the contact links at [chessmasti.com](https://chessmasti.com).

@@ -2,7 +2,7 @@
 /**
  * Synthetic tester for Chess Masti AI — Phase 1 entry point.
  *
- * Plan: SYNTHETIC_TESTER_PLAN.md (repo root). Per-row CSV append,
+ * Plan: PLAN.md (this directory). Per-row CSV append,
  * one /api/enhanced-analysis per game, many /api/chat per game.
  */
 import { readFileSync, readdirSync, statSync, mkdirSync, existsSync } from "fs";

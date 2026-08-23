@@ -117,6 +117,40 @@ The depth question bites again only at I-3, where Tier-1 facts must exist
 intent sections late, or let first-render prose stay Tier-0. Decide at I-3
 with shadow data in hand.
 
+### Amendment (2026-08-23): the ENGINE BUILD is part of the regime too
+
+The client's engine is **Stockfish 17 Lite single-thread** — a smaller NNUE
+than the native SF 17.1 that measured the calibration corpus. Depth was
+never the whole regime; the instrument is. Two consequences, found before
+any I-2 code was written:
+
+1. **The "client computes d16 probes" design is UNPROVEN until a
+   lite-engine corpus re-probe shows the calibrated verdicts survive the
+   NNUE swap.** The d13/d14 experiment proved verdicts are sensitive to
+   measurement quality; an engine-build swap could plausibly drift more
+   than a depth step. This experiment (re-probe the corpus with the site's
+   own WASM engine stack, headless) is now the I-2 gate.
+2. **The same caveat retroactively applies to Tier 0 in production**: prod
+   `gameEval` is lite-engine, while the corpus's Tier-0 inputs were
+   native. The shadow rows now accumulating are lite-measured facts judged
+   by native-calibrated thresholds — exactly the drift the shadow exists
+   to reveal, and the lite re-probe experiment validates (or corrects)
+   both tiers at once.
+
+Server-side native probes were considered and priced honestly: the free
+Render instance is 0.1 CPU / 512 MB — the 577 ms/search native cost
+becomes minutes per ply there, so "regime-exact on the server" is a PAID
+decision (~1 CPU instance), not a free architecture. It stays on the table
+only if the lite experiment fails.
+
+First shadow-traffic readings (2026-08-22/23, 6 rows): cost/trap/material
+families firing on real games, 5–10 plies carded per review, capture fires
+on every contract rebuild (dedupe by `contract_id` when querying), and
+`build_ms` 3.5–7 s — of which intent is **36–47 ms per 10 carded plies**
+(measured in isolation; the rest is the contract builder's pre-existing
+profile, tracked separately). Referee-telemetry asymmetry observed in the
+same window: filed as issue #397 for the contract workstream.
+
 ## Stage I-3 — render behind the referee
 
 Un-strip `intent` for the verbalizer (accepting the prompt-cache/snapshot

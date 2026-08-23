@@ -2,10 +2,11 @@
 
 > **⚠️ DRAFT — NOT YET LEGAL-REVIEWED. NOT LEGAL ADVICE.**
 > This was drafted by Claude (2026-06-13) from the codebase's actual data flows as a
-> *starting point*. Before publishing it on chessmasti.com you must have it reviewed by
-> someone qualified — **especially the Children's Privacy section**, because the audience
-> includes minors and that triggers COPPA (US/FTC) and GDPR-K obligations a self-drafted
-> policy does not satisfy on its own. Replace every **[BRACKETED]** placeholder.
+> _starting point_. Before publishing it on chessmasti.com you must have it reviewed by
+> someone qualified — **especially the Children's Privacy section**, because the service is
+> intended for users aged 13 and older, including teenage users. A self-drafted policy does
+> not satisfy every applicable privacy obligation on its own. Replace every **[BRACKETED]**
+> placeholder.
 > See [TRACKING_PLAN.md](TRACKING_PLAN.md) §4 for the technical controls behind these promises.
 
 **Effective date:** [DATE]
@@ -92,12 +93,12 @@ records.
 
 [**REVIEW CAREFULLY — placeholder posture, confirm with counsel.**]
 
-Chess Masti is intended for users aged **[13]** and over. We ask for date of birth at sign-up.
-If you are under 13 (or the minimum age in your country), we place your account in a
-**restricted mode**: behavioral analytics and retention of AI conversations are disabled unless
-we obtain verifiable parental consent in accordance with COPPA. If you believe a child under 13
-has provided personal information without parental consent, contact **[privacy@chessmasti.com]**
-and we will delete it.
+Chess Masti is intended for users aged **13 and older**. Children under 13 may not create an
+account or use the service. Permission from a parent or guardian does not create an exception,
+and Chess Masti does not currently operate a verified parental-consent system. We do not
+knowingly collect personal information from children under 13. A parent or guardian who
+believes we collected personal information from a child under 13 may contact
+**[privacy@chessmasti.com]** to request deletion.
 
 ## 10. Security
 

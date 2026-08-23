@@ -505,6 +505,38 @@ export class UciEngine {
   }: EvaluatePositionWithUpdateParams): Promise<PositionEval> {
     this.throwErrorIfNotReady();
 
+    // Terminal positions: the same short-circuit evaluateGame has had all
+    // along, which this path was missing. Ask Stockfish to `go` on a mated or
+    // stalemated board and it answers `bestmove (none)` with ZERO info lines
+    // — nothing to parse, so the caller gets an eval with no lines and looks
+    // stalled. That is exactly what the puzzle Analyse panel did on every
+    // puzzle whose solution ends in mate (i.e. most mate-themed tactics):
+    // the board's final FEN is the mated position, the search returns
+    // nothing, and the user reads "the engine didn't return an evaluation"
+    // about a position the engine was never wrong about. The question was.
+    const whoIsCheckmated = getWhoIsCheckmated(fen);
+    if (whoIsCheckmated) {
+      const terminal: PositionEval = {
+        lines: [
+          {
+            pv: [],
+            depth: 0,
+            multiPv: 1,
+            mate: whoIsCheckmated === "w" ? -1 : 1,
+          },
+        ],
+      };
+      setPartialEval?.(terminal);
+      return terminal;
+    }
+    if (getIsStalemate(fen)) {
+      const terminal: PositionEval = {
+        lines: [{ pv: [], depth: 0, multiPv: 1, cp: 0 }],
+      };
+      setPartialEval?.(terminal);
+      return terminal;
+    }
+
     // Lichess's cloud eval is usually deeper than anything this WASM engine
     // will reach, so it wins by default. `allowCloud: false` lets a caller
     // insist on THIS engine — the point of an engine selector is that picking

@@ -56,7 +56,10 @@ const meta = raw.meta ?? {};
 const entries = Object.entries(positions).map(([fen, entry]) => {
   const moves = entry.moves ?? [];
   const total = moves.reduce((s, m) => s + m.count, 0);
-  return { fen, moves, total };
+  // Games that arrived, which the aggregator records separately. Older verbose
+  // trees have no such field, and for those the row sum is the honest answer.
+  const arrivals = Number(entry.arrivals) || total;
+  return { fen, moves, total, arrivals };
 });
 
 // Re-prune to a position budget by keeping the most-played positions. The
@@ -70,14 +73,25 @@ if (maxPositions && entries.length > maxPositions) {
 
 const out = {};
 let rows = 0;
-for (const { fen, moves } of kept) {
-  out[fen] = moves.map((m) => {
+let withArrivals = 0;
+for (const { fen, moves, total, arrivals } of kept) {
+  const list = moves.map((m) => {
     rows++;
     // [san, count, white, draws] — black is count-white-draws, uci derived.
     const row = [m.san, m.count, m.white, m.draws];
     if (keepAttribution && m.topPlayer) row.push(m.topPlayer);
     return row;
   });
+  // The arrival count is only written when it differs from the row sum, so a
+  // tree that drops no rows stays byte-for-byte what v2 produced. Wrapping
+  // every position in `{"t":…,"m":…}` unconditionally would cost ~1.3 MB on the
+  // shipped corpus to restate a number that is already derivable there.
+  if (arrivals > total) {
+    out[fen] = { t: arrivals, m: list };
+    withArrivals++;
+  } else {
+    out[fen] = list;
+  }
 }
 
 const payload = {
@@ -86,8 +100,17 @@ const payload = {
     positions: kept.length,
     minGames,
     attribution: keepAttribution,
-    /** Row schema, so a reader never has to guess the tuple order. */
-    format: "v2:[san,count,white,draws]",
+    /**
+     * Row schema, so a reader never has to guess the tuple order.
+     *
+     * v3 is v2 plus one option: a position may be `{t, m:[…rows]}` instead of a
+     * bare row array, where `t` is the games that ARRIVED there. It appears
+     * only where `t` exceeds the row sum, i.e. where something dropped a row.
+     * A v3 reader handles both; a v2 reader handles a v3 tree that never needed
+     * the wrapper, which is every tree built so far.
+     */
+    format: "v3:[san,count,white,draws]|{t,m}",
+    positionsWithArrivals: withArrivals,
   },
   positions: out,
 };

@@ -159,13 +159,66 @@ export function buildLabeller(openings) {
   };
 }
 
-/** Moves played at a position in the master corpus, as shares. */
+/**
+ * The rows and the true arrival count at a position, whichever tree shape.
+ *
+ * v2  `positions[key] = [[san,count,white,draws], …]`
+ * v3  `positions[key] = { t: <games that ARRIVED here>, m: [[…], …] }`
+ *
+ * The distinction only starts to matter once rows are pruned. Today no builder
+ * drops a row — both scripts prune whole positions — so `t` equals the row sum
+ * exactly and v2 and v3 give identical answers. `t` is recorded now so that the
+ * deeper tree can use a per-position move cap as a size lever WITHOUT the
+ * shares silently renormalising underneath every consumer. See `coverage`.
+ */
+function nodeAt(tree, key) {
+  const node = tree.positions?.[key];
+  if (!node) return null;
+  if (Array.isArray(node)) {
+    if (node.length === 0) return null;
+    const sum = node.reduce((s, m) => s + m[1], 0);
+    return { rows: node, sum, total: sum };
+  }
+  const rows = node.m;
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  const sum = rows.reduce((s, m) => s + m[1], 0);
+  // A `t` below the row sum is corrupt, not merely surprising; trust the rows.
+  return { rows, sum, total: Math.max(sum, Number(node.t) || 0) };
+}
+
+/**
+ * Moves played at a position in the master corpus, as shares.
+ *
+ * Shares divide by the games that ARRIVED at the position, not by the sum of
+ * the rows we happen to be holding. Those are the same number until something
+ * drops a row, and the moment one does, dividing by the row sum turns a 4%
+ * branch into a 45% one with every downstream number still looking plausible.
+ *
+ * `coverage` is what the rows account for, 0-1. Callers that slice the list
+ * must recompute it themselves — this is the coverage of everything returned.
+ */
 export function repliesAt(tree, fen) {
-  const node = tree.positions[positionKey(fen)];
-  if (!node || node.length === 0) return [];
-  const total = node.reduce((sum, m) => sum + m[1], 0);
-  if (total <= 0) return [];
-  return node.map(m => ({ san: m[0], games: m[1], share: m[1] / total }));
+  const node = nodeAt(tree, positionKey(fen));
+  if (!node || node.total <= 0) return [];
+  const coverage = node.sum / node.total;
+  return node.rows.map(m => ({
+    san: m[0],
+    games: m[1],
+    share: m[1] / node.total,
+    coverage,
+  }));
+}
+
+/**
+ * What share of real play a set of replies accounts for.
+ *
+ * Separate from `repliesAt` because the caller is usually showing a truncated
+ * list: six replies out of twenty is normal and fine, but "these six are 92% of
+ * what happens here" and "these six are 68%" are very different slots, and
+ * nothing downstream can tell them apart from the shares alone.
+ */
+export function replyCoverage(replies) {
+  return replies.reduce((sum, r) => sum + r.share, 0);
 }
 
 /**

@@ -2613,12 +2613,20 @@ interface ExplorationPreview {
  * "starting" and "unsupported" are deliberately distinct: `engine === null`
  * covers both, and conflating them told every visitor for the first seconds
  * of every page load that the engine had failed.
+ *
+ * "failed" is the third face of `engine === null` — create() REJECTED
+ * (`/engines/*` blocked by a school filter, worker died). Without it the tab
+ * fell into "starting" and said "Starting Stockfish…" forever, the exact
+ * nothing-yet-vs-nothing-ever conflation `useEngineWithStatus` was built to
+ * end. No local engine also means no cloud lines: the cloud request rides
+ * inside the same evaluatePositionWithUpdate call that needs the engine.
  */
 type LinesStatus =
   | "ready"
   | "searching"
   | "starting"
   | "unsupported"
+  | "failed"
   | "terminal";
 
 /**
@@ -3660,14 +3668,17 @@ function EngineLinesPanel({
       ? "Game over in this position — nothing to search."
       : status === "unsupported"
         ? "This browser can't run Stockfish (WebAssembly is unavailable here)."
-        : status === "starting"
-          ? "Starting Stockfish…"
-          : status === "searching"
-            ? "Stockfish is searching this position…"
-            : "No lines for this position yet.";
+        : status === "failed"
+          ? "The engine couldn't load, so there are no lines here."
+          : status === "starting"
+            ? "Starting Stockfish…"
+            : status === "searching"
+              ? "Stockfish is searching this position…"
+              : "No lines for this position yet.";
 
   return (
     <Box
+      data-testid="engine-lines-panel"
       sx={{
         height: "100%",
         overflowY: "auto",
@@ -8973,12 +8984,20 @@ export default function AnalysisPage() {
     if (typeof window !== "undefined" && !isWasmSupported()) {
       return "unsupported";
     }
+    // `engine === null` has THREE faces and the hook's status is the only
+    // way to tell them apart. Falling straight to "starting" here showed
+    // "Starting Stockfish…" forever when create() had REJECTED — a school
+    // filter blocking /engines/* got a permanent progress message instead of
+    // the truth that no line is ever coming.
+    if (engineStatus === "failed") return "failed";
+    if (engineStatus === "unsupported") return "unsupported";
     if (!engine) return "starting";
     return "searching";
   }, [
     displayTerminal,
     displayPositionEval,
     engine,
+    engineStatus,
     linesSettings.depth,
     linesSettings.count,
   ]);

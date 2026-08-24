@@ -201,4 +201,17 @@ describe('courseVerdict', () => {
   it('otherwise says what the kept chapters are worth', () => {
     expect(courseVerdict(viewFor(course(), band('new')))).toMatch(/90% of what you/);
   });
+
+  it('counts the omitted chapters in English', () => {
+    // "The other 1 cover the last 3%" shipped to production for an hour.
+    const one = viewFor(course(), band('new')); // 1 of 2 chapters kept
+    expect(courseVerdict(one)).toMatch(/The other 1 covers/);
+    const c = course();
+    c.chapters = [
+      { i: 0, at: 'A', line: [], title: null, share: 0.8, cum: 0.8, nodes: 1 },
+      { i: 1, at: 'B', line: [], title: null, share: 0.1, cum: 0.9, nodes: 1 },
+      { i: 2, at: 'C', line: [], title: null, share: 0.1, cum: 1, nodes: 1 },
+    ];
+    expect(courseVerdict(viewFor(c, band('new')))).toMatch(/The other 2 cover /);
+  });
 });

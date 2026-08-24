@@ -31,7 +31,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import { Box, Typography } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronRight, Pencil, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { BookOpen, Check, ChevronRight, Pencil, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { bandFor, nextBand, sufficiency, verdict, type Band } from "@/lib/repertoire/levels";
@@ -243,6 +244,29 @@ export default function LearnPage() {
   );
 }
 
+/** The way into the course behind a choice they have already made. */
+function StudyRow({ choiceId, label }: { choiceId: string; label: string }) {
+  return (
+    <Box
+      component={Link}
+      href={`/learn/${encodeURIComponent(choiceId)}`}
+      sx={{
+        mt: 1, ml: { xs: 1, md: 1.5 },
+        display: "inline-flex", alignItems: "center", gap: 0.75,
+        px: 1.5, py: 0.9, borderRadius: "999px",
+        border: "1px solid rgba(249,115,22,0.35)",
+        background: "rgba(249,115,22,0.08)",
+        color: EMBER, fontSize: "0.8rem", fontWeight: 600, textDecoration: "none",
+        transition: "background 180ms ease, border-color 180ms ease",
+        "&:hover": { background: "rgba(249,115,22,0.16)", borderColor: "rgba(249,115,22,0.6)" },
+        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+      }}
+    >
+      <BookOpen size={14} aria-hidden /> The {label} course
+    </Box>
+  );
+}
+
 /**
  * The roots this band is not being asked for yet.
  *
@@ -393,6 +417,10 @@ function SlotBranch({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* A filled slot that maps to a curated opening has a course behind it.
+          Without this the 43 courses are data nothing links to. */}
+      {node.pick?.choiceId && <StudyRow choiceId={node.pick.choiceId} label={node.pick.label} />}
 
       {node.children.length > 0 && (
         <Box sx={{ mt: 1.5, display: "grid", gap: 1.25, borderLeft: "1px solid rgba(255,255,255,0.08)", ml: { xs: 1, md: 1.5 } }}>

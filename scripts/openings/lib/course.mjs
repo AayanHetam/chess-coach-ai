@@ -345,7 +345,7 @@ export function buildCourse(tree, evals, opts) {
    * familyPositions() excludes it — every London line starts 1.d4, and counting
    * it makes every chapter look like it covers everything.
    */
-  function walk(fen, ply, weight, chapter) {
+  function walk(fen, ply, weight, chapter, path) {
     const key = positionKey(fen);
     const existing = nodes[key];
     if (existing) {
@@ -401,7 +401,7 @@ export function buildCourse(tree, evals, opts) {
       // to find out where it went.
       node.next = positionKey(next.fen());
       // Our own move does not divide the weight: we always play it.
-      walk(next.fen(), ply + 1, weight, chapter);
+      walk(next.fen(), ply + 1, weight, chapter, [...path, pick.san]);
       return;
     }
 
@@ -426,15 +426,16 @@ export function buildCourse(tree, evals, opts) {
         to: childKey,
       });
       const opening = opened?.[i];
+      const childPath = [...path, reply.san];
       if (opening) {
         opening.at = childKey;
-        opening.line = [...root, ...new Chess(next.fen()).history().slice(root.length)];
+        opening.line = childPath;
       }
-      walk(next.fen(), ply + 1, weight * reply.share, opening ? opening.i : chapter);
+      walk(next.fen(), ply + 1, weight * reply.share, opening ? opening.i : chapter, childPath);
     });
   }
 
-  walk(rootFen, rootPly, 1, -1);
+  walk(rootFen, rootPly, 1, -1, [...root]);
   if (chapters.length === 0) {
     chapters.push({ i: -1, at: positionKey(rootFen), line: [...root], title: null, share: 1 });
   }

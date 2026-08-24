@@ -244,12 +244,11 @@ export function secondaryTasksFor(
       }
     : {
         kind: "theory",
-        label: "Learn one opening line",
+        label: "Build your repertoire",
         detail:
-          "We recommend Chessly for now while we build our own theory course. Twenty minutes of your own opening beats a hundred puzzles you were never going to reach.",
+          "Three decisions — one opening as White, one answer to 1.e4, one to 1.d4 — and each one comes with a course built from what people actually play at your level.",
         minutes: TASK_MINUTES.theory,
-        href: "https://chessly.com",
-        external: true,
+        href: "/learn",
       };
 
   const eligible: DailyTask[] = [];

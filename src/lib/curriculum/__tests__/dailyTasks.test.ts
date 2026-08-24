@@ -144,12 +144,17 @@ describe("secondary tasks", () => {
     expect(tasks[0].kind).toBe("analyze");
   });
 
-  it("points theory at Chessly, marked as leaving the product", () => {
+  it("points theory at our own repertoire, and never off-site", () => {
+    // This task linked to Chessly for months, with copy promising we were
+    // building our own. We have: 43 generated courses, engine-chosen lines,
+    // cut to the player's level. The promise is kept and the link is gone.
     const tasks = secondaryTasksFor(input({ hasLinkedAccount: false }), 30);
     const theory = tasks.find((t) => t.kind === "theory")!;
-    expect(theory.href).toContain("chessly");
-    expect(theory.external).toBe(true);
-    expect(theory.detail).toMatch(/build(ing)? our own/i);
+    expect(theory.href).toBe("/learn");
+    expect(theory.external).toBeFalsy();
+    expect(theory.detail).not.toMatch(/chessly/i);
+    // And it says what the player is actually being asked to do.
+    expect(theory.detail).toMatch(/1\.e4/);
   });
 
   it("names the measured line instead, once we have one", () => {

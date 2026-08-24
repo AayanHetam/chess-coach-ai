@@ -231,13 +231,13 @@ test.describe("goal set", () => {
     await stubAccount(page, { goal: true, time: "30-plus" });
     await gotoPlan(page);
     await expect(page.getByText("Review one of your games")).toBeVisible();
-    const theory = page.getByText("Learn one opening line");
+    const theory = page.getByText("Build your repertoire");
     await expect(theory).toBeVisible();
-    // Chessly by name, and it leaves the site — the task is honest about
-    // sending people somewhere else while we build our own theory course.
-    const link = page.locator('a[href*="chessly.com"]').first();
-    await expect(link).toHaveAttribute("target", "_blank");
-    await expect(page.getByText(/we recommend chessly for now/i)).toBeVisible();
+    // It used to send people to Chessly with copy promising we were building
+    // our own. We have. The task stays on the site now, and nothing anywhere
+    // links out to a competitor.
+    await expect(page.locator('a[href*="chessly"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/learn"]').first()).toBeVisible();
   });
 });
 

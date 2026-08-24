@@ -20,7 +20,7 @@
 import { Chess } from 'chess.js';
 import { positionKey } from '@/lib/scout/positionStats';
 
-export type Act = 'confront' | 'learn' | 'drill' | 'done';
+export type Act = 'confront' | 'probe' | 'learn' | 'drill' | 'done';
 
 /**
  * Why the session is running.
@@ -32,8 +32,26 @@ export type Act = 'confront' | 'learn' | 'drill' | 'done';
  *           would be re-accusing them of a habit they have already fixed, and
  *           re-running the full three would make every review feel like a
  *           punishment for having done the work.
+ *   study   A line out of a course they chose, which we have NOT measured them
+ *           failing. It opens by asking rather than telling.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY STUDY IS STILL A CONFRONTATION
+ *
+ * The spec's thesis is "a confrontation, not a curriculum", and a course looks
+ * like the curriculum it warns about. It is not, because of what PROBE does
+ * with a right answer: it says so and moves on. No lesson, no drill, no review
+ * card.
+ *
+ * A curriculum tells you what you do not know. A confrontation asks first and
+ * teaches only what you got wrong — so the session gets SHORTER as you learn,
+ * which is the opposite of what a course does. Chessable makes you read the
+ * prose whether you knew the move or not, and its own docs concede the two bad
+ * options that leaves: re-play moves that are not due, or answer a due move
+ * with no context.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
-export type SessionMode = 'repair' | 'review';
+export type SessionMode = 'repair' | 'review' | 'study';
 
 /** Clean runs needed before a line counts as repaired. */
 export const DRILL_TARGET = 3;
@@ -100,6 +118,16 @@ export interface TrainerState {
   /** True once the current run has had a miss; a run is clean or it is not. */
   runSpoiled: boolean;
   /**
+   * They already played the move PROBE asked for.
+   *
+   * Null outside study. The difference between "knew it" and "learned it" is
+   * what keeps a course from filling the review queue with cards for moves the
+   * player never got wrong, and it is the sentence the completion screen has to
+   * say out loud — "you already knew all 12 decisions here, nothing to review"
+   * reads as a broken page otherwise.
+   */
+  knewIt: boolean | null;
+  /**
    * Misses across the whole session, not just this run.
    *
    * The grade a review feeds back to the scheduler. `runSpoiled` cannot carry
@@ -144,7 +172,9 @@ export function createSession(line: TrainerLine, mode: SessionMode = 'repair'): 
   // A review has nothing to confront and nothing new to teach. It is the drill.
   if (mode === 'review') return startRun(line, 'review');
   return {
-    act: 'confront',
+    // Study asks the same question CONFRONT asks, and does something different
+    // with the answer. See SessionMode.
+    act: mode === 'study' ? 'probe' : 'confront',
     mode,
     // CONFRONT opens one ply BEFORE the flagged move: the decision itself, with
     // the move not yet made.
@@ -157,7 +187,50 @@ export function createSession(line: TrainerLine, mode: SessionMode = 'repair'): 
     feedback: 'none',
     lastWrong: null,
     runSpoiled: false,
+    knewIt: mode === 'study' ? null : null,
     misses: 0,
+  };
+}
+
+/**
+ * A probe answered.
+ *
+ * Right: say so and stop. There is nothing to teach, no drill to run, and no
+ * card to schedule — the whole point of asking first.
+ *
+ * Wrong: this is now exactly the repair case, so it becomes one. LEARN then
+ * DRILL, and the miss is counted so the scheduler grades it honestly.
+ */
+export function submitProbe(
+  state: TrainerState,
+  line: TrainerLine,
+  san: string
+): TrainerState {
+  if (state.act !== 'probe') return state;
+  const expected = expectedAt(line, decisionPly(line));
+  if (!expected) return { ...state, act: 'done', knewIt: null };
+
+  const right = reaches(state.fen, san, expected);
+  // Not a legal move at all: no verdict, no penalty. A misdrag is not an answer.
+  if (right === null) return { ...state, feedback: 'wrong', lastWrong: null };
+
+  if (right) {
+    return {
+      ...state,
+      act: 'done',
+      knewIt: true,
+      confrontMove: san,
+      feedback: 'correct',
+    };
+  }
+  return {
+    ...state,
+    act: 'learn',
+    knewIt: false,
+    confrontMove: san,
+    feedback: 'wrong',
+    lastWrong: san,
+    misses: state.misses + 1,
   };
 }
 
@@ -300,6 +373,7 @@ export function startRun(line: TrainerLine, mode: SessionMode = 'repair'): Train
     feedback: 'none',
     lastWrong: null,
     runSpoiled: false,
+    knewIt: mode === 'study' ? null : null,
     misses: 0,
   };
 }
@@ -333,12 +407,25 @@ export interface ActStep {
 export function steps(state: TrainerState, line: TrainerLine): ActStep[] {
   // A review is one act. Showing it as step 3 of 3 with the first two ticked
   // would claim they just did work they did not do.
+  // A study session's shape is not known until they answer. Showing three
+  // steps and then finishing at one would have promised work we did not ask
+  // for; showing one and then adding two reads as a punishment for a wrong
+  // answer. So it is one step until the answer, then the truth.
   const order: Array<Exclude<Act, 'done'>> =
-    state.mode === 'review' ? ['drill'] : line.target ? ['confront', 'learn', 'drill'] : ['confront', 'learn'];
+    state.mode === 'review'
+      ? ['drill']
+      : state.mode === 'study'
+        ? state.knewIt === false
+          ? ['probe', 'learn', 'drill']
+          : ['probe']
+        : line.target
+          ? ['confront', 'learn', 'drill']
+          : ['confront', 'learn'];
   const reachedIndex = state.act === 'done' ? order.length : order.indexOf(state.act as Exclude<Act, 'done'>);
   const labels: Record<Exclude<Act, 'done'>, string> = {
     confront: 'Play your move',
     learn: 'See what it costs',
+    probe: 'Play the move here',
     drill: state.mode === 'review' ? 'Play it once, clean' : `Drill it ${DRILL_TARGET} times`,
   };
   return order.map((act, i) => ({

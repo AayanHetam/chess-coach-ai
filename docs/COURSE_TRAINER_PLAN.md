@@ -338,6 +338,31 @@ hole.
 
 ---
 
+## Decisions taken (Aayan, 2026-08-24)
+
+**1. Two verdicts, not three. Strict.** A legal move that is not the course
+move is a MISS and gets the teach card, even when the engine likes it. A
+repertoire is a repertoire. Lichess's *"Another was X"* split and Chessable's
+0.3-pawn soft-fail margin are noted and deliberately not adopted, so no
+tolerance check against `node.ev` is built and there is no third state to
+carry through the store.
+
+**2. A miss is re-asked once in the round.** Teach card, then the same position
+at the back of the current round with three to six positions in between; a
+second miss carries it to the next round rather than looping. No drill act, so
+`trainerSession.ts` is not modified and the 12-24 questions per miss that a
+move-one replay would cost never arise.
+
+**3. Chapter mastery syncs to the account from day one.** Not device-only. A
+repertoire is built over months and losing it to a cleared cache is worse than
+losing a drill. Local write stays the fast path; the account write is debounced
+behind it and the load merges newest-per-probe. This is an extra PR and a
+conflict rule, taken deliberately.
+
+**4. The defects are fixed before the trainer is built.** PR0 below.
+
+---
+
 ## Pause and return
 
 Today there is **nothing to return to**. `/learn/[courseId]` writes zero bytes
@@ -383,8 +408,9 @@ once. Whether chapter mastery syncs to the account is open question 5.
 
 | PR | Contents | The acceptance test that matters |
 |---|---|---|
+| **0** | The four defects: card creation guarded on `knewIt`/`misses` rather than on mode; `study` gets its own session slot; `loadSession` stops coercing `study` to `repair`; the reader's band resolved from the session rather than from a query param | A study session with zero misses writes **0** cards, with a one-miss control asserting exactly 1. A saved study session reloads as `study`. A signed-in club account requesting `?band=strong` gets club depth: count of nodes past its own cut is **0** |
 | **1** | `src/lib/courses/probes.ts` — `probesOf(view, chapter, side)`, `CourseProbe`, `toTrainerLine`, `MAX_PROBES_PER_CHAPTER`, `sourceWords`. Pure. Ships dark | Sweep all 43 courses × 5 bands: count of probes where `expectedAt(toTrainerLine(p)) !== p.san` is **0**. Duplicate node keys within a chapter: **0**, with a control asserting the dedupe fired on w-italian, whose chapters 0 and 1 transpose |
-| **2** | `chapterRound.ts` (round machine, four-value lattice) + `chapterProgress.ts` (store, `writeChapter` returns a boolean). Still dark | The round ends on the 5th **correct** answer: drive 8 asks with 3 misses, assert the boundary lands at ask 8. Hint gate swept exhaustively over 4 correctness × 2 outcomes: count reaching `KNOWN` is **0**, mutation-tested |
+| **2** | `chapterRound.ts` (round machine, four-value lattice) + `chapterProgress.ts` (store, `writeChapter` returns a boolean) + the account sync path and its newest-per-probe merge. Still dark | The round ends on the 5th **correct** answer: drive 8 asks with 3 misses, assert the boundary lands at ask 8. Hint gate swept exhaustively over 4 correctness × 2 outcomes: count reaching `KNOWN` is **0**, mutation-tested |
 | **3** | The route, the contract screen, server-side band, and the reader CTA | **Segregation, asserted on `__NEXT_DATA__` and not the UI**: byte difference between the payload with and without `?band=strong` is **0**, and nodes deeper than the band's cut is **0**, with the payload asserted non-empty in the same test |
 | **4** | The probe loop and the teach card. Adds a 375×667 Playwright project | The mis-drag control: an illegal drop yields **0** verdicts and **0** change to `asks`, with a legal-but-wrong drag asserted to yield exactly 1 so a dead board cannot pass. The absent-quote control on a named FEN from the 87%: **0** characters in the theory container, with a ply-2 position asserted greater than 0 |
 | **5** | Round summary and sitting-done | One deliberate miss in five: KNOWN 4, STILL LEARNING 1, headline strictly falls. The memo control — force a re-render with identical props, count of `moves` props whose reference identity changed is **0** |

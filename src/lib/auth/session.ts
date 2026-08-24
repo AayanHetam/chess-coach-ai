@@ -132,16 +132,29 @@ export async function getSession(): Promise<SessionPayload | null> {
   return verifySessionToken(token);
 }
 
-export async function getSessionFromRequest(
-  request: Request
+/**
+ * The session out of a raw Cookie header.
+ *
+ * Split out of `getSessionFromRequest` because Pages-router API routes get a
+ * `NextApiRequest`, whose `headers.cookie` is a plain string rather than a
+ * `Headers` object. Both callers must parse the cookie the same way, and the
+ * way to guarantee that is for there to be one parser.
+ */
+export async function getSessionFromCookieHeader(
+  cookieHeader: string | null | undefined
 ): Promise<SessionPayload | null> {
-  const cookieHeader = request.headers.get("cookie");
   if (!cookieHeader) return null;
   const match = cookieHeader.match(
     new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`)
   );
   if (!match) return null;
   return verifySessionToken(decodeURIComponent(match[1]));
+}
+
+export async function getSessionFromRequest(
+  request: Request
+): Promise<SessionPayload | null> {
+  return getSessionFromCookieHeader(request.headers.get("cookie"));
 }
 
 /**

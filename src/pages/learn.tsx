@@ -34,11 +34,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronRight, Pencil, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { resolveUserRating } from "@/lib/coach/userRating";
-import { bandFor, sufficiency, verdict, type Band } from "@/lib/repertoire/levels";
+import { bandFor, nextBand, sufficiency, verdict, type Band } from "@/lib/repertoire/levels";
 import SlotChooser from "@/components/learn/SlotChooser";
 import {
   buildBracket,
   coverage,
+  focusedRoots,
   numberedLine,
   share as pctOf,
   slotTitle,
@@ -54,7 +55,14 @@ import {
   type BracketState,
   type QuizAnswers,
 } from "@/lib/repertoire/store";
-import type { Character, RepertoireMap, RepertoirePick, TheoryLoad } from "@/types/repertoire";
+import { facing } from "@/lib/repertoire/sentences";
+import type {
+  Character,
+  RepertoireMap,
+  RepertoirePick,
+  RepertoireSlot,
+  TheoryLoad,
+} from "@/types/repertoire";
 
 const EMBER = "#FB923C";
 const GOOD = "#86EFAC";
@@ -139,6 +147,20 @@ export default function LearnPage() {
     () => (map ? buildBracket(map, side, picks, maxDepth) : []),
     [map, side, picks, maxDepth]
   );
+
+  // Breadth is a level question too, and a much better evidenced one than depth.
+  // A beginner is asked for one White opening and two answers as Black — three
+  // decisions in total — and the rarer roots are deferred rather than hidden.
+  const [showAll, setShowAll] = useState(false);
+  const focus = useMemo(
+    () => (map ? focusedRoots(map, side, band.id) : { focus: [], deferred: [] }),
+    [map, side, band.id]
+  );
+  const visible = useMemo(() => {
+    if (showAll || focus.deferred.length === 0) return bracket;
+    const wanted = new Set(focus.focus.map(s => s.id));
+    return bracket.filter(node => wanted.has(node.slot.id));
+  }, [bracket, focus, showAll]);
   const cover = useMemo(
     () => (map ? coverage(map, side, picks) : null),
     [map, side, picks]
@@ -187,7 +209,7 @@ export default function LearnPage() {
         {cover && <CoverageBar coverage={cover} side={side} meta={map.meta} band={band} rating={rating} />}
 
         <Box sx={{ display: "grid", gap: 1.5, mt: 3 }}>
-          {bracket.map((node) => (
+          {visible.map((node) => (
             <SlotBranch
               key={node.slot.id}
               node={node}
@@ -202,6 +224,15 @@ export default function LearnPage() {
           ))}
         </Box>
 
+        {focus.deferred.length > 0 && (
+          <DeferredRoots
+            slots={focus.deferred}
+            showAll={showAll}
+            band={band}
+            onToggle={() => setShowAll((v) => !v)}
+          />
+        )}
+
         <Typography sx={{ mt: 4, fontSize: "0.76rem", color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>
           Frequencies from {map.meta.games.toLocaleString()} games ({map.meta.source}). Coverage is
           computed from {map.meta.openings.toLocaleString()} named openings by comparing positions,
@@ -209,6 +240,63 @@ export default function LearnPage() {
         </Typography>
       </Box>
     </Shell>
+  );
+}
+
+/**
+ * The roots this band is not being asked for yet.
+ *
+ * Deferred, never hidden. A player who wants the whole map gets the whole map on
+ * one click, and until they ask, the page shows three decisions instead of five
+ * — which is the difference between a repertoire and a wall.
+ */
+function DeferredRoots({
+  slots,
+  showAll,
+  band,
+  onToggle,
+}: {
+  slots: RepertoireSlot[];
+  showAll: boolean;
+  band: Band;
+  onToggle: () => void;
+}) {
+  const after = nextBand(band);
+  const total = slots.reduce((sum, s) => sum + s.share, 0);
+  return (
+    <Box sx={{ mt: 2.5 }}>
+      <Box
+        component="button"
+        onClick={onToggle}
+        aria-expanded={showAll}
+        sx={{
+          appearance: "none",
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.10)",
+          borderRadius: "0.9rem",
+          px: 2,
+          py: 1.5,
+          width: "100%",
+          textAlign: "left",
+          cursor: "pointer",
+          color: "inherit",
+          transition: "background 180ms ease, border-color 180ms ease",
+          "&:hover": { background: "rgba(255,255,255,0.055)", borderColor: "rgba(255,255,255,0.18)" },
+          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        }}
+      >
+        <Typography sx={{ color: "rgba(255,255,255,0.82)", fontSize: "0.9rem", fontWeight: 600 }}>
+          {showAll ? "Show fewer" : `${slots.length} more, when you are ready`}
+        </Typography>
+        <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.82rem", lineHeight: 1.6, mt: 0.4 }}>
+          {showAll
+            ? "These are real, they are just not what will win you points this month."
+            : `${slots.map((s) => facing(s)).join(", ")} — ${pctOf(total)} of your games${
+                after ? `, and worth an answer around ${after.floor}` : ""
+              }.`}
+        </Typography>
+      </Box>
+    </Box>
   );
 }
 

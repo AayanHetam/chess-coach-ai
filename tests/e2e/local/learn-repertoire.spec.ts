@@ -118,6 +118,9 @@ test.describe("repertoire bracket", () => {
   test("says what a position becomes, even where no book names it", async ({ page }) => {
     await throughQuiz(page);
     await page.getByRole("tab", { name: /As Black/i }).click();
+    // 1.c4 is 6% of Black's games, so it is one of the roots held back until
+    // the first three are answered. Open the deferred group to reach it.
+    await page.getByRole("button", { name: /more, when you are ready/i }).click();
     await page.getByText(/Against the English/).first().click();
 
     // 1.c4 has no prose anywhere. What it HAS is a measurable answer: the
@@ -155,4 +158,51 @@ test.describe("repertoire bracket", () => {
     // And it says what opening work is worth at this level, which is: not much.
     await expect(page.getByText(/not spent on tactics/i)).toBeVisible();
   });
+});
+
+test.describe("level-aware breadth", () => {
+test('asks a beginner for three decisions, and defers the rest without hiding them', async ({ page }) => {
+  // The tightest consensus in the coaching literature is about breadth, not
+  // depth: one White opening, one answer to 1.e4, one answer to 1.d4. Showing a
+  // 700 all five roots is a wall, and hiding two of them is a lie — so they are
+  // deferred, named, and one click away.
+  await throughQuiz(page);
+  await page.getByRole('tab', { name: /As Black/i }).click();
+
+  const deferred = page.getByRole('button', { name: /more, when you are ready/i });
+  await expect(deferred).toBeVisible();
+  // It says what is being held back and what it is worth, not just that
+  // something is.
+  await expect(deferred).toContainText(/of your games/);
+
+  const before = await page.getByText(/of your games · nothing chosen/).count();
+  await deferred.click();
+  await expect(page.getByRole('button', { name: /Show fewer/i })).toBeVisible();
+  expect(await page.getByText(/of your games · nothing chosen/).count()).toBeGreaterThan(before);
+});
+
+test('shows the position an opening becomes, not just its name', async ({ page }) => {
+  // A name is not a picture. The player this page is for does not know what a
+  // Grünfeld is, and the board tells them.
+  await throughQuiz(page);
+  await page.getByRole('tab', { name: /As Black/i }).click();
+  await page.getByText(/Against 1\.e4/).first().click();
+
+  const cards = page.locator('button', { hasText: 'Caro-Kann' }).first();
+  await expect(cards).toBeVisible();
+  // Every suggestion carries a board, and the boards are not all the same one.
+  const boards = page.locator('svg[viewBox="0 0 100 100"]');
+  expect(await boards.count()).toBeGreaterThan(3);
+});
+
+test('says what a choice finishes, in a sentence', async ({ page }) => {
+  await throughQuiz(page);
+  await page.getByRole('tab', { name: /As Black/i }).click();
+  await page.getByText(/Against 1\.e4/).first().click();
+
+  // One that answers the whole slot, and one that does not — the distinction a
+  // bare percentage does not make.
+  await expect(page.getByText(/answers everything after 1\.e4/).first()).toBeVisible();
+  await expect(page.getByText(/You still need something for the other/).first()).toBeVisible();
+});
 });

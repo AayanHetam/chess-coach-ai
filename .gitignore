@@ -91,3 +91,13 @@ scripts/synthetic-tester/runs/
 
 # Supabase CLI scratch state (contains internal project/org ids)
 supabase-tracking/supabase/.temp/
+
+# Engine evaluations pulled from the Lichess CC0 dump. A build INPUT, not an
+# artifact: build-courses.mjs inlines the evals each course needs, so nothing at
+# runtime reads this. 11 MB, rebuilt in ~30 minutes by streaming the dump:
+#   curl -sL https://database.lichess.org/lichess_db_eval.jsonl.zst | zstd -dc \
+#     | node scripts/openings/build-eval-index.mjs --keys keys.txt --out src/data/eval-index.json
+src/data/eval-index.json
+
+# Playwright run artifacts
+test-results/

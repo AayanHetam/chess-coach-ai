@@ -11,6 +11,7 @@ import {
   buildBracket,
   coverage,
   flatten,
+  focusedRoots,
   numberedLine,
   roots,
   share,
@@ -37,11 +38,11 @@ const MAP: RepertoireMap = {
         {
           id: 'grunfeld', name: 'Grünfeld', play: 'Nf6', coverage: 'family', family: 'Grünfeld',
           load: 'heavy', level: 'club', why: 'x', character: 'counterattack', blurb: '', absorbs: 0.7, namedLines: 55,
-          gaps: [{ slot: 'black:d4 Nf6 Bf4', share: 0.2 }, { slot: 'black:d4 Nf6 Bg5', share: 0.1 }],
+          gaps: [{ slot: 'black:d4 Nf6 Bf4', share: 0.2 }, { slot: 'black:d4 Nf6 Bg5', share: 0.1 }], diagram: [],
         },
         {
           id: 'london-proof', name: 'System', play: 'd5', coverage: 'system', family: null,
-          load: 'light', level: 'new', why: 'x', character: 'solid', blurb: '', absorbs: 1, namedLines: null, gaps: [],
+          load: 'light', level: 'new', why: 'x', character: 'solid', blurb: '', absorbs: 1, namedLines: null, gaps: [], diagram: [],
         },
       ],
     }),
@@ -171,5 +172,49 @@ describe('wording', () => {
     expect(share(0.004)).toBe('<1%');
     expect(share(0)).toBe('0%');
     expect(share(0.31)).toBe('31%');
+  });
+});
+
+describe('focusedRoots', () => {
+  // The tightest consensus in the coaching literature is about breadth: one
+  // White opening, one answer to 1.e4, one answer to 1.d4. White has one root,
+  // so a beginner meets exactly three decisions across both colours.
+  const fourRoots = {
+    meta: { otherFirstMoves: 0 },
+    slots: [
+      slot({ id: 'black:e4', side: 'black', share: 0.47 }),
+      slot({ id: 'black:d4', side: 'black', share: 0.32 }),
+      slot({ id: 'black:Nf3', side: 'black', share: 0.1 }),
+      slot({ id: 'black:c4', side: 'black', share: 0.06 }),
+    ],
+    transpositions: [],
+  } as unknown as RepertoireMap;
+
+  it('asks a beginner for two answers as Black, not four', () => {
+    const { focus, deferred } = focusedRoots(fourRoots, 'black', 'beginner');
+    expect(focus.map(s => s.id)).toEqual(['black:e4', 'black:d4']);
+    expect(deferred.map(s => s.id)).toEqual(['black:Nf3', 'black:c4']);
+  });
+
+  it('defers the RAREST slots, never whatever came last in the file', () => {
+    const { deferred } = focusedRoots(fourRoots, 'black', 'new');
+    expect(deferred.every(d => d.share <= 0.1)).toBe(true);
+  });
+
+  it('gives a club player the whole map', () => {
+    const { focus, deferred } = focusedRoots(fourRoots, 'black', 'club');
+    expect(focus).toHaveLength(4);
+    expect(deferred).toHaveLength(0);
+  });
+
+  it('never hides a slot — everything is in one list or the other', () => {
+    for (const id of ['new', 'beginner', 'improving', 'club', 'strong']) {
+      const { focus, deferred } = focusedRoots(fourRoots, 'black', id);
+      expect(focus.length + deferred.length).toBe(4);
+    }
+  });
+
+  it('treats an unknown band as the full map rather than showing nothing', () => {
+    expect(focusedRoots(fourRoots, 'black', 'nonsense').focus).toHaveLength(4);
   });
 });

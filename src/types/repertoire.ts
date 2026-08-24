@@ -50,6 +50,17 @@ export interface RepertoireChoice {
    */
   absorbs: number;
   gaps: Array<{ slot: string; share: number }>;
+  /**
+   * A line far enough into the opening to RECOGNISE it from, for the diagram.
+   *
+   * Not the choice's own move: drawn one move in, every option on the 1.e4 slot
+   * showed a board indistinguishable from the start position, which is worse
+   * than no diagram because it looks like information. It also cannot be the
+   * corpus principal, which does not know which opening was picked — walking
+   * from 1.e4 c5 gives the Najdorf every time, so the Dragon and the Kan drew
+   * the same board too.
+   */
+  diagram: string[];
   /** Named ECO lines backing the coverage claim, or null when not family-proved. */
   namedLines: number | null;
 }

@@ -12,6 +12,7 @@ import {
   startRun,
   steps,
   submitMove,
+  submitProbe,
   type TrainerLine,
   type TrainerState,
 } from '@/lib/learn/trainerSession';
@@ -327,5 +328,84 @@ describe('review mode', () => {
 
   it('keeps a repair on all three rows', () => {
     expect(steps(createSession(LINE), LINE)).toHaveLength(3);
+  });
+});
+
+describe("study mode", () => {
+  // A course looks like the curriculum the spec warns against. What keeps it a
+  // confrontation is what PROBE does with a RIGHT answer: says so and stops.
+  const line: TrainerLine = {
+    moves: ["e4", "e5", "Nf3", "Nc6", "Bb5"],
+    color: "white",
+    target: { san: "Bb5", source: "engine" },
+  };
+
+  it("opens by asking, not by telling", () => {
+    const s = createSession(line, "study");
+    expect(s.act).toBe("probe");
+    expect(s.mode).toBe("study");
+    // One ply before the move being taught, with the move not yet made.
+    expect(s.ply).toBe(line.moves.length - 1);
+    expect(s.knewIt).toBeNull();
+  });
+
+  it("a right answer ends the session with nothing to teach and nothing to review", () => {
+    // The whole point. A curriculum tells you what you do not know; this asks
+    // first and teaches only what you got wrong, so the session gets SHORTER as
+    // you learn.
+    const s = submitProbe(createSession(line, "study"), line, "Bb5");
+    expect(s.act).toBe("done");
+    expect(s.knewIt).toBe(true);
+    expect(s.misses).toBe(0);
+  });
+
+  it("counts a transposition as knowing it", () => {
+    // Compare positions, not move strings. The one Chessable behaviour worth
+    // copying exactly.
+    const s = submitProbe(createSession(line, "study"), line, "Bf1b5");
+    expect(s.act).toBe("done");
+    expect(s.knewIt).toBe(true);
+  });
+
+  it("a wrong answer becomes the repair case, and is counted", () => {
+    const s = submitProbe(createSession(line, "study"), line, "Bc4");
+    expect(s.act).toBe("learn");
+    expect(s.knewIt).toBe(false);
+    expect(s.misses).toBe(1);
+    expect(s.lastWrong).toBe("Bc4");
+  });
+
+  it("an illegal drag is not an answer and costs nothing", () => {
+    const s = submitProbe(createSession(line, "study"), line, "Qh8");
+    expect(s.act).toBe("probe");
+    expect(s.knewIt).toBeNull();
+    expect(s.misses).toBe(0);
+  });
+
+  it("shows one step until they answer, then the truth", () => {
+    // Three steps up front promises work we may never ask for; one step that
+    // becomes three reads as a punishment for a wrong answer. So: one, then
+    // whatever is actually happening.
+    const start = createSession(line, "study");
+    expect(steps(start, line).map((s) => s.act)).toEqual(["probe"]);
+
+    const knew = submitProbe(start, line, "Bb5");
+    expect(steps(knew, line).map((s) => s.act)).toEqual(["probe"]);
+
+    const missed = submitProbe(start, line, "Bc4");
+    expect(steps(missed, line).map((s) => s.act)).toEqual(["probe", "learn", "drill"]);
+  });
+
+  it("does not answer a probe that is not the current act", () => {
+    const repair = createSession(line, "repair");
+    expect(submitProbe(repair, line, "Bb5")).toEqual(repair);
+  });
+
+  it("leaves repair and review exactly as they were", () => {
+    // Study is additive. The measured-hole path is the one thing on this page
+    // that must not move.
+    expect(createSession(line, "repair").act).toBe("confront");
+    expect(createSession(line, "review").act).toBe("drill");
+    expect(createSession(line, "repair").knewIt).toBeNull();
   });
 });

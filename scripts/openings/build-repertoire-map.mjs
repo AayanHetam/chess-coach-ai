@@ -190,6 +190,31 @@ function main() {
     return slot;
   }
 
+  /**
+   * The most-played continuation from a line, far enough to be recognisable.
+   *
+   * Eight plies past the choice is where the pawn skeleton of an opening is
+   * actually set — a Dragon does not look like a Najdorf until ...g6 is on the
+   * board, and neither looks like anything at move two.
+   *
+   * It starts from the choice's own ROOT rather than from its slot move, because
+   * the corpus principal does not know which opening was chosen: walking from
+   * 1.e4 c5 gives the Najdorf every time, so the Dragon, the Kan and the
+   * Accelerated Dragon all drew the same board. The root is where that opening
+   * actually is, and the walk only carries it far enough to be seen.
+   */
+  function diagramLine(line, plies = 8) {
+    const out = [...line];
+    for (let i = 0; i < plies; i++) {
+      const fen = fenAfter(out);
+      if (!fen) break;
+      const replies = repliesAt(tree, fen);
+      if (replies.length === 0) break;
+      out.push(replies[0].san);
+    }
+    return out;
+  }
+
   /** The replies actually played here, named, as fallback choices. */
   function movesFor(slot) {
     return repliesAt(tree, slot.fen)
@@ -297,6 +322,19 @@ function main() {
         absorbs: Number((1 - open).toFixed(4)),
         gaps: gapSlots,
         namedLines: fam?.lines ?? null,
+        /**
+         * A position deep enough to RECOGNISE the opening from.
+         *
+         * The diagram on the choice card exists so a player who does not know
+         * the words can see what they are picking. Drawn after only the choice's
+         * own move, every card on the 1.e4 slot showed a board one move from the
+         * start and they were indistinguishable — which is worse than no
+         * diagram, because it looks like information.
+         *
+         * Most-played continuation, not best: this is what the opening turns
+         * into in practice, and it is the same corpus walk `brief()` uses.
+         */
+        diagram: diagramLine(choice.root ?? [...slot.line, choice.play]),
         own: fam ? [...fam.own] : null,
       });
     }

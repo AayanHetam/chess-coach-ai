@@ -65,6 +65,53 @@ export function roots(map: RepertoireMap, side: 'white' | 'black'): RepertoireSl
 }
 
 /**
+ * How many roots a band is asked to fill before the rest are offered.
+ *
+ * The tightest consensus in the whole coaching literature is about BREADTH, not
+ * depth: one White opening, one answer to 1.e4, one answer to 1.d4, and that is
+ * a beginner's repertoire. Chess.com's own beginner study plan says the same
+ * thing, and so does every coach surveyed. Depth-by-rating, by contrast, has no
+ * agreed numbers anywhere — which is why `BANDS` says out loud that it is a
+ * judgement.
+ *
+ * White has one root, so a beginner meets exactly three decisions across both
+ * colours. Nothing is hidden: the rest are returned as `deferred` and one click
+ * away, because a player who wants the whole map should have the whole map.
+ */
+const ESSENTIAL_ROOTS: Record<string, number> = {
+  new: 2,
+  beginner: 2,
+  improving: 3,
+  club: 99,
+  strong: 99,
+};
+
+export interface FocusedRoots {
+  /** What this band is asked to fill now. */
+  focus: RepertoireSlot[];
+  /** Real slots, deliberately not asked for yet. Never hidden, only deferred. */
+  deferred: RepertoireSlot[];
+}
+
+/**
+ * Roots split into what to ask for now and what to leave for later.
+ *
+ * Sorted by share first, so "later" always means the rarest thing rather than
+ * whatever happened to be last in the file. A slot worth 6% of a beginner's
+ * games is a real slot; it is just not the one that will win them points this
+ * month.
+ */
+export function focusedRoots(
+  map: RepertoireMap,
+  side: 'white' | 'black',
+  bandId: string
+): FocusedRoots {
+  const all = roots(map, side);
+  const limit = ESSENTIAL_ROOTS[bandId] ?? 99;
+  return { focus: all.slice(0, limit), deferred: all.slice(limit) };
+}
+
+/**
  * The bracket as it stands.
  *
  * Children only appear once their parent is filled, which is the whole shape of

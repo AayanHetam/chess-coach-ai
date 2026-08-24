@@ -27,6 +27,8 @@ import { numberedLine, share as pctOf } from "@/lib/repertoire/bracket";
 import { classify, skeletonOf } from "@/lib/repertoire/structure";
 import { rankChoices, type QuizAnswers } from "@/lib/repertoire/store";
 import { levelFit, withinCeiling, type Band } from "@/lib/repertoire/levels";
+import { coverageSentence } from "@/lib/repertoire/sentences";
+import OpeningDiagram from "@/components/learn/OpeningDiagram";
 
 const EMBER = "#FB923C";
 const GOOD = "#86EFAC";
@@ -112,6 +114,7 @@ export default function SlotChooser({ slot, quiz, band, onPick, onClose, transpo
             <ChoiceCard
               key={choice.id}
               choice={choice}
+              slot={slot}
               index={i}
               band={band}
               onPick={() => onPick({ slotId: slot.id, choiceId: choice.id, label: choice.name })}
@@ -210,11 +213,13 @@ function Brief({ slot }: { slot: RepertoireSlot }) {
 
 function ChoiceCard({
   choice,
+  slot,
   index,
   band,
   onPick,
 }: {
   choice: RepertoireChoice;
+  slot: RepertoireSlot;
   index: number;
   band: Band;
   onPick: () => void;
@@ -239,16 +244,39 @@ function ChoiceCard({
         "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, flexWrap: "wrap", mb: 0.5 }}>
-        <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "0.95rem" }}>
-          {choice.name}
-        </Typography>
-        <Typography sx={{ fontFamily: MONO, fontSize: "0.78rem", color: EMBER }}>
-          {choice.play}
-        </Typography>
+      <Box sx={{ display: "flex", gap: 1.75, alignItems: "flex-start", mb: 1 }}>
+        {/* A name is not a picture. "Grünfeld Defence" means nothing to the
+            player this page is for; the position it produces does. Same squares
+            and glyphs as the onboarding quiz, so the two read as one product. */}
+        <OpeningDiagram moves={choice.diagram} side={slot.side} px={84} />
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, flexWrap: "wrap", mb: 0.5 }}>
+            <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "0.95rem" }}>
+              {choice.name}
+            </Typography>
+            <Typography sx={{ fontFamily: MONO, fontSize: "0.78rem", color: EMBER }}>
+              {choice.play}
+            </Typography>
+          </Box>
+          <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.84rem", lineHeight: 1.55 }}>
+            {choice.blurb}
+          </Typography>
+        </Box>
       </Box>
-      <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.84rem", lineHeight: 1.55, mb: 1 }}>
-        {choice.blurb}
+      {/* What it actually finishes, said the way it would be said out loud. The
+          percentage alone reads as two similar options when one of them ends the
+          job and the other leaves homework. */}
+      <Typography
+        sx={{
+          color: "rgba(255,255,255,0.78)",
+          fontSize: "0.85rem",
+          lineHeight: 1.55,
+          mb: 1,
+          borderLeft: "2px solid rgba(249,115,22,0.45)",
+          pl: 1.25,
+        }}
+      >
+        {coverageSentence(choice, slot)}
       </Typography>
       {/* Why it suits the level, or why it does not. The honest version of a
           recommendation is the reason attached to it. */}
@@ -271,12 +299,7 @@ function ChoiceCard({
         ) : choice.coverage === "move" ? (
           <Tag tone="warn">{branches} more decisions</Tag>
         ) : (
-          <>
-            <Tag tone={choice.absorbs > 0.85 ? "good" : undefined}>
-              answers {pctOf(choice.absorbs)} on its own
-            </Tag>
-            {branches > 0 && <Tag tone="warn">{branches} to fill in</Tag>}
-          </>
+          branches > 0 && <Tag tone="warn">{branches} to fill in</Tag>
         )}
       </Box>
     </Box>

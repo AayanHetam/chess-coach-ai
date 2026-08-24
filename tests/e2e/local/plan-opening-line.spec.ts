@@ -140,8 +140,9 @@ test.describe("the weakest-line card", () => {
     const run = page.getByRole("button", { name: /FIND MY WEAKEST LINE/i });
     await expect(run).toBeVisible();
 
-    // Until it has been measured, the daily task is still the generic one.
-    await expect(page.getByText("Learn one opening line")).toBeVisible();
+    // Until it has been measured, the daily task is still the generic one —
+    // which now points at our own repertoire rather than off-site.
+    await expect(page.getByText("Build your repertoire")).toBeVisible();
 
     await run.scrollIntoViewIfNeeded();
     await run.click();
@@ -156,9 +157,9 @@ test.describe("the weakest-line card", () => {
     // the problem rather than invent a replacement out of noise.
     await expect(page.getByText(/sound move/i).first()).toBeVisible();
 
-    // And the daily task now points at it instead of off-site.
+    // And the daily task now names THEIR line instead of the generic one.
     await expect(page.getByText(/Your weakest line: 1\.e4 c5 2\.c3/i).first()).toBeVisible();
-    await expect(page.getByText("Learn one opening line")).toHaveCount(0);
+    await expect(page.getByText("Build your repertoire")).toHaveCount(0);
 
     expect(crashes, `page errors: ${crashes.join("\n")}`).toHaveLength(0);
   });
@@ -232,7 +233,7 @@ test.describe("the weakest-line card", () => {
     });
     await expect(page.getByText(/not enough games/i)).toHaveCount(0);
     // The generic task stays, because nothing was measured to replace it with.
-    await expect(page.getByText("Learn one opening line")).toBeVisible();
+    await expect(page.getByText("Build your repertoire")).toBeVisible();
 
     expect(crashes, `page errors: ${crashes.join("\n")}`).toHaveLength(0);
   });

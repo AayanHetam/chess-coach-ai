@@ -74,7 +74,14 @@ export interface CourseChapterJs {
   nodes: number;
 }
 export interface BuiltCourse {
-  meta: Record<string, unknown> & { nodes: number; expanded: number; evaluated: number };
+  meta: Record<string, unknown> & {
+    nodes: number;
+    expanded: number;
+    evaluated: number;
+    root: string[];
+    side: Side;
+    maxPly: number;
+  };
   chapters: CourseChapterJs[];
   nodes: Record<string, CourseNodeJs>;
   problems: string[];

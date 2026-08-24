@@ -177,9 +177,10 @@ export function courseVerdict(view: CourseView): string {
   if (view.omitted.chapters === 0) {
     return `${view.chapters.length} chapters, ${moves} moves deep. That is all of it at your level.`;
   }
+  const n = view.omitted.chapters;
   return (
     `${view.chapters.length} chapters, ${moves} moves deep, get you to ${pct}% of what you ` +
-    `will actually meet. The other ${view.omitted.chapters} cover the last ` +
+    `will actually meet. The other ${n} ${n === 1 ? 'covers' : 'cover'} the last ` +
     `${Math.round(view.omitted.share * 100)}%.`
   );
 }

@@ -277,6 +277,20 @@ describe('buildCourse', () => {
     expect(countLines(course)).toBe(2);
   });
 
+  it('labels each chapter with the move that MAKES it a chapter', () => {
+    // A FEN carries no history, so `new Chess(fen).history()` is always empty —
+    // every chapter was labelled with the course root, so the reader saw three
+    // chapters all called "1.e4 c6" with three identical diagrams. The path has
+    // to be carried down the walk.
+    const lines = course.chapters.map(c => c.line.join(' '));
+    expect(lines).toContain('e4 e5 Nf3 Nc6');
+    expect(lines).toContain('e4 e5 Nf3 Nf6');
+    expect(new Set(lines).size).toBe(course.chapters.length);
+    for (const chapter of course.chapters) {
+      expect(chapter.line.length).toBeGreaterThan(course.meta.root.length);
+    }
+  });
+
   it('reports a chapter per real branch, with cumulative share', () => {
     expect(course.chapters).toHaveLength(2);
     expect(course.chapters[0].share).toBeCloseTo(0.7, 4);

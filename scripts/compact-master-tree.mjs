@@ -39,7 +39,7 @@ import fs from "fs";
 const [, , input, output, ...flags] = process.argv;
 if (!input || !output) {
   console.error(
-    "Usage: node scripts/compact-master-tree.mjs <verbose.json> <out.json> [--max-positions=N] [--keep-attribution]"
+    "Usage: node scripts/compact-master-tree.mjs <verbose.json> <out.json> [--max-positions=N] [--keep-attribution] [--source=LABEL]"
   );
   process.exit(1);
 }
@@ -48,6 +48,14 @@ const maxPositions = Number(
   flags.find((f) => f.startsWith("--max-positions="))?.split("=")[1] ?? 0
 );
 const keepAttribution = flags.includes("--keep-attribution");
+/**
+ * Corpus label, overridable here because this is the step that produces the
+ * shipped artifact and the label is what the UI puts on screen next to the
+ * numbers. The aggregator's default has drifted from the truth before:
+ * nikonoel's Elite filter moved to 2500+ vs 2300+ in December 2021, so a tree
+ * built from recent months is not "2300+" whatever the env var said.
+ */
+const sourceLabel = flags.find((f) => f.startsWith("--source="))?.slice(9);
 
 const raw = JSON.parse(fs.readFileSync(input, "utf-8"));
 const positions = raw.positions ?? raw;
@@ -97,6 +105,7 @@ for (const { fen, moves, total, arrivals } of kept) {
 const payload = {
   meta: {
     ...meta,
+    ...(sourceLabel ? { source: sourceLabel } : {}),
     positions: kept.length,
     minGames,
     attribution: keepAttribution,

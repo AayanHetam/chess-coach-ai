@@ -36,6 +36,12 @@ const nextConfig = {
     "/api/opening-theory": ["./src/data/wikibooks-theory.json"],
     "/api/repertoire": ["./src/data/repertoire-map.json"],
     "/api/openings/search": ["./src/data/openings.json"],
+    // One file is read per request, but the tracer needs the whole directory
+    // named because the filename is only known at runtime from the id.
+    // Named /api/opening-courses, not /api/courses: that path is already the
+    // tactics course library on /courses, which is a different product.
+    "/api/opening-courses": ["./src/data/courses/index.json"],
+    "/api/opening-courses/[id]": ["./src/data/courses/**"],
   },
   /**
    * Baseline hardening on every route, verified on the wire rather than

@@ -67,6 +67,38 @@ function isRecord(value: unknown): value is ProbeRecord {
 }
 
 /**
+ * Records that survive validation, keyed correctly.
+ *
+ * Exported because the SERVER has to run the same check on a payload a browser
+ * sent it. A store that validates on read and not on write is a store that
+ * trusts whatever the last client happened to post.
+ */
+export function sanitiseRecords(value: unknown, limit = MAX_RECORDS): Records {
+  if (!value || typeof value !== 'object') return {};
+  const clean: Records = {};
+  let kept = 0;
+  for (const [key, record] of Object.entries(value as Record<string, unknown>)) {
+    if (kept >= limit) break;
+    // Drop individual bad records rather than the whole chapter: one corrupt
+    // entry should cost one decision, not a month of work.
+    if (isRecord(record) && record.key === key) {
+      clean[key] = record;
+      kept++;
+    }
+  }
+  return clean;
+}
+
+/**
+ * Records per chapter, bounded.
+ *
+ * The largest chapter in the shipped corpus is 286 decisions at the strong
+ * band, and `probesOf` caps what is asked at 60. 400 is well clear of both and
+ * bounds a synced document a client could otherwise grow without limit.
+ */
+export const MAX_RECORDS = 400;
+
+/**
  * What is known about this chapter. An empty object is the honest answer for
  * anything unreadable — a chapter nobody has studied and a chapter whose store
  * is corrupt are the same thing to ask about.
@@ -86,15 +118,8 @@ export function loadChapter(account: string, courseId: string, chapter: number):
   } catch {
     return {};
   }
-  if (!parsed || parsed.v !== 1 || !parsed.records || typeof parsed.records !== 'object') return {};
-
-  // Drop individual bad records rather than the whole chapter: one corrupt
-  // entry should cost one decision, not a month of work.
-  const clean: Records = {};
-  for (const [key, record] of Object.entries(parsed.records)) {
-    if (isRecord(record) && record.key === key) clean[key] = record;
-  }
-  return clean;
+  if (!parsed || parsed.v !== 1) return {};
+  return sanitiseRecords(parsed.records);
 }
 
 /** Store this chapter. False means it was not saved, and the screen must say so. */

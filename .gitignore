@@ -98,3 +98,6 @@ supabase-tracking/supabase/.temp/
 #   curl -sL https://database.lichess.org/lichess_db_eval.jsonl.zst | zstd -dc \
 #     | node scripts/openings/build-eval-index.mjs --keys keys.txt --out src/data/eval-index.json
 src/data/eval-index.json
+
+# Playwright run artifacts
+test-results/

@@ -234,10 +234,17 @@ test.describe("goal set", () => {
     const theory = page.getByText("Build your repertoire");
     await expect(theory).toBeVisible();
     // It used to send people to Chessly with copy promising we were building
-    // our own. We have. The task stays on the site now, and nothing anywhere
-    // links out to a competitor.
+    // our own. We have. Nothing anywhere links out to a competitor, and THE
+    // TASK ITSELF stays on the site.
+    //
+    // Scoped to the task's own anchor, not `a[href="/learn"]`: that also matches
+    // the nav pill, which is collapsed on mobile, so the generic locator passed
+    // on desktop and failed on a 375px viewport for a reason that had nothing
+    // to do with the task.
     await expect(page.locator('a[href*="chessly"]')).toHaveCount(0);
-    await expect(page.locator('a[href="/learn"]').first()).toBeVisible();
+    const taskLink = page.locator('a', { has: page.getByText("Build your repertoire") }).first();
+    await expect(taskLink).toHaveAttribute("href", "/learn");
+    await expect(taskLink).not.toHaveAttribute("target", "_blank");
   });
 });
 

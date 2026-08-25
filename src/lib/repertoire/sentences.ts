@@ -97,5 +97,5 @@ function gapName(gap: { slot: string; share: number }): string {
  * care and the name is only how to look it up.
  */
 export function unfilledSentence(slot: Pick<RepertoireSlot, 'share' | 'line' | 'name'>): string {
-  return `${share(slot.share)} of your games. Nothing chosen for ${facing(slot)} yet.`;
+  return `${share(slot.share)} of games. Nothing chosen for ${facing(slot)} yet.`;
 }

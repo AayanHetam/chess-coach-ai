@@ -57,6 +57,7 @@ import {
   type QuizAnswers,
 } from "@/lib/repertoire/store";
 import { facing } from "@/lib/repertoire/sentences";
+import { CHARACTER_STYLE, rarity } from "@/lib/repertoire/character";
 import type {
   Character,
   RepertoireMap,
@@ -85,6 +86,10 @@ export default function LearnPage() {
   const [hydrated, setHydrated] = useState(false);
   const [side, setSide] = useState<"white" | "black">("white");
   const [openSlot, setOpenSlot] = useState<string | null>(null);
+  // The answers being re-taken, held OUTSIDE the bracket so the quiz can show
+  // them as already-chosen. Clearing state.quiz is what opens the quiz screen;
+  // this is what stops a re-take from feeling like starting over.
+  const [editing, setEditing] = useState<QuizAnswers | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -188,7 +193,13 @@ export default function LearnPage() {
   if (!state.quiz) {
     return (
       <Shell>
-        <Quiz onDone={(quiz) => persist({ ...state, quiz })} />
+        <Quiz
+          current={editing}
+          onDone={(quiz) => {
+            setEditing(null);
+            persist({ ...state, quiz });
+          }}
+        />
       </Shell>
     );
   }
@@ -204,6 +215,15 @@ export default function LearnPage() {
           actually meet it and pitched at the level you are actually at. Fill one and the branches it
           leaves open appear underneath.
         </Typography>
+
+        <QuizSummary
+          quiz={state.quiz}
+          onEdit={() => {
+            setEditing(state.quiz);
+            setOpenSlot(null);
+            persist({ ...state, quiz: null });
+          }}
+        />
 
         <SideToggle side={side} onChange={(s) => { setSide(s); setOpenSlot(null); }} />
 
@@ -235,9 +255,10 @@ export default function LearnPage() {
         )}
 
         <Typography sx={{ mt: 4, fontSize: "0.76rem", color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>
-          Frequencies from {map.meta.games.toLocaleString()} games ({map.meta.source}). Coverage is
-          computed from {map.meta.openings.toLocaleString()} named openings by comparing positions,
-          so a line that transposes into yours counts as yours.
+          Frequencies from {map.meta.games.toLocaleString()} games ({map.meta.source}) — how often
+          players in that corpus meet each line, not yet how often you do. Coverage is computed from{" "}
+          {map.meta.openings.toLocaleString()} named openings by comparing positions, so a line that
+          transposes into yours counts as yours.
         </Typography>
       </Box>
     </Shell>
@@ -315,7 +336,7 @@ function DeferredRoots({
         <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.82rem", lineHeight: 1.6, mt: 0.4 }}>
           {showAll
             ? "These are real, they are just not what will win you points this month."
-            : `${slots.map((s) => facing(s)).join(", ")} — ${pctOf(total)} of your games${
+            : `${slots.map((s) => facing(s)).join(", ")} — ${pctOf(total)} of games${
                 after ? `, and worth an answer around ${after.floor}` : ""
               }.`}
         </Typography>
@@ -346,6 +367,7 @@ function SlotBranch({
 }) {
   const open = openSlot === node.slot.id;
   const filled = Boolean(node.pick);
+  const rare = rarity(node.reach);
   return (
     <Box sx={{ pl: node.depth > 0 ? { xs: 1.5, md: 3 } : 0 }}>
       <Box
@@ -381,9 +403,30 @@ function SlotBranch({
           <Typography sx={{ color: "#fff", fontWeight: 600, fontSize: { xs: "0.92rem", md: "0.98rem" } }}>
             {slotTitle(node.slot)}
           </Typography>
-          <Typography sx={{ fontSize: "0.78rem", color: filled ? GOOD : "rgba(255,255,255,0.45)", mt: 0.25 }}>
-            {node.pick ? node.pick.label : `${pctOf(node.reach)} of your games · nothing chosen`}
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", mt: 0.25 }}>
+            <Typography sx={{ fontSize: "0.78rem", color: filled ? GOOD : "rgba(255,255,255,0.45)" }}>
+              {/* "of games", not "of your games". The share is measured on the
+                  master corpus, not on this player's archive — see the note at
+                  the foot of the page. Saying "yours" of somebody else's games
+                  is the one claim on this screen nothing could back. */}
+              {node.pick ? node.pick.label : `${pctOf(node.reach)} of games · nothing chosen`}
+            </Typography>
+            {/* A percentage flattens everything: 4% and 30% are both "a
+                percentage" and scan as the same size of thing. A count of games
+                does not, so rare slots say how rare in games. */}
+            {!filled && rare && (
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: "0.68rem", color: "rgba(255,255,255,0.4)",
+                  border: "1px solid rgba(255,255,255,0.14)", borderRadius: "999px",
+                  px: 0.75, py: 0.1, whiteSpace: "nowrap",
+                }}
+              >
+                {rare}
+              </Typography>
+            )}
+          </Box>
         </Box>
         {node.slot.line.length > 0 && (
           <Typography sx={{ display: { xs: "none", sm: "block" }, fontFamily: MONO, fontSize: "0.75rem", color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>
@@ -519,7 +562,7 @@ function CoverageBar({
           <>
             The biggest thing you have no answer for is{" "}
             <Box component="span" sx={{ color: "#fff" }}>{slotTitle(biggest.slot).replace(/^Against /, "")}</Box>
-            , at {pctOf(biggest.reach)} of your games.
+            , at {pctOf(biggest.reach)} of games.
           </>
         ) : (
           <>Every branch we can measure has an answer. Nothing left to decide at this level.</>
@@ -558,6 +601,78 @@ function SideToggle({ side, onChange }: { side: "white" | "black"; onChange: (s:
   );
 }
 
+/**
+ * What we think they asked for, and a way to say otherwise.
+ *
+ * The quiz is answered once and then silently drives the order of every list on
+ * the page for as long as the account exists. An invisible input with that much
+ * reach is not a feature, it is a bug waiting to be reported as "the
+ * suggestions are wrong" — so the answers are on screen, in the colour they
+ * carry everywhere else, one tap from being changed.
+ *
+ * Editing preserves every pick. Only the ordering changes.
+ */
+function QuizSummary({ quiz, onEdit }: { quiz: QuizAnswers; onEdit: () => void }) {
+  const style = CHARACTER_STYLE[quiz.character];
+  return (
+    // ONE control, not a sentence with a link on the end. At 375px the
+    // separate "Change" button wrapped onto its own line and sat there
+    // orphaned under a 44px gap, which read as a layout bug — and a 44px
+    // target is not negotiable, so the fix is to make the whole row the
+    // target rather than to shrink it.
+    <Box
+      component="button"
+      onClick={onEdit}
+      aria-label={`Ordered for ${style.label} openings and ${LOAD_SUMMARY[quiz.load]}. Change these answers.`}
+      sx={{
+        display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap",
+        width: "100%", textAlign: "left", mb: 2.5,
+        minHeight: 44, px: 1.25, py: 0.75, ml: -1.25,
+        appearance: "none", background: "none", cursor: "pointer",
+        border: "1px solid transparent", borderRadius: "999px",
+        transition: "background 180ms ease, border-color 180ms ease",
+        "&:hover": { background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)" },
+        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+      }}
+    >
+      <Typography component="span" sx={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)" }}>
+        Ordered for
+      </Typography>
+      <Box
+        component="span"
+        sx={{
+          display: "inline-flex", alignItems: "center", gap: 0.6,
+          px: 1, py: 0.3, borderRadius: "999px",
+          border: `1px solid ${style.colour}33`, background: `${style.colour}0F`,
+        }}
+      >
+        <Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", background: style.colour }} />
+        <Typography component="span" sx={{ fontSize: "0.72rem", color: style.colour }}>
+          {style.label}
+        </Typography>
+      </Box>
+      <Typography component="span" sx={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)" }}>
+        · {LOAD_SUMMARY[quiz.load]}
+      </Typography>
+      <Typography
+        component="span"
+        sx={{
+          fontSize: "0.78rem", color: "rgba(255,255,255,0.45)",
+          textDecoration: "underline", textUnderlineOffset: 3,
+        }}
+      >
+        Change
+      </Typography>
+    </Box>
+  );
+}
+
+const LOAD_SUMMARY: Record<TheoryLoad, string> = {
+  light: "as little theory as possible",
+  medium: "a fair amount of theory",
+  heavy: "whatever it takes",
+};
+
 // ── The quiz ─────────────────────────────────────────────────────────────────
 
 const LOADS: Array<{ value: TheoryLoad; title: string; body: string }> = [
@@ -581,7 +696,17 @@ const CHARACTERS: Array<{ value: Character; title: string; body: string }> = [
  * are skippable, because a player who already knows what they play should not
  * have to answer questions to be allowed to say so.
  */
-function Quiz({ onDone }: { onDone: (quiz: QuizAnswers) => void }) {
+function Quiz({
+  onDone,
+  current,
+}: {
+  onDone: (quiz: QuizAnswers) => void;
+  /** Their existing answers when this is a re-take, null on a first visit. */
+  current: QuizAnswers | null;
+}) {
+  // Always starts at step 0, even on a re-take. Seeding `load` from `current`
+  // would jump straight to step 2 and make the first answer unreachable —
+  // "change my answers" that will only let you change one of them.
   const [load, setLoad] = useState<TheoryLoad | null>(null);
   const step = load === null ? 0 : 1;
 
@@ -605,16 +730,39 @@ function Quiz({ onDone }: { onDone: (quiz: QuizAnswers) => void }) {
       <Box sx={{ display: "grid", gap: 1 }}>
         {step === 0
           ? LOADS.map((option, i) => (
-              <QuizOption key={option.value} index={i} title={option.title} body={option.body} onClick={() => setLoad(option.value)} />
+              <QuizOption
+                key={option.value}
+                index={i}
+                title={option.title}
+                body={option.body}
+                selected={current?.load === option.value}
+                onClick={() => setLoad(option.value)}
+              />
             ))
           : CHARACTERS.map((option, i) => (
-              <QuizOption key={option.value} index={i} title={option.title} body={option.body} onClick={() => onDone({ load: load!, character: option.value })} />
+              <QuizOption
+                key={option.value}
+                index={i}
+                title={option.title}
+                body={option.body}
+                selected={current?.character === option.value}
+                /* The hue this answer wears for the rest of the product. Picking
+                   "I want to attack" here and then seeing red tags on the
+                   attacking openings is the whole point of colouring any of
+                   this — the two have to be the same red. */
+                colour={CHARACTER_STYLE[option.value].colour}
+                onClick={() => onDone({ load: load!, character: option.value })}
+              />
             ))}
       </Box>
 
       <Box
         component="button"
-        onClick={() => onDone({ load: "medium", character: "solid" })}
+        /* On a re-take this must hand back what they ALREADY had. Falling
+           through to the medium/solid default would silently rewrite a
+           deliberate "attacking, heavy" answer into its opposite, and the only
+           evidence would be a suggestion order that quietly changed. */
+        onClick={() => onDone(current ?? { load: "medium", character: "solid" })}
         sx={{
           mt: 2.5, minHeight: 44, px: 1, background: "none", border: "none", cursor: "pointer",
           color: "rgba(255,255,255,0.4)", fontSize: "0.82rem", borderRadius: "8px",
@@ -622,13 +770,30 @@ function Quiz({ onDone }: { onDone: (quiz: QuizAnswers) => void }) {
           "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
         }}
       >
-        Skip — I know what I play
+        {current ? "Keep my current answers" : "Skip — I know what I play"}
       </Box>
     </Box>
   );
 }
 
-function QuizOption({ title, body, index, onClick }: { title: string; body: string; index: number; onClick: () => void }) {
+function QuizOption({
+  title,
+  body,
+  index,
+  colour,
+  selected,
+  onClick,
+}: {
+  title: string;
+  body: string;
+  index: number;
+  /** The character hue, when this option has one. Theory-load options do not. */
+  colour?: string;
+  /** Already their answer, on a re-take. */
+  selected?: boolean;
+  onClick: () => void;
+}) {
+  const accent = colour ?? EMBER;
   return (
     <Box
       component={motion.button}
@@ -636,19 +801,48 @@ function QuizOption({ title, body, index, onClick }: { title: string; body: stri
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay: index * 0.05, ease: [0.16, 1, 0.3, 1] }}
       onClick={onClick}
+      aria-pressed={selected ? true : undefined}
       sx={{
         textAlign: "left", width: "100%", cursor: "pointer",
+        display: "flex", alignItems: "flex-start", gap: 1.25,
         p: 2, borderRadius: "1.25rem",
-        border: "1px solid rgba(255,255,255,0.1)",
-        background: "linear-gradient(180deg, rgba(20,22,28,0.8) 0%, rgba(12,14,20,0.8) 100%)",
+        border: `1px solid ${selected ? `${accent}80` : "rgba(255,255,255,0.1)"}`,
+        background: selected
+          ? `${accent}14`
+          : "linear-gradient(180deg, rgba(20,22,28,0.8) 0%, rgba(12,14,20,0.8) 100%)",
         backdropFilter: "blur(12px)",
         transition: "border-color 180ms ease, background 180ms ease",
-        "&:hover": { borderColor: "rgba(249,115,22,0.55)", background: "rgba(249,115,22,0.06)" },
-        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        "&:hover": { borderColor: `${accent}8C`, background: `${accent}14` },
+        "&:focus-visible": { outline: `2px solid ${accent}`, outlineOffset: 2 },
       }}
     >
-      <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "1rem", mb: 0.4 }}>{title}</Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.86rem", lineHeight: 1.55 }}>{body}</Typography>
+      {/* A dot rather than a tinted card. Washing the whole option in colour
+          would make four cards of four different brightnesses and turn a list
+          into a fruit salad; a 10px chip carries the same code at a fraction of
+          the ink. Only the character step has one — theory load is a quantity,
+          not a flavour, and giving it a hue would imply a fifth character. */}
+      {colour && (
+        <Box
+          aria-hidden
+          sx={{
+            width: 10, height: 10, borderRadius: "50%", flexShrink: 0, mt: 0.75,
+            background: colour, boxShadow: `0 0 10px ${colour}66`,
+          }}
+        />
+      )}
+      <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.4 }}>
+          <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "1rem" }}>{title}</Typography>
+          {/* Selection has to survive somebody who cannot separate the hues, so
+              it is a word as well as a tint. */}
+          {selected && (
+            <Typography sx={{ fontSize: "0.68rem", color: accent, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              your answer
+            </Typography>
+          )}
+        </Box>
+        <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.86rem", lineHeight: 1.55 }}>{body}</Typography>
+      </Box>
     </Box>
   );
 }

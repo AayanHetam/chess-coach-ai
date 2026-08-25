@@ -104,7 +104,7 @@ describe('coverageSentence', () => {
 describe('unfilledSentence', () => {
   it('leads with how often they will meet it', () => {
     expect(unfilledSentence(slot({ share: 0.37, name: 'Sicilian Defense' }))).toBe(
-      '37% of your games. Nothing chosen for the Sicilian Defense yet.'
+      '37% of games. Nothing chosen for the Sicilian Defense yet.'
     );
   });
 });

@@ -27,6 +27,7 @@ import { numberedLine, share as pctOf } from "@/lib/repertoire/bracket";
 import { classify, skeletonOf } from "@/lib/repertoire/structure";
 import { rankChoices, type QuizAnswers } from "@/lib/repertoire/store";
 import { levelFit, withinCeiling, type Band } from "@/lib/repertoire/levels";
+import { CHARACTER_STYLE, fitOf } from "@/lib/repertoire/character";
 import { coverageSentence } from "@/lib/repertoire/sentences";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
 
@@ -117,6 +118,7 @@ export default function SlotChooser({ slot, quiz, band, onPick, onClose, transpo
               slot={slot}
               index={i}
               band={band}
+              quiz={quiz}
               onPick={() => onPick({ slotId: slot.id, choiceId: choice.id, label: choice.name })}
             />
           ))}
@@ -216,17 +218,21 @@ function ChoiceCard({
   slot,
   index,
   band,
+  quiz,
   onPick,
 }: {
   choice: RepertoireChoice;
   slot: RepertoireSlot;
   index: number;
   band: Band;
+  quiz: QuizAnswers | null;
   onPick: () => void;
 }) {
   const branches = choice.gaps.length;
   const fit = levelFit(choice, band);
   const heavyForBand = !withinCeiling(choice, band);
+  const style = CHARACTER_STYLE[choice.character];
+  const fitted = fitOf(choice, quiz, band);
   return (
     <Box
       component={motion.button}
@@ -285,12 +291,40 @@ function ChoiceCard({
         {choice.why}
       </Typography>
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+        {/* What kind of game it gives you, in the colour it wears everywhere
+            else. This one is unconditional: it is a property of the opening,
+            not a judgement about the player, so it is on the card whether or
+            not anybody answered the quiz.
+            When it IS the character they asked for, the tag fills in and takes
+            a tick. That carries the positive signal without spending a second
+            tag on it — and it means the match is legible to somebody reading
+            the shapes rather than the hues. */}
+        <Tag colour={style.colour} filled={fitted.style === "match"}>
+          {style.label}
+        </Tag>
         {/* Theory load and level are different things, and the King's Indian is
             the case that proves it: a lot to memorise, one plan, and a fine
             choice at 900. A single difficulty number could not say that. */}
         <Tag tone={heavyForBand ? "warn" : undefined}>{LOAD_WORDS[choice.load] ?? choice.load}</Tag>
-        {fit >= 2 && <Tag tone="good">suits your level</Tag>}
-        {fit < 0 && <Tag tone="warn">costs you a year first</Tag>}
+        {/* At most two, and never more: everything lining up collapses to one
+            tag, and a two-band stretch swallows the style note because the
+            expensive objection is the one that should be read. */}
+        {fitted.recommended ? (
+          <Tag tone="good">heavily recommended</Tag>
+        ) : fitted.level === "stretch" ? (
+          <Tag tone="warn">costs you a year first</Tag>
+        ) : (
+          <>
+            {fitted.level === "suits" && <Tag tone="good">suits your level</Tag>}
+            {/* Only for a choice that agrees with them on NEITHER axis. A
+                merely-different character is the default state for three cards
+                in four, and a label on the default is wallpaper.
+                Neutral tone on purpose: not liking the shape of a game is a
+                preference, not a hazard, and colouring this like the year-long
+                warning above would rank taste alongside cost. */}
+            {fitted.style === "poor" && <Tag>doesn&apos;t fit your playstyle</Tag>}
+          </>
+        )}
         {/* A `move` choice absorbs nothing by definition — it is a move, not a
             repertoire — so an absorb figure for it would be arithmetic dressed
             as a recommendation. Say what it actually costs you instead. */}
@@ -476,18 +510,33 @@ function Heading({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Tag({ children, tone }: { children: React.ReactNode; tone?: "good" | "warn" }) {
-  const colour = tone === "good" ? GOOD : tone === "warn" ? EMBER : "rgba(255,255,255,0.5)";
+function Tag({
+  children,
+  tone,
+  colour: explicit,
+  filled,
+}: {
+  children: React.ReactNode;
+  tone?: "good" | "warn";
+  /** A character hue. Overrides `tone`, which only knows good/warn/neutral. */
+  colour?: string;
+  /** Emphasised: this is the thing they asked for. */
+  filled?: boolean;
+}) {
+  const colour = explicit ?? (tone === "good" ? GOOD : tone === "warn" ? EMBER : "rgba(255,255,255,0.5)");
   return (
     <Box
       sx={{
         display: "inline-flex", alignItems: "center", gap: 0.4,
         px: 0.9, py: 0.3, borderRadius: "999px",
-        border: `1px solid ${colour}33`, background: `${colour}0F`,
+        border: `1px solid ${colour}${filled ? "88" : "33"}`,
+        background: `${colour}${filled ? "24" : "0F"}`,
       }}
     >
-      {tone === "good" && <Check size={11} color={colour} aria-hidden />}
-      <Typography sx={{ fontSize: "0.7rem", color: colour }}>{children}</Typography>
+      {(tone === "good" || filled) && <Check size={11} color={colour} aria-hidden />}
+      <Typography sx={{ fontSize: "0.7rem", color: colour, fontWeight: filled ? 600 : 400 }}>
+        {children}
+      </Typography>
     </Box>
   );
 }

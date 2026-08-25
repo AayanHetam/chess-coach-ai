@@ -60,33 +60,55 @@ export interface ChapterPlan {
 }
 
 /**
- * Our decisions reachable from a position, within the view.
+ * Keys of our decisions reachable from a position, within the view.
  *
- * Counts POSITIONS where we choose, not paths: the graph pools transpositions,
- * so a path count would report the same decision several times and make a
- * chapter look bigger than the work in it.
+ * POSITIONS, not paths: the graph pools transpositions, so a path count would
+ * report the same decision several times and make a chapter look bigger than
+ * the work in it.
+ *
+ * ── THE CHAPTER BOUND IS NOT OPTIONAL DECORATION ────────────────────────────
+ * Edges cross chapters. Without `chapter` this walks straight out of the
+ * chapter it was asked about and counts a neighbour's work as its own, exactly
+ * as `probesOf` warns. Measured on the shipped courses at the club band, an
+ * unbounded walk disagreed with the trainer on 44% of chapters, worst case 223
+ * against 2 — a chapter split into eleven studies that the trainer would ask
+ * two questions about. It is bounded the same way `probesOf` bounds itself, so
+ * the number on the hub and the number in the session are the same number.
  */
-export function decisionsUnder(
+export function keysUnder(
   nodes: Record<string, CourseNode>,
   start: string,
-  maxPly: number
-): number {
+  maxPly: number,
+  chapter?: number
+): Set<string> {
   const seen = new Set<string>();
+  const ours = new Set<string>();
   const stack = [start];
-  let count = 0;
   while (stack.length > 0) {
     const key = stack.pop()!;
     if (seen.has(key)) continue;
     seen.add(key);
     const node = nodes[key];
     if (!node || node.p > maxPly) continue;
+    // The trunk (ch -1) belongs to every chapter; anything else does not.
+    if (chapter !== undefined && node.ch !== chapter && node.ch !== -1) continue;
     if (node.us) {
-      count += 1;
+      ours.add(key);
       if (node.next) stack.push(node.next);
     }
     for (const reply of node.them ?? []) stack.push(reply.to);
   }
-  return count;
+  return ours;
+}
+
+/** How many decisions `keysUnder` finds. */
+export function decisionsUnder(
+  nodes: Record<string, CourseNode>,
+  start: string,
+  maxPly: number,
+  chapter?: number
+): number {
+  return keysUnder(nodes, start, maxPly, chapter).size;
 }
 
 /**
@@ -120,7 +142,7 @@ export function planChapter(
   ourSide: 'white' | 'black',
   splitAt: number = ONE_SITTING
 ): ChapterPlan {
-  const decisions = decisionsUnder(nodes, chapter.at, maxPly);
+  const decisions = decisionsUnder(nodes, chapter.at, maxPly, chapter.i);
   const root = nodes[chapter.at];
   if (!root || decisions <= splitAt) return { flat: true, decisions, studies: [] };
 
@@ -131,7 +153,7 @@ export function planChapter(
   for (const reply of replies) {
     const target = nodes[reply.to];
     if (!target || target.p > maxPly) continue;
-    const count = decisionsUnder(nodes, reply.to, maxPly);
+    const count = decisionsUnder(nodes, reply.to, maxPly, chapter.i);
     // A reply with nothing behind it is a move, not a study. It stays in the
     // chapter and is reached by playing into it.
     if (count === 0) continue;

@@ -81,6 +81,49 @@ describe('decisionsUnder', () => {
     expect(decisionsUnder(G({}), 'missing', 10)).toBe(0);
   });
 
+  // ── The chapter bound ────────────────────────────────────────────────────
+  //
+  // Measured, not reasoned about: unbounded, this walked out of the chapter it
+  // was asked about and disagreed with the trainer on 44% of chapters at the
+  // club band, worst case 223 decisions against the 2 `probesOf` would ask.
+  it('does not count a neighbouring chapter as its own', () => {
+    const nodes = G({
+      a: { p: 1, us: 'e4', next: 'b' },
+      b: { p: 2, them: [['c5', 'mine', 0.5], ['e5', 'theirs', 0.5]] },
+      mine: { p: 3, us: 'Nf3' },
+      theirs: { p: 3, us: 'Nf3', next: 'deep' },
+      deep: { p: 4, them: [['Nc6', 'deeper', 1]] },
+      deeper: { p: 5, us: 'Bb5' },
+    });
+    // Everything above lives in chapter 0 by default; move the second branch
+    // into chapter 1, which is what the builder does at a real branch point.
+    nodes.theirs.ch = 1;
+    nodes.deep.ch = 1;
+    nodes.deeper.ch = 1;
+
+    expect(decisionsUnder(nodes, 'a', 99, 0)).toBe(2);
+    // The control: without the bound the same graph reports the neighbour's
+    // work too, which is the bug this argument exists to close.
+    expect(decisionsUnder(nodes, 'a', 99)).toBe(4);
+    // And a chapter asked about itself still reaches its own depth.
+    expect(decisionsUnder(nodes, 'theirs', 99, 1)).toBe(2);
+  });
+
+  it('keeps the trunk, which belongs to every chapter', () => {
+    const nodes = G({
+      trunk: { p: 1, us: 'e4', next: 'b' },
+      b: { p: 2, them: [['c5', 'c', 1]] },
+      c: { p: 3, us: 'Nf3' },
+    });
+    nodes.trunk.ch = -1;
+    nodes.b.ch = -1;
+    nodes.c.ch = 7;
+    expect(decisionsUnder(nodes, 'trunk', 99, 7)).toBe(2);
+    // Zero by definition: the same trunk asked about a chapter whose own nodes
+    // are elsewhere reaches the trunk decision and nothing else.
+    expect(decisionsUnder(nodes, 'trunk', 99, 8)).toBe(1);
+  });
+
   it('terminates on a cycle rather than hanging', () => {
     // A real risk: the graph is keyed by position and pools transpositions, so
     // a repetition is an edge back to a node already visited.

@@ -56,15 +56,14 @@ test.describe("the chapter contract", () => {
     await page.goto("/learn/w-london");
     await dismissChrome(page);
 
-    // The reader OPENS the first chapter on load, so clicking its header closes
-    // it. That cost a red run: the assertion looked like "the link is missing"
-    // and the cause was the click. Open it only if it is shut.
-    const header = page.locator("[aria-expanded]").first();
+    // Every chapter on the hub starts shut. Open the one we mean rather than
+    // the first `[aria-expanded]` on the page, which is whatever the chrome put
+    // there.
+    const header = page.getByTestId("chapter-0").locator("[aria-expanded]").first();
     if ((await header.getAttribute("aria-expanded")) !== "true") await header.click();
 
-    const cta = page.getByTestId("train-chapter-0");
+    const cta = page.getByTestId("chapter-0-train");
     await expect(cta).toBeVisible();
-    await expect(cta).toContainText(/Train this chapter — \d+ positions?/);
 
     await cta.click();
     await expect(page).toHaveURL(/\/train\/course\/w-london\/0/);

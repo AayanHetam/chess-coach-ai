@@ -93,7 +93,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/practice", changeFrequency: "weekly", priority: 0.7 },
     { path: "/scout", changeFrequency: "weekly", priority: 0.7 },
     { path: "/database", changeFrequency: "weekly", priority: 0.6 },
-    { path: "/openings", changeFrequency: "weekly", priority: 0.6 },
     { path: "/courses", changeFrequency: "weekly", priority: 0.5 },
     { path: "/repetit-training", changeFrequency: "weekly", priority: 0.5 },
     { path: "/internship", changeFrequency: "monthly", priority: 0.4 },

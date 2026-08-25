@@ -13,7 +13,7 @@ const PAGES = [
   "/analysis",
   "/puzzles",
   "/plan",
-  "/openings",
+  "/learn",
   "/scout",
 ];
 

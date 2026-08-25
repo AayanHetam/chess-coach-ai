@@ -80,7 +80,7 @@ test("first product-page visit walks Puzzles → Analyze → Plan, then stays di
 });
 
 test("closing the tour also marks it seen", async ({ page }) => {
-  await page.goto("/openings");
+  await page.goto("/learn");
 
   const tour = dialog(page);
   await expect(tour).toBeVisible({ timeout: 15_000 });

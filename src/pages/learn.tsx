@@ -54,9 +54,11 @@ import {
   saveBracket,
   setPick,
   type BracketState,
+  type Churn,
   type QuizAnswers,
 } from "@/lib/repertoire/store";
 import { facing } from "@/lib/repertoire/sentences";
+import { Lock, LockOpen } from "lucide-react";
 import { CHARACTER_STYLE, rarity } from "@/lib/repertoire/character";
 import { factsFor, mainMoveAt, measuredFor, type YourTree } from "@/lib/repertoire/yourTree";
 import { archiveAccountFor, useYourTree } from "@/lib/repertoire/useYourTree";
@@ -74,6 +76,8 @@ const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
 
 /** Stable identity, so the tree hook is not handed a new array every render. */
 const NO_SLOTS: RepertoireSlot[] = [];
+/** Stable identity again: an inline arrow would remount every row per render. */
+const NOOP = () => {};
 
 export default function LearnPage() {
   const { profile } = useAuth();
@@ -138,6 +142,16 @@ export default function LearnPage() {
   );
 
   const picks = side === "white" ? state.white : state.black;
+  const lockedHere = state.locked[side];
+  /**
+   * Where "Continue" goes: the first curated choice they made, White before
+   * Black. A pick made from the searchable library has no course behind it, so
+   * it cannot be the destination — those carry `san` and no `choiceId`.
+   */
+  const firstCourse = useMemo(
+    () => [...state.white, ...state.black].find((p) => p.choiceId)?.choiceId ?? null,
+    [state.white, state.black]
+  );
 
   const childrenOf = useCallback(
     (slotId: string, choiceId?: string) => {
@@ -249,7 +263,13 @@ export default function LearnPage() {
           leaves open appear underneath.
         </Typography>
 
-        <YourGamesCard state={mine} account={archive} side={side} />
+        <YourGamesCard
+          state={mine}
+          account={archive}
+          side={side}
+          churn={state.churn}
+          onAnswerChurn={(churn) => persist({ ...state, churn })}
+        />
 
         <QuizSummary
           quiz={state.quiz}
@@ -284,12 +304,27 @@ export default function LearnPage() {
               quiz={state.quiz}
               band={band}
               tree={measured}
-              openSlot={openSlot}
-              onOpen={setOpenSlot}
+              churn={state.churn}
+              openSlot={lockedHere ? null : openSlot}
+              onOpen={lockedHere ? NOOP : setOpenSlot}
               onPick={choose}
             />
           ))}
         </Box>
+
+        <LockBar
+          side={side}
+          locked={state.locked}
+          picks={picks}
+          firstCourse={firstCourse}
+          onToggle={(which) => {
+            setOpenSlot(null);
+            persist({
+              ...state,
+              locked: { ...state.locked, [which]: !state.locked[which] },
+            });
+          }}
+        />
 
         {focus.deferred.length > 0 && (
           <DeferredRoots
@@ -399,6 +434,7 @@ function SlotBranch({
   quiz,
   band,
   tree,
+  churn,
   openSlot,
   onOpen,
   onPick,
@@ -407,6 +443,7 @@ function SlotBranch({
   map: RepertoireMap;
   /** Their measured archive, or null when we have not measured this colour. */
   tree: YourTree | null;
+  churn: Churn | null;
   picks: RepertoirePick[];
   quiz: QuizAnswers | null;
   band: Band;
@@ -515,6 +552,7 @@ function SlotBranch({
               quiz={quiz}
               band={band}
               youPlay={yourMove}
+              churn={churn}
               transposes={transposesInto(map, node.slot.id, picks)}
               onPick={onPick}
               onClose={() => onOpen(null)}
@@ -538,6 +576,7 @@ function SlotBranch({
               quiz={quiz}
               band={band}
               tree={tree}
+              churn={churn}
               openSlot={openSlot}
               onOpen={onOpen}
               onPick={onPick}
@@ -694,13 +733,31 @@ function YourGamesCard({
   state,
   account,
   side,
+  churn,
+  onAnswerChurn,
 }: {
   state: ReturnType<typeof useYourTree>;
   account: ReturnType<typeof archiveAccountFor>;
   side: "white" | "black";
+  churn: Churn | null;
+  onAnswerChurn: (churn: Churn) => void;
 }) {
   const enough = measuredFor(state.tree, side);
   const counted = state.tree?.games[side] ?? 0;
+  // Asked once, between pressing the button and the fetch going out — which is
+  // the order Aayan specified and also the only order that works. It is a
+  // statement about appetite, not a reading of the data, so it needs nothing
+  // from the archive; and asking it AFTER the numbers land would mean showing
+  // an ordering and then immediately reordering it.
+  const [asking, setAsking] = useState(false);
+  const begin = () => (churn === null ? setAsking(true) : state.run());
+  const answer = (value: Churn) => {
+    setAsking(false);
+    onAnswerChurn(value);
+    state.run();
+  };
+
+  if (asking) return <ChurnQuestion onAnswer={answer} onCancel={() => setAsking(false)} />;
 
   // No handle stored is not an error and must not be dressed as one. It is the
   // ordinary state for somebody who signed up over the board.
@@ -723,7 +780,7 @@ function YourGamesCard({
   if (state.phase === "error") {
     return (
       <Note tone="warn">
-        {state.error} <Retry onClick={state.run}>Try again</Retry>
+        {state.error} <Retry onClick={begin}>Try again</Retry>
       </Note>
     );
   }
@@ -741,10 +798,16 @@ function YourGamesCard({
   // silently falling back to the corpus and letting the reader assume the
   // numbers changed for them.
   if (state.phase === "ready") {
+    const colour = side === "white" ? "White" : "Black";
     return (
       <Note>
-        Only {counted.toLocaleString()} of your games as {side === "white" ? "White" : "Black"} —
-        too few to work out your own frequencies, so these are still the corpus average.{" "}
+        {/* Zero is its own sentence. "Only 0 of your games as White" is
+            arithmetically fine and reads like a bug; somebody who has not
+            played that colour in a year has not got a thin sample, they have
+            no sample. */}
+        {counted === 0
+          ? `None of the games we read were yours as ${colour}, so these are still the corpus average. `
+          : `Only ${counted.toLocaleString()} of your games as ${colour} — too few to work out your own frequencies, so these are still the corpus average. `}
         <Retry onClick={state.run}>Refresh</Retry>
       </Note>
     );
@@ -753,8 +816,176 @@ function YourGamesCard({
   return (
     <Note>
       These frequencies come from games by players rated 2300+, and yours will be different.{" "}
-      <Retry onClick={state.run}>Use my last 12 months</Retry>
+      <Retry onClick={begin}>Use my last 12 months</Retry>
     </Note>
+  );
+}
+
+const CHURN_OPTIONS: Array<{ value: Churn; title: string; body: string }> = [
+  {
+    value: "keep",
+    title: "Keep what I play",
+    body: "Put my own openings first and just show me the gaps I have no answer for.",
+  },
+  {
+    value: "some",
+    title: "Change one or two",
+    body: "What I already play counts for something, but I am open to swapping the weak ones.",
+  },
+  {
+    value: "rebuild",
+    title: "Start from scratch",
+    body: "Rank everything on what suits me. What I play now is not an argument.",
+  },
+];
+
+/**
+ * The question that decides how hard the ranking argues with them.
+ *
+ * Deliberately not folded into the two-question quiz. That one asks how much
+ * theory they want to CARRY; this asks how far they will MOVE, and the King's
+ * Indian player of two years who wants no new first move but will happily learn
+ * forty more lines of the one they have is a real person giving two different
+ * answers.
+ */
+function ChurnQuestion({
+  onAnswer,
+  onCancel,
+}: {
+  onAnswer: (churn: Churn) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Box
+      component={motion.div}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+      sx={{
+        mb: 2.5, p: { xs: 2, md: 2.5 }, borderRadius: "1.25rem",
+        border: "1px solid rgba(249,115,22,0.28)", background: "rgba(249,115,22,0.05)",
+      }}
+    >
+      <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "1rem", mb: 0.5 }}>
+        Before we read your games — how much of what you play should change?
+      </Typography>
+      <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.85rem", lineHeight: 1.6, mb: 2 }}>
+        This decides how hard we push your own openings up the list. You can change it later.
+      </Typography>
+      <Box sx={{ display: "grid", gap: 1 }}>
+        {CHURN_OPTIONS.map((option, i) => (
+          <QuizOption
+            key={option.value}
+            index={i}
+            title={option.title}
+            body={option.body}
+            onClick={() => onAnswer(option.value)}
+          />
+        ))}
+      </Box>
+      <Box
+        component="button"
+        onClick={onCancel}
+        sx={{
+          mt: 1.5, minHeight: 44, px: 1, ml: -1, background: "none", border: "none",
+          cursor: "pointer", color: "rgba(255,255,255,0.4)", fontSize: "0.8rem",
+          borderRadius: "8px",
+          "&:hover": { color: "rgba(255,255,255,0.75)" },
+          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        }}
+      >
+        Not now
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * A place to stop.
+ *
+ * A repertoire builder with no end state leaves people rearranging it forever
+ * instead of going and learning one, which is the failure mode of every
+ * opening tool that is really a database. Locking is not a data guarantee —
+ * one tap unlocks it and nothing downstream refuses to work on an open
+ * colour — it is a statement that this colour is decided.
+ *
+ * Continue waits for BOTH. Half a repertoire is the state everybody is already
+ * in, and shipping them into a course from it is how they end up with four
+ * chapters of the Caro-Kann and no idea what to do against 1.d4.
+ */
+function LockBar({
+  side,
+  locked,
+  picks,
+  firstCourse,
+  onToggle,
+}: {
+  side: "white" | "black";
+  locked: { white: boolean; black: boolean };
+  picks: RepertoirePick[];
+  firstCourse: string | null;
+  onToggle: (which: "white" | "black") => void;
+}) {
+  const here = locked[side];
+  const label = side === "white" ? "White" : "Black";
+  const both = locked.white && locked.black;
+  // Locking an empty colour would be committing to nothing, and the button
+  // would read as done when the work has not started.
+  const canLock = picks.length > 0;
+
+  return (
+    <Box sx={{ mt: 3, display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+      <Box
+        component="button"
+        onClick={() => canLock && onToggle(side)}
+        disabled={!canLock}
+        aria-pressed={here}
+        sx={{
+          display: "inline-flex", alignItems: "center", gap: 0.75,
+          minHeight: 44, px: 2, borderRadius: "999px",
+          appearance: "none", cursor: canLock ? "pointer" : "not-allowed",
+          opacity: canLock ? 1 : 0.4,
+          border: `1px solid ${here ? "rgba(134,239,172,0.45)" : "rgba(255,255,255,0.16)"}`,
+          background: here ? "rgba(134,239,172,0.1)" : "rgba(255,255,255,0.03)",
+          color: here ? GOOD : "rgba(255,255,255,0.8)",
+          fontSize: "0.86rem", fontWeight: 600,
+          transition: "background 180ms ease, border-color 180ms ease",
+          "&:hover": canLock ? { borderColor: here ? GOOD : "rgba(249,115,22,0.5)" } : {},
+          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        }}
+      >
+        {here ? <Lock size={14} aria-hidden /> : <LockOpen size={14} aria-hidden />}
+        {here ? `${label} is locked` : `Lock ${label}`}
+      </Box>
+
+      <Typography sx={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.42)" }}>
+        {!canLock
+          ? `Choose something as ${label} first.`
+          : here
+            ? "Tap to open it up again."
+            : locked[side === "white" ? "black" : "white"]
+              ? "Lock this one too and you are done choosing."
+              : `Locking says this side is decided. ${side === "white" ? "Black" : "White"} still needs one.`}
+      </Typography>
+
+      {both && firstCourse && (
+        <Box
+          component={Link}
+          href={`/learn/${encodeURIComponent(firstCourse)}`}
+          sx={{
+            ml: { sm: "auto" }, display: "inline-flex", alignItems: "center", gap: 0.75,
+            minHeight: 44, px: 2.5, borderRadius: "999px", textDecoration: "none",
+            border: "1px solid rgba(249,115,22,0.5)", background: "rgba(249,115,22,0.12)",
+            color: EMBER, fontSize: "0.88rem", fontWeight: 700,
+            transition: "background 180ms ease",
+            "&:hover": { background: "rgba(249,115,22,0.22)" },
+            "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+          }}
+        >
+          Continue — start learning <ChevronRight size={15} aria-hidden />
+        </Box>
+      )}
+    </Box>
   );
 }
 

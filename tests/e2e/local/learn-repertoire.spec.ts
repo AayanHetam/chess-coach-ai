@@ -391,6 +391,18 @@ async function withArchive(
   await page.route("**/api/scout", (r) => r.fulfill({ json: body }));
 }
 
+/**
+ * Press the measure button and get past the churn question.
+ *
+ * The question sits between the button and the fetch by design, so every test
+ * that wants numbers has to answer it. Defaults to "start from scratch" so the
+ * ordering assertions elsewhere are not quietly rearranged by a churn bonus.
+ */
+async function measureNow(page: Page, answer: RegExp = /Start from scratch/i) {
+  await page.getByRole("button", { name: /Use my last 12 months/i }).click();
+  await page.getByRole("button", { name: answer }).click();
+}
+
 test.describe("measured from your own games", () => {
   test("replaces the corpus frequency with yours, and says it did", async ({ page }) => {
     await withArchive(page, archive({ e4: 30, d4: 10 }));
@@ -401,7 +413,7 @@ test.describe("measured from your own games", () => {
     await expect(page.getByText(/47% of games · nothing chosen/)).toBeVisible();
     await expect(page.getByText(/rated 2300\+/)).toBeVisible();
 
-    await page.getByRole("button", { name: /Use my last 12 months/i }).click();
+    await measureNow(page);
 
     // After: theirs. 30 of 40 games as Black faced 1.e4.
     await expect(page.getByText(/75% of your games · nothing chosen/)).toBeVisible({
@@ -428,7 +440,7 @@ test.describe("measured from your own games", () => {
     await withArchive(page, archive({ e4: 30, d4: 10 }));
     await throughQuiz(page);
     await page.getByRole("tab", { name: /As Black/i }).click();
-    await page.getByRole("button", { name: /Use my last 12 months/i }).click();
+    await measureNow(page);
     await expect(page.getByText(/Measured from 40/)).toBeVisible({ timeout: 15_000 });
 
     await page.getByText(/Against 1\.e4/).first().click();
@@ -452,7 +464,7 @@ test.describe("measured from your own games", () => {
     await withArchive(page, archive({ e4: 30, d4: 10 }, "somebody-else"));
     await throughQuiz(page);
     await page.getByRole("tab", { name: /As Black/i }).click();
-    await page.getByRole("button", { name: /Use my last 12 months/i }).click();
+    await measureNow(page);
 
     await expect(page.getByText(/none of them are aayan/i)).toBeVisible({ timeout: 15_000 });
     // The corpus numbers are still standing, unlabelled as personal.
@@ -468,15 +480,22 @@ test.describe("measured from your own games", () => {
     await withArchive(page, archive({ e4: 7, d4: 3 }));
     await throughQuiz(page);
     await page.getByRole("tab", { name: /As Black/i }).click();
-    await page.getByRole("button", { name: /Use my last 12 months/i }).click();
+    await measureNow(page);
 
-    await expect(page.getByText(/too few to work out your own frequencies/i)).toBeVisible({
+    await expect(page.getByText(/Only 10 of your games as Black/i)).toBeVisible({
       timeout: 15_000,
     });
+    await expect(page.getByText(/too few to work out your own frequencies/i)).toBeVisible();
+    // The corpus numbers are still standing, unlabelled as personal.
     await expect(page.getByText(/47% of games · nothing chosen/)).toBeVisible();
     // Precisely the ROW phrasing: the note above legitimately contains the
     // words "of your games" while explaining why the rows do not.
     await expect(page.getByText(/% of your games · nothing chosen/)).toHaveCount(0);
+
+    // Last, because it changes tab: the colour they have NO games in gets its
+    // own sentence — "Only 0 of your games" reads like a bug, not an answer.
+    await page.getByRole("tab", { name: /As White/i }).click();
+    await expect(page.getByText(/None of the games we read were yours as White/i)).toBeVisible();
   });
 
   test("asks for a username only when there is not one already", async ({ page }) => {
@@ -486,5 +505,128 @@ test.describe("measured from your own games", () => {
     // the board, so it points at the profile rather than reading as an error.
     await expect(page.getByText(/Add your Lichess or Chess\.com username/)).toBeVisible();
     await expect(page.getByRole("button", { name: /Use my last 12 months/i })).toHaveCount(0);
+  });
+});
+
+test.describe("deciding, and stopping", () => {
+  test("asks how much to change before it reads anything", async ({ page }) => {
+    await withArchive(page, archive({ e4: 30, d4: 10 }));
+    await throughQuiz(page);
+    await page.getByRole("tab", { name: /As Black/i }).click();
+
+    await page.getByRole("button", { name: /Use my last 12 months/i }).click();
+    // The question comes BEFORE the fetch, so nothing is measured yet.
+    await expect(page.getByText(/how much of what you play should change/i)).toBeVisible();
+    await expect(page.getByText(/Measured from/)).toHaveCount(0);
+    await expect(page.getByText(/47% of games · nothing chosen/)).toBeVisible();
+
+    await page.getByRole("button", { name: /Keep what I play/i }).click();
+    await expect(page.getByText(/Measured from 40 of your own games/)).toBeVisible({
+      timeout: 15_000,
+    });
+
+    // Asked once. Refreshing does not re-ask.
+    await page.getByRole("button", { name: /Refresh/i }).click();
+    await expect(page.getByText(/how much of what you play should change/i)).toHaveCount(0);
+    await expect(page.getByText(/Measured from 40 of your own games/)).toBeVisible({
+      timeout: 15_000,
+    });
+  });
+
+  test("keep what I play puts their own move at the top of the list", async ({ page }) => {
+    await withArchive(page, archive({ e4: 30, d4: 10 }));
+    await throughQuiz(page);
+    await page.getByRole("tab", { name: /As Black/i }).click();
+    await page.getByRole("button", { name: /Use my last 12 months/i }).click();
+    await page.getByRole("button", { name: /Keep what I play/i }).click();
+    await expect(page.getByText(/Measured from 40/)).toBeVisible({ timeout: 15_000 });
+
+    await page.getByText(/Against 1\.e4/).first().click();
+    const cards = page.locator('[role="group"] button').filter({ hasText: /answers|more decisions/ });
+    await expect(cards.first()).toBeVisible({ timeout: 10_000 });
+    // They answer 1...c6 in every game and said to keep it. The Caro-Kann is
+    // the only curated choice that commits to c6, and it goes first — ahead of
+    // the Sicilians the quiz answers would otherwise have ranked above it.
+    await expect(cards.first()).toContainText(/Caro-Kann/);
+    await expect(cards.first()).toContainText(/you already play c6/i);
+  });
+
+  test("locking is per colour, and Continue waits for both", async ({ page }) => {
+    await withArchive(page, archive({ e4: 30, d4: 10 }));
+    await throughQuiz(page);
+
+    // Nothing chosen as White: there is nothing to commit to.
+    const lockWhite = page.getByRole("button", { name: /Lock White/i });
+    await expect(lockWhite).toBeDisabled();
+    await expect(page.getByText(/Choose something as White first/i)).toBeVisible();
+
+    // By ROLE, not by text: the coverage sentence above the rows also reads
+    // "…is Your first move", and it comes first in the DOM, so getByText().first()
+    // clicks a paragraph and the chooser never opens.
+    await page.getByRole("button", { name: /Your first move/i }).first().click();
+    // By name, not by the move: a choice button's accessible name starts with
+    // the diagram's piece glyphs, so an anchored /^1\.e4/ matches nothing.
+    await page.getByRole("button", { name: /London System/i }).first().click();
+    await expect(lockWhite).toBeEnabled();
+    await lockWhite.click();
+    await expect(page.getByRole("button", { name: /White is locked/i })).toBeVisible();
+
+    // Half a repertoire is the state everybody is already in. No Continue yet.
+    await expect(page.getByRole("link", { name: /Continue — start learning/i })).toHaveCount(0);
+    await expect(page.getByText(/Lock this one too and you are done/i)).toHaveCount(0);
+
+    await page.getByRole("tab", { name: /As Black/i }).click();
+    // Nothing chosen yet, so the bar asks for a choice rather than offering a
+    // lock — locking an empty colour would be committing to nothing.
+    await expect(page.getByText(/Choose something as Black first/i)).toBeVisible();
+
+    await page.getByText(/Against 1\.e4/).first().click();
+    await page.getByRole("button", { name: /Caro-Kann Defence/i }).first().click();
+    // Now it can be locked, and it says what locking it will finish.
+    await expect(page.getByText(/Lock this one too and you are done/i)).toBeVisible();
+    await page.getByRole("button", { name: /Lock Black/i }).click();
+
+    const go = page.getByRole("link", { name: /Continue — start learning/i });
+    await expect(go).toBeVisible();
+    await go.click();
+    await expect(page).toHaveURL(/\/learn\/[^/]+$/, { timeout: 15_000 });
+  });
+
+  test("a locked colour stops taking changes until it is unlocked", async ({ page }) => {
+    await withArchive(page, archive({ e4: 30, d4: 10 }));
+    await throughQuiz(page);
+    await page.getByRole("tab", { name: /As Black/i }).click();
+    await page.getByText(/Against 1\.e4/).first().click();
+    await page.getByRole("button", { name: /Caro-Kann Defence/i }).first().click();
+    await expect(page.getByText(/Caro-Kann Defence/).first()).toBeVisible();
+
+    await page.getByRole("button", { name: /Lock Black/i }).click();
+    // The rows are still readable — locking is a decision, not a blindfold —
+    // but they no longer open a chooser.
+    await page.getByText(/Against 1\.d4/).first().click();
+    await expect(page.getByRole("button", { name: /Grünfeld Defence/i })).toHaveCount(0);
+
+    await page.getByRole("button", { name: /Black is locked/i }).click();
+    await page.getByText(/Against 1\.d4/).first().click();
+    await expect(page.getByRole("button", { name: /Grünfeld Defence/i }).first()).toBeVisible({
+      timeout: 10_000,
+    });
+  });
+
+  test("the lock survives a reload, because it is a decision not a mode", async ({ page }) => {
+    await withArchive(page, archive({ e4: 30, d4: 10 }));
+    await throughQuiz(page);
+    await page.getByRole("tab", { name: /As Black/i }).click();
+    await page.getByText(/Against 1\.e4/).first().click();
+    await page.getByRole("button", { name: /Caro-Kann Defence/i }).first().click();
+    await page.getByRole("button", { name: /Lock Black/i }).click();
+    await expect(page.getByRole("button", { name: /Black is locked/i })).toBeVisible();
+
+    await page.reload();
+    await page.getByRole("button", { name: /Maybe later/i }).click({ timeout: 8000 }).catch(() => {});
+    await page.getByRole("tab", { name: /As Black/i }).click();
+    await expect(page.getByRole("button", { name: /Black is locked/i })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });

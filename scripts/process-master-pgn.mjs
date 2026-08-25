@@ -29,6 +29,7 @@ import path from "path";
 import readline from "readline";
 import { fileURLToPath } from "url";
 import { Chess } from "chess.js";
+import { bandOfGame } from "./openings/lib/bands.mjs";
 
 const TOP_PLAYERS_REGEX = [
   { regex: /\bcarlsen\b.*\b[mM]\b|magnus carlsen/i, key: "carlsen", rank: 1 },
@@ -132,6 +133,28 @@ async function main() {
   // --ply-tiers=0:25,15:50,20:100 — threshold as a function of depth. Without
   // it every ply is judged by the same flat number, which is what caps the
   // shipped tree at 14 plies today.
+  /**
+   * `--band=<id>` keeps only games BOTH of whose players are in that band, at
+   * blitz or rapid, with the rating converted onto the common scale first.
+   *
+   * The conversion is the whole point and it lives in openings/lib/bands.mjs:
+   * `BANDS`' floors are chess.com numbers and the Lichess dumps carry raw
+   * Lichess Elo, so bucketing the raw number would file a Lichess 1200 — a
+   * `beginner` on the common scale — under `improving`, and nothing about the
+   * resulting tree would look wrong.
+   *
+   * `--band-platform=` says which scale the INPUT is on. Defaults to lichess
+   * because that is what the CC0 dumps are; a chess.com archive needs no
+   * conversion and must say so rather than being converted twice.
+   */
+  const bandSpec = process.argv.find((a) => a.startsWith("--band="))?.split("=")[1] ?? null;
+  const bandPlatform =
+    process.argv.find((a) => a.startsWith("--band-platform="))?.split("=")[1] ?? "lichess";
+  if (bandSpec && !["new", "beginner", "improving", "club", "strong"].includes(bandSpec)) {
+    console.error(`Unknown band "${bandSpec}".`);
+    process.exit(1);
+  }
+
   const plyTierSpec = process.argv.find((a) => a.startsWith("--ply-tiers="));
   const thresholdForPly = parsePlyTiers(
     plyTierSpec?.split("=")[1],
@@ -194,6 +217,7 @@ async function main() {
   let currentHeaders = {};
   let currentMoves = "";
   let gamesProcessed = 0;
+  let gamesSkipped = 0;
   let inMoves = false;
   let lastReport = Date.now();
 
@@ -203,6 +227,20 @@ async function main() {
       currentMoves = "";
       inMoves = false;
       return;
+    }
+    // Banded BEFORE anything is parsed. A game outside the band costs one
+    // header read rather than a movetext regex chain and fourteen chess.js
+    // moves, which at 100M games is the difference between a build and an
+    // afternoon.
+    if (bandSpec) {
+      const band = bandOfGame(currentHeaders, { platform: bandPlatform });
+      if (band !== bandSpec) {
+        gamesSkipped++;
+        currentHeaders = {};
+        currentMoves = "";
+        inMoves = false;
+        return;
+      }
     }
     const movesText = truncateMovetext(currentMoves, maxPlies)
       .replace(/\{[^}]*\}/g, "") // strip comments
@@ -385,6 +423,13 @@ async function main() {
       maxPlies,
       minGames: MIN_GAMES_AT_POSITION,
       plyTiers: plyTierSpec?.split("=")[1] ?? null,
+      // The band and the SCALE it was measured on. R3 in the plan: a corpus
+      // banded on one scale and consumed by a player banded on another is
+      // wrong in a way that looks entirely reasonable, so the scale is
+      // recorded and a consumer can assert it.
+      band: bandSpec,
+      bandScale: bandSpec ? "common (chess.com), converted from " + bandPlatform : null,
+      gamesSkipped: bandSpec ? gamesSkipped : null,
       prunedPositions,
       source: process.env.CORPUS_LABEL ?? "Lichess Elite (2300+)",
       generatedAt: new Date().toISOString().slice(0, 10),

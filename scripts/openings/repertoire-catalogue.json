@@ -87,7 +87,9 @@
       "level": "new",
       "why": "One setup against almost everything Black does. The least to learn of any first move. It will also teach you less about the initiative than 1.e4 would, which is a real cost paid later.",
       "root": [
-        "d4"
+        "d4",
+        "d5",
+        "Bf4"
       ]
     },
     {

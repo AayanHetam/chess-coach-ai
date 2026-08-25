@@ -273,6 +273,20 @@ export default function LearnPage() {
           onAnswerChurn={(churn) => persist({ ...state, churn })}
         />
 
+        <Box
+          component={Link}
+          href="/courses"
+          sx={{
+            display: "inline-flex", alignItems: "center", gap: 0.75, minHeight: 44,
+            mb: 1, color: "rgba(255,255,255,0.55)", fontSize: "0.85rem",
+            textDecoration: "none", borderRadius: "8px",
+            "&:hover": { color: EMBER },
+            "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+          }}
+        >
+          <BookOpen size={14} aria-hidden /> Browse every course
+        </Box>
+
         <QuizSummary
           quiz={state.quiz}
           onEdit={() => {

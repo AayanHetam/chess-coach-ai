@@ -170,11 +170,16 @@ test.describe("the probe loop", () => {
     await page.goto("/train/course/w-london/0?round=1");
     await dismissChrome(page);
 
-    // Nothing to ask, so it lands back on the contract screen with everything
-    // counted as known.
-    await expect(page.getByText("Before we teach anything, we ask.")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByTestId("bucket-known")).toHaveText(String(seeded));
+    // Nothing to ask — and the screen has to SAY so. An empty round used to
+    // fall back to the contract screen, which is pixel-identical to never
+    // having started and reads as broken.
+    await expect(page.getByTestId("round-summary")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("summary-headline")).toHaveText(
+      `You already knew all ${seeded} decisions here.`
+    );
     await expect(page.getByText("Your move")).toHaveCount(0);
+    // Cards are EARNED: probing perfectly owes nothing.
+    await expect(page.getByTestId("summary-due")).toHaveCount(0);
   });
 
   test("still asks when it knows nothing — the control", async ({ page }) => {

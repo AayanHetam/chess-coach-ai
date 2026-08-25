@@ -224,7 +224,10 @@ function ChapterRow({ courseId, side, unit, mastery, open, onToggle, index }: Pr
       >
         <StateDot state={state} />
         <Box sx={{ display: { xs: "none", sm: "block" } }}>
-          <OpeningDiagram moves={unit.line} side={side} px={52} />
+          {/* 72, not 52. Eight squares across 52px is under 7px a piece and
+              the board reads as texture — the same measurement that took the
+              catalogue's diagrams from 62 to 104. */}
+          <OpeningDiagram moves={unit.line} side={side} px={72} />
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
@@ -322,15 +325,6 @@ function ChapterRow({ courseId, side, unit, mastery, open, onToggle, index }: Pr
                     border: "1px solid rgba(255,255,255,0.06)",
                   }}
                 >
-                  <Box
-                    sx={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: "rgba(255,255,255,0.28)",
-                      flexShrink: 0,
-                    }}
-                  />
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography
                       sx={{

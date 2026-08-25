@@ -28,14 +28,13 @@ import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import { pieceSetAtom } from "@/components/board/states";
 import { Pill } from "@/components/courses/ChapterRow";
-import { evalWords, numbered } from "@/lib/courses/lines";
+import { endWords, evalWords, numbered } from "@/lib/courses/lines";
 import { sourceWords } from "@/lib/courses/probes";
 import { branchesOf, defaultBranch, replay, type Branch } from "@/lib/courses/walk";
 import { rarity } from "@/lib/repertoire/character";
 import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
 import type { OpeningTheory } from "@/types/theory";
 import type { CourseNode, Termination } from "@/types/course";
-import { endWords } from "@/lib/courses/lines";
 import { getSessionFromCookieHeader } from "@/lib/auth/sessionToken";
 import { getUserById } from "@/lib/server/users";
 import { resolveUserRating } from "@/lib/coach/userRating";
@@ -161,7 +160,22 @@ export default function ChapterReaderPage(props: Props) {
           }}
         >
           {/* ── The board ─────────────────────────────────────────────────── */}
-          <Box sx={{ display: "grid", gap: 1.5, justifyItems: "center", minWidth: 0 }}>
+          {/*
+            Sticky above the phone breakpoint. The panel beside it is much
+            taller — replies, provenance, a Wikibooks quote — so a static board
+            scrolls off while a player is still reading about the position it
+            shows, and the screenshot was mostly the empty space underneath it.
+          */}
+          <Box
+            sx={{
+              display: "grid",
+              gap: 1.5,
+              justifyItems: "center",
+              minWidth: 0,
+              position: { xs: "static", md: "sticky" },
+              top: { md: 16 },
+            }}
+          >
             <Box sx={{ width: "100%", maxWidth: 560 }}>
               <PuzzleBoardSurface
                 fen={fen}
@@ -361,10 +375,23 @@ export default function ChapterReaderPage(props: Props) {
   );
 }
 
+/**
+ * The evaluation, said only when it is not the ordinary case.
+ *
+ * `lineNotes` in lines.ts already wrote this rule down: printing "balanced" on
+ * every position in a chapter is not information, it is wallpaper, and it
+ * buries the one position where something IS different. The screenshot made
+ * the point — a lone "balanced" under the replies table reads as a stray word.
+ */
+function evalNote(cp: number | undefined, side: "white" | "black"): string | null {
+  const words = evalWords(cp ?? null, side);
+  return words && words !== "balanced" ? `The engine calls this ${words}` : null;
+}
+
 /** Our move, and everything that is true about it. */
 function OurMove({ node, side }: { node: CourseNode; side: "white" | "black" }) {
   const source = node.src ? sourceWords(node.src) : null;
-  const words = evalWords(node.ev?.cp ?? null, side);
+  const words = evalNote(node.ev?.cp, side);
   return (
     <Box data-testid="reader-our-move">
       <Label>You play</Label>
@@ -398,7 +425,7 @@ function TheirReplies({
   onPlay: (b: Branch) => void;
   side: "white" | "black";
 }) {
-  const words = evalWords(node.ev?.cp ?? null, side);
+  const words = evalNote(node.ev?.cp, side);
   if (branches.length === 0) {
     return (
       <Box data-testid="reader-their-move">

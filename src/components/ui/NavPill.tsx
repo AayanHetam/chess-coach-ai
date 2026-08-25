@@ -15,7 +15,7 @@ import {
 import Link from "next/link";
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { Menu as MenuIcon, LogOut, User, Settings } from "lucide-react";
+import { Menu as MenuIcon, Heart, LogOut, User, Settings } from "lucide-react";
 import { Logo } from "./Logo";
 import { AppDrawer, type NavId } from "./AppDrawer";
 import { useAuth } from "@/contexts/AuthContext";
@@ -71,6 +71,13 @@ const NAV_LINKS: { id: NavId; label: string; href: string }[] = [
   { id: "learn", label: "Learn", href: "/learn" },
   { id: "scout", label: "Scout", href: "/scout" },
 ];
+
+// Chess Masti's proceeds cause: the Akanksha Education Fund (501(c)(3)),
+// which funds the Akanksha Foundation's schools for under-resourced kids in
+// Mumbai, Pune, Nagpur and Navi Mumbai. Deliberately NOT in NAV_LINKS — it
+// is an external CTA, not a product surface, so it gets no NavId, no sliding
+// indicator, and no mirror in the WelcomeTour's MINI_NAV.
+const DONATE_URL = "https://akankshafund.org/donation/";
 
 export function NavPill({
   active,
@@ -280,6 +287,43 @@ export function NavPill({
             );
           })}
         </Box>
+
+        {/* Donate → Akanksha Education Fund. Follows the nav row's
+            breakpoints so slotted pages (/analysis) don't overflow. */}
+        <Stack
+          component="a"
+          href={DONATE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Donate to the Akanksha Education Fund (opens in a new tab)"
+          direction="row"
+          spacing={0.75}
+          alignItems="center"
+          sx={{
+            display: hasSlots
+              ? { xs: "none", lg: "flex" }
+              : { xs: "none", md: "flex" },
+            flexShrink: 0,
+            px: 1.75,
+            py: 0.85,
+            borderRadius: "999px",
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(249,115,22,0.35)",
+            color: "#FB923C",
+            fontWeight: 600,
+            fontSize: "0.84rem",
+            textDecoration: "none",
+            transition: "all 180ms ease",
+            "&:hover": {
+              background: "rgba(249,115,22,0.12)",
+              borderColor: "rgba(249,115,22,0.6)",
+              boxShadow: "0 0 16px rgba(249,115,22,0.25)",
+            },
+          }}
+        >
+          <Heart size={14} />
+          <Box>Donate</Box>
+        </Stack>
 
         {/* Account: signed-out → Sign in pill, signed-in → avatar menu.
             Hidden during the auth-resolving flash to avoid the UI flicker

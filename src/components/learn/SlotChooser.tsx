@@ -25,7 +25,7 @@ import type {
 } from "@/types/repertoire";
 import { numberedLine, share as pctOf } from "@/lib/repertoire/bracket";
 import { classify, skeletonOf } from "@/lib/repertoire/structure";
-import { rankChoices, type QuizAnswers } from "@/lib/repertoire/store";
+import { rankChoices, type Churn, type QuizAnswers } from "@/lib/repertoire/store";
 import { levelFit, withinCeiling, type Band } from "@/lib/repertoire/levels";
 import { CHARACTER_STYLE, fitOf } from "@/lib/repertoire/character";
 import { coverageSentence } from "@/lib/repertoire/sentences";
@@ -58,6 +58,8 @@ export interface SlotChooserProps {
    * play this" is true whether or not they keep the pick above it.
    */
   youPlay?: { san: string; games: number; share: number } | null;
+  /** How hard their own play should push up the order. Null = never asked. */
+  churn?: Churn | null;
 }
 
 export default function SlotChooser({
@@ -68,8 +70,12 @@ export default function SlotChooser({
   onClose,
   transposes,
   youPlay = null,
+  churn = null,
 }: SlotChooserProps) {
-  const ranked = useMemo(() => rankChoices(slot.choices, quiz, band), [slot.choices, quiz, band]);
+  const ranked = useMemo(
+    () => rankChoices(slot.choices, quiz, band, { churn, youPlay: youPlay?.san ?? null }),
+    [slot.choices, quiz, band, churn, youPlay]
+  );
   const panel = useRef<HTMLDivElement>(null);
 
   // Escape closes, and focus starts inside. A chooser you can only leave with

@@ -167,6 +167,72 @@ export function buildBracket(
   );
 }
 
+/**
+ * The branches under a filled slot, split into decisions and everything else.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * A NAMED opening is a decision. An unnamed position is not.
+ *
+ * The two cases this has to tell apart, both of which are gaps with no curated
+ * choice behind them:
+ *
+ *   Choose the Grünfeld and White can still play the TROMPOWSKY, the
+ *   ACCELERATED LONDON or the TORRE. Those are different openings, they are 17%
+ *   of what a Grünfeld player meets, and each needs its own answer. Surfacing
+ *   them is the entire thesis of this page.
+ *
+ *   Choose the Alapin and Black can reply ...e6, ...d6, ...g6 or ...Nc6. None
+ *   of those has a name, because none of them is a different opening — the
+ *   Alapin is one setup and you play it against all four. They arrived as four
+ *   rows indistinguishable from "Against the King's Pawn Game" at 25%, and
+ *   opening any of them said "We have no curated recommendation this deep".
+ *
+ * The first version of this split on "do we hold a curated choice", which is
+ * true of neither case — and so it collapsed the Trompowsky along with the
+ * noise, deleting the feature. Three existing tests caught it, because they
+ * encode the thesis. The name is what actually separates them: an opening with
+ * a name is one the opponent CHOSE, and choosing back is a decision.
+ *
+ * Measured on the shipped map: 82 of 126 branches are decisions under this
+ * rule, 44 collapse. The Grünfeld keeps 5 rows, the Alapin keeps none.
+ *
+ * A slot they have ALREADY filled is always a decision, whatever it is called.
+ * Hiding a pick because we have no opinion about the position would make their
+ * own work vanish off the screen.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export interface SplitChildren {
+  /** Named openings, branches we can advise on, and anything already answered. */
+  decisions: BracketNode[];
+  /** Unnamed positions inside a line they have already committed to. */
+  unhelped: BracketNode[];
+}
+
+export function isDecision(node: BracketNode): boolean {
+  return Boolean(node.pick) || Boolean(node.slot.name) || node.slot.choices.length > 0;
+}
+
+export function splitChildren(children: BracketNode[]): SplitChildren {
+  const decisions: BracketNode[] = [];
+  const unhelped: BracketNode[] = [];
+  for (const child of children) {
+    if (isDecision(child)) decisions.push(child);
+    else unhelped.push(child);
+  }
+  return { decisions, unhelped };
+}
+
+/**
+ * What the collapsed branches are worth, as a share of the player's games.
+ *
+ * Summed from `reach`, which is already the share of THEIR games rather than
+ * the share of the parent — so this is directly comparable to every other
+ * number on the page and does not need re-basing to be said out loud.
+ */
+export function shareOf(nodes: BracketNode[]): number {
+  return nodes.reduce((sum, n) => sum + n.reach, 0);
+}
+
 /** Walk a bracket depth-first. */
 export function flatten(nodes: BracketNode[]): BracketNode[] {
   return nodes.flatMap(n => [n, ...flatten(n.children)]);

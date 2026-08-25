@@ -207,3 +207,81 @@ describe('mergeChapters', () => {
     expect(mergeChapters({}, a)).toEqual(a);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE CARD, ACROSS A STORE AND ACROSS DEVICES
+//
+// The card fields landed after records were already on people's devices, so
+// absence has to stay valid. What must not be valid is HALF a card: `dueAt` is
+// the single test for "this owes a review", and a stored NaN compares false
+// against every clock — a decision permanently not-due with nothing to see.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('records written before the review layer existed', () => {
+  const legacy = (key: string): ProbeRecord =>
+    ({ key, correctness: 2, asks: 1, misses: 0, hinted: false, lastRound: 1, at: NOW }) as ProbeRecord;
+
+  it('load unchanged, with no card', () => {
+    expect(writeChapter(ACCOUNT, COURSE, 0, { a: legacy('a') }, NOW)).toBe(true);
+    const back = loadChapter(ACCOUNT, COURSE, 0);
+    expect(back.a).toEqual(legacy('a'));
+    expect(back.a.dueAt).toBeUndefined();
+  });
+
+  it('keep a whole card and drop a broken one', () => {
+    const whole = { ...legacy('a'), ease: 2.5, interval: 6, dueAt: NOW + 1 };
+    const half = { ...legacy('b'), dueAt: NOW + 1 };
+    const nan = { ...legacy('c'), ease: Number.NaN, interval: 6, dueAt: NOW + 1 };
+    writeChapter(ACCOUNT, COURSE, 1, { a: whole, b: half, c: nan } as Records, NOW);
+    const back = loadChapter(ACCOUNT, COURSE, 1);
+    expect(Object.keys(back)).toEqual(['a']);
+    expect(back.a.dueAt).toBe(NOW + 1);
+  });
+});
+
+describe('merging a card', () => {
+  const card = (key: string, at: number, dueAt: number): ProbeRecord => ({
+    key,
+    correctness: 2,
+    asks: 2,
+    misses: 1,
+    hinted: false,
+    lastRound: 2,
+    at,
+    ease: 2.5,
+    interval: 6,
+    dueAt,
+  });
+
+  it('survives a device that never saw the miss', () => {
+    // Taking the newer record wholesale would delete the evidence. A card
+    // exists because something went wrong somewhere, exactly like `hinted`.
+    const laptop = { a: card('a', NOW, NOW + 6 * 86_400_000) };
+    const phone = {
+      a: { key: 'a', correctness: 2, asks: 1, misses: 0, hinted: false, lastRound: 1, at: NOW + 1000 } as ProbeRecord,
+    };
+    const merged = mergeChapters(laptop, phone);
+    expect(merged.a.dueAt).toBe(NOW + 6 * 86_400_000);
+  });
+
+  it('takes the EARLIER date, because being asked late is the failure', () => {
+    const soon = { a: card('a', NOW, NOW + 86_400_000) };
+    const later = { a: card('a', NOW + 5000, NOW + 30 * 86_400_000) };
+    expect(mergeChapters(soon, later).a.dueAt).toBe(NOW + 86_400_000);
+    expect(mergeChapters(later, soon).a.dueAt).toBe(NOW + 86_400_000);
+  });
+
+  it('keeps the ease and interval that belong to the date it kept', () => {
+    const soon = { a: { ...card('a', NOW, NOW + 86_400_000), ease: 1.9, interval: 1 } };
+    const later = { a: { ...card('a', NOW + 5000, NOW + 30 * 86_400_000), ease: 2.8, interval: 30 } };
+    const merged = mergeChapters(soon, later).a;
+    expect(merged.ease).toBe(1.9);
+    expect(merged.interval).toBe(1);
+  });
+
+  // ── Zero by definition ─────────────────────────────────────────────────────
+  it('produces no card when neither side has one', () => {
+    const a = { a: { key: 'a', correctness: 2, asks: 1, misses: 0, hinted: false, lastRound: 1, at: NOW } as ProbeRecord };
+    expect(mergeChapters(a, a).a.dueAt).toBeUndefined();
+  });
+});

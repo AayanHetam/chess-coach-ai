@@ -123,6 +123,14 @@ jobs:
       # Separate budget: if the suite itself hangs (a webServer that never
       # comes up, a test awaiting a locator forever), that is a different
       # failure from a broken install and should be legible as one.
+      #
+      # 20, raised from 12 when the course specs took the suite past it. NOT a
+      # sign the budget was wrong before: the suite runs at 2 workers because
+      # more was measured to be slower AND to produce false reds, and it is now
+      # genuinely ~14 minutes locally across both projects — the run that hit
+      # the old ceiling had passed 343 tests and failed none. The budget is here
+      # to catch a HANG, so it wants headroom over the honest runtime, not a
+      # number the suite is about to grow into again.
       - name: E2E critical journeys
-        timeout-minutes: 12
+        timeout-minutes: 20
         run: npx playwright test --project=local-desktop-light --project=local-mobile-light

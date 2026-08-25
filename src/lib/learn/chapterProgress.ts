@@ -62,8 +62,26 @@ function isRecord(value: unknown): value is ProbeRecord {
     Number.isFinite(r.lastRound) &&
     typeof r.at === 'number' &&
     Number.isFinite(r.at) &&
-    CORRECTNESS.includes(r.correctness as Correctness)
+    CORRECTNESS.includes(r.correctness as Correctness) &&
+    isCard(r)
   );
+}
+
+/**
+ * The card fields, which are optional and must be absent or sound together.
+ *
+ * ADDED AFTER RECORDS WERE ALREADY ON PEOPLE'S DEVICES, so absence is valid and
+ * a record written before the review layer existed loads unchanged. What is not
+ * valid is half a card: `dueAt` is the single test for "this decision owes a
+ * review", and a stored `dueAt` of NaN compares false against every clock, so
+ * a decision would be permanently not-due with nothing to see.
+ */
+function isCard(r: Partial<ProbeRecord>): boolean {
+  const fields = [r.ease, r.interval, r.dueAt];
+  const present = fields.filter(f => f !== undefined);
+  if (present.length === 0) return true;
+  if (present.length !== fields.length) return false;
+  return present.every(f => typeof f === 'number' && Number.isFinite(f));
 }
 
 /**
@@ -189,7 +207,36 @@ export function mergeChapters(a: Records, b: Records): Records {
       hinted: mine.hinted || theirs.hinted,
       lastRound: Math.max(mine.lastRound, theirs.lastRound),
       at: Math.max(mine.at, theirs.at),
+      ...mergeCard(mine, theirs, current),
     };
   }
   return out;
+}
+
+/**
+ * Two copies of one card.
+ *
+ * A CARD SURVIVES, like `hinted` does. If either device earned one the decision
+ * was missed somewhere, and taking the newer record wholesale would let a
+ * device that has never seen the miss delete the evidence.
+ *
+ * The DATE is the earlier of the two, not the newer record's. Both are honest
+ * answers and only one is safe: being asked again sooner than strictly needed
+ * costs a question, and being asked later than needed is the failure the whole
+ * schedule exists to prevent. Ease and interval come from whichever record
+ * holds the date we kept, so the three never describe two different schedules.
+ */
+function mergeCard(
+  mine: ProbeRecord,
+  theirs: ProbeRecord,
+  current: ProbeRecord
+): Pick<ProbeRecord, 'ease' | 'interval' | 'dueAt'> {
+  const cards = [mine, theirs].filter(r => r.dueAt !== undefined);
+  if (cards.length === 0) return {};
+  // The current record's card wins ties, so a re-answer on one device is not
+  // overruled by a stale copy with the same date.
+  const soonest = cards.reduce((best, r) =>
+    r.dueAt! < best.dueAt! ? r : r.dueAt! === best.dueAt! && r === current ? r : best
+  );
+  return { ease: soonest.ease, interval: soonest.interval, dueAt: soonest.dueAt };
 }

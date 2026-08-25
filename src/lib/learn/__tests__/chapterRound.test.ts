@@ -18,11 +18,19 @@ import {
   blankRecord,
   buildRound,
   chapterClosed,
+  DAY_MS,
   currentKey,
+  dueCount,
+  drillRound,
+  drillRounds,
   gradeAsk,
+  hasCard,
+  isDue,
   isRepeat,
+  nextDueAt,
   roundDone,
   roundTally,
+  startDrill,
   startRound,
   type Correctness,
   type ProbeRecord,
@@ -217,5 +225,182 @@ describe('roundTally', () => {
     expect(chapterClosed(roundTally(probes, records(at('a', 2), at('b', 1))))).toBe(false);
     // An empty chapter is not a finished one.
     expect(chapterClosed(roundTally([], {}))).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DRILL
+//
+// A drill asks the lot. The one thing that must be true of it, and the reason
+// it is not `buildRound` with a flag: it cannot consult `records` at all, or
+// "drill this chapter cold" quietly becomes "drill the parts you are bad at",
+// which is the session the player already has.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('drillRound', () => {
+  const probes = Array.from({ length: 12 }, (_, i) => probe(`k${i}`));
+
+  it('walks the whole list in order, round by round', () => {
+    expect(drillRound(probes, 1).map(p => p.key)).toEqual(['k0', 'k1', 'k2', 'k3', 'k4']);
+    expect(drillRound(probes, 2).map(p => p.key)).toEqual(['k5', 'k6', 'k7', 'k8', 'k9']);
+    expect(drillRound(probes, 3).map(p => p.key)).toEqual(['k10', 'k11']);
+  });
+
+  it('asks the same question of someone who knows everything', () => {
+    // THE CONTROL THIS MODE EXISTS FOR. Seed every decision as known: a session
+    // would have nothing to ask, and a drill asks exactly what it asked before.
+    const known: Records = {};
+    for (const p of probes) known[p.key] = { ...blankRecord(p.key), correctness: 2, asks: 3 };
+    expect(buildRound(probes, known, 1)).toEqual([]);
+    expect(drillRound(probes, 1).map(p => p.key)).toEqual(['k0', 'k1', 'k2', 'k3', 'k4']);
+  });
+
+  // ── Zero by definition ──────────────────────────────────────────────────────
+  it('has nothing to ask past the end, and nothing to ask about nothing', () => {
+    expect(drillRound(probes, 4)).toEqual([]);
+    expect(drillRound([], 1)).toEqual([]);
+    expect(drillRound(probes, 0).map(p => p.key)).toEqual(['k0', 'k1', 'k2', 'k3', 'k4']);
+  });
+});
+
+describe('drillRounds', () => {
+  it('is the rounds a scope takes, rounded up', () => {
+    expect(drillRounds(0)).toBe(0);
+    expect(drillRounds(1)).toBe(1);
+    expect(drillRounds(5)).toBe(1);
+    expect(drillRounds(6)).toBe(2);
+    expect(drillRounds(60)).toBe(12);
+  });
+
+  it('is never negative', () => {
+    expect(drillRounds(-3)).toBe(0);
+  });
+});
+
+describe('startDrill', () => {
+  const probes = Array.from({ length: 7 }, (_, i) => probe(`k${i}`));
+
+  it('opens a round of the drill queue, gradeable exactly like a session', () => {
+    const state = startDrill(probes, 2);
+    expect(state.round).toBe(2);
+    expect(state.timeline).toEqual(['k5', 'k6']);
+    expect(state.size).toBe(2);
+    expect(currentKey(state)).toBe('k5');
+    // A miss re-queues here too: the mode differs in what it asks, never in
+    // how it grades.
+    const missed = answerRound(state, false);
+    expect(missed.timeline).toEqual(['k5', 'k6', 'k5']);
+    expect(missed.progress).toBe(0);
+  });
+
+  it('is done immediately past the end of the scope', () => {
+    expect(roundDone(startDrill(probes, 9))).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EARNED REVIEWS
+//
+// The claim: a 185-line course creates ZERO cards on enrolment, and a player
+// who probes it perfectly finishes owing nothing. A curriculum would have made
+// 185 cards up front and asked them all back. Everything below is that one
+// sentence, made falsifiable.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const NOW = 1_700_000_000_000;
+
+describe('a card is earned, never granted', () => {
+  it('does not exist until something goes wrong', () => {
+    const right = gradeAsk(blankRecord('a'), { right: true, round: 1, at: NOW });
+    expect(right.correctness).toBe(2);
+    expect(hasCard(right)).toBe(false);
+    expect(right.dueAt).toBeUndefined();
+    expect(dueCount({ a: right }, NOW + 10 * DAY_MS)).toBe(0);
+  });
+
+  it('exists the moment one does', () => {
+    const wrong = gradeAsk(blankRecord('a'), { right: false, round: 1, at: NOW });
+    expect(hasCard(wrong)).toBe(true);
+    expect(wrong.dueAt).toBe(NOW + DAY_MS);
+    expect(isDue(wrong, NOW)).toBe(false);
+    expect(isDue(wrong, NOW + DAY_MS)).toBe(true);
+  });
+
+  it('is earned by a hint too, because a shown move was not recalled', () => {
+    const shown = gradeAsk(blankRecord('a'), { right: true, hinted: true, round: 1, at: NOW });
+    // The scale calls 3 "correct with difficulty", which would ADVANCE the
+    // interval. A decision that had to be shown has not been recalled at all.
+    expect(shown.correctness).toBe(-1);
+    expect(shown.dueAt).toBe(NOW + DAY_MS);
+  });
+
+  it('pushes the date out as a card is answered, and pulls it back on a miss', () => {
+    let record = gradeAsk(blankRecord('a'), { right: false, round: 1, at: NOW });
+    const first = record.dueAt!;
+    record = gradeAsk(record, { right: true, round: 2, at: first });
+    const second = record.dueAt!;
+    expect(second - first).toBeGreaterThan(DAY_MS);
+    record = gradeAsk(record, { right: true, round: 3, at: second });
+    expect(record.dueAt! - second).toBeGreaterThan(second - first);
+    // And a miss resets it to tomorrow, whatever it had grown to.
+    record = gradeAsk(record, { right: false, round: 4, at: record.dueAt! });
+    expect(record.dueAt).toBe(record.at + DAY_MS);
+  });
+
+  it('never resurrects a card a right answer did not earn', () => {
+    // Two right answers in a row on a decision that was never missed. The
+    // control that would break if `advance` created a card instead of
+    // advancing one.
+    let record = gradeAsk(blankRecord('a'), { right: true, round: 1, at: NOW });
+    record = gradeAsk(record, { right: true, round: 2, at: NOW + DAY_MS });
+    expect(record.correctness).toBe(2);
+    expect(record.dueAt).toBeUndefined();
+  });
+});
+
+describe('a due card comes back', () => {
+  const probes = Array.from({ length: 6 }, (_, i) => probe(`k${i}`));
+
+  const owed = (key: string, dueAt: number): ProbeRecord => ({
+    ...blankRecord(key),
+    correctness: 2,
+    asks: 2,
+    misses: 1,
+    ease: 2.5,
+    interval: 6,
+    dueAt,
+  });
+
+  it('outranks anything never asked', () => {
+    // A decision got wrong in March and not seen since is worth more than the
+    // next new one. That is what earning a card is FOR.
+    const records: Records = { k4: owed('k4', NOW - DAY_MS) };
+    expect(buildRound(probes, records, 1, 5, NOW)[0].key).toBe('k4');
+  });
+
+  it('is not due before its date, and a clock nobody passed sweeps nothing', () => {
+    const records: Records = { k4: owed('k4', NOW + 30 * DAY_MS) };
+    expect(buildRound(probes, records, 1, 5, NOW).map(p => p.key)).not.toContain('k4');
+    // Zero by definition: without a clock, `now` is 0 and nothing is due.
+    const past: Records = { k4: owed('k4', NOW - DAY_MS) };
+    expect(buildRound(probes, past, 1, 5).map(p => p.key)).not.toContain('k4');
+  });
+
+  it('still comes second to something they got wrong and have not fixed', () => {
+    const records: Records = {
+      k4: owed('k4', NOW - 90 * DAY_MS),
+      k5: { ...blankRecord('k5'), correctness: -1, asks: 1, misses: 1 },
+    };
+    expect(buildRound(probes, records, 1, 5, NOW).slice(0, 2).map(p => p.key)).toEqual(['k5', 'k4']);
+  });
+});
+
+describe('nextDueAt', () => {
+  it('is the soonest card, or null when nothing is scheduled', () => {
+    const a = { ...blankRecord('a'), dueAt: NOW + 5 * DAY_MS };
+    const b = { ...blankRecord('b'), dueAt: NOW + DAY_MS };
+    expect(nextDueAt({ a, b })).toBe(NOW + DAY_MS);
+    expect(nextDueAt({ c: blankRecord('c') })).toBeNull();
+    expect(nextDueAt({})).toBeNull();
   });
 });

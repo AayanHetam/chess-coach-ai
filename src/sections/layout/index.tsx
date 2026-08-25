@@ -183,6 +183,7 @@ export default function Layout({ children }: PropsWithChildren) {
                 { href: "/practice", label: "Puzzle training" },
                 { href: "/scout", label: "Opponent scout" },
                 { href: "/learn", label: "Openings" },
+                { href: "/courses", label: "Courses" },
                 { href: "/terms", label: "Terms" },
                 { href: "/privacy", label: "Privacy" },
                 { href: "/", label: "Home" },

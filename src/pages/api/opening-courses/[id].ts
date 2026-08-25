@@ -9,20 +9,26 @@
 // put ply-20 theory in front of a 900 with the developer tools open, and would
 // make the band a decoration.
 //
-// `band` is a request parameter rather than something read off a session,
-// because this route has no session — /api/repertoire has none either, for the
-// same reason. The client sends the band it computed from the rating it already
-// holds. That is not a security boundary and is not treated as one; it is a
-// SIZE and RELEVANCE boundary, and the honest framing is that we do not ship a
-// beginner four times more theory than they can use.
+// For a SIGNED-IN caller the band is resolved here, from their own account, and
+// the `band` query parameter is ignored outright. That is what makes the cut a
+// gate rather than a suggestion: a rating we know cannot be talked out of by a
+// URL. It costs one profile read, and the response is marked `private` because
+// a per-user body behind a shared `public` cache would hand one player another
+// player's depth.
+//
+// For a caller we do not recognise there is no rating to segregate against, so
+// the query parameter still decides, and the honest framing there is unchanged:
+// a SIZE and RELEVANCE boundary, so we do not ship a beginner four times more
+// theory than they can use.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { BANDS, bandFor } from '@/lib/repertoire/levels';
 import { courseVerdict, viewFor } from '@/lib/courses/view';
 import { loadCourse } from '@/lib/courses/load';
+import { bandFromSession } from '@/lib/courses/band';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'method not allowed' });
@@ -34,16 +40,24 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const course = loadCourse(id);
   if (!course) return res.status(404).json({ error: 'no such course' });
 
-  // An explicit band wins; otherwise derive one from a rating; otherwise the
-  // middle band, which is what bandFor gives an unrated player and is
-  // deliberately not the lowest.
+  // The caller's own band wins. Only when we cannot identify them does an
+  // explicit band, then a rating, then the middle band decide — and the middle
+  // band is what bandFor gives an unrated player, deliberately not the lowest.
   const bandParam = Array.isArray(req.query.band) ? req.query.band[0] : req.query.band;
   const ratingParam = Array.isArray(req.query.rating) ? req.query.rating[0] : req.query.rating;
+
+  const owned = await bandFromSession(req.headers.cookie);
   const band =
+    owned ??
     BANDS.find(b => b.id === bandParam) ??
     bandFor(ratingParam ? Number(ratingParam) : undefined);
 
   const view = viewFor(course, band);
-  res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+  // A body chosen by cookie must never enter a shared cache. Only the anonymous
+  // answer, which is a pure function of the URL, is safe to cache publicly.
+  res.setHeader(
+    'Cache-Control',
+    owned ? 'private, no-store' : 'public, max-age=3600, stale-while-revalidate=86400'
+  );
   return res.status(200).json({ ...view, verdict: courseVerdict(view) });
 }

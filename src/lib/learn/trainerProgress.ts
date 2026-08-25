@@ -62,8 +62,17 @@ export function lineKeyOf(line: Pick<TrainerLine, 'moves' | 'color'>): string {
   return `${line.color}:${line.moves.join(' ')}`;
 }
 
+/**
+ * One slot per mode, because they are not interchangeable.
+ *
+ * Study shared the repair slot until courses existed, which was harmless while
+ * nothing constructed a study session. It stops being harmless the moment a
+ * course can start one: opening a chapter would silently discard a
+ * half-finished repair of a line measured off the player's own games, which is
+ * the one thing on this page that must not move.
+ */
 function sessionKey(account: string, mode: SessionMode): string {
-  const suffix = mode === 'review' ? '.review' : '';
+  const suffix = mode === 'review' ? '.review' : mode === 'study' ? '.study' : '';
   return `${PREFIX}.session${suffix}:${account.toLowerCase()}`;
 }
 
@@ -140,7 +149,14 @@ export function loadSession(
   // Fields added after sessions were already in the wild. `misses` in
   // particular is arithmetic: undefined + 1 is NaN, which would silently
   // corrupt the grade a review feeds back to the scheduler.
-  return { ...state, mode: state.mode === 'review' ? 'review' : 'repair', misses: state.misses ?? 0 };
+  // The mode is re-derived rather than trusted, because a stored string is
+  // just a string. It must admit every mode the machine has: coercing an
+  // unknown value to 'repair' was right when there were two, and with study it
+  // would resume a course chapter as a CONFRONT — "play what you always play"
+  // — for a move the player has never been shown.
+  const resumedMode: SessionMode =
+    state.mode === 'review' ? 'review' : state.mode === 'study' ? 'study' : 'repair';
+  return { ...state, mode: resumedMode, misses: state.misses ?? 0 };
 }
 
 export function clearSession(account: string, mode: SessionMode = 'repair'): void {

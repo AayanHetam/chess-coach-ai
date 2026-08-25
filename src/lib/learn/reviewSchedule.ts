@@ -26,7 +26,7 @@
 
 import { applySm2, DEFAULT_EASE_FACTOR } from '@/lib/spacedRepetition';
 import { lineKeyOf } from '@/lib/learn/trainerProgress';
-import type { TrainerLine } from '@/lib/learn/trainerSession';
+import type { TrainerLine, TrainerState } from '@/lib/learn/trainerSession';
 
 const PREFIX = 'cm.trainer.v1.reviews';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -169,6 +169,26 @@ function upsert(account: string, card: ReviewCard): ReviewCard[] {
  * player has just finished straight back on their plan, which reads as the
  * trainer not having noticed.
  */
+/**
+ * Did finishing this session earn a review card?
+ *
+ * The rule this module's header states, made checkable. A card is EARNED,
+ * never granted: a STUDY probe answered right is evidence there is no gap, so
+ * it schedules nothing. Enrolling in a hundred-decision chapter and answering
+ * all hundred correctly must leave the queue exactly as empty as it was.
+ *
+ * Repair and review are unaffected. A repair session earned its card by having
+ * had a hole measured in the player's own games, whatever the drill misses
+ * were, and a review re-grades a card that already exists.
+ *
+ * Keyed on the ANSWER, not the mode. Branching on the mode is what let study
+ * fall into the repair branch and mint a card for a correct answer.
+ */
+export function earnsCard(state: Pick<TrainerState, 'mode' | 'knewIt'>): boolean {
+  if (state.mode !== 'study') return true;
+  return state.knewIt === false;
+}
+
 export function scheduleAfterRepair(
   account: string,
   line: TrainerLine,

@@ -1,85 +1,31 @@
-import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
+import {
+  COOKIE_NAME,
+  SESSION_SECONDS,
+  createSessionToken,
+  getSessionFromCookieHeader,
+  verifySessionToken,
+  type SessionPayload,
+} from "./sessionToken";
 
-const COOKIE_NAME = "cm_session";
-// Long-lived, persistent session for an "it just remembers me" experience.
-// /api/auth/me re-issues the cookie on every authenticated load (sliding
-// window), so an active user effectively never has to sign in again.
-const SESSION_DAYS = 90;
-const SESSION_SECONDS = SESSION_DAYS * 24 * 60 * 60;
+// The token half lives in ./sessionToken and is re-exported here so no caller
+// has to know about the split. What stays here is everything that touches the
+// App Router's cookie store — which is exactly what a Pages-router page cannot
+// import.
+export {
+  COOKIE_NAME,
+  SESSION_SECONDS,
+  createSessionToken,
+  getSessionFromCookieHeader,
+  verifySessionToken,
+} from "./sessionToken";
+export type { SessionPayload } from "./sessionToken";
 
-export type SessionPayload = {
-  uid: string;
-  /**
-   * OPTIONAL since signup stopped requiring one. An account can exist with a
-   * handle and a password and nothing else, and it gets a session like any
-   * other. Anything deriving authority from the email (admin, intern) must
-   * treat absence as "no", never as "unset, so allow".
-   */
-  email?: string;
-  displayName?: string;
-  avatarUrl?: string;
-  // CMIP intern allowlist membership at sign-in time. Stamped by the auth
-  // routes after isAllowlistedIntern(email); flipping requires re-signin.
-  isIntern?: boolean;
-  // CMIP dashboard admin (matches CMIP_DASHBOARD_ADMIN_EMAIL at sign-in).
-  // Stamped at session creation for browser-side UI gating. Server-side
-  // admin routes additionally re-check via requireAdmin() so an env change
-  // takes effect on next request without re-signin.
-  isAdmin?: boolean;
-};
-
-let cachedKey: Uint8Array | null = null;
-function getKey(): Uint8Array {
-  if (cachedKey) return cachedKey;
-  const secret = process.env.SESSION_SECRET;
-  if (!secret || secret.length < 32) {
-    throw new Error(
-      "SESSION_SECRET is missing or too short (need ≥32 chars). " +
-        "Generate one with `openssl rand -base64 48`."
-    );
-  }
-  cachedKey = new TextEncoder().encode(secret);
-  return cachedKey;
-}
-
-export async function createSessionToken(
-  payload: SessionPayload
-): Promise<string> {
-  return new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(`${SESSION_DAYS}d`)
-    .sign(getKey());
-}
-
-export async function verifySessionToken(
-  token: string
+export async function getSessionFromRequest(
+  request: Request
 ): Promise<SessionPayload | null> {
-  try {
-    const { payload } = await jwtVerify(token, getKey(), {
-      algorithms: ["HS256"],
-    });
-    // uid is the identity; email is not. Rejecting a token for a missing
-    // email would have signed out every email-less account at the door, and
-    // the failure would have looked like a broken session secret.
-    if (typeof payload.uid !== "string") return null;
-    return {
-      uid: payload.uid,
-      email: typeof payload.email === "string" ? payload.email : undefined,
-      displayName:
-        typeof payload.displayName === "string"
-          ? payload.displayName
-          : undefined,
-      avatarUrl:
-        typeof payload.avatarUrl === "string" ? payload.avatarUrl : undefined,
-      isIntern: payload.isIntern === true ? true : undefined,
-      isAdmin: payload.isAdmin === true ? true : undefined,
-    };
-  } catch {
-    return null;
-  }
+  return getSessionFromCookieHeader(request.headers.get("cookie"));
 }
 
 const cookieOptions = (maxAge: number) => ({
@@ -132,17 +78,6 @@ export async function getSession(): Promise<SessionPayload | null> {
   return verifySessionToken(token);
 }
 
-export async function getSessionFromRequest(
-  request: Request
-): Promise<SessionPayload | null> {
-  const cookieHeader = request.headers.get("cookie");
-  if (!cookieHeader) return null;
-  const match = cookieHeader.match(
-    new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`)
-  );
-  if (!match) return null;
-  return verifySessionToken(decodeURIComponent(match[1]));
-}
 
 /**
  * Helper for route handlers: returns either the session, or a 401

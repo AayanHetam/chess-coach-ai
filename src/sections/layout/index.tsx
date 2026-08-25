@@ -65,6 +65,9 @@ const BARE_ROUTES = new Set([
   // board off screen and turn the session into a scrolling document, which is
   // the one thing the layout is designed not to be.
   "/train/opening",
+  // Same shape, same reason: the course trainer is a full-viewport session and
+  // a header above it turns the session into a scrolling document.
+  "/train/course/[courseId]/[chapter]",
 ]);
 
 export default function Layout({ children }: PropsWithChildren) {

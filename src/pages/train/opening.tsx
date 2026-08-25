@@ -51,6 +51,7 @@ import {
   recordReview,
   scheduleAfterRepair,
   type ReviewCard,
+  earnsCard,
 } from "@/lib/learn/reviewSchedule";
 import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
 import { fetchMasterViews } from "@/lib/master/useMasterIdeas";
@@ -177,11 +178,27 @@ export default function OpeningTrainerPage() {
       // Finishing is the ONLY place a schedule is written. A line that is
       // merely opened, or abandoned mid-run, changes nothing: a review you
       // walked away from is not evidence about how well you know the line.
+      //
+      // And a card is EARNED, never granted. A study probe answered right is
+      // not evidence of a gap — it is evidence there is no gap — so it writes
+      // nothing at all. Branching on the mode instead of on the answer put
+      // study in the else, which meant a correct answer minted a card through
+      // scheduleAfterRepair (the only place a card is ever constructed) and
+      // marked the line repaired. applySm2 forces interval 1 on a first
+      // schedule, so a chapter answered perfectly would come back in full
+      // tomorrow. That is the queue-that-only-grows this mode exists to avoid.
+      //
+      // Repair and review are unchanged: a repair session earns its card by
+      // having had a measured hole, whatever the drill misses were.
+      const earned = earnsCard(state);
       const scheduled =
         state.mode === "review"
           ? recordReview(accountId, lineKey, state.misses, now)
-          : scheduleAfterRepair(accountId, line, label, state.misses, now);
-      if (state.mode !== "review") markRepaired(accountId, line, label, state.runs, now);
+          : earned
+            ? scheduleAfterRepair(accountId, line, label, state.misses, now)
+            : null;
+      if (state.mode !== "review" && earned)
+        markRepaired(accountId, line, label, state.runs, now);
       setNextReview(scheduled ? describeNext(scheduled, now) : null);
       clearSession(accountId, state.mode);
       return;

@@ -30,7 +30,7 @@ export type NavId =
   | "practice"
   | "scout"
   | "profile"
-  | "openings"
+  | "learn"
   | "intern";
 
 interface NavItem {
@@ -57,7 +57,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "practice", label: "Practice", icon: Puzzle, href: "/puzzles" },
   { id: "scout", label: "Scout", icon: Crosshair, href: "/scout" },
   { id: "profile", label: "Profile", icon: User, href: "/profile" },
-  { id: "openings", label: "Learn", icon: BookOpen, href: "/openings" },
+  { id: "learn", label: "Learn", icon: BookOpen, href: "/learn" },
 ];
 
 // Appended for CMIP interns only. Replaces the <InternalNavLinks /> button that

@@ -18,11 +18,7 @@ const PRODUCT_PREFIXES = [
   "/play",
   "/analysis",
   "/puzzles",
-  // Both learn surfaces: /learn is the repertoire the nav now points at, and
-  // /openings is the explorer it used to. A first-time visitor can land on
-  // either, and the tour teaching where things live must not depend on which.
   "/learn",
-  "/openings",
   "/scout",
 ];
 

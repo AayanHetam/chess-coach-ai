@@ -42,7 +42,6 @@ const SELF_CHROMED_ROUTES = new Set([
   // mount the pill inside it — a Layout-level pill would sit on the seam
   // between the backdrop and that gradient.
   "/onboarding",
-  "/openings",
   "/placement",
   "/plan",
   "/play",
@@ -183,7 +182,7 @@ export default function Layout({ children }: PropsWithChildren) {
                 { href: "/analysis", label: "Game analysis" },
                 { href: "/practice", label: "Puzzle training" },
                 { href: "/scout", label: "Opponent scout" },
-                { href: "/openings", label: "Openings" },
+                { href: "/learn", label: "Openings" },
                 { href: "/terms", label: "Terms" },
                 { href: "/privacy", label: "Privacy" },
                 { href: "/", label: "Home" },

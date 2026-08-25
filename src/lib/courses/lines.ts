@@ -115,6 +115,19 @@ export function numbered(moves: string[]): string {
 }
 
 /**
+ * A white-relative score, from one player's side.
+ *
+ * The ONE place the sign is flipped. Two surfaces converting independently is
+ * how the trainer's teach card ended up printing a white-relative number
+ * directly above `evalWords`' player-relative reading of the same score — on a
+ * black course that is "+0.15" beside "slightly worse", and one of them is
+ * simply false.
+ */
+export function cpForSide(cp: number, side: 'white' | 'black'): number {
+  return side === 'white' ? cp : -cp;
+}
+
+/**
  * An evaluation in the words a player uses, from THEIR side.
  *
  * Never a raw centipawn number: "+0.34" is engine dialect, and a course that
@@ -122,7 +135,7 @@ export function numbered(moves: string[]): string {
  */
 export function evalWords(cp: number | null, side: 'white' | 'black'): string | null {
   if (cp === null) return null;
-  const ours = side === 'white' ? cp : -cp;
+  const ours = cpForSide(cp, side);
   if (Math.abs(ours) >= 99000) return ours > 0 ? 'winning' : 'lost';
   if (ours <= -150) return 'worse for you';
   if (ours <= -60) return 'slightly worse';

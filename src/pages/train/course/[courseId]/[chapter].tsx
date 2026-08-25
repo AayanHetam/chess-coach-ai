@@ -17,14 +17,24 @@
 // of it you already know, and one button.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import { Box, Typography } from "@mui/material";
+import { useRouter } from "next/router";
+import { useAtomValue } from "jotai";
+import { Chess } from "chess.js";
 import { ArrowRight, ChevronLeft } from "lucide-react";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
+import { pieceSetAtom } from "@/components/board/states";
+import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
+import type { FlashState } from "@/components/puzzle/FlashOverlay";
+import { CourseRoundRail, CourseRoundStrip } from "@/components/train/CourseRoundRail";
+import { CourseTeachCard } from "@/components/train/CourseTeachCard";
+import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
+import type { OpeningTheory } from "@/types/theory";
 // From sessionToken, not session: the latter imports `next/headers`, which is
 // App-Router-only and fails the build when a pages/ page pulls it in. API
 // routes under pages/api survive that import and a page does not.
@@ -34,12 +44,31 @@ import { resolveUserRating } from "@/lib/coach/userRating";
 import { bandFor, type BandId } from "@/lib/repertoire/levels";
 import { loadCourse } from "@/lib/courses/load";
 import { viewFor } from "@/lib/courses/view";
-import { probesOf, type CourseProbe } from "@/lib/courses/probes";
+import { probesOf, toTrainerLine, type CourseProbe } from "@/lib/courses/probes";
 import { numbered } from "@/lib/courses/lines";
-import { chapterParam, courseReaderHref, courseTrainerHref } from "@/lib/learn/courseRoute";
-import { loadChapter } from "@/lib/learn/chapterProgress";
-import { pullChapter } from "@/lib/learn/chapterSync";
-import { ROUND_SIZE, SITTING_ROUNDS, roundTally, type Records } from "@/lib/learn/chapterRound";
+import {
+  chapterParam,
+  courseReaderHref,
+  courseTrainerHref,
+  roundParam,
+} from "@/lib/learn/courseRoute";
+import { loadChapter, writeChapter } from "@/lib/learn/chapterProgress";
+import { pullChapter, pushChapter } from "@/lib/learn/chapterSync";
+import {
+  ROUND_SIZE,
+  SITTING_ROUNDS,
+  answerRound,
+  currentKey,
+  gradeAsk,
+  isRepeat,
+  recordFor,
+  roundDone,
+  roundTally,
+  startRound,
+  type Records,
+  type RoundState,
+} from "@/lib/learn/chapterRound";
+import { createSession, submitProbe } from "@/lib/learn/trainerSession";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Props {
@@ -66,12 +95,37 @@ export default function CourseTrainerPage(props: Props) {
   // player who links a chess.com account mid-way would appear to lose a month.
   const account = user?.uid ?? "";
   const [records, setRecords] = useState<Records>({});
+  /**
+   * Which account/chapter the records in state were read for, or null before
+   * any read.
+   *
+   * Load-bearing, and the first two attempts at it were wrong. A boolean
+   * "ready" flag is not enough: `useAuth` resolves AFTER the first render, so
+   * the first read happens with no account, completes honestly with an empty
+   * set, and the flag goes true. The round then builds from nothing, and when
+   * the real account arrives the flag flips false→true inside one batch, which
+   * React collapses to no change at all — so the round is never rebuilt and a
+   * player coming back tomorrow is asked every decision they already own.
+   *
+   * Keying on WHOSE records these are makes the late arrival a real change.
+   */
+  const [recordsKey, setRecordsKey] = useState<string | null>(null);
 
   // Local first, always. The screen knows what you know before any network.
   useEffect(() => {
-    if (!account) return;
-    setRecords(loadChapter(account, props.courseId, props.chapter));
+    setRecords(account ? loadChapter(account, props.courseId, props.chapter) : {});
+    setRecordsKey(`${account}:${props.courseId}:${props.chapter}`);
   }, [account, props.courseId, props.chapter]);
+
+  /**
+   * The latest records, readable without subscribing to them.
+   *
+   * The round must be built from what is known NOW, and must NOT rebuild every
+   * time an answer changes them — that would re-sort the queue underneath the
+   * player mid-round.
+   */
+  const recordsRef = useRef(records);
+  recordsRef.current = records;
 
   // The account copy arrives when it arrives.
   useEffect(() => {
@@ -86,6 +140,201 @@ export default function CourseTrainerPage(props: Props) {
   }, [account, props.courseId, props.chapter]);
 
   const tally = useMemo(() => roundTally(props.probes, records), [props.probes, records]);
+
+  // ── The round.
+  //
+  // `?round=` is the phase. Its absence is the contract screen; a number is a
+  // live round. That makes every screen a URL, so a refresh, a back button or a
+  // link mailed to yourself all land where they should.
+  const router = useRouter();
+  const round = roundParam(router.query.round, SITTING_ROUNDS);
+  const running = router.query.round !== undefined;
+
+  const [roundState, setRoundState] = useState<RoundState | null>(null);
+  /**
+   * The answer just given, or null while the question is open.
+   *
+   * `right` decides which of two very different things the panel does: say so
+   * and get out of the way, or teach. Keeping them in one piece of state means
+   * the board and the panel cannot disagree about which one is happening.
+   */
+  const [answer, setAnswer] = useState<{ san: string; right: boolean } | null>(null);
+  const [flash, setFlash] = useState<{ state: FlashState; flashKey: number } | null>(null);
+  const [wrongSquare, setWrongSquare] = useState<string | null>(null);
+  const [theory, setTheory] = useState<OpeningTheory | null>(null);
+  const [saved, setSaved] = useState(true);
+  const pieceSet = useAtomValue(pieceSetAtom);
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const byKey = useMemo(() => {
+    const map = new Map<string, CourseProbe>();
+    for (const probe of props.probes) map.set(probe.key, probe);
+    return map;
+  }, [props.probes]);
+
+  // A round is built once, from the records as they stood when it opened.
+  // Rebuilding it on every answer would re-sort the queue underneath the player.
+  const builtFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!running) {
+      setRoundState(null);
+      builtFor.current = null;
+      return;
+    }
+    if (recordsKey === null) return;
+    const key = `${recordsKey}#${round}`;
+    if (builtFor.current === key) return;
+    builtFor.current = key;
+    setRoundState(startRound(props.probes, recordsRef.current, round));
+  }, [running, round, props.probes, recordsKey]);
+
+  const probeKey = roundState ? currentKey(roundState) : null;
+  const probe = probeKey ? (byKey.get(probeKey) ?? null) : null;
+  const answered = answer !== null && probe !== null;
+  const teaching = answered && answer !== null && !answer.right;
+
+  // The quote, for the position being asked about. Absent for ~87% of
+  // decisions, and absent means NOTHING rendered — no placeholder, no stranded
+  // attribution line, no empty bordered box.
+  useEffect(() => {
+    setTheory(null);
+    if (!probe) return;
+    let live = true;
+    fetchOpeningTheory([probe.fen]).then(map => {
+      if (live) setTheory(map.get(probe.fen) ?? null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [probe]);
+
+  useEffect(
+    () => () => {
+      if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    },
+    []
+  );
+
+  const persist = useCallback(
+    (next: Records) => {
+      setRecords(next);
+      if (!account) return;
+      const ok = writeChapter(account, props.courseId, props.chapter, next, Date.now());
+      setSaved(ok);
+      // The account copy is best-effort and silent. The local write is the one
+      // whose failure the player is told about.
+      void pushChapter({ account, courseId: props.courseId, chapter: props.chapter }, next);
+    },
+    [account, props.courseId, props.chapter]
+  );
+
+  /**
+   * A move attempted on the board.
+   *
+   * Illegal geometry is rejected HERE, before the machine is called. That is
+   * what keeps `submitProbe`'s illegal branch unreachable: it sets
+   * `feedback: 'wrong'` under a comment reading "no verdict, no penalty", and a
+   * screen that forwarded raw input would flash red at a slipped finger.
+   */
+  const onPieceDrop = useCallback(
+    (from: string, to: string): boolean => {
+      if (!probe || !roundState || answer !== null) return false;
+      let san: string | null = null;
+      try {
+        const board = new Chess(probe.fen);
+        const move = board.move({ from, to, promotion: "q" });
+        san = move ? move.san : null;
+      } catch {
+        san = null;
+      }
+      if (!san) return false;
+
+      const line = toTrainerLine(probe, props.side);
+      const graded = submitProbe(createSession(line, "study"), line, san);
+      const right = graded.knewIt === true;
+
+      const now = Date.now();
+      persist({
+        ...records,
+        [probe.key]: gradeAsk(recordFor(records, probe.key), { right, round, at: now }),
+      });
+      setFlash({ state: right ? "green" : "red", flashKey: now });
+      setWrongSquare(right ? null : to);
+
+      setAnswer({ san, right });
+      if (right) {
+        // Say so, briefly, and move on. No lesson, no drill, no card — the
+        // whole point of asking first.
+        advanceTimer.current = setTimeout(() => {
+          setWrongSquare(null);
+          setFlash(null);
+          setAnswer(null);
+          setRoundState(s => (s ? answerRound(s, true) : s));
+        }, 900);
+      }
+      // Wrong stops and waits. The asymmetry is deliberate: attention is spent
+      // only where the learning is.
+      return true;
+    },
+    [probe, roundState, answer, props.side, records, round, persist]
+  );
+
+  const continueAfterTeach = useCallback(() => {
+    setAnswer(null);
+    setWrongSquare(null);
+    setFlash(null);
+    setRoundState(s => (s ? answerRound(s, false) : s));
+  }, []);
+
+  const exit = useCallback(() => {
+    void router.push(courseReaderHref(props.courseId));
+  }, [router, props.courseId]);
+
+  const restart = useCallback(() => {
+    setAnswer(null);
+    setWrongSquare(null);
+    setFlash(null);
+    setRoundState(startRound(props.probes, records, round));
+  }, [props.probes, records, round]);
+
+  // The round is over. The summary screen replaces this in the next change;
+  // until then the honest end is the contract screen, which shows the counts
+  // the round just moved.
+  useEffect(() => {
+    if (!roundState || !roundDone(roundState)) return;
+    const next = round + 1;
+    void router.replace(
+      next > SITTING_ROUNDS
+        ? courseTrainerHref(props.courseId, props.chapter)
+        : courseTrainerHref(props.courseId, props.chapter, next),
+      undefined,
+      { shallow: true }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roundState && roundDone(roundState), round]);
+
+  if (running && roundState && probe) {
+    return (
+      <RoundScreen
+        props={props}
+        probe={probe}
+        roundState={roundState}
+        tally={tally}
+        answer={answer}
+        teaching={teaching}
+        theory={theory}
+        flash={flash}
+        wrongSquare={wrongSquare}
+        pieceSet={pieceSet}
+        repeat={isRepeat(roundState, probe.key)}
+        saved={saved}
+        onPieceDrop={onPieceDrop}
+        onContinue={continueAfterTeach}
+        onExit={exit}
+        onRestart={restart}
+      />
+    );
+  }
 
   return (
     <>
@@ -229,6 +478,218 @@ export default function CourseTrainerPage(props: Props) {
               </Box>
             </Link>
           </Box>
+        </Box>
+      </Box>
+    </>
+  );
+}
+
+/**
+ * The board, the rail and the panel, in the proven three-region shape.
+ *
+ * `interactive` only while a question is open: once they have answered, the
+ * board shows the course move and stops accepting input, so a second drag
+ * cannot overwrite a verdict they have not read yet.
+ */
+function RoundScreen({
+  props,
+  probe,
+  roundState,
+  tally,
+  answer,
+  teaching,
+  theory,
+  flash,
+  wrongSquare,
+  pieceSet,
+  repeat,
+  saved,
+  onPieceDrop,
+  onContinue,
+  onExit,
+  onRestart,
+}: {
+  props: Props;
+  probe: CourseProbe;
+  roundState: RoundState;
+  tally: ReturnType<typeof roundTally>;
+  answer: { san: string; right: boolean } | null;
+  teaching: boolean;
+  theory: OpeningTheory | null;
+  flash: { state: FlashState; flashKey: number } | null;
+  wrongSquare: string | null;
+  pieceSet: string;
+  repeat: boolean;
+  saved: boolean;
+  onPieceDrop: (from: string, to: string) => boolean;
+  onContinue: () => void;
+  onExit: () => void;
+  onRestart: () => void;
+}) {
+  // The board shows the position AFTER the course move once they have missed
+  // it, so the answer is on the board and not only in the panel.
+  const shown = useMemo(() => {
+    if (!answer) return probe.fen;
+    try {
+      const board = new Chess(probe.fen);
+      return board.move(probe.san) ? board.fen() : probe.fen;
+    } catch {
+      return probe.fen;
+    }
+  }, [answer, probe]);
+
+  const railProps = {
+    round: roundState.round,
+    rounds: SITTING_ROUNDS,
+    progress: roundState.progress,
+    size: roundState.size,
+    tally,
+    asked: Math.min(roundState.at + 1, roundState.timeline.length),
+    // The timeline, not the round size: a miss appends to it, so counting
+    // against `size` produces "position 6 of 5" the moment anything goes wrong.
+    asks: roundState.timeline.length,
+    onExit,
+    onRestart,
+  };
+
+  return (
+    <>
+      <Head>
+        <title key="title">{`Train ${props.courseName} — Chess Masti AI`}</title>
+        <meta name="robots" content="noindex" />
+      </Head>
+      <GradientBackdrop />
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, minHeight: "100dvh" }}>
+        <CourseRoundStrip {...railProps} title={numbered(props.chapterLine)} />
+        <CourseRoundRail {...railProps} />
+
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            px: 2,
+            py: { xs: 2, md: 3 },
+            gap: 1,
+          }}
+        >
+          <Box sx={{ width: "100%", maxWidth: 560 }}>
+            <PuzzleBoardSurface
+              fen={shown}
+              orientation={props.side}
+              interactive={answer === null}
+              onPieceDrop={onPieceDrop}
+              wrongSquare={wrongSquare}
+              flash={flash}
+              pieceSet={pieceSet}
+              // The default animation is long enough that a fast second tap
+              // lands mid-animation and is dropped, which on a phone reads as
+              // the board ignoring you.
+              animationMs={150}
+              boardId="course-round"
+            />
+          </Box>
+          <Typography
+            sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.78rem", fontVariantNumeric: "tabular-nums" }}
+          >
+            {answer
+              ? `You played ${answer.san}`
+              : `You play ${props.side === "white" ? "White" : "Black"}`}
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            width: { xs: "100%", md: 380 },
+            flexShrink: 0,
+            px: { xs: 2, md: 3 },
+            py: { xs: 2, md: 4 },
+            borderLeft: { md: "1px solid rgba(255,255,255,0.06)" },
+          }}
+        >
+          {teaching && answer ? (
+            <CourseTeachCard
+              probe={probe}
+              played={answer.san}
+              side={props.side}
+              theory={theory}
+              onContinue={onContinue}
+            />
+          ) : answer?.right ? (
+            <Box data-testid="verdict-correct" sx={{ display: "grid", gap: 1 }}>
+              <Typography
+                role="status"
+                aria-live="polite"
+                sx={{
+                  fontSize: "1rem",
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "rgba(255,255,255,0.92)",
+                }}
+              >
+                Correct.
+              </Typography>
+              {/* The move alone. A sentence about it would be a sentence we
+                  composed, and there is nothing to add to a right answer. */}
+              <Typography
+                sx={{
+                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                  fontSize: "1.1rem",
+                  textTransform: "none",
+                  color: "#FB923C",
+                }}
+              >
+                {answer.san}
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ display: "grid", gap: 1.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <Typography
+                  sx={{
+                    fontSize: "1rem",
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    color: "rgba(255,255,255,0.92)",
+                  }}
+                >
+                  Your move
+                </Typography>
+                {/* Item history as state, not as a sentence. */}
+                {repeat && (
+                  <Typography
+                    data-testid="asked-again"
+                    sx={{
+                      fontSize: "0.7rem",
+                      px: 1,
+                      py: 0.25,
+                      borderRadius: "0.6rem",
+                      border: "1px solid rgba(255,255,255,0.14)",
+                      color: "rgba(255,255,255,0.55)",
+                    }}
+                  >
+                    Asked again
+                  </Typography>
+                )}
+              </Box>
+              <Typography sx={{ color: "rgba(255,255,255,0.62)", fontSize: "0.9rem" }}>
+                Play the move this course plays here.
+              </Typography>
+            </Box>
+          )}
+
+          {/* The failure worth telling them about. An unsaved chapter is
+              otherwise pixel-identical to an unstudied one. */}
+          {!saved && (
+            <Typography
+              data-testid="not-saved"
+              sx={{ mt: 2, color: "rgba(255,255,255,0.5)", fontSize: "0.78rem" }}
+            >
+              Not saved on this device.
+            </Typography>
+          )}
         </Box>
       </Box>
     </>

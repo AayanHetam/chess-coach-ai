@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { Chess } from 'chess.js';
 import { loadCourse, loadCourseIndex } from '@/lib/courses/load';
+import { cpForSide, evalWords } from '@/lib/courses/lines';
 import { viewFor } from '@/lib/courses/view';
 import { BANDS } from '@/lib/repertoire/levels';
 import { createSession, submitProbe } from '@/lib/learn/trainerSession';
@@ -127,7 +128,11 @@ describe('probesOf across every shipped course', () => {
     expect(lying).toEqual([]);
     // The control: the cap must actually fire somewhere, or this asserts nothing.
     expect(cappedChapters).toBeGreaterThan(0);
-  });
+    // Explicit, like its sibling sweeps: this walks 43 courses at 5 bands and
+    // runs in ~12s alone but ~23s under full-suite parallel load, which is over
+    // the 20s default. A sweep that flakes on machine load teaches the team to
+    // re-run rather than to read.
+  }, 240_000);
 
   it('asks every decision in the view, and asks it once', () => {
     // The strongest thing this module claims. Chapters partition the graph, so
@@ -361,5 +366,34 @@ describe('sourceWords', () => {
     expect(sourceWords('engine')).toBe("the engine's choice over the popular move");
     expect(sourceWords('corpus')).toBe('most played, not engine-checked');
     expect(sourceWords('setup')).toBe("this system's setup, engine-checked");
+  });
+});
+
+describe('the evaluation says the same thing twice', () => {
+  it('agrees in sign with the words beside it, for both sides', () => {
+    // The teach card prints a number and, directly under it, evalWords' reading
+    // of the SAME score. They converted independently, so on a black course the
+    // number was white-relative and the words were not: "+0.15" above "slightly
+    // worse". One conversion now, used by both.
+    const better = ['slightly better', 'better for you', 'winning'];
+    const worse = ['slightly worse', 'worse for you', 'lost'];
+
+    for (const cp of [-400, -200, -80, -20, 0, 20, 80, 200, 400]) {
+      for (const side of ['white', 'black'] as const) {
+        const ours = cpForSide(cp, side);
+        const words = evalWords(cp, side)!;
+        if (better.includes(words)) expect(ours).toBeGreaterThan(0);
+        if (worse.includes(words)) expect(ours).toBeLessThan(0);
+      }
+    }
+  });
+
+  it('flips the sign for black and leaves white alone', () => {
+    expect(cpForSide(120, 'white')).toBe(120);
+    expect(cpForSide(120, 'black')).toBe(-120);
+    // THE ZERO: a score of zero is zero from either side, so the conversion
+    // cannot invent an advantage for anybody.
+    expect(cpForSide(0, 'white')).toBe(0);
+    expect(cpForSide(0, 'black')).toBe(-0);
   });
 });

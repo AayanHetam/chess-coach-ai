@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { buildGoalPatch, hasCompleteGoal } from "../goalPatch";
+import {
+  buildGoalPatch,
+  buildPerfGoalPatch,
+  hasCompleteGoal,
+} from "../goalPatch";
+import { normalizeRating } from "@/lib/rating/platformRatings";
 import { projectToGoal } from "../improvementModel";
 import {
   buildPayload,
@@ -92,6 +97,172 @@ describe("buildGoalPatch", () => {
   it("returns null for a goal at or below where they already are", () => {
     expect(buildGoalPatch({ ...base, goalRating: 1400 })).toBeNull();
     expect(buildGoalPatch({ ...base, goalRating: 1200 })).toBeNull();
+  });
+
+  it("carries valid per-control goals through untouched", () => {
+    const p = buildGoalPatch({
+      ...base,
+      perfGoals: {
+        blitz: { start: 1425, goal: 1600 },
+        rapid: { start: 1805, goal: 2000 },
+      },
+    });
+    expect(p).not.toBeNull();
+    expect(p!.perfGoals).toEqual({
+      blitz: { start: 1425, goal: 1600 },
+      rapid: { start: 1805, goal: 2000 },
+    });
+    // And the patch stays renderable — perfGoals must never break the reader.
+    expect(hasCompleteGoal(p)).toBe(true);
+  });
+
+  it("omits the perfGoals key entirely when none were given", () => {
+    // Firestore rejects explicit `undefined` values in a patch, so absence has
+    // to be absence, not a key set to undefined.
+    const p = buildGoalPatch(base);
+    expect(p).not.toBeNull();
+    expect("perfGoals" in p!).toBe(false);
+  });
+
+  it("refuses the WHOLE patch when any per-control entry is bad", () => {
+    // Dropping the bad control and keeping the rest would store a goal the
+    // user did not set. One bad entry, no patch — the UI mirrors this with an
+    // inline error, so null is never a mystery.
+    const cases = [
+      { blitz: { start: 1425, goal: 1425 } }, // not above current
+      { blitz: { start: 1425, goal: 1300 } }, // below current
+      { blitz: { start: 90, goal: 1600 } }, // start under the floor
+      { blitz: { start: 1425, goal: 3200 } }, // goal over the ceiling
+      { blitz: { start: NaN, goal: 1600 } },
+      {}, // provided-but-empty: nothing was actually set
+      { blitz: { start: 1425, goal: 1600 }, rapid: { start: 1805, goal: 1700 } },
+    ];
+    for (const perfGoals of cases) {
+      expect(
+        buildGoalPatch({ ...base, perfGoals }),
+        `should refuse ${JSON.stringify(perfGoals)}`
+      ).toBeNull();
+    }
+  });
+});
+
+describe("buildPerfGoalPatch", () => {
+  const schedule = { time: "10-30" as const, daysPerWeek: 4 };
+
+  it("skips prefilled-but-untouched controls and keeps the typed ones", () => {
+    // Currents arrive prefilled from the platform, so "start filled, goal
+    // empty" is the resting state of every card — not participation.
+    const p = buildPerfGoalPatch({
+      drafts: {
+        bullet: { start: 1289 },
+        blitz: { start: 1425 },
+        rapid: { start: 1805, goal: 2000 },
+      },
+      platform: "chesscom",
+      anchorPerf: "rapid",
+      ...schedule,
+    });
+    expect(p).not.toBeNull();
+    expect(p!.perfGoals).toEqual({ rapid: { start: 1805, goal: 2000 } });
+    expect(p!.goalRating).toBe(2000);
+    expect(p!.goalStartRating).toBe(1805);
+  });
+
+  it("anchors the overall goal on the platform-rating control when it participates", () => {
+    const p = buildPerfGoalPatch({
+      drafts: {
+        bullet: { start: 2100, goal: 2200 }, // higher current…
+        rapid: { start: 1805, goal: 2000 }, // …but rapid is the anchor perf
+      },
+      platform: "chesscom",
+      anchorPerf: "rapid",
+      ...schedule,
+    });
+    expect(p).not.toBeNull();
+    // The overall pair /plan scores against resolveUserRating must stay on the
+    // control platformRating came from, or "now vs goal" compares two perfs.
+    expect(p!.goalStartRating).toBe(1805);
+    expect(p!.goalRating).toBe(2000);
+    expect(p!.perfGoals).toEqual({
+      bullet: { start: 2100, goal: 2200 },
+      rapid: { start: 1805, goal: 2000 },
+    });
+  });
+
+  it("falls back to the highest current when the anchor control sat out", () => {
+    const p = buildPerfGoalPatch({
+      drafts: {
+        bullet: { start: 1289, goal: 1500 },
+        blitz: { start: 1425, goal: 1600 },
+      },
+      platform: "chesscom",
+      anchorPerf: "rapid", // rapid not participating
+      ...schedule,
+    });
+    expect(p).not.toBeNull();
+    // Same "highest established rating wins" rule as selectCalibrationRating.
+    expect(p!.goalStartRating).toBe(1425);
+    expect(p!.goalRating).toBe(1600);
+  });
+
+  it("normalizes Lichess numbers for the overall goal but stores raw per control", () => {
+    const p = buildPerfGoalPatch({
+      drafts: { blitz: { start: 1800, goal: 2000 } },
+      platform: "lichess",
+      anchorPerf: "blitz",
+      ...schedule,
+    });
+    expect(p).not.toBeNull();
+    // Overall: calibration scale (Chess.com-like), same as platformRating.
+    expect(p!.goalStartRating).toBe(normalizeRating(1800, "lichess"));
+    expect(p!.goalRating).toBe(normalizeRating(2000, "lichess"));
+    expect(p!.goalStartRating).not.toBe(1800);
+    // Per-control: the platform's own numbers, what the panels draw.
+    expect(p!.perfGoals).toEqual({ blitz: { start: 1800, goal: 2000 } });
+  });
+
+  it("refuses a goal typed with no current to anchor it", () => {
+    expect(
+      buildPerfGoalPatch({
+        drafts: { blitz: { goal: 1600 } },
+        platform: "chesscom",
+        ...schedule,
+      })
+    ).toBeNull();
+  });
+
+  it("refuses when nothing participates at all", () => {
+    expect(
+      buildPerfGoalPatch({
+        drafts: { blitz: { start: 1425 } },
+        platform: "chesscom",
+        ...schedule,
+      })
+    ).toBeNull();
+    expect(
+      buildPerfGoalPatch({ drafts: {}, platform: "chesscom", ...schedule })
+    ).toBeNull();
+  });
+
+  it("still requires the schedule, like every goal", () => {
+    const drafts = { rapid: { start: 1805, goal: 2000 } };
+    expect(
+      buildPerfGoalPatch({ drafts, platform: "chesscom", daysPerWeek: 4 })
+    ).toBeNull();
+    expect(
+      buildPerfGoalPatch({ drafts, platform: "chesscom", time: "10-30" })
+    ).toBeNull();
+  });
+
+  it("whatever it returns is renderable by the same reader as always", () => {
+    const p = buildPerfGoalPatch({
+      drafts: { rapid: { start: 1400, goal: 1700 } },
+      platform: "chesscom",
+      anchorPerf: "rapid",
+      ...schedule,
+    });
+    expect(p).not.toBeNull();
+    expect(hasCompleteGoal(p)).toBe(true);
   });
 });
 

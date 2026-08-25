@@ -178,7 +178,21 @@ export default function PlanPage() {
     const goalPerf = (CHARTED_PERFS as readonly string[]).includes(perf ?? "")
       ? (perf as ChartedPerf)
       : undefined;
-    return { targetDateMs, goalRating, minutesPerDay, daysPerWeek, goalPerf };
+    // Control-by-control goals, raw numbers — each panel draws its own line.
+    const stored = profile?.perfGoals;
+    const perfGoals = stored
+      ? Object.fromEntries(
+          Object.entries(stored).map(([p, g]) => [p, g.goal])
+        )
+      : undefined;
+    return {
+      targetDateMs,
+      goalRating,
+      minutesPerDay,
+      daysPerWeek,
+      goalPerf,
+      perfGoals,
+    };
   }, [profile, nowMs]);
 
   /**
@@ -429,7 +443,9 @@ export default function PlanPage() {
             />
             {editingGoal ? (
               <GoalSetterCard
-                currentRating={goalCurrentRating}
+                anchorPerf={profile?.platformRatingPerf}
+                platform={profile?.platformRatingSource}
+                initialPerfGoals={profile?.perfGoals}
                 initialTime={
                   profile?.dailyTimeCommitment as TimeCommitment | undefined
                 }
@@ -454,7 +470,8 @@ export default function PlanPage() {
           </>
         ) : (
           <GoalSetterCard
-            currentRating={goalCurrentRating}
+            anchorPerf={profile?.platformRatingPerf}
+            platform={profile?.platformRatingSource}
             initialTime={
               profile?.dailyTimeCommitment as TimeCommitment | undefined
             }

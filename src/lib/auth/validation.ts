@@ -144,6 +144,18 @@ export const resetPasswordSchema = z.object({
  * and treated by the server as "clear this field." Server discards
  * undefined keys so PATCH stays idempotent.
  */
+/** One control's {start, goal}. goal > start: a goal at or below where the
+ *  player already is stores as instantly "reached", which is not a goal. */
+const perfGoalEntrySchema = z
+  .object({
+    start: z.number().int().min(100).max(3500),
+    goal: z.number().int().min(100).max(3000),
+  })
+  .strict()
+  .refine((e) => e.goal > e.start, {
+    message: "Goal must be above the current rating.",
+  });
+
 export const profilePatchSchema = z.object({
   // Chess identity
   chesscomUsername: z.string().trim().max(50).optional(),
@@ -217,6 +229,17 @@ export const profilePatchSchema = z.object({
   goalTargetDate: z.number().int().min(0).optional(),
   goalStartRating: z.number().int().min(0).max(3500).optional(),
   goalSetAt: z.number().int().min(0).optional(),
+  // Per-control goals, raw platform numbers. Windows mirror the
+  // MIN_PERF_GOAL/MAX_* constants in curriculum/goalPatch.ts — a client patch
+  // the builder accepts must not die here, or the save button reads as broken.
+  perfGoals: z
+    .object({
+      bullet: perfGoalEntrySchema.optional(),
+      blitz: perfGoalEntrySchema.optional(),
+      rapid: perfGoalEntrySchema.optional(),
+    })
+    .strict()
+    .optional(),
   // Measured weaknesses are replaced wholesale by the placement test, unlike
   // focusThemes which carries the user's stated preference.
   measuredWeaknesses: z

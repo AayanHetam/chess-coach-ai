@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Box, Skeleton, Typography } from "@mui/material";
 import {
   Area,
@@ -12,7 +12,11 @@ import {
   YAxis,
 } from "recharts";
 import { TrendingDown, TrendingUp } from "lucide-react";
-import type { ChartedPerf, RatingPoint } from "@/lib/rating/ratingHistory";
+import type { ChartedPerf } from "@/lib/rating/ratingHistory";
+import {
+  useRatingHistory,
+  type HistoryTrend,
+} from "@/lib/rating/useRatingHistory";
 import {
   forwardProjection,
   stitchProjection,
@@ -59,26 +63,13 @@ export interface TrendProjection {
    * Undefined (or `classical`) means we cannot say, and no line is drawn.
    */
   goalPerf?: ChartedPerf;
+  /**
+   * Per-control targets in RAW platform numbers — the same scale these panels
+   * plot. When a control has its own goal it wins over the single-goal rule
+   * above, so a goal set control-by-control draws on every panel it names.
+   */
+  perfGoals?: Partial<Record<ChartedPerf, number>>;
 }
-
-interface Trend {
-  perf: ChartedPerf;
-  points: RatingPoint[];
-  current?: number;
-  delta?: number;
-  platform: "lichess" | "chesscom";
-}
-
-type HistoryResponse =
-  | {
-      status: "ok";
-      platform: string;
-      username: string;
-      windowDays: number;
-      trends: Trend[];
-    }
-  | { status: "no_username"; trends: [] }
-  | { status: "unavailable"; message: string; trends: [] };
 
 function DeltaBadge({ delta }: { delta?: number }) {
   // Deliberately renders NOTHING when delta is undefined. A "+0" badge claims
@@ -110,7 +101,7 @@ function TrendPanel({
   trend,
   projection,
 }: {
-  trend: Trend;
+  trend: HistoryTrend;
   projection?: TrendProjection;
 }) {
   const history = useMemo(
@@ -153,11 +144,13 @@ function TrendPanel({
   // a straight edge. Padding around the actual range is what makes movement
   // legible. (Truncating a LINE baseline is fine; truncating a bar baseline is
   // not — bars encode magnitude by length, lines encode change by slope.)
-  // The goal line belongs to exactly one control (see TrendProjection.goalPerf).
+  // A control's own goal wins; otherwise the single overall goal draws on the
+  // one control it was set from (see TrendProjection.goalPerf).
   const goalOnThisPanel =
-    projection && projection.goalPerf === trend.perf
+    projection?.perfGoals?.[trend.perf] ??
+    (projection && projection.goalPerf === trend.perf
       ? projection.goalRating
-      : undefined;
+      : undefined);
 
   const [lo, hi] = useMemo(() => {
     if (data.length === 0) return [0, 1];
@@ -360,34 +353,7 @@ export default function RatingTrends({
   /** Omit and the panels show measured history only. */
   projection?: TrendProjection;
 }) {
-  const [data, setData] = useState<HistoryResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/ratings/history?window=${windowDays}`, {
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error(String(res.status));
-        const json = (await res.json()) as HistoryResponse;
-        if (!cancelled) setData(json);
-      } catch {
-        if (!cancelled)
-          setData({
-            status: "unavailable",
-            message: "Couldn't load your rating history.",
-            trends: [],
-          });
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [windowDays]);
+  const { data, loading } = useRatingHistory(windowDays);
 
   if (loading) {
     return (

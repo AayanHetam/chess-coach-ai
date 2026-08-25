@@ -63,6 +63,15 @@ export interface UserProfile {
   /** Rating when the goal was set, and when — the baseline /plan tracks against. */
   goalStartRating?: number;
   goalSetAt?: number;
+  /**
+   * Per-control targets (bullet/blitz/rapid), raw platform numbers. Written
+   * only via buildGoalPatch alongside the overall goal fields above.
+   */
+  perfGoals?: {
+    bullet?: { start: number; goal: number };
+    blitz?: { start: number; goal: number };
+    rapid?: { start: number; goal: number };
+  };
   dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
   onboardingCompletedAt?: number;
 

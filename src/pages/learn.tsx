@@ -58,6 +58,8 @@ import {
 } from "@/lib/repertoire/store";
 import { facing } from "@/lib/repertoire/sentences";
 import { CHARACTER_STYLE, rarity } from "@/lib/repertoire/character";
+import { factsFor, mainMoveAt, measuredFor, type YourTree } from "@/lib/repertoire/yourTree";
+import { archiveAccountFor, useYourTree } from "@/lib/repertoire/useYourTree";
 import type {
   Character,
   RepertoireMap,
@@ -69,6 +71,9 @@ import type {
 const EMBER = "#FB923C";
 const GOOD = "#86EFAC";
 const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
+
+/** Stable identity, so the tree hook is not handed a new array every render. */
+const NO_SLOTS: RepertoireSlot[] = [];
 
 export default function LearnPage() {
   const { profile } = useAuth();
@@ -86,6 +91,17 @@ export default function LearnPage() {
   const [hydrated, setHydrated] = useState(false);
   const [side, setSide] = useState<"white" | "black">("white");
   const [openSlot, setOpenSlot] = useState<string | null>(null);
+
+  // Their own archive, read only when they ask for it. Never on page load: it
+  // costs a fetch, and a browsing page that quietly spends somebody's
+  // connection every time they open it is a page they stop opening.
+  const archive = useMemo(() => archiveAccountFor(profile), [profile]);
+  const mine = useYourTree({ account: archive, slots: map?.slots ?? NO_SLOTS });
+  // Null unless we have enough of THIS colour to divide by. Everything
+  // downstream — the bracket seed, the rows, the coverage sentence — reads this
+  // one value, so there is no way for half the screen to be measured and the
+  // other half to be the corpus.
+  const measured = measuredFor(mine.tree, side) ? mine.tree : null;
   // The answers being re-taken, held OUTSIDE the bracket so the quiz can show
   // them as already-chosen. Clearing state.quiz is what opens the quiz screen;
   // this is what stops a re-take from feeling like starting over.
@@ -149,9 +165,18 @@ export default function LearnPage() {
   // branches in front of a 700 is a wall, and every one of those branches is a
   // line they will meet a handful of times a year.
   const maxDepth = band.id === "new" ? 1 : band.id === "beginner" ? 2 : 3;
+  // One closure, handed to BOTH the displayed bracket and the coverage sum.
+  // They each build their own tree, and giving it to only one of them is how
+  // the summary came to say "1.e4, at 47% of games" directly above a row
+  // reading "75% of your games".
+  const rootReach = useCallback(
+    (slot: RepertoireSlot) => (measured ? (factsFor(measured, slot.id).share ?? null) : null),
+    [measured]
+  );
+
   const bracket = useMemo(
-    () => (map ? buildBracket(map, side, picks, maxDepth) : []),
-    [map, side, picks, maxDepth]
+    () => (map ? buildBracket(map, side, picks, maxDepth, rootReach) : []),
+    [map, side, picks, maxDepth, rootReach]
   );
 
   // Breadth is a level question too, and a much better evidenced one than depth.
@@ -162,14 +187,22 @@ export default function LearnPage() {
     () => (map ? focusedRoots(map, side, band.id) : { focus: [], deferred: [] }),
     [map, side, band.id]
   );
+  // Every root for this colour, deferred ones included: the residual is what
+  // their games did NOT land on, so holding some back from the sum would
+  // silently move those into "too rare to plan for".
+  const rootSlots = useMemo(
+    () => (map ? [...focus.focus, ...focus.deferred] : []),
+    [map, focus]
+  );
+
   const visible = useMemo(() => {
     if (showAll || focus.deferred.length === 0) return bracket;
     const wanted = new Set(focus.focus.map(s => s.id));
     return bracket.filter(node => wanted.has(node.slot.id));
   }, [bracket, focus, showAll]);
   const cover = useMemo(
-    () => (map ? coverage(map, side, picks) : null),
-    [map, side, picks]
+    () => (map ? coverage(map, side, picks, rootReach) : null),
+    [map, side, picks, rootReach]
   );
 
   if (mapState === "failed") {
@@ -216,6 +249,8 @@ export default function LearnPage() {
           leaves open appear underneath.
         </Typography>
 
+        <YourGamesCard state={mine} account={archive} side={side} />
+
         <QuizSummary
           quiz={state.quiz}
           onEdit={() => {
@@ -227,7 +262,17 @@ export default function LearnPage() {
 
         <SideToggle side={side} onChange={(s) => { setSide(s); setOpenSlot(null); }} />
 
-        {cover && <CoverageBar coverage={cover} side={side} meta={map.meta} band={band} rating={rating} />}
+        {cover && (
+          <CoverageBar
+            coverage={cover}
+            side={side}
+            meta={map.meta}
+            band={band}
+            rating={rating}
+            tree={measured}
+            roots={rootSlots}
+          />
+        )}
 
         <Box sx={{ display: "grid", gap: 1.5, mt: 3 }}>
           {visible.map((node) => (
@@ -238,6 +283,7 @@ export default function LearnPage() {
               picks={picks}
               quiz={state.quiz}
               band={band}
+              tree={measured}
               openSlot={openSlot}
               onOpen={setOpenSlot}
               onPick={choose}
@@ -352,12 +398,15 @@ function SlotBranch({
   picks,
   quiz,
   band,
+  tree,
   openSlot,
   onOpen,
   onPick,
 }: {
   node: BracketNode;
   map: RepertoireMap;
+  /** Their measured archive, or null when we have not measured this colour. */
+  tree: YourTree | null;
   picks: RepertoirePick[];
   quiz: QuizAnswers | null;
   band: Band;
@@ -367,7 +416,17 @@ function SlotBranch({
 }) {
   const open = openSlot === node.slot.id;
   const filled = Boolean(node.pick);
-  const rare = rarity(node.reach);
+  // A measured share answers "how often did you MEET this", which is only the
+  // same question as "how often will you meet it" at depth 0 — where what
+  // arrives is decided by the opponent, not by a choice the player may not have
+  // made yet. Behind a pick they have only just made, their archive honestly
+  // reports zero, and zero is the wrong answer to the question the row is
+  // asking. So the substitution stops at the roots, which is also exactly where
+  // the corpus is most wrong about a beginner.
+  const measured = node.depth === 0 && tree ? factsFor(tree, node.slot.id) : null;
+  const reach = measured?.share ?? node.reach;
+  const rare = rarity(reach);
+  const yourMove = mainMoveAt(tree, node.slot.id);
   return (
     <Box sx={{ pl: node.depth > 0 ? { xs: 1.5, md: 3 } : 0 }}>
       <Box
@@ -409,7 +468,9 @@ function SlotBranch({
                   master corpus, not on this player's archive — see the note at
                   the foot of the page. Saying "yours" of somebody else's games
                   is the one claim on this screen nothing could back. */}
-              {node.pick ? node.pick.label : `${pctOf(node.reach)} of games · nothing chosen`}
+              {node.pick
+                ? node.pick.label
+                : `${pctOf(reach)} of ${measured ? "your games" : "games"} · nothing chosen`}
             </Typography>
             {/* A percentage flattens everything: 4% and 30% are both "a
                 percentage" and scan as the same size of thing. A count of games
@@ -453,6 +514,7 @@ function SlotBranch({
               slot={node.slot}
               quiz={quiz}
               band={band}
+              youPlay={yourMove}
               transposes={transposesInto(map, node.slot.id, picks)}
               onPick={onPick}
               onClose={() => onOpen(null)}
@@ -475,6 +537,7 @@ function SlotBranch({
               picks={picks}
               quiz={quiz}
               band={band}
+              tree={tree}
               openSlot={openSlot}
               onOpen={onOpen}
               onPick={onPick}
@@ -499,15 +562,29 @@ function CoverageBar({
   meta,
   band,
   rating,
+  tree,
+  roots,
 }: {
   coverage: NonNullable<ReturnType<typeof coverage>>;
   side: "white" | "black";
   meta: RepertoireMap["meta"];
   band: Band;
   rating: number | undefined;
+  /** Their measured archive for this colour, or null. */
+  tree: YourTree | null;
+  roots: RepertoireSlot[];
 }) {
   const done = Math.round(cover.answered * 100);
   const biggest = cover.open[0];
+  // "A further N% is first moves too rare to plan for."
+  //
+  // `meta.otherFirstMoves` is the corpus residual, and once the roots above are
+  // measured it belongs to a different population than everything around it.
+  // Measured, the residual is simply what their own root shares do not account
+  // for — the first moves they met that this map has no slot for.
+  const residual = tree
+    ? Math.max(0, 1 - roots.reduce((sum, s) => sum + (factsFor(tree, s.id).share ?? 0), 0))
+    : meta.otherFirstMoves;
   const state = sufficiency(cover.answered, band);
   return (
     <Box sx={{ mt: 2.5, p: { xs: 2, md: 2.5 }, borderRadius: "1.5rem", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}>
@@ -562,13 +639,13 @@ function CoverageBar({
           <>
             The biggest thing you have no answer for is{" "}
             <Box component="span" sx={{ color: "#fff" }}>{slotTitle(biggest.slot).replace(/^Against /, "")}</Box>
-            , at {pctOf(biggest.reach)} of games.
+            , at {pctOf(biggest.reach)} of {tree ? "your games" : "games"}.
           </>
         ) : (
           <>Every branch we can measure has an answer. Nothing left to decide at this level.</>
         )}
-        {side === "black" && meta.otherFirstMoves > 0.01 && (
-          <> A further {pctOf(meta.otherFirstMoves)} is first moves too rare to plan for.</>
+        {side === "black" && residual > 0.01 && (
+          <> A further {pctOf(residual)} is first moves too rare to plan for.</>
         )}
       </Typography>
     </Box>
@@ -597,6 +674,120 @@ function SideToggle({ side, onChange }: { side: "white" | "black"; onChange: (s:
           As {option === "white" ? "White" : "Black"}
         </Box>
       ))}
+    </Box>
+  );
+}
+
+/**
+ * "These numbers are not yours yet."
+ *
+ * The page has always said "% of your games" next to every slot, and the number
+ * came from 3.4M games by players rated 2300+. At 900 that is close to inverted
+ * — the London is 1.5% of the Elite corpus and it is everywhere below 1500 —
+ * and the label claimed it was personal. This is the button that makes the
+ * claim true, and until it is pressed the page says whose games those are.
+ *
+ * Opt-in, never automatic. Reading twelve months of somebody's archive because
+ * they opened a page is not a thing to do to them without asking.
+ */
+function YourGamesCard({
+  state,
+  account,
+  side,
+}: {
+  state: ReturnType<typeof useYourTree>;
+  account: ReturnType<typeof archiveAccountFor>;
+  side: "white" | "black";
+}) {
+  const enough = measuredFor(state.tree, side);
+  const counted = state.tree?.games[side] ?? 0;
+
+  // No handle stored is not an error and must not be dressed as one. It is the
+  // ordinary state for somebody who signed up over the board.
+  if (!account) {
+    return (
+      <Note>
+        Add your Lichess or Chess.com username on{" "}
+        <Box component={Link} href="/profile" sx={{ color: EMBER, textDecoration: "underline" }}>
+          your profile
+        </Box>{" "}
+        and these frequencies become yours instead of the corpus average.
+      </Note>
+    );
+  }
+
+  if (state.phase === "loading") {
+    return <Note>Reading your last 12 months on {account.platform}…</Note>;
+  }
+
+  if (state.phase === "error") {
+    return (
+      <Note tone="warn">
+        {state.error} <Retry onClick={state.run}>Try again</Retry>
+      </Note>
+    );
+  }
+
+  if (state.phase === "ready" && enough) {
+    return (
+      <Note tone="good">
+        Measured from {counted.toLocaleString()} of your own games as{" "}
+        {side === "white" ? "White" : "Black"}. <Retry onClick={state.run}>Refresh</Retry>
+      </Note>
+    );
+  }
+
+  // Ready, but this colour is too thin to divide by. Say which, rather than
+  // silently falling back to the corpus and letting the reader assume the
+  // numbers changed for them.
+  if (state.phase === "ready") {
+    return (
+      <Note>
+        Only {counted.toLocaleString()} of your games as {side === "white" ? "White" : "Black"} —
+        too few to work out your own frequencies, so these are still the corpus average.{" "}
+        <Retry onClick={state.run}>Refresh</Retry>
+      </Note>
+    );
+  }
+
+  return (
+    <Note>
+      These frequencies come from games by players rated 2300+, and yours will be different.{" "}
+      <Retry onClick={state.run}>Use my last 12 months</Retry>
+    </Note>
+  );
+}
+
+function Note({ children, tone }: { children: React.ReactNode; tone?: "good" | "warn" }) {
+  const colour = tone === "good" ? GOOD : tone === "warn" ? EMBER : "rgba(255,255,255,0.5)";
+  return (
+    <Typography
+      sx={{
+        mb: 2, fontSize: "0.8rem", lineHeight: 1.6, color: colour,
+        display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap",
+      }}
+    >
+      {tone === "good" && <Check size={13} aria-hidden />}
+      <span>{children}</span>
+    </Typography>
+  );
+}
+
+function Retry({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return (
+    <Box
+      component="button"
+      onClick={onClick}
+      sx={{
+        display: "inline-flex", alignItems: "center", minHeight: 44, px: 1, ml: -1,
+        appearance: "none", background: "none", border: "none", cursor: "pointer",
+        color: EMBER, fontSize: "0.8rem", fontWeight: 600,
+        textDecoration: "underline", textUnderlineOffset: 3, borderRadius: "8px",
+        "&:hover": { color: "#fff" },
+        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+      }}
+    >
+      {children}
     </Box>
   );
 }

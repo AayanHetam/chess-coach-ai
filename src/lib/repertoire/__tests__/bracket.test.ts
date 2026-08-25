@@ -19,6 +19,10 @@ import {
   transposesInto,
 } from '@/lib/repertoire/bracket';
 import type { RepertoireMap, RepertoireSlot } from '@/types/repertoire';
+import shipped from '@/data/repertoire-map.json';
+
+/** The map as it actually ships, so the override is tested against real slots. */
+const shippedMap = () => shipped as unknown as RepertoireMap;
 
 function slot(over: Partial<RepertoireSlot> & { id: string }): RepertoireSlot {
   return {
@@ -216,5 +220,69 @@ describe('focusedRoots', () => {
 
   it('treats an unknown band as the full map rather than showing nothing', () => {
     expect(focusedRoots(fourRoots, 'black', 'nonsense').focus).toHaveLength(4);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The measured-root override.
+//
+// This exists because patching only the DISPLAY produced a screen whose
+// coverage summary said "1.e4, at 47% of games" directly above a row reading
+// "75% of your games". Both are sums over `reach`, so both have to be seeded
+// from the same place — and an override that reaches one of them and not the
+// other is invisible in every unit test that checks only one.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('measured root reach', () => {
+  const blackRoots = (m: RepertoireMap) =>
+    m.slots.filter(s => s.side === 'black' && s.origin === null);
+
+  it('seeds the bracket from the override instead of the corpus share', () => {
+    const m = shippedMap();
+    const roots = blackRoots(m);
+    expect(roots.length).toBeGreaterThan(1);
+    const target = roots[0];
+
+    const corpus = buildBracket(m, 'black', []);
+    const mine = buildBracket(m, 'black', [], 3, s => (s.id === target.id ? 0.75 : 0));
+
+    const before = corpus.find(n => n.slot.id === target.id)!.reach;
+    const after = mine.find(n => n.slot.id === target.id)!.reach;
+    expect(before).not.toBeCloseTo(0.75, 4);
+    expect(after).toBeCloseTo(0.75, 6);
+  });
+
+  it('falls back to the corpus for a root the override declines', () => {
+    // Returning null must mean "no measurement", never "zero".
+    const m = shippedMap();
+    const target = blackRoots(m)[0];
+    const nulled = buildBracket(m, 'black', [], 3, () => null);
+    const corpus = buildBracket(m, 'black', []);
+    expect(nulled.find(n => n.slot.id === target.id)!.reach).toBeCloseTo(
+      corpus.find(n => n.slot.id === target.id)!.reach,
+      9
+    );
+  });
+
+  it('reaches the coverage sum too, not only the displayed bracket', () => {
+    // The regression, stated as a test. Pick something, then check that the
+    // coverage number MOVES when the roots are measured — if the override
+    // stopped at buildBracket, this number would be identical.
+    const m = shippedMap();
+    const roots = blackRoots(m);
+    const target = roots[0];
+    const choice = target.choices[0];
+    expect(choice, 'need a curated choice to fill a slot with').toBeTruthy();
+    const picks = [{ slotId: target.id, choiceId: choice.id, label: choice.name }];
+
+    const corpus = coverage(m, 'black', picks);
+    // Give that root ALL of their games: answering it must now answer far more.
+    const mine = coverage(m, 'black', picks, s => (s.id === target.id ? 1 : 0));
+    expect(mine.answered).toBeGreaterThan(corpus.answered);
+  });
+
+  it('leaves White alone, because White always makes the first move', () => {
+    const m = shippedMap();
+    const withOverride = buildBracket(m, 'white', [], 3, () => 0.1);
+    expect(withOverride[0].reach).toBe(1);
   });
 });

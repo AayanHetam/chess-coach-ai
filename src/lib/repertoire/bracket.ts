@@ -123,7 +123,25 @@ export function buildBracket(
   map: RepertoireMap,
   side: 'white' | 'black',
   picks: RepertoirePick[],
-  maxDepth = 3
+  maxDepth = 3,
+  /**
+   * The player's own measured share of a ROOT slot, when we have read their
+   * archive. Returning null for a slot falls back to the corpus.
+   *
+   * Substituted here rather than at the point of display, and the difference is
+   * a bug I shipped to a screenshot: patching only the row left the coverage
+   * summary above it saying "1.e4, at 47% of games" while the row beneath said
+   * "75% of your games". Every derived number — the answered percentage, the
+   * ordering, the biggest-gap sentence — reads `reach`, so `reach` is the one
+   * place it can be changed without them disagreeing.
+   *
+   * Roots only, by construction: this is the seed, and every deeper node is
+   * still `parent x gap.share` off the corpus. That is deliberate. A measured
+   * share answers "how often did you MEET this", which is the same question as
+   * "how often will you meet it" only where the opponent decides — and behind a
+   * pick they made ten seconds ago their archive honestly says zero.
+   */
+  rootReach?: (slot: RepertoireSlot) => number | null
 ): BracketNode[] {
   const slots = byId(map);
   const picked = new Map(picks.map(p => [p.slotId, p]));
@@ -142,7 +160,11 @@ export function buildBracket(
     return { slot, pick, reach, children, depth };
   }
 
-  return roots(map, side).map(slot => node(slot, side === 'white' ? 1 : slot.share, 0));
+  return roots(map, side).map(slot =>
+    // White's root is always 1: you make a first move in every game you play as
+    // White, and no archive can improve on that.
+    node(slot, side === 'white' ? 1 : (rootReach?.(slot) ?? slot.share), 0)
+  );
 }
 
 /** Walk a bracket depth-first. */
@@ -161,9 +183,17 @@ export function flatten(nodes: BracketNode[]): BracketNode[] {
 export function coverage(
   map: RepertoireMap,
   side: 'white' | 'black',
-  picks: RepertoirePick[]
+  picks: RepertoirePick[],
+  /**
+   * Forwarded to buildBracket. NOT optional in practice, even though the
+   * signature allows it: every number this returns is a sum over `reach`, so
+   * omitting it here while passing it to the displayed bracket produces a
+   * coverage percentage and a biggest-gap sentence measured against a different
+   * population than the rows they sit above.
+   */
+  rootReach?: (slot: RepertoireSlot) => number | null
 ): Coverage {
-  const nodes = buildBracket(map, side, picks);
+  const nodes = buildBracket(map, side, picks, 3, rootReach);
   const open: BracketNode[] = [];
   let answered = 0;
   let filled = 0;

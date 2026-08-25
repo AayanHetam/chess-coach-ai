@@ -50,9 +50,25 @@ export interface SlotChooserProps {
   onClose: () => void;
   /** Systems already in their bracket that this slot can transpose into. */
   transposes: Array<{ choiceId: string; name: string; atLeast: number }>;
+  /**
+   * The move they measurably already play here, or null.
+   *
+   * A statement about the past, so it is safe at ANY depth — unlike a measured
+   * share, which only answers the row's question at the roots. "You already
+   * play this" is true whether or not they keep the pick above it.
+   */
+  youPlay?: { san: string; games: number; share: number } | null;
 }
 
-export default function SlotChooser({ slot, quiz, band, onPick, onClose, transposes }: SlotChooserProps) {
+export default function SlotChooser({
+  slot,
+  quiz,
+  band,
+  onPick,
+  onClose,
+  transposes,
+  youPlay = null,
+}: SlotChooserProps) {
   const ranked = useMemo(() => rankChoices(slot.choices, quiz, band), [slot.choices, quiz, band]);
   const panel = useRef<HTMLDivElement>(null);
 
@@ -119,6 +135,7 @@ export default function SlotChooser({ slot, quiz, band, onPick, onClose, transpo
               index={i}
               band={band}
               quiz={quiz}
+              youPlay={youPlay}
               onPick={() => onPick({ slotId: slot.id, choiceId: choice.id, label: choice.name })}
             />
           ))}
@@ -219,6 +236,7 @@ function ChoiceCard({
   index,
   band,
   quiz,
+  youPlay,
   onPick,
 }: {
   choice: RepertoireChoice;
@@ -226,6 +244,7 @@ function ChoiceCard({
   index: number;
   band: Band;
   quiz: QuizAnswers | null;
+  youPlay: SlotChooserProps["youPlay"];
   onPick: () => void;
 }) {
   const branches = choice.gaps.length;
@@ -233,6 +252,10 @@ function ChoiceCard({
   const heavyForBand = !withinCeiling(choice, band);
   const style = CHARACTER_STYLE[choice.character];
   const fitted = fitOf(choice, quiz, band);
+  // Compared on the move, not the name. A choice is a commitment to one SAN
+  // move at this position, and that is the only thing their archive can be
+  // matched against — they play "c6", not "the Caro-Kann Defence".
+  const already = Boolean(youPlay && youPlay.san === choice.play);
   return (
     <Box
       component={motion.button}
@@ -309,6 +332,21 @@ function ChoiceCard({
         {/* At most two, and never more: everything lining up collapses to one
             tag, and a two-band stretch swallows the style note because the
             expensive objection is the one that should be read. */}
+        {/* Their own play, before any judgement about it. This outranks the fit
+            tags because it is MEASURED and they are inferred — and because what
+            they already play is the single most useful thing the page can say
+            to somebody deciding whether to change anything.
+            It names the MOVE rather than saying "you already play this", and
+            that is not pedantry: the Najdorf, the Dragon, the Accelerated
+            Dragon and the Kan all commit to 1...c5 at this slot, so the tag
+            lands on four cards at once. "You already play the Najdorf" would be
+            false on three of them. "You already play c5" is true on all four,
+            and explains why they are all marked. */}
+        {already && youPlay && (
+          <Tag tone="good">
+            you already play {youPlay.san} · {Math.round(youPlay.share * 100)}%
+          </Tag>
+        )}
         {fitted.recommended ? (
           <Tag tone="good">heavily recommended</Tag>
         ) : fitted.level === "stretch" ? (

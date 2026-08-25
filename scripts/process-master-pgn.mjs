@@ -38,7 +38,14 @@ const TOP_PLAYERS_REGEX = [
   { regex: /\bnepomniachtchi\b|nepomniashchy|ian nepom/i, key: "nepo", rank: 4 },
   { regex: /\bgiri\b.*\b[aA]\b|anish giri/i, key: "giri", rank: 5 },
   { regex: /\bding\b.*\b[lL]\b|ding liren/i, key: "ding", rank: 6 },
-  { regex: /\bfirouzja\b|alireza/i, key: "firouzja", rank: 7 },
+  // `alireza` alone was here and matched any account carrying an extremely
+  // common given name: measured on one month of Lichess, 9 distinct players
+  // — Malireza2400, Alirezaere, mr-alireza — and none of them Firouzja. The
+  // label is STICKY and rank-ordered, so one such account playing 1.e4 tagged
+  // the most-played move in the whole corpus as his. It reaches nobody today
+  // only because `compact-master-tree.mjs` drops the field; a Lichess-sourced
+  // corpus is exactly the input that would put it in front of a player.
+  { regex: /\bfirouzja\b/i, key: "firouzja", rank: 7 },
   { regex: /\bso\b.*\b[wW]\b|wesley so/i, key: "so", rank: 8 },
   { regex: /\baronian\b.*\b[lL]\b|levon aronian/i, key: "aronian", rank: 9 },
   { regex: /\brapport\b.*\b[rR]\b|richard rapport/i, key: "rapport", rank: 10 },
@@ -78,9 +85,33 @@ function normalizeFen(fen) {
  */
 export function truncateMovetext(text, maxPlies) {
   const cutAtMove = Math.ceil(maxPlies / 2) + 2;
+  // Global, because the FIRST match is not necessarily a move number. The
+  // comment above is right that `17.` cannot appear as a SAN and wrong that it
+  // cannot appear at all: this runs BEFORE comments are stripped, and Lichess
+  // writes `{ [%eval 9.33] }`, which matches the marker for a 14-ply build.
+  //
+  // Measured on 172,205 games from 2025-11: 9.1% carry evals and 24 of them
+  // (0.01%) have their first `9.` inside one, so those games were cut a ply or
+  // two early. Small, and small in a direction nothing could see — it produced
+  // exactly one missing position in 99,030 and no wrong number anywhere.
   const marker = new RegExp(`\\b${cutAtMove}\\.`);
-  const at = text.search(marker);
-  return at === -1 ? text : text.slice(0, at);
+  // An explicit offset rather than a global regex's `lastIndex`. `exec` on a
+  // NON-global regex returns the same match forever, so a loop driven by it
+  // hangs the whole build if the `g` is ever dropped — a one-character edit
+  // away from an overnight run that never finishes. `from` always advances.
+  let from = 0;
+  for (;;) {
+    const at = text.slice(from).search(marker);
+    if (at === -1) return text;
+    const index = from + at;
+    const before = text.slice(0, index);
+    // Inside a comment when an unclosed brace precedes it. Cheap because the
+    // loop runs once for almost every game and twice for one in ten thousand.
+    const open = (before.match(/\{/g) ?? []).length;
+    const close = (before.match(/\}/g) ?? []).length;
+    if (open <= close) return text.slice(0, index);
+    from = index + 1;
+  }
 }
 
 /**
@@ -252,8 +283,13 @@ async function main() {
       .split(/\s+/)
       .filter(Boolean);
 
-    const whitePlayer = matchTopPlayer(currentHeaders.White);
-    const blackPlayer = matchTopPlayer(currentHeaders.Black);
+    // Top-player detection is for MASTER pgns, whose `White` header is
+    // "Firouzja, Alireza". A banded corpus is Lichess, whose header is a
+    // username — there are no top players in it to find, and the sixteen
+    // regexes per game are pure cost on the one input where they can only be
+    // wrong. The split writes no names at all for the same reason.
+    const whitePlayer = bandSpec ? null : matchTopPlayer(currentHeaders.White);
+    const blackPlayer = bandSpec ? null : matchTopPlayer(currentHeaders.Black);
     const result = currentHeaders.Result ?? "*";
 
     const chess = new Chess();

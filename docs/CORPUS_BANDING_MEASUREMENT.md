@@ -67,19 +67,85 @@ Games are kept only when **both** players are in the band. A 1200 against a
 and the other is not being tested — and counting it would import the stronger
 player's repertoire into the weaker player's frequencies.
 
+## The split, and why the corpus is cut once rather than aggregated four ways
+
+Four bands means either four passes over a 29 GB download, or one pass holding
+four position trees in memory. The second is the obvious answer and it is the
+wrong one: `process-master-pgn.mjs` is a working, load-bearing build script
+whose singleton sweeps and memory ceiling are per-tree state, and rewriting it
+to run four of everything risks the corpus every number in the product rests
+on, for an optimisation.
+
+So `scripts/split-pgn-by-band.mjs` reads the expensive input once and writes one
+small PGN per band — `[Result]` and a truncated, comment-free movetext, nothing
+else. Measured on the same 1,296,901 games:
+
+| | |
+|---|---|
+| Split wall-clock | **20 s** (against 4 m 51 s to *parse* one band) |
+| Games landing in some band | 700,234 — **54.0%** |
+| Output size, all five bands | **151 MB** from a 3.0 GB input — 20× smaller |
+
+| band | games | MB |
+|---|---|---|
+| new | 59,255 | 12.3 |
+| beginner | 259,759 | 55.9 |
+| improving | 232,933 | 50.6 |
+| club | 120,326 | 26.2 |
+| strong | 27,961 | 6.1 |
+
+**The acceptance test passes exactly.** Building `improving` from the split and
+building it directly from the full dump produce **byte-identical** position
+tables: 99,030 positions, 37,401,928 characters, no difference. The split is a
+lossless pre-filter, not an approximation.
+
+The banded files are also worth keeping: a few GB rather than 29, so rebuilding
+at a different depth, a different threshold or a fixed bug costs minutes instead
+of another 2.3-hour download.
+
+## Two bugs the comparison exposed
+
+Neither was found by reading the code. Both showed up as a difference between
+two builds that should have agreed.
+
+**`truncateMovetext` could be fooled by an evaluation.** Its comment says the
+move-number token "is unambiguous even inside comments and variations: `17.`
+cannot appear as a SAN". True, and it can appear inside a *comment* — the
+function runs before comments are stripped, and Lichess writes
+`{ [%eval 9.33] }`, which matches the marker for a 14-ply build. Measured:
+9.1% of games carry evals and **24 of 172,205 (0.01%)** have their first `9.`
+inside one, so those games were cut a ply or two early. The effect was exactly
+one missing position in 99,030 and no wrong number anywhere — small, and small
+in a direction nothing could have seen.
+
+**`matchTopPlayer` tagged strangers as Firouzja.** The pattern was
+`/firouzja|alireza/i`, and `alireza` alone matches any account carrying an
+extremely common given name: measured on one month, **9 distinct players** —
+`Malireza2400`, `Alirezaere`, `mr-alireza` — and none of them Firouzja. The
+label is sticky and rank-ordered, so one such account playing 1.e4 tagged the
+most-played move in the whole corpus as his. It reaches nobody today only
+because `compact-master-tree.mjs` drops the field, and a Lichess-sourced corpus
+is exactly the input that would put it in front of a player. Top-player
+matching is now skipped entirely for banded input, where by construction there
+are no top players to find.
+
 ## What a full build costs, from these numbers
 
 One month of Lichess is 29.4 GB compressed and about 95M games.
 
-| | |
+| step | cost |
 |---|---|
-| Download, at the 3.5 MB/s measured | **~2.3 hours** |
-| Scan + parse, at 4,030 games/s | **~6.5 hours** |
-| Disk, streamed (never stored decompressed) | 29.4 GB |
-
-Four bands from one pass rather than four passes is the obvious shape: the
-filter runs before any parsing, so a second tree costs only the games it keeps.
-That is not built yet — the flag today produces one band per run.
+| Download, at the 3.5 MB/s measured | **~2.3 h** |
+| Split into five banded PGNs, streamed | **~25 min** |
+| Banded PGNs on disk, kept for rebuilds | **~11 GB** |
+| Per-band build, largest band, at the rate measured | **~6.6 h** |
+| Four bands in parallel on four cores | **~6.6 h wall clock** |
+| **Total, first run** | **~9.3 h** |
+| **Every rebuild after** | **~6.6 h, no download** |
 
 Nothing here has been run at full scale. This document exists so the decision
 to spend those hours is made against measured numbers rather than an estimate.
+A fraction of a month is also a coherent choice: 233k games already produced
+stable shares at opening depth, and what the extra volume buys is DEPTH — the
+positions that survive a 100-game threshold at ply 20-24 — not accuracy at
+ply 4.

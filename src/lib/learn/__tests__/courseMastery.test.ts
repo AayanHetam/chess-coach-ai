@@ -22,12 +22,12 @@ const records = (...spec: Array<[string, Correctness]>): Records =>
 describe('masteryOf', () => {
   it('separates known from learning, and calls the rest unseen', () => {
     const m = masteryOf(records(['a', 2], ['b', 1], ['c', -1]), 10);
-    expect(m).toEqual({ known: 1, learning: 2, unseen: 7, total: 10 });
+    expect(m).toEqual({ known: 1, learning: 2, unseen: 7, total: 10, due: 0 });
   });
 
   // ── Zero by definition ─────────────────────────────────────────────────────
   it('reports a chapter nobody has answered as entirely unseen', () => {
-    expect(masteryOf({}, 12)).toEqual({ known: 0, learning: 0, unseen: 12, total: 12 });
+    expect(masteryOf({}, 12)).toEqual({ known: 0, learning: 0, unseen: 12, total: 12, due: 0 });
   });
 
   it('never reports more progress than the chapter holds', () => {
@@ -43,6 +43,7 @@ describe('masteryOf', () => {
       learning: 1,
       unseen: 5,
       total: 9,
+      due: 0,
     });
   });
 
@@ -52,6 +53,7 @@ describe('masteryOf', () => {
       learning: 0,
       unseen: 4,
       total: 4,
+      due: 0,
     });
   });
 });
@@ -92,7 +94,7 @@ describe('readCourseMastery', () => {
     expect(m.learning).toBe(1);
     expect(m.total).toBe(12);
     expect(m.started).toBe(2);
-    expect(m.byChapter.get(2)).toEqual({ known: 0, learning: 0, unseen: 3, total: 3 });
+    expect(m.byChapter.get(2)).toEqual({ known: 0, learning: 0, unseen: 3, total: 3, due: 0 });
   });
 
   it('reads nothing for a signed-out reader, whatever is on the origin', () => {
@@ -123,14 +125,14 @@ describe('nextChapter', () => {
 
   it('is the first chapter with anything left, in share order', () => {
     const mastery = readCourseMastery('', 'x', chapters);
-    mastery.byChapter.set(0, { known: 3, learning: 0, unseen: 0, total: 3 });
+    mastery.byChapter.set(0, { known: 3, learning: 0, unseen: 0, total: 3, due: 0 });
     expect(nextChapter(chapters, mastery)).toBe(1);
   });
 
   it('is null when every chapter is known, so the screen can say so', () => {
     const mastery = readCourseMastery('', 'x', chapters);
     for (const c of chapters) {
-      mastery.byChapter.set(c.i, { known: c.asked, learning: 0, unseen: 0, total: c.asked });
+      mastery.byChapter.set(c.i, { known: c.asked, learning: 0, unseen: 0, total: c.asked, due: 0 });
     }
     expect(nextChapter(chapters, mastery)).toBeNull();
   });
@@ -138,5 +140,40 @@ describe('nextChapter', () => {
   it('skips a chapter that asks nothing rather than sending them to an empty session', () => {
     const empty = [{ i: 0, asked: 0 }, { i: 1, asked: 2 }];
     expect(nextChapter(empty, readCourseMastery('', 'x', empty))).toBe(1);
+  });
+});
+
+describe('cards owed', () => {
+  const NOW = 1_700_000_000_000;
+  const DAY = 24 * 60 * 60 * 1000;
+
+  const owed = (key: string, dueAt: number): ProbeRecord => ({
+    ...record(key, 2),
+    ease: 2.5,
+    interval: 6,
+    dueAt,
+  });
+
+  it('counts a card whose date has come, and not one whose has not', () => {
+    const m = masteryOf({ a: owed('a', NOW - DAY), b: owed('b', NOW + DAY) }, 5, NOW);
+    expect(m.due).toBe(1);
+  });
+
+  // ── Zero by definition ─────────────────────────────────────────────────────
+  it('owes nothing for a chapter nobody has got wrong', () => {
+    expect(masteryOf(records(['a', 2], ['b', 2]), 5, NOW).due).toBe(0);
+  });
+
+  it('counts nothing due without a clock, rather than everything', () => {
+    expect(masteryOf({ a: owed('a', NOW - DAY) }, 5).due).toBe(0);
+  });
+
+  it('does not hide a card for a decision this band no longer shows', () => {
+    // `known` is clamped to what the view holds; `due` is not. A decision they
+    // got wrong is still one they got wrong, and dropping it would be the
+    // review list forgetting on their behalf.
+    const m = masteryOf({ a: owed('a', NOW - DAY), b: owed('b', NOW - DAY) }, 1, NOW);
+    expect(m.known).toBe(1);
+    expect(m.due).toBe(2);
   });
 });

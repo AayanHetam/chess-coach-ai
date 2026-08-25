@@ -254,6 +254,15 @@ function ChapterRow({ courseId, side, unit, mastery, open, onToggle, index }: Pr
             {unit.decisions === 1 ? "decision" : "decisions"}
             {unit.studies.length > 0 ? ` · ${unit.studies.length} studies` : ""}
           </Typography>
+          {/* Owed, not overdue-shaming: a count and nothing else. */}
+          {(mastery?.due ?? 0) > 0 && (
+            <Typography
+              data-testid={`chapter-due-${unit.i}`}
+              sx={{ color: EMBER, fontSize: "0.72rem", mt: 0.2 }}
+            >
+              {mastery!.due} due back
+            </Typography>
+          )}
         </Box>
         <Box sx={{ display: { xs: "none", md: "block" } }}>
           <MiniBar known={studyMastery?.known ?? 0} total={unit.asked} />

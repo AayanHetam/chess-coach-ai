@@ -65,7 +65,10 @@ export default function CourseHubPage({ courseId, hub }: Props) {
   // Local first. The screen knows what you know before any network, and a
   // signed-out reader sees the course with no progress rather than no course.
   useEffect(() => {
-    setMastery(readCourseMastery(account, courseId, chapters));
+    // The clock is read HERE and passed in, so the reader stays a pure function
+    // of its inputs and nothing renders a different answer on the server than
+    // it does in the browser.
+    setMastery(readCourseMastery(account, courseId, chapters, Date.now()));
   }, [account, courseId, chapters]);
 
   const next = mastery ? nextChapter(chapters, mastery) : (chapters.find(c => c.asked > 0)?.i ?? null);
@@ -204,6 +207,20 @@ export default function CourseHubPage({ courseId, hub }: Props) {
                   hub.asked - (mastery?.known ?? 0) - (mastery?.learning ?? 0)
                 } not asked yet`}
           </Typography>
+
+          {/*
+            Cards are EARNED. A course nobody has got wrong owes nothing and
+            says nothing here, and that silence is the claim: enrolling in a
+            185-line course creates zero reviews.
+          */}
+          {mastery !== null && mastery.due > 0 && (
+            <Typography
+              data-testid="course-due"
+              sx={{ mt: 0.5, fontSize: "0.8rem", color: EMBER }}
+            >
+              {mastery.due} due back — decisions you have missed before.
+            </Typography>
+          )}
 
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 2 }}>
             {next !== null && (

@@ -12,7 +12,7 @@
 // shelf is for choosing between courses, not for being assessed.
 
 import { loadChapter } from '@/lib/learn/chapterProgress';
-import type { Records } from '@/lib/learn/chapterRound';
+import { isDue, type Records } from '@/lib/learn/chapterRound';
 
 export interface ChapterMastery {
   /** Answered right, cold. */
@@ -28,6 +28,15 @@ export interface ChapterMastery {
    * against a number no player can reach only ever reports a fraction.
    */
   total: number;
+  /**
+   * Cards owed right now.
+   *
+   * NOT clamped against `total` the way `known` is. A card exists because
+   * something went wrong, and a decision that has dropped out of this band's
+   * view is still a decision they got wrong — hiding it would be the review
+   * list quietly forgetting on their behalf.
+   */
+  due: number;
 }
 
 export interface CourseMastery {
@@ -35,6 +44,8 @@ export interface CourseMastery {
   known: number;
   learning: number;
   total: number;
+  /** Cards owed across the course. Zero for a course nobody has got wrong. */
+  due: number;
   /** Chapters with at least one answer. */
   started: number;
 }
@@ -48,39 +59,46 @@ export interface CourseMastery {
  * or a bar past its own end. The extra answers are real and they are not
  * progress through THIS view.
  */
-export function masteryOf(records: Records, total: number): ChapterMastery {
+export function masteryOf(records: Records, total: number, now = 0): ChapterMastery {
   let known = 0;
   let learning = 0;
+  let due = 0;
   for (const record of Object.values(records)) {
     if (record.correctness === 2) known++;
     else if (record.correctness !== 0) learning++;
+    // `now` defaults to 0, so a caller that passes no clock counts nothing due
+    // rather than everything.
+    if (isDue(record, now)) due++;
   }
   known = Math.min(known, total);
   learning = Math.min(learning, Math.max(0, total - known));
-  return { known, learning, unseen: Math.max(0, total - known - learning), total };
+  return { known, learning, unseen: Math.max(0, total - known - learning), total, due };
 }
 
 /** Every chapter of one course, for one account. Empty for a signed-out reader. */
 export function readCourseMastery(
   account: string,
   courseId: string,
-  chapters: Array<{ i: number; asked: number }>
+  chapters: Array<{ i: number; asked: number }>,
+  now = 0
 ): CourseMastery {
   const byChapter = new Map<number, ChapterMastery>();
   let known = 0;
   let learning = 0;
   let total = 0;
+  let due = 0;
   let started = 0;
   for (const chapter of chapters) {
     const records = account ? loadChapter(account, courseId, chapter.i) : {};
-    const mastery = masteryOf(records, chapter.asked);
+    const mastery = masteryOf(records, chapter.asked, now);
     byChapter.set(chapter.i, mastery);
     known += mastery.known;
     learning += mastery.learning;
     total += mastery.total;
+    due += mastery.due;
     if (Object.keys(records).length > 0) started++;
   }
-  return { byChapter, known, learning, total, started };
+  return { byChapter, known, learning, total, due, started };
 }
 
 /**

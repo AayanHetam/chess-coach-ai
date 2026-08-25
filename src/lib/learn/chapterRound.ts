@@ -21,6 +21,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { CourseProbe } from '@/lib/courses/probes';
+import { DEFAULT_EASE_FACTOR, applySm2 } from '@/lib/spacedRepetition';
 
 /**
  * Five, and the reason is already written down in this repo at
@@ -71,6 +72,51 @@ export interface ProbeRecord {
    * forget, which is the one thing spaced repetition exists to measure.
    */
   at: number;
+
+  // ── The card, when one has been EARNED ────────────────────────────────────
+  //
+  // A 185-line course creates ZERO cards on enrolment. A card exists only where
+  // a decision was actually missed or shown, which is the whole difference
+  // between this and a curriculum: the review list is a record of what went
+  // wrong, not a copy of the syllabus. A player who probes a chapter perfectly
+  // owes nothing, and the screen has to be able to say so.
+  //
+  // All three are absent together or present together. `dueAt === undefined` is
+  // the single test for "no card", and nothing else may stand in for it.
+
+  /** SM-2 ease factor. */
+  ease?: number;
+  /** SM-2 interval, in days. */
+  interval?: number;
+  /** When this comes back, epoch ms. */
+  dueAt?: number;
+}
+
+/** A day, in ms. The unit SM-2's interval is denominated in. */
+export const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** True when this decision has been missed at least once and owes a review. */
+export const hasCard = (record: ProbeRecord): boolean => record.dueAt !== undefined;
+
+/** True when a card exists and its date has come. */
+export const isDue = (record: ProbeRecord, now: number): boolean =>
+  record.dueAt !== undefined && record.dueAt <= now;
+
+/** Cards owed right now. Zero for a chapter nobody has got wrong. */
+export function dueCount(records: Records, now: number): number {
+  let due = 0;
+  for (const record of Object.values(records)) if (isDue(record, now)) due++;
+  return due;
+}
+
+/** The soonest card in this set, or null when nothing is scheduled. */
+export function nextDueAt(records: Records): number | null {
+  let soonest: number | null = null;
+  for (const record of Object.values(records)) {
+    if (record.dueAt === undefined) continue;
+    if (soonest === null || record.dueAt < soonest) soonest = record.dueAt;
+  }
+  return soonest;
 }
 
 export function blankRecord(key: string): ProbeRecord {
@@ -99,17 +145,25 @@ export function buildRound(
   probes: CourseProbe[],
   records: Records,
   round: number,
-  size: number = ROUND_SIZE
+  size: number = ROUND_SIZE,
+  now = 0
 ): CourseProbe[] {
   const at = (p: CourseProbe) => recordFor(records, p.key);
   const missed = probes.filter(p => at(p).correctness === -1);
   const learning = probes.filter(p => at(p).correctness === 1);
   const unseen = probes.filter(p => at(p).correctness === 0);
+  // Known, and the date has come round. `now` defaults to 0 so a caller that
+  // does not pass a clock sweeps nothing — the zero-by-definition case, rather
+  // than a silent "everything is due" from an undefined comparison.
+  const due = probes.filter(p => at(p).correctness === 2 && isDue(at(p), now));
 
   const stale = learning.filter(p => round - at(p).lastRound >= 1);
   const fresh = learning.filter(p => round - at(p).lastRound < 1);
 
-  const queue = [...missed, ...stale, ...unseen, ...fresh];
+  // Due sits SECOND, above anything never asked. A decision you got wrong in
+  // March and have not seen since is worth more than the next new one, and the
+  // whole point of earning a card is that it comes back.
+  const queue = [...missed, ...due, ...stale, ...unseen, ...fresh];
   const seen = new Set<string>();
   const out: CourseProbe[] = [];
   for (const probe of queue) {
@@ -171,17 +225,60 @@ export function gradeAsk(record: ProbeRecord, outcome: AskOutcome): ProbeRecord 
   const base = { ...record, asks, hinted, lastRound: outcome.round, at: outcome.at };
 
   if (!outcome.right) {
-    return { ...base, correctness: -1, misses: record.misses + 1 };
+    return { ...base, correctness: -1, misses: record.misses + 1, ...earn(record, outcome.at) };
   }
   if (outcome.hinted) {
     // Right, but shown. Not a miss — they did not play the wrong move — and not
     // knowledge either. It comes back.
-    return { ...base, correctness: -1 };
+    return { ...base, correctness: -1, ...earn(record, outcome.at) };
   }
   // Cold and right is the end of it. Right after a miss is one rung, and the
   // rung after that is reached on a LATER round, never twice in one.
   const next: Correctness = record.correctness === 0 ? 2 : record.correctness === -1 ? 1 : 2;
-  return { ...base, correctness: next };
+  return { ...base, correctness: next, ...advance(record, outcome.at) };
+}
+
+/**
+ * The card a miss creates, or the reset a miss deals an existing one.
+ *
+ * `applySm2` is the repo's own SM-2, shared with puzzles and opening drills and
+ * not touched. Quality 2 for both a wrong move and a hinted one: the scale
+ * calls 3 "correct with difficulty", which would ADVANCE the interval, and a
+ * decision that had to be shown has not been recalled at all. That asymmetry is
+ * the same one `correctness` makes and it has to be made twice, because the two
+ * numbers answer different questions — what you know, and when to ask again.
+ */
+function earn(record: ProbeRecord, at: number): Pick<ProbeRecord, 'ease' | 'interval' | 'dueAt'> {
+  const { easeFactor, interval } = applySm2(
+    {
+      easeFactor: record.ease ?? DEFAULT_EASE_FACTOR,
+      interval: record.interval ?? 0,
+      attempts: record.asks,
+    },
+    2
+  );
+  return { ease: easeFactor, interval, dueAt: at + interval * DAY_MS };
+}
+
+/**
+ * A right answer, applied to a card that already exists.
+ *
+ * NOTHING when there is no card, and that is the guarantee the whole review
+ * layer rests on: a player who probes a 185-line course perfectly finishes with
+ * zero cards. A curriculum would have created 185 on enrolment and asked them
+ * all back.
+ */
+function advance(record: ProbeRecord, at: number): Pick<ProbeRecord, 'ease' | 'interval' | 'dueAt'> {
+  if (record.dueAt === undefined) return {};
+  const { easeFactor, interval } = applySm2(
+    {
+      easeFactor: record.ease ?? DEFAULT_EASE_FACTOR,
+      interval: record.interval ?? 1,
+      attempts: record.asks,
+    },
+    5
+  );
+  return { ease: easeFactor, interval, dueAt: at + interval * DAY_MS };
 }
 
 export interface Tally {
@@ -238,9 +335,10 @@ export function startRound(
   probes: CourseProbe[],
   records: Records,
   round: number,
-  size: number = ROUND_SIZE
+  size: number = ROUND_SIZE,
+  now = 0
 ): RoundState {
-  const chosen = buildRound(probes, records, round, size);
+  const chosen = buildRound(probes, records, round, size, now);
   return {
     round,
     timeline: chosen.map(p => p.key),

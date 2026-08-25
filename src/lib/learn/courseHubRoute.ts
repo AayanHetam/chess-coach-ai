@@ -34,6 +34,35 @@ export function chapterReaderHref(courseId: string, chapter: number, study?: str
 }
 
 /**
+ * The reader, opened on an exact line.
+ *
+ * Underscore-separated rather than a comma or a space, so the href is readable
+ * in a status bar and survives being pasted into a chat window unencoded.
+ */
+export function readerLineHref(courseId: string, chapter: number, sans: string[]): string {
+  const base = `/learn/${encodeURIComponent(courseId)}/${chapter}`;
+  if (sans.length === 0) return base;
+  return `${base}?line=${encodeURIComponent(sans.join('_'))}`;
+}
+
+/**
+ * The line in `?line=`, or null when it is not one.
+ *
+ * Every move is shape-checked, and the CALLER still has to check that the line
+ * belongs to the chapter it was handed to. A valid-looking line into another
+ * chapter would open the reader on a position it was not sent the nodes for,
+ * which renders as a course that stops immediately — a bug that looks like
+ * missing data.
+ */
+export function lineParam(value: unknown): string[] | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== 'string' || raw.length === 0 || raw.length > 400) return null;
+  const sans = raw.split('_').filter(part => part.length > 0);
+  if (sans.length === 0 || sans.length > 60) return null;
+  return sans.every(isStudyId) ? sans : null;
+}
+
+/**
  * Drill: the same trainer, asking everything rather than what you owe.
  *
  * Without a chapter it is the picker. With one it is a session, and the flag

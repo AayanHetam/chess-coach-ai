@@ -21,10 +21,11 @@ import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import { Box, Typography } from "@mui/material";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Dumbbell } from "lucide-react";
+import { ArrowLeft, ArrowRight, Dumbbell, Search } from "lucide-react";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
 import ChapterRow, { MiniBar, Pill } from "@/components/courses/ChapterRow";
+import { CourseExplorer } from "@/components/courses/CourseExplorer";
 import { useAuth } from "@/contexts/AuthContext";
 import { numbered } from "@/lib/courses/lines";
 import { hubFor, type CourseHub } from "@/lib/courses/hub";
@@ -54,6 +55,7 @@ export default function CourseHubPage({ courseId, hub }: Props) {
   const account = user?.uid ?? "";
   const [mastery, setMastery] = useState<CourseMastery | null>(null);
   const [open, setOpen] = useState<number | null>(null);
+  const [exploring, setExploring] = useState(false);
 
   // `asked`, not `decisions`: see CourseHub.asked. A bar against a number no
   // session can reach is a bar that never fills.
@@ -258,6 +260,31 @@ export default function CourseHubPage({ courseId, hub }: Props) {
             <Pill href={drillHref(courseId)} icon={<Dumbbell size={14} aria-hidden />} testid="hub-drill">
               Drill
             </Pill>
+            <Box
+              component="button"
+              onClick={() => setExploring(true)}
+              data-testid="hub-explorer"
+              sx={{
+                appearance: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.75,
+                minHeight: 40,
+                px: 1.75,
+                borderRadius: "0.9rem",
+                fontSize: "0.85rem",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.04)",
+                color: "rgba(255,255,255,0.78)",
+                cursor: "pointer",
+                transition: "background 200ms ease-out",
+                "&:hover": { background: "rgba(255,255,255,0.08)", color: "#fff" },
+                "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+              }}
+            >
+              <Search size={14} aria-hidden />
+              Find a position
+            </Box>
           </Box>
         </Box>
 
@@ -356,6 +383,14 @@ export default function CourseHubPage({ courseId, hub }: Props) {
           course.
         </Typography>
       </Box>
+
+      {exploring && (
+        <CourseExplorer
+          courseId={courseId}
+          courseName={hub.meta.name}
+          onClose={() => setExploring(false)}
+        />
+      )}
     </>
   );
 }

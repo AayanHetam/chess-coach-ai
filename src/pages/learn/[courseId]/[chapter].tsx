@@ -44,7 +44,7 @@ import { loadCourse } from "@/lib/courses/load";
 import { viewFor } from "@/lib/courses/view";
 import { unitsOf } from "@/lib/courses/hub";
 import { chapterParam, courseTrainerHref, isCourseId } from "@/lib/learn/courseRoute";
-import { drillHref, studyParam } from "@/lib/learn/courseHubRoute";
+import { drillHref, lineParam, studyParam } from "@/lib/learn/courseHubRoute";
 import type { Study } from "@/lib/courses/studies";
 
 const EMBER = "#FB923C";
@@ -591,9 +591,21 @@ export const getServerSideProps: GetServerSideProps<Props> = async ctx => {
     if (node.ch === chapter || node.ch === -1) nodes[key] = node;
   }
 
-  // `?study=` opens on a study rather than at the top of the chapter.
+  // `?study=` opens on a study rather than at the top of the chapter; `?line=`
+  // opens on an exact position, which is how the explorer hands one over.
   const study = studyParam(ctx.query.study);
   const opened = study ? unit.studies.find(s => s.id === study) : undefined;
+
+  // A line has to BELONG to this chapter. One that does not would open the
+  // reader on a position it was never sent the nodes for, which renders as a
+  // course that stops immediately — a bug that looks like missing data.
+  const asked = lineParam(ctx.query.line);
+  const line =
+    asked &&
+    asked.length >= chapterView.line.length &&
+    chapterView.line.every((san, i) => asked[i] === san)
+      ? asked
+      : null;
 
   ctx.res.setHeader("Cache-Control", "private, no-store");
   return {
@@ -609,7 +621,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async ctx => {
       asked: unit.asked,
       studies: unit.studies,
       nodes,
-      openAt: opened ? opened.line : chapterView.line,
+      openAt: line ?? (opened ? opened.line : chapterView.line),
     },
   };
 };

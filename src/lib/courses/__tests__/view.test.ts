@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { BANDS } from '@/lib/repertoire/levels';
 import { countLines, courseVerdict, viewFor } from '../view';
+import { loadCourse } from '../load';
 import type { Course, CourseNode } from '@/types/course';
 
 const band = (id: string) => BANDS.find(b => b.id === id)!;
@@ -213,5 +214,55 @@ describe('courseVerdict', () => {
       { i: 2, at: 'C', line: [], title: null, share: 0.1, cum: 1, nodes: 1 },
     ];
     expect(courseVerdict(viewFor(c, band('new')))).toMatch(/The other 2 cover /);
+  });
+});
+
+describe('a view crosses the wire', () => {
+  /**
+   * Next refuses to serialise an explicit `undefined` out of
+   * getServerSideProps and 500s the page. Trimming used to set `them` and
+   * `next` to `undefined`, which reads identically at every call site and does
+   * not survive JSON — the reader 500'd with a message naming a FEN key rather
+   * than the line that set it.
+   */
+  it('has no own property whose value is undefined', () => {
+    const view = viewFor(course(), band('beginner'));
+    for (const [key, node] of Object.entries(view.nodes)) {
+      for (const [field, value] of Object.entries(node)) {
+        expect(value, `${key}.${field}`).not.toBeUndefined();
+      }
+    }
+    // The control: the trim really fired on this fixture, so the assertion
+    // above was looking at something.
+    const trimmed = Object.values(view.nodes).filter(n => n.end === 'depth');
+    expect(trimmed.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * On a real course, because the fixture only ever exercises ONE of the two
+   * trims. Mutating `delete trimmed.next` back to `= undefined` failed the
+   * fixture test; mutating `delete trimmed.them` SURVIVED it, and a guard that
+   * covers one of the two branches it exists for is half a guard.
+   */
+  it('is JSON-clean on a shipped course, at every band', () => {
+    const real = loadCourse('w-london')!;
+    let cutReplies = 0;
+    for (const id of ['new', 'beginner', 'improving', 'club', 'strong']) {
+      const view = viewFor(real, band(id));
+      for (const [key, node] of Object.entries(view.nodes)) {
+        for (const [field, value] of Object.entries(node)) {
+          // NOT `toEqual` against a JSON round-trip: `toEqual` treats a
+          // property whose value is `undefined` as absent, so the round-trip
+          // assertion passed with the bug in place. Own properties, by name.
+          expect(value, `${id}: ${key}.${field}`).not.toBeUndefined();
+        }
+        const source = real.nodes[key];
+        if (source?.them && !node.them) cutReplies++;
+      }
+    }
+    // The reply trim fires 66 times across the five bands on this course, so
+    // the assertion above was watching it. The `next`/`us` trim never fires on
+    // the London and is covered by the fixture test above, where it does.
+    expect(cutReplies).toBeGreaterThan(0);
   });
 });

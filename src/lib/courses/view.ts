@@ -129,16 +129,21 @@ export function viewFor(course: Course, band: Band): CourseView {
     // band.depth" case: a node there loses every child to the filters below and
     // is marked `depth` by them. A second path producing the same answer was
     // one more thing to keep in step, and a mutation proved it changed nothing.
+    // DELETED, not set to `undefined`. A view crosses the wire: Next refuses to
+    // serialise an explicit `undefined` from getServerSideProps and 500s the
+    // page, and the message names the FEN key rather than this line. `delete`
+    // and `= undefined` read identically at every call site and only one of
+    // them survives JSON.
     if (trimmed.them) {
       trimmed.them = trimmed.them.filter(r => inView(r.to));
       if (trimmed.them.length === 0) {
-        trimmed.them = undefined;
+        delete trimmed.them;
         trimmed.end = trimmed.end ?? 'depth';
       }
     }
     if (trimmed.next && !inView(trimmed.next)) {
-      trimmed.next = undefined;
-      trimmed.us = undefined;
+      delete trimmed.next;
+      delete trimmed.us;
       trimmed.end = trimmed.end ?? 'depth';
     }
     nodes[key] = trimmed;

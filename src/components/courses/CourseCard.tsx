@@ -44,7 +44,7 @@ function CourseCard({
       sx={{
         position: "relative", overflow: "hidden",
         display: "flex", flexDirection: "column",
-        width: { xs: 236, sm: 252 }, flexShrink: 0,
+        width: { xs: 250, sm: 286 }, flexShrink: 0,
         p: 1.75, borderRadius: "1.15rem", textDecoration: "none",
         border: `1px solid ${style.colour}2E`,
         borderLeft: `3px solid ${style.colour}`,
@@ -58,21 +58,6 @@ function CourseCard({
         "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
       }}
     >
-      {/* The numeral sits BEHIND the content at low contrast. A ranked shelf
-          wants the order legible at a glance without the number competing with
-          the opening's name for the first read. */}
-      {rank !== undefined && (
-        <Typography
-          aria-hidden
-          sx={{
-            position: "absolute", right: -6, top: -18, fontWeight: 800,
-            fontSize: "5.5rem", lineHeight: 1, color: "rgba(255,255,255,0.045)",
-            pointerEvents: "none", userSelect: "none",
-          }}
-        >
-          {rank}
-        </Typography>
-      )}
 
       {/* The board sits ABOVE the name rather than beside it, and at 104px
           rather than 62. A chessboard is eight squares wide, so a 62px tile
@@ -80,13 +65,41 @@ function CourseCard({
           smudge — the tile was decoration pretending to be information. At
           104px a square is 13px and the pieces are legible, which is the whole
           reason to show a position instead of an emblem. */}
-      <Box
-        sx={{
-          borderRadius: "0.7rem", overflow: "hidden", lineHeight: 0, mb: 1.25,
-          width: "fit-content", border: `1px solid ${style.colour}3D`,
-        }}
-      >
-        <OpeningDiagram moves={entry.diagram} side={entry.side} px={104} />
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25, mb: 1.25 }}>
+        <Box
+          sx={{
+            borderRadius: "0.7rem", overflow: "hidden", lineHeight: 0,
+            flexShrink: 0, border: `1px solid ${style.colour}3D`,
+          }}
+        >
+          <OpeningDiagram moves={entry.diagram} side={entry.side} px={104} />
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.75 }}>
+          {started && (
+            <Typography
+              sx={{
+                px: 0.9, py: 0.25, borderRadius: "0.4rem", fontSize: "0.66rem",
+                fontWeight: 700, color: "#0B0D12", background: GOOD, whiteSpace: "nowrap",
+              }}
+            >
+              In progress
+            </Typography>
+          )}
+          {/* The rank gets its own block beside the tile rather than sitting
+              behind the title. Ghosted behind the text it competed with the
+              opening's name for the first read and clipped at the card edge. */}
+          {rank !== undefined && (
+            <Typography
+              aria-hidden
+              sx={{
+                fontWeight: 800, fontSize: "3.4rem", lineHeight: 0.85,
+                color: "rgba(255,255,255,0.09)", userSelect: "none", mt: "auto",
+              }}
+            >
+              {rank}
+            </Typography>
+          )}
+        </Box>
       </Box>
 
       <Typography
@@ -120,25 +133,43 @@ function CourseCard({
         {entry.blurb || `${entry.chapters} chapters, ${entry.lines.toLocaleString()} lines.`}
       </Typography>
 
-      <Box sx={{ mt: "auto" }}>
-        {started ? (
-          <>
-            <Box
-              role="img"
-              aria-label={`${Math.round(done * 100)} percent of chapters started`}
-              sx={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.08)", mb: 0.75 }}
-            >
-              <Box sx={{ width: `${Math.round(done * 100)}%`, height: "100%", borderRadius: 2, background: GOOD }} />
-            </Box>
-            <Typography sx={{ color: GOOD, fontSize: "0.72rem", fontWeight: 600 }}>
-              {progress?.started} of {entry.chapters} chapters · continue
+      <Box sx={{ mt: "auto", display: "flex", alignItems: "center", gap: 1.25 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          {started ? (
+            <>
+              <Typography sx={{ color: GOOD, fontSize: "0.72rem", fontWeight: 700, mb: 0.4 }}>
+                {Math.round(done * 100)}%
+              </Typography>
+              <Box
+                role="img"
+                aria-label={`${Math.round(done * 100)} percent of chapters started`}
+                sx={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.09)" }}
+              >
+                <Box sx={{ width: `${Math.round(done * 100)}%`, height: "100%", borderRadius: 3, background: GOOD }} />
+              </Box>
+            </>
+          ) : (
+            <Typography sx={{ color: "rgba(255,255,255,0.4)", fontSize: "0.72rem" }}>
+              {entry.chapters} chapters
             </Typography>
-          </>
-        ) : (
-          <Typography sx={{ color: "rgba(255,255,255,0.42)", fontSize: "0.72rem" }}>
-            {entry.chapters} chapters · start
-          </Typography>
-        )}
+          )}
+        </Box>
+        {/* Looks like a button, is not one. The whole card is already a link,
+            and nesting a real <button> inside an <a> gives one intent two
+            targets and breaks the tab order for the sake of an affordance the
+            card already has. */}
+        <Box
+          aria-hidden
+          sx={{
+            flexShrink: 0, px: 1.4, py: 0.7, borderRadius: "0.6rem",
+            fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap",
+            border: `1px solid ${started ? "rgba(134,239,172,0.4)" : "rgba(255,255,255,0.16)"}`,
+            background: started ? "rgba(134,239,172,0.1)" : "rgba(255,255,255,0.05)",
+            color: started ? GOOD : "rgba(255,255,255,0.82)",
+          }}
+        >
+          {started ? "Continue" : "Start"}
+        </Box>
       </Box>
     </Box>
   );

@@ -126,7 +126,20 @@ export default function CoursesPage({ entries }: Props) {
       <GradientBackdrop />
       <Box sx={{ minHeight: "100dvh", px: { xs: 2, md: 3 }, pt: 2, pb: 6 }}>
         <NavPill />
-        <Box sx={{ maxWidth: 1180, mx: "auto", mt: 3 }}>
+        <Box
+          sx={{
+            maxWidth: 1240, mx: "auto", mt: 3,
+            // The reference sits its whole catalogue on one raised panel, which
+            // is what separates "a page with rows on it" from "a library". The
+            // rails scroll inside it, so the panel also gives them an edge to
+            // run to instead of bleeding off the viewport.
+            borderRadius: "1.5rem",
+            border: "1px solid rgba(255,255,255,0.07)",
+            background: "rgba(255,255,255,0.022)",
+            backdropFilter: "blur(12px)",
+            px: { xs: 2, md: 3.5 }, py: { xs: 2.5, md: 3.5 },
+          }}
+        >
           <Typography component="h1" sx={{ color: "#fff", fontSize: { xs: "1.6rem", md: "2rem" }, fontWeight: 800, letterSpacing: "-0.02em", mb: 0.75 }}>
             Courses
           </Typography>
@@ -139,7 +152,7 @@ export default function CoursesPage({ entries }: Props) {
             <Box
               sx={{
                 display: "flex", alignItems: "center", gap: 1, flex: "1 1 260px", maxWidth: 380,
-                px: 1.5, py: 0.25, borderRadius: "999px",
+                px: 1.5, py: 0.25, borderRadius: "0.85rem",
                 border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.03)",
                 "&:focus-within": { borderColor: EMBER },
               }}

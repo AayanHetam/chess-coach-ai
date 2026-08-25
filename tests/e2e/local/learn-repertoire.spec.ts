@@ -346,3 +346,145 @@ test.describe("style, colour and fit", () => {
     await expect(page.getByText(/^1 game in /).first()).toBeVisible();
   });
 });
+
+/**
+ * Measuring the bracket against the player's own archive.
+ *
+ * The page has always said "% of your games" and the number came from 3.4M
+ * games by 2300+ players. This is the path that makes it true, and the failure
+ * that matters is not a crash: it is a wrong personal number, which no reader
+ * can falsify. The stubbed archive is therefore built so the measured answer
+ * and the corpus answer are far apart — 1.e4 is 47% of the corpus and 75% of
+ * these games — so an assertion cannot pass against the wrong one.
+ */
+const ARCHIVE_HANDLE = "aayan";
+
+function archive(counts: { e4: number; d4: number }, handle = ARCHIVE_HANDLE) {
+  const games = [
+    ...Array.from({ length: counts.e4 }, (_, i) => ({
+      id: `e${i}`, platform: "lichess", moves: ["e4", "c6", "d4", "d5"],
+      whiteUsername: "opponent", blackUsername: handle,
+      result: "1-0", date: 1_750_000_000_000,
+    })),
+    ...Array.from({ length: counts.d4 }, (_, i) => ({
+      id: `d${i}`, platform: "lichess", moves: ["d4", "Nf6", "c4", "g6"],
+      whiteUsername: "opponent", blackUsername: handle,
+      result: "0-1", date: 1_750_000_000_000,
+    })),
+  ];
+  return { username: handle, platform: "lichess", games, totalGames: games.length };
+}
+
+async function withArchive(
+  page: Page,
+  body: unknown,
+  profile: Record<string, unknown> = { lichessUsername: ARCHIVE_HANDLE, primaryPlatform: "lichess" }
+) {
+  await page.route("**/api/auth/me", (r) =>
+    r.fulfill({
+      json: {
+        user: { uid: "e2e", email: "e2e@example.com", handle: "e2e", displayName: "E2E", ...profile },
+        isIntern: false, isAdmin: false,
+      },
+    })
+  );
+  await page.route("**/api/scout", (r) => r.fulfill({ json: body }));
+}
+
+test.describe("measured from your own games", () => {
+  test("replaces the corpus frequency with yours, and says it did", async ({ page }) => {
+    await withArchive(page, archive({ e4: 30, d4: 10 }));
+    await throughQuiz(page);
+    await page.getByRole("tab", { name: /As Black/i }).click();
+
+    // Before: the corpus. 1.e4 is 47% of games by 2300+ players.
+    await expect(page.getByText(/47% of games · nothing chosen/)).toBeVisible();
+    await expect(page.getByText(/rated 2300\+/)).toBeVisible();
+
+    await page.getByRole("button", { name: /Use my last 12 months/i }).click();
+
+    // After: theirs. 30 of 40 games as Black faced 1.e4.
+    await expect(page.getByText(/75% of your games · nothing chosen/)).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(/25% of your games · nothing chosen/)).toBeVisible();
+    await expect(page.getByText(/Measured from 40 of your own games as Black/)).toBeVisible();
+    // And the corpus number is gone, not merely covered by the new one.
+    await expect(page.getByText(/47% of games · nothing chosen/)).toHaveCount(0);
+
+    // ── The regression this whole substitution was moved for ─────────────
+    // The summary and the row are two different sums over the same `reach`.
+    // Substituting at the display fed the row and not the summary, and the
+    // page said "1.e4, at 47% of games" three lines above "75% of your games".
+    await expect(
+      page.getByText(/The biggest thing you have no answer for is/)
+    ).toContainText(/at 75% of your games/);
+    await expect(page.getByText(/at 47% of games/)).toHaveCount(0);
+    // Their forty games account for every root, so nothing is left over.
+    await expect(page.getByText(/too rare to plan for/)).toHaveCount(0);
+  });
+
+  test("names the move they already play, on every choice that commits to it", async ({ page }) => {
+    await withArchive(page, archive({ e4: 30, d4: 10 }));
+    await throughQuiz(page);
+    await page.getByRole("tab", { name: /As Black/i }).click();
+    await page.getByRole("button", { name: /Use my last 12 months/i }).click();
+    await expect(page.getByText(/Measured from 40/)).toBeVisible({ timeout: 15_000 });
+
+    await page.getByText(/Against 1\.e4/).first().click();
+    const caro = page.getByRole("button", { name: /Caro-Kann Defence/i }).first();
+    await expect(caro).toBeVisible({ timeout: 10_000 });
+    // They answered 1...c6 in all thirty. The tag names the MOVE: several
+    // openings share one move at this slot, and claiming they already play a
+    // named opening would be false on all but one of them.
+    await expect(caro).toContainText(/you already play c6/i);
+
+    // The Najdorf commits to c5, which they never play. It must not be marked.
+    const najdorf = page.getByRole("button", { name: /Najdorf/i }).first();
+    await expect(najdorf).not.toContainText(/you already play/i);
+  });
+
+  // ── The failure that would ship silently ────────────────────────────────
+  test("refuses to report zeros when the handle matches nothing", async ({ page }) => {
+    // Forty real games, none of them theirs — a rename, a typo, or somebody
+    // else's archive. Every slot would count zero, and a page of confident
+    // zeros reads exactly like "you have never played any of this".
+    await withArchive(page, archive({ e4: 30, d4: 10 }, "somebody-else"));
+    await throughQuiz(page);
+    await page.getByRole("tab", { name: /As Black/i }).click();
+    await page.getByRole("button", { name: /Use my last 12 months/i }).click();
+
+    await expect(page.getByText(/none of them are aayan/i)).toBeVisible({ timeout: 15_000 });
+    // The corpus numbers are still standing, unlabelled as personal.
+    await expect(page.getByText(/47% of games · nothing chosen/)).toBeVisible();
+    // Precisely the ROW phrasing: the note above legitimately contains the
+    // words "of your games" while explaining why the rows do not.
+    await expect(page.getByText(/% of your games · nothing chosen/)).toHaveCount(0);
+  });
+
+  test("says the sample is too thin rather than dividing by it", async ({ page }) => {
+    // Ten games as Black. One game is ten points of share; "40% of your games"
+    // would be four games and a coin flip.
+    await withArchive(page, archive({ e4: 7, d4: 3 }));
+    await throughQuiz(page);
+    await page.getByRole("tab", { name: /As Black/i }).click();
+    await page.getByRole("button", { name: /Use my last 12 months/i }).click();
+
+    await expect(page.getByText(/too few to work out your own frequencies/i)).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(/47% of games · nothing chosen/)).toBeVisible();
+    // Precisely the ROW phrasing: the note above legitimately contains the
+    // words "of your games" while explaining why the rows do not.
+    await expect(page.getByText(/% of your games · nothing chosen/)).toHaveCount(0);
+  });
+
+  test("asks for a username only when there is not one already", async ({ page }) => {
+    await withArchive(page, archive({ e4: 30, d4: 10 }), {});
+    await throughQuiz(page);
+    // No handle stored: this is the ordinary state for somebody who plays over
+    // the board, so it points at the profile rather than reading as an error.
+    await expect(page.getByText(/Add your Lichess or Chess\.com username/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Use my last 12 months/i })).toHaveCount(0);
+  });
+});

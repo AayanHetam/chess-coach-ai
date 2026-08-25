@@ -114,6 +114,15 @@ export type StoredUser = {
    */
   goalStartRating?: number;
   goalSetAt?: number;
+  /**
+   * Per-control targets (bullet/blitz/rapid), raw platform numbers — the
+   * granular form of the goal above. Written alongside it, never instead.
+   */
+  perfGoals?: {
+    bullet?: { start: number; goal: number };
+    blitz?: { start: number; goal: number };
+    rapid?: { start: number; goal: number };
+  };
   // Set when the user finishes the onboarding quiz. Gates the mandatory-once
   // questionnaire (OnboardingGate) so they're never asked twice.
   onboardingCompletedAt?: number;
@@ -545,6 +554,7 @@ export type UpdateUserPatch = Partial<
     | "measuredWeaknesses"
     | "goalStartRating"
     | "goalSetAt"
+    | "perfGoals"
     | "onboardingCompletedAt"
     | "measuredRating"
     | "measuredRatingConfidence"

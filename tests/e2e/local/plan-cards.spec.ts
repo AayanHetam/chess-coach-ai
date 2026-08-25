@@ -30,6 +30,8 @@ function series(end: number, days: number, step: number) {
 interface AccountState {
   handle?: string;
   goal?: boolean;
+  /** A goal set control-by-control, the way the new setter writes it. */
+  perfGoals?: boolean;
   /** Practice budget. 15 min fits ONE extra task, 30 fits both. */
   time?: "under-10" | "10-30" | "30-plus";
 }
@@ -54,12 +56,21 @@ async function stubAccount(page: Page, state: AccountState = {}) {
     onboardingCompletedAt: Date.now() - 30 * DAY,
   };
   if (state.handle) user.handle = state.handle;
-  if (state.goal) {
+  if (state.goal || state.perfGoals) {
     Object.assign(user, {
       goalRating: 2000,
       goalStartRating: 1805,
       goalSetAt: Date.now() - 7 * DAY,
       goalTargetDate: Date.now() + 220 * DAY,
+    });
+  }
+  if (state.perfGoals) {
+    Object.assign(user, {
+      perfGoals: {
+        bullet: { start: 1289, goal: 1500 },
+        blitz: { start: 1425, goal: 1600 },
+        rapid: { start: 1805, goal: 2000 },
+      },
     });
   }
 
@@ -128,7 +139,9 @@ test.describe("no goal set", () => {
   }) => {
     await gotoPlan(page);
     // The whole reason this card exists: existing accounts were never asked.
-    await expect(page.getByRole("button", { name: "Set goal" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Commit to my goal" })
+    ).toBeVisible();
   });
 
   test("there is exactly ONE rating goal to set", async ({ page }) => {
@@ -140,7 +153,81 @@ test.describe("no goal set", () => {
     await expect(
       page.getByRole("button", { name: /^set a goal$/i })
     ).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Set goal" })).toHaveCount(1);
+    await expect(
+      page.getByRole("button", { name: "Commit to my goal" })
+    ).toHaveCount(1);
+  });
+
+  test("all three controls are offered, currents prefilled from the platform", async ({
+    page,
+  }) => {
+    await gotoPlan(page);
+    // The current side comes from the SAME response the trend panels render,
+    // so the number in the box is the number on the chart below it.
+    await expect(page.getByLabel("Bullet current rating")).toHaveValue("1289");
+    await expect(page.getByLabel("Blitz current rating")).toHaveValue("1425");
+    await expect(page.getByLabel("Rapid current rating")).toHaveValue("1805");
+    // No goal typed anywhere yet — nothing to commit.
+    await expect(
+      page.getByRole("button", { name: "Commit to my goal" })
+    ).toBeDisabled();
+  });
+
+  test("typing one goal is enough, and the patch stores it per control", async ({
+    page,
+  }) => {
+    let patched: Record<string, unknown> | undefined;
+    await page.route("**/api/users/me", async (route) => {
+      if (route.request().method() === "PATCH") {
+        patched = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({ json: { ok: true } });
+      }
+      return route.fallback();
+    });
+    await gotoPlan(page);
+    await expect(page.getByLabel("Rapid current rating")).toHaveValue("1805");
+
+    await page.getByLabel("Rapid goal rating").fill("2000");
+    // The gain chip is the Acely-style receipt that both numbers were read.
+    await expect(page.getByText("+195 pts")).toBeVisible();
+
+    const commit = page.getByRole("button", { name: "Commit to my goal" });
+    await expect(commit).toBeEnabled();
+    await commit.click();
+
+    await expect.poll(() => patched).toBeTruthy();
+    // Raw per-control numbers, plus the overall pair every existing reader
+    // consumes. Chess.com IS the calibration scale, so they match here.
+    expect(patched!.perfGoals).toEqual({ rapid: { start: 1805, goal: 2000 } });
+    expect(patched!.goalRating).toBe(2000);
+    expect(patched!.goalStartRating).toBe(1805);
+    expect(patched!.goalTargetDate).toBeGreaterThan(Date.now());
+  });
+
+  test("a goal below the current rating is refused on the card", async ({
+    page,
+  }) => {
+    await gotoPlan(page);
+    await expect(page.getByLabel("Rapid current rating")).toHaveValue("1805");
+    await page.getByLabel("Rapid goal rating").fill("1700");
+    await expect(page.getByText("Set a goal above 1805")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Commit to my goal" })
+    ).toBeDisabled();
+  });
+
+  test("an out-of-reach goal warns instead of promising a date", async ({
+    page,
+  }) => {
+    await gotoPlan(page);
+    await expect(page.getByLabel("Rapid current rating")).toHaveValue("1805");
+    // +995 at 15 min × 5 days runs decades past the model's ceiling. The
+    // button staying dead with no explanation would read as a broken page.
+    await page.getByLabel("Rapid goal rating").fill("2800");
+    await expect(page.getByText(/hard to reach at your pace/i)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Commit to my goal" })
+    ).toBeDisabled();
   });
 
   test("the panels SAY why there is no forecast", async ({ page }) => {
@@ -220,6 +307,19 @@ test.describe("goal set", () => {
     // something; 2000 on the 1289 bullet panel is a different scale entirely.
     const lines = page.locator(".recharts-reference-line");
     await expect(lines).toHaveCount(1);
+    await expect(page.getByText("goal 2000")).toBeVisible();
+  });
+
+  test("a control-by-control goal draws its own line on every panel it names", async ({
+    page,
+  }) => {
+    await stubAccount(page, { perfGoals: true });
+    await gotoPlan(page);
+    // Each line carries that control's OWN raw target — not the overall goal
+    // stamped three times onto three different scales.
+    await expect(page.locator(".recharts-reference-line")).toHaveCount(3);
+    await expect(page.getByText("goal 1500")).toBeVisible();
+    await expect(page.getByText("goal 1600")).toBeVisible();
     await expect(page.getByText("goal 2000")).toBeVisible();
   });
 

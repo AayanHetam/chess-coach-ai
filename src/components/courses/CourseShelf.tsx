@@ -51,7 +51,15 @@ export default function CourseShelf({
   };
 
   return (
-    <Box sx={{ mb: 4 }}>
+    // Named and labelled, so a shelf is addressable — by a test asking about
+    // one rail rather than the whole page, and by a screen reader landing on a
+    // rail of 43 cards without having heard which rail it is.
+    <Box
+      component="section"
+      aria-label={shelf.title}
+      data-testid={`shelf-${shelf.key}`}
+      sx={{ mb: 4 }}
+    >
       <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 2, mb: 1.5 }}>
         <Box sx={{ minWidth: 0 }}>
           {/* An empty title would emit a blank <h2>, which a screen reader

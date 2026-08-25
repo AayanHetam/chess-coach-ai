@@ -88,7 +88,10 @@ export default function CoursesPage({ entries }: Props) {
   // would make the server and the client disagree and hydrate into a different
   // catalogue.
   useEffect(() => {
-    setProgress(readCourseProgress(account));
+    // The clock is read HERE and passed in, so the reader stays a pure
+    // function of its inputs and the server never renders a different answer
+    // from the browser.
+    setProgress(readCourseProgress(account, Date.now()));
     const bracket = loadBracket(account);
     setMine(
       new Set(

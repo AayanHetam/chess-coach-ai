@@ -54,6 +54,16 @@ export interface CourseProgress {
   started: number;
   /** Most recent activity, epoch ms, for ordering the "continue" shelf. */
   at: number;
+  /**
+   * Decisions in this course whose review date has come.
+   *
+   * Cards are EARNED — only a miss or a hint creates one — so this is zero for
+   * a course that has gone well, and that zero is the claim rather than an
+   * empty state to fill.
+   */
+  due: number;
+  /** The soonest card in this course, epoch ms, or null when none is scheduled. */
+  nextAt: number | null;
 }
 
 export interface Shelf {
@@ -163,12 +173,37 @@ export function shelves(
   }
 ): Shelf[] {
   const { progress, mine } = opts;
+
+  // ── Due back, and it goes FIRST.
+  //
+  // A card exists only because a decision was missed or shown, so this shelf is
+  // empty for a player whose courses have gone well — and empty means the shelf
+  // is not rendered at all rather than an encouraging blank state. When it is
+  // not empty it is the most specific thing the page can say: not "here are 43
+  // courses" but "you owe these eleven decisions, in this one".
+  //
+  // Most owed first, not most recent. The continue shelf is for momentum and is
+  // ordered by when you were last here; this one is for debt, and the biggest
+  // debt is the one worth opening.
+  const owed = entries
+    .filter(e => (progress.get(e.id)?.due ?? 0) > 0)
+    .sort((a, b) => (progress.get(b.id)?.due ?? 0) - (progress.get(a.id)?.due ?? 0));
+  const owedIds = new Set(owed.map(e => e.id));
+
   const started = entries
-    .filter(e => (progress.get(e.id)?.started ?? 0) > 0)
+    .filter(e => (progress.get(e.id)?.started ?? 0) > 0 && !owedIds.has(e.id))
     .sort((a, b) => (progress.get(b.id)?.at ?? 0) - (progress.get(a.id)?.at ?? 0));
-  const startedIds = new Set(started.map(e => e.id));
+  // Both shelves count as started for the purposes of not repeating a course
+  // further down the page.
+  const startedIds = new Set(Array.from(owedIds).concat(started.map(e => e.id)));
 
   const out: Shelf[] = [
+    {
+      key: 'due',
+      title: 'Due back',
+      note: 'Decisions you have missed before. Nothing is here that you have not got wrong.',
+      entries: owed,
+    },
     {
       key: 'continue',
       title: 'Pick up where you left off',

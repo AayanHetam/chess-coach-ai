@@ -357,12 +357,12 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                   py: 1.1,
                   borderRadius: "10px",
                   textDecoration: "none",
-                  border: "1px solid rgba(249,115,22,0.32)",
-                  color: "#FB923C",
+                  background: "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
+                  color: "#0A0A0A",
+                  boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
                   transition: "all 180ms ease",
                   "&:hover": {
-                    background: "rgba(249,115,22,0.1)",
-                    boxShadow: "0 0 16px rgba(249,115,22,0.2)",
+                    boxShadow: "0 6px 18px rgba(249,115,22,0.42)",
                     transform: "translateX(2px)",
                   },
                 }}
@@ -372,8 +372,8 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                     width: 28,
                     height: 28,
                     borderRadius: "8px",
-                    background: "rgba(249,115,22,0.12)",
-                    border: "1px solid rgba(249,115,22,0.35)",
+                    background: "rgba(0,0,0,0.16)",
+                    border: "1px solid rgba(0,0,0,0.2)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -382,7 +382,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                 >
                   <Heart size={14} />
                 </Box>
-                <Typography sx={{ fontSize: "0.92rem", fontWeight: 600, flex: 1 }}>
+                <Typography sx={{ fontSize: "0.92rem", fontWeight: 700, flex: 1 }}>
                   Donate
                 </Typography>
                 <Typography
@@ -390,7 +390,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                     fontSize: "0.62rem",
                     fontWeight: 700,
                     letterSpacing: "0.14em",
-                    color: "rgba(255,255,255,0.35)",
+                    color: "rgba(10,10,10,0.55)",
                     textTransform: "uppercase",
                   }}
                 >

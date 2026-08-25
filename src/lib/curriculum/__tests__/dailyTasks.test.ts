@@ -277,3 +277,57 @@ describe("task list shape", () => {
     expect(TASK_MINUTES.analyze).toBe(6);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WHAT IS OWED OUTRANKS WHAT IS INFERRED
+//
+// A due card is a decision this player has already been asked and already got
+// wrong. The measured weakest line is a weakness we inferred from results. One
+// is a fact about them and the other is a hypothesis, and the fact goes first.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("course reviews on the plan", () => {
+  const owed = { courseId: "w-london", name: "London System", due: 4 };
+
+  it("names the course and what is owed, and points at it", () => {
+    const tasks = secondaryTasksFor(input({ hasLinkedAccount: false, dueCourse: owed }), 30);
+    const theory = tasks.find((t) => t.kind === "theory")!;
+    expect(theory.label).toBe("4 to review in the London System");
+    expect(theory.href).toBe("/learn/w-london");
+    // Nothing here is new, and saying so is the point of an earned card.
+    expect(theory.detail).toMatch(/Nothing here is new/);
+  });
+
+  it("outranks the measured weakest line", () => {
+    const tasks = secondaryTasksFor(
+      input({
+        hasLinkedAccount: false,
+        dueCourse: owed,
+        openingLine: { line: "1.e4 c5 2.c3", score: 0.31, baseline: 0.53, games: 84, betterMove: "Nf3" },
+      }),
+      30
+    );
+    const theory = tasks.find((t) => t.kind === "theory")!;
+    expect(theory.label).toBe("4 to review in the London System");
+  });
+
+  // ── Zero by definition ─────────────────────────────────────────────────────
+  it("says nothing about reviews when none are owed", () => {
+    // Cards are earned. A player whose courses have gone well owes nothing,
+    // and the task falls back to what it said before.
+    const tasks = secondaryTasksFor(input({ hasLinkedAccount: false }), 30);
+    const theory = tasks.find((t) => t.kind === "theory")!;
+    expect(theory.label).toBe("Build your repertoire");
+    expect(theory.href).toBe("/learn");
+  });
+
+  it("counts one decision as one, in words", () => {
+    const tasks = secondaryTasksFor(
+      input({ hasLinkedAccount: false, dueCourse: { ...owed, due: 1 } }),
+      30
+    );
+    const theory = tasks.find((t) => t.kind === "theory")!;
+    expect(theory.label).toBe("1 to review in the London System");
+    expect(theory.detail).toMatch(/^One decision .* is due back/);
+  });
+});

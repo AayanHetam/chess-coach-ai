@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDueCourse } from "@/lib/learn/useDueCourse";
 import { useEnsurePlatformRating } from "@/lib/rating/useEnsurePlatformRating";
 import { puzzleStatsAtom } from "@/lib/puzzleRating";
 import { streakAtom, dayKey } from "@/lib/curriculum/streak";
@@ -230,6 +231,12 @@ export default function PlanPage() {
 
   const repertoire = useRepertoireHole(repertoireAccount);
 
+  // What their courses owe them. Keyed by uid, like the chapter store is — a
+  // platform handle would key it to the account they LINKED rather than the
+  // one they are signed in as, and a player who links chess.com mid-way would
+  // appear to have no reviews at all.
+  const dueCourse = useDueCourse(user?.uid ?? "", nowMs);
+
   // The daily planner is pure and cannot go and measure this itself, so the
   // measured line is handed to it. Undefined means "not measured yet", which is
   // not the same as "nothing wrong" — the planner keeps its generic task.
@@ -269,11 +276,14 @@ export default function PlanPage() {
         wantsOpenings: profile?.studyGoals?.includes("openings"),
         // Their own worst line, when we have measured one.
         openingLine,
+        // What they have already been asked and already got wrong. Outranks
+        // the measured line: one is a fact about them, the other a hypothesis.
+        dueCourse,
         // Day number, so the secondary task rotates rather than being the same
         // one every day at the budgets where only one fits.
         dayIndex: Math.floor(nowMs / 86_400_000),
       }),
-    [profile, stats, srs, nowMs, goalIntensityTier, openingLine]
+    [profile, stats, srs, nowMs, goalIntensityTier, openingLine, dueCourse]
   );
 
   // Today's plan as discrete, tickable rows. A theme counts as done once ANY

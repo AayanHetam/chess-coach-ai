@@ -80,7 +80,7 @@ describe('shelves', () => {
   });
 
   it('never shows the same course on both continue and in-your-repertoire', () => {
-    const progress = new Map([['b-caro', { started: 2, at: 10 }]]);
+    const progress = new Map([['b-caro', { started: 2, at: 10, due: 0, nextAt: null }]]);
     const result = shelves([london, caro], { progress, mine: new Set(['b-caro']) });
     const cont = result.find(s => s.key === 'continue')!;
     const mine = result.find(s => s.key === 'mine');
@@ -95,8 +95,8 @@ describe('shelves', () => {
     // names, so sorting by name passed the test and the assertion proved
     // nothing — caught by mutating the comparator.
     const progress = new Map([
-      ['w-london', { started: 1, at: 99 }], // "London System" — later, sorts 2nd by name
-      ['b-caro', { started: 1, at: 5 }], //    "Caro-Kann"     — earlier, sorts 1st by name
+      ['w-london', { started: 1, at: 99, due: 0, nextAt: null }], // "London System" — later, sorts 2nd by name
+      ['b-caro', { started: 1, at: 5, due: 0, nextAt: null }], //    "Caro-Kann"     — earlier, sorts 1st by name
     ]);
     const cont = shelves([london, caro], { progress, mine: NOBODY })
       .find(s => s.key === 'continue')!;
@@ -121,7 +121,7 @@ describe('shelves', () => {
   });
 
   it('counts a course with zero started chapters as not started', () => {
-    const progress = new Map([['w-london', { started: 0, at: 10 }]]);
+    const progress = new Map([['w-london', { started: 0, at: 10, due: 0, nextAt: null }]]);
     const keys = shelves([london], { progress, mine: NOBODY }).map(s => s.key);
     expect(keys).not.toContain('continue');
   });
@@ -179,14 +179,64 @@ describe('progressOf', () => {
   });
 
   it('is a fraction of the chapters', () => {
-    expect(progressOf(entry({ chapters: 4 }), { started: 1, at: 0 })).toBe(0.25);
+    expect(progressOf(entry({ chapters: 4 }), { started: 1, at: 0, due: 0, nextAt: null })).toBe(0.25);
   });
 
   it('cannot exceed one, however stale the stored count', () => {
-    expect(progressOf(entry({ chapters: 4 }), { started: 99, at: 0 })).toBe(1);
+    expect(progressOf(entry({ chapters: 4 }), { started: 99, at: 0, due: 0, nextAt: null })).toBe(1);
   });
 
   it('does not divide by zero when a course has no chapters', () => {
-    expect(progressOf(entry({ chapters: 0 }), { started: 3, at: 0 })).toBe(0);
+    expect(progressOf(entry({ chapters: 0 }), { started: 3, at: 0, due: 0, nextAt: null })).toBe(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DUE BACK
+//
+// Cards are earned: only a miss or a hint creates one. So this shelf is empty
+// for a player whose courses have gone well, and empty means NOT RENDERED —
+// an encouraging blank state here would be set dressing over a claim.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('the due shelf', () => {
+  const london = entry();
+  const caro = entry({ id: 'b-caro', name: 'Caro-Kann Defence', side: 'black', answers: 0.47 });
+  const owing = (due: number, at = 10) => ({ started: 2, at, due, nextAt: 1 });
+
+  it('is first on the page when anything is owed', () => {
+    const progress = new Map([['b-caro', owing(3)]]);
+    const keys = shelves([london, caro], { progress, mine: NOBODY }).map(s => s.key);
+    expect(keys[0]).toBe('due');
+  });
+
+  // ── Zero by definition ──────────────────────────────────────────────────────
+  it('is absent for a player who has not got anything wrong', () => {
+    const progress = new Map([['b-caro', { started: 2, at: 10, due: 0, nextAt: null }]]);
+    const keys = shelves([london, caro], { progress, mine: NOBODY }).map(s => s.key);
+    expect(keys).not.toContain('due');
+    // The control: the same course is still on the page, one shelf down.
+    expect(keys[0]).toBe('continue');
+  });
+
+  it('orders by what is owed, not by when they were last there', () => {
+    // The continue shelf is for momentum and is ordered by recency. This one is
+    // for debt, and the biggest debt is the one worth opening.
+    const progress = new Map([
+      ['b-caro', owing(2, 999)],
+      ['w-london', owing(9, 1)],
+    ]);
+    const due = shelves([london, caro], { progress, mine: NOBODY }).find(s => s.key === 'due')!;
+    expect(due.entries.map(e => e.id)).toEqual(['w-london', 'b-caro']);
+  });
+
+  it('does not repeat an owed course further down the page', () => {
+    // 43 courses would otherwise look like 45.
+    const progress = new Map([['b-caro', owing(3)]]);
+    const found = shelves([london, caro], { progress, mine: new Set(['b-caro']) });
+    const cont = found.find(s => s.key === 'continue');
+    const ours = found.find(s => s.key === 'mine');
+    expect(cont).toBeUndefined();
+    expect(ours?.entries.map(e => e.id) ?? []).not.toContain('b-caro');
   });
 });

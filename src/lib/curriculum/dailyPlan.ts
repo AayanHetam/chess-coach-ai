@@ -58,6 +58,14 @@ export type DailyTaskKind = "puzzles" | "reviews" | "analyze" | "theory";
  * Enough of a measured repertoire hole to write the task with, without pulling
  * the whole report — and its statistics — into the pure planner.
  */
+/** A course with reviews owed, for the theory task. */
+export interface DueCourse {
+  courseId: string;
+  name: string;
+  /** Decisions whose review date has come. Never zero — the caller omits it. */
+  due: number;
+}
+
 export interface OpeningLineSummary {
   /** Already numbered, e.g. `1.e4 c5 2.c3`. */
   line: string;
@@ -131,6 +139,14 @@ export interface DailyPlanInput {
    * Absent means we have not measured one yet, NOT that there is nothing wrong.
    */
   openingLine?: OpeningLineSummary;
+  /**
+   * Course decisions whose review date has come, and the course owed the most.
+   *
+   * Passed in for the same reason `dueReviewThemes` is: this module is pure,
+   * and the count lives in the browser's own storage. Absent means we have not
+   * looked, NOT that nothing is owed.
+   */
+  dueCourse?: DueCourse;
   /**
    * Day number, for rotating the secondary task when only one fits. Injected
    * rather than read from the clock so the generator stays pure and testable.
@@ -232,7 +248,25 @@ export function secondaryTasksFor(
   // one names the position their own results say is costing them games.
   const measured = input.openingLine;
   const pct = (v: number) => Math.round(v * 100);
-  const theory: DailyTask = measured
+  /**
+   * A card exists only because a decision was missed or shown, so what is owed
+   * outranks BOTH the measured line and the generic build-a-repertoire task.
+   *
+   * The ordering is not a preference. The measured line is a weakness we
+   * inferred from results; a due card is a decision this player has already
+   * been asked and already got wrong. One is a hypothesis and the other is a
+   * fact about them, and the fact goes first.
+   */
+  const owed = input.dueCourse;
+  const theory: DailyTask = owed
+    ? {
+        kind: "theory",
+        label: `${owed.due} to review in the ${owed.name}`,
+        detail: `${owed.due === 1 ? "One decision" : `${owed.due} decisions`} you have got wrong before ${owed.due === 1 ? "is" : "are"} due back. Nothing here is new.`,
+        minutes: TASK_MINUTES.theory,
+        href: `/learn/${owed.courseId}`,
+      }
+    : measured
     ? {
         kind: "theory",
         label: `Your weakest line: ${measured.line}`,

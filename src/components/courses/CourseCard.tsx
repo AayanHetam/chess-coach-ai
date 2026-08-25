@@ -36,11 +36,20 @@ function CourseCard({
   const style = CHARACTER_STYLE[entry.character];
   const done = progressOf(entry, progress);
   const started = done > 0;
+  const due = progress?.due ?? 0;
   return (
     <Box
       component={Link}
       href={`/learn/${encodeURIComponent(entry.id)}`}
-      aria-label={`${entry.name} — ${started ? `continue, ${progress?.started} of ${entry.chapters} chapters started` : `start, ${entry.chapters} chapters`}`}
+      /* The debt goes FIRST in the accessible name when there is any: it is
+         the most specific true thing about this card, and a screen reader
+         should not have to hear the chapter count before the reason to open
+         it. */
+      aria-label={`${entry.name} — ${
+        due > 0
+          ? `${due} ${due === 1 ? "decision" : "decisions"} due back, `
+          : ""
+      }${started ? `continue, ${progress?.started} of ${entry.chapters} chapters started` : `start, ${entry.chapters} chapters`}`}
       sx={{
         position: "relative", overflow: "hidden",
         display: "flex", flexDirection: "column",
@@ -75,7 +84,20 @@ function CourseCard({
           <OpeningDiagram moves={entry.diagram} side={entry.side} px={104} />
         </Box>
         <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.75 }}>
-          {started && (
+          {/* Due outranks "In progress" and REPLACES it. Both would be true at
+              once on every owed card, and two badges stacked on a 250px tile is
+              a badge nobody reads — the more specific one wins. */}
+          {due > 0 ? (
+            <Typography
+              data-testid={`card-due-${entry.id}`}
+              sx={{
+                px: 0.9, py: 0.25, borderRadius: "0.4rem", fontSize: "0.66rem",
+                fontWeight: 700, color: "#0B0D12", background: EMBER, whiteSpace: "nowrap",
+              }}
+            >
+              {due} due
+            </Typography>
+          ) : started ? (
             <Typography
               sx={{
                 px: 0.9, py: 0.25, borderRadius: "0.4rem", fontSize: "0.66rem",
@@ -84,7 +106,7 @@ function CourseCard({
             >
               In progress
             </Typography>
-          )}
+          ) : null}
           {/* The rank gets its own block beside the tile rather than sitting
               behind the title. Ghosted behind the text it competed with the
               opening's name for the first read and clipped at the card edge. */}

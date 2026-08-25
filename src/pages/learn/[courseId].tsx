@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { Box, Typography } from "@mui/material";
 import { motion } from "framer-motion";
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronDown, Dumbbell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { bandFor } from "@/lib/repertoire/levels";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
 import { lineNotes, linesOf, numbered, type CourseLine } from "@/lib/courses/lines";
+import { probesOf } from "@/lib/courses/probes";
+import { courseTrainerHref } from "@/lib/learn/courseRoute";
 import type { CourseChapter, CourseNode, MoveSource } from "@/types/course";
 
 /**
@@ -82,6 +84,25 @@ export default function CoursePage() {
       live = false;
     };
   }, [courseId, band.id]);
+
+  /**
+   * How many decisions the open chapter would ask.
+   *
+   * Computed only for the chapter that is open: probesOf walks the graph with
+   * chess.js, and doing it for every chapter on every render would replay the
+   * whole course to render a row of headers.
+   */
+  const chapterProbeCount = useCallback(
+    (chapter: CourseChapter) =>
+      course
+        ? probesOf(
+            { meta: course.meta as never, chapters: course.chapters, nodes: course.nodes },
+            chapter.i,
+            course.meta.side
+          ).probes.length
+        : 0,
+    [course]
+  );
 
   const chapterLines = useCallback(
     (chapter: CourseChapter) =>
@@ -175,6 +196,11 @@ export default function CoursePage() {
 
                     {open && (
                       <Box sx={{ px: 2, pb: 2, display: "grid", gap: 0.75 }}>
+                        <ChapterTrainLink
+                          courseId={courseId ?? ""}
+                          chapter={chapter.i}
+                          count={chapterProbeCount(chapter)}
+                        />
                         {lines.map((line, i) => (
                           <Box
                             key={i}
@@ -239,5 +265,55 @@ function Note({ children }: { children: React.ReactNode }) {
     <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.95rem", py: 6 }}>
       {children}
     </Typography>
+  );
+}
+
+/**
+ * Into the trainer, from the chapter you are looking at.
+ *
+ * Inside the panel rather than in the header, because the header is a button
+ * and a link nested in a button is neither. Reading the chapter and being asked
+ * about it are one gesture apart, which is the whole point of the reader.
+ *
+ * Absent when the chapter asks nothing, rather than rendering a button that
+ * leads to an empty session.
+ */
+function ChapterTrainLink({
+  courseId,
+  chapter,
+  count,
+}: {
+  courseId: string;
+  chapter: number;
+  count: number;
+}) {
+  if (!courseId || count <= 0) return null;
+  return (
+    <Link
+      href={courseTrainerHref(courseId, chapter)}
+      style={{ textDecoration: "none" }}
+      data-testid={`train-chapter-${chapter}`}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minHeight: 44,
+          px: 1.5,
+          mb: 0.5,
+          borderRadius: "0.9rem",
+          border: `1px solid ${EMBER}42`,
+          background: `${EMBER}14`,
+          color: EMBER,
+          fontSize: "0.85rem",
+          transition: "background 200ms ease-out",
+          "&:hover": { background: `${EMBER}22` },
+        }}
+      >
+        <Dumbbell size={15} aria-hidden />
+        Train this chapter — {count} {count === 1 ? "position" : "positions"}
+      </Box>
+    </Link>
   );
 }

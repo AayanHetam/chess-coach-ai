@@ -11,8 +11,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getSessionFromCookieHeader } from '@/lib/auth/session';
 import { mergeChapter, readChapter } from '@/lib/server/courseProgress';
 import { sanitiseRecords } from '@/lib/learn/chapterProgress';
-
-const COURSE_ID = /^[a-z0-9-]{1,40}$/;
+import { isCourseId } from '@/lib/learn/courseRoute';
 
 function chapterOf(value: unknown): number | null {
   // An empty string is not a chapter. `Number('')` is 0, so a missing parameter
@@ -39,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // The id becomes part of a document path, so it is matched against a shape
   // rather than escaped.
-  if (typeof courseId !== 'string' || !COURSE_ID.test(courseId) || chapter === null) {
+  if (!isCourseId(courseId) || chapter === null) {
     return res.status(400).json({ error: 'courseId and chapter required' });
   }
 

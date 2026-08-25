@@ -16,7 +16,7 @@ import { bandFromSession } from '../band';
 const getSessionFromCookieHeader = vi.fn();
 const getUserById = vi.fn();
 
-vi.mock('@/lib/auth/session', () => ({
+vi.mock('@/lib/auth/sessionToken', () => ({
   getSessionFromCookieHeader: (h: string | null | undefined) => getSessionFromCookieHeader(h),
 }));
 vi.mock('@/lib/server/users', () => ({

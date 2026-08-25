@@ -20,7 +20,10 @@
 // costs the caller nothing they were entitled to.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { getSessionFromCookieHeader } from '@/lib/auth/session';
+// From sessionToken rather than session: this module is exactly the kind of
+// thing a page would import, and `session` pulls in `next/headers`, which is
+// App-Router-only and fails a pages/ build outright.
+import { getSessionFromCookieHeader } from '@/lib/auth/sessionToken';
 import { getUserById } from '@/lib/server/users';
 import { resolveUserRating } from '@/lib/coach/userRating';
 import { bandFor, type Band } from '@/lib/repertoire/levels';

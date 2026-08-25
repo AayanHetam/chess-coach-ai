@@ -8,10 +8,32 @@
 
 const COURSE_ID = /^[a-z0-9-]{1,40}$/;
 
-/** The trainer for one chapter. Round 1 is implied by its absence. */
+/**
+ * The trainer for one chapter: the CONTRACT screen, which is what a link into
+ * the trainer should land on.
+ *
+ * `?round=` is the phase — its absence is the contract screen and a number is a
+ * live round — so a href for round 1 must carry `?round=1`. It did not: this
+ * took a `round > 1` test, "round 1 is implied by its absence", and the Start
+ * button therefore linked at the screen it was on. Clicking it reloaded the
+ * contract. Nobody could begin a course session except by typing the query
+ * themselves, and every test passed because each one navigated directly.
+ *
+ * So the two are now two functions. A phase that is decided by a parameter's
+ * presence cannot also have a default for it.
+ */
 export function courseTrainerHref(courseId: string, chapter: number, round?: number): string {
   const base = `/train/course/${encodeURIComponent(courseId)}/${chapter}`;
   return round && round > 1 ? `${base}?round=${round}` : base;
+}
+
+/** One live round. Always carries `?round=`, including round 1. */
+export function courseRoundHref(courseId: string, chapter: number, round: number): string {
+  // Anything that is not a round is round one. `Math.max(1, NaN)` is NaN, which
+  // would put `?round=NaN` in a href that `roundParam` then reads as 1 anyway —
+  // correct behaviour reached through a URL nobody would want to see.
+  const n = Number.isInteger(round) && round > 1 ? round : 1;
+  return `/train/course/${encodeURIComponent(courseId)}/${chapter}?round=${n}`;
 }
 
 /** Back to the chapter the player came from. */

@@ -298,7 +298,7 @@ function ChapterRow({ courseId, side, unit, mastery, open, onToggle, index }: Pr
               with a state each, not a second navigation layer. */}
           {unit.studies.length > 0 && (
             <Box sx={{ display: "grid", gap: 0.5, mt: 0.5 }}>
-              {unit.studies.map(study => (
+              {unit.studies.filter(study => study.asked > 0).map(study => (
                 <Box
                   key={study.id}
                   data-testid={`study-${unit.i}-${study.id}`}
@@ -335,8 +335,8 @@ function ChapterRow({ courseId, side, unit, mastery, open, onToggle, index }: Pr
                       {study.title}
                     </Typography>
                     <Typography sx={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.38)" }}>
-                      {Math.round(study.share * 100)}% · {study.decisions}{" "}
-                      {study.decisions === 1 ? "decision" : "decisions"}
+                      {Math.round(study.share * 100)}% · {study.asked}{" "}
+                      {study.asked === 1 ? "decision" : "decisions"}
                     </Typography>
                   </Box>
                   <Pill

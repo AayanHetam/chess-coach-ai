@@ -46,6 +46,33 @@ describe('unitsOf', () => {
     for (const unit of units) expect(unit.asked).toBeLessThanOrEqual(unit.decisions);
   });
 
+  // ── A study advertises what a drill of it will actually ask ────────────────
+  //
+  // The chapter's probes are capped at 60, and a drill scoped to a study is a
+  // filter of THAT list. A study of 22 decisions inside a capped chapter can
+  // only be askable for a fraction of them.
+  it('never advertises a study bigger than a drill of it can be', () => {
+    const index = loadCourseIndex()!;
+    let capped = 0;
+    for (const entry of index.courses) {
+      const hub = hubFor(entry.id, band('club'))!;
+      for (const unit of hub.chapters) {
+        for (const study of unit.studies) {
+          // Per study, not summed. Studies OVERLAP: the graph pools
+          // transpositions, so a decision reachable from two of their replies
+          // is genuinely in both — measured, the sum ran 62 against a chapter
+          // that asks 60. A partition assertion would have been a nice-looking
+          // claim about a graph that is not a tree.
+          expect(study.asked).toBeLessThanOrEqual(study.decisions);
+          if (study.asked < study.decisions) capped++;
+        }
+      }
+    }
+    // The control: the cap really bites somewhere in this corpus, so the
+    // assertions above were looking at a real case and not at equality.
+    expect(capped).toBeGreaterThan(0);
+  });
+
   it('splits a chapter into studies only where studies.ts says to', () => {
     const course = loadCourse('w-london')!;
     for (const id of ['new', 'beginner', 'improving', 'club', 'strong']) {

@@ -121,6 +121,31 @@ export function buildRound(
   return out;
 }
 
+/**
+ * The questions for one round of a DRILL.
+ *
+ * Not `buildRound` with a flag. The difference is the whole point of the mode:
+ * a session asks what you owe, and a drill asks the lot — so it cannot consult
+ * `records` at all, or "drill this chapter cold" would quietly become "drill
+ * the parts of it you are bad at", which is the thing the player already has.
+ *
+ * Chunked by round rather than sampled, so going through a drill twice covers
+ * the same ground in the same order and a player can tell they finished it.
+ * Order is `probes`' own, which is most-likely-first.
+ */
+export function drillRound(
+  probes: CourseProbe[],
+  round: number,
+  size: number = ROUND_SIZE
+): CourseProbe[] {
+  const start = Math.max(0, (round - 1) * size);
+  return probes.slice(start, start + size);
+}
+
+/** Rounds a drill of this many decisions takes. Zero decisions is zero rounds. */
+export const drillRounds = (count: number, size: number = ROUND_SIZE): number =>
+  Math.ceil(Math.max(0, count) / size);
+
 export interface AskOutcome {
   right: boolean;
   /** A hint was taken before answering. */
@@ -216,6 +241,28 @@ export function startRound(
   size: number = ROUND_SIZE
 ): RoundState {
   const chosen = buildRound(probes, records, round, size);
+  return {
+    round,
+    timeline: chosen.map(p => p.key),
+    at: 0,
+    progress: 0,
+    size: Math.min(size, chosen.length),
+    requeued: [],
+  };
+}
+
+/**
+ * A drill round, opened.
+ *
+ * Same state, same grading, same re-queue on a miss. Only the queue differs,
+ * and it differs by not being chosen from what you know.
+ */
+export function startDrill(
+  probes: CourseProbe[],
+  round: number,
+  size: number = ROUND_SIZE
+): RoundState {
+  const chosen = drillRound(probes, round, size);
   return {
     round,
     timeline: chosen.map(p => p.key),

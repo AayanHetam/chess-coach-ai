@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { chapterParam, courseReaderHref, courseTrainerHref, isCourseId, roundParam } from '../courseRoute';
+import {
+  chapterParam,
+  courseReaderHref,
+  courseRoundHref,
+  courseTrainerHref,
+  isCourseId,
+  roundParam,
+} from '../courseRoute';
 
 describe('courseTrainerHref', () => {
   it('leaves round 1 implied', () => {
@@ -69,5 +76,26 @@ describe('roundParam', () => {
 
   it('cannot point past the end of the sitting', () => {
     expect(roundParam('99', 4)).toBe(4);
+  });
+});
+
+describe('courseRoundHref', () => {
+  /**
+   * `?round=` is the PHASE: its absence is the contract screen. So a link to
+   * round 1 has to carry it. `courseTrainerHref(id, ch, 1)` does not — "round 1
+   * is implied" — and the Start button used it, so clicking Start reloaded the
+   * contract screen. Nobody could begin a session except by typing the query.
+   */
+  it('always names the round, including the first', () => {
+    expect(courseRoundHref('w-london', 0, 1)).toBe('/train/course/w-london/0?round=1');
+    expect(courseRoundHref('w-london', 0, 3)).toBe('/train/course/w-london/0?round=3');
+  });
+
+  it('is never the contract screen, whatever it is handed', () => {
+    for (const round of [0, -4, 1.5, Number.NaN]) {
+      expect(courseRoundHref('w-london', 0, round)).toBe('/train/course/w-london/0?round=1');
+    }
+    // The control: the contract screen's own href has no round on it.
+    expect(courseTrainerHref('w-london', 0)).not.toContain('?round=');
   });
 });

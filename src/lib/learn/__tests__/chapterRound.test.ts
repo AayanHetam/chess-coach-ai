@@ -19,10 +19,13 @@ import {
   buildRound,
   chapterClosed,
   currentKey,
+  drillRound,
+  drillRounds,
   gradeAsk,
   isRepeat,
   roundDone,
   roundTally,
+  startDrill,
   startRound,
   type Correctness,
   type ProbeRecord,
@@ -217,5 +220,75 @@ describe('roundTally', () => {
     expect(chapterClosed(roundTally(probes, records(at('a', 2), at('b', 1))))).toBe(false);
     // An empty chapter is not a finished one.
     expect(chapterClosed(roundTally([], {}))).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DRILL
+//
+// A drill asks the lot. The one thing that must be true of it, and the reason
+// it is not `buildRound` with a flag: it cannot consult `records` at all, or
+// "drill this chapter cold" quietly becomes "drill the parts you are bad at",
+// which is the session the player already has.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('drillRound', () => {
+  const probes = Array.from({ length: 12 }, (_, i) => probe(`k${i}`));
+
+  it('walks the whole list in order, round by round', () => {
+    expect(drillRound(probes, 1).map(p => p.key)).toEqual(['k0', 'k1', 'k2', 'k3', 'k4']);
+    expect(drillRound(probes, 2).map(p => p.key)).toEqual(['k5', 'k6', 'k7', 'k8', 'k9']);
+    expect(drillRound(probes, 3).map(p => p.key)).toEqual(['k10', 'k11']);
+  });
+
+  it('asks the same question of someone who knows everything', () => {
+    // THE CONTROL THIS MODE EXISTS FOR. Seed every decision as known: a session
+    // would have nothing to ask, and a drill asks exactly what it asked before.
+    const known: Records = {};
+    for (const p of probes) known[p.key] = { ...blankRecord(p.key), correctness: 2, asks: 3 };
+    expect(buildRound(probes, known, 1)).toEqual([]);
+    expect(drillRound(probes, 1).map(p => p.key)).toEqual(['k0', 'k1', 'k2', 'k3', 'k4']);
+  });
+
+  // ── Zero by definition ──────────────────────────────────────────────────────
+  it('has nothing to ask past the end, and nothing to ask about nothing', () => {
+    expect(drillRound(probes, 4)).toEqual([]);
+    expect(drillRound([], 1)).toEqual([]);
+    expect(drillRound(probes, 0).map(p => p.key)).toEqual(['k0', 'k1', 'k2', 'k3', 'k4']);
+  });
+});
+
+describe('drillRounds', () => {
+  it('is the rounds a scope takes, rounded up', () => {
+    expect(drillRounds(0)).toBe(0);
+    expect(drillRounds(1)).toBe(1);
+    expect(drillRounds(5)).toBe(1);
+    expect(drillRounds(6)).toBe(2);
+    expect(drillRounds(60)).toBe(12);
+  });
+
+  it('is never negative', () => {
+    expect(drillRounds(-3)).toBe(0);
+  });
+});
+
+describe('startDrill', () => {
+  const probes = Array.from({ length: 7 }, (_, i) => probe(`k${i}`));
+
+  it('opens a round of the drill queue, gradeable exactly like a session', () => {
+    const state = startDrill(probes, 2);
+    expect(state.round).toBe(2);
+    expect(state.timeline).toEqual(['k5', 'k6']);
+    expect(state.size).toBe(2);
+    expect(currentKey(state)).toBe('k5');
+    // A miss re-queues here too: the mode differs in what it asks, never in
+    // how it grades.
+    const missed = answerRound(state, false);
+    expect(missed.timeline).toEqual(['k5', 'k6', 'k5']);
+    expect(missed.progress).toBe(0);
+  });
+
+  it('is done immediately past the end of the scope', () => {
+    expect(roundDone(startDrill(probes, 9))).toBe(true);
   });
 });

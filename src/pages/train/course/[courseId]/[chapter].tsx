@@ -45,19 +45,24 @@ import { bandFor, type BandId } from "@/lib/repertoire/levels";
 import { loadCourse } from "@/lib/courses/load";
 import { viewFor } from "@/lib/courses/view";
 import { probesOf, toTrainerLine, type CourseProbe } from "@/lib/courses/probes";
+import { keysUnder, planChapter } from "@/lib/courses/studies";
 import { numbered } from "@/lib/courses/lines";
 import {
   chapterParam,
   courseReaderHref,
+  courseRoundHref,
   courseTrainerHref,
   roundParam,
 } from "@/lib/learn/courseRoute";
+import { drillHref, isDrill, studyParam } from "@/lib/learn/courseHubRoute";
 import { loadChapter, writeChapter } from "@/lib/learn/chapterProgress";
 import { pullChapter, pushChapter } from "@/lib/learn/chapterSync";
 import {
   ROUND_SIZE,
   SITTING_ROUNDS,
   answerRound,
+  drillRounds,
+  startDrill,
   currentKey,
   gradeAsk,
   isRepeat,
@@ -86,6 +91,18 @@ interface Props {
   probes: CourseProbe[];
   total: number;
   capped: boolean;
+  /**
+   * A drill asks the lot; a session asks what you owe.
+   *
+   * One page, two queues. Two pages would be two copies of the probe loop and
+   * the grading, and they would drift.
+   */
+  drill: boolean;
+  /** The study a drill is narrowed to, when it is narrowed to one. */
+  studyId: string | null;
+  studyTitle: string | null;
+  /** Rounds this sitting has. A session is four; a drill is however many it takes. */
+  rounds: number;
 }
 
 export default function CourseTrainerPage(props: Props) {
@@ -147,8 +164,29 @@ export default function CourseTrainerPage(props: Props) {
   // live round. That makes every screen a URL, so a refresh, a back button or a
   // link mailed to yourself all land where they should.
   const router = useRouter();
-  const round = roundParam(router.query.round, SITTING_ROUNDS);
+  const round = roundParam(router.query.round, props.rounds);
   const running = router.query.round !== undefined;
+
+  /**
+   * The href for one phase of THIS sitting.
+   *
+   * A drill carries `drill=1` and its study through every round, so a refresh,
+   * a back button or a next-round push all stay in the drill. Losing the flag
+   * on round 2 would silently turn a drill into a session — same board, same
+   * grading, a different queue, and nothing on the screen would say so.
+   */
+  const phaseHref = useCallback(
+    (r?: number) => {
+      if (!props.drill) {
+        return r === undefined
+          ? courseTrainerHref(props.courseId, props.chapter)
+          : courseRoundHref(props.courseId, props.chapter, r);
+      }
+      const base = drillHref(props.courseId, props.chapter, props.studyId ?? undefined);
+      return r === undefined ? base : `${base}&round=${Math.max(1, r)}`;
+    },
+    [props.drill, props.courseId, props.chapter, props.studyId]
+  );
 
   const [roundState, setRoundState] = useState<RoundState | null>(null);
   /**
@@ -181,12 +219,20 @@ export default function CourseTrainerPage(props: Props) {
       builtFor.current = null;
       return;
     }
-    if (recordsKey === null) return;
-    const key = `${recordsKey}#${round}`;
+    // A DRILL DOES NOT WAIT FOR RECORDS. Its queue is not chosen from them, so
+    // gating on the account's arrival would only delay the first question — and
+    // gating a queue on something it does not read is how a "why is this
+    // ordered like that" bug gets written.
+    if (!props.drill && recordsKey === null) return;
+    const key = `${props.drill ? "drill" : recordsKey}#${round}`;
     if (builtFor.current === key) return;
     builtFor.current = key;
-    setRoundState(startRound(props.probes, recordsRef.current, round));
-  }, [running, round, props.probes, recordsKey]);
+    setRoundState(
+      props.drill
+        ? startDrill(props.probes, round)
+        : startRound(props.probes, recordsRef.current, round)
+    );
+  }, [running, round, props.probes, recordsKey, props.drill]);
 
   const probeKey = roundState ? currentKey(roundState) : null;
   const probe = probeKey ? (byKey.get(probeKey) ?? null) : null;
@@ -287,15 +333,17 @@ export default function CourseTrainerPage(props: Props) {
   }, []);
 
   const exit = useCallback(() => {
-    void router.push(courseReaderHref(props.courseId));
-  }, [router, props.courseId]);
+    void router.push(props.drill ? drillHref(props.courseId) : courseReaderHref(props.courseId));
+  }, [router, props.courseId, props.drill]);
 
   const restart = useCallback(() => {
     setAnswer(null);
     setWrongSquare(null);
     setFlash(null);
-    setRoundState(startRound(props.probes, records, round));
-  }, [props.probes, records, round]);
+    setRoundState(
+      props.drill ? startDrill(props.probes, round) : startRound(props.probes, records, round)
+    );
+  }, [props.probes, records, round, props.drill]);
 
   // The round is over. The summary screen replaces this in the next change;
   // until then the honest end is the contract screen, which shows the counts
@@ -303,13 +351,9 @@ export default function CourseTrainerPage(props: Props) {
   useEffect(() => {
     if (!roundState || !roundDone(roundState)) return;
     const next = round + 1;
-    void router.replace(
-      next > SITTING_ROUNDS
-        ? courseTrainerHref(props.courseId, props.chapter)
-        : courseTrainerHref(props.courseId, props.chapter, next),
-      undefined,
-      { shallow: true }
-    );
+    void router.replace(next > props.rounds ? phaseHref() : phaseHref(next), undefined, {
+      shallow: true,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundState && roundDone(roundState), round]);
 
@@ -356,7 +400,7 @@ export default function CourseTrainerPage(props: Props) {
       >
         <Box sx={{ width: "100%", maxWidth: 720 }}>
           <Link
-            href={courseReaderHref(props.courseId)}
+            href={props.drill ? drillHref(props.courseId) : courseReaderHref(props.courseId)}
             style={{
               // On the ANCHOR, not on the text inside it: an <a> is inline by
               // default, so its box is the line box and a minHeight on a child
@@ -373,7 +417,7 @@ export default function CourseTrainerPage(props: Props) {
             data-testid="course-trainer-back"
           >
             <ChevronLeft size={16} aria-hidden />
-            The course
+            {props.drill ? "Choose what to drill" : "The course"}
           </Link>
 
           <Box sx={{ display: "flex", gap: 2, alignItems: "center", mt: 1 }}>
@@ -396,6 +440,7 @@ export default function CourseTrainerPage(props: Props) {
 
           <Typography
             component="h1"
+            data-testid="course-headline"
             sx={{
               mt: 4,
               fontSize: { xs: "1.1rem", md: "1.25rem" },
@@ -404,8 +449,19 @@ export default function CourseTrainerPage(props: Props) {
               color: "rgba(255,255,255,0.92)",
             }}
           >
-            Before we teach anything, we ask.
+            {props.drill ? "Everything, asked cold." : "Before we teach anything, we ask."}
           </Typography>
+
+          {props.drill && (
+            <Typography
+              data-testid="drill-scope"
+              sx={{ mt: 1, color: "rgba(255,255,255,0.58)", fontSize: "0.88rem", lineHeight: 1.6 }}
+            >
+              {props.studyTitle
+                ? `${props.studyTitle} — every decision in it, whether or not you owe it.`
+                : "Every decision in this chapter, whether or not you owe it."}
+            </Typography>
+          )}
 
           <Box
             component="dl"
@@ -434,7 +490,10 @@ export default function CourseTrainerPage(props: Props) {
           )}
 
           <Box sx={{ mt: 4, display: "grid", gap: 1 }}>
-            <Fact label="This sitting" value={`${SITTING_ROUNDS} rounds · ${ROUND_SIZE} positions a round`} />
+            <Fact
+              label="This sitting"
+              value={`${props.rounds} ${props.rounds === 1 ? "round" : "rounds"} · ${ROUND_SIZE} positions a round`}
+            />
             <Fact label="Shown to" value={`${props.theoryPlies} plies, the depth for your level`} />
             <Fact label="Your level" value={props.bandName} />
             {/*
@@ -452,7 +511,7 @@ export default function CourseTrainerPage(props: Props) {
 
           <Box sx={{ mt: 4 }}>
             <Link
-              href={courseTrainerHref(props.courseId, props.chapter, 1)}
+              href={phaseHref(1)}
               style={{ textDecoration: "none", display: "inline-block" }}
               data-testid="course-start"
             >
@@ -540,7 +599,7 @@ function RoundScreen({
 
   const railProps = {
     round: roundState.round,
-    rounds: SITTING_ROUNDS,
+    rounds: props.rounds,
     progress: roundState.progress,
     size: roundState.size,
     tally,
@@ -775,7 +834,34 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const chapterView = view.chapters.find((c) => c.i === chapter);
   if (!chapterView) return { notFound: true };
 
-  const { probes, total, capped } = probesOf(view, chapter, course.meta.side);
+  const found = probesOf(view, chapter, course.meta.side);
+  let { probes, total, capped } = found;
+
+  // ── Drill: everything, and optionally only one study of it.
+  //
+  // The scope is applied to the PROBES, not to the round: narrowing later would
+  // leave `total` and the contract screen's counts describing the chapter while
+  // the session asked a study, which is the same class of mistake as counting
+  // decisions with an unbounded walk.
+  const drill = isDrill(ctx.query.drill);
+  const studyId = drill ? studyParam(ctx.query.study) : null;
+  let studyTitle: string | null = null;
+  if (studyId) {
+    const plan = planChapter(view.nodes, chapterView, view.maxPly, course.meta.side);
+    const study = plan.studies.find(candidate => candidate.id === studyId);
+    // A study id that is not one of this chapter's studies is not a scope. Fall
+    // back to the whole chapter rather than to an empty session.
+    if (study) {
+      const keys = keysUnder(view.nodes, study.at, view.maxPly, chapter);
+      const narrowed = probes.filter(probe => keys.has(probe.key));
+      if (narrowed.length > 0) {
+        probes = narrowed;
+        total = narrowed.length;
+        capped = false;
+        studyTitle = study.title;
+      }
+    }
+  }
 
   // Progress is per account and this page carries a band chosen from it.
   ctx.res.setHeader("Cache-Control", "private, no-store");
@@ -796,6 +882,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       probes,
       total,
       capped,
+      drill,
+      studyId: studyId && studyTitle ? studyId : null,
+      studyTitle,
+      // A session is a fixed sitting. A drill is however many rounds its scope
+      // takes, because the player chose the scope and a drill that stopped at
+      // 20 of 47 would be a session wearing a drill's name.
+      rounds: drill ? Math.max(1, drillRounds(probes.length)) : SITTING_ROUNDS,
     },
   };
 };

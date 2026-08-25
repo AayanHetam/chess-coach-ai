@@ -23,7 +23,7 @@ import type { Band } from '@/lib/repertoire/levels';
 import { loadCourse } from '@/lib/courses/load';
 import { courseVerdict, viewFor, type CourseView } from '@/lib/courses/view';
 import { probesOf } from '@/lib/courses/probes';
-import { planChapter, type Study } from '@/lib/courses/studies';
+import { keysUnder, planChapter, type Study } from '@/lib/courses/studies';
 import type { CourseMeta } from '@/types/course';
 
 export interface ChapterUnit {
@@ -41,7 +41,19 @@ export interface ChapterUnit {
   asked: number;
   capped: boolean;
   /** Empty when the chapter is one unit — see studies.ts for the condition. */
-  studies: Study[];
+  studies: StudyUnit[];
+}
+
+export interface StudyUnit extends Study {
+  /**
+   * Decisions a session can ask inside this study.
+   *
+   * Not `decisions`. The chapter's probes are capped at 60 and a drill scoped
+   * to a study is a filter of THAT list, so a study of 22 decisions inside a
+   * capped chapter may only be askable for 9 of them. Advertising 22 and asking
+   * 9 is the hub lying about the work, one level further down.
+   */
+  asked: number;
 }
 
 export interface CourseHub {
@@ -76,6 +88,15 @@ export function unitsOf(view: CourseView, side: 'white' | 'black'): ChapterUnit[
   return view.chapters.map(chapter => {
     const { probes, total, capped } = probesOf(view, chapter.i, side);
     const plan = planChapter(view.nodes, chapter, view.maxPly, side);
+    const askable = new Set(probes.map(probe => probe.key));
+    const studies: StudyUnit[] = plan.studies.map(study => {
+      const keys = keysUnder(view.nodes, study.at, view.maxPly, chapter.i);
+      // Array.from rather than iterating the Set: this file's tsconfig target
+      // predates downlevel iteration and a `for...of` over a Set does not
+      // compile.
+      const asked = Array.from(keys).filter(key => askable.has(key)).length;
+      return { ...study, asked };
+    });
     return {
       i: chapter.i,
       at: chapter.at,
@@ -86,7 +107,7 @@ export function unitsOf(view: CourseView, side: 'white' | 'black'): ChapterUnit[
       decisions: total,
       asked: probes.length,
       capped,
-      studies: plan.studies,
+      studies,
     };
   });
 }

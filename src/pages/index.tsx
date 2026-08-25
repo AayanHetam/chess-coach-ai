@@ -405,7 +405,7 @@ function Hero() {
                 backgroundClip: "text",
               }}
             >
-              for players 13+.
+              for everyone.
             </Box>
           </Typography>
         </motion.div>
@@ -435,7 +435,7 @@ function Hero() {
               component="span"
               sx={{ color: "rgba(255,255,255,0.92)", fontWeight: 600 }}
             >
-              the same caliber, free for chess players aged 13 and older.
+              the same caliber, free for everyone.
             </Box>
           </Typography>
         </motion.div>
@@ -723,7 +723,7 @@ function BentoSection() {
                 backgroundClip: "text",
               }}
             >
-              free for players 13+.
+              free for everyone.
             </Box>
           </Typography>
           <Typography

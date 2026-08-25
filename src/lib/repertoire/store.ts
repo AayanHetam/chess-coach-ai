@@ -108,7 +108,24 @@ export function clearBelow(
  * shown the Najdorf, because the quiz is two questions and the player knows
  * things about themselves that two questions cannot reach.
  */
-export function suggestionScore(choice: RepertoireChoice, quiz: QuizAnswers | null): number {
+/**
+ * The score a choice gets when BOTH quiz answers match it exactly.
+ *
+ * Stated as a constant so callers can ask "is this a perfect match?" without
+ * hard-coding 4, and pinned by a test that scores a deliberately-matching
+ * choice — if the weights below ever change, the test fails rather than the
+ * "heavily recommended" tag quietly never appearing again.
+ */
+export const MAX_SUGGESTION_SCORE = 4;
+
+export function suggestionScore(
+  // Narrowed to the two fields it actually reads. Demanding a whole
+  // RepertoireChoice made the function untestable without inventing a diagram,
+  // an ECO code and a coverage kind for a judgement that depends on none of
+  // them — and callers that only hold a judgement had to fabricate the rest.
+  choice: Pick<RepertoireChoice, 'load' | 'character'>,
+  quiz: QuizAnswers | null
+): number {
   if (!quiz) return 0;
   let score = 0;
   if (choice.load === quiz.load) score += 2;

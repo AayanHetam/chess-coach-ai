@@ -11,6 +11,7 @@ import {
   CalendarCheck,
   Crosshair,
   Crown,
+  Heart,
   Home,
   Puzzle,
   User,
@@ -335,6 +336,67 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                   );
                 })}
               </Stack>
+
+              {/* Donate → Akanksha Education Fund (external, new tab). Not a
+                  NAV_ITEMS entry: it has no NavId, no route, and must never
+                  read as the "active" surface. This is the only donate
+                  affordance on phones — the NavPill's pill is md-and-up. */}
+              <Box
+                component="a"
+                href="https://akankshafund.org/donation/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Donate to the Akanksha Education Fund (opens in a new tab)"
+                onClick={onClose}
+                sx={{
+                  mt: 1.5,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  px: 1.5,
+                  py: 1.1,
+                  borderRadius: "10px",
+                  textDecoration: "none",
+                  border: "1px solid rgba(249,115,22,0.32)",
+                  color: "#FB923C",
+                  transition: "all 180ms ease",
+                  "&:hover": {
+                    background: "rgba(249,115,22,0.1)",
+                    boxShadow: "0 0 16px rgba(249,115,22,0.2)",
+                    transform: "translateX(2px)",
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "8px",
+                    background: "rgba(249,115,22,0.12)",
+                    border: "1px solid rgba(249,115,22,0.35)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Heart size={14} />
+                </Box>
+                <Typography sx={{ fontSize: "0.92rem", fontWeight: 600, flex: 1 }}>
+                  Donate
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.62rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.14em",
+                    color: "rgba(255,255,255,0.35)",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Akanksha
+                </Typography>
+              </Box>
 
               {/* Saved coach conversations. This list had exactly one mount in
                   the app — the legacy NavMenu drawer — so deleting that bar

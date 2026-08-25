@@ -630,3 +630,75 @@ test.describe("deciding, and stopping", () => {
     });
   });
 });
+
+test.describe("hierarchy and holes", () => {
+  test("a dead-end branch is one line, not four tasks", async ({ page }) => {
+    await stub(page, 1700);
+    await throughQuiz(page);
+
+    // 1.e4, then the Alapin against the Sicilian. Measured on the shipped map,
+    // the Alapin's four branches carry NO curated choice between them — so
+    // before this they arrived as four rows the product could not advise on,
+    // visually identical to "Against the King's Pawn Game" at 25%.
+    await page.locator("button").filter({ hasText: /nothing chosen/ }).first().click();
+    await page.getByRole("button", { name: /^1\.e4/ }).first().click();
+    await page.locator("button").filter({ hasText: /Against the Sicilian/i }).first().click();
+    await page.getByRole("button", { name: /Alapin/i }).first().click();
+
+    // The four collapse into one disclosure that says what they are WORTH.
+    const hole = page.getByRole("button", { name: /more branches, .*% of games/ }).first();
+    await expect(hole).toBeVisible({ timeout: 15_000 });
+    await expect(hole).toContainText(/no recommended answer for these yet/i);
+    // And it does not invent a claim about the player to soften our gap.
+    await expect(page.getByText(/most players never need to/i)).toHaveCount(0);
+
+    // The individual dead ends are NOT rows.
+    await expect(page.getByText(/2\.c3 e6/)).toHaveCount(0);
+    // ...until asked for, because the library behind them is real.
+    await hole.click();
+    await expect(page.getByText(/2\.c3 e6/).first()).toBeVisible();
+
+    // Meanwhile the branches we CAN advise on are still rows.
+    await expect(
+      page.locator("button").filter({ hasText: /Against the King's Pawn Game/ })
+    ).toHaveCount(1);
+  });
+
+  test("a sub-branch does not look like a first-class decision", async ({ page }) => {
+    await stub(page, 1700);
+    await throughQuiz(page);
+    await page.locator("button").filter({ hasText: /nothing chosen/ }).first().click();
+    await page.getByRole("button", { name: /^1\.e4/ }).first().click();
+
+    const root = page.locator("button").filter({ hasText: /Your first move/ }).first();
+    const sub = page.locator("button").filter({ hasText: /Against the King's Pawn Game/ }).first();
+    await expect(sub).toBeVisible({ timeout: 15_000 });
+
+    const rootBox = await root.boundingBox();
+    const subBox = await sub.boundingBox();
+    // Geometry, not styling: a decision already made and a branch of it must
+    // not be the same size of thing on the page.
+    expect(rootBox!.height).toBeGreaterThan(subBox!.height);
+  });
+
+  test("every suggestion card wears its character, not just a tag", async ({ page }) => {
+    await stub(page, 1700);
+    await throughQuiz(page);
+    await page.locator("button").filter({ hasText: /nothing chosen/ }).first().click();
+    await page.getByRole("button", { name: /^1\.e4/ }).first().click();
+    await page.locator("button").filter({ hasText: /Against the Sicilian/i }).first().click();
+
+    const openSicilian = page.getByRole("button", { name: /Open Sicilian/i }).first();
+    const alapin = page.getByRole("button", { name: /Alapin/i }).first();
+    await expect(openSicilian).toBeVisible({ timeout: 15_000 });
+
+    const edge = (l: typeof openSicilian) =>
+      l.evaluate((e) => getComputedStyle(e).borderLeftColor);
+    const attacking = await edge(openSicilian); // red
+    const positional = await edge(alapin); // teal
+    expect(attacking).not.toBe(positional);
+    // And the edge is a real one, not the default hairline.
+    const width = await openSicilian.evaluate((e) => getComputedStyle(e).borderLeftWidth);
+    expect(parseFloat(width)).toBeGreaterThan(2);
+  });
+});

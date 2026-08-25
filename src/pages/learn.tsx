@@ -44,6 +44,8 @@ import {
   numberedLine,
   share as pctOf,
   slotTitle,
+  shareOf,
+  splitChildren,
   transposesInto,
   type BracketNode,
 } from "@/lib/repertoire/bracket";
@@ -464,6 +466,12 @@ function SlotBranch({
   const reach = measured?.share ?? node.reach;
   const rare = rarity(reach);
   const yourMove = mainMoveAt(tree, node.slot.id);
+  // Branches we can advise on stay rows; the rest collapse. Measured on the
+  // shipped map, 120 of 126 reachable branches carry no curated choice, so
+  // without this one Alapin pick spawns four tasks the product cannot help with.
+  const kids = useMemo(() => splitChildren(node.children), [node.children]);
+  /** A branch of a decision already made, rather than a decision in its own right. */
+  const sub = node.depth > 0;
   return (
     <Box sx={{ pl: node.depth > 0 ? { xs: 1.5, md: 3 } : 0 }}>
       <Box
@@ -473,13 +481,31 @@ function SlotBranch({
         sx={{
           width: "100%", textAlign: "left", cursor: "pointer",
           display: "flex", alignItems: "center", gap: 1.5,
-          minHeight: 56, px: { xs: 1.75, md: 2.25 }, py: 1.5,
-          borderRadius: "1.25rem",
-          border: `1px solid ${filled ? "rgba(134,239,172,0.28)" : "rgba(255,255,255,0.1)"}`,
+          // A sub-decision must not look like a root one. "Against the Sicilian"
+          // and "Against 1.e4 c5 2.c3 e6" were the same height, weight and
+          // radius, differing only by an indent — so a 36%-of-your-games
+          // decision and a 1% sub-branch of a decision already made read as
+          // equals. Depth costs height, radius and one step of contrast, which
+          // is the same hierarchy a heading gets over its body text.
+          minHeight: sub ? 46 : 56,
+          px: { xs: sub ? 1.4 : 1.75, md: sub ? 1.75 : 2.25 },
+          py: sub ? 1 : 1.5,
+          borderRadius: sub ? "0.9rem" : "1.25rem",
+          border: `1px solid ${
+            filled
+              ? "rgba(134,239,172,0.28)"
+              : sub
+                ? "rgba(255,255,255,0.06)"
+                : "rgba(255,255,255,0.1)"
+          }`,
           background: filled
             ? "linear-gradient(180deg, rgba(20,30,24,0.75) 0%, rgba(12,14,20,0.75) 100%)"
-            : "linear-gradient(180deg, rgba(20,22,28,0.8) 0%, rgba(12,14,20,0.8) 100%)",
-          backdropFilter: "blur(12px)",
+            : sub
+              ? "rgba(255,255,255,0.018)"
+              : "linear-gradient(180deg, rgba(20,22,28,0.8) 0%, rgba(12,14,20,0.8) 100%)",
+          // Only the roots are glass. Blurring every nested row cost a paint
+          // per row for an effect nobody can see behind 2%-alpha fill.
+          backdropFilter: sub ? "none" : "blur(12px)",
           transition: "border-color 180ms ease, background 180ms ease",
           "&:hover": { borderColor: filled ? GOOD : "rgba(249,115,22,0.5)" },
           "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
@@ -490,13 +516,21 @@ function SlotBranch({
             ember from green. */}
         <Box
           sx={{
-            width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
+            width: sub ? 7 : 10, height: sub ? 7 : 10, borderRadius: "50%", flexShrink: 0,
             background: filled ? GOOD : "transparent",
-            border: filled ? "none" : "1.5px solid rgba(255,255,255,0.3)",
+            border: filled ? "none" : `1.5px solid rgba(255,255,255,${sub ? 0.22 : 0.3})`,
           }}
         />
         <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography sx={{ color: "#fff", fontWeight: 600, fontSize: { xs: "0.92rem", md: "0.98rem" } }}>
+          <Typography
+            sx={{
+              color: sub ? "rgba(255,255,255,0.82)" : "#fff",
+              fontWeight: sub ? 500 : 600,
+              fontSize: sub
+                ? { xs: "0.84rem", md: "0.88rem" }
+                : { xs: "0.92rem", md: "0.98rem" },
+            }}
+          >
             {slotTitle(node.slot)}
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", mt: 0.25 }}>
@@ -565,9 +599,9 @@ function SlotBranch({
           Without this the 43 courses are data nothing links to. */}
       {node.pick?.choiceId && <StudyRow choiceId={node.pick.choiceId} label={node.pick.label} />}
 
-      {node.children.length > 0 && (
+      {(kids.decisions.length > 0 || kids.unhelped.length > 0) && (
         <Box sx={{ mt: 1.5, display: "grid", gap: 1.25, borderLeft: "1px solid rgba(255,255,255,0.08)", ml: { xs: 1, md: 1.5 } }}>
-          {node.children.map((child) => (
+          {kids.decisions.map((child) => (
             <SlotBranch
               key={child.slot.id}
               node={child}
@@ -582,8 +616,92 @@ function SlotBranch({
               onPick={onPick}
             />
           ))}
+          {/* Branches with nothing behind them. One line, not N tasks. */}
+          {kids.unhelped.length > 0 && <NoAnswerYet nodes={kids.unhelped} />}
         </Box>
       )}
+    </Box>
+  );
+}
+
+/**
+ * The branches we have no answer for.
+ *
+ * This is the honest form of a gap. Rendering each one as its own row made the
+ * page look like it was offering four more decisions after the Alapin, when
+ * opening any of them says "We have no curated recommendation this deep" — the
+ * player spends four clicks discovering the product has nothing, and the rows
+ * looked identical to the ones where it has plenty.
+ *
+ * Collapsed, but never hidden: the move list and the searchable library behind
+ * each slot are real, and somebody who already knows what they play should be
+ * able to say so. So it opens, and what it says when closed is what it is worth
+ * — not "4 branches", which is a count of our failures, but the share of their
+ * games those branches actually are.
+ */
+function NoAnswerYet({ nodes }: { nodes: BracketNode[] }) {
+  const [open, setOpen] = useState(false);
+  const total = shareOf(nodes);
+  return (
+    <Box>
+      <Box
+        component="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        sx={{
+          appearance: "none", width: "100%", textAlign: "left", cursor: "pointer",
+          background: "none", border: "1px dashed rgba(255,255,255,0.14)",
+          borderRadius: "0.9rem", px: 1.75, py: 1.15, minHeight: 44,
+          color: "inherit", transition: "border-color 180ms ease, background 180ms ease",
+          "&:hover": { borderColor: "rgba(255,255,255,0.26)", background: "rgba(255,255,255,0.02)" },
+          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        }}
+      >
+        <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.82rem", fontWeight: 600 }}>
+          {open ? "Hide these" : `${nodes.length} more branches, ${pctOf(total)} of games`}
+        </Typography>
+        <Typography sx={{ color: "rgba(255,255,255,0.38)", fontSize: "0.76rem", lineHeight: 1.55, mt: 0.3 }}>
+          {/* Said plainly. This is the thing standing between the product and a
+              finished repertoire, and dressing it up as a task the player has
+              not got round to would put our gap on their conscience.
+              What it does NOT say is "most players never need to" — the first
+              draft did, and nothing measures that. It would have been a claim
+              about the player invented to make our gap sound smaller. */}
+          We have no recommended answer for these yet. You can still pick one
+          yourself, or leave them for now.
+        </Typography>
+      </Box>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            style={{ overflow: "hidden" }}
+          >
+            <Box sx={{ display: "grid", gap: 0.75, mt: 1 }}>
+              {nodes.map((n) => (
+                <Box
+                  key={n.slot.id}
+                  sx={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    gap: 1, px: 1.5, py: 1, borderRadius: "0.75rem",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                  }}
+                >
+                  <Typography sx={{ color: "rgba(255,255,255,0.62)", fontSize: "0.82rem", minWidth: 0 }}>
+                    {slotTitle(n.slot)}
+                  </Typography>
+                  <Typography sx={{ fontFamily: MONO, fontSize: "0.72rem", color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>
+                    {numberedLine(n.slot.line)}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Box>
   );
 }

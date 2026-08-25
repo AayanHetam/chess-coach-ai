@@ -271,11 +271,33 @@ function ChoiceCard({
       onClick={onPick}
       sx={{
         textAlign: "left", width: "100%", cursor: "pointer",
-        p: 1.75, borderRadius: "14px",
-        border: "1px solid rgba(255,255,255,0.09)",
-        background: "rgba(255,255,255,0.03)",
-        transition: "border-color 180ms ease, background 180ms ease",
-        "&:hover": { borderColor: "rgba(249,115,22,0.5)", background: "rgba(249,115,22,0.06)" },
+        position: "relative", overflow: "hidden",
+        p: 1.75, pl: 2.25, borderRadius: "14px",
+        // The BOX carries the character, not just a tag on it. Scanning eleven
+        // options against 1.d4, the hue is read before any word is — you see
+        // which of them are red before you have read a single opening name.
+        //
+        // Three restraints keep eleven coloured cards from becoming a fruit
+        // salad. The wash is a 4%-alpha gradient that fades out by halfway, so
+        // the colour sits under the title and the body text is on plain dark.
+        // The border is 20% alpha, enough to bound the card and not enough to
+        // ring it. And the saturated version of the hue appears only on the
+        // 3px edge, which is the one element small enough to take it.
+        borderTop: `1px solid ${style.colour}33`,
+        borderRight: `1px solid ${style.colour}33`,
+        borderBottom: `1px solid ${style.colour}33`,
+        borderLeft: `3px solid ${style.colour}`,
+        background: `linear-gradient(105deg, ${style.colour}14 0%, ${style.colour}08 42%, rgba(255,255,255,0.03) 78%)`,
+        transition: "border-color 180ms ease, background 180ms ease, transform 180ms ease",
+        "&:hover": {
+          borderTopColor: `${style.colour}66`,
+          borderRightColor: `${style.colour}66`,
+          borderBottomColor: `${style.colour}66`,
+          background: `linear-gradient(105deg, ${style.colour}26 0%, ${style.colour}12 42%, rgba(255,255,255,0.05) 78%)`,
+        },
+        // Focus stays EMBER rather than taking the character hue. A focus ring
+        // is a statement about where the keyboard is, and if it changed colour
+        // per card it would read as part of the content.
         "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
       }}
     >

@@ -23,6 +23,28 @@
 //
 // Scheduling is SM-2, the same core the puzzle-theme cards use
 // (`applySm2` in @/lib/spacedRepetition). Nothing new is invented here.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// WHERE THE CARDS LIVE
+//
+// localStorage is the fast path and the account is the copy that survives the
+// device — the same split `bracketStore.ts` uses, for the same reason. A review
+// schedule is months of accumulated evidence about one player, and losing it to
+// a new phone means being asked to re-learn lines already learnt.
+//
+// TRIMMING IS WHY THE MERGE IS NOT A PLAIN UNION.
+//
+// Both copies are budgeted: localStorage shares a ~5 MB origin budget with
+// course progress, and a Firestore document stops at 1 MiB. When a budget
+// bites, `trimCards` drops the cards due FURTHEST out — the ones the scheduler
+// itself says are best known — and never a due one.
+//
+// A union merge over a store that can drop things resurrects what was dropped.
+// That is the bug `mergeBrackets` documents, and it is avoided here by making
+// the account budget strictly larger than the device budget: a card the device
+// trimmed is still on the account, and comes back on the next pull, before it
+// is due. The device holds a WINDOW on the schedule, not the schedule.
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { applySm2, DEFAULT_EASE_FACTOR } from '@/lib/spacedRepetition';
 import { lineKeyOf } from '@/lib/learn/trainerProgress';
@@ -49,6 +71,30 @@ export const MAX_DUE_AT_ONCE = 5;
  * doing the same thing again and expecting a different result.
  */
 export const LAPSES_BEFORE_REPAIR = 2;
+
+/**
+ * What a schedule may cost on this device, in bytes of serialised card.
+ *
+ * Measured: a card runs 308 bytes at 6 plies and 581 at 24, so this is roughly
+ * 700 of the deepest cards. localStorage gives an origin about 5 MB and course
+ * progress already measures 1.2 MB for a six-course repertoire and 4.2 MB for
+ * all forty-three, so the schedule takes a small, fixed share and the biggest
+ * consumer cannot starve it.
+ */
+export const LOCAL_CARD_BYTES = 400_000;
+
+/**
+ * What a schedule may cost on the account.
+ *
+ * A Firestore document stops at 1 MiB including field names and overhead, so
+ * this leaves headroom for the repaired list and the envelope.
+ *
+ * IT MUST STAY LARGER THAN `LOCAL_CARD_BYTES`. The merge is a union, and the
+ * only thing stopping it from resurrecting a trimmed card is that the account
+ * never trims one the device still holds. Narrow this below the local budget
+ * and two devices will churn a card back and forth forever.
+ */
+export const ACCOUNT_CARD_BYTES = 700_000;
 
 export interface ReviewCard {
   lineKey: string;
@@ -93,12 +139,15 @@ function read(account: string): ReviewCard[] {
 function isCard(c: unknown): c is ReviewCard {
   if (!c || typeof c !== 'object') return false;
   const x = c as Partial<ReviewCard>;
+  // FINITE, not merely `typeof === 'number'`. NaN passes a typeof check and
+  // then fails every comparison silently: `nextReview: NaN` is never `<= now`,
+  // so the card is never due and never surfaces, and nothing anywhere errors.
   return (
     typeof x.lineKey === 'string' &&
-    typeof x.nextReview === 'number' &&
-    typeof x.interval === 'number' &&
-    typeof x.easeFactor === 'number' &&
-    typeof x.attempts === 'number' &&
+    Number.isFinite(x.nextReview) &&
+    Number.isFinite(x.interval) &&
+    Number.isFinite(x.easeFactor) &&
+    Number.isFinite(x.attempts) &&
     !!x.line &&
     Array.isArray(x.line.moves) &&
     x.line.moves.length > 0 &&
@@ -107,13 +156,105 @@ function isCard(c: unknown): c is ReviewCard {
   );
 }
 
-function write(account: string, cards: ReviewCard[]): void {
-  if (typeof window === 'undefined') return;
+/**
+ * Write the schedule, and say whether it landed.
+ *
+ * It used to swallow the failure with "storage full costs a schedule, never the
+ * session in progress". The first half is true and the second half is the
+ * problem: a schedule is the whole point of finishing a drill, and losing one
+ * silently means the line rots while the screen says it is handled. The caller
+ * now gets the answer and /train/opening says so.
+ */
+function write(account: string, cards: ReviewCard[]): boolean {
+  if (typeof window === 'undefined') return false;
   try {
     window.localStorage.setItem(storeKey(account), JSON.stringify(cards));
+    return true;
   } catch {
-    // Storage full or disabled costs a schedule, never the session in progress.
+    return false;
   }
+}
+
+/**
+ * Serialised size of one card, which is the quantity the two budgets are
+ * actually spent in. Counting cards instead would be a proxy: a 24-ply strong
+ * course line is nearly twice the size of a 6-ply one, measured.
+ */
+function bytesOf(card: ReviewCard): number {
+  // +1 for the comma or bracket this card costs inside the array.
+  return JSON.stringify(card).length + 1;
+}
+
+/**
+ * The schedule that fits in a budget, due soonest first.
+ *
+ * What gets dropped is decided by `nextReview`, so the cards kept are exactly
+ * the cards the player is about to see. A dropped card is one the scheduler
+ * placed weeks or months out, which is its own statement that the line is
+ * known — and on a signed-in account it is not lost at all, only out of this
+ * device's window until it comes due.
+ */
+export function trimCards(cards: ReviewCard[], budgetBytes: number): ReviewCard[] {
+  const ordered = [...cards].sort((a, b) => a.nextReview - b.nextReview);
+  const kept: ReviewCard[] = [];
+  let spent = 2; // the enclosing `[]`
+  for (const card of ordered) {
+    const size = bytesOf(card);
+    if (spent + size > budgetBytes) break;
+    spent += size;
+    kept.push(card);
+  }
+  return kept;
+}
+
+/**
+ * Everything either copy knows, one card per line, newest grade winning.
+ *
+ * `lastReviewed` is the stamp because it is set on every schedule — a card is
+ * created already reviewed, so there is no card with a zero here. Attempts
+ * breaks a tie, since it only ever goes up.
+ */
+export function mergeCards(mine: ReviewCard[], theirs: ReviewCard[]): ReviewCard[] {
+  const byKey = new Map<string, ReviewCard>();
+  for (const card of [...mine, ...theirs]) {
+    const held = byKey.get(card.lineKey);
+    if (!held) {
+      byKey.set(card.lineKey, card);
+      continue;
+    }
+    const newer =
+      card.lastReviewed !== held.lastReviewed
+        ? card.lastReviewed > held.lastReviewed
+        : card.attempts > held.attempts;
+    if (newer) byKey.set(card.lineKey, card);
+  }
+  return Array.from(byKey.values()).sort((a, b) => a.nextReview - b.nextReview);
+}
+
+/**
+ * Cards we are willing to act on, from anywhere — storage, or the network.
+ *
+ * Shared with the server so a document written by an old client cannot put a
+ * card with no moves onto a chessboard.
+ */
+export function sanitiseCards(parsed: unknown): ReviewCard[] {
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter(isCard).map(c => ({
+    lineKey: c.lineKey,
+    line: { moves: [...c.line.moves], color: c.line.color, ...(c.line.target ? { target: c.line.target } : {}) },
+    label: typeof c.label === 'string' ? c.label : c.lineKey,
+    easeFactor: c.easeFactor,
+    interval: c.interval,
+    attempts: c.attempts,
+    nextReview: c.nextReview,
+    lastReviewed: Number.isFinite(c.lastReviewed) ? c.lastReviewed : 0,
+    lapses: Number.isFinite(c.lapses) ? c.lapses : 0,
+  }));
+}
+
+/** Replace the whole schedule on this device, trimmed to the device budget. */
+export function saveCards(account: string, cards: ReviewCard[]): boolean {
+  return write(account, trimCards(cards, LOCAL_CARD_BYTES));
 }
 
 export function loadCards(account: string): ReviewCard[] {
@@ -155,10 +296,20 @@ function schedule(card: ReviewCard, quality: number, now: number): ReviewCard {
   };
 }
 
-function upsert(account: string, card: ReviewCard): ReviewCard[] {
-  const next = [card, ...read(account).filter(c => c.lineKey !== card.lineKey)];
-  write(account, next);
-  return next;
+function upsert(account: string, card: ReviewCard): boolean {
+  return saveCards(account, [card, ...read(account).filter(c => c.lineKey !== card.lineKey)]);
+}
+
+/**
+ * A card, and whether this device managed to keep it.
+ *
+ * The second field exists because the first one used to be the whole answer,
+ * and a caller holding a perfectly good `ReviewCard` had no way to know the
+ * write had been dropped on the floor.
+ */
+export interface ScheduleResult {
+  card: ReviewCard | null;
+  savedLocally: boolean;
 }
 
 /**
@@ -195,7 +346,7 @@ export function scheduleAfterRepair(
   label: string,
   misses: number,
   now: number
-): ReviewCard {
+): ScheduleResult {
   const key = lineKeyOf(line);
   const existing = findCard(account, key);
   const base: ReviewCard = existing ?? {
@@ -213,22 +364,23 @@ export function scheduleAfterRepair(
   // changed since the card was made, and drilling a stale target would teach
   // the wrong move with full confidence.
   const card = schedule({ ...base, line, label }, qualityFromMisses(misses), now);
-  upsert(account, card);
-  return card;
+  return { card, savedLocally: upsert(account, card) };
 }
 
-/** Apply a completed review and reschedule. Null if the card is gone. */
+/** Apply a completed review and reschedule. A null card means it is gone. */
 export function recordReview(
   account: string,
   lineKey: string,
   misses: number,
   now: number
-): ReviewCard | null {
+): ScheduleResult {
   const card = findCard(account, lineKey);
-  if (!card) return null;
+  // No card is not a failed write. The line was reviewed off a schedule that
+  // is no longer here — cleared storage, another device — and there is nothing
+  // to grade, which is a different thing from having failed to store a grade.
+  if (!card) return { card: null, savedLocally: true };
   const next = schedule(card, qualityFromMisses(misses), now);
-  upsert(account, next);
-  return next;
+  return { card: next, savedLocally: upsert(account, next) };
 }
 
 /**

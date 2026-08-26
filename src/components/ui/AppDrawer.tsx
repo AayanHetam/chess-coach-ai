@@ -13,6 +13,7 @@ import {
   Crown,
   Heart,
   Home,
+  LogOut,
   Puzzle,
   User,
   X,
@@ -22,6 +23,8 @@ import { Logo } from "./Logo";
 import ChatHistoryList from "@/components/chat/ChatHistoryList";
 import { EmployeePill } from "@/components/intern/EmployeePill";
 import { useViewer } from "@/hooks/useViewer";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAuthDialog } from "@/contexts/AuthDialogContext";
 
 export type NavId =
   | "launch"
@@ -47,18 +50,24 @@ interface NavItem {
 // its canonical surface, so the drawer links canonical URLs only.
 // Practice points at /puzzles — the canonical Practice surface (PR #130);
 // legacy /practice still resolves for old bookmarks but isn't navigated to.
+//
+// Order matches NavPill's desktop NAV_LINKS (Plan → Play → Analyze →
+// Practice → Learn → Scout) with Home prepended — a returning user
+// shouldn't have to relearn the order between the two surfaces. Profile
+// and Sign in/out live in their own account section below, next to Donate,
+// mirroring the avatar/sign-in control NavPill renders on desktop instead
+// of mixing account state into the primary nav list.
 const NAV_ITEMS: NavItem[] = [
   { id: "launch", label: "Home", icon: Home, href: "/" },
   // Plan sits directly under Home: it is the product's centre of gravity,
   // not a side feature. Before 2026-08-10 it appeared in NO navigation at
   // all and was reachable only by typing the URL.
   { id: "plan", label: "Plan", icon: CalendarCheck, href: "/plan" },
-  { id: "analysis", label: "Analyze", icon: Zap, href: "/analysis" },
   { id: "play", label: "Play", icon: Crown, href: "/play" },
+  { id: "analysis", label: "Analyze", icon: Zap, href: "/analysis" },
   { id: "practice", label: "Practice", icon: Puzzle, href: "/puzzles" },
-  { id: "scout", label: "Scout", icon: Crosshair, href: "/scout" },
-  { id: "profile", label: "Profile", icon: User, href: "/profile" },
   { id: "learn", label: "Learn", icon: BookOpen, href: "/learn" },
+  { id: "scout", label: "Scout", icon: Crosshair, href: "/scout" },
 ];
 
 // Appended for CMIP interns only. Replaces the <InternalNavLinks /> button that
@@ -81,6 +90,21 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
   const router = useRouter();
   const currentPath = router.pathname;
   const { isIntern } = useViewer();
+  const { user, signOut, loading: authLoading } = useAuth();
+  const { openAuthDialog } = useAuthDialog();
+
+  const handleSignIn = () => {
+    onClose();
+    openAuthDialog();
+  };
+  const handleSignOut = async () => {
+    onClose();
+    try {
+      await signOut();
+    } catch (err) {
+      console.error("Sign-out failed:", err);
+    }
+  };
 
   // ESC to close
   useEffect(() => {
@@ -397,6 +421,159 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                   Akanksha
                 </Typography>
               </Box>
+
+              {/* Account: signed-out → Sign in row, signed-in → Profile +
+                  Sign out. This was previously missing entirely — the only
+                  way to sign in on a phone was to close the drawer first and
+                  tap the header's Sign In pill, which the drawer's own
+                  backdrop sits on top of and swallows the tap for. Hidden
+                  during the auth-resolving flash, matching NavPill. */}
+              {!authLoading && (
+                <Stack spacing={0.5} sx={{ mt: 1.5 }}>
+                  {user ? (
+                    <>
+                      <Box
+                        component={Link}
+                        href="/profile"
+                        onClick={onClose}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1.5,
+                          px: 1.5,
+                          py: 1.1,
+                          borderRadius: "10px",
+                          textDecoration: "none",
+                          background:
+                            resolvedActiveId === "profile"
+                              ? "linear-gradient(135deg, rgba(249,115,22,0.16), rgba(234,88,12,0.08))"
+                              : "transparent",
+                          border:
+                            resolvedActiveId === "profile"
+                              ? "1px solid rgba(249,115,22,0.32)"
+                              : "1px solid transparent",
+                          color:
+                            resolvedActiveId === "profile"
+                              ? "#FB923C"
+                              : "rgba(255,255,255,0.78)",
+                          transition: "all 180ms ease",
+                          "&:hover": {
+                            background: "rgba(255,255,255,0.04)",
+                            color: "rgba(255,255,255,0.95)",
+                          },
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: "8px",
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <User size={14} />
+                        </Box>
+                        <Typography sx={{ fontSize: "0.92rem", fontWeight: 500, flex: 1 }}>
+                          Profile
+                        </Typography>
+                      </Box>
+                      <Box
+                        component="button"
+                        type="button"
+                        onClick={handleSignOut}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1.5,
+                          px: 1.5,
+                          py: 1.1,
+                          borderRadius: "10px",
+                          border: "1px solid transparent",
+                          background: "transparent",
+                          color: "rgba(255,255,255,0.78)",
+                          font: "inherit",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          transition: "all 180ms ease",
+                          "&:hover": {
+                            background: "rgba(255,255,255,0.04)",
+                            color: "rgba(255,255,255,0.95)",
+                          },
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: "8px",
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <LogOut size={14} />
+                        </Box>
+                        <Typography sx={{ fontSize: "0.92rem", fontWeight: 500, flex: 1 }}>
+                          Sign out
+                        </Typography>
+                      </Box>
+                    </>
+                  ) : (
+                    <Box
+                      component="button"
+                      type="button"
+                      onClick={handleSignIn}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        px: 1.5,
+                        py: 1.1,
+                        borderRadius: "10px",
+                        border: "1px solid rgba(249,115,22,0.35)",
+                        background: "rgba(249,115,22,0.1)",
+                        color: "#FB923C",
+                        font: "inherit",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        width: "100%",
+                        transition: "all 180ms ease",
+                        "&:hover": {
+                          background: "rgba(249,115,22,0.16)",
+                        },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: "8px",
+                          background: "rgba(249,115,22,0.16)",
+                          border: "1px solid rgba(249,115,22,0.32)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <User size={14} />
+                      </Box>
+                      <Typography sx={{ fontSize: "0.92rem", fontWeight: 700, flex: 1 }}>
+                        Sign in
+                      </Typography>
+                    </Box>
+                  )}
+                </Stack>
+              )}
 
               {/* Saved coach conversations. This list had exactly one mount in
                   the app — the legacy NavMenu drawer — so deleting that bar

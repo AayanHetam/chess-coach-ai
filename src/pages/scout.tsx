@@ -27,6 +27,7 @@ import { useAtomValue } from 'jotai';
 import { pieceSetAtom } from '@/components/board/states';
 import { useScreenSize } from '@/hooks/useScreenSize';
 import { PageTitle } from '@/components/pageTitle';
+import { useAuthDialog } from '@/contexts/AuthDialogContext';
 import { chessMastiDarkTheme } from '@/theme/chessMasti';
 import { GradientBackdrop } from '@/components/ui/GradientBackdrop';
 import { NavPill } from '@/components/ui/NavPill';
@@ -539,7 +540,13 @@ function TwinBanner({
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function ScoutPage() {
-  const { profile: viewerProfile } = useViewer();
+  const { user, profile: viewerProfile } = useViewer();
+  const { openAuthDialog } = useAuthDialog();
+  // The dialog's onClose is captured when the dialog opens, while `user` is
+  // still null — read the freshly-signed-in user through a ref at close time
+  // instead of the stale closure. Same pattern as onboarding.tsx.
+  const userRef = useRef(user);
+  userRef.current = user;
   const pieceSet = useAtomValue(pieceSetAtom);
   const screenSize = useScreenSize();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -710,7 +717,7 @@ export default function ScoutPage() {
     searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
 
-  const handleSearch = useCallback(async () => {
+  const runSearch = useCallback(async () => {
     const name = username.trim();
     if (!name) return;
     searchInFlightRef.current = true;
@@ -770,6 +777,25 @@ export default function ScoutPage() {
       searchInFlightRef.current = false;
     }
   }, [username, platform, months, colorFilter, minGames, runBuild]);
+
+  // /api/scout requires a signed-in session (fetching an opponent's game
+  // history isn't rate-limit-safe to leave open to anonymous callers). Rather
+  // than let the request 401 and surface a raw "Not signed in." error, gate
+  // it here: prompt sign-in, and — only if they actually complete it — run
+  // the search that was waiting on it. Dismissing the dialog without signing
+  // in just leaves the user back where they started, no retry loop.
+  const handleSearch = useCallback(() => {
+    if (!username.trim()) return;
+    if (!userRef.current) {
+      openAuthDialog({
+        onClose: () => {
+          if (userRef.current) void runSearch();
+        },
+      });
+      return;
+    }
+    void runSearch();
+  }, [username, runSearch, openAuthDialog]);
 
   // ── Auto-scout from share-link query params (?u=...&p=chesscom|lichess) ──
   // Two-step: (1) seed state from the URL, (2) once `username`/`platform`
@@ -898,6 +924,15 @@ export default function ScoutPage() {
       setCollisionsError("Can't compare yourself to yourself 🙂");
       return;
     }
+    // /api/scout requires a session. scoutResult can be populated signed-out
+    // via a shared snapshot link (?scoutId=, which reads a pre-baked snapshot
+    // and never calls /api/scout), so this comparison — which does call it —
+    // needs its own check rather than inheriting handleSearch's gate.
+    if (!user) {
+      setCollisions(null);
+      setCollisionsError('Sign in to compare your games against theirs.');
+      return;
+    }
     let cancelled = false;
     setCollisionsError(null);
     const t = setTimeout(async () => {
@@ -945,7 +980,7 @@ export default function ScoutPage() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [scoutResult, yourUsername]);
+  }, [scoutResult, yourUsername, user]);
 
   // Head-to-head. Prefer a rating you actually played to; fall back to the
   // self-reported one on the profile, and label it as such so the odds are not

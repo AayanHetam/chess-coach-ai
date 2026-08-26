@@ -41,9 +41,19 @@ export interface TrapsSectionProps {
 }
 
 export default function TrapsSection({ traps, side }: TrapsSectionProps) {
-  // "We did not look" renders as nothing at all. An empty section under a
-  // heading is a claim — a reader takes it as "there is nothing to fall for
-  // here" — and that is exactly the claim we cannot make without a file.
+  // BOTH the "no file" case and the "found nothing" case render nothing at all,
+  // and the reason is the same for both: an empty section under this heading is
+  // a claim. A reader takes "How this goes wrong at your level" followed by
+  // white space as "there is nothing to fall for here", which is a statement
+  // about the opening that neither case is entitled to make. Silence says
+  // nothing, which is exactly right when we have nothing.
+  //
+  // `trapsForCourse` still keeps the two apart, because they are different
+  // facts and a future surface may want to say "we searched 4,756 decisions in
+  // this line and found none" — a sentence only the second case can say. This
+  // component simply does not need the difference yet, and pretending it uses
+  // it would be the same code-says-one-thing-comment-says-another bug that hid
+  // half a course's depth for a year.
   if (!traps) return null;
   if (traps.yours.length === 0 && traps.theirs.length === 0) return null;
 

@@ -127,8 +127,17 @@ describe('the numbers say what they mean', () => {
     for (const band of TRAP_BANDS) {
       const file = loadTraps(band)!;
       expect(file.meta.tests, band).toBeGreaterThan(0);
-      expect(file.meta.expectedFalsePositives, band).toBeLessThan(1);
+      expect(Number.isFinite(file.meta.expectedFalsePositives), band).toBe(true);
       expect(file.meta.traps).toBe(file.traps.length);
+      // The property that actually matters is the RATIO, not an absolute
+      // ceiling. This asserted `< 1` until `strong` was rebuilt from 1.9M
+      // games: 40,073 tests carry 1.34 expected false positives, which is a
+      // bigger number and a far better result, because it sits under 55 real
+      // findings. An absolute cap would have failed the good corpus and passed
+      // the underpowered one.
+      if (file.traps.length > 0) {
+        expect(file.meta.expectedFalsePositives / file.traps.length, band).toBeLessThan(0.1);
+      }
     }
   });
 

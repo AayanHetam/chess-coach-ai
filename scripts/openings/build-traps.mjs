@@ -37,6 +37,27 @@
  * count is printed next to every result rather than left for the reader to
  * assume is zero.
  * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE BANDS ARE NOT ALL BUILT FROM THE SAME NUMBER OF GAMES, AND THAT IS
+ * DELIBERATE HERE IN A WAY IT IS NOT ANYWHERE ELSE.
+ *
+ * The repertoire maps and the opening books are built from one 233k-game
+ * sample per band, uniformly, precisely so that a difference between two bands
+ * is a statement about players and not about builds.
+ *
+ * Traps cannot afford that. `strong` is the smallest band in the sample — 28k
+ * games against beginner's 260k — and at 28k it yields ZERO traps. Zero renders
+ * as silence, and silence under "how this goes wrong at your level" reads as
+ * "nothing does". Measured: rebuild `strong` from the full month, 1,949,640
+ * games, and the same code at the same threshold finds 55. The zero was power,
+ * start to finish.
+ *
+ * So a band is built from whatever corpus gives it enough tests to answer, the
+ * game count travels in `meta.games`, and the page prints it. Nothing in the
+ * product compares one band's trap count to another's, and nothing should:
+ * these counts are a function of corpus size as much as of skill.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 import fs from 'fs';
 import path from 'path';

@@ -79,9 +79,9 @@ export default function GoalProjection({
   if (p.status === "unrealistic") {
     return (
       <Note>
-        {goalRating} is a long way from {currentRating} at this pace — more than a
-        decade. Pick a nearer milestone and we&apos;ll build a plan you can
-        actually finish.
+        {goalRating} is a long way from {currentRating} at this pace — five or
+        more years out. Pick a nearer milestone (or add practice time) and
+        we&apos;ll build a plan you can actually finish.
       </Note>
     );
   }

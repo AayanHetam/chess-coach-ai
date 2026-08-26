@@ -72,9 +72,10 @@ const FREQUENCY_ICON: Record<number, QuizIconName> = {
 };
 
 const TIME_ICON: Record<string, QuizIconName> = {
-  "under-10": "time-low",
-  "10-30": "time-mid",
-  "30-plus": "time-high",
+  "under-10": "time-low", // legacy band — no option writes it any more
+  "10-30": "time-low",
+  "30-plus": "time-mid",
+  "60-plus": "time-high",
 };
 
 interface OnboardingQuizProps {

@@ -233,42 +233,88 @@ describe("the documented constants are the ones actually in use", () => {
     expect(MODEL.REFERENCE_RATING).toBe(1250);
     expect(MODEL.E_FOLDING_POINTS).toBe(380);
     expect(hoursPer100(MODEL.REFERENCE_RATING)).toBeCloseTo(MODEL.HOURS_PER_100_AT_REF, 6);
+    // The guided curve the product actually quotes from.
+    expect(MODEL.GUIDED_HOURS_PER_100_AT_REF).toBe(11);
+    expect(MODEL.GUIDED_E_FOLDING_POINTS).toBe(1200);
   });
 });
 
 
 describe("guided practice is faster than the unguided literature baseline", () => {
-  it("applies the multiplier, and never silently drops it", () => {
-    expect(guidedHoursBetween(1300, 1600)).toBeCloseTo(
-      hoursBetween(1300, 1600) * MODEL.GUIDED_PRACTICE_MULTIPLIER,
-      6
-    );
-    expect(MODEL.GUIDED_PRACTICE_MULTIPLIER).toBeLessThan(1);
+  it("is cheaper than unguided hours at every rating, and the gap grows", () => {
+    // Guided practice has its own curve, not a multiplier — but the claims it
+    // encodes must hold everywhere: an hour in the product always buys more
+    // than an unguided hour, and the advantage is LARGEST exactly where
+    // unguided players plateau (that shape is the whole reason the guided
+    // curve exists — see the GUIDED_* constants).
+    let prevAdvantage = 0;
+    for (const [from, to] of [
+      [800, 1100],
+      [1300, 1600],
+      [1800, 2100],
+      [2200, 2500],
+    ] as const) {
+      expect(guidedHoursBetween(from, to)).toBeLessThan(
+        hoursBetween(from, to) / 2
+      );
+      const advantage = hoursBetween(from, to) / guidedHoursBetween(from, to);
+      expect(advantage).toBeGreaterThan(prevAdvantage);
+      prevAdvantage = advantage;
+    }
   });
 
-  it("reproduces the founder's calibration anchor: 1300 → 1600 in ~4 months of daily practice", () => {
-    // Anchored at the 30-MINUTE cap the quiz now asks for, not the hour it
-    // used to assume. If the time bands move, this is the test that notices.
-    // Aayan's coaching experience, and the reason the multiplier exists. The
-    // unguided curve says ~9.6 months for the same schedule; the published
-    // rates it is fitted to all measure SELF-DIRECTED players, which is not
-    // what this product delivers. If someone retunes the constants, this is
-    // the test that says the product claim changed.
+  it("still charges more per point the higher you are", () => {
+    // The guided curve is flatter than the unguided one — targeted training
+    // is worth the most where self-directed players plateau — but it must
+    // stay monotone: points can never get CHEAPER as you climb.
+    let prev = 0;
+    for (const r of [800, 1100, 1400, 1700, 2000, 2300]) {
+      const h = guidedHoursBetween(r, r + 100);
+      expect(h).toBeGreaterThan(prev);
+      prev = h;
+    }
+  });
+
+  it("reproduces the founder's calibration anchor: 1300 → 1600 in ~3 months of daily practice", () => {
+    // Anchored at 30 minutes daily — Aayan's coaching experience, and the
+    // reason the guided curve exists. The unguided curve says ~9.6 months for
+    // the same schedule; the published rates it is fitted to all measure
+    // SELF-DIRECTED players, which is not what this product delivers. If
+    // someone retunes the constants, this is the test that says the product
+    // claim changed.
     const p = projectToGoal({
       currentRating: 1300,
       goalRating: 1600,
       minutesPerDay: 30,
       daysPerWeek: 7,
     });
-    expect(p.months!).toBeGreaterThan(3);
-    expect(p.months!).toBeLessThan(5);
+    expect(p.months!).toBeGreaterThan(2.5);
+    expect(p.months!).toBeLessThan(4);
   });
 
-  it("keeps the higher bands slow — the curve still bites above 1800", () => {
+  it("reproduces the founder's pace call: 1816 → 2300 at 30 min × 6 days is ~8 months, not 3+ years", () => {
+    // The old flat-multiplier model read this exact case as "October 2029" —
+    // over three years — and the founder's directive (2026-08-26) is that it
+    // must read as April 2027, i.e. ~8 months out. The flat guided e-fold is
+    // what buys this; if it drifts back toward multi-year headline dates for
+    // club players, this test says so.
+    const p = projectToGoal({
+      currentRating: 1816,
+      goalRating: 2300,
+      minutesPerDay: 30,
+      daysPerWeek: 6,
+    });
+    expect(p.months!).toBeGreaterThan(7);
+    expect(p.months!).toBeLessThan(9);
+  });
+
+  it("keeps the higher bands slower — the curve still leans above 1800", () => {
     const club = projectToGoal({ currentRating: 1300, goalRating: 1600, minutesPerDay: 60, daysPerWeek: 7 });
     const expert = projectToGoal({ currentRating: 1800, goalRating: 2100, minutesPerDay: 60, daysPerWeek: 7 });
-    // Same 300 points, far more expensive higher up, guided or not.
-    expect(expert.months!).toBeGreaterThan(club.months! * 3);
+    // Same 300 points, still more expensive higher up — the guided curve is
+    // deliberately close to flat (the founder's April-2027 pace call), but a
+    // point must never get cheaper as you climb. e^(500/1200) ≈ 1.52.
+    expect(expert.months!).toBeGreaterThan(club.months! * 1.4);
   });
 });
 
@@ -278,13 +324,13 @@ describe("the target date", () => {
   const base = { minutesPerDay: 60, daysPerWeek: 7, nowMs: NOW };
 
   it("puts the goal on a real calendar date", () => {
-    const p = projectToGoal({ currentRating: 1300, goalRating: 1600, ...base });
-    // ~2.3 months out at an hour a day → October 2026.
+    const p = projectToGoal({ currentRating: 1300, goalRating: 1700, ...base });
+    // ~1.8 months out at an hour a day → October 2026.
     expect(formatTargetDate(p.targetDate!)).toBe("October 2026");
   });
 
   it("brackets it with the same fast/slow band, as dates", () => {
-    const p = projectToGoal({ currentRating: 1300, goalRating: 1600, ...base });
+    const p = projectToGoal({ currentRating: 1300, goalRating: 1700, ...base });
     expect(p.earliestDate!).toBeLessThan(p.targetDate!);
     expect(p.latestDate!).toBeGreaterThan(p.targetDate!);
     // The band must survive the conversion — a date is a target, not a claim

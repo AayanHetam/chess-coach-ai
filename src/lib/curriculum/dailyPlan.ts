@@ -23,9 +23,14 @@ export interface SessionSize {
 }
 
 const SIZES: Record<TimeCommitment, SessionSize> = {
+  // Legacy band — no option writes it any more, but stored profiles carry it.
   "under-10": { newConcept: 3, reviews: 3, coach: 0 },
   "10-30": { newConcept: 5, reviews: 6, coach: 1 },
   "30-plus": { newConcept: 8, reviews: 12, coach: 2 },
+  // Sized to genuinely fill the hour the user offered (~1.6 min/puzzle plus
+  // the secondary tasks), not to hand the 30-minute session to someone who
+  // asked for twice that.
+  "60-plus": { newConcept: 14, reviews: 24, coach: 2 },
 };
 
 export function sessionSizeFor(tc?: TimeCommitment): SessionSize {
@@ -158,7 +163,8 @@ export interface DailyPlanInput {
  * Minute costs for the non-puzzle work.
  *
  * Puzzles are deliberately NOT priced here. Each band already implies its own
- * rate — 8 minutes for 6 puzzles, 15 for 11, 30 for 20, i.e. 1.33 / 1.36 / 1.5
+ * rate — 8 minutes for 6 puzzles, 15 for 11, 30 for 20, 60 for 38, i.e.
+ * 1.33 / 1.36 / 1.5 / 1.58
  * minutes each — so a single shared constant overprices the small bands and
  * pushes them past a budget they used to fit inside. `puzzleMinutesFor` derives
  * the rate from the band instead, which makes "the tasks never exceed the

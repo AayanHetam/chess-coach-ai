@@ -72,7 +72,7 @@ export interface UserProfile {
     blitz?: { start: number; goal: number };
     rapid?: { start: number; goal: number };
   };
-  dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
+  dailyTimeCommitment?: "under-10" | "10-30" | "30-plus" | "60-plus";
   onboardingCompletedAt?: number;
 
   // Single-rating model (placement test + live mirror). See StoredUser.

@@ -75,7 +75,7 @@ export type StoredUser = {
   // `:Theme.id` values seeded as cold-start weaknesses for the puzzle
   // recommender; `dailyTimeCommitment` is the self-reported practice budget.
   focusThemes?: string[];
-  dailyTimeCommitment?: "under-10" | "10-30" | "30-plus";
+  dailyTimeCommitment?: "under-10" | "10-30" | "30-plus" | "60-plus";
 
   // Rating pulled from the user's Lichess / Chess.com account (see
   // src/lib/rating/platformRatings.ts). `platformRating` is NORMALIZED onto the

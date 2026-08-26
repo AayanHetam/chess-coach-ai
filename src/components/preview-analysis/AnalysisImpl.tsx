@@ -2114,6 +2114,7 @@ function BoardArea({
   syncTick,
   evalBar,
   empty = false,
+  onLoadGameClick,
 }: {
   fen: string;
   lastMove: Move | null;
@@ -2129,6 +2130,8 @@ function BoardArea({
   evalBar: EvalBarData;
   /** No game loaded — dim the start position and say so over it. */
   empty?: boolean;
+  /** Clicking the empty-state overlay opens the load-game dialog. */
+  onLoadGameClick?: () => void;
 }) {
   const lastMoveTuple = useMemo<[string, string] | undefined>(
     () => (lastMove ? [lastMove.from, lastMove.to] : undefined),
@@ -2249,6 +2252,7 @@ function BoardArea({
             />
             {empty && (
               <Box
+                onClick={onLoadGameClick}
                 sx={{
                   position: "absolute",
                   inset: 0,
@@ -2261,7 +2265,11 @@ function BoardArea({
                   px: 3,
                   background: "rgba(8,9,12,0.72)",
                   backdropFilter: "blur(2px)",
-                  pointerEvents: "none",
+                  pointerEvents: onLoadGameClick ? "auto" : "none",
+                  cursor: onLoadGameClick ? "pointer" : undefined,
+                  "&:hover": onLoadGameClick
+                    ? { background: "rgba(8,9,12,0.8)" }
+                    : undefined,
                 }}
               >
                 <Typography
@@ -10445,7 +10453,8 @@ export default function AnalysisPage() {
                   }
                   syncTick={boardSyncTick}
                   evalBar={evalBarData}
-                  empty={!hasGame}
+                  empty={!hasGame && !takeoverMode && !drillActive}
+                  onLoadGameClick={() => setLoadGameOpen(true)}
                 />
               </ErrorBoundary>
 

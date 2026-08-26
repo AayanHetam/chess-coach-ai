@@ -115,7 +115,7 @@ export function MoveChoiceList({
                 ? undefined
                 : { borderColor: ACCENTS.violet.border },
               "&:focus-visible": {
-                outline: `2px solid ${ACCENTS.violet.base}`,
+                outline: "2px solid rgba(255,122,26,0.8)",
                 outlineOffset: 2,
               },
             }}

@@ -30,8 +30,11 @@ const RAIL_BG = "rgba(12,10,8,0.72)";
 const RAIL_EDGE = "1px solid rgba(255,255,255,0.08)";
 const TEXT = "rgba(255,240,224,0.92)";
 const TEXT_DIM = "rgba(255,240,224,0.5)";
-/** Practice-surface identity — the violet the NavPill "Practice" pill wears. */
+/** Practice-surface identity — the violet the NavPill "Practice" pill wears.
+ *  Chrome only: the current-row marker stays EMBER, because "you are here" is
+ *  an attention signal, not surface identity — same rule as /plan's "today". */
 const VIOLET = ACCENTS.violet;
+const EMBER = "#FF7A1A";
 
 function StatusGlyph({ state }: { state: RowState }) {
   if (state === "solved" || state === "failed") {
@@ -66,7 +69,7 @@ function StatusGlyph({ state }: { state: RowState }) {
         borderRadius: "999px",
         border:
           state === "current"
-            ? `2px solid ${VIOLET.base}`
+            ? `2px solid ${EMBER}`
             : "2px solid rgba(255,240,224,0.28)",
       }}
     />
@@ -219,10 +222,12 @@ export function PuzzleSessionRail({
                   cursor: clickable ? "pointer" : "default",
                   // Highlight follows `isCurrent`, the glyph follows `state`.
                   // A solved puzzle you are still looking at is ONE row: green
-                  // check, violet highlight.
-                  background: row.isCurrent ? VIOLET.tint : "transparent",
+                  // check, ember highlight.
+                  background: row.isCurrent
+                    ? "rgba(255,122,26,0.10)"
+                    : "transparent",
                   border: row.isCurrent
-                    ? `1px solid ${VIOLET.border}`
+                    ? "1px solid rgba(255,122,26,0.28)"
                     : "1px solid transparent",
                   transition: "background 180ms ease-out",
                   "&:hover": clickable

@@ -77,13 +77,16 @@ function ToolButton({
         gap: 0.4,
         px: 1.25,
         py: 0.75,
-        // Accent fill + edge, not just a colour shift. Against two flat
+        // Ember fill + edge, not just a colour shift. Against two flat
         // borderless neighbours, a filled chip is what the eye actually lands
-        // on — alpha alone reads as "same button, slightly brighter".
+        // on — alpha alone reads as "same button, slightly brighter". The
+        // attention state stays EMBER regardless of the tool's identity
+        // accent: "press this now" is an action signal, and ember is the
+        // action colour sitewide.
         border: highlighted
-          ? `1px solid ${accent.border}`
+          ? "1px solid rgba(255,122,26,0.45)"
           : "1px solid transparent",
-        background: highlighted ? accent.soft : "transparent",
+        background: highlighted ? "rgba(255,122,26,0.12)" : "transparent",
         borderRadius: "0.5rem",
         cursor: disabled ? "not-allowed" : "pointer",
         color: disabled
@@ -91,7 +94,7 @@ function ToolButton({
             // than as a dimmer version of available.
             "rgba(255,240,224,0.22)"
           : highlighted
-            ? accent.bright
+            ? "#FFB37A"
             : active
               ? accent.bright
               : DIM,
@@ -101,10 +104,14 @@ function ToolButton({
           ? undefined
           : {
               color: BRIGHT,
-              background: highlighted ? accent.soft : "rgba(255,255,255,0.04)",
+              background: highlighted
+                ? "rgba(255,122,26,0.2)"
+                : "rgba(255,255,255,0.04)",
             },
+        // Keyboard focus stays one colour across every tool — a focus ring
+        // that changes hue per button reads as state, not as focus.
         "&:focus-visible": {
-          outline: `2px solid ${accent.base}`,
+          outline: "2px solid rgba(255,122,26,0.8)",
           outlineOffset: 2,
         },
       }}
@@ -128,8 +135,8 @@ function ToolButton({
             width: 6,
             height: 6,
             borderRadius: "999px",
-            background: accent.base,
-            boxShadow: `0 0 0 3px ${accent.soft}`,
+            background: "#FF7A1A",
+            boxShadow: "0 0 0 3px rgba(255,122,26,0.18)",
           }}
         />
       )}
@@ -232,7 +239,7 @@ export function PuzzleToolbar({
             borderRadius: "0.4rem",
             "&:hover": { color: BRIGHT },
             "&:focus-visible": {
-              outline: `2px solid ${ACCENTS.violet.base}`,
+              outline: "2px solid rgba(255,122,26,0.8)",
               outlineOffset: 2,
             },
           }}

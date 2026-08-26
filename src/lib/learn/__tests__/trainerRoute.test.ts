@@ -1,138 +1,123 @@
-// What a player has learnt belongs to their account, or to nobody.
+// Which line the trainer was asked for.
 //
-// Lives here rather than beside the route because anything under src/pages/api
-// is an API route to Next, and a test file has no default export. tsc and
-// vitest are both happy with it there; npm run build is not.
+// The failure worth guarding is quiet: a link that opens a DIFFERENT line than
+// the one clicked. The board would be the only clue, and a player who has just
+// been shown a specific weakness would be drilled on another one without ever
+// being told.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { NextApiRequest, NextApiResponse } from 'next';
-import handler from '@/pages/api/trainer-progress';
-import type { TrainerProgress } from '@/lib/server/trainerStore';
-import type { ReviewCard } from '../reviewSchedule';
+import { describe, expect, it } from 'vitest';
+import {
+  modeOf,
+  parseTrainerQuery,
+  resolveHole,
+  reviewHref,
+  trainerHref,
+} from '@/lib/learn/trainerRoute';
+import { lineKeyOf } from '@/lib/learn/trainerProgress';
+import type { RepertoireHole, RepertoireReport } from '@/lib/learn/repertoireHole';
 
-const readTrainerProgress = vi.fn();
-const mergeTrainerProgress = vi.fn();
-const getSessionFromCookieHeader = vi.fn();
-
-vi.mock('@/lib/server/trainerStore', () => ({
-  readTrainerProgress: (...a: unknown[]) => readTrainerProgress(...a),
-  mergeTrainerProgress: (...a: unknown[]) => mergeTrainerProgress(...a),
-}));
-vi.mock('@/lib/auth/session', () => ({
-  getSessionFromCookieHeader: (h: unknown) => getSessionFromCookieHeader(h),
-}));
-
-const card = (lineKey: string, over: Partial<ReviewCard> = {}): ReviewCard => ({
-  lineKey,
-  line: { moves: ['e4', 'c5'], color: 'white' },
-  label: lineKey,
-  easeFactor: 2.5,
-  interval: 6,
-  attempts: 1,
-  nextReview: 100,
-  lastReviewed: 0,
-  lapses: 0,
-  ...over,
-});
-
-const progress = (over: Partial<TrainerProgress> = {}): TrainerProgress => ({
-  cards: [],
-  repaired: [],
-  ...over,
-});
-
-function call(method: string, opts: { body?: unknown; cookie?: string } = {}) {
-  const json = vi.fn();
-  const status: ReturnType<typeof vi.fn> = vi.fn(() => res);
-  const setHeader = vi.fn();
-  const req = { method, query: {}, body: opts.body, headers: { cookie: opts.cookie } } as unknown as NextApiRequest;
-  const res = { status, json, setHeader } as unknown as NextApiResponse;
-  return handler(req, res).then(() => ({
-    code: status.mock.calls.at(-1)?.[0] as number | undefined,
-    body: json.mock.calls[0]?.[0] as Record<string, unknown>,
-    headers: Object.fromEntries(setHeader.mock.calls),
-  }));
+function hole(moves: string[], color: 'white' | 'black', value: number, tier: RepertoireHole['tier'] = 'confirmed'): RepertoireHole {
+  return {
+    fen: `fen-${moves.join('')}`,
+    parentFen: 'parent',
+    color,
+    line: moves.map((san, i) => ({ san, side: i % 2 === 0 ? 'you' : 'opponent', games: 10 })),
+    games: 30,
+    score: 0.3,
+    baseline: 0.5,
+    frequency: 0.1,
+    deficit: 0.2,
+    teachingValue: value,
+    tier,
+    diagnosis: 'move',
+  } as unknown as RepertoireHole;
 }
+const report = (holes: RepertoireHole[]): RepertoireReport[] =>
+  [{ holes, tests: holes.length, insufficientData: false } as unknown as RepertoireReport];
 
-beforeEach(() => {
-  readTrainerProgress.mockReset();
-  mergeTrainerProgress.mockReset();
-  getSessionFromCookieHeader.mockReset();
-  getSessionFromCookieHeader.mockResolvedValue({ uid: 'u1' });
-});
-
-describe('auth', () => {
-  it('refuses anyone it cannot identify', async () => {
-    getSessionFromCookieHeader.mockResolvedValue(null);
-    expect((await call('GET')).code).toBe(401);
-    expect((await call('PUT', { body: { progress: progress() } })).code).toBe(401);
-    // And it must not have touched the store at all.
-    expect(readTrainerProgress).not.toHaveBeenCalled();
-    expect(mergeTrainerProgress).not.toHaveBeenCalled();
+describe('parseTrainerQuery', () => {
+  it('defaults to today', () => {
+    expect(parseTrainerQuery({})).toEqual({ kind: 'today' });
+    expect(parseTrainerQuery({ line: '' })).toEqual({ kind: 'today' });
   });
 
-  it('reads and writes only the caller’s own uid', async () => {
-    readTrainerProgress.mockResolvedValue(progress());
-    mergeTrainerProgress.mockResolvedValue(progress());
-    await call('GET');
-    await call('PUT', { body: { progress: progress() } });
-    expect(readTrainerProgress.mock.calls[0][0]).toBe('u1');
-    expect(mergeTrainerProgress.mock.calls[0][0]).toBe('u1');
+  it('reads a named line and a review', () => {
+    expect(parseTrainerQuery({ line: 'white:e4 c5' })).toEqual({ kind: 'line', lineKey: 'white:e4 c5' });
+    expect(parseTrainerQuery({ review: 'white:e4 c5' })).toEqual({ kind: 'review', lineKey: 'white:e4 c5' });
   });
 
-  it('allows only GET and PUT', async () => {
-    expect((await call('POST', { body: {} })).code).toBe(405);
-    expect((await call('DELETE')).code).toBe(405);
+  it('prefers the review when a link carries both', () => {
+    // There is no sensible reading of "review this AND start it fresh"; the
+    // one that keeps a schedule loses less.
+    expect(parseTrainerQuery({ line: 'a', review: 'b' })).toEqual({ kind: 'review', lineKey: 'b' });
+  });
+
+  it('takes the first of a repeated parameter rather than crashing on an array', () => {
+    expect(parseTrainerQuery({ line: ['x', 'y'] })).toEqual({ kind: 'line', lineKey: 'x' });
+  });
+
+  it('maps only reviews to review mode', () => {
+    expect(modeOf({ kind: 'review', lineKey: 'x' })).toBe('review');
+    expect(modeOf({ kind: 'line', lineKey: 'x' })).toBe('repair');
+    expect(modeOf({ kind: 'today' })).toBe('repair');
   });
 });
 
-describe('the response', () => {
-  it('is never cached anywhere shared', async () => {
-    readTrainerProgress.mockResolvedValue(progress());
-    const res = await call('GET');
-    // A schedule served from a shared cache is somebody else's schedule.
-    expect(res.headers['Cache-Control']).toBe('private, no-store');
+describe('links', () => {
+  it('round-trip: a link built from a hole resolves back to that hole', () => {
+    // The whole feature rests on this. One identity, shared with saved
+    // sessions and review cards.
+    const h = hole(['e4', 'c5', 'c3'], 'white', 1);
+    const req = parseTrainerQuery({ line: decodeURIComponent(trainerHref(h).split('line=')[1]) });
+    expect(resolveHole(report([h]), req)).toEqual({ status: 'ready', hole: h });
   });
 
-  it('returns what the merge decided, not what the client sent', async () => {
-    // The point of the round trip: a device that has been away gets back
-    // everything both copies knew, and adopts it.
-    mergeTrainerProgress.mockResolvedValue(progress({ cards: [card('a'), card('b')] }));
-    const res = await call('PUT', { body: { progress: progress({ cards: [card('a')] }) } });
-    expect(res.code).toBe(200);
-    expect((res.body.progress as TrainerProgress).cards).toHaveLength(2);
+  it('escapes a line whose notation would truncate a URL', () => {
+    // A mating move ends in '#', which starts a fragment: unescaped, the
+    // server never sees the rest of the key.
+    const h = hole(['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nf6', 'Qxf7#'], 'white', 1);
+    expect(trainerHref(h)).not.toContain('#');
+    expect(trainerHref(h)).not.toContain(' ');
   });
 
-  it('sanitises what it is handed before storing it', async () => {
-    mergeTrainerProgress.mockResolvedValue(progress());
-    await call('PUT', {
-      body: {
-        progress: {
-          cards: [card('ok'), { ...card('empty'), line: { moves: [], color: 'white' } }],
-          repaired: 'not-an-array',
-        },
-      },
+  it('sends a lapsed line to the full repair instead of a one-run review', () => {
+    expect(reviewHref('white:e4', false)).toContain('review=');
+    expect(reviewHref('white:e4', true)).toContain('line=');
+    expect(reviewHref('white:e4', true)).not.toContain('review=');
+  });
+});
+
+describe('resolveHole', () => {
+  const big = hole(['e4', 'c5', 'c3'], 'white', 9);
+  const small = hole(['d4', 'Nf6', 'Bf4'], 'black', 2);
+
+  it('gives the highest-value line when nothing is named', () => {
+    expect(resolveHole(report([small, big]), { kind: 'today' })).toEqual({ status: 'ready', hole: big });
+  });
+
+  it('gives the line that was actually asked for, not the best one', () => {
+    const req = { kind: 'line' as const, lineKey: lineKeyOf({ moves: ['d4', 'Nf6', 'Bf4'], color: 'black' }) };
+    expect(resolveHole(report([small, big]), req)).toEqual({ status: 'ready', hole: small });
+  });
+
+  it('reports a named line that is gone rather than substituting another', () => {
+    // Silently swapping would drill a position they did not ask about.
+    const res = resolveHole(report([big]), { kind: 'line', lineKey: 'black:d4 Nf6 Bf4' });
+    expect(res).toEqual({ status: 'missing' });
+  });
+
+  it('says nothing-measured only when nothing is measured', () => {
+    expect(resolveHole([], { kind: 'today' })).toEqual({ status: 'none' });
+    expect(resolveHole(report([]), { kind: 'today' })).toEqual({ status: 'none' });
+  });
+
+  it('ranks every confirmed line above every suspected one', () => {
+    const suspected = hole(['e4', 'e5', 'f4'], 'white', 100, 'signal');
+    const confirmed = hole(['d4', 'd5', 'Bf4'], 'white', 1);
+    // A far larger estimate does not outrank a measurement.
+    expect(resolveHole(report([suspected, confirmed]), { kind: 'today' })).toEqual({
+      status: 'ready',
+      hole: confirmed,
     });
-    const stored = mergeTrainerProgress.mock.calls[0][1] as TrainerProgress;
-    // A card with no moves would render a board the player cannot complete or
-    // escape, and it must not get as far as the document.
-    expect(stored.cards.map(c => c.lineKey)).toEqual(['ok']);
-    expect(stored.repaired).toEqual([]);
-  });
-
-  it('treats a body with no progress at all as empty rather than throwing', async () => {
-    mergeTrainerProgress.mockResolvedValue(progress());
-    expect((await call('PUT', { body: {} })).code).toBe(200);
-    expect(mergeTrainerProgress.mock.calls[0][1]).toEqual({ cards: [], repaired: [] });
-  });
-
-  // A sync that fails is a sync that did not happen: the local copy is
-  // untouched and the page keeps working, so this is worth retrying (503) and
-  // is not an error the caller caused (500).
-  it('answers 503 when the store is unavailable, not 500', async () => {
-    readTrainerProgress.mockRejectedValue(new Error('firestore down'));
-    expect((await call('GET')).code).toBe(503);
-    mergeTrainerProgress.mockRejectedValue(new Error('firestore down'));
-    expect((await call('PUT', { body: { progress: progress() } })).code).toBe(503);
   });
 });

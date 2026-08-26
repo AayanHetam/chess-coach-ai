@@ -20,6 +20,11 @@ afterEach(() => {
 });
 
 describe('unitsOf', () => {
+  // 90s, against the suite's 20s default. These two walk EVERY shipped course
+  // at a real band, and the bands got deeper: club went from 12 plies to 20,
+  // which multiplies the nodes each walk touches. Exhaustiveness is the point
+  // of both — "on every shipped course" is what makes them worth having — so
+  // the budget moves rather than the coverage.
   it('counts every chapter exactly as probesOf does, on every shipped course', () => {
     const index = loadCourseIndex()!;
     let checked = 0;
@@ -38,7 +43,7 @@ describe('unitsOf', () => {
     }
     // The measurement this test would be worthless without: it actually ran.
     expect(checked).toBeGreaterThan(100);
-  });
+  }, 90_000);
 
   it('never claims to ask more than it holds', () => {
     const course = loadCourse('w-london')!;
@@ -51,6 +56,11 @@ describe('unitsOf', () => {
   // The chapter's probes are capped at 60, and a drill scoped to a study is a
   // filter of THAT list. A study of 22 decisions inside a capped chapter can
   // only be askable for a fraction of them.
+  // 90s, against the suite's 20s default. These two walk EVERY shipped course
+  // at a real band, and the bands got deeper: club went from 12 plies to 20,
+  // which multiplies the nodes each walk touches. Exhaustiveness is the point
+  // of both — "on every shipped course" is what makes them worth having — so
+  // the budget moves rather than the coverage.
   it('never advertises a study bigger than a drill of it can be', () => {
     const index = loadCourseIndex()!;
     let capped = 0;
@@ -71,7 +81,7 @@ describe('unitsOf', () => {
     // The control: the cap really bites somewhere in this corpus, so the
     // assertions above were looking at a real case and not at equality.
     expect(capped).toBeGreaterThan(0);
-  });
+  }, 90_000);
 
   it('splits a chapter into studies only where studies.ts says to', () => {
     const course = loadCourse('w-london')!;
@@ -102,10 +112,17 @@ describe('hubFor', () => {
     const hub = hubFor('w-nf3', band('club'))!;
     expect(hub.asked).toBeLessThan(hub.decisions);
     for (const unit of hub.chapters) expect(unit.asked).toBeLessThanOrEqual(unit.decisions);
-    // The control: at a band where nothing is capped the two are the same
-    // number, so the gap is the cap and not an accounting slip.
-    const shallow = hubFor('w-nf3', band('beginner'))!;
-    expect(shallow.asked).toBe(shallow.decisions);
+    // The control: where nothing is capped the two are the same number, so the
+    // gap above is the cap and not an accounting slip.
+    //
+    // A SMALL course rather than a shallow band. This used to read w-nf3 at
+    // `beginner`, which stopped being uncapped the moment the bands got
+    // deeper — w-nf3 is the biggest course in the catalogue at 2,357
+    // decisions and is now capped at every band. The control has to be a case
+    // that is uncapped by construction, not one that happened to be.
+    const small = hubFor('w-ruy', band('new'))!;
+    expect(small.chapters.some(u => u.capped)).toBe(false);
+    expect(small.asked).toBe(small.decisions);
   });
 
   // ── Zero by definition ──────────────────────────────────────────────────────

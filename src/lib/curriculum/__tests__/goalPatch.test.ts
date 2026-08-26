@@ -42,14 +42,14 @@ describe("buildGoalPatch", () => {
     // then silently refuses to draw — the original bug, in a new place.
     //
     // Null is a legitimate answer here, not a failure. +300 at 8 min twice a
-    // week from 1900 runs past the model's 12-year ceiling, because each
+    // week from 1900 runs past the model's 5-year ceiling, because each
     // further point costs more than the last. The setter surfaces that as
     // GoalProjection's "pick a nearer milestone" note with the save button
     // disabled, rather than promising a date in 2040.
     let built = 0;
     for (const currentRating of [700, 1200, 1400, 1900, 2300]) {
       for (const daysPerWeek of [2, 4, 6]) {
-        for (const time of ["under-10", "10-30", "30-plus"] as const) {
+        for (const time of ["under-10", "10-30", "30-plus", "60-plus"] as const) {
           const p = buildGoalPatch({
             currentRating,
             goalRating: currentRating + 300,

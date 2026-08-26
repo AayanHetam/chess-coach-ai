@@ -233,7 +233,15 @@ export default function GoalSetterCard({
     livePlatform,
   ]);
 
-  const minutesLabel = time ? minutesPerDayFor(time) : undefined;
+  // "an hour" reads as the promise the option made; "60 min" reads like a
+  // rounding artefact.
+  const minutes = time ? minutesPerDayFor(time) : undefined;
+  const minutesLabel =
+    minutes === undefined
+      ? undefined
+      : minutes >= 60
+      ? "an hour"
+      : `${minutes} min`;
 
   const handleSave = useCallback(async () => {
     if (!patch || saving) return;
@@ -362,8 +370,8 @@ export default function GoalSetterCard({
           />
           <Typography sx={{ color: "rgba(255,255,255,0.8)", fontSize: "0.8rem" }}>
             {pace === "unreachable"
-              ? `This goal might be hard to reach at your pace — your plan is ${minutesLabel} min a day, ${daysPerWeek} days a week. Pick a nearer milestone or add practice time.`
-              : `This is an ambitious goal for ${minutesLabel} min a day, ${daysPerWeek} days a week — your sessions will run at the hardest sensible intensity.`}
+              ? `This goal might be hard to reach at your pace — your plan is ${minutesLabel} a day, ${daysPerWeek} days a week. Pick a nearer milestone or add practice time.`
+              : `This is an ambitious goal for ${minutesLabel} a day, ${daysPerWeek} days a week — your sessions will run at the hardest sensible intensity.`}
           </Typography>
         </Box>
       )}

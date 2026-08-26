@@ -27,7 +27,7 @@ import { dayKey } from "./streak";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Rough solving pace; keeps estMinutes self-consistent with the session sizes
- *  (under-10 → ~9, 10-30 → ~16, 30-plus → ~30). */
+ *  (under-10 → ~9, 10-30 → ~16, 30-plus → ~30, 60-plus → ~57). */
 const MIN_PER_PUZZLE = 1.5;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 

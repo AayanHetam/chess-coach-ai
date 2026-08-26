@@ -146,15 +146,19 @@ export const TIME_OPTIONS: {
   label: string;
   helper: string;
 }[] = [
-  // Capped at 30 minutes on purpose. Asking for more than half an hour a day
-  // sets a bar most people miss, and a plan you miss is a plan you abandon.
-  // The stored keys are unchanged so existing profiles need no migration —
-  // only the labels and the minutes they map to have moved.
-  { key: "under-10", label: "Under 10 min / day", helper: "Quick daily reps." },
+  // 15 / 30 / 60. The old "under-10" band is gone from the options (7 minutes
+  // of puzzles was never enough work to move a rating) but the KEY stays valid
+  // in TimeCommitment — existing profiles still carry it and need no
+  // migration; they simply can't re-select it.
   { key: "10-30", label: "About 15 min / day", helper: "A steady habit." },
   {
     key: "30-plus",
     label: "About 30 min / day",
+    helper: "Real momentum.",
+  },
+  {
+    key: "60-plus",
+    label: "About 1 hour / day",
     helper: "I want to move fast.",
   },
 ];

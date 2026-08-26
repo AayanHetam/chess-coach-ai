@@ -11,19 +11,24 @@
  * `quizConfig` re-exports these so existing imports keep working.
  */
 
-export type TimeCommitment = "under-10" | "10-30" | "30-plus";
+export type TimeCommitment = "under-10" | "10-30" | "30-plus" | "60-plus";
 
 /**
  * Representative minutes/day for each band, for the improvement model.
  *
- * Midpoints, except the top band which is a hard 30 — matching what the option
- * now promises. The projection must never assume more practice than we asked
- * for, or the date it produces is a target the user never agreed to.
+ * The bands the UI offers are 15 / 30 / 60. "under-10" is LEGACY: existing
+ * profiles still carry it, so it must keep mapping to real minutes, but no
+ * option writes it any more (see TIME_OPTIONS in quizConfig).
+ *
+ * Each band maps to exactly what its option promises — the projection must
+ * never assume more practice than we asked for, or the date it produces is a
+ * target the user never agreed to.
  */
 export const MINUTES_PER_DAY: Record<TimeCommitment, number> = {
   "under-10": 8,
   "10-30": 15,
   "30-plus": 30,
+  "60-plus": 60,
 };
 
 export function minutesPerDayFor(time: TimeCommitment | undefined): number {

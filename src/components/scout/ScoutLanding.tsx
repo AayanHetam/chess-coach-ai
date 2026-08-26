@@ -7,6 +7,7 @@ import {
   FieldLabel,
   MONO,
   MeterRow,
+  ROSE,
   SegmentedMeter,
   VerdictPill,
   strengthColor,
@@ -61,8 +62,8 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
               py: 0.5,
               mb: 3,
               borderRadius: '5px',
-              border: '1px solid rgba(249,115,22,0.38)',
-              bgcolor: 'rgba(249,115,22,0.1)',
+              border: `1px solid ${ROSE.border}`,
+              bgcolor: ROSE.tint,
             }}
           >
             <Box
@@ -70,11 +71,11 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                 width: 6,
                 height: 6,
                 borderRadius: '50%',
-                bgcolor: EMBER,
-                boxShadow: `0 0 8px ${EMBER}`,
+                bgcolor: ROSE.base,
+                boxShadow: `0 0 8px ${ROSE.base}`,
               }}
             />
-            <FieldLabel color={EMBER_LIGHT} size="0.62rem">
+            <FieldLabel color={ROSE.bright} size="0.62rem">
               Opponent dossier
             </FieldLabel>
           </Stack>
@@ -95,8 +96,8 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
             <Box
               component="span"
               sx={{
-                color: EMBER_LIGHT,
-                textShadow: '0 0 40px rgba(249,115,22,0.35)',
+                color: ROSE.bright,
+                textShadow: `0 0 40px ${ROSE.border}`,
               }}
             >
               before move one.
@@ -182,7 +183,7 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                 position: 'absolute',
                 inset: -30,
                 background:
-                  'radial-gradient(circle at 60% 30%, rgba(249,115,22,0.16), transparent 68%)',
+                  `radial-gradient(circle at 60% 30%, ${ROSE.soft}, transparent 68%)`,
                 pointerEvents: 'none',
                 zIndex: 0,
               }}
@@ -211,14 +212,14 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                       fontFamily: MONO,
                       fontSize: '1.6rem',
                       fontWeight: 700,
-                      color: 'rgba(249,115,22,0.42)',
+                      color: ROSE.border,
                       lineHeight: 1,
                     }}
                   >
                     {s.n}
                   </Typography>
                   <Box sx={{ flex: 1, height: '1px', bgcolor: 'rgba(255,255,255,0.08)' }} />
-                  <Box sx={{ color: EMBER_LIGHT, display: 'flex' }}>
+                  <Box sx={{ color: ROSE.bright, display: 'flex' }}>
                     <Icon icon={s.icon} width={22} />
                   </Box>
                 </Stack>
@@ -292,14 +293,14 @@ function SampleDossier() {
                 px: 1,
                 py: 0.3,
                 borderRadius: '4px',
-                border: '1px solid rgba(249,115,22,0.42)',
-                bgcolor: 'rgba(249,115,22,0.12)',
+                border: `1px solid ${ROSE.border}`,
+                bgcolor: ROSE.tint,
               }}
             >
-              <Box sx={{ color: EMBER_LIGHT, display: 'flex' }}>
+              <Box sx={{ color: ROSE.bright, display: 'flex' }}>
                 <Icon icon="mdi:fire" width={12} />
               </Box>
-              <FieldLabel color={EMBER_LIGHT} size="0.6rem">
+              <FieldLabel color={ROSE.bright} size="0.6rem">
                 The Berserker
               </FieldLabel>
             </Stack>
@@ -344,10 +345,10 @@ function SampleDossier() {
 
       <Box sx={{ pt: 2, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1.5 }}>
-          <FieldLabel color={EMBER_LIGHT} size="0.62rem">
+          <FieldLabel color={ROSE.bright} size="0.62rem">
             Tells
           </FieldLabel>
-          <Box sx={{ flex: 1, height: '1px', bgcolor: 'rgba(249,115,22,0.2)' }} />
+          <Box sx={{ flex: 1, height: '1px', bgcolor: ROSE.soft }} />
           <Stack direction="row" alignItems="baseline" spacing={0.25}>
             <Typography
               sx={{

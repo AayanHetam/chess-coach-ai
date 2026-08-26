@@ -11,7 +11,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
-import { DossierPanel, FieldLabel } from './dossier';
+import { DossierPanel, FieldLabel, ROSE } from './dossier';
 import { OpeningSummary, TargetedPrep } from '@/types/scout';
 import { formatMoveSequence } from '@/lib/scoutService';
 
@@ -61,8 +61,8 @@ export default function TargetedPrepPanel({ prep, onExplore }: TargetedPrepProps
               px: 2,
               color: 'rgba(255,255,255,0.62)',
             },
-            '& .Mui-selected': { color: '#FB923C !important' },
-            '& .MuiTabs-indicator': { background: '#FB923C', height: 3, borderRadius: 2 },
+            '& .Mui-selected': { color: `${ROSE.bright} !important` },
+            '& .MuiTabs-indicator': { background: ROSE.bright, height: 3, borderRadius: 2 },
           }}
         >
           <Tab

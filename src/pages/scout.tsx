@@ -31,6 +31,7 @@ import { useAuthDialog } from '@/contexts/AuthDialogContext';
 import { chessMastiDarkTheme } from '@/theme/chessMasti';
 import { GradientBackdrop } from '@/components/ui/GradientBackdrop';
 import { NavPill } from '@/components/ui/NavPill';
+import { ACCENTS } from '@/components/ui/accents';
 import {
   OpeningTreeNode,
   Platform,
@@ -146,9 +147,9 @@ function ScoutSearchBar({
             color: 'rgba(255,255,255,0.62)',
           },
           '& .Mui-selected': {
-            bgcolor: 'rgba(249,115,22,0.18) !important',
-            color: '#FB923C !important',
-            border: '1px solid rgba(249,115,22,0.4)',
+            bgcolor: `${ACCENTS.rose.soft} !important`,
+            color: `${ACCENTS.rose.bright} !important`,
+            border: `1px solid ${ACCENTS.rose.border}`,
           },
         }}
       >
@@ -215,7 +216,7 @@ function ScoutSearchBar({
                 sx: {
                   fontSize: '0.9rem',
                   fontWeight: 600,
-                  color: '#FB923C',
+                  color: ACCENTS.rose.bright,
                   '& input::placeholder': { color: 'rgba(255,255,255,0.5)', opacity: 1 },
                 },
               }}
@@ -240,7 +241,7 @@ function ScoutSearchBar({
                   color: 'text.secondary',
                   cursor: 'pointer',
                   flexShrink: 0,
-                  '&:hover': { bgcolor: 'rgba(249,115,22,0.18)', color: '#FB923C' },
+                  '&:hover': { bgcolor: ACCENTS.rose.soft, color: ACCENTS.rose.bright },
                 }}
               >
                 <Icon icon="mdi:close" width={14} />
@@ -257,12 +258,12 @@ function ScoutSearchBar({
               sx={{
                 fontWeight: 700,
                 fontSize: '0.72rem',
-                bgcolor: 'rgba(249,115,22,0.18)',
-                color: '#FB923C',
-                border: '1px solid rgba(249,115,22,0.4)',
+                bgcolor: ACCENTS.rose.soft,
+                color: ACCENTS.rose.bright,
+                border: `1px solid ${ACCENTS.rose.border}`,
                 cursor: 'pointer',
-                '& .MuiChip-icon': { color: '#FB923C' },
-                '&:hover': { bgcolor: 'rgba(249,115,22,0.28)' },
+                '& .MuiChip-icon': { color: ACCENTS.rose.bright },
+                '&:hover': { bgcolor: ACCENTS.rose.border },
               }}
             />
           </Tooltip>
@@ -289,10 +290,10 @@ function ScoutSearchBar({
                 WebkitBackdropFilter: 'blur(20px)',
                 border: '1px solid rgba(255,255,255,0.08)',
                 '& .MuiMenuItem-root': {
-                  '&:hover': { bgcolor: 'rgba(249,115,22,0.12)' },
+                  '&:hover': { bgcolor: ACCENTS.rose.tint },
                   '&.Mui-selected': {
-                    bgcolor: 'rgba(249,115,22,0.12)',
-                    '&:hover': { bgcolor: 'rgba(249,115,22,0.18)' },
+                    bgcolor: ACCENTS.rose.tint,
+                    '&:hover': { bgcolor: ACCENTS.rose.soft },
                   },
                 },
               },
@@ -383,16 +384,16 @@ function FormatFilterBar({
                 borderRadius: '5px',
                 cursor: 'pointer',
                 border: selected
-                  ? '1px solid rgba(249,115,22,0.5)'
+                  ? `1px solid ${ACCENTS.rose.border}`
                   : '1px solid rgba(255,255,255,0.1)',
-                bgcolor: selected ? 'rgba(249,115,22,0.14)' : 'rgba(255,255,255,0.03)',
+                bgcolor: selected ? ACCENTS.rose.soft : 'rgba(255,255,255,0.03)',
                 transition: 'all 160ms ease',
-                '&:hover': { borderColor: 'rgba(249,115,22,0.4)' },
+                '&:hover': { borderColor: ACCENTS.rose.border },
               }}
             >
               <Stack direction="row" spacing={0.75} alignItems="center">
                 <FieldLabel
-                  color={selected ? '#FB923C' : 'rgba(255,255,255,0.6)'}
+                  color={selected ? ACCENTS.rose.bright : 'rgba(255,255,255,0.6)'}
                   size="0.58rem"
                 >
                   {o.label}
@@ -401,7 +402,7 @@ function FormatFilterBar({
                   sx={{
                     fontFamily: "'SF Mono', Menlo, monospace",
                     fontSize: '0.6rem',
-                    color: selected ? 'rgba(251,146,60,0.75)' : 'rgba(255,255,255,0.3)',
+                    color: selected ? ACCENTS.rose.base : 'rgba(255,255,255,0.3)',
                   }}
                 >
                   {o.games}
@@ -437,7 +438,7 @@ function TwinBanner({
       sx={{
         p: { xs: 2, sm: 2.5 },
         borderRadius: 3,
-        background: 'linear-gradient(135deg, rgba(249,115,22,0.08), rgba(20,22,28,0.6))',
+        background: `linear-gradient(135deg, ${ACCENTS.rose.tint}, rgba(20,22,28,0.6))`,
         backdropFilter: 'blur(14px) saturate(140%)',
         WebkitBackdropFilter: 'blur(14px) saturate(140%)',
         border: '1px solid rgba(255,255,255,0.08)',
@@ -1127,7 +1128,7 @@ export default function ScoutPage() {
       <Head>
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content="#08090C" />
-        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
+        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${ACCENTS.rose.soft};border-radius:5px;}`}</style>
       </Head>
 
       <GradientBackdrop />
@@ -1164,11 +1165,12 @@ export default function ScoutPage() {
               width: 34,
               height: 34,
               borderRadius: 2,
-              background: 'linear-gradient(135deg, #F97316 0%, #FB923C 100%)',
+              background: ACCENTS.rose.soft,
+              border: `1px solid ${ACCENTS.rose.border}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#fff',
+              color: ACCENTS.rose.bright,
             }}
           >
             <Icon icon="mdi:binoculars" width={20} />
@@ -1235,7 +1237,7 @@ export default function ScoutPage() {
                 icon={<Icon icon="mdi:lightning-bolt" />}
                 label="cached"
                 size="small"
-                sx={{ fontWeight: 700, bgcolor: 'rgba(249,115,22,0.18)', color: '#FB923C' }}
+                sx={{ fontWeight: 700, bgcolor: ACCENTS.rose.soft, color: ACCENTS.rose.bright }}
               />
             </Tooltip>
           )}
@@ -1253,11 +1255,11 @@ export default function ScoutPage() {
           )}
           {building && tree && (
             <Chip
-              icon={<CircularProgress size={12} sx={{ color: '#FB923C' }} />}
+              icon={<CircularProgress size={12} sx={{ color: ACCENTS.rose.bright }} />}
               label="Rebuilding…"
               size="small"
               variant="outlined"
-              sx={{ borderColor: '#FB923C', color: '#FB923C' }}
+              sx={{ borderColor: ACCENTS.rose.border, color: ACCENTS.rose.bright }}
             />
           )}
         </Stack>
@@ -1367,7 +1369,7 @@ export default function ScoutPage() {
                 gap: 1.5,
               }}
             >
-              <CircularProgress size={18} sx={{ color: '#FB923C' }} />
+              <CircularProgress size={18} sx={{ color: ACCENTS.rose.bright }} />
               <Typography variant="body2" color="text.secondary">
                 Loading <strong>{yourUsername}</strong>&apos;s games and computing collisions…
               </Typography>
@@ -1438,7 +1440,7 @@ export default function ScoutPage() {
                 justifyContent="space-between"
               >
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Icon icon="mdi:file-tree" width={20} style={{ color: '#FB923C' }} />
+                  <Icon icon="mdi:file-tree" width={20} style={{ color: ACCENTS.rose.bright }} />
                   <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>
                     Deep-dive Opening Tree
                   </Typography>
@@ -1464,9 +1466,9 @@ export default function ScoutPage() {
                         border: '1px solid rgba(255,255,255,0.08)',
                       },
                       '& .Mui-selected': {
-                        bgcolor: 'rgba(249,115,22,0.18) !important',
-                        color: '#FB923C !important',
-                        border: '1px solid rgba(249,115,22,0.4) !important',
+                        bgcolor: `${ACCENTS.rose.soft} !important`,
+                        color: `${ACCENTS.rose.bright} !important`,
+                        border: `1px solid ${ACCENTS.rose.border} !important`,
                       },
                     }}
                   >
@@ -1480,7 +1482,7 @@ export default function ScoutPage() {
 
                   <Box sx={{ minWidth: 220 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 0.25 }}>
-                      Min games: <strong style={{ color: '#FB923C' }}>{minGames}</strong>
+                      Min games: <strong style={{ color: ACCENTS.rose.bright }}>{minGames}</strong>
                     </Typography>
                     <Slider
                       size="small"
@@ -1495,7 +1497,7 @@ export default function ScoutPage() {
                         { value: 10, label: '10' },
                       ]}
                       sx={{
-                        color: '#FB923C',
+                        color: ACCENTS.rose.bright,
                         '& .MuiSlider-rail': { opacity: 1, bgcolor: 'rgba(255,255,255,0.12)' },
                         '& .MuiSlider-markLabel': { color: 'rgba(255,255,255,0.5)' },
                       }}

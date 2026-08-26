@@ -30,8 +30,13 @@ import { levelFit, withinCeiling, type Band } from "@/lib/repertoire/levels";
 import { CHARACTER_STYLE, fitOf } from "@/lib/repertoire/character";
 import { coverageSentence } from "@/lib/repertoire/sentences";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
+import { ACCENTS } from "@/components/ui/accents";
 
-const EMBER = "#FB923C";
+// Ember stays the action colour (focus rings, the move you would play); gold
+// is /learn's surface identity; rose carries warnings.
+const EMBER = ACCENTS.ember.bright;
+const GOLD = ACCENTS.gold;
+const ROSE = ACCENTS.rose;
 const GOOD = "#86EFAC";
 const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
 
@@ -101,15 +106,16 @@ export default function SlotChooser({
       sx={{
         mt: 1.5,
         borderRadius: "1.25rem",
-        border: `1px solid rgba(249,115,22,0.28)`,
-        background: "linear-gradient(180deg, rgba(24,20,18,0.96) 0%, rgba(12,14,20,0.96) 100%)",
+        border: `1px solid ${GOLD.border}`,
+        background: `radial-gradient(120% 55% at 50% 0%, ${GOLD.tint}, transparent 70%), linear-gradient(180deg, rgba(20,22,28,0.96) 0%, rgba(12,14,20,0.96) 100%)`,
+        boxShadow: GOLD.glow,
         backdropFilter: "blur(12px)",
         p: { xs: 2, md: 2.5 },
         outline: "none",
       }}
     >
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2, mb: 1.5 }}>
-        <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.72rem", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+        <Typography sx={{ color: GOLD.bright, fontSize: "0.72rem", letterSpacing: "0.12em", textTransform: "uppercase" }}>
           Our suggestions
         </Typography>
         <Box
@@ -329,7 +335,7 @@ function ChoiceCard({
           fontSize: "0.85rem",
           lineHeight: 1.55,
           mb: 1,
-          borderLeft: "2px solid rgba(249,115,22,0.45)",
+          borderLeft: `2px solid ${GOLD.border}`,
           pl: 1.25,
         }}
       >
@@ -337,7 +343,7 @@ function ChoiceCard({
       </Typography>
       {/* Why it suits the level, or why it does not. The honest version of a
           recommendation is the reason attached to it. */}
-      <Typography sx={{ color: fit < 0 ? EMBER : "rgba(255,255,255,0.45)", fontSize: "0.79rem", lineHeight: 1.5, mb: 1 }}>
+      <Typography sx={{ color: fit < 0 ? ROSE.bright : "rgba(255,255,255,0.45)", fontSize: "0.79rem", lineHeight: 1.5, mb: 1 }}>
         {fit < 0 && <strong>A long way above your level. </strong>}
         {choice.why}
       </Typography>
@@ -568,8 +574,8 @@ function LibrarySearch({ slot, onPick }: { slot: RepertoireSlot; onPick: (p: Rep
 function Heading({ children }: { children: React.ReactNode }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
-      <BookOpen size={13} color="rgba(255,255,255,0.35)" aria-hidden />
-      <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.72rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+      <BookOpen size={13} color={GOLD.base} aria-hidden />
+      <Typography sx={{ color: GOLD.bright, fontSize: "0.72rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
         {children}
       </Typography>
     </Box>
@@ -589,7 +595,8 @@ function Tag({
   /** Emphasised: this is the thing they asked for. */
   filled?: boolean;
 }) {
-  const colour = explicit ?? (tone === "good" ? GOOD : tone === "warn" ? EMBER : "rgba(255,255,255,0.5)");
+  // Warn is rose, not ember: a cost warning is a hazard note, not an action.
+  const colour = explicit ?? (tone === "good" ? GOOD : tone === "warn" ? ROSE.bright : "rgba(255,255,255,0.5)");
   return (
     <Box
       sx={{

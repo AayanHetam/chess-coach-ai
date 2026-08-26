@@ -14,10 +14,19 @@
 import { Box, Stack, Typography } from '@mui/material';
 import { Icon } from '@iconify/react';
 import type { ReactNode } from 'react';
+import { ACCENTS, type Accent } from '@/components/ui/accents';
 
 // Ember accent, per the Chess Masti design OS: glow / voice / focus, never fill.
+// Ember stays the ACTION colour (primary buttons, "play this" pointers) and the
+// middle band of the exploitability heat scale below.
 export const EMBER = '#F97316';
 export const EMBER_LIGHT = '#FB923C';
+
+// Rose is Scout's surface identity — the same rose the NavPill "Scout" pill and
+// /plan's "Your weakest line" card wear. It carries the dossier chrome (panel
+// frames, corner marks, section labels, selection states) and marks found
+// weaknesses; it is glow/tint/border on glass, never a fill.
+export const ROSE: Accent = ACCENTS.rose;
 
 /** Semantic scale for "how good is this number for the SUBJECT" (higher = better). */
 export function strengthColor(v: number): string {
@@ -126,8 +135,8 @@ export function DossierPanel({
   children,
   sx = {},
 }: DossierPanelProps) {
-  const edge = emphasis ? 'rgba(249,115,22,0.28)' : 'rgba(255,255,255,0.09)';
-  const marks = emphasis ? 'rgba(249,115,22,0.55)' : 'rgba(255,255,255,0.18)';
+  const edge = emphasis ? ROSE.border : 'rgba(255,255,255,0.09)';
+  const marks = emphasis ? ROSE.base : 'rgba(255,255,255,0.18)';
 
   return (
     <Box
@@ -138,12 +147,12 @@ export function DossierPanel({
         borderRadius: '1.25rem',
         border: `1px solid ${edge}`,
         background: emphasis
-          ? 'linear-gradient(160deg, rgba(249,115,22,0.055) 0%, rgba(16,18,24,0.72) 42%)'
+          ? `linear-gradient(160deg, ${ROSE.tint} 0%, rgba(16,18,24,0.72) 42%)`
           : 'rgba(16,18,24,0.62)',
         backdropFilter: 'blur(16px) saturate(150%)',
         WebkitBackdropFilter: 'blur(16px) saturate(150%)',
         boxShadow: emphasis
-          ? '0 12px 40px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.07)'
+          ? `0 12px 40px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.07), ${ROSE.glow}`
           : '0 8px 30px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.05)',
         overflow: 'hidden',
         // Column layout so the body can claim the leftover height when the
@@ -153,9 +162,7 @@ export function DossierPanel({
         flexDirection: 'column',
         transition: 'border-color 200ms ease, box-shadow 200ms ease',
         '&:hover': {
-          borderColor: emphasis
-            ? 'rgba(249,115,22,0.42)'
-            : 'rgba(255,255,255,0.14)',
+          borderColor: emphasis ? ROSE.base : 'rgba(255,255,255,0.14)',
         },
         ...sx,
       }}
@@ -181,11 +188,11 @@ export function DossierPanel({
                   width: 3,
                   height: 11,
                   borderRadius: 2,
-                  bgcolor: emphasis ? EMBER : 'rgba(255,255,255,0.28)',
+                  bgcolor: emphasis ? ROSE.base : 'rgba(255,255,255,0.28)',
                   flexShrink: 0,
                 }}
               />
-              <FieldLabel color={emphasis ? EMBER_LIGHT : 'rgba(255,255,255,0.55)'}>
+              <FieldLabel color={emphasis ? ROSE.bright : 'rgba(255,255,255,0.55)'}>
                 {label}
               </FieldLabel>
             </Stack>
@@ -294,7 +301,7 @@ export function MeterRow({
   return (
     <Stack direction="row" alignItems="center" spacing={1.5}>
       <Box sx={{ width: labelWidth, flexShrink: 0 }}>
-        <FieldLabel color={highlight ? EMBER_LIGHT : 'rgba(255,255,255,0.66)'}>
+        <FieldLabel color={highlight ? ROSE.bright : 'rgba(255,255,255,0.66)'}>
           {label}
         </FieldLabel>
       </Box>
@@ -318,7 +325,7 @@ export function MeterRow({
       {/* Fixed-width gutter so rows stay aligned whether or not they're marked. */}
       <Box sx={{ width: 14, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
         {highlight && (
-          <Box sx={{ color: EMBER_LIGHT, display: 'flex', lineHeight: 1 }} aria-hidden>
+          <Box sx={{ color: ROSE.bright, display: 'flex', lineHeight: 1 }} aria-hidden>
             <Icon icon="mdi:target" width={13} />
           </Box>
         )}

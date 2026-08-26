@@ -4,10 +4,9 @@ import type { HeadToHead, DimensionComparison, RatingPoint } from '@/lib/scout/h
 import { biggestEdge, biggestGap, ratingTrend } from '@/lib/scout/headToHead';
 import {
   DossierPanel,
-  EMBER,
-  EMBER_LIGHT,
   FieldLabel,
   MONO,
+  ROSE,
   VerdictPill,
 } from './dossier';
 
@@ -150,10 +149,10 @@ export default function HeadToHeadPanel({
           <Stack direction="row" spacing={2} sx={{ mt: 1.75, flexWrap: 'wrap', gap: 1.25 }}>
             {edge.delta > 0 && (
               <Stack direction="row" spacing={0.75} alignItems="center">
-                <Box sx={{ color: EMBER_LIGHT, display: 'flex' }}>
+                <Box sx={{ color: ROSE.bright, display: 'flex' }}>
                   <Icon icon="mdi:target" width={12} />
                 </Box>
-                <FieldLabel color={EMBER_LIGHT} size="0.55rem">
+                <FieldLabel color={ROSE.bright} size="0.55rem">
                   Steer toward {edge.label.toLowerCase()}
                 </FieldLabel>
               </Stack>
@@ -293,7 +292,7 @@ function Sparkline({ series }: { series: RatingPoint[] }) {
   });
 
   const trend = ratingTrend(series) ?? 0;
-  const stroke = trend > 0 ? GOOD : trend < 0 ? BAD : EMBER;
+  const stroke = trend > 0 ? GOOD : trend < 0 ? BAD : ROSE.base;
 
   return (
     <Box sx={{ position: 'relative' }}>

@@ -67,6 +67,7 @@ import { Lock, LockOpen } from "lucide-react";
 import { CHARACTER_STYLE, rarity } from "@/lib/repertoire/character";
 import { factsFor, mainMoveAt, measuredFor, type YourTree } from "@/lib/repertoire/yourTree";
 import { archiveAccountFor, useYourTree } from "@/lib/repertoire/useYourTree";
+import { ACCENTS } from "@/components/ui/accents";
 import type {
   Character,
   RepertoireMap,
@@ -75,7 +76,11 @@ import type {
   TheoryLoad,
 } from "@/types/repertoire";
 
-const EMBER = "#FB923C";
+// Ember stays the action colour; gold is this surface's identity — /learn is
+// the lessons area and wears ACCENTS.gold everywhere the nav already does.
+const EMBER = ACCENTS.ember.bright;
+const GOLD = ACCENTS.gold;
+const ROSE = ACCENTS.rose;
 const GOOD = "#86EFAC";
 const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
 
@@ -321,7 +326,7 @@ export default function LearnPage() {
             display: "inline-flex", alignItems: "center", gap: 0.75, minHeight: 44,
             mb: 1, color: "rgba(255,255,255,0.55)", fontSize: "0.85rem",
             textDecoration: "none", borderRadius: "8px",
-            "&:hover": { color: EMBER },
+            "&:hover": { color: GOLD.bright },
             "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
           }}
         >
@@ -349,7 +354,7 @@ export default function LearnPage() {
               mt: 1.5,
               fontSize: "0.78rem",
               lineHeight: 1.55,
-              color: savedToAccount ? "rgba(255,255,255,0.5)" : "#FCA5A5",
+              color: savedToAccount ? "rgba(255,255,255,0.5)" : ROSE.bright,
             }}
           >
             {savedToAccount
@@ -437,11 +442,13 @@ function StudyRow({ choiceId, label }: { choiceId: string; label: string }) {
         mt: 1, ml: { xs: 1, md: 1.5 },
         display: "inline-flex", alignItems: "center", gap: 0.75,
         px: 1.5, py: 0.9, borderRadius: "999px",
-        border: "1px solid rgba(249,115,22,0.35)",
-        background: "rgba(249,115,22,0.08)",
-        color: EMBER, fontSize: "0.8rem", fontWeight: 600, textDecoration: "none",
+        // Courses are the lessons area, and lessons wear gold sitewide — the
+        // chip into a course carries the colour of where it goes.
+        border: `1px solid ${GOLD.border}`,
+        background: GOLD.tint,
+        color: GOLD.bright, fontSize: "0.8rem", fontWeight: 600, textDecoration: "none",
         transition: "background 180ms ease, border-color 180ms ease",
-        "&:hover": { background: "rgba(249,115,22,0.16)", borderColor: "rgba(249,115,22,0.6)" },
+        "&:hover": { background: GOLD.soft, borderColor: GOLD.base },
         "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
       }}
     >
@@ -823,7 +830,24 @@ function CoverageBar({
     : meta.otherFirstMoves;
   const state = sufficiency(cover.answered, band);
   return (
-    <Box sx={{ mt: 2.5, p: { xs: 2, md: 2.5 }, borderRadius: "1.5rem", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}>
+    <Box
+      sx={{
+        // The page's headline card wears the surface identity: gold border, a
+        // faint radial tint at the top, a soft glow and a top hairline — the
+        // same treatment /plan's accented cards get.
+        position: "relative", overflow: "hidden",
+        mt: 2.5, p: { xs: 2, md: 2.5 }, borderRadius: "1.5rem",
+        border: `1px solid ${GOLD.border}`,
+        background: `radial-gradient(120% 55% at 50% 0%, ${GOLD.tint}, transparent 70%), rgba(255,255,255,0.02)`,
+        boxShadow: GOLD.glow,
+        "&::before": {
+          content: '""', position: "absolute", top: 0, left: "8%", right: "8%",
+          height: "1.5px",
+          background: `linear-gradient(90deg, transparent, ${GOLD.base}, transparent)`,
+          opacity: 0.65,
+        },
+      }}
+    >
       <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, flexWrap: "wrap", mb: 1.25 }}>
         <Typography sx={{ color: "#fff", fontSize: "1.5rem", fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>
           {done}%
@@ -892,7 +916,8 @@ function CoverageBar({
         {biggest ? (
           <>
             The biggest thing you have no answer for is{" "}
-            <Box component="span" sx={{ color: "#fff" }}>{slotTitle(biggest.slot).replace(/^Against /, "")}</Box>
+            {/* Rose: this is the weakness the page exists to surface. */}
+            <Box component="span" sx={{ color: ROSE.bright, fontWeight: 600 }}>{slotTitle(biggest.slot).replace(/^Against /, "")}</Box>
             , at {pctOf(biggest.reach)} of {tree ? "your games" : "games"}.
           </>
         ) : (
@@ -1078,7 +1103,7 @@ function ChurnQuestion({
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
       sx={{
         mb: 2.5, p: { xs: 2, md: 2.5 }, borderRadius: "1.25rem",
-        border: "1px solid rgba(249,115,22,0.28)", background: "rgba(249,115,22,0.05)",
+        border: `1px solid ${GOLD.border}`, background: GOLD.tint,
       }}
     >
       <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "1rem", mb: 0.5 }}>
@@ -1205,7 +1230,8 @@ function LockBar({
 }
 
 function Note({ children, tone }: { children: React.ReactNode; tone?: "good" | "warn" }) {
-  const colour = tone === "good" ? GOOD : tone === "warn" ? EMBER : "rgba(255,255,255,0.5)";
+  // Warnings wear rose — danger has its own colour, ember stays for actions.
+  const colour = tone === "good" ? GOOD : tone === "warn" ? ROSE.bright : "rgba(255,255,255,0.5)";
   return (
     <Typography
       sx={{
@@ -1350,8 +1376,9 @@ function Quiz({
   return (
     <Box sx={{ maxWidth: 640, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 4, md: 7 } }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-        <Sparkles size={15} color={EMBER} aria-hidden />
-        <Typography sx={{ color: EMBER, fontSize: "0.72rem", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+        {/* Heading eyebrow in the surface's gold, not the action ember. */}
+        <Sparkles size={15} color={GOLD.base} aria-hidden />
+        <Typography sx={{ color: GOLD.bright, fontSize: "0.72rem", letterSpacing: "0.14em", textTransform: "uppercase" }}>
           Two questions · step {step + 1} of 2
         </Typography>
       </Box>

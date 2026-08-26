@@ -4,10 +4,9 @@ import { Icon } from '@iconify/react';
 import type { ClockWindows, TimeBucket } from '@/types/scout';
 import {
   DossierPanel,
-  EMBER,
-  EMBER_LIGHT,
   FieldLabel,
   MONO,
+  ROSE,
   VerdictPill,
   strengthColor,
 } from './dossier';
@@ -64,8 +63,8 @@ export default function ClockWindowsPanel({ windows, username }: ClockWindowsPan
           px: 1.75,
           py: 1.5,
           borderRadius: '10px',
-          border: '1px solid rgba(249,115,22,0.3)',
-          background: 'linear-gradient(120deg, rgba(249,115,22,0.1), rgba(249,115,22,0.02))',
+          border: `1px solid ${ROSE.border}`,
+          background: `linear-gradient(120deg, ${ROSE.tint}, transparent)`,
         }}
       >
         {current === undefined ? (
@@ -74,11 +73,11 @@ export default function ClockWindowsPanel({ windows, username }: ClockWindowsPan
           </FieldLabel>
         ) : (
           <Stack direction="row" alignItems="center" spacing={1.75}>
-            <Box sx={{ color: EMBER_LIGHT, display: 'flex', flexShrink: 0 }}>
+            <Box sx={{ color: ROSE.bright, display: 'flex', flexShrink: 0 }}>
               <Icon icon="mdi:clock-outline" width={22} />
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <FieldLabel color={EMBER_LIGHT} size="0.58rem">
+              <FieldLabel color={ROSE.bright} size="0.58rem">
                 Right now · {hourLabel(current.index)} your time
               </FieldLabel>
               <Typography
@@ -156,7 +155,7 @@ export default function ClockWindowsPanel({ windows, username }: ClockWindowsPan
                     borderRadius: '2px',
                     bgcolor: color,
                     opacity: b.reliable ? 0.9 : 1,
-                    outline: isNow ? `1.5px solid ${EMBER}` : 'none',
+                    outline: isNow ? `1.5px solid ${ROSE.base}` : 'none',
                     outlineOffset: 1,
                     transition: 'height 320ms ease, background-color 200ms ease',
                   }}
@@ -221,7 +220,7 @@ export default function ClockWindowsPanel({ windows, username }: ClockWindowsPan
             icon="mdi:target"
             label="Catch them at"
             value={`${hourLabel(windows.weakestHour.index)} · ${windows.weakestHour.scorePct}%`}
-            color={EMBER_LIGHT}
+            color={ROSE.bright}
           />
         )}
         {windows.strongestHour && (

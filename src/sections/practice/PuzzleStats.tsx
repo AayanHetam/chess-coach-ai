@@ -1,6 +1,7 @@
 import { Box, Typography, Paper, Chip, Tooltip } from "@mui/material";
 import { useAtomValue } from "jotai";
 import { puzzleStatsAtom, getSolveRate, formatTime } from "@/lib/puzzleRating";
+import { themeAccent } from "@/components/ui/accents";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import TimerIcon from "@mui/icons-material/Timer";
@@ -203,6 +204,10 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
               .slice(0, 10)
               .map(([theme, data]) => {
                 const rate = data.attempts > 0 ? Math.round((data.solved / data.attempts) * 100) : 0;
+                // Each theme keeps its one sitewide identity colour (fork is
+                // always gold, pin always cyan); the rate itself is printed in
+                // the label, so no signal rides on colour alone.
+                const a = themeAccent(theme);
                 return (
                   <Tooltip
                     key={theme}
@@ -212,9 +217,9 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
                       label={`${theme} ${rate}%`}
                       size="small"
                       sx={{
-                        bgcolor: rate >= 70 ? "rgba(76,175,80,0.15)" : rate >= 40 ? "rgba(255,193,7,0.15)" : "rgba(244,67,54,0.15)",
-                        color: rate >= 70 ? "success.light" : rate >= 40 ? "warning.light" : "error.light",
-                        border: "1px solid rgba(255,255,255,0.06)",
+                        bgcolor: a.soft,
+                        color: a.bright,
+                        border: `1px solid ${a.border}`,
                         fontSize: "0.7rem",
                       }}
                     />

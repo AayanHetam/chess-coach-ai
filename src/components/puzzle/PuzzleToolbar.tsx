@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Box, Tooltip, Typography } from "@mui/material";
 import { BookOpen, Clock, Eye, EyeOff, Ban, LineChart } from "lucide-react";
 import { formatSolveClock } from "@/lib/puzzle/solveClock";
+import { ACCENTS, type Accent } from "@/components/ui/accents";
 
 /**
  * The board card's toolbar strip.
@@ -32,6 +33,7 @@ function ToolButton({
   attention,
   hint,
   disabledReason,
+  accent = ACCENTS.violet,
   onClick,
 }: {
   icon: ReactNode;
@@ -52,6 +54,9 @@ function ToolButton({
   /** Shown on hover when disabled. A dead button with no explanation is worse
    *  than no button — the user assumes it's broken. */
   disabledReason?: string;
+  /** The tool's identity colour on this surface — the same jewel language the
+   *  rest of the site speaks (theory gold, analysis cyan, chrome violet). */
+  accent?: Accent;
   onClick: () => void;
 }) {
   const highlighted = attention && !disabled && !active;
@@ -74,7 +79,10 @@ function ToolButton({
         py: 0.75,
         // Ember fill + edge, not just a colour shift. Against two flat
         // borderless neighbours, a filled chip is what the eye actually lands
-        // on — alpha alone reads as "same button, slightly brighter".
+        // on — alpha alone reads as "same button, slightly brighter". The
+        // attention state stays EMBER regardless of the tool's identity
+        // accent: "press this now" is an action signal, and ember is the
+        // action colour sitewide.
         border: highlighted
           ? "1px solid rgba(255,122,26,0.45)"
           : "1px solid transparent",
@@ -88,7 +96,7 @@ function ToolButton({
           : highlighted
             ? "#FFB37A"
             : active
-              ? "#FFD1A8"
+              ? accent.bright
               : DIM,
         transition:
           "color 180ms ease-out, background 180ms ease-out, border-color 180ms ease-out",
@@ -100,6 +108,8 @@ function ToolButton({
                 ? "rgba(255,122,26,0.2)"
                 : "rgba(255,255,255,0.04)",
             },
+        // Keyboard focus stays one colour across every tool — a focus ring
+        // that changes hue per button reads as state, not as focus.
         "&:focus-visible": {
           outline: "2px solid rgba(255,122,26,0.8)",
           outlineOffset: 2,
@@ -240,12 +250,14 @@ export function PuzzleToolbar({
 
       <Box sx={{ flex: 1, minWidth: 8 }} />
 
+      {/* Theory wears gold everywhere on the site (lessons, courses). */}
       <ToolButton
         icon={<BookOpen size={18} />}
         label="Reference"
         active={referenceOpen}
         disabled={Boolean(referenceDisabledReason)}
         disabledReason={referenceDisabledReason}
+        accent={ACCENTS.gold}
         onClick={onToggleReference}
       />
 
@@ -270,6 +282,8 @@ export function PuzzleToolbar({
         // a permanent flag would just become part of the furniture.
         attention={!analyseDisabledReason && !analyseOn}
         hint="See the engine's evaluation and best line for this position"
+        // Analysis is cyan wherever it appears on the site.
+        accent={ACCENTS.cyan}
         onClick={onToggleAnalyse}
       />
 

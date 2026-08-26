@@ -5,8 +5,10 @@ import OpeningDiagram from "@/components/learn/OpeningDiagram";
 import { CHARACTER_STYLE } from "@/lib/repertoire/character";
 import { numberedLine } from "@/lib/repertoire/bracket";
 import { progressOf, type CatalogueEntry, type CourseProgress } from "@/lib/courses/catalogue";
+import { ACCENTS } from "@/components/ui/accents";
 
-const EMBER = "#FB923C";
+const EMBER = ACCENTS.ember.bright;
+const CYAN = ACCENTS.cyan;
 const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
 const GOOD = "#86EFAC";
 
@@ -88,11 +90,15 @@ function CourseCard({
               once on every owed card, and two badges stacked on a 250px tile is
               a badge nobody reads — the more specific one wins. */}
           {due > 0 ? (
+            /* Review debt wears cyan — the review identity — as a tinted chip,
+               not a solid fill: solid stays reserved for the ember CTA and the
+               green done state. */
             <Typography
               data-testid={`card-due-${entry.id}`}
               sx={{
                 px: 0.9, py: 0.25, borderRadius: "0.4rem", fontSize: "0.66rem",
-                fontWeight: 700, color: "#0B0D12", background: EMBER, whiteSpace: "nowrap",
+                fontWeight: 700, color: CYAN.bright, background: CYAN.soft,
+                border: `1px solid ${CYAN.border}`, whiteSpace: "nowrap",
               }}
             >
               {due} due

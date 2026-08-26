@@ -3,8 +3,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import CourseCard from "@/components/courses/CourseCard";
 import type { CourseProgress, Shelf } from "@/lib/courses/catalogue";
+import { ACCENTS } from "@/components/ui/accents";
 
-const EMBER = "#FB923C";
+const EMBER = ACCENTS.ember.bright;
 
 /**
  * One horizontal rail of courses.

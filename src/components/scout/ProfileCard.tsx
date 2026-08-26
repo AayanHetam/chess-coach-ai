@@ -9,6 +9,7 @@ import {
   FieldLabel,
   MONO,
   MeterRow,
+  ROSE,
   VerdictPill,
   strengthColor,
 } from './dossier';
@@ -122,14 +123,14 @@ export default function ProfileCard({
                 px: 1,
                 py: 0.3,
                 borderRadius: '4px',
-                border: `1px solid rgba(249,115,22,0.42)`,
-                bgcolor: 'rgba(249,115,22,0.12)',
+                border: `1px solid ${ROSE.border}`,
+                bgcolor: ROSE.tint,
               }}
             >
-              <Box sx={{ color: EMBER_LIGHT, display: 'flex' }}>
+              <Box sx={{ color: ROSE.bright, display: 'flex' }}>
                 <Icon icon={archetypeIcon(profile.archetype)} width={12} />
               </Box>
-              <FieldLabel color={EMBER_LIGHT} size="0.6rem">
+              <FieldLabel color={ROSE.bright} size="0.6rem">
                 {profile.archetype}
               </FieldLabel>
             </Stack>
@@ -192,10 +193,10 @@ export default function ProfileCard({
       {/* One caption for the whole block, outside the meter grid, so the four
           rows keep an even rhythm. */}
       <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 2.25 }}>
-        <Box sx={{ color: EMBER_LIGHT, display: 'flex' }}>
+        <Box sx={{ color: ROSE.bright, display: 'flex' }}>
           <Icon icon="mdi:target" width={12} />
         </Box>
-        <FieldLabel color={EMBER_LIGHT} size="0.58rem">
+        <FieldLabel color={ROSE.bright} size="0.58rem">
           Weakest link · {weakest.label} — play here
         </FieldLabel>
       </Stack>

@@ -33,6 +33,8 @@ import { getSessionFromCookieHeader } from "@/lib/auth/sessionToken";
 import { getUserById } from "@/lib/server/users";
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { bandFor } from "@/lib/repertoire/levels";
+import { trapsForCourse, type CourseTraps } from "@/lib/book/traps";
+import TrapsSection from "@/components/courses/TrapsSection";
 import { isCourseId } from "@/lib/learn/courseRoute";
 import { chapterReaderHref, drillHref } from "@/lib/learn/courseHubRoute";
 import { courseTrainerHref } from "@/lib/learn/courseRoute";
@@ -48,9 +50,12 @@ const MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
 interface Props {
   courseId: string;
   hub: CourseHub;
+  /** Null when this band has no trap file — NOT the same as finding none. */
+  traps: CourseTraps | null;
+  band: string;
 }
 
-export default function CourseHubPage({ courseId, hub }: Props) {
+export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
   const { user } = useAuth();
   const account = user?.uid ?? "";
   const [mastery, setMastery] = useState<CourseMastery | null>(null);
@@ -373,6 +378,13 @@ export default function CourseHubPage({ courseId, hub }: Props) {
           </Box>
         </Box>
 
+        {/* How this opening actually goes wrong for people at this rating.
+            Server-rendered with the band already resolved, so the numbers and
+            the sentence above them can never disagree about whose games they
+            are. Renders nothing at all when there is no file for the band —
+            "we did not look" must not read as "there is nothing to fall for". */}
+        <TrapsSection traps={traps} band={band} side={hub.meta.side} />
+
         {/* Provenance. Every claim on this page is checkable. */}
         <Typography sx={{ mt: 4, fontSize: "0.73rem", color: "rgba(255,255,255,0.33)", lineHeight: 1.7, maxWidth: "76ch" }}>
           Your moves are chosen by the engine and checked against{" "}
@@ -424,9 +436,15 @@ export const getServerSideProps: GetServerSideProps<Props> = async ctx => {
     rating = undefined;
   }
 
-  const hub = hubFor(raw, bandFor(rating));
+  const band = bandFor(rating);
+  const hub = hubFor(raw, band);
   if (!hub) return { notFound: true };
 
+  // Resolved here, from the same band the course was cut to. Fetching this in
+  // the browser would let the heading ("at your level") render before the
+  // numbers underneath it knew which level that was.
+  const traps = trapsForCourse(band.id, hub.meta.root, hub.meta.side);
+
   ctx.res.setHeader("Cache-Control", "private, no-store");
-  return { props: { courseId: raw, hub } };
+  return { props: { courseId: raw, hub, traps, band: band.id } };
 };

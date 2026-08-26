@@ -53,6 +53,17 @@ const nextConfig = {
     // tactics course library on /courses, which is a different product.
     "/api/opening-courses": ["./src/data/courses/index.json"],
     "/api/opening-courses/[id]": ["./src/data/courses/**"],
+    // /learn/[courseId] reads its course in getServerSideProps and, since the
+    // traps section, one trap file per band as well — both with `fs`.
+    //
+    // MEASURED, not assumed: without any entry the page already traced 44
+    // course files, so the tracer does reach into src/data on its own here, the
+    // same way it does for /api/master-ideas. This entry is belt-and-braces and
+    // exists for the NEW trap files, whose presence was checked in
+    // .next/server/pages/learn/[courseId].js.nft.json rather than hoped for. A
+    // page missing its data renders a SHORTER page, never an error, so the
+    // build and the deploy would both stay green.
+    "/learn/[courseId]": ["./src/data/courses/**", "./src/data/traps.*.json"],
   },
   /**
    * Baseline hardening on every route, verified on the wire rather than

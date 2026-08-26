@@ -1,0 +1,18 @@
+{
+ "meta": {
+  "band": "strong",
+  "bandScale": "common (chess.com), converted from lichess",
+  "source": "Lichess rated blitz and rapid, 2025-11",
+  "games": 27961,
+  "generatedFrom": "scripts/openings/build-traps.mjs",
+  "signal": "game results only; no engine was consulted",
+  "z": 4,
+  "minEffect": 0.1,
+  "minMoveGames": 30,
+  "minShare": 0.03,
+  "tests": 568,
+  "expectedFalsePositives": 0.02,
+  "traps": 0
+ },
+ "traps": []
+}

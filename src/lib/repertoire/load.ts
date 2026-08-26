@@ -11,26 +11,82 @@ import fs from 'fs';
 import path from 'path';
 import type { OpeningEntry, RepertoireMap } from '@/types/repertoire';
 
-let map: RepertoireMap | null = null;
-let mapFailed = false;
+/**
+ * One cache entry per band, plus one for the default map.
+ *
+ * `null` in the map means "tried and failed" — the read is not retried on
+ * every request. `undefined` means "not tried yet".
+ */
+const maps = new Map<string, RepertoireMap | null>();
 let library: OpeningEntry[] | null = null;
 let libraryFailed = false;
+
+/** The bands that have their own corpus. Anything else falls back. */
+export const BANDED_MAPS = ['new', 'beginner', 'improving', 'club'] as const;
+export type BandedMapId = (typeof BANDED_MAPS)[number];
+
+/**
+ * The scale every banded corpus must have been measured on.
+ *
+ * `bandFor()` buckets a rating `platformRatings.ts` has already normalised
+ * onto the chess.com scale. A corpus banded on raw Lichess Elo would file a
+ * Lichess 1200 — a beginner on the common scale — under improving, and every
+ * frequency downstream would look completely reasonable while describing the
+ * wrong population. So a banded file that does not say which scale it used is
+ * not trusted: it is refused here and the caller gets the Elite map, which is
+ * honest about being the Elite map.
+ */
+const REQUIRED_SCALE = 'common (chess.com)';
 
 function readJson<T>(rel: string): T | null {
   return JSON.parse(fs.readFileSync(path.join(process.cwd(), rel), 'utf-8')) as T;
 }
 
-/** The derived bracket. Null if the corpus is missing, never a throw. */
-export function loadRepertoireMap(): RepertoireMap | null {
-  if (map || mapFailed) return map;
+function fileFor(band: string | null | undefined): string {
+  return band && (BANDED_MAPS as readonly string[]).includes(band)
+    ? `src/data/repertoire-map.${band}.json`
+    : 'src/data/repertoire-map.json';
+}
+
+/** A banded file must be the band it was asked for, on the scale we band on. */
+function trustworthy(candidate: RepertoireMap, band: string): boolean {
+  if (candidate.meta?.band !== band) return false;
+  return (candidate.meta?.bandScale ?? '').startsWith(REQUIRED_SCALE);
+}
+
+/**
+ * The derived bracket, measured on the corpus closest to the caller's band.
+ *
+ * Null if no corpus is readable at all, never a throw. A band with no file of
+ * its own — or a file that fails the scale check — degrades to the Elite map
+ * rather than to nothing, and the map it returns always states which corpus it
+ * actually is. Nothing downstream has to remember whether a fallback happened.
+ */
+export function loadRepertoireMap(band?: string | null): RepertoireMap | null {
+  const rel = fileFor(band);
+  const cached = maps.get(rel);
+  if (cached !== undefined) return cached ?? fallback(rel);
+  let loaded: RepertoireMap | null = null;
   try {
-    map = readJson<RepertoireMap>('src/data/repertoire-map.json');
+    loaded = readJson<RepertoireMap>(rel);
   } catch {
-    // Flagged, so a missing corpus is not re-read on every request.
-    mapFailed = true;
-    map = null;
+    loaded = null;
   }
-  return map;
+  if (loaded && rel !== 'src/data/repertoire-map.json' && !trustworthy(loaded, band as string)) {
+    loaded = null;
+  }
+  maps.set(rel, loaded);
+  return loaded ?? fallback(rel);
+}
+
+/** The Elite map, for a band whose own file is missing or untrusted. */
+function fallback(rel: string): RepertoireMap | null {
+  return rel === 'src/data/repertoire-map.json' ? null : loadRepertoireMap(null);
+}
+
+/** Test seam. The caches are process-lifetime by design. */
+export function resetRepertoireMapCache(): void {
+  maps.clear();
 }
 
 /** SAN moves out of PGN movetext. */

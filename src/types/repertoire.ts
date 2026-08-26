@@ -124,6 +124,24 @@ export interface RepertoireSlot {
 export interface RepertoireMapMeta {
   source: string;
   games: number;
+  /**
+   * The rating band this corpus measures, or null for the default Elite one.
+   *
+   * The map states its own provenance so a screen cannot claim more than was
+   * measured. When a banded file is missing the loader falls back to the Elite
+   * map, and the fallback arrives carrying `band: null` — so the sentence
+   * "people at your level" is written off this field and simply cannot appear
+   * over 2300+ numbers.
+   */
+  band: string | null;
+  /**
+   * The scale the banding was done on, e.g. "common (chess.com), converted
+   * from lichess". `bandFor()` buckets a rating `platformRatings.ts` has
+   * already put on the chess.com scale; a corpus banded on raw Lichess Elo
+   * would file a Lichess 1200 — a beginner on the common scale — as improving,
+   * and every number downstream would look entirely reasonable.
+   */
+  bandScale: string | null;
   openings: number;
   gapMaxPly: number;
   gapMinShare: number;

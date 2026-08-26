@@ -200,10 +200,16 @@ test('says what a choice finishes, in a sentence', async ({ page }) => {
   await page.getByRole('tab', { name: /As Black/i }).click();
   await page.getByText(/Against 1\.e4/).first().click();
 
-  // One that answers the whole slot, and one that does not — the distinction a
-  // bare percentage does not make.
-  await expect(page.getByText(/answers everything after 1\.e4/).first()).toBeVisible();
+  // One that answers more of the slot than another — the distinction a bare
+  // percentage does not make.
+  //
+  // NOT "answers everything after 1.e4" any more, and that is a finding rather
+  // than a broken test. The Caro-Kann absorbs 100% of Elite play and 79% of
+  // improving play, because weaker White players play things with no name:
+  // 2.Bc4 is 6.3% of what an improving Caro player meets and 11.3% of what a
+  // sub-800 one does. The old sentence was true at 2300+ and told to everyone.
   await expect(page.getByText(/You still need something for the other/).first()).toBeVisible();
+  await expect(page.getByText(/answers \d+% of/).first()).toBeVisible();
 });
 });
 
@@ -337,7 +343,17 @@ test.describe("style, colour and fit", () => {
     // ── The control: the input whose answer is zero by definition ──────────
     // 1.e4 and 1.d4 are the two most common moves in chess. If a rarity pill
     // can appear on those, it can appear on anything and it means nothing.
-    await expect(page.getByText(/^1 game in /)).toHaveCount(0);
+    //
+    // Scoped to those two rows rather than to the whole page. On the banded
+    // corpus 1.Nf3 and 1.c4 ARE rare for an improving player — 2.7% and 3.2%,
+    // against 10.4% and 6.1% at 2300+ — so a pill on them is the feature
+    // working, and a page-wide count of zero would have been asserting a
+    // property of the Elite corpus rather than of the rarity rule.
+    for (const common of [/Against 1\.e4/, /Against 1\.d4/]) {
+      const row = page.locator("button", { hasText: common }).first();
+      await expect(row).toBeVisible();
+      await expect(row).not.toContainText(/1 game in /);
+    }
 
     await page.getByText(/Against 1\.d4/).first().click();
     await page.getByRole("button", { name: /Grünfeld Defence/i }).first().click();
@@ -409,9 +425,12 @@ test.describe("measured from your own games", () => {
     await throughQuiz(page);
     await page.getByRole("tab", { name: /As Black/i }).click();
 
-    // Before: the corpus. 1.e4 is 47% of games by 2300+ players.
-    await expect(page.getByText(/47% of games · nothing chosen/)).toBeVisible();
-    await expect(page.getByText(/rated 2300\+/)).toBeVisible();
+    // Before: the corpus. A corpus row says "of games"; a personal row says
+    // "of your games". The share itself is band-dependent and deliberately not
+    // asserted — freezing it would make this a restatement of whichever corpus
+    // happened to ship, which is how three probes in this repo went stale.
+    await expect(page.getByText(/\d+% of games · nothing chosen/).first()).toBeVisible();
+    await expect(page.getByTestId("corpus-provenance").first()).toContainText(/rated \d+–\d+/);
 
     await measureNow(page);
 
@@ -421,17 +440,19 @@ test.describe("measured from your own games", () => {
     });
     await expect(page.getByText(/25% of your games · nothing chosen/)).toBeVisible();
     await expect(page.getByText(/Measured from 40 of your own games as Black/)).toBeVisible();
-    // And the corpus number is gone, not merely covered by the new one.
-    await expect(page.getByText(/47% of games · nothing chosen/)).toHaveCount(0);
+    // And the corpus rows are gone, not merely covered by the new ones.
+    await expect(page.getByText(/\d+% of games · nothing chosen/)).toHaveCount(0);
 
     // ── The regression this whole substitution was moved for ─────────────
     // The summary and the row are two different sums over the same `reach`.
     // Substituting at the display fed the row and not the summary, and the
     // page said "1.e4, at 47% of games" three lines above "75% of your games".
+    // (47% was the Elite share; the banded corpora put it elsewhere. The bug
+    // was the two sums disagreeing, not the number either of them reached.)
     await expect(
       page.getByText(/The biggest thing you have no answer for is/)
     ).toContainText(/at 75% of your games/);
-    await expect(page.getByText(/at 47% of games/)).toHaveCount(0);
+    await expect(page.getByText(/at \d+% of games(?! ·)/)).toHaveCount(0);
     // Their forty games account for every root, so nothing is left over.
     await expect(page.getByText(/too rare to plan for/)).toHaveCount(0);
   });
@@ -468,7 +489,7 @@ test.describe("measured from your own games", () => {
 
     await expect(page.getByText(/none of them are aayan/i)).toBeVisible({ timeout: 15_000 });
     // The corpus numbers are still standing, unlabelled as personal.
-    await expect(page.getByText(/47% of games · nothing chosen/)).toBeVisible();
+    await expect(page.getByText(/\d+% of games · nothing chosen/).first()).toBeVisible();
     // Precisely the ROW phrasing: the note above legitimately contains the
     // words "of your games" while explaining why the rows do not.
     await expect(page.getByText(/% of your games · nothing chosen/)).toHaveCount(0);
@@ -487,7 +508,7 @@ test.describe("measured from your own games", () => {
     });
     await expect(page.getByText(/too few to work out your own frequencies/i)).toBeVisible();
     // The corpus numbers are still standing, unlabelled as personal.
-    await expect(page.getByText(/47% of games · nothing chosen/)).toBeVisible();
+    await expect(page.getByText(/\d+% of games · nothing chosen/).first()).toBeVisible();
     // Precisely the ROW phrasing: the note above legitimately contains the
     // words "of your games" while explaining why the rows do not.
     await expect(page.getByText(/% of your games · nothing chosen/)).toHaveCount(0);
@@ -518,7 +539,7 @@ test.describe("deciding, and stopping", () => {
     // The question comes BEFORE the fetch, so nothing is measured yet.
     await expect(page.getByText(/how much of what you play should change/i)).toBeVisible();
     await expect(page.getByText(/Measured from/)).toHaveCount(0);
-    await expect(page.getByText(/47% of games · nothing chosen/)).toBeVisible();
+    await expect(page.getByText(/\d+% of games · nothing chosen/).first()).toBeVisible();
 
     await page.getByRole("button", { name: /Keep what I play/i }).click();
     await expect(page.getByText(/Measured from 40 of your own games/)).toBeVisible({
@@ -700,5 +721,49 @@ test.describe("hierarchy and holes", () => {
     // And the edge is a real one, not the default hairline.
     const width = await openSicilian.evaluate((e) => getComputedStyle(e).borderLeftWidth);
     expect(parseFloat(width)).toBeGreaterThan(2);
+  });
+});
+
+/**
+ * The corpus the numbers came from, on screen.
+ *
+ * This is not a cosmetic line. Before the banded corpora existed, every share
+ * on this page was measured on Lichess Elite 2300+ while the page described
+ * them as the reader's own games. The sentence is derived from the map's own
+ * metadata rather than from the band that was requested, so a band whose file
+ * is missing degrades to the Elite map AND to a sentence admitting it. What a
+ * unit test cannot check is that the sentence reaches the screen at all, and
+ * that the number in it is the band's and not the Elite corpus's.
+ */
+test.describe("corpus provenance", () => {
+  test("names the reader's own band on the bracket", async ({ page }) => {
+    await stub(page, 1400);
+    await throughQuiz(page);
+    const line = page.getByTestId("corpus-provenance").first();
+    await expect(line).toBeVisible();
+    // 1400 is `improving`: 233k games, 1200-1599, and the claim earned.
+    await expect(line).toContainText("people at your level");
+    await expect(line).toContainText("1200–1599");
+    // The control. If the page had fallen back to Elite it would say 2300+,
+    // and 3.4M rather than 233k — the two failures are distinguishable.
+    await expect(line).not.toContainText("2300+");
+  });
+
+  test("admits the Elite corpus rather than claiming a band it does not have", async ({ page }) => {
+    await stub(page, 1400);
+    // Serve the request as though only the default map existed, which is what
+    // a deployment missing a banded file looks like.
+    await page.route("**/api/repertoire?band=*", async (route) => {
+      const res = await route.fetch({ url: new URL(route.request().url()).origin + "/api/repertoire" });
+      const body = await res.json();
+      body.meta.band = null;
+      body.meta.bandScale = null;
+      await route.fulfill({ json: body });
+    });
+    await throughQuiz(page);
+    const line = page.getByTestId("corpus-provenance").first();
+    await expect(line).toBeVisible();
+    await expect(line).toContainText("2300+");
+    await expect(line).not.toContainText("your level");
   });
 });

@@ -179,6 +179,27 @@ async function main() {
    * conversion and must say so rather than being converted twice.
    */
   const bandSpec = process.argv.find((a) => a.startsWith("--band="))?.split("=")[1] ?? null;
+  /**
+   * `--band-label=<id>` stamps the band into meta WITHOUT filtering, for input
+   * that was already split by band upstream (scripts/split-pgn-by-band.mjs).
+   *
+   * It exists because the split writes a MINIMAL pgn — `[Result]` and
+   * movetext, nothing else — so the rating headers `--band=` needs are gone by
+   * the time this script sees them. Passing `--band=` at that point would
+   * silently drop every game, which reads as "this band has no data" rather
+   * than as a mistake. The two are mutually exclusive for the same reason:
+   * whichever one is right, doing both means one of them is a lie.
+   */
+  const bandLabel =
+    process.argv.find((a) => a.startsWith("--band-label="))?.split("=")[1] ?? null;
+  if (bandSpec && bandLabel) {
+    console.error("--band= filters and --band-label= only labels. Pass one, not both.");
+    process.exit(1);
+  }
+  if (bandLabel && !["new", "beginner", "improving", "club", "strong"].includes(bandLabel)) {
+    console.error(`Unknown band "${bandLabel}".`);
+    process.exit(1);
+  }
   const bandPlatform =
     process.argv.find((a) => a.startsWith("--band-platform="))?.split("=")[1] ?? "lichess";
   if (bandSpec && !["new", "beginner", "improving", "club", "strong"].includes(bandSpec)) {
@@ -288,8 +309,9 @@ async function main() {
     // username — there are no top players in it to find, and the sixteen
     // regexes per game are pure cost on the one input where they can only be
     // wrong. The split writes no names at all for the same reason.
-    const whitePlayer = bandSpec ? null : matchTopPlayer(currentHeaders.White);
-    const blackPlayer = bandSpec ? null : matchTopPlayer(currentHeaders.Black);
+    const banded = bandSpec || bandLabel;
+    const whitePlayer = banded ? null : matchTopPlayer(currentHeaders.White);
+    const blackPlayer = banded ? null : matchTopPlayer(currentHeaders.Black);
     const result = currentHeaders.Result ?? "*";
 
     const chess = new Chess();
@@ -463,8 +485,12 @@ async function main() {
       // banded on one scale and consumed by a player banded on another is
       // wrong in a way that looks entirely reasonable, so the scale is
       // recorded and a consumer can assert it.
-      band: bandSpec,
-      bandScale: bandSpec ? "common (chess.com), converted from " + bandPlatform : null,
+      band: bandSpec ?? bandLabel,
+      bandScale:
+        bandSpec || bandLabel
+          ? "common (chess.com), converted from " + bandPlatform
+          : null,
+      bandFilter: bandSpec ? "here" : bandLabel ? "upstream" : null,
       gamesSkipped: bandSpec ? gamesSkipped : null,
       prunedPositions,
       source: process.env.CORPUS_LABEL ?? "Lichess Elite (2300+)",

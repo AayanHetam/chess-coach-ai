@@ -39,6 +39,14 @@ const nextConfig = {
     // does not fail the build — it 503s on the first production request.
     "/api/repertoire": ["./src/data/repertoire-map.json", "./src/data/repertoire-map.*.json"],
     "/api/openings/search": ["./src/data/openings.json"],
+    // /courses reads the repertoire map in getServerSideProps, with `fs`, to
+    // rank its "answers the most" shelf against the reader's band. Same blind
+    // spot as every other entry here: the tracer cannot see an fs read, and a
+    // map it did not copy does not fail the build — the shelf simply loses its
+    // blurbs and its ranking, in production only. Verified in
+    // .next/server/pages/courses.js.nft.json, which listed ZERO of these
+    // before this line existed.
+    "/courses": ["./src/data/repertoire-map.json", "./src/data/repertoire-map.*.json"],
     // One file is read per request, but the tracer needs the whole directory
     // named because the filename is only known at runtime from the id.
     // Named /api/opening-courses, not /api/courses: that path is already the

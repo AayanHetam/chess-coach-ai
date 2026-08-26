@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Backdrop,
   Box,
   Button,
+  Dialog,
+  DialogContent,
   IconButton,
-  Paper,
   Snackbar,
   Stack,
   Typography,
@@ -49,8 +49,6 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
       setDownloading(false);
     }
   }, [open]);
-
-  if (!open) return null;
 
   const handleDownload = async () => {
     try {
@@ -101,32 +99,35 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
   };
 
   return (
-    <Backdrop
-      open
-      onClick={onClose}
-      sx={{
-        zIndex: theme => theme.zIndex.modal + 8,
-        background: 'rgba(8, 9, 12, 0.72)',
-        backdropFilter: 'blur(8px)',
-      }}
-    >
-      <Paper
-        onClick={e => e.stopPropagation()}
-        elevation={24}
-        sx={{
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth={false}
+      // Backdrop's aria-hidden="true" was swallowing clicks on focused
+      // descendants (see issue #35 / PR #30) — Dialog handles focus trap,
+      // aria, and event propagation correctly.
+      PaperProps={{
+        sx: {
           width: 'min(92vw, 560px)',
           maxHeight: '92vh',
-          overflow: 'auto',
-          p: 3,
           borderRadius: '1.5rem',
           background: 'linear-gradient(180deg, rgba(20,22,28,0.92), rgba(12,14,20,0.92))',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           border: '1px solid rgba(255,255,255,0.08)',
           boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
-          position: 'relative',
-        }}
-      >
+        },
+      }}
+      slotProps={{
+        backdrop: {
+          sx: {
+            background: 'rgba(8, 9, 12, 0.72)',
+            backdropFilter: 'blur(8px)',
+          },
+        },
+      }}
+    >
+      <DialogContent sx={{ p: 3 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
           <Box>
             <Stack direction="row" spacing={1} alignItems="center">
@@ -345,7 +346,7 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
             </Alert>
           ) : undefined}
         </Snackbar>
-      </Paper>
-    </Backdrop>
+      </DialogContent>
+    </Dialog>
   );
 }

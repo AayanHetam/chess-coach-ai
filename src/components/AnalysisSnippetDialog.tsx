@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useAtomValue } from 'jotai';
 import {
   Alert,
   Box,
@@ -24,6 +25,7 @@ import {
   renderSnippetSvgToPng,
 } from '@/lib/analysisSnippet';
 import { loadPieceAssets, PieceAssetMap } from '@/lib/chessPieceAssets';
+import { pieceSetAtom } from '@/components/board/states';
 // Reuse clipboard + download helpers; they're generic. The rasterizer
 // from shareCard is hardcoded to 720×1024 and unsuitable here — we use
 // renderSnippetSvgToPng from analysisSnippet instead.
@@ -38,6 +40,9 @@ export interface AnalysisSnippetDialogProps {
 type ShareKind = 'single' | 'transcript';
 
 export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisSnippetDialogProps) {
+  // Match the card to whatever set the user actually picked on their live
+  // board, rather than a hardcoded default (issue #36).
+  const pieceSet = useAtomValue(pieceSetAtom);
   const [pieceAssets, setPieceAssets] = useState<PieceAssetMap | null>(null);
   const [copying, setCopying] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -64,8 +69,9 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
   // means subsequent opens resolve synchronously from cache.
   useEffect(() => {
     if (!open) return;
+    setPieceAssets(null); // clear the previous set's assets while the new one loads
     let cancelled = false;
-    loadPieceAssets()
+    loadPieceAssets(pieceSet)
       .then(assets => {
         if (!cancelled) setPieceAssets(assets);
       })
@@ -77,7 +83,7 @@ export default function AnalysisSnippetDialog({ open, onClose, data }: AnalysisS
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, pieceSet]);
 
   // POST the insight to /api/insights on open. The returned ID upgrades the
   // share URLs from ?fen= (lossy) to ?insightId=. Re-runs when shareKind

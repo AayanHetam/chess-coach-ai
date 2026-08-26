@@ -717,7 +717,15 @@ export default function ScoutPage() {
     searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
 
-  const runSearch = useCallback(async () => {
+  // /api/scout requires a signed-in session. Rather than pre-guess that from
+  // client-side auth state (which the E2E suite has no way to fake — /scout
+  // is tested by stubbing the network response entirely, per the comment atop
+  // scout-prep.spec.ts, so a client-side "are you signed in" check would block
+  // the request even when the stub would have answered it fine), react to
+  // what the server actually says: on a real 401, prompt sign-in and retry
+  // the search once it succeeds. Any other response — including a stubbed
+  // 200 in tests — flows through exactly as before.
+  const handleSearch = useCallback(async () => {
     const name = username.trim();
     if (!name) return;
     searchInFlightRef.current = true;
@@ -738,6 +746,17 @@ export default function ScoutPage() {
         headers: { 'Content-Type': 'application/json', ...(await getAuthHeader()) },
         body: JSON.stringify({ username: name, platform, months }),
       });
+
+      if (res.status === 401) {
+        setLoading(false);
+        searchInFlightRef.current = false;
+        openAuthDialog({
+          onClose: () => {
+            if (userRef.current) void handleSearchRef.current();
+          },
+        });
+        return;
+      }
 
       setStage('download');
       setProgress(p => Math.max(p, 0.4));
@@ -776,26 +795,13 @@ export default function ScoutPage() {
       setLoading(false);
       searchInFlightRef.current = false;
     }
-  }, [username, platform, months, colorFilter, minGames, runBuild]);
+  }, [username, platform, months, colorFilter, minGames, runBuild, openAuthDialog]);
 
-  // /api/scout requires a signed-in session (fetching an opponent's game
-  // history isn't rate-limit-safe to leave open to anonymous callers). Rather
-  // than let the request 401 and surface a raw "Not signed in." error, gate
-  // it here: prompt sign-in, and — only if they actually complete it — run
-  // the search that was waiting on it. Dismissing the dialog without signing
-  // in just leaves the user back where they started, no retry loop.
-  const handleSearch = useCallback(() => {
-    if (!username.trim()) return;
-    if (!userRef.current) {
-      openAuthDialog({
-        onClose: () => {
-          if (userRef.current) void runSearch();
-        },
-      });
-      return;
-    }
-    void runSearch();
-  }, [username, runSearch, openAuthDialog]);
+  // Read via a ref so the 401 retry above always calls the LATEST
+  // handleSearch (fresh username/platform/months) rather than the one
+  // closed over at the moment the dialog opened.
+  const handleSearchRef = useRef(handleSearch);
+  handleSearchRef.current = handleSearch;
 
   // ── Auto-scout from share-link query params (?u=...&p=chesscom|lichess) ──
   // Two-step: (1) seed state from the URL, (2) once `username`/`platform`
@@ -924,15 +930,6 @@ export default function ScoutPage() {
       setCollisionsError("Can't compare yourself to yourself 🙂");
       return;
     }
-    // /api/scout requires a session. scoutResult can be populated signed-out
-    // via a shared snapshot link (?scoutId=, which reads a pre-baked snapshot
-    // and never calls /api/scout), so this comparison — which does call it —
-    // needs its own check rather than inheriting handleSearch's gate.
-    if (!user) {
-      setCollisions(null);
-      setCollisionsError('Sign in to compare your games against theirs.');
-      return;
-    }
     let cancelled = false;
     setCollisionsError(null);
     const t = setTimeout(async () => {
@@ -947,6 +944,12 @@ export default function ScoutPage() {
             months: 12,
           }),
         });
+        if (res.status === 401) {
+          if (cancelled) return;
+          setCollisions(null);
+          setCollisionsError('Sign in to compare your games against theirs.');
+          return;
+        }
         const data = await res.json();
         if (cancelled) return;
         if (!res.ok) {
@@ -980,7 +983,7 @@ export default function ScoutPage() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [scoutResult, yourUsername, user]);
+  }, [scoutResult, yourUsername]);
 
   // Head-to-head. Prefer a rating you actually played to; fall back to the
   // self-reported one on the profile, and label it as such so the odds are not

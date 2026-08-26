@@ -22,6 +22,7 @@ import {
   ShareCardData,
   triggerDownload,
 } from '@/lib/shareCard';
+import { ROSE } from './dossier';
 
 export interface ShareCardDialogProps {
   open: boolean;
@@ -129,7 +130,7 @@ export default function ShareCardDialog({ open, onClose, data, snapshotId }: Sha
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
           <Box>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Icon icon="mdi:share-variant" width={20} style={{ color: '#FB923C' }} />
+              <Icon icon="mdi:share-variant" width={20} style={{ color: ROSE.bright }} />
               <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', color: 'rgba(255,255,255,0.94)' }}>
                 Share {data.username}&apos;s card
               </Typography>

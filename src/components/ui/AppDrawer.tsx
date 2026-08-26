@@ -20,6 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Logo } from "./Logo";
+import { surfaceAccent } from "./accents";
 import ChatHistoryList from "@/components/chat/ChatHistoryList";
 import { EmployeePill } from "@/components/intern/EmployeePill";
 import { useViewer } from "@/hooks/useViewer";
@@ -261,6 +262,9 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                   const targetHref = item.href;
                   const active = resolvedActiveId === item.id;
                   const Icon = item.icon;
+                  // Mirrors NavPill: the active surface wears its identity
+                  // colour here too, so both navs speak the same language.
+                  const a = surfaceAccent(item.id);
                   return (
                     <motion.div
                       key={item.id}
@@ -285,20 +289,20 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                           borderRadius: "10px",
                           textDecoration: "none",
                           background: active
-                            ? "linear-gradient(135deg, rgba(249,115,22,0.16), rgba(234,88,12,0.08))"
+                            ? `linear-gradient(135deg, ${a.soft}, ${a.tint})`
                             : "transparent",
                           border: active
-                            ? "1px solid rgba(249,115,22,0.32)"
+                            ? `1px solid ${a.border}`
                             : "1px solid transparent",
                           color: active
-                            ? "#FB923C"
+                            ? a.bright
                             : "rgba(255,255,255,0.78)",
                           transition: "all 180ms ease",
                           "&:hover": {
                             background: active
-                              ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(234,88,12,0.12))"
+                              ? `linear-gradient(135deg, ${a.soft}, ${a.soft})`
                               : "rgba(255,255,255,0.04)",
-                            color: active ? "#FB923C" : "rgba(255,255,255,0.95)",
+                            color: active ? a.bright : "rgba(255,255,255,0.95)",
                             transform: "translateX(2px)",
                           },
                         }}
@@ -309,10 +313,10 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                             height: 28,
                             borderRadius: "8px",
                             background: active
-                              ? "rgba(249,115,22,0.2)"
+                              ? a.soft
                               : "rgba(255,255,255,0.04)",
                             border: active
-                              ? "1px solid rgba(249,115,22,0.35)"
+                              ? `1px solid ${a.border}`
                               : "1px solid rgba(255,255,255,0.06)",
                             display: "flex",
                             alignItems: "center",
@@ -350,8 +354,8 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                               width: 6,
                               height: 6,
                               borderRadius: "50%",
-                              background: "#F97316",
-                              boxShadow: "0 0 8px rgba(249,115,22,0.7)",
+                              background: a.base,
+                              boxShadow: `0 0 8px ${a.border}`,
                             }}
                           />
                         )}

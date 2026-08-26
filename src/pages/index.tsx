@@ -31,8 +31,15 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
+import { surfaceAccent, type Accent } from "@/components/ui/accents";
 
 const ChessgroundBoard = dynamic(
   () =>
@@ -58,6 +65,51 @@ const HOME_TITLE = "Chess Masti AI — engine-grounded chess coaching, free";
 const HOME_DESC =
   "AI chess coach: Stockfish 17 evaluates first, Claude explains, a hallucination validator checks every claim. 100,000+ Lichess puzzles in a Neo4j graph. Free.";
 const HOME_OG_IMAGE = "https://chessmasti.com/social-networks-1200x630.png";
+
+/**
+ * Identity accents for the product surfaces this page advertises — the same
+ * colours the in-app nav and /plan wear (SURFACE_ACCENTS), so the landing
+ * page teaches the site's colour language before the visitor signs in.
+ * Ember stays the action colour: the hero, every CTA, and the coach itself
+ * keep their palette untouched. All values are static constants, so nothing
+ * here can diverge between prerender and hydration.
+ */
+const PRACTICE_ACCENT = surfaceAccent("practice"); // violet
+const ANALYSIS_ACCENT = surfaceAccent("analysis"); // cyan
+const PLAY_ACCENT = surfaceAccent("play"); // jade
+const SCOUT_ACCENT = surfaceAccent("scout"); // rose
+
+/**
+ * The /plan GlassCard accent recipe, shaped for BentoCard's `style` prop:
+ * faint radial tint at the card top, accent border, soft glow. The glass
+ * base stays BentoCard's own rgba(20,22,28,0.55).
+ */
+function bentoAccentStyle(a: Accent): CSSProperties {
+  return {
+    background: `radial-gradient(120% 55% at 50% 0%, ${a.tint}, transparent 70%), linear-gradient(180deg, rgba(20,22,28,0.55), rgba(20,22,28,0.55))`,
+    border: `1px solid ${a.border}`,
+    boxShadow: `0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), ${a.glow}`,
+  };
+}
+
+/** Decorative top hairline from the /plan card treatment (its ::before). */
+function AccentHairline({ a }: { a: Accent }) {
+  return (
+    <Box
+      aria-hidden
+      sx={{
+        position: "absolute",
+        top: 0,
+        left: "8%",
+        right: "8%",
+        height: "1.5px",
+        background: `linear-gradient(90deg, transparent, ${a.base}, transparent)`,
+        opacity: 0.65,
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
 
 const launchTheme = createTheme({
   palette: {
@@ -753,7 +805,9 @@ function BentoSection() {
           gridColumn={{ xs: "1 / -1", md: "span 7" }}
           beam
           revealDelay={0}
+          style={bentoAccentStyle(ANALYSIS_ACCENT)}
         >
+          <AccentHairline a={ANALYSIS_ACCENT} />
           <Stack
             sx={{ height: "100%", justifyContent: "space-between" }}
             spacing={3}
@@ -763,15 +817,14 @@ function BentoSection() {
                 width: 44,
                 height: 44,
                 borderRadius: "12px",
-                background:
-                  "linear-gradient(135deg, rgba(249,115,22,0.2), rgba(168,85,247,0.2))",
-                border: "1px solid rgba(249,115,22,0.3)",
+                background: ANALYSIS_ACCENT.soft,
+                border: `1px solid ${ANALYSIS_ACCENT.border}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <Cpu size={22} color="#F97316" />
+              <Cpu size={22} color={ANALYSIS_ACCENT.bright} />
             </Box>
             <Box>
               <Typography
@@ -885,21 +938,23 @@ function BentoSection() {
         <BentoCard
           gridColumn={{ xs: "1 / -1", md: "span 4" }}
           revealDelay={0.16}
+          style={bentoAccentStyle(PRACTICE_ACCENT)}
         >
+          <AccentHairline a={PRACTICE_ACCENT} />
           <Box
             sx={{
               width: 44,
               height: 44,
               borderRadius: "12px",
-              background: "rgba(168,85,247,0.12)",
-              border: "1px solid rgba(168,85,247,0.3)",
+              background: PRACTICE_ACCENT.soft,
+              border: `1px solid ${PRACTICE_ACCENT.border}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               mb: 3,
             }}
           >
-            <Puzzle size={22} color="#A855F7" />
+            <Puzzle size={22} color={PRACTICE_ACCENT.bright} />
           </Box>
           <Typography
             sx={{
@@ -939,21 +994,23 @@ function BentoSection() {
           beam
           beamDelay={2}
           revealDelay={0.24}
+          style={bentoAccentStyle(PLAY_ACCENT)}
         >
+          <AccentHairline a={PLAY_ACCENT} />
           <Box
             sx={{
               width: 44,
               height: 44,
               borderRadius: "12px",
-              background: "rgba(249,115,22,0.12)",
-              border: "1px solid rgba(249,115,22,0.3)",
+              background: PLAY_ACCENT.soft,
+              border: `1px solid ${PLAY_ACCENT.border}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               mb: 3,
             }}
           >
-            <Bot size={22} color="#F97316" />
+            <Bot size={22} color={PLAY_ACCENT.bright} />
           </Box>
           <Typography
             variant="h3"
@@ -1021,7 +1078,9 @@ function BentoSection() {
         <BentoCard
           gridColumn={{ xs: "1 / -1", md: "span 12" }}
           revealDelay={0.1}
+          style={bentoAccentStyle(SCOUT_ACCENT)}
         >
+          <AccentHairline a={SCOUT_ACCENT} />
           <Stack
             direction={{ xs: "column", md: "row" }}
             spacing={4}
@@ -1033,16 +1092,15 @@ function BentoSection() {
                 width: 56,
                 height: 56,
                 borderRadius: "14px",
-                background:
-                  "linear-gradient(135deg, rgba(249,115,22,0.2), rgba(168,85,247,0.2))",
-                border: "1px solid rgba(249,115,22,0.3)",
+                background: SCOUT_ACCENT.soft,
+                border: `1px solid ${SCOUT_ACCENT.border}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
               }}
             >
-              <Crosshair size={28} color="#F97316" />
+              <Crosshair size={28} color={SCOUT_ACCENT.bright} />
             </Box>
             <Box sx={{ flex: 1 }}>
               <Typography
@@ -1207,19 +1265,28 @@ function DailyPuzzleSection() {
           sx={{
             position: "relative",
             borderRadius: "2rem",
-            background:
-              "linear-gradient(135deg, rgba(168,85,247,0.06), rgba(20,22,28,0.6))",
+            background: `linear-gradient(135deg, ${PRACTICE_ACCENT.tint}, rgba(20,22,28,0.6))`,
             backdropFilter: "blur(16px) saturate(150%)",
             WebkitBackdropFilter: "blur(16px) saturate(150%)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            boxShadow:
-              "0 16px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)",
+            border: `1px solid ${PRACTICE_ACCENT.border}`,
+            boxShadow: `0 16px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06), ${PRACTICE_ACCENT.glow}`,
             p: { xs: 4, md: 6 },
             display: "grid",
             gridTemplateColumns: { xs: "1fr", md: "1.05fr 0.95fr" },
             gap: { xs: 4, md: 6 },
             alignItems: "center",
             overflow: "hidden",
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              top: 0,
+              left: "8%",
+              right: "8%",
+              height: "1.5px",
+              background: `linear-gradient(90deg, transparent, ${PRACTICE_ACCENT.base}, transparent)`,
+              opacity: 0.65,
+              pointerEvents: "none",
+            },
           }}
         >
           <Box
@@ -1230,8 +1297,7 @@ function DailyPuzzleSection() {
               height: "150%",
               top: "-25%",
               right: "-15%",
-              background:
-                "radial-gradient(ellipse at center, rgba(249,115,22,0.12), transparent 60%)",
+              background: `radial-gradient(ellipse at center, ${PRACTICE_ACCENT.soft}, transparent 60%)`,
               pointerEvents: "none",
             }}
           />
@@ -1243,15 +1309,14 @@ function DailyPuzzleSection() {
                   width: 40,
                   height: 40,
                   borderRadius: "10px",
-                  background:
-                    "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(168,85,247,0.18))",
-                  border: "1px solid rgba(249,115,22,0.3)",
+                  background: PRACTICE_ACCENT.soft,
+                  border: `1px solid ${PRACTICE_ACCENT.border}`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <Flame size={20} color="#F97316" />
+                <Flame size={20} color={PRACTICE_ACCENT.bright} />
               </Box>
               <Box>
                 <Typography

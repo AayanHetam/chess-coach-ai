@@ -4,6 +4,7 @@ import { Box, Typography } from "@mui/material";
 import { BookOpen } from "lucide-react";
 import type { ThemeReference } from "@/lib/puzzle/themeReference";
 import { SERIF_DISPLAY } from "@/theme/fonts";
+import { ACCENTS } from "@/components/ui/accents";
 
 /**
  * The Reference tool's panel: what this puzzle's motif actually is.
@@ -24,12 +25,13 @@ export function PuzzleReferenceCard({
         mt: 2,
         p: 2,
         borderRadius: "0.85rem",
-        background: "rgba(22,18,14,0.6)",
-        border: "1px solid rgba(255,255,255,0.1)",
+        // Theory/reference wears gold, same as lessons and courses do.
+        background: `linear-gradient(180deg, ${ACCENTS.gold.tint}, rgba(22,18,14,0.6))`,
+        border: `1px solid ${ACCENTS.gold.border}`,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-        <BookOpen size={15} color="#FFD1A8" aria-hidden />
+        <BookOpen size={15} color={ACCENTS.gold.bright} aria-hidden />
         <Typography
           sx={{
             fontFamily: SERIF_DISPLAY,

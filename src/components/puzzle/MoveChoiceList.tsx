@@ -4,6 +4,7 @@ import { Box, Typography } from "@mui/material";
 import { Check, X } from "lucide-react";
 import type { MoveChoice } from "@/lib/puzzle/moveChoices";
 import { SERIF_DISPLAY } from "@/theme/fonts";
+import { ACCENTS } from "@/components/ui/accents";
 
 /**
  * Multiple-choice answer rows.
@@ -73,7 +74,7 @@ export function MoveChoiceList({
           : showWrong
           ? "1.5px solid rgba(248,113,113,0.6)"
           : isChosen
-          ? "1.5px solid rgba(255,122,26,0.65)"
+          ? `1.5px solid ${ACCENTS.violet.base}`
           : "1.5px solid rgba(255,255,255,0.14)";
 
         return (
@@ -104,7 +105,7 @@ export function MoveChoiceList({
                 : showWrong
                 ? "rgba(248,113,113,0.10)"
                 : isChosen
-                ? "rgba(255,122,26,0.10)"
+                ? ACCENTS.violet.tint
                 : "rgba(22,18,14,0.55)",
               cursor: disabled ? "default" : "pointer",
               opacity: disabled && !isChosen && !showCorrect ? 0.55 : 1,
@@ -112,9 +113,9 @@ export function MoveChoiceList({
                 "border-color 180ms ease-out, background 180ms ease-out",
               "&:hover": disabled
                 ? undefined
-                : { borderColor: "rgba(255,122,26,0.5)" },
+                : { borderColor: ACCENTS.violet.border },
               "&:focus-visible": {
-                outline: "2px solid rgba(255,122,26,0.8)",
+                outline: `2px solid ${ACCENTS.violet.base}`,
                 outlineOffset: 2,
               },
             }}

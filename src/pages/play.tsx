@@ -9,6 +9,7 @@ import { useState } from "react";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
+import { ACCENTS } from "@/components/ui/accents";
 
 type PlayMode = "lichess" | "chesscom";
 
@@ -38,8 +39,8 @@ export default function Play() {
         <NavPill active="play" />
 
         <Box sx={{ width: "100%", maxWidth: 1280, mx: "auto", mt: 2 }}>
-          {/* Tab switcher — glass segmented track; ember-tinted active pill
-              (orange demoted from fill to accent per the design OS). */}
+          {/* Tab switcher — glass segmented track; jade-tinted active pill,
+              Play's surface identity (see SURFACE_ACCENTS). */}
           <Tabs
             value={mode}
             onChange={(_, v) => setMode(v as PlayMode)}
@@ -70,13 +71,13 @@ export default function Play() {
                 zIndex: 1,
                 "&:hover": { color: "rgba(255,255,255,0.92)" },
               },
-              "& .Mui-selected": { color: "#FB923C !important" },
+              "& .Mui-selected": { color: `${ACCENTS.jade.bright} !important` },
               "& .MuiTabs-indicator": {
                 height: "100%",
                 borderRadius: "999px",
-                background: "rgba(249,115,22,0.16)",
-                border: "1px solid rgba(249,115,22,0.4)",
-                boxShadow: "0 0 0 1px rgba(249,115,22,0.18)",
+                background: ACCENTS.jade.soft,
+                border: `1px solid ${ACCENTS.jade.border}`,
+                boxShadow: `0 0 0 1px ${ACCENTS.jade.tint}`,
                 zIndex: 0,
               },
             }}

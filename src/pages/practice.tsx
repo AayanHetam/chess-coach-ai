@@ -17,6 +17,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
+import { ACCENTS } from "@/components/ui/accents";
 
 /**
  * /practice — a thin modes hub.
@@ -31,6 +32,9 @@ import { NavPill } from "@/components/ui/NavPill";
 type Mode = "hub" | "rush" | "pattern";
 
 const PAGE_BOX_SX = { width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } };
+
+/** Practice/training surface identity — the violet the NavPill pill wears. */
+const VIOLET = ACCENTS.violet;
 
 export default function Practice() {
   const router = useRouter();
@@ -62,7 +66,7 @@ export default function Practice() {
         <Head>
           <meta name="color-scheme" content="dark" />
           <meta name="theme-color" content="#08090C" />
-          <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
+          <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
         </Head>
 
         <GradientBackdrop />
@@ -95,7 +99,7 @@ export default function Practice() {
         <Head>
           <meta name="color-scheme" content="dark" />
           <meta name="theme-color" content="#08090C" />
-          <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
+          <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
         </Head>
 
         <GradientBackdrop />
@@ -127,7 +131,7 @@ export default function Practice() {
       <Head>
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content="#08090C" />
-        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
+        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
       </Head>
 
       <GradientBackdrop />
@@ -150,7 +154,7 @@ export default function Practice() {
               letterSpacing: "0.14em",
               textTransform: "uppercase",
               fontSize: "0.72rem",
-              color: "#FB923C",
+              color: VIOLET.bright,
               mb: 0.75,
             }}
           >
@@ -225,29 +229,29 @@ function ModeCard({
         gap: 2,
         borderRadius: "1.5rem",
         overflow: "hidden",
+        // Card chrome wears the surface violet; the CTA button keeps ember —
+        // ember stays the action colour sitewide.
         background: highlight
-          ? "linear-gradient(135deg, rgba(249,115,22,0.08), rgba(20,22,28,0.6))"
+          ? `radial-gradient(120% 60% at 50% 0%, ${VIOLET.tint}, transparent 70%), linear-gradient(135deg, rgba(20,22,28,0.6), rgba(20,22,28,0.6))`
           : "rgba(20,22,28,0.55)",
         backdropFilter: "blur(14px) saturate(140%)",
         WebkitBackdropFilter: "blur(14px) saturate(140%)",
         border: highlight
-          ? "1px solid rgba(249,115,22,0.35)"
+          ? `1px solid ${VIOLET.border}`
           : "1px solid rgba(255,255,255,0.08)",
         boxShadow: highlight
-          ? "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(249,115,22,0.18)"
+          ? `0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), ${VIOLET.glow}`
           : "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
         transition: "all 180ms ease",
         "&:hover": {
           transform: "translateY(-2px)",
-          borderColor: highlight
-            ? "rgba(249,115,22,0.5)"
-            : "rgba(255,255,255,0.16)",
+          borderColor: highlight ? VIOLET.base : "rgba(255,255,255,0.16)",
         },
       }}
     >
       <Box
         sx={{
-          color: "#FB923C",
+          color: VIOLET.bright,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -257,8 +261,8 @@ function ModeCard({
             height: 44,
             flexShrink: 0,
             borderRadius: "12px",
-            background: "rgba(249,115,22,0.12)",
-            border: "1px solid rgba(249,115,22,0.25)",
+            background: VIOLET.soft,
+            border: `1px solid ${VIOLET.border}`,
           }),
         }}
       >
@@ -299,9 +303,9 @@ function ModeCard({
                 borderColor: "rgba(255,255,255,0.18)",
                 background: "rgba(255,255,255,0.04)",
                 "&:hover": {
-                  borderColor: "rgba(249,115,22,0.4)",
-                  color: "#FB923C",
-                  background: "rgba(249,115,22,0.12)",
+                  borderColor: VIOLET.border,
+                  color: VIOLET.bright,
+                  background: VIOLET.soft,
                 },
                 textTransform: "none",
                 fontWeight: 600,

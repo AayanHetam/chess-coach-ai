@@ -43,8 +43,12 @@ import {
   type CourseProgress,
   type FilterId,
 } from "@/lib/courses/catalogue";
+import { ACCENTS } from "@/components/ui/accents";
 
-const EMBER = "#FB923C";
+// Ember stays the action colour; gold is the lessons surface's identity —
+// the same gold the NavPill's Learn pill wears.
+const EMBER = ACCENTS.ember.bright;
+const GOLD = ACCENTS.gold;
 
 interface Props {
   entries: CatalogueEntry[];
@@ -166,11 +170,23 @@ export default function CoursesPage({ entries }: Props) {
             // is what separates "a page with rows on it" from "a library". The
             // rails scroll inside it, so the panel also gives them an edge to
             // run to instead of bleeding off the viewport.
+            //
+            // The panel is the surface's card frame, so it wears the gold
+            // identity: gold border, radial tint at the top, soft glow and a
+            // top hairline — the treatment /plan's accented cards get.
+            position: "relative", overflow: "hidden",
             borderRadius: "1.5rem",
-            border: "1px solid rgba(255,255,255,0.07)",
-            background: "rgba(255,255,255,0.022)",
+            border: `1px solid ${GOLD.border}`,
+            background: `radial-gradient(120% 40% at 50% 0%, ${GOLD.tint}, transparent 70%), rgba(255,255,255,0.022)`,
+            boxShadow: GOLD.glow,
             backdropFilter: "blur(12px)",
             px: { xs: 2, md: 3.5 }, py: { xs: 2.5, md: 3.5 },
+            "&::before": {
+              content: '""', position: "absolute", top: 0, left: "8%", right: "8%",
+              height: "1.5px",
+              background: `linear-gradient(90deg, transparent, ${GOLD.base}, transparent)`,
+              opacity: 0.65,
+            },
           }}
         >
           <Typography component="h1" sx={{ color: "#fff", fontSize: { xs: "1.6rem", md: "2rem" }, fontWeight: 800, letterSpacing: "-0.02em", mb: 0.75 }}>

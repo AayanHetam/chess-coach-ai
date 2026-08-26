@@ -9,6 +9,7 @@ import type { SessionResult } from "@/lib/puzzleSession";
 import { buildRailRows, type RowState } from "@/lib/puzzle/railRows";
 import { SERIF_DISPLAY } from "@/theme/fonts";
 import { useAuth } from "@/contexts/AuthContext";
+import { ACCENTS } from "@/components/ui/accents";
 
 /**
  * PuzzleSessionRail — the left navigator on /puzzles.
@@ -29,7 +30,8 @@ const RAIL_BG = "rgba(12,10,8,0.72)";
 const RAIL_EDGE = "1px solid rgba(255,255,255,0.08)";
 const TEXT = "rgba(255,240,224,0.92)";
 const TEXT_DIM = "rgba(255,240,224,0.5)";
-const EMBER = "#FF7A1A";
+/** Practice-surface identity — the violet the NavPill "Practice" pill wears. */
+const VIOLET = ACCENTS.violet;
 
 function StatusGlyph({ state }: { state: RowState }) {
   if (state === "solved" || state === "failed") {
@@ -64,7 +66,7 @@ function StatusGlyph({ state }: { state: RowState }) {
         borderRadius: "999px",
         border:
           state === "current"
-            ? `2px solid ${EMBER}`
+            ? `2px solid ${VIOLET.base}`
             : "2px solid rgba(255,240,224,0.28)",
       }}
     />
@@ -114,7 +116,8 @@ export function PuzzleSessionRail({
         minHeight: 0,
         height: "100%",
         borderRadius: "1.5rem",
-        background: RAIL_BG,
+        // Violet identity tint at the rail top, over the same dark glass.
+        background: `radial-gradient(120% 40% at 50% 0%, ${VIOLET.tint}, transparent 70%), linear-gradient(${RAIL_BG}, ${RAIL_BG})`,
         backdropFilter: "blur(16px) saturate(150%)",
         WebkitBackdropFilter: "blur(16px) saturate(150%)",
         border: RAIL_EDGE,
@@ -216,12 +219,10 @@ export function PuzzleSessionRail({
                   cursor: clickable ? "pointer" : "default",
                   // Highlight follows `isCurrent`, the glyph follows `state`.
                   // A solved puzzle you are still looking at is ONE row: green
-                  // check, ember highlight.
-                  background: row.isCurrent
-                    ? "rgba(255,122,26,0.10)"
-                    : "transparent",
+                  // check, violet highlight.
+                  background: row.isCurrent ? VIOLET.tint : "transparent",
                   border: row.isCurrent
-                    ? "1px solid rgba(255,122,26,0.28)"
+                    ? `1px solid ${VIOLET.border}`
                     : "1px solid transparent",
                   transition: "background 180ms ease-out",
                   "&:hover": clickable
@@ -282,7 +283,7 @@ export function PuzzleSessionRail({
         >
           <Avatar
             src={user?.photoURL || undefined}
-            sx={{ width: 34, height: 34, bgcolor: "rgba(255,122,26,0.2)" }}
+            sx={{ width: 34, height: 34, bgcolor: VIOLET.soft }}
           >
             {displayName.charAt(0).toUpperCase()}
           </Avatar>

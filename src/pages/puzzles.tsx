@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
+import { ACCENTS, themeAccent, type Accent } from "@/components/ui/accents";
 import { PuzzleCoachPanel } from "@/components/puzzle/PuzzleCoachPanel";
 import type {
   CoachHighlight,
@@ -169,6 +170,9 @@ const puzzleTheme = createTheme({
 });
 
 const EASE_OUT_STRONG: [number, number, number, number] = [0.23, 1, 0.32, 1];
+
+/** Practice/training surface identity — the violet the NavPill pill wears. */
+const VIOLET = ACCENTS.violet;
 
 /**
  * A compact set of the most-pedagogically-useful Lichess themes for
@@ -1632,7 +1636,7 @@ export default function PreviewPuzzlesPage() {
           ::-webkit-scrollbar { width: 8px; height: 8px; }
           ::-webkit-scrollbar-track { background: transparent; }
           ::-webkit-scrollbar-thumb {
-            background: rgba(255,122,26,0.18);
+            background: ${VIOLET.soft};
             border-radius: 4px;
           }
         `}</style>
@@ -1702,17 +1706,17 @@ export default function PreviewPuzzlesPage() {
                   px: 1.5,
                   py: 0.6,
                   borderRadius: "999px",
-                  background: "rgba(255,122,26,0.08)",
-                  border: "1px solid rgba(255,122,26,0.22)",
+                  background: VIOLET.tint,
+                  border: `1px solid ${VIOLET.border}`,
                 }}
               >
-                <Sparkles size={12} color="#FFD1A8" />
+                <Sparkles size={12} color={VIOLET.bright} />
                 <Typography
                   sx={{
                     fontSize: "0.68rem",
                     fontWeight: 700,
                     letterSpacing: "0.18em",
-                    color: "#FFD1A8",
+                    color: VIOLET.bright,
                     textTransform: "uppercase",
                   }}
                 >
@@ -1752,8 +1756,7 @@ export default function PreviewPuzzlesPage() {
               <Box
                 component="span"
                 sx={{
-                  background:
-                    "linear-gradient(135deg, #FF7A1A, #FB923C, #FBBF24)",
+                  background: `linear-gradient(135deg, ${VIOLET.base}, ${VIOLET.bright})`,
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   backgroundClip: "text",
@@ -1781,6 +1784,12 @@ export default function PreviewPuzzlesPage() {
                 id: t.id === null ? "__all__" : t.id,
                 label: t.label,
                 active: activeTheme === t.id,
+                // Each motif keeps its one sitewide colour (fork gold, pin
+                // cyan…) via the curriculum id; "All" wears the surface violet.
+                accent:
+                  t.id === null
+                    ? VIOLET
+                    : themeAccent(FEED_TO_CURRICULUM_THEME[t.id] ?? t.id),
               }))}
               onClick={(id) => handleThemeClick(id === "__all__" ? null : id)}
             />
@@ -1791,6 +1800,8 @@ export default function PreviewPuzzlesPage() {
                 id: b.id,
                 label: b.label,
                 active: activeBand === b.id,
+                // Difficulty is surface chrome, not a motif — plain violet.
+                accent: VIOLET,
               }))}
               onClick={handleBandClick}
             />
@@ -1808,14 +1819,17 @@ export default function PreviewPuzzlesPage() {
                 px: 2,
                 py: 1,
                 borderRadius: "999px",
-                background:
-                  "linear-gradient(135deg, rgba(255,122,26,0.16), rgba(255,140,66,0.06))",
-                border: "1px solid rgba(255,122,26,0.35)",
+                background: `linear-gradient(135deg, ${VIOLET.soft}, ${VIOLET.tint})`,
+                border: `1px solid ${VIOLET.border}`,
               }}
             >
-              <RotateCcw size={15} color="#FFD1A8" />
+              <RotateCcw size={15} color={VIOLET.bright} />
               <Typography
-                sx={{ fontSize: "0.85rem", fontWeight: 600, color: "#FFD1A8" }}
+                sx={{
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  color: VIOLET.bright,
+                }}
               >
                 {practiceLabel ?? "Re-practicing missed puzzles"} ·{" "}
                 {Math.min(practiceIdx + 1, practiceList.length)} of{" "}
@@ -1837,7 +1851,7 @@ export default function PreviewPuzzlesPage() {
                   fontSize: "0.78rem",
                   fontWeight: 600,
                   textTransform: "none",
-                  "&:hover": { color: "#FFD1A8" },
+                  "&:hover": { color: VIOLET.bright },
                 }}
               >
                 Exit
@@ -1905,8 +1919,10 @@ export default function PreviewPuzzlesPage() {
                 sx={{
                   position: "relative",
                   borderRadius: "1.5rem",
-                  background:
-                    "linear-gradient(135deg, rgba(255,122,26,0.04), rgba(22,18,14,0.6))",
+                  // Surface-identity treatment (see plan.tsx GlassCard):
+                  // violet radial tint at the card top over the dark glass.
+                  // Solved/wrong verdict rings below stay green/red.
+                  background: `radial-gradient(120% 55% at 50% 0%, ${VIOLET.tint}, transparent 70%), linear-gradient(135deg, rgba(22,18,14,0.6), rgba(22,18,14,0.6))`,
                   backdropFilter: "blur(16px) saturate(150%)",
                   WebkitBackdropFilter: "blur(16px) saturate(150%)",
                   border: "1px solid rgba(255,255,255,0.08)",
@@ -1915,8 +1931,20 @@ export default function PreviewPuzzlesPage() {
                       ? "0 24px 64px -16px rgba(34,197,94,0.25), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(34,197,94,0.32)"
                       : status === "wrong"
                         ? "0 24px 64px -16px rgba(239,68,68,0.2), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(239,68,68,0.32)"
-                        : "0 24px 64px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
+                        : `0 24px 64px -20px rgba(0,0,0,0.6), ${VIOLET.glow}, inset 0 1px 0 rgba(255,255,255,0.05)`,
                   transition: "box-shadow 320ms cubic-bezier(0.23, 1, 0.32, 1)",
+                  // Accent top hairline, same recipe as plan.tsx's cards.
+                  "&::before": {
+                    content: '""',
+                    position: "absolute",
+                    top: 0,
+                    left: "8%",
+                    right: "8%",
+                    height: "1.5px",
+                    background: `linear-gradient(90deg, transparent, ${VIOLET.base}, transparent)`,
+                    opacity: 0.65,
+                    pointerEvents: "none",
+                  },
                   p: { xs: 2, md: 3 },
                   // At lg the card takes the column's height and the board
                   // sizes itself from what's left. A fixed 540 min-height here
@@ -2057,12 +2085,12 @@ export default function PreviewPuzzlesPage() {
                               borderRadius: "999px",
                               background: "rgba(22,18,14,0.92)",
                               backdropFilter: "blur(10px)",
-                              border: "1px solid rgba(255,122,26,0.32)",
+                              border: `1px solid ${VIOLET.border}`,
                               boxShadow: "0 12px 32px -10px rgba(0,0,0,0.5)",
                               zIndex: 5,
                             }}
                           >
-                            <Sparkles size={12} color="#FFD1A8" />
+                            <Sparkles size={12} color={VIOLET.bright} />
                             <Typography
                               sx={{
                                 fontSize: "0.74rem",
@@ -2085,12 +2113,12 @@ export default function PreviewPuzzlesPage() {
                                 fontSize: "0.72rem",
                                 fontWeight: 700,
                                 borderRadius: "999px",
-                                color: "#FFD1A8",
-                                background: "rgba(255,122,26,0.14)",
-                                border: "1px solid rgba(255,122,26,0.32)",
+                                color: VIOLET.bright,
+                                background: VIOLET.soft,
+                                border: `1px solid ${VIOLET.border}`,
                                 textTransform: "none",
                                 "&:hover": {
-                                  background: "rgba(255,122,26,0.22)",
+                                  background: VIOLET.border,
                                 },
                               }}
                             >
@@ -2133,13 +2161,13 @@ export default function PreviewPuzzlesPage() {
                               ? "rgba(34,197,94,0.14)"
                               : status === "wrong"
                                 ? "rgba(239,68,68,0.14)"
-                                : "rgba(255,122,26,0.1)",
+                                : VIOLET.tint,
                           border:
                             status === "solved"
                               ? "1px solid rgba(34,197,94,0.35)"
                               : status === "wrong"
                                 ? "1px solid rgba(239,68,68,0.35)"
-                                : "1px solid rgba(255,122,26,0.28)",
+                                : `1px solid ${VIOLET.border}`,
                         }}
                       >
                         {status === "solved" ? (
@@ -2147,7 +2175,7 @@ export default function PreviewPuzzlesPage() {
                         ) : status === "wrong" ? (
                           <X size={13} color="#fca5a5" />
                         ) : (
-                          <Lightbulb size={13} color="#FFD1A8" />
+                          <Lightbulb size={13} color={VIOLET.bright} />
                         )}
                         {/* One element, two kinds of text, so the face has to
                             switch with it. "White to move" is the question —
@@ -2174,7 +2202,7 @@ export default function PreviewPuzzlesPage() {
                                 ? "#86efac"
                                 : status === "wrong"
                                   ? "#fca5a5"
-                                  : "#FFD1A8",
+                                  : VIOLET.bright,
                           }}
                         >
                           {status === "solved"
@@ -2206,8 +2234,8 @@ export default function PreviewPuzzlesPage() {
                         sx={{
                           color: "rgba(255,240,224,0.55)",
                           "&:hover": {
-                            color: "#FFD1A8",
-                            background: "rgba(255,122,26,0.08)",
+                            color: VIOLET.bright,
+                            background: VIOLET.tint,
                           },
                         }}
                         aria-label="Reset puzzle"
@@ -2230,8 +2258,8 @@ export default function PreviewPuzzlesPage() {
                           fontWeight: 600,
                           "&:hover": {
                             background: "rgba(22,18,14,0.85)",
-                            borderColor: "rgba(255,122,26,0.3)",
-                            color: "#FFD1A8",
+                            borderColor: VIOLET.border,
+                            color: VIOLET.bright,
                           },
                           "&.Mui-disabled": {
                             color: "rgba(255,240,224,0.3)",
@@ -2300,8 +2328,8 @@ export default function PreviewPuzzlesPage() {
                                 fontSize: "0.82rem",
                                 fontWeight: 600,
                                 "&:hover": {
-                                  color: "#FFD1A8",
-                                  background: "rgba(255,122,26,0.08)",
+                                  color: VIOLET.bright,
+                                  background: VIOLET.tint,
                                 },
                               }}
                             >
@@ -2334,7 +2362,7 @@ export default function PreviewPuzzlesPage() {
                             borderColor:
                               status === "solved"
                                 ? "transparent"
-                                : "rgba(255,122,26,0.35)",
+                                : VIOLET.border,
                           },
                         }}
                       >
@@ -2815,7 +2843,7 @@ function FilterChipRow({
   onClick,
 }: {
   label: string;
-  chips: Array<{ id: string; label: string; active: boolean }>;
+  chips: Array<{ id: string; label: string; active: boolean; accent: Accent }>;
   onClick: (id: string) => void;
 }) {
   return (
@@ -2850,19 +2878,19 @@ function FilterChipRow({
             py: 0.45,
             borderRadius: "999px",
             border: c.active
-              ? "1px solid rgba(255,122,26,0.5)"
+              ? `1px solid ${c.accent.border}`
               : "1px solid rgba(255,255,255,0.08)",
             background: c.active
-              ? "linear-gradient(135deg, rgba(255,122,26,0.22), rgba(255,140,66,0.1))"
+              ? `linear-gradient(135deg, ${c.accent.soft}, ${c.accent.tint})`
               : "rgba(22,18,14,0.65)",
-            color: c.active ? "#FFE6CC" : "rgba(255,240,224,0.7)",
+            color: c.active ? c.accent.bright : "rgba(255,240,224,0.7)",
             fontSize: "0.78rem",
             fontWeight: 600,
             cursor: "pointer",
             transition: "all 160ms ease",
             "&:hover": {
-              borderColor: "rgba(255,122,26,0.4)",
-              color: "#FFD1A8",
+              borderColor: c.accent.border,
+              color: c.accent.bright,
             },
           }}
         >

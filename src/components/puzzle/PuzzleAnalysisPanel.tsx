@@ -7,6 +7,7 @@ import { getLineEvalLabel, moveLineUciToSan } from "@/lib/chess";
 import { useEngineWithStatus, isEngineUnavailable } from "@/hooks/useEngine";
 import { DEFAULT_ENGINE, ENGINE_LABELS } from "@/constants";
 import { SERIF_DISPLAY } from "@/theme/fonts";
+import { ACCENTS } from "@/components/ui/accents";
 import type { LineEval } from "@/types/eval";
 
 /**
@@ -180,8 +181,9 @@ export function PuzzleAnalysisPanel({
         px: 1.5,
         py: 1.25,
         borderRadius: "0.75rem",
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.07)",
+        // Analysis is cyan wherever it appears on the site.
+        background: `linear-gradient(180deg, ${ACCENTS.cyan.tint}, rgba(255,255,255,0.02))`,
+        border: `1px solid ${ACCENTS.cyan.border}`,
       }}
     >
       {terminal ? (
@@ -239,7 +241,7 @@ export function PuzzleAnalysisPanel({
               fontFamily: SERIF_DISPLAY,
               fontSize: "1.05rem",
               fontWeight: 600,
-              color: "#FFD1A8",
+              color: ACCENTS.cyan.bright,
               fontVariantNumeric: "tabular-nums",
             }}
           >

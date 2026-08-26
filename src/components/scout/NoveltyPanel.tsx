@@ -1,6 +1,6 @@
 import { Box, Button, Chip, Grid, Stack, Tooltip, Typography } from '@mui/material';
 import { Icon } from '@iconify/react';
-import { DossierPanel, FieldLabel } from './dossier';
+import { DossierPanel, FieldLabel, ROSE } from './dossier';
 import { NoveltyFinding } from '@/types/scout';
 import { formatMoveSequence } from '@/lib/scoutService';
 
@@ -76,9 +76,9 @@ function NoveltyCard({
         cursor: 'pointer',
         transition: 'all 180ms ease',
         '&:hover': {
-          border: '1px solid rgba(249,115,22,0.35)',
+          border: `1px solid ${ROSE.border}`,
           transform: 'translateY(-1px)',
-          boxShadow: '0 6px 18px rgba(249,115,22,0.18)',
+          boxShadow: ROSE.glow,
         },
       }}
     >

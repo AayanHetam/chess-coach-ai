@@ -11,7 +11,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
-import { DossierPanel, FieldLabel } from './dossier';
+import { DossierPanel, FieldLabel, ROSE } from './dossier';
 import { CollisionLine, Collisions } from '@/types/scout';
 import { formatMoveSequence } from '@/lib/scoutService';
 
@@ -62,8 +62,8 @@ export default function CollisionPanel({
               px: 2,
               color: 'rgba(255,255,255,0.62)',
             },
-            '& .Mui-selected': { color: '#FB923C !important' },
-            '& .MuiTabs-indicator': { background: '#FB923C', height: 3, borderRadius: 2 },
+            '& .Mui-selected': { color: `${ROSE.bright} !important` },
+            '& .MuiTabs-indicator': { background: ROSE.bright, height: 3, borderRadius: 2 },
           }}
         >
           <Tab
@@ -175,8 +175,8 @@ function CollisionCard({
         cursor: 'pointer',
         transition: 'all 180ms ease',
         '&:hover': {
-          border: '1px solid rgba(249,115,22,0.35)',
-          boxShadow: '0 6px 18px rgba(249,115,22,0.12)',
+          border: `1px solid ${ROSE.border}`,
+          boxShadow: ROSE.glow,
           transform: 'translateY(-1px)',
         },
       }}

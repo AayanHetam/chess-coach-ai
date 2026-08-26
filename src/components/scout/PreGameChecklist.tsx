@@ -1,6 +1,6 @@
 import { Box, Grid, Stack, Typography } from '@mui/material';
 import { Icon } from '@iconify/react';
-import { DossierPanel, FieldLabel } from './dossier';
+import { DossierPanel, FieldLabel, ROSE } from './dossier';
 import { ChecklistItem } from '@/types/scout';
 
 export interface PreGameChecklistProps {
@@ -47,8 +47,8 @@ export default function PreGameChecklist({ items }: PreGameChecklistProps) {
                     height: '100%',
                     transition: 'all 180ms ease',
                     '&:hover': {
-                      border: '1px solid rgba(249,115,22,0.35)',
-                      bgcolor: 'rgba(249,115,22,0.06)',
+                      border: `1px solid ${ROSE.border}`,
+                      bgcolor: ROSE.tint,
                     },
                   }}
                 >

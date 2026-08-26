@@ -17,6 +17,7 @@ import { useState, type MouseEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Menu as MenuIcon, Heart, LogOut, User, Settings } from "lucide-react";
 import { Logo } from "./Logo";
+import { surfaceAccent } from "./accents";
 import { AppDrawer, type NavId } from "./AppDrawer";
 import { useAuth } from "@/contexts/AuthContext";
 import ProfileDialog from "@/components/auth/ProfileDialog";
@@ -240,6 +241,10 @@ export function NavPill({
           {NAV_LINKS.map((item) => {
             const isIndicated = indicatorTarget === item.id;
             const isActive = active === item.id;
+            // Each surface wears its own identity colour (see SURFACE_ACCENTS)
+            // so the nav itself teaches the site's colour language: the
+            // indicator previews the hovered surface's colour before you go.
+            const a = surfaceAccent(item.id);
             return (
               <Box
                 key={item.id}
@@ -252,12 +257,12 @@ export function NavPill({
                   py: 0.85,
                   fontSize: "0.85rem",
                   fontWeight: isActive ? 700 : 500,
-                  color: isActive ? "#FB923C" : "rgba(255,255,255,0.72)",
+                  color: isActive ? a.bright : "rgba(255,255,255,0.72)",
                   textDecoration: "none",
                   transition: "color 220ms ease",
                   borderRadius: "999px",
                   zIndex: 1,
-                  "&:hover": { color: "#FB923C" },
+                  "&:hover": { color: a.bright },
                 }}
               >
                 {isIndicated && (
@@ -273,11 +278,9 @@ export function NavPill({
                       position: "absolute",
                       inset: 0,
                       borderRadius: "999px",
-                      background:
-                        "linear-gradient(135deg, rgba(249,115,22,0.2), rgba(234,88,12,0.12))",
-                      border: "1px solid rgba(249,115,22,0.4)",
-                      boxShadow:
-                        "0 0 16px rgba(249,115,22,0.18), inset 0 1px 0 rgba(255,255,255,0.06)",
+                      background: `linear-gradient(135deg, ${a.soft}, ${a.tint})`,
+                      border: `1px solid ${a.border}`,
+                      boxShadow: `0 0 16px ${a.tint}, inset 0 1px 0 rgba(255,255,255,0.06)`,
                       zIndex: -1,
                     }}
                   />

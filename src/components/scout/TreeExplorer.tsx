@@ -17,6 +17,7 @@ import { CustomPieces, Piece } from 'react-chessboard/dist/chessboard/types';
 import { OpeningTreeNode } from '@/types/scout';
 import { getNodeScore } from '@/lib/scoutService';
 import { getLichessEval } from '@/lib/lichess';
+import { ROSE } from './dossier';
 
 const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -219,7 +220,7 @@ export default function TreeExplorer({
                 fontFamily: 'monospace',
                 fontSize: '0.85rem',
                 fontWeight: 700,
-                color: currentPath.length === 0 ? '#FB923C' : 'rgba(255,255,255,0.62)',
+                color: currentPath.length === 0 ? ROSE.bright : 'rgba(255,255,255,0.62)',
                 textDecoration: 'none',
                 cursor: 'pointer',
                 px: 0.5,
@@ -246,12 +247,12 @@ export default function TreeExplorer({
                       fontFamily: 'monospace',
                       fontSize: '0.85rem',
                       fontWeight: 700,
-                      color: isLast ? '#FB923C' : 'rgba(255,255,255,0.94)',
+                      color: isLast ? ROSE.bright : 'rgba(255,255,255,0.94)',
                       textDecoration: 'none',
                       cursor: 'pointer',
                       px: 0.25,
                       borderRadius: 0.5,
-                      '&:hover': { bgcolor: 'rgba(249,115,22,0.18)' },
+                      '&:hover': { bgcolor: ROSE.soft },
                     }}
                   >
                     {mv}
@@ -347,7 +348,7 @@ export default function TreeExplorer({
         >
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Icon icon="mdi:file-tree" width={20} style={{ color: '#FB923C' }} />
+              <Icon icon="mdi:file-tree" width={20} style={{ color: ROSE.bright }} />
               <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>Opening Tree</Typography>
             </Stack>
             {currentNode && currentNode.children.length > 0 && (
@@ -418,7 +419,7 @@ export default function TreeExplorer({
                         borderRadius: 1,
                         bgcolor: idx % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
                         '&:hover': {
-                          bgcolor: 'rgba(249,115,22,0.12)',
+                          bgcolor: ROSE.tint,
                           transform: 'translateX(2px)',
                         },
                         transition: 'all 0.15s',
@@ -427,7 +428,7 @@ export default function TreeExplorer({
                     >
                       <Typography
                         variant="body2"
-                        sx={{ fontWeight: 700, fontFamily: 'monospace', color: '#FB923C' }}
+                        sx={{ fontWeight: 700, fontFamily: 'monospace', color: ROSE.bright }}
                       >
                         {child.move}
                       </Typography>

@@ -23,7 +23,7 @@ import type { PreparedLine, PreparedMove } from '@/lib/scout/preparedLine';
 import type { MasterView } from '@/lib/master/ideas';
 import { useMasterIdeas, type MasterContext } from '@/lib/master/useMasterIdeas';
 import type { HoleProgress } from '@/lib/scout/useHoleReport';
-import { DossierPanel, EMBER, EMBER_LIGHT, FieldLabel, MONO, VerdictPill } from './dossier';
+import { DossierPanel, EMBER, EMBER_LIGHT, FieldLabel, MONO, ROSE, VerdictPill } from './dossier';
 
 const CONFIRMED = '#34d399';
 const SIGNAL = EMBER_LIGHT;
@@ -105,9 +105,9 @@ export default function PrepLinesPanel({
               color: 'rgba(255,255,255,0.55)',
               borderColor: 'rgba(255,255,255,0.12)',
               '&.Mui-selected': {
-                color: EMBER_LIGHT,
-                borderColor: 'rgba(249,115,22,0.45)',
-                bgcolor: 'rgba(249,115,22,0.10)',
+                color: ROSE.bright,
+                borderColor: ROSE.border,
+                bgcolor: ROSE.tint,
               },
             },
           }}
@@ -260,7 +260,7 @@ function LineRow({
         borderLeft: `2px solid ${color}`,
         borderRadius: '6px',
         p: 1.5,
-        bgcolor: rank === 1 ? 'rgba(249,115,22,0.05)' : 'rgba(255,255,255,0.02)',
+        bgcolor: rank === 1 ? ROSE.tint : 'rgba(255,255,255,0.02)',
       }}
     >
       <Stack

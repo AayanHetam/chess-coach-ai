@@ -44,6 +44,15 @@ export interface TrainerPanelProps {
   resumedNote?: string | null;
   /** When this line next comes back, in words. Review sessions only. */
   nextReview?: string | null;
+  /**
+   * Whether this device managed to keep the schedule that was just written.
+   *
+   * False is rare — storage full or disabled — and it has to be said out loud.
+   * The old code caught that failure and carried on, so a player finished three
+   * clean runs, read "we will check you still have it in 6 days", and was never
+   * asked again. Being told costs a sentence; not being told costs the line.
+   */
+  savedLocally?: boolean;
 }
 
 export default function TrainerPanel(props: TrainerPanelProps) {
@@ -100,6 +109,24 @@ export default function TrainerPanel(props: TrainerPanelProps) {
         {state.act === "learn" && <Learn {...props} />}
         {state.act === "drill" && <Drill {...props} />}
         {state.act === "done" && <Done {...props} />}
+        {state.act === "done" && props.savedLocally === false && (
+          <Box
+            role="status"
+            data-testid="schedule-save-state"
+            sx={{
+              px: 1.25,
+              py: 0.85,
+              borderRadius: "10px",
+              border: "1px solid rgba(252,165,165,0.25)",
+              background: "rgba(252,165,165,0.06)",
+            }}
+          >
+            <Typography sx={{ fontSize: "0.78rem", color: "#FCA5A5", lineHeight: 1.6 }}>
+              This device is out of storage, so we could not save the reminder.
+              Sign in and it will be kept on your account instead.
+            </Typography>
+          </Box>
+        )}
       </Box>
       <PanelAction {...props} />
     </Box>

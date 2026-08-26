@@ -40,14 +40,17 @@ import {
   clearSession,
   describeProgress,
   lineKeyOf,
+  loadRepaired,
   loadSession,
   markRepaired,
   saveSession,
 } from "@/lib/learn/trainerProgress";
 import { modeOf, parseTrainerQuery, resolveHole } from "@/lib/learn/trainerRoute";
+import { pullTrainerProgress, pushTrainerProgress } from "@/lib/learn/trainerSync";
 import {
   describeNext,
   findCard,
+  loadCards,
   recordReview,
   scheduleAfterRepair,
   type ReviewCard,
@@ -92,6 +95,21 @@ export default function OpeningTrainerPage() {
   const repertoire = useRepertoireHole(account);
   const accountId = `${account.platform}:${account.username ?? ""}`;
 
+  // The account's copy of the schedule, pulled once and merged in.
+  //
+  // LOCAL FIRST: everything below already rendered from localStorage. This only
+  // ever ADDS, and it is the reason a review link opened on a new phone finds
+  // its card instead of reporting the card gone. `synced` exists so the lookups
+  // below re-run once the merge has landed; without it the page would hold the
+  // empty answer it computed a moment earlier.
+  const [synced, setSynced] = useState(0);
+  useEffect(() => {
+    if (!account.username) return;
+    void pullTrainerProgress(accountId).then((merged) => {
+      if (merged) setSynced((n) => n + 1);
+    });
+  }, [accountId, account.username]);
+
   // Which of the three ways in this is. Parsed once, off the query, so the
   // rest of the page never re-derives "is this a review" from a raw string.
   const request = useMemo(
@@ -109,7 +127,7 @@ export default function OpeningTrainerPage() {
       return;
     }
     setCard(findCard(accountId, request.lineKey));
-  }, [request, accountId, account.username]);
+  }, [request, accountId, account.username, synced]);
 
   const resolved = useMemo(
     () => resolveHole(repertoire.reports, request),
@@ -169,6 +187,7 @@ export default function OpeningTrainerPage() {
   // Persist on every change. One small write, and it is what makes walking
   // away from a three-run drill free rather than expensive.
   const [nextReview, setNextReview] = useState<string | null>(null);
+  const [savedLocally, setSavedLocally] = useState(true);
 
   useEffect(() => {
     if (!state || !line || !account.username) return;
@@ -199,7 +218,18 @@ export default function OpeningTrainerPage() {
             : null;
       if (state.mode !== "review" && earned)
         markRepaired(accountId, line, label, state.runs, now);
-      setNextReview(scheduled ? describeNext(scheduled, now) : null);
+      // Push whatever this device now holds, UNCONDITIONALLY. Gating on a
+      // signed-in flag we do not have here would skip the push on exactly the
+      // device where it mattered; a signed-out visitor gets a 401 and the call
+      // costs nothing. Read back out of storage rather than pushing the card we
+      // just made, so what goes up is what this device actually kept.
+      if (scheduled)
+        void pushTrainerProgress({
+          cards: loadCards(accountId),
+          repaired: loadRepaired(accountId),
+        });
+      setSavedLocally(scheduled ? scheduled.savedLocally : true);
+      setNextReview(scheduled?.card ? describeNext(scheduled.card, now) : null);
       clearSession(accountId, state.mode);
       return;
     }
@@ -415,6 +445,7 @@ export default function OpeningTrainerPage() {
             hole={hole}
             resumedNote={resumed ? describeProgress(state) : null}
             nextReview={nextReview}
+            savedLocally={savedLocally}
             theory={theory}
             master={master}
             onAdvance={() => setState(advance(state, line))}

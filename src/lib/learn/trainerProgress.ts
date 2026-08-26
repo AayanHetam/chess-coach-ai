@@ -9,6 +9,18 @@
 // deliberately NOT the source of truth for anything else: losing it costs a
 // player their streak on one line, never their measured repertoire.
 //
+// Two of the three things here are device-local ON PURPOSE, and one is not:
+//
+//   THE SESSION IN PROGRESS stays here. It is a half-finished drill with a
+//   three-day life, and syncing it would let two devices fight over a streak
+//   mid-run. Losing it costs one restart.
+//
+//   THE REPAIRED LIST goes to the account, via `trainerSync`. It is the record
+//   of work that is FINISHED — lines a player has already put three clean runs
+//   into — and `isRepaired` uses it to stop offering them the same drill again.
+//   Losing it means being asked to redo work that was done, which is the exact
+//   thing the account copy exists to prevent.
+//
 // Every read is defensive. A corrupt or stale entry degrades to "no saved
 // session", which costs one restart. A throw here would take the trainer down
 // on mount, which is the one failure a resume feature must not introduce.
@@ -90,12 +102,13 @@ function read<T>(key: string): T | null {
   }
 }
 
-function write(key: string, value: unknown): void {
-  if (typeof window === 'undefined') return;
+function write(key: string, value: unknown): boolean {
+  if (typeof window === 'undefined') return false;
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch {
-    // Full or disabled storage costs a resume, never the session in progress.
+    return false;
   }
 }
 
@@ -163,13 +176,67 @@ export function clearSession(account: string, mode: SessionMode = 'repair'): voi
   remove(sessionKey(account, mode));
 }
 
+/**
+ * How many repaired lines we keep.
+ *
+ * Fifty entries at roughly a hundred bytes each. The list is a picture of the
+ * repertoire, not a log, and past fifty the oldest entry stops being something
+ * anyone would recognise.
+ */
+export const MAX_REPAIRED = 50;
+
 /** Everything this account has repaired, newest first. */
 export function loadRepaired(account: string): RepairedLine[] {
-  const list = read<RepairedLine[]>(repairedKey(account));
-  if (!Array.isArray(list)) return [];
-  return list
-    .filter(r => r && typeof r.lineKey === 'string' && typeof r.at === 'number')
+  return sanitiseRepaired(read<unknown>(repairedKey(account)));
+}
+
+/**
+ * Repaired entries we are willing to act on, newest first.
+ *
+ * Shared with the server, so an entry written by an old client cannot make
+ * `isRepaired` throw or a history render a blank row. `at` is finite rather
+ * than merely a number: a NaN there sorts unpredictably and would shuffle the
+ * list differently on every read.
+ */
+export function sanitiseRepaired(parsed: unknown): RepairedLine[] {
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter(
+      (r): r is RepairedLine =>
+        !!r && typeof r === 'object' && typeof r.lineKey === 'string' && Number.isFinite(r.at)
+    )
+    .map(r => ({
+      lineKey: r.lineKey,
+      label: typeof r.label === 'string' ? r.label : r.lineKey,
+      at: r.at,
+      runs: Number.isFinite(r.runs) ? r.runs : 0,
+    }))
     .sort((a, b) => b.at - a.at);
+}
+
+/**
+ * Everything either copy knows, newest entry per line, capped.
+ *
+ * Repairing is not undoable, so a union is safe here in a way it is not for the
+ * bracket: there is no path in the product that removes a repaired line, and so
+ * no removal for a union to undo. The cap is the one thing that drops entries,
+ * and it drops the OLDEST — which both copies agree on, so neither can hand the
+ * other back something it had already aged out.
+ */
+export function mergeRepaired(mine: RepairedLine[], theirs: RepairedLine[]): RepairedLine[] {
+  const byKey = new Map<string, RepairedLine>();
+  for (const entry of [...mine, ...theirs]) {
+    const held = byKey.get(entry.lineKey);
+    if (!held || entry.at > held.at) byKey.set(entry.lineKey, entry);
+  }
+  return Array.from(byKey.values())
+    .sort((a, b) => b.at - a.at)
+    .slice(0, MAX_REPAIRED);
+}
+
+/** Replace the repaired list on this device. False if the write was refused. */
+export function saveRepaired(account: string, list: RepairedLine[]): boolean {
+  return write(repairedKey(account), sanitiseRepaired(list).slice(0, MAX_REPAIRED));
 }
 
 /**
@@ -189,7 +256,7 @@ export function markRepaired(
   const next = [
     { lineKey: key, label, at: now, runs },
     ...loadRepaired(account).filter(r => r.lineKey !== key),
-  ].slice(0, 50);
+  ].slice(0, MAX_REPAIRED);
   write(repairedKey(account), next);
   return next;
 }

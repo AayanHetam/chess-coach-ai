@@ -22,7 +22,7 @@ const STEPS = [
     n: '01',
     icon: 'mdi:account-search-outline',
     title: 'Name the opponent',
-    body: 'Any public Chess.com or Lichess handle. No signup, no account linking.',
+    body: 'Any public Chess.com or Lichess handle — nothing to connect or link on their end.',
   },
   {
     n: '02',
@@ -42,7 +42,7 @@ const STEPS = [
 const CAPABILITIES = [
   { icon: 'mdi:chess-pawn', label: 'Chess.com + Lichess' },
   { icon: 'mdi:calendar-range', label: 'Up to 2 years of games' },
-  { icon: 'mdi:account-off-outline', label: 'No signup' },
+  { icon: 'mdi:account-off-outline', label: "No opponent account needed" },
 ];
 
 export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
@@ -149,7 +149,7 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                 variant="caption"
                 sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.62)' }}
               >
-                Free · no account needed
+                Free · quick sign-in
               </Typography>
             </Stack>
           </Stack>

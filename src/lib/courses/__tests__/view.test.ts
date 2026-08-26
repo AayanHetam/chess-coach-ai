@@ -12,6 +12,16 @@ import { loadCourse } from '../load';
 import type { Course, CourseNode } from '@/types/course';
 
 const band = (id: string) => BANDS.find(b => b.id === id)!;
+/**
+ * A band with a chosen depth, for the tests that are about `viewFor`'s
+ * boundary arithmetic rather than about what any shipped band happens to be.
+ *
+ * Written after the shipped depths doubled and took four of these tests with
+ * them: they had encoded "new means ply 4" into fixtures whose nodes stop at
+ * ply 13, so a real product change read as a broken cut. What `viewFor` does
+ * at a boundary is not a fact about `new`.
+ */
+const atDepth = (depth: number) => ({ ...band('improving'), depth });
 
 const node = (over: Partial<CourseNode> & { p: number; ch: number }): CourseNode => ({
   w: 1,
@@ -91,7 +101,7 @@ describe('viewFor', () => {
   });
 
   it('cuts the line at the boundary and says the boundary is why', () => {
-    const view = viewFor(course(), band('new')); // root 2 + depth 4 = ply 6
+    const view = viewFor(course(), atDepth(4)); // root 2 + depth 4 = ply 6
     expect(view.maxPly).toBe(6);
     const boundary = view.nodes.A4;
     expect(boundary.p).toBe(6);
@@ -101,7 +111,7 @@ describe('viewFor', () => {
     // or `next` is one the trainer will happily play past the boundary.
     expect(boundary.them).toBeUndefined();
     // Our own move at the cap loses its child too, or the trainer plays past it.
-    const deeper = viewFor(course(), band('improving')); // root 2 + 8 = ply 10
+    const deeper = viewFor(course(), atDepth(8)); // root 2 + 8 = ply 10
     const ourBoundary = deeper.nodes.A6; // p 8, child A7 is at ply 12
     expect(ourBoundary.end).toBe('depth');
     expect(ourBoundary.us).toBeUndefined();
@@ -156,8 +166,19 @@ describe('viewFor', () => {
     c.meta.root = ['e4', 'c5', 'Nf3', 'd6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'a6'];
     c.meta.maxPly = 24;
     const view = viewFor(c, band('club'));
-    expect(view.theoryPlies).toBe(band('club').depth);
-    expect(view.maxPly).toBe(10 + band('club').depth);
+    // Capped by what the COURSE holds, not only by the band. A Najdorf rooted
+    // at ply 10 in a 24-ply course can offer 14 plies of its own theory, and a
+    // club player asks for 20. The band is a ceiling on the ask, never a
+    // promise the course can fill it — asserting equality here would have made
+    // that real limit look like a bug the first time a band got deep enough to
+    // hit it.
+    const available = c.meta.maxPly - c.meta.root.length;
+    expect(view.theoryPlies).toBe(Math.min(band('club').depth, available));
+    expect(view.maxPly).toBe(Math.min(10 + band('club').depth, c.meta.maxPly));
+    // The control: a band shallower than what is available gets exactly what
+    // it asked for, so the min() above is doing something.
+    const shallow = viewFor(c, atDepth(6));
+    expect(shallow.theoryPlies).toBe(6);
   });
 
   it('gives a shallow-rooted opening the same amount of its own theory', () => {

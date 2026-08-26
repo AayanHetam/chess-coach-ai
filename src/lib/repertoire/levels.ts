@@ -55,13 +55,44 @@ export interface Band {
   floor: number;
   name: string;
   /**
-   * Plies of each line worth knowing.
+   * PLIES of each line worth knowing. Half-moves, not moves.
    *
    * Not "the opening is this long" — every one of them goes twenty moves deep.
    * This is where knowing more stops changing your results at this level,
    * because the game leaves the book long before either player does.
+   *
+   * The unit is the whole story here, and it was wrong for a year. Every
+   * band's `advice` speaks in MOVES — "four moves", "six moves", "about move
+   * fourteen" — while this number was read as plies by `viewFor` and by the
+   * trainer's "N plies" row. So each band showed exactly HALF what its own
+   * copy promised: `strong` said move fourteen and stopped at move seven.
+   * `advicePromises` in levels.test.ts now pins the two together.
    */
   depth: number;
+  /**
+   * Most probes one chapter may ask, whatever its size.
+   *
+   * A band property rather than a constant because it is really "how much work
+   * one chapter is", and that is exactly what differs between a 700 and a
+   * 2100. At 20 probes a sitting, 60 is three sittings and 240 is twelve.
+   *
+   * It has to move with `depth`, or doubling the depth halves how much of a
+   * course anybody is actually drilled on. Measured across eight typical
+   * courses, a flat 60 gives 98% reach at depth 8 and 47% at depth 24. These
+   * numbers are the smallest that keep reach at or above ~90% per band:
+   *
+   *   new       d 8  cap  60 → 98%
+   *   beginner  d12  cap 120 → 89%
+   *   improving d16  cap 200 → 92%
+   *   club      d20  cap 240 → 92%
+   *   strong    d24  cap 320 → 98%
+   *
+   * Nothing is concealed when the cap does bite — the hub renders
+   * "asked of decisions" whenever they differ, so a capped course reads
+   * "204 of 382" rather than pretending 382 was on offer. Reach is about how
+   * much of a course gets drilled, not about honesty.
+   */
+  probeCap: number;
   /** Coverage at which a repertoire is enough for this band, 0-1. */
   enoughAt: number;
   /** The heaviest theory load worth recommending here. */
@@ -80,7 +111,8 @@ export const BANDS: Band[] = [
     id: 'new',
     floor: 0,
     name: 'Starting out',
-    depth: 4,
+    depth: 8,
+    probeCap: 60,
     enoughAt: 0.8,
     ceiling: 'light',
     advice:
@@ -90,7 +122,8 @@ export const BANDS: Band[] = [
     id: 'beginner',
     floor: 800,
     name: 'Club beginner',
-    depth: 6,
+    depth: 12,
+    probeCap: 120,
     enoughAt: 0.85,
     ceiling: 'light',
     advice:
@@ -100,7 +133,8 @@ export const BANDS: Band[] = [
     id: 'improving',
     floor: 1200,
     name: 'Improving',
-    depth: 8,
+    depth: 16,
+    probeCap: 200,
     enoughAt: 0.9,
     ceiling: 'medium',
     advice:
@@ -110,21 +144,23 @@ export const BANDS: Band[] = [
     id: 'club',
     floor: 1600,
     name: 'Strong club player',
-    depth: 12,
+    depth: 20,
+    probeCap: 240,
     enoughAt: 0.93,
     ceiling: 'heavy',
     advice:
-      'Depth is worth paying for now. Opponents at this level have preparation, and the difference between move ten and move fourteen is a real one.',
+      'Depth is worth paying for now. Opponents at this level have preparation, and the difference between move six and move ten is a real one.',
   },
   {
     id: 'strong',
     floor: 2000,
     name: 'Above our depth',
-    depth: 14,
+    depth: 24,
+    probeCap: 320,
     enoughAt: 0.95,
     ceiling: 'heavy',
     advice:
-      'Our lines run to about move fourteen, which is where yours start. Use this for the map — which branches exist and how often you meet them — and get the depth elsewhere.',
+      'Our lines run to about move twelve, which is where yours start. Use this for the map — which branches exist and how often you meet them — and get the depth elsewhere.',
   },
 ];
 

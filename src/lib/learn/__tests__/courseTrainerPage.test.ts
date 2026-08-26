@@ -84,7 +84,15 @@ describe('the band comes from the account', () => {
     getUserById.mockResolvedValue({ measuredRating: 2200 });
     const { props } = await run({ courseId: 'w-london', chapter: '0' }, {}, 'c');
     expect(props.band).toBe('strong');
-    expect(props.theoryPlies).toBe(BANDS.find(b => b.id === 'strong')!.depth);
+    // Its own depth, OR everything the course has left past its root —
+    // whichever is smaller. The London is rooted at 1.d4 in a 24-ply course,
+    // so 23 plies of theory exist and `strong` asks for 24. The band is a
+    // ceiling on the ask, never a promise the course can fill it.
+    const strong = BANDS.find(b => b.id === 'strong')!;
+    expect(props.theoryPlies).toBeLessThanOrEqual(strong.depth);
+    expect(props.theoryPlies).toBeGreaterThan(
+      BANDS.find(b => b.id === 'club')!.depth - 1
+    );
   });
 
   it('gives a visitor it cannot identify the middle band, not the deepest', async () => {

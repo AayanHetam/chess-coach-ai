@@ -22,7 +22,7 @@
 import type { Band } from '@/lib/repertoire/levels';
 import { loadCourse } from '@/lib/courses/load';
 import { courseVerdict, viewFor, type CourseView } from '@/lib/courses/view';
-import { probesOf } from '@/lib/courses/probes';
+import { MAX_PROBES_PER_CHAPTER, probesOf } from '@/lib/courses/probes';
 import { keysUnder, planChapter, type Study } from '@/lib/courses/studies';
 import type { CourseMeta } from '@/types/course';
 
@@ -83,10 +83,21 @@ export interface CourseHub {
 
 const cache = new Map<string, CourseHub | null>();
 
-/** The units of one chapter, in the trainer's own counting. */
-export function unitsOf(view: CourseView, side: 'white' | 'black'): ChapterUnit[] {
+/**
+ * The units of one chapter, in the trainer's own counting.
+ *
+ * `cap` must be the band's, because this function produces `asked` — the
+ * denominator of every progress number on the hub — and the trainer asks
+ * `band.probeCap` questions. A hub counting 60 while the trainer asks 120
+ * would show a player stuck at 50% having answered everything.
+ */
+export function unitsOf(
+  view: CourseView,
+  side: 'white' | 'black',
+  cap: number = MAX_PROBES_PER_CHAPTER
+): ChapterUnit[] {
   return view.chapters.map(chapter => {
-    const { probes, total, capped } = probesOf(view, chapter.i, side);
+    const { probes, total, capped } = probesOf(view, chapter.i, side, cap);
     const plan = planChapter(view.nodes, chapter, view.maxPly, side);
     const askable = new Set(probes.map(probe => probe.key));
     const studies: StudyUnit[] = plan.studies.map(study => {
@@ -130,7 +141,7 @@ export function hubFor(courseId: string, band: Band): CourseHub | null {
     return null;
   }
   const view = viewFor(course, band);
-  const chapters = unitsOf(view, course.meta.side);
+  const chapters = unitsOf(view, course.meta.side, band.probeCap);
   const hub: CourseHub = {
     meta: course.meta,
     band: band.id,

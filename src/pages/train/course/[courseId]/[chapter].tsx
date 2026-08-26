@@ -959,7 +959,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const chapterView = view.chapters.find((c) => c.i === chapter);
   if (!chapterView) return { notFound: true };
 
-  const found = probesOf(view, chapter, course.meta.side);
+  const found = probesOf(view, chapter, course.meta.side, band.probeCap);
   let { probes, total, capped } = found;
 
   // ── Drill: everything, and optionally only one study of it.

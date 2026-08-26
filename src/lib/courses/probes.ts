@@ -27,6 +27,13 @@ import type { TrainerLine } from '@/lib/learn/trainerSession';
  * decisions. So it is not a theoretical limit and the number it hides has to be
  * said out loud — `total` is counted past the cap for exactly that reason.
  */
+/**
+ * Fallback cap, for callers that do not know the reader's band.
+ *
+ * The real number is `band.probeCap`. This stays 60 because that is what every
+ * band used to get, so a caller passing nothing is unchanged rather than
+ * quietly promoted to a club player's workload.
+ */
 export const MAX_PROBES_PER_CHAPTER = 60;
 
 export interface CourseProbe {
@@ -85,7 +92,14 @@ const keyOf = (fen: string): string => fen.split(' ').slice(0, 4).join(' ');
 export function probesOf(
   view: Walkable,
   chapterIndex: number,
-  side: 'white' | 'black'
+  side: 'white' | 'black',
+  /**
+   * Most probes this chapter may ask. Comes from the reader's band, because
+   * "how much work one chapter is" is exactly what differs between a 700 and a
+   * 2100. Defaults to the old flat value so a caller with no band in hand
+   * behaves as it always did.
+   */
+  cap: number = MAX_PROBES_PER_CHAPTER
 ): ChapterProbes {
   const chapter = view.chapters.find(c => c.i === chapterIndex);
   if (!chapter) return { probes: [], total: 0, capped: false };
@@ -215,7 +229,7 @@ export function probesOf(
   // Most likely first. `w` is a product of shares, so this also puts ancestors
   // before descendants, which is the order a round wants.
   const ordered = ours.sort((a, b) => b.weight - a.weight || a.ply - b.ply);
-  const probes = ordered.slice(0, MAX_PROBES_PER_CHAPTER);
+  const probes = ordered.slice(0, Math.max(1, cap));
 
   return {
     probes,

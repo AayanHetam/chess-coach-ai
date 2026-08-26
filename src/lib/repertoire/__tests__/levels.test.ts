@@ -163,3 +163,86 @@ describe('ordering above the band', () => {
     expect(levelFit(twoUp, band('new'))).toBeLessThan(0);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The unit bug, pinned.
+//
+// `depth` is PLIES. Every band's `advice` speaks in MOVES. For a year the two
+// disagreed by a factor of two in the same object: `strong` promised "our
+// lines run to about move fourteen" and `viewFor` stopped at ply 14, which is
+// move seven. Nothing failed — the page rendered a smaller course than its own
+// sentence described, and the only way to notice was to count moves on screen.
+//
+// So any advice that names a move number is now checked against the depth
+// sitting three lines above it.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('advice promises what depth delivers', () => {
+  const WORDS: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+    nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
+    sixteen: 16, twenty: 20, twentyfour: 24,
+  };
+
+  /**
+   * Every move number an advice string names, written out or in digits.
+   *
+   * Two separate passes rather than one alternation. A single pattern with
+   * `(?:move\s+)?(\w+)\s+moves?` swallows "about move" out of "about move
+   * twelve" — the optional prefix matches nothing, `\w+` takes "about", and
+   * "move" satisfies the tail — so the real number is consumed and never
+   * seen. The "finds the move numbers it is checking" case below exists
+   * because that is precisely what happened.
+   */
+  function movesNamed(advice: string): number[] {
+    const word = (raw: string) =>
+      /^\d+$/.test(raw) ? Number(raw) : WORDS[raw.toLowerCase()];
+    const found: number[] = [];
+    for (const m of Array.from(advice.matchAll(/\bmove\s+([a-z]+|\d+)\b/gi))) {
+      const n = word(m[1]);
+      if (n !== undefined) found.push(n);
+    }
+    for (const m of Array.from(advice.matchAll(/\b([a-z]+|\d+)\s+moves\b/gi))) {
+      const n = word(m[1]);
+      if (n !== undefined) found.push(n);
+    }
+    return found;
+  }
+
+  it('never names a move number deeper than the band shows', () => {
+    for (const band of BANDS) {
+      const moves = band.depth / 2;
+      for (const named of movesNamed(band.advice)) {
+        expect(
+          named,
+          `${band.id}: advice names move ${named} but depth ${band.depth} plies stops at move ${moves}`
+        ).toBeLessThanOrEqual(moves);
+      }
+    }
+  });
+
+  // The control: the regex has to actually find the numbers, or the test above
+  // passes by seeing nothing. `strong` is the band whose copy names one.
+  it('finds the move numbers it is checking', () => {
+    const strong = BANDS.find(b => b.id === 'strong')!;
+    expect(movesNamed(strong.advice)).toContain(12);
+    expect(movesNamed('Four moves, played the same way every game.')).toEqual([4]);
+    expect(movesNamed('nothing numeric here at all')).toEqual([]);
+  });
+});
+
+describe('probeCap', () => {
+  it('never shrinks as a band gets deeper', () => {
+    // The cap is "how much work one chapter is". A deeper band asking LESS
+    // would drill a smaller fraction of a bigger course, which is the
+    // combination that made this change necessary in the first place.
+    for (let i = 1; i < BANDS.length; i++) {
+      expect(BANDS[i].depth).toBeGreaterThan(BANDS[i - 1].depth);
+      expect(BANDS[i].probeCap).toBeGreaterThanOrEqual(BANDS[i - 1].probeCap);
+    }
+  });
+
+  it('is a whole number of sittings, because that is what a chapter is', () => {
+    // 5 questions a round, 4 rounds a sitting.
+    for (const band of BANDS) expect(band.probeCap % 20).toBe(0);
+  });
+});

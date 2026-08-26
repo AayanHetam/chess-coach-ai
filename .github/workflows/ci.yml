@@ -45,8 +45,54 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
+# Split 2026-08-26: this used to be one ~9-25 minute job covering everything
+# from tsc to Playwright, on both `pull_request` and `push`. That meant every
+# PR waited the full pipeline before it could be merged, even though a
+# type error or a failing unit test is knowable in under two minutes — the
+# slow steps (production build, Playwright install, E2E) were gating on
+# fast-failure information they didn't need to.
+#
+# Now there are two independent jobs, both still triggered by the same
+# `on:` block above:
+#   • typecheck-and-test — tsc + vitest. This is the one meant to be wired up
+#     as a required status check on `main`, so a broken PR is blocked in
+#     ~1-2 minutes instead of ~10-25.
+#   • build-and-e2e — the previous validator gate / contract smoke /
+#     production build / Playwright suite. Still runs on every PR and on
+#     every push to main (same coverage as before, nothing dropped) but is
+#     NOT required to merge — it's the safety net that catches a broken
+#     build or a broken user journey, surfaced quickly rather than silently
+#     blocking every merge on Playwright's install step.
+#
+# Both jobs run in parallel (no `needs:` between them) and each does its own
+# checkout + install, so a PR's total CI wall-clock is unchanged — what
+# changes is that the merge gate no longer waits on the slower of the two.
 jobs:
   typecheck-and-test:
+    runs-on: ubuntu-latest
+    # Healthy run is under 2 minutes. 10 gives headroom without reintroducing
+    # the multi-hour wedge risk the old 25-minute ceiling was sized for.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+  build-and-e2e:
     runs-on: ubuntu-latest
     # A healthy run is ~9-12 minutes. Without this the job inherits GitHub's
     # 6-hour default, and on 2026-08-19 that is exactly what happened: four
@@ -70,12 +116,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Type check
-        run: npx tsc --noEmit
-
-      - name: Unit tests
-        run: npm test
 
       # Deterministic validator gate — 22 known-good/known-bad fixtures, no
       # network, mocked parser+LLM. Guards the Mastermind enforcement layer

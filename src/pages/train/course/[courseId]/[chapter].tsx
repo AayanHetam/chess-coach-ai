@@ -571,9 +571,14 @@ export default function CourseTrainerPage(props: Props) {
             {/*
               The corpus, named. NOT the band: "Frequencies from Improving"
               reads as "these are the moves players at your level make", and
-              they are not — every share in the product comes from Lichess
-              Elite. Putting the band on that row asserted precisely the thing
-              the rating-banded corpus has not been built yet to make true.
+              for a COURSE they are not.
+
+              The bracket on /learn is now measured per band, but courses are
+              still generated from the Elite tree, so this row keeps naming
+              Elite. The two are allowed to differ; what is not allowed is this
+              row claiming the band because a different screen earned it. The
+              value is read from the course's own `meta.corpus`, so it can only
+              change when the course is rebuilt on something else.
             */}
             <Fact
               label="Frequencies from"

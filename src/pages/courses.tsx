@@ -27,6 +27,10 @@ import CourseCard from "@/components/courses/CourseCard";
 import CourseShelf from "@/components/courses/CourseShelf";
 import { loadCourseIndex } from "@/lib/courses/load";
 import { loadRepertoireMap } from "@/lib/repertoire/load";
+import { getSessionFromCookieHeader } from "@/lib/auth/sessionToken";
+import { getUserById } from "@/lib/server/users";
+import { resolveUserRating } from "@/lib/coach/userRating";
+import { bandFor } from "@/lib/repertoire/levels";
 import { loadBracket } from "@/lib/repertoire/store";
 import { readCourseProgress } from "@/lib/learn/courseProgress";
 import {
@@ -46,12 +50,34 @@ interface Props {
   entries: CatalogueEntry[];
 }
 
-export const getServerSideProps: GetServerSideProps<Props> = async () => {
+export const getServerSideProps: GetServerSideProps<Props> = async ctx => {
   const index = loadCourseIndex();
-  const map = loadRepertoireMap();
+
+  // The band comes from the account, never from the request — the same rule
+  // /learn/[courseId] states and for the same reason. A failed profile read
+  // degrades to "we do not know you", which is the middle band.
+  //
+  // It matters here because the "Answers the most on its own" shelf is RANKED
+  // by slot share × absorbs and its note says "share of your games". Read off
+  // the Elite map that sentence describes 2300s: the Caro-Kann absorbs 100% of
+  // play at 2300+ and 70% under 800, and 1.e4 is 47% of Elite Black games
+  // against 62% of improving ones. Two screens making the same claim off two
+  // corpora is the exact failure this programme exists to remove.
+  let rating: number | undefined;
+  try {
+    const session = await getSessionFromCookieHeader(ctx.req.headers.cookie);
+    if (session?.uid) {
+      const user = await getUserById(session.uid);
+      rating = resolveUserRating(user);
+    }
+  } catch {
+    rating = undefined;
+  }
+  const map = loadRepertoireMap(bandFor(rating).id);
   if (!index) {
     // No generated courses is a build without the artifacts, not an error the
     // visitor caused. An empty catalogue renders its own explanation.
+    ctx.res.setHeader("Cache-Control", "private, no-store");
     return { props: { entries: [] } };
   }
   // Course ids ARE choice ids — verified against the shipped data, all 43 of
@@ -72,6 +98,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       });
     }
   }
+  // The ranking now depends on the account's band, so this response is
+  // per-user and must not sit in a shared cache. Same header, same reason, as
+  // /learn/[courseId].
+  ctx.res.setHeader("Cache-Control", "private, no-store");
   return { props: { entries: catalogue(index.courses, meta) } };
 };
 

@@ -52,7 +52,29 @@ import {
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
-const OUT = path.join(ROOT, 'src/data/repertoire-map.json');
+
+const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
+
+/**
+ * Which corpus to read and where to write the map derived from it.
+ *
+ * Defaults reproduce the original no-argument behaviour exactly: the shipped
+ * Elite tree in, the shipped map out. The arguments exist so the SAME
+ * derivation can run over a rating-banded corpus, which is the only way the
+ * band maps are comparable with the default one — a second implementation of
+ * this walk would make every difference between bands ambiguous between "the
+ * players differ" and "the code differs".
+ */
+const TREE = arg('tree') ?? 'src/data/master-tree.json';
+const OUT = path.isAbsolute(arg('out') ?? '')
+  ? arg('out')
+  : path.join(ROOT, arg('out') ?? 'src/data/repertoire-map.json');
+const BAND = arg('band') ?? null;
+const BANDS = ['new', 'beginner', 'improving', 'club', 'strong'];
+if (BAND && !BANDS.includes(BAND)) {
+  console.error(`Unknown band "${BAND}". One of: ${BANDS.join(', ')}`);
+  process.exit(1);
+}
 
 /** How far past a slot a branch still counts as a REPERTOIRE decision. */
 const GAP_MAX_PLY = 3;
@@ -62,8 +84,19 @@ const GAP_MIN_SHARE = 0.02;
 const GAP_LIMIT = 8;
 /** Lookahead for "does this transpose into what I already play". */
 const STEER_PLY = 8;
-/** Replies offered as choices at a derived slot. */
-const MOVES_PER_SLOT = 6;
+/**
+ * Replies offered as choices at a derived slot.
+ *
+ * A DISPLAY decision, and it is calibrated on how concentrated the corpus is.
+ * Six is right for Elite play, where one reply is 80% of the position at
+ * `1.e4 e6 2.Bc4`. Measured on sub-800 games the same position needs SEVEN
+ * replies to reach 80% and ten to reach 90% — weaker players spread their
+ * moves much more widely, which is precisely what the Elite corpus was hiding.
+ * A cap held at six across bands would not show fewer replies; it would show
+ * six replies and a `replyCoverage` of 0.71 while claiming to describe the
+ * position.
+ */
+const MOVES_PER_SLOT = Number(arg('moves-per-slot') ?? 6);
 /**
  * Floor on how much of a position's real play a slot's replies must account
  * for. See the guard that uses it for why it is this number and not a tighter
@@ -71,11 +104,12 @@ const MOVES_PER_SLOT = 6;
  */
 const MIN_REPLY_COVERAGE = 0.8;
 
-const read = f => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'));
+const read = f =>
+  JSON.parse(fs.readFileSync(path.isAbsolute(f) ? f : path.join(ROOT, f), 'utf8'));
 
 function main() {
   const openings = read('src/data/openings.json');
-  const tree = read('src/data/master-tree.json');
+  const tree = read(TREE);
   const catalogue = read('scripts/openings/repertoire-catalogue.json');
   const label = buildLabeller(openings);
   const problems = [];
@@ -267,6 +301,22 @@ function main() {
     curatedBySlot.get(id).push(choice);
   }
 
+  /**
+   * Does the corpus have anything to say at this position?
+   *
+   * Only ever asked of DERIVED slots. The curated roots stay in the bracket
+   * whatever the corpus says about them: they are the decisions this product
+   * has taken a view on, and a band that has never played the Dutch still has
+   * to be told what to do about it.
+   */
+  const describable = line => {
+    const fen = fenAfter(line);
+    if (!fen) return false;
+    return repliesAt(tree, fen).length > 0;
+  };
+  /** Derived slots skipped for having no measured play. Reported, never silent. */
+  const undescribed = [];
+
   const queue = [...slots.values()];
   const done = new Set();
   while (queue.length) {
@@ -301,6 +351,21 @@ function main() {
       const open = gaps.reduce((sum, g) => sum + g.share, 0);
       const gapSlots = [];
       for (const gap of gaps) {
+        // A derived slot the corpus cannot describe is not a decision anybody
+        // faces; it is a position this band has never reached. Sub-800 games
+        // produce a few of them — `1.e4 e5 2.Nc3 Bc5 3.Na4 Bxf2+` is reached
+        // by nobody, because 3.Na4 is only played by people who then get
+        // something else wrong — and creating the slot would put an unfillable
+        // row in the bracket rather than saying anything true.
+        //
+        // Checked BEFORE creation rather than pruned after, because a slot
+        // already registered is already referenced by a choice's gap list.
+        // On the Elite corpus this drops nothing at all, which is what makes
+        // the shipped map reproducible byte-for-byte with the flag defaults.
+        if (!describable(gap.line)) {
+          undescribed.push(`${slot.side}:${gap.line.join(' ')}`);
+          continue;
+        }
         const child = slotFor(gap.line, slot.side, slot.share * gap.share, choice.id);
         if (!child) continue;
         gapSlots.push({ slot: child.id, share: Number(gap.share.toFixed(4)) });
@@ -384,8 +449,20 @@ function main() {
       late.push(`slot "${slot.id}" is a dead end: no measured replies and no choices`);
     }
     const total = slot.moves.reduce((s, m) => s + m.share, 0);
-    if (slot.moves.length > 0 && total > 1.0001) {
-      late.push(`slot "${slot.id}" reply shares sum to ${total.toFixed(3)}`);
+    // Tolerance is the rounding budget this build itself spends, not a fudge
+    // factor. Each share is stored to 4dp, so N rows can sum up to N × 5e-5
+    // above the truth. A position where the shown replies genuinely ARE all of
+    // the play sums to exactly 1.0 before rounding and to 1.0002 after, and a
+    // flat 1.0001 fails it — which is the guard rejecting healthy data.
+    //
+    // It never fired on the 3.4M Elite corpus because no slot there has six or
+    // fewer distinct replies. It fires immediately on a rating-banded corpus,
+    // where thin positions are normal. Measured, not reasoned: at
+    // `1.e4 c5 2.Nf3 Nc6 3.c3` in the strong band the raw total is 1.000000
+    // over 82 games and 6 replies.
+    const ROUNDING = slot.moves.length * 5e-5;
+    if (slot.moves.length > 0 && total > 1 + ROUNDING + 1e-9) {
+      late.push(`slot "${slot.id}" reply shares sum to ${total.toFixed(4)}`);
     }
     // The lower bound. The upper one above cannot catch a renormalised slot:
     // shares divided by their own surviving sum come to exactly 1.000 and pass
@@ -416,9 +493,26 @@ function main() {
       console.log(`  ${(s.replyCoverage * 100).toFixed(1)}%  ${s.id}`);
     }
   }
+  if (undescribed.length) {
+    console.log(
+      `\nderived slots skipped for having no measured play in this corpus: ${undescribed.length}`
+    );
+    for (const u of undescribed.slice(0, 8)) console.log(`  ${u}`);
+  }
   if (late.length) {
     console.error('Derived map is inconsistent:\n');
     for (const p of late) console.error(`  ${p}`);
+    process.exit(1);
+  }
+
+  // The corpus must be the one that was asked for. A map built for `beginner`
+  // off the Elite tree is the single most plausible mistake here and the least
+  // visible one: every number renders, and every number is measured off 2300s.
+  if (BAND && tree.meta?.band !== BAND) {
+    console.error(
+      `--band=${BAND} but ${TREE} carries band ${JSON.stringify(tree.meta?.band ?? null)}. ` +
+        `Build the banded tree first, or drop --band.`
+    );
     process.exit(1);
   }
 
@@ -426,6 +520,15 @@ function main() {
     meta: {
       source: tree.meta?.source ?? 'unknown',
       games: tree.meta?.games ?? 0,
+      band: tree.meta?.band ?? null,
+      /**
+       * The scale the corpus was banded on. `bandFor()` buckets a rating that
+       * `platformRatings.ts` has already normalised onto the chess.com scale,
+       * so a corpus banded on raw Lichess Elo would put a player in a band
+       * measured off a different population — and every number would still
+       * look reasonable. The consumer asserts this rather than trusting it.
+       */
+      bandScale: tree.meta?.bandScale ?? null,
       openings: openings.length,
       generatedFrom: 'scripts/openings/build-repertoire-map.mjs',
       gapMaxPly: GAP_MAX_PLY,
@@ -456,7 +559,7 @@ function main() {
   console.log(`slots        ${out.slots.length}`);
   console.log(`choices      ${out.slots.reduce((n, s) => n + s.choices.length, 0)}`);
   console.log(`transposals  ${transpositions.length}`);
-  console.log(`written      src/data/repertoire-map.json (${kb} KB)`);
+  console.log(`written      ${path.relative(ROOT, OUT)} (${kb} KB)`);
   console.log('');
   for (const s of out.slots.filter(s => s.choices.length)) {
     console.log(`  ${s.id.padEnd(22)} ${s.name ?? ''}`);

@@ -36,6 +36,7 @@ import { BookOpen, Check, ChevronRight, Pencil, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { bandFor, nextBand, sufficiency, verdict, type Band } from "@/lib/repertoire/levels";
+import { provenanceOf } from "@/lib/repertoire/provenance";
 import SlotChooser from "@/components/learn/SlotChooser";
 import {
   buildBracket,
@@ -113,9 +114,13 @@ export default function LearnPage() {
   // this is what stops a re-take from feeling like starting over.
   const [editing, setEditing] = useState<QuizAnswers | null>(null);
 
+  // Re-fetched when the band changes, because the FREQUENCIES differ by band:
+  // the same bracket measured on beginners and on 2300s disagrees by a factor
+  // of twenty-four on how often you meet a Najdorf. The band is a corpus
+  // selector, nothing about the caller travels with it.
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/repertoire")
+    fetch(`/api/repertoire?band=${encodeURIComponent(band.id)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((data: RepertoireMap) => {
         if (cancelled) return;
@@ -126,7 +131,7 @@ export default function LearnPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [band.id]);
 
   // Read in an effect, never during render: this is localStorage, and a server
   // render that guessed would hydrate into a different bracket.
@@ -351,11 +356,16 @@ export default function LearnPage() {
           />
         )}
 
+        {/* The footer no longer restates the corpus: the coverage bar says
+            where the frequencies came from, in the same breath as the claim
+            they support. Two "Frequencies from …" sentences on one page read
+            as a bug, and the one down here was the vaguer of the two — it
+            named the corpus without naming the BAND, which is now the whole
+            point. What is left is the part that has no other home. */}
         <Typography sx={{ mt: 4, fontSize: "0.76rem", color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>
-          Frequencies from {map.meta.games.toLocaleString()} games ({map.meta.source}) — how often
-          players in that corpus meet each line, not yet how often you do. Coverage is computed from{" "}
-          {map.meta.openings.toLocaleString()} named openings by comparing positions, so a line that
-          transposes into yours counts as yours.
+          Shares are how often players at that level meet each line, not how often you have. Coverage
+          is computed from {map.meta.openings.toLocaleString()} named openings by comparing positions,
+          so a line that transposes into yours counts as yours.
         </Typography>
       </Box>
     </Shell>
@@ -801,6 +811,24 @@ function CoverageBar({
             {rating ? `Rated ${rating}, ` : "Unrated, so "}
             {rating ? `so we are treating you as ${band.name.toLowerCase()}` : `treating you as ${band.name.toLowerCase()}`}
             . {band.advice}
+          </Typography>
+          {/* Where the numbers came from, said in the same breath as the
+              verdict they support.
+
+              Not decoration. Every share on this page used to be measured on
+              Lichess Elite 2300+, where the Najdorf is commoner than the
+              London; measured on games by players under 800 the Najdorf does
+              not occur AT ALL and the London is 2.4% of games. A page that
+              says "share of your games" while showing somebody else's
+              opponents is wrong in a way nothing on screen could contradict,
+              so the corpus states itself. */}
+          <Typography
+            data-testid="corpus-provenance"
+            sx={{ color: "rgba(255,255,255,0.34)", fontSize: "0.74rem", lineHeight: 1.5, mt: 0.75 }}
+          >
+            {tree
+              ? `Frequencies from your own ${tree.games[side].toLocaleString("en-US")} games as ${side}.`
+              : provenanceOf(meta, band, { bandKnown: rating !== undefined }).sentence}
           </Typography>
         </Box>
       </Box>

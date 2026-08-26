@@ -34,7 +34,10 @@ function slot(over: Partial<RepertoireSlot> & { id: string }): RepertoireSlot {
 // 1.d4 is 30% of Black's games. The Grünfeld answers 70% of what follows and
 // leaves the London (20% of the branch) and the Trompowsky (10%).
 const MAP: RepertoireMap = {
-  meta: { source: 'test', games: 1, openings: 1, gapMaxPly: 3, gapMinShare: 0.02, steerPly: 8, otherFirstMoves: 0 },
+  meta: {
+    source: 'test', games: 1, band: null, bandScale: null, openings: 1,
+    gapMaxPly: 3, gapMinShare: 0.02, steerPly: 8, otherFirstMoves: 0,
+  },
   slots: [
     slot({
       id: 'black:d4', line: ['d4'], share: 0.3,

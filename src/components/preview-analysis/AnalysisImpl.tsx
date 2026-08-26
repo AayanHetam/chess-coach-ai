@@ -40,6 +40,7 @@ import {
   type PlayerSide,
   type PlayerSideColor,
 } from "@/components/preview-analysis/playerSide";
+import BookExitCard from "@/components/analysis/BookExitCard";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import {
   BoardArrowToggles,
@@ -4691,6 +4692,14 @@ function CoachPanel({
         <Stack spacing={2}>
           {sideUiEligible && playerSide && (
             <PlayerSideChip side={playerSide} onChoose={onChoosePlayerSide} />
+          )}
+          {/* Where this game left what players at the reader's own level play.
+              Gated on playerSide because the answer is per COLOUR: without it
+              we would have to guess whose moves to judge, and guessing wrong
+              reports the opponent's departure as the reader's. The card fetches
+              its own answer and renders nothing at all when it has none. */}
+          {playerSide && (allMoves?.length ?? 0) > 0 && (
+            <BookExitCard sans={allMoves!.map((m) => m.san)} side={playerSide.color} />
           )}
           {mistakeContext && (
             <Box sx={{ alignSelf: "stretch" }}>

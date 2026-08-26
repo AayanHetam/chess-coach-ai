@@ -53,6 +53,16 @@ export interface BracketState {
   white: RepertoirePick[];
   black: RepertoirePick[];
   updatedAt: number;
+  /**
+   * When each colour was last changed, epoch ms. Optional, because states
+   * written before the account sync existed do not carry them — a missing one
+   * falls back to `updatedAt`, which is exactly what it meant then.
+   *
+   * They exist so two devices can be reconciled per COLOUR. See
+   * `mergeBrackets` for why that is the right grain and per-pick is not.
+   */
+  whiteAt?: number;
+  blackAt?: number;
 }
 
 export const EMPTY: BracketState = {
@@ -75,42 +85,150 @@ const isChurn = (c: unknown): c is Churn => CHURNS.includes(c as Churn);
 const isPick = (p: unknown): p is RepertoirePick =>
   !!p && typeof p === 'object' && typeof (p as RepertoirePick).slotId === 'string';
 
+/**
+ * Any parsed value, coerced into a bracket.
+ *
+ * Extracted out of `loadBracket` so the SERVER can use it too: an account
+ * document is no more trustworthy than a localStorage string — it was written
+ * by an older client, or by hand — and the merge must not be handed a shape it
+ * did not check. Same rule as `sanitiseRecords` for chapters.
+ *
+ * Never throws and never returns null. Anything it cannot read is EMPTY, which
+ * is the state that loses every merge.
+ */
+export function sanitiseBracket(parsed: unknown): BracketState {
+  if (!parsed || typeof parsed !== 'object') return EMPTY;
+  const s = parsed as Partial<BracketState>;
+  if (s.v !== 1) return EMPTY;
+  const stamp = (v: unknown): number | undefined => (typeof v === 'number' && v >= 0 ? v : undefined);
+  return {
+    v: 1,
+    quiz: s.quiz && typeof s.quiz === 'object' ? s.quiz : null,
+    // Both fields are additive, so a bracket saved before they existed reads
+    // back as "not asked" and "not locked" rather than as a parse failure.
+    // Bumping the version instead would have thrown away every repertoire
+    // anybody had already built, to add a question.
+    churn: isChurn(s.churn) ? s.churn : null,
+    locked: {
+      white: s.locked?.white === true,
+      black: s.locked?.black === true,
+    },
+    white: Array.isArray(s.white) ? s.white.filter(isPick) : [],
+    black: Array.isArray(s.black) ? s.black.filter(isPick) : [],
+    updatedAt: typeof s.updatedAt === 'number' ? s.updatedAt : 0,
+    // Left UNDEFINED rather than defaulted to 0 when absent. `sideAt` falls
+    // back to `updatedAt`, which is what a pre-sync state actually meant;
+    // writing 0 here would tell the merge that colour was last touched at the
+    // epoch and hand every tie to the other device.
+    whiteAt: stamp(s.whiteAt),
+    blackAt: stamp(s.blackAt),
+  };
+}
+
 export function loadBracket(account: string): BracketState {
   if (typeof window === 'undefined') return EMPTY;
   try {
     const raw = window.localStorage.getItem(storeKey(account));
-    const parsed: unknown = raw ? JSON.parse(raw) : null;
-    if (!parsed || typeof parsed !== 'object') return EMPTY;
-    const s = parsed as Partial<BracketState>;
-    if (s.v !== 1) return EMPTY;
-    return {
-      v: 1,
-      quiz: s.quiz && typeof s.quiz === 'object' ? s.quiz : null,
-      // Both fields are additive, so a bracket saved before they existed reads
-      // back as "not asked" and "not locked" rather than as a parse failure.
-      // Bumping the version instead would have thrown away every repertoire
-      // anybody had already built, to add a question.
-      churn: isChurn(s.churn) ? s.churn : null,
-      locked: {
-        white: s.locked?.white === true,
-        black: s.locked?.black === true,
-      },
-      white: Array.isArray(s.white) ? s.white.filter(isPick) : [],
-      black: Array.isArray(s.black) ? s.black.filter(isPick) : [],
-      updatedAt: typeof s.updatedAt === 'number' ? s.updatedAt : 0,
-    };
+    return sanitiseBracket(raw ? JSON.parse(raw) : null);
   } catch {
     return EMPTY;
   }
 }
 
-export function saveBracket(account: string, state: BracketState): void {
-  if (typeof window === 'undefined') return;
+/**
+ * Store the bracket on this device. **False means it was not saved.**
+ *
+ * It used to return void and swallow the throw, on the reasoning that a full
+ * or disabled localStorage "costs the saved bracket, never the session". True,
+ * and not enough: the bracket is the thing here with no other copy, and a
+ * player who quietly loses an afternoon of choices has no way to know.
+ * `writeChapter` has returned this since it was written; this is that contract.
+ *
+ * The pressure is real and recent. Course progress at the shipped band depths
+ * runs to ~1.2 MB for a six-course repertoire and ~4.2 MB if somebody drills
+ * all forty-three, against a ~5 MB origin budget — so the biggest consumer,
+ * which IS backed up to the account, can starve this one, which was not.
+ */
+export function saveBracket(account: string, state: BracketState): boolean {
+  if (typeof window === 'undefined') return false;
   try {
     window.localStorage.setItem(storeKey(account), JSON.stringify(state));
+    return true;
   } catch {
-    // Storage full or disabled costs the saved bracket, never the session.
+    return false;
   }
+}
+
+/** Everything about one colour that a device can change. */
+const colourOf = (state: BracketState, side: 'white' | 'black') =>
+  JSON.stringify([side === 'white' ? state.white : state.black, state.locked[side]]);
+
+/**
+ * Stamp `next` with the time, touching only the colours that actually changed.
+ *
+ * The precision matters. Stamping BOTH colours on every save would let a quiz
+ * answer typed on a laptop carry a stale White list past a real White pick made
+ * on a phone a minute earlier — the merge would see the laptop's `whiteAt` as
+ * newer and be right to believe it, because we lied to it. Stamping NEITHER
+ * would leave every colour reading `updatedAt` and collapse the merge back to
+ * whole-state last-write-wins, which is the thing per-colour exists to avoid.
+ */
+export function stampBracket(prev: BracketState, next: BracketState, now: number): BracketState {
+  const touched = (side: 'white' | 'black') => colourOf(prev, side) !== colourOf(next, side);
+  return {
+    ...next,
+    updatedAt: now,
+    whiteAt: touched('white') ? now : (prev.whiteAt ?? next.whiteAt),
+    blackAt: touched('black') ? now : (prev.blackAt ?? next.blackAt),
+  };
+}
+
+const sideAt = (state: BracketState, side: 'white' | 'black'): number =>
+  (side === 'white' ? state.whiteAt : state.blackAt) ?? state.updatedAt;
+
+/**
+ * Two devices' brackets, reconciled. PER COLOUR, and deliberately not per pick.
+ *
+ * `clearBelow` deletes a whole subtree when a choice changes, so a per-slot
+ * union would resurrect exactly the orphans that function exists to remove: a
+ * player who switched from the Grünfeld to the Nimzo-Indian on their laptop
+ * would find their anti-Trompowsky answer back on their phone, sitting in a
+ * slot the new choice never creates. A merge that can invent a state neither
+ * device ever held is worse than one that picks a side.
+ *
+ * Colours are independent subtrees — every `slotId` is `white:…` or `black:…`
+ * and `clearBelow` never crosses between them — so a whole colour is the
+ * finest grain that cannot invent anything.
+ *
+ * THE COST, STATED: two genuinely concurrent edits to the SAME colour keep the
+ * newer and lose the older. Whole-state last-write-wins would additionally
+ * lose the other colour, and picking White on a laptop and Black on a phone is
+ * the common case, not the exotic one.
+ *
+ * A fresh device cannot wipe an account, and the reason is NOT the tie rule:
+ * `EMPTY` carries `updatedAt: 0`, which loses to any state ever saved. Ties go
+ * to `mine` — the server calls this as `mergeBrackets(existing, incoming)` —
+ * but that is a determinism convention, not a safety property. Flipping it to
+ * `>=` changes no observable behaviour, which a mutation run confirmed; an
+ * earlier version of this comment claimed otherwise and was wrong.
+ */
+export function mergeBrackets(mine: BracketState, theirs: BracketState): BracketState {
+  const winner = (side: 'white' | 'black') => (sideAt(theirs, side) > sideAt(mine, side) ? theirs : mine);
+  const white = winner('white');
+  const black = winner('black');
+  // Scalars are not per colour and have nowhere finer to go.
+  const newer = theirs.updatedAt > mine.updatedAt ? theirs : mine;
+  return {
+    v: 1,
+    quiz: newer.quiz,
+    churn: newer.churn,
+    locked: { white: white.locked.white, black: black.locked.black },
+    white: white.white,
+    black: black.black,
+    updatedAt: Math.max(mine.updatedAt, theirs.updatedAt),
+    whiteAt: sideAt(white, 'white'),
+    blackAt: sideAt(black, 'black'),
+  };
 }
 
 /** Replace the pick at a slot, or clear it when `pick` is null. */

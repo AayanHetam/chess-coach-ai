@@ -53,6 +53,13 @@ const nextConfig = {
     // tactics course library on /courses, which is a different product.
     "/api/opening-courses": ["./src/data/courses/index.json"],
     "/api/opening-courses/[id]": ["./src/data/courses/**"],
+    // One book per rating band, one file read per request. Glob, because the
+    // band is only known at request time from the reader's own rating. Same
+    // blind spot as every entry above: the tracer cannot see an fs read, and a
+    // book it did not copy does not fail the build — /analysis simply reports
+    // "no data for your band", in production only, which is precisely the
+    // answer this feature must never give wrongly.
+    "/api/book-exit": ["./src/data/opening-book.*.json"],
     // /learn/[courseId] reads its course in getServerSideProps and, since the
     // traps section, one trap file per band as well — both with `fs`.
     //

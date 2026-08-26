@@ -1,0 +1,201 @@
+{
+ "meta": {
+  "band": "improving",
+  "bandScale": "common (chess.com), converted from lichess",
+  "source": "Lichess rated blitz and rapid, 2025-11",
+  "games": 232933,
+  "generatedFrom": "scripts/openings/build-traps.mjs",
+  "signal": "game results only; no engine was consulted",
+  "z": 4,
+  "minEffect": 0.1,
+  "minMoveGames": 30,
+  "minShare": 0.03,
+  "tests": 4756,
+  "expectedFalsePositives": 0.16,
+  "traps": 5
+ },
+ "traps": [
+  {
+   "fen": "r1b1kbnr/pppp1ppp/2n5/4P3/8/5N2/PqPBPPPP/RN1QKB1R w KQkq -",
+   "san": "Bc3",
+   "side": "white",
+   "share": 0.2308,
+   "games": 33,
+   "score": 0.1364,
+   "baseline": 0.6045,
+   "z": 6.3,
+   "instead": [
+    {
+     "san": "Nc3",
+     "share": 0.7692,
+     "score": 0.6045,
+     "games": 110
+    }
+   ],
+   "line": [
+    "d4",
+    "e5",
+    "dxe5",
+    "Nc6",
+    "Nf3",
+    "Qe7",
+    "Bf4",
+    "Qb4+",
+    "Bd2",
+    "Qxb2"
+   ]
+  },
+  {
+   "fen": "r1bqk1nr/pppp1ppp/2n5/2b5/3NP3/4B3/PPP2PPP/RN1QKB1R b KQkq -",
+   "san": "Nxd4",
+   "side": "black",
+   "share": 0.1583,
+   "games": 38,
+   "score": 0.1711,
+   "baseline": 0.4728,
+   "z": 4.4,
+   "instead": [
+    {
+     "san": "Bb6",
+     "share": 0.1458,
+     "score": 0.6,
+     "games": 35
+    },
+    {
+     "san": "Qf6",
+     "share": 0.3833,
+     "score": 0.5163,
+     "games": 92
+    }
+   ],
+   "line": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "d4",
+    "exd4",
+    "Nxd4",
+    "Bc5",
+    "Be3"
+   ]
+  },
+  {
+   "fen": "r1bqkbnr/pppp2pp/2n5/4pp2/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq -",
+   "san": "exf5",
+   "side": "white",
+   "share": 0.3073,
+   "games": 169,
+   "score": 0.3521,
+   "baseline": 0.5367,
+   "z": 4.2,
+   "instead": [
+    {
+     "san": "d4",
+     "share": 0.1345,
+     "score": 0.6014,
+     "games": 74
+    },
+    {
+     "san": "d3",
+     "share": 0.3691,
+     "score": 0.5911,
+     "games": 203
+    },
+    {
+     "san": "Nc3",
+     "share": 0.0764,
+     "score": 0.3095,
+     "games": 42
+    }
+   ],
+   "line": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "Bc4",
+    "f5"
+   ]
+  },
+  {
+   "fen": "r1bqkb1r/ppp2ppp/2n2n2/3Pp1N1/2B5/8/PPPP1PPP/RNBQK2R b KQkq -",
+   "san": "Nxd5",
+   "side": "black",
+   "share": 0.2566,
+   "games": 185,
+   "score": 0.3622,
+   "baseline": 0.5289,
+   "z": 4.1,
+   "instead": [
+    {
+     "san": "b5",
+     "share": 0.0638,
+     "score": 0.6522,
+     "games": 46
+    },
+    {
+     "san": "Nd4",
+     "share": 0.1248,
+     "score": 0.5778,
+     "games": 90
+    },
+    {
+     "san": "Na5",
+     "share": 0.5451,
+     "score": 0.5025,
+     "games": 393
+    }
+   ],
+   "line": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "Bc4",
+    "Nf6",
+    "Ng5",
+    "d5",
+    "exd5"
+   ]
+  },
+  {
+   "fen": "r1bqkbnr/pppp1ppp/8/4p3/2BnP3/5N2/PPPP1PPP/RNBQK2R w KQkq -",
+   "san": "Nxe5",
+   "side": "white",
+   "share": 0.2057,
+   "games": 86,
+   "score": 0.3256,
+   "baseline": 0.5542,
+   "z": 4.1,
+   "instead": [
+    {
+     "san": "d3",
+     "share": 0.0861,
+     "score": 0.6806,
+     "games": 36
+    },
+    {
+     "san": "O-O",
+     "share": 0.1005,
+     "score": 0.5952,
+     "games": 42
+    },
+    {
+     "san": "c3",
+     "share": 0.1148,
+     "score": 0.5313,
+     "games": 48
+    }
+   ],
+   "line": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "Bc4",
+    "Nd4"
+   ]
+  }
+ ]
+}

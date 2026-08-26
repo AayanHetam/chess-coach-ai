@@ -1,0 +1,345 @@
+{
+ "meta": {
+  "band": "beginner",
+  "bandScale": "common (chess.com), converted from lichess",
+  "source": "Lichess rated blitz and rapid, 2025-11",
+  "games": 259759,
+  "generatedFrom": "scripts/openings/build-traps.mjs",
+  "signal": "game results only; no engine was consulted",
+  "z": 4,
+  "minEffect": 0.1,
+  "minMoveGames": 30,
+  "minShare": 0.03,
+  "tests": 4942,
+  "expectedFalsePositives": 0.17,
+  "traps": 9
+ },
+ "traps": [
+  {
+   "fen": "r1bqkbnr/pppp1ppp/8/4p3/2BnP3/5N2/PPPP1PPP/RNBQK2R w KQkq -",
+   "san": "Nxe5",
+   "side": "white",
+   "share": 0.2843,
+   "games": 203,
+   "score": 0.1921,
+   "baseline": 0.593,
+   "z": 11.5,
+   "instead": [
+    {
+     "san": "d3",
+     "share": 0.0882,
+     "score": 0.7063,
+     "games": 63
+    },
+    {
+     "san": "O-O",
+     "share": 0.0616,
+     "score": 0.6591,
+     "games": 44
+    },
+    {
+     "san": "Nxd4",
+     "share": 0.3824,
+     "score": 0.5989,
+     "games": 273
+    }
+   ],
+   "line": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "Bc4",
+    "Nd4"
+   ]
+  },
+  {
+   "fen": "r1bq1b1r/ppp2kpp/2n5/3np3/2B5/5Q2/PPPP1PPP/RNB1K2R b KQ -",
+   "san": "Kg8",
+   "side": "black",
+   "share": 0.1121,
+   "games": 36,
+   "score": 0,
+   "baseline": 0.2912,
+   "z": 11,
+   "instead": [
+    {
+     "san": "Ke6",
+     "share": 0.3333,
+     "score": 0.3925,
+     "games": 107
+    },
+    {
+     "san": "Qf6",
+     "share": 0.19,
+     "score": 0.3689,
+     "games": 61
+    },
+    {
+     "san": "Ke8",
+     "share": 0.3364,
+     "score": 0.1528,
+     "games": 108
+    }
+   ],
+   "line": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "Bc4",
+    "Nf6",
+    "Ng5",
+    "d5",
+    "exd5",
+    "Nxd5",
+    "Nxf7",
+    "Kxf7",
+    "Qf3+"
+   ]
+  },
+  {
+   "fen": "r1bq1bnr/pppp1kp1/2n4p/8/2BpP3/8/PPP2PPP/RNBQK2R b KQ -",
+   "san": "Ke8",
+   "side": "black",
+   "share": 0.5229,
+   "games": 80,
+   "score": 0.0375,
+   "baseline": 0.5205,
+   "z": 7.9,
+   "instead": [
+    {
+     "san": "Ke7",
+     "share": 0.2418,
+     "score": 0.5676,
+     "games": 37
+    }
+   ],
+   "line": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "d4",
+    "exd4",
+    "Ng5",
+    "h6",
+    "Nxf7",
+    "Kxf7",
+    "Bc4+"
+   ]
+  },
+  {
+   "fen": "r1bqkb1r/ppp2ppp/2n2n2/3Pp1N1/2B5/8/PPPP1PPP/RNBQK2R b KQkq -",
+   "san": "Nxd5",
+   "side": "black",
+   "share": 0.5369,
+   "games": 720,
+   "score": 0.3451,
+   "baseline": 0.5419,
+   "z": 7.5,
+   "instead": [
+    {
+     "san": "Nd4",
+     "share": 0.1119,
+     "score": 0.6133,
+     "games": 150
+    },
+    {
+     "san": "Na5",
+     "share": 0.305,
+     "score": 0.5159,
+     "games": 409
+    }
+   ],
+   "line": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "Bc4",
+    "Nf6",
+    "Ng5",
+    "d5",
+    "exd5"
+   ]
+  },
+  {
+   "fen": "rnbqkb1r/pppp1ppp/5n2/4N3/4P3/8/PPPP1PPP/RNBQKB1R b KQkq -",
+   "san": "Nxe4",
+   "side": "black",
+   "share": 0.2014,
+   "games": 289,
+   "score": 0.3426,
+   "baseline": 0.5227,
+   "z": 5.8,
+   "instead": [
+    {
+     "san": "Qe7",
+     "share": 0.1958,
+     "score": 0.5498,
+     "games": 281
+    },
+    {
+     "san": "Nc6",
+     "share": 0.3226,
+     "score": 0.54,
+     "games": 463
+    },
+    {
+     "san": "Bc5",
+     "share": 0.0739,
+     "score": 0.5283,
+     "games": 106
+    }
+   ],
+   "line": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nf6",
+    "Nxe5"
+   ]
+  },
+  {
+   "fen": "r1bqkbnr/pppp1ppp/2n5/6N1/3pP3/8/PPP2PPP/RNBQKB1R b KQkq -",
+   "san": "h6",
+   "side": "black",
+   "share": 0.244,
+   "games": 174,
+   "score": 0.2701,
+   "baseline": 0.475,
+   "z": 5.2,
+   "instead": [
+    {
+     "san": "Nh6",
+     "share": 0.0687,
+     "score": 0.5714,
+     "games": 49
+    },
+    {
+     "san": "Qf6",
+     "share": 0.0715,
+     "score": 0.5294,
+     "games": 51
+    },
+    {
+     "san": "f6",
+     "share": 0.1304,
+     "score": 0.5269,
+     "games": 93
+    }
+   ],
+   "line": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "d4",
+    "exd4",
+    "Ng5"
+   ]
+  },
+  {
+   "fen": "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq -",
+   "san": "Nf6",
+   "side": "black",
+   "share": 0.0391,
+   "games": 51,
+   "score": 0.1961,
+   "baseline": 0.4705,
+   "z": 4.9,
+   "instead": [
+    {
+     "san": "g6",
+     "share": 0.6682,
+     "score": 0.4914,
+     "games": 872
+    },
+    {
+     "san": "Qf6",
+     "share": 0.1349,
+     "score": 0.4631,
+     "games": 176
+    },
+    {
+     "san": "Qe7",
+     "share": 0.0743,
+     "score": 0.4536,
+     "games": 97
+    }
+   ],
+   "line": [
+    "e4",
+    "e5",
+    "Bc4",
+    "Nc6",
+    "Qh5"
+   ]
+  },
+  {
+   "fen": "rnbqkbnr/ppp1pppp/3p4/8/3P4/5N2/PPP1PPPP/RNBQKB1R b KQkq -",
+   "san": "e5",
+   "side": "black",
+   "share": 0.0874,
+   "games": 32,
+   "score": 0.1563,
+   "baseline": 0.4775,
+   "z": 4.6,
+   "instead": [
+    {
+     "san": "Nf6",
+     "share": 0.3497,
+     "score": 0.5156,
+     "games": 128
+    },
+    {
+     "san": "e6",
+     "share": 0.1284,
+     "score": 0.3617,
+     "games": 47
+    }
+   ],
+   "line": [
+    "d4",
+    "d6",
+    "Nf3"
+   ]
+  },
+  {
+   "fen": "rnbqkbnr/pppp1ppp/4p3/8/3P1B2/8/PPP1PPPP/RN1QKBNR b KQkq -",
+   "san": "Nc6",
+   "side": "black",
+   "share": 0.0451,
+   "games": 53,
+   "score": 0.2358,
+   "baseline": 0.4746,
+   "z": 4.1,
+   "instead": [
+    {
+     "san": "b6",
+     "share": 0.0485,
+     "score": 0.6316,
+     "games": 57
+    },
+    {
+     "san": "d6",
+     "share": 0.0918,
+     "score": 0.537,
+     "games": 108
+    },
+    {
+     "san": "Qf6",
+     "share": 0.0272,
+     "score": 0.5313,
+     "games": 32
+    }
+   ],
+   "line": [
+    "d4",
+    "e6",
+    "Bf4"
+   ]
+  }
+ ]
+}

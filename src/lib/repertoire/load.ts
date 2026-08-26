@@ -21,8 +21,22 @@ const maps = new Map<string, RepertoireMap | null>();
 let library: OpeningEntry[] | null = null;
 let libraryFailed = false;
 
-/** The bands that have their own corpus. Anything else falls back. */
-export const BANDED_MAPS = ['new', 'beginner', 'improving', 'club'] as const;
+/**
+ * The bands that have their own corpus. Anything else falls back.
+ *
+ * `strong` is in the list even though the Elite corpus is also 2000+ play,
+ * because Elite is a different FILTER as well as a different population — it
+ * is 2500-vs-2300 selected games, where the strong band is everybody over
+ * 2000 in the same dump as the other four. Measured, the two disagree: 1...e5
+ * is 20.1% of strong-band games and 25.2% of Elite ones. A 2100 gets the
+ * corpus banded the way every other reader's is, so band-to-band comparison
+ * stays a statement about players.
+ *
+ * Every id here MUST have a shipped file — a band listed and not shipped
+ * degrades to Elite silently, and a band shipped and not listed is a file
+ * nothing ever reads. Both directions are asserted in bandedCorpus.test.ts.
+ */
+export const BANDED_MAPS = ['new', 'beginner', 'improving', 'club', 'strong'] as const;
 export type BandedMapId = (typeof BANDED_MAPS)[number];
 
 /**
@@ -38,6 +52,9 @@ export type BandedMapId = (typeof BANDED_MAPS)[number];
  */
 const REQUIRED_SCALE = 'common (chess.com)';
 
+/** The Elite corpus: the default, and what every band falls back to. */
+const DEFAULT_MAP = 'src/data/repertoire-map.json';
+
 function readJson<T>(rel: string): T | null {
   return JSON.parse(fs.readFileSync(path.join(process.cwd(), rel), 'utf-8')) as T;
 }
@@ -45,7 +62,7 @@ function readJson<T>(rel: string): T | null {
 function fileFor(band: string | null | undefined): string {
   return band && (BANDED_MAPS as readonly string[]).includes(band)
     ? `src/data/repertoire-map.${band}.json`
-    : 'src/data/repertoire-map.json';
+    : DEFAULT_MAP;
 }
 
 /** A banded file must be the band it was asked for, on the scale we band on. */
@@ -72,7 +89,7 @@ export function loadRepertoireMap(band?: string | null): RepertoireMap | null {
   } catch {
     loaded = null;
   }
-  if (loaded && rel !== 'src/data/repertoire-map.json' && !trustworthy(loaded, band as string)) {
+  if (loaded && rel !== DEFAULT_MAP && !trustworthy(loaded, band as string)) {
     loaded = null;
   }
   maps.set(rel, loaded);
@@ -81,7 +98,7 @@ export function loadRepertoireMap(band?: string | null): RepertoireMap | null {
 
 /** The Elite map, for a band whose own file is missing or untrusted. */
 function fallback(rel: string): RepertoireMap | null {
-  return rel === 'src/data/repertoire-map.json' ? null : loadRepertoireMap(null);
+  return rel === DEFAULT_MAP ? null : loadRepertoireMap(null);
 }
 
 /** Test seam. The caches are process-lifetime by design. */

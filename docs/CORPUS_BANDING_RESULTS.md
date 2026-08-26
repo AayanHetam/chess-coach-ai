@@ -126,9 +126,34 @@ between a band map and the Elite map is a fact about the players.
 | surface | corpus |
 |---|---|
 | `/learn` bracket, shares, coverage | **banded**, per the reader's band |
-| `/api/repertoire?band=` | **banded**, cached per band |
+| `/courses` "Answers the most on its own" shelf | **banded** — it is ranked by slot share × absorbs and its note says "share of your games" |
+| `/api/repertoire?band=` | **banded**, cached per band, keyspace bounded to the six real values |
 | Opening courses and the course trainer | still Elite — courses are generated from the 24-ply Elite tree |
 | `/api/opening-explorer` | still Elite |
+
+`/courses` had to move with `/learn`: two screens making the same claim off two
+corpora contradict each other invisibly, since both render fine. The ranking
+really does change — the King's Gambit, the Italian and the Ruy Lopez are
+top-eight for a sub-800 reader and absent from Elite's eight.
+
+Worth recording because it is counter-intuitive: for the Caro-Kann the two
+effects almost exactly cancel. Slot share rises 47% → 68% while absorbs falls
+100% → 70%, leaving the product within 3%. So the *order* is what changed, not
+every score — which is why the test asserts the order.
+
+### `strong` reads its own band, not Elite
+
+Both are 2000+ play, but Elite is a different **filter** as well as a different
+population: 2500-vs-2300 selected games against everybody over 2000 in the same
+dump as the other four bands. They disagree — 1...e5 is 20.1% of strong-band
+games and 25.2% of Elite ones. A 2100 gets the corpus banded the way every
+other reader's is, so a band-to-band comparison stays a statement about players.
+
+This was nearly a silent bug: `BANDED_MAPS` listed four bands while five
+shipped, so `repertoire-map.strong.json` was built, committed, asserted correct
+— and never loaded. Existence and correctness were both tested; **reachability
+was not**. There is now a test asserting the set of listed bands, the set of
+shipped files, and `BANDS` are all the same set.
 
 The trainer's "Frequencies from" row keeps naming Elite for that reason. The
 two are allowed to differ; what is not allowed is one screen claiming the band

@@ -9,7 +9,7 @@
 // nothing about the caller that the caller did not already know.
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { loadRepertoireMap } from '@/lib/repertoire/load';
+import { BANDED_MAPS, loadRepertoireMap } from '@/lib/repertoire/load';
 import type { RepertoireMap } from '@/types/repertoire';
 
 export default function handler(
@@ -20,7 +20,15 @@ export default function handler(
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'method not allowed' });
   }
-  const band = typeof req.query.band === 'string' ? req.query.band : null;
+  // Validated rather than passed through, and the reason is the CACHE. The
+  // response is public and keyed by URL, so an unbounded `band` would let
+  // anyone mint unlimited distinct cache entries and evict the six real ones.
+  // Six is the whole keyspace: five bands and no band at all.
+  const raw = req.query.band;
+  const band = typeof raw === 'string' && raw.length > 0 ? raw : null;
+  if (band && !(BANDED_MAPS as readonly string[]).includes(band)) {
+    return res.status(400).json({ error: 'unknown band' });
+  }
   const map = loadRepertoireMap(band);
   if (!map) return res.status(503).json({ error: 'repertoire map unavailable' });
   // Derived from two committed files and a build script. It changes when the

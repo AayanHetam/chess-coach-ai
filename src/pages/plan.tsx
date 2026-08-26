@@ -8,13 +8,13 @@ import { useAtomValue } from "jotai";
 import {
   BookOpen,
   Check,
-  Circle,
   ExternalLink,
   Flame,
   Microscope,
   Play,
   RotateCcw,
   Sparkles,
+  Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDueCourse } from "@/lib/learn/useDueCourse";
@@ -42,6 +42,12 @@ import { resolveUserRating } from "@/lib/coach/userRating";
 import { firstNameOf } from "@/lib/auth/displayIdentity";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
+import {
+  ACCENTS,
+  themeAccent,
+  type Accent,
+  type AccentName,
+} from "@/components/ui/accents";
 import { NavPill } from "@/components/ui/NavPill";
 import RatingTrends from "@/components/plan/RatingTrends";
 import { CHARTED_PERFS, type ChartedPerf } from "@/lib/rating/ratingHistory";
@@ -75,28 +81,53 @@ function themeLabel(id: string): string {
 function GlassCard({
   children,
   highlight,
+  accent,
   onClick,
 }: {
   children: React.ReactNode;
   highlight?: boolean;
+  /** Identity tint for the card's product area — colours the border, a top
+   *  hairline, and a faint wash. `highlight` (the ember CTA treatment) wins
+   *  when both are set. */
+  accent?: AccentName;
   onClick?: () => void;
 }) {
+  const a = !highlight && accent ? ACCENTS[accent] : undefined;
   return (
     <Box
       onClick={onClick}
       sx={{
+        position: "relative",
+        overflow: "hidden",
         p: { xs: 2.5, md: 3 },
         borderRadius: "20px",
-        background:
-          "linear-gradient(180deg, rgba(20,22,28,0.92) 0%, rgba(12,14,20,0.92) 100%)",
+        background: a
+          ? `radial-gradient(120% 55% at 50% 0%, ${a.tint}, transparent 70%), linear-gradient(180deg, rgba(20,22,28,0.92) 0%, rgba(12,14,20,0.92) 100%)`
+          : "linear-gradient(180deg, rgba(20,22,28,0.92) 0%, rgba(12,14,20,0.92) 100%)",
         border: highlight
           ? "1px solid rgba(249,115,22,0.5)"
-          : "1px solid rgba(255,255,255,0.08)",
+          : a
+            ? `1px solid ${a.border}`
+            : "1px solid rgba(255,255,255,0.08)",
         boxShadow: highlight
           ? "0 0 0 1px rgba(249,115,22,0.15), 0 20px 48px -24px rgba(249,115,22,0.4)"
-          : "none",
+          : a
+            ? a.glow
+            : "none",
         cursor: onClick ? "pointer" : "default",
         transition: "border-color 180ms ease, box-shadow 180ms ease",
+        "&::before": a
+          ? {
+              content: '""',
+              position: "absolute",
+              top: 0,
+              left: "8%",
+              right: "8%",
+              height: "1.5px",
+              background: `linear-gradient(90deg, transparent, ${a.base}, transparent)`,
+              opacity: 0.65,
+            }
+          : undefined,
       }}
     >
       {children}
@@ -291,7 +322,13 @@ export default function PlanPage() {
   // session runner — so the plan reflects training wherever it happened.
   const todayTasks = useMemo(() => {
     const seen = new Set<string>();
-    const rows: { key: string; label: string; done: boolean }[] = [];
+    const rows: {
+      key: string;
+      label: string;
+      done: boolean;
+      theme: string;
+      kind: "new" | "review";
+    }[] = [];
     for (const t of plan.newThemes) {
       if (seen.has(t)) continue;
       seen.add(t);
@@ -299,6 +336,8 @@ export default function PlanPage() {
         key: `new-${t}`,
         label: `Learn ${themeLabel(t)}`,
         done: themesToday.includes(t),
+        theme: t,
+        kind: "new",
       });
     }
     for (const t of plan.reviewThemes) {
@@ -308,6 +347,8 @@ export default function PlanPage() {
         key: `rev-${t}`,
         label: `Review ${themeLabel(t)}`,
         done: themesToday.includes(t),
+        theme: t,
+        kind: "review",
       });
     }
     return rows;
@@ -392,20 +433,23 @@ export default function PlanPage() {
           </Typography>
           <Typography
             sx={{
-              color: "#fff",
               fontWeight: 800,
               fontSize: "1.7rem",
               lineHeight: 1.1,
+              background: "linear-gradient(100deg, #FDBA74 0%, #FDE047 100%)",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
             }}
           >
             {firstName}
           </Typography>
         </Box>
         <Box sx={{ display: "flex", gap: 1.5, alignItems: "stretch" }}>
-          <StatTile label="Rating" sub={bandLabel(stats.rating)}>
+          <StatTile label="Rating" sub={bandLabel(stats.rating)} accent="gold">
             <NumberTicker value={stats.rating} />
           </StatTile>
-          <StatTile label="Streak" sub={`best ${streak.best}`}>
+          <StatTile label="Streak" sub={`best ${streak.best}`} accent="ember">
             <Box
               sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}
             >
@@ -497,7 +541,7 @@ export default function PlanPage() {
       </Box>
 
       {canResume && (
-        <GlassCard highlight onClick={() => router.push("/puzzles")}>
+        <GlassCard accent="cyan" onClick={() => router.push("/puzzles")}>
           <Box
             sx={{
               display: "flex",
@@ -507,7 +551,7 @@ export default function PlanPage() {
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <RotateCcw size={20} color="#FB923C" />
+              <RotateCcw size={20} color="#67E8F9" />
               <Box>
                 <Typography sx={{ color: "#fff", fontWeight: 700 }}>
                   Continue where you left off
@@ -523,7 +567,7 @@ export default function PlanPage() {
                 </Typography>
               </Box>
             </Box>
-            <Play size={18} color="#FB923C" />
+            <Play size={18} color="#67E8F9" />
           </Box>
         </GlassCard>
       )}
@@ -590,7 +634,7 @@ export default function PlanPage() {
       {/* Today's training — a task list, not a sentence. Rows tick themselves
           off as the themes get trained on ANY surface, so /puzzles counts
           toward the plan rather than running beside it. */}
-      <GlassCard highlight>
+      <GlassCard accent="violet">
         <Box
           sx={{
             display: "flex",
@@ -626,7 +670,13 @@ export default function PlanPage() {
             </Typography>
           ) : (
             todayTasks.map((task) => (
-              <TaskRow key={task.key} label={task.label} done={task.done} />
+              <TaskRow
+                key={task.key}
+                label={task.label}
+                done={task.done}
+                accent={themeAccent(task.theme)}
+                kind={task.kind}
+              />
             ))
           )}
 
@@ -653,12 +703,12 @@ export default function PlanPage() {
       </GlassCard>
 
       {hasPlacement && (
-        <GlassCard>
+        <GlassCard accent="gold">
           <ConceptLessonCard />
         </GlassCard>
       )}
 
-      <GlassCard>
+      <GlassCard accent="rose">
         <OpeningLineCard
           phase={repertoire.phase}
           label={repertoire.label}
@@ -676,7 +726,7 @@ export default function PlanPage() {
         />
       </GlassCard>
 
-      <GlassCard>
+      <GlassCard accent="jade">
         <GoalsCard />
       </GlassCard>
 
@@ -695,6 +745,43 @@ function PlanShell({ children }: { children: React.ReactNode }) {
         <title key="title">Your plan — Chess Masti AI</title>
       </Head>
       <GradientBackdrop />
+      {/* Page-local aurora: cyan and rose join the backdrop's ember and
+          violet, so the plan column sits in colour instead of flat charcoal.
+          Fixed and z-indexed with the backdrop — never over content. */}
+      <Box
+        aria-hidden
+        sx={{
+          position: "fixed",
+          inset: 0,
+          zIndex: -1,
+          overflow: "hidden",
+          pointerEvents: "none",
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            width: "48vw",
+            height: "48vw",
+            top: "30vh",
+            left: "-20vw",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(34,211,238,0.10), transparent 60%)",
+            filter: "blur(80px)",
+          },
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            width: "44vw",
+            height: "44vw",
+            top: "55vh",
+            right: "-16vw",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(251,113,133,0.09), transparent 60%)",
+            filter: "blur(80px)",
+          },
+        }}
+      />
       <Box sx={{ minHeight: "100vh", pt: 2, pb: 6, px: { xs: 2, md: 3 } }}>
         <NavPill active="plan" />
         <Box
@@ -723,6 +810,9 @@ function dayKeyForIndex(dayIndex: number): string {
 
 function SecondaryTaskRow({ task }: { task: DailyTask }) {
   const Icon = task.kind === "analyze" ? Microscope : BookOpen;
+  // Analysis wears the cyan of the analyse tooling, theory the gold of the
+  // course/lesson area — same identities those cards wear elsewhere on /plan.
+  const a = task.kind === "analyze" ? ACCENTS.cyan : ACCENTS.gold;
   return (
     <Box
       component="a"
@@ -743,8 +833,20 @@ function SecondaryTaskRow({ task }: { task: DailyTask }) {
         "&:hover .task-label": { color: "#fff" },
       }}
     >
-      <Box sx={{ mt: "2px", flexShrink: 0 }}>
-        <Icon size={18} color="#FB923C" strokeWidth={2} />
+      <Box
+        sx={{
+          mt: "2px",
+          flexShrink: 0,
+          width: 24,
+          height: 24,
+          borderRadius: "8px",
+          background: a.soft,
+          border: `1px solid ${a.border}`,
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        <Icon size={13} color={a.bright} strokeWidth={2.5} />
       </Box>
       <Box sx={{ minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
@@ -781,7 +883,19 @@ function SecondaryTaskRow({ task }: { task: DailyTask }) {
   );
 }
 
-function TaskRow({ label, done }: { label: string; done: boolean }) {
+function TaskRow({
+  label,
+  done,
+  accent,
+  kind,
+}: {
+  label: string;
+  done: boolean;
+  /** The theme's own colour — stable per theme, so a fork is always gold. */
+  accent: Accent;
+  kind: "new" | "review";
+}) {
+  const Icon = kind === "review" ? RotateCcw : Zap;
   return (
     <Box
       sx={{
@@ -796,19 +910,32 @@ function TaskRow({ label, done }: { label: string; done: boolean }) {
       {done ? (
         <Box
           sx={{
-            width: 20,
-            height: 20,
-            borderRadius: "999px",
+            width: 24,
+            height: 24,
+            borderRadius: "8px",
             background: "#4ade80",
             display: "grid",
             placeItems: "center",
             flexShrink: 0,
           }}
         >
-          <Check size={12} color="#0A0907" strokeWidth={3.5} />
+          <Check size={13} color="#0A0907" strokeWidth={3.5} />
         </Box>
       ) : (
-        <Circle size={20} color="rgba(255,255,255,0.28)" strokeWidth={2} />
+        <Box
+          sx={{
+            width: 24,
+            height: 24,
+            borderRadius: "8px",
+            background: accent.soft,
+            border: `1px solid ${accent.border}`,
+            display: "grid",
+            placeItems: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Icon size={13} color={accent.bright} strokeWidth={2.5} />
+        </Box>
       )}
       <Typography
         sx={{
@@ -833,6 +960,10 @@ function DayCell({
   done: boolean;
   onStart: () => void;
 }) {
+  // A future day that has SRS reviews genuinely falling due wears the cyan of
+  // the review identity, so the week strip shows WHERE the review load lands
+  // rather than reading as six identical grey boxes.
+  const hasReviews = !day.isToday && !done && day.reviewThemes.length > 0;
   return (
     <Box
       onClick={day.isToday ? onStart : undefined}
@@ -851,12 +982,16 @@ function DayCell({
           ? "linear-gradient(180deg, rgba(74,222,128,0.14), rgba(74,222,128,0.03))"
           : day.isToday
             ? "linear-gradient(180deg, rgba(249,115,22,0.16), rgba(249,115,22,0.04))"
-            : "rgba(255,255,255,0.03)",
+            : hasReviews
+              ? "linear-gradient(180deg, rgba(34,211,238,0.09), rgba(34,211,238,0.02))"
+              : "rgba(255,255,255,0.03)",
         border: done
           ? "1px solid rgba(74,222,128,0.45)"
           : day.isToday
             ? "1px solid rgba(249,115,22,0.5)"
-            : "1px solid rgba(255,255,255,0.07)",
+            : hasReviews
+              ? "1px solid rgba(34,211,238,0.28)"
+              : "1px solid rgba(255,255,255,0.07)",
       }}
     >
       <Typography
@@ -869,7 +1004,9 @@ function DayCell({
             ? "#86efac"
             : day.isToday
               ? "#FFD1A8"
-              : "rgba(255,255,255,0.45)",
+              : hasReviews
+                ? "rgba(103,232,249,0.85)"
+                : "rgba(255,255,255,0.45)",
           display: "flex",
           alignItems: "center",
           gap: 0.5,
@@ -899,12 +1036,15 @@ function DayCell({
 function StatTile({
   label,
   sub,
+  accent,
   children,
 }: {
   label: string;
   sub: string;
+  accent?: AccentName;
   children: React.ReactNode;
 }) {
+  const a = accent ? ACCENTS[accent] : undefined;
   return (
     <Box
       sx={{
@@ -913,8 +1053,12 @@ function StatTile({
         px: 1.5,
         py: 1,
         borderRadius: "14px",
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.07)",
+        background: a
+          ? `linear-gradient(180deg, ${a.tint}, rgba(255,255,255,0.02))`
+          : "rgba(255,255,255,0.03)",
+        border: a
+          ? `1px solid ${a.border}`
+          : "1px solid rgba(255,255,255,0.07)",
       }}
     >
       <Typography
@@ -929,7 +1073,7 @@ function StatTile({
       </Typography>
       <Typography
         sx={{
-          color: "#fff",
+          color: a ? a.bright : "#fff",
           fontWeight: 800,
           fontSize: "1.4rem",
           lineHeight: 1.15,

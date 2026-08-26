@@ -32,8 +32,8 @@ interface AccountState {
   goal?: boolean;
   /** A goal set control-by-control, the way the new setter writes it. */
   perfGoals?: boolean;
-  /** Practice budget. 15 min fits ONE extra task, 30 fits both. */
-  time?: "under-10" | "10-30" | "30-plus";
+  /** Practice budget. 15 min fits ONE extra task, 30+ fits both. */
+  time?: "under-10" | "10-30" | "30-plus" | "60-plus";
 }
 
 async function stubAccount(page: Page, state: AccountState = {}) {
@@ -221,9 +221,11 @@ test.describe("no goal set", () => {
   }) => {
     await gotoPlan(page);
     await expect(page.getByLabel("Rapid current rating")).toHaveValue("1805");
-    // +995 at 15 min × 5 days runs decades past the model's ceiling. The
-    // button staying dead with no explanation would read as a broken page.
-    await page.getByLabel("Rapid goal rating").fill("2800");
+    // +1195 at 15 min × 5 days runs past the model's 5-year ceiling. (2800
+    // used to be enough here; the 2026-08-26 pace retune brought it inside
+    // the ceiling, so the test now uses the input's 3000 cap.) The button
+    // staying dead with no explanation would read as a broken page.
+    await page.getByLabel("Rapid goal rating").fill("3000");
     await expect(page.getByText(/hard to reach at your pace/i)).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Commit to my goal" })

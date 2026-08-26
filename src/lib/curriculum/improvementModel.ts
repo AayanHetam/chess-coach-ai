@@ -1,9 +1,12 @@
 /**
  * How long will it take me to reach my goal rating?
  *
- * Pure, dependency-free, and deliberately conservative. This produces a number
- * we SHOW A USER about their own future, so the standard is the same one the
- * rest of this codebase holds: never assert precision we do not have.
+ * Pure and dependency-free. This produces a number we SHOW A USER about their
+ * own future, so the standard is the same one the rest of this codebase holds:
+ * never assert precision we do not have. Two curves live here: an unguided
+ * baseline calibrated to the literature below, and the deliberately
+ * forward-leaning GUIDED curve (see the GUIDED_* constants) that every
+ * user-facing estimate actually uses.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * WHERE THE NUMBERS COME FROM  (researched 2026-08-12)
@@ -54,16 +57,15 @@ export const MODEL = {
    * Minutes in a SESSION beyond which returns diminish — attention and recall
    * fall off inside one sitting.
    *
-   * This used to be applied to the WEEKLY total, which was simply wrong: the
-   * cited rationale is "very long study SESSIONS vs consistent moderate
-   * practice", and taxing the weekly total penalises the person doing an hour
-   * every day exactly like the person cramming seven hours on Sunday. Those are
-   * not the same and the spacing factor already separates them.
+   * Set to 60 so every session length the product actually offers (15 / 30 /
+   * 60) counts at face value: someone who commits an hour a day gets credited
+   * the hour. The discount only bites on marathon sittings beyond that, which
+   * is the case the "long sessions retain less" rationale is actually about.
    */
-  REFERENCE_SESSION_MINUTES: 45,
+  REFERENCE_SESSION_MINUTES: 60,
   LONG_SESSION_EXPONENT: 0.75,
   /**
-   * Guided-practice efficiency.
+   * Guided-practice cost curve — what an hour inside THIS product buys.
    *
    * ⚠️ THIS IS A PRODUCT CLAIM, NOT A RESEARCH FINDING — flagged so nobody
    * mistakes it for one later.
@@ -75,28 +77,46 @@ export const MODEL = {
    * MORE strongly with skill than solo study did — but the hours-per-point
    * figures in circulation are drawn from the unguided population.
    *
-   * This product is adaptive puzzles aimed at measured weaknesses, plus a
-   * coach, plus SRS. That it beats unguided study is its entire premise.
+   * Guided practice is therefore modelled as its own curve, not a flat
+   * multiplier on the unguided one. Two claims, both product claims:
    *
-   * 0.24 is calibrated to Aayan's coaching experience — a 1300 practising
-   * daily reaching 1600 in about four months — held against the 30-minute cap
-   * the quiz now asks for rather than the hour it used to assume. It
-   * reproduces 4.0 months at 30 min daily and 4.6 at 30 min x 6 days.
+   *  1. LEVEL — guided hours are several times cheaper than unguided hours
+   *     (11 h per 100 points at 1250, vs the literature's 48).
+   *  2. SHAPE — the advantage GROWS with rating (a 1200-point e-fold vs the
+   *     unguided 380). Unguided players plateau high up because they can no
+   *     longer see which of their own errors matter; a measured weakness map
+   *     and targeted drills are worth the most exactly there. A flat
+   *     multiplier (the old 0.24) kept the unguided shape and produced
+   *     multi-year headline dates for club players — 1816→2300 at 30 min × 6
+   *     days read "3+ years", which nobody signs up for and which the founder
+   *     rejected outright (Aayan, 2026-08-26).
+   *
+   * Calibration anchors, both founder calls (Aayan, 2026-08-26): a 1300
+   * practising 30 minutes daily reaches 1600 in about three months (model:
+   * ~2.6), and 1816→2300 at 30 min × 6 days reads as ~8 months — April 2027
+   * from late August 2026 — with an hour × 6 bringing it near ~4.
    *
    * This is the OPTIMISTIC end of what is defensible, and that is a deliberate
    * founder call. The band and the "not a promise" line ship alongside it for
    * exactly that reason: the estimate leans forward, so the uncertainty has to
    * stay visible rather than being quietly dropped.
    *
-   * Isolated here so it is one line to tune, and so the literature-calibrated
-   * base curve underneath stays honest and independently testable.
+   * Isolated here so tuning is a two-line change, and so the
+   * literature-calibrated unguided curve underneath stays honest and
+   * independently testable.
    */
-  GUIDED_PRACTICE_MULTIPLIER: 0.24,
+  GUIDED_HOURS_PER_100_AT_REF: 11,
+  GUIDED_E_FOLDING_POINTS: 1200,
   /** Multipliers on the central estimate. Derived from the variance above. */
   FAST_MULTIPLIER: 0.65,
   SLOW_MULTIPLIER: 1.75,
-  /** Beyond this the answer is "pick a nearer goal", not a number. */
-  MAX_SENSIBLE_YEARS: 12,
+  /**
+   * Beyond this the answer is "pick a nearer goal", not a number. Lowered from
+   * 12 as the guided curve sped up: a faster model lets more absurd
+   * schedule/goal pairs slip under any fixed ceiling, and a date five-plus
+   * years out is not a plan anyone can hold themselves to.
+   */
+  MAX_SENSIBLE_YEARS: 5,
 } as const;
 
 export const MIN_GOAL_RATING = 100;
@@ -160,17 +180,27 @@ export function effectiveWeeklyHours(
 /**
  * Hours of GUIDED practice to get from `from` to `to` — what this product
  * actually delivers, and what every user-facing estimate must use.
- * `hoursBetween` remains the unguided, literature-calibrated baseline.
+ * `hoursBetween` remains the unguided, literature-calibrated baseline; this is
+ * the same integral over the guided curve (cheaper, and flatter — see the
+ * GUIDED_* constants for why both differences are deliberate product claims).
  */
 export function guidedHoursBetween(from: number, to: number): number {
-  return hoursBetween(from, to) * MODEL.GUIDED_PRACTICE_MULTIPLIER;
+  if (to <= from) return 0;
+  const {
+    GUIDED_HOURS_PER_100_AT_REF: H0,
+    REFERENCE_RATING: R0,
+    GUIDED_E_FOLDING_POINTS: S,
+  } = MODEL;
+  return (S / 100) * H0 * (Math.exp((to - R0) / S) - Math.exp((from - R0) / S));
 }
 
 /**
  * Rating reached after `weeks` at a constant effective rate — the closed-form
- * inverse of `hoursBetween`. This is what gives the projection chart its shape:
- * growth is concave, fast at first and flattening, because each further point
- * costs more than the last. A straight line would misrepresent the whole thing.
+ * inverse of `guidedHoursBetween`, on the SAME guided curve, so the chart and
+ * the headline date always agree. This is what gives the projection chart its
+ * shape: growth is concave, fast at first and flattening, because each further
+ * point costs more than the last. A straight line would misrepresent the whole
+ * thing.
  */
 export function ratingAfterWeeks(
   current: number,
@@ -178,17 +208,13 @@ export function ratingAfterWeeks(
   effectiveWeekly: number
 ): number {
   const {
-    HOURS_PER_100_AT_REF: H0,
+    GUIDED_HOURS_PER_100_AT_REF: H0,
     REFERENCE_RATING: R0,
-    E_FOLDING_POINTS: S,
+    GUIDED_E_FOLDING_POINTS: S,
   } = MODEL;
   if (weeks <= 0 || effectiveWeekly <= 0) return current;
   const base = Math.exp((current - R0) / S);
-  // Divided by the guided multiplier so the curve and the headline agree: an
-  // hour of practice buys more rating here than the unguided baseline assumes.
-  const gained =
-    (100 * effectiveWeekly * weeks) /
-    (S * H0 * MODEL.GUIDED_PRACTICE_MULTIPLIER);
+  const gained = (100 * effectiveWeekly * weeks) / (S * H0);
   return R0 + S * Math.log(base + gained);
 }
 

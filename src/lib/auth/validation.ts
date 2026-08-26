@@ -201,7 +201,10 @@ export const profilePatchSchema = z.object({
     .array(z.enum(QUIZ_FOCUS_THEME_IDS))
     .max(MAX_FOCUS_THEMES)
     .optional(),
-  dailyTimeCommitment: z.enum(["under-10", "10-30", "30-plus"]).optional(),
+  // "under-10" is legacy — accepted so old profiles round-trip, never offered.
+  dailyTimeCommitment: z
+    .enum(["under-10", "10-30", "30-plus", "60-plus"])
+    .optional(),
   onboardingCompletedAt: z.number().int().min(0).optional(),
 
   // Single-rating model snapshots written by the placement test + live mirror.

@@ -43,7 +43,7 @@ const totalMinutes = (tasks: { minutes: number }[]) =>
   tasks.reduce((a, t) => a + t.minutes, 0);
 
 describe("the session honours the time the user agreed to", () => {
-  const bands: TimeCommitment[] = ["under-10", "10-30", "30-plus"];
+  const bands: TimeCommitment[] = ["under-10", "10-30", "30-plus", "60-plus"];
 
   it("never budgets more minutes than the commitment, on any band", () => {
     // The whole point of adding analysis and theory by DISPLACING puzzles. If
@@ -273,6 +273,7 @@ describe("task list shape", () => {
     expect(puzzleMinutesFor("under-10")).toBeCloseTo(8 / 6, 2);
     expect(puzzleMinutesFor("10-30")).toBeCloseTo(15 / 11, 2);
     expect(puzzleMinutesFor("30-plus")).toBeCloseTo(30 / 20, 2);
+    expect(puzzleMinutesFor("60-plus")).toBeCloseTo(60 / 38, 2);
     // And the extras stay fixed — they do not scale with the band.
     expect(TASK_MINUTES.analyze).toBe(6);
   });

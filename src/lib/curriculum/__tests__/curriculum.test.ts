@@ -143,6 +143,13 @@ describe("daily plan", () => {
       reviews: 12,
       coach: 2,
     });
+    // The hour band must be a genuinely bigger session, not the 30-minute one
+    // relabelled — that was the whole complaint that created it.
+    expect(sessionSizeFor("60-plus")).toEqual({
+      newConcept: 14,
+      reviews: 24,
+      coach: 2,
+    });
     expect(sessionSizeFor(undefined)).toEqual(sessionSizeFor("10-30"));
   });
 

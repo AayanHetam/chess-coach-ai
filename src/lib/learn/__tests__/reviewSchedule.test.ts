@@ -53,8 +53,8 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('scheduling after a repair', () => {
   it('does not put a line the player just finished straight back on their plan', () => {
-    const card = scheduleAfterRepair(ME, LINE, '1.e4 c5 2.c3', 0, 0);
-    expect(card.nextReview).toBeGreaterThan(0);
+    const { card } = scheduleAfterRepair(ME, LINE, '1.e4 c5 2.c3', 0, 0);
+    expect(card!.nextReview).toBeGreaterThan(0);
     // The three clean runs ARE the first review.
     expect(dueCards(ME, 0)).toHaveLength(0);
   });
@@ -67,18 +67,18 @@ describe('scheduling after a repair', () => {
   it('stores the whole line, so the review survives the finding going away', () => {
     // The measurement stops flagging a line once it is fixed. If a card only
     // held a pointer to it, doing the work would delete the follow-up.
-    const card = scheduleAfterRepair(ME, LINE, '1.e4 c5 2.c3', 0, 0);
-    expect(card.line.moves).toEqual(['e4', 'c5', 'c3']);
-    expect(card.line.color).toBe('white');
-    expect(card.line.target?.san).toBe('Nf3');
+    const { card } = scheduleAfterRepair(ME, LINE, '1.e4 c5 2.c3', 0, 0);
+    expect(card!.line.moves).toEqual(['e4', 'c5', 'c3']);
+    expect(card!.line.color).toBe('white');
+    expect(card!.line.target?.san).toBe('Nf3');
   });
 
   it('refreshes the drilled move when a line is repaired again', () => {
     scheduleAfterRepair(ME, LINE, '1.e4 c5 2.c3', 0, 0);
     const moved: TrainerLine = { ...LINE, target: { san: 'd4', source: 'masters' } };
-    const card = scheduleAfterRepair(ME, moved, '1.e4 c5 2.c3', 0, DAY);
+    const { card } = scheduleAfterRepair(ME, moved, '1.e4 c5 2.c3', 0, DAY);
     // Drilling a stale target would teach the wrong move with full confidence.
-    expect(card.line.target?.san).toBe('d4');
+    expect(card!.line.target?.san).toBe('d4');
     expect(loadCards(ME)).toHaveLength(1);
   });
 
@@ -106,8 +106,8 @@ describe('grading', () => {
     const run = (misses: number) => {
       vi.stubGlobal('window', fakeStorage());
       scheduleAfterRepair(ME, LINE, 'L', 0, 0);
-      const first = recordReview(ME, lineKeyOf(LINE), misses, DAY)!;
-      const second = recordReview(ME, lineKeyOf(LINE), misses, 10 * DAY)!;
+      const first = recordReview(ME, lineKeyOf(LINE), misses, DAY).card!;
+      const second = recordReview(ME, lineKeyOf(LINE), misses, 10 * DAY).card!;
       return { first, second };
     };
     const clean = run(0);
@@ -121,7 +121,7 @@ describe('grading', () => {
   it('resets the interval when the line has actually been forgotten', () => {
     scheduleAfterRepair(ME, LINE, 'L', 0, 0);
     recordReview(ME, lineKeyOf(LINE), 0, DAY); // out to ~6 days
-    const lapsed = recordReview(ME, lineKeyOf(LINE), 3, 8 * DAY);
+    const lapsed = recordReview(ME, lineKeyOf(LINE), 3, 8 * DAY).card;
     expect(lapsed!.interval).toBe(1);
     expect(lapsed!.lapses).toBe(1);
   });
@@ -131,7 +131,7 @@ describe('grading', () => {
     let card = findCard(ME, lineKeyOf(LINE))!;
     expect(needsFullRepair(card)).toBe(false);
     for (let i = 0; i < LAPSES_BEFORE_REPAIR; i++) {
-      card = recordReview(ME, lineKeyOf(LINE), 3, (i + 1) * DAY)!;
+      card = recordReview(ME, lineKeyOf(LINE), 3, (i + 1) * DAY).card!;
     }
     // Asking for a third one-run review is doing the same thing again and
     // expecting a different result.
@@ -139,7 +139,14 @@ describe('grading', () => {
   });
 
   it('ignores a review of a line it does not hold', () => {
-    expect(recordReview(ME, 'white:nonsense', 0, DAY)).toBeNull();
+    const result = recordReview(ME, 'white:nonsense', 0, DAY);
+    expect(result.card).toBeNull();
+    // No card is NOT a failed write, and the two must not read as each other.
+    // A line reviewed off a schedule this device no longer has is a nothing to
+    // grade; telling the player their storage is broken would be a lie, and
+    // showing them "we could not save this" after a clean run is worse than
+    // saying nothing.
+    expect(result.savedLocally).toBe(true);
   });
 });
 
@@ -163,6 +170,24 @@ describe('the due queue', () => {
     vi.stubGlobal('window', fakeStorage(true));
     expect(() => scheduleAfterRepair(ME, LINE, 'L', 0, 0)).not.toThrow();
     expect(dueCards(ME, DAY)).toEqual([]);
+  });
+
+  it('says when the schedule did not survive the device', () => {
+    vi.stubGlobal('window', fakeStorage(true));
+    const result = scheduleAfterRepair(ME, LINE, 'L', 0, 0);
+    // The card is real — the grade is correct and it is what gets pushed to
+    // the account. What failed is keeping it HERE, and that is the one the
+    // screen has to say, because the alternative is a player finishing three
+    // clean runs, reading "we will check you still have it in 6 days", and
+    // never being asked again.
+    expect(result.card).not.toBeNull();
+    expect(result.savedLocally).toBe(false);
+  });
+
+  it('reports a healthy write as saved', () => {
+    // The control. Without it, `savedLocally` could be hardcoded false and the
+    // test above would still pass.
+    expect(scheduleAfterRepair(ME, LINE, 'L', 0, 0).savedLocally).toBe(true);
   });
 
   it('is inert on the server', () => {

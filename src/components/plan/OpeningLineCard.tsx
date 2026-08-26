@@ -20,6 +20,7 @@ import {
   type RepertoireReport,
 } from "@/lib/learn/repertoireHole";
 import { isRepaired, loadSession } from "@/lib/learn/trainerProgress";
+import { pullTrainerProgress } from "@/lib/learn/trainerSync";
 import { reviewHref, trainerHref } from "@/lib/learn/trainerRoute";
 import {
   dueCards,
@@ -61,6 +62,15 @@ export default function OpeningLineCard({
   accountId,
   onRun,
 }: OpeningLineCardProps) {
+  // The account's copy of the review schedule and the repaired list, merged
+  // into this device's once.
+  //
+  // Local first: everything below renders from localStorage immediately and
+  // this only ever ADDS. It is what makes a review due on your phone show up on
+  // your laptop, and what stops a signed-in player on a fresh browser being
+  // offered a drill they finished last week. The counter is the render key:
+  // both readers below computed their answer from an empty store a tick ago.
+  const synced = useTrainerSync(accountId ?? null);
   return (
     <Box id="opening-line" sx={{ scrollMarginTop: "80px" }}>
       <Header />
@@ -81,6 +91,7 @@ export default function OpeningLineCard({
           cachedAt={cachedAt}
           onRun={onRun}
           accountId={accountId ?? null}
+          synced={synced}
         />
       ) : (
         <Idle onRun={onRun} />
@@ -179,12 +190,14 @@ function Ready({
   cachedAt,
   onRun,
   accountId,
+  synced,
 }: {
   line: RepertoireHole | null;
   reports: RepertoireReport[];
   cachedAt: number | null;
   onRun: () => void;
   accountId: string | null;
+  synced: number;
 }) {
   // Nothing to show splits two ways, and collapsing them would tell half these
   // users the opposite of the truth.
@@ -202,7 +215,7 @@ function Ready({
             still worth doing is checking the lines you already fixed. Putting
             this after the early return would have made a clean repertoire
             silently swallow its own review queue. */}
-        <DueForReview accountId={accountId} />
+        <DueForReview accountId={accountId} synced={synced} />
         <RunButton onClick={onRun} icon={<RotateCcw size={15} />} label="MEASURE AGAIN" />
       </>
     );
@@ -223,7 +236,7 @@ function Ready({
           the one that changes something. Its wording follows the state, so a
           half-finished session is never hidden behind a button that reads like
           a fresh start. */}
-      <TrainCta line={line} accountId={accountId} />
+      <TrainCta line={line} accountId={accountId} synced={synced} />
 
       {others.length > 0 && (
         <Box sx={{ mt: 2.5 }}>
@@ -237,7 +250,7 @@ function Ready({
           ))}
         </Box>
       )}
-      <DueForReview accountId={accountId} />
+      <DueForReview accountId={accountId} synced={synced} />
       <Footer cachedAt={cachedAt} reports={reports} onRun={onRun} />
     </>
   );
@@ -249,7 +262,15 @@ function Ready({
  * Read in an effect rather than during render: this is localStorage, and a
  * server render that guessed would hydrate into a different label.
  */
-function TrainCta({ line, accountId }: { line: RepertoireHole; accountId: string | null }) {
+function TrainCta({
+  line,
+  accountId,
+  synced,
+}: {
+  line: RepertoireHole;
+  accountId: string | null;
+  synced: number;
+}) {
   const [status, setStatus] = useState<"fresh" | "resume" | "repaired">("fresh");
 
   useEffect(() => {
@@ -258,7 +279,7 @@ function TrainCta({ line, accountId }: { line: RepertoireHole; accountId: string
     if (loadSession(accountId, key, Date.now())) setStatus("resume");
     else if (isRepaired(accountId, key)) setStatus("repaired");
     else setStatus("fresh");
-  }, [accountId, line]);
+  }, [accountId, line, synced]);
 
   const label =
     status === "resume" ? "RESUME TRAINING" : status === "repaired" ? "TRAIN IT AGAIN" : "FIX THIS LINE";
@@ -340,6 +361,25 @@ function QueueRow({ hole }: { hole: RepertoireHole }) {
 }
 
 /**
+ * Pull the account's trainer progress once, and report when it has landed.
+ *
+ * The number is meaningless in itself; it changes exactly once, when a merge
+ * brings something in, and that change is what re-runs the two readers below.
+ * A boolean would work equally well — the counter is only so that a future
+ * second pull is not silently swallowed by a flag that is already true.
+ */
+function useTrainerSync(accountId: string | null): number {
+  const [synced, setSynced] = useState(0);
+  useEffect(() => {
+    if (!accountId) return;
+    void pullTrainerProgress(accountId).then((merged) => {
+      if (merged) setSynced((n) => n + 1);
+    });
+  }, [accountId]);
+  return synced;
+}
+
+/**
  * Lines that came back round.
  *
  * Read in an effect, like every other localStorage read on this card: a server
@@ -348,13 +388,13 @@ function QueueRow({ hole }: { hole: RepertoireHole }) {
  * Hidden entirely when nothing is due. An empty "0 due" row would be a
  * permanent reminder that there is nothing to remind them of.
  */
-function DueForReview({ accountId }: { accountId: string | null }) {
+function DueForReview({ accountId, synced }: { accountId: string | null; synced: number }) {
   const [due, setDue] = useState<ReviewCard[]>([]);
 
   useEffect(() => {
     if (!accountId) return;
     setDue(dueCards(accountId, Date.now()));
-  }, [accountId]);
+  }, [accountId, synced]);
 
   if (due.length === 0) return null;
   return (

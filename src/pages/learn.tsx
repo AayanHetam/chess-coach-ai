@@ -37,6 +37,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { bandFor, nextBand, sufficiency, verdict, type Band } from "@/lib/repertoire/levels";
 import { provenanceOf } from "@/lib/repertoire/provenance";
+import { pullBracket, pushBracket } from "@/lib/repertoire/bracketSync";
 import SlotChooser from "@/components/learn/SlotChooser";
 import {
   buildBracket,
@@ -55,6 +56,7 @@ import {
   clearBelow,
   loadBracket,
   saveBracket,
+  stampBracket,
   setPick,
   type BracketState,
   type Churn,
@@ -138,14 +140,48 @@ export default function LearnPage() {
   useEffect(() => {
     setState(loadBracket(account));
     setHydrated(true);
+    // The account copy, merged in when it arrives. Never awaited before the
+    // page renders: /learn shows what this device already knows immediately,
+    // and a bracket built on another phone appears a moment later. A signed-out
+    // visitor gets a 401 and `pullBracket` returns null, which means "carry on
+    // with what you have".
+    let cancelled = false;
+    void pullBracket(account).then(merged => {
+      if (cancelled || !merged) return;
+      setState(merged);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [account]);
+
+  // Where the last save actually landed. The bracket is the thing on this page
+  // a player builds over months, and until the account copy existed a full
+  // localStorage lost it in silence — see saveBracket.
+  //
+  // Two flags rather than one because the honest sentence depends on both. A
+  // failed local write with a good account copy is an inconvenience; a failed
+  // local write with a failed push is the only case where anything is actually
+  // at risk, and the two must not read the same.
+  const [savedLocally, setSavedLocally] = useState(true);
+  const [savedToAccount, setSavedToAccount] = useState(true);
 
   const persist = useCallback(
     (next: BracketState) => {
-      setState(next);
-      saveBracket(account, { ...next, updatedAt: Date.now() });
+      // `state` is the PREVIOUS bracket and the comparison needs it, which is
+      // why this reads it directly rather than through a functional update:
+      // inside `setState(prev => …)` the writes below would be side effects in
+      // an updater, and React is free to run those twice.
+      const stamped = stampBracket(state, next, Date.now());
+      setState(stamped);
+      setSavedLocally(saveBracket(account, stamped));
+      // Unconditional, exactly as the trainer pushes a chapter: a local write
+      // that failed is the case where the account copy matters MOST, so gating
+      // the push on it would drop the data precisely when it is the only copy
+      // left.
+      void pushBracket(stamped).then(merged => setSavedToAccount(merged !== null));
     },
-    [account]
+    [account, state]
   );
 
   const picks = side === "white" ? state.white : state.black;
@@ -302,6 +338,25 @@ export default function LearnPage() {
         />
 
         <SideToggle side={side} onChange={(s) => { setSide(s); setOpenSlot(null); }} />
+
+        {/* Where the last save landed, said only when it is not both places.
+            An unsaved bracket is otherwise pixel-identical to a saved one, and
+            this is the page whose work is measured in months. */}
+        {!savedLocally && (
+          <Typography
+            data-testid="bracket-save-state"
+            sx={{
+              mt: 1.5,
+              fontSize: "0.78rem",
+              lineHeight: 1.55,
+              color: savedToAccount ? "rgba(255,255,255,0.5)" : "#FCA5A5",
+            }}
+          >
+            {savedToAccount
+              ? "This device is out of storage, so your repertoire is being kept on your account instead. It will be here when you come back."
+              : "Not saved — not on this device and not on your account. Your last change may be lost if you close this page."}
+          </Typography>
+        )}
 
         {cover && (
           <CoverageBar

@@ -19,6 +19,25 @@ Copyright (C) 2024-2026 Aayan Hetamsaria and the Chesskit and lichess authors.
 > they are carved out here — as upstream does. Redistribute the code freely;
 > check this table before redistributing the assets.
 
+## Engines
+
+Every file under `public/engines/` is a Stockfish build conveyed to the
+browser under the GNU GPL v3. The directory carries its own notice
+(`public/engines/README.txt`) and the full license text
+(`public/engines/COPYING.txt`); complete corresponding source lives in the
+upstream repositories below and these exact files are redistributed in this
+repository.
+
+<!-- prettier-ignore -->
+Files | Author(s) | License
+--- | --- | ---
+public/engines/stockfish-16, -16.1, -17 | [Stockfish contributors](https://github.com/official-stockfish/Stockfish); JS/WASM builds by [stockfish.js](https://github.com/nmrugg/stockfish.js) (Chess.com, LLC); NNUE nets published with the Stockfish releases | [GPLv3](https://www.gnu.org/licenses/gpl-3.0.txt)
+public/engines/stockfish-11.js | [Multi-variant Stockfish](https://github.com/ddugovic/Stockfish) (Daniel Dugovic and contributors), compiled by Niklas Fiekas | [GPLv3](https://www.gnu.org/licenses/gpl-3.0.txt)
+
+Server-side (never conveyed to the browser): coaching accuracy checks run
+[Leela Chess Zero](https://github.com/LeelaChessZero/lc0) (GPLv3) and
+[Maia](https://github.com/CSSLab/maia-chess) (GPLv3) as backend services.
+
 ## Exceptions (free)
 
 <!-- prettier-ignore -->

@@ -2460,6 +2460,18 @@ function Footer() {
         <Box sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
           Stockfish 17
         </Box>
+        <Box
+          component="a"
+          href="/accessibility"
+          sx={{
+            color: "rgba(255,255,255,0.42)",
+            textDecoration: "none",
+            "&:hover": { color: "rgba(255,255,255,0.7)" },
+            transition: "color 0.2s",
+          }}
+        >
+          Accessibility
+        </Box>
       </Stack>
     </Box>
   );

@@ -186,6 +186,7 @@ export default function Layout({ children }: PropsWithChildren) {
                 { href: "/courses", label: "Courses" },
                 { href: "/terms", label: "Terms" },
                 { href: "/privacy", label: "Privacy" },
+                { href: "/accessibility", label: "Accessibility" },
                 { href: "/", label: "Home" },
               ].map((link) => (
                 <Typography

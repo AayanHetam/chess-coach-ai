@@ -151,11 +151,24 @@ describe('the numbers say what they mean', () => {
     // Named, famous lines, found with no prior knowledge of them: the corpus
     // was searched for "played often and loses" and these fell out. If this
     // ever goes empty, the signal has broken even if the file is still full.
-    const lines = loadTraps('beginner')!.traps.map(t => `${t.line.join(' ')}|${t.san}`);
+    //
+    // Asserted by POSITION, not by the line string. `line` is the shortest path
+    // the band's own play reaches the position by, which is a display choice —
+    // a bigger corpus keeps more move orders alive and can legitimately pick a
+    // different one of equal length. The position and the move are the claim;
+    // the notation is how it is shown.
+    const at = (sans: string[]) => {
+      const board = new Chess();
+      sans.forEach(san => board.move(san));
+      return board.fen().split(' ').slice(0, 4).join(' ');
+    };
+    const found = loadTraps('beginner')!.traps.map(t => `${t.fen}|${t.san}`);
     // Blackburne Shilling: 1.e4 e5 2.Nf3 Nc6 3.Bc4 Nd4 and White grabs on e5.
-    expect(lines).toContain('e4 e5 Nf3 Nc6 Bc4 Nd4|Nxe5');
+    expect(found).toContain(`${at(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nd4'])}|Nxe5`);
     // Fried Liver: 3.Bc4 Nf6 4.Ng5 d5 5.exd5 and Black recaptures with the knight.
-    expect(lines).toContain('e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5|Nxd5');
+    expect(found).toContain(
+      `${at(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'Ng5', 'd5', 'exd5'])}|Nxd5`
+    );
   });
 });
 

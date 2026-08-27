@@ -217,12 +217,35 @@ describe('whose mistake it is', () => {
     expect(t.totalYours).toBeGreaterThan(MAX_TRAPS_SHOWN);
   });
 
-  it('does not claim a cap it did not apply', () => {
-    // The control. A course with few traps must report total === shown, or the
-    // screen renders "the 2 costliest of 2".
-    const t = trapsForCourse('improving', ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'], 'white')!;
-    expect(t.totalYours).toBe(t.yours.length);
-    expect(t.totalTheirs).toBe(t.theirs.length);
+  it('never claims a cap it did not apply, on any course in any band', () => {
+    // The invariant, not a hand-picked fixture. This test used to name one
+    // course that happened to hold three traps; rebuilding the corpus took it
+    // to nineteen and the control silently stopped controlling anything.
+    //
+    // `shown === min(total, cap)` is the property, it holds for every course in
+    // every band, and it cannot rot when the data grows.
+    const courses: Array<{ root: string[]; side: 'white' | 'black' }> = JSON.parse(
+      fs.readFileSync(path.join(DATA, 'courses/index.json'), 'utf8')
+    ).courses;
+    let capped = 0;
+    let uncapped = 0;
+    for (const band of TRAP_BANDS) {
+      for (const c of courses) {
+        const t = trapsForCourse(band, c.root, c.side)!;
+        for (const [shown, total] of [
+          [t.yours.length, t.totalYours],
+          [t.theirs.length, t.totalTheirs],
+        ]) {
+          expect(shown, `${band} ${c.root.join(' ')}`).toBe(Math.min(total, MAX_TRAPS_SHOWN));
+          if (total > shown) capped++;
+          else if (total > 0) uncapped++;
+        }
+      }
+    }
+    // And neither branch may be vacuous: if every group were capped, or none
+    // were, the assertion above would hold while proving only half of it.
+    expect(capped, 'no group was capped — the cap is untested').toBeGreaterThan(0);
+    expect(uncapped, 'every group was capped — "fits" is untested').toBeGreaterThan(0);
   });
 
   it('returns an empty result for a course with none, and null for a band with no file', () => {

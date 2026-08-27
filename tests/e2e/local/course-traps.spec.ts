@@ -19,8 +19,14 @@ test("names the traps, whose they are, and how many decisions were searched", as
   const traps = page.getByTestId("course-traps");
   await expect(traps).toBeVisible({ timeout: 20_000 });
 
-  // The Fried Liver, found by counting results and nothing else.
-  await expect(traps.getByText(/1\.e4 e5 2\.Nf3 Nc6 3\.Bc4 Nf6 4\.Ng5 d5 5\.exd5/)).toBeVisible();
+  // The Fried Liver, found by counting results and nothing else. `.first()`,
+  // because the rebuilt corpus surfaces several traps sharing this prefix —
+  // 5.exd5 Nd4, and the 7.Qf3+ Ke8 continuation — and strict mode reads three
+  // matches as a failure, which looks like the copy is missing rather than
+  // present three times.
+  await expect(
+    traps.getByText(/1\.e4 e5 2\.Nf3 Nc6 3\.Bc4 Nf6 4\.Ng5 d5 5\.exd5/).first()
+  ).toBeVisible();
 
   // Both halves are labelled, and they are different labels. Merging them
   // would tell a White player that a Black blunder is theirs.
@@ -44,24 +50,34 @@ test("names the traps, whose they are, and how many decisions were searched", as
   await expect(traps.getByText(/no engine was asked for an opinion/i)).toBeVisible();
 });
 
-// HALF of the cap property, and the half a browser can reach.
+// Both halves of the cap property, and both are now reachable in a browser.
 //
-// The other half — "the 5 costliest of 274" appearing when a course has more
-// traps than fit — cannot be tested here. The band comes from the session
-// inside getServerSideProps, `page.route` cannot intercept a server-side call,
-// and no spec in this suite signs a real `cm_session`. Signed out the band is
-// `improving`, whose corpus is still the 233k sample, so no course on it
-// exceeds the cap. That half is unit-tested in traps.test.ts and proven by a
-// mutant that removes the total.
-//
-// What this DOES prove is that the notice is conditional rather than always
-// rendered, which is the failure that would put "the 2 costliest of 2" on
-// every page in the product.
+// They were not before: signed out the band is `improving`, and on the 233k
+// sample no course on it exceeded the cap, so only the "fits" case could be
+// tested here. Rebuilding improving from 4.5M games made the capped case
+// reachable too.
 test("claims no cap when everything fits", async ({ page }) => {
-  await page.goto("/learn/w-italian");
+  // The Ruy at the improving band holds 3 and 5 — traps on the page, and both
+  // groups under the cap. w-italian used to serve here and no longer can: the
+  // rebuilt corpus took it from 3 traps to 19, which is exactly the kind of
+  // silent rot a hand-picked fixture invites. The band-wide invariant is
+  // asserted in traps.test.ts; this only has to prove the notice is conditional
+  // in a real browser.
+  await page.goto("/learn/w-ruy");
   const traps = page.getByTestId("course-traps");
   await expect(traps).toBeVisible({ timeout: 20_000 });
   await expect(traps.getByTestId("traps-capped")).toHaveCount(0);
+});
+
+test("says which few it picked when a course has more than it can show", async ({ page }) => {
+  // Now reachable signed out: the improving band's own corpus is 4.5M games,
+  // so 1.e4 carries far more traps than fit. Showing five as though they were
+  // all five is a truncated list presented as a complete one.
+  await page.goto("/learn/w-e4");
+  const traps = page.getByTestId("course-traps");
+  await expect(traps).toBeVisible({ timeout: 20_000 });
+  await expect(traps.getByTestId("traps-capped").first()).toBeVisible();
+  await expect(traps.getByText(/the \d+ costliest of [\d,]+/).first()).toBeVisible();
 });
 
 // The control. Without it this would pass on a page that renders the section

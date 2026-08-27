@@ -12,7 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
 import { Chess } from 'chess.js';
-import { loadTraps, trapsForCourse, TRAP_BANDS, resetTrapCache } from '../traps';
+import { loadTraps, trapsForCourse, TRAP_BANDS, resetTrapCache, MAX_TRAPS_SHOWN } from '../traps';
 import { BANDS } from '@/lib/repertoire/levels';
 import type { Trap } from '@/types/traps';
 
@@ -176,6 +176,40 @@ describe('whose mistake it is', () => {
       expect(trap.line.slice(0, 5)).toEqual(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4']);
     }
     expect(italian.yours.length + italian.theirs.length).toBeGreaterThan(0);
+  });
+
+  it('shows the costliest, not the most statistically certain', () => {
+    // Cost is games x score lost: what the mistake actually takes off players
+    // at this level. Ranking by `z` would put certainty first, which answers a
+    // question about our confidence rather than about their results.
+    const t = trapsForCourse('new', ['e4'], 'white')!;
+    const cost = (x: { games: number; baseline: number; score: number }) =>
+      x.games * (x.baseline - x.score);
+    const shown = t.yours.map(cost);
+    expect(shown).toEqual([...shown].sort((a, b) => b - a));
+    // And the top one really is the costliest in the whole set, not merely the
+    // costliest of an arbitrary first five.
+    const all = loadTraps('new')!
+      .traps.filter(x => x.side === 'white' && x.line[0] === 'e4')
+      .map(cost);
+    expect(shown[0]).toBe(Math.max(...all));
+  });
+
+  it('caps what it shows and reports the total, so nothing is silently cut', () => {
+    // A truncated list presented as a complete one is a claim about the
+    // opening. `1.e4` carries hundreds of these once the corpus is the full
+    // month, and the page has to say which few it picked.
+    const t = trapsForCourse('new', ['e4'], 'white')!;
+    expect(t.yours.length).toBe(MAX_TRAPS_SHOWN);
+    expect(t.totalYours).toBeGreaterThan(MAX_TRAPS_SHOWN);
+  });
+
+  it('does not claim a cap it did not apply', () => {
+    // The control. A course with few traps must report total === shown, or the
+    // screen renders "the 2 costliest of 2".
+    const t = trapsForCourse('improving', ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'], 'white')!;
+    expect(t.totalYours).toBe(t.yours.length);
+    expect(t.totalTheirs).toBe(t.theirs.length);
   });
 
   it('returns an empty result for a course with none, and null for a band with no file', () => {

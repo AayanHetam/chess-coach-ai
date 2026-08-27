@@ -46,11 +46,43 @@ export function loadTraps(band?: string | null): TrapFile | null {
   return loaded;
 }
 
+/**
+ * How many of each kind a course page shows.
+ *
+ * Five, the same sitting `MAX_DUE_AT_ONCE` uses. Once the corpora were rebuilt
+ * from the full month, `1.e4` carried 514 traps at the `new` band and 274 at
+ * `club` — a page nobody reads and a warning nobody acts on.
+ *
+ * The cap is a DISPLAY decision and is never silent: `totalYours` and
+ * `totalTheirs` carry the full count so the screen can say "the 5 costliest of
+ * 274". A truncated list presented as a complete one is the display-cap bug
+ * this codebase has already shipped once.
+ */
+export const MAX_TRAPS_SHOWN = 5;
+
+/**
+ * Total score this mistake costs the band, which is how the shown few are
+ * chosen.
+ *
+ * Games played × score lost per game. NOT `z`, which ranks by how certain we
+ * are rather than by how much it matters: at the `new` band, ranking by z puts
+ * a 728-game line above an 1,158-game one that costs half as much again. And
+ * not share alone, which cannot tell a 4% branch of a huge position from a 4%
+ * branch of a rare one.
+ *
+ * It is the same question /plan's weakest-line card asks: what is actually
+ * costing you the most.
+ */
+export const trapCost = (t: Trap): number => t.games * (t.baseline - t.score);
+
 export interface CourseTraps {
-  /** Ways the reader themselves loses this opening. */
+  /** Ways the reader themselves loses this opening, costliest first, capped. */
   yours: Trap[];
   /** Ways their OPPONENT loses it — the same data, the opposite lesson. */
   theirs: Trap[];
+  /** How many there are in total, so the cap can be stated rather than hidden. */
+  totalYours: number;
+  totalTheirs: number;
   /** How many decisions were tested to find them, so zero can be read. */
   tests: number;
   expectedFalsePositives: number;
@@ -71,14 +103,20 @@ export interface CourseTraps {
 export function trapsForCourse(
   band: string | null | undefined,
   root: string[],
-  side: 'white' | 'black'
+  side: 'white' | 'black',
+  cap: number = MAX_TRAPS_SHOWN
 ): CourseTraps | null {
   const file = loadTraps(band);
   if (!file) return null;
   const inCourse = file.traps.filter(t => root.every((san, i) => t.line[i] === san));
+  const rank = (list: Trap[]) => [...list].sort((a, b) => trapCost(b) - trapCost(a));
+  const yours = rank(inCourse.filter(t => t.side === side));
+  const theirs = rank(inCourse.filter(t => t.side !== side));
   return {
-    yours: inCourse.filter(t => t.side === side),
-    theirs: inCourse.filter(t => t.side !== side),
+    yours: yours.slice(0, Math.max(0, cap)),
+    theirs: theirs.slice(0, Math.max(0, cap)),
+    totalYours: yours.length,
+    totalTheirs: theirs.length,
     tests: file.meta.tests,
     expectedFalsePositives: file.meta.expectedFalsePositives,
     games: file.meta.games,

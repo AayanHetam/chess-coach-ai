@@ -75,6 +75,7 @@ export default function TrapsSection({ traps, side }: TrapsSectionProps) {
           icon={<AlertTriangle size={14} color={EMBER} aria-hidden />}
           title="What you are most likely to fall for"
           traps={traps.yours}
+          total={traps.totalYours}
           side={side}
           possessive="you"
         />
@@ -84,6 +85,7 @@ export default function TrapsSection({ traps, side }: TrapsSectionProps) {
           icon={<Crosshair size={14} color="rgba(255,255,255,0.45)" aria-hidden />}
           title="What your opponents fall for"
           traps={traps.theirs}
+          total={traps.totalTheirs}
           side={side === "white" ? "black" : "white"}
           possessive="they"
         />
@@ -106,18 +108,21 @@ function Group({
   icon,
   title,
   traps,
+  total,
   side,
   possessive,
 }: {
   icon: React.ReactNode;
   title: string;
   traps: Trap[];
+  /** How many exist, not how many are shown. */
+  total: number;
   side: "white" | "black";
   possessive: "you" | "they";
 }) {
   return (
     <Box sx={{ mt: 2.5 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.25 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.25, flexWrap: "wrap" }}>
         {icon}
         <Typography
           sx={{
@@ -129,6 +134,18 @@ function Group({
         >
           {title}
         </Typography>
+        {/* THE CAP IS SAID OUT LOUD. `1.e4` carries 514 of these at the `new`
+            band; showing five of them as though they were all five would be a
+            truncated list presented as a complete one, which is a claim about
+            the opening rather than about the page. */}
+        {total > traps.length && (
+          <Typography
+            data-testid="traps-capped"
+            sx={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.33)" }}
+          >
+            — the {traps.length} costliest of {total.toLocaleString()}
+          </Typography>
+        )}
       </Box>
       <Box sx={{ display: "grid", gap: 1.5 }}>
         {traps.map((trap) => (

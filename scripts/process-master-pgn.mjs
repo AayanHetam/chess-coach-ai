@@ -178,6 +178,23 @@ async function main() {
    * because that is what the CC0 dumps are; a chess.com archive needs no
    * conversion and must say so rather than being converted twice.
    */
+  /**
+   * Stop after this many games have been AGGREGATED (not read).
+   *
+   * For sampling a dump to a chosen statistical power rather than to whatever
+   * a calendar month happened to contain. The five band dumps range from
+   * 1.9M games to an estimated 18M, and a build that uses all of each makes
+   * every band-to-band difference ambiguous between "these players differ" and
+   * "these corpora differ" — the exact ambiguity the banded corpus work exists
+   * to remove.
+   *
+   * Cuts on a COMPLETE game, never on a byte offset: `head -c` on a PGN ends
+   * mid-movetext, and a half-parsed final game contributes real-looking moves
+   * that nothing downstream can tell from the rest.
+   */
+  const maxGames = Number(
+    process.argv.find((a) => a.startsWith("--max-games="))?.split("=")[1] ?? Infinity
+  );
   const bandSpec = process.argv.find((a) => a.startsWith("--band="))?.split("=")[1] ?? null;
   /**
    * `--band-label=<id>` stamps the band into meta WITHOUT filtering, for input
@@ -380,6 +397,14 @@ async function main() {
   };
 
   for await (const rawLine of rl) {
+    // The cap is checked between games, so the last game aggregated is a whole
+    // one. Breaking mid-movetext would leave a truncated game in the tree with
+    // nothing downstream able to tell it from the rest.
+    if (gamesProcessed >= maxGames) {
+      console.error(`reached --max-games=${maxGames.toLocaleString()}, stopping`);
+      rl.close();
+      break;
+    }
     const line = rawLine.trim();
     if (line.startsWith("[")) {
       if (inMoves) flushGame();

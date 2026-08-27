@@ -44,6 +44,26 @@ test("names the traps, whose they are, and how many decisions were searched", as
   await expect(traps.getByText(/no engine was asked for an opinion/i)).toBeVisible();
 });
 
+// HALF of the cap property, and the half a browser can reach.
+//
+// The other half — "the 5 costliest of 274" appearing when a course has more
+// traps than fit — cannot be tested here. The band comes from the session
+// inside getServerSideProps, `page.route` cannot intercept a server-side call,
+// and no spec in this suite signs a real `cm_session`. Signed out the band is
+// `improving`, whose corpus is still the 233k sample, so no course on it
+// exceeds the cap. That half is unit-tested in traps.test.ts and proven by a
+// mutant that removes the total.
+//
+// What this DOES prove is that the notice is conditional rather than always
+// rendered, which is the failure that would put "the 2 costliest of 2" on
+// every page in the product.
+test("claims no cap when everything fits", async ({ page }) => {
+  await page.goto("/learn/w-italian");
+  const traps = page.getByTestId("course-traps");
+  await expect(traps).toBeVisible({ timeout: 20_000 });
+  await expect(traps.getByTestId("traps-capped")).toHaveCount(0);
+});
+
 // The control. Without it this would pass on a page that renders the section
 // unconditionally, which is the exact failure the component is written to avoid:
 // an empty "how this goes wrong" heading reads as "there is nothing to fall

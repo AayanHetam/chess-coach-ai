@@ -33,10 +33,12 @@ export const metadata: Metadata = {
   },
 };
 
-// Read from env so we can flip on the real Chrome Web Store URL post-approval
-// without a code change — set NEXT_PUBLIC_EXTENSION_STORE_URL in Vercel and
-// redeploy. Empty/unset = the page renders a "review pending" disabled state.
-const STORE_URL = process.env.NEXT_PUBLIC_EXTENSION_STORE_URL ?? "";
+// The published Chrome Web Store listing (public since 2026-05-26).
+// NEXT_PUBLIC_EXTENSION_STORE_URL only overrides it (build-time inline);
+// unset, the page still links to the real listing.
+const STORE_URL =
+  process.env.NEXT_PUBLIC_EXTENSION_STORE_URL ??
+  "https://chromewebstore.google.com/detail/analyze-with-chess-masti/fligcdcmibplmdbpggcjecpkclghdnpc";
 
 const extraStyles = `
 .cm-content {
@@ -80,12 +82,6 @@ const extraStyles = `
   transform: translateY(-1px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
   color: #FF6B35;
-}
-.cm-install-cta.cm-disabled {
-  background: rgba(255, 255, 255, 0.5);
-  color: #fff;
-  pointer-events: none;
-  cursor: default;
 }
 .cm-install-note {
   margin-top: 12px;
@@ -149,44 +145,22 @@ const extraStyles = `
 `;
 
 function InstallCTA() {
-  if (STORE_URL) {
-    return (
-      <div className="cm-install-card">
-        <h2>Install the Chrome extension</h2>
-        <p>
-          Add a one-click Analyze button to every Lichess and Chess.com game
-          page. Free. No account. Works on Chrome, Edge, Brave, and any other
-          Chromium browser.
-        </p>
-        <a
-          className="cm-install-cta"
-          href={STORE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          ♟ Install from the Chrome Web Store →
-        </a>
-      </div>
-    );
-  }
   return (
     <div className="cm-install-card">
-      <h2>Coming to the Chrome Web Store</h2>
+      <h2>Install the Chrome extension</h2>
       <p>
-        We&apos;ve submitted the &quot;Analyze with Chess Masti&quot; extension
-        and it&apos;s in review. First-time reviews can take a few days to a
-        couple of weeks. Check back, or follow{" "}
-        <a
-          href="https://twitter.com/ChessMastiAI"
-          style={{ color: "#fff", textDecoration: "underline" }}
-        >
-          @ChessMastiAI
-        </a>{" "}
-        — we&apos;ll post the install link the moment review approves.
+        Add a one-click Analyze button to every Lichess and Chess.com game
+        page. Free. No account. Works on Chrome, Edge, Brave, and any other
+        Chromium browser.
       </p>
-      <span className="cm-install-cta cm-disabled">
-        ♟ Install — review pending
-      </span>
+      <a
+        className="cm-install-cta"
+        href={STORE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        ♟ Install from the Chrome Web Store →
+      </a>
     </div>
   );
 }
@@ -289,17 +263,11 @@ export default function ExtensionPage() {
             <h2>How to install</h2>
             <ol className="cm-steps">
               <li>
-                {STORE_URL ? (
-                  <>
-                    Click{" "}
-                    <a href={STORE_URL} target="_blank" rel="noopener noreferrer">
-                      Install on the Chrome Web Store
-                    </a>{" "}
-                    and add to Chrome (or Edge, Brave, Arc).
-                  </>
-                ) : (
-                  <>Wait for the Web Store review to approve (in progress).</>
-                )}
+                Click{" "}
+                <a href={STORE_URL} target="_blank" rel="noopener noreferrer">
+                  Install on the Chrome Web Store
+                </a>{" "}
+                and add to Chrome (or Edge, Brave, Arc).
               </li>
               <li>Visit any game page on lichess.org or chess.com.</li>
               <li>

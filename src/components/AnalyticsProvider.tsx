@@ -6,6 +6,7 @@ import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 import { app } from "@/lib/firebase";
 import { recordVisit } from "@/lib/visitorTracker";
 import { track } from "@/lib/tracking/client";
+import { clientHasConsent } from "@/lib/tracking/consent";
 
 declare global {
   interface Window {
@@ -20,7 +21,7 @@ declare global {
  * 2. Firebase Analytics — shares the same GA4 property via measurementId
  * 3. Custom Firestore visitor tracker — fully under our control
  *
- * The GA4 script tag is injected in layout.tsx via <Script>.
+ * The GA4 script tag is mounted by ConsentGatedAnalytics, post-consent only.
  * This component fires page_view events on SPA navigations.
  */
 export default function AnalyticsProvider() {
@@ -39,24 +40,29 @@ export default function AnalyticsProvider() {
     if (url === lastTrackedPath.current) return;
     lastTrackedPath.current = url;
 
-    // 1. Fire GA4 gtag page_view
-    if (typeof window.gtag === "function") {
-      window.gtag("event", "page_view", {
-        page_path: url,
-        page_title: document.title,
-      });
-    }
-
-    // 2. Fire Firebase Analytics page_view
-    isSupported().then((supported) => {
-      if (supported && app) {
-        const analytics = getAnalytics(app);
-        logEvent(analytics, "page_view", {
+    // 1 + 2. GA4 gtag and Firebase Analytics page_views, consent-gated
+    // (TRK-6). The gtag script only mounts post-consent (see
+    // ConsentGatedAnalytics), so the window.gtag check alone would almost
+    // suffice — but getAnalytics() would itself INITIALIZE Firebase Analytics
+    // and set Google cookies, so both branches sit behind the explicit check.
+    if (clientHasConsent()) {
+      if (typeof window.gtag === "function") {
+        window.gtag("event", "page_view", {
           page_path: url,
           page_title: document.title,
         });
       }
-    });
+
+      isSupported().then((supported) => {
+        if (supported && app && clientHasConsent()) {
+          const analytics = getAnalytics(app);
+          logEvent(analytics, "page_view", {
+            page_path: url,
+            page_title: document.title,
+          });
+        }
+      });
+    }
 
     // 3. Record to custom Firestore visitor tracker
     recordVisit(url);

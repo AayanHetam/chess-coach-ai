@@ -9,13 +9,13 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthDialogProvider } from "@/contexts/AuthDialogContext";
 import { Typography, Box, Container } from "@mui/material";
 import Head from "next/head";
-import { Analytics } from "@vercel/analytics/react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import QuizPersistenceFlush from "@/components/auth/QuizPersistenceFlush";
 import OnboardingNudge from "@/components/onboarding/OnboardingNudge";
 import WelcomeTour from "@/components/onboarding/WelcomeTour";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 import ConsentBanner from "@/components/consent/ConsentBanner";
+import ConsentGatedAnalytics from "@/components/consent/ConsentGatedAnalytics";
 import ProgressSync from "@/components/curriculum/ProgressSync";
 
 const queryClient = new QueryClient();
@@ -106,7 +106,10 @@ export default function MyApp({ Component, pageProps }: AppProps) {
           </AuthDialogProvider>
         </AuthProvider>
       </QueryClientProvider>
-      <Analytics />
+      {/* Vercel Analytics + GA4, consent-gated (TRK-6): nothing loads until
+          the visitor accepts analytics cookies. App Router pages get the same
+          gate from src/app/layout.tsx. */}
+      <ConsentGatedAnalytics />
     </>
   );
 }

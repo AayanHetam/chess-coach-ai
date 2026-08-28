@@ -118,9 +118,10 @@ export default function PrivacyPage() {
               <li>
                 <strong>Google Firebase Analytics</strong> and{" "}
                 <strong>Vercel Analytics</strong> collect page-view and usage
-                information through browser analytics components. Chess Masti
-                does not add game PGNs or coaching-chat content to those
-                analytics events.
+                information through browser analytics components — but only
+                after you accept analytics cookies; until then they are not
+                loaded at all. Chess Masti does not add game PGNs or
+                coaching-chat content to those analytics events.
               </li>
               <li>
                 <strong>Sentry</strong> may receive sanitized operational errors
@@ -196,9 +197,11 @@ export default function PrivacyPage() {
               consent-controlled event, puzzle-attempt, and analysis-session
               analytics described above are also disabled unless the
               server&apos;s
-              <code>TRACKING_ENABLED</code> configuration is on. Google Firebase
-              Analytics and Vercel Analytics are loaded separately from these
-              custom tracking endpoints.
+              <code>TRACKING_ENABLED</code> configuration is on. Google
+              Firebase Analytics, the GA4 tag, and Vercel Analytics honor the
+              same choice: none of them load unless <code>cm_consent</code> is
+              &quot;accepted&quot; and your browser is not sending the Global
+              Privacy Control signal.
             </p>
 
             <h3>What we do not do</h3>

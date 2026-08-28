@@ -1,18 +1,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
-import Script from "next/script";
 import { Suspense } from "react";
 import ThemeRegistry from "@/components/ThemeRegistry";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
 import ConsentBanner from "@/components/consent/ConsentBanner";
+import ConsentGatedAnalytics from "@/components/consent/ConsentGatedAnalytics";
 import { SiteJsonLd } from "@/app/_seo/JsonLd";
 
 const inter = Inter({ subsets: ["latin"] });
-
-// Reuse the Firebase measurement ID — it IS a GA4 tag, no separate signup needed
-const GA_MEASUREMENT_ID =
-  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID;
 
 const DESCRIPTION =
   "Free engine-first AI chess coach: Stockfish analysis, Claude explanations, validated chess claims, mistake-based puzzles, and opponent scouting.";
@@ -59,25 +54,9 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ThemeRegistry>{children}</ThemeRegistry>
-        <Analytics />
-        {GA_MEASUREMENT_ID && (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-              strategy="afterInteractive"
-            />
-            <Script id="gtag-init" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${GA_MEASUREMENT_ID}', {
-                  send_page_view: true
-                });
-              `}
-            </Script>
-          </>
-        )}
+        {/* Vercel Analytics + GA4, consent-gated (TRK-6): nothing loads
+            until the visitor accepts analytics cookies. */}
+        <ConsentGatedAnalytics />
         <Suspense fallback={null}>
           <AnalyticsProvider />
         </Suspense>

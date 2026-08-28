@@ -2,6 +2,14 @@
 
 Adds an **"Analyze with Chess Masti"** button to game pages on Lichess and Chess.com. One click extracts the PGN and opens a new tab on [chessmasti.com](https://chessmasti.com) with the game pre-loaded for AI coaching.
 
+## Install (Chrome Web Store)
+
+Published and public since **26 May 2026**:
+
+**https://chromewebstore.google.com/detail/analyze-with-chess-masti/fligcdcmibplmdbpggcjecpkclghdnpc**
+
+This URL is also hardcoded as the fallback in [`src/app/extension/page.tsx`](../src/app/extension/page.tsx) (`NEXT_PUBLIC_EXTENSION_STORE_URL` only overrides it).
+
 ## Install (development, unpacked)
 
 1. Open `chrome://extensions` in Chrome (or Edge / Brave / any Chromium browser).
@@ -36,9 +44,11 @@ extension/
     └── chesscom.js        # Chess.com-specific detection + DOM scraping
 ```
 
-## Chrome Web Store submission
+## Chrome Web Store listing
 
 See [STORE_LISTING.md](STORE_LISTING.md) for the listing copy, permission justifications, privacy practice declarations, and submission preflight checklist. Privacy policy lives at [chessmasti.com/privacy](https://chessmasti.com/privacy).
+
+Note: the item name and summary shown on the store come from `manifest.json` (`name`, `description`) — changing either requires uploading a new package version and a re-review. The detailed description is dashboard-editable without re-review.
 
 ## Limitations
 

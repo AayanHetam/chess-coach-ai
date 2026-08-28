@@ -1,6 +1,10 @@
 import { FirebaseOptions, initializeApp } from "firebase/app";
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 import { track } from "@/lib/tracking/client";
+import {
+  clientHasConsent,
+  CONSENT_CHANGED_EVENT,
+} from "@/lib/tracking/consent";
 
 /**
  * Auth and Firestore have moved server-side. The browser only initializes
@@ -25,12 +29,22 @@ const app = firebaseConfig ? initializeApp(firebaseConfig) : undefined;
 
 export { app };
 
-if (typeof window !== "undefined") {
+// Consent-gated (TRK-6): Firebase Analytics is a GA4 client and sets Google
+// cookies the moment it initializes, so it must not start until the visitor
+// has accepted analytics cookies. The consent-changed listener covers the
+// mid-session "I agree" from the ConsentBanner.
+function initAnalyticsIfConsented() {
+  if (!clientHasConsent()) return;
   isSupported().then((supported) => {
     if (supported && app) {
       getAnalytics(app);
     }
   });
+}
+
+if (typeof window !== "undefined") {
+  initAnalyticsIfConsented();
+  window.addEventListener(CONSENT_CHANGED_EVENT, initAnalyticsIfConsented);
 }
 
 export const logAnalyticsEvent = async (
@@ -45,6 +59,7 @@ export const logAnalyticsEvent = async (
 
   if (typeof window === "undefined") return;
   if (window.location.hostname === "localhost") return;
+  if (!clientHasConsent()) return;
 
   const supported = await isSupported();
   if (!supported || !app) return;

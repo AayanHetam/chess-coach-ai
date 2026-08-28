@@ -14,6 +14,14 @@
 export const CONSENT_COOKIE_NAME = "cm_consent";
 export type ConsentValue = "accepted" | "rejected";
 
+/**
+ * Window event dispatched whenever setClientConsent writes a new choice.
+ * Third-party analytics loaders (Vercel, GA4/Firebase) subscribe to it so a
+ * mid-session "I agree" starts them without a reload — and they must never
+ * load before it says so.
+ */
+export const CONSENT_CHANGED_EVENT = "cm-consent-changed";
+
 const CONSENT_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 
 function readConsentFromCookieString(cookie: string | null): ConsentValue | null {
@@ -52,6 +60,9 @@ export function setClientConsent(value: ConsentValue): void {
       ? "; Secure"
       : "";
   document.cookie = `${CONSENT_COOKIE_NAME}=${value}; Max-Age=${CONSENT_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secure}`;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
+  }
 }
 
 /** Browser GPC signal (the `navigator.globalPrivacyControl` boolean). */

@@ -1,5 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { hasTrackingConsent } from "../consent";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import {
+  hasTrackingConsent,
+  setClientConsent,
+  CONSENT_CHANGED_EVENT,
+} from "../consent";
 
 function req(headers: Record<string, string>): Request {
   return new Request("http://localhost/api/track", { headers });
@@ -29,5 +33,32 @@ describe("hasTrackingConsent (server)", () => {
     expect(
       hasTrackingConsent(req({ cookie: "cm_anon=anon_1; cm_consent=accepted; x=y" })),
     ).toBe(true);
+  });
+});
+
+describe("setClientConsent (client)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("announces the change so consent-gated analytics can react in-session", () => {
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("document", { cookie: "" });
+    vi.stubGlobal("window", { dispatchEvent });
+
+    setClientConsent("accepted");
+
+    expect(dispatchEvent).toHaveBeenCalledTimes(1);
+    const event = dispatchEvent.mock.calls[0][0] as Event;
+    expect(event.type).toBe(CONSENT_CHANGED_EVENT);
+  });
+
+  it("still writes the cookie when window is absent", () => {
+    const doc = { cookie: "" };
+    vi.stubGlobal("document", doc);
+
+    setClientConsent("rejected");
+
+    expect(doc.cookie).toContain("cm_consent=rejected");
   });
 });

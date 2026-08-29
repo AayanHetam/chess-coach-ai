@@ -98,6 +98,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/internship", changeFrequency: "monthly", priority: 0.4 },
     { path: "/extension", changeFrequency: "monthly", priority: 0.6 },
     { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
+    // Puzzle rating landing pages — /puzzles/600 … /puzzles/2200, step 100.
+    // Bands must match src/pages/puzzles/[rating].tsx getStaticPaths exactly.
+    ...Array.from({ length: 17 }, (_, i) => ({
+      path: `/puzzles/${600 + i * 100}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    })),
     // /feedback, /profile, /reset-password, /site-stats intentionally excluded
     // — auth-gated, internal-tooling, or not for indexing.
   ];

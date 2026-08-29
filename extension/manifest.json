@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Analyze with Chess Masti",
-  "version": "1.0.0",
-  "description": "Adds a one-click Analyze button to Lichess + Chess.com games. Opens chessmasti.com with the PGN auto-loaded for AI coaching.",
+  "name": "Chess Masti: AI Game Review for Lichess & Chess.com",
+  "version": "1.0.1",
+  "description": "Free AI chess analysis in one click. Stockfish + an AI coach review your Lichess and Chess.com games and explain your mistakes.",
   "icons": {
     "16": "icons/16.png",
     "32": "icons/32.png",

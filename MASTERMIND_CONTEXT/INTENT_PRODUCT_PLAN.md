@@ -143,6 +143,47 @@ becomes minutes per ply there, so "regime-exact on the server" is a PAID
 decision (~1 CPU instance), not a free architecture. It stays on the table
 only if the lite experiment fails.
 
+### Lite-fidelity experiment: MEASURED (2026-08-23) — the answer that reshapes I-2
+
+The full 835-ply corpus was re-probed with the PRODUCTION engine
+(`stockfish-17-lite-single`, headless Chromium, byte-identical recipe to the
+native sweep — see `scripts/intent/probe-corpus-lite.mjs`; refactor proven
+byte-exact, lite proven deterministic). The rebuilt native corpus reproduces
+every founder ruling — the reconstruction from public archives is validated.
+The lite instrument does NOT:
+
+- 457/835 plies drift; 47 purpose flips; prophylaxis presence churns ±60.
+- **Two rulings break.** The Ra1 WORTH card dies (at d16-lite on a tempo
+  knife-edge, 146cp vs the 150 bar; with d20-lite Tier-1 probes its threat is
+  found but the weather gate kills it at −3cp vs the −100 bar). The ruled Re1
+  prophylaxis credit dies because lite's null-move search ranks a DIFFERENT
+  threat first (d5, not h6) at every depth tried — h6 survives only as the
+  MultiPV-2 alternative, which the module deliberately does not evaluate.
+- Deeper lite probes (d20) do NOT recover instrument disagreement — they
+  only clear knife-edges. The NNUE sees different chess on these positions,
+  deterministically.
+
+Consequences, in order of force:
+
+1. **Native server probes are incoherent, not just costly.** Tier 0 is the
+   client's gameEval — lite forever. Mixing native Tier-1 into lite Tier-0
+   is exactly the cross-regime subtraction the module refuses elsewhere.
+2. **A consistent lite recalibration EXISTS for everything except Re1.**
+   On the production instrument the ruled weather measurements are Ra1
+   −3cp (WORTH ⇒ needs bar ≥ −3) and fxg5 +75cp (NOISE ⇒ needs bar < 75):
+   any bar in [−3, 75) — e.g. 0 — keeps both rulings. The tempo bar has an
+   analogous window if Tier-1 stays at d16-lite.
+3. **Re1 is recoverable only by a module extension** — evaluating the top-2
+   null-world threats instead of only the first. That is a new criterion,
+   i.e. chess judgment: FOUNDER'S CALL, with his own Re1 ruling as the
+   ground truth arguing for it.
+
+**Decision pending (founder):** accept measured Tier-1 recall loss on
+Re1-class stories, or rule on the top-2-threats extension. Either way the
+recalibrated thresholds get their own INTENT_CALIBRATION values derived from
+lite-measured ruled quantities (full-corpus d20-lite sweep in progress to
+firm every window), and a new fingerprint separates the populations.
+
 First shadow-traffic readings (2026-08-22/23, 6 rows): cost/trap/material
 families firing on real games, 5–10 plies carded per review, capture fires
 on every contract rebuild (dedupe by `contract_id` when querying), and

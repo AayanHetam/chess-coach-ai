@@ -50,7 +50,7 @@ export default function PrivacyPage() {
             <p className="cm-lede">
               Plain English. Covers <strong>chessmasti.com</strong> (the
               website) and <strong>Analyze with Chess Masti</strong> (the Chrome
-              extension). Last updated August 21, 2026.
+              extension). Last updated August 29, 2026.
             </p>
           </header>
 
@@ -91,9 +91,10 @@ export default function PrivacyPage() {
                 request if Anthropic fails or if OpenAI is the configured
                 provider. The request can include the position (FEN), relevant
                 PGN, coaching query and chat messages, ratings, Chess.com or
-                Lichess usernames, and the coaching preferences saved on your
-                profile &mdash; coaching tone, playing style, study goals, and
-                favorite openings &mdash; all used to personalize the coaching.
+                Lichess usernames, the coach personality you have selected, and
+                the coaching preferences saved on your profile &mdash; coaching
+                tone, playing style, study goals, and favorite openings
+                &mdash; all used to personalize the coaching.
               </li>
               <li>
                 <strong>The Maia-2 microservice</strong> receives the current

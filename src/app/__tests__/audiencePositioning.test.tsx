@@ -80,7 +80,7 @@ describe("13+ public audience positioning", () => {
   it("states the 13+ privacy position and discloses saved-chat content", () => {
     const text = pageText(<PrivacyPage />);
 
-    expect(text).toContain("Last updated August 21, 2026.");
+    expect(text).toContain("Last updated August 29, 2026.");
     expect(text).toContain(
       "Chess Masti is intended for users aged 13 and older."
     );
@@ -95,6 +95,6 @@ describe("13+ public audience positioning", () => {
 
   it("publishes the new signup document versions", () => {
     expect(TERMS_VERSION).toBe("2026-08-21");
-    expect(PRIVACY_VERSION).toBe("2026-08-21");
+    expect(PRIVACY_VERSION).toBe("2026-08-29");
   });
 });

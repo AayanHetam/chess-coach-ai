@@ -54,6 +54,35 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ThemeRegistry>{children}</ThemeRegistry>
+        {/* App Router pages don't pass through the Pages Router <Layout>, so
+            without this the legal pages are reachable only by typing the URL.
+            Light palette to match the .cm-content pages in _seo/styles.ts. */}
+        <footer
+          style={{
+            borderTop: "1px solid #e5e5ea",
+            padding: "24px 16px",
+            display: "flex",
+            gap: 20,
+            flexWrap: "wrap",
+            justifyContent: "center",
+            fontSize: "0.82rem",
+          }}
+        >
+          {[
+            { href: "/", label: "Home" },
+            { href: "/privacy", label: "Privacy" },
+            { href: "/terms", label: "Terms" },
+            { href: "/accessibility", label: "Accessibility" },
+          ].map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              style={{ color: "#888", textDecoration: "none" }}
+            >
+              {link.label}
+            </a>
+          ))}
+        </footer>
         {/* Vercel Analytics + GA4, consent-gated (TRK-6): nothing loads
             until the visitor accepts analytics cookies. */}
         <ConsentGatedAnalytics />

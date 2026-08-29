@@ -35,7 +35,7 @@ Chess Masti is accessible AI chess coaching. Mission framing: high-quality chess
 - CMIP-1.B/1.C/1.D (intern feedback portal) — 1.A shipped 2026-05-24, no PR since
 - Mastermind Phase 2 (orchestrator UI workstream 2.F) — zero PRs, strongest strategic gap
 - Mastermind Phase 3 (CMIP-2 + correlation) — blocked on CMIP-1 finish
-- Chrome Extension Web Store submission — code complete, admin step undone
+- ~~Chrome Extension Web Store submission — code complete, admin step undone~~ **CORRECTION (2026-08-28): false when written.** The extension was published and public on the Chrome Web Store on **2026-05-26** — three days before this doc was authored. [Listing](https://chromewebstore.google.com/detail/analyze-with-chess-masti/fligcdcmibplmdbpggcjecpkclghdnpc).
 - Landing v2 (WebGL chess landing) — built but parked in `_future/`; preview at `/preview/landing-v2`
 
 ## Summer 2026 commitments (in order)
@@ -53,8 +53,8 @@ The sequence below is one-at-a-time. Each step ships before the next opens. Esti
 3. **Cutover flip**: replace `/analysis` route with the new surface; archive legacy under `/_legacy/analysis` for a 30-day rollback window
 4. **Bisect the Webpack hydration flake** that blocked G3 visual smoke. One sitting.
 
-### June → July: Chrome Extension Web Store submission (≈half a day, end of June)
-5. **Submit the extension.** Code is ready. Pull the trigger on the Web Store form, attach the privacy + listing copy, await review. This is the biggest deferred lever — first install path is the easiest user acquisition route in the next 90 days. **Pure admin task** — do not let this be blocked behind code work.
+### June → July: Chrome Extension Web Store submission — ALREADY DONE when this plan was written
+5. ~~**Submit the extension.**~~ **CORRECTION (2026-08-28): submitted and public since 2026-05-26** — the "biggest deferred lever" framing survived in the docs for three months after the lever had already been pulled. [Listing](https://chromewebstore.google.com/detail/analyze-with-chess-masti/fligcdcmibplmdbpggcjecpkclghdnpc) (~6 installs, zero ratings as of 2026-08-28). The remaining lever is **distribution, not admin**: the listing name "Analyze with Chess Masti" has no searchable keywords, and renaming requires a manifest version bump + Web Store re-review (name/summary come from `manifest.json`, not dashboard fields). The site install page's "review pending" dead state was fixed in PR #440; the listing URL is recorded in [extension/README.md](extension/README.md) (PR #441).
 
 ### July: Mastermind Phase 2 orchestrator (3–4 weeks)
 6. **PR_2F_PLAN.md** — plan-first per Mastermind convention. Architecture/scope/cost questions → tech-lead; chess/coaching questions → Aayan. Pause for review before any code lands.
@@ -106,7 +106,7 @@ Mark each commitment as it ships. Re-read the doc the first week of each month a
 ```
 [ ] June 1-7   — PR #56 merge + cutover polish sprint
 [ ] June 8-14  — Cutover flip + Webpack bisect
-[ ] June 15-30 — Chrome Web Store submission (administrative, ≤1 day)
+[x] June 15-30 — Chrome Web Store submission — DONE EARLY: published 2026-05-26, before this plan was authored (discovered 2026-08-28)
 [ ] June 22-30 — PR_2F_PLAN.md draft + tech-lead review
 [ ] July       — Mastermind Phase 2.F orchestrator
 [ ] August     — CMIP-1.B → 1.C → 1.D → Phase 3 correlation

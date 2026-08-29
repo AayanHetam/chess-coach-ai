@@ -205,6 +205,20 @@ describe("chat route: flag-off invariants", () => {
     expect(mockFetchDataSources).not.toHaveBeenCalled();
   });
 
+  it("every follow-up declares its reduced grounding in the system suffix (T3 option A)", async () => {
+    // The follow-up path fetches no fresh external evidence (chessdb / Maia /
+    // tablebase) — by measured decision, not by accident. The prompt must SAY
+    // so, or the model papers over the gap with invented book percentages and
+    // tablebase verdicts. Assert the two load-bearing phrases, not the whole
+    // wording (probes that grep exact copy go stale).
+    disableFlag();
+    await POST(makeRequest(fastPathBody()));
+    expect(mockCallLLM).toHaveBeenCalledTimes(1);
+    const args = mockCallLLM.mock.calls[0][0];
+    expect(args.systemSuffix).toContain("EVIDENCE SCOPE FOR THIS TURN");
+    expect(args.systemSuffix).toContain("Never invent book percentages");
+  });
+
   it("flag off, no contextId → fallback passthrough returns OpenAI-compatible shape", async () => {
     disableFlag();
     const res = await POST(

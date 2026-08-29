@@ -6,6 +6,7 @@ import {
 } from "@/lib/analysisContextCache";
 import { buildFenPositionFacts } from "@/lib/mastermind/positionFacts";
 import { renderContractCompact } from "@/lib/contract/followUp";
+import { FOLLOWUP_REDUCED_GROUNDING_NOTE } from "@/lib/prompts/followupGrounding";
 import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
 import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { chatSchema, validateRequest } from "@/lib/validation/schemas";
@@ -169,6 +170,10 @@ export async function POST(request: NextRequest) {
         buildCondensedContext(context),
         contractBlock,
         perTurnFacts,
+        // T3 option A: this turn made no fresh external lookups — the prompt
+        // says so instead of letting the model invent book/tablebase/level
+        // claims. Decision + the measurement behind it live with the constant.
+        FOLLOWUP_REDUCED_GROUNDING_NOTE,
       ]
         .filter(Boolean)
         .join("\n\n");

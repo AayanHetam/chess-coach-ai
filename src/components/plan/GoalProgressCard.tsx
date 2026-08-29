@@ -9,7 +9,13 @@ import {
   type GoalPace,
 } from "@/lib/curriculum/improvementModel";
 import { minutesPerDayFor } from "@/components/onboarding/quizConfig";
-import { hasCompleteGoal } from "@/lib/curriculum/goalPatch";
+import {
+  GOAL_PERFS,
+  hasCompleteGoal,
+  type GoalPerf,
+  type PerfGoals,
+} from "@/lib/curriculum/goalPatch";
+import { useRatingHistory } from "@/lib/rating/useRatingHistory";
 import type { TimeCommitment } from "@/components/onboarding/quizConfig";
 
 /**
@@ -73,6 +79,8 @@ interface GoalProgressCardProps {
   dailyTimeCommitment?: TimeCommitment;
   practiceDaysPerWeek?: number;
   currentRating: number;
+  /** Per-control targets, when the goal was set control-by-control. */
+  perfGoals?: PerfGoals;
 }
 
 export default function GoalProgressCard({
@@ -83,7 +91,11 @@ export default function GoalProgressCard({
   dailyTimeCommitment,
   practiceDaysPerWeek,
   currentRating,
+  perfGoals,
 }: GoalProgressCardProps) {
+  // Live per-control ratings, raw platform numbers — the same scale perfGoals
+  // stores and the same single request the setter and trend panels share.
+  const { data: history } = useRatingHistory(365);
   const progress = useMemo(() => {
     // The SAME predicate /plan uses to decide whether to offer the goal setter
     // instead of this card. Two hand-written copies would eventually disagree,
@@ -225,6 +237,125 @@ export default function GoalProgressCard({
           The plan expected {progress.expectedRating} by now.
         </Typography>
       )}
+
+      {/* Control-by-control progress, for goals set that way. Raw platform
+          numbers throughout — the scale the goals were typed in and the trend
+          panels plot. The pace verdict above stays singular: one promise, one
+          "ahead/behind"; these rows show distance covered, not new claims. */}
+      {perfGoals && Object.keys(perfGoals).length > 0 && (
+        <Box
+          sx={{
+            mt: 1.5,
+            pt: 1.25,
+            borderTop: "1px solid rgba(255,255,255,0.08)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.75,
+          }}
+        >
+          {GOAL_PERFS.filter((perf) => perfGoals[perf]).map((perf) => (
+            <PerfProgressRow
+              key={perf}
+              perf={perf}
+              start={perfGoals[perf]!.start}
+              goal={perfGoals[perf]!.goal}
+              now={
+                history?.status === "ok"
+                  ? history.trends.find((t) => t.perf === perf)?.current
+                  : undefined
+              }
+            />
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+const PERF_LABEL: Record<GoalPerf, string> = {
+  bullet: "Bullet",
+  blitz: "Blitz",
+  rapid: "Rapid",
+};
+
+function PerfProgressRow({
+  perf,
+  start,
+  goal,
+  now,
+}: {
+  perf: GoalPerf;
+  start: number;
+  goal: number;
+  now?: number;
+}) {
+  const span = goal - start;
+  // Progress is only drawn from a MEASURED current. With no recent rated
+  // games there is no fill and no fraction — an empty bar would claim "zero
+  // progress", which is a measurement we did not make.
+  const fraction =
+    now !== undefined && span > 0
+      ? Math.max(0, Math.min(1, (now - start) / span))
+      : undefined;
+  const reached = now !== undefined && now >= goal;
+
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+      <Typography
+        sx={{
+          width: 52,
+          flexShrink: 0,
+          color: "rgba(255,255,255,0.55)",
+          fontSize: "0.68rem",
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+        }}
+      >
+        {PERF_LABEL[perf]}
+      </Typography>
+
+      <Box
+        sx={{
+          flex: 1,
+          position: "relative",
+          height: 4,
+          borderRadius: 2,
+          background: "rgba(255,255,255,0.08)",
+        }}
+      >
+        {fraction !== undefined && (
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              width: `${fraction * 100}%`,
+              borderRadius: 2,
+              background: reached
+                ? "#4ADE80"
+                : "linear-gradient(90deg, rgba(249,115,22,0.6), #FB923C)",
+              transition: "width 400ms ease-out",
+            }}
+          />
+        )}
+      </Box>
+
+      <Typography
+        sx={{
+          flexShrink: 0,
+          color: reached ? "#4ADE80" : "rgba(255,255,255,0.6)",
+          fontSize: "0.72rem",
+          fontWeight: 600,
+          minWidth: 96,
+          textAlign: "right",
+        }}
+      >
+        {now === undefined
+          ? `${goal} · no recent games`
+          : reached
+            ? `${goal} reached`
+            : `${now} · ${goal - now} to go`}
+      </Typography>
     </Box>
   );
 }

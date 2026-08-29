@@ -494,6 +494,7 @@ export default function PlanPage() {
               }
               practiceDaysPerWeek={profile?.practiceDaysPerWeek}
               currentRating={goalCurrentRating}
+              perfGoals={profile?.perfGoals}
             />
             {editingGoal ? (
               <GoalSetterCard

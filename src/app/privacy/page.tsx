@@ -50,7 +50,7 @@ export default function PrivacyPage() {
             <p className="cm-lede">
               Plain English. Covers <strong>chessmasti.com</strong> (the
               website) and <strong>Analyze with Chess Masti</strong> (the Chrome
-              extension). Last updated August 21, 2026.
+              extension). Last updated August 29, 2026.
             </p>
           </header>
 
@@ -90,8 +90,11 @@ export default function PrivacyPage() {
                 processes AI coaching requests. OpenAI may process the same
                 request if Anthropic fails or if OpenAI is the configured
                 provider. The request can include the position (FEN), relevant
-                PGN, coaching query and chat messages, ratings, and Chess.com or
-                Lichess usernames used to personalize the coaching.
+                PGN, coaching query and chat messages, ratings, Chess.com or
+                Lichess usernames, the coach personality you have selected, and
+                the coaching preferences saved on your profile &mdash; coaching
+                tone, playing style, study goals, and favorite openings
+                &mdash; all used to personalize the coaching.
               </li>
               <li>
                 <strong>The Maia-2 microservice</strong> receives the current
@@ -133,6 +136,33 @@ export default function PrivacyPage() {
                 error bodies to Sentry. It is used only for diagnosing failures.
               </li>
             </ul>
+
+            <h3>Opponents and other players you look up</h3>
+            <p>
+              Scout works on people who do not have a Chess Masti account and
+              have not agreed to anything. When you scout a Chess.com or
+              Lichess username &mdash; and also when we read your opponent&apos;s
+              name out of a PGN you analyse, without you asking for a scout
+              &mdash; our server fetches that player&apos;s publicly listed
+              recent games and computes a profile from them: their opening
+              repertoire, apparent strengths by phase of the game, frequent
+              opponents, and behavioural estimates such as how often they lose
+              on time, how long their games run, and how they do straight after
+              a loss. Their username also reaches Anthropic or OpenAI, both as
+              part of the PGN and when our validator checks what the coach said
+              about them.
+            </p>
+            <p>
+              These profiles are inferences drawn from public game records, not
+              facts about the person, and they can be wrong. If you save a scout
+              report it is stored with your account and given a share link that
+              anyone holding the URL can open without signing in. If you are the
+              player who was scouted and want a saved report taken down, email{" "}
+              <a href="mailto:aayanhetamsaria4@gmail.com">
+                aayanhetamsaria4@gmail.com
+              </a>
+              .
+            </p>
 
             <h3>Where data lives</h3>
             <ul>

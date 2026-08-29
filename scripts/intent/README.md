@@ -21,8 +21,15 @@ the affected thresholds from a re-measured corpus.
 ## Workflow
 
 ```bash
-# 1. Measure: engine-backed probes for a set of games (slow; hours)
-DEPTH=16 node scripts/intent/probe-corpus.mjs games/ probes.json
+# 1. Measure: engine-backed probes for a set of games (native reference
+#    instrument; ~1h for the 835-ply corpus)
+DEPTH=16 node scripts/intent/probe-corpus.mjs games.json probes.json
+
+# 1b. Same corpus, PRODUCTION instrument (stockfish-17-lite-single via
+#     headless Chromium — the engine every real browser runs; ~40 min).
+#     Shares probe-recipe.mjs byte-for-byte with the native sweep, so the
+#     two runs differ in exactly one thing: the engine.
+DEPTH=16 node scripts/intent/probe-corpus-lite.mjs games.json probes-lite.json
 
 # 2. Apply: run the REAL intent module over the probes
 node_modules/.bin/tsx scripts/intent/apply-corpus.ts probes.json intent.json

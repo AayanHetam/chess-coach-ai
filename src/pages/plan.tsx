@@ -304,7 +304,6 @@ export default function PlanPage() {
         hasLinkedAccount: Boolean(
           profile?.lichessUsername || profile?.chesscomUsername
         ),
-        wantsOpenings: profile?.studyGoals?.includes("openings"),
         // Their own worst line, when we have measured one.
         openingLine,
         // What they have already been asked and already got wrong. Outranks

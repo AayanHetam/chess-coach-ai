@@ -592,9 +592,19 @@ the ground under the referee's numbers and the snapshot churn would bury the
 signal the byte-equality suite exists to give. **Sequence them with the
 contract workstream; do not race them.**
 
-**T5, T6, T7, T8 and T10 are now done. Only T3 remains** (a cost/product
-call: making follow-up turns externally grounded is a recurring spend on the
-highest-volume path, not a bug to fix unilaterally).
+**T5, T6, T7, T8 and T10 are now done. T3 was RESOLVED 2026-08-29 as
+option A** (declare reduced grounding), on founder delegation, after running
+option E against the tracking DB: `llm_calls` holds 105 captured calls in its
+entire history — puzzle-chat 45, enhanced-analysis 31, puzzle-hint 29, and
+feature:"chat" **zero**. The "highest-volume path" premise was wrong: the
+follow-up path has no observed consented traffic at all, so options B–D would
+have spent fetch ceilings and failure modes on a path nobody measurably uses.
+Shipped: `FOLLOWUP_REDUCED_GROUNDING_NOTE`
+(src/lib/prompts/followupGrounding.ts) appended to every follow-up's system
+suffix — the model is told no fresh book/Maia/tablebase lookup was made this
+turn and to say so rather than invent numbers. Re-run the measurement when
+the AI pause lifts; option B (tablebase-only, ≤7 pieces) is the first upgrade
+if endgame follow-ups appear.
 
 The E2E harness no longer leans on the T7 bug. It still blocks `/engines/**`,
 but that now produces a DECLARED `unavailable` state with a stable placeholder

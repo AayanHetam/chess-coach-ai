@@ -1,19 +1,23 @@
-# Chrome Web Store listing — Analyze with Chess Masti
+# Chrome Web Store listing — Chess Masti extension
 
-Copy + assets + checklist for the submission flow. Paste these straight into the developer dashboard fields.
+Copy + assets + checklist for the submission flow.
+
+**Live listing** (published 2026-05-26): https://chromewebstore.google.com/detail/analyze-with-chess-masti/fligcdcmibplmdbpggcjecpkclghdnpc
+
+⚠️ **The item name and the summary are NOT dashboard fields.** The Web Store pulls them from `manifest.json` (`name` and `description`). Changing either means bumping the version, re-zipping, uploading, and going through re-review (the published version stays live meanwhile). Only the detailed description, screenshots, and category are editable in the dashboard without a re-review.
 
 ---
 
 ## Listing fields
 
-**Item name** (45 char max — currently 30)
+**Item name** (75 char max in the manifest; some store surfaces truncate around 45, so front-load brand + keywords — currently 51)
 ```
-Analyze with Chess Masti
+Chess Masti: AI Game Review for Lichess & Chess.com
 ```
 
-**Short description** (132 char max — currently 124)
+**Short description** (132 char max — currently 127; lives in `manifest.json` `description`)
 ```
-Adds a one-click Analyze button to Lichess + Chess.com games. Opens chessmasti.com with the PGN auto-loaded for AI coaching.
+Free AI chess analysis in one click. Stockfish + an AI coach review your Lichess and Chess.com games and explain your mistakes.
 ```
 
 **Category**
@@ -28,24 +32,23 @@ English (United States)
 
 ---
 
-## Detailed description (16k char max)
+## Detailed description (16k char max — dashboard-editable, no re-review)
 
 ```
-Adds an "Analyze with Chess Masti" button to game pages on Lichess and Chess.com. One click sends the game's PGN to chessmasti.com, where Chess Masti AI walks you through your mistakes, key turning points, and what to study next — for free.
+Free AI chess game analysis for Lichess and Chess.com. One click adds instant game review: Stockfish 17 finds your mistakes, blunders, and missed tactics, and an AI chess coach explains them in plain English — no copy-pasting PGNs, no paid tier.
 
-WHAT IT DOES
+HOW IT WORKS
 
-• Detects when you're on a Lichess or Chess.com game page and injects a single orange button in the top navigation bar.
-• When you click the button, the extension reads the PGN of the game (from the public Lichess game-export endpoint, or from the Chess.com moves panel) and opens chessmasti.com/analysis in a new tab with the game pre-loaded.
-• The AI coach on chessmasti.com automatically starts analyzing the game once the engine pass finishes — you don't have to click anything else.
+• On any Lichess or Chess.com game page, the extension adds a single "♟ Analyze with Chess Masti" button to the top navigation.
+• One click reads the game's PGN (from the public Lichess game-export endpoint, or from the Chess.com moves panel) and opens chessmasti.com/analysis in a new tab with the game pre-loaded.
+• The engine pass runs automatically, then the AI coach walks you through the turning points — you don't click anything else.
 
-WHAT YOU GET ON CHESSMASTI.COM
+WHAT YOU GET
 
-• Engine-grounded coaching. Stockfish 17 runs first (in your browser as WebAssembly), then Anthropic Claude turns the engine output into plain-English coaching. The LLM never invents chess facts because Stockfish has already produced the truth.
-• Hallucination validator. Every coaching response is parsed for piece, square, and move references and checked against the live board. Claims that don't match the actual position get rewritten before they reach you.
+• Engine-grounded coaching: Stockfish 17 runs first (in your browser as WebAssembly), then the AI turns the engine output into plain-English coaching. The AI never invents chess facts — the engine has already produced the truth, and every response is checked against the live board before it reaches you.
 • Move-by-move insights with shareable permalinks — send a specific mistake to a friend without making them re-analyze.
-• Opponent scouting. Paste a username and get opening trees, repertoire collisions, tilt and timeout profiles.
-• Inline puzzles tailored to the mistakes you just made — three puzzles rendered directly inside the chat after a coaching response, picked by FEN similarity to the position you got wrong.
+• Puzzles picked from the mistakes you just made, rendered directly inside the coaching chat.
+• Opponent scouting: paste a username and get opening trees, repertoire collisions, tilt and timeout profiles.
 
 WHAT THE EXTENSION DOES NOT DO
 
@@ -59,7 +62,7 @@ When you click the button, the PGN of the game is sent only to chessmasti.com as
 
 WHO BUILDS THIS
 
-Aayan Hetamsaria, a high-school student. Chess Masti AI is free and there's no paid tier.
+Aayan Hetamsaria, a high-school student. Chess Masti is free and there's no paid tier.
 
 LINKS
 
@@ -146,12 +149,12 @@ The extension injects a single button into the top navigation of game pages on t
 ## Submission preflight
 
 Before clicking "Submit for review":
-1. Bump `manifest.json` version if you've changed anything since the last upload (current: 1.0.0).
+1. Bump `manifest.json` version if you've changed anything since the last upload (current: 1.0.1).
 2. Zip the `extension/` directory at its root — the manifest must be at the top level of the zip, not inside a wrapping folder. From the repo root:
    ```sh
-   cd extension && zip -r ../chess-masti-extension-v1.0.0.zip . -x "STORE_LISTING.md" "README.md"
+   cd extension && zip -r ../chess-masti-extension-v1.0.1.zip . -x "STORE_LISTING.md" "README.md" "ROADMAP.md"
    ```
 3. Verify the zip on a fresh Chrome profile via "Load unpacked" — make sure the button shows up on a Lichess game and a Chess.com game.
-4. Upload to https://chrome.google.com/webstore/devconsole. First-time submissions need a $5 developer-account fee, paid once.
-5. Paste the listing copy, screenshots, and privacy practice answers from above.
-6. Submit. First review typically takes a few business days to a couple of weeks.
+4. Upload the new package to the existing item at https://chrome.google.com/webstore/devconsole (do NOT create a new item — that loses the install base and reviews).
+5. If the dashboard-only fields changed (detailed description, screenshots), paste those from above.
+6. Submit. Re-review of a published item usually clears in a couple of days; the current version stays live meanwhile.

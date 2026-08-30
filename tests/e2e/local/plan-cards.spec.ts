@@ -65,11 +65,13 @@ async function stubAccount(page: Page, state: AccountState = {}) {
     });
   }
   if (state.perfGoals) {
+    // Starts sit BELOW the history stub's live currents (1289/1425/1805) so
+    // the progress rows have real distance-covered to draw.
     Object.assign(user, {
       perfGoals: {
-        bullet: { start: 1289, goal: 1500 },
-        blitz: { start: 1425, goal: 1600 },
-        rapid: { start: 1805, goal: 2000 },
+        bullet: { start: 1240, goal: 1500 },
+        blitz: { start: 1380, goal: 1600 },
+        rapid: { start: 1740, goal: 2000 },
       },
     });
   }
@@ -323,6 +325,40 @@ test.describe("goal set", () => {
     await expect(page.getByText("goal 1500")).toBeVisible();
     await expect(page.getByText("goal 1600")).toBeVisible();
     await expect(page.getByText("goal 2000")).toBeVisible();
+  });
+
+  test("the progress card tracks each control against its own goal", async ({
+    page,
+  }) => {
+    await stubAccount(page, { perfGoals: true });
+    await gotoPlan(page);
+    // "now" comes from the live platform numbers (1289/1425/1805), measured
+    // against each control's own stored target — not the overall anchor goal
+    // restated three times.
+    await expect(page.getByText("1289 · 211 to go")).toBeVisible();
+    await expect(page.getByText("1425 · 175 to go")).toBeVisible();
+    await expect(page.getByText("1805 · 195 to go")).toBeVisible();
+  });
+
+  test("a control with no measurable current claims nothing", async ({
+    page,
+  }) => {
+    await stubAccount(page, { perfGoals: true });
+    // History gone (platforms unreachable). Progress needs a measured "now";
+    // without one the rows must say so rather than drawing 0% covered.
+    await page.route("**/api/ratings/history**", (r) =>
+      r.fulfill({
+        json: { status: "unavailable", message: "down", trends: [] },
+      })
+    );
+    await page.goto("/plan");
+    // Not gotoPlan(): with history unavailable the trends section renders its
+    // failure message instead of the "Your rating trend" heading it waits on.
+    await expect(page.getByText("1500 · no recent games")).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText("2000 · no recent games")).toBeVisible();
+    await expect(page.getByText(/to go/)).toHaveCount(0);
   });
 
   test("a 30-minute budget buys both the game review and the theory task", async ({

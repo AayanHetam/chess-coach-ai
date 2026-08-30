@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Chess, Square } from "chess.js";
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { Chessboard } from "react-chessboard";
+import { isMoveStartKey, parseKeyboardMove } from "@/lib/puzzle/keyboardMove";
 import type {
   CustomPieces,
   CustomSquareStyles,
@@ -250,6 +251,54 @@ export function PuzzleBoardSurface({
     [isOwnPiece],
   );
 
+  // ── Keyboard move entry ──────────────────────────────────────────────
+  // Every other input path is pointer-shaped (drag, tap-tap), which locked
+  // keyboard-only users out of ANY surface that renders this board — the
+  // course trainer's probes could not be answered at all. The container is
+  // focusable; typing a plausible move character ("e", "N", "0", …) opens a
+  // small overlay input, Enter parses SAN/UCI and feeds the SAME
+  // `onPieceDrop` sink a drag uses — grading semantics are untouched by
+  // construction, on every surface at once. No layout change: the overlay
+  // floats over the board, so height-measuring layouts (the /puzzles
+  // one-screen lock) see nothing new.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [kbText, setKbText] = useState<string | null>(null); // null = closed
+  const [kbError, setKbError] = useState<string | null>(null);
+
+  const closeKbEntry = useCallback(() => {
+    setKbText(null);
+    setKbError(null);
+    containerRef.current?.focus();
+  }, []);
+
+  const commitKbEntry = useCallback(() => {
+    if (kbText == null) return;
+    const parsed = parseKeyboardMove(fen, kbText);
+    if (!parsed.ok) {
+      setKbError(parsed.error);
+      return;
+    }
+    setSelected(null);
+    // The sink applies/validates exactly as if the piece had been dragged;
+    // a false return means the parent rejected it, and the parent's own
+    // feedback (flash, wrong-square paint) already covers that.
+    onPieceDrop(parsed.from, parsed.to, parsed.piece);
+    closeKbEntry();
+  }, [kbText, fen, onPieceDrop, closeKbEntry]);
+
+  const handleContainerKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (!interactive || kbText != null) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isMoveStartKey(e.key)) {
+        e.preventDefault();
+        setKbError(null);
+        setKbText(e.key);
+      }
+    },
+    [interactive, kbText],
+  );
+
   const board = (
     <Chessboard
       id={boardId}
@@ -284,16 +333,132 @@ export function PuzzleBoardSurface({
       // and are also the first thing you want in a bug report.
       data-board-fen={fen}
       data-board-interactive={interactive ? "true" : "false"}
+      ref={containerRef}
+      // Focusable only while it accepts moves — a demo playback or a staged
+      // position should not be a tab stop pretending otherwise.
+      tabIndex={interactive ? 0 : -1}
+      role="group"
+      aria-label={
+        interactive
+          ? "Chess board. Type a move in algebraic notation — like e4, Nf3 or O-O — then press Enter."
+          : "Chess board"
+      }
+      onKeyDown={handleContainerKeyDown}
       sx={{
         position: "relative",
         width: boardWidth ?? "100%",
         mx: boardWidth ? "auto" : undefined,
+        outline: "none",
+        borderRadius: theme.radius,
+        "&:focus-visible": {
+          boxShadow: "0 0 0 2px rgba(255,122,26,0.55)",
+        },
+        // Sighted keyboard users get the affordance the aria-label gives a
+        // screen reader — only while the board itself has the focus ring.
+        "& .cm-kb-hint": { opacity: 0, transition: "opacity 180ms ease" },
+        "&:focus-visible .cm-kb-hint": { opacity: 1 },
       }}
     >
       {flash && (
         <FlashOverlay key={`flash-${flash.flashKey}`} flash={flash.state} />
       )}
       {board}
+      {interactive && kbText == null && (
+        <Typography
+          className="cm-kb-hint"
+          aria-hidden
+          sx={{
+            position: "absolute",
+            left: "50%",
+            bottom: 8,
+            transform: "translateX(-50%)",
+            px: 1.25,
+            py: 0.4,
+            borderRadius: "999px",
+            fontSize: "0.7rem",
+            fontWeight: 600,
+            color: "rgba(255,240,224,0.85)",
+            background: "rgba(12,10,8,0.82)",
+            border: "1px solid rgba(255,122,26,0.35)",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+            zIndex: 4,
+          }}
+        >
+          Type a move — e4, Nf3, O-O
+        </Typography>
+      )}
+      {kbText != null && (
+        <Box
+          data-testid="board-keyboard-entry"
+          sx={{
+            position: "absolute",
+            left: "50%",
+            bottom: 8,
+            transform: "translateX(-50%)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 0.5,
+            zIndex: 5,
+          }}
+        >
+          <Box
+            component="input"
+            autoFocus
+            value={kbText}
+            aria-label="Your move, in algebraic notation. Press Enter to play it, Escape to cancel."
+            aria-invalid={kbError ? true : undefined}
+            spellCheck={false}
+            autoComplete="off"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              setKbError(null);
+              setKbText(e.target.value);
+            }}
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+              // The container must not see these — "e" would re-open, Escape
+              // could bubble into a dialog.
+              e.stopPropagation();
+              if (e.key === "Enter") commitKbEntry();
+              else if (e.key === "Escape") closeKbEntry();
+            }}
+            onBlur={closeKbEntry}
+            sx={{
+              width: 128,
+              px: 1.25,
+              py: 0.6,
+              borderRadius: "0.6rem",
+              border: kbError
+                ? "1px solid rgba(239,68,68,0.65)"
+                : "1px solid rgba(255,122,26,0.45)",
+              background: "rgba(12,10,8,0.92)",
+              color: "rgba(255,240,224,0.95)",
+              fontFamily: "Monaco, Menlo, monospace",
+              fontSize: "0.85rem",
+              textAlign: "center",
+              outline: "none",
+              "&:focus": { boxShadow: "0 0 0 2px rgba(255,122,26,0.35)" },
+            }}
+          />
+          {kbError && (
+            <Typography
+              role="alert"
+              sx={{
+                px: 1,
+                py: 0.25,
+                borderRadius: "0.5rem",
+                fontSize: "0.68rem",
+                color: "#FFB4A8",
+                background: "rgba(12,10,8,0.88)",
+                border: "1px solid rgba(239,68,68,0.4)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {kbError}
+            </Typography>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }

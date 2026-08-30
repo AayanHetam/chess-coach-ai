@@ -89,3 +89,13 @@ public/piece/reillycraig | [Reilly Craig](https://instagram.com/fader_) |
 public/piece/symmetric | [Arcticpenguins](https://github.com/lichess-org/lichobile/issues/215) |
 public/sounds | [Lichess](https://github.com/lichess-org/lila) | [GNU AGPL v3](https://github.com/lichess-org/lila?tab=License-2-ov-file)
 public/piece/riohacha | |
+public/piece/governor | not established | not established
+public/piece/kosal | not established | not established
+
+`governor` and `kosal` arrived with the upstream Chesskit commit
+"feat : add piece sets (#9)" and appear in no license table here, in
+Chesskit, or in lichess's own `COPYING.md`. Nobody can currently say what
+they are licensed under, so they are treated as the strictest case rather
+than the loosest — see `src/lib/licensing/pieceSetLicenses.ts`, which marks
+them `unknown` and keeps them out of anything that must be commercially
+safe. Either establish their provenance or stop shipping them.

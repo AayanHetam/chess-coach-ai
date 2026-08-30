@@ -81,6 +81,16 @@ const progressSchema = z.object({
       message: "daily log exceeds retention window",
     })
     .optional(),
+  // Puzzle Rush best scores. Optional for back-compat with clients that
+  // predate rush syncing. A rush score is a solved-puzzle count, so six
+  // digits is generous headroom over anything a human can reach.
+  rush: z
+    .object({
+      threeMin: z.number().int().min(0).max(100000),
+      fiveMin: z.number().int().min(0).max(100000),
+      survivalBest: z.number().int().min(0).max(100000),
+    })
+    .optional(),
   updatedAt: z.number(),
 });
 

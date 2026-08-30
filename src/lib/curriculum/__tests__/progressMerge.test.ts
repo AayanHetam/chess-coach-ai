@@ -158,3 +158,53 @@ describe("mergeProgress", () => {
     expect(mergeProgress(once, once)).toEqual(once);
   });
 });
+
+describe("mergeProgress — rush high scores", () => {
+  const base = () => {
+    const stats = (attempts: number): PuzzleStats =>
+      ({
+        rating: 1200,
+        totalAttempts: attempts,
+        totalSolved: attempts,
+        totalFailed: 0,
+        averageTimeMs: 1000,
+        currentStreak: 0,
+        bestStreak: 0,
+        ratingHistory: [{ rating: 1200, timestamp: 1 }],
+        themeStats: {},
+        recentSolves: [],
+      }) as PuzzleStats;
+    const streak = { current: 0, best: 0, lastActiveDay: "" } as never;
+    return {
+      local: { streak, stats: stats(1), srs: {}, updatedAt: 1 },
+      remote: { streak, stats: stats(2), srs: {}, updatedAt: 2 },
+    };
+  };
+
+  it("merges per-mode maxima — each copy can be ahead in a different mode", () => {
+    const { local, remote } = base();
+    const m = mergeProgress(
+      { ...local, rush: { threeMin: 12, fiveMin: 0, survivalBest: 30 } },
+      { ...remote, rush: { threeMin: 8, fiveMin: 21, survivalBest: 25 } },
+    );
+    // A whole-object winner would throw away either fiveMin 21 or
+    // survivalBest 30 — a high score the user actually earned.
+    expect(m.rush).toEqual({ threeMin: 12, fiveMin: 21, survivalBest: 30 });
+  });
+
+  it("keeps the only copy when the other side predates rush syncing", () => {
+    const { local, remote } = base();
+    expect(
+      mergeProgress({ ...local, rush: { threeMin: 5, fiveMin: 1, survivalBest: 9 } }, remote).rush,
+    ).toEqual({ threeMin: 5, fiveMin: 1, survivalBest: 9 });
+    expect(mergeProgress(local, remote).rush).toBeUndefined();
+  });
+
+  it("stays order-independent and idempotent with rush present on one side", () => {
+    const { local, remote } = base();
+    const a = { ...local, rush: { threeMin: 3, fiveMin: 4, survivalBest: 5 } };
+    expect(mergeProgress(a, remote)).toEqual(mergeProgress(remote, a));
+    const once = mergeProgress(a, remote);
+    expect(mergeProgress(once, once)).toEqual(once);
+  });
+});

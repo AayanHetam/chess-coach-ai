@@ -1,4 +1,4 @@
-import type { PuzzleStats } from "@/lib/puzzleRating";
+import type { PuzzleStats, PuzzleRushScores } from "@/lib/puzzleRating";
 import type { ThemeSrsCard } from "@/lib/curriculum/puzzleThemeSrs";
 import type { StreakState } from "@/lib/curriculum/streak";
 import { mergeDailyLog, type DailyLog } from "@/lib/curriculum/dailyLog";
@@ -26,6 +26,9 @@ export interface StoredProgress {
   /** Per-day training record. Optional for back-compat: snapshots written
    *  before daily tracking existed have no `daily` key. */
   daily?: DailyLog;
+  /** Puzzle Rush best scores. Optional for back-compat: snapshots written
+   *  before rush scores synced have no `rush` key. */
+  rush?: PuzzleRushScores;
   /** Epoch ms of the last write. Diagnostic only — not the merge key. */
   updatedAt: number;
 }
@@ -83,6 +86,26 @@ export function mergeSrs(
   return out;
 }
 
+/**
+ * Rush best scores merge per MODE, max wins. A high score only ever goes up,
+ * so max is lossless — and per-mode matters for the same reason SRS merges
+ * per theme: a 3-minute record on your phone and a survival record on your
+ * laptop are both training the user actually did, and a whole-object winner
+ * would discard one of them.
+ */
+export function mergeRush(
+  a: PuzzleRushScores | undefined,
+  b: PuzzleRushScores | undefined,
+): PuzzleRushScores | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return {
+    threeMin: Math.max(a.threeMin, b.threeMin),
+    fiveMin: Math.max(a.fiveMin, b.fiveMin),
+    survivalBest: Math.max(a.survivalBest, b.survivalBest),
+  };
+}
+
 /** Field-wise merge of two progress snapshots. Commutative by construction. */
 export function mergeProgress(
   a: StoredProgress,
@@ -93,6 +116,7 @@ export function mergeProgress(
     stats: mergeStats(a.stats, b.stats),
     srs: mergeSrs(a.srs, b.srs),
     daily: mergeDailyLog(a.daily ?? {}, b.daily ?? {}),
+    rush: mergeRush(a.rush, b.rush),
     updatedAt: Math.max(a.updatedAt, b.updatedAt),
   };
 }

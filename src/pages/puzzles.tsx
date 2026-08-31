@@ -2077,8 +2077,21 @@ export default function PreviewPuzzlesPage() {
                           // boardSquarePx above). Below lg the slot isn't
                           // measured — the board just takes the full stacked
                           // width there, same as before.
+                          //
+                          // The height fallback MUST be "100%", not "auto".
+                          // boardSquarePx is also null when the slot is
+                          // legitimately squeezed to ~0 (choice mode's answer
+                          // rows can leave no room at a modest viewport height)
+                          // — "auto" would size the board from its own content
+                          // instead, overlapping whatever comes after it in the
+                          // column. "100%" tracks the slot's real computed
+                          // height in every case, including down to 0, the same
+                          // way the CSS-only version this replaced always did.
+                          // (At xs the slot's own height is content-driven, so
+                          // percentage height against it resolves to auto per
+                          // spec — this doesn't change mobile at all.)
                           width: boardSquarePx ?? "100%",
-                          height: boardSquarePx ?? "auto",
+                          height: boardSquarePx ?? "100%",
                           maxWidth: "100%",
                           flexShrink: 0,
                           mx: "auto",

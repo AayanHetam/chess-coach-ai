@@ -14,9 +14,10 @@ import {
   Snackbar,
   Stack,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import { Loader } from "@/components/ui/Loader";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import Head from "next/head";
 import dynamic from "next/dynamic";
@@ -326,6 +327,53 @@ export default function PreviewPuzzlesPage() {
     startWidth: number;
     gridWidth: number;
   } | null>(null);
+
+  // Board sizing at lg: the board card's own height varies with how many
+  // toolbar rows are showing (reference card, analysis panel), so a fixed
+  // max-width either clips a tall card or leaves a short one mostly empty.
+  // Measuring the actual slot and taking the largest square that fits is the
+  // same technique /analysis uses (AnalysisImpl's BoardArea) — CSS aspect-ratio
+  // combined with a max-width guess can't express "whichever axis runs out
+  // first" once BOTH axes are bounded by real, varying content.
+  const boardTheme = useTheme();
+  const boardHeightBound = useMediaQuery(boardTheme.breakpoints.up("lg"));
+  const boardHeightBoundRef = useRef(boardHeightBound);
+  boardHeightBoundRef.current = boardHeightBound;
+  const [boardSquarePx, setBoardSquarePx] = useState<number | null>(null);
+  const boardObserverRef = useRef<ResizeObserver | null>(null);
+  // Ref CALLBACK, not a plain ref + effect keyed on boardHeightBound: the
+  // slot only exists in the DOM once `puzzle` has loaded (it's behind the
+  // `puzzle && studentStartFen` branch below), which is after mount. An
+  // effect with an unrelated dependency array runs once, finds the ref still
+  // null at that point, and never gets another chance to attach — the
+  // observer silently never exists and the board is stuck on whatever
+  // fallback size CSS gives it. A ref callback instead fires exactly when
+  // this DOM node is created (whenever that happens) and when it's swapped
+  // out, so it can never miss the node's actual arrival.
+  const setBoardSlotRef = useCallback((el: HTMLDivElement | null) => {
+    boardObserverRef.current?.disconnect();
+    boardObserverRef.current = null;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([entry]) => {
+      if (!boardHeightBoundRef.current) {
+        setBoardSquarePx(null);
+        return;
+      }
+      const { width, height } = entry.contentRect;
+      const next =
+        width > 0 && height > 0 ? Math.floor(Math.min(width, height)) : null;
+      setBoardSquarePx((prev) => (prev === next ? prev : next));
+    });
+    ro.observe(el);
+    boardObserverRef.current = ro;
+  }, []);
+  // Below lg the slot isn't measured at all (ResizeObserver may not even be
+  // attached there), but a resize that crosses the breakpoint without also
+  // changing the observed box's pixel size wouldn't otherwise clear a stale
+  // value.
+  useEffect(() => {
+    if (!boardHeightBound) setBoardSquarePx(null);
+  }, [boardHeightBound]);
 
   const commitCoachWidth = useCallback(
     (w: number | null) => {
@@ -2011,9 +2059,11 @@ export default function PreviewPuzzlesPage() {
                     {/* Board area: takes the height left over inside the card
                         and centres the board in it. */}
                     <Box
+                      ref={setBoardSlotRef}
                       sx={{
                         flex: { lg: 1 },
                         minHeight: { lg: 0 },
+                        minWidth: 0,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -2023,22 +2073,27 @@ export default function PreviewPuzzlesPage() {
                       <Box
                         sx={{
                           position: "relative",
-                          // A chess board is square, so its WIDTH is decided by
-                          // whichever axis runs out first. Capping only by width
-                          // let a 540px board sit in a shorter column and get
-                          // its bottom two ranks clipped — a board you cannot
-                          // fully see is worse than a page that scrolls.
+                          // Largest square that fits the measured slot (see
+                          // boardSquarePx above). Below lg the slot isn't
+                          // measured — the board just takes the full stacked
+                          // width there, same as before.
                           //
-                          // `aspect-ratio` + `height: 100%` derives the width
-                          // from the space actually available, so no constant
-                          // has to encode how tall the header happens to be —
-                          // which matters because the filter chips wrap at
-                          // different widths and change that height.
-                          height: { lg: "100%" },
-                          width: { xs: "100%", lg: "auto" },
-                          aspectRatio: { lg: "1 / 1" },
-                          maxWidth: { xs: "100%", md: 540 },
-                          maxHeight: { lg: "100%" },
+                          // The height fallback MUST be "100%", not "auto".
+                          // boardSquarePx is also null when the slot is
+                          // legitimately squeezed to ~0 (choice mode's answer
+                          // rows can leave no room at a modest viewport height)
+                          // — "auto" would size the board from its own content
+                          // instead, overlapping whatever comes after it in the
+                          // column. "100%" tracks the slot's real computed
+                          // height in every case, including down to 0, the same
+                          // way the CSS-only version this replaced always did.
+                          // (At xs the slot's own height is content-driven, so
+                          // percentage height against it resolves to auto per
+                          // spec — this doesn't change mobile at all.)
+                          width: boardSquarePx ?? "100%",
+                          height: boardSquarePx ?? "100%",
+                          maxWidth: "100%",
+                          flexShrink: 0,
                           mx: "auto",
                           borderRadius: "0.85rem",
                           overflow: "hidden",

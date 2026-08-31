@@ -71,6 +71,15 @@ const nextConfig = {
     // page missing its data renders a SHORTER page, never an error, so the
     // build and the deploy would both stay green.
     "/learn/[courseId]": ["./src/data/courses/**", "./src/data/traps.*.json"],
+    // /puzzles/p/[id] is ISR with fallback:"blocking", so getStaticProps
+    // reads the puzzle CSV at REQUEST time inside the serverless function —
+    // unlike /puzzles/[rating] (fallback:false), whose CSV read happens at
+    // build time and therefore needs no entry. Same blind spot as every
+    // entry above: loadPuzzles.ts reads with `fs`, which the tracer cannot
+    // see. There IS an HTTP fallback in loadCsvText(), so a missing trace
+    // degrades to an 18MB self-fetch per cold start rather than an error —
+    // slow enough to matter on a page whose whole job is landing traffic.
+    "/puzzles/p/[id]": ["./public/data/lichess_puzzles_100k.csv"],
   },
   /**
    * Baseline hardening on every route, verified on the wire rather than

@@ -21,7 +21,7 @@ import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MasterGamesTakeover,
-  getMasterCandidates,
+  buildCandidatesFromApi,
   replayPreviewMove,
   type MasterCandidate,
 } from "@/components/ui/MasterGamesTakeover";
@@ -313,6 +313,32 @@ void getPositionWinPercentage;
 
 function uciToShape(uci: string, brush: string): DrawShape {
   return { orig: uci.slice(0, 2), dest: uci.slice(2, 4), brush };
+}
+
+/**
+ * Resolve a SAN move (e.g. "Nc4") against a FEN into the {from, to} squares
+ * a board arrow needs. /api/maia-predict returns SAN, not UCI (the Maia-2
+ * service converts server-side — see maia-service/maia_server.py's
+ * `best_move_san = board.san(move_obj)`) — feeding a SAN string straight
+ * into uciToShape's character-slicing produced garbage square keys (e.g.
+ * "Nc4".slice(0,2) === "Nc"), which chessground then rendered as an arrow
+ * shooting off the board instead of failing loudly. Returns null on an
+ * illegal/unparseable move so the caller can just skip drawing rather than
+ * crash — chess.js throws on bad input instead of returning null itself.
+ */
+function sanToShape(
+  fen: string,
+  san: string,
+  brush: string
+): DrawShape | null {
+  try {
+    const g = new Chess(fen);
+    const result = g.move(san);
+    if (!result) return null;
+    return { orig: result.from, dest: result.to, brush };
+  } catch {
+    return null;
+  }
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -7739,6 +7765,16 @@ export default function AnalysisPage() {
   // so the arrow still surfaces something rather than nothing.
   const [maiaCache, setMaiaCache] = useState<Record<string, string>>({});
   const maiaInFlightRef = useRef<Set<string>>(new Set());
+
+  // "Most common" arrow toggle: live master-game data via /api/opening-explorer,
+  // keyed by FEN. This used to read getMasterCandidates(ply) — a hardcoded
+  // table with only the start position filled in — so the arrow silently
+  // never appeared past move 1 of any real game. Mirrors the maiaCache
+  // fetch-and-cache pattern below; silent on error, same as Maia.
+  const [commonCache, setCommonCache] = useState<
+    Record<string, MasterCandidate[]>
+  >({});
+  const commonInFlightRef = useRef<Set<string>>(new Set());
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
@@ -8784,10 +8820,9 @@ export default function AnalysisPage() {
       }
     }
 
-    // Most common from master DB (blue)
+    // Most common from master DB (blue) — live data, see commonCache below.
     if (arrowToggles.common) {
-      const cands = getMasterCandidates(currentPly);
-      const top = cands[0];
+      const top = commonCache[currentFen]?.[0];
       if (top) shapes.push(uciToShape(top.uci, ARROW_PALETTE.common.brush));
     }
 
@@ -8809,7 +8844,14 @@ export default function AnalysisPage() {
     // MAIA_API_URL is unconfigured.
     if (arrowToggles.maia) {
       const maia = maiaCache[`${currentFen}|${arrowToggles.maiaElo}`];
-      if (maia) shapes.push(uciToShape(maia, ARROW_PALETTE.maia.brush));
+      // maiaCache holds SAN ("Nc4"), not UCI — /api/maia-predict's
+      // response is SAN. uciToShape's slice(0,2)/slice(2,4) on a SAN
+      // string produces nonsense square keys, which chessground renders
+      // as an arrow shooting off the board instead of a legal move.
+      if (maia) {
+        const shape = sanToShape(currentFen, maia, ARROW_PALETTE.maia.brush);
+        if (shape) shapes.push(shape);
+      }
     }
 
     return shapes;
@@ -8822,6 +8864,7 @@ export default function AnalysisPage() {
     allMoves,
     currentFen,
     maiaCache,
+    commonCache,
     enginePositions,
   ]);
 
@@ -8857,6 +8900,30 @@ export default function AnalysisPage() {
         maiaInFlightRef.current.delete(cacheKey);
       });
   }, [currentFen, arrowToggles.maia, arrowToggles.maiaElo, maiaCache]);
+
+  // "Most common" fetch effect — mirrors the Maia one above. Silent on
+  // error: the arrow just doesn't render, same graceful-degradation
+  // philosophy as everywhere else in this toolbar.
+  useEffect(() => {
+    if (!arrowToggles.common) return;
+    if (commonCache[currentFen]) return;
+    if (commonInFlightRef.current.has(currentFen)) return;
+    commonInFlightRef.current.add(currentFen);
+    fetch(`/api/opening-explorer?fen=${encodeURIComponent(currentFen)}&moves=10`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          const candidates = buildCandidatesFromApi(data, currentFen);
+          setCommonCache((c) => ({ ...c, [currentFen]: candidates }));
+        }
+      })
+      .catch(() => {
+        /* silent — no arrow for this position */
+      })
+      .finally(() => {
+        commonInFlightRef.current.delete(currentFen);
+      });
+  }, [currentFen, arrowToggles.common, commonCache]);
 
   const handleTabChange = useCallback((next: RightTab) => {
     setRightTab(next);

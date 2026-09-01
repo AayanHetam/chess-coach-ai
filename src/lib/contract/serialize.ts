@@ -390,9 +390,15 @@ function sortKeysDeep(value: unknown): unknown {
  * string. Removals live HERE and must never migrate into the builder or types.
  *
  * Each removal, and the rule that licenses it:
- *  - EvalFact.provenance — the charter orders eval figures copied verbatim
- *    from `display` and says "say nothing else about provenance". Its depth is
- *    already on the EvalFact itself and in evalIntegrity.minDepth.
+ *  - EvalFact.provenance, and the raw `cp` / `mate` / `depth` beside it — the
+ *    charter orders eval figures copied verbatim from `display` and forbids
+ *    computing, rounding or inventing one, so the raw numbers are unusable by
+ *    construction; depth is already in evalIntegrity.minDepth. This is also a
+ *    correctness fix, not only a cost one: a sentinel eval carries the
+ *    "flagged, not forged" {cp: 0, depth: 0} beside a display reading "engine
+ *    data unavailable", so we were showing the model a zero the charter then
+ *    had to forbid it from printing. Removing it beats policing it in prose.
+ *    `display` + `sentinel` remain — every eval fact the model may assert.
  *  - pvUci beside a `san` array — UCI is never sayable (MOVE-NAMING
  *    DISCIPLINE admits SAN only), so shipping it can only invite a
  *    mis-transcription. The legacy renderer's pvUci[0] fallback reads the
@@ -411,6 +417,13 @@ function sortKeysDeep(value: unknown): unknown {
  * Grounded<T> sources (chessdb/lc0/maia/syzygy) carry `status`/`value` and
  * KEEP their provenance — the charter grades hedging on those.
  */
+/**
+ * What an EvalFact sheds on the wire. `display` is the canonical rendering the
+ * verbalizer copies verbatim; `sentinel` is the flag the guard logic reads.
+ * Everything else is the raw form the charter forbids the model from using.
+ */
+const EVAL_WIRE_DROP = new Set(["provenance", "cp", "mate", "depth"]);
+
 function isEvalFactShape(v: Record<string, unknown>): boolean {
   return (
     typeof v.display === "string" &&
@@ -447,7 +460,7 @@ function projectNode(value: unknown): unknown {
   const obj = value as Record<string, unknown>;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
-    if (k === "provenance" && isEvalFactShape(obj)) continue;
+    if (isEvalFactShape(obj) && EVAL_WIRE_DROP.has(k)) continue;
     if (k === "pvUci" && Array.isArray(obj.san)) continue;
     if (k === "featureDelta") {
       out[k] = projectNode(pruneVacant(v));

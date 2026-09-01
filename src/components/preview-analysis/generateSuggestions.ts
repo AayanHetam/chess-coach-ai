@@ -170,6 +170,16 @@ export function generateSuggestions(input: SuggestionInput): Suggestion[] {
     }
   }
 
+  // Rule 2b: piece functionality on the CURRENT position — works on any
+  // loaded game regardless of analysis/classification state, so it fires
+  // unconditionally rather than depending on enginePositions. Answered by
+  // the existing coach chat with no prompt or route changes: the position
+  // context every turn already carries is enough for the model to describe
+  // what each piece is doing.
+  if (loadedGame) {
+    add("What is each of my pieces doing right now?");
+  }
+
   // Rule 3: first brilliant move.
   const brilliantPly = findFirstBrilliantPly(enginePositions);
   if (brilliantPly !== null && loadedGame) {

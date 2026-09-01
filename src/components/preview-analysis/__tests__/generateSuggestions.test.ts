@@ -168,6 +168,23 @@ describe("generateSuggestions", () => {
     );
   });
 
+  it("offers the piece-functionality question whenever a game is loaded", () => {
+    const game = new Chess();
+    game.move("e4");
+    game.move("e5");
+    const result = generateSuggestions({ loadedGame: game });
+    expect(
+      result.find((s) => s.text === "What is each of my pieces doing right now?"),
+    ).toBeDefined();
+  });
+
+  it("skips the piece-functionality question with no game loaded", () => {
+    const result = generateSuggestions({ loadedGame: null });
+    expect(
+      result.find((s) => s.text === "What is each of my pieces doing right now?"),
+    ).toBeUndefined();
+  });
+
   it("dedupes when rules produce overlapping text", () => {
     // Open-ended sanity check: even if fallbacks overlap with rule output,
     // total length stays bounded.

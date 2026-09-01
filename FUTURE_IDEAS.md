@@ -171,18 +171,18 @@ Source competitor named in parentheses; rough effort tag — `S` (small, days–
 These extend the LLM coaching surface or close obvious gaps without changing the product's center of gravity.
 
 - **[PRIORITY]** **Structured curriculum / "what next" path** (Chess.com Lessons, ChessMood Step-by-Step, ChessDojo cohorts) — onboarding failure today: a new user lands on a broad menu (analysis / openings / practice / repetit-training / scout) with no instruction. Compounds with the cold-start of "no PGN to upload yet." **M**
-- **[PRIORITY]** **Personal opening tree from your games (W/D/L per branch)** (OpeningTree) — diagnostic surface; `chesscom` + `lichess` import already exists in [src/app/api/chesscom](src/app/api/chesscom) and [src/app/api/lichess](src/app/api/lichess), so we have the data. Highest-leverage diagnostic in chess improvement. **M**
-- **[PRIORITY]** **Insights dashboard — phase accuracy, time mgmt, blunder patterns** (Lichess, Chess.com, Aimchess) — descriptive baseline that every serious-improver platform ships. We compute the data in `enhanced-analysis` and throw it away after the per-game review. **S–M**
-- **[PRIORITY]** **Coordinate trainer** (Lichess) — table-stakes board fluency tool; beginners need it before a coach is useful. **S**
-- **[PRIORITY]** **CAPS / accuracy score per game** (Chess.com) — table-stakes metric users expect; we already compute centipawn loss in `enhanced-analysis`. Looks unfinished without it. **S**
-- **[PRIORITY]** **Opponent scouting from public games** (Aimchess) — given a chess.com/lichess username, generate a prep report. Bundle with personal opening tree — same data plumbing. **M**
-- **[PRIORITY]** **Coach persona customization** (Chessvia) — extend the existing `coachTone` profile field into a richer persona (voice, style, strictness, focus). LLM handles this natively; cost is UI + prompt-template wiring. **S**
-- **[PRIORITY]** **Chesstalker perspective for self-analysis (2nd perspective)** — add a chesstalker-style perspective alongside the existing coach perspective in self-analysis. Goals are different from the coach perspective: the coach explains/teaches, the chesstalker narrates/commentates the player's own game from the player's seat. Two distinct prompt templates threaded through `getSystemPrompt(analysisType)` rather than a single coach voice. **S–M**
+- ~~**[PRIORITY]** **Personal opening tree from your games (W/D/L per branch)** (OpeningTree)~~ — ✅ already shipped, discovered 2026-09-01: `/scout`'s `TreeExplorer.tsx` + `buildHoleReport.ts` cover this exact diagnostic.
+- ~~**[PRIORITY]** **Insights dashboard — phase accuracy, time mgmt, blunder patterns** (Lichess, Chess.com, Aimchess)~~ — ✅ shipped 2026-09-01 (PR #460): `src/lib/performance/insights.ts` + `GameInsightsCard.tsx` on `/profile`. Phase accuracy + blunder-pattern breakdown covered; time-management deliberately excluded (no reliable per-move clock data exists in the codebase).
+- ~~**[PRIORITY]** **Coordinate trainer** (Lichess)~~ — ✅ shipped 2026-09-01 (PR #459): `src/sections/practice/CoordinateTrainer.tsx`, 4th card on `/practice`.
+- ~~**[PRIORITY]** **CAPS / accuracy score per game** (Chess.com)~~ — ✅ shipped 2026-09-01 (PR #458): turned out `computeAccuracy()` was already computing this and discarding it; just needed surfacing on the `/analysis` move list.
+- ~~**[PRIORITY]** **Opponent scouting from public games** (Aimchess)~~ — ✅ already shipped, discovered 2026-09-01: `/scout`'s whole premise is exactly this ("Prep against their actual repertoire").
+- ~~**[PRIORITY]** **Coach persona customization** (Chessvia)~~ — ✅ already shipped, discovered 2026-09-01: the 6-character `coachPersonalities.ts` picker on `/analysis` plus `coachTone`/`playingStyle`/`studyGoals` prefs in ProfileDialog's Coaching tab cover this fully.
+- ~~**[PRIORITY]** **Chesstalker perspective for self-analysis (2nd perspective)**~~ — ✅ shipped 2026-09-01: added as a 7th entry in `coachPersonalities.ts` ("The Chesstalker") rather than a separate `analysisType`-branched template — same picker UI, zero new plumbing.
 - **Auto-generated weekly study plan** (Aimchess) — natural fit for our LLM. We already analyze games and detect mistakes; package it into a shippable weekly plan with concrete drills. **M**
 - **Decoded-play mode (decode while playing the engine)** (DecodeChess) — extension of the practice surface: live LLM coaching during a Stockfish/Maia game. **M**
 - **Voice output for the AI coach (TTS)** (Chessvia, Dr. Wolf) — listen to coaching while reviewing. Voice _input_ (STT) is more questionable for chess — notation is awkward to speak. **M**
-- **"Piece functionality" output (what each piece is doing right now)** (DecodeChess) — additional analytical layer the LLM is already capable of producing. **S**
-- **"Guess the Move" master-game replay** (Chess Tempo) — content product layered over a game DB; tests calculation. **M**
+- ~~**"Piece functionality" output (what each piece is doing right now)** (DecodeChess)~~ — ✅ shipped 2026-09-01: added as a rule in `generateSuggestions.ts` (a coach quick-action chip, "What is each of my pieces doing right now?") rather than an always-on system-prompt injection — the core versioned coach prompt is deliberately not touched without an eval-harness pass first.
+- ~~**"Guess the Move" master-game replay** (Chess Tempo)~~ — ✅ shipped 2026-09-01: `src/sections/practice/GuessTheMove.tsx`, 5th card on `/practice`. 5 curated full games (SAN extracted from `scripts/data-pipeline/output/GM_games.pgn`, which was sitting unused) rather than a live master-DB game fetch.
 
 ### Tier 2 — Larger builds that strengthen the moat
 
@@ -204,7 +204,7 @@ Less about product capability, more about distribution and stickiness.
 
 - **Reddit board-screenshot bot** (ChessVision.ai's u/chessvision-ai-bot) — **best-validated organic acquisition pattern in chess SaaS**. Auto-reply to board screenshots on r/chess with a brief AI explanation + link. Won "Best Chess Startup 2020" largely from this flywheel. **M**
 - **Daily Puzzle + streak gamification** (Chess.com, Lichess) — engagement engine. **S**
-- **Leaderboards (puzzle, training, rated)** (Chess.com, Lichess, Chess Tempo) — social proof + retention. **S–M**
+- ~~**Leaderboards (puzzle, ...)**~~ **training, rated)** (Chess.com, Lichess, Chess Tempo) — social proof + retention. **S–M**. Puzzle Rush leaderboard ✅ shipped 2026-09-01 (PR #466): `puzzleRushLeaderboard` Firestore collection, top-50 per mode on the Rush setup screen. Training/rated leaderboards still open.
 - **Bot personalities (Mittens-style)** (Chess.com) — viral acquisition channel; we could ship LLM-driven persona coaches with distinct voices. **M**
 - **Live H2H Puzzle Battle (synchronous)** (Chess.com) — engagement loop. **L** (real-time infra)
 - **Multiplayer Puzzle Racer with private friend rooms** (Lichess) — same. **L**

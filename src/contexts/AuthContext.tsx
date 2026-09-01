@@ -88,6 +88,43 @@ const AuthContext = createContext<AuthContextType>({
   isFirebaseConfigured: true,
 });
 
+// Purely a rendering hint for the nav avatar on the NEXT page load — never
+// read for anything security-sensitive. `refresh()` below always re-fetches
+// /api/auth/me and reconciles (or clears) this cache; nothing trusts it past
+// first paint. Without it, every hard reload showed a blank account slot for
+// the full round-trip of /api/auth/me (network + cold Next.js boot) because
+// NavPill deliberately hides the slot during `loading` rather than flash
+// Sign-in → Avatar. Caching last-known identity lets a returning, still-
+// signed-in user's avatar paint immediately instead of popping in a second
+// later — the same stale-while-revalidate trick behind "why does my avatar
+// already look right in Gmail before the page finishes loading".
+const AUTH_CACHE_KEY = "cm-auth-cache-v1";
+
+function readCachedUser(): AppUser | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(AUTH_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed.uid === "string" ? (parsed as AppUser) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedUser(user: AppUser | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (user) {
+      window.localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(user));
+    } else {
+      window.localStorage.removeItem(AUTH_CACHE_KEY);
+    }
+  } catch {
+    // Storage full/blocked — next load just falls back to the loading gate.
+  }
+}
+
 function profileToUser(profile: UserProfile | null): AppUser | null {
   if (!profile) return null;
   return {
@@ -145,25 +182,31 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<AppUser | null>(null);
+  const [user, setUser] = useState<AppUser | null>(() => readCachedUser());
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isIntern, setIsIntern] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Only skip the loading gate when a cached identity gives NavPill something
+  // real to paint immediately. No cache (signed out, or a fresh browser)
+  // keeps the original behavior exactly — hidden until /api/auth/me answers.
+  const [loading, setLoading] = useState(() => readCachedUser() === null);
 
   const refresh = useCallback(async () => {
     try {
       const { profile: p, isIntern: intern, isAdmin: admin } = await fetchMe();
+      const nextUser = profileToUser(p);
       setProfile(p);
-      setUser(profileToUser(p));
+      setUser(nextUser);
       setIsIntern(intern);
       setIsAdmin(admin);
+      writeCachedUser(nextUser);
     } catch (err) {
       console.error("Auth refresh failed:", err);
       setProfile(null);
       setUser(null);
       setIsIntern(false);
       setIsAdmin(false);
+      writeCachedUser(null);
     } finally {
       setLoading(false);
     }
@@ -253,6 +296,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setUser(null);
     setIsIntern(false);
     setIsAdmin(false);
+    writeCachedUser(null);
   }, []);
 
   const updateProfile = useCallback(

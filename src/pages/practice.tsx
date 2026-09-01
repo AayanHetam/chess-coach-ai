@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Box, Button, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Grid, Paper, Typography } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
 import Head from "next/head";
+import { useAtomValue } from "jotai";
 import BoltIcon from "@mui/icons-material/Bolt";
 import PsychologyIcon from "@mui/icons-material/Psychology";
 import ExtensionIcon from "@mui/icons-material/Extension";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import { useRouter } from "next/router";
 import { PageTitle } from "@/components/pageTitle";
 import PuzzleRush from "@/sections/practice/PuzzleRush";
@@ -17,7 +20,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
-import { ACCENTS } from "@/components/ui/accents";
+import { ACCENTS, type Accent } from "@/components/ui/accents";
+import { puzzleStatsAtom, puzzleRushScoresAtom } from "@/lib/puzzleRating";
 
 /**
  * /practice — a thin modes hub.
@@ -39,6 +43,13 @@ const VIOLET = ACCENTS.violet;
 export default function Practice() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("hub");
+  const stats = useAtomValue(puzzleStatsAtom);
+  const rushScores = useAtomValue(puzzleRushScoresAtom);
+  const bestRush = Math.max(
+    rushScores.threeMin,
+    rushScores.fiveMin,
+    rushScores.survivalBest,
+  );
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -147,7 +158,7 @@ export default function Practice() {
       >
         <NavPill active="practice" />
 
-        <Box sx={{ width: "100%", maxWidth: 880, mx: "auto", py: { xs: 2, md: 3 } }}>
+        <Box sx={{ width: "100%", maxWidth: 1120, mx: "auto", py: { xs: 2, md: 3 } }}>
           <Typography
             sx={{
               fontWeight: 700,
@@ -166,38 +177,60 @@ export default function Practice() {
           >
             Practice
           </Typography>
-          <Typography sx={{ mb: 3, color: "rgba(255,255,255,0.62)" }}>
+          <Typography sx={{ mb: 4, color: "rgba(255,255,255,0.62)" }}>
             Three ways to sharpen your tactics.
           </Typography>
 
-          <Stack spacing={2}>
-            <ModeCard
-              icon={<ExtensionIcon />}
-              title="Puzzles"
-              desc="Adaptive puzzles tuned to your rating, with the AI coach. Your main training."
-              cta="Open Puzzles"
-              onClick={() => router.push("/puzzles")}
-              highlight
-            />
-            <ModeCard
-              icon={<BoltIcon />}
-              title="Puzzle Rush"
-              desc="Solve as many as you can against the clock."
-              cta="Start Rush"
-              onClick={() => setMode("rush")}
-            />
-            <ModeCard
-              icon={<PsychologyIcon />}
-              title="Pattern Training"
-              desc="Blindfold pattern-recognition drills."
-              cta="Start Pattern"
-              onClick={() => setMode("pattern")}
-            />
-          </Stack>
+          <Grid container spacing={2.5} sx={{ mb: 4 }}>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <ModeCard
+                icon={<ExtensionIcon fontSize="inherit" />}
+                title="Puzzles"
+                desc="Adaptive puzzles tuned to your rating, with the AI coach walking through every miss. Your main training."
+                cta="Open Puzzles"
+                onClick={() => router.push("/puzzles")}
+                accent={ACCENTS.violet}
+                stat={
+                  stats.totalAttempts > 0
+                    ? {
+                        icon: <TrendingUpIcon sx={{ fontSize: 16 }} />,
+                        label: `Rating ${stats.rating}`,
+                      }
+                    : undefined
+                }
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <ModeCard
+                icon={<BoltIcon fontSize="inherit" />}
+                title="Puzzle Rush"
+                desc="Solve as many as you can against the clock — 3-minute, 5-minute, or 3-lives Survival."
+                cta="Start Rush"
+                onClick={() => setMode("rush")}
+                accent={ACCENTS.ember}
+                stat={
+                  bestRush > 0
+                    ? {
+                        icon: <EmojiEventsIcon sx={{ fontSize: 16 }} />,
+                        label: `Best ${bestRush}`,
+                      }
+                    : undefined
+                }
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <ModeCard
+                icon={<PsychologyIcon fontSize="inherit" />}
+                title="Pattern Training"
+                desc="Blindfold pattern-recognition drills — memorize the position, then find the move with the pieces hidden."
+                cta="Start Pattern"
+                onClick={() => setMode("pattern")}
+                accent={ACCENTS.cyan}
+              />
+            </Grid>
+          </Grid>
 
-          <Box sx={{ mt: 3 }}>
-            <PuzzleStats compact />
-          </Box>
+          <PuzzleStats />
         </Box>
       </Box>
     </ThemeProvider>
@@ -210,109 +243,113 @@ function ModeCard({
   desc,
   cta,
   onClick,
-  highlight,
+  accent,
+  stat,
 }: {
   icon: React.ReactNode;
   title: string;
   desc: string;
   cta: string;
   onClick: () => void;
-  highlight?: boolean;
+  accent: Accent;
+  stat?: { icon: React.ReactNode; label: string };
 }) {
   return (
     <Paper
       elevation={0}
       sx={{
-        p: { xs: 2, md: 2.5 },
+        height: "100%",
         display: "flex",
-        alignItems: "center",
-        gap: 2,
-        borderRadius: "1.5rem",
+        flexDirection: "column",
+        p: { xs: 2.5, md: 3 },
+        borderRadius: "1.75rem",
         overflow: "hidden",
-        // Card chrome wears the surface violet; the CTA button keeps ember —
-        // ember stays the action colour sitewide.
-        background: highlight
-          ? `radial-gradient(120% 60% at 50% 0%, ${VIOLET.tint}, transparent 70%), linear-gradient(135deg, rgba(20,22,28,0.6), rgba(20,22,28,0.6))`
-          : "rgba(20,22,28,0.55)",
+        background: `radial-gradient(120% 70% at 50% 0%, ${accent.tint}, transparent 70%), rgba(20,22,28,0.55)`,
         backdropFilter: "blur(14px) saturate(140%)",
         WebkitBackdropFilter: "blur(14px) saturate(140%)",
-        border: highlight
-          ? `1px solid ${VIOLET.border}`
-          : "1px solid rgba(255,255,255,0.08)",
-        boxShadow: highlight
-          ? `0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), ${VIOLET.glow}`
-          : "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-        transition: "all 180ms ease",
+        border: `1px solid ${accent.border}`,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+        transition: "all 200ms ease",
         "&:hover": {
-          transform: "translateY(-2px)",
-          borderColor: highlight ? VIOLET.base : "rgba(255,255,255,0.16)",
+          transform: "translateY(-3px)",
+          borderColor: accent.base,
+          boxShadow: `0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), ${accent.glow}`,
         },
       }}
     >
       <Box
         sx={{
-          color: VIOLET.bright,
+          width: 52,
+          height: 52,
+          borderRadius: "14px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 32,
-          ...(highlight && {
-            width: 44,
-            height: 44,
-            flexShrink: 0,
-            borderRadius: "12px",
-            background: VIOLET.soft,
-            border: `1px solid ${VIOLET.border}`,
-          }),
+          fontSize: 26,
+          color: accent.bright,
+          background: accent.soft,
+          border: `1px solid ${accent.border}`,
+          mb: 2,
         }}
       >
         {icon}
       </Box>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography
+
+      <Typography
+        sx={{
+          fontWeight: 800,
+          fontSize: "1.15rem",
+          color: "rgba(255,255,255,0.94)",
+          mb: 0.75,
+        }}
+      >
+        {title}
+      </Typography>
+      <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.6)", flex: 1, mb: 2 }}>
+        {desc}
+      </Typography>
+
+      {stat && (
+        <Box
           sx={{
-            fontWeight: 700,
-            fontSize: "1.05rem",
-            color: "rgba(255,255,255,0.94)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.6,
+            mb: 2,
+            px: 1.25,
+            py: 0.5,
+            width: "fit-content",
+            borderRadius: "999px",
+            color: accent.bright,
+            background: accent.soft,
+            border: `1px solid ${accent.border}`,
           }}
         >
-          {title}
-        </Typography>
-        <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.62)" }}>
-          {desc}
-        </Typography>
-      </Box>
+          {stat.icon}
+          <Typography
+            variant="caption"
+            sx={{ fontWeight: 700, fontFamily: "Monaco, monospace" }}
+          >
+            {stat.label}
+          </Typography>
+        </Box>
+      )}
+
       <Button
-        variant={highlight ? "contained" : "outlined"}
+        variant="contained"
+        fullWidth
         endIcon={<ArrowForwardIcon />}
         onClick={onClick}
-        sx={
-          highlight
-            ? {
-                bgcolor: "#F97316",
-                color: "#0A0A0A",
-                "&:hover": { bgcolor: "#FB923C" },
-                boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-                textTransform: "none",
-                fontWeight: 700,
-                flexShrink: 0,
-                borderRadius: "999px",
-              }
-            : {
-                color: "rgba(255,255,255,0.85)",
-                borderColor: "rgba(255,255,255,0.18)",
-                background: "rgba(255,255,255,0.04)",
-                "&:hover": {
-                  borderColor: VIOLET.border,
-                  color: VIOLET.bright,
-                  background: VIOLET.soft,
-                },
-                textTransform: "none",
-                fontWeight: 600,
-                flexShrink: 0,
-                borderRadius: "999px",
-              }
-        }
+        sx={{
+          mt: "auto",
+          bgcolor: "#F97316",
+          color: "#0A0A0A",
+          "&:hover": { bgcolor: "#FB923C" },
+          boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
+          textTransform: "none",
+          fontWeight: 700,
+          borderRadius: "999px",
+        }}
       >
         {cta}
       </Button>

@@ -49,8 +49,8 @@ interface NavItem {
 
 // Post-cutover (2026-08-10): every /preview/* route is a 308 redirect to
 // its canonical surface, so the drawer links canonical URLs only.
-// Practice points at /puzzles — the canonical Practice surface (PR #130);
-// legacy /practice still resolves for old bookmarks but isn't navigated to.
+// Practice points at /practice, the mode hub (Puzzles / Puzzle Rush /
+// Pattern Training) — see NavPill's matching comment for why.
 //
 // Order matches NavPill's desktop NAV_LINKS (Plan → Play → Analyze →
 // Practice → Learn → Scout) with Home prepended — a returning user
@@ -66,7 +66,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "plan", label: "Plan", icon: CalendarCheck, href: "/plan" },
   { id: "play", label: "Play", icon: Crown, href: "/play" },
   { id: "analysis", label: "Analyze", icon: Zap, href: "/analysis" },
-  { id: "practice", label: "Practice", icon: Puzzle, href: "/puzzles" },
+  { id: "practice", label: "Practice", icon: Puzzle, href: "/practice" },
   { id: "learn", label: "Learn", icon: BookOpen, href: "/learn" },
   { id: "scout", label: "Scout", icon: Crosshair, href: "/scout" },
 ];

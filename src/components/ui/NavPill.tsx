@@ -50,11 +50,11 @@ interface NavPillProps {
 // theory → scout your next opponent. Post-cutover (2026-08-10) every
 // /preview/* route is a 308 redirect to its canonical surface.
 //
-// 2026-06-03: Practice points at /puzzles (Puzzle Coach experience shipped
-// PR #130) — the interactive multi-turn coach + 100k CSV-backed puzzle
-// feed is the canonical Practice surface. Old /practice (fixture board +
-// theme grid + stats strip) still works at the URL for existing bookmarks
-// but is no longer surfaced in the nav.
+// Practice points at /practice, the mode hub (Puzzles / Puzzle Rush /
+// Pattern Training). Puzzles itself — the adaptive, AI-coached experience
+// shipped in PR #130 — stays reachable one click in via the hub's "Open
+// Puzzles" card; Rush and Pattern Training were otherwise dead-end URLs
+// nothing in the nav pointed at.
 //
 // 2026-08-10 (program-first restructure): Plan leads. The product is a
 // learning programme that happens to contain a coach, not a coach that
@@ -65,7 +65,7 @@ const NAV_LINKS: { id: NavId; label: string; href: string }[] = [
   { id: "plan", label: "Plan", href: "/plan" },
   { id: "play", label: "Play", href: "/play" },
   { id: "analysis", label: "Analyze", href: "/analysis" },
-  { id: "practice", label: "Practice", href: "/puzzles" },
+  { id: "practice", label: "Practice", href: "/practice" },
   // "Learn" is the repertoire builder and the courses under it. /openings, the
   // old Vienna-only drill surface, redirects here — it competed with this one
   // and was easier to find, which is how a shipped trainer looks unshipped.

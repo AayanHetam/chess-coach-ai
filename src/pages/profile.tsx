@@ -23,6 +23,7 @@ import { PanelCard } from "@/components/performance/PanelCard";
 import { PuzzlePerformanceCard } from "@/components/performance/PuzzlePerformanceCard";
 import { RatingTrendCard } from "@/components/performance/RatingTrendCard";
 import { RecentGamesCard } from "@/components/performance/RecentGamesCard";
+import { GameInsightsCard } from "@/components/performance/GameInsightsCard";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
@@ -160,6 +161,10 @@ export default function Profile() {
           <PuzzlePerformanceCard />
           <RatingTrendCard />
           <RecentGamesCard onLinkAccount={() => setSettingsOpen(true)} />
+          <GameInsightsCard
+            games={sortedSavedGames}
+            onLinkAccount={() => setSettingsOpen(true)}
+          />
 
           {/* Saved games — analysed games with their coach transcript intact.
               Distinct from Recent games above: these are yours on our side,

@@ -75,7 +75,9 @@ const getAccuracyWeights = (movesWinPercentage: number[]): number[] => {
   return weights;
 };
 
-const getMovesAccuracy = (movesWinPercentage: number[]): number[] =>
+// Exported for src/lib/performance/insights.ts, which reuses the exact same
+// per-move accuracy curve for phase bucketing rather than re-deriving it.
+export const getMovesAccuracy = (movesWinPercentage: number[]): number[] =>
   movesWinPercentage.slice(1).map((winPercent, index) => {
     const lastWinPercent = movesWinPercentage[index];
     const isWhiteMove = index % 2 === 0;

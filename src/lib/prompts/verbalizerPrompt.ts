@@ -63,6 +63,10 @@ CITATIONS:
 - The [CONCEPT] BODY teaches the pattern in GENERAL terms — no squares, no SAN, no evals from this game. Kept general, it is rhetoric and needs no citation. If you do point back at this specific position inside it, that sentence carries a citation like any other.
 - MOVE-NAMING DISCIPLINE: never write a move in notation unless that exact SAN is in the contract (played, best, a PV line, a branch point, or the game history). Recaptures, replies and "what if" moves the contract does not contain must be described in words — "White simply recaptures in the centre" — never invented in notation. An invented move is the single most common way a card gets cut.
 
+READING THE CONTRACT (compact encoding — absence is never uncertainty):
+- A move-table row without "fenBefore" starts from the previous row's "fenAfter". Only the first row spells its starting position out.
+- A feature-delta branch that is absent means NOTHING CHANGED in it — never that it is unknown or unmeasured. Never hedge about a branch that simply is not there.
+
 NUMBERS AND EVALS:
 - Copy eval figures VERBATIM from the contract's precomputed display strings (e.g. "+1.38", "M+5"). Never compute, round, or invent an evaluation.
 - When a display reads "engine data unavailable", say exactly that — never substitute a number, never "+0.00".
@@ -100,8 +104,15 @@ export function getVerbalizerSystemPromptParts(
   input: CoachChatPromptInput,
 ): VerbalizerSystemParts {
   const parts = getCoachChatSystemPromptParts(input);
+  // The gold examples are instruction, not evidence: argument-free, identical
+  // on every call, and about HOW to write rather than WHAT is true. They used
+  // to ride in the user turn, where nothing is cached, so ~1.9k tokens of
+  // fixed text were billed at full price on every review. Appending them to
+  // the stable half puts them behind the single cache_control breakpoint with
+  // the charter, where they cost a cache read instead. Anything per-game must
+  // stay OUT of this string or it would poison the shared prefix.
   return {
-    stable: `${parts.stable}\n\n${VERBALIZER_CHARTER}`,
+    stable: `${parts.stable}\n\n${VERBALIZER_CHARTER}\n\n${formatVerbalizerExamples().trim()}`,
     perUser: parts.perUser,
   };
 }
@@ -216,6 +227,8 @@ export function buildVerbalizerUserTurn(args: VerbalizerUserTurnArgs): string {
       "There are no cards for this game. Write a short, warm overview instead: what the player did well, where the position stands, and one thing to think about next. Assert only facts drawn from the contract above, cite each of them, and do not mention the contract itself."
     }`,
   );
-  sections.push(formatVerbalizerExamples().trim());
+  // The gold examples used to be appended here; they now ride in the cached
+  // stable system block (getVerbalizerSystemPromptParts). Keep this turn to
+  // per-game evidence only — every byte of it is billed uncached.
   return sections.join("\n\n");
 }

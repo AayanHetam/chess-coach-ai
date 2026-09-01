@@ -22,7 +22,13 @@
 import { buildPgnFromMoves, formatPvAsMoveList } from "./chessFormat";
 import type { PositionFeatureDelta } from "@/lib/mastermind/featureDelta";
 import type { ThreatNode } from "@/lib/mastermind/threatTree";
-import type { CoachContract, ConceptFact, InsightContract, LineFact } from "./types";
+import type {
+  CoachContract,
+  ConceptFact,
+  InsightContract,
+  LineFact,
+  MoveTableEntry,
+} from "./types";
 
 // ── Site-specific eval formatting (legacy-faithful, see module doc) ────────
 function candidateEval(lf: LineFact): string {
@@ -369,6 +375,101 @@ function sortKeysDeep(value: unknown): unknown {
   return value;
 }
 
+// ── Model-facing projection (prompt cost) ───────────────────────────────────
+/**
+ * The contract JSON is the largest UNCACHED block of a flagship review. Only
+ * the FIRST system block carries cache_control (llmProvider.ts), and the
+ * contract rides in the user turn, so every byte here is billed at full input
+ * price on every single review.
+ *
+ * The projection below removes encoding redundancy the VERBALIZER CHARTER
+ * already forbids the model from using — and nothing else. The CoachContract
+ * OBJECT is left untouched, which is what makes this safe: the referee, the
+ * san_whitelist square pool (collectContractWhitelist reads moveTable FENs and
+ * is armed at `error`), and renderLegacyPrompt all read the object, never this
+ * string. Removals live HERE and must never migrate into the builder or types.
+ *
+ * Each removal, and the rule that licenses it:
+ *  - EvalFact.provenance — the charter orders eval figures copied verbatim
+ *    from `display` and says "say nothing else about provenance". Its depth is
+ *    already on the EvalFact itself and in evalIntegrity.minDepth.
+ *  - pvUci beside a `san` array — UCI is never sayable (MOVE-NAMING
+ *    DISCIPLINE admits SAN only), so shipping it can only invite a
+ *    mis-transcription. The legacy renderer's pvUci[0] fallback reads the
+ *    object, so it keeps working.
+ *  - moveTable[i].fenBefore when it equals moveTable[i-1].fenAfter — pure
+ *    chain redundancy. Row 0 keeps its fenBefore; nothing precedes it.
+ *  - featureDelta branches that are entirely empty arrays / zeroes —
+ *    `isEmptyDelta` already carries that signal.
+ *
+ * The last two are conventions, so the charter states both explicitly: an
+ * absent branch means "no change", never "unknown".
+ */
+
+/**
+ * EvalFact is the only shape carrying `display` + `sentinel` + `provenance`.
+ * Grounded<T> sources (chessdb/lc0/maia/syzygy) carry `status`/`value` and
+ * KEEP their provenance — the charter grades hedging on those.
+ */
+function isEvalFactShape(v: Record<string, unknown>): boolean {
+  return (
+    typeof v.display === "string" &&
+    typeof v.sentinel === "boolean" &&
+    "provenance" in v
+  );
+}
+
+/** No information: empty arrays, zeroes, and objects made only of those. */
+function isVacantBranch(v: unknown): boolean {
+  if (Array.isArray(v)) return v.length === 0;
+  if (v !== null && typeof v === "object") {
+    const vals = Object.values(v as Record<string, unknown>);
+    return vals.length > 0 && vals.every(isVacantBranch);
+  }
+  return v === 0;
+}
+
+/** Drop vacant branches at every depth of a feature delta. */
+function pruneVacant(value: unknown): unknown {
+  if (Array.isArray(value)) return value;
+  if (value === null || typeof value !== "object") return value;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (isVacantBranch(v)) continue;
+    out[k] = pruneVacant(v);
+  }
+  return out;
+}
+
+function projectNode(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(projectNode);
+  if (value === null || typeof value !== "object") return value;
+  const obj = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (k === "provenance" && isEvalFactShape(obj)) continue;
+    if (k === "pvUci" && Array.isArray(obj.san)) continue;
+    if (k === "featureDelta") {
+      out[k] = projectNode(pruneVacant(v));
+      continue;
+    }
+    out[k] = projectNode(v);
+  }
+  return out;
+}
+
+/** Drop each row's fenBefore when the previous row's fenAfter already states it. */
+function projectMoveTable(rows: readonly MoveTableEntry[]): unknown[] {
+  return rows.map((row, i) => {
+    const prev = i > 0 ? rows[i - 1] : undefined;
+    if (prev && row.fenBefore !== null && row.fenBefore === prev.fenAfter) {
+      const { fenBefore: _fenBefore, ...rest } = row;
+      return rest;
+    }
+    return row;
+  });
+}
+
 /**
  * Canonical sorted-key JSON of the contract with timestamp fields stripped
  * (builtAtMs/buildMs vary per request and would defeat both hashing and the
@@ -386,5 +487,8 @@ export function serializeForVerbalizer(contract: CoachContract): string {
   // sayable fact — stripping it keeps the verbalizer prompt (and its cache
   // prefix) byte-identical to pre-precision-pack contracts.
   const insights = rest.insights.map(({ motifLicense: _motifLicense, ...ins }) => ins);
-  return JSON.stringify(sortKeysDeep({ ...rest, insights }));
+  const moveTable = projectMoveTable(rest.moveTable);
+  return JSON.stringify(
+    sortKeysDeep(projectNode({ ...rest, insights, moveTable })),
+  );
 }

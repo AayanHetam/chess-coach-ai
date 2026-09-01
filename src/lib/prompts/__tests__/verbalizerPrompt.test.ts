@@ -30,13 +30,21 @@ describe("system prompt composition", () => {
       userRating: 1500,
     });
     expect(parts.stable).toContain("VERBALIZER CHARTER");
-    expect(parts.stable.endsWith(VERBALIZER_CHARTER)).toBe(true);
+    expect(parts.stable).toContain(VERBALIZER_CHARTER);
     // Persona manifesto still present, unmodified ordering.
     expect(parts.stable).toContain("expert grandmaster-level chess coach");
     expect(parts.stable.indexOf("VERBALIZER CHARTER")).toBeGreaterThan(
       parts.stable.indexOf("expert grandmaster-level chess coach"),
     );
-    // Byte-stable per personality (prompt-cache prerequisite).
+    // The gold examples are instruction, so they ride in the CACHED stable
+    // half, after the charter — not in the per-game user turn.
+    expect(parts.stable).toContain("CONTRACT→PROSE EXAMPLES");
+    expect(parts.stable.indexOf("CONTRACT→PROSE EXAMPLES")).toBeGreaterThan(
+      parts.stable.indexOf("VERBALIZER CHARTER"),
+    );
+    // Byte-stable per personality (prompt-cache prerequisite). userRating
+    // differs here on purpose: anything per-user leaking into `stable` would
+    // give every user a private prefix and silently un-cache the block.
     const again = getVerbalizerSystemPromptParts({ personalityId: "friendly", userRating: 900 });
     expect(again.stable).toBe(parts.stable);
   });
@@ -68,8 +76,10 @@ describe("card plan (server-dictated headers)", () => {
     for (const i of [a, b, intel]) expect(turn).toContain(renderInsightHeader(i));
     const order = selectCardInsights(contract).map((i) => i.factIdPrefix);
     expect(order).toEqual(["M1", "M2", "I1"]);
-    // Gold examples ride along, clearly draft-marked at the module level.
-    expect(turn).toContain("CONTRACT→PROSE EXAMPLES");
+    // The gold examples moved to the cached stable system block. The user
+    // turn is billed uncached on every review, so it carries per-game
+    // evidence ONLY — re-adding fixed instruction here is a cost regression.
+    expect(turn).not.toContain("CONTRACT→PROSE EXAMPLES");
     // 3 founder-approved (2026-08-10) + 1 added by the CI-4 gate recovery to
     // teach per-sentence citation density inside the [WHY] scaffold.
     expect(VERBALIZER_GOLD_EXAMPLES).toHaveLength(4);

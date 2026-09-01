@@ -8,6 +8,7 @@ import { useAtomValue } from "jotai";
 import BoltIcon from "@mui/icons-material/Bolt";
 import PsychologyIcon from "@mui/icons-material/Psychology";
 import ExtensionIcon from "@mui/icons-material/Extension";
+import GridOnIcon from "@mui/icons-material/GridOn";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
@@ -15,6 +16,7 @@ import { useRouter } from "next/router";
 import { PageTitle } from "@/components/pageTitle";
 import PuzzleRush from "@/sections/practice/PuzzleRush";
 import PatternTraining from "@/sections/practice/PatternTraining";
+import CoordinateTrainer from "@/sections/practice/CoordinateTrainer";
 import PuzzleStats from "@/sections/practice/PuzzleStats";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
@@ -22,18 +24,20 @@ import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { ACCENTS, type Accent } from "@/components/ui/accents";
 import { puzzleStatsAtom, puzzleRushScoresAtom } from "@/lib/puzzleRating";
+import { coordinateTrainerBestAtom } from "@/lib/coordinateTrainer";
 
 /**
  * /practice — a thin modes hub.
  *
  * Standard theme-browser puzzle solving was merged into the unified /puzzles
  * surface (adaptive, ELO-wired, AI-coached), so this page now just routes to
- * the three ways to train: Puzzles (→ /puzzles), Puzzle Rush, and Pattern
- * Training. Legacy/AI-coach deep links (`/practice?theme=…`) forward to
- * `/puzzles?theme=…`; `?mode=rush|pattern` opens those modes directly.
+ * the four ways to train: Puzzles (→ /puzzles), Puzzle Rush, Pattern
+ * Training, and Coordinate Trainer. Legacy/AI-coach deep links
+ * (`/practice?theme=…`) forward to `/puzzles?theme=…`;
+ * `?mode=rush|pattern|coordinate` opens those modes directly.
  */
 
-type Mode = "hub" | "rush" | "pattern";
+type Mode = "hub" | "rush" | "pattern" | "coordinate";
 
 const PAGE_BOX_SX = { width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } };
 
@@ -50,6 +54,7 @@ export default function Practice() {
     rushScores.fiveMin,
     rushScores.survivalBest,
   );
+  const coordinateBest = useAtomValue(coordinateTrainerBestAtom);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -60,6 +65,10 @@ export default function Practice() {
     }
     if (m === "pattern") {
       setMode("pattern");
+      return;
+    }
+    if (m === "coordinate") {
+      setMode("coordinate");
       return;
     }
     // Forward standard-mode deep links to the unified puzzle surface.
@@ -136,6 +145,39 @@ export default function Practice() {
     );
   }
 
+  if (mode === "coordinate") {
+    return (
+      <ThemeProvider theme={chessMastiDarkTheme}>
+        <PageTitle title="Chess Masti AI - Coordinate Trainer" />
+        <Head>
+          <meta name="color-scheme" content="dark" />
+          <meta name="theme-color" content="#08090C" />
+          <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
+        </Head>
+
+        <GradientBackdrop />
+
+        <Box
+          sx={{
+            minHeight: "100vh",
+            color: "rgba(255,255,255,0.94)",
+            pt: 2,
+            pb: 4,
+            px: { xs: 2, md: 3 },
+          }}
+        >
+          <NavPill active="practice" />
+
+          <Box sx={PAGE_BOX_SX}>
+            <ErrorBoundary name="coordinate-trainer">
+              <CoordinateTrainer onBack={() => setMode("hub")} />
+            </ErrorBoundary>
+          </Box>
+        </Box>
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider theme={chessMastiDarkTheme}>
       <PageTitle title="Chess Masti AI - Practice" />
@@ -178,11 +220,11 @@ export default function Practice() {
             Practice
           </Typography>
           <Typography sx={{ mb: 4, color: "rgba(255,255,255,0.62)" }}>
-            Three ways to sharpen your tactics.
+            Four ways to sharpen your game.
           </Typography>
 
           <Grid container spacing={2.5} sx={{ mb: 4 }}>
-            <Grid size={{ xs: 12, md: 4 }}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <ModeCard
                 icon={<ExtensionIcon fontSize="inherit" />}
                 title="Puzzles"
@@ -200,7 +242,7 @@ export default function Practice() {
                 }
               />
             </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <ModeCard
                 icon={<BoltIcon fontSize="inherit" />}
                 title="Puzzle Rush"
@@ -218,7 +260,7 @@ export default function Practice() {
                 }
               />
             </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <ModeCard
                 icon={<PsychologyIcon fontSize="inherit" />}
                 title="Pattern Training"
@@ -226,6 +268,24 @@ export default function Practice() {
                 cta="Start Pattern"
                 onClick={() => setMode("pattern")}
                 accent={ACCENTS.cyan}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+              <ModeCard
+                icon={<GridOnIcon fontSize="inherit" />}
+                title="Coordinate Trainer"
+                desc="Board-fluency drill — a square is named, click it on the blank board as fast as you can."
+                cta="Start Drill"
+                onClick={() => setMode("coordinate")}
+                accent={ACCENTS.jade}
+                stat={
+                  coordinateBest.best > 0
+                    ? {
+                        icon: <EmojiEventsIcon sx={{ fontSize: 16 }} />,
+                        label: `Best ${coordinateBest.best}`,
+                      }
+                    : undefined
+                }
               />
             </Grid>
           </Grid>

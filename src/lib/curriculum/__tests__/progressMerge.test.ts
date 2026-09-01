@@ -208,3 +208,31 @@ describe("mergeProgress — rush high scores", () => {
     expect(mergeProgress(once, once)).toEqual(once);
   });
 });
+
+describe("mergeProgress — coordinate trainer best score", () => {
+  const base = () => {
+    const streak = { current: 0, best: 0, lastActiveDay: "" } as never;
+    const s = { rating: 1200, totalAttempts: 0, totalSolved: 0, totalFailed: 0, averageTimeMs: 0, currentStreak: 0, bestStreak: 0, ratingHistory: [], themeStats: {}, recentSolves: [] } as PuzzleStats;
+    return {
+      local: { streak, stats: s, srs: {}, updatedAt: 1 },
+      remote: { streak, stats: s, srs: {}, updatedAt: 2 },
+    };
+  };
+
+  it("keeps the higher best score, whichever side it's on", () => {
+    const { local, remote } = base();
+    const m = mergeProgress(
+      { ...local, coordinate: { best: 14 } },
+      { ...remote, coordinate: { best: 21 } },
+    );
+    expect(m.coordinate).toEqual({ best: 21 });
+  });
+
+  it("keeps the only copy when the other side predates coordinate syncing", () => {
+    const { local, remote } = base();
+    expect(
+      mergeProgress({ ...local, coordinate: { best: 7 } }, remote).coordinate,
+    ).toEqual({ best: 7 });
+    expect(mergeProgress(local, remote).coordinate).toBeUndefined();
+  });
+});

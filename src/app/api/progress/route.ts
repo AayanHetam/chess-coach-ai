@@ -91,6 +91,13 @@ const progressSchema = z.object({
       survivalBest: z.number().int().min(0).max(100000),
     })
     .optional(),
+  // Coordinate Trainer best score. Optional for back-compat, same reasoning
+  // as `rush` above — a count of squares found in one 60s round.
+  coordinate: z
+    .object({
+      best: z.number().int().min(0).max(100000),
+    })
+    .optional(),
   updatedAt: z.number(),
 });
 

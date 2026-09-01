@@ -7,6 +7,7 @@ import { puzzleStatsAtom, puzzleRushScoresAtom } from "@/lib/puzzleRating";
 import { puzzleThemeSrsAtom } from "@/lib/curriculum/puzzleThemeSrs";
 import { streakAtom } from "@/lib/curriculum/streak";
 import { dailyLogAtom } from "@/lib/curriculum/dailyLog";
+import { coordinateTrainerBestAtom } from "@/lib/coordinateTrainer";
 import { mergeProgress, type StoredProgress } from "./progressMerge";
 
 /**
@@ -38,13 +39,14 @@ export function useProgressSync(): void {
   const [srs, setSrs] = useAtom(puzzleThemeSrsAtom);
   const [daily, setDaily] = useAtom(dailyLogAtom);
   const [rush, setRush] = useAtom(puzzleRushScoresAtom);
+  const [coordinate, setCoordinate] = useAtom(coordinateTrainerBestAtom);
 
   const hydratedFor = useRef<string | null>(null);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Live mirror so the debounced push always sends current state rather than
   // whatever was captured when the timer was armed.
-  const latest = useRef({ streak, stats, srs, daily, rush });
-  latest.current = { streak, stats, srs, daily, rush };
+  const latest = useRef({ streak, stats, srs, daily, rush, coordinate });
+  latest.current = { streak, stats, srs, daily, rush, coordinate };
 
   // ── Hydrate: merge the server copy into local, once per signed-in user ──
   useEffect(() => {
@@ -72,6 +74,7 @@ export function useProgressSync(): void {
             srs: latest.current.srs,
             daily: latest.current.daily,
             rush: latest.current.rush,
+            coordinate: latest.current.coordinate,
             updatedAt: Date.now(),
           },
           data.progress,
@@ -81,6 +84,7 @@ export function useProgressSync(): void {
         setSrs(merged.srs);
         setDaily(merged.daily ?? {});
         if (merged.rush) setRush(merged.rush);
+        if (merged.coordinate) setCoordinate(merged.coordinate);
       } catch {
         // Offline or server down — the local copy is still authoritative for
         // this session, so training continues uninterrupted.
@@ -90,7 +94,7 @@ export function useProgressSync(): void {
     return () => {
       cancelled = true;
     };
-  }, [user, setStreak, setStats, setSrs, setDaily, setRush]);
+  }, [user, setStreak, setStats, setSrs, setDaily, setRush, setCoordinate]);
 
   // ── Push: debounced snapshot on change ──
   useEffect(() => {
@@ -103,6 +107,7 @@ export function useProgressSync(): void {
         srs: latest.current.srs,
         daily: latest.current.daily,
         rush: latest.current.rush,
+        coordinate: latest.current.coordinate,
         updatedAt: Date.now(),
       };
       void fetch("/api/progress", {
@@ -119,5 +124,5 @@ export function useProgressSync(): void {
     return () => {
       if (pushTimer.current) clearTimeout(pushTimer.current);
     };
-  }, [user, streak, stats, srs, daily, rush]);
+  }, [user, streak, stats, srs, daily, rush, coordinate]);
 }

@@ -2,6 +2,7 @@ import type { PuzzleStats, PuzzleRushScores } from "@/lib/puzzleRating";
 import type { ThemeSrsCard } from "@/lib/curriculum/puzzleThemeSrs";
 import type { StreakState } from "@/lib/curriculum/streak";
 import { mergeDailyLog, type DailyLog } from "@/lib/curriculum/dailyLog";
+import type { CoordinateTrainerBest } from "@/lib/coordinateTrainer";
 
 /**
  * Merging local (localStorage) progress with the server copy.
@@ -29,6 +30,9 @@ export interface StoredProgress {
   /** Puzzle Rush best scores. Optional for back-compat: snapshots written
    *  before rush scores synced have no `rush` key. */
   rush?: PuzzleRushScores;
+  /** Coordinate Trainer best score. Optional for back-compat: snapshots
+   *  written before this synced have no `coordinate` key. */
+  coordinate?: CoordinateTrainerBest;
   /** Epoch ms of the last write. Diagnostic only — not the merge key. */
   updatedAt: number;
 }
@@ -106,6 +110,16 @@ export function mergeRush(
   };
 }
 
+/** Coordinate Trainer best score merges the same way Rush's does: max wins. */
+export function mergeCoordinateBest(
+  a: CoordinateTrainerBest | undefined,
+  b: CoordinateTrainerBest | undefined,
+): CoordinateTrainerBest | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return { best: Math.max(a.best, b.best) };
+}
+
 /** Field-wise merge of two progress snapshots. Commutative by construction. */
 export function mergeProgress(
   a: StoredProgress,
@@ -117,6 +131,7 @@ export function mergeProgress(
     srs: mergeSrs(a.srs, b.srs),
     daily: mergeDailyLog(a.daily ?? {}, b.daily ?? {}),
     rush: mergeRush(a.rush, b.rush),
+    coordinate: mergeCoordinateBest(a.coordinate, b.coordinate),
     updatedAt: Math.max(a.updatedAt, b.updatedAt),
   };
 }

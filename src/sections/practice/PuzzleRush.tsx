@@ -32,6 +32,7 @@ import {
 import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import { RushLeaderboard } from "./RushLeaderboard";
+import { useAuth } from "@/contexts/AuthContext";
 
 type RushMode = "three" | "five" | "survival";
 
@@ -60,6 +61,28 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
   const globalStats = useAtomValue(puzzleStatsAtom);
   const rushScores = useAtomValue(puzzleRushScoresAtom);
   const setRushScores = useSetAtom(puzzleRushScoresAtom);
+  const { user } = useAuth();
+
+  // Opportunistic leaderboard sync: PUT /api/progress's own upsert only
+  // fires when useProgressSync actually pushes, which happens at most once
+  // per app-session (hydratedFor guard, _app.tsx-level mount) — a user
+  // signed in since before the leaderboard shipped, whose score hasn't
+  // changed THIS session, may never push again and so never appear. Firing
+  // here too, on every Rush view, converges regardless of that timing.
+  // Best-effort: a failure here must never surface to someone browsing
+  // rush modes.
+  useEffect(() => {
+    if (!user) return;
+    if (rushScores.threeMin === 0 && rushScores.fiveMin === 0 && rushScores.survivalBest === 0) {
+      return;
+    }
+    void fetch("/api/leaderboards/puzzle-rush/sync", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rush: rushScores }),
+    }).catch(() => {});
+  }, [user, rushScores]);
 
   // Setup state
   const [mode, setMode] = useState<RushMode>("three");

@@ -144,11 +144,21 @@ export function OnboardingHelp({
                 style={{
                   width: "100%",
                   maxWidth: 560,
+                  // Cap to the viewport (minus the outer 16px inset padding
+                  // on each side) so a long tips list can never push the
+                  // header or the footer's dismiss button off-screen the
+                  // way an unconstrained, vertically-centered card does —
+                  // it used to just overflow equally past both edges with
+                  // no way to reach either.
+                  maxHeight: "calc(100vh - 32px)",
                   pointerEvents: "auto",
                 }}
               >
                 <Box
                   sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    maxHeight: "100%",
                     borderRadius: "1.5rem",
                     background: "rgba(15,17,23,0.95)",
                     backdropFilter: "blur(20px) saturate(160%)",
@@ -161,8 +171,9 @@ export function OnboardingHelp({
                 >
                   <Box
                     sx={{
-                      px: 3,
-                      py: 2.5,
+                      px: 2.75,
+                      py: 2,
+                      flexShrink: 0,
                       borderBottom: "1px solid rgba(255,255,255,0.06)",
                       display: "flex",
                       alignItems: "center",
@@ -171,23 +182,24 @@ export function OnboardingHelp({
                   >
                     <Box
                       sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: "10px",
+                        width: 30,
+                        height: 30,
+                        borderRadius: "9px",
                         background:
                           "linear-gradient(135deg, #F97316, #EA580C)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         boxShadow: "0 0 16px rgba(249,115,22,0.4)",
+                        flexShrink: 0,
                       }}
                     >
-                      <Sparkles size={16} color="#0A0A0A" />
+                      <Sparkles size={14} color="#0A0A0A" />
                     </Box>
-                    <Box sx={{ flex: 1 }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Typography
                         sx={{
-                          fontSize: "1.05rem",
+                          fontSize: "0.95rem",
                           fontWeight: 800,
                           color: "rgba(255,255,255,0.96)",
                           lineHeight: 1.15,
@@ -198,9 +210,9 @@ export function OnboardingHelp({
                       </Typography>
                       <Typography
                         sx={{
-                          fontSize: "0.78rem",
+                          fontSize: "0.74rem",
                           color: "rgba(255,255,255,0.55)",
-                          mt: 0.4,
+                          mt: 0.25,
                         }}
                       >
                         {subtitle}
@@ -213,16 +225,17 @@ export function OnboardingHelp({
                         background: "rgba(255,255,255,0.04)",
                         border: "1px solid rgba(255,255,255,0.08)",
                         borderRadius: "10px",
-                        width: 32,
-                        height: 32,
+                        width: 28,
+                        height: 28,
+                        flexShrink: 0,
                       }}
                     >
-                      <X size={14} />
+                      <X size={13} />
                     </IconButton>
                   </Box>
 
-                  <Box sx={{ p: 2.5 }}>
-                    <Stack spacing={1.5}>
+                  <Box sx={{ p: 2, flex: 1, minHeight: 0, overflowY: "auto" }}>
+                    <Stack spacing={1.1}>
                       {tips.map((tip, i) => {
                         const Icon = tip.icon;
                         return (
@@ -238,14 +251,14 @@ export function OnboardingHelp({
                           >
                             <Box
                               sx={{
-                                px: 2,
-                                py: 1.75,
+                                px: 1.75,
+                                py: 1.35,
                                 borderRadius: "12px",
                                 background: "rgba(255,255,255,0.03)",
                                 border: "1px solid rgba(255,255,255,0.06)",
                                 display: "flex",
                                 alignItems: "flex-start",
-                                gap: 1.75,
+                                gap: 1.5,
                                 transition: "all 180ms ease",
                                 "&:hover": {
                                   background: "rgba(255,255,255,0.06)",
@@ -255,9 +268,9 @@ export function OnboardingHelp({
                             >
                               <Box
                                 sx={{
-                                  width: 36,
-                                  height: 36,
-                                  borderRadius: "10px",
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: "8px",
                                   background: `${tip.iconColor ?? "#F97316"}22`,
                                   border: `1px solid ${tip.iconColor ?? "#F97316"}55`,
                                   display: "flex",
@@ -267,11 +280,11 @@ export function OnboardingHelp({
                                 }}
                               >
                                 <Icon
-                                  size={16}
+                                  size={14}
                                   color={tip.iconColor ?? "#F97316"}
                                 />
                               </Box>
-                              <Box sx={{ flex: 1 }}>
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
                                 <Stack
                                   direction="row"
                                   alignItems="center"
@@ -279,7 +292,7 @@ export function OnboardingHelp({
                                 >
                                   <Typography
                                     sx={{
-                                      fontSize: "0.96rem",
+                                      fontSize: "0.86rem",
                                       fontWeight: 700,
                                       color: "rgba(255,255,255,0.94)",
                                     }}
@@ -295,7 +308,7 @@ export function OnboardingHelp({
                                         background: "rgba(255,255,255,0.05)",
                                         border: "1px solid rgba(255,255,255,0.1)",
                                         fontFamily: "Monaco, Menlo, monospace",
-                                        fontSize: "0.7rem",
+                                        fontSize: "0.68rem",
                                         fontWeight: 600,
                                         color: "rgba(255,255,255,0.55)",
                                       }}
@@ -306,10 +319,10 @@ export function OnboardingHelp({
                                 </Stack>
                                 <Typography
                                   sx={{
-                                    fontSize: "0.84rem",
+                                    fontSize: "0.78rem",
                                     color: "rgba(255,255,255,0.58)",
-                                    mt: 0.5,
-                                    lineHeight: 1.5,
+                                    mt: 0.25,
+                                    lineHeight: 1.4,
                                   }}
                                 >
                                   {tip.body}
@@ -324,8 +337,9 @@ export function OnboardingHelp({
 
                   <Box
                     sx={{
-                      px: 3,
-                      py: 2,
+                      px: 2.75,
+                      py: 1.75,
+                      flexShrink: 0,
                       borderTop: "1px solid rgba(255,255,255,0.06)",
                       display: "flex",
                       alignItems: "center",
@@ -334,7 +348,7 @@ export function OnboardingHelp({
                   >
                     <Typography
                       sx={{
-                        fontSize: "0.78rem",
+                        fontSize: "0.72rem",
                         color: "rgba(255,255,255,0.4)",
                         flex: 1,
                       }}
@@ -345,17 +359,18 @@ export function OnboardingHelp({
                       component="button"
                       onClick={handleDismiss}
                       sx={{
-                        px: 2.5,
-                        py: 1,
+                        px: 2.25,
+                        py: 0.75,
                         borderRadius: "999px",
                         background: "linear-gradient(135deg, #F97316, #EA580C)",
                         color: "#0A0A0A",
                         fontWeight: 700,
-                        fontSize: "0.85rem",
+                        fontSize: "0.82rem",
                         border: "none",
                         cursor: "pointer",
                         transition: "all 180ms ease",
                         boxShadow: "0 8px 24px rgba(249,115,22,0.3)",
+                        flexShrink: 0,
                         "&:hover": {
                           background: "linear-gradient(135deg, #FB923C, #F97316)",
                           transform: "translateY(-1px)",

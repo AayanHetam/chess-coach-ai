@@ -31,6 +31,7 @@ import {
 } from "@/lib/puzzleRating";
 import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
+import { RushLeaderboard } from "./RushLeaderboard";
 
 type RushMode = "three" | "five" | "survival";
 
@@ -301,6 +302,7 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
   // ---- SETUP SCREEN ----
   if (phase === "setup") {
     return (
+      <>
       <Paper
         sx={{
           p: 4,
@@ -463,6 +465,8 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
           </Button>
         </Box>
       </Paper>
+      <RushLeaderboard mode={mode} />
+      </>
     );
   }
 

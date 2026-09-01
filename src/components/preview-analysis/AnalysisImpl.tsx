@@ -129,7 +129,7 @@ import {
   satisfiesRequest,
 } from "@/lib/engine/pickDisplayEval";
 import { EngineName, MoveClassification } from "@/types/enums";
-import type { PositionEval, LineEval } from "@/types/eval";
+import type { PositionEval, LineEval, Accuracy } from "@/types/eval";
 import { getMovesClassification } from "@/lib/engine/helpers/moveClassification";
 import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
@@ -285,6 +285,16 @@ const CLASSIFICATION_LABELS: Record<MoveLabel, string> = {
   [MoveClassification.Miss]: "Missed opportunity",
   [MoveClassification.Blunder]: "Blunder",
 };
+
+// Tier colors for the per-game accuracy badge, echoing the move-glyph
+// palette above (green tops out with Great, red bottoms out with Blunder)
+// so the badge reads consistently with the move list right below it.
+function accuracyColor(value: number): string {
+  if (value >= 90) return "#22c55e";
+  if (value >= 70) return "#FACC15";
+  if (value >= 45) return "#FB923C";
+  return "#ef4444";
+}
 
 /**
  * Look up a move's classification from a classified positions array.
@@ -2818,12 +2828,14 @@ function MovesListPanel({
   moves,
   currentPly,
   positions,
+  accuracy,
   onJumpTo,
   onAskCoach,
 }: {
   moves: Move[];
   currentPly: number;
   positions: PositionEval[] | null;
+  accuracy: Accuracy | null;
   onJumpTo: (ply: number) => void;
   onAskCoach: (ply: number, san: string) => void;
 }) {
@@ -3062,6 +3074,61 @@ function MovesListPanel({
           </Typography>
         </Box>
       </Stack>
+
+      {/* CAPS-style per-game accuracy — the two numbers computed by
+          computeAccuracy() (src/lib/engine/helpers/accuracy.ts, the same
+          weighted/harmonic-mean formula Lichess uses) already ride on every
+          gameEvalFull, they just never reached the UI. Chess.com's own
+          "Game Review" puts this directly above the move list, so it lands
+          here rather than as a separate panel. */}
+      {accuracy && (
+        <Stack
+          direction="row"
+          spacing={1.5}
+          sx={{
+            px: 3,
+            py: 1.25,
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          {(
+            [
+              ["White", accuracy.white],
+              ["Black", accuracy.black],
+            ] as const
+          ).map(([label, value]) => (
+            <Box
+              key={label}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.6,
+                px: 1.1,
+                py: 0.4,
+                borderRadius: "999px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <Typography
+                sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)" }}
+              >
+                {label} accuracy
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: "0.82rem",
+                  fontWeight: 700,
+                  fontFamily: "Monaco, Menlo, monospace",
+                  color: accuracyColor(value),
+                }}
+              >
+                {value.toFixed(1)}
+              </Typography>
+            </Box>
+          ))}
+        </Stack>
+      )}
 
       <Box
         sx={{
@@ -10723,6 +10790,7 @@ export default function AnalysisPage() {
                           moves={allMoves}
                           currentPly={currentPly}
                           positions={classifiedPositions}
+                          accuracy={gameEvalFull?.accuracy ?? null}
                           onJumpTo={setCurrentPly}
                           onAskCoach={handleAskCoachAboutMove}
                         />

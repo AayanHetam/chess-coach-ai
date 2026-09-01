@@ -92,6 +92,23 @@ All four mutants were killed before the tests were trusted: projection disabled,
 over-strip of `display`, unconditional `fenBefore` drop, and in-place mutation
 of the caller's contract.
 
+## Measured follow-up, deliberately not taken here
+
+**EvalFact down to `display` alone** (dropping `cp`, `mate`, `depth`,
+`sentinel`) is worth a further **8.4% of the contract JSON** — 493 eval objects,
+33,409 chars today vs 9,374 as display-only. The charter already forbids the
+model from computing evals and orders `display` copied verbatim, so on the face
+of it those fields are as dead as `provenance` was.
+
+It is NOT in this PR for two reasons. First, it would confound the A/B that is
+validating this change — the gate run must score the artifact that ships.
+Second, there is a real edge case: 1 of the 493 evals carries `display === ""`
+(the type's "no numeric eval present" case) and 1 carries `sentinel === true`.
+Blank display is exactly where `cp`/`mate` might be the only remaining signal,
+so that case needs checking before the field goes. Worth a follow-up PR with its
+own gate run; at ~3% of total input cost it is a smaller prize than it looks
+next to the 33.6% already taken.
+
 ## Not done, and why
 
 - **`bestWas` on non-carded moves** (~12% of the contract) — 70 of 84 rows carry

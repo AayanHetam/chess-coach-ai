@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { getUserById, updateUser } from "@/lib/server/users";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
+import { upsertPuzzleRushLeaderboardEntry } from "@/lib/server/puzzleRushLeaderboard";
 import { logger } from "@/lib/logging";
 
 /**
@@ -146,6 +147,28 @@ export async function PUT(request: Request) {
     await updateUser(guard.session.uid, {
       progress: parsed.data,
     } as Parameters<typeof updateUser>[1]);
+
+    // Best-effort: the global leaderboard is a derived view, not the source
+    // of truth, so a failure here must never fail the real progress save.
+    // No handle (rare — pre-handle-system migrated accounts) means no entry:
+    // that's the opt-in, not an error.
+    if (parsed.data.rush) {
+      try {
+        const user = await getUserById(guard.session.uid);
+        if (user?.handle) {
+          await upsertPuzzleRushLeaderboardEntry(
+            guard.session.uid,
+            user.handle,
+            parsed.data.rush,
+          );
+        }
+      } catch (err) {
+        log.warn("puzzle rush leaderboard upsert failed", {
+          message: String(err),
+        });
+      }
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof AdminConfigError) {

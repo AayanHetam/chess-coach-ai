@@ -182,14 +182,30 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<AppUser | null>(() => readCachedUser());
+  // Both start at the exact SSR-safe values (null / true) — Next.js
+  // prerenders this tree with `window` undefined, so the first CLIENT render
+  // must produce identical output or React throws a hydration mismatch
+  // (#418/#423). readCachedUser() used to run inside these initializers,
+  // which read a real cached value on that first client render whenever one
+  // existed — mismatching the server's markup. Caught by the opening-trainer
+  // E2E suite ("a session survives leaving the page") after #461 merged.
+  const [user, setUser] = useState<AppUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isIntern, setIsIntern] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  // Only skip the loading gate when a cached identity gives NavPill something
-  // real to paint immediately. No cache (signed out, or a fresh browser)
-  // keeps the original behavior exactly — hidden until /api/auth/me answers.
-  const [loading, setLoading] = useState(() => readCachedUser() === null);
+  const [loading, setLoading] = useState(true);
+
+  // Cache read moves to an effect — effects never run during the
+  // hydration-matching render, only after it commits, so this can safely
+  // look at localStorage without risking a mismatch. Still beats the
+  // /api/auth/me round trip by a wide margin from the user's perspective.
+  useEffect(() => {
+    const cached = readCachedUser();
+    if (cached) {
+      setUser(cached);
+      setLoading(false);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     try {

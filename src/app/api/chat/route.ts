@@ -489,7 +489,13 @@ export async function POST(request: NextRequest) {
       // (OpenAI's range); forwarding 1.5 to Anthropic 400s the request, which
       // is a user-facing failure in single-provider mode (audit §3.8).
       temperature: Math.max(0, Math.min(1, parsed.data.temperature ?? 0.7)),
-      maxTokens: parsed.data.max_tokens ?? 3000,
+      // Clamped for the same reason as temperature above, one line later than
+      // it should have been: max_tokens is the OUTPUT budget, chatSchema lets
+      // a client ask for 16000, and this forwarded it verbatim — so the caller
+      // set its own bill. 3000 is the server's own budget everywhere else on
+      // this route; a client asking for less (InlinePuzzleCoach sends 800)
+      // still gets what it asked for.
+      maxTokens: Math.min(parsed.data.max_tokens ?? 3000, 3000),
     };
 
     if (wantsStream) {

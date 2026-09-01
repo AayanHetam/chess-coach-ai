@@ -144,7 +144,12 @@ export const chatSchema = z.object({
 export const enhancedAnalysisSchema = z.object({
   userMessage: z.string().optional(),
   message: z.string().optional(),
-  moveHistory: z.array(z.string()).optional(),
+  // Bounded 2026-09-01: this was an unbounded array of unbounded strings, and
+  // the contract builder replays it move-by-move (builder.ts) — so a large one
+  // buys CPU as well as prompt tokens. The caps are defence-in-depth, set far
+  // above any real game: the longest recorded master game is ~269 moves (538
+  // plies), and SAN never exceeds a handful of characters.
+  moveHistory: z.array(z.string().max(16)).max(1000).optional(),
   fen: z.string().optional(),
   position: z.string().optional(),
   gameEval: z.any().optional(),

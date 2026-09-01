@@ -16,25 +16,44 @@ import {
 import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
 import { analyzeMateClaim, applyMateCorrection } from "@/lib/tactics/mateClaim";
 import { aiDisabledResponse, isAiDisabled } from "@/lib/coach/aiAvailability";
+import { clientIp, rateLimited } from "@/lib/http/ipRateLimit";
 
 /**
  * Puzzle Coach chat endpoint — scoped, interactive, multi-turn coach for
  * one puzzle.
  *
- * Tier policy (Aayan 2026-05-31):
- *   - turnIndex === 0 → flagship (Sonnet). Initial explanation must be
- *     accurate; speed loses to quality on turn 0.
- *   - turnIndex >= 1 → fast (Haiku). Follow-ups are quick and conversational.
+ * Tier policy (Aayan 2026-05-31), unchanged in substance:
+ *   - the initial explanation → flagship (Sonnet). It must be accurate;
+ *     speed loses to quality there.
+ *   - every follow-up → fast (Haiku). Quick and conversational.
  *
  * Always streams SSE; the client side reads deltas and pumps them into
  * the bubble in-place. The base prompt is cached via Anthropic prompt-
  * cache markers so repeat turns within a session are cheap.
  *
- * NO auth gating in v1 — anonymous puzzle-solvers can use the coach.
- * Add session-gated rate-limit later if cost becomes a concern.
+ * NO auth gating — anonymous puzzle-solvers can use the coach. That is a
+ * deliberate product choice, and it makes the request body the ENTIRE cost
+ * surface, so two things have to be true here that were not before
+ * (2026-09-01):
+ *
+ *   1. The caller must not be able to pick the expensive model. `turnIndex`
+ *      is a client field, and selecting Sonnet on `turnIndex === 0` meant
+ *      anyone could send 0 forever and pin flagship. The tier is now derived
+ *      from what the server can actually see — history and userMessage — so
+ *      flagship is reachable only on a genuinely initial turn, which is also
+ *      the smallest possible prompt. Sonnet with a 32-turn history is now
+ *      unreachable by construction rather than by convention.
+ *   2. There must be some brake at all. The throttle below is the same
+ *      per-instance courtesy limiter puzzle-hint uses — honest about being
+ *      best-effort on serverless (see lib/http/ipRateLimit), not a security
+ *      control. It stops the trivial single-source script; a real limiter
+ *      still needs a shared store.
  */
 
 const log = logger.child({ module: "puzzle-chat" });
+
+/** Matches puzzle-hint's budget: this route is the more expensive of the two. */
+const CHAT_RATE_LIMIT = { windowMs: 60_000, max: 20 };
 
 export async function POST(request: NextRequest) {
   // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
@@ -42,6 +61,14 @@ export async function POST(request: NextRequest) {
   // "broken" — the difference decides whether the user retries forever.
   if (isAiDisabled()) return aiDisabledResponse();
   const requestId = extractRequestId(request.headers);
+
+  // Before parsing: the body is unbounded work on an unauthenticated route.
+  if (rateLimited("puzzle-chat", clientIp(request), CHAT_RATE_LIMIT)) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": "60" } },
+    );
+  }
 
   let body: unknown;
   try {
@@ -76,14 +103,25 @@ export async function POST(request: NextRequest) {
     userMessage,
   } = parsed.data;
 
-  // Turn 0 is server-fired (the client doesn't supply userMessage). Turn ≥1
-  // requires a real user message.
-  if (turnIndex >= 1 && (!userMessage || userMessage.trim().length === 0)) {
+  // THE INITIAL TURN IS A SERVER OBSERVATION, NOT A CLIENT ASSERTION.
+  // It is the auto-fired explanation: no prior turns and no typed message.
+  // The real client only ever calls it that way (PuzzleCoachPanel fires
+  // turn 0 exactly when `turns.length === 0` and passes no userMessage), so
+  // deriving it changes nothing legitimate — but it makes "flagship with a
+  // 32-turn history" unreachable, because flagship now REQUIRES an empty one.
+  const typedMessage = userMessage?.trim() ?? "";
+  const isInitialTurn = history.length === 0 && typedMessage.length === 0;
+
+  if (!isInitialTurn && typedMessage.length === 0) {
     return NextResponse.json(
-      { error: "userMessage is required on turn ≥ 1" },
+      { error: "userMessage is required on a follow-up turn" },
       { status: 400 }
     );
   }
+
+  // The client's turnIndex survives only as a depth hint for the prompt, and
+  // it cannot claim to be initial once history exists.
+  const effectiveTurnIndex = isInitialTurn ? 0 : Math.max(1, turnIndex);
 
   // Build the per-puzzle system suffix (uncached; rides after the cached base).
   const systemSuffix = buildPuzzleContextSuffix({
@@ -91,7 +129,7 @@ export async function POST(request: NextRequest) {
     outcome,
     userAttemptSan,
     userRating,
-    turnIndex,
+    turnIndex: effectiveTurnIndex,
   });
 
   // Compose the messages array. The history (prior turns in this session)
@@ -101,20 +139,22 @@ export async function POST(request: NextRequest) {
   const messages: LLMMessage[] = [
     ...history.map((t) => ({ role: t.role, content: t.content })),
   ];
-  if (turnIndex === 0) {
+  if (isInitialTurn) {
     messages.push({ role: "user", content: buildTurn0Trigger(outcome) });
   } else {
-    messages.push({ role: "user", content: userMessage!.trim() });
+    messages.push({ role: "user", content: typedMessage });
   }
 
-  // Tier: flagship on turn 0 (accuracy matters), fast on follow-ups (speed
-  // matters). Server-driven, not client-supplied.
-  const tier: "flagship" | "fast" = turnIndex === 0 ? "flagship" : "fast";
+  // Tier: flagship on the initial explanation (accuracy matters), fast on
+  // follow-ups (speed matters). Derived from `isInitialTurn`, so the caller
+  // cannot select it — and the flagship branch is the one with no history.
+  const tier: "flagship" | "fast" = isInitialTurn ? "flagship" : "fast";
 
   log.info("puzzle-chat call", {
     requestId,
     puzzleId: puzzle.id,
-    turnIndex,
+    turnIndex: effectiveTurnIndex,
+    claimedTurnIndex: turnIndex,
     tier,
     outcome,
     historyLen: history.length,
@@ -142,7 +182,7 @@ export async function POST(request: NextRequest) {
           temperature: 0.6,
           // Tight token budget — terse responses by design. Initial
           // explanation gets a bit more headroom; follow-ups are short.
-          maxTokens: turnIndex === 0 ? 600 : 350,
+          maxTokens: isInitialTurn ? 600 : 350,
           cacheSystem: true,
         })) {
           if (ev.type === "text") {
@@ -169,7 +209,7 @@ export async function POST(request: NextRequest) {
               log.warn("puzzle-chat false mate claim corrected", {
                 requestId,
                 puzzleId: puzzle.id,
-                turnIndex,
+                turnIndex: effectiveTurnIndex,
                 claimed: corrections.map((c) => c.claimed),
               });
             }
@@ -200,7 +240,7 @@ export async function POST(request: NextRequest) {
         log.info("puzzle-chat completed", {
           requestId,
           puzzleId: puzzle.id,
-          turnIndex,
+          turnIndex: effectiveTurnIndex,
           tier,
           totalChars,
           totalMs: Date.now() - startedAt,

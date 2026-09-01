@@ -159,7 +159,15 @@ describe("verbalizer JSON projection", () => {
       // Names that exist ONLY inside a featureDelta are fair game for the
       // vacant-branch prune; computed from the PRE-projection wire so the
       // allowlist is derived from data, not copied from the implementation.
-      const explained = new Set<string>(["provenance", "pvUci"]);
+      const explained = new Set<string>([
+        "provenance",
+        "pvUci",
+        // An EvalFact ships as {display, sentinel}; the raw numbers behind
+        // them are the form the charter forbids the model from using.
+        "cp",
+        "mate",
+        "depth",
+      ]);
       Array.from(keyNames(collectFeatureDeltas(before))).forEach((k) =>
         explained.add(k),
       );
@@ -247,6 +255,24 @@ describe("verbalizer JSON projection", () => {
       if ("isEmptyDelta" in src) expect(out).toHaveProperty("isEmptyDelta");
       // Anything with real content survives verbatim.
       if (src.fenAfter) expect(out?.fenAfter).toBe(src.fenAfter);
+    }
+  });
+
+  it("ships an eval as its canonical rendering, never the raw numbers", () => {
+    for (const name of NAMES) {
+      const contract = contracts.get(name)!;
+      const wire = JSON.parse(serializeForVerbalizer(contract));
+      const evals = collectByKey(wire, "evalAfter")
+        .concat(collectByKey(wire, "evalBefore"))
+        .filter((e): e is Record<string, unknown> => !!e && typeof e === "object");
+      expect(evals.length).toBeGreaterThan(0);
+      for (const e of evals) {
+        expect(Object.keys(e).sort()).toEqual(["display", "sentinel"]);
+      }
+      // The sentinel case is the reason this matters: its raw form is
+      // {cp: 0, depth: 0}, which the charter then has to forbid the model
+      // from printing as "+0.00". It must never reach the wire.
+      expect(JSON.stringify(wire)).not.toContain('"cp":0,"depth":0');
     }
   });
 

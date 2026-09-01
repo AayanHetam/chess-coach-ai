@@ -9,6 +9,7 @@ import BoltIcon from "@mui/icons-material/Bolt";
 import PsychologyIcon from "@mui/icons-material/Psychology";
 import ExtensionIcon from "@mui/icons-material/Extension";
 import GridOnIcon from "@mui/icons-material/GridOn";
+import PsychologyAltIcon from "@mui/icons-material/PsychologyAlt";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
@@ -17,6 +18,7 @@ import { PageTitle } from "@/components/pageTitle";
 import PuzzleRush from "@/sections/practice/PuzzleRush";
 import PatternTraining from "@/sections/practice/PatternTraining";
 import CoordinateTrainer from "@/sections/practice/CoordinateTrainer";
+import GuessTheMove from "@/sections/practice/GuessTheMove";
 import PuzzleStats from "@/sections/practice/PuzzleStats";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
@@ -31,13 +33,13 @@ import { coordinateTrainerBestAtom } from "@/lib/coordinateTrainer";
  *
  * Standard theme-browser puzzle solving was merged into the unified /puzzles
  * surface (adaptive, ELO-wired, AI-coached), so this page now just routes to
- * the four ways to train: Puzzles (→ /puzzles), Puzzle Rush, Pattern
- * Training, and Coordinate Trainer. Legacy/AI-coach deep links
- * (`/practice?theme=…`) forward to `/puzzles?theme=…`;
- * `?mode=rush|pattern|coordinate` opens those modes directly.
+ * the five ways to train: Puzzles (→ /puzzles), Puzzle Rush, Pattern
+ * Training, Coordinate Trainer, and Guess the Move. Legacy/AI-coach deep
+ * links (`/practice?theme=…`) forward to `/puzzles?theme=…`;
+ * `?mode=rush|pattern|coordinate|guess` opens those modes directly.
  */
 
-type Mode = "hub" | "rush" | "pattern" | "coordinate";
+type Mode = "hub" | "rush" | "pattern" | "coordinate" | "guess";
 
 const PAGE_BOX_SX = { width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } };
 
@@ -69,6 +71,10 @@ export default function Practice() {
     }
     if (m === "coordinate") {
       setMode("coordinate");
+      return;
+    }
+    if (m === "guess") {
+      setMode("guess");
       return;
     }
     // Forward standard-mode deep links to the unified puzzle surface.
@@ -178,6 +184,39 @@ export default function Practice() {
     );
   }
 
+  if (mode === "guess") {
+    return (
+      <ThemeProvider theme={chessMastiDarkTheme}>
+        <PageTitle title="Chess Masti AI - Guess the Move" />
+        <Head>
+          <meta name="color-scheme" content="dark" />
+          <meta name="theme-color" content="#08090C" />
+          <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
+        </Head>
+
+        <GradientBackdrop />
+
+        <Box
+          sx={{
+            minHeight: "100vh",
+            color: "rgba(255,255,255,0.94)",
+            pt: 2,
+            pb: 4,
+            px: { xs: 2, md: 3 },
+          }}
+        >
+          <NavPill active="practice" />
+
+          <Box sx={PAGE_BOX_SX}>
+            <ErrorBoundary name="guess-the-move">
+              <GuessTheMove onBack={() => setMode("hub")} />
+            </ErrorBoundary>
+          </Box>
+        </Box>
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider theme={chessMastiDarkTheme}>
       <PageTitle title="Chess Masti AI - Practice" />
@@ -220,11 +259,11 @@ export default function Practice() {
             Practice
           </Typography>
           <Typography sx={{ mb: 4, color: "rgba(255,255,255,0.62)" }}>
-            Four ways to sharpen your game.
+            Five ways to sharpen your game.
           </Typography>
 
           <Grid container spacing={2.5} sx={{ mb: 4 }}>
-            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
                 icon={<ExtensionIcon fontSize="inherit" />}
                 title="Puzzles"
@@ -242,7 +281,7 @@ export default function Practice() {
                 }
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
                 icon={<BoltIcon fontSize="inherit" />}
                 title="Puzzle Rush"
@@ -260,7 +299,7 @@ export default function Practice() {
                 }
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
                 icon={<PsychologyIcon fontSize="inherit" />}
                 title="Pattern Training"
@@ -270,7 +309,7 @@ export default function Practice() {
                 accent={ACCENTS.cyan}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
                 icon={<GridOnIcon fontSize="inherit" />}
                 title="Coordinate Trainer"
@@ -286,6 +325,16 @@ export default function Practice() {
                       }
                     : undefined
                 }
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <ModeCard
+                icon={<PsychologyAltIcon fontSize="inherit" />}
+                title="Guess the Move"
+                desc="Step through a real master game and guess the next move before it's revealed."
+                cta="Start Guessing"
+                onClick={() => setMode("guess")}
+                accent={ACCENTS.gold}
               />
             </Grid>
           </Grid>

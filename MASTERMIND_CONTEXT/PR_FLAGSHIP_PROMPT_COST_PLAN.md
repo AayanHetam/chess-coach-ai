@@ -100,14 +100,34 @@ of the caller's contract.
 model from computing evals and orders `display` copied verbatim, so on the face
 of it those fields are as dead as `provenance` was.
 
-It is NOT in this PR for two reasons. First, it would confound the A/B that is
-validating this change — the gate run must score the artifact that ships.
-Second, there is a real edge case: 1 of the 493 evals carries `display === ""`
-(the type's "no numeric eval present" case) and 1 carries `sentinel === true`.
-Blank display is exactly where `cp`/`mate` might be the only remaining signal,
-so that case needs checking before the field goes. Worth a follow-up PR with its
-own gate run; at ~3% of total input cost it is a smaller prize than it looks
-next to the 33.6% already taken.
+It is NOT in this PR because it would confound the A/B validating this change —
+the gate run must score the artifact that ships.
+
+**Both edge cases have since been checked, and both argue FOR the cut:**
+
+    03_sentinel_timeout  {"cp":0,"depth":0,"display":"engine data unavailable",
+                          "mate":null,"sentinel":true}
+    04_invalid_san_trunc {"cp":null,"depth":12,"display":"","mate":null,
+                          "sentinel":false}
+
+Blank `display` has `cp` and `mate` both `null`, so nothing is lost by dropping
+them. The sentinel case is more interesting: we currently show the model
+`cp: 0, depth: 0` — the "flagged, not forged" client-timeout zero — sitting
+right beside a display that reads "engine data unavailable". The charter then
+has to *forbid* the model from printing "+0.00". Removing `cp`/`depth` from the
+model's view deletes that hallucination vector at the source rather than
+policing it in prose, which makes this a correctness change with a cost bonus,
+not the other way round.
+
+Sizing (post-#464 contract, 10 fixtures, 493 evals):
+
+| variant | saving |
+| --- | --- |
+| keep `{display, sentinel}` | 5.5% of contract JSON |
+| keep `{display}` only | 8.4% |
+
+Recommend the conservative variant — `sentinel` is a cheap boolean the guard
+logic reads — as its own PR with its own gate run.
 
 ## Not done, and why
 

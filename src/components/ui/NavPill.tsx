@@ -13,6 +13,7 @@ import {
   type Theme,
 } from "@mui/material";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Menu as MenuIcon, Heart, LogOut, User, Settings } from "lucide-react";
@@ -86,6 +87,7 @@ export function NavPill({
   actionsSlot,
   sx,
 }: NavPillProps) {
+  const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   // With page context in the pill there isn't room for everything at once.
   // The wordmark yields first (the logo mark still links home, and the
@@ -420,6 +422,26 @@ export function NavPill({
                       </Typography>
                     )}
                   </Box>
+                  <MenuItem
+                    onClick={() => {
+                      handleMenuClose();
+                      void router.push("/profile");
+                    }}
+                    sx={{
+                      px: 2,
+                      py: 1.25,
+                      gap: 1.25,
+                      color: "rgba(255,255,255,0.85)",
+                      fontSize: "0.86rem",
+                      "&:hover": {
+                        background: "rgba(249,115,22,0.1)",
+                        color: "#FB923C",
+                      },
+                    }}
+                  >
+                    <User size={15} />
+                    Profile
+                  </MenuItem>
                   <MenuItem
                     onClick={() => {
                       handleMenuClose();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { ProgressSyncGate } from "./progressSyncGate";
 import { useAtom } from "jotai";
 import { useAuth } from "@/contexts/AuthContext";
 import { puzzleStatsAtom, puzzleRushScoresAtom } from "@/lib/puzzleRating";
@@ -41,7 +42,9 @@ export function useProgressSync(): void {
   const [rush, setRush] = useAtom(puzzleRushScoresAtom);
   const [coordinate, setCoordinate] = useAtom(coordinateTrainerBestAtom);
 
-  const hydratedFor = useRef<string | null>(null);
+  // Owns the "hydrate before you push" rule — see ProgressSyncGate for why
+  // pushing early silently destroys a user's bests.
+  const gate = useRef(new ProgressSyncGate());
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Live mirror so the debounced push always sends current state rather than
   // whatever was captured when the timer was armed.
@@ -53,11 +56,10 @@ export function useProgressSync(): void {
     if (!user) {
       // Signing out clears the guard so the next sign-in re-hydrates. Local
       // state is intentionally left alone — it's still this device's progress.
-      hydratedFor.current = null;
+      gate.current.reset();
       return;
     }
-    if (hydratedFor.current === user.uid) return;
-    hydratedFor.current = user.uid;
+    if (!gate.current.claimHydrate(user.uid)) return;
 
     let cancelled = false;
     void (async () => {
@@ -88,17 +90,34 @@ export function useProgressSync(): void {
       } catch {
         // Offline or server down — the local copy is still authoritative for
         // this session, so training continues uninterrupted.
+      } finally {
+        // Marked done however it ended, including on failure: a browser that
+        // cannot reach the server must still be able to save what it does
+        // this session, so pushes have to be unblocked either way. What must
+        // never happen is marking it done BEFORE the response settles, which
+        // is what the pre-hydration push below would then be free to send.
+        if (!cancelled) gate.current.completeHydrate(user.uid);
       }
     })();
 
     return () => {
       cancelled = true;
+      // Release the claim synchronously, so a remount can hydrate again
+      // rather than being refused as a duplicate and never pushing.
+      gate.current.abandonHydrate(user.uid);
     };
   }, [user, setStreak, setStats, setSrs, setDaily, setRush, setCoordinate]);
 
   // ── Push: debounced snapshot on change ──
   useEffect(() => {
-    if (!user || hydratedFor.current !== user.uid) return;
+    // Gated on hydration having COMPLETED, not merely started. A fresh browser
+    // begins with every best at 0; pushing that before the server copy has
+    // been merged in overwrites the real bests with zeros — the server takes
+    // the snapshot as final (`mergeProgress` runs on the CLIENT, before the
+    // push), so the loss is silent and, for the derived leaderboard, was
+    // unrecoverable. The hydrate GET routinely outlives the 2.5s debounce on
+    // a cold serverless start, so this window was reached in practice.
+    if (!user || !gate.current.canPush(user.uid)) return;
     if (pushTimer.current) clearTimeout(pushTimer.current);
     pushTimer.current = setTimeout(() => {
       const body: StoredProgress = {

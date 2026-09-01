@@ -21,7 +21,18 @@ export const runtime = "nodejs";
 const log = logger.child({ module: "leaderboards/puzzle-rush" });
 
 const RATE_LIMIT = { windowMs: 60_000, max: 30 };
-const CACHE_TTL_MS = 60_000;
+// Short enough that a board someone else just topped feels live, long enough
+// to absorb the burst of a page full of mode-switching. A player looking at
+// their OWN just-set score does not depend on this expiring: the sync
+// endpoint answers with the post-write board directly, because this cache is
+// per-instance and a re-GET can land on an instance that never saw the write.
+const CACHE_TTL_MS = 20_000;
+
+// This response is already cached above, per instance, on purpose. Letting a
+// browser or the CDN cache it as well would stack a second, invisible TTL on
+// top and strand a viewer on a board minutes older than the one the tab next
+// to it is showing.
+const NO_STORE = { "Cache-Control": "no-store" };
 
 const hits = new Map<string, number[]>();
 const cache = new Map<RushMode, { at: number; body: unknown }>();
@@ -62,7 +73,7 @@ export async function GET(request: Request) {
 
   const cached = cache.get(mode);
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
-    return NextResponse.json(cached.body);
+    return NextResponse.json(cached.body, { headers: NO_STORE });
   }
 
   // Checked after the cache so concurrent page views sharing a fresh cache
@@ -70,7 +81,7 @@ export async function GET(request: Request) {
   if (rateLimited(clientIp(request))) {
     return NextResponse.json(
       { error: "Too many requests. Try again in a minute." },
-      { status: 429 },
+      { status: 429, headers: NO_STORE },
     );
   }
 
@@ -78,7 +89,7 @@ export async function GET(request: Request) {
     const entries = await getPuzzleRushLeaderboard(mode);
     const body = { mode, entries };
     cache.set(mode, { at: Date.now(), body });
-    return NextResponse.json(body);
+    return NextResponse.json(body, { headers: NO_STORE });
   } catch (err) {
     if (err instanceof AdminConfigError) {
       return NextResponse.json({ error: "Service unavailable" }, { status: 503 });

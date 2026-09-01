@@ -4,12 +4,15 @@ import { Analytics } from "@vercel/analytics/react";
 import Script from "next/script";
 import { useTrackingConsent } from "./useTrackingConsent";
 
-// Reuse the Firebase measurement ID — it IS a GA4 tag, no separate signup
-// needed. NEXT_PUBLIC_ vars are inlined at build time, so reading them in a
-// client component is fine.
+// NEXT_PUBLIC_ vars are inlined at build time, so reading them in a client
+// component is fine. The literal fallback is chessmasti.com's GA4 stream —
+// measurement IDs are public (they ship in the page HTML), and neither
+// NEXT_PUBLIC_GA_MEASUREMENT_ID nor NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID was
+// ever set in the Vercel project, so without it GA never loaded at all.
 const GA_MEASUREMENT_ID =
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
-  process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID;
+  process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ||
+  "G-W5LHY620Q3";
 
 /**
  * Third-party analytics (Vercel Analytics + the GA4 gtag script), mounted

@@ -7,7 +7,7 @@ import {
   toSafeLLMError,
 } from "@/lib/llmProvider";
 import { requireSession } from "@/lib/auth/session";
-import { aiDisabledResponse, isAiDisabled } from "@/lib/coach/aiAvailability";
+import { aiRefusal } from "@/lib/coach/aiGate";
 
 /**
  * Intent Classifier
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
   // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
   // BEFORE any work, auth or spend, and with a code that says "off", not
   // "broken" — the difference decides whether the user retries forever.
-  if (isAiDisabled()) return aiDisabledResponse();
+  { const refusal = await aiRefusal(); if (refusal) return refusal; }
   const guard = await requireSession();
   if ("response" in guard) return guard.response;
 

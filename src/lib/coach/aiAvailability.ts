@@ -61,3 +61,24 @@ export function aiDisabledResponse(): NextResponse {
     { status: 503, headers: { "Retry-After": "86400" } },
   );
 }
+
+/**
+ * A THIRD state, distinct from both of the above. "Broke, retry" and "switched
+ * off for days" are both wrong for a ceiling: the coach is fine, it is coming
+ * back at midnight UTC, and retrying before then will not help. Anything that
+ * watches the coach — the hourly heartbeat included — must be able to tell a
+ * self-imposed ceiling from an outage, because one is the system working.
+ */
+export const AI_BUDGET_ERROR = {
+  code: "AI_DAILY_BUDGET_REACHED",
+  message:
+    "The coach has hit today's usage limit. It comes back tomorrow — the board, engine analysis and puzzles all still work.",
+} as const;
+
+export function aiBudgetResponse(): NextResponse {
+  return NextResponse.json(
+    { error: AI_BUDGET_ERROR.message, code: AI_BUDGET_ERROR.code },
+    { status: 503, headers: { "Retry-After": "3600" } },
+  );
+}
+

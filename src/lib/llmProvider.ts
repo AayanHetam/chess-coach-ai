@@ -17,6 +17,8 @@
 
 import { logger } from "./logging";
 
+import { costOfCall, recordSpend } from "@/lib/coach/spendFuse";
+
 const log = logger.child({ module: "llm-provider" });
 
 // ── Env / config ────────────────────────────────────────────────────────────
@@ -119,6 +121,29 @@ export type LLMErrorCode =
   | "provider_network_error"
   | "provider_invalid_response"
   | "providers_unavailable";
+
+/**
+ * Charge one completed call to today's spend total, and hand the result back
+ * unchanged.
+ *
+ * This lives in the funnel, not in routes, on purpose: `recordLLMCall` (the
+ * in-memory stats aggregator) is called by only two of the seven LLM routes,
+ * which is exactly the drift a fuse cannot afford. Wrapping the three places
+ * an LLMResult is actually constructed — the two non-streaming provider calls
+ * and the streaming `done` — accounts every path exactly once, including
+ * routes that do not exist yet.
+ *
+ * Never throws and never awaits: the caller has already been served, and a
+ * bookkeeping failure must not become a user-visible one.
+ */
+function account(result: LLMResult): LLMResult {
+  try {
+    recordSpend(costOfCall(result));
+  } catch {
+    /* accounting must never break a served request */
+  }
+  return result;
+}
 
 export const PUBLIC_LLM_ERROR = {
   code: "AI_PROVIDER_UNAVAILABLE",
@@ -312,7 +337,7 @@ async function callAnthropic(
     throw new LLMError("anthropic", 200, "provider_invalid_response");
   }
 
-  return {
+  return account({
     content,
     provider: "anthropic",
     model,
@@ -321,7 +346,7 @@ async function callAnthropic(
     cacheCreationTokens: data.usage?.cache_creation_input_tokens ?? 0,
     cacheReadTokens: data.usage?.cache_read_input_tokens ?? 0,
     elapsedMs,
-  };
+  });
 }
 
 // ── OpenAI call ─────────────────────────────────────────────────────────────
@@ -397,14 +422,14 @@ async function callOpenAI(
     throw new LLMError("openai", 200, "provider_invalid_response");
   }
 
-  return {
+  return account({
     content,
     provider: "openai",
     model,
     inputTokens: data.usage?.prompt_tokens ?? 0,
     outputTokens: data.usage?.completion_tokens ?? 0,
     elapsedMs,
-  };
+  });
 }
 
 // ── Streaming ───────────────────────────────────────────────────────────────
@@ -532,7 +557,7 @@ async function* callAnthropicStream(
   const elapsedMs = Date.now() - startedAt;
   yield {
     type: "done",
-    result: {
+    result: account({
       content: fullText,
       provider: "anthropic",
       model,
@@ -541,7 +566,7 @@ async function* callAnthropicStream(
       cacheCreationTokens,
       cacheReadTokens,
       elapsedMs,
-    },
+    }),
   };
 }
 

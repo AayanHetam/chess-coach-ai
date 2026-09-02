@@ -38,7 +38,7 @@ import {
   prepareMastermindContext,
   forwardPipelineTelemetryForRoute,
 } from "@/lib/mastermind/routeHelpers";
-import { aiDisabledResponse, isAiDisabled } from "@/lib/coach/aiAvailability";
+import { aiRefusal } from "@/lib/coach/aiGate";
 
 const log = logger.child({ module: "chat" });
 
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
   // BEFORE any work, auth or spend, and with a code that says "off", not
   // "broken" — the difference decides whether the user retries forever.
-  if (isAiDisabled()) return aiDisabledResponse();
+  { const refusal = await aiRefusal(); if (refusal) return refusal; }
   const guard = await requireSession();
   if ("response" in guard) return guard.response;
   // Same `reportFatal` helper as /api/enhanced-analysis: fire a structured

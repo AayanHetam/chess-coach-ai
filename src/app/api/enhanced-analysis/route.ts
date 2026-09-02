@@ -128,7 +128,7 @@ import { runStreamingStage9Validators } from "@/lib/mastermind/validators/stream
 import { correctStreamedAnalysis } from "@/lib/mastermind/validators/streamCorrection";
 import type { ValidatorIssue } from "@/lib/mastermind/validators/types";
 import { buildAsyncSnapshotForMove } from "@/lib/grounding/voterSnapshot";
-import { aiDisabledResponse, isAiDisabled } from "@/lib/coach/aiAvailability";
+import { aiRefusal } from "@/lib/coach/aiGate";
 
 const log = logger.child({ module: "enhanced-analysis" });
 
@@ -434,7 +434,7 @@ export async function POST(request: NextRequest) {
   // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
   // BEFORE any work, auth or spend, and with a code that says "off", not
   // "broken" — the difference decides whether the user retries forever.
-  if (isAiDisabled()) return aiDisabledResponse();
+  { const refusal = await aiRefusal(); if (refusal) return refusal; }
   const requestId = extractRequestId(request.headers);
 
   return withRequestContext(requestId, async () => {

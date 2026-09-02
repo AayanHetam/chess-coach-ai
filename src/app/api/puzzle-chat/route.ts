@@ -15,7 +15,7 @@ import {
 } from "@/lib/prompts/puzzleChatPrompt";
 import { logger, logErrorToSentry, extractRequestId } from "@/lib/logging";
 import { analyzeMateClaim, applyMateCorrection } from "@/lib/tactics/mateClaim";
-import { aiDisabledResponse, isAiDisabled } from "@/lib/coach/aiAvailability";
+import { aiRefusal } from "@/lib/coach/aiGate";
 import { clientIp, rateLimited } from "@/lib/http/ipRateLimit";
 
 /**
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
   // BEFORE any work, auth or spend, and with a code that says "off", not
   // "broken" — the difference decides whether the user retries forever.
-  if (isAiDisabled()) return aiDisabledResponse();
+  { const refusal = await aiRefusal(); if (refusal) return refusal; }
   const requestId = extractRequestId(request.headers);
 
   // Before parsing: the body is unbounded work on an unauthenticated route.

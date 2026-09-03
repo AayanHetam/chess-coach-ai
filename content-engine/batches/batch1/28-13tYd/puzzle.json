@@ -1,0 +1,32 @@
+{
+  "id": "13tYd",
+  "fen": "7r/5pk1/b3pPp1/3pN1q1/Q2P3p/B2P1P1P/R4K2/1r6 b - - 0 33",
+  "puzzleFen": "7r/5p2/b3pkp1/3pN1q1/Q2P3p/B2P1P1P/R4K2/1r6 w - - 0 34",
+  "setupSan": "Kxf6",
+  "solutionSan": [
+    "Be7+",
+    "Kf5",
+    "Bxg5"
+  ],
+  "solutionUci": [
+    "a3e7",
+    "f6f5",
+    "e7g5"
+  ],
+  "solverColor": "w",
+  "rating": 1972,
+  "nbPlays": 13688,
+  "themes": [
+    "crushing",
+    "middlegame",
+    "short",
+    "skewer"
+  ],
+  "gameUrl": "https://lichess.org/ElLATZwf/black#66",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 9,
+  "tier": "brutal",
+  "goal": "pin",
+  "linkBand": 1900
+}

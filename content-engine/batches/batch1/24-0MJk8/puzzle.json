@@ -1,0 +1,36 @@
+{
+  "id": "0MJk8",
+  "fen": "r2r2k1/1bq1bpp1/p1n1pn1B/1p2N3/3P4/1BN1Q3/PP3PPP/3R1RK1 b - - 0 16",
+  "puzzleFen": "r2r2k1/1bq1bp2/p1n1pn1p/1p2N3/3P4/1BN1Q3/PP3PPP/3R1RK1 w - - 0 17",
+  "setupSan": "gxh6",
+  "solutionSan": [
+    "Qg3+",
+    "Kf8",
+    "Ng6+",
+    "fxg6",
+    "Qxc7"
+  ],
+  "solutionUci": [
+    "e3g3",
+    "g8f8",
+    "e5g6",
+    "f7g6",
+    "g3c7"
+  ],
+  "solverColor": "w",
+  "rating": 2123,
+  "nbPlays": 1059,
+  "themes": [
+    "advantage",
+    "discoveredAttack",
+    "long",
+    "middlegame"
+  ],
+  "gameUrl": "https://lichess.org/y9vYFbly/black#32",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 6,
+  "tier": "brutal",
+  "goal": "hanging",
+  "linkBand": 2100
+}

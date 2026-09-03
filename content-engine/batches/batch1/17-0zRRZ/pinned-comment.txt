@@ -1,0 +1,7 @@
+// Paste by hand from the phone if you want the answer in a comment too.
+// Instagram's API cannot post a top-level comment on your own media,
+// only replies, which is why the answer already ships in the caption.
+
+ANSWER: Qxd6+ Ka8 Qxf6
+The line ends 6 points of material up, counted on the board.
+Full game: https://lichess.org/iKrjTvCZ/black#40

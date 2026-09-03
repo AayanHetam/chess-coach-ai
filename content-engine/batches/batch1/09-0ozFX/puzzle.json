@@ -1,0 +1,35 @@
+{
+  "id": "0ozFX",
+  "fen": "8/5k2/8/4KP1p/3P2p1/2pQ2P1/1b6/8 w - - 3 61",
+  "puzzleFen": "8/5k2/8/3PKP1p/6p1/2pQ2P1/1b6/8 b - - 0 61",
+  "setupSan": "d5",
+  "solutionSan": [
+    "c2+",
+    "Kd6",
+    "c1=Q"
+  ],
+  "solutionUci": [
+    "c3c2",
+    "e5d6",
+    "c2c1q"
+  ],
+  "solverColor": "b",
+  "rating": 979,
+  "nbPlays": 1253,
+  "themes": [
+    "advancedPawn",
+    "crushing",
+    "discoveredAttack",
+    "discoveredCheck",
+    "endgame",
+    "promotion",
+    "short"
+  ],
+  "gameUrl": "https://lichess.org/qU3oVDV4#121",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 8,
+  "tier": "warmup",
+  "goal": "hanging",
+  "linkBand": 900
+}

@@ -1,0 +1,36 @@
+{
+  "id": "0R08Y",
+  "fen": "6k1/5pp1/4p2p/2q5/8/3BPQ1P/1b4P1/7K b - - 1 34",
+  "puzzleFen": "6k1/5pp1/4p2p/2q1b3/8/3BPQ1P/6P1/7K w - - 2 35",
+  "setupSan": "Be5",
+  "solutionSan": [
+    "Qa8+",
+    "Qf8",
+    "Bh7+",
+    "Kxh7",
+    "Qxf8"
+  ],
+  "solutionUci": [
+    "f3a8",
+    "c5f8",
+    "d3h7",
+    "g8h7",
+    "a8f8"
+  ],
+  "solverColor": "w",
+  "rating": 1044,
+  "nbPlays": 1259,
+  "themes": [
+    "advantage",
+    "deflection",
+    "endgame",
+    "long"
+  ],
+  "gameUrl": "https://lichess.org/mOXqzdYo/black#68",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 6,
+  "tier": "warmup",
+  "goal": "sacrifice",
+  "linkBand": 1000
+}

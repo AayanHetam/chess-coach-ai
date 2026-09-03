@@ -1,0 +1,37 @@
+{
+  "id": "0ob4Z",
+  "fen": "3Rn1k1/3R1pp1/1qp1r2p/r4Q2/1pP4P/1P3PP1/1P4K1/8 b - - 5 34",
+  "puzzleFen": "3Rn1k1/3R1pp1/2p1r2p/r4Q2/1pP4P/1P2qPP1/1P4K1/8 w - - 6 35",
+  "setupSan": "Qe3",
+  "solutionSan": [
+    "Rxe8+",
+    "Rxe8",
+    "Qxf7+",
+    "Kh8",
+    "Qxg7#"
+  ],
+  "solutionUci": [
+    "d8e8",
+    "e6e8",
+    "f5f7",
+    "g8h8",
+    "f7g7"
+  ],
+  "solverColor": "w",
+  "rating": 2110,
+  "nbPlays": 1423,
+  "themes": [
+    "kingsideAttack",
+    "long",
+    "mate",
+    "mateIn3",
+    "middlegame"
+  ],
+  "gameUrl": "https://lichess.org/nn7jMPIO/black#68",
+  "isMate": true,
+  "mateIn": 3,
+  "materialGain": 0,
+  "tier": "brutal",
+  "goal": "mate",
+  "linkBand": 2100
+}

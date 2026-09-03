@@ -1,0 +1,37 @@
+{
+  "id": "0xQzv",
+  "fen": "3r3k/pp4pp/2b2pq1/2p5/2Q2R2/2B4P/PP3RPK/3r4 b - - 2 30",
+  "puzzleFen": "4r2k/pp4pp/2b2pq1/2p5/2Q2R2/2B4P/PP3RPK/3r4 w - - 3 31",
+  "setupSan": "Re8",
+  "solutionSan": [
+    "Rxf6",
+    "gxf6",
+    "Bxf6+",
+    "Qxf6",
+    "Rxf6"
+  ],
+  "solutionUci": [
+    "f4f6",
+    "g7f6",
+    "c3f6",
+    "g6f6",
+    "f2f6"
+  ],
+  "solverColor": "w",
+  "rating": 1950,
+  "nbPlays": 4843,
+  "themes": [
+    "crushing",
+    "kingsideAttack",
+    "long",
+    "middlegame",
+    "sacrifice"
+  ],
+  "gameUrl": "https://lichess.org/nGoxBnMg/black#60",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 3,
+  "tier": "brutal",
+  "goal": "sacrifice",
+  "linkBand": 1900
+}

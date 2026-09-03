@@ -1,0 +1,42 @@
+{
+  "id": "01d2J",
+  "fen": "r3r1k1/pp4pp/2pq4/3nNQ1b/3P4/4pP1P/PP2P1B1/1K1R3R b - - 0 19",
+  "puzzleFen": "r3r1k1/pp5p/2pq2p1/3nNQ1b/3P4/4pP1P/PP2P1B1/1K1R3R w - - 0 20",
+  "setupSan": "g6",
+  "solutionSan": [
+    "Qf7+",
+    "Kh8",
+    "Qxe8+",
+    "Rxe8",
+    "Nf7+",
+    "Kg7",
+    "Nxd6"
+  ],
+  "solutionUci": [
+    "f5f7",
+    "g8h8",
+    "f7e8",
+    "a8e8",
+    "e5f7",
+    "h8g7",
+    "f7d6"
+  ],
+  "solverColor": "w",
+  "rating": 1609,
+  "nbPlays": 20318,
+  "themes": [
+    "clearance",
+    "crushing",
+    "fork",
+    "middlegame",
+    "sacrifice",
+    "veryLong"
+  ],
+  "gameUrl": "https://lichess.org/CklaH1ip/black#38",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 5,
+  "tier": "sharp",
+  "goal": "fork",
+  "linkBand": 1600
+}

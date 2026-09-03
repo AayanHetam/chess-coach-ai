@@ -1,0 +1,37 @@
+{
+  "id": "0jgvV",
+  "fen": "3q1rk1/1p3pp1/3p1b2/8/p3N1Q1/8/PPr3PP/1R3RK1 b - - 1 22",
+  "puzzleFen": "3q1rk1/1p3pp1/3p4/8/p3N1Q1/8/Pbr3PP/1R3RK1 w - - 0 23",
+  "setupSan": "Bxb2",
+  "solutionSan": [
+    "Rxb2",
+    "Rxb2",
+    "Nf6+",
+    "Qxf6",
+    "Rxf6"
+  ],
+  "solutionUci": [
+    "b1b2",
+    "c2b2",
+    "e4f6",
+    "d8f6",
+    "f1f6"
+  ],
+  "solverColor": "w",
+  "rating": 1796,
+  "nbPlays": 12950,
+  "themes": [
+    "advantage",
+    "long",
+    "middlegame",
+    "pin",
+    "sacrifice"
+  ],
+  "gameUrl": "https://lichess.org/Sxzoys5G/black#44",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 4,
+  "tier": "sharp",
+  "goal": "pin",
+  "linkBand": 1700
+}

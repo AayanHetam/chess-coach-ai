@@ -1,0 +1,39 @@
+{
+  "id": "0boM8",
+  "fen": "1r4k1/p2Np1b1/2p4p/3bPr2/P2P2p1/1PP2pPq/3B1P1P/1R1Q2RK w - - 2 25",
+  "puzzleFen": "1r4k1/p2Np1b1/2p4p/3bPr2/P2P2p1/1PP2pPq/3B1P1P/1R3QRK b - - 3 25",
+  "setupSan": "Qf1",
+  "solutionSan": [
+    "Qxh2+",
+    "Kxh2",
+    "Rh5+",
+    "Qh3",
+    "Rxh3#"
+  ],
+  "solutionUci": [
+    "h3h2",
+    "h1h2",
+    "f5h5",
+    "f1h3",
+    "h5h3"
+  ],
+  "solverColor": "b",
+  "rating": 1589,
+  "nbPlays": 1265,
+  "themes": [
+    "attraction",
+    "kingsideAttack",
+    "long",
+    "mate",
+    "mateIn3",
+    "middlegame",
+    "sacrifice"
+  ],
+  "gameUrl": "https://lichess.org/e2bEsnKX#49",
+  "isMate": true,
+  "mateIn": 3,
+  "materialGain": 1,
+  "tier": "sharp",
+  "goal": "mate",
+  "linkBand": 1500
+}

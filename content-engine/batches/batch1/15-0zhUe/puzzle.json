@@ -1,0 +1,36 @@
+{
+  "id": "0zhUe",
+  "fen": "4rr2/ppp1np1k/1bnp1p1p/8/7N/1BP3BP/P4PP1/3RR1K1 b - - 1 23",
+  "puzzleFen": "4rr2/ppp2p1k/1bnp1pnp/8/7N/1BP3BP/P4PP1/3RR1K1 w - - 2 24",
+  "setupSan": "Ng6",
+  "solutionSan": [
+    "Rxe8",
+    "Rxe8",
+    "Bxf7",
+    "Nxh4",
+    "Bxe8"
+  ],
+  "solutionUci": [
+    "e1e8",
+    "f8e8",
+    "b3f7",
+    "g6h4",
+    "f7e8"
+  ],
+  "solverColor": "w",
+  "rating": 1638,
+  "nbPlays": 9712,
+  "themes": [
+    "advantage",
+    "attraction",
+    "long",
+    "middlegame"
+  ],
+  "gameUrl": "https://lichess.org/igJKpiKw/black#46",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 3,
+  "tier": "sharp",
+  "goal": "sacrifice",
+  "linkBand": 1600
+}

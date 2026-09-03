@@ -1,0 +1,33 @@
+{
+  "id": "0zIrE",
+  "fen": "8/p2r3k/3P2pp/4q3/8/1P1Q2P1/6KP/5R2 b - - 2 58",
+  "puzzleFen": "8/p2r3k/3q2pp/8/8/1P1Q2P1/6KP/5R2 w - - 0 59",
+  "setupSan": "Qxd6",
+  "solutionSan": [
+    "Rf7+",
+    "Rxf7",
+    "Qxd6"
+  ],
+  "solutionUci": [
+    "f1f7",
+    "d7f7",
+    "d3d6"
+  ],
+  "solverColor": "w",
+  "rating": 1049,
+  "nbPlays": 1614,
+  "themes": [
+    "crushing",
+    "deflection",
+    "endgame",
+    "master",
+    "short"
+  ],
+  "gameUrl": "https://lichess.org/XL4Nmojl/black#116",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 4,
+  "tier": "warmup",
+  "goal": "sacrifice",
+  "linkBand": 1000
+}

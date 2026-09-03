@@ -1,0 +1,32 @@
+{
+  "id": "0k5Iy",
+  "fen": "2r3k1/4R1p1/3BN3/3p1Pp1/p2K4/3R2q1/8/8 b - - 7 43",
+  "puzzleFen": "2r3k1/4R1p1/3qN3/3p1Pp1/p2K4/3R4/8/8 w - - 0 44",
+  "setupSan": "Qxd6",
+  "solutionSan": [
+    "Rxg7+",
+    "Kh8",
+    "Rh3#"
+  ],
+  "solutionUci": [
+    "e7g7",
+    "g8h8",
+    "d3h3"
+  ],
+  "solverColor": "w",
+  "rating": 984,
+  "nbPlays": 4494,
+  "themes": [
+    "endgame",
+    "mate",
+    "mateIn2",
+    "short"
+  ],
+  "gameUrl": "https://lichess.org/l7MXZZdq/black#86",
+  "isMate": true,
+  "mateIn": 2,
+  "materialGain": 1,
+  "tier": "warmup",
+  "goal": "mate",
+  "linkBand": 900
+}

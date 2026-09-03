@@ -1,0 +1,34 @@
+{
+  "id": "0DEw2",
+  "fen": "q1r2rk1/1b1nbppp/pp2p3/2pn4/5PN1/PP2P1RP/1BQPB1P1/RN4K1 b - - 6 16",
+  "puzzleFen": "q1r2rk1/1b1nb1pp/pp2p3/2pn1p2/5PN1/PP2P1RP/1BQPB1P1/RN4K1 w - - 0 17",
+  "setupSan": "f5",
+  "solutionSan": [
+    "Nh6+",
+    "Kh8",
+    "Bxg7#"
+  ],
+  "solutionUci": [
+    "g4h6",
+    "g8h8",
+    "b2g7"
+  ],
+  "solverColor": "w",
+  "rating": 1236,
+  "nbPlays": 1216,
+  "themes": [
+    "kingsideAttack",
+    "mate",
+    "mateIn2",
+    "middlegame",
+    "pin",
+    "short"
+  ],
+  "gameUrl": "https://lichess.org/ZLKWeBJR/black#32",
+  "isMate": true,
+  "mateIn": 2,
+  "materialGain": 1,
+  "tier": "steady",
+  "goal": "mate",
+  "linkBand": 1200
+}

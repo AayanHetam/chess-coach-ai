@@ -1,0 +1,32 @@
+{
+  "id": "0zwYV",
+  "fen": "r3bbkR/1p3rp1/pq2p1Q1/3pPp2/1PnN1P2/P1P2R2/1B4PP/6K1 b - - 11 24",
+  "puzzleFen": "r3bb1k/1p3rp1/pq2p1Q1/3pPp2/1PnN1P2/P1P2R2/1B4PP/6K1 w - - 0 25",
+  "setupSan": "Kxh8",
+  "solutionSan": [
+    "Rh3+",
+    "Kg8",
+    "Qh7#"
+  ],
+  "solutionUci": [
+    "f3h3",
+    "h8g8",
+    "g6h7"
+  ],
+  "solverColor": "w",
+  "rating": 981,
+  "nbPlays": 2394,
+  "themes": [
+    "mate",
+    "mateIn2",
+    "middlegame",
+    "short"
+  ],
+  "gameUrl": "https://lichess.org/lD087WdR/black#48",
+  "isMate": true,
+  "mateIn": 2,
+  "materialGain": 0,
+  "tier": "warmup",
+  "goal": "mate",
+  "linkBand": 900
+}

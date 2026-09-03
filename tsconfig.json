@@ -30,6 +30,6 @@
     "Chesskit",
     "scripts/data-pipeline/output",
     "content-engine/node_modules",
-    "content-engine/out"
+    "content-engine/batches"
   ]
 }

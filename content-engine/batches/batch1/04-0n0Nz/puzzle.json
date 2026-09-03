@@ -1,0 +1,36 @@
+{
+  "id": "0n0Nz",
+  "fen": "r1b2rk1/1pq2p1p/p4bp1/2p1p3/4N3/PB1P3R/1PP2PPP/R2Q2K1 b - - 1 17",
+  "puzzleFen": "r4rk1/1pq2p1p/p4bp1/2p1p3/4N3/PB1P3b/1PP2PPP/R2Q2K1 w - - 0 18",
+  "setupSan": "Bxh3",
+  "solutionSan": [
+    "Nxf6+",
+    "Kg7",
+    "Nd5",
+    "Qd6",
+    "gxh3"
+  ],
+  "solutionUci": [
+    "e4f6",
+    "g8g7",
+    "f6d5",
+    "c7d6",
+    "g2h3"
+  ],
+  "solverColor": "w",
+  "rating": 1933,
+  "nbPlays": 7014,
+  "themes": [
+    "advantage",
+    "hangingPiece",
+    "long",
+    "middlegame"
+  ],
+  "gameUrl": "https://lichess.org/yBETmvJB/black#34",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 6,
+  "tier": "brutal",
+  "goal": "hanging",
+  "linkBand": 1900
+}

@@ -34,7 +34,7 @@ const HOOKS = {
   ],
   sacrifice: [
     "Give something up. That is the whole idea.",
-    "The winning move looks like a blunder for exactly one move.",
+    "Hand the material over first. The point arrives one move later.",
     "You have to hand over material first. Trust it.",
   ],
 };

@@ -1,0 +1,7 @@
+// Paste by hand from the phone if you want the answer in a comment too.
+// Instagram's API cannot post a top-level comment on your own media,
+// only replies, which is why the answer already ships in the caption.
+
+ANSWER: Qxh2+ Kxh2 Rh5+ Qh3 Rxh3#
+Mate in 3. After Rxh3# there is no legal reply.
+Full game: https://lichess.org/e2bEsnKX#49

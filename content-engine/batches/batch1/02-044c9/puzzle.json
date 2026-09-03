@@ -1,0 +1,38 @@
+{
+  "id": "044c9",
+  "fen": "1r4k1/2n2p2/2P1p1p1/8/1r2P2P/2R2P2/8/B1R2K2 w - - 2 41",
+  "puzzleFen": "1r4k1/2n2p2/2P1p1p1/8/1rR1P2P/5P2/8/B1R2K2 b - - 3 41",
+  "setupSan": "Rc4",
+  "solutionSan": [
+    "Rxc4",
+    "Rxc4",
+    "Rb1+",
+    "Kf2",
+    "Rxa1"
+  ],
+  "solutionUci": [
+    "b4c4",
+    "c1c4",
+    "b8b1",
+    "f1f2",
+    "b1a1"
+  ],
+  "solverColor": "b",
+  "rating": 1418,
+  "nbPlays": 3655,
+  "themes": [
+    "advantage",
+    "clearance",
+    "endgame",
+    "exposedKing",
+    "fork",
+    "long"
+  ],
+  "gameUrl": "https://lichess.org/UhBDboRX#81",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 3,
+  "tier": "steady",
+  "goal": "fork",
+  "linkBand": 1400
+}

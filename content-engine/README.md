@@ -8,12 +8,12 @@ This is the Linux/CI port of the pipeline that lives on Aayan's Mac. Same
 format rules, same verification order, same ledger.
 
 ```
-node make_cold.mjs 30 batch1     # build a batch into out/batch1
+node make_cold.mjs 30 batch1     # build a batch into batches/batch1
 node verify.mjs batch1           # gate it before anything is handed over
 ```
 
 Each folder gets `video.mp4`, `cover.png`, `caption.txt`, `pinned-comment.txt`
-and `puzzle.json`. `out/<batch>/batch-sheet.tsv` is the posting schedule.
+and `puzzle.json`. `batches/<batch>/batch-sheet.tsv` is the posting schedule.
 
 ## Format rules that were paid for
 
@@ -58,7 +58,7 @@ Timeline, 30fps, 12.0s exactly:
 
 - **Playwright `setContent` has no base URL.** A relative `<img src>` fails
   silently. Every piece is inlined as a base64 data URI.
-- **Build scripts wipe the output folder.** Only output lives in `out/`.
+- **Build scripts wipe the output folder.** Only output lives in `batches/`.
 - **Temp dirs must be `mkdtemp`.** Deriving one from the output filename means
   every build shares a folder and concurrent runs delete each other's frames.
 - **Google Fonts is blocked from the sandbox.** The stack is pinned to

@@ -1,0 +1,32 @@
+{
+  "id": "0zRRZ",
+  "fen": "1kr4r/pp2b3/3BQn1p/1qpP4/4P3/5P2/PP3KPP/R6R b - - 0 20",
+  "puzzleFen": "1kr4r/pp6/3bQn1p/1qpP4/4P3/5P2/PP3KPP/R6R w - - 0 21",
+  "setupSan": "Bxd6",
+  "solutionSan": [
+    "Qxd6+",
+    "Ka8",
+    "Qxf6"
+  ],
+  "solutionUci": [
+    "e6d6",
+    "b8a8",
+    "d6f6"
+  ],
+  "solverColor": "w",
+  "rating": 999,
+  "nbPlays": 2515,
+  "themes": [
+    "crushing",
+    "fork",
+    "middlegame",
+    "short"
+  ],
+  "gameUrl": "https://lichess.org/iKrjTvCZ/black#40",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 6,
+  "tier": "warmup",
+  "goal": "fork",
+  "linkBand": 900
+}

@@ -1,0 +1,48 @@
+{
+  "id": "0S1EU",
+  "fen": "6r1/5p1k/5p1B/2p2P2/4q1r1/1P1p4/3Q1RPP/3R2K1 w - - 0 29",
+  "puzzleFen": "6r1/5p1k/5p1B/2p2P2/4q1r1/1P1p4/3Q1RPP/4R1K1 b - - 1 29",
+  "setupSan": "Re1",
+  "solutionSan": [
+    "Rxg2+",
+    "Rxg2",
+    "Rxg2+",
+    "Qxg2",
+    "Qxe1+",
+    "Qf1",
+    "Qxf1+",
+    "Kxf1",
+    "Kxh6",
+    "Kf2",
+    "Kg5"
+  ],
+  "solutionUci": [
+    "g4g2",
+    "f2g2",
+    "g8g2",
+    "d2g2",
+    "e4e1",
+    "g2f1",
+    "e1f1",
+    "g1f1",
+    "h7h6",
+    "f1f2",
+    "h6g5"
+  ],
+  "solverColor": "b",
+  "rating": 2099,
+  "nbPlays": 1170,
+  "themes": [
+    "crushing",
+    "fork",
+    "middlegame",
+    "veryLong"
+  ],
+  "gameUrl": "https://lichess.org/B8WAfMcM#57",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 4,
+  "tier": "brutal",
+  "goal": "fork",
+  "linkBand": 2000
+}

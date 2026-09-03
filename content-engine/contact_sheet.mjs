@@ -5,7 +5,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 
 const batch = process.argv[2] ?? "batch1";
-const root = path.resolve(process.cwd(), "out", batch);
+const root = path.resolve(process.cwd(), "batches", batch);
 const dirs = fs
   .readdirSync(root, { withFileTypes: true })
   .filter((d) => d.isDirectory())

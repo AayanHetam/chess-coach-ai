@@ -20,7 +20,7 @@ const BANNED = [
   /\bcompletely\s+lost\b/i,
 ];
 
-const root = path.resolve(process.cwd(), "out", process.argv[2] ?? "batch1");
+const root = path.resolve(process.cwd(), "batches", process.argv[2] ?? "batch1");
 const dirs = fs
   .readdirSync(root, { withFileTypes: true })
   .filter((d) => d.isDirectory())
@@ -63,7 +63,11 @@ for (const d of dirs) {
   }
   if (!replayed) fail(d, "solution does not replay");
   if (p.isMate && !chess.isCheckmate()) fail(d, "claims mate, position is not mate");
-  if (!p.isMate && /MATE/i.test(fs.readFileSync(path.join(d, "caption.txt"), "utf8").split("ANSWER")[0]))
+  const capHead = fs
+    .readFileSync(path.join(d, "caption.txt"), "utf8")
+    .split("ANSWER")[0];
+  // \b matters: "material" contains "mate".
+  if (!p.isMate && /\b(check)?mates?\b|\bmate in\b/i.test(capHead))
     fail(d, "mate wording without a proven mate");
 
   // 2. Format: 1080x1920, ~12s, silent.
@@ -80,19 +84,18 @@ for (const d of dirs) {
   const tmp = fs.mkdtempSync(path.join(process.env.TMPDIR ?? "/tmp", "cm-verify-"));
   const f0 = path.join(tmp, "f0.png");
   execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", video, "-frames:v", "1", f0]);
-  const hist = execFileSync("ffmpeg", [
-    "-v", "error", "-i", f0, "-vf",
-    // Count pixels close to the light square colour.
-    "format=rgb24,geq=r='if(between(r(X,Y),232,252)*between(g(X,Y),221,241)*between(b(X,Y),208,228),255,0)':g=0:b=0,signalstats,metadata=print:key=lavfi.signalstats.YAVG",
-    "-f", "null", "-",
-  ], { stdio: ["ignore", "pipe", "pipe"] }).toString();
-  const yavg = Number((execFileSync("ffmpeg", [
-    "-v", "error", "-i", f0, "-vf",
-    "crop=920:920:80:436,format=rgb24,signalstats,metadata=print:key=lavfi.signalstats.YAVG",
-    "-f", "null", "-",
-  ], { stdio: ["ignore", "pipe", "pipe"] }).toString().match(/YAVG=([\d.]+)/) ?? [])[1]);
-  // The navy ground is very dark (YAVG < 30). A board is not.
-  if (!(yavg > 90)) fail(d, `frame 0 is not the board (board-region YAVG ${yavg})`);
+  // Decode the board region to gray and average it here — no log parsing.
+  const gray = execFileSync(
+    "ffmpeg",
+    ["-v", "error", "-i", f0, "-vf", "crop=920:920:80:436,format=gray",
+     "-f", "rawvideo", "-"],
+    { maxBuffer: 1 << 28 },
+  );
+  let sum = 0;
+  for (let i = 0; i < gray.length; i++) sum += gray[i];
+  const yavg = sum / gray.length;
+  // The navy ground is very dark. A board is not.
+  if (!(yavg > 90)) fail(d, `frame 0 is not the board (board-region mean ${yavg.toFixed(1)})`);
   fs.rmSync(tmp, { recursive: true, force: true });
 
   // 4. The end-card link band must point at a route that exists.

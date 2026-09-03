@@ -1,0 +1,32 @@
+{
+  "id": "0DtzG",
+  "fen": "7k/N5p1/p2B3p/2p2P1q/2P2Kp1/8/P2R4/5R2 w - - 4 38",
+  "puzzleFen": "7k/N5p1/p6p/2p1BP1q/2P2Kp1/8/P2R4/5R2 b - - 5 38",
+  "setupSan": "Be5",
+  "solutionSan": [
+    "Qg5+",
+    "Ke4",
+    "Qxd2"
+  ],
+  "solutionUci": [
+    "h5g5",
+    "f4e4",
+    "g5d2"
+  ],
+  "solverColor": "b",
+  "rating": 961,
+  "nbPlays": 1502,
+  "themes": [
+    "advantage",
+    "endgame",
+    "short",
+    "skewer"
+  ],
+  "gameUrl": "https://lichess.org/Q15YfVXz#75",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 5,
+  "tier": "warmup",
+  "goal": "pin",
+  "linkBand": 900
+}

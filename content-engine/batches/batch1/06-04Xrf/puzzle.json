@@ -1,0 +1,37 @@
+{
+  "id": "04Xrf",
+  "fen": "7r/2p2pk1/4p1p1/pp1p4/3P1P1r/P1PNq2P/1PQ3PK/RB6 w - - 6 36",
+  "puzzleFen": "7r/2p2pk1/4p1p1/pp1p4/3P1P1r/P1PNq2P/1P3QPK/RB6 b - - 7 36",
+  "setupSan": "Qf2",
+  "solutionSan": [
+    "Rxh3+",
+    "gxh3",
+    "Qxh3+",
+    "Kg1",
+    "Qh1#"
+  ],
+  "solutionUci": [
+    "h4h3",
+    "g2h3",
+    "e3h3",
+    "h2g1",
+    "h3h1"
+  ],
+  "solverColor": "b",
+  "rating": 1279,
+  "nbPlays": 2775,
+  "themes": [
+    "long",
+    "mate",
+    "mateIn3",
+    "middlegame",
+    "sacrifice"
+  ],
+  "gameUrl": "https://lichess.org/p7q9ajNJ#71",
+  "isMate": true,
+  "mateIn": 3,
+  "materialGain": -3,
+  "tier": "steady",
+  "goal": "mate",
+  "linkBand": 1200
+}

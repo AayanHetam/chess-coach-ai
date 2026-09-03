@@ -1,0 +1,36 @@
+{
+  "id": "0FFkv",
+  "fen": "3rr3/pp2bkp1/2p1Rn2/7p/8/1PN3BP/1PP2PP1/4R1K1 w - - 2 19",
+  "puzzleFen": "3rr3/pp2bkp1/2p1Rn2/7p/5P2/1PN3BP/1PP3P1/4R1K1 b - - 0 19",
+  "setupSan": "f4",
+  "solutionSan": [
+    "Bc5+",
+    "Kf1",
+    "Rxe6",
+    "Rxe6",
+    "Kxe6"
+  ],
+  "solutionUci": [
+    "e7c5",
+    "g1f1",
+    "e8e6",
+    "e1e6",
+    "f7e6"
+  ],
+  "solverColor": "b",
+  "rating": 989,
+  "nbPlays": 2128,
+  "themes": [
+    "crushing",
+    "discoveredAttack",
+    "long",
+    "middlegame"
+  ],
+  "gameUrl": "https://lichess.org/UuhQi6U5#37",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 5,
+  "tier": "warmup",
+  "goal": "hanging",
+  "linkBand": 900
+}

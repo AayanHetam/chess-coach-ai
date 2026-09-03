@@ -1,0 +1,31 @@
+n	puzzleId	tier	goal	rating	linkBand	toPlay	result	solution	game
+01	0k5Iy	warmup	mate	984	900	white	mate-in-2	Rxg7+ Kh8 Rh3#	https://lichess.org/l7MXZZdq/black#86
+02	044c9	steady	fork	1418	1400	black	+3	Rxc4 Rxc4 Rb1+ Kf2 Rxa1	https://lichess.org/UhBDboRX#81
+03	0yUKT	sharp	pin	1553	1500	black	+1	Nxe4 dxe4 Rxe4	https://lichess.org/hI7AMXm3#41
+04	0n0Nz	brutal	hanging	1933	1900	white	+6	Nxf6+ Kg7 Nd5 Qd6 gxh3	https://lichess.org/yBETmvJB/black#34
+05	0R08Y	warmup	sacrifice	1044	1000	white	+6	Qa8+ Qf8 Bh7+ Kxh7 Qxf8	https://lichess.org/mOXqzdYo/black#68
+06	04Xrf	steady	mate	1279	1200	black	mate-in-3	Rxh3+ gxh3 Qxh3+ Kg1 Qh1#	https://lichess.org/p7q9ajNJ#71
+07	01d2J	sharp	fork	1609	1600	white	+5	Qf7+ Kh8 Qxe8+ Rxe8 Nf7+ Kg7 Nxd6	https://lichess.org/CklaH1ip/black#38
+08	0wca4	brutal	pin	2159	2100	black	+5	Rg1+ Kh4 Rxg6 Rd8+ Rg8	https://lichess.org/rbhEvPai#75
+09	0ozFX	warmup	hanging	979	900	black	+8	c2+ Kd6 c1=Q	https://lichess.org/qU3oVDV4#121
+10	10PvU	steady	sacrifice	1294	1200	black	+3	Qxd1+ Kxd1 Bxf3+	https://lichess.org/PU8NLHcD#17
+11	0boM8	sharp	mate	1589	1500	black	mate-in-3	Qxh2+ Kxh2 Rh5+ Qh3 Rxh3#	https://lichess.org/e2bEsnKX#49
+12	0S1EU	brutal	fork	2099	2000	black	+4	Rxg2+ Rxg2 Rxg2+ Qxg2 Qxe1+ Qf1 Qxf1+ Kxf1 Kxh6 Kf2 Kg5	https://lichess.org/B8WAfMcM#57
+13	0DtzG	warmup	pin	961	900	black	+5	Qg5+ Ke4 Qxd2	https://lichess.org/Q15YfVXz#75
+14	0Vb7E	steady	hanging	1292	1200	black	+6	Rxf2+ Kxf2 Ne4+ dxe4 Qxg5	https://lichess.org/YixbLfwI#59
+15	0zhUe	sharp	sacrifice	1638	1600	white	+3	Rxe8 Rxe8 Bxf7 Nxh4 Bxe8	https://lichess.org/igJKpiKw/black#46
+16	0ob4Z	brutal	mate	2110	2100	white	mate-in-3	Rxe8+ Rxe8 Qxf7+ Kh8 Qxg7#	https://lichess.org/nn7jMPIO/black#68
+17	0zRRZ	warmup	fork	999	900	white	+6	Qxd6+ Ka8 Qxf6	https://lichess.org/iKrjTvCZ/black#40
+18	0kcWh	steady	pin	1324	1300	white	+9	Nh5+ Kg8 Nxf4	https://lichess.org/hFAIg3N6/black#50
+19	0XioS	sharp	hanging	1590	1500	black	+7	Nxd5 Qxd5 Bxh2+ Nxh2 Qxd5	https://lichess.org/vb4fWKIY#21
+20	0xQzv	brutal	sacrifice	1950	1900	white	+3	Rxf6 gxf6 Bxf6+ Qxf6 Rxf6	https://lichess.org/nGoxBnMg/black#60
+21	0zwYV	warmup	mate	981	900	white	mate-in-2	Rh3+ Kg8 Qh7#	https://lichess.org/lD087WdR/black#48
+22	0Y6yg	steady	fork	1287	1200	white	+3	Nxe7+ Rxe7 Qxe7 Bxd1 Rxd1	https://lichess.org/uSr6RRXt/black#40
+23	0jgvV	sharp	pin	1796	1700	white	+4	Rxb2 Rxb2 Nf6+ Qxf6 Rxf6	https://lichess.org/Sxzoys5G/black#44
+24	0MJk8	brutal	hanging	2123	2100	white	+6	Qg3+ Kf8 Ng6+ fxg6 Qxc7	https://lichess.org/y9vYFbly/black#32
+25	0zIrE	warmup	sacrifice	1049	1000	white	+4	Rf7+ Rxf7 Qxd6	https://lichess.org/XL4Nmojl/black#116
+26	0DEw2	steady	mate	1236	1200	white	mate-in-2	Nh6+ Kh8 Bxg7#	https://lichess.org/ZLKWeBJR/black#32
+27	10bpD	sharp	fork	1503	1500	black	+4	Nxe4+ Kf3 Nxc3	https://lichess.org/gAJEEqa3#57
+28	13tYd	brutal	pin	1972	1900	white	+9	Be7+ Kf5 Bxg5	https://lichess.org/ElLATZwf/black#66
+29	0FFkv	warmup	hanging	989	900	black	+5	Bc5+ Kf1 Rxe6 Rxe6 Kxe6	https://lichess.org/UuhQi6U5#37
+30	0ZIt4	steady	sacrifice	1454	1400	white	+1	Rxd2+ Kxd2 Kxf2	https://lichess.org/TglxUXQI/black#100

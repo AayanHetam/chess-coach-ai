@@ -1,0 +1,7 @@
+// Paste by hand from the phone if you want the answer in a comment too.
+// Instagram's API cannot post a top-level comment on your own media,
+// only replies, which is why the answer already ships in the caption.
+
+ANSWER: Rxg2+ Rxg2 Rxg2+ Qxg2 Qxe1+ Qf1 Qxf1+ Kxf1 Kxh6 Kf2 Kg5
+The line ends 4 points of material up, counted on the board.
+Full game: https://lichess.org/B8WAfMcM#57

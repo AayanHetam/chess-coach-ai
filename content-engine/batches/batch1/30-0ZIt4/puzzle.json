@@ -1,0 +1,33 @@
+{
+  "id": "0ZIt4",
+  "fen": "8/7p/1P4p1/3R4/8/P3p1K1/3Bkr1P/8 b - - 0 50",
+  "puzzleFen": "8/7p/1P4p1/3R4/8/P5K1/3pkr1P/8 w - - 0 51",
+  "setupSan": "exd2",
+  "solutionSan": [
+    "Rxd2+",
+    "Kxd2",
+    "Kxf2"
+  ],
+  "solutionUci": [
+    "d5d2",
+    "e2d2",
+    "g3f2"
+  ],
+  "solverColor": "w",
+  "rating": 1454,
+  "nbPlays": 4611,
+  "themes": [
+    "crushing",
+    "deflection",
+    "endgame",
+    "rookEndgame",
+    "short"
+  ],
+  "gameUrl": "https://lichess.org/TglxUXQI/black#100",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 1,
+  "tier": "steady",
+  "goal": "sacrifice",
+  "linkBand": 1400
+}

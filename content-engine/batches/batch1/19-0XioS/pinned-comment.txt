@@ -1,0 +1,7 @@
+// Paste by hand from the phone if you want the answer in a comment too.
+// Instagram's API cannot post a top-level comment on your own media,
+// only replies, which is why the answer already ships in the caption.
+
+ANSWER: Nxd5 Qxd5 Bxh2+ Nxh2 Qxd5
+The line ends 7 points of material up, counted on the board.
+Full game: https://lichess.org/vb4fWKIY#21

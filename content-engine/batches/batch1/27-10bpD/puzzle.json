@@ -1,0 +1,33 @@
+{
+  "id": "10bpD",
+  "fen": "1rn1k3/4p2p/1P1p1pp1/2nP4/4PP2/2B5/3N1KPP/1R6 w - - 1 29",
+  "puzzleFen": "1rn1k3/4p2p/1P1p1pp1/2nP4/2N1PP2/2B5/5KPP/1R6 b - - 2 29",
+  "setupSan": "Nc4",
+  "solutionSan": [
+    "Nxe4+",
+    "Kf3",
+    "Nxc3"
+  ],
+  "solutionUci": [
+    "c5e4",
+    "f2f3",
+    "e4c3"
+  ],
+  "solverColor": "b",
+  "rating": 1503,
+  "nbPlays": 20705,
+  "themes": [
+    "crushing",
+    "endgame",
+    "fork",
+    "master",
+    "short"
+  ],
+  "gameUrl": "https://lichess.org/gAJEEqa3#57",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 4,
+  "tier": "sharp",
+  "goal": "fork",
+  "linkBand": 1500
+}

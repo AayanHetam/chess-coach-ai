@@ -23,7 +23,7 @@ function readLedger() {
 async function main() {
   const count = Number(process.argv[2] ?? 30);
   const batch = process.argv[3] ?? "batch1";
-  const outRoot = path.resolve(process.cwd(), "out", batch);
+  const outRoot = path.resolve(process.cwd(), "batches", batch);
 
   const ledger = readLedger();
   const posted = new Set(ledger.posted.map((e) => e.id));

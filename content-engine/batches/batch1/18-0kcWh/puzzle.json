@@ -1,0 +1,32 @@
+{
+  "id": "0kcWh",
+  "fen": "r3r3/p4pkp/6p1/2p1p1Q1/1q6/2n3N1/2P2PPP/2R2RK1 b - - 2 25",
+  "puzzleFen": "r3r3/p4pkp/6p1/2p1p1Q1/5q2/2n3N1/2P2PPP/2R2RK1 w - - 3 26",
+  "setupSan": "Qf4",
+  "solutionSan": [
+    "Nh5+",
+    "Kg8",
+    "Nxf4"
+  ],
+  "solutionUci": [
+    "g3h5",
+    "g7g8",
+    "h5f4"
+  ],
+  "solverColor": "w",
+  "rating": 1324,
+  "nbPlays": 1882,
+  "themes": [
+    "advantage",
+    "middlegame",
+    "pin",
+    "short"
+  ],
+  "gameUrl": "https://lichess.org/hFAIg3N6/black#50",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 9,
+  "tier": "steady",
+  "goal": "pin",
+  "linkBand": 1300
+}

@@ -1,0 +1,25 @@
+Mate in 3. The king has fewer squares than it looks.
+
+Black to play. Rated 1589. They just played Qf1.
+
+Answer below — stop scrolling if you still want to solve it.
+
+.
+
+.
+
+.
+
+.
+
+.
+
+ANSWER: Qxh2+ Kxh2 Rh5+ Qh3 Rxh3#
+
+Mate in 3. After Rxh3# there is no legal reply.
+
+Puzzle from the Lichess open puzzle database (CC0). Played 1,265 times on Lichess.
+More puzzles at this level: chessmasti.com/puzzles/1500
+Chess Masti is free to start.
+
+#chess #chesspuzzle #chesstactics #chessmasti #tactics #chessgame #chesslover #chessdaily #brainteaser #chesscommunity

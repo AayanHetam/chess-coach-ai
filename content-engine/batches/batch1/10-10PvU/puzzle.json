@@ -1,0 +1,32 @@
+{
+  "id": "10PvU",
+  "fen": "r2qkbnr/ppp1pppp/2n5/3P4/2P1b1P1/4PN1P/PP6/RNBQKB1R w KQkq - 1 9",
+  "puzzleFen": "r2qkbnr/ppp1pppp/2P5/8/2P1b1P1/4PN1P/PP6/RNBQKB1R b KQkq - 0 9",
+  "setupSan": "dxc6",
+  "solutionSan": [
+    "Qxd1+",
+    "Kxd1",
+    "Bxf3+"
+  ],
+  "solutionUci": [
+    "d8d1",
+    "e1d1",
+    "e4f3"
+  ],
+  "solverColor": "b",
+  "rating": 1294,
+  "nbPlays": 1150,
+  "themes": [
+    "advantage",
+    "attraction",
+    "opening",
+    "short"
+  ],
+  "gameUrl": "https://lichess.org/PU8NLHcD#17",
+  "isMate": false,
+  "mateIn": 0,
+  "materialGain": 3,
+  "tier": "steady",
+  "goal": "sacrifice",
+  "linkBand": 1200
+}

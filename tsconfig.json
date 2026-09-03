@@ -24,5 +24,12 @@
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/types/**/*.d.ts"],
-  "exclude": ["node_modules", "cdk", "Chesskit", "scripts/data-pipeline/output"]
+  "exclude": [
+    "node_modules",
+    "cdk",
+    "Chesskit",
+    "scripts/data-pipeline/output",
+    "content-engine/node_modules",
+    "content-engine/out"
+  ]
 }

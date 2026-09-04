@@ -21,6 +21,7 @@ vi.mock("../firebaseAdmin", () => ({
 }));
 
 import {
+  excludePuzzleRushLeaderboardEntry,
   getPuzzleRushLeaderboard,
   getPuzzleRushRank,
   getPuzzleRushRanks,
@@ -77,7 +78,11 @@ function makeQuery(filters: { field: string; op: string; value: number }[]) {
 
 const db = {
   collection: () => ({
-    doc: (id: string) => ({ id }),
+    doc: (id: string) => ({
+      id,
+      set: async (data: Row) =>
+        store.set(id, { ...(store.get(id) ?? {}), ...data }),
+    }),
     where: (field: string, op: string, value: number) =>
       makeQuery([{ field, op, value }]),
   }),
@@ -344,5 +349,43 @@ describe("getPuzzleRushRanks", () => {
     expect(
       await getPuzzleRushRanks({ threeMin: 12, fiveMin: 40, survivalBest: 0 })
     ).toEqual({ threeMin: 2, fiveMin: 2, survivalBest: null });
+  });
+});
+
+describe("excluding an entry", () => {
+  // Scores are self-reported, bounded only to a plausible range, and max-wins
+  // makes whatever lands permanent. Taking a bad row down has to actually
+  // keep it down.
+  it("hides the row from every mode's board", async () => {
+    await upsertPuzzleRushLeaderboardEntry("u1", "ana", rush(30, 22, 14));
+    await excludePuzzleRushLeaderboardEntry("u1");
+    expect(await getPuzzleRushLeaderboard("threeMin")).toEqual([]);
+    expect(await getPuzzleRushLeaderboard("fiveMin")).toEqual([]);
+    expect(await getPuzzleRushLeaderboard("survivalBest")).toEqual([]);
+  });
+
+  it("survives the player's next sync, which would otherwise republish it", async () => {
+    await upsertPuzzleRushLeaderboardEntry("u1", "ana", rush(30));
+    await excludePuzzleRushLeaderboardEntry("u1");
+
+    // The score still sits in their progress and their browser; deleting the
+    // document alone would let this call put it straight back.
+    const republished = await upsertPuzzleRushLeaderboardEntry(
+      "u1",
+      "ana",
+      rush(30)
+    );
+    expect(republished).toBeNull();
+    expect(await getPuzzleRushLeaderboard("threeMin")).toEqual([]);
+  });
+
+  it("does not disturb anyone else's standing", async () => {
+    await upsertPuzzleRushLeaderboardEntry("u1", "ana", rush(30));
+    await upsertPuzzleRushLeaderboardEntry("u2", "bo", rush(12));
+    await excludePuzzleRushLeaderboardEntry("u1");
+    expect(await getPuzzleRushLeaderboard("threeMin")).toEqual([
+      { handle: "bo", score: 12 },
+    ]);
+    expect(await getPuzzleRushRank("threeMin", 12)).toBe(1);
   });
 });

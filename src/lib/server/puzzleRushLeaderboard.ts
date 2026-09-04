@@ -144,6 +144,13 @@ export async function upsertPuzzleRushLeaderboardEntry(
   return withFirestoreTimeout(
     db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
+
+      // An excluded row stays gone. Deleting it would not be enough: the
+      // score still sits in the player's own progress and in their browser,
+      // so the next sync would simply publish it again and max-wins would
+      // take it back. The exclusion has to live where the write happens.
+      if (snap.exists && snap.data()?.excluded === true) return null;
+
       const merged = maxWins(
         snap.exists ? (snap.data() as Record<string, unknown>) : undefined,
         rush
@@ -249,4 +256,37 @@ export async function getPuzzleRushRanks(
     )
   );
   return Object.fromEntries(ranked) as Record<RushMode, number | null>;
+}
+
+/**
+ * Takes an entry off the board for good — a forged score, or one published in
+ * error.
+ *
+ * Zeroes the scores AND marks the row excluded, because those do different
+ * jobs: the zeroes hide it from the board (every read filters to score > 0),
+ * and the flag stops it coming back. Deleting the document would do neither —
+ * the player's own progress still holds the score, so their next sync would
+ * republish it.
+ *
+ * Reversing this means clearing `excluded` by hand, which is deliberate: it
+ * should take a decision, not a stray click.
+ */
+export async function excludePuzzleRushLeaderboardEntry(
+  uid: string
+): Promise<void> {
+  const db = await getAdminFirestore();
+  const zeroed = Object.fromEntries(
+    RUSH_LEADERBOARD_MODES.map((mode) => [mode, 0])
+  );
+  await withFirestoreTimeout(
+    db
+      .collection(COLLECTION)
+      .doc(uid)
+      .set(
+        { ...zeroed, excluded: true, updatedAt: FieldValue.serverTimestamp() },
+        { merge: true }
+      ),
+    `puzzleRushLeaderboard.exclude(${uid})`,
+    WRITE_TIMEOUT_MS
+  );
 }

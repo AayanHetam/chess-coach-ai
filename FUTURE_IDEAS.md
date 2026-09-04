@@ -204,7 +204,7 @@ Less about product capability, more about distribution and stickiness.
 
 - **Reddit board-screenshot bot** (ChessVision.ai's u/chessvision-ai-bot) — **best-validated organic acquisition pattern in chess SaaS**. Auto-reply to board screenshots on r/chess with a brief AI explanation + link. Won "Best Chess Startup 2020" largely from this flywheel. **M**
 - **Daily Puzzle + streak gamification** (Chess.com, Lichess) — engagement engine. **S**
-- ~~**Leaderboards (puzzle, ...)**~~ **training, rated)** (Chess.com, Lichess, Chess Tempo) — social proof + retention. **S–M**. Puzzle Rush leaderboard ✅ shipped 2026-09-01 (PR #466): `puzzleRushLeaderboard` Firestore collection, top-50 per mode on the Rush setup screen. Training/rated leaderboards still open.
+- ~~**Leaderboards (puzzle, ...)**~~ **training, rated)** (Chess.com, Lichess, Chess Tempo) — social proof + retention. **S–M**. Puzzle Rush leaderboard ✅ shipped 2026-09-01 (PR #466): `puzzleRushLeaderboard` Firestore collection, top-50 per mode on the Rush setup screen. **Caveat: scores are self-reported** — the client holds each puzzle's solution so it can give instant feedback, so the board is bounded by plausibility limits and an admin takedown, not verified. A server-authoritative rebuild is designed in [docs/PUZZLE_RUSH_LEADERBOARD.md](docs/PUZZLE_RUSH_LEADERBOARD.md); worth building if the board gets real traction. Training/rated leaderboards still open.
 - **Bot personalities (Mittens-style)** (Chess.com) — viral acquisition channel; we could ship LLM-driven persona coaches with distinct voices. **M**
 - **Live H2H Puzzle Battle (synchronous)** (Chess.com) — engagement loop. **L** (real-time infra)
 - **Multiplayer Puzzle Racer with private friend rooms** (Lichess) — same. **L**

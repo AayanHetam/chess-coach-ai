@@ -31,7 +31,11 @@ import {
 } from "@/lib/puzzleRating";
 import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
-import { RushLeaderboard } from "./RushLeaderboard";
+import {
+  RushLeaderboard,
+  type LeaderboardSeed,
+  type LeaderboardStanding,
+} from "./RushLeaderboard";
 import { useAuth } from "@/contexts/AuthContext";
 
 type RushMode = "three" | "five" | "survival";
@@ -63,9 +67,28 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
   const setRushScores = useSetAtom(puzzleRushScoresAtom);
   const { user } = useAuth();
 
+  const [mode, setMode] = useState<RushMode>("three");
+  const [boardSeed, setBoardSeed] = useState<LeaderboardSeed | null>(null);
+  // Kept across mode switches on purpose — see LeaderboardStanding.
+  const [standing, setStanding] = useState<LeaderboardStanding | null>(null);
+  // Read inside the sync effect without being one of its dependencies:
+  // switching modes should re-READ the board, which RushLeaderboard does for
+  // itself, not re-WRITE the player's scores.
+  const modeRef = useRef<RushMode>(mode);
+  modeRef.current = mode;
+
+  // A seed is a snapshot taken at the moment of a write. Dropping it when the
+  // player changes mode keeps it from being re-shown later as if it were
+  // current — every mode switch then reads the board live.
+  useEffect(() => {
+    setBoardSeed(null);
+    // A failure to load one mode's puzzles says nothing about the next.
+    setStartError(null);
+  }, [mode]);
+
   // Opportunistic leaderboard sync: PUT /api/progress's own upsert only
   // fires when useProgressSync actually pushes, which happens at most once
-  // per app-session (hydratedFor guard, _app.tsx-level mount) — a user
+  // per app-session (ProgressSyncGate, _app.tsx-level mount) — a user
   // signed in since before the leaderboard shipped, whose score hasn't
   // changed THIS session, may never push again and so never appear. Firing
   // here too, on every Rush view, converges regardless of that timing.
@@ -76,16 +99,43 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
     if (rushScores.threeMin === 0 && rushScores.fiveMin === 0 && rushScores.survivalBest === 0) {
       return;
     }
+    const field =
+      modeRef.current === "three"
+        ? "threeMin"
+        : modeRef.current === "five"
+          ? "fiveMin"
+          : "survivalBest";
+    let cancelled = false;
     void fetch("/api/leaderboards/puzzle-rush/sync", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rush: rushScores }),
-    }).catch(() => {});
+      body: JSON.stringify({ rush: rushScores, mode: field }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then(
+        (data: LeaderboardSeed & LeaderboardStanding) => {
+          if (cancelled) return;
+          // The board as it stands AFTER this write — the only read
+          // guaranteed to show a just-set personal best, since the public GET
+          // is served from a per-instance cache that may predate it.
+          if (Array.isArray(data?.entries)) {
+            setBoardSeed({ mode: data.mode, entries: data.entries });
+          }
+          setStanding({
+            ranks: data?.ranks ?? null,
+            scores: data?.scores ?? null,
+            handle: data?.handle ?? null,
+          });
+        }
+      )
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [user, rushScores]);
 
   // Setup state
-  const [mode, setMode] = useState<RushMode>("three");
   const [difficulty, setDifficulty] = useState<DifficultyBand | "all">("all");
   const [phase, setPhase] = useState<"setup" | "playing" | "finished">("setup");
 
@@ -101,6 +151,8 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
   const [lives, setLives] = useState(3);
   const [timeLeft, setTimeLeft] = useState(180);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
   const puzzleStartTimeRef = useRef<number>(Date.now());
 
@@ -256,8 +308,20 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
 
   // Start the rush
   const handleStart = useCallback(async () => {
+    setStartError(null);
+    setStarting(true);
     const fetched = await fetchPuzzles();
-    if (fetched.length === 0) return;
+    setStarting(false);
+    if (fetched.length === 0) {
+      // Returning silently here left two dead ends: on setup the Start button
+      // looked broken, and from the finish dialog's Play Again the dialog had
+      // already closed, stranding the player on an empty board in the
+      // "finished" phase with nothing to click. Say so, and stay somewhere
+      // they can act.
+      setStartError("Couldn't load puzzles just now. Check your connection and try again.");
+      setPhase("setup");
+      return;
+    }
     setPuzzles(fetched);
     setPuzzleIndex(0);
     setScore(0);
@@ -472,6 +536,7 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
             variant="contained"
             size="large"
             onClick={handleStart}
+            disabled={starting}
             startIcon={<BoltIcon />}
             sx={{
               px: 4,
@@ -484,11 +549,20 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               "&:hover": { bgcolor: "#FB923C" },
             }}
           >
-            Start Rush
+            {starting ? "Loading\u2026" : "Start Rush"}
           </Button>
         </Box>
+        {startError && (
+          <Typography
+            role="alert"
+            variant="body2"
+            sx={{ mt: 2, color: "#FCA5A5", textAlign: "center" }}
+          >
+            {startError}
+          </Typography>
+        )}
       </Paper>
-      <RushLeaderboard mode={mode} />
+      <RushLeaderboard mode={mode} seed={boardSeed} standing={standing} />
       </>
     );
   }

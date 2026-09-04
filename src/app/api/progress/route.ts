@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
-import { getUserById, updateUser } from "@/lib/server/users";
+import {
+  getUserById,
+  updateUserProgressMonotone,
+} from "@/lib/server/users";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
 import { upsertPuzzleRushLeaderboardEntry } from "@/lib/server/puzzleRushLeaderboard";
 import { logger } from "@/lib/logging";
@@ -140,26 +143,35 @@ export async function PUT(request: Request) {
   }
 
   try {
-    // Last write wins at this layer on purpose: the client has already merged
-    // the server copy into its own state before pushing, so what arrives here
-    // is a superset of what's stored. Merging again server-side would need a
-    // transaction for no added safety.
-    await updateUser(guard.session.uid, {
-      progress: parsed.data,
-    } as Parameters<typeof updateUser>[1]);
+    // Last write wins for most of the blob, on the reasoning that the client
+    // merged the server copy into its own state before pushing. That is true
+    // of one tab; two tabs each push a superset of a DIFFERENT starting point,
+    // and for a best score the loser of that race is a personal best going
+    // backwards. So the monotone fields are merged here as well — see
+    // updateUserProgressMonotone.
+    const storedProgress = await updateUserProgressMonotone(
+      guard.session.uid,
+      parsed.data as unknown as Record<string, unknown>
+    );
 
     // Best-effort: the global leaderboard is a derived view, not the source
     // of truth, so a failure here must never fail the real progress save.
     // No handle (rare — pre-handle-system migrated accounts) means no entry:
     // that's the opt-in, not an error.
-    if (parsed.data.rush) {
+    // Publish what was actually STORED, not what was claimed: if this push was
+    // a stale tab's, the merge above already restored the higher value and the
+    // board should show that rather than re-litigating it.
+    const storedRush = storedProgress.rush as
+      | { threeMin: number; fiveMin: number; survivalBest: number }
+      | undefined;
+    if (storedRush) {
       try {
         const user = await getUserById(guard.session.uid);
         if (user?.handle) {
           await upsertPuzzleRushLeaderboardEntry(
             guard.session.uid,
             user.handle,
-            parsed.data.rush,
+            storedRush
           );
         }
       } catch (err) {

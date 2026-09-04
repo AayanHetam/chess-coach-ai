@@ -27,16 +27,48 @@ export interface LeaderboardEntry {
  * setting a personal best can be answered by an instance that never saw the
  * write and show the player their OLD score. The seed cannot be stale that way
  * — it was read from Firestore in the same request that did the write.
+ *
+ * It covers ONE mode, and is dropped the moment the player switches, because
+ * from then on the live GET is the fresher of the two.
  */
 export interface LeaderboardSeed {
   mode: RushField;
   entries: LeaderboardEntry[];
-  rank: number | null;
-  score: number;
+}
+
+/**
+ * Where the reader stands, in EVERY mode. Deliberately outlives the seed: the
+ * board is per-mode but a player comparing modes should not watch their own
+ * rank disappear on the way. Null until a sync has reported one — signed-out
+ * readers never have one.
+ */
+export interface LeaderboardStanding {
+  ranks: Record<RushField, number | null> | null;
+  scores: Record<RushField, number> | null;
   handle: string | null;
 }
 
 const MEDAL_COLOR = ["#FFD700", "#C0C0C0", "#CD7F32"];
+
+/**
+ * Whether the reader needs a row of their own beneath the board.
+ *
+ * Asks whether they are actually ON the visible board, rather than comparing
+ * their rank to its length. Those differ once scores tie: ranks are shared —
+ * three players on 20 are all 9th — while display positions are not, so the
+ * third of them shows up 11th on a board of ten. Comparing 9 against 10 said
+ * "they can see themselves" about a player who had just dropped off the
+ * bottom, and they vanished from their own leaderboard.
+ */
+export function shouldShowOwnRank(
+  visible: LeaderboardEntry[],
+  youHandle: string | null,
+  youRank: number | null
+): boolean {
+  if (youRank === null) return false;
+  if (youHandle === null) return true;
+  return !visible.some((entry) => entry.handle === youHandle);
+}
 
 /**
  * Top-10 global Puzzle Rush leaderboard for the currently-selected mode,
@@ -46,9 +78,11 @@ const MEDAL_COLOR = ["#FFD700", "#C0C0C0", "#CD7F32"];
 export function RushLeaderboard({
   mode,
   seed = null,
+  standing = null,
 }: {
   mode: RushMode;
   seed?: LeaderboardSeed | null;
+  standing?: LeaderboardStanding | null;
 }) {
   const field = MODE_TO_FIELD[mode];
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
@@ -86,10 +120,10 @@ export function RushLeaderboard({
   }, [field, seedForMode]);
 
   const visible = entries?.slice(0, VISIBLE_ROWS) ?? [];
-  const youRank = seedForMode?.rank ?? null;
-  // Only worth a row of its own once the player has dropped off the visible
-  // board — inside it, their highlighted row already says where they are.
-  const showYourRank = youRank !== null && youRank > visible.length;
+  const youHandle = standing?.handle ?? null;
+  const youRank = standing?.ranks?.[field] ?? null;
+  const youScore = standing?.scores?.[field] ?? 0;
+  const showYourRank = shouldShowOwnRank(visible, youHandle, youRank);
 
   return (
     <Paper
@@ -144,9 +178,7 @@ export function RushLeaderboard({
       {entries !== null && entries.length > 0 && (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
           {visible.map((entry, i) => {
-            const isYou =
-              seedForMode?.handle != null &&
-              entry.handle === seedForMode.handle;
+            const isYou = youHandle != null && entry.handle === youHandle;
             return (
               <Box
                 key={`${entry.handle}-${i}`}
@@ -253,7 +285,7 @@ export function RushLeaderboard({
                   whiteSpace: "nowrap",
                 }}
               >
-                {seedForMode?.handle ?? "You"}
+                {youHandle ?? "You"}
                 <Box
                   component="span"
                   sx={{ color: "#F97316", fontWeight: 700, ml: 0.75 }}
@@ -269,7 +301,7 @@ export function RushLeaderboard({
                   color: "success.light",
                 }}
               >
-                {seedForMode?.score ?? 0}
+                {youScore}
               </Typography>
             </Box>
           )}

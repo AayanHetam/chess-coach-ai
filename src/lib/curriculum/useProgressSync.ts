@@ -51,15 +51,21 @@ export function useProgressSync(): void {
   const latest = useRef({ streak, stats, srs, daily, rush, coordinate });
   latest.current = { streak, stats, srs, daily, rush, coordinate };
 
+  // Keyed on the uid, never the user OBJECT. AuthContext sets `user` twice on
+  // a normal load — once from the cached copy, once from /api/auth/me — so a
+  // dependency on the object re-runs both effects for the same person: a
+  // second, pointless hydrate GET, and a re-armed push debounce.
+  const uid = user?.uid ?? null;
+
   // ── Hydrate: merge the server copy into local, once per signed-in user ──
   useEffect(() => {
-    if (!user) {
+    if (!uid) {
       // Signing out clears the guard so the next sign-in re-hydrates. Local
       // state is intentionally left alone — it's still this device's progress.
       gate.current.reset();
       return;
     }
-    if (!gate.current.claimHydrate(user.uid)) return;
+    if (!gate.current.claimHydrate(uid)) return;
 
     let cancelled = false;
     void (async () => {
@@ -96,7 +102,7 @@ export function useProgressSync(): void {
         // this session, so pushes have to be unblocked either way. What must
         // never happen is marking it done BEFORE the response settles, which
         // is what the pre-hydration push below would then be free to send.
-        if (!cancelled) gate.current.completeHydrate(user.uid);
+        if (!cancelled) gate.current.completeHydrate(uid);
       }
     })();
 
@@ -104,9 +110,9 @@ export function useProgressSync(): void {
       cancelled = true;
       // Release the claim synchronously, so a remount can hydrate again
       // rather than being refused as a duplicate and never pushing.
-      gate.current.abandonHydrate(user.uid);
+      gate.current.abandonHydrate(uid);
     };
-  }, [user, setStreak, setStats, setSrs, setDaily, setRush, setCoordinate]);
+  }, [uid, setStreak, setStats, setSrs, setDaily, setRush, setCoordinate]);
 
   // ── Push: debounced snapshot on change ──
   useEffect(() => {
@@ -117,7 +123,7 @@ export function useProgressSync(): void {
     // push), so the loss is silent and, for the derived leaderboard, was
     // unrecoverable. The hydrate GET routinely outlives the 2.5s debounce on
     // a cold serverless start, so this window was reached in practice.
-    if (!user || !gate.current.canPush(user.uid)) return;
+    if (!uid || !gate.current.canPush(uid)) return;
     if (pushTimer.current) clearTimeout(pushTimer.current);
     pushTimer.current = setTimeout(() => {
       const body: StoredProgress = {
@@ -143,5 +149,5 @@ export function useProgressSync(): void {
     return () => {
       if (pushTimer.current) clearTimeout(pushTimer.current);
     };
-  }, [user, streak, stats, srs, daily, rush, coordinate]);
+  }, [uid, streak, stats, srs, daily, rush, coordinate]);
 }

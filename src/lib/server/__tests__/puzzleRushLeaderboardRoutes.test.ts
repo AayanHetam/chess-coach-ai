@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const requireSession = vi.fn();
 const getUserById = vi.fn();
 const getPuzzleRushLeaderboard = vi.fn();
-const getPuzzleRushRank = vi.fn();
+const getPuzzleRushRanks = vi.fn();
 const upsertPuzzleRushLeaderboardEntry = vi.fn();
 
 class AdminConfigError extends Error {}
@@ -27,7 +27,7 @@ vi.mock("@/lib/logging", () => ({
 vi.mock("@/lib/server/puzzleRushLeaderboard", () => ({
   RUSH_LEADERBOARD_MODES: ["threeMin", "fiveMin", "survivalBest"],
   getPuzzleRushLeaderboard: (...a: unknown[]) => getPuzzleRushLeaderboard(...a),
-  getPuzzleRushRank: (...a: unknown[]) => getPuzzleRushRank(...a),
+  getPuzzleRushRanks: (...a: unknown[]) => getPuzzleRushRanks(...a),
   upsertPuzzleRushLeaderboardEntry: (...a: unknown[]) =>
     upsertPuzzleRushLeaderboardEntry(...a),
 }));
@@ -40,7 +40,11 @@ beforeEach(() => {
   // rate-limit counters don't leak between cases.
   vi.resetModules();
   getPuzzleRushLeaderboard.mockResolvedValue(board);
-  getPuzzleRushRank.mockResolvedValue(7);
+  getPuzzleRushRanks.mockResolvedValue({
+    threeMin: 7,
+    fiveMin: 3,
+    survivalBest: null,
+  });
   upsertPuzzleRushLeaderboardEntry.mockResolvedValue({
     threeMin: 30,
     fiveMin: 0,
@@ -149,20 +153,37 @@ describe("POST /api/leaderboards/puzzle-rush/sync", () => {
       synced: true,
       mode: "threeMin",
       entries: board,
-      rank: 7,
-      score: 30,
       handle: "ana",
     });
   });
 
-  it("ranks the player on the mode they are looking at", async () => {
-    upsertPuzzleRushLeaderboardEntry.mockResolvedValue({
+  it("reports a standing for EVERY mode, so a mode switch keeps it", async () => {
+    // Ranking only the viewed mode made the player's own position vanish the
+    // moment they looked at another board.
+    const { body } = await post({ rush: rush(), mode: "threeMin" });
+    expect(getPuzzleRushRanks).toHaveBeenCalledWith({
       threeMin: 30,
-      fiveMin: 12,
+      fiveMin: 0,
       survivalBest: 0,
     });
-    await post({ rush: rush(30, 12), mode: "fiveMin" });
-    expect(getPuzzleRushRank).toHaveBeenCalledWith("fiveMin", 12);
+    expect(body.ranks).toEqual({ threeMin: 7, fiveMin: 3, survivalBest: null });
+    expect(body.scores).toEqual({ threeMin: 30, fiveMin: 0, survivalBest: 0 });
+  });
+
+  it("ranks against what was PUBLISHED, not what was claimed", async () => {
+    // The writer drops implausible claims, so the standing has to come from
+    // its answer or a rejected score would still be ranked.
+    upsertPuzzleRushLeaderboardEntry.mockResolvedValue({
+      threeMin: 0,
+      fiveMin: 24,
+      survivalBest: 0,
+    });
+    await post({ rush: rush(99999, 24, 0), mode: "fiveMin" });
+    expect(getPuzzleRushRanks).toHaveBeenCalledWith({
+      threeMin: 0,
+      fiveMin: 24,
+      survivalBest: 0,
+    });
   });
 
   it("reports synced:false, with the board, when nothing was worth publishing", async () => {
@@ -172,16 +193,57 @@ describe("POST /api/leaderboards/puzzle-rush/sync", () => {
       ok: true,
       synced: false,
       entries: board,
-      rank: null,
+      ranks: null,
     });
-    expect(getPuzzleRushRank).not.toHaveBeenCalled();
+    expect(getPuzzleRushRanks).not.toHaveBeenCalled();
+  });
+
+  it("throttles one account before it can grind the read budget", async () => {
+    // Each call costs a transaction, a board query and three aggregations.
+    const { POST } = await import(
+      "@/app/api/leaderboards/puzzle-rush/sync/route"
+    );
+    const call = () =>
+      POST(
+        new Request("http://t/s", {
+          method: "POST",
+          body: JSON.stringify({ rush: rush() }),
+        })
+      );
+    let limited = 0;
+    for (let i = 0; i < 40; i++) {
+      if ((await call()).status === 429) limited++;
+    }
+    expect(limited).toBeGreaterThan(0);
+  });
+
+  it("throttles per account, not globally", async () => {
+    const { POST } = await import(
+      "@/app/api/leaderboards/puzzle-rush/sync/route"
+    );
+    const call = () =>
+      POST(
+        new Request("http://t/s", {
+          method: "POST",
+          body: JSON.stringify({ rush: rush() }),
+        })
+      );
+    for (let i = 0; i < 40; i++) await call();
+    // A different signed-in account must not inherit the first one's ceiling.
+    requireSession.mockResolvedValue({ session: { uid: "u2" } });
+    expect((await call()).status).toBe(200);
   });
 
   it("still shows the board to someone with no public handle", async () => {
     getUserById.mockResolvedValue({ handle: undefined });
     const { res, body } = await post({ rush: rush() });
     expect(res.status).toBe(200);
-    expect(body).toMatchObject({ synced: false, entries: board });
+    expect(body).toMatchObject({
+      synced: false,
+      entries: board,
+      ranks: null,
+      handle: null,
+    });
     expect(upsertPuzzleRushLeaderboardEntry).not.toHaveBeenCalled();
   });
 

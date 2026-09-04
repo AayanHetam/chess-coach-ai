@@ -649,3 +649,70 @@ export class UserError extends Error {
 }
 
 export { toSafe };
+
+/**
+ * Writes `users/{uid}.progress`, keeping the strictly monotone fields monotone.
+ *
+ * PUT /api/progress is otherwise last-write-wins, on the stated reasoning that
+ * the client merges the server copy before pushing so what arrives is a
+ * superset. That holds for ONE tab. It does not hold for two: each hydrates at
+ * a different moment, so each pushes a superset of a DIFFERENT starting point,
+ * and the one that pushes last wins with whatever it happened to know. For a
+ * counter that only grows — a best score — losing that race means a personal
+ * best visibly going DOWN, which is data loss, not a stale read.
+ *
+ * Only `rush` and `coordinate` are treated this way, because they are the only
+ * fields whose meaning is "the highest ever reached". Everything else keeps
+ * last-write-wins, where the client's merge really is enough.
+ *
+ * @returns the progress as actually stored, so callers publishing anything
+ *          derived from it (the Rush leaderboard) use the merged values.
+ */
+export async function updateUserProgressMonotone(
+  uid: string,
+  progress: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const db = await getAdminFirestore();
+  const ref = db.collection(COLLECTION).doc(uid);
+
+  return withFirestoreTimeout(
+    db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const stored = (snap.data()?.progress ?? {}) as Record<string, unknown>;
+      const merged: Record<string, unknown> = { ...progress };
+
+      for (const field of ["rush", "coordinate"] as const) {
+        const incoming = progress[field] as Record<string, number> | undefined;
+        const existing = stored[field] as Record<string, number> | undefined;
+        if (!incoming || typeof incoming !== "object") continue;
+        if (!existing || typeof existing !== "object") continue;
+        const kept: Record<string, number> = { ...incoming };
+        for (const [key, was] of Object.entries(existing)) {
+          const now = kept[key];
+          if (typeof was !== "number" || !Number.isFinite(was)) continue;
+          kept[key] =
+            typeof now === "number" && Number.isFinite(now)
+              ? Math.max(now, was)
+              : was;
+        }
+        merged[field] = kept;
+      }
+
+      // `update`, NOT `set({merge:true})`. A merging set descends into nested
+      // maps, so `srs` and `daily` entries the client had deliberately PRUNED
+      // would be resurrected from the stored copy and the retention caps in
+      // the route's schema would never take effect — the document would only
+      // ever grow, toward Firestore's 1 MiB ceiling. `update` replaces the
+      // field wholesale, which is what the old code did and what the client
+      // means. It also refuses to create a document, so a push for an account
+      // that no longer exists fails instead of resurrecting a ghost.
+      tx.update(ref, {
+        progress: merged,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return merged;
+    }),
+    `users.updateUserProgressMonotone(${uid})`,
+    5_000
+  );
+}

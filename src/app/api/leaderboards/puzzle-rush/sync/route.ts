@@ -27,7 +27,7 @@ import { requireSession } from "@/lib/auth/session";
 import { getUserById } from "@/lib/server/users";
 import {
   getPuzzleRushLeaderboard,
-  getPuzzleRushRank,
+  getPuzzleRushRanks,
   upsertPuzzleRushLeaderboardEntry,
   RUSH_LEADERBOARD_MODES,
   type RushMode,
@@ -38,6 +38,35 @@ import { logger } from "@/lib/logging";
 export const runtime = "nodejs";
 
 const log = logger.child({ module: "leaderboards/puzzle-rush/sync" });
+
+// Per-account, because this endpoint is authenticated and now costs real
+// reads: a transaction, the board query, and three count aggregations. The
+// Rush screen fires it once per view and once per new personal best, so a
+// player replaying flat out stays an order of magnitude under this. Shared
+// with nobody — the ceiling is per uid, not per IP, so one school network
+// cannot exhaust it for everybody on it.
+const RATE_LIMIT = { windowMs: 60_000, max: 20 };
+const hits = new Map<string, number[]>();
+
+function rateLimited(uid: string): boolean {
+  const now = Date.now();
+  const recent = (hits.get(uid) ?? []).filter(
+    (t) => now - t < RATE_LIMIT.windowMs
+  );
+  if (recent.length >= RATE_LIMIT.max) {
+    hits.set(uid, recent);
+    return true;
+  }
+  recent.push(now);
+  hits.set(uid, recent);
+  if (hits.size > 5000) {
+    for (const k of Array.from(hits.keys())) {
+      const v = hits.get(k) ?? [];
+      if (v.every((t: number) => now - t > RATE_LIMIT.windowMs)) hits.delete(k);
+    }
+  }
+  return false;
+}
 
 const scoreSchema = z.number().int().min(0).max(100000);
 
@@ -53,6 +82,13 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   const guard = await requireSession();
   if ("response" in guard) return guard.response;
+
+  if (rateLimited(guard.session.uid)) {
+    return NextResponse.json(
+      { error: "Too many requests. Try again in a minute." },
+      { status: 429 }
+    );
+  }
 
   let body: unknown;
   try {
@@ -77,12 +113,16 @@ export async function POST(request: Request) {
       // No public handle — same opt-in-by-write rule as the progress path.
       // Still answer with the board: someone without a handle can read it.
       const entries = await getPuzzleRushLeaderboard(mode);
+      // Same shape as the published path, so the client has one contract to
+      // read rather than two — there is simply no standing to report.
       return NextResponse.json({
         ok: true,
         synced: false,
         mode,
         entries,
-        rank: null,
+        ranks: null,
+        scores: null,
+        handle: null,
       });
     }
 
@@ -94,22 +134,25 @@ export async function POST(request: Request) {
       parsed.data.rush
     );
 
-    const [entries, rank] = await Promise.all([
+    const [entries, ranks] = await Promise.all([
       getPuzzleRushLeaderboard(mode),
       published
-        ? getPuzzleRushRank(mode, published[mode])
+        ? getPuzzleRushRanks(published)
         : Promise.resolve(null),
     ]);
 
     return NextResponse.json({
       ok: true,
       synced: published !== null,
+      // The board itself, for the mode being viewed.
       mode,
       entries,
       // The player's own standing, so the board means something to the ~99%
-      // of players who are not in the rendered top slice.
-      rank,
-      score: published ? published[mode] : 0,
+      // of players who are not in the rendered top slice. Carried for EVERY
+      // mode, not just the one viewed, so it survives a mode switch — the
+      // board is re-read on a switch but no second write is made.
+      ranks,
+      scores: published,
       // So the board can mark which row is the reader's own. Already public —
       // it is the same handle rendered in every other row.
       handle: user.handle,

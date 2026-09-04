@@ -41,7 +41,37 @@ export interface LeaderboardEntry {
   score: number;
 }
 
-/** Per-mode maximum of what is already published and what just arrived. */
+/**
+ * Absurdity bounds, not skill limits. The score is whatever the client says it
+ * is — there is no server-side replay of the puzzles — so any signed-in
+ * account can POST a number. That is tolerable while the number is one a human
+ * could have produced; it stops being tolerable at 100000, and MAX-WINS MAKES
+ * IT PERMANENT: once published, nothing in the normal flow can lower it again.
+ * These bounds are what keeps an unremovable joke entry off the board.
+ *
+ * Set well above any real result (Chess.com's 3-minute records sit around 70),
+ * so no honest player is ever refused. Survival is far looser because it has
+ * no clock at all — only three lives — so a patient player really can grind a
+ * long way.
+ *
+ * They do NOT stop someone claiming a plausible score they did not earn. That
+ * needs server-side verification of the solved puzzles, which does not exist
+ * here; do not read this as anti-cheat.
+ */
+const MAX_PLAUSIBLE: Record<RushMode, number> = {
+  threeMin: 200,
+  fiveMin: 350,
+  survivalBest: 1000,
+};
+
+/**
+ * Per-mode maximum of what is already published and what just arrived.
+ *
+ * An implausible incoming value is dropped for THAT MODE ONLY rather than
+ * failing the whole payload: the same request carries the player's other two
+ * scores, and one bad field should not cost them a real result. A dropped mode
+ * keeps whatever was already published.
+ */
 function maxWins(
   existing: Partial<Record<RushMode, unknown>> | undefined,
   incoming: PuzzleRushScores
@@ -49,9 +79,14 @@ function maxWins(
   const merged = {} as Record<RushMode, number>;
   for (const mode of RUSH_LEADERBOARD_MODES) {
     const prev = existing?.[mode];
+    const claimed = incoming[mode];
+    const candidate =
+      Number.isInteger(claimed) && claimed >= 0 && claimed <= MAX_PLAUSIBLE[mode]
+        ? claimed
+        : 0;
     merged[mode] = Math.max(
       typeof prev === "number" && Number.isFinite(prev) ? prev : 0,
-      incoming[mode]
+      candidate
     );
   }
   return merged;
@@ -94,6 +129,11 @@ export async function upsertPuzzleRushLeaderboardEntry(
   // is the difference between a Firestore read per push and none.
   if (RUSH_LEADERBOARD_MODES.every((mode) => rush[mode] === 0)) return null;
 
+  // A row with no name is a row nobody can read. Callers already skip accounts
+  // with no handle at all; this catches the blank-ish ones they cannot see.
+  const displayHandle = handle.trim();
+  if (!displayHandle) return null;
+
   const db = await getAdminFirestore();
   const ref = db.collection(COLLECTION).doc(uid);
 
@@ -109,9 +149,21 @@ export async function upsertPuzzleRushLeaderboardEntry(
         rush
       );
 
+      // Reachable whenever every claimed score was dropped as implausible: the
+      // early return above only knows the claim was non-zero, not that any of
+      // it survived. Without this, a doc of pure zeros would be created for
+      // exactly the accounts that deserve it least.
+      if (RUSH_LEADERBOARD_MODES.every((mode) => merged[mode] === 0)) {
+        return null;
+      }
+
       tx.set(
         ref,
-        { handle, ...merged, updatedAt: FieldValue.serverTimestamp() },
+        {
+          handle: displayHandle,
+          ...merged,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
         { merge: true }
       );
       return merged;
@@ -146,12 +198,9 @@ export async function getPuzzleRushLeaderboard(
   for (const doc of snap.docs) {
     const data = doc.data();
     const score = data[mode];
-    if (
-      typeof data.handle === "string" &&
-      typeof score === "number" &&
-      score > 0
-    ) {
-      entries.push({ handle: data.handle, score });
+    const handle = typeof data.handle === "string" ? data.handle.trim() : "";
+    if (handle && typeof score === "number" && score > 0) {
+      entries.push({ handle, score });
     }
   }
   return entries;
@@ -180,4 +229,24 @@ export async function getPuzzleRushRank(
     READ_TIMEOUT_MS
   );
   return agg.data().count + 1;
+}
+
+/**
+ * Every mode's rank at once, for the scores given.
+ *
+ * The board is read per mode but a player's STANDING is not: they switch modes
+ * to compare, and a rank that only exists for whichever mode happened to be
+ * selected during the last write disappears the moment they look at another
+ * one. Three count aggregations cost a handful of reads, so there is no reason
+ * to make the caller choose.
+ */
+export async function getPuzzleRushRanks(
+  scores: PuzzleRushScores
+): Promise<Record<RushMode, number | null>> {
+  const ranked = await Promise.all(
+    RUSH_LEADERBOARD_MODES.map((mode) =>
+      getPuzzleRushRank(mode, scores[mode]).then((rank) => [mode, rank] as const)
+    )
+  );
+  return Object.fromEntries(ranked) as Record<RushMode, number | null>;
 }

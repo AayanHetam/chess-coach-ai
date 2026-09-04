@@ -23,6 +23,7 @@ vi.mock("../firebaseAdmin", () => ({
 import {
   getPuzzleRushLeaderboard,
   getPuzzleRushRank,
+  getPuzzleRushRanks,
   upsertPuzzleRushLeaderboardEntry,
   type RushMode,
 } from "../puzzleRushLeaderboard";
@@ -249,5 +250,99 @@ describe("index invariant", () => {
     await getPuzzleRushLeaderboard(mode);
     expect(seen).toEqual([{ field: mode, op: ">" }]);
     expect(orders).toEqual([mode]);
+  });
+});
+
+describe("implausible scores", () => {
+  // The score is whatever the client says it is, and max-wins makes a
+  // published value permanent — so an absurd claim would be an unremovable
+  // top entry. These bounds are the only thing standing in front of that.
+  it("refuses a claim no human could have produced", async () => {
+    const published = await upsertPuzzleRushLeaderboardEntry(
+      "cheat",
+      "cheat",
+      rush(99999, 0, 0)
+    );
+    expect(published).toBeNull();
+    expect(store.has("cheat")).toBe(false);
+  });
+
+  it("drops only the implausible mode, keeping the real scores beside it", async () => {
+    const published = await upsertPuzzleRushLeaderboardEntry(
+      "u1",
+      "ana",
+      rush(99999, 24, 0)
+    );
+    expect(published).toEqual({ threeMin: 0, fiveMin: 24, survivalBest: 0 });
+    expect(await getPuzzleRushLeaderboard("threeMin")).toEqual([]);
+    expect(await getPuzzleRushLeaderboard("fiveMin")).toEqual([
+      { handle: "ana", score: 24 },
+    ]);
+  });
+
+  it("cannot be used to lower a score that is already published", async () => {
+    await upsertPuzzleRushLeaderboardEntry("u1", "ana", rush(30));
+    await upsertPuzzleRushLeaderboardEntry("u1", "ana", rush(99999));
+    expect(store.get("u1")).toMatchObject({ threeMin: 30 });
+  });
+
+  it("still accepts a very strong but human result", async () => {
+    const published = await upsertPuzzleRushLeaderboardEntry(
+      "u1",
+      "ana",
+      rush(120, 0, 0)
+    );
+    expect(published).toMatchObject({ threeMin: 120 });
+  });
+
+  it("rejects a non-integer claim", async () => {
+    const published = await upsertPuzzleRushLeaderboardEntry("u1", "ana", {
+      threeMin: 12.5,
+      fiveMin: 0,
+      survivalBest: 0,
+    });
+    expect(published).toBeNull();
+  });
+});
+
+describe("blank handles", () => {
+  it("never publishes a row nobody can read", async () => {
+    expect(
+      await upsertPuzzleRushLeaderboardEntry("u1", "   ", rush(30))
+    ).toBeNull();
+    expect(store.has("u1")).toBe(false);
+  });
+
+  it("stores the handle trimmed", async () => {
+    await upsertPuzzleRushLeaderboardEntry("u1", "  ana  ", rush(30));
+    expect(store.get("u1")).toMatchObject({ handle: "ana" });
+  });
+
+  it("skips a blank stored handle when reading", async () => {
+    store.set("a", { handle: "   ", threeMin: 30 });
+    store.set("b", { handle: "bo", threeMin: 12 });
+    expect(await getPuzzleRushLeaderboard("threeMin")).toEqual([
+      { handle: "bo", score: 12 },
+    ]);
+  });
+});
+
+describe("getPuzzleRushRanks", () => {
+  it("reports a standing for every mode, so switching modes keeps it", async () => {
+    store.set("a", {
+      handle: "ana",
+      threeMin: 30,
+      fiveMin: 40,
+      survivalBest: 9,
+    });
+    store.set("b", {
+      handle: "bo",
+      threeMin: 12,
+      fiveMin: 80,
+      survivalBest: 3,
+    });
+    expect(
+      await getPuzzleRushRanks({ threeMin: 12, fiveMin: 40, survivalBest: 0 })
+    ).toEqual({ threeMin: 2, fiveMin: 2, survivalBest: null });
   });
 });

@@ -70,9 +70,19 @@ concurrency:
 jobs:
   typecheck-and-test:
     runs-on: ubuntu-latest
-    # Healthy run is under 2 minutes. 10 gives headroom without reintroducing
-    # the multi-hour wedge risk the old 25-minute ceiling was sized for.
-    timeout-minutes: 10
+    # Sized against measurement, 2026-09-04. "Under 2 minutes" was true when
+    # this ceiling was set and is long stale: the suite is 4400+ tests over 357
+    # files and costs ~780s of CPU, which on a 2-core runner lands the job at
+    # 8-10 minutes. It spent 5m20s through 2026-09-02, hit 8m28s, then was
+    # CANCELLED at exactly 10m on both a PR and on main itself — a green gate
+    # turning silently into no gate at all.
+    #
+    # 20 restores roughly 2x headroom while still bounding the multi-hour wedge
+    # the old 25-minute ceiling was sized for. Raising this is a stopgap, not
+    # the fix: one file, src/lib/courses/__tests__/probes.test.ts, is 382s of
+    # that 780s on its own, and the ten slowest are 86% of it. Speed those up
+    # and this comes back down.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:

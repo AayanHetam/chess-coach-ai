@@ -10,6 +10,8 @@ const requireSession = vi.fn();
 const getUserById = vi.fn();
 const getPuzzleRushLeaderboard = vi.fn();
 const getPuzzleRushRanks = vi.fn();
+const countPuzzleRushEntries = vi.fn();
+const countPuzzleRushEntriesAll = vi.fn();
 const upsertPuzzleRushLeaderboardEntry = vi.fn();
 
 class AdminConfigError extends Error {}
@@ -27,6 +29,8 @@ vi.mock("@/lib/logging", () => ({
 vi.mock("@/lib/server/puzzleRushLeaderboard", () => ({
   RUSH_LEADERBOARD_MODES: ["threeMin", "fiveMin", "survivalBest"],
   getPuzzleRushLeaderboard: (...a: unknown[]) => getPuzzleRushLeaderboard(...a),
+  countPuzzleRushEntries: (...a: unknown[]) => countPuzzleRushEntries(...a),
+  countPuzzleRushEntriesAll: () => countPuzzleRushEntriesAll(),
   getPuzzleRushRanks: (...a: unknown[]) => getPuzzleRushRanks(...a),
   upsertPuzzleRushLeaderboardEntry: (...a: unknown[]) =>
     upsertPuzzleRushLeaderboardEntry(...a),
@@ -40,6 +44,14 @@ beforeEach(() => {
   // rate-limit counters don't leak between cases.
   vi.resetModules();
   getPuzzleRushLeaderboard.mockResolvedValue(board);
+  // Past the placeholder cutoff by default, so the existing cases assert on
+  // real rows alone; the seeding cases lower it explicitly.
+  countPuzzleRushEntries.mockResolvedValue(500);
+  countPuzzleRushEntriesAll.mockResolvedValue({
+    threeMin: 500,
+    fiveMin: 500,
+    survivalBest: 500,
+  });
   getPuzzleRushRanks.mockResolvedValue({
     threeMin: 7,
     fiveMin: 3,
@@ -253,5 +265,59 @@ describe("POST /api/leaderboards/puzzle-rush/sync", () => {
     );
     const { res } = await post({ rush: rush() });
     expect(res.status).toBe(503);
+  });
+});
+
+describe("placeholder rows while the board is empty", () => {
+  it("pads a nearly empty board, and says so nowhere in the payload", async () => {
+    countPuzzleRushEntries.mockResolvedValue(1);
+    const { body } = await get("http://t/x?mode=threeMin");
+    expect(body.entries.length).toBeGreaterThan(board.length);
+    expect(body.entries).toContainEqual(board[0]);
+    const scores = body.entries.map((e: { score: number }) => e.score);
+    expect([...scores].sort((a: number, b: number) => b - a)).toEqual(scores);
+  });
+
+  it("stops padding once enough real players have a score", async () => {
+    countPuzzleRushEntries.mockResolvedValue(100);
+    const { body } = await get("http://t/x?mode=threeMin");
+    expect(body.entries).toEqual(board);
+  });
+
+  it("ranks a player against the board they can actually see", async () => {
+    countPuzzleRushEntriesAll.mockResolvedValue({
+      threeMin: 1,
+      fiveMin: 1,
+      survivalBest: 1,
+    });
+    getPuzzleRushRanks.mockResolvedValue({
+      threeMin: 1,
+      fiveMin: null,
+      survivalBest: null,
+    });
+    upsertPuzzleRushLeaderboardEntry.mockResolvedValue({
+      threeMin: 5,
+      fiveMin: 0,
+      survivalBest: 0,
+    });
+    const { body } = await post({ rush: rush(5), mode: "threeMin" });
+    // Alone among real players they are 1st, but placeholders sit above them
+    // on screen — reporting 1st there would be visibly wrong.
+    expect(body.ranks.threeMin).toBeGreaterThan(1);
+  });
+
+  it("reports the real rank once the placeholders are gone", async () => {
+    getPuzzleRushRanks.mockResolvedValue({
+      threeMin: 1,
+      fiveMin: null,
+      survivalBest: null,
+    });
+    upsertPuzzleRushLeaderboardEntry.mockResolvedValue({
+      threeMin: 5,
+      fiveMin: 0,
+      survivalBest: 0,
+    });
+    const { body } = await post({ rush: rush(5), mode: "threeMin" });
+    expect(body.ranks.threeMin).toBe(1);
   });
 });

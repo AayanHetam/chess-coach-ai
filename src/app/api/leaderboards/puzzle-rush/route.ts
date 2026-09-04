@@ -9,10 +9,12 @@
 
 import { NextResponse } from "next/server";
 import {
+  countPuzzleRushEntries,
   getPuzzleRushLeaderboard,
   RUSH_LEADERBOARD_MODES,
   type RushMode,
 } from "@/lib/server/puzzleRushLeaderboard";
+import { withSeedEntries } from "@/lib/server/puzzleRushSeedEntries";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
 import { logger } from "@/lib/logging";
 
@@ -33,6 +35,10 @@ const CACHE_TTL_MS = 20_000;
 // top and strand a viewer on a board minutes older than the one the tab next
 // to it is showing.
 const NO_STORE = { "Cache-Control": "no-store" };
+
+// Rows returned to the client. The UI renders ten; the rest is headroom so a
+// deeper board needs no server change.
+const BOARD_LIMIT = 50;
 
 const hits = new Map<string, number[]>();
 const cache = new Map<RushMode, { at: number; body: unknown }>();
@@ -86,7 +92,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const entries = await getPuzzleRushLeaderboard(mode);
+    const [real, realCount] = await Promise.all([
+      getPuzzleRushLeaderboard(mode),
+      countPuzzleRushEntries(mode),
+    ]);
+    // Placeholders while the board is too empty to be worth reading; they
+    // vanish on their own once enough real scores exist. Never stored.
+    const entries = withSeedEntries(real, mode, realCount, BOARD_LIMIT);
     const body = { mode, entries };
     cache.set(mode, { at: Date.now(), body });
     return NextResponse.json(body, { headers: NO_STORE });

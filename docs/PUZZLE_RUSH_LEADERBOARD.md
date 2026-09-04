@@ -26,6 +26,32 @@ Exclusion zeroes the row *and* flags it. Both matter: the zeroes hide it (every
 read filters to `score > 0`), and the flag stops the next sync republishing it
 from the player's own progress. Deleting the document would do neither.
 
+## Some rows on the board are not players
+
+While a mode has fewer than `SEED_UNTIL_REAL_ENTRIES` (100) real scores, the
+board is padded with placeholder rows from
+[`puzzleRushSeedEntries.ts`](../src/lib/server/puzzleRushSeedEntries.ts). **The
+handles belong to no account and nobody scored those numbers.** They exist
+because a board with two rows on it reads as a dead product.
+
+If you are reading a leaderboard response and wondering whether a name is real:
+check that file. Anything in `SEED_ENTRIES` is not.
+
+They are display-only — merged into the response on the way out, never written
+to Firestore. That is deliberate: stored rows would mix invented data into the
+real collection, become permanent under max-wins, and need cleaning up later.
+Deleting the file removes every trace. They also drop out automatically per
+mode once real scores reach the threshold, so no migration is needed to retire
+them, and a placeholder yields to any real account that registers the same
+handle.
+
+Ranks count them, because the player can see them. Reporting "1st" to somebody
+looking at six names above their own would be visibly wrong.
+
+This is a cold-start measure with a stated end, not a permanent feature. It is
+also the reason the board should not be cited as evidence of usage anywhere —
+it is not a measurement.
+
 ## What a verifiable board would need
 
 Stop giving the client the answers, which means the server adjudicates every

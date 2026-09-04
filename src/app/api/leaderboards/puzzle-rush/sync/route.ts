@@ -26,12 +26,18 @@ import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { getUserById } from "@/lib/server/users";
 import {
+  countPuzzleRushEntries,
+  countPuzzleRushEntriesAll,
   getPuzzleRushLeaderboard,
   getPuzzleRushRanks,
   upsertPuzzleRushLeaderboardEntry,
   RUSH_LEADERBOARD_MODES,
   type RushMode,
 } from "@/lib/server/puzzleRushLeaderboard";
+import {
+  seedEntriesAbove,
+  withSeedEntries,
+} from "@/lib/server/puzzleRushSeedEntries";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
 import { logger } from "@/lib/logging";
 
@@ -112,7 +118,11 @@ export async function POST(request: Request) {
     if (!user?.handle) {
       // No public handle — same opt-in-by-write rule as the progress path.
       // Still answer with the board: someone without a handle can read it.
-      const entries = await getPuzzleRushLeaderboard(mode);
+      const [real, realCount] = await Promise.all([
+        getPuzzleRushLeaderboard(mode),
+        countPuzzleRushEntries(mode),
+      ]);
+      const entries = withSeedEntries(real, mode, realCount, 50);
       // Same shape as the published path, so the client has one contract to
       // read rather than two — there is simply no standing to report.
       return NextResponse.json({
@@ -134,12 +144,29 @@ export async function POST(request: Request) {
       parsed.data.rush
     );
 
-    const [entries, ranks] = await Promise.all([
+    const [real, realCounts, realRanks] = await Promise.all([
       getPuzzleRushLeaderboard(mode),
-      published
-        ? getPuzzleRushRanks(published)
-        : Promise.resolve(null),
+      // Per mode, not one number: a mode past the cutoff shows no
+      // placeholders while another still does, and each mode's rank has to
+      // reflect its own board.
+      countPuzzleRushEntriesAll(),
+      published ? getPuzzleRushRanks(published) : Promise.resolve(null),
     ]);
+
+    const entries = withSeedEntries(real, mode, realCounts[mode], 50);
+    // Rank over the board as SHOWN. Counting only real rows would tell a
+    // player they are 2nd while they can see six names above them.
+    const ranks =
+      realRanks && published
+        ? (Object.fromEntries(
+            RUSH_LEADERBOARD_MODES.map((m) => [
+              m,
+              realRanks[m] === null
+                ? null
+                : realRanks[m] + seedEntriesAbove(m, published[m], realCounts[m]),
+            ])
+          ) as Record<RushMode, number | null>)
+        : null;
 
     return NextResponse.json({
       ok: true,

@@ -290,3 +290,33 @@ export async function excludePuzzleRushLeaderboardEntry(
     WRITE_TIMEOUT_MS
   );
 }
+
+/**
+ * How many players have a real score in `mode`. Drives the placeholder cutoff
+ * in puzzleRushSeedEntries — a count aggregation rather than a page of
+ * documents, since only the size matters, and on the same single field every
+ * other query here uses.
+ */
+export async function countPuzzleRushEntries(mode: RushMode): Promise<number> {
+  const db = await getAdminFirestore();
+  const agg = await withFirestoreTimeout(
+    db.collection(COLLECTION).where(mode, ">", 0).count().get(),
+    `puzzleRushLeaderboard.count(${mode})`,
+    READ_TIMEOUT_MS
+  );
+  return agg.data().count;
+}
+
+/** Every mode's real-entry count, for the same reason getPuzzleRushRanks
+ *  reports every mode's rank: the placeholder cutoff is per mode, so one
+ *  mode's count says nothing about another's. */
+export async function countPuzzleRushEntriesAll(): Promise<
+  Record<RushMode, number>
+> {
+  const counted = await Promise.all(
+    RUSH_LEADERBOARD_MODES.map((mode) =>
+      countPuzzleRushEntries(mode).then((count) => [mode, count] as const)
+    )
+  );
+  return Object.fromEntries(counted) as Record<RushMode, number>;
+}

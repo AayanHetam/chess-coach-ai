@@ -120,7 +120,7 @@ function scoreTheme(theme: string, motif: AnyMotif["motif"], pos: Puzzle[], neg:
     });
     if (any) r.anyHit++;
     if (conf) r.confirmedHit++;
-    if (!any && r.misses.length < 25) r.misses.push({ id: p.id, fen: p.fen, moves: p.moves.join(" "), detected: [...seen] });
+    if (!any && r.misses.length < 25) r.misses.push({ id: p.id, fen: p.fen, moves: p.moves.join(" "), detected: Array.from(seen) });
   }
   for (const p of neg) {
     const plies = solverPlies(p);
@@ -256,14 +256,14 @@ function scoreChessQa() {
     const gold = new Set(it.correct_answer.split(",").map((s) => s.trim().toLowerCase()).filter((s) => s && s !== "none"));
     const ours = new Set(fn(it.input).map((s) => s.toLowerCase()));
     b.n++;
-    const exact = gold.size === ours.size && [...gold].every((g) => ours.has(g));
-    if (exact) b.exact++; else if (b.wrong.length < 10) b.wrong.push({ id: it.task_id, fen: it.input, gold: [...gold].join(", "), ours: [...ours].join(", ") });
-    for (const g of gold) { if (ours.has(g)) b.tp++; else b.fn++; }
-    for (const o of ours) if (!gold.has(o)) b.fp++;
+    const exact = gold.size === ours.size && Array.from(gold).every((g) => ours.has(g));
+    if (exact) b.exact++; else if (b.wrong.length < 10) b.wrong.push({ id: it.task_id, fen: it.input, gold: Array.from(gold).join(", "), ours: Array.from(ours).join(", ") });
+    gold.forEach((g) => { if (ours.has(g)) b.tp++; else b.fn++; });
+    ours.forEach((o) => { if (!gold.has(o)) b.fp++; });
     if (it.task_type === "motifs_pin") {
       pinRelative.n++;
       const o2 = new Set(qaPins(it.input, false).map((s) => s.toLowerCase()));
-      if (gold.size === o2.size && [...gold].every((g) => o2.has(g))) pinRelative.exact++;
+      if (gold.size === o2.size && Array.from(gold).every((g) => o2.has(g))) pinRelative.exact++;
     }
   }
   return { byType, pinRelativeVariant: pinRelative };

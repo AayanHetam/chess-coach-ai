@@ -21,6 +21,15 @@ export interface ForkMotif extends BaseMotif {
 export interface PinMotif extends BaseMotif {
   motif: "pin";
   kind: "absolute" | "relative";
+  /**
+   * Did the move being described create this pin? detectMotifs scans every
+   * slider after the move (a mover can open a ray for a piece that never
+   * moved), so it also sees pins that were already on the board. Those are
+   * still true — and still license the word "pinned" — but "Bg5 pins the
+   * knight" is only a fact about Bg5 when this is true. Absent on motifs
+   * built before the field existed (cached contracts, hand-built fixtures).
+   */
+  createdByMove?: boolean;
   pinner: { square: Square; piece: PieceSymbol };
   pinned: { square: Square; piece: PieceSymbol };
   behind: { square: Square; piece: PieceSymbol };

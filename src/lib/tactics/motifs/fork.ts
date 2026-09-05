@@ -1,9 +1,25 @@
-import { Chess, type Square, type Color } from "chess.js";
-import { rawAttacks, pieceValue, attackersOf } from "../utils";
+import { Chess, type Square, type Color, type PieceSymbol } from "chess.js";
+import { rawAttacks, pieceValue, attackersOf, see } from "../utils";
 import type { ForkMotif } from "../types";
 
-// A piece just moved to `movedTo`. Detect if it now attacks ≥2 enemy pieces
-// and at least one is "unavoidable" (can't save both).
+/**
+ * A piece just moved to `movedTo`. Detect a fork: the mover now attacks two
+ * or more enemy PIECES it can actually win.
+ *
+ * WHAT COUNTS AS A TARGET (measured, scripts/eval/motif_detector_recall.ts):
+ *  - the king always counts (the check forces the reply);
+ *  - pawns never count — "pieces" in the chess sense. A check that also hits
+ *    a pawn is a check, and a queen eyeing two pawns is not a fork;
+ *  - any other piece counts only if it is winnable: undefended, or worth
+ *    more than the forker, or a profitable capture by static exchange.
+ *  - a checkmating move is mate, never a fork.
+ *
+ * Before this filter the detector called ANY two attacked units a fork when
+ * one was the king: on 400 Lichess puzzles NOT labeled `fork` it fired a
+ * confirmed fork 48% of the time, 90% of them "check + a king-defended pawn"
+ * (Qxf7+ hitting Kg8 and g7). With the filter the same set fires 11% while
+ * recall on 400 `fork`-labeled puzzles stays at 97.5%.
+ */
 export function detectFork(
   gameAfter: Chess,
   movedTo: Square,
@@ -11,47 +27,43 @@ export function detectFork(
 ): ForkMotif | null {
   const forker = gameAfter.get(movedTo);
   if (!forker) return null;
+  if (gameAfter.isCheckmate()) return null;
   const opponentColor: Color = movingColor === "w" ? "b" : "w";
+  const forkerValue = pieceValue(forker.type);
 
-  const attacked = rawAttacks(gameAfter, movedTo);
-  const targets: Array<{ square: Square; piece: import("chess.js").PieceSymbol }> = [];
-
-  for (const sq of attacked) {
+  const targets: Array<{ square: Square; piece: PieceSymbol }> = [];
+  for (const sq of rawAttacks(gameAfter, movedTo)) {
     const victim = gameAfter.get(sq);
-    if (!victim || victim.color !== opponentColor) continue;
-    // Include king too (royal fork)
-    targets.push({ square: sq, piece: victim.type });
+    if (!victim || victim.color !== opponentColor || victim.type === "p") continue;
+    if (victim.type === "k") {
+      targets.push({ square: sq, piece: victim.type });
+      continue;
+    }
+    const defended = attackersOf(gameAfter, sq, opponentColor).length > 0;
+    const winnable =
+      !defended || pieceValue(victim.type) > forkerValue || see(gameAfter, sq, movingColor) > 0;
+    if (winnable) targets.push({ square: sq, piece: victim.type });
   }
 
   if (targets.length < 2) return null;
 
-  const forkerValue = pieceValue(forker.type);
-  const totalVictimValue = targets.reduce((s, t) => s + pieceValue(t.piece), 0);
-
-  // Must be profitable: sum of victims > forker's value if forker gets taken
-  if (totalVictimValue - forkerValue <= 0) {
-    // Edge: if forker is king or the victims include a king, still a fork
-    const hasKingTarget = targets.some((t) => t.piece === "k");
-    if (!hasKingTarget) return null;
-  }
-
-  // Filter to the highest-value targets for the "unavoidable loss" estimate
+  // Report the two most valuable targets; the second is the conservative
+  // harvest (the opponent is granted the save of the dearer one).
   const topTargets = [...targets]
     .sort((a, b) => pieceValue(b.piece) - pieceValue(a.piece))
     .slice(0, 2);
+  const harvest = topTargets.filter((t) => t.piece !== "k");
+  const unavoidable_loss_cp = harvest.length
+    ? pieceValue(harvest[harvest.length - 1].piece)
+    : 0;
 
-  // Unavoidable loss estimate: assume opponent can save only the most valuable target
-  const unavoidable_loss_cp =
-    topTargets.length >= 2 ? pieceValue(topTargets[1].piece) : pieceValue(topTargets[0].piece);
-
-  // Quick sanity: forker must not itself be hanging for free
-  // (if a lower-value enemy piece can take the forker, the fork may not be real)
+  // A forker that can be taken for free is not forking anything — flagged as
+  // a refutation here and settled by escapability's SEE check.
   const cheapTakers = attackersOf(gameAfter, movedTo, opponentColor).filter(
     (a) => pieceValue(a.piece) < forkerValue,
   );
   const forkerDefenders = attackersOf(gameAfter, movedTo, movingColor);
-  const forkerIsHangingFree =
-    cheapTakers.length > 0 && forkerDefenders.length === 0;
+  const forkerIsHangingFree = cheapTakers.length > 0 && forkerDefenders.length === 0;
 
   return {
     motif: "fork",

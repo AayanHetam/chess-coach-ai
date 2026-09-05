@@ -1,10 +1,43 @@
-import { Chess, type Square, type Color } from "chess.js";
-import { attackersOf, pieceValue } from "../utils";
+import { Chess, type Square, type Color, type PieceSymbol } from "chess.js";
+import { attackersOf, pieceValue, see } from "../utils";
 import type { TrappedPieceMotif } from "../types";
 
-// A trapped piece has no safe escape square.
-// Only worth flagging for high-value pieces (≥ rook) — a trapped pawn is not coaching-relevant.
-const MIN_TRAPPED_VALUE = 330; // bishop or above
+/**
+ * A trapped piece: attacked by something CHEAPER than itself, and every legal
+ * move it has lands on a square where it is lost. Knights count (the most
+ * commonly trapped piece), pawns do not.
+ *
+ * Why "cheaper attacker": that is what separates trapped from hanging. A
+ * knight hit by an equal or dearer piece is either defended (nothing is won)
+ * or simply en prise — and "you left it hanging" is the lesson, not "it was
+ * trapped". A knight hit by a pawn with nowhere safe to go is lost BECAUSE
+ * it cannot move; that is the trap.
+ *
+ * Flight safety is judged by the exchange the flight starts: a capture that
+ * nets material (Nxd8 taking a queen) is an escape, a quiet step onto a
+ * pawn-covered square is not, and a square covered only by a dearer piece
+ * while the piece stays defended is fine. If the victim's side can remove
+ * the cheap attacker for free (Bxg4), nothing is trapped either. A side in
+ * check gets no trapped-piece verdicts: with the king to attend to, every
+ * piece looks immobile.
+ *
+ * Measured on Lichess `trappedPiece` puzzles (scripts/eval/
+ * motif_detector_recall.ts): the previous detector (bishop-or-better only,
+ * "unsafe" = a cheaper attacker on the square) found 17.5%; this one finds
+ * ~55% while firing on ~15% of puzzles not carrying the label.
+ */
+const MIN_TRAPPED_VALUE = 300; // knight or above
+
+/** Material the piece on `pieceSq` nets by playing `move`: what it takes, minus what the enemy then wins back on the landing square. */
+function flightNet(game: Chess, move: { to: string; captured?: string }, enemy: Color): number {
+  const probe = new Chess(game.fen());
+  probe.move(move as Parameters<Chess["move"]>[0]);
+  const captured = move.captured ? pieceValue(move.captured as PieceSymbol) : 0;
+  const lostBack = attackersOf(probe, move.to as Square, enemy).length > 0
+    ? Math.max(0, see(probe, move.to as Square, enemy))
+    : 0;
+  return captured - lostBack;
+}
 
 export function detectTrappedPieces(
   gameAfter: Chess,
@@ -12,50 +45,50 @@ export function detectTrappedPieces(
 ): TrappedPieceMotif[] {
   const opponentColor: Color = movingColor === "w" ? "b" : "w";
   const result: TrappedPieceMotif[] = [];
+  // gameAfter has the opponent on move; in check their non-king moves are illegal.
+  if (gameAfter.inCheck()) return result;
 
   for (const row of gameAfter.board()) {
     for (const sq of row) {
-      if (!sq || sq.color !== opponentColor) continue;
+      if (!sq || sq.color !== opponentColor || sq.type === "k") continue;
       if (pieceValue(sq.type) < MIN_TRAPPED_VALUE) continue;
-
       const pieceSq = sq.square as Square;
-      const legalMoves = gameAfter.moves({ square: pieceSq as import("chess.js").Square, verbose: true });
-      if (legalMoves.length === 0) continue; // no moves = pinned or already trapped
 
+      const attackers = attackersOf(gameAfter, pieceSq, movingColor);
+      const cheap = attackers.filter((a) => pieceValue(a.piece) < pieceValue(sq.type));
+      if (cheap.length === 0) continue;
+      if (see(gameAfter, pieceSq, movingColor) <= 0) continue;
+      // Can the victim's side just remove a cheap attacker for free?
+      const removable = cheap.every(
+        (a) => attackersOf(gameAfter, a.square, opponentColor).length > 0 && see(gameAfter, a.square, opponentColor) >= 0,
+      );
+      if (removable) continue;
+
+      const legalMoves = gameAfter.moves({ square: pieceSq, verbose: true });
       const unsafeMap: Array<{ square: Square; threatened_by: Square }> = [];
       const escapeSqs: Square[] = [];
-
+      let safe = false;
       for (const move of legalMoves) {
         const dest = move.to as Square;
         escapeSqs.push(dest);
-        const threateningAtks = attackersOf(gameAfter, dest, movingColor);
-
-        // A square is "unsafe" if moving there results in the piece being captured for free
-        // (i.e., there is a lower-value attacker, or SEE ≥ piece value after the move)
-        const isUnsafe = threateningAtks.some(
-          (atk) => pieceValue(atk.piece) < pieceValue(sq.type),
-        );
-
-        if (isUnsafe) {
-          unsafeMap.push({
-            square: dest,
-            threatened_by: threateningAtks[0].square,
-          });
+        if (flightNet(gameAfter, move, movingColor) >= 0) {
+          safe = true;
+          break;
         }
+        const by = attackersOf(gameAfter, dest, movingColor)[0];
+        unsafeMap.push({ square: dest, threatened_by: by ? by.square : cheap[0].square });
       }
+      if (safe) continue;
 
-      // Truly trapped only if ALL escape squares are unsafe
-      if (unsafeMap.length === escapeSqs.length && escapeSqs.length > 0) {
-        result.push({
-          motif: "trapped_piece",
-          square: pieceSq,
-          piece: sq.type,
-          escape_squares_checked: escapeSqs,
-          all_unsafe_because: unsafeMap,
-          confirmed: true, // all squares unsafe = confirmed
-          refutation: null,
-        });
-      }
+      result.push({
+        motif: "trapped_piece",
+        square: pieceSq,
+        piece: sq.type,
+        escape_squares_checked: escapeSqs,
+        all_unsafe_because: unsafeMap,
+        confirmed: true, // attacked for profit with no safe square is the confirmation
+        refutation: null,
+      });
     }
   }
 

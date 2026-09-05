@@ -1,9 +1,24 @@
-import { Chess, type Square, type Color } from "chess.js";
+import { Chess, type Square, type Color, type PieceSymbol } from "chess.js";
 import { attackersOf, coordToSquare, squareToCoord } from "../utils";
 import type { BackRankMateMotif } from "../types";
 
-// Enemy king is on its back rank with no escape.
-// Detect both "back_rank_mate" (immediate) and "back_rank_threat" (one move away).
+/**
+ * Enemy king on its back rank with no legal move; a heavy piece delivers
+ * (back_rank_mate) or can deliver next move (back_rank_threat).
+ *
+ * Both forms are decided by chess.js legality, never by isAttacked() on the
+ * neighbouring squares: a rook checking along the rank does not "attack" the
+ * square behind the king (the king blocks its own ray), yet the king cannot
+ * step there because the ray opens the moment it vacates. That x-ray class
+ * cost the previous detector half its recall on Lichess `backRankMate`
+ * puzzles (54% → 100%, scripts/eval/motif_detector_recall.ts).
+ *
+ * The threat form is a real mate-in-one search: some rook or queen of the
+ * mover can land on the back rank and it is checkmate. The previous "a heavy
+ * piece attacks a back-rank square" heuristic fired on rooks the king could
+ * simply capture, and needed the king already boxed in — but luft that is
+ * only closed by the mating check is exactly the back-rank pattern.
+ */
 export function detectBackRankMate(
   gameAfter: Chess,
   movingColor: Color,
@@ -11,7 +26,6 @@ export function detectBackRankMate(
   const opponentColor: Color = movingColor === "w" ? "b" : "w";
   const backRank = opponentColor === "w" ? "1" : "8";
 
-  // Find opponent king
   let kingSq: Square | null = null;
   for (const row of gameAfter.board()) {
     for (const sq of row) {
@@ -27,82 +41,60 @@ export function detectBackRankMate(
     [1, 0], [1, 1], [0, 1], [-1, 1],
     [-1, 0], [-1, -1], [0, -1], [1, -1],
   ];
-
   const escapeInfo: Array<{ square: Square; blocker: "own_piece" | "attacked" }> = [];
-  let escapePossible = false;
-
   for (const [dx, dy] of KING_OFFSETS) {
     const esq = coordToSquare(kx + dx, ky + dy);
     if (!esq) continue;
     const occupant = gameAfter.get(esq);
-    if (occupant && occupant.color === opponentColor) {
-      escapeInfo.push({ square: esq, blocker: "own_piece" });
-    } else if (gameAfter.isAttacked(esq, movingColor)) {
-      escapeInfo.push({ square: esq, blocker: "attacked" });
-    } else {
-      escapePossible = true;
-      break;
-    }
+    escapeInfo.push({
+      square: esq,
+      blocker: occupant && occupant.color === opponentColor ? "own_piece" : "attacked",
+    });
   }
 
-  if (escapePossible) return null;
-
-  // King has no escape. Find back-rank attackers that can deliver mate.
-  // Look for our heavy pieces (R or Q) that can reach the back rank.
-  const backRankSquares = Array.from({ length: 8 }, (_, i) =>
-    coordToSquare(i, opponentColor === "w" ? 0 : 7),
-  ).filter((s): s is Square => s !== null);
-
-  let deliveringSq: Square | null = null;
-  let deliveringPiece: import("chess.js").PieceSymbol | null = null;
-
-  // Check if we're already in checkmate (gameAfter.isCheckmate())
-  const isImmediateMate = gameAfter.isCheckmate();
-
-  // Check which of our pieces attacks the king square or a back-rank square adjacent to king
-  for (const sq of backRankSquares) {
-    const atks = attackersOf(gameAfter, sq, movingColor);
-    for (const atk of atks) {
-      const atkPiece = gameAfter.get(atk.square);
-      if (atkPiece && ["r", "q"].includes(atkPiece.type)) {
-        // Verify no interposers between attacker and target rank
-        const interposers = findInterposers(gameAfter, atk.square, sq);
-        if (interposers.length === 0) {
-          deliveringSq = atk.square;
-          deliveringPiece = atkPiece.type;
-        }
-      }
-    }
+  if (gameAfter.isCheckmate()) {
+    const checker = attackersOf(gameAfter, kingSq, movingColor).find(
+      (a) => (a.piece === "r" || a.piece === "q") && a.square[1] === backRank,
+    );
+    if (!checker) return null; // mated, but not along the back rank
+    return {
+      motif: "back_rank_mate",
+      delivering_square: checker.square,
+      delivering_piece: checker.piece,
+      king_square: kingSq,
+      escape_squares_blocked_by: escapeInfo,
+      interposers: [],
+      confirmed: true,
+      refutation: null,
+    };
   }
+  if (gameAfter.inCheck()) return null; // the reply is forced elsewhere; not a standing threat
 
-  if (!deliveringSq || !deliveringPiece) return null;
-
-  // Check for interposers on the back rank between attacker and king
-  const interposers = findInterposers(gameAfter, deliveringSq, kingSq);
-
-  return {
-    motif: isImmediateMate ? "back_rank_mate" : "back_rank_threat",
-    delivering_square: deliveringSq,
-    delivering_piece: deliveringPiece,
-    king_square: kingSq,
-    escape_squares_blocked_by: escapeInfo,
-    interposers,
-    confirmed: isImmediateMate || interposers.length === 0,
-    refutation: interposers.length > 0 ? { move: `interpose-${interposers[0]}`, refuted_by: "counter_threat" } : null,
-  };
-}
-
-function findInterposers(game: Chess, from: Square, to: Square): Square[] {
-  const [fx, fy] = squareToCoord(from);
-  const [tx, ty] = squareToCoord(to);
-  const dx = Math.sign(tx - fx), dy = Math.sign(ty - fy);
-  const interposers: Square[] = [];
-  let x = fx + dx, y = fy + dy;
-  while (x !== tx || y !== ty) {
-    const sq = coordToSquare(x, y);
-    if (!sq) break;
-    if (game.get(sq)) interposers.push(sq);
-    x += dx; y += dy;
+  // Threat: give the mover the move again and look for a heavy-piece mate on the rank.
+  const parts = gameAfter.fen().split(" ");
+  parts[1] = movingColor;
+  parts[3] = "-";
+  let again: Chess;
+  try {
+    again = new Chess(parts.join(" "));
+  } catch {
+    return null;
   }
-  return interposers;
+  for (const m of again.moves({ verbose: true })) {
+    if ((m.piece !== "r" && m.piece !== "q") || m.to[1] !== backRank) continue;
+    const probe = new Chess(again.fen());
+    probe.move(m);
+    if (!probe.isCheckmate()) continue;
+    return {
+      motif: "back_rank_threat",
+      delivering_square: m.to as Square,
+      delivering_piece: m.piece as PieceSymbol,
+      king_square: kingSq,
+      escape_squares_blocked_by: escapeInfo,
+      interposers: [],
+      confirmed: true,
+      refutation: null,
+    };
+  }
+  return null;
 }

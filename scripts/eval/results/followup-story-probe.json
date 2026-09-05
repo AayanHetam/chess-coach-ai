@@ -1,0 +1,71 @@
+{
+  "date": "2026-09-05",
+  "tier": "fast",
+  "spendUsd": 0.0393,
+  "results": [
+    {
+      "fixture": "07_knight_fork",
+      "question": "Why was 8. Nc7+ a mistake? It forks the king and the rook.",
+      "without": {
+        "answer": "Great question—you spotted the fork! That's exactly right: 8. Nc7+ does attack both the king on e8 and the rook on a8. The problem is **what your opponent does in response**.\n\nHere's the critical detail: **your queen on c1 is hanging** (undefended). When you play 8. Nc7+, your opponent doesn't have to worry about losing the rook—they simply play **8... Qxc1**, capturing your queen for free. That's a massive material loss that far outweighs winning the rook.\n\nLet me show you the engine's recommendation instead:\n\nAfter **8. Qxc1** (removing the queen from danger first), the position stays winning for you. You've consolidated, and now your pieces are coordinated. Your opponent's best try is 8... Rb8, but you're still up material and have a dominant position.\n\n**The lesson here:** Before you play a forcing move (like a check or a fork), always scan for hanging pieces—especially your own! A fork is only good if it doesn't leave something more valuable undefended. This is a pattern worth drilling: *check for hanging pieces before every check*.\n\nDoes that clarify why the fork didn't work here, even though the geometry was right?",
+        "model": "claude-haiku-4-5-20251001",
+        "blockChars": 1636,
+        "costUsd": 0.0116
+      },
+      "with": {
+        "answer": "Great question! You're absolutely right that 8. Nc7+ creates a fork — the knight does attack both the king on e8 and the rook on a8. But here's the trap: **your opponent has a devastating in-between move**.\n\nAfter 8. Nc7+, your opponent plays 8... Kd8 (forced, to get out of check). Now your knight is attacked and has to move. When you play 9. Nxa8, your opponent fires back with 9... Qxd1+, checking your king and winning your queen in the same move.\n\nBy the time the dust settles, you've traded your queen for a rook — a bad deal worth about 4 pawns of material.\n\n**The better move was 8. Qxc1**, which simply takes the hanging queen on c1 without any tricks. You win material cleanly (the queen is worth 9 pawns), and your opponent has no counterplay. The engine line continues 8... Rb8 9. Qf4 f6, and you're up a full queen — completely winning.\n\n**The pattern to remember:** When you spot a fork or a capture, always check if your opponent has a forcing move (a check, capture, or threat) that comes back at you *before* you complete your plan. That's called an \"intermezzo\" or in-between move, and it's one of the sneakiest tactics in chess. \n\nIn this position, the hanging queen was the real prize. The fork looked flashy, but it let your opponent slip in a check that cost you everything.",
+        "model": "claude-haiku-4-5-20251001",
+        "blockChars": 4044,
+        "costUsd": 0.0043
+      }
+    },
+    {
+      "fixture": "07_knight_fork",
+      "question": "What should I have played on move 8 instead, and why does that actually work?",
+      "without": {
+        "answer": "Looking at move 8, you played **8. Nc7+**, but the engine shows the best move was **8. Qxc1**.\n\nHere's why **8. Qxc1** is so much stronger:\n\n**The Core Idea:**\nYour queen on c1 is hanging — your opponent's rook on c8 is attacking it with nothing defending. You need to save it. But instead of moving it to safety passively, **8. Qxc1** captures your opponent's rook first, winning material outright.\n\n**Why This Works:**\nAfter **8. Qxc1**, you've captured the rook on c1 (gaining about 5 points of material). Your opponent's best response is **8... Rb8** (moving the rook from b8), and then you continue with **9. Qf4**, developing your queen to an active square where it supports your position.\n\nCompare that to what actually happened: **8. Nc7+** looks like it creates a fork (checking the king on e8 while attacking the rook on a8), but it's a trap. You lose your queen on c1 for nothing in return, which is catastrophic. The engine line shows **8... Kd7**, and suddenly you're down massive material with no compensation.\n\n**The Lesson:**\nWhen you have a hanging piece (your queen), always check: *Can I capture something with it first?* Before moving it to safety, look for captures. In this position, taking the rook saved the game. The fork on c7 looked tempting, but it ignored the urgent threat to your own queen — and that cost you everything.",
+        "model": "claude-haiku-4-5-20251001",
+        "blockChars": 1636,
+        "costUsd": 0.0035
+      },
+      "with": {
+        "answer": "Looking at move 8, you played **8. Nc7+**, which gave check but walked into a trap. The engine shows this drops nearly 5 pawns of advantage.\n\n**The best move was 8. Qxc1** — and here's why it's so much stronger:\n\nYour opponent's queen on c1 is hanging (completely undefended). By taking it immediately, you win material cleanly. After **8. Qxc1 Rb8 9. Qf4 f6**, you're up a full queen — that's a decisive material advantage that ends the game.\n\n**Why Nc7+ looked tempting but fails:**\n\nWhen you play 8. Nc7+, yes, it gives check and forks the king and rook on a8. That *feels* like you're winning — but your opponent has a devastating in-between move: **9... Qxd1+**. This gives check and captures your queen at the same time. You're forced to recapture with your king (10. Kxd1), and suddenly you've traded your queen for a rook. The position collapses.\n\n**The key lesson:** When you have a hanging piece to capture, take it first. Don't get seduced by a check or a fork if it allows your opponent a forcing counter-blow. Secure your material gain, then worry about tactics. In this position, the queen on c1 wasn't going anywhere — grabbing it was the safe, winning move.",
+        "model": "claude-haiku-4-5-20251001",
+        "blockChars": 4044,
+        "costUsd": 0.0042
+      }
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "question": "Why is 18. Ne6 a blunder?",
+      "without": {
+        "answer": "Let me break down what went wrong with 18. Ne6.\n\n**The Setup**\n\nBefore your move, the position was roughly equal — you had a +0.63 advantage. Your knight on d4 was centralized and active, and you had some attacking chances brewing.\n\n**What 18. Ne6 Does (and Doesn't Do)**\n\nYour move attacked the rook on f8, which looks forcing. The problem is that it doesn't actually accomplish anything concrete. After your opponent moves the rook (say, 18... Rf7 or 18... Re8), your knight sits on e6 without a follow-up plan, and you've burned your most active piece without generating real threats.\n\n**Why 18. Rh5 Was Better**\n\nThe engine prefers 18. Rh5, which is a completely different idea. Let's look at the line: **18. Rh5 d5 19. Re1**.\n\nThis move:\n- Brings your rook to the kingside with genuine attacking intent (the rook eyes h7 and creates mating threats)\n- Forces your opponent to deal with the immediate pressure on the kingside\n- Keeps your knight on d4, where it's perfectly placed to support an attack or jump to f5/e6 with purpose\n\nThe engine evaluates this continuation at +0.63 — holding your advantage. By contrast, after 18. Ne6, the position swings to **-3.92** — a catastrophic 455 centipawn drop. Your opponent gets time to consolidate, push d5, and activate their pieces while your knight becomes a passenger.\n\n**The Lesson**\n\nThis is a classic \"active piece syndrome\" trap: a centralized piece *looks* good, so we move it \"with purpose,\" but we're really just displacing it without a concrete plan. Before moving your best-placed piece, ask: *What does this accomplish that I can't achieve another way?* Here, Rh5 accomplishes more with less.",
+        "model": "claude-haiku-4-5-20251001",
+        "blockChars": 1365,
+        "costUsd": 0.0038
+      },
+      "with": {
+        "answer": "Let me break down why **18. Ne6** loses the game on the spot.\n\nYour knight on e6 is completely undefended. Your opponent simply plays **18... Bxe6**, capturing it for free. You've given away a full piece with no compensation.\n\nThe engine line shows what you should have played instead: **18. Rh5**, which keeps pressure on Black's kingside and maintains your advantage at +0.63. Instead, after losing the knight, you drop to -3.92 — that's a 455-point swing, and you're now down a full piece of material with no attack to show for it.\n\nHere's the critical difference:\n\n**Your move (18. Ne6):**\n- The knight sits undefended on e6\n- Black takes it immediately with 18... Bxe6\n- You've handed away a piece and your position collapses\n\n**Best move (18. Rh5):**\n- Keeps your rook active on the kingside\n- After 18... d5 19. Re1, you maintain material equality and keep real winning chances\n- The position stays sharp and playable for White\n\nThe lesson here: before playing any piece move, especially a knight jump, always ask yourself: *Can my opponent capture this for free?* A knight on e6 looks aggressive, but if it's hanging, it's just a gift. You had a winning position at +0.63 — this one move threw it away.",
+        "model": "claude-haiku-4-5-20251001",
+        "blockChars": 3753,
+        "costUsd": 0.004
+      }
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "question": "What does the engine's idea on move 18 actually do? Walk me through the line.",
+      "without": {
+        "answer": "Let me walk you through what the engine's best move on move 18 actually accomplishes.\n\n**Your move 18:** You played **Ne6** (blunder, +0.63 → -3.92)  \n**Engine best:** **18. Rh5**\n\nHere's the engine line after 18. Rh5:\n\n**18. Rh5 d5 19. Re1**\n\nThe key idea is that Rh5 **threatens immediate checkmate on h7**. Your opponent's king on g8 is extremely vulnerable — it has no escape squares, and the h-file is a highway for your rook.\n\nAfter 18. Rh5, Black is forced to deal with this mating threat immediately. When Black plays 19... d5 (trying to create counterplay by opening lines), you respond with 19. Re1, which **maintains the mating attack while also preparing to defend against Black's counterattacking chances**. The rook on e1 guards the e-file and keeps your position solid.\n\nThe reason this is so much stronger than your 18. Ne6 is positional urgency. On move 18, Black's king is still in acute danger — you have a concrete mating threat that forces Black into a passive defensive posture. Your knight move on e6, while it looks active, doesn't create an immediate forcing threat. Black gets time to organize the defense and push counterplay (like the d5 break), and suddenly Black's material advantage (up 3 pawns) becomes the dominant factor.\n\n**The lesson:** When your opponent's king is that exposed, forcing moves that create mating threats are almost always stronger than developing moves, even active-looking ones. The engine prioritizes the concrete threat over the piece activity.",
+        "model": "claude-haiku-4-5-20251001",
+        "blockChars": 1365,
+        "costUsd": 0.0035
+      },
+      "with": {
+        "answer": "Let's decode what the engine is actually trying to accomplish on move 18.\n\n**The Engine's Plan: 18. Rh5**\n\nYour move was 18. Ne6, which loses the knight immediately to 18... Bxe6. The engine instead plays 18. Rh5, and here's why:\n\nThe rook swings to h5 to **threaten your opponent's king on the kingside**. After 18. Rh5, your opponent has to respond to this threat. Let's walk the engine line:\n\n**18. Rh5 d5** — Your opponent pushes the pawn, developing counterplay in the center rather than defending passively.\n\n**19. Re1** — The engine shifts the rook back to the e-file. This is the key move. By moving the rook away from h5, you're **repositioning for control of the e-file**, which becomes critical because your opponent's king is still in the center.\n\n**19... Kf8** — Your opponent moves the king to safety, getting off the e-file.\n\n**After these four moves, material is roughly equal.** White hasn't won material, but you've maintained your advantage (the position started at +0.63 for White). The rook on e1 controls a key central file, and your opponent's king, though moving to f8, is still somewhat awkwardly placed.\n\n**The contrast:** In the game, 18. Ne6 gives away the knight for nothing—your opponent simply plays 18... Bxe6, and you're down a full piece with no compensation. The engine line keeps the position playable by using the rook actively and forcing your opponent to make concessions in the center.\n\nThe lesson: before sacrificing material, check if there's a forcing move (like a rook lift) that maintains pressure without the material loss.",
+        "model": "claude-haiku-4-5-20251001",
+        "blockChars": 3753,
+        "costUsd": 0.0045
+      }
+    }
+  ]
+}

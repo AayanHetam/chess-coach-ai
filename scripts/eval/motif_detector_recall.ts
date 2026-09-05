@@ -190,7 +190,7 @@ function rays(g: Chess) {
     const [x0, y0] = sq2(s.square as Square);
     for (const [dx, dy] of DIRS[s.type]) {
       let x = x0 + dx, y = y0 + dy; let first = null as any, second = null as any;
-      while (true) {
+      for (;;) {
         const sq = c2sq(x, y); if (!sq) break;
         const t = g.get(sq);
         if (t) { if (!first) first = { sq, p: t.type, c: t.color }; else { second = { sq, p: t.type, c: t.color }; break; } }
@@ -231,11 +231,11 @@ function qaBatteries(fen: string): string[] {
       if (!canSlide(s.type, dx, dy)) continue;
       // only start chains from the "lowest" end: skip if the previous square along -dir holds a same-color slider that can slide this way
       let px = sq2(s.square as Square)[0] - dx, py = sq2(s.square as Square)[1] - dy, blockedBehind = false;
-      while (true) { const sq = c2sq(px, py); if (!sq) break; const t = g.get(sq); if (t) { if (t.color === s.color && DIRS[t.type] && canSlide(t.type, dx, dy)) blockedBehind = true; break; } px -= dx; py -= dy; }
+      for (;;) { const sq = c2sq(px, py); if (!sq) break; const t = g.get(sq); if (t) { if (t.color === s.color && DIRS[t.type] && canSlide(t.type, dx, dy)) blockedBehind = true; break; } px -= dx; py -= dy; }
       if (blockedBehind) continue;
       const chain: Square[] = [s.square as Square];
       let x = sq2(s.square as Square)[0] + dx, y = sq2(s.square as Square)[1] + dy;
-      while (true) { const sq = c2sq(x, y); if (!sq) break; const t = g.get(sq); if (t) { if (t.color === s.color && DIRS[t.type] && canSlide(t.type, dx, dy)) { chain.push(sq); } else break; } x += dx; y += dy; }
+      for (;;) { const sq = c2sq(x, y); if (!sq) break; const t = g.get(sq); if (t) { if (t.color === s.color && DIRS[t.type] && canSlide(t.type, dx, dy)) { chain.push(sq); } else break; } x += dx; y += dy; }
       // ChessQA orders battery squares by rank, then file ("e2>d3", "b4>a5").
       const byRankThenFile = (a: Square, b: Square) => a[1] === b[1] ? a.localeCompare(b) : a[1].localeCompare(b[1]);
       if (chain.length >= 2) { const sorted = [...chain].sort(byRankThenFile); const key = sorted.join(">"); if (!seen.has(key)) { seen.add(key); groups.push(sorted); } }

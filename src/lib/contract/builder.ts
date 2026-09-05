@@ -120,7 +120,7 @@ function motifSayable(m: AnyMotif): string {
         .map((t) => `${t.piece} on ${t.square}`)
         .join(" and ")}.`;
     case "pin":
-      return `${status}: ${m.kind} pin — ${m.pinner.piece} on ${m.pinner.square} pins ${m.pinned.piece} on ${m.pinned.square} against ${m.behind.piece} on ${m.behind.square}.`;
+      return `${status}: ${m.kind} pin${m.createdByMove === false ? " (already on the board before this move)" : ""} — ${m.pinner.piece} on ${m.pinner.square} pins ${m.pinned.piece} on ${m.pinned.square} against ${m.behind.piece} on ${m.behind.square}.`;
     case "skewer":
       return `${status}: skewer — ${m.skewerer.piece} on ${m.skewerer.square} hits ${m.front.piece} on ${m.front.square} in front of ${m.back.piece} on ${m.back.square}.`;
     case "discovered_attack":

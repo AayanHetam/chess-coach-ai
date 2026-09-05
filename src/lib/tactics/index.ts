@@ -8,7 +8,7 @@ import { detectHangingPieces } from "./motifs/hanging_piece";
 import { detectTrappedPieces } from "./motifs/trapped_piece";
 import { detectBackRankMate } from "./motifs/back_rank_mate";
 import { applyEscapability } from "./escapability";
-import type { AnyMotif } from "./types";
+import type { AnyMotif, PinMotif } from "./types";
 
 export type { AnyMotif } from "./types";
 export type {
@@ -56,8 +56,20 @@ export function detectMotifs(fenBefore: string, moveSan: string): AnyMotif[] {
     const fork = detectFork(gameAfter, movedTo, movingColor);
     if (fork) motifs.push(fork);
 
-    // 2 & 3. Pin and Skewer — scan ALL our sliders post-move (captures a wider set)
-    const pins = detectPinsAfterMove(gameAfter, movingColor);
+    // 2 & 3. Pin and Skewer — scan ALL our sliders post-move (a mover can open
+    // a ray for a slider that never moved), and say which pins THIS MOVE
+    // created. 63.7% of the pins this list carried on Lichess solutions
+    // already existed before the move (scripts/eval/motif_detector_recall.ts);
+    // they stay in the list (a pinned knight that cannot recapture is often
+    // the whole point of the move), tagged so "Bg5 pins the knight" is only
+    // ever written about the move that pinned it.
+    const pinsBefore = new Set(
+      detectPinsAfterMove(gameBeforeClean, movingColor).map(pinKey),
+    );
+    const pins = detectPinsAfterMove(gameAfter, movingColor).map((p) => ({
+      ...p,
+      createdByMove: !pinsBefore.has(pinKey(p)),
+    }));
     motifs.push(...pins);
 
     const skewers = detectSkewers(gameAfter, movedTo, movingColor);
@@ -103,16 +115,24 @@ export function detectMotifs(fenBefore: string, moveSan: string): AnyMotif[] {
   return deduplicateMotifs(motifs);
 }
 
-// Prevents the same tactical benefit from being reported twice under different motif labels.
+function pinKey(p: PinMotif): string {
+  return `${p.pinner.square}:${p.pinned.square}:${p.behind.square}`;
+}
+
+// Prevents the same tactical benefit from being reported twice under different
+// motif labels: a fork target or a trapped piece is by construction also
+// "hanging", and the fork / trap is the explanation worth teaching.
 function deduplicateMotifs(motifs: AnyMotif[]): AnyMotif[] {
-  const hangingSquares = new Set<Square>();
+  const explained = new Set<Square>();
   for (const m of motifs) {
     if (m.motif === "fork") {
-      for (const t of m.targets) hangingSquares.add(t.square);
+      for (const t of m.targets) explained.add(t.square);
+    } else if (m.motif === "trapped_piece") {
+      explained.add(m.square);
     }
   }
   return motifs.filter((m) => {
-    if (m.motif === "hanging_piece" && hangingSquares.has(m.square)) return false;
+    if (m.motif === "hanging_piece" && explained.has(m.square)) return false;
     return true;
   });
 }

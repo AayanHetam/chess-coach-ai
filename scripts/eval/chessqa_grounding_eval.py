@@ -84,12 +84,17 @@ def stockfish_context(engine, fen: str, depth: int, multipv: int = 3) -> str:
     return "Engine analysis (Stockfish, ground truth):\n" + "\n".join(lines) + "\n\n"
 
 
-def call_claude(api_key: str, prompt: str, max_tokens: int = 2048, system: str | None = None):
+def call_claude(api_key: str, prompt: str, max_tokens: int = 2048, system: str | None = None,
+                model: str = MODEL, effort: str | None = None):
     payload = {
-        "model": MODEL,
+        "model": model,
         "max_tokens": max_tokens,
         "messages": [{"role": "user", "content": prompt}],
     }
+    # Fable/Opus-5 tier: thinking is always on; `output_config.effort` is the
+    # only depth control (budget_tokens is rejected). Older models ignore it.
+    if effort:
+        payload["output_config"] = {"effort": effort}
     # PR-CI-4: optional system prompt so the verbalizer-4.0 charter can be
     # measured against the grounded baseline (plan §7 CI-4 ChessQA gate).
     if system:
@@ -121,11 +126,17 @@ def main():
                     help="optional file whose contents ride as the system prompt on every call "
                          "(PR-CI-4: the verbalizer-4.0 system, to gate the charter against the grounded baseline)")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--model", default=MODEL, help="Anthropic model id (default: the product flagship)")
+    ap.add_argument("--effort", default=None, help="output_config.effort for effort-capable models (low|medium|high|xhigh|max)")
+    ap.add_argument("--modes", default="both", choices=["both", "off", "on"],
+                    help="off = no engine context only (1 call/item), on = engine context only, both = the A/B")
+    ap.add_argument("--max-tokens", type=int, default=2048)
+    ap.add_argument("--offset", type=int, default=0, help="skip the first N items (resume / extend a partial run)")
     args = ap.parse_args()
     system_prompt = Path(args.system_file).read_text() if args.system_file else None
 
     api_key = None if args.dry_run else load_api_key(args.repo)
-    items = [json.loads(l) for l in open(Path(args.bench) / f"{args.category}.jsonl")][: args.n]
+    items = [json.loads(l) for l in open(Path(args.bench) / f"{args.category}.jsonl")][args.offset : args.offset + args.n]
 
     # Phase 1: Stockfish contexts (sequential, one engine — engine isn't shared
     # across threads). This is the cheap part.
@@ -145,13 +156,19 @@ def main():
     jobs = []
     for t in items:
         for mode, context in [("off", ""), ("on", contexts[t["task_id"]])]:
-            jobs.append((t, mode, context))
+            if args.modes == "both" or args.modes == mode:
+                jobs.append((t, mode, context))
+
+    usage_total = {"input_tokens": 0, "output_tokens": 0}
 
     def run_job(job):
         task, mode, context = job
         prompt = format_prompt(task, context)
         try:
-            resp, _ = call_claude(api_key, prompt, system=system_prompt)
+            resp, usage = call_claude(api_key, prompt, max_tokens=args.max_tokens, system=system_prompt,
+                                      model=args.model, effort=args.effort)
+            usage_total["input_tokens"] += usage.get("input_tokens", 0)
+            usage_total["output_tokens"] += usage.get("output_tokens", 0)
         except Exception as e:
             resp = f"[ERROR {e}]"
         ext, ok = extract_answer(resp)
@@ -174,8 +191,9 @@ def main():
     def pct(m):
         return 100 * tally[m]["correct"] / max(1, tally[m]["total"])
     summary = {
-        "category": args.category, "n": len(items), "model": MODEL, "engine_depth": args.depth,
-        "system_file": args.system_file,
+        "category": args.category, "n": len(items), "model": args.model, "effort": args.effort,
+        "modes": args.modes, "max_tokens": args.max_tokens, "engine_depth": args.depth,
+        "system_file": args.system_file, "usage": usage_total,
         "off_accuracy_pct": round(pct("off"), 1),
         "on_accuracy_pct": round(pct("on"), 1),
         "delta_pp": round(pct("on") - pct("off"), 1),

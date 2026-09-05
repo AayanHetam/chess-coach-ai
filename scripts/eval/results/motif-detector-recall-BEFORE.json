@@ -1,0 +1,749 @@
+{
+  "n": 400,
+  "csv": "public/data/lichess_puzzles_100k.csv",
+  "lichess": [
+    {
+      "theme": "fork",
+      "motif": "fork",
+      "n": 400,
+      "anyHit": 400,
+      "confirmedHit": 392,
+      "firstMoveHit": 337,
+      "firstMoveConfirmed": 293,
+      "unlabeledN": 400,
+      "unlabeledAnyFire": 228,
+      "unlabeledConfirmedFire": 192,
+      "misses": []
+    },
+    {
+      "theme": "pin",
+      "motif": "pin",
+      "n": 400,
+      "anyHit": 400,
+      "confirmedHit": 400,
+      "firstMoveHit": 316,
+      "firstMoveConfirmed": 303,
+      "unlabeledN": 400,
+      "unlabeledAnyFire": 135,
+      "unlabeledConfirmedFire": 98,
+      "misses": []
+    },
+    {
+      "theme": "skewer",
+      "motif": "skewer",
+      "n": 400,
+      "anyHit": 390,
+      "confirmedHit": 387,
+      "firstMoveHit": 263,
+      "firstMoveConfirmed": 257,
+      "unlabeledN": 400,
+      "unlabeledAnyFire": 60,
+      "unlabeledConfirmedFire": 53,
+      "misses": [
+        {
+          "id": "0jQM2",
+          "fen": "r2q1rk1/pp2ppB1/3p1np1/3P4/3p4/3B1b2/PPPQ1P2/R3K2R b KQ - 0 16",
+          "moves": "f3h1 d2h6 f6h7 g7d4",
+          "detected": [
+            "pin✓",
+            "hanging_piece✓",
+            "back_rank_threat?",
+            "discovered_attack?"
+          ]
+        },
+        {
+          "id": "0JXto",
+          "fen": "4r3/pp1b2p1/4pk2/6p1/1PBPR1P1/2P5/P4rPR/2K5 w - - 1 26",
+          "moves": "a2a3 e8c8 c4e2 c8c3",
+          "detected": [
+            "pin✓",
+            "hanging_piece✓",
+            "fork✓"
+          ]
+        },
+        {
+          "id": "0VEHC",
+          "fen": "r5k1/pp3p2/6np/2p1q1p1/2PpN1P1/7P/PP3QP1/4R2K b - - 3 29",
+          "moves": "a8e8 e4f6 e5f6 e1e8",
+          "detected": [
+            "fork✓",
+            "discovered_attack✓",
+            "hanging_piece✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0IdZ1",
+          "fen": "r5k1/7p/4p1p1/3p4/6P1/p1B4P/BPP5/5K2 w - - 0 32",
+          "moves": "b2b4 a8c8 c3d4 c8c2",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0TiMa",
+          "fen": "7R/5Kp1/5p2/6kP/8/2b5/8/8 w - - 11 57",
+          "moves": "f7g7 f6f5 g7g8 c3h8",
+          "detected": [
+            "discovered_attack✓",
+            "removed_defender✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0Dbx1",
+          "fen": "4r1k1/ppqn1ppp/2pbr3/3p1PBP/3Pn3/2N5/PPPQBP2/1K1R3R w - - 1 19",
+          "moves": "d2e3 e4c3 e3c3 e6e2",
+          "detected": [
+            "fork?",
+            "discovered_attack✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "11Q4Z",
+          "fen": "4r1k1/pp3pbp/1n4p1/2p3N1/2P5/PP2p2P/5PP1/2RR2K1 w - - 0 23",
+          "moves": "f2e3 g7h6 g5f3 h6e3 g1f1 e3c1",
+          "detected": [
+            "hanging_piece✓",
+            "fork✓"
+          ]
+        },
+        {
+          "id": "0aDJZ",
+          "fen": "4r3/p7/2p2k2/3p2p1/2p1P3/2P2P2/P2KR3/8 b - - 3 35",
+          "moves": "f6e5 e4d5 e5f6 e2e8",
+          "detected": [
+            "discovered_attack✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0Mf9G",
+          "fen": "r1bqkb1r/ppp1pn1p/2n3p1/3p1P1Q/7N/2P5/PP1P1PPP/RNB1KB1R w KQkq - 0 7",
+          "moves": "f5g6 h7g6 h5g6 h8h4",
+          "detected": [
+            "discovered_attack✓",
+            "hanging_piece✓",
+            "pin?"
+          ]
+        },
+        {
+          "id": "0DZMa",
+          "fen": "5r1k/p2b4/4p2p/1p1p2q1/2pQ4/2P2B1P/PP6/5R1K b - - 4 56",
+          "moves": "g5f6 f3h5 f6d4 f1f8 h8g7 f8f7 g7g8 c3d4",
+          "detected": [
+            "pin✓",
+            "pin?",
+            "discovered_attack✓",
+            "hanging_piece✓",
+            "fork✓"
+          ]
+        }
+      ]
+    },
+    {
+      "theme": "discoveredAttack",
+      "motif": "discovered_attack",
+      "n": 400,
+      "anyHit": 398,
+      "confirmedHit": 375,
+      "firstMoveHit": 314,
+      "firstMoveConfirmed": 291,
+      "unlabeledN": 400,
+      "unlabeledAnyFire": 51,
+      "unlabeledConfirmedFire": 35,
+      "misses": [
+        {
+          "id": "0jFaq",
+          "fen": "3r3R/p1r1kpp1/2pb4/6P1/3p1P2/1PnP4/PB4B1/K3R3 b - - 8 31",
+          "moves": "e7d7 g2h3 f7f5 g5f6",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0ULpP",
+          "fen": "r1bq1b1r/p1pp1kpp/1p6/4P3/1n3Qn1/8/PPP2PPP/RNB1K1NR b KQ - 1 9",
+          "moves": "f7g8 f4c4 d7d5 e5d6 b4d5 c4d5 c8e6 d5e6",
+          "detected": [
+            "fork✓",
+            "pin?",
+            "back_rank_threat✓",
+            "pin✓",
+            "hanging_piece✓",
+            "removed_defender✓",
+            "back_rank_mate✓"
+          ]
+        }
+      ]
+    },
+    {
+      "theme": "trappedPiece",
+      "motif": "trapped_piece",
+      "n": 400,
+      "anyHit": 70,
+      "confirmedHit": 70,
+      "firstMoveHit": 51,
+      "firstMoveConfirmed": 51,
+      "unlabeledN": 400,
+      "unlabeledAnyFire": 36,
+      "unlabeledConfirmedFire": 36,
+      "misses": [
+        {
+          "id": "0QzrJ",
+          "fen": "5rk1/1p4p1/pq1b3p/3PppQ1/2P3b1/1N6/PP4PP/R4R1K w - - 0 22",
+          "moves": "g5g6 b6d8 g6e6 g8h7 c4c5 f8f6 c5d6 f6e6 d5e6 d8d6",
+          "detected": [
+            "hanging_piece✓",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "08chX",
+          "fen": "r2q1rk1/ppp2ppp/2n5/3pP3/3PnB2/5P2/P1B2P1P/R2Q1RK1 b - - 0 15",
+          "moves": "e4c3 d1d3 c3e2 d3e2",
+          "detected": [
+            "hanging_piece✓",
+            "discovered_attack?"
+          ]
+        },
+        {
+          "id": "06Zoz",
+          "fen": "r3k2r/pp2nppp/1Bb5/8/4PQ2/P1N5/1qP2PPP/R2R2K1 b kq - 0 16",
+          "moves": "a7b6 f4d2 e8g8 a1a2 b2a2 c3a2",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0H5Oo",
+          "fen": "rn5k/p2b1pp1/1p2p3/3B4/5B2/1N2P3/qPK2PPP/3R2NR b - - 0 17",
+          "moves": "e6d5 d1a1 d7f5 c2c3 a2a1 b3a1",
+          "detected": [
+            "skewer✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0WmA2",
+          "fen": "3q1rk1/1rp2p2/6pp/p3P3/Pb6/4Q2P/1PB2P1P/R4RK1 w - - 2 25",
+          "moves": "e3h6 b4d2 a1d1 d2h6 d1d8 f8d8",
+          "detected": [
+            "discovered_attack✓",
+            "hanging_piece✓",
+            "discovered_attack?"
+          ]
+        },
+        {
+          "id": "0uXCP",
+          "fen": "1r5r/1Qpqkppp/4p3/3pP3/7P/2PP4/PP3PP1/R4RK1 w - - 2 20",
+          "moves": "b7a6 b8a8 a6b7 h8b8 b7b8 a8b8",
+          "detected": [
+            "skewer✓",
+            "hanging_piece✓",
+            "pin?",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "0vrMc",
+          "fen": "1k3bnr/ppp2ppp/8/1q6/3Q4/7P/PPP2PP1/R1B3K1 b - - 0 14",
+          "moves": "f8e7 d4g7 g8f6 g7h8",
+          "detected": [
+            "fork✓",
+            "pin✓",
+            "hanging_piece✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "09JhC",
+          "fen": "r4rk1/3p1ppp/pp6/1p1QP3/8/2P2KP1/1P5q/RN2R3 b - - 0 20",
+          "moves": "h2b2 a1a2 b2a2 d5a2",
+          "detected": [
+            "fork✓",
+            "pin✓",
+            "pin?",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0PEFU",
+          "fen": "1r3rk1/pQpq1p2/4pb2/3p3p/3P1PpP/2P3B1/PP4P1/4RRK1 w - - 1 24",
+          "moves": "b7a7 b8a8 a7b7 f8b8 b7b8 a8b8",
+          "detected": [
+            "skewer✓",
+            "hanging_piece✓",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "0fBNW",
+          "fen": "r2b3r/1p3pk1/p1p1q1np/4P1pQ/1P1P2N1/P6P/3B1PP1/2R1R1K1 w - - 4 28",
+          "moves": "e1e3 g6f4 g4f6 f4h5",
+          "detected": [
+            "fork✓",
+            "pin?",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0Hcuq",
+          "fen": "rn1q3r/ppp1kB1p/5n2/4p3/4P3/5b2/PPP1Q1PP/RN3RK1 w - - 0 13",
+          "moves": "f1f3 d8d4 g1h1 d4b2 e2f1 b2a1",
+          "detected": [
+            "fork✓",
+            "pin✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0Z5f5",
+          "fen": "6k1/3q2nn/5rpQ/3pp2p/P3P3/3P1NP1/6K1/R4R2 w - - 0 32",
+          "moves": "f1f2 d5e4 d3e4 g6g5 h6f6 h7f6",
+          "detected": [
+            "fork?",
+            "pin✓",
+            "discovered_attack✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0SAKG",
+          "fen": "r1b1k1nr/pp1p1pbp/1qn1p1p1/2p5/N1P1P3/3PBN2/PP3PPP/R2QKB1R b KQkq - 3 7",
+          "moves": "b6b4 e3d2 b4b2 a4b2",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0V54m",
+          "fen": "rn3rk1/6pp/p3pN2/8/1b6/8/Pq1N1PPP/R2Q1RK1 b - - 0 18",
+          "moves": "f8f6 d2c4 b2c3 a1c1 c3c1 d1c1",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0l4jd",
+          "fen": "5rk1/r4ppp/2bb1n2/q2pp3/8/1QP1PNB1/PP3PPP/RN2K2R w KQ - 0 13",
+          "moves": "g3e5 c6a4 b3a4 a5a4",
+          "detected": [
+            "pin✓",
+            "hanging_piece✓",
+            "pin?"
+          ]
+        },
+        {
+          "id": "10Wpe",
+          "fen": "3r1Bk1/ppp2p1p/1n4p1/8/8/3B1P2/Pb3P1P/RN4RK w - - 0 22",
+          "moves": "f8e7 d8d3 b1a3 b2a1 g1a1 b6d5",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "123Kg",
+          "fen": "1k1r3r/1pp2p2/p1nbp2p/3p2p1/3P2R1/2PB1P2/PP1N1P1q/2K2QR1 b - - 3 18",
+          "moves": "h2h5 g1h1 h5h1 f1h1",
+          "detected": [
+            "skewer✓",
+            "hanging_piece✓",
+            "pin?"
+          ]
+        },
+        {
+          "id": "11Cwf",
+          "fen": "r1bqr3/b1p2Qpk/p2p2np/1p6/1P1PP3/P4N1P/BB3PPK/R3R3 w - - 1 25",
+          "moves": "d4d5 e8e7 b2f6 e7f7",
+          "detected": [
+            "fork✓",
+            "pin?",
+            "hanging_piece✓",
+            "discovered_attack✓",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "0Ua2I",
+          "fen": "r4rk1/pppq1ppp/8/3p3n/1bP3bQ/2NBP3/PP1B1PPP/R4RK1 w - - 0 13",
+          "moves": "c4d5 b4e7 d3f5 e7h4",
+          "detected": [
+            "pin?",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "123lg",
+          "fen": "3r2k1/pq4pp/1ppprp2/4p3/2PP4/P1N1Q1P1/1P2PP1P/R5K1 b - - 0 23",
+          "moves": "b7e7 d4d5 c6d5 c4d5 e7e8 d5e6",
+          "detected": [
+            "fork✓",
+            "pin?",
+            "discovered_attack?",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0v1KL",
+          "fen": "r2qkbnr/1b3ppp/p1p1p3/3pN3/2pP4/2N1PQ2/PPP2PPP/R1B2RK1 b kq - 3 9",
+          "moves": "f7f6 f3h5 g7g6 e5g6 h7g6 h5h8",
+          "detected": [
+            "fork✓",
+            "pin?",
+            "hanging_piece✓",
+            "fork?",
+            "pin✓",
+            "discovered_attack?",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "0mQMl",
+          "fen": "rn2kb1r/ppp1pppp/3q1n2/1N3bB1/3Pp3/8/PPP1QPPP/R3KBNR b KQkq - 7 6",
+          "moves": "d6b4 g5d2 b4b2 d2c3 b2a1 c3a1",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0GbnU",
+          "fen": "2r3k1/4bppn/4p3/n2pP3/5B1P/1qrPN1P1/2N2PB1/Q3R1K1 b - - 5 30",
+          "moves": "a5c6 e1b1 b3c2 e3c2",
+          "detected": [
+            "pin✓",
+            "hanging_piece✓",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "0vO0v",
+          "fen": "1r2r1k1/2pq1pb1/p3bBp1/1p2pn1p/7Q/2PP2NP/PPB2PP1/R3R1K1 w - - 8 27",
+          "moves": "h4g5 g7h6 g5h6 f5h6",
+          "detected": [
+            "hanging_piece✓",
+            "discovered_attack?"
+          ]
+        },
+        {
+          "id": "0pP8N",
+          "fen": "r1b1k1nr/pp1nppbp/1qpp2p1/8/2B1P3/P1PPBN2/1P3PPP/RN1QK2R b KQkq - 2 7",
+          "moves": "b6b2 a1a2 b2a2 c4a2",
+          "detected": [
+            "pin✓",
+            "hanging_piece✓"
+          ]
+        }
+      ]
+    },
+    {
+      "theme": "backRankMate",
+      "motif": "back_rank_mate",
+      "n": 400,
+      "anyHit": 216,
+      "confirmedHit": 216,
+      "firstMoveHit": 122,
+      "firstMoveConfirmed": 122,
+      "unlabeledN": 400,
+      "unlabeledAnyFire": 68,
+      "unlabeledConfirmedFire": 60,
+      "misses": [
+        {
+          "id": "0Uxtl",
+          "fen": "4r1k1/pp3pp1/2n4p/2R5/8/P2P1N2/1P1RrPPP/6K1 w - - 3 20",
+          "moves": "c5c2 e2e1 f3e1 e8e1",
+          "detected": []
+        },
+        {
+          "id": "0lrGu",
+          "fen": "4rk2/p4p2/2R4p/3p2p1/3Pn3/P7/1r3PPP/2B1RK2 w - - 0 28",
+          "moves": "c1b2 e4d2 f1g1 e8e1",
+          "detected": [
+            "discovered_attack?",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0mQkQ",
+          "fen": "r4rk1/2p2ppp/1bp5/p2nQ3/P1B3b1/1N6/1PP2qPP/R1B1R2K b - - 1 16",
+          "moves": "f8e8 e5e8 a8e8 e1e8",
+          "detected": [
+            "fork?",
+            "removed_defender?",
+            "removed_defender✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0XTNV",
+          "fen": "r2qr1k1/1p3ppp/p1p2b2/3p4/3Pn1b1/1BP1RNB1/PP2QPPP/4R1K1 b - - 4 18",
+          "moves": "e4g3 e3e8 d8e8 e2e8 a8e8 e1e8",
+          "detected": [
+            "fork✓",
+            "skewer✓",
+            "removed_defender?",
+            "hanging_piece✓",
+            "fork?",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "0sgYj",
+          "fen": "2r3k1/5ppp/Qp6/4p3/4b3/2P1q2P/PP2N1PK/3R4 b - - 4 29",
+          "moves": "c8a8 a6a8 e4a8 d1d8",
+          "detected": [
+            "fork?",
+            "removed_defender?",
+            "fork✓"
+          ]
+        },
+        {
+          "id": "0fYUn",
+          "fen": "1r4k1/5ppp/p7/8/1P1R4/P1r4P/3R2P1/6K1 b - - 0 27",
+          "moves": "c3a3 d4d8 b8d8 d2d8",
+          "detected": [
+            "fork✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0QCkM",
+          "fen": "1R6/4kp1p/4p1p1/3b4/P1B5/1Pn2N2/1r3PPP/6K1 w - - 7 34",
+          "moves": "c4d5 b2b1 f3e1 b1e1",
+          "detected": [
+            "fork✓",
+            "pin?",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0T30V",
+          "fen": "5rk1/p4ppp/4p3/8/8/4PQ2/r2q1PPP/R1R3K1 w - - 0 24",
+          "moves": "a1a2 d2c1 f3d1 c1d1",
+          "detected": [
+            "fork✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0sDcm",
+          "fen": "4br1k/Q5R1/2p1p2p/1pP1N3/3Pqp2/4P3/1B3PPP/6K1 w - - 1 27",
+          "moves": "a7e7 e4b1 b2c1 b1c1",
+          "detected": [
+            "fork✓",
+            "hanging_piece✓",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "0AeaL",
+          "fen": "2kr1b1r/5ppp/ppN2n2/8/2P5/8/PP2qPPP/RNB1R1K1 w - - 0 16",
+          "moves": "e1e2 d8d1 e2e1 d1e1",
+          "detected": [
+            "fork✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0fpAY",
+          "fen": "r4r2/6k1/6nR/2Q5/ppN2q2/3P4/PPP5/2K4R w - - 3 27",
+          "moves": "c1b1 f4f1 h1f1 f8f1",
+          "detected": [
+            "fork?",
+            "pin?",
+            "removed_defender?",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0k9Zz",
+          "fen": "r5k1/1b2bppp/p3p3/1p6/4P3/1Rq1R2Q/B1Pr1PPP/6K1 w - - 0 23",
+          "moves": "b3c3 d2d1 e3e1 d1e1",
+          "detected": [
+            "hanging_piece✓",
+            "fork✓",
+            "removed_defender?",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "0hRnW",
+          "fen": "r6r/3b1k2/4p3/1RQ2p1p/2PP4/3RP3/4NPPP/6K1 w - - 3 30",
+          "moves": "b5b7 a8a1 b7b1 a1b1 e2c1 b1c1 d3d1 c1d1",
+          "detected": [
+            "fork✓",
+            "pin?",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "02Lqe",
+          "fen": "3r2k1/5ppp/R2R4/p3r3/8/1P4P1/5P1P/6K1 b - - 0 24",
+          "moves": "d8d6 a6a8 d6d8 a8d8 e5e8 d8e8",
+          "detected": [
+            "fork✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0401S",
+          "fen": "2k4r/ppp1bppp/5n2/8/2Pr4/8/P4PPP/RNB1R1K1 w - - 0 15",
+          "moves": "e1e7 d4d1 e7e1 d1e1",
+          "detected": [
+            "fork✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0JEtL",
+          "fen": "7k/p4pp1/2N4p/8/4B3/r3P3/1b3PPP/3R2K1 w - - 0 31",
+          "moves": "d1d7 a3a1 e4b1 a1b1 d7d1 b1d1",
+          "detected": [
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0y5RM",
+          "fen": "2r4r/bp3kp1/7p/4B3/3pR3/2P5/P4PPP/RN4K1 w - - 0 23",
+          "moves": "c3d4 c8c1 e4e1 c1e1",
+          "detected": [
+            "fork✓",
+            "pin✓",
+            "hanging_piece✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0Lx59",
+          "fen": "3r2k1/5ppp/p1nq3N/1pp3Q1/8/P1PPRP1P/6P1/6K1 b - - 6 26",
+          "moves": "d6h6 g5d8 c6d8 e3e8",
+          "detected": [
+            "removed_defender?",
+            "fork✓"
+          ]
+        },
+        {
+          "id": "06Oin",
+          "fen": "2k5/1pp4p/3q1pb1/P7/5Q2/3r2B1/5PPP/R5K1 w - - 3 32",
+          "moves": "f4h6 d3d1 a1d1 d6d1",
+          "detected": [
+            "fork✓",
+            "hanging_piece✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0fh8m",
+          "fen": "3r2k1/q4ppp/1p3p1b/5Q2/5nPP/2P2N2/PP3P2/R5K1 b - - 2 23",
+          "moves": "d8d5 f5c8 d5d8 c8d8",
+          "detected": [
+            "fork✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0ZSxJ",
+          "fen": "r1b3k1/ppp2ppp/8/3q4/4n3/4K3/PP3PPP/R2R4 b - - 1 17",
+          "moves": "d5c6 d1d8 c6e8 d8e8",
+          "detected": [
+            "fork✓",
+            "pin✓",
+            "trapped_piece✓",
+            "removed_defender?",
+            "removed_defender✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0x224",
+          "fen": "1k6/ppp5/8/3r4/6Rp/P7/1P4PP/K7 b - - 0 32",
+          "moves": "d5h5 g4g8",
+          "detected": []
+        },
+        {
+          "id": "0wn0n",
+          "fen": "1k1r3r/pp6/2p1Bn1p/4b3/3P2p1/8/PP2RPPP/R1B3K1 w - - 0 19",
+          "moves": "d4e5 d8d1 e2e1 d1e1",
+          "detected": [
+            "fork✓",
+            "pin✓",
+            "removed_defender?",
+            "removed_defender✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0nnKx",
+          "fen": "2r1r3/3k1pBp/p2p4/1p1P4/6R1/1B6/P4PPP/4R1K1 w - - 7 30",
+          "moves": "e1e8 c8c1 b3d1 c1d1 e8e1 d1e1",
+          "detected": [
+            "hanging_piece✓",
+            "fork✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "07eAs",
+          "fen": "r3r1k1/p4p2/2pR2pB/1p6/2b1q3/P1P3Q1/2P2PPP/3R2K1 w - - 0 23",
+          "moves": "d6d4 e4e1 d1e1 e8e1",
+          "detected": [
+            "fork?",
+            "pin?",
+            "removed_defender?"
+          ]
+        }
+      ]
+    }
+  ],
+  "hangingPiece": {
+    "theme": "hangingPiece",
+    "motif": "hanging_piece (static, solver side)",
+    "n": 400,
+    "anyHit": 400,
+    "capturedSquareHit": 400,
+    "unlabeledN": 400,
+    "unlabeledAnyFire": 187,
+    "misses": []
+  },
+  "chessqa": {
+    "byType": {
+      "motifs_battery": {
+        "n": 17,
+        "exact": 17,
+        "tp": 31,
+        "fp": 0,
+        "fn": 0,
+        "wrong": []
+      },
+      "motifs_fork": {
+        "n": 60,
+        "exact": 60,
+        "tp": 84,
+        "fp": 0,
+        "fn": 0,
+        "wrong": []
+      },
+      "motifs_pin": {
+        "n": 22,
+        "exact": 22,
+        "tp": 27,
+        "fp": 0,
+        "fn": 0,
+        "wrong": []
+      },
+      "motifs_skewer": {
+        "n": 1,
+        "exact": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "wrong": []
+      }
+    },
+    "pinRelativeVariant": {
+      "n": 22,
+      "exact": 16
+    }
+  }
+}

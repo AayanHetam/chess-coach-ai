@@ -623,7 +623,8 @@ All evals are in pawns from White's perspective (positive = better for White); M
     },
     "ray": "diag-g5-e7",
     "confirmed": true,
-    "refutation": null
+    "refutation": null,
+    "createdByMove": false
   }
 ]
   CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
@@ -707,7 +708,8 @@ TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
     },
     "ray": "diag-g5-e7",
     "confirmed": true,
-    "refutation": null
+    "refutation": null,
+    "createdByMove": false
   }
 ]
 CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
@@ -1372,37 +1374,6 @@ All evals are in pawns from White's perspective (positive = better for White); M
     "see_value_cp": 100,
     "confirmed": true,
     "refutation": null
-  },
-  {
-    "motif": "trapped_piece",
-    "square": "g7",
-    "piece": "b",
-    "escape_squares_checked": [
-      "h6",
-      "f6",
-      "e5",
-      "d4"
-    ],
-    "all_unsafe_because": [
-      {
-        "square": "h6",
-        "threatened_by": "g5"
-      },
-      {
-        "square": "f6",
-        "threatened_by": "g5"
-      },
-      {
-        "square": "e5",
-        "threatened_by": "d4"
-      },
-      {
-        "square": "d4",
-        "threatened_by": "b5"
-      }
-    ],
-    "confirmed": true,
-    "refutation": null
   }
 ]
   CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
@@ -1419,21 +1390,6 @@ All evals are in pawns from White's perspective (positive = better for White); M
   FEN before: B1b1k1Nr/N2p4/n3qbp1/p7/2pPp1PP/2P1PPR1/PPK5/R1B5 w - - 1 26
   TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
 [
-  {
-    "motif": "hanging_piece",
-    "square": "c8",
-    "piece": "b",
-    "attackers": [
-      {
-        "square": "a7",
-        "piece": "n"
-      }
-    ],
-    "defenders": [],
-    "see_value_cp": 330,
-    "confirmed": true,
-    "refutation": null
-  },
   {
     "motif": "hanging_piece",
     "square": "f6",
@@ -1481,6 +1437,22 @@ All evals are in pawns from White's perspective (positive = better for White); M
     "see_value_cp": 100,
     "confirmed": true,
     "refutation": null
+  },
+  {
+    "motif": "trapped_piece",
+    "square": "c8",
+    "piece": "b",
+    "escape_squares_checked": [
+      "b7"
+    ],
+    "all_unsafe_because": [
+      {
+        "square": "b7",
+        "threatened_by": "a8"
+      }
+    ],
+    "confirmed": true,
+    "refutation": null
   }
 ]
   CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
@@ -1499,16 +1471,25 @@ All evals are in pawns from White's perspective (positive = better for White); M
 [
   {
     "motif": "hanging_piece",
-    "square": "c8",
-    "piece": "b",
+    "square": "f7",
+    "piece": "q",
     "attackers": [
       {
-        "square": "a7",
+        "square": "h6",
         "piece": "n"
+      },
+      {
+        "square": "d5",
+        "piece": "b"
       }
     ],
-    "defenders": [],
-    "see_value_cp": 330,
+    "defenders": [
+      {
+        "square": "e7",
+        "piece": "k"
+      }
+    ],
+    "see_value_cp": 900,
     "confirmed": true,
     "refutation": null
   },
@@ -1526,10 +1507,45 @@ All evals are in pawns from White's perspective (positive = better for White); M
     "see_value_cp": 330,
     "confirmed": true,
     "refutation": null
+  },
+  {
+    "motif": "hanging_piece",
+    "square": "e4",
+    "piece": "p",
+    "attackers": [
+      {
+        "square": "d5",
+        "piece": "b"
+      },
+      {
+        "square": "f3",
+        "piece": "p"
+      }
+    ],
+    "defenders": [],
+    "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "trapped_piece",
+    "square": "c8",
+    "piece": "b",
+    "escape_squares_checked": [
+      "b7"
+    ],
+    "all_unsafe_because": [
+      {
+        "square": "b7",
+        "threatened_by": "d5"
+      }
+    ],
+    "confirmed": true,
+    "refutation": null
   }
 ]
 
-UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): fork — refuted by f7xd5; skewer — refuted by f7xd5
+UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): skewer — refuted by f7xd5
   CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
   BRANCH POINT: Lines diverge at move 1. Best continues Bb3, played line goes Bd5
   CANDIDATE MOVES (from Stockfish, best first):
@@ -1611,7 +1627,8 @@ UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): 
     },
     "ray": "diag-c4-g8",
     "confirmed": true,
-    "refutation": null
+    "refutation": null,
+    "createdByMove": true
   },
   {
     "motif": "pin",
@@ -1630,7 +1647,8 @@ UNCONFIRMED PATTERNS (mention ONLY if you explicitly cite the refutation move): 
     },
     "ray": "file-c",
     "confirmed": true,
-    "refutation": null
+    "refutation": null,
+    "createdByMove": true
   },
   {
     "motif": "hanging_piece",
@@ -1833,37 +1851,6 @@ TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
     "see_value_cp": 100,
     "confirmed": true,
     "refutation": null
-  },
-  {
-    "motif": "trapped_piece",
-    "square": "g7",
-    "piece": "b",
-    "escape_squares_checked": [
-      "h6",
-      "f6",
-      "e5",
-      "d4"
-    ],
-    "all_unsafe_because": [
-      {
-        "square": "h6",
-        "threatened_by": "g5"
-      },
-      {
-        "square": "f6",
-        "threatened_by": "g5"
-      },
-      {
-        "square": "e5",
-        "threatened_by": "d4"
-      },
-      {
-        "square": "d4",
-        "threatened_by": "b5"
-      }
-    ],
-    "confirmed": true,
-    "refutation": null
   }
 ]
 CANDIDATE RANKING: CLOSE ALTERNATIVES — gap between #1 and #2 candidate: 0.60 pawns
@@ -1899,21 +1886,6 @@ OPPONENT THREATS TO COUNT: Nb4+ (check), Bxa8 (wins ~3p)
 ### CRITICAL POSITION: Move 26 (White — MISTAKE)
 TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
 [
-  {
-    "motif": "hanging_piece",
-    "square": "c8",
-    "piece": "b",
-    "attackers": [
-      {
-        "square": "a7",
-        "piece": "n"
-      }
-    ],
-    "defenders": [],
-    "see_value_cp": 330,
-    "confirmed": true,
-    "refutation": null
-  },
   {
     "motif": "hanging_piece",
     "square": "f6",
@@ -1959,6 +1931,22 @@ TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
       }
     ],
     "see_value_cp": 100,
+    "confirmed": true,
+    "refutation": null
+  },
+  {
+    "motif": "trapped_piece",
+    "square": "c8",
+    "piece": "b",
+    "escape_squares_checked": [
+      "b7"
+    ],
+    "all_unsafe_because": [
+      {
+        "square": "b7",
+        "threatened_by": "a8"
+      }
+    ],
     "confirmed": true,
     "refutation": null
   }
@@ -2836,7 +2824,8 @@ All evals are in pawns from White's perspective (positive = better for White); M
     },
     "ray": "diag-g4-d1",
     "confirmed": true,
-    "refutation": null
+    "refutation": null,
+    "createdByMove": false
   }
 ]
   IMPORTANT CHOICE — gap between #1 and #2 candidate: 2.00 pawns
@@ -3010,7 +2999,8 @@ TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
     },
     "ray": "diag-g4-d1",
     "confirmed": true,
-    "refutation": null
+    "refutation": null,
+    "createdByMove": false
   }
 ]
 CANDIDATE RANKING: IMPORTANT CHOICE — gap between #1 and #2 candidate: 2.00 pawns
@@ -3252,20 +3242,22 @@ Do not assert: fork, pin, skewer, discovered, hanging, trapped, back rank, mate 
   TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
 [
   {
-    "motif": "fork",
-    "by_piece": "p",
-    "by_square": "f4",
-    "targets": [
+    "motif": "hanging_piece",
+    "square": "e5",
+    "piece": "n",
+    "attackers": [
       {
-        "square": "e5",
-        "piece": "n"
-      },
-      {
-        "square": "g5",
+        "square": "f4",
         "piece": "p"
       }
     ],
-    "unavoidable_loss_cp": 100,
+    "defenders": [
+      {
+        "square": "d6",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 220,
     "confirmed": true,
     "refutation": null
   }
@@ -3361,20 +3353,22 @@ CONCEPT DELTA (what the move changed): new threat(s): Black can capture knight o
 TACTICAL FACTS (confirmed by deterministic detector — narrate only these):
 [
   {
-    "motif": "fork",
-    "by_piece": "p",
-    "by_square": "f4",
-    "targets": [
+    "motif": "hanging_piece",
+    "square": "e5",
+    "piece": "n",
+    "attackers": [
       {
-        "square": "e5",
-        "piece": "n"
-      },
-      {
-        "square": "g5",
+        "square": "f4",
         "piece": "p"
       }
     ],
-    "unavoidable_loss_cp": 100,
+    "defenders": [
+      {
+        "square": "d6",
+        "piece": "p"
+      }
+    ],
+    "see_value_cp": 220,
     "confirmed": true,
     "refutation": null
   }

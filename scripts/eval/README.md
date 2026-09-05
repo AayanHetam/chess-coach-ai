@@ -27,9 +27,10 @@ uv venv .evalvenv && uv pip install --python .evalvenv/bin/python -r scripts/eva
 | `factual_error_eval.py --n 12` | Factual accuracy 2×2: {Sonnet,Haiku} × {grounded,ungrounded} | ~8 calls/item |
 | `gcceval_hedge_eval.py` | ARCHIVED — hedging A/B (CH-1a); answered and reverted, needs a v3.2 prompt snapshot to reproduce |
 | `stage9-live-test.ts` | 5 live fixtures through the real flagship + validators | ~10 flagship calls |
-| `contract_ci4_gates.ts --samples 3 [--legacy]` | The CI-4 gate verdict: persona / citation coverage / shipped fabrication, **per run AND pooled** | ~4 flagship + 2 Haiku calls per fixture-sample |
+| `contract_ci4_gates.ts --samples 3 [--legacy] [--fixtures-real] [--only 01,07] [--label arm]` | The CI-4 gate verdict: persona / citation coverage / shipped fabrication, **per run AND pooled**. `--fixtures-real` runs the real-Stockfish fixtures; the result carries a usage-priced `spend` block (generation + judge + ladder) | ~1 flagship + 2 Haiku calls per fixture-sample, ≈$0.10 on Sonnet 4.6 |
 | `contract_ci4_offline_replay.ts [results.json]` | Replays the ladder over already-committed generations — free A/B of ladder/citation changes | $0, no network |
 | `motif_detector_recall.ts [--n 400]` | Do the `src/lib/tactics` detectors find the tactics humans label? Recall per Lichess puzzle theme + exact-match on the ChessQA motif battery | $0, no network, ~7 min |
+| `line_story_check.ts [--n 300]` | Is the per-ply line story (lineStory.ts) right? Mate at the labeled ply on `mateInN`, theme motif on a solver ply, sacrifice offers vs non-sacrifice, ledger sign on `crushing` | $0, no network, ~4 min |
 
 `--dry-run` on the python harnesses builds prompts/engine context with zero API calls.
 
@@ -77,7 +78,46 @@ chess.js 100% at $0 — the detectors stay the authority; the model verbalizes.
 Re-run before touching anything under `src/lib/tactics/motifs/` and commit the
 new AFTER artifact beside the change.
 
-### Arming (read before trusting a contract-mode number)
+### Line stories are checked against labeled solutions
+
+`line_story_check.ts` scores `buildLineStory` on Lichess solutions (300 per
+label, `results/line-story-check.json`, 2026-09-05, after the 119-position
+adversarial review): mate lands on the labeled ply for 100% of mateIn1/2/3;
+the story names the theme motif on a solver ply for fork 100%, discoveredAttack
+92% (discovered and double checks counted), skewer 85% (a skewer is only
+narrated when the back piece can actually be won), trappedPiece 75%, pin 45%
+(pins that already stood before the move are deliberately not narrated as the
+move's doing); on `sacrifice` puzzles the first move reads as an offer 75% of
+the time against 11% on non-sacrifice puzzles, and the "offer" note fires on
+8.7% vs 0.7%; on `crushing` puzzles the ledger has the solver up or mating
+74%, level 23.7%, down 2.3%. 8.1% of solution plies carry no fact at all —
+those are the plies the charter tells the model to call quiet.
+
+### Verbalizer 4.1 (line stories) — the A/B that shipped it
+
+Six real-Stockfish fixtures (01, 02, 05, 07, 09, 10), one generation each,
+same day, `results/ab-*.json` (each file carries a usage-priced `spend`):
+
+| arm | model | persona (pooled / min) | citation coverage | fabrication | ladder pass / sentence drops | prose kept | spend |
+|---|---|---|---|---|---|---|---|
+| baseline verbalizer 4.0 (main) | Sonnet 4.6 | 4.42 / 4.0 | 0.927 | 0 / 171 | 8 / 5 | 0.947 | $0.51 |
+| 4.1 with line stories | Sonnet 4.6 | 4.33 / 4.0 | 0.948 | 0 / 168 | 10 / 3 | 0.963 | $0.55 |
+| 4.1 with line stories | Sonnet 5, thinking disabled | 4.17 / 3.5 | 0.906 | 1 / 115 | 10 / 3 | 0.970 | $0.46 |
+
+All six CI-4 gates pass in every arm. Persona is two Haiku judge passes on
+six games — differences of 0.1-0.2 are inside its noise. What the stories
+changed is visible in the prose, not the judge: the 4.1 reviews narrate the
+game's own continuation ("the king steps to d8, its only legal move, the
+knight takes the rook, then the queens come off") and quote the ledger where
+4.0 restated the eval swing. Sonnet 5 is 17% cheaper per review at list price
+but counted ~30% more input tokens for the same prompts, scored one
+`forbidden_claim` fabrication where 4.6 scored none, and put one game at the
+persona floor — not evidence to move the flagship on six games. Its ChessQA
+motif run is inconclusive: the model writes past the 3,000-token budget on
+that prompt (21/25 answers cut off with adaptive thinking, 16/25 with
+thinking disabled; 5 of the 9 that finished were right).
+
+### Arming (read before trusting a contract-mode number)### Arming (read before trusting a contract-mode number)
 
 The enforced stream applies **no arming at all** unless a table is passed: every
 card reports `pass`, shipped prose equals raw model prose, and any fabrication

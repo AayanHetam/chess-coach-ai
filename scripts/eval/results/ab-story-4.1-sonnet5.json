@@ -1,0 +1,328 @@
+{
+  "date": "2026-09-05",
+  "mode": "ci4_gate_run_multisample",
+  "label": "story-4.1-sonnet5-nothinking",
+  "fixturesSource": "fixtures-real (real Stockfish depth 16 / MultiPV 3)",
+  "model": {
+    "generator": "claude-sonnet-5",
+    "judge": "claude-haiku-4-5-20251001"
+  },
+  "spend": {
+    "generationUsd": 0.4345595,
+    "judgeUsd": 0.01481,
+    "ladderUsd": 0.008726,
+    "inputTokens": 139950,
+    "outputTokens": 8887,
+    "cacheReadTokens": 93985,
+    "cacheCreationTokens": 18797,
+    "totalUsd": 0.4581,
+    "note": "usage-priced against llmPricing (generation + persona judge + ladder regenerations)"
+  },
+  "verbalizerPromptVersion": "4.1",
+  "legacyPromptVersion": "3.6",
+  "fixtures": 6,
+  "samplesPerFixture": 1,
+  "userMessage": "analyze this position and where my play went wrong",
+  "refereeMode": "full",
+  "armingTable": {
+    "eval_display": "error",
+    "tactical_keyword": "error",
+    "san_whitelist:square_unknown": "error",
+    "mobility_claims": "error",
+    "san_whitelist": "warn",
+    "forbidden_claim": "warn",
+    "stage9_positional_claim": "warn",
+    "stage9_mate_in_n": "warn",
+    "stage9_material_win": "warn",
+    "stage9_user_visibility": "warn",
+    "relational_claim": "warn",
+    "citation_invalid": "warn"
+  },
+  "gateThresholds": {
+    "personaPooled": 3.55,
+    "personaPerRun": 3.5,
+    "citationCoverage": 0.8,
+    "fabricationPer100": 1
+  },
+  "legacyPersonaMean": null,
+  "perRun": [
+    {
+      "run": 0,
+      "games": 6,
+      "personaMean": 4.17,
+      "personaMin": 3.5,
+      "citationCoverageSentence": 0.906,
+      "citationCoverageParagraph": 1,
+      "citationCoveragePooledSentence": 0.913,
+      "fabricationRate": 0.87,
+      "fabricationCount": 1,
+      "claimSentences": 115,
+      "fabricationCategories": {
+        "forbidden_claim_present": 1
+      },
+      "ladderDistribution": {
+        "pass": 10,
+        "sentence_drop": 3,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "proseRetentionMean": 0.97,
+      "costUsd": 0.4432
+    }
+  ],
+  "pooled": {
+    "games": 6,
+    "personaMean": 4.17,
+    "personaMin": 3.5,
+    "citationCoverageSentence": 0.906,
+    "citationCoverageParagraph": 1,
+    "citationCoveragePooledSentence": 0.913,
+    "fabricationRate": 0.87,
+    "fabricationCount": 1,
+    "claimSentences": 115,
+    "fabricationCategories": {
+      "forbidden_claim_present": 1
+    },
+    "ladderDistribution": {
+      "pass": 10,
+      "sentence_drop": 3,
+      "edited": 0,
+      "regenerated": 0,
+      "templated": 0,
+      "passthrough_footnoted": 0
+    },
+    "proseRetentionMean": 0.97,
+    "costUsd": 0.4432
+  },
+  "gates": {
+    "personaPooled": true,
+    "personaEveryRun": true,
+    "citationPooled": true,
+    "citationEveryRun": true,
+    "fabricationPooled": true,
+    "fabricationEveryRun": true
+  },
+  "samples": [
+    {
+      "fixture": "01_mate_for_white_midgame",
+      "sample": 0,
+      "cardsPlanned": 1,
+      "cardsShipped": 1,
+      "ladder": {
+        "pass": 1,
+        "sentence_drop": 0,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "errorsInitial": 0,
+      "coverageSentence": 0.636,
+      "coverageParagraph": 1,
+      "claimSentencesForCoverage": {
+        "sentence": 11,
+        "paragraph": 11
+      },
+      "citedClaimSentences": {
+        "sentence": 7,
+        "paragraph": 11
+      },
+      "fabricationCount": 0,
+      "fabricationClaimSentences": 14,
+      "fabricationCategories": {},
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "proseRetention": 1,
+      "costUsd": 0.079,
+      "shipped": "Let's see where things slipped in your Two Knights line.\n\n[INSIGHT:5:b:inaccuracy:-0.01:+0.91:Nxd5:Na5]\nRecapturing on d5 looked completely natural — but it walked straight into a fork you couldn't see coming yet.\n[WHY]\nIdea: You'd just lost a pawn to 5. exd5 and wanted it back immediately, which is a totally reasonable instinct.\nProblem: The trouble is that 5... Nxd5 uncovers your own queen on d8 attacking White's knight on g5, but that knight isn't actually hanging for long — White answers with 6. Nxf7, forking your queen on d8 and rook on h8. After 6... Kxf7 7. Qf3+ your king gets dragged to e6, and material swings from roughly even to a solid White edge, eval jumping from -0.01 to +0.91.\nSolution: The engine's pick was 5... Na5, sidestepping and hitting the undefended bishop on c4 at the same time. After 6. Bb5+ c6 7. dxc6, Black is only down a single pawn rather than facing the king hunt — a much smaller price than what actually happened.\nOutcome: Instead of a safe, only-slightly-worse position, your king ended up marching to e6 and your development fell apart.\nHere's the pattern worth remembering: when a knight or bishop looks temporarily hanging on move 5 or 6, pause and check if it's actually part of a bigger combination before grabbing material back.\n[CONTINUATION:5:b]\n[MAIA_CONTINUATION:5:b]\n[/WHY]\n[THREATS]\n- White threatens 6. Nxf7, forking the queen on d8 and rook on h8.\n[/THREATS]\n[ROLES]\n- Your knight on g5... wait, White's knight on g5 was the piece doing all the damage, hopping into f7 to fork two pieces.\n[/ROLES]\n[CONCEPT:discoveredAttack:Discovered Attack Awareness]\nA discovered attack happens when moving one piece reveals an attack from another piece behind it — always check what your move uncovers, not just what it captures.\n[/CONCEPT]\n[/INSIGHT]"
+    },
+    {
+      "fixture": "02_mate_for_black",
+      "sample": 0,
+      "cardsPlanned": 2,
+      "cardsShipped": 2,
+      "ladder": {
+        "pass": 1,
+        "sentence_drop": 1,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "errorsInitial": 1,
+      "coverageSentence": 1,
+      "coverageParagraph": 1,
+      "claimSentencesForCoverage": {
+        "sentence": 12,
+        "paragraph": 12
+      },
+      "citedClaimSentences": {
+        "sentence": 12,
+        "paragraph": 12
+      },
+      "fabricationCount": 0,
+      "fabricationClaimSentences": 13,
+      "fabricationCategories": {},
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "proseRetention": 0.954,
+      "costUsd": 0.0451,
+      "shipped": "Let's dig into where things slipped in your Italian/Giuoco setup.\n\n[INSIGHT:6:b:inaccuracy:+0.00:+1.47:Bb6:Bb4+]\nRetreating the bishop looked safe, but it let White's center roll forward for free.\n[WHY]\nProblem: The position was still dead level here, and after 6... Bb6 White got to play 7. d5 next, kicking your knight and grabbing a big space advantage — the eval jumps to +1.47 in White's favor.\nSolution: The engine's route was 6... Bb4+, forcing 7. Bd2 Bxd2+ 8. Nbxd2, trading off White's light-squared bishop and keeping the position balanced at +0.00. The point is that the check comes with tempo — White has to spend a move blocking rather than expanding with d5.\nOutcome: Instead of trading pieces and staying central, the bishop retreat left White free to expand and Black scrambling for squares.\nThe lesson here isn't \"don't retreat\" — it's that checks with tempo are worth taking before quieter moves, especially when they trade off your opponent's best piece.\n[CONTINUATION:6:b]\n[MAIA_CONTINUATION:6:b]\n[/WHY]\n[THREATS]\n- White's central pawns on d4/e4 are ready to push and gain space now that Black didn't trade off the bishop.\n[/THREATS]\n[ROLES]\n- Black's bishop on c5 had the chance to trade itself for White's active bishop on c4's counterpart via a check, but instead retreated passively.\n[/ROLES]\n[CONCEPT:quietMove:Tempo-Gaining Checks]\nA check that forces a response is never wasted — it's a free tempo that can be used to simplify or improve your position before your opponent gets to execute their plan.\n[/CONCEPT]\n[/INSIGHT]\n\n[INSIGHT:10:b:inaccuracy:+2.36:+3.27:Nc6:O-O]\nYou were already worse off from the earlier pawn storm, and this move let White consolidate even further.\n[WHY]\nIdea: Bringing the knight back to c6 develops a piece and gets it away from d6, which feels natural after all that central pawn pushing.\nProblem: The position was already rough for Black at +2.36, but 10... Nc6 wasn't the most testing try — it doesn't address the fact that your king is still stuck in the center while White's pieces are ready to swing over. The eval slides further to +3.27.\nSolution: The engine wanted 10... O-O first, castling into safety, and after 11. O-O Nf5 12. Nc3, Black is still worse but at least the king isn't a target and the knight found a better square on f5.\nOutcome: Both lines leave White clearly better, but getting the king to safety keeps practical chances alive rather than leaving it exposed in the center.\nWhen you're already under pressure, king safety comes before piece placement — a well-posted knight doesn't help if your king is the bigger problem.\n[CONTINUATION:10:b]\n[MAIA_CONTINUATION:10:b]\n[/WHY]\n[THREATS]\n- White's bishop on c4 keeps eyeing the f7 square near your king, which is more dangerous while you're uncastled.\n[/THREATS]\n[ROLES]\n- Your king on e8 is still stuck in the center and needs to castle before it becomes a real target.\n[/ROLES]\n[CONCEPT:quietMove:King Safety Priority]\nWhen you're worse and your king hasn't castled, prioritize tucking it away first — piece improvements can wait, but an exposed king invites bigger tactical trouble.\n[/CONCEPT]\n[/INSIGHT]"
+    },
+    {
+      "fixture": "05_long_game_six_mistakes",
+      "sample": 0,
+      "cardsPlanned": 3,
+      "cardsShipped": 3,
+      "ladder": {
+        "pass": 2,
+        "sentence_drop": 1,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "errorsInitial": 1,
+      "coverageSentence": 0.952,
+      "coverageParagraph": 1,
+      "claimSentencesForCoverage": {
+        "sentence": 22,
+        "paragraph": 22
+      },
+      "citedClaimSentences": {
+        "sentence": 21,
+        "paragraph": 22
+      },
+      "fabricationCount": 0,
+      "fabricationClaimSentences": 28,
+      "fabricationCategories": {},
+      "personaScores": [
+        5,
+        5
+      ],
+      "personaMean": 5,
+      "proseRetention": 0.967,
+      "costUsd": 0.1446,
+      "shipped": "Let's dig into where this game slipped away — there's a pattern worth locking in.\n\n[INSIGHT:20:w:blunder:+8.28:-7.40:Rg3:Nxc8+]\nYou had a completely winning position here, and the piece that was about to cash it all in got parked instead.\n[WHY]\nIdea: With knights raking both sides of the board, the natural urge was to tidy up the rook's position and keep building.\nProblem: But the bishop on c8 was sitting there with no defenders at all, and the move played left it completely untouched — worse, it also left the knight on h6 hanging to two attackers. That's how a position worth nearly +8.3 pawns swings all the way to -7.4 in one move.\nSolution: The engine wants 20. Nxc8+, check, grabbing the bishop for free, and after Black's king steps out of check with Ke8, the knight jumps back in with Nxf7 to win the queen too. That sequence keeps White up a massive amount of material.\nOutcome: Instead of banking two pieces, White handed the initiative right back and the evaluation collapsed.\n[CONTINUATION:20:w]\n[MAIA_CONTINUATION:20:w]\n[/WHY]\n[THREATS]\n- The bishop on c8 had no defenders and could simply be captured.\n- The knight on h6 was attacked twice with nothing protecting it.\n[/THREATS]\n[ROLES]\n- The knight on a7 was the star piece here — it could win the loose bishop on c8 with check.\n[/ROLES]\n[CONCEPT:hangingPiece:Hanging Piece Awareness]\nBefore making a \"quiet\" improving move, always scan the board for pieces that are simply undefended and grabbable right now — cash those in first.\n[/CONCEPT]\n[/INSIGHT]\n\n[INSIGHT:19:w:blunder:+6.71:-5.25:Bxc4:Nxc8+]\nRecapturing a pawn felt like the obvious follow-up, but the position was actually begging for something sharper.\n[WHY]\nIdea: A pawn had just been offered on c4, and grabbing it seemed like simple, safe business.\nProblem: The trouble is the bishop on c8 was already hanging with no defenders, and the queen on f7 was attacked twice while only the king covered it — pausing to collect a pawn let both of those chances slip, and the eval fell from +6.71 to -5.25.\nSolution: The engine instead wants the check first: 19. Nxc8+, and after Black's king moves to e8, 20. Nxf7 scoops the queen as well — that keeps White up a commanding amount of material.\nOutcome: Taking the pawn was safe but small; the bigger prizes on c8 and f7 needed to be taken first, before Black got a chance to defend them.\n[CONTINUATION:19:w]\n[MAIA_CONTINUATION:19:w]\n[/WHY]\n[THREATS]\n- The bishop on c8 was undefended and grabbable at any moment.\n- The queen on f7 was attacked by two pieces with just the king defending.\n[/THREATS]\n[CONCEPT:hangingPiece:Hanging Piece Awareness]\nWhen multiple enemy pieces are undefended at once, look for the forcing move (check, capture) that lets you grab the biggest one before the dust settles.\n[/CONCEPT]\n[/INSIGHT]\n\n[INSIGHT:21:w:blunder:+4.81:-6.05:Bd5:Nxf7]\nThird time in this stretch — the winning shot was sitting right there again, and a quieter move was chosen instead.\n[WHY]\nIdea: Repositioning the bishop to a strong diagonal looked like a good way to keep pressing and trap the bishop on c8 further.\nProblem: But the queen on f7 was still hanging, attacked by both the knight on h6 and now the bishop, with only the king defending; meanwhile the bishop on e5 was also loose. Choosing a slower move let Black's position hold together, and the eval dropped from +4.81 to -6.05.\nSolution: The engine's move is 21. Nxf7, grabbing the queen outright — this same move also forks the rook on h8 and the bishop on e5. Black's best try is Bxg3+, check, taking the rook, and after 22. Kd1, Rxh4 recovers a pawn, but White is still up material.\nOutcome: The queen was the biggest prize on the board, and it was there for the taking with a direct capture rather than a maneuvering move.\n[CONTINUATION:21:w]\n[MAIA_CONTINUATION:21:w]\n[/WHY]\n[THREATS]\n- The queen on f7 was attacked twice with only the king covering it.\n- The bishop on e5 had no defenders either.\n[/THREATS]\n[ROLES]\n- The knight on h6 was doing the heavy lifting — it was the piece that could simply capture the queen.\n[/ROLES]\n[CONCEPT:hangingPiece:Hanging Piece Awareness]\nA hanging queen is the loudest signal on the board — before repositioning any other piece, always check whether the biggest capture is available right now.\n[/CONCEPT]\n[/INSIGHT]"
+    },
+    {
+      "fixture": "07_knight_fork",
+      "sample": 0,
+      "cardsPlanned": 3,
+      "cardsShipped": 3,
+      "ladder": {
+        "pass": 2,
+        "sentence_drop": 1,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "errorsInitial": 1,
+      "coverageSentence": 0.917,
+      "coverageParagraph": 1,
+      "claimSentencesForCoverage": {
+        "sentence": 22,
+        "paragraph": 22
+      },
+      "citedClaimSentences": {
+        "sentence": 20,
+        "paragraph": 22
+      },
+      "fabricationCount": 0,
+      "fabricationClaimSentences": 27,
+      "fabricationCategories": {},
+      "personaScores": [
+        4,
+        4
+      ],
+      "personaMean": 4,
+      "proseRetention": 0.898,
+      "costUsd": 0.0655,
+      "shipped": "Let's dig into where things swung in this game.\n\n[INSIGHT:6:w:blunder:+7.16:-2.78:Na3:Bxb2]\nYour queenside was up a full rook here — but the very next move gave it right back.\n[WHY]\nIdea: After Black grabbed the b2 pawn with the queen, you wanted to develop the knight and get on with the game.\nProblem: The queen on b2 was actually just hanging — your bishop on c1 attacks it with nobody defending — but 6. Na3 doesn't touch that at all, and simply leaves the rook on a1 sitting undefended too, which Black snaps up next.\nSolution: The engine wants 6. Bxb2, grabbing the queen outright, and after 6... Nf6 attacking the e4 pawn, 7. Bd3 calmly defends it — White stays up a whopping 9 points of material.\nOutcome: Instead of cashing in, the position flips to Black being better, swinging from +7.16 to -2.78.\n[CONTINUATION:6:w]\n[MAIA_CONTINUATION:6:w]\n[/WHY]\n[THREATS]\n- The queen on b2 was hanging to your bishop on c1 — the biggest prize on the board.\n[/THREATS]\n[ROLES]\n- Your bishop on c1 was the piece that should've done the work, since it already attacked the queen on b2.\n[/ROLES]\n[CONCEPT:hangingPiece:Hanging Piece Awareness]\nWhen material is just sitting there undefended, always ask \"can I take it right now?\" before making any other move — development can wait one more turn.\n[/CONCEPT]\n[/INSIGHT]\n\n[INSIGHT:8:w:blunder:+2.84:-2.11:Nc7+:Qxc1]\nA flashy fork looked tempting, but the quiet recapture was actually the stronger move.\n[WHY]\nIdea: You spotted that 8. Nc7+ forks the king on e8 and the rook on a8, and going for a fork is a great instinct.\nProblem: The trouble is Black's queen on c1 was hanging to your own queen on d1 — a bigger and safer prize sitting right there. Playing the fork first lets Black meet it with 8... Kd8, and after 9. Qxc1 the king simply grabs your knight back with 9... Kxc7, netting less material than the direct route.\nSolution: The engine prefers just taking the queen immediately with 8. Qxc1, and after 8... Rb8, 9. Qf4 keeps everything safe and up a full 9 points.\nOutcome: The fork felt sharper, but it actually gave back ground, dropping from +2.84 to -2.11.\n[CONTINUATION:8:w]\n[MAIA_CONTINUATION:8:w]\n[/WHY]\n[THREATS]\n- The queen on c1 was hanging to your queen on d1 before you played anything else.\n[/THREATS]\n[ROLES]\n- Your queen on d1 was the real hero of this position — already lined up to win material outright.\n[/ROLES]\n[CONCEPT:hangingPiece:Take the Biggest Prize First]\nWhen you have more than one winning idea, compare what each one actually nets — a flashy tactic isn't always the most profitable one.\n[/CONCEPT]\n[/INSIGHT]\n\n[INSIGHT:9:w:blunder:-1.73:-5.42:Nxa8:Ne6+]\nSnapping up the rook felt like cashing in — but the knight had nowhere to run afterward.\n[WHY]\nProblem: The catch is your queen on d1 was already pinning Black's pawn on d7 to the king on d8, and Black's own queen on c1 was hanging to it — resources you could've used first. Instead the knight on a8 just gets stranded in the corner with no way out while Black plays 9... Qxd1+, trading queens and leaving your knight trapped for the rest of the game.\nOutcome: The rook grab looked like a bonus, but material you can't bring home isn't a real advantage — the eval drops from -1.73 to -5.42.\n[CONTINUATION:9:w]\n[MAIA_CONTINUATION:9:w]\n[/WHY]\n[THREATS]\n- Black's queen on c1 was hanging to your queen on d1 the whole time.\n[/THREATS]\n[ROLES]\n- Your knight ended up trapped on a8 with no legal moves — a rook won but a piece lost for good.\n[/ROLES]\n[CONCEPT:trappingPiece:Watch Where Your Own Pieces Land]\nBefore grabbing material with a piece, always check its escape route afterward — a \"won\" piece that gets trapped isn't actually won.\n[/CONCEPT]\n[/INSIGHT]"
+    },
+    {
+      "fixture": "09_legal_trap_tactics",
+      "sample": 0,
+      "cardsPlanned": 2,
+      "cardsShipped": 2,
+      "ladder": {
+        "pass": 2,
+        "sentence_drop": 0,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "errorsInitial": 0,
+      "coverageSentence": 1,
+      "coverageParagraph": 1,
+      "claimSentencesForCoverage": {
+        "sentence": 14,
+        "paragraph": 14
+      },
+      "citedClaimSentences": {
+        "sentence": 14,
+        "paragraph": 14
+      },
+      "fabricationCount": 1,
+      "fabricationClaimSentences": 19,
+      "fabricationCategories": {
+        "forbidden_claim_present": 1
+      },
+      "personaScores": [
+        4,
+        5
+      ],
+      "personaMean": 4.5,
+      "proseRetention": 1,
+      "costUsd": 0.055,
+      "shipped": "Ouch, that's the classic Légal Trap — a famous one! Let's see exactly where it went sideways.\n\n[INSIGHT:5:b:blunder:+1.89:M+2:Bxd1:dxe5]\nGrabbing a free queen feels like the best move on the board — except this queen was bait.\n[WHY]\nIdea: You saw the bishop on g4 attacking the queen on d1 and went for the obvious win of material.\nProblem: The bishop's capture on d1 walks into a corner with no way out, and it leaves the knight on e5 hanging to your own pawn on d6 completely unaddressed. Worse, removing the queen from d1 takes away its defense of the pawn on c2 — but the real point is that your king is left wide open, and White's pieces are already lined up for a mating net around e7.\nSolution: The engine instead just eats the free knight first: 5... dxe5, and if White grabs the bishop with Qxg4, you're still up material and completely safe with a follow-up like 6... Nc6. That keeps the evaluation at a healthy +1.89 in your favor.\nOutcome: Instead, after 5... Bxd1, White plays 6. Bxf7+ forcing your king out into the open, and 7. Nd5# delivers checkmate right after.\n[CONTINUATION:5:b]\n[MAIA_CONTINUATION:5:b]\n[/WHY]\n[THREATS]\n- White's bishop on c4 and knight on e5 were both already aiming at f7, right next to your king.\n[/THREATS]\n[ROLES]\n- Your king was still on e8, one check away from being dragged into the open.\n- The bishop that captured on d1 became a dead piece, stuck in the corner for the rest of the game.\n[/ROLES]\n[CONCEPT:hangingPiece:Hanging Piece Awareness]\nBefore grabbing \"free\" material, always check what your own king and pieces are leaving undefended — a tempting capture can be the exact bait a trap needs.\n[/CONCEPT]\n[/INSIGHT]\n\n[INSIGHT:4:b:inaccuracy:+0.43:+1.91:g6:Nf6]\nA natural fianchetto-style pawn push — but it ignored a piece that badly needed attention.\n[WHY]\nIdea: You wanted to prepare a kingside bishop development with 4... g6, a totally reasonable structural idea.\nProblem: This move does nothing about the pin already sitting on the board — your bishop on g4 has been pinning White's knight on f3 to the queen on d1 since move 3. Giving White a free tempo here let them play 5. Nxe5, grabbing a central pawn while that pin was still just sitting there unused.\nSolution: The engine wants you to cash in on the pin immediately with 4... Nf6, and if White breaks it with h3, you simply take on f3 first: 5... Bxf3, winning the knight before White untangles.\nOutcome: Following that path keeps you comfortably ahead at +0.43, rather than letting White seize the initiative with the knight jump into e5.\n[CONTINUATION:4:b]\n[MAIA_CONTINUATION:4:b]\n[/WHY]\n[CONCEPT:pin:Cashing In a Pin]\nA pin is only valuable while you use it — if you leave it sitting on the board too long, your opponent may find a way to break free or turn the tables.\n[/CONCEPT]\n[/INSIGHT]"
+    },
+    {
+      "fixture": "10_queenless_endgame",
+      "sample": 0,
+      "cardsPlanned": 2,
+      "cardsShipped": 2,
+      "ladder": {
+        "pass": 2,
+        "sentence_drop": 0,
+        "edited": 0,
+        "regenerated": 0,
+        "templated": 0,
+        "passthrough_footnoted": 0
+      },
+      "errorsInitial": 0,
+      "coverageSentence": 0.929,
+      "coverageParagraph": 1,
+      "claimSentencesForCoverage": {
+        "sentence": 11,
+        "paragraph": 11
+      },
+      "citedClaimSentences": {
+        "sentence": 10,
+        "paragraph": 11
+      },
+      "fabricationCount": 0,
+      "fabricationClaimSentences": 14,
+      "fabricationCategories": {},
+      "personaScores": [
+        4,
+        3
+      ],
+      "personaMean": 3.5,
+      "proseRetention": 1,
+      "costUsd": 0.054,
+      "shipped": "Let's dig into where this game turned — there are two key moments worth understanding.\n\n[INSIGHT:18:w:blunder:+0.63:-3.92:Ne6:Rh5]\nThis looked like a natural knight jump into Black's camp, but the outpost wasn't actually safe.\n[WHY]\nIdea: You wanted to plant the knight deep in Black's position on e6, a square that often looks like a dream outpost.\nProblem: The trouble is nothing was actually defending that square once the knight landed there — the bishop on c8 simply takes it for free, and the material count afterward shows White down three points of material. The eval swings from +0.63 to -3.92 because you're just out a whole minor piece with nothing to show for it.\nSolution: The engine's path builds pressure gradually instead: 18. Rh5, and after d5 comes Re1 then Kf8, keeping the position level at +0.63.\nOutcome: Instead of cashing in an outpost, White stays flexible and keeps the advantage intact.\nBefore hopping a piece into \"enemy territory,\" it's worth a quick gut-check: is this square actually defended by something of mine, or does it just look scary?\n[CONTINUATION:18:w]\n[MAIA_CONTINUATION:18:w]\n[/WHY]\n[THREATS]\n- Black can simply capture the knight on e6 with the bishop on c8, since nothing was guarding it.\n[/THREATS]\n[ROLES]\n- The knight on e6 needed backup from another piece before jumping in — without it, it was just a free target.\n[/ROLES]\n[CONCEPT:hangingPiece:Hanging Piece Awareness]\nAn outpost only matters if it's actually defended — an undefended piece deep in enemy territory is just a gift, not a threat.\n[/CONCEPT]\n[/INSIGHT]\n\n[INSIGHT:17:w:inaccuracy:+1.01:+0.49:g3:Nd5]\nA quiet consolidating move here — but there was a more active way to keep the pressure building.\n[WHY]\nIdea: You wanted to shore up the kingside pawn structure and support f4 before continuing.\nProblem: The issue is this gives Black a free tempo to play 17... c6, while a more forcing continuation was available that kept Black tied down.\nSolution: The engine likes 17. Nd5 instead, hitting the undefended pawn on c7 while also defending f4 — after 17... Kd8 defending c7, 18. Nxe7 wins the bishop, and 18... Kxe7 recaptures, leaving the position level at +1.01.\nOutcome: Instead of trading down a piece for a pawn's worth of edge, White keeps the bishop pair problem pointed the other way and holds a full pawn more of advantage.\nSmall consolidating moves are fine, but when a piece can jump in with a concrete threat attached, it's usually worth checking that first.\n[CONTINUATION:17:w]\n[MAIA_CONTINUATION:17:w]\n[/WHY]\n[ROLES]\n- The knight on d4 had a more active square available on d5, hitting c7 directly.\n[/ROLES]\n[CONCEPT:quietMove:Active Piece Placement]\nWhen a piece can jump to a square that creates a genuine threat, prioritize that over purely defensive pawn moves.\n[/CONCEPT]\n[/INSIGHT]"
+    }
+  ],
+  "legacyPersona": []
+}

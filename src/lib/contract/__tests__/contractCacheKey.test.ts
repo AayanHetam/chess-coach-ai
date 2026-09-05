@@ -28,9 +28,9 @@ describe("cache key topology", () => {
     expect(key.includes(CONTRACT_CACHE_PREFIX)).toBe(false);
   });
 
-  it("contract keys are the legacy key with the c4.0| marker prepended", () => {
-    expect(VERBALIZER_PROMPT_VERSION).toBe("4.0");
-    expect(CONTRACT_CACHE_PREFIX).toBe("c4.0|");
+  it("contract keys are the legacy key with the c4.1| marker prepended", () => {
+    expect(VERBALIZER_PROMPT_VERSION).toBe("4.1");
+    expect(CONTRACT_CACHE_PREFIX).toBe("c4.1|");
     const legacy = generateCacheKey(FEN, "intermediate", "analyze my game", "p", ["e4"]);
     const contractKey = generateContractCacheKey(FEN, "intermediate", "analyze my game", "p", ["e4"]);
     expect(contractKey).toBe(`${CONTRACT_CACHE_PREFIX}${legacy}`);

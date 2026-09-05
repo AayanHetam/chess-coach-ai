@@ -219,6 +219,58 @@ export const VERBALIZER_GOLD_EXAMPLES: VerbalizerGoldExample[] = [
       "[/INSIGHT]",
     ].join("\n"),
   },
+  {
+    // ADDED 2026-09-05 (verbalizer 4.1, line stories). Lines now arrive with a
+    // per-ply "story" and the game's own continuation with a "gameStory".
+    // This example teaches the model to explain a line THROUGH those entries —
+    // each purpose a cited fact, the material ledger quoted rather than
+    // recomputed, and a quiet ply left quiet.
+    id: "v41-line-story-chain",
+    scenario:
+      "Blunder explained as a chain of story facts — the engine line, the game's own continuation, the material ledger",
+    contractSlice: JSON.stringify({
+      factIdPrefix: "M1",
+      moveNumber: 8,
+      color: "w",
+      playedSan: "Nc7+",
+      bestSan: "Bc4",
+      classification: "mistake",
+      evalBefore: { display: "-3.40" },
+      evalAfter: { display: "-5.00" },
+      lines: [
+        {
+          id: "M1.pv0",
+          san: ["Bc4", "Kd8", "Bb3"],
+          eval: { display: "-3.40" },
+          story: ["s0 8.Bc4", "s1 8...Kd8 — leaves the pawn on f7 en prise", "s2 9.Bb3", "material: material level for White after 3 shown plies"],
+        },
+      ],
+      gameStory: {
+        story: [
+          "s0 8.Nc7+ — gives check; forks the king on e8 and the rook on a8",
+          "s1 8...Kd8 — the king steps out of check; the only legal move; attacks the knight on c7",
+          "s2 9.Nxa8 — takes the rook on a8",
+          "s3 9...Qxd1+ — gives check; takes the queen on d1",
+          "s4 10.Kxd1 — takes the queen on d1; captures the checking piece; the only legal move",
+          "material: White up 5 after 5 shown plies",
+        ],
+      },
+      motifs: [{ motif: "fork", confirmed: true, by_piece: "n", by_square: "c7", targets: [{ square: "e8", piece: "k" }, { square: "a8", piece: "r" }] }],
+      sayables: { motifs: ["Confirmed: fork by the n on c7 hitting k on e8 and r on a8."] },
+    }),
+    idealProse: [
+      "[INSIGHT:8:w:mistake:-3.40:-5.00:Nc7+:Bc4]",
+      "The fork was real — and it still made things worse. Let's see why the rook was a trap of its own.",
+      "You saw the knight check on c7 hitting the king on e8 and the rook on a8 [F:M1.motif0], and that pattern-spotting is exactly right. The game shows the mechanics: the king has to step to d8, its only legal move, and it lands attacking your knight [F:M1.game.s1]; the knight does win the rook on a8 [F:M1.game.s2] — but the queens then come off with Black's check on d1 [F:M1.game.s3], and White is left further behind at -5.00 [F:M1].",
+      "The ledger says White is up a rook after those five plies [F:M1.game], yet the eval says the position got worse [F:M1] — which is the real lesson: material you cannot bring home is not material. The knight that took the rook is stranded in the corner, and the rest of White's army is still asleep.",
+      "The engine preferred the quiet 8. Bc4, which the story lists with no tactical point at all [F:M1.pv0.s0] — a developing move, nothing more — and after Kd8 it even leaves Black's f7 pawn hanging [F:M1.pv0.s1] while keeping material level [F:M1.pv0].",
+      "Before you cash a fork, look one move past the capture: ask where the forking piece lives afterwards, and who is coming for it.",
+      "[CONCEPT:fork:Cashing In a Fork]",
+      "A fork wins material only if the piece that takes can get out again — count the exit before you count the loot.",
+      "[/CONCEPT]",
+      "[/INSIGHT]",
+    ].join("\n"),
+  },
 ];
 
 /** Prompt-injectable rendering (mirrors formatExamplesForPrompt's framing). */

@@ -1,0 +1,62 @@
+{
+  "n": 300,
+  "mateIn1": {
+    "total": 300,
+    "ok": 300,
+    "wrongPly": 0,
+    "noMate": 0
+  },
+  "mateIn2": {
+    "total": 300,
+    "ok": 300,
+    "wrongPly": 0,
+    "noMate": 0
+  },
+  "mateIn3": {
+    "total": 300,
+    "ok": 300,
+    "wrongPly": 0,
+    "noMate": 0
+  },
+  "fork": {
+    "total": 300,
+    "hit": 300
+  },
+  "pin": {
+    "total": 300,
+    "hit": 135
+  },
+  "skewer": {
+    "total": 300,
+    "hit": 255
+  },
+  "discoveredAttack": {
+    "total": 300,
+    "hit": 276
+  },
+  "trappedPiece": {
+    "total": 300,
+    "hit": 225
+  },
+  "sacrifice": {
+    "total": 300,
+    "enPrise": 225,
+    "unresolved": 26
+  },
+  "nonSacrifice": {
+    "total": 300,
+    "enPrise": 33,
+    "unresolved": 2
+  },
+  "crushingLedger": {
+    "total": 300,
+    "up": 222,
+    "level": 71,
+    "down": 7
+  },
+  "density": {
+    "plies": 3649,
+    "quiet": 296,
+    "avgFacts": 1.9043573581803235
+  }
+}

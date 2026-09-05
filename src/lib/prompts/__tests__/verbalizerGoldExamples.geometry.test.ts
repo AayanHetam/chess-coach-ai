@@ -121,6 +121,25 @@ describe("verbalizer gold examples — contract slices are board-consistent", ()
         if (id === prefix) continue;
         expect(id.startsWith(`${prefix}.`), `citation ${id} is not on insight ${prefix}`).toBe(true);
         const suffix = id.slice(prefix.length + 1);
+        // Verbalizer 4.1 story ids: <P>.pv<k>.s<j> indexes lines[k].story (the
+        // per-ply strings the model sees), <P>.game / <P>.game.s<j> the
+        // gameStory block.
+        const storyRef = suffix.match(/^pv(\d{1,2})\.s(\d{1,2})$/);
+        const gameRef = suffix.match(/^game(?:\.s(\d{1,2}))?$/);
+        if (storyRef) {
+          const line = (raw.lines as Array<{ story?: string[] }> | undefined)?.[Number(storyRef[1])];
+          expect(line?.story, `${id} cites a line with no story in the slice`).toBeDefined();
+          expect(Number(storyRef[2]), `${id} indexes past the line's story`).toBeLessThan(line!.story!.filter((e) => /^s\d/.test(e)).length);
+          continue;
+        }
+        if (gameRef) {
+          const gc = raw.gameStory as { story?: string[] } | undefined;
+          expect(gc?.story, `${id} cites a game continuation absent from the slice`).toBeDefined();
+          if (gameRef[1] !== undefined) {
+            expect(Number(gameRef[1]), `${id} indexes past the game continuation's story`).toBeLessThan(gc!.story!.filter((e) => /^s\d/.test(e)).length);
+          }
+          continue;
+        }
         const indexed = suffix.match(/^([a-z]+)(\d{1,2})$/);
         if (indexed) {
           const [, family, n] = indexed;

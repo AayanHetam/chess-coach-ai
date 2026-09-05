@@ -20,6 +20,7 @@
  * because the legacy sites disagree with each other in exactly these ways.
  */
 import { buildPgnFromMoves, formatPvAsMoveList } from "./chessFormat";
+import { projectLineStory, type LineStory } from "./lineStory";
 import type { PositionFeatureDelta } from "@/lib/mastermind/featureDelta";
 import type { ThreatNode } from "@/lib/mastermind/threatTree";
 import type {
@@ -462,6 +463,16 @@ function projectNode(value: unknown): unknown {
   for (const [k, v] of Object.entries(obj)) {
     if (isEvalFactShape(obj) && EVAL_WIRE_DROP.has(k)) continue;
     if (k === "pvUci" && Array.isArray(obj.san)) continue;
+    // A line's story reaches the model as one sentence per ply ("s2 8.Nc7+ —
+    // gives check; forks …") plus the material ledger — the structured facts
+    // stay referee-side. Empty stories are dropped: absence is never
+    // uncertainty in this encoding (see the charter's READING THE CONTRACT).
+    if (k === "story" && Array.isArray(obj.san) && v && typeof v === "object") {
+      const story = v as LineStory;
+      if (story.plies.length === 0) continue;
+      out.story = projectLineStory(story);
+      continue;
+    }
     if (k === "featureDelta") {
       out[k] = projectNode(pruneVacant(v));
       continue;
@@ -499,7 +510,12 @@ export function serializeForVerbalizer(contract: CoachContract): string {
   // PRECISION PACK fix 4: motifLicense is a REFEREE license pool, not a
   // sayable fact — stripping it keeps the verbalizer prompt (and its cache
   // prefix) byte-identical to pre-precision-pack contracts.
-  const insights = rest.insights.map(({ motifLicense: _motifLicense, ...ins }) => ins);
+  // The game's own continuation rides under its own key, same string form as
+  // a line's story: gameStory: { story: [...] }.
+  const insights = rest.insights.map(({ motifLicense: _motifLicense, gameStory, ...ins }) => {
+    if (!gameStory || gameStory.plies.length === 0) return ins;
+    return { ...ins, gameStory: { story: projectLineStory(gameStory) } };
+  });
   const moveTable = projectMoveTable(rest.moveTable);
   return JSON.stringify(
     sortKeysDeep(projectNode({ ...rest, insights, moveTable })),

@@ -17,8 +17,8 @@ import { renderInsightHeader } from "@/lib/contract/insightGrammar";
 import { makeContract, makeInsight } from "@/lib/contract/__tests__/insightFactory";
 
 describe("version topology (tech-lead decision #1)", () => {
-  it("verbalizer is 4.0 and legacy stays 3.6 — never bumped by this program", () => {
-    expect(VERBALIZER_PROMPT_VERSION).toBe("4.0");
+  it("verbalizer is 4.1 (line stories) and legacy stays 3.6 — never bumped by this program", () => {
+    expect(VERBALIZER_PROMPT_VERSION).toBe("4.1");
     expect(PROMPT_VERSION).toBe("3.6");
   });
 });
@@ -81,8 +81,9 @@ describe("card plan (server-dictated headers)", () => {
     // evidence ONLY — re-adding fixed instruction here is a cost regression.
     expect(turn).not.toContain("CONTRACT→PROSE EXAMPLES");
     // 3 founder-approved (2026-08-10) + 1 added by the CI-4 gate recovery to
-    // teach per-sentence citation density inside the [WHY] scaffold.
-    expect(VERBALIZER_GOLD_EXAMPLES).toHaveLength(4);
+    // teach per-sentence citation density inside the [WHY] scaffold + 1 added
+    // with verbalizer 4.1 to teach explaining a line through its story facts.
+    expect(VERBALIZER_GOLD_EXAMPLES).toHaveLength(5);
   });
 });
 

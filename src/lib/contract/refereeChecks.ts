@@ -42,6 +42,7 @@ import { POSITIONAL_TOKEN_REGEX } from "@/lib/mastermind/validators/positionalCl
 import type { ThreatNode } from "@/lib/mastermind/threatTree";
 import { sentenceBoundsAt, splitProseSentences } from "./sentences";
 import type { ClaimClass, CoachContract, EvalFact, InsightContract } from "./types";
+import type { PlyStory, StoryFact } from "./lineStory";
 
 // ── Violation types ─────────────────────────────────────────────────────────
 export type RefereeCheckName =
@@ -473,8 +474,71 @@ function buildWhitelistUncached(insight: InsightContract): Whitelist {
   }
   for (const sq of fenPieceSquares(insight.fenBefore)) squares.add(sq);
   for (const sq of fenPieceSquares(insight.fenAfter)) squares.add(sq);
-
   return { san, squares, pvs };
+}
+
+// ── Line-story licensing (verbalizer 4.1) ───────────────────────────────────
+/**
+ * Does a tactical keyword in `sentence` rest on a line-story fact the sentence
+ * itself cites? The story of a line (lineStory.ts) can legitimately say
+ * "trapped" or "fork" about a ply six moves down an engine line — facts that
+ * must NOT license the word anywhere in the card (that is why story motifs
+ * stay out of motifLicense). So the license is sentence-scoped: the sentence
+ * carries [F:<P>.pv<k>.s<j>] (or [F:<P>.game.s<j>]) and THAT ply's facts back
+ * the word; a whole-line citation ([F:<P>.pv<k>] / [F:<P>.game]) is accepted
+ * when any ply of that line backs it.
+ */
+function storyPliesCited(sentence: string, insight: InsightContract): PlyStory[] {
+  const out: PlyStory[] = [];
+  const prefix = `${insight.factIdPrefix}.`;
+  for (const m of Array.from(sentence.matchAll(/\[F:([A-Za-z0-9_.-]{1,40})\]/g))) {
+    const id = m[1];
+    if (!id.startsWith(prefix)) continue;
+    const suffix = id.slice(prefix.length);
+    const pv = /^pv(\d{1,2})(?:\.s(\d{1,2}))?$/.exec(suffix);
+    const game = /^game(?:\.s(\d{1,2}))?$/.exec(suffix);
+    const story = pv ? insight.lines[Number(pv[1])]?.story : game ? insight.gameStory : undefined;
+    if (!story) continue;
+    const ply = pv ? pv[2] : game ? game[1] : undefined;
+    if (ply === undefined) out.push(...story.plies);
+    else if (story.plies[Number(ply)]) out.push(story.plies[Number(ply)]);
+  }
+  return out;
+}
+
+function storyFactBacksKeyword(fact: StoryFact, keyword: string): boolean {
+  const kw = keyword.toLowerCase();
+  const motif = fact.kind === "motif" ? fact.motif.motif : null;
+  switch (kw) {
+    case "fork":
+    case "double attack":
+      return motif === "fork";
+    case "pin":
+      return motif === "pin";
+    case "skewer":
+      return motif === "skewer";
+    case "discovered":
+    case "discovery":
+    case "discovered attack":
+      return motif === "discovered_attack";
+    case "removes the defender":
+      return motif === "removed_defender";
+    case "trapped":
+      return motif === "trapped_piece" || fact.kind === "leaves_trapped";
+    case "hanging":
+      return fact.kind === "en_prise" || (fact.kind === "attacks" && !fact.defended) || motif === "hanging_piece";
+    case "back rank":
+    case "back-rank":
+      return motif === "back_rank_mate" || motif === "back_rank_threat";
+    case "mate threat":
+      return fact.kind === "threatens_mate" || motif === "back_rank_threat";
+    default:
+      return false;
+  }
+}
+
+export function storyLicensesKeyword(keyword: string, sentence: string, insight: InsightContract): boolean {
+  return storyPliesCited(sentence, insight).some((ply) => ply.facts.some((f) => storyFactBacksKeyword(f, keyword)));
 }
 
 /** SAN-embedded squares, no word boundaries ("Nf3" → f3). SQUARE_RE's \b
@@ -1144,6 +1208,8 @@ export function checkTacticalKeywords(
         const { start, end } = sentenceBounds(scrubbed, idx);
         const sentence = scrubbed.slice(start, end);
         if (isDefinitionalSentence(sentence)) continue; // fix 3
+        // Verbalizer 4.1: the sentence cites a line-story ply whose facts say so.
+        if (storyLicensesKeyword(keyword, sentence, insight)) continue;
         if (
           keyword.toLowerCase() === "trapped" &&
           /\bking\b/i.test(sentence) &&

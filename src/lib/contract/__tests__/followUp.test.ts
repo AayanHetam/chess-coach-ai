@@ -18,6 +18,7 @@ import {
   CONTRACT_COMPACT_MAX_CHARS,
 } from "@/lib/contract/followUp";
 import { makeContract, makeInsight, lineFact } from "./insightFactory";
+import { buildLineStory } from "@/lib/contract/lineStory";
 
 /**
  * Ground truth shared by both halves of the control: a 6-ply Italian in which
@@ -210,6 +211,70 @@ describe("renderContractCompact — budget and honesty", () => {
     ]);
     const rendered = renderContractCompact(toCompactContract(contract, ["M1"]));
     expect(rendered).toContain("12...Nf6 13.Bg5 h6");
+  });
+});
+
+describe("line stories in the follow-up (2026-09-05)", () => {
+  // Real board: the Italian control position before 3.Bc4, PV Nxe5 Nxe5 Qh5,
+  // and the game's own continuation Bc4 Bc5 — both narrated by lineStory.
+  const fenBeforeBc4 = "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3";
+  const insight = makeInsight({
+    factIdPrefix: "M1",
+    moveNumber: 3,
+    color: "w",
+    colorName: "White",
+    playedSan: "Bc4",
+    bestSan: "Nxe5",
+    fenBefore: fenBeforeBc4,
+    lines: [{ ...lineFact("M1.pv0", PV_SAN, PV_UCI, { cp: 30, display: "+0.30" }), story: buildLineStory(fenBeforeBc4, PV_SAN) }],
+    gameStory: buildLineStory(fenBeforeBc4, ["Bc4", "Bc5"]),
+  });
+
+  it("carries what the best line does, and what the game did next, in coach words without labels", () => {
+    const compact = toCompactContract(makeContract([insight]), ["M1"]);
+    expect(compact.insights[0].bestLineStory[0]).toContain("3.Nxe5 — takes the pawn on e5");
+    expect(compact.insights[0].bestLineStory.some((l) => l.startsWith("after these moves: "))).toBe(true);
+    expect(compact.insights[0].bestLineStory.some((l) => /^s\d/.test(l) || l.startsWith("material:"))).toBe(false);
+    expect(compact.insights[0].gameStory[0]).toBe("3.Bc4");
+    const rendered = renderContractCompact(compact);
+    expect(rendered).toContain("what the engine line does:");
+    expect(rendered).toContain("    - 3.Nxe5 — takes the pawn on e5");
+    // the guidance rides only with a story, and the legacy budget tests keep their tight header
+    expect(rendered).toContain("what the game did next:");
+  });
+
+  it("a contract built before stories existed renders exactly as it did", () => {
+    const legacy = toCompactContract(makeContract([INSIGHT_WITH_PV]), ["M1"]);
+    expect(legacy.insights[0].bestLineStory).toEqual([]);
+    expect(legacy.insights[0].gameStory).toEqual([]);
+    const rendered = renderContractCompact(legacy);
+    expect(rendered).not.toContain("what the engine line does");
+    expect(rendered).toContain("engine line:");
+  });
+
+  it("under budget, stories go before insights do", () => {
+    const second = makeInsight({ factIdPrefix: "M2", moveNumber: 9, color: "b", topMistakeRank: 2 });
+    const compact = toCompactContract(makeContract([insight, second]), ["M1"]);
+    const full = renderContractCompact(compact);
+    expect(full).toContain("what the engine line does:");
+    expect(full).toContain("[M2]");
+    // Tighten until the stories no longer fit: both insights must still be there.
+    const withoutStories = renderContractCompact({
+      ...compact,
+      insights: compact.insights.map((i) => ({ ...i, bestLineStory: [], gameStory: [] })),
+    });
+    const tight = renderContractCompact(compact, withoutStories.length + 10);
+    expect(tight).toContain("[M1]");
+    expect(tight).toContain("[M2]");
+    expect(tight).not.toContain("what the engine line does");
+    expect(tight).not.toContain("omitted for length");
+  });
+
+  it("tells the model how to use the lists, and not to read the labels aloud", () => {
+    const rendered = renderContractCompact(toCompactContract(makeContract([insight]), ["M1"]));
+    expect(rendered).toContain("Explain a line through those facts");
+    expect(rendered).toContain("quiet move");
+    expect(rendered).toContain('Never read "after these moves"');
   });
 });
 

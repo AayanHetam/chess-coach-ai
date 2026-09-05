@@ -30,6 +30,7 @@ uv venv .evalvenv && uv pip install --python .evalvenv/bin/python -r scripts/eva
 | `contract_ci4_gates.ts --samples 3 [--legacy] [--fixtures-real] [--only 01,07] [--label arm]` | The CI-4 gate verdict: persona / citation coverage / shipped fabrication, **per run AND pooled**. `--fixtures-real` runs the real-Stockfish fixtures; the result carries a usage-priced `spend` block (generation + judge + ladder) | ~1 flagship + 2 Haiku calls per fixture-sample, ≈$0.10 on Sonnet 4.6 |
 | `contract_ci4_offline_replay.ts [results.json]` | Replays the ladder over already-committed generations — free A/B of ladder/citation changes | $0, no network |
 | `motif_detector_recall.ts [--n 400]` | Do the `src/lib/tactics` detectors find the tactics humans label? Recall per Lichess puzzle theme + exact-match on the ChessQA motif battery | $0, no network, ~7 min |
+| `followup_story_probe.ts` | Does the follow-up chat (fast tier) explain a line better when its compact contract carries what each move does? Two fixtures × two student questions, with and without stories, side by side | 8 Haiku calls, ≈$0.04 |
 | `line_story_check.ts [--n 300]` | Is the per-ply line story (lineStory.ts) right? Mate at the labeled ply on `mateInN`, theme motif on a solver ply, sacrifice offers vs non-sacrifice, ledger sign on `crushing` | $0, no network, ~4 min |
 
 `--dry-run` on the python harnesses builds prompts/engine context with zero API calls.
@@ -116,6 +117,19 @@ persona floor — not evidence to move the flagship on six games. Its ChessQA
 motif run is inconclusive: the model writes past the 3,000-token budget on
 that prompt (21/25 answers cut off with adaptive thinking, 16/25 with
 thinking disabled; 5 of the 9 that finished were right).
+
+### Follow-up chat with line stories (2026-09-05)
+
+`followup_story_probe.ts` (`results/followup-story-probe.json`): the same
+four questions, answered by the fast tier from the compact contract with and
+without stories. Without stories the coach produced chess-false sentences on
+every question — it called Black's hanging queen on c1 "your queen", invented
+a rook on c8, said 8.Qxc1 "captures the rook", and gave 18.Rh5 an "immediate
+checkmate threat on h7" that does not exist. With stories it narrated the
+game's actual continuation (8...Kd8 forced, 9.Nxa8 Qxd1+, queen for rook) and
+the real reason 18.Ne6 loses (18...Bxe6 takes it for free). Four questions is
+a reading, not a gate; the block grows from ~1.5k to ~4k characters per turn,
+under a tenth of a cent on the fast tier.
 
 ### Arming (read before trusting a contract-mode number)### Arming (read before trusting a contract-mode number)
 

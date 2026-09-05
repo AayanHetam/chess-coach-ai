@@ -41,17 +41,21 @@
  * CI-6b and lands on top of this projection.
  */
 import type { ClaimClass, CoachContract, InsightContract } from "./types";
+import { projectLineStory, type LineStory } from "./lineStory";
 
 /** PV plies kept per insight. Enough to show the idea, short enough to bound. */
 const MAX_PV_PLIES = 8;
 /** Hard cap on insights carried. Cards ship ≤4; the rest are answer material. */
 const MAX_INSIGHTS = 10;
 /**
- * Character budget for the rendered block (~1.5k tokens). The block rides
+ * Character budget for the rendered block (~2.2k tokens). The block rides
  * UNCACHED on every follow-up turn — see the systemPromptStable/Suffix split
  * in analysisContextCache — so its size is a per-turn cost, not a one-off.
+ * Raised 6000→9000 with the line stories (2026-09-05): on the fast tier that
+ * is under a tenth of a cent per turn, and the stories are what turn "the
+ * engine line runs Nxe5 Nxe5 Qh5" into an answer to "and why does that work?".
  */
-export const CONTRACT_COMPACT_MAX_CHARS = 6000;
+export const CONTRACT_COMPACT_MAX_CHARS = 9000;
 
 export interface CompactInsight {
   /** Cite token the card used ("M3" / "I2") — same identity as the review. */
@@ -74,6 +78,16 @@ export interface CompactInsight {
   allowedTacticalKeywords: string[];
   /** One-line English renderings of CONFIRMED motifs (InsightSayables). */
   motifSayables: string[];
+  /**
+   * What each move of the best line DOES (lineStory.ts), one coach-readable
+   * line per ply plus the material outcome — "Nc7+ — gives check; forks the
+   * king on e8 and the rook on a8". Empty for contracts built before stories
+   * existed. The render adds these greedily AFTER every insight fits, so a
+   * story is the first thing trimmed under budget and never costs an insight.
+   */
+  bestLineStory: string[];
+  /** The game's own continuation from that position, told the same way. */
+  gameStory: string[];
   /**
    * Did this insight ship as a card the user can see? Non-shipped insights are
    * still real engine facts (they lost to the MAX_GAME_REVIEW_CARDS cap, which
@@ -104,6 +118,21 @@ export interface CompactContract {
    * follow-up cheerfully makes the exact claim the review suppressed.
    */
   forbiddenClaimClasses: ClaimClass[];
+}
+
+/**
+ * Story strings for the chat block: the citation prefix ("s2 ") goes — follow-ups
+ * carry no [F:id] grammar — and the two ledger labels become plain phrases so
+ * there is no label for the model to quote back at the player.
+ */
+function chatStoryLines(story: LineStory | undefined): string[] {
+  if (!story || story.plies.length === 0) return [];
+  return projectLineStory(story).map((line) =>
+    line
+      .replace(/^s\d{1,2} /, "")
+      .replace(/^material: /, "after these moves: ")
+      .replace(/^offer: /, "note: "),
+  );
 }
 
 /** Pull the forbidden classes off one insight's degraded sources. */
@@ -162,6 +191,8 @@ export function toCompactContract(
       bestLineTruncated: san.length > MAX_PV_PLIES,
       allowedTacticalKeywords: ins.allowedTacticalKeywords,
       motifSayables: ins.sayables.motifs,
+      bestLineStory: chatStoryLines(bestLine?.story),
+      gameStory: chatStoryLines(ins.gameStory),
       shipped: served ? served.has(ins.factIdPrefix) : null,
     };
   });
@@ -229,6 +260,15 @@ export function renderContractCompact(
       "\"fact contract\" or \"provided facts\" in your reply. The player is talking to " +
       "their coach. Say \"the engine line runs...\", never \"according to the contract\"."
   );
+  // Rendered only when at least one story made it in (below) — a block with
+  // no stories needs no instructions about them, and the header must stay
+  // small enough to fit the tightest budgets the tests pin.
+  const storyGuidance =
+    "Under an engine line, the indented list says what each move DOES — check, capture, " +
+    "the fork or pin it creates, what it attacks or leaves hanging, how the material ends up. " +
+    "Explain a line through those facts, in your own words, and name a tactic only for the move " +
+    "it is attached to. A move with nothing listed is a quiet move — say so, never invent its " +
+    "purpose. Never read \"after these moves\" or \"note:\" aloud as labels.";
   const summary = [
     cc.resultText,
     cc.finalMaterial,
@@ -241,8 +281,10 @@ export function renderContractCompact(
   if (summary) head.push(summary);
 
   const blocks: string[] = [];
+  const storyExtras: string[] = [];
   for (const ins of cc.insights) {
     const lines: string[] = [];
+    const extra: string[] = [];
     const shown =
       ins.shipped === null
         ? ""
@@ -267,7 +309,16 @@ export function renderContractCompact(
     if (ins.motifSayables.length > 0) {
       lines.push(`  confirmed: ${ins.motifSayables.join("; ")}`);
     }
+    if ((ins.bestLineStory ?? []).length > 0) {
+      extra.push("  what the engine line does:");
+      for (const l of ins.bestLineStory) extra.push(`    - ${l}`);
+    }
+    if ((ins.gameStory ?? []).length > 0) {
+      extra.push("  what the game did next:");
+      for (const l of ins.gameStory) extra.push(`    - ${l}`);
+    }
     blocks.push(lines.join("\n"));
+    storyExtras.push(extra.join("\n"));
   }
 
   const tail: string[] = [];
@@ -292,8 +343,22 @@ export function renderContractCompact(
     kept.push(block);
     used += block.length + 2;
   }
+  // Stories ride on top of the insights that fit, in the same order, while the
+  // budget lasts — a story never displaces an insight, an insight never loses
+  // its line for a story earlier in the list. The first story also pays for
+  // the guidance paragraph that tells the model how to read them.
+  let guidanceUsed = false;
+  for (let i = 0; i < kept.length; i++) {
+    const extra = storyExtras[i];
+    if (!extra) continue;
+    const guidanceCost = guidanceUsed ? 0 : storyGuidance.length + 2;
+    if (used + guidanceCost + extra.length + 1 > maxChars) break;
+    kept[i] = `${kept[i]}\n${extra}`;
+    used += guidanceCost + extra.length + 1;
+    guidanceUsed = true;
+  }
   const dropped = blocks.length - kept.length;
-  const parts = [headText, kept.join("\n\n")];
+  const parts = [headText, ...(guidanceUsed ? [storyGuidance] : []), kept.join("\n\n")];
   if (dropped > 0) {
     parts.push(`(${dropped} further engine finding${dropped === 1 ? "" : "s"} omitted for length.)`);
   }

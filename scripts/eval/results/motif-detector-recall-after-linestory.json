@@ -1,0 +1,482 @@
+{
+  "n": 400,
+  "csv": "public/data/lichess_puzzles_100k.csv",
+  "lichess": [
+    {
+      "theme": "fork",
+      "motif": "fork",
+      "n": 400,
+      "anyHit": 400,
+      "confirmedHit": 390,
+      "firstMoveHit": 302,
+      "firstMoveConfirmed": 282,
+      "unlabeledN": 400,
+      "unlabeledAnyFire": 68,
+      "unlabeledConfirmedFire": 45,
+      "misses": []
+    },
+    {
+      "theme": "pin",
+      "motif": "pin",
+      "n": 400,
+      "anyHit": 400,
+      "confirmedHit": 400,
+      "firstMoveHit": 299,
+      "firstMoveConfirmed": 297,
+      "unlabeledN": 400,
+      "unlabeledAnyFire": 91,
+      "unlabeledConfirmedFire": 83,
+      "misses": []
+    },
+    {
+      "theme": "skewer",
+      "motif": "skewer",
+      "n": 400,
+      "anyHit": 390,
+      "confirmedHit": 387,
+      "firstMoveHit": 263,
+      "firstMoveConfirmed": 257,
+      "unlabeledN": 400,
+      "unlabeledAnyFire": 60,
+      "unlabeledConfirmedFire": 53,
+      "misses": [
+        {
+          "id": "0jQM2",
+          "fen": "r2q1rk1/pp2ppB1/3p1np1/3P4/3p4/3B1b2/PPPQ1P2/R3K2R b KQ - 0 16",
+          "moves": "f3h1 d2h6 f6h7 g7d4",
+          "detected": [
+            "hanging_piece✓",
+            "back_rank_threat✓",
+            "discovered_attack?"
+          ]
+        },
+        {
+          "id": "0JXto",
+          "fen": "4r3/pp1b2p1/4pk2/6p1/1PBPR1P1/2P5/P4rPR/2K5 w - - 1 26",
+          "moves": "a2a3 e8c8 c4e2 c8c3",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0VEHC",
+          "fen": "r5k1/pp3p2/6np/2p1q1p1/2PpN1P1/7P/PP3QP1/4R2K b - - 3 29",
+          "moves": "a8e8 e4f6 e5f6 e1e8",
+          "detected": [
+            "fork✓",
+            "discovered_attack✓",
+            "hanging_piece✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0IdZ1",
+          "fen": "r5k1/7p/4p1p1/3p4/6P1/p1B4P/BPP5/5K2 w - - 0 32",
+          "moves": "b2b4 a8c8 c3d4 c8c2",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0TiMa",
+          "fen": "7R/5Kp1/5p2/6kP/8/2b5/8/8 w - - 11 57",
+          "moves": "f7g7 f6f5 g7g8 c3h8",
+          "detected": [
+            "discovered_attack✓",
+            "removed_defender✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0Dbx1",
+          "fen": "4r1k1/ppqn1ppp/2pbr3/3p1PBP/3Pn3/2N5/PPPQBP2/1K1R3R w - - 1 19",
+          "moves": "d2e3 e4c3 e3c3 e6e2",
+          "detected": [
+            "fork?",
+            "discovered_attack✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "11Q4Z",
+          "fen": "4r1k1/pp3pbp/1n4p1/2p3N1/2P5/PP2p2P/5PP1/2RR2K1 w - - 0 23",
+          "moves": "f2e3 g7h6 g5f3 h6e3 g1f1 e3c1",
+          "detected": [
+            "hanging_piece✓",
+            "fork✓"
+          ]
+        },
+        {
+          "id": "0aDJZ",
+          "fen": "4r3/p7/2p2k2/3p2p1/2p1P3/2P2P2/P2KR3/8 b - - 3 35",
+          "moves": "f6e5 e4d5 e5f6 e2e8",
+          "detected": [
+            "discovered_attack✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0Mf9G",
+          "fen": "r1bqkb1r/ppp1pn1p/2n3p1/3p1P1Q/7N/2P5/PP1P1PPP/RNB1KB1R w KQkq - 0 7",
+          "moves": "f5g6 h7g6 h5g6 h8h4",
+          "detected": [
+            "discovered_attack✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0DZMa",
+          "fen": "5r1k/p2b4/4p2p/1p1p2q1/2pQ4/2P2B1P/PP6/5R1K b - - 4 56",
+          "moves": "g5f6 f3h5 f6d4 f1f8 h8g7 f8f7 g7g8 c3d4",
+          "detected": [
+            "pin✓",
+            "discovered_attack✓",
+            "hanging_piece✓",
+            "fork✓"
+          ]
+        }
+      ]
+    },
+    {
+      "theme": "discoveredAttack",
+      "motif": "discovered_attack",
+      "n": 400,
+      "anyHit": 398,
+      "confirmedHit": 375,
+      "firstMoveHit": 314,
+      "firstMoveConfirmed": 291,
+      "unlabeledN": 400,
+      "unlabeledAnyFire": 51,
+      "unlabeledConfirmedFire": 35,
+      "misses": [
+        {
+          "id": "0jFaq",
+          "fen": "3r3R/p1r1kpp1/2pb4/6P1/3p1P2/1PnP4/PB4B1/K3R3 b - - 8 31",
+          "moves": "e7d7 g2h3 f7f5 g5f6",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0ULpP",
+          "fen": "r1bq1b1r/p1pp1kpp/1p6/4P3/1n3Qn1/8/PPP2PPP/RNB1K1NR b KQ - 1 9",
+          "moves": "f7g8 f4c4 d7d5 e5d6 b4d5 c4d5 c8e6 d5e6",
+          "detected": [
+            "fork✓",
+            "hanging_piece✓",
+            "removed_defender✓"
+          ]
+        }
+      ]
+    },
+    {
+      "theme": "trappedPiece",
+      "motif": "trapped_piece",
+      "n": 400,
+      "anyHit": 306,
+      "confirmedHit": 306,
+      "firstMoveHit": 211,
+      "firstMoveConfirmed": 211,
+      "unlabeledN": 400,
+      "unlabeledAnyFire": 6,
+      "unlabeledConfirmedFire": 6,
+      "misses": [
+        {
+          "id": "08chX",
+          "fen": "r2q1rk1/ppp2ppp/2n5/3pP3/3PnB2/5P2/P1B2P1P/R2Q1RK1 b - - 0 15",
+          "moves": "e4c3 d1d3 c3e2 d3e2",
+          "detected": [
+            "hanging_piece✓",
+            "discovered_attack?"
+          ]
+        },
+        {
+          "id": "0vrMc",
+          "fen": "1k3bnr/ppp2ppp/8/1q6/3Q4/7P/PPP2PP1/R1B3K1 b - - 0 14",
+          "moves": "f8e7 d4g7 g8f6 g7h8",
+          "detected": [
+            "hanging_piece✓",
+            "removed_defender?"
+          ]
+        },
+        {
+          "id": "0Hcuq",
+          "fen": "rn1q3r/ppp1kB1p/5n2/4p3/4P3/5b2/PPP1Q1PP/RN3RK1 w - - 0 13",
+          "moves": "f1f3 d8d4 g1h1 d4b2 e2f1 b2a1",
+          "detected": [
+            "hanging_piece✓",
+            "pin✓"
+          ]
+        },
+        {
+          "id": "0v1KL",
+          "fen": "r2qkbnr/1b3ppp/p1p1p3/3pN3/2pP4/2N1PQ2/PPP2PPP/R1B2RK1 b kq - 3 9",
+          "moves": "f7f6 f3h5 g7g6 e5g6 h7g6 h5h8",
+          "detected": [
+            "hanging_piece✓",
+            "fork?",
+            "discovered_attack?",
+            "pin✓",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "0mnGS",
+          "fen": "b2r2k1/5p2/4n2p/6p1/1p1B1n2/3B1P2/q1P3PP/2RQR2K w - - 3 33",
+          "moves": "d4f6 d8d3 d1d3 f4d3",
+          "detected": [
+            "hanging_piece✓",
+            "fork?"
+          ]
+        },
+        {
+          "id": "0A4iH",
+          "fen": "8/7k/1p4p1/p1p2p1p/P7/1P1r1P1P/4K1P1/1R6 b - - 1 42",
+          "moves": "d3c3 e2d2 c3f3 g2f3",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0AlSg",
+          "fen": "5r2/2p1k2R/pp3b2/4p3/8/2P1P3/1nBBKP2/8 b - - 1 35",
+          "moves": "f8f7 h7f7 e7f7 c2b3 f7f8 d2c1 b2a4 b3a4",
+          "detected": [
+            "skewer?",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0wID5",
+          "fen": "8/5pp1/3n4/6PP/5P2/p1k2K2/8/N7 w - - 1 60",
+          "moves": "h5h6 g7h6 g5h6 f7f5 h6h7 d6f7 f3e2 c3b2 e2d1 b2a1",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0KDbT",
+          "fen": "r4rk1/1b4pp/8/3pP3/p1pP3P/PpP1Qq2/1P1K4/1BR4R w - - 0 24",
+          "moves": "c1f1 f3f1 h1f1 f8f1 b1h7 g8h7",
+          "detected": [
+            "fork?",
+            "removed_defender✓",
+            "removed_defender?",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0Mh2T",
+          "fen": "r1bqkb1r/ppp3pp/3p4/3PpP2/1PP1n3/8/P4PPP/R1BQKBNR w KQkq - 0 9",
+          "moves": "f2f3 d8h4 g2g3 e4g3 h2g3 h4h1",
+          "detected": [
+            "hanging_piece✓",
+            "fork?",
+            "discovered_attack?",
+            "pin✓",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "11ItH",
+          "fen": "4r1k1/2R2pp1/1Pn3np/2B5/8/P7/2P4P/2K5 b - - 2 27",
+          "moves": "c6a5 c5b4 g6f4 b4a5",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0sgcg",
+          "fen": "rnb1k2r/ppp2ppp/4p3/8/3P4/3B2Q1/PqP1K2P/RN4NR w kq - 0 13",
+          "moves": "g3c7 b8c6 g1f3 b2a1",
+          "detected": [
+            "pin✓",
+            "hanging_piece✓",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "07MXx",
+          "fen": "1k1r3r/Npp1qpbp/p2pbnp1/8/3QPB2/5P2/PPP2P1P/1K1R1B1R w - - 2 14",
+          "moves": "f4e3 c7c5 a7c6 b7c6",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "06SZI",
+          "fen": "rnbk1b1N/pppp3p/5qp1/8/8/3P4/PPP1BPPP/RNBKR3 w - - 1 10",
+          "moves": "e2f3 h7h6 h8g6 f6g6",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0frS2",
+          "fen": "2kr4/pp2pp2/1q1pb1p1/2p5/2PbP3/6Q1/1P1P1PP1/1RBK1BN1 w - - 3 18",
+          "moves": "g1f3 b6b3 d1e1 b3a2 f3d4 a2b1",
+          "detected": [
+            "pin✓",
+            "hanging_piece✓",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "0pA0d",
+          "fen": "r1b2r1k/1p1p2p1/pN4Bp/8/3nP3/8/PP3PPP/2R2K2 b - - 5 22",
+          "moves": "f8f6 b6a8 f6g6 c1c8",
+          "detected": [
+            "removed_defender✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0I0ds",
+          "fen": "r2qkbnr/pp3ppp/2b1p3/3pN3/3P4/2N5/PPP2PPP/R1BQK2R b KQkq - 1 8",
+          "moves": "f7f6 d1h5 g7g6 e5g6 h7g6 h5h8",
+          "detected": [
+            "hanging_piece✓",
+            "fork?",
+            "discovered_attack?",
+            "pin✓",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "0i4AH",
+          "fen": "2r5/5kpp/p1p1Rp2/1p6/3P4/P1P3P1/1P3KPP/8 w - - 3 31",
+          "moves": "e6d6 f7e7 d6d5 c6d5",
+          "detected": [
+            "hanging_piece✓",
+            "discovered_attack?"
+          ]
+        },
+        {
+          "id": "0ihdn",
+          "fen": "r7/pp1rpNkp/n4qp1/3P4/4P3/5Q1P/5PP1/2R2RK1 w - - 1 26",
+          "moves": "f3f6 e7f6 f7g5 f6g5",
+          "detected": [
+            "discovered_attack✓",
+            "removed_defender✓",
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0w6pz",
+          "fen": "2r5/5kp1/5p1p/p1p2R2/3p1P2/1P1P4/P4KPP/8 w - - 2 28",
+          "moves": "g2g4 g7g6 f5d5 f7e6 d5c5 c8c5",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0G4Pk",
+          "fen": "6k1/p4ppp/1pp5/8/P7/1Pr1P2P/4KPP1/1R6 b - - 1 29",
+          "moves": "c6c5 e2d2 c3b3 b1b3",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0cmrz",
+          "fen": "K7/8/8/2p2p2/8/2P1kpB1/1P5P/8 w - - 3 45",
+          "moves": "h2h4 f5f4 g3e1 e3e2 e1f2 e2f2",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "07e4t",
+          "fen": "1r1qkbnr/1b1p1ppp/p3p3/4P3/2p5/2NPB1Q1/PPP2PPP/R3K2R b KQk - 1 12",
+          "moves": "f8b4 g3g7 b4f8 g7h8",
+          "detected": [
+            "hanging_piece✓",
+            "pin✓",
+            "removed_defender✓"
+          ]
+        },
+        {
+          "id": "0KHkd",
+          "fen": "8/p3k1p1/1pR2p1p/2p5/8/P4P1P/6PK/8 w - - 3 38",
+          "moves": "h2g3 e7d7 c6f6 g7f6",
+          "detected": [
+            "hanging_piece✓"
+          ]
+        },
+        {
+          "id": "0Wf4s",
+          "fen": "8/6pk/Q7/1p2q2p/4p1rP/P1P1R1P1/1P2P3/6K1 w - - 2 36",
+          "moves": "g1g2 e5c5 a6e6 c5e3 e6f5 h7h6",
+          "detected": [
+            "pin✓",
+            "hanging_piece✓",
+            "removed_defender✓"
+          ]
+        }
+      ]
+    },
+    {
+      "theme": "backRankMate",
+      "motif": "back_rank_mate",
+      "n": 400,
+      "anyHit": 400,
+      "confirmedHit": 400,
+      "firstMoveHit": 66,
+      "firstMoveConfirmed": 66,
+      "unlabeledN": 400,
+      "unlabeledAnyFire": 52,
+      "unlabeledConfirmedFire": 52,
+      "misses": []
+    }
+  ],
+  "hangingPiece": {
+    "theme": "hangingPiece",
+    "motif": "hanging_piece (static, solver side)",
+    "n": 400,
+    "anyHit": 400,
+    "capturedSquareHit": 400,
+    "unlabeledN": 400,
+    "unlabeledAnyFire": 187,
+    "misses": []
+  },
+  "chessqa": {
+    "byType": {
+      "motifs_battery": {
+        "n": 17,
+        "exact": 17,
+        "tp": 31,
+        "fp": 0,
+        "fn": 0,
+        "wrong": []
+      },
+      "motifs_fork": {
+        "n": 60,
+        "exact": 60,
+        "tp": 84,
+        "fp": 0,
+        "fn": 0,
+        "wrong": []
+      },
+      "motifs_pin": {
+        "n": 22,
+        "exact": 22,
+        "tp": 27,
+        "fp": 0,
+        "fn": 0,
+        "wrong": []
+      },
+      "motifs_skewer": {
+        "n": 1,
+        "exact": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "wrong": []
+      }
+    },
+    "pinRelativeVariant": {
+      "n": 22,
+      "exact": 16
+    }
+  }
+}

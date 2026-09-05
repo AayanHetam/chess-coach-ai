@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/MasterGamesTakeover";
 import {
   findAllMoveRefs,
-  findPlyForMoveRef,
+  resolveMoveRef,
   plyBeforeMove,
   buildRecommendedPreview,
   playSanOnFen,
@@ -4358,6 +4358,7 @@ function CoachPanel({
   isThinking,
   onPromoteToBoard,
   allMoves,
+  rootFen,
   onMoveRefClick,
   onShareMessage,
   mistakeContext,
@@ -4386,6 +4387,8 @@ function CoachPanel({
   isThinking: boolean;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
   allMoves?: Move[];
+  /** Starting FEN when the game was not loaded from the standard position (legality checks for move links). */
+  rootFen?: string;
   /** ply-only → jump the cursor; with `playSan` → load the recommended
    *  alternative onto the board as an exploration preview. */
   onMoveRefClick?: (ply: number, playSan?: string) => void;
@@ -4825,6 +4828,7 @@ function CoachPanel({
                   msg={msg}
                   onPromoteToBoard={onPromoteToBoard}
                   allMoves={allMoves}
+                  rootFen={rootFen}
                   onMoveRefClick={onMoveRefClick}
                   onShare={onShareMessage}
                   allMessages={messages}
@@ -6849,6 +6853,7 @@ function CoachBubble({
   msg,
   onPromoteToBoard,
   allMoves,
+  rootFen,
   onMoveRefClick,
   onShare,
   allMessages,
@@ -6864,6 +6869,8 @@ function CoachBubble({
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
   /** Full move history — used to resolve "24.Rxd4" → ply 47. */
   allMoves?: Move[];
+  /** Starting FEN when the game was not loaded from the standard position (legality checks for move links). */
+  rootFen?: string;
   /** Fired when the user clicks a move reference in coach text. `playSan`
    *  is set for recommended-alternative (green) refs: the parent replays
    *  to `ply` and plays `playSan` on the board (exploration preview). */
@@ -6944,31 +6951,19 @@ function CoachBubble({
             </span>
           );
         }
-        const matchedPly = findPlyForMoveRef(
-          allMoves,
-          ref.moveNumber,
-          ref.isBlack,
-          ref.san
-        );
-        // RECOMMENDED moves are by definition NOT what the player actually
-        // played, so findPlyForMoveRef will return null for them — the SAN
-        // at that ply won't match the recommended SAN. We still want them
-        // clickable, and clicking must actually LOAD the alternative onto
-        // the board: pass the SAN alongside the anchor ply so the parent
-        // handler (handleCoachMoveRef) replays the mainline to the anchor
-        // and plays the recommended move as an exploration preview.
-        // (Founder bug 2026-08-10: the old handler only did
-        // setCurrentPly(anchor) — a no-op when the user was already
-        // sitting on the mistake ply, so green links "did nothing".)
-        const recommendedTargetPly =
-          ref.recommended && matchedPly === null
-            ? plyBeforeMove(ref.moveNumber, ref.isBlack)
-            : null;
-        const ply = matchedPly ?? recommendedTargetPly;
-        if (ply !== null) {
-          const playSan =
-            ref.recommended && matchedPly === null ? ref.san : undefined;
-          const recColor = "#86efac"; // light green for recommended
+        // Founder bug 2026-09-05: "you should have played 7.Qxe7" linked to
+        // the game's 8.Qxe7. The link now follows what the click will DO
+        // (resolveMoveRef): a move played exactly where the coach says is a
+        // jump; a move that is legal at that position but was not played
+        // there is an alternative and loads onto the board as a preview,
+        // however the prose was worded; only a move that is illegal there
+        // (a real move-number typo) falls back to the nearby-ply window.
+        const resolution = resolveMoveRef(allMoves, ref, rootFen);
+        if (resolution) {
+          const hypothetical = resolution.kind === "hypothetical";
+          const ply = hypothetical ? resolution.anchorPly : resolution.ply;
+          const playSan = hypothetical ? resolution.san : undefined;
+          const recColor = "#86efac"; // light green for an alternative to explore
           const navColor = isUser ? "#0A0A0A" : "#FB923C";
           out.push(
             <Box
@@ -6976,19 +6971,19 @@ function CoachBubble({
               component="span"
               onClick={() => onMoveRefClick(ply, playSan)}
               title={
-                ref.recommended
-                  ? `Recommended alternative: ${ref.san}`
+                hypothetical
+                  ? `Alternative: ${ref.san} — shows the position after it`
                   : `Jump to ${ref.moveNumber}${
                       ref.isBlack ? "..." : "."
                     } ${ref.san}`
               }
               sx={{
-                color: ref.recommended ? recColor : navColor,
+                color: hypothetical ? recColor : navColor,
                 cursor: "pointer",
                 fontWeight: 700,
                 textDecoration: "underline",
                 textDecorationStyle: "dotted",
-                textDecorationColor: ref.recommended
+                textDecorationColor: hypothetical
                   ? "rgba(134,239,172,0.5)"
                   : isUser
                     ? "rgba(0,0,0,0.5)"
@@ -6998,7 +6993,7 @@ function CoachBubble({
                 transition: "all 140ms ease",
                 "&:hover": {
                   textDecorationStyle: "solid",
-                  background: ref.recommended
+                  background: hypothetical
                     ? "rgba(34,197,94,0.16)"
                     : isUser
                       ? "rgba(0,0,0,0.08)"
@@ -7006,7 +7001,7 @@ function CoachBubble({
                 },
               }}
             >
-              {ref.recommended ? "🔍 " : ""}
+              {hypothetical ? "🔍 " : ""}
               {ref.full}
             </Box>
           );
@@ -8443,8 +8438,8 @@ export default function AnalysisPage() {
         const greeting =
           opts?.greeting ??
           (newHeaders.White && newHeaders.Black
-            ? `Loaded **${newHeaders.White} vs ${newHeaders.Black}**${yearSuffix}. Stockfish is running in the background; once it's done the Moves tab will light up with classifications. Ask me about any move.`
-            : `Loaded a new game. Stockfish is running in the background. Ask me anything about the position or a specific move.`);
+            ? `Loaded **${newHeaders.White} vs ${newHeaders.Black}**${yearSuffix}. I'm running the engine over every move now — the Moves tab fills in with each move's verdict as it finishes. Ask me about any move in the meantime.`
+            : `Loaded a new game. I'm running the engine over every move now — the Moves tab fills in with each move's verdict as it finishes. Ask me about the position or any move in the meantime.`);
         setMessages([
           // D3: UI-authored greeting, not model output.
           { role: "coach", content: greeting, ply: 0, synthetic: true },
@@ -10721,6 +10716,7 @@ export default function AnalysisPage() {
                           engineDataUnavailable={engineDataUnavailable}
                           onPromoteToBoard={handlePromoteToBoard}
                           allMoves={allMoves}
+                          rootFen={rootFen}
                           onMoveRefClick={handleCoachMoveRef}
                           playerSide={playerSide}
                           sideUiEligible={!isPuzzleMode && allMoves.length > 0}

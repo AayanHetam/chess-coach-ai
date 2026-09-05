@@ -133,6 +133,69 @@ export function findPlyForMoveRef(
   return null;
 }
 
+/** Replay the mainline to `ply` half-moves and ask whether `san` is legal there. */
+export function isLegalAtPly(
+  allMoves: Array<Pick<Move, "san">>,
+  ply: number,
+  san: string,
+  rootFen?: string
+): boolean {
+  if (ply < 0 || ply > allMoves.length) return false;
+  let g: Chess;
+  try {
+    g = rootFen ? new Chess(rootFen) : new Chess();
+    for (let i = 0; i < ply; i++) g.move(allMoves[i].san);
+    g.move(san);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export type MoveRefResolution =
+  | { kind: "played"; ply: number }
+  | { kind: "hypothetical"; anchorPly: number; san: string };
+
+/**
+ * What does a coach move reference point at — a move that was PLAYED (jump
+ * there) or a move that COULD have been played (branch off and show it)?
+ *
+ * Founder bug 2026-09-05: "you should have played 7.Qxe7" linked to the
+ * game's 8.Qxe7. `findPlyForMoveRef`'s ±2-ply window exists for coach
+ * typos in move numbers, but the same SAN turning up a ply or two later —
+ * the other side's Qxc1, the recommended move played one move late — is far
+ * more common than a typo now that the review's notation comes from the
+ * contract. So the window is the LAST resort:
+ *
+ *   1. the move was played exactly where the coach says → played;
+ *   2. it is LEGAL at the stated position but was not played there → it is
+ *      an alternative, whatever the surrounding prose says → hypothetical;
+ *   3. it is illegal there (a real typo) → the tolerance window, played;
+ *   4. still nothing, but the prose calls it a recommendation → hypothetical
+ *      anchored at the stated position (the click handler's own ±2 replay
+ *      window then finds the ply where it is legal);
+ *   5. otherwise it is not linkable.
+ */
+export function resolveMoveRef(
+  allMoves: Move[],
+  ref: Pick<MoveRefMatch, "moveNumber" | "isBlack" | "san" | "recommended">,
+  rootFen?: string
+): MoveRefResolution | null {
+  const target = stripSanDecorators(ref.san);
+  const expectedPly = (ref.moveNumber - 1) * 2 + (ref.isBlack ? 2 : 1);
+  const sanAt = (p: number) =>
+    p >= 1 && p <= allMoves.length ? stripSanDecorators(allMoves[p - 1].san) : null;
+  if (sanAt(expectedPly) === target) return { kind: "played", ply: expectedPly };
+  const anchorPly = plyBeforeMove(ref.moveNumber, ref.isBlack);
+  if (isLegalAtPly(allMoves, anchorPly, ref.san, rootFen)) {
+    return { kind: "hypothetical", anchorPly, san: ref.san };
+  }
+  const nearby = findPlyForMoveRef(allMoves, ref.moveNumber, ref.isBlack, ref.san);
+  if (nearby !== null) return { kind: "played", ply: nearby };
+  if (ref.recommended) return { kind: "hypothetical", anchorPly, san: ref.san };
+  return null;
+}
+
 /** Half-move count of the position BEFORE `moveNumber` is played by the
  *  given color — i.e. the `currentPly` value at which that move would be
  *  the next move. White's move N sits after 2(N-1) half-moves, Black's

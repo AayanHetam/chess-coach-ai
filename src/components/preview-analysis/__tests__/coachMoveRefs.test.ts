@@ -6,6 +6,7 @@ import {
   plyBeforeMove,
   buildRecommendedPreview,
   playSanOnFen,
+  resolveMoveRef,
 } from "@/components/preview-analysis/coachMoveRefs";
 
 /**
@@ -125,6 +126,52 @@ describe("buildRecommendedPreview — the click must load the line", () => {
   it("returns null for garbage SAN instead of throwing", () => {
     expect(buildRecommendedPreview(moves, 4, "Qz9")).toBeNull();
     expect(buildRecommendedPreview(moves, 999, "Bc4")).toBeNull();
+  });
+});
+
+describe("resolveMoveRef — a recommended move that the game played LATER is still a hypothetical (founder bug 2026-09-05)", () => {
+  // Fixture 07's game: 7...Qxc1 was played by BLACK at ply 14, and the coach
+  // recommends 8.Qxc1 for WHITE (expected ply 15, where Nc7+ was played).
+  // The old ±2 window matched Black's Qxc1 at ply 14 and the "you should
+  // have played 8.Qxc1" link jumped to the opponent's move.
+  function fixture07(): Move[] {
+    const g = new Chess();
+    for (const san of "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Qb6 Nf3 Qxb2 Na3 Qxa1 Nb5 Qxc1 Nc7+ Kd8 Nxa8 Qxd1+ Kxd1 e5".split(" ")) g.move(san);
+    return g.history({ verbose: true }) as Move[];
+  }
+  const moves = fixture07();
+
+  it("branches off at the stated move instead of jumping to the later occurrence", () => {
+    // the old resolver's answer, pinned so the regression is visible
+    expect(findPlyForMoveRef(moves, 8, false, "Qxc1")).toBe(14);
+    const res = resolveMoveRef(moves, { moveNumber: 8, isBlack: false, san: "Qxc1", recommended: true });
+    expect(res).toEqual({ kind: "hypothetical", anchorPly: 14, san: "Qxc1" });
+    // and the click lands on the position AFTER 8.Qxc1, not on 7...Qxc1
+    const preview = buildRecommendedPreview(moves, 14, "Qxc1")!;
+    expect(preview.anchorPly).toBe(14);
+    const expected = new Chess();
+    for (const san of "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Qb6 Nf3 Qxb2 Na3 Qxa1 Nb5 Qxc1 Qxc1".split(" ")) expected.move(san);
+    expect(preview.fen).toBe(expected.fen());
+  });
+
+  it("legality at the stated position decides, even without 'should have' wording", () => {
+    const res = resolveMoveRef(moves, { moveNumber: 8, isBlack: false, san: "Qxc1", recommended: false });
+    expect(res).toEqual({ kind: "hypothetical", anchorPly: 14, san: "Qxc1" });
+  });
+
+  it("a move played exactly where the coach says is a jump", () => {
+    expect(resolveMoveRef(moves, { moveNumber: 8, isBlack: false, san: "Nc7+", recommended: false })).toEqual({ kind: "played", ply: 15 });
+    expect(resolveMoveRef(moves, { moveNumber: 7, isBlack: true, san: "Qxc1", recommended: false })).toEqual({ kind: "played", ply: 14 });
+  });
+
+  it("a genuine typo — illegal at the stated position — still falls back to the nearby played move", () => {
+    // "9.Nxa8" is White's 9th move (ply 17). The coach writes "8.Nxa8": at ply 15's position Nxa8 is illegal (knight on b5), so the window finds ply 17.
+    expect(resolveMoveRef(moves, { moveNumber: 8, isBlack: false, san: "Nxa8", recommended: false })).toEqual({ kind: "played", ply: 17 });
+  });
+
+  it("an unplayable, unrecommended reference is not a link", () => {
+    expect(resolveMoveRef(moves, { moveNumber: 3, isBlack: false, san: "Qh5", recommended: false })).toBeNull();
+    expect(resolveMoveRef(moves, { moveNumber: 30, isBlack: false, san: "Qh5", recommended: true })).toEqual({ kind: "hypothetical", anchorPly: 58, san: "Qh5" });
   });
 });
 

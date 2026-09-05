@@ -121,29 +121,47 @@ export function promotionBonus(promotion: string | undefined): number {
  * the exchange recursion prices it — by what the capture is WORTH to the
  * capturer (king ranked dearest, promotion credited in the sort key), not by
  * bare piece value.
+ *
+ * Candidates come from the board scan (attackersOf) and are tried cheapest
+ * first with `game.move`, which is chess.js's own legality check for ONE
+ * piece — pins and king-into-check are respected exactly as before, without
+ * generating every legal move in the position for each exchange step. (The
+ * line story calls this thousands of times per contract; the full-generation
+ * version cost ~50ms per narrated ply.)
  */
-function cheapestCapture(
+export function cheapestCapture(
   game: Chess,
   target: Square,
 ): { from: Square; to: Square; promotion?: string; gained: number } | null {
-  let captures;
-  try {
-    captures = game.moves({ verbose: true }).filter((m) => m.to === target && m.captured);
-  } catch {
-    return null;
-  }
-  if (captures.length === 0) return null;
+  const side = game.turn();
+  const occupant = game.get(target);
+  if (!occupant || occupant.color === side) return null;
+  const lastRank = side === "w" ? "8" : "1";
+  const candidates = attackersOf(game, target, side).map((a) => {
+    const promotion = a.piece === "p" && target[1] === lastRank ? "q" : undefined;
+    return { from: a.square, piece: a.piece, promotion };
+  });
   const cost = (m: { piece: PieceSymbol; promotion?: string }) =>
     (m.piece === "k" ? PIECE_VALUE_CP.q + 1 : materialValue(m.piece)) - promotionBonus(m.promotion);
-  captures.sort((a, b) => cost(a) - cost(b));
-  const chosen = captures[0];
-  const occupant = game.get(target);
-  return {
-    from: chosen.from,
-    to: chosen.to,
-    promotion: chosen.promotion,
-    gained: materialValue(occupant?.type) + promotionBonus(chosen.promotion),
-  };
+  candidates.sort((a, b) => cost(a) - cost(b));
+  for (const c of candidates) {
+    let legal = false;
+    try {
+      const mv = game.move({ from: c.from, to: target, promotion: c.promotion as never });
+      legal = !!mv;
+      if (mv) game.undo();
+    } catch {
+      legal = false;
+    }
+    if (!legal) continue;
+    return {
+      from: c.from,
+      to: target,
+      promotion: c.promotion,
+      gained: materialValue(occupant.type) + promotionBonus(c.promotion),
+    };
+  }
+  return null;
 }
 
 /** `game` with `side` to move (en passant cleared), or null if the position breaks. */
@@ -175,6 +193,10 @@ function withSideToMove(game: Chess, side: Color): Chess | null {
  *
  * Returns what `side` can WIN on `target` — an option price, floored at 0
  * because a side that would lose material simply declines to capture.
+ *
+ * Plays the exchange forward with move/undo on one board: after a capture
+ * the other side is on move, so no turn flip (and no FEN re-parse) is needed
+ * inside the recursion. `position` is left exactly as it was passed in.
  */
 export function exchangeValue(position: Chess, target: Square, side: Color, depth = 0): number {
   if (depth > 12) return 0; // pathological positions; exchanges never run this deep
@@ -191,16 +213,18 @@ export function exchangeValue(position: Chess, target: Square, side: Color, dept
   const capture = cheapestCapture(game, target);
   if (!capture) return 0;
 
-  let next: Chess;
+  let played = false;
   try {
-    next = new Chess(game.fen());
-    next.move({ from: capture.from, to: capture.to, promotion: (capture.promotion ?? "q") as never });
+    played = !!game.move({ from: capture.from, to: capture.to, promotion: (capture.promotion ?? "q") as never });
   } catch {
-    return 0;
+    played = false;
   }
+  if (!played) return 0;
   const opponent: Color = side === "w" ? "b" : "w";
   // The opponent recaptures only if it pays; hence max(0, ...).
-  return Math.max(0, capture.gained - exchangeValue(next, target, opponent, depth + 1));
+  const value = Math.max(0, capture.gained - exchangeValue(game, target, opponent, depth + 1));
+  game.undo();
+  return value;
 }
 
 /**
@@ -226,15 +250,17 @@ export function see(game: Chess, target: Square, capturingColor: Color): number 
   const capture = cheapestCapture(positioned, target);
   if (!capture) return 0;
 
-  let next: Chess;
+  let played = false;
   try {
-    next = new Chess(positioned.fen());
-    next.move({ from: capture.from, to: capture.to, promotion: (capture.promotion ?? "q") as never });
+    played = !!positioned.move({ from: capture.from, to: capture.to, promotion: (capture.promotion ?? "q") as never });
   } catch {
-    return 0;
+    played = false;
   }
+  if (!played) return 0;
   const opponent: Color = capturingColor === "w" ? "b" : "w";
-  return capture.gained - exchangeValue(next, target, opponent, 1);
+  const value = capture.gained - exchangeValue(positioned, target, opponent, 1);
+  positioned.undo();
+  return value;
 }
 
 // Check if two squares share a rank, file, or diagonal.

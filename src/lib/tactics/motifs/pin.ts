@@ -8,6 +8,18 @@ const SLIDER_DIRS: Record<string, [number, number][]> = {
   q: [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [-1, 0], [0, 1], [0, -1]],
 };
 
+/**
+ * Is "<pinned> in front of <behind>" a pin worth the name? A PIECE is pinned
+ * to anything dearer than itself. A PAWN is pinned only to its queen — a pawn
+ * "pinned" to a knight or rook (Bc4 against f7 with the knight on g8 behind)
+ * is geometrically a pin and never something a coach would say; the line
+ * story was narrating it as the point of the move.
+ */
+function relativePinCounts(pinned: import("chess.js").PieceSymbol, behind: import("chess.js").PieceSymbol): boolean {
+  if (pinned === "p") return behind === "q";
+  return pieceValue(behind) > pieceValue(pinned);
+}
+
 // Scan all sliding pieces of `movingColor` and find any that create a pin
 // on an enemy piece toward a more valuable enemy piece (or king) on the same ray.
 // Focused on the piece that just arrived at `movedTo` (if it's a slider).
@@ -44,7 +56,7 @@ export function detectPin(
             const behind = { square: sq, piece: p.type };
             const isPinnedAbsolute = p.type === "k";
             const isPinnedRelative =
-              !isPinnedAbsolute && pieceValue(p.type) > pieceValue(firstEnemy.piece);
+              !isPinnedAbsolute && relativePinCounts(firstEnemy.piece, p.type);
             if (isPinnedAbsolute || isPinnedRelative) {
               return {
                 motif: "pin",
@@ -103,7 +115,7 @@ export function detectPinsAfterMove(
             } else {
               const behind = { square: csq, piece: p.type };
               const isAbs = p.type === "k";
-              const isRel = !isAbs && pieceValue(p.type) > pieceValue(firstEnemy.piece);
+              const isRel = !isAbs && relativePinCounts(firstEnemy.piece, p.type);
               if (isAbs || isRel) {
                 pins.push({
                   motif: "pin",

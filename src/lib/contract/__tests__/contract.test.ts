@@ -267,7 +267,7 @@ describe("builder fetch dedup", () => {
     // no new FENs: {20,30,40,50,60,70} ∪ {70,60,50} = 6 plies. It was 7 while
     // the opponent's ply 45 was being carded.
     expect(fetchCount).toBe(6);
-  });
+  }, 60_000); // fixture 05 builds in ~6s alone; under the parallel suite it has been seen at 21s — contention, not cost
 
   it("06: no insights ⇒ zero grounding fetches", async () => {
     const f = loadFixture("06_short_opening");

@@ -176,6 +176,13 @@ describe("verbalizer JSON projection", () => {
       Array.from(keyNames(collectByKey(before, "provenance"))).forEach((k) =>
         explained.add(k),
       );
+      // Rule 5 (verbalizer 4.1): a line's structured `story` and the insight's
+      // `gameStory` reach the model as one sentence per ply plus a material
+      // ledger (projectLineStory); their structured keys stay referee-side.
+      for (const storyKey of ["story", "gameStory"]) {
+        Array.from(keyNames(collectByKey(before, storyKey))).forEach((k) => explained.add(k));
+      }
+      explained.add("gameStory");
 
       const afterKeys = keyNames(after);
       const beforeKeys = keyNames(before);

@@ -85,7 +85,7 @@ def stockfish_context(engine, fen: str, depth: int, multipv: int = 3) -> str:
 
 
 def call_claude(api_key: str, prompt: str, max_tokens: int = 2048, system: str | None = None,
-                model: str = MODEL, effort: str | None = None):
+                model: str = MODEL, effort: str | None = None, thinking: str | None = None):
     payload = {
         "model": model,
         "max_tokens": max_tokens,
@@ -95,6 +95,13 @@ def call_claude(api_key: str, prompt: str, max_tokens: int = 2048, system: str |
     # only depth control (budget_tokens is rejected). Older models ignore it.
     if effort:
         payload["output_config"] = {"effort": effort}
+    # Sonnet 5 / Opus 5 think ADAPTIVELY by default and the thinking is billed
+    # as output inside max_tokens: the first Sonnet 5 run here spent ~2.8k
+    # tokens per item thinking and 21/25 answers were cut off before FINAL
+    # ANSWER (scored 16%). "disabled" reproduces the no-thinking conditions
+    # the Sonnet 4.6 baseline ran under; "adaptive" is the model's default.
+    if thinking:
+        payload["thinking"] = {"type": thinking}
     # PR-CI-4: optional system prompt so the verbalizer-4.0 charter can be
     # measured against the grounded baseline (plan §7 CI-4 ChessQA gate).
     if system:
@@ -132,6 +139,8 @@ def main():
                     help="off = no engine context only (1 call/item), on = engine context only, both = the A/B")
     ap.add_argument("--max-tokens", type=int, default=2048)
     ap.add_argument("--offset", type=int, default=0, help="skip the first N items (resume / extend a partial run)")
+    ap.add_argument("--thinking", default=None, choices=["disabled", "adaptive"],
+                    help="explicit thinking mode for models that think by default (Sonnet 5 / Opus 5); rejected by Fable")
     args = ap.parse_args()
     system_prompt = Path(args.system_file).read_text() if args.system_file else None
 
@@ -166,7 +175,7 @@ def main():
         prompt = format_prompt(task, context)
         try:
             resp, usage = call_claude(api_key, prompt, max_tokens=args.max_tokens, system=system_prompt,
-                                      model=args.model, effort=args.effort)
+                                      model=args.model, effort=args.effort, thinking=args.thinking)
             usage_total["input_tokens"] += usage.get("input_tokens", 0)
             usage_total["output_tokens"] += usage.get("output_tokens", 0)
         except Exception as e:
@@ -191,7 +200,7 @@ def main():
     def pct(m):
         return 100 * tally[m]["correct"] / max(1, tally[m]["total"])
     summary = {
-        "category": args.category, "n": len(items), "model": args.model, "effort": args.effort,
+        "category": args.category, "n": len(items), "model": args.model, "effort": args.effort, "thinking": args.thinking,
         "modes": args.modes, "max_tokens": args.max_tokens, "engine_depth": args.depth,
         "system_file": args.system_file, "usage": usage_total,
         "off_accuracy_pct": round(pct("off"), 1),

@@ -27,6 +27,7 @@
  *    receive personalityId today (CI-4 threads it when the verbalizer lands).
  */
 import type { AnyMotif } from "@/lib/tactics/types";
+import type { LineStory } from "./lineStory";
 import type { IntentFacts } from "@/lib/intent/types";
 import type { RelationalFactsBlock } from "@/lib/relational/relationalFactsBuilder";
 import type { ThreatNode } from "@/lib/mastermind/threatTree";
@@ -119,6 +120,15 @@ export interface LineFact {
   pvUci: string[];
   eval: EvalFact;
   isPlayedLine: boolean;
+  /**
+   * What each shown ply of the line DOES — checks, captures, the motifs it
+   * creates, pieces it newly attacks/defends, mate threats, and what it leaves
+   * en prise or trapped — plus a running material ledger (lineStory.ts). Cite
+   * token family `<id>.s<j>` for ply j. Optional so contracts cached before
+   * the field existed still load; the verbalizer sees a compact projection
+   * (serialize.ts), the referee licenses from the structured facts.
+   */
+  story?: LineStory;
 }
 
 // ── Branch points (both legacy styles) ─────────────────────────────────────
@@ -189,6 +199,10 @@ export interface InsightContract {
   /** ALL multipv lines for the position before the move (including ones with
    * empty PVs — computeCandidateGap reads lines[0]/[1] regardless). */
   lines: LineFact[];
+  /** The game's own continuation from fenBefore (played move + next plies),
+   * narrated like a line (lineStory.ts). Cite `<P>.game.s<j>`. Optional for
+   * the same cached-contract reason as LineFact.story. */
+  gameStory?: LineStory;
   branchPoint: BranchPointFact | null;
   intelBranchPoint: IntelBranchPointFact | null;
   /** describeMoveChange(fenBefore, playedSan); "" when nothing to say. */

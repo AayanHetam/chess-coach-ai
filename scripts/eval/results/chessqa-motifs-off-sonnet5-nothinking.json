@@ -1,0 +1,232 @@
+{
+  "summary": {
+    "category": "motifs",
+    "n": 25,
+    "model": "claude-sonnet-5",
+    "effort": null,
+    "thinking": "disabled",
+    "modes": "off",
+    "max_tokens": 3000,
+    "engine_depth": 18,
+    "system_file": null,
+    "usage": {
+      "input_tokens": 6789,
+      "output_tokens": 64157
+    },
+    "off_accuracy_pct": 20.0,
+    "on_accuracy_pct": 0.0,
+    "delta_pp": -20.0,
+    "tally": {
+      "off": {
+        "correct": 5,
+        "total": 25
+      },
+      "on": {
+        "correct": 0,
+        "total": 0
+      }
+    }
+  },
+  "results": [
+    {
+      "task_id": "motifs_battery_0000",
+      "correct_answer": "e1>e3",
+      "off": {
+        "extracted": "e1>e3",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "motifs_fork_0000",
+      "correct_answer": "f7>d6-d8-h8, h3>f1-f3, g4>e3-f2",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_battery_0001",
+      "correct_answer": "a1>e1, c8>d8>f8, e1>e2, e2>d3, e7>d8",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0001",
+      "correct_answer": "f3>e4-f7",
+      "off": {
+        "extracted": "f3>e4-f7",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "motifs_fork_0002",
+      "correct_answer": "g6>b6-g7-h7",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0003",
+      "correct_answer": "d8>d4-f6",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0004",
+      "correct_answer": "c3>c6-e5",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_pin_0000",
+      "correct_answer": "b3>f7>g8",
+      "off": {
+        "extracted": "c7>f4>h2",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0005",
+      "correct_answer": "d4>b3-f5",
+      "off": {
+        "extracted": "d4>b3-f5",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "motifs_fork_0006",
+      "correct_answer": "e4>f2-g3",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0007",
+      "correct_answer": "c8>c2-f5",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0008",
+      "correct_answer": "e4>f6-g5",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0009",
+      "correct_answer": "b4>a6-d5, a5>a3-b4",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_battery_0002",
+      "correct_answer": "c6>c7, d4>d8",
+      "off": {
+        "extracted": "d4>d8, c6>c7",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "motifs_fork_0010",
+      "correct_answer": "f4>e2-h5",
+      "off": {
+        "extracted": "f4>e2-h5",
+        "correct": true
+      }
+    },
+    {
+      "task_id": "motifs_fork_0011",
+      "correct_answer": "f7>a7-f3-g6-g8-h7, f3>a3-f2-f7-g3",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_battery_0003",
+      "correct_answer": "a8>d8",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0012",
+      "correct_answer": "g5>f5-g6, d2>c2-e1-g5",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_battery_0004",
+      "correct_answer": "d6>e7",
+      "off": {
+        "extracted": "None",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0013",
+      "correct_answer": "b4>a2-d3",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0014",
+      "correct_answer": "e5>c6-f7, c6>d4-e5",
+      "off": {
+        "extracted": "Ne5 forks Nc6 and Pf7.",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0015",
+      "correct_answer": "e3>e6-h6, f5>c5-f2",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_pin_0001",
+      "correct_answer": "b7>e4>f3",
+      "off": {
+        "extracted": "none",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0016",
+      "correct_answer": "a1>a2-b1-c3",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    },
+    {
+      "task_id": "motifs_fork_0017",
+      "correct_answer": "b4>b7-f8-h4",
+      "off": {
+        "extracted": "",
+        "correct": false
+      }
+    }
+  ]
+}

@@ -11,6 +11,8 @@
  *      <P>            the insight itself (played/best move, classification,
  *                     evalBefore/evalAfter, severity — header-adjacent facts)
  *      <P>.pv<k>      lines[k] (matches LineFact.id "M3.pv0" from builder)
+ *      <P>.pv<k>.s<j> ply j of lines[k].story (what that move does — lineStory.ts)
+ *      <P>.game.s<j>  ply j of the game's own continuation story (gameStory)
  *      <P>.motif<k>   motifs[k]
  *      <P>.rel<k>     flattened relational facts (captures ++ hanging ++ pins)
  *      <P>.threat<k>  threats[k]
@@ -70,6 +72,14 @@ export function resolveFactId(id: string, insight: InsightContract): boolean {
     return Number.parseInt(rest, 10);
   };
 
+  // <P>.pv<k>.s<j> — ply j of line k's story (lineStory.ts).
+  const storyRef = /^pv(\d{1,2})\.s(\d{1,2})$/.exec(suffix);
+  if (storyRef) {
+    const line = insight.lines[Number.parseInt(storyRef[1], 10)];
+    return !!line?.story && Number.parseInt(storyRef[2], 10) < line.story.plies.length;
+  }
+  const gameRef = /^game\.s(\d{1,2})$/.exec(suffix);
+  if (gameRef) return !!insight.gameStory && Number.parseInt(gameRef[1], 10) < insight.gameStory.plies.length;
   const pv = indexed("pv");
   if (pv !== null) return pv < insight.lines.length;
   const motif = indexed("motif");
@@ -82,6 +92,8 @@ export function resolveFactId(id: string, insight: InsightContract): boolean {
   if (concept !== null) return concept < insight.concepts.length;
 
   switch (suffix) {
+    case "game":
+      return !!insight.gameStory && insight.gameStory.plies.length > 0;
     case "delta":
       return insight.featureDelta !== null;
     case "branch":

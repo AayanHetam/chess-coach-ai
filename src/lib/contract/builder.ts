@@ -15,6 +15,7 @@
 import { Chess } from "chess.js";
 import { annotatePosition, annotationToPromptContext } from "@/lib/positionAnnotator";
 import { detectMotifs } from "@/lib/tactics";
+import { buildLineStory, type LineStory } from "./lineStory";
 import { logger } from "@/lib/logging";
 
 const log = logger.child({ module: "contract-builder" });
@@ -223,9 +224,24 @@ function buildLineFacts(idPrefix: string, fenBefore: string, playedSan: string, 
       pvUci,
       eval: evalFactFromLine(l),
       isPlayedLine: firstMove === playedSan,
+      story: safeLineStory(fenBefore, san),
     };
   });
 }
+
+/** Never lets a story failure take the contract down: an empty story is "nothing to say". */
+function safeLineStory(fenStart: string, san: readonly string[]): LineStory | undefined {
+  if (san.length === 0) return undefined;
+  try {
+    return buildLineStory(fenStart, san, { maxPlies: STORY_MAX_PLIES });
+  } catch {
+    return undefined;
+  }
+}
+/** Plies narrated per line. Six covers the tactical point of almost every engine line;
+ * longer PVs are the model's cue to say "and so on" rather than invent. */
+const STORY_MAX_PLIES = 6;
+
 
 // ── The builder ─────────────────────────────────────────────────────────────
 export async function buildCoachContract(args: BuildCoachContractArgs): Promise<CoachContract> {
@@ -486,6 +502,15 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     });
 
     const lineFacts = buildLineFacts(topRank ? `M${topRank}` : `I${intelRank}`, fenBefore, playedSan, lines);
+    // What the game actually did from here: the played move and the next few
+    // real plies, told the same way as the engine lines ("after your Ng4,
+    // White played d6 and your knight was left en prise"). Same detectors,
+    // same ledger, cite token <P>.game.s<j>.
+    const gameStory = safeLineStory(fenBefore, moveHistory.slice(ply, ply + STORY_MAX_PLIES));
+    // Story motifs deliberately do NOT join motifLicense: a fork six plies
+    // down a sideline must not license the word "fork" anywhere in the card.
+    // The referee licenses them sentence-by-sentence instead, through the
+    // story citation the sentence carries (refereeChecks.storyLicensesKeyword).
 
     // Mate-flattened numbers + drop, exactly as the legacy loops computed.
     // The inline fallback used to read `cp ?? 0` on both sides — the same
@@ -601,6 +626,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       evalBefore: evalFactFromLine(lines[0]),
       evalAfter: evalAfterLine ? evalFactFromLine(evalAfterLine) : evalFactFromLine(undefined),
       lines: lineFacts,
+      gameStory,
       branchPoint,
       intelBranchPoint,
       changeDescription: describeMoveChange(fenBefore, playedSan),

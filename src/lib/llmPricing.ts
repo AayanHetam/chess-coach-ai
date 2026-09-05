@@ -45,6 +45,16 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
     cacheWritePerMillion: 18.75,
     cacheReadPerMillion: 1.5,
   },
+  // Sonnet 5 — list price 2026-09-05 (anthropic.com/pricing), the tier below
+  // Opus 5. Not the flagship yet; here so a LLM_FLAGSHIP_MODEL trial is priced.
+  "claude-sonnet-5": {
+    provider: "anthropic",
+    displayName: "Claude Sonnet 5",
+    inputPerMillion: 2.0,
+    outputPerMillion: 10.0,
+    cacheWritePerMillion: 2.5,
+    cacheReadPerMillion: 0.2,
+  },
   // Current flagship. Same $3/$15 tier as the retired claude-sonnet-4-20250514.
   "claude-sonnet-4-6": {
     provider: "anthropic",

@@ -170,10 +170,33 @@ export const PUBLIC_LLM_ERROR = {
 interface AnthropicModelSpec {
   id: string;
   supportsEffort: boolean;
+  /**
+   * The model thinks ADAPTIVELY unless told not to (Sonnet 5 / Opus 5). Two
+   * consequences the older models never had: the hidden thinking is billed
+   * as output and eats `max_tokens` before a single visible token (a 3k-token
+   * card budget can come back empty), and the API rejects a temperature
+   * other than 1 while thinking is on — our calls send 0.7. So for these
+   * models the request states the thinking mode explicitly: "disabled" by
+   * default (byte-for-byte the behaviour the 4.6 flagship has today), or
+   * "adaptive" when LLM_THINKING=adaptive is set for a deliberate trial.
+   */
+  thinksByDefault?: boolean;
+  /**
+   * The API returns 400 "`temperature` is deprecated for this model" for any
+   * temperature at all (probed 2026-09-05 on claude-sonnet-5 with 0.7, with
+   * and without thinking disabled). Omit the field for such models; the
+   * caller's `temperature` option is ignored there, not translated.
+   */
+  rejectsTemperature?: boolean;
 }
 
 const ANTHROPIC_MODEL_SPECS: Record<string, AnthropicModelSpec> = {
-  "claude-opus-5": { id: "claude-opus-5", supportsEffort: true },
+  "claude-opus-5": { id: "claude-opus-5", supportsEffort: true, thinksByDefault: true },
+  // Probed 2026-09-05 (1-token call, effort accepted): the generation after
+  // Sonnet 4.6, listed at $2/$10 per MTok against 4.6's $3/$15. Reachable via
+  // LLM_FLAGSHIP_MODEL=claude-sonnet-5 for the eval harnesses; the default
+  // flagship below does not move until the gate harness says it should.
+  "claude-sonnet-5": { id: "claude-sonnet-5", supportsEffort: true, thinksByDefault: true, rejectsTemperature: true },
   // claude-sonnet-4-20250514 was retired by Anthropic on 2026-06-15
   "claude-sonnet-4-6": { id: "claude-sonnet-4-6", supportsEffort: true },
   "claude-haiku-4-5-20251001": {
@@ -181,6 +204,17 @@ const ANTHROPIC_MODEL_SPECS: Record<string, AnthropicModelSpec> = {
     supportsEffort: false,
   },
 };
+
+/** `temperature` only for models that still accept it (see AnthropicModelSpec.rejectsTemperature). */
+function temperatureParam(spec: AnthropicModelSpec, temperature: number): { temperature: number } | Record<string, never> {
+  return spec.rejectsTemperature ? {} : { temperature };
+}
+
+/** Explicit thinking mode for models that would otherwise think adaptively (see AnthropicModelSpec). */
+function thinkingParam(spec: AnthropicModelSpec): { thinking: { type: "disabled" | "adaptive" } } | Record<string, never> {
+  if (!spec.thinksByDefault) return {};
+  return { thinking: { type: process.env.LLM_THINKING?.trim() === "adaptive" ? "adaptive" : "disabled" } };
+}
 
 const DEFAULT_ANTHROPIC_MODELS: Record<LLMTier, string> = {
   flagship: "claude-sonnet-4-6",
@@ -297,8 +331,9 @@ async function callAnthropic(
         model,
         system: systemPayload,
         messages: opts.messages,
-        temperature: opts.temperature ?? 0.7,
+        ...temperatureParam(spec, opts.temperature ?? 0.7),
         max_tokens: opts.maxTokens ?? 1500,
+        ...thinkingParam(spec),
         // output_config carries up to two independent knobs:
         //  - effort: Sonnet 4.6 defaults effort to "high" (more thinking →
         //    higher latency/cost). Pin it to "medium" for the balanced
@@ -470,9 +505,10 @@ async function* callAnthropicStream(
         model,
         system: systemPayload,
         messages: opts.messages,
-        temperature: opts.temperature ?? 0.7,
+        ...temperatureParam(spec, opts.temperature ?? 0.7),
         max_tokens: opts.maxTokens ?? 1500,
         stream: true,
+        ...thinkingParam(spec),
         // See ANTHROPIC_MODEL_SPECS: pin effort to "medium" on models that
         // accept it (Sonnet 4.6 and Opus 5 default to "high"). Keyed on the
         // MODEL, not the tier — Haiku 4.5 returns 400 if sent `effort`, and

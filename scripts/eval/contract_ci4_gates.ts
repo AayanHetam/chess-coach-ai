@@ -30,7 +30,8 @@
  *
  * Run from the repo root:
  *   npx tsx scripts/eval/contract_ci4_gates.ts --dry-run
- *   npx tsx scripts/eval/contract_ci4_gates.ts [--samples 3] [--only 09]
+ *   npx tsx scripts/eval/contract_ci4_gates.ts [--samples 3] [--only 01,07,09]
+ *                                              [--fixtures-real] [--label arm-name]
  *                                              [--legacy] [--output p.json]
  */
 import * as fs from "node:fs";
@@ -44,6 +45,8 @@ import { CI4_GATE_ARMING_TABLE } from "./ci4GateTable";
 
 const REPO_ROOT = process.cwd();
 const FIXTURES_DIR = path.join(REPO_ROOT, "src/lib/contract/__tests__/fixtures");
+/** Same games, every reachable position re-evaluated by real Stockfish (depth 16, MultiPV 3). */
+const FIXTURES_REAL_DIR = path.join(REPO_ROOT, "src/lib/contract/__tests__/fixtures-real");
 const RESULTS_DIR = path.join(REPO_ROOT, "scripts/eval/results");
 
 /** Same request text the BEFORE/AFTER/verify runs used (comparability). */
@@ -69,15 +72,21 @@ interface Args {
   output: string | null;
   samples: number;
   legacy: boolean;
+  /** Real-Stockfish fixtures (fixtures-real/) instead of the hand-authored evals. */
+  fixturesReal: boolean;
+  /** Free-text arm name stamped into the result (e.g. "story-4.1", "baseline-4.0"). */
+  label: string | null;
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { dryRun: false, only: null, output: null, samples: 3, legacy: false };
+  const args: Args = { dryRun: false, only: null, output: null, samples: 3, legacy: false, fixturesReal: false, label: null };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--dry-run") args.dryRun = true;
     else if (argv[i] === "--legacy") args.legacy = true;
     else if (argv[i] === "--only") args.only = argv[++i] ?? null;
     else if (argv[i] === "--output") args.output = argv[++i] ?? null;
+    else if (argv[i] === "--fixtures-real") args.fixturesReal = true;
+    else if (argv[i] === "--label") args.label = argv[++i] ?? null;
     else if (argv[i] === "--samples") args.samples = Number.parseInt(argv[++i] ?? "3", 10);
     else {
       console.error(`unknown arg: ${argv[i]}`);
@@ -87,15 +96,18 @@ function parseArgs(argv: string[]): Args {
   return args;
 }
 
-function loadFixtures(only: string | null): Array<{ name: string; fixture: FixtureFile }> {
+function loadFixtures(only: string | null, real = false): Array<{ name: string; fixture: FixtureFile }> {
+  const dir = real ? FIXTURES_REAL_DIR : FIXTURES_DIR;
+  // --only takes a comma-separated list of name fragments ("01,07,09").
+  const wanted = only ? only.split(",").map((x) => x.trim()).filter(Boolean) : [];
   return fs
-    .readdirSync(FIXTURES_DIR)
+    .readdirSync(dir)
     .filter((f) => f.endsWith(".json"))
     .sort()
-    .filter((n) => (only ? n.includes(only) : true))
+    .filter((n) => (wanted.length ? wanted.some((w) => n.includes(w)) : true))
     .map((name) => ({
       name: name.replace(/\.json$/, ""),
-      fixture: JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, name), "utf8")) as FixtureFile,
+      fixture: JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")) as FixtureFile,
     }));
 }
 
@@ -276,6 +288,8 @@ interface SampleResult {
   personaMean: number | null;
   proseRetention: number | null;
   costUsd: number;
+  /** Fact ids the model cited, per the enforced stream (shipped text has citations stripped). */
+  citedFactIds: string[];
   shipped: string;
 }
 
@@ -301,7 +315,7 @@ async function runLive(args: Args): Promise<void> {
     VERBALIZER_PROMPT_VERSION,
   } = await import("@/lib/prompts/verbalizerPrompt");
 
-  const fixtures = loadFixtures(args.only);
+  const fixtures = loadFixtures(args.only, args.fixturesReal);
   console.log(
     `\n=== CI-4 gate run: ${fixtures.length} fixtures x ${args.samples} samples ` +
       `(arming = CI4_GATE_ARMING_TABLE) ===`,
@@ -311,6 +325,14 @@ async function runLive(args: Args): Promise<void> {
   const legacyPersona: Array<{ fixture: string; scores: number[] }> = [];
   let generatorModel = "unknown";
   let judgeModel = "unknown";
+  // USAGE-PRICED spend. summary.costUsd from the enforced stream covers only
+  // the ladder's regenerations; the generation itself and the persona judge
+  // were unpriced, which is how a run that cost ~$1 reported $0.20. Every
+  // LLMResult carries its token counts — price them all against llmPricing.
+  const { estimateCostUSD } = await import("@/lib/llmPricing");
+  const priced = (r: { model: string; inputTokens: number; outputTokens: number; cacheCreationTokens?: number; cacheReadTokens?: number }) =>
+    estimateCostUSD({ model: r.model, inputTokens: r.inputTokens, outputTokens: r.outputTokens, cacheCreationTokens: r.cacheCreationTokens, cacheReadTokens: r.cacheReadTokens }) ?? 0;
+  const spend = { generationUsd: 0, judgeUsd: 0, ladderUsd: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 };
 
   const judgePersona = async (text: string): Promise<number[]> => {
     const scores: number[] = [];
@@ -324,6 +346,7 @@ async function runLive(args: Args): Promise<void> {
           maxTokens: 100,
         });
         judgeModel = judge.model;
+        spend.judgeUsd += priced(judge);
         const score = parseJudgeScore(judge.content);
         if (score !== null) scores.push(score);
       } catch (err) {
@@ -374,6 +397,7 @@ async function runLive(args: Args): Promise<void> {
       const cardsPlanned = selectCardInsights(contract).length;
       let rawText = "";
       let shippedText = "";
+      let sampleGenerationUsd = 0;
       const t0 = Date.now();
       const enforced = createEnforcedContractStream({
         contract,
@@ -401,9 +425,16 @@ async function runLive(args: Args): Promise<void> {
           enforced.push(evt.delta);
         } else {
           generatorModel = evt.result.model;
+          sampleGenerationUsd = priced(evt.result);
+          spend.generationUsd += sampleGenerationUsd;
+          spend.inputTokens += evt.result.inputTokens;
+          spend.outputTokens += evt.result.outputTokens;
+          spend.cacheReadTokens += evt.result.cacheReadTokens ?? 0;
+          spend.cacheCreationTokens += evt.result.cacheCreationTokens ?? 0;
         }
       }
       const summary = await enforced.end();
+      spend.ladderUsd += summary.costUsd;
 
       // ── Citation coverage, both granularities, on the model's RAW body ────
       const cov = { sentence: { cited: 0, claims: 0 }, paragraph: { cited: 0, claims: 0 } };
@@ -468,7 +499,10 @@ async function runLive(args: Args): Promise<void> {
         personaScores,
         personaMean: round(mean(personaScores), 2),
         proseRetention: rawChars > 0 ? round(shippedChars / rawChars) : null,
-        costUsd: Number(summary.costUsd.toFixed(4)),
+        costUsd: Number((summary.costUsd + sampleGenerationUsd).toFixed(4)),
+        // Which facts the model actually leaned on (the shipped text has its
+        // citations stripped, so this is the only record of them).
+        citedFactIds: Array.from(new Set(summary.cards.flatMap((c) => c.citedFactIds))).sort(),
         shipped: summary.finalText,
       });
       const r = samples[samples.length - 1];
@@ -587,7 +621,14 @@ async function runLive(args: Args): Promise<void> {
   const payload = {
     date: new Date().toISOString().slice(0, 10),
     mode: "ci4_gate_run_multisample",
+    label: args.label,
+    fixturesSource: args.fixturesReal ? "fixtures-real (real Stockfish depth 16 / MultiPV 3)" : "fixtures (hand-authored evals)",
     model: { generator: generatorModel, judge: judgeModel },
+    spend: {
+      ...spend,
+      totalUsd: Number((spend.generationUsd + spend.judgeUsd + spend.ladderUsd).toFixed(4)),
+      note: "usage-priced against llmPricing (generation + persona judge + ladder regenerations)",
+    },
     verbalizerPromptVersion: VERBALIZER_PROMPT_VERSION,
     legacyPromptVersion: PROMPT_VERSION,
     fixtures: fixtures.length,
@@ -622,6 +663,10 @@ async function runLive(args: Args): Promise<void> {
     legacyPersona,
   };
 
+  console.log(
+    `\nSPEND (usage-priced): generation $${spend.generationUsd.toFixed(3)} + judge $${spend.judgeUsd.toFixed(3)} + ladder $${spend.ladderUsd.toFixed(3)} = $${(spend.generationUsd + spend.judgeUsd + spend.ladderUsd).toFixed(3)}` +
+      `  (in ${spend.inputTokens} / out ${spend.outputTokens} / cache-read ${spend.cacheReadTokens} / cache-write ${spend.cacheCreationTokens} tokens)`,
+  );
   const outPath =
     args.output ?? path.join(RESULTS_DIR, `contract-ci4-gates-${payload.date}.json`);
   fs.mkdirSync(path.dirname(outPath), { recursive: true });

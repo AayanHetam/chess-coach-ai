@@ -155,6 +155,32 @@ isolated pawns agree 1,200/1,200; the 130 passed-pawn disagreements are all
 the annotator counting an enemy pawn *beside* a pawn as blocking it (a `>=`
 that should be `>`), so the new predicate is the correct one.
 
+### The verbalizer re-measured with purposes in the contract (2026-09-05, 18 games)
+
+`results/ab-purposes-4.1-sonnet46.json`: the same six real fixtures as the
+two earlier arms, three samples each (the harness default, which I failed to
+override — 18 games, 513 claim sentences, $1.56 against a $1 approval).
+
+| arm | games | persona | coverage (sentence) | fabrication / 100 | sentence drops | cost |
+|---|---|---|---|---|---|---|
+| baseline 4.0 (no stories) | 6 | 4.42 | 0.927 | 0 | 5 | $0.51 |
+| stories 4.1 | 6 | 4.33 | 0.948 | 0 | 3 | $0.55 |
+| stories + purposes 4.1 | 18 | 4.08 | 0.927 | 0.39 (2/513) | 11 | $1.56 |
+
+Five of the six CI-4 gates pass pooled and per run; the sixth — fabrication
+≤ 1/100 on EVERY run — fails on one run at 1.09 (one sentence in 92). None
+of the differences against the single-sample arms clears the noise: a true
+rate of 0.4 per 100 returns 0 in 100 sentences two times in three, and the
+persona gap is about one standard error at these sizes. The two fabrications
+are a tactical keyword without a licence (fixture 07) and a forbidden claim
+class (fixture 09) — the families the programme started with; neither text
+quotes a purpose fact. Two leads worth a $0 look: fixtures 01 and 05 cite a
+few points less in all three samples (0.81–0.91 and 0.93–0.95 against 1.0
+in the stories arm), and one sample of fixture 05 scored persona 2 from both
+judges where the other two scored 5 — its two cards explain the same Nxc8+
+combination twice, which the contract invites whenever consecutive blunders
+share a best move.
+
 ### The follow-up referee (2026-09-05)
 
 `followUpReferee.ts` checks every follow-up reply sentence by sentence

@@ -79,6 +79,40 @@ export function isLastStep(answers: QuizAnswers, stepIndex: number): boolean {
   return stepIndex === resolveSteps(answers).length - 1;
 }
 
+/**
+ * The longest path through the quiz — the self-assessment branch. Used as the
+ * progress denominator before the branch is known.
+ */
+const LONGEST_PATH_LENGTH = resolveSteps({
+  ...emptyAnswers(),
+  playStyle: "otb",
+}).length;
+
+/**
+ * Progress for the bar, 0..1.
+ *
+ * Before the branch resolves the denominator is a guess. It used to guess the
+ * SHORTER (online) path, so picking "over the board" or "new" on question 1
+ * made the bar shrink from 20% to 11% — the funnel's first response to a
+ * click was to go backwards, and a QA pass on 2026-09-05 read the bar as
+ * random. Guessing the longer path instead means resolving the branch can only
+ * hold the bar still or move it forward; the online path gets a small bump
+ * when its shorter route is confirmed.
+ *
+ * Pure and exported so the monotonicity is unit-tested rather than eyeballed.
+ */
+export function quizProgress(
+  answers: QuizAnswers,
+  stepIndex: number,
+  phase: QuizPhase
+): number {
+  if (phase === "result") return 1;
+  const total = answers.playStyle
+    ? resolveSteps(answers).length
+    : LONGEST_PATH_LENGTH;
+  return Math.min(1, (stepIndex + 1) / (total + 1));
+}
+
 export function canAdvanceStep(step: StepId, a: QuizAnswers): boolean {
   switch (step) {
     case "play-style":
@@ -189,13 +223,7 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
   const isLastQuestion = isLastStep(answers, stepIndex);
   const isFirstStep = stepIndex === 0 && phase === "questions";
 
-  // Progress: estimate the denominator before the branch is known (online path
-  // is the common/shorter case) so the bar doesn't jump to 100% on step 1.
-  const estimatedTotal = answers.playStyle ? steps.length : 4;
-  const progress =
-    phase === "result"
-      ? 1
-      : Math.min(1, (stepIndex + 1) / (estimatedTotal + 1));
+  const progress = quizProgress(answers, stepIndex, phase);
 
   const next = useCallback(() => {
     setStepIndex((idx) => {

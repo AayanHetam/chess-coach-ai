@@ -8,6 +8,10 @@ import { CalendarCheck, Puzzle, X, Zap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NUDGE_DISMISS_KEY } from "@/components/onboarding/OnboardingNudge";
+import {
+  TOUR_STEP_ORDER,
+  initialTourStep,
+} from "@/components/onboarding/welcomeTourSteps";
 
 export const TOUR_SEEN_KEY = "cm-welcome-tour-v1";
 
@@ -35,22 +39,25 @@ type TourStep = {
 };
 
 // Deliberately not nav order: the tour sells the loop — solve now, understand
-// your games, then meet the plan that strings the habit together.
+// your games, then meet the plan that strings the habit together. The order
+// itself lives in welcomeTourSteps.ts (with the per-surface opening step), so
+// the labels here are read from it rather than repeated.
+const [PRACTICE_LABEL, ANALYZE_LABEL, PLAN_LABEL] = TOUR_STEP_ORDER;
 const STEPS: TourStep[] = [
   {
-    navLabel: "Practice",
+    navLabel: PRACTICE_LABEL,
     title: "Solve puzzles, with a coach",
     body: "Practice serves puzzles picked for your level. Miss one and the coach walks through why the right move works — not just what it was.",
     icon: Puzzle,
   },
   {
-    navLabel: "Analyze",
+    navLabel: ANALYZE_LABEL,
     title: "See where your games turned",
     body: "Import a game from Chess.com or Lichess, or paste any PGN. Analyze finds the turning points and explains them in plain English.",
     icon: Zap,
   },
   {
-    navLabel: "Plan",
+    navLabel: PLAN_LABEL,
     title: "Plan ties it together",
     body: "Plan is home base: a short daily set of puzzles, openings and review, tracked toward your rating goal. Start here each day.",
     icon: CalendarCheck,
@@ -91,6 +98,7 @@ export default function WelcomeTour() {
   // the NEXT page view, not pop a second modal onto the same one.
   useEffect(() => {
     setMounted(true);
+    setStep(initialTourStep(router.pathname));
     try {
       setSeen(localStorage.getItem(TOUR_SEEN_KEY) === "1");
       setNudgeUndismissed(localStorage.getItem(NUDGE_DISMISS_KEY) !== "1");

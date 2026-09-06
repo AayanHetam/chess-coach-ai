@@ -4,7 +4,9 @@ import {
   isLastStep,
   canAdvanceStep,
   isUsernameValid,
+  quizProgress,
 } from "../useOnboardingQuiz";
+import { PLAY_STYLE_OPTIONS } from "../quizConfig";
 import { emptyAnswers, type QuizAnswers } from "../quizConfig";
 
 const answers = (over: Partial<QuizAnswers> = {}): QuizAnswers => ({
@@ -112,5 +114,33 @@ describe("the frequency step", () => {
   it("requires at least one day a week", () => {
     expect(canAdvanceStep("frequency", answers({ daysPerWeek: 0 }))).toBe(false);
     expect(canAdvanceStep("frequency", answers({ daysPerWeek: 1 }))).toBe(true);
+  });
+});
+
+describe("quizProgress — the bar never moves backwards", () => {
+  it("does not shrink when question 1 is answered, whichever option is picked", () => {
+    // Regression: the pre-branch denominator guessed the SHORTER path, so
+    // picking "over the board" on question 1 dropped the bar from 20% to 11%.
+    const before = quizProgress(answers(), 0, "questions");
+    for (const o of PLAY_STYLE_OPTIONS) {
+      const after = quizProgress(answers({ playStyle: o.key }), 0, "questions");
+      expect(after, `bar shrank after picking ${o.key}`).toBeGreaterThanOrEqual(before);
+    }
+  });
+
+  it("increases on every Continue along both branches and ends at 100%", () => {
+    for (const playStyle of ["lichess", "otb"] as const) {
+      const a = answers({ playStyle });
+      const steps = resolveSteps(a);
+      let prev = quizProgress(a, 0, "questions");
+      expect(prev).toBeGreaterThan(0);
+      for (let i = 1; i < steps.length; i++) {
+        const p = quizProgress(a, i, "questions");
+        expect(p, `${playStyle} step ${i}`).toBeGreaterThan(prev);
+        expect(p).toBeLessThan(1);
+        prev = p;
+      }
+      expect(quizProgress(a, steps.length - 1, "result")).toBe(1);
+    }
   });
 });

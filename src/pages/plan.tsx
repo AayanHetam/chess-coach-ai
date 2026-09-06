@@ -137,7 +137,13 @@ function GlassCard({
 
 export default function PlanPage() {
   const router = useRouter();
-  const { user, profile, updateProfile, refresh } = useAuth();
+  const {
+    user,
+    profile,
+    updateProfile,
+    refresh,
+    loading: authLoading,
+  } = useAuth();
   // Open when they ask to change an existing goal. A user with no goal at
   // all gets the setter unconditionally — see the mount below.
   const [editingGoal, setEditingGoal] = useState(false);
@@ -377,9 +383,18 @@ export default function PlanPage() {
   );
 
   const hasPlacement = typeof profile?.measuredRating === "number";
+  // No placement and no puzzle attempted: the 1200 in the stats atom is the
+  // store's default, not a measurement, and a new account was reading it as
+  // "Rating 1200 · Intermediate" before it had solved anything.
+  const isUnrated = !hasPlacement && stats.totalAttempts === 0;
   // The handle wins here — it is the name they chose, and it is what the sign
   // -in form now accepts. `addressAs` owns that precedence for every surface.
-  const firstName = firstNameOf(profile ?? undefined, "there");
+  // Blank while auth resolves: "there" is the last resort for an account with
+  // no handle, name or email, and it was flashing for every account until the
+  // profile arrived.
+  const firstName = authLoading
+    ? ""
+    : firstNameOf(profile ?? undefined, "there");
   const canResume = isResumeFresh(resume, nowMs);
 
   // Anonymous visitor — point them into the funnel.
@@ -425,29 +440,38 @@ export default function PlanPage() {
           gap: 1.5,
         }}
       >
-        <Box>
-          <Typography
-            sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.85rem" }}
-          >
-            Welcome back,
-          </Typography>
-          <Typography
-            sx={{
-              fontWeight: 800,
-              fontSize: "1.7rem",
-              lineHeight: 1.1,
-              background: "linear-gradient(100deg, #FDBA74 0%, #FDE047 100%)",
-              backgroundClip: "text",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            {firstName}
-          </Typography>
+        <Box sx={{ minHeight: 56 }}>
+          {firstName && (
+            <>
+              <Typography
+                sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.85rem" }}
+              >
+                Welcome back,
+              </Typography>
+              <Typography
+                sx={{
+                  fontWeight: 800,
+                  fontSize: "1.7rem",
+                  lineHeight: 1.1,
+                  background:
+                    "linear-gradient(100deg, #FDBA74 0%, #FDE047 100%)",
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                {firstName}
+              </Typography>
+            </>
+          )}
         </Box>
         <Box sx={{ display: "flex", gap: 1.5, alignItems: "stretch" }}>
-          <StatTile label="Rating" sub={bandLabel(stats.rating)} accent="gold">
-            <NumberTicker value={stats.rating} />
+          <StatTile
+            label="Rating"
+            sub={isUnrated ? "Unrated" : bandLabel(stats.rating)}
+            accent="gold"
+          >
+            {isUnrated ? "—" : <NumberTicker value={stats.rating} />}
           </StatTile>
           <StatTile label="Streak" sub={`best ${streak.best}`} accent="ember">
             <Box

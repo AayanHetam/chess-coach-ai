@@ -235,7 +235,7 @@ describe("line stories in the follow-up (2026-09-05)", () => {
     expect(compact.insights[0].bestLineStory[0]).toContain("3.Nxe5 — takes the pawn on e5");
     expect(compact.insights[0].bestLineStory.some((l) => l.startsWith("after these moves: "))).toBe(true);
     expect(compact.insights[0].bestLineStory.some((l) => /^s\d/.test(l) || l.startsWith("material:"))).toBe(false);
-    expect(compact.insights[0].gameStory[0]).toBe("3.Bc4");
+    expect(compact.insights[0].gameStory[0]).toContain("3.Bc4");
     const rendered = renderContractCompact(compact);
     expect(rendered).toContain("what the engine line does:");
     expect(rendered).toContain("    - 3.Nxe5 — takes the pawn on e5");

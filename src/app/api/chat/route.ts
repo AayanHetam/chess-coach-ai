@@ -6,6 +6,7 @@ import {
 } from "@/lib/analysisContextCache";
 import { buildFenPositionFacts } from "@/lib/mastermind/positionFacts";
 import { renderContractCompact } from "@/lib/contract/followUp";
+import { refereeFollowUp } from "@/lib/contract/followUpReferee";
 import { FOLLOWUP_REDUCED_GROUNDING_NOTE } from "@/lib/prompts/followupGrounding";
 import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
 import { validateAIResponse } from "@/lib/aiResponseValidator";
@@ -52,6 +53,51 @@ const log = logger.child({ module: "chat" });
  *
  * 2. **Without contextId** (fallback): Plain passthrough to OpenAI, same as before.
  */
+/**
+ * Follow-up referee (2026-09-05). The reply to a follow-up is checked
+ * sentence by sentence against the review's compact contract and the board
+ * under discussion (see followUpReferee.ts): a tactical word, a move in
+ * notation or an eval figure the review never carried and the board does not
+ * show is dropped, never hedged — the same founder rule turn 1 lives by.
+ * Legacy contexts (no compact contract) pass through untouched.
+ *
+ * The per-move eval table the chat context already shows the model is
+ * licensed too, so "you were +7.16 after move 5" survives when the table says
+ * so. Pulled from the rendered context rather than re-derived, so the licence
+ * and the evidence are the same bytes.
+ */
+function refereeChatReply(
+  reply: string,
+  context: { compactContract?: import("@/lib/contract/followUp").CompactContract; compactGameContext?: string; playedMoves?: string[] },
+  activeFen: string,
+  requestId: string,
+): string {
+  if (!context.compactContract) return reply;
+  try {
+    const licensedEvals = Array.from(
+      (context.compactGameContext ?? "").matchAll(/(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g),
+    ).map((m) => m[1]);
+    const result = refereeFollowUp({
+      reply,
+      compact: context.compactContract,
+      activeFen,
+      moveHistory: context.playedMoves ?? [],
+      licensedEvals,
+    });
+    if (result.dropped.length > 0) {
+      log.info("followup_referee_dropped", {
+        requestId,
+        contractId: context.compactContract.contractId,
+        sentences: result.sentences,
+        dropped: result.dropped.map((d) => d.reason),
+      });
+    }
+    return result.text;
+  } catch {
+    return reply;
+  }
+}
+
 export async function POST(request: NextRequest) {
   // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
   // BEFORE any work, auth or spend, and with a code that says "off", not
@@ -374,10 +420,14 @@ export async function POST(request: NextRequest) {
             POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
           return NextResponse.json({
             gameAnalysis: {
-              analysis:
+              analysis: refereeChatReply(
                 usePositionAnchoredAnnotation && !validation.isValid
                   ? validation.correctedResponse
                   : rawContent,
+                context,
+                activeFen,
+                requestId,
+              ),
               position: activeFen,
               validationScore: validation.score,
               cached: false,
@@ -440,9 +490,12 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         gameAnalysis: {
-          analysis: validation.isValid
-            ? rawContent
-            : validation.correctedResponse,
+          analysis: refereeChatReply(
+            validation.isValid ? rawContent : validation.correctedResponse,
+            context,
+            activeFen,
+            requestId,
+          ),
           position: activeFen,
           validationScore: validation.score,
           cached: false,

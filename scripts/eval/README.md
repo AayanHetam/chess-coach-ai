@@ -30,6 +30,7 @@ uv venv .evalvenv && uv pip install --python .evalvenv/bin/python -r scripts/eva
 | `contract_ci4_gates.ts --samples 3 [--legacy] [--fixtures-real] [--only 01,07] [--label arm]` | The CI-4 gate verdict: persona / citation coverage / shipped fabrication, **per run AND pooled**. `--fixtures-real` runs the real-Stockfish fixtures; the result carries a usage-priced `spend` block (generation + judge + ladder) | ~1 flagship + 2 Haiku calls per fixture-sample, ≈$0.10 on Sonnet 4.6 |
 | `contract_ci4_offline_replay.ts [results.json]` | Replays the ladder over already-committed generations — free A/B of ladder/citation changes | $0, no network |
 | `motif_detector_recall.ts [--n 400]` | Do the `src/lib/tactics` detectors find the tactics humans label? Recall per Lichess puzzle theme + exact-match on the ChessQA motif battery | $0, no network, ~7 min |
+| `followup_referee_replay.ts` | Replays the follow-up referee (followUpReferee.ts) over the eight saved chat answers from the probe below — what it would have cut, and why | $0, no network |
 | `followup_story_probe.ts` | Does the follow-up chat (fast tier) explain a line better when its compact contract carries what each move does? Two fixtures × two student questions, with and without stories, side by side | 8 Haiku calls, ≈$0.04 |
 | `line_story_check.ts [--n 300]` | Is the per-ply line story (lineStory.ts) right? Mate at the labeled ply on `mateInN`, theme motif on a solver ply, sacrifice offers vs non-sacrifice, ledger sign on `crushing` | $0, no network, ~4 min |
 
@@ -117,6 +118,58 @@ persona floor — not evidence to move the flagship on six games. Its ChessQA
 motif run is inconclusive: the model writes past the 3,000-token budget on
 that prompt (21/25 answers cut off with adaptive thinking, 16/25 with
 thinking disabled; 5 of the 9 that finished were right).
+
+### Quiet moves have purposes (2026-09-05, second pass)
+
+`positionalFacts.ts` gives the story deterministic reasons for quiet moves —
+rook to an open or half-open file (the castling rook included), doubling on a
+file with no friendly pawn or on the enemy's second rank, a knight on an
+outpost in the enemy half, a blockade of a passed or isolated pawn, piling
+onto a pinned piece, newly attacking an isolated, backward or far-advanced
+passed pawn, a pawn challenge, a passed pawn created or advanced, a pawn move
+that lets an enemy pawn through, and (only on otherwise quiet plies)
+development, centralization and a king walk in the endgame; at most two per
+ply. Captures carry none of the line facts — "takes the pawn on d7" does not
+also "seize the d-file" it just opened. "Develops" is exact when the builder
+passes the game's history (`movedFrom`): a knight going b1-d2-f1-g3 is never
+developed twice; from a bare FEN it needs a type-matched home square and
+either castling rights or a very early move number.
+
+An adversarial review (59 positions, 20 candidates) shaped those rules: it
+found development claimed for rerouted pieces, "doubling" on a closed file or
+a back rank, a promotion narrated as a pawn advancing to the 8th, a double
+step capturable en passant called a passed pawn (attack scans read pawn
+geometry only; `capturable` now asks chess.js for the en passant capture),
+a pawn level with its neighbour called backward, weak-pawn attacks the same
+piece already made from its old square, and "challenges" on a pawn that was
+already lost. Every finding is a unit test in `lineStory.test.ts`.
+
+On the labeled-solution check quiet plies fell from 8.1% to 3.3% with every
+tactical figure unchanged. Rates per 100 solution plies: open file 5.3, weak
+pawn 5.3, passed pawn 4.9, pinned piece 3.7, blockade 1.9, king walk 1.5,
+doubling 0.8, challenge 0.8, outpost 0.3, centralize 0.3, develop 0.0 (puzzle
+solutions are forcing lines with no game history, so the soft purposes are
+rare there by construction). The pawn predicates were cross-checked against
+the repo's older `positionAnnotator` on 1,200 positions: open files and
+isolated pawns agree 1,200/1,200; the 130 passed-pawn disagreements are all
+the annotator counting an enemy pawn *beside* a pawn as blocking it (a `>=`
+that should be `>`), so the new predicate is the correct one.
+
+### The follow-up referee (2026-09-05)
+
+`followUpReferee.ts` checks every follow-up reply sentence by sentence
+against the review's compact contract and the board under discussion:
+tactical words need a licence (a confirmed motif, a story fact, a hanging
+piece or pin actually on the board), moves in notation must be game moves,
+engine-line moves, or legal where the coach put them, eval figures must be
+ones the review or the per-move table displayed, and a piece named on a
+square must stand there — with the ownership the sentence claims — on the
+board under discussion or on a reviewed before/after board. Failing sentences
+are dropped, never hedged; an emptied reply becomes one honest line. Replayed
+over the eight real answers from the story probe: 10 of 67 sentences cut in
+the arm without stories — every one a fabrication ("your queen on c1" for
+Black's queen, a rook "on c8", "8...Kd7", an "immediate checkmate threat") —
+and 0 of 65 in the arm with stories.
 
 ### Follow-up chat with line stories (2026-09-05)
 

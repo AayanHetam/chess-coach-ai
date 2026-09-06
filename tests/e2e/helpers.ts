@@ -9,6 +9,36 @@ export async function bodyLuminance(page: Page): Promise<number> {
   });
 }
 
+/**
+ * Route /api/auth/me to a minimal signed-in user.
+ *
+ * The coach routes are session-gated, and since PR #483 the /analysis
+ * composer gates signed-out visitors client-side as well: Enter opens the
+ * sign-in dialog and no request leaves the page. A spec that asserts what the
+ * browser SENDS therefore has to run as a signed-in user. The default user
+ * carries no rating of any kind, so "never invents a rating" assertions still
+ * hold; `onboardingCompletedAt` keeps the OnboardingNudge modal off the page.
+ */
+export async function stubSignedIn(
+  page: Page,
+  user: Record<string, unknown> = {}
+): Promise<void> {
+  await page.route("**/api/auth/me", (r) =>
+    r.fulfill({
+      json: {
+        user: {
+          uid: "e2e-user",
+          handle: "e2e",
+          onboardingCompletedAt: Date.now(),
+          ...user,
+        },
+        isIntern: false,
+        isAdmin: false,
+      },
+    })
+  );
+}
+
 /** Pixels of horizontal overflow — >1 means the page scrolls sideways. */
 export async function horizontalOverflow(page: Page): Promise<number> {
   return page.evaluate(

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { stubSignedIn } from "../helpers";
 
 /**
  * GROUP D (SILENT_SUBSTITUTION_HANDOFF §3) — history contamination, asserted
@@ -31,6 +32,9 @@ const RAW_STREAMED = "RAW-STREAMED-SENTINEL: the knight hangs.";
  */
 async function openAnalysis(page: Page) {
   await page.route("**/engines/**", (route) => route.abort());
+  // Signed in: a signed-out composer opens the sign-in dialog instead of
+  // sending, so there would be no request body to inspect.
+  await stubSignedIn(page);
   await page.goto("/analysis");
   const composer = page.getByPlaceholder(
     "Ask anything — answering without engine analysis.",

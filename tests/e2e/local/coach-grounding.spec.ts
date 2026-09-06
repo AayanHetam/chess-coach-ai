@@ -1,4 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
+import { stubSignedIn } from "../helpers";
 
 /**
  * Browser-level guards for the silent-substitution fixes
@@ -136,14 +137,18 @@ test.describe("A2 — the puzzle coach is told the student's rating", () => {
 });
 
 test.describe("A1 — the analysis coach never invents a rating", () => {
-  test("a signed-out visitor's request carries no fabricated rating", async ({
+  test("a request from an account with no rating on file carries no fabricated rating", async ({
     page,
   }) => {
-    // Signed out ⇒ no profile ⇒ no rating. The correct wire behaviour is to
-    // OMIT the field so the server can fall back to its own sources (Firestore
-    // profile, then the PGN header Elo). Sending 1500 — as this page did for
-    // months — makes both of those unreachable and asserts "- User rating:
-    // 1500" to the model as measured fact.
+    // No rating on the profile ⇒ nothing to send. The correct wire behaviour
+    // is to OMIT the field so the server can fall back to its own sources
+    // (Firestore profile, then the PGN header Elo). Sending 1500 — as this
+    // page did for months — makes both of those unreachable and asserts
+    // "- User rating: 1500" to the model as measured fact.
+    //
+    // This used to run signed out. Signed-out sends are now gated in the
+    // composer (see the spec below), so the rating-less case is a signed-in
+    // account whose profile simply has no rating.
     const bodies: Array<Record<string, unknown>> = [];
     await page.route("**/api/enhanced-analysis", async (route) => {
       bodies.push(JSON.parse(route.request().postData() ?? "{}"));
@@ -151,6 +156,7 @@ test.describe("A1 — the analysis coach never invents a rating", () => {
     });
 
     await pinComposerOpen(page);
+    await stubSignedIn(page);
     await page.goto("/analysis");
 
     // The composer is disabled while Stockfish is mid-analysis, and whether
@@ -175,9 +181,50 @@ test.describe("A1 — the analysis coach never invents a rating", () => {
     const body = bodies[0];
     expect(
       body.userRating,
-      "signed-out request carried a rating the client cannot possibly know"
+      "request carried a rating the client cannot possibly know"
     ).toBeUndefined();
     expect("userRating" in body).toBe(false);
+  });
+});
+
+test.describe("signed-out visitors are gated, not 401'd", () => {
+  test("Enter opens the sign-in dialog and no coach request leaves the page", async ({
+    page,
+  }) => {
+    // Before PR #483 a signed-out visitor could type, send, take a 401 from
+    // the session-gated route, and read a banner with nothing to click — the
+    // QA pass of 2026-09-05 called it "the coach swallows messages". The
+    // composer now says up front that the coach needs a free account, and
+    // every send path opens the sign-in dialog instead of firing a request
+    // that cannot succeed.
+    let requests = 0;
+    await page.route("**/api/enhanced-analysis", async (route) => {
+      requests += 1;
+      await fulfillStub(route);
+    });
+    await page.route("**/api/chat", async (route) => {
+      requests += 1;
+      await route.fulfill({ status: 401, body: "{}" });
+    });
+
+    await pinComposerOpen(page);
+    await page.goto("/analysis");
+
+    const composer = page.getByPlaceholder(
+      "Sign in to ask the coach — free account, no card."
+    );
+    await expect(composer).toBeVisible({ timeout: 60_000 });
+    await expect(
+      page.getByText("The coach needs a free account.")
+    ).toBeVisible();
+
+    await composer.fill("what happened in this game?");
+    await composer.press("Enter");
+
+    const dialog = page.getByRole("dialog").filter({ hasText: "Sign in" });
+    await expect(dialog.first()).toBeVisible({ timeout: 15_000 });
+    expect(requests, "a signed-out send reached a coach route").toBe(0);
+    await expect(page.getByText("Sign-in required")).toHaveCount(0);
   });
 });
 
@@ -199,6 +246,7 @@ test.describe("T7 — an engine that never loads is declared, not hidden", () =>
     });
 
     await pinComposerOpen(page);
+    await stubSignedIn(page);
     await page.goto("/analysis");
 
     // 1. The user is told, in the page, before they ask.
@@ -261,6 +309,7 @@ test.describe("B1 — follow-ups are grounded on the board the user is viewing",
     });
 
     await pinComposerOpen(page);
+    await stubSignedIn(page);
     await page.goto(`/analysis?pgn=${encodeURIComponent(NAV_PGN)}`);
 
     const composer = page.getByPlaceholder(COMPOSER);

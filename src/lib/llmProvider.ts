@@ -192,12 +192,14 @@ interface AnthropicModelSpec {
 
 const ANTHROPIC_MODEL_SPECS: Record<string, AnthropicModelSpec> = {
   "claude-opus-5": { id: "claude-opus-5", supportsEffort: true, thinksByDefault: true },
-  // Probed 2026-09-05 (1-token call, effort accepted): the generation after
-  // Sonnet 4.6, listed at $2/$10 per MTok against 4.6's $3/$15. Reachable via
-  // LLM_FLAGSHIP_MODEL=claude-sonnet-5 for the eval harnesses; the default
-  // flagship below does not move until the gate harness says it should.
+  // FLAGSHIP since 2026-09-05 (founder decision). Probed 2026-09-05: effort
+  // accepted; listed at $2/$10 per MTok against 4.6's $3/$15 and measured
+  // $0.46 vs $0.55 per six-fixture review arm (ab-story-4.1-sonnet5.json —
+  // all CI-4 gates pass). Thinking is sent as "disabled" and temperature is
+  // omitted (see the spec fields). Revert: LLM_FLAGSHIP_MODEL=claude-sonnet-4-6.
   "claude-sonnet-5": { id: "claude-sonnet-5", supportsEffort: true, thinksByDefault: true, rejectsTemperature: true },
-  // claude-sonnet-4-20250514 was retired by Anthropic on 2026-06-15
+  // Previous flagship (until 2026-09-05); claude-sonnet-4-20250514 was retired
+  // by Anthropic on 2026-06-15.
   "claude-sonnet-4-6": { id: "claude-sonnet-4-6", supportsEffort: true },
   "claude-haiku-4-5-20251001": {
     id: "claude-haiku-4-5-20251001",
@@ -217,7 +219,7 @@ function thinkingParam(spec: AnthropicModelSpec): { thinking: { type: "disabled"
 }
 
 const DEFAULT_ANTHROPIC_MODELS: Record<LLMTier, string> = {
-  flagship: "claude-sonnet-4-6",
+  flagship: "claude-sonnet-5",
   fast: "claude-haiku-4-5-20251001",
 };
 

@@ -37,13 +37,16 @@ afterEach(() => {
 });
 
 describe("__resolveAnthropicModelForTest", () => {
-  it("unset ⇒ exactly today's mapping", async () => {
+  it("unset ⇒ exactly today's mapping (Sonnet 5 flagship since 2026-09-05)", async () => {
     const { __resolveAnthropicModelForTest: r } = await loadProvider();
-    expect(r("flagship").id).toBe("claude-sonnet-4-6");
+    expect(r("flagship").id).toBe("claude-sonnet-5");
     expect(r("fast").id).toBe("claude-haiku-4-5-20251001");
   });
 
-  it("applies the upgrade this flag exists for", async () => {
+  it("applies the upgrade this flag exists for — and the one-line revert to 4.6", async () => {
+    process.env.LLM_FLAGSHIP_MODEL = "claude-sonnet-4-6";
+    const { __resolveAnthropicModelForTest: r0 } = await loadProvider();
+    expect(r0("flagship").id).toBe("claude-sonnet-4-6");
     process.env.LLM_FLAGSHIP_MODEL = "claude-opus-5";
     process.env.LLM_FAST_MODEL = "claude-sonnet-4-6";
     const { __resolveAnthropicModelForTest: r } = await loadProvider();
@@ -67,14 +70,14 @@ describe("__resolveAnthropicModelForTest", () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     process.env.LLM_FLAGSHIP_MODEL = "claude-opus-5-typo";
     const { __resolveAnthropicModelForTest: r } = await loadProvider();
-    expect(r("flagship").id).toBe("claude-sonnet-4-6");
+    expect(r("flagship").id).toBe("claude-sonnet-5");
     expect(err).toHaveBeenCalled();
   });
 
   it("ignores whitespace-only values", async () => {
     process.env.LLM_FLAGSHIP_MODEL = "   ";
     const { __resolveAnthropicModelForTest: r } = await loadProvider();
-    expect(r("flagship").id).toBe("claude-sonnet-4-6");
+    expect(r("flagship").id).toBe("claude-sonnet-5");
   });
 
   it("every reachable model has a price, or the cost dashboard lies", async () => {

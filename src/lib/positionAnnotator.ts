@@ -386,7 +386,9 @@ function assessPawnStructure(board: ReturnType<Chess["board"]>, game: Chess): Pa
     let isPassed = true;
     for (let fi = Math.max(0, fileIdx - 1); fi <= Math.min(7, fileIdx + 1); fi++) {
       const enemyPawns = blackPawnFiles[files[fi]];
-      if (enemyPawns && enemyPawns.some(r => r >= maxRank)) {
+      // Strictly AHEAD: an enemy pawn level with ours cannot stop it (a5 beside b5
+      // is passed by, not blocking) — the old `>=` counted it (fixed 2026-09-05).
+      if (enemyPawns && enemyPawns.some(r => r > maxRank)) {
         isPassed = false;
         break;
       }
@@ -399,7 +401,7 @@ function assessPawnStructure(board: ReturnType<Chess["board"]>, game: Chess): Pa
     let isPassed = true;
     for (let fi = Math.max(0, fileIdx - 1); fi <= Math.min(7, fileIdx + 1); fi++) {
       const enemyPawns = whitePawnFiles[files[fi]];
-      if (enemyPawns && enemyPawns.some(r => r <= minRank)) {
+      if (enemyPawns && enemyPawns.some(r => r < minRank)) {
         isPassed = false;
         break;
       }

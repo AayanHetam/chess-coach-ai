@@ -83,7 +83,24 @@ export function rawAttacks(game: Chess, from: Square): Square[] {
   return result;
 }
 
-// All pieces of `byColor` that attack `target`.
+/**
+ * If `target` holds the pawn that has just double-stepped and `byColor` is to
+ * move, the square `byColor` would capture it on en passant; else null. The
+ * only capture in chess that lands somewhere other than the captured piece's
+ * square — every geometry-based scan below misses it without this.
+ */
+export function enPassantSquareFor(game: Chess, target: Square, byColor: Color): Square | null {
+  if (game.turn() !== byColor) return null;
+  const occupant = game.get(target);
+  if (!occupant || occupant.type !== "p" || occupant.color === byColor) return null;
+  const ep = game.fen().split(" ")[3];
+  if (!ep || ep === "-") return null;
+  const [tx, ty] = squareToCoord(target);
+  return coordToSquare(tx, ty + (byColor === "w" ? 1 : -1)) === ep ? (ep as Square) : null;
+}
+
+// All pieces of `byColor` that attack `target` — including, when `byColor` is
+// to move, the pawns that could take a just-double-stepped pawn en passant.
 export function attackersOf(
   game: Chess,
   target: Square,
@@ -95,6 +112,16 @@ export function attackersOf(
       if (!sq || sq.color !== byColor) continue;
       if (rawAttacks(game, sq.square as Square).includes(target)) {
         result.push({ square: sq.square as Square, piece: sq.type });
+      }
+    }
+  }
+  if (enPassantSquareFor(game, target, byColor)) {
+    const [tx, ty] = squareToCoord(target);
+    for (const dx of [-1, 1]) {
+      const s = coordToSquare(tx + dx, ty);
+      const p = s ? game.get(s) : null;
+      if (s && p && p.color === byColor && p.type === "p" && !result.some((r) => r.square === s)) {
+        result.push({ square: s, piece: "p" });
       }
     }
   }
@@ -137,9 +164,12 @@ export function cheapestCapture(
   const occupant = game.get(target);
   if (!occupant || occupant.color === side) return null;
   const lastRank = side === "w" ? "8" : "1";
+  const epSquare = enPassantSquareFor(game, target, side);
   const candidates = attackersOf(game, target, side).map((a) => {
     const promotion = a.piece === "p" && target[1] === lastRank ? "q" : undefined;
-    return { from: a.square, piece: a.piece, promotion };
+    // An en passant capturer stands BESIDE the target and lands behind it.
+    const to = epSquare && a.piece === "p" && a.square[1] === target[1] ? epSquare : target;
+    return { from: a.square, to, piece: a.piece, promotion };
   });
   const cost = (m: { piece: PieceSymbol; promotion?: string }) =>
     (m.piece === "k" ? PIECE_VALUE_CP.q + 1 : materialValue(m.piece)) - promotionBonus(m.promotion);
@@ -147,7 +177,7 @@ export function cheapestCapture(
   for (const c of candidates) {
     let legal = false;
     try {
-      const mv = game.move({ from: c.from, to: target, promotion: c.promotion as never });
+      const mv = game.move({ from: c.from, to: c.to, promotion: c.promotion as never });
       legal = !!mv;
       if (mv) game.undo();
     } catch {
@@ -156,7 +186,7 @@ export function cheapestCapture(
     if (!legal) continue;
     return {
       from: c.from,
-      to: target,
+      to: c.to,
       promotion: c.promotion,
       gained: materialValue(occupant.type) + promotionBonus(c.promotion),
     };
@@ -222,7 +252,7 @@ export function exchangeValue(position: Chess, target: Square, side: Color, dept
   if (!played) return 0;
   const opponent: Color = side === "w" ? "b" : "w";
   // The opponent recaptures only if it pays; hence max(0, ...).
-  const value = Math.max(0, capture.gained - exchangeValue(game, target, opponent, depth + 1));
+  const value = Math.max(0, capture.gained - exchangeValue(game, capture.to, opponent, depth + 1));
   game.undo();
   return value;
 }
@@ -258,7 +288,7 @@ export function see(game: Chess, target: Square, capturingColor: Color): number 
   }
   if (!played) return 0;
   const opponent: Color = capturingColor === "w" ? "b" : "w";
-  const value = capture.gained - exchangeValue(positioned, target, opponent, 1);
+  const value = capture.gained - exchangeValue(positioned, capture.to, opponent, 1);
   positioned.undo();
   return value;
 }

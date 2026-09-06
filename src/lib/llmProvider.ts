@@ -636,6 +636,22 @@ export async function* callLLMStream(
   if (anthropicAvailable) {
     try {
       for await (const ev of callAnthropicStream(opts.tier, opts)) {
+        // The streamed path (game review, follow-up chat) is the flagship's
+        // main road, and until 2026-09-06 it logged nothing on success — the
+        // only production line naming the model came from callLLM. Same
+        // fields as that line, so "which model served this review?" is one
+        // log search either way.
+        if (ev.type === "done") {
+          log.info("LLM stream completed via Anthropic", {
+            tier: opts.tier,
+            model: ev.result.model,
+            inputTokens: ev.result.inputTokens,
+            outputTokens: ev.result.outputTokens,
+            cacheCreationTokens: ev.result.cacheCreationTokens,
+            cacheReadTokens: ev.result.cacheReadTokens,
+            elapsedMs: ev.result.elapsedMs,
+          });
+        }
         yield ev;
       }
       return;
